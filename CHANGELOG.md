@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.25.1] - 2026-05-05
+
+> Adoption-blocker cohort for Windows: PATH refresh in installer, scripted toolchain bootstrap, triage filter flags, gitcrawl gh-only deferral docs.
+
 ### Fixed
 - **fix(triage): try uv before pipx in step_ensure_gitcrawl + structured deferred outcome + fallback docs (#901)** -- closes the adoption blocker where `task triage:bootstrap` step `ensure_gitcrawl` deferred silently on Windows. Users got no signal about the gh-only fallback or which fields would be missing from the cache. `scripts/triage_bootstrap.py::step_ensure_gitcrawl` now tries `uv tool install gitcrawl` BEFORE `pipx install gitcrawl` (uv is already a deft requirement); on both-installer failure (or neither installer present) it defers with a visible status line and a structured `StepOutcome` carrying `falling_back_to="gh-only"`, `missing_fields=["body_html", "reactions", "comments_full"]`, and `install_hint`. The status line is visible in normal `task triage:bootstrap` stdout, not buried in `--verbose`-only output. New `docs/gitcrawl-fallback.md` end-user maintainer doc covers the gh-only field gap, manual install commands (`uv tool install gitcrawl` / `pipx install gitcrawl`), and verifying gh-only mode after deferral. `skills/deft-directive-refinement/SKILL.md` Phase 0 gains a See-also link to the new doc. Adds 7 tests under the `test_step_ensure_gitcrawl_*` namespace in `tests/test_triage_bootstrap.py` covering the new install order, structured deferral, and status-line visibility. File-overlap with PR #908 (#900) is strictly disjoint by function: this PR owns `step_ensure_gitcrawl`; #900 owns `_build_parser` + `run_bootstrap` + the populate-flags paragraph in the refinement SKILL. Closes #901.
 - **fix(installer): refresh PATH from registry before/after silent git install on Windows (#899)** -- closes the adoption blocker where the Go installer would download and silently install Git for Windows on a clean machine, then immediately exit with `git installation completed but git was not found in PATH` because `cmd/deft-install/git.go::gitAvailable()` resolves git via `exec.LookPath` against the process startup PATH snapshot. The Git-for-Windows silent installer mutates the registry PATH (HKLM `System\CurrentControlSet\Control\Session Manager\Environment\Path` + HKCU `Environment\Path`) but the running deft-install process's environment block is unchanged, so the post-install re-check always failed on a clean Windows box. New Windows-only `cmd/deft-install/path_windows.go` introduces `refreshPathFromRegistry()` which reads both registry keys, merges system + user with system-first precedence, de-duplicates while preserving order (case-insensitive to match Windows filesystem semantics), and calls `os.Setenv("PATH", merged)`. Implementation uses vanilla `syscall` + `advapi32.dll` directly rather than pulling `golang.org/x/sys/windows/registry` so this fix introduces zero new module dependencies (the deft module currently has zero non-stdlib deps; the same pattern is already established in `cmd/deft-install/drives_windows.go`). Companion `cmd/deft-install/path_other.go` provides a non-Windows no-op stub so the package compiles cross-platform. `cmd/deft-install/git.go::EnsureGit` now calls the helper twice via a new `refreshPathFunc` function variable: once before the initial `gitAvailable()` probe and once after `installGitWindows` succeeds (before the re-check). Refresh errors are logged in debug mode only and never propagate -- the helper is best-effort. Public API of `gitAvailable` is unchanged. New `cmd/deft-install/path_windows_test.go` covers PATH merge dedup (exact and case-insensitive), system-first precedence, empty-fragment handling, ordering preservation, plus a live-system smoke test that exercises the real `advapi32` calling convention; new `cmd/deft-install/git_test.go` covers the wiring contract (refresh-before-initial-probe, refresh-between-install-and-recheck) and the non-Windows no-op stub. Shares the registry-key contract with the parallel `scripts/refresh-path.ps1` PowerShell helper landing under #902. Closes #899.
@@ -1166,7 +1178,8 @@ If you have custom scripts or references to deft files, update these paths:
 - Explore new interface guidelines if building CLIs, APIs, or UIs
 - Review enhanced language standards for Python, Go, TypeScript, and C++
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.25.1...HEAD
+[0.25.1]: https://github.com/deftai/directive/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/deftai/directive/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/deftai/directive/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/deftai/directive/compare/v0.22.0...v0.23.0
