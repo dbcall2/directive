@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.25.2] - 2026-05-05
+
+> Critical fix release for the v0.25.0/v0.25.1 P0 cache-bypass bug (#915). Bulk-* tasks re-enabled with cache-walking. All users should upgrade immediately.
+
+### Added
 - **triage: vbrief/.eval/ added to .gitignore; bootstrap ensures the line idempotently for upgrading projects (#915).**
 - **tests: integration test for triage v1 cache contract (tests/integration/test_triage_smoke.py); regression coverage for the #915 cache-bypass class.**
 
@@ -1185,7 +1197,8 @@ If you have custom scripts or references to deft files, update these paths:
 - Explore new interface guidelines if building CLIs, APIs, or UIs
 - Review enhanced language standards for Python, Go, TypeScript, and C++
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.25.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.25.2...HEAD
+[0.25.2]: https://github.com/deftai/directive/compare/v0.25.1...v0.25.2
 [0.25.1]: https://github.com/deftai/directive/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/deftai/directive/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/deftai/directive/compare/v0.23.0...v0.24.0
