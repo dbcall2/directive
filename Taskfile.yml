@@ -111,6 +111,15 @@ includes:
   framework:
     taskfile: ./tasks/framework.yml
     optional: true
+  # #883 Story 1 stub include. The fragment exposes its inner tasks
+  # (`issue:list` / `issue:view` / `issue:close` / `issue:edit`) under the
+  # `scm` namespace key, producing the canonical `scm:issue:*` surface in
+  # `task -l` with no doubled prefix. Forward-compat marker block lives at
+  # the top of `tasks/scm.yml`; the full scm:* namespace lives at #881 and
+  # replaces this stub wholesale when it lands.
+  scm:
+    taskfile: ./tasks/scm.yml
+    optional: true
   # Triage v1 fragment includes (#845 epic, Story 6 wiring).
   #
   # Four standalone fragments authored by stories A1, A3, A4, and A6
