@@ -30,6 +30,7 @@ import importlib
 import json
 import sys
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -154,7 +155,7 @@ class TestMain:
         # Mock subprocess.run so we can capture the exact argv the wrapper
         # would have run, then assert the [binary, namespace, verb, *extra]
         # shape matches AC-1.
-        captured: dict[str, object] = {}
+        captured: dict[str, Any] = {}
 
         def fake_run(cmd: list[str], check: bool = False, **kwargs: object) -> object:
             captured["cmd"] = cmd
@@ -210,7 +211,7 @@ class TestMain:
     def test_main_uses_ghx_when_available(self) -> None:
         # AC-4: ghx-then-gh fallback verified end-to-end via main(). When
         # ghx is on PATH, the dispatched argv MUST start with ghx.
-        captured: dict[str, object] = {}
+        captured: dict[str, Any] = {}
 
         def fake_run(cmd: list[str], check: bool = False, **kwargs: object) -> object:
             captured["cmd"] = cmd
