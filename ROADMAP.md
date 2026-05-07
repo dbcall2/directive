@@ -392,4 +392,8 @@ Larger feature work -- only after issues are resolved and content is stable.
 - **#914** -- task: triage:bootstrap doesn't pass --limit / --state / --label through to populate (#900) -- `[completed]`
 - **#915** -- P0: triage_bulk.py bypasses Tier-1 cache and Tier-2 audit log -- iterates live gh issue list (#845 Story 4) -- `[completed]`
 - **#915** -- fix(triage): disable bulk-* tasks pending v0.25.2 (#915 hot-fix) -- `[completed]`
+- **#952** -- fix(triage): bootstrap orchestrator hang post-cache:fetch-all (#952) + scrub --skip-gitcrawl (#951) -- `[completed]`
+- **#883** -- v0.26.0 cache-layer scale smoke re-run after #952 bootstrap-hang fix (#883) -- `[completed]`
+- **#947** -- feat(cache): size cap + LRU eviction + disk quota (#947) -- `[completed]`
+- **#949** -- fix(scanner): tune injection-heading detector to reduce false-positives on legitimate template markdown (#949) -- `[completed]`
 
