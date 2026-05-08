@@ -75,6 +75,18 @@ jobs:
       - name: Pytest with coverage
         run: uv run pytest tests/ --cov --cov-report=term-missing
 
+      # #975: the pyproject addopts default (`-m 'not slow'`) excludes the
+      # @pytest.mark.slow watchdog regression suite from the step above so
+      # default `task check` stays fast. CI MUST also exercise the slow
+      # lane -- the 6 marked tests are the regression pin for #952. The
+      # `-o addopts=` reset overrides the pyproject default; `-m slow`
+      # selects only the marked tests; coverage is intentionally NOT
+      # accumulated here because the slow lane re-exercises the same
+      # surface as the main step (the marker filters by wall-clock cost,
+      # not coverage scope).
+      - name: Pytest slow lane (@pytest.mark.slow tests, #975)
+        run: uv run pytest tests/ -o addopts= -m slow
+
   go:
     name: Go (test + build)
     runs-on: blacksmith-4vcpu-ubuntu-2404
