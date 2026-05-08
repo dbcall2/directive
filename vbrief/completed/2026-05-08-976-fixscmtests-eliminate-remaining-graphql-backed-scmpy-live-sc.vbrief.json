@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "fix(scm,tests): eliminate remaining GraphQL-backed scm.py / live SCM smoke bucket drain after #961",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "fix(scm,tests): eliminate remaining GraphQL-backed scm.py / live SCM smoke bucket drain after #961",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/976",
@@ -24,6 +24,6 @@
         "title": "Issue #976: fix(scm,tests): eliminate remaining GraphQL-backed scm.py / live SCM smoke bucket drain after #961"
       }
     ],
-    "updated": "2026-05-08T19:44:55Z"
+    "updated": "2026-05-08T22:25:15Z"
   }
 }
