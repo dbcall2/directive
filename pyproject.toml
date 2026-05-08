@@ -37,7 +37,7 @@ tmp_path_retention_count = 0  # Prevent WinError 448: pytest-current symlink cle
 # and the follow-up refactor tracker for the proper monkeypatch-based
 # fix that retires the slow markers.
 markers = [
-    "slow: tests that exceed ~0.5s wall-clock (e.g. real-time watchdog joins). Skipped by default; run via `task check:slow`. See CONTRIBUTING.md for the convention. (#975)",
+    "slow: tests that exceed ~1s wall-clock (e.g. real-time watchdog joins). Skipped by default; run via `task check:slow`. See CONTRIBUTING.md for the convention. (#975)",
 ]
 addopts = "-m 'not slow'"
 

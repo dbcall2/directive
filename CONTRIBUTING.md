@@ -109,7 +109,7 @@ task check    # runs: validate + lint + test
 
 ### Slow tests (#975)
 
-Deft uses a `slow` pytest marker to keep `task check` fast on tight-loop iteration. Tests whose wall-clock exceeds ~0.5s (e.g. real `time.sleep` / thread-join waits in the watchdog regression suite) are marked with `@pytest.mark.slow` and **excluded by default** from `task check` via `addopts = "-m 'not slow'"` in `pyproject.toml`.
+Deft uses a `slow` pytest marker to keep `task check` fast on tight-loop iteration. Tests that exceed ~1s wall-clock (e.g. real `time.sleep` / thread-join waits in the watchdog regression suite) are marked with `@pytest.mark.slow` and **excluded by default** from `task check` via `addopts = "-m 'not slow'"` in `pyproject.toml`. The current marker users in `tests/integration/test_triage_bootstrap_at_scale.py` and `tests/test_triage_bootstrap.py` range from ~0.5s to ~1.9s; the **1s threshold is the contributor decision point**, not a hard floor on which existing tests qualify.
 
 ```bash
 task check        # default lane -- skips @pytest.mark.slow tests (fast)
