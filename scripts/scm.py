@@ -235,6 +235,14 @@ def _run_rest_view(extra: list[str]) -> int:
     never touches GraphQL. Emits the REST response (filtered to
     ``--json`` fields if provided) to stdout as JSON, mirroring the
     legacy gh stdout contract callers consume.
+
+    Unknown flags (anything beginning with ``-`` after stripping the
+    consumed ``--repo`` / ``--json``) are rejected loudly so an
+    operator-side typo (e.g. ``--state closed`` accidentally passed to
+    ``issue view``) surfaces immediately rather than being silently
+    ignored. Greptile P2 (#976 review): the prior implementation kept
+    these tokens in ``extra`` after extraction and never inspected
+    them again; the user got an unrelated successful response.
     """
     repo, extra = _extract_value_flag(extra, "--repo")
     json_spec, extra = _extract_value_flag(extra, "--json")
@@ -244,6 +252,15 @@ def _run_rest_view(extra: list[str]) -> int:
     # The remaining positional arg (after stripping --repo/--json) is the
     # issue number. Reject extra unknown flags loudly so a typo is caught.
     positionals = [t for t in extra if not t.startswith("-")]
+    leftover_flags = [t for t in extra if t.startswith("-")]
+    if leftover_flags:
+        print(
+            f"error: --rest issue view does not recognise these flags: "
+            f"{leftover_flags!r}. Supported flags are --repo, --json. "
+            "Mutations / additional read filters belong on #881.",
+            file=sys.stderr,
+        )
+        return 2
     if len(positionals) != 1:
         print(
             "error: --rest issue view expects exactly one positional issue "
@@ -275,17 +292,40 @@ def _run_rest_list(extra: list[str]) -> int:
     """Dispatch ``scm.py issue list --rest --repo X [...flags]``.
 
     Supported flags: ``--state {open|closed|all}`` (default open),
-    ``--label NAME[,NAME...]`` (comma-separated label filter),
-    ``--limit N`` (REST per_page, default 30), ``--json field1,field2``
-    (project the response onto the named keys, list-aware).
+    ``--label NAME[,NAME...]`` (comma-separated label filter; multi-flag
+    repetition `--label A --label B` is also accepted and merged into
+    the same filter set), ``--limit N`` (REST per_page, default 30),
+    ``--json field1,field2`` (project the response onto the named keys,
+    list-aware).
+
+    Unknown flags after stripping the consumed flag set are rejected
+    loudly (Greptile P2 #976 review): the prior implementation silently
+    dropped any leftover ``--foo`` token, which produced subtly wrong
+    behaviour (e.g. a typo'd ``--label-name`` was ignored without error).
 
     Routes through :func:`scripts.gh_rest.rest_issue_list`.
     """
     repo, extra = _extract_value_flag(extra, "--repo")
     state, extra = _extract_value_flag(extra, "--state", default="open")
     json_spec, extra = _extract_value_flag(extra, "--json")
-    label, extra = _extract_value_flag(extra, "--label")
+    # --label may appear multiple times; collect all occurrences and
+    # merge with comma-separated values from any single occurrence.
+    label_values: list[str] = []
+    while True:
+        label_part, extra = _extract_value_flag(extra, "--label")
+        if label_part is None:
+            break
+        label_values.append(label_part)
     limit_str, extra = _extract_value_flag(extra, "--limit", default="30")
+    leftover_flags = [t for t in extra if t.startswith("-")]
+    if leftover_flags:
+        print(
+            f"error: --rest issue list does not recognise these flags: "
+            f"{leftover_flags!r}. Supported flags are --repo, --state, "
+            "--label, --limit, --json. Additional filters belong on #881.",
+            file=sys.stderr,
+        )
+        return 2
     if not repo:
         print("error: --rest issue list requires --repo OWNER/NAME", file=sys.stderr)
         return 2
@@ -298,8 +338,11 @@ def _run_rest_list(extra: list[str]) -> int:
         )
         return 2
     labels: tuple[str, ...] = tuple(
-        item.strip() for item in label.split(",") if item.strip()
-    ) if label else ()
+        item.strip()
+        for value in label_values
+        for item in value.split(",")
+        if item.strip()
+    )
     gh_rest = importlib.import_module("gh_rest")
     assert state is not None  # default ensures non-None
     try:

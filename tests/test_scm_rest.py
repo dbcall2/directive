@@ -188,6 +188,23 @@ class TestRestViewDispatch:
         assert rc == 2
         assert "must be an integer" in capsys.readouterr().err
 
+    def test_main_rest_view_unknown_flag_rejected(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Greptile P2 (#976 review): unknown flags beyond --repo/--json
+        # are now rejected loudly. Pre-fix, `--state closed` accidentally
+        # passed to `issue view` was silently dropped and the user got
+        # an unrelated successful response.
+        rc = scm.main([
+            "issue", "view", "--rest", "1",
+            "--repo", "deftai/directive",
+            "--state", "closed",
+        ])
+        assert rc == 2
+        err = capsys.readouterr().err
+        assert "does not recognise these flags" in err
+        assert "--state" in err
+
     def test_main_rest_view_helper_error_returns_1(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
@@ -277,6 +294,90 @@ class TestRestListDispatch:
         ])
         assert rc == 2
         assert "--limit must be an integer" in capsys.readouterr().err
+
+    def test_main_rest_list_unknown_flag_rejected(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Greptile P2 (#976 review): unknown flags after stripping the
+        # consumed flag set are rejected loudly so a typo'd `--label-name`
+        # does not silently produce wrong filter results.
+        rc = scm.main([
+            "issue", "list", "--rest",
+            "--repo", "deftai/directive",
+            "--unknown-flag", "x",
+        ])
+        assert rc == 2
+        err = capsys.readouterr().err
+        assert "does not recognise these flags" in err
+        assert "--unknown-flag" in err
+
+    def test_main_rest_list_repeated_label_flags_merge(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Greptile P2 (#976 review): repeated --label flags now merge
+        # into a single labels filter instead of silently dropping all
+        # but the first occurrence. Mirrors gh CLI's multi-flag
+        # convention (`gh issue list --label A --label B`).
+        captured: dict[str, Any] = {}
+
+        def fake_list(
+            repo: str,
+            *,
+            state: str = "open",
+            labels: tuple[str, ...] = (),
+            per_page: int = 30,
+        ) -> list[dict[str, Any]]:
+            captured["labels"] = labels
+            return []
+
+        with mock.patch.object(scm.importlib, "import_module") as imp:
+            imp.return_value = SimpleNamespace(
+                rest_issue_list=fake_list,
+                GhRestError=gh_rest.GhRestError,
+            )
+            rc = scm.main([
+                "issue", "list", "--rest",
+                "--repo", "deftai/directive",
+                "--label", "bug",
+                "--label", "enhancement",
+            ])
+        assert rc == 0
+        # All three repeated --label values flow through; comma-form
+        # values still split per existing contract.
+        assert captured["labels"] == ("bug", "enhancement")
+        capsys.readouterr()  # drain stdout
+
+    def test_main_rest_list_mixed_repeated_and_comma_label(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Belt-and-suspenders: repeated --label AND comma-separated
+        # values within one --label compose; documented behaviour of
+        # the new merge logic.
+        captured: dict[str, Any] = {}
+
+        def fake_list(
+            repo: str,
+            *,
+            state: str = "open",
+            labels: tuple[str, ...] = (),
+            per_page: int = 30,
+        ) -> list[dict[str, Any]]:
+            captured["labels"] = labels
+            return []
+
+        with mock.patch.object(scm.importlib, "import_module") as imp:
+            imp.return_value = SimpleNamespace(
+                rest_issue_list=fake_list,
+                GhRestError=gh_rest.GhRestError,
+            )
+            scm.main([
+                "issue", "list", "--rest",
+                "--repo", "deftai/directive",
+                "--label", "bug,p0",
+                "--label", "enhancement",
+            ])
+        assert captured["labels"] == ("bug", "p0", "enhancement")
+        capsys.readouterr()
 
 
 class TestRestRejectsMutations:

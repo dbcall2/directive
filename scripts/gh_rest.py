@@ -14,12 +14,13 @@ documented as prose in ``meta/lessons.md`` (`## gh CLI GraphQL Bucket
 Exhaustion + REST Fallback + UTF-8 Payload Pattern (2026-05)`) but lived
 nowhere in code.
 
-This module reifies the pattern as seven typed Python helpers so skills,
-swarm, triage, and ad-hoc scripts can call structured functions instead of
-inlining the JSON-payload incantation per call site. The REST routing also
-fixes the recurring PowerShell 5.1 mojibake hazard (#236 / #240 / #283 /
-PR #795 / #798) at one site rather than N sites: every helper builds the
-JSON wrapper via Python ``pathlib`` UTF-8.
+This module reifies the pattern as eight typed Python helpers (seven from
+#961 plus :func:`rest_issue_list` from #976) so skills, swarm, triage, and
+ad-hoc scripts can call structured functions instead of inlining the
+JSON-payload incantation per call site. The REST routing also fixes the
+recurring PowerShell 5.1 mojibake hazard (#236 / #240 / #283 / PR #795 /
+#798) at one site rather than N sites: every helper builds the JSON
+wrapper via Python ``pathlib`` UTF-8.
 
 Public surface
 --------------
@@ -140,9 +141,9 @@ import scm  # noqa: E402
 #: scripts/release.py (60s) so a hung gh process never wedges the caller.
 DEFAULT_TIMEOUT_S: int = 60
 
-#: Public surface -- the seven helpers exported by this module per the
-#: issue #961 acceptance criteria. The module-level test
-#: TestPublicSurfaceContract pins this set; adding a helper requires
+#: Public surface -- the eight helpers exported by this module (seven
+#: from #961 plus :func:`rest_issue_list` from #976). The module-level
+#: test TestPublicSurfaceContract pins this set; adding a helper requires
 #: updating the test in lockstep.
 PUBLIC_HELPERS: tuple[str, ...] = (
     "rest_create_issue",
@@ -241,7 +242,7 @@ def _run_gh_api(
 
     Tests monkeypatch this function (``gh_rest._run_gh_api``) instead of
     patching ``subprocess.run`` for each helper -- one seam, hermetic
-    coverage of all seven helpers.
+    coverage of every helper that flows through ``_exec``.
 
     The binary is resolved via ``scm.resolve_binary`` (ghx -> gh ladder
     per #884). The argv passed in is ``["api", *args]`` -- callers do NOT
