@@ -61,8 +61,14 @@ SMOKE_ISSUE = "1"
 #: this the smoke skips cleanly with a clear reason.
 _MIN_CORE_BUDGET = 10
 
-
-pytestmark = pytest.mark.skipif(
+#: Skip-marker reused on every test that touches the live network.
+#: Greptile P1 #998 review at 367748e: a module-level ``pytestmark``
+#: would cascade to every class in this file, including the hermetic
+#: ``TestProbeRateLimitMalformedPayloads`` class which monkeypatches
+#: ``subprocess.run`` and never touches the network. Applying the
+#: skip per-test instead lets the regression coverage run in CI lanes
+#: that set ``DEFT_NO_NETWORK=1``.
+_NETWORK_SKIP = pytest.mark.skipif(
     os.environ.get("DEFT_NO_NETWORK") == "1",
     reason="DEFT_NO_NETWORK=1 disables network-dependent integration tests",
 )
@@ -158,6 +164,7 @@ def _probe_rate_limit() -> dict[str, int] | None:
         return None
 
 
+@_NETWORK_SKIP
 @pytest.mark.skipif(
     not _binary_available(),
     reason="neither ghx nor gh on PATH; skipping live smoke",

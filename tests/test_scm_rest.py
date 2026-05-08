@@ -224,6 +224,7 @@ class TestRestViewDispatch:
             imp.return_value = SimpleNamespace(
                 rest_issue_view=boom,
                 GhRestError=gh_rest.GhRestError,
+                InvalidRepoError=gh_rest.InvalidRepoError,
             )
             rc = scm.main([
                 "issue", "view", "--rest", "9999999",
@@ -231,6 +232,31 @@ class TestRestViewDispatch:
             ])
         assert rc == 1
         assert "HTTP 404" in capsys.readouterr().err
+
+    def test_main_rest_view_invalid_repo_error_returns_2(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Greptile P1 (#998 review at 367748e): InvalidRepoError is a
+        # ValueError subclass raised by gh_rest._split_repo when --repo
+        # lacks the OWNER/NAME shape. Pre-fix the dispatcher only caught
+        # GhRestError so a malformed --repo (e.g. missing the owner
+        # prefix) produced an unhandled traceback. The fix is to ALSO
+        # catch InvalidRepoError and return exit 2 with a clean error.
+        def boom(repo: str, n: int) -> dict[str, Any]:
+            raise gh_rest.InvalidRepoError(repo)
+
+        with mock.patch.object(scm.importlib, "import_module") as imp:
+            imp.return_value = SimpleNamespace(
+                rest_issue_view=boom,
+                GhRestError=gh_rest.GhRestError,
+                InvalidRepoError=gh_rest.InvalidRepoError,
+            )
+            rc = scm.main([
+                "issue", "view", "--rest", "1",
+                "--repo", "directive",  # missing owner prefix
+            ])
+        assert rc == 2
+        assert "invalid --repo value" in capsys.readouterr().err
 
 
 class TestRestListDispatch:
@@ -294,6 +320,35 @@ class TestRestListDispatch:
         ])
         assert rc == 2
         assert "--limit must be an integer" in capsys.readouterr().err
+
+    def test_main_rest_list_invalid_repo_error_returns_2(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Greptile P1 (#998 review at 367748e): mirror of the
+        # _run_rest_view InvalidRepoError test -- _run_rest_list
+        # also calls _split_repo and must surface InvalidRepoError
+        # as a clean exit 2 instead of an uncaught traceback.
+        def boom(
+            repo: str,
+            *,
+            state: str = "open",
+            labels: tuple[str, ...] = (),
+            per_page: int = 30,
+        ) -> list[dict[str, Any]]:
+            raise gh_rest.InvalidRepoError(repo)
+
+        with mock.patch.object(scm.importlib, "import_module") as imp:
+            imp.return_value = SimpleNamespace(
+                rest_issue_list=boom,
+                GhRestError=gh_rest.GhRestError,
+                InvalidRepoError=gh_rest.InvalidRepoError,
+            )
+            rc = scm.main([
+                "issue", "list", "--rest",
+                "--repo", "directive",  # missing owner prefix
+            ])
+        assert rc == 2
+        assert "invalid --repo value" in capsys.readouterr().err
 
     def test_main_rest_list_unknown_flag_rejected(
         self, capsys: pytest.CaptureFixture[str]

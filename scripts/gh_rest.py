@@ -254,6 +254,18 @@ def _run_gh_api(
         cmd,
         capture_output=True,
         text=True,
+        # Pin UTF-8 explicitly so issue bodies / comments containing
+        # non-ASCII bytes (em dashes, smart quotes, emoji) round-trip
+        # cleanly on every platform. Without this, Python on Windows
+        # falls back to cp1252 which raises ``UnicodeDecodeError`` on
+        # bytes >= 0x80 inside the subprocess reader thread, leaving
+        # ``stdout`` empty and the helper to return ``{}`` silently --
+        # a mode that breaks the live smoke against any GitHub issue
+        # containing UTF-8 glyphs (Greptile P1 #998 review at 367748e
+        # surfaced this when the per-test skip-marker change exposed
+        # the latent Windows-only failure).
+        encoding="utf-8",
+        errors="replace",
         timeout=timeout,
         check=False,
         env=os.environ.copy(),

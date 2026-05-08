@@ -279,6 +279,15 @@ def _run_rest_view(extra: list[str]) -> int:
     gh_rest = importlib.import_module("gh_rest")
     try:
         response = gh_rest.rest_issue_view(repo, issue_n)
+    except gh_rest.InvalidRepoError as exc:
+        # InvalidRepoError is a ValueError subclass raised by
+        # gh_rest._split_repo when --repo lacks the OWNER/NAME shape
+        # (e.g. ``--repo directive`` instead of ``--repo deftai/directive``).
+        # Treat it as an arg-validation failure (exit 2) so the user
+        # sees a clean error rather than an uncaught traceback.
+        # Greptile P1 #998 review at 367748e.
+        print(f"error: invalid --repo value: {exc}", file=sys.stderr)
+        return 2
     except gh_rest.GhRestError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -365,6 +374,12 @@ def _run_rest_list(extra: list[str]) -> int:
         response = gh_rest.rest_issue_list(
             repo, state=state, labels=labels, per_page=per_page
         )
+    except gh_rest.InvalidRepoError as exc:
+        # See _run_rest_view for rationale; same gap (Greptile P1 #998
+        # review at 367748e) -- _split_repo validation must surface as
+        # exit 2 with a clean message, not an uncaught traceback.
+        print(f"error: invalid --repo value: {exc}", file=sys.stderr)
+        return 2
     except gh_rest.GhRestError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
