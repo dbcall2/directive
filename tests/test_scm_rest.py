@@ -335,25 +335,25 @@ class TestRestFallsBackOnGraphqlExhaustion:
             )
             if endpoint == "rate_limit":
                 # The fake gh reports graphql exhausted, core healthy.
-                body = {
+                rate_body: dict[str, Any] = {
                     "resources": {
                         "core": {"remaining": 4998, "limit": 5000},
                         "graphql": {"remaining": 0, "limit": 5000},
                     }
                 }
                 return SimpleNamespace(
-                    returncode=0, stdout=json.dumps(body), stderr=""
+                    returncode=0, stdout=json.dumps(rate_body), stderr=""
                 )
             # GET /repos/.../issues/N -- REST issue view shape.
             if endpoint.startswith("repos/") and "/issues/" in endpoint:
-                body = {
+                issue_body: dict[str, Any] = {
                     "number": 1,
                     "title": "REST migration smoke",
                     "state": "open",
                     "user": {"login": "octocat"},
                 }
                 return SimpleNamespace(
-                    returncode=0, stdout=json.dumps(body), stderr=""
+                    returncode=0, stdout=json.dumps(issue_body), stderr=""
                 )
             return SimpleNamespace(
                 returncode=1, stdout="", stderr=f"unexpected endpoint: {endpoint}"
