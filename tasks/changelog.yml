@@ -1,0 +1,26 @@
+version: '3'
+
+vars:
+  DEFT_ROOT: '{{joinPath .TASKFILE_DIR ".."}}'
+
+# Surface for the CHANGELOG.md union-merge helper (#911).
+#
+# Wraps scripts/resolve_changelog_unreleased.py, the canonical swarm-cascade
+# Phase 6 Step 1 helper that replaces the older HEAD-take-and-discard pattern
+# silently dropping rebasing-branch CHANGELOG entries on every cascade rebase.
+# See skills/deft-directive-swarm/SKILL.md Phase 6 Step 1 for the manual-
+# fallback contract -- this task is the canonical-path alternative.
+#
+# Per `conventions/task-caching.md` (#574): no `sources:` / `generates:`
+# because the task forwards user-facing flags via {{.CLI_ARGS}} (notably
+# --changelog-path / --dry-run / --quiet). The cached `cmds:` skip would
+# silently discard a recovery flag, and the helper is fast enough that a
+# real-time invocation does not need incremental-build caching.
+tasks:
+  resolve-unreleased:
+    desc: "Union-merge CHANGELOG.md [Unreleased] conflicts (#911) -- task changelog:resolve-unreleased [-- --changelog-path PATH] [--dry-run]"
+    dir: '{{.USER_WORKING_DIR}}'
+    env:
+      PYTHONUTF8: "1"
+    cmds:
+      - uv run python "{{.DEFT_ROOT}}/scripts/resolve_changelog_unreleased.py" {{.CLI_ARGS}}

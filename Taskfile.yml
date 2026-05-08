@@ -161,6 +161,16 @@ includes:
   setup:
     taskfile: ./tasks/setup.yml
     optional: true
+  # CHANGELOG.md union-merge helper (#911). Exposes
+  # `task changelog:resolve-unreleased` -- the canonical swarm-cascade Phase 6
+  # Step 1 surface that replaces the older HEAD-take-and-discard pattern that
+  # silently dropped rebasing-branch CHANGELOG entries on every cascade rebase.
+  # See skills/deft-directive-swarm/SKILL.md Phase 6 Step 1 for the manual-
+  # fallback contract; the include is `optional: true` so the parent Taskfile
+  # parses cleanly when the fragment is absent (rolling-merge tolerance).
+  changelog:
+    taskfile: ./tasks/changelog.yml
+    optional: true
 
 tasks:
   default:
