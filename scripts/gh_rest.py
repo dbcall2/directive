@@ -667,8 +667,12 @@ def rest_issue_list(
     owner, name = _split_repo(repo)
     endpoint = f"repos/{owner}/{name}/issues"
     # gh api accepts repeated -F / --raw-field for query-string params;
-    # we use --raw-field for state / per_page and -F for labels (joined
-    # comma-separated per the REST contract).
+    # we use --raw-field uniformly (string-typed) for state / per_page /
+    # labels per the REST contract. The labels filter is joined comma-
+    # separated per GitHub's documented multi-label query convention.
+    # SLizard P3 (#998 review): the prior comment claimed `-F for labels`
+    # but the implementation has always used --raw-field; comment
+    # corrected to match.
     args: list[str] = [endpoint, "--method", "GET"]
     args.extend(["--raw-field", f"state={state}"])
     args.extend(["--raw-field", f"per_page={per_page}"])
