@@ -37,6 +37,7 @@ import os
 import shutil
 import subprocess
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -108,6 +109,15 @@ def _probe_rate_limit() -> dict[str, int] | None:
     ``ghx api rate_limit``: ghx is a cached read-only proxy whose
     cached value can be stale under N concurrent workers between probe
     and use, defeating the throttle.
+
+    Defensive against malformed payloads (Greptile P1 #998 review at
+    feab4a8): every parsing step that could raise ``AttributeError`` /
+    ``TypeError`` / ``ValueError`` (e.g. ``resources`` is JSON ``null``
+    instead of an object, ``core`` is null, or ``remaining`` is non-
+    numeric) is wrapped so the contract "return None on any probe
+    failure" actually holds. Without this, the smoke would surface a
+    hard test error on indeterminate API state instead of the intended
+    soft skip.
     """
     if shutil.which("gh") is None:
         return None
@@ -126,13 +136,26 @@ def _probe_rate_limit() -> dict[str, int] | None:
         body = json.loads(proc.stdout)
     except json.JSONDecodeError:
         return None
-    resources = body.get("resources", {}) if isinstance(body, dict) else {}
-    core = resources.get("core", {})
-    graphql = resources.get("graphql", {})
-    return {
-        "core": int(core.get("remaining", 0)),
-        "graphql": int(graphql.get("remaining", 0)),
-    }
+    # Wrap the entire resource-extraction block: a malformed payload
+    # (resources=null, core=null, graphql=null, non-numeric remaining,
+    # ...) MUST yield None per the docstring contract rather than
+    # propagate AttributeError / TypeError / ValueError up the stack.
+    try:
+        if not isinstance(body, dict):
+            return None
+        resources = body.get("resources")
+        if not isinstance(resources, dict):
+            return None
+        core = resources.get("core")
+        graphql = resources.get("graphql")
+        if not isinstance(core, dict) or not isinstance(graphql, dict):
+            return None
+        return {
+            "core": int(core.get("remaining", 0)),
+            "graphql": int(graphql.get("remaining", 0)),
+        }
+    except (AttributeError, TypeError, ValueError):
+        return None
 
 
 @pytest.mark.skipif(
@@ -196,3 +219,134 @@ def test_scm_issue_view_rest_returns_nonempty_json() -> None:
     assert "number" in parsed and isinstance(parsed["number"], int)
     assert parsed["number"] == int(SMOKE_ISSUE)
     assert "title" in parsed and isinstance(parsed["title"], str) and parsed["title"]
+
+
+# ---------------------------------------------------------------------------
+# Hermetic unit tests for _probe_rate_limit malformed-payload paths
+# (Greptile P1 #998 review at feab4a8). These tests do NOT touch the
+# network -- they monkeypatch shutil.which / subprocess.run so the
+# pytestmark skip-on-DEFT_NO_NETWORK at module level still allows them
+# to run in any local dev environment.
+# ---------------------------------------------------------------------------
+
+
+class TestProbeRateLimitMalformedPayloads:
+    """``_probe_rate_limit`` returns ``None`` on every malformed-payload edge case.
+
+    Pre-fix the function would raise ``AttributeError`` on
+    ``resources=null`` / ``core=null`` etc. because ``dict.get(key,
+    default)`` returns ``None`` (not the default) when the key exists
+    with a literal-null value, then ``None.get(...)`` blows up. The
+    docstring contract is "return None on any probe failure"; these
+    tests pin every codepath to that contract.
+    """
+
+    @staticmethod
+    def _fake_proc(stdout: str, returncode: int = 0) -> types.SimpleNamespace:
+        return types.SimpleNamespace(
+            returncode=returncode, stdout=stdout, stderr=""
+        )
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            # Top-level body is not a dict.
+            "null",
+            "[1, 2, 3]",
+            '"a string"',
+            # Top-level dict but resources is JSON null.
+            '{"resources": null}',
+            # resources is not a dict.
+            '{"resources": [1, 2]}',
+            '{"resources": "string"}',
+            # core is null.
+            '{"resources": {"core": null, "graphql": {"remaining": 5000}}}',
+            # graphql is null.
+            '{"resources": {"core": {"remaining": 5000}, "graphql": null}}',
+            # core is not a dict.
+            '{"resources": {"core": [1, 2], "graphql": {"remaining": 5000}}}',
+            # remaining is non-numeric (int() raises ValueError).
+            '{"resources": {"core": {"remaining": "NaN"},'
+            ' "graphql": {"remaining": 5000}}}',
+            # remaining is missing on one bucket -- default 0 is fine,
+            # this case should NOT trip the guard. Asserted separately.
+        ],
+    )
+    def test_malformed_payload_returns_none(
+        self, monkeypatch: pytest.MonkeyPatch, payload: str
+    ) -> None:
+        # Pin shutil.which so the gh-not-on-PATH early return is bypassed.
+        monkeypatch.setattr(shutil, "which", lambda _binary: "/usr/bin/gh")
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *_a, **_kw: self._fake_proc(payload),
+        )
+        assert _probe_rate_limit() is None
+
+    def test_well_formed_payload_returns_dict(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Belt-and-suspenders: confirm the happy path still returns the
+        # parsed remaining values and is unaffected by the new guards.
+        payload = (
+            '{"resources": {"core": {"remaining": 4998},'
+            ' "graphql": {"remaining": 4500}}}'
+        )
+        monkeypatch.setattr(shutil, "which", lambda _binary: "/usr/bin/gh")
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *_a, **_kw: self._fake_proc(payload),
+        )
+        assert _probe_rate_limit() == {"core": 4998, "graphql": 4500}
+
+    def test_missing_remaining_key_uses_default_zero(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # ``remaining`` missing on either bucket falls back to 0 (the
+        # caller treats 0 < _MIN_CORE_BUDGET as "depleted" and skips
+        # cleanly). This is the documented graceful-degradation path,
+        # NOT a hard error.
+        payload = '{"resources": {"core": {}, "graphql": {}}}'
+        monkeypatch.setattr(shutil, "which", lambda _binary: "/usr/bin/gh")
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *_a, **_kw: self._fake_proc(payload),
+        )
+        assert _probe_rate_limit() == {"core": 0, "graphql": 0}
+
+    def test_subprocess_oserror_returns_none(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Already covered pre-fix; pinning here so refactors that move
+        # the OSError catch don't regress the contract.
+        def boom(*_a: object, **_kw: object) -> object:
+            raise OSError("network down")
+
+        monkeypatch.setattr(shutil, "which", lambda _binary: "/usr/bin/gh")
+        monkeypatch.setattr(subprocess, "run", boom)
+        assert _probe_rate_limit() is None
+
+    def test_non_zero_returncode_returns_none(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(shutil, "which", lambda _binary: "/usr/bin/gh")
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *_a, **_kw: self._fake_proc("unauthenticated", returncode=4),
+        )
+        assert _probe_rate_limit() is None
+
+    def test_invalid_json_returns_none(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(shutil, "which", lambda _binary: "/usr/bin/gh")
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *_a, **_kw: self._fake_proc("not-json{{"),
+        )
+        assert _probe_rate_limit() is None
