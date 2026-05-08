@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #979"
+    "description": "Scope vBRIEF ingested from GitHub issue #979",
+    "updated": "2026-05-08T21:02:18Z"
   },
   "plan": {
     "title": "docs: surface refinement/triage workflow to end users (Phase 0 / cache / ingest)",
-    "status": "pending",
+    "status": "running",
     "narratives": {
       "Description": "docs: surface refinement/triage workflow to end users (Phase 0 / cache / ingest)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/979",

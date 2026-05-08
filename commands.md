@@ -246,6 +246,35 @@ See also: [README.md — Document Generation & vBRIEF Tooling](./README.md#-docu
 
 ---
 
+## Backlog triage & cache tasks
+
+User-facing surface for the **Phase 0 triage workflow** (refinement skill) and the **unified content cache** (#883). Use these to walk an existing backlog locally without draining the shared GitHub GraphQL bucket. End-to-end walkthrough lives in [`docs/getting-started.md` § Working an existing backlog](./docs/getting-started.md#working-an-existing-backlog); the canonical agent-facing description is in `skills/deft-directive-refinement/SKILL.md` Phase 0.
+
+### Triage tasks
+
+- `task triage:bootstrap -- [--repo OWNER/NAME] [--limit N] [--state {open|closed|all}] [--batch-size N] [--delay-ms N]` — **Seed the local triage cache for the first time.** Runs `cache:fetch-all` for the configured source, backfills the audit log from existing lifecycle folders, and ensures `.deft-cache/` and `vbrief/.eval/` are gitignored. Idempotent; re-runs skip fresh cache entries.
+- `task triage:accept -- <issue>` — **Accept a candidate.** Appends an `accept` record to `vbrief/.eval/candidates.jsonl` and delegates to `task issue:ingest` so a scope vBRIEF lands in `vbrief/proposed/` with the canonical slug + references shape. Idempotent on re-accept.
+- `task triage:reject -- <issue> [--reason "why"]` — **Reject a candidate.** Appends a `reject` audit-log record, closes the upstream GitHub issue with the reason, and applies the `triage-rejected` label. Audit entry rolls back if the upstream close fails.
+- `task triage:defer -- <issue>` — **Defer a candidate (non-terminal).** Records a `defer` audit-log entry; the candidate resurfaces on the next Phase 0 pass.
+- `task triage:needs-ac -- <issue>` — **Flag a candidate as missing acceptance criteria (non-terminal).** Records a `needs-ac` audit-log entry and posts a comment on the upstream issue requesting AC.
+- `task triage:mark-duplicate -- <issue> <of-issue>` — **Mark a candidate as a duplicate (terminal).** Cross-links the duplicate target via the audit log and the upstream issue.
+- `task triage:bulk-accept|bulk-reject|bulk-defer|bulk-needs-ac -- [--label L] [--author A] [--age-days N] [--cluster K]` — **Bulk verbs for predictable patterns.** Combinable AND-semantics filters loop through the matching cached candidates and dispatch the per-issue action through the same audit-log path. Zero-match exits clean.
+- `task triage:refresh-active` — **Pre-swarm freshness gate.** Walks `vbrief/active/*.vbrief.json`, compares each cached `meta.json.fetched_at` against a live `gh issue view --json updatedAt`, and surfaces drift via a three-way prompt (proceed-with-stale / refresh-and-update-local / defer-from-this-batch). Run before dispatching a swarm.
+- `task triage:status -- <issue>` — Show the latest decision for a single issue.
+- `task triage:history -- <issue>` — Show the full decision history for a single issue (reset chains included).
+- `task triage:reset -- <issue>` — Append a `reset` record so a prior decision can be revisited; history is never deleted.
+
+### Cache tasks
+
+- `task cache:fetch-all -- --source=github-issue --repo OWNER/NAME [--limit N] [--state {open|closed|all}] [--batch-size N] [--delay-ms N]` — **Populate or refresh the unified content cache.** Idempotent (fresh entries within TTL are skipped). Batched delays plus automatic 429 retries via the upstream `Retry-After` header keep the populate inside the REST budget. Layout: `.deft-cache/<source>/<owner>/<repo>/<N>/{raw.json, content.md, meta.json}`.
+- `task cache:get -- <source> <key>` — **Read a single cache entry.** Validates `meta.json` against the frozen `vbrief/schemas/cache-meta.schema.json` schema and returns the cached content. Marks `stale` when the entry is past its TTL but does not auto-refresh.
+- `task cache:invalidate -- <source> <key>` — **Delete one cache entry and append an audit record.** Idempotent.
+- `task cache:prune -- [--source S] [--older-than-days N] [--dry-run] [--to-cap]` — **Drop expired entries, run LRU eviction to cap, or preview either.** Honors `DEFT_CACHE_MAX_BYTES` / `DEFT_CACHE_MAX_ENTRIES` quotas (defaults 100 MB / 10 000 entries; `0` disables either).
+
+For the surrounding workflow — trigger words, three-tier inventory model (cache → audit log → accepted backlog), the deterministic numbered action menu, and the rationale behind the scoped flags — see [`docs/getting-started.md` § Working an existing backlog](./docs/getting-started.md#working-an-existing-backlog).
+
+---
+
 ## Anti-Patterns
 
 - ⊗ Creating a change without a proposal (jumping straight to code)
