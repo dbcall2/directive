@@ -1,0 +1,24 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6",
+    "description": "Scope vBRIEF ingested from GitHub issue #911"
+  },
+  "plan": {
+    "title": "swarm cascade: CHANGELOG.md [Unreleased] conflict resolution should union-merge, not HEAD-take",
+    "status": "pending",
+    "narratives": {
+      "Description": "swarm cascade: CHANGELOG.md [Unreleased] conflict resolution should union-merge, not HEAD-take",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/911",
+      "Labels": "enhancement, adoption-blocker"
+    },
+    "items": [],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/911",
+        "type": "x-vbrief/github-issue",
+        "title": "Issue #911: swarm cascade: CHANGELOG.md [Unreleased] conflict resolution should union-merge, not HEAD-take"
+      }
+    ],
+    "updated": "2026-05-08T17:12:12Z"
+  }
+}

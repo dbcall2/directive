@@ -1,0 +1,24 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6",
+    "description": "Scope vBRIEF ingested from GitHub issue #976"
+  },
+  "plan": {
+    "title": "fix(scm,tests): eliminate remaining GraphQL-backed scm.py / live SCM smoke bucket drain after #961",
+    "status": "pending",
+    "narratives": {
+      "Description": "fix(scm,tests): eliminate remaining GraphQL-backed scm.py / live SCM smoke bucket drain after #961",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/976",
+      "Labels": "adoption blocker"
+    },
+    "items": [],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/976",
+        "type": "x-vbrief/github-issue",
+        "title": "Issue #976: fix(scm,tests): eliminate remaining GraphQL-backed scm.py / live SCM smoke bucket drain after #961"
+      }
+    ],
+    "updated": "2026-05-08T17:12:13Z"
+  }
+}

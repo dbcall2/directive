@@ -77,6 +77,17 @@ Larger feature work -- only after issues are resolved and content is stable.
 - **#96** -- [Compliance] Config schema + compliance-aware constitution templates
 - **#758** -- **#84 Phase 3** -- Deft as teacher: teach strategy, lessons evolution
 
+## Ungrouped
+
+- **#910** -- templates/swarm-greptile-poller-prompt.md detector misses Greptile findings rendered as markdown bullets or inline prose
+- **#911** -- swarm cascade: CHANGELOG.md [Unreleased] conflict resolution should union-merge, not HEAD-take
+- **#975** -- perf(tests): triage_bootstrap watchdog tests dominate triage suite (top 5 = 68% of triage time)
+- **#976** -- fix(scm,tests): eliminate remaining GraphQL-backed scm.py / live SCM smoke bucket drain after #961
+- **#979** -- docs: surface refinement/triage workflow to end users (Phase 0 / cache / ingest)
+- **#983** -- feat(swarm,security): swarm workers should authenticate as a distinct GitHub identity, not share the maintainer's PAT
+- **#984** -- docs(readme): call out https://webinstaller.fly.dev/ as an alternative installer in README
+- **#985** -- bug(triage,refinement): `task triage:accept` skips `issue:ingest` delegation -- Phase 0 accepted candidates never reach `vbrief/proposed/`
+
 ## Completed
 
 - **#365** -- bdd strategy: move context and scenarios to vbrief; remove specs/ folder -- `[completed]`
@@ -396,4 +407,6 @@ Larger feature work -- only after issues are resolved and content is stable.
 - **#883** -- v0.26.0 cache-layer scale smoke re-run after #952 bootstrap-hang fix (#883) -- `[completed]`
 - **#947** -- feat(cache): size cap + LRU eviction + disk quota (#947) -- `[completed]`
 - **#949** -- fix(scanner): tune injection-heading detector to reduce false-positives on legitimate template markdown (#949) -- `[completed]`
+- **#954** -- feat(meta): canonical orchestrator preamble + REST-default / no-Draft-retoggle / rate-limit-throttle / dispatcher-lifecycle-hygiene rules (#954) -- `[completed]`
+- **#961** -- feat(scripts): gh_rest.py REST-fallback helpers for gh mutations and reads (#961) -- `[completed]`
 

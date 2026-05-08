@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+### Refinement
+- **chore(vbrief): refinement session 2026-05-08 -- triage 8+1 priority slice + ingest-pipeline bug pair (#985, #988)** -- ingested and promoted 8 candidates to `vbrief/pending/` (#910, #911, #975, #976, #979, #983, #984, #985); activated #985 + #988 to `vbrief/active/` for swarm dispatch on the refinement-pipeline-fix pair. Filed 4 new issues during the pass: #983 (per-identity credential separation for swarm workers; carved out of #976), #984 (webinstaller README callout), #985 (`task triage:accept` skips `issue:ingest` delegation -- Phase 0 accepts never reach `proposed/`), #987 (no first-class priority signal between vBRIEFs -- analysis-only meta), #988 (`task issue:ingest` produces stub vBRIEFs without `narratives.Overview` or `plan.items`). #985 + #988 carry mutual `## Pairing` callouts on GitHub flagging the MUST-batch-together constraint due to file-overlap (`scripts/triage_actions.py` / `scripts/issue_ingest.py`). Both have plan.items hand-enriched in this session as a workaround for #988 itself; the other 7 in `pending/` remain stubs awaiting #988's fix to re-ingest with full body fidelity. Audit log preserved at `vbrief/.eval/candidates.jsonl` (8 new accept records). ROADMAP.md and PROJECT-DEFINITION.vbrief.json re-rendered.
+
 ## [0.26.1] - 2026-05-07
 
 > Bootstrap-hang fix on backlog-scale triage; cache size cap + LRU + disk quota; scanner injection-heading detector tuned to eliminate template false positives.

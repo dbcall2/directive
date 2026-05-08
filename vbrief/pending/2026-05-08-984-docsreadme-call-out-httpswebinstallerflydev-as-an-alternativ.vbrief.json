@@ -1,0 +1,24 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6",
+    "description": "Scope vBRIEF ingested from GitHub issue #984"
+  },
+  "plan": {
+    "title": "docs(readme): call out https://webinstaller.fly.dev/ as an alternative installer in README",
+    "status": "pending",
+    "narratives": {
+      "Description": "docs(readme): call out https://webinstaller.fly.dev/ as an alternative installer in README",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/984",
+      "Labels": "docs, adoption-blocker"
+    },
+    "items": [],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/984",
+        "type": "x-vbrief/github-issue",
+        "title": "Issue #984: docs(readme): call out https://webinstaller.fly.dev/ as an alternative installer in README"
+      }
+    ],
+    "updated": "2026-05-08T17:12:13Z"
+  }
+}

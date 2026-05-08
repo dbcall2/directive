@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-05-05T23:28:05Z"
+    "updated": "2026-05-08T17:12:21Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -893,211 +893,129 @@
         }
       },
       {
-        "id": "2026-05-05-883-deft-cache-quarantine-v1",
-        "title": "feat(cache,quarantine): unified content cache + quarantine layer (v1 / triage migration)",
+        "id": "2026-05-08-910-templatesswarm-greptile-poller-promptmd-detector-misses-grep",
+        "title": "templates/swarm-greptile-poller-prompt.md detector misses Greptile findings rendered as markdown bullets or inline prose",
         "status": "pending",
         "metadata": {
-          "source_path": "pending/2026-05-05-883-deft-cache-quarantine-v1.vbrief.json",
+          "source_path": "pending/2026-05-08-910-templatesswarm-greptile-poller-promptmd-detector-misses-grep.vbrief.json",
           "lifecycle_folder": "pending",
           "references": [
             {
-              "uri": "https://github.com/deftai/directive/issues/883",
+              "uri": "https://github.com/deftai/directive/issues/910",
               "type": "x-vbrief/github-issue",
-              "title": "Issue #883 (parent epic): feat(processes): deft-cache -- unified content cache and quarantine layer (blocks #845, #610)"
-            },
-            {
-              "uri": "docs/design-deft-cache-quarantine.md",
-              "type": "x-vbrief/related-doc",
-              "title": "Design: Unified Content Cache and Quarantine Layer (visionik, landed via #925 2026-05-05)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/845",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #845: pre-ingest triage workflow (active triage v1 umbrella; closes when v0.26.0 ships and triage v1 is migrated; this epic continues #845's intent and replaces its cache surface)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/915",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #915 (P0): triage_bulk.py bypasses Tier-1 cache and Tier-2 audit log (fixed in v0.25.2; proves the design-drift cost the unified layer is meant to prevent)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/pull/916",
-              "type": "x-vbrief/github-pr",
-              "title": "PR #916 (merged): fix(triage): disable bulk-* tasks pending v0.25.2 (#915) -- hot-fix gate that protected master between bug discovery and v0.25.2 ship"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/583",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #583: name governance pattern + injection-quarantine directive umbrella (this epic extends the injection-quarantine half to scanner v2; #583's name-governance scope is independent and out of scope here)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/835",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #835: memory write security scan (sibling consumer of the unified scanner; visionik's design doc lists this as a related issue alongside #845 and #583)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/788",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #788: token-cost framework (the original cost motivation that #845 cited; the cache layer's persistence + ETag refresh hooks are the v2 mechanisms that satisfy #788's O(1)-per-pass goal)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/881",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #881: scm:* task namespace (this epic's Story 1 ships a minimal stub; full namespace generalization deferred to #881)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/610",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #610: wiki-llm knowledge base (downstream consumer of v2 url/email source types)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/884",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #884: ghx as standard gh proxy (this epic's scm:* stub uses ghx-or-gh fallback)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/pull/925",
-              "type": "x-vbrief/github-pr",
-              "title": "PR #925 (merged): docs: import unsynced documentation -- landed visionik's design doc and 11 reference docs"
+              "title": "Issue #910: templates/swarm-greptile-poller-prompt.md detector misses Greptile findings rendered as markdown bullets or inline prose"
             }
           ]
         }
       },
       {
-        "id": "2026-05-05-883-story-1-scm-stub",
-        "title": "feat(scm): minimal stub (4 commands) for #883 v1 cache layer",
+        "id": "2026-05-08-911-swarm-cascade-changelogmd-unreleased-conflict-resolution-sho",
+        "title": "swarm cascade: CHANGELOG.md [Unreleased] conflict resolution should union-merge, not HEAD-take",
         "status": "pending",
         "metadata": {
-          "source_path": "pending/2026-05-05-883-story-1-scm-stub.vbrief.json",
+          "source_path": "pending/2026-05-08-911-swarm-cascade-changelogmd-unreleased-conflict-resolution-sho.vbrief.json",
           "lifecycle_folder": "pending",
           "references": [
             {
-              "uri": "https://github.com/deftai/directive/issues/883",
+              "uri": "https://github.com/deftai/directive/issues/911",
               "type": "x-vbrief/github-issue",
-              "title": "Issue #883 (parent epic): feat(processes): deft-cache -- unified content cache and quarantine layer"
-            },
-            {
-              "uri": "pending/2026-05-05-883-deft-cache-quarantine-v1.vbrief.json",
-              "type": "x-vbrief/related-plan",
-              "title": "Epic vBRIEF for #883 v1 (parent decomposition; this story is item 1 of 4)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/881",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #881: scm:* task namespace (full namespace; this stub is replaced wholesale when #881 lands)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/884",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #884: ghx as standard gh proxy (this stub uses ghx-or-gh fallback)"
+              "title": "Issue #911: swarm cascade: CHANGELOG.md [Unreleased] conflict resolution should union-merge, not HEAD-take"
             }
           ]
         }
       },
       {
-        "id": "2026-05-05-883-story-2-cache-infrastructure",
-        "title": "feat(cache,quarantine): unified cache + scanner v2 baseline (#883 Story 2)",
+        "id": "2026-05-08-975-perftests-triage-bootstrap-watchdog-tests-dominate-triage-su",
+        "title": "perf(tests): triage_bootstrap watchdog tests dominate triage suite (top 5 = 68% of triage time)",
         "status": "pending",
         "metadata": {
-          "source_path": "pending/2026-05-05-883-story-2-cache-infrastructure.vbrief.json",
+          "source_path": "pending/2026-05-08-975-perftests-triage-bootstrap-watchdog-tests-dominate-triage-su.vbrief.json",
           "lifecycle_folder": "pending",
           "references": [
             {
-              "uri": "https://github.com/deftai/directive/issues/883",
+              "uri": "https://github.com/deftai/directive/issues/975",
               "type": "x-vbrief/github-issue",
-              "title": "Issue #883 (parent epic): feat(processes): deft-cache -- unified content cache and quarantine layer"
-            },
-            {
-              "uri": "pending/2026-05-05-883-deft-cache-quarantine-v1.vbrief.json",
-              "type": "x-vbrief/related-plan",
-              "title": "Epic vBRIEF for #883 v1 (parent decomposition; this story is item 2 of 4)"
-            },
-            {
-              "uri": "docs/design-deft-cache-quarantine.md",
-              "type": "x-vbrief/related-doc",
-              "title": "Design: Unified Content Cache and Quarantine Layer (visionik; canonical meta.json field set is here)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/583",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #583: name governance pattern + injection-quarantine directive (this story extends the injection-quarantine half to scanner v2)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/835",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #835: memory write security scan (sibling consumer of the unified scanner)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/788",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #788: token-cost framework (cache persistence is a v2 mechanism toward O(1)-per-pass goal)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/845",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #845: pre-ingest triage workflow (predecessor cache surface that this story replaces)"
+              "title": "Issue #975: perf(tests): triage_bootstrap watchdog tests dominate triage suite (top 5 = 68% of triage time)"
             }
           ]
         }
       },
       {
-        "id": "2026-05-05-883-story-3-triage-rebind",
-        "title": "refactor(triage): rebind v1 surface onto cache:* (#883 Story 3)",
+        "id": "2026-05-08-976-fixscmtests-eliminate-remaining-graphql-backed-scmpy-live-sc",
+        "title": "fix(scm,tests): eliminate remaining GraphQL-backed scm.py / live SCM smoke bucket drain after #961",
         "status": "pending",
         "metadata": {
-          "source_path": "pending/2026-05-05-883-story-3-triage-rebind.vbrief.json",
+          "source_path": "pending/2026-05-08-976-fixscmtests-eliminate-remaining-graphql-backed-scmpy-live-sc.vbrief.json",
           "lifecycle_folder": "pending",
           "references": [
             {
-              "uri": "https://github.com/deftai/directive/issues/883",
+              "uri": "https://github.com/deftai/directive/issues/976",
               "type": "x-vbrief/github-issue",
-              "title": "Issue #883 (parent epic): feat(processes): deft-cache -- unified content cache and quarantine layer"
-            },
-            {
-              "uri": "pending/2026-05-05-883-deft-cache-quarantine-v1.vbrief.json",
-              "type": "x-vbrief/related-plan",
-              "title": "Epic vBRIEF for #883 v1 (parent decomposition; this story is item 3 of 4)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/845",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #845: pre-ingest triage workflow (this story replaces #845's cache surface; the actions/audit-log surfaces stay)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/915",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #915 (P0): triage_bulk.py bypasses Tier-1 cache (root-cause for the rebind; this story removes the drift surface entirely)"
+              "title": "Issue #976: fix(scm,tests): eliminate remaining GraphQL-backed scm.py / live SCM smoke bucket drain after #961"
             }
           ]
         }
       },
       {
-        "id": "2026-05-05-883-story-4-migration-docs-release",
-        "title": "feat(release): v0.26.0 migration docs + cache layer release dispatch (#883 Story 4)",
+        "id": "2026-05-08-979-docs-surface-refinementtriage-workflow-to-end-users-phase-0",
+        "title": "docs: surface refinement/triage workflow to end users (Phase 0 / cache / ingest)",
         "status": "pending",
         "metadata": {
-          "source_path": "pending/2026-05-05-883-story-4-migration-docs-release.vbrief.json",
+          "source_path": "pending/2026-05-08-979-docs-surface-refinementtriage-workflow-to-end-users-phase-0.vbrief.json",
           "lifecycle_folder": "pending",
           "references": [
             {
-              "uri": "https://github.com/deftai/directive/issues/883",
+              "uri": "https://github.com/deftai/directive/issues/979",
               "type": "x-vbrief/github-issue",
-              "title": "Issue #883 (parent epic): feat(processes): deft-cache -- unified content cache and quarantine layer"
-            },
+              "title": "Issue #979: docs: surface refinement/triage workflow to end users (Phase 0 / cache / ingest)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-08-983-featswarmsecurity-swarm-workers-should-authenticate-as-a-dis",
+        "title": "feat(swarm,security): swarm workers should authenticate as a distinct GitHub identity, not share the maintainer's PAT",
+        "status": "pending",
+        "metadata": {
+          "source_path": "pending/2026-05-08-983-featswarmsecurity-swarm-workers-should-authenticate-as-a-dis.vbrief.json",
+          "lifecycle_folder": "pending",
+          "references": [
             {
-              "uri": "pending/2026-05-05-883-deft-cache-quarantine-v1.vbrief.json",
-              "type": "x-vbrief/related-plan",
-              "title": "Epic vBRIEF for #883 v1 (parent decomposition; this story is item 4 of 4 -- final wave)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/74",
+              "uri": "https://github.com/deftai/directive/issues/983",
               "type": "x-vbrief/github-issue",
-              "title": "Issue #74: task release pipeline (this story dispatches release via deft-directive-release skill)"
-            },
+              "title": "Issue #983: feat(swarm,security): swarm workers should authenticate as a distinct GitHub identity, not share the maintainer's PAT"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-08-984-docsreadme-call-out-httpswebinstallerflydev-as-an-alternativ",
+        "title": "docs(readme): call out https://webinstaller.fly.dev/ as an alternative installer in README",
+        "status": "pending",
+        "metadata": {
+          "source_path": "pending/2026-05-08-984-docsreadme-call-out-httpswebinstallerflydev-as-an-alternativ.vbrief.json",
+          "lifecycle_folder": "pending",
+          "references": [
             {
-              "uri": "https://github.com/deftai/directive/issues/716",
+              "uri": "https://github.com/deftai/directive/issues/984",
               "type": "x-vbrief/github-issue",
-              "title": "Issue #716: release safety hardening (e2e rehearsal, draft authority gate; release skill consumes these)"
+              "title": "Issue #984: docs(readme): call out https://webinstaller.fly.dev/ as an alternative installer in README"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-08-985-bugtriagerefinement-task-triageaccept-skips-issueingest-dele",
+        "title": "bug(triage,refinement): `task triage:accept` skips `issue:ingest` delegation -- Phase 0 accepted candidates never reach `vbrief/proposed/`",
+        "status": "pending",
+        "metadata": {
+          "source_path": "pending/2026-05-08-985-bugtriagerefinement-task-triageaccept-skips-issueingest-dele.vbrief.json",
+          "lifecycle_folder": "pending",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/985",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #985: bug(triage,refinement): `task triage:accept` skips `issue:ingest` delegation -- Phase 0 accepted candidates never reach `vbrief/proposed/`"
             }
           ]
         }
@@ -6401,6 +6319,216 @@
         }
       },
       {
+        "id": "2026-05-05-883-deft-cache-quarantine-v1",
+        "title": "feat(cache,quarantine): unified content cache + quarantine layer (v1 / triage migration)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-05-883-deft-cache-quarantine-v1.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/883",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #883 (parent epic): feat(processes): deft-cache -- unified content cache and quarantine layer (blocks #845, #610)"
+            },
+            {
+              "uri": "docs/design-deft-cache-quarantine.md",
+              "type": "x-vbrief/related-doc",
+              "title": "Design: Unified Content Cache and Quarantine Layer (visionik, landed via #925 2026-05-05)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/845",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #845: pre-ingest triage workflow (active triage v1 umbrella; closes when v0.26.0 ships and triage v1 is migrated; this epic continues #845's intent and replaces its cache surface)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/915",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #915 (P0): triage_bulk.py bypasses Tier-1 cache and Tier-2 audit log (fixed in v0.25.2; proves the design-drift cost the unified layer is meant to prevent)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/pull/916",
+              "type": "x-vbrief/github-pr",
+              "title": "PR #916 (merged): fix(triage): disable bulk-* tasks pending v0.25.2 (#915) -- hot-fix gate that protected master between bug discovery and v0.25.2 ship"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/583",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #583: name governance pattern + injection-quarantine directive umbrella (this epic extends the injection-quarantine half to scanner v2; #583's name-governance scope is independent and out of scope here)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/835",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #835: memory write security scan (sibling consumer of the unified scanner; visionik's design doc lists this as a related issue alongside #845 and #583)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/788",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #788: token-cost framework (the original cost motivation that #845 cited; the cache layer's persistence + ETag refresh hooks are the v2 mechanisms that satisfy #788's O(1)-per-pass goal)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/881",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #881: scm:* task namespace (this epic's Story 1 ships a minimal stub; full namespace generalization deferred to #881)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/610",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #610: wiki-llm knowledge base (downstream consumer of v2 url/email source types)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/884",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #884: ghx as standard gh proxy (this epic's scm:* stub uses ghx-or-gh fallback)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/pull/925",
+              "type": "x-vbrief/github-pr",
+              "title": "PR #925 (merged): docs: import unsynced documentation -- landed visionik's design doc and 11 reference docs"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-05-883-story-1-scm-stub",
+        "title": "feat(scm): minimal stub (4 commands) for #883 v1 cache layer",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-05-883-story-1-scm-stub.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/883",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #883 (parent epic): feat(processes): deft-cache -- unified content cache and quarantine layer"
+            },
+            {
+              "uri": "pending/2026-05-05-883-deft-cache-quarantine-v1.vbrief.json",
+              "type": "x-vbrief/related-plan",
+              "title": "Epic vBRIEF for #883 v1 (parent decomposition; this story is item 1 of 4)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/881",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #881: scm:* task namespace (full namespace; this stub is replaced wholesale when #881 lands)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/884",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #884: ghx as standard gh proxy (this stub uses ghx-or-gh fallback)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-05-883-story-2-cache-infrastructure",
+        "title": "feat(cache,quarantine): unified cache + scanner v2 baseline (#883 Story 2)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-05-883-story-2-cache-infrastructure.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/883",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #883 (parent epic): feat(processes): deft-cache -- unified content cache and quarantine layer"
+            },
+            {
+              "uri": "pending/2026-05-05-883-deft-cache-quarantine-v1.vbrief.json",
+              "type": "x-vbrief/related-plan",
+              "title": "Epic vBRIEF for #883 v1 (parent decomposition; this story is item 2 of 4)"
+            },
+            {
+              "uri": "docs/design-deft-cache-quarantine.md",
+              "type": "x-vbrief/related-doc",
+              "title": "Design: Unified Content Cache and Quarantine Layer (visionik; canonical meta.json field set is here)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/583",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #583: name governance pattern + injection-quarantine directive (this story extends the injection-quarantine half to scanner v2)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/835",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #835: memory write security scan (sibling consumer of the unified scanner)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/788",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #788: token-cost framework (cache persistence is a v2 mechanism toward O(1)-per-pass goal)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/845",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #845: pre-ingest triage workflow (predecessor cache surface that this story replaces)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-05-883-story-3-triage-rebind",
+        "title": "refactor(triage): rebind v1 surface onto cache:* (#883 Story 3)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-05-883-story-3-triage-rebind.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/883",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #883 (parent epic): feat(processes): deft-cache -- unified content cache and quarantine layer"
+            },
+            {
+              "uri": "pending/2026-05-05-883-deft-cache-quarantine-v1.vbrief.json",
+              "type": "x-vbrief/related-plan",
+              "title": "Epic vBRIEF for #883 v1 (parent decomposition; this story is item 3 of 4)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/845",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #845: pre-ingest triage workflow (this story replaces #845's cache surface; the actions/audit-log surfaces stay)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/915",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #915 (P0): triage_bulk.py bypasses Tier-1 cache (root-cause for the rebind; this story removes the drift surface entirely)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-05-883-story-4-migration-docs-release",
+        "title": "feat(release): v0.26.0 migration docs + cache layer release dispatch (#883 Story 4)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-05-883-story-4-migration-docs-release.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/883",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #883 (parent epic): feat(processes): deft-cache -- unified content cache and quarantine layer"
+            },
+            {
+              "uri": "pending/2026-05-05-883-deft-cache-quarantine-v1.vbrief.json",
+              "type": "x-vbrief/related-plan",
+              "title": "Epic vBRIEF for #883 v1 (parent decomposition; this story is item 4 of 4 -- final wave)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/74",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #74: task release pipeline (this story dispatches release via deft-directive-release skill)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/716",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #716: release safety hardening (e2e rehearsal, draft authority gate; release skill consumes these)"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-05-05-913-fix-triage-task-aliases",
         "title": "task: triage v1 fragment-include task names don't match documented triage:* surface",
         "status": "completed",
@@ -6470,6 +6598,232 @@
               "uri": "https://github.com/deftai/directive/issues/915",
               "type": "x-vbrief/github-issue",
               "title": "Issue #915: scripts/triage_bulk.py bypasses .deft-cache contract and poisons vbrief/.eval/candidates.jsonl"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-06-952-triage-bootstrap-hang-fix",
+        "title": "fix(triage): bootstrap orchestrator hang post-cache:fetch-all (#952) + scrub --skip-gitcrawl (#951)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-06-952-triage-bootstrap-hang-fix.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/952",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #952 (HIGH): triage:bootstrap orchestrator hangs after cache:fetch-all completes at backlog scale (post-#883 v1; blocks bulk-ingest)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/951",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #951: triage:bootstrap task description references obsolete --skip-gitcrawl flag (post-#883 v1)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/883",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #883: deft-cache unified content cache + quarantine layer (parent epic; v0.26.0 shipped Story 3 that introduced this regression)"
+            },
+            {
+              "uri": "completed/2026-05-05-883-story-3-triage-rebind.vbrief.json",
+              "type": "x-vbrief/related-plan",
+              "title": "Story 3 vBRIEF (the rewrite that introduced scripts/triage_bootstrap.py in its current shape)"
+            },
+            {
+              "uri": "docs/smoke-2026-05-06-v0.26.0-scale.md",
+              "type": "x-vbrief/related-doc",
+              "title": "v0.26.0 cache-layer scale smoke -- Phase 1 clean / Phase 2 hang evidence"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-07-883-v0-26-0-rerun-smoke",
+        "title": "v0.26.0 cache-layer scale smoke re-run after #952 bootstrap-hang fix (#883)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-07-883-v0-26-0-rerun-smoke.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/883",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #883 (epic): unified content cache + quarantine layer for triage v1"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/pull/953",
+              "type": "x-vbrief/github-pr",
+              "title": "PR #953: prior v0.26.0 scale smoke (Phase 1 clean + Phase 2 partial)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/pull/955",
+              "type": "x-vbrief/github-pr",
+              "title": "PR #955: bootstrap watchdog + per-step structured progress (fixes #952)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/952",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #952: bootstrap orchestrator hang at backlog scale (FIXED by #955)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/946",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #946: cache integrity follow-up"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/947",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #947: cache sizing follow-up"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/948",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #948: audit-log growth follow-up"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/949",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #949: detector tuning follow-up"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-07-947-cache-cap-lru-quota",
+        "title": "feat(cache): size cap + LRU eviction + disk quota (#947)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-07-947-cache-cap-lru-quota.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/947",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #947: feat(cache): size cap + LRU eviction + disk quota (post-#883 v1)"
+            },
+            {
+              "uri": "docs/smoke-2026-05-07-v0.26.0-rerun.md",
+              "type": "x-vbrief/related-doc",
+              "title": "v0.26.0 cache-layer scale smoke rerun -- evidence anchor for sizing defaults (320 entries = 3.03 MB)"
+            },
+            {
+              "uri": "completed/2026-05-05-883-story-2-cache-infrastructure.vbrief.json",
+              "type": "x-vbrief/related-plan",
+              "title": "Story 2 vBRIEF that landed the v1 cache layer this PR caps"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-07-949-injection-heading-tuning",
+        "title": "fix(scanner): tune injection-heading detector to reduce false-positives on legitimate template markdown (#949)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-07-949-injection-heading-tuning.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/949",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #949: scanner v2 detector tuning -- 85% benign-flag rate on organic backlog needs precision fix"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/comments/4393228565",
+              "type": "x-vbrief/github-comment",
+              "title": "#949 evidence comment: three-sample full-scale measurements (80% / 84.6% / 84.7%)"
+            },
+            {
+              "uri": "docs/smoke-2026-05-07-v0.26.0-rerun.md",
+              "type": "x-vbrief/related-doc",
+              "title": "v0.26.0 cache-layer scale smoke rerun -- post-#955 (full-scale tuning evidence anchor)"
+            },
+            {
+              "uri": "completed/2026-05-05-883-story-2-cache-infrastructure.vbrief.json",
+              "type": "x-vbrief/related-plan",
+              "title": "Story 2 vBRIEF that originally landed scanner v2 with the 14-token quarantine_ext list"
+            },
+            {
+              "uri": "docs/quarantine-spec.md",
+              "type": "x-vbrief/related-doc",
+              "title": "Quarantine spec (#583) -- the original injection heuristic this PR refines"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-07-954-orchestrator-agents-md-preamble-template",
+        "title": "feat(meta): canonical orchestrator preamble + REST-default / no-Draft-retoggle / rate-limit-throttle / dispatcher-lifecycle-hygiene rules (#954)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-07-954-orchestrator-agents-md-preamble-template.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/954",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #954: orchestrator AGENTS.md preamble template + companion rules"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/954#issuecomment-4399553752",
+              "type": "x-vbrief/scope-expansion-comment",
+              "title": "Scope addition -- dispatcher-level lifecycle hygiene rule (posted 2026-05-07T17:35Z)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/884",
+              "type": "x-vbrief/related-issue",
+              "title": "Issue #884: adopt ghx as standard gh proxy (this PR extends the AGENTS.md section #884 added)"
+            },
+            {
+              "uri": "templates/agents-entry.md",
+              "type": "x-vbrief/related-file",
+              "title": "Existing template-over-inline precedent (#636) -- canonical pattern for keeping heavy content out of AGENTS.md"
+            },
+            {
+              "uri": "meta/lessons.md",
+              "type": "x-vbrief/related-file",
+              "title": "Lessons file enriched in #960 with three session-emergent patterns this PR institutionalises into AGENTS.md rules"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-07-961-gh-rest-helpers",
+        "title": "feat(scripts): gh_rest.py REST-fallback helpers for gh mutations and reads (#961)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-07-961-gh-rest-helpers.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/961",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #961: gh_rest.py REST fallback helpers for gh mutations and reads when GraphQL is exhausted"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/884",
+              "type": "x-vbrief/related-issue",
+              "title": "Issue #884: ghx adoption -- the binary chain helpers route through"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/74",
+              "type": "x-vbrief/related-issue",
+              "title": "Issue #74: task release surface (owns release-creation; releases out of scope for #961)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/798",
+              "type": "x-vbrief/related-issue",
+              "title": "Issue #798: PS 5.1 non-ASCII deterministic gate -- gh_rest.py JSON pathlib + UTF-8 closes the hazard at gh-mutation call sites"
+            },
+            {
+              "uri": "meta/lessons.md",
+              "type": "x-vbrief/related-file",
+              "title": "Lessons section '## gh CLI GraphQL Bucket Exhaustion + REST Fallback + UTF-8 Payload Pattern (2026-05)' -- this PR is the deterministic-tier follow-up"
+            },
+            {
+              "uri": "templates/agent-prompt-preamble.md",
+              "type": "x-vbrief/related-file",
+              "title": "Canonical preamble § 5 (REST-by-default rule) -- the institutional-memory anchor that this module ships at the script layer"
             }
           ]
         }

@@ -1,0 +1,24 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6",
+    "description": "Scope vBRIEF ingested from GitHub issue #979"
+  },
+  "plan": {
+    "title": "docs: surface refinement/triage workflow to end users (Phase 0 / cache / ingest)",
+    "status": "pending",
+    "narratives": {
+      "Description": "docs: surface refinement/triage workflow to end users (Phase 0 / cache / ingest)",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/979",
+      "Labels": "docs, adoption-blocker"
+    },
+    "items": [],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/979",
+        "type": "x-vbrief/github-issue",
+        "title": "Issue #979: docs: surface refinement/triage workflow to end users (Phase 0 / cache / ingest)"
+      }
+    ],
+    "updated": "2026-05-08T17:12:13Z"
+  }
+}

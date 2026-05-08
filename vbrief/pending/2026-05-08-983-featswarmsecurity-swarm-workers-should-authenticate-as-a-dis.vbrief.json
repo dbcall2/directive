@@ -1,0 +1,24 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6",
+    "description": "Scope vBRIEF ingested from GitHub issue #983"
+  },
+  "plan": {
+    "title": "feat(swarm,security): swarm workers should authenticate as a distinct GitHub identity, not share the maintainer's PAT",
+    "status": "pending",
+    "narratives": {
+      "Description": "feat(swarm,security): swarm workers should authenticate as a distinct GitHub identity, not share the maintainer's PAT",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/983",
+      "Labels": "docs, adoption-blocker"
+    },
+    "items": [],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/983",
+        "type": "x-vbrief/github-issue",
+        "title": "Issue #983: feat(swarm,security): swarm workers should authenticate as a distinct GitHub identity, not share the maintainer's PAT"
+      }
+    ],
+    "updated": "2026-05-08T17:12:13Z"
+  }
+}
