@@ -1,0 +1,272 @@
+# Multi-agent identity separation pattern (#983)
+
+> Status: stable pattern, v1 docs-only. v1 deliberately scopes to a single
+> shared bot/App credential for all workers; per-worker token rotation is
+> deferred to a follow-up. Per #983 non-goals.
+
+This pattern lays out *whose* GitHub identity dispatched swarm workers
+should authenticate as, *why* that should not be the maintainer's PAT,
+and *how* operators provision and rotate the worker credential.
+
+It is the credential-separation track that was carved out of #976
+(`fix(scm,tests): eliminate remaining GraphQL-backed scm.py / live SCM
+smoke bucket drain after #961`). #976 owns the REST migration; this
+pattern owns the orthogonal identity separation. The two tracks are
+complementary: REST migration reduces GraphQL demand on the shared
+bucket, identity separation prevents human and machine traffic from
+sharing one bucket in the first place.
+
+## Why this matters
+
+Today, swarm workers and the maintainer share a single GitHub Personal
+Access Token (PAT). One PAT serves the maintainer's interactive review
+flow AND every worker spawned by `task swarm:*` / `start_agent` /
+`oz agent run`. The operational consequences observed in the
+2026-05-07 multi-agent session and again on 2026-05-08 are concrete:
+
+- **Bucket coupling**: GitHub's GraphQL bucket is **5,000 req/hr per
+  identity**. A swarm of N workers + the maintainer's terminal share
+  one bucket. When workers exhaust it (the documented failure mode for
+  the PR #652 / #561-class merge cascades), the maintainer's
+  `gh issue create` and `gh pr view` start failing with
+  `GraphQL: API rate limit already exceeded` -- the human is rate-
+  limited by their own swarm.
+- **Audit conflation**: every commit, comment, PR open, issue close,
+  and review submission attributes to the same `actor.login`. Forensic
+  separation ("which action was the maintainer vs. an autonomous
+  worker?") requires correlating timestamps and dispatch-envelope
+  prompts rather than reading the GitHub event stream directly.
+- **Credential blast radius**: a worker's prompt envelope is by
+  definition reviewable / loggable / inspectable -- prompts leak more
+  readily than secrets. Today a leaked worker prompt acts with the
+  full scope of the maintainer's PAT (issue close, PR merge, release
+  publish, branch protection bypass), not the narrow scope a worker
+  actually needs (issues:write, pulls:write, contents:read).
+
+Reducing GraphQL demand (#976 REST migration) only solves bucket
+*pressure*. It does not solve bucket *coupling*, audit conflation, or
+blast radius. Those require partitioning the identity itself.
+
+## The pattern
+
+### Identity model
+
+- ! Workers MUST authenticate as a **distinct GitHub identity** from
+  the maintainer. Two acceptable shapes:
+  1. **GitHub App installation token** (preferred). The deft project
+     installs a GitHub App granting the minimum scopes; workers
+     consume an installation token derived from the App's private key.
+     Tokens are short-lived (~1 hour) and auto-rotated by GitHub.
+  2. **Bot account PAT**. A dedicated GitHub user account (e.g.
+     `deft-swarm-bot`) with its own PAT. Lower setup cost, but tokens
+     are long-lived until manually rotated, and the bot account
+     consumes a real GitHub seat.
+- ! Maintainer PATs MUST be reserved for human-driven work: review,
+  merge, release publication, manual triage. Worker dispatch envelopes
+  MUST NOT inject a maintainer PAT.
+- ⊗ Workers MUST NOT fall back to the host's `gh auth status` token.
+  The dispatch envelope is the contract; an implicit fallback re-
+  introduces the coupling this pattern eliminates.
+
+### Bucket partitioning model
+
+| Bucket               | Owner                | Use                                                |
+|----------------------|----------------------|----------------------------------------------------|
+| Maintainer GraphQL   | Maintainer PAT       | Human review, PR open/merge/ready, manual triage   |
+| Maintainer core REST | Maintainer PAT       | `gh api` reads outside swarm context               |
+| Worker GraphQL       | Bot account / App    | `markPullRequestReadyForReview`, `addPullRequestReview` (the only GraphQL surfaces a worker should hit; see #976 + #961) |
+| Worker core REST     | Bot account / App    | All other reads / mutations via `gh_rest.py` REST helpers |
+
+Each bucket is 5,000 req/hr (REST `core` and GraphQL each). With
+identity separation the maintainer's two buckets are untouched by
+swarm activity, and N workers share *their own* two buckets.
+
+The bucket partition only delivers value when paired with the #976
+REST migration: workers that still route reads through GraphQL
+(`gh issue view --json`, `gh pr view --json`, `gh pr ready`) will
+exhaust their own GraphQL bucket within minutes under N concurrent
+poll loops. REST-by-default per `templates/agent-prompt-preamble.md`
+S5 keeps the worker GraphQL bucket reserved for the unavoidable PR
+state-mutation operations.
+
+### Dispatch-envelope credential rule
+
+The canonical preamble at `templates/agent-prompt-preamble.md` carries
+this rule verbatim alongside the existing REST-default,
+max-1-Draft-toggle, and rate-limit-throttle rules:
+
+> Workers MUST consume the GitHub credential injected by the dispatcher
+> (typically `GH_TOKEN` in the prompt-supplied env). Workers MUST NOT
+> fall back to the host's `gh auth status` token. If `GH_TOKEN` is
+> unset and no other dispatcher-supplied credential is present, the
+> worker MUST fail loud with a clear error rather than silently
+> running under the host identity.
+
+The rule is enforced at two points:
+
+1. **Dispatch time** (orchestrator side). The orchestrator (swarm
+   skill, monitor agent, scheduled run) injects the worker
+   credential into the dispatch envelope -- usually as `GH_TOKEN` in
+   the env, with the maintainer's `gh auth` state untouched. Workers
+   inherit this env at spawn time.
+2. **Worker side**. The worker's first action (after AGENTS.md read)
+   verifies `GH_TOKEN` is set and matches the expected bot/App
+   identity (e.g. `gh api user --jq .login` returns the bot login).
+   Mismatch is a hard refusal: stop the tool loop, send `BLOCKED:
+   identity mismatch` to the parent.
+
+The two-sided enforcement means a missing/malformed credential surfaces
+at the earliest possible point rather than mid-dispatch when the worker
+has already started writing files.
+
+### Permission scoping
+
+! The worker credential MUST be scoped down to the minimum needed:
+
+- `issues:write` -- open / close / comment / label
+- `pulls:write` -- open / merge / review / comment
+- `contents:read` -- read repo contents (for diff context)
+- `metadata:read` -- standard for any GitHub App
+- ⊗ `contents:write` -- workers MUST NOT push commits directly under
+  the worker identity. Pushes happen via the maintainer (interactive
+  review of the worker's diff) or via the GitHub App's restricted
+  contents:write scope on a specific bot-owned ref pattern.
+- ⊗ `admin:*` / `repo` (broad) -- workers MUST NOT have admin scopes.
+  Branch protection bypass, label/milestone management, secret
+  rotation -- all maintainer-only.
+
+The maintainer PAT keeps the broader scope it has today (`repo`,
+`workflow`, etc.). The narrowness of the worker scope is half the
+blast-radius mitigation; the other half is short-lived credentials
+(GitHub App installation tokens auto-rotate ~1 hour; bot PATs MUST be
+rotated quarterly per the runbook below).
+
+## Operator runbook
+
+### Provisioning a worker identity
+
+#### Option A: GitHub App (preferred)
+
+1. Create a new GitHub App at
+   `https://github.com/organizations/<org>/settings/apps/new`
+   (account-level path: `https://github.com/settings/apps/new`).
+2. Grant the **minimum** permissions enumerated in
+   "Permission scoping" above. Decline every other permission.
+3. Subscribe to no events (workers consume the API; they do not need
+   webhook delivery).
+4. Generate and download a private key (`.pem`). Store it in
+   `secrets/swarm-app.pem` outside the repo (the deft `secrets/`
+   convention is `.gitignore`d by default per the repo conventions).
+5. Install the App on the deft repository.
+6. Note the App ID and Installation ID; both are required to mint
+   installation tokens at dispatch time.
+7. The dispatcher mints an installation token via
+   `POST /app/installations/<installation-id>/access_tokens` (the
+   private-key-signed JWT flow). Each minted token lives ~1 hour;
+   spawn-burst refreshes are cheap.
+
+#### Option B: bot account PAT
+
+1. Create a new GitHub user account (e.g. `deft-swarm-bot`). Email
+   address can be a `+swarmbot` alias on the maintainer's account.
+2. Add the bot account as a repository collaborator with **Write**
+   access (NOT Maintain or Admin).
+3. Generate a fine-grained PAT under the bot account with the scopes
+   enumerated in "Permission scoping". Set expiry to 90 days.
+4. Store the PAT in `secrets/swarm-bot.env` as
+   `SWARM_GH_TOKEN=<value>`. Reference from dispatcher via
+   `Get-Content secrets/swarm-bot.env` or equivalent at dispatch
+   time; never paste inline.
+
+### Wiring the dispatcher
+
+The orchestrator (swarm skill, monitor agent, `start_agent`/`oz`
+invocation, scheduled run) loads the worker credential and injects it
+into the worker's env:
+
+```pwsh path=null start=null
+# Option A (GitHub App): mint installation token at dispatch time.
+$jwt = uv run python scripts/swarm_mint_jwt.py --app-id $env:DEFT_SWARM_APP_ID --pem secrets/swarm-app.pem
+$inst_token = (gh api -X POST "/app/installations/$env:DEFT_SWARM_INSTALLATION_ID/access_tokens" -H "Authorization: Bearer $jwt" --jq .token)
+start_agent ... -e GH_TOKEN=$inst_token
+
+# Option B (bot PAT): inject from secrets/swarm-bot.env.
+$bot_token = (Get-Content secrets/swarm-bot.env | Where-Object { $_ -like 'SWARM_GH_TOKEN=*' }) -replace '^SWARM_GH_TOKEN=', ''
+start_agent ... -e GH_TOKEN=$bot_token
+```
+
+Token-mint plumbing (`scripts/swarm_mint_jwt.py`) is intentionally not
+shipped in v1 -- the runbook above is operator-facing guidance, not
+deft-supplied automation. v1 is documentation-only per #983 non-goals.
+Operators MAY automate token minting in their own dispatcher; the
+contract this pattern pins is the env-var injection.
+
+### Rotation and recovery
+
+#### Routine rotation
+
+- **GitHub App tokens**: auto-rotate ~1 hour. No operator action
+  needed unless the App's private key is compromised.
+- **Bot PAT**: quarterly rotation. Update `secrets/swarm-bot.env`
+  and revoke the prior PAT. Verify the new token via
+  `gh api user --jq .login` returns the bot login.
+
+#### Compromise recovery (leaked worker token)
+
+1. Immediately revoke the leaked credential:
+   - GitHub App: rotate the private key (Settings -> Apps -> Your
+     deft-swarm App -> Generate a new private key, then delete the
+     compromised key).
+   - Bot PAT: revoke at
+     `https://github.com/settings/tokens` under the bot account.
+2. Audit the bot's recent activity: `gh api
+   /users/<bot-login>/events/public --jq
+   '.[] | {repo, type, created_at}'`. Investigate any action outside
+   the expected swarm workflow.
+3. Provision a replacement credential per the provisioning steps
+   above and update the dispatcher.
+4. File an incident vBRIEF in `vbrief/proposed/` documenting the
+   compromise, scope of activity, and remediation. The vBRIEF
+   becomes the audit artifact.
+
+The maintainer PAT MUST NOT be used as a fallback during the
+compromise window -- doing so re-couples the buckets and re-introduces
+the blast-radius problem this pattern solves.
+
+## Cross-references
+
+- #976 -- remaining GraphQL drain in `scripts/scm.py` + smoke (the
+  REST-migration track this pattern complements; this pattern was
+  carved out of #976's "Complementary mitigation" section)
+- #588 -- agent identity pattern (distinct attestable identity per
+  agent; the conceptual frame this pattern operationalises)
+- #806 -- executor-layer-credentials (secrets bound at invocation
+  layer, not in agent context; the architectural pattern this
+  pattern lands)
+- #585 -- credential hygiene standard for cloud agent dispatch
+  (overlapping with v1, but #585 covers the broader cloud-agent
+  surface; this pattern scopes specifically to swarm workers)
+- #519 -- rate limiting as a first-class architectural constraint
+  for multi-agent guidance (the "shared bucket is the bottleneck"
+  framing that motivates partitioning by identity)
+- #520 -- multi-provider routing as the production solution for
+  large-scale swarms (the LLM-side analogue of this pattern -- LLM
+  providers also rate-limit per identity, and the same partitioning
+  argument applies upstream)
+- #954 / #966 -- canonical orchestrator preamble; the
+  `templates/agent-prompt-preamble.md` rule enforcing the
+  dispatch-envelope credential contract is part of #954's preamble
+  surface and is updated by this issue (#983)
+- AGENTS.md `## Multi-agent orchestration discipline (#954)` -- the
+  REST-default / no-Draft-retoggle / rate-limit-throttle rules this
+  pattern complements
+
+## Non-goals (per #983)
+
+- Per-worker token rotation infrastructure -- a single shared
+  bot/App credential for all workers is acceptable in v1; per-worker
+  identities are deferred to a follow-up.
+- Cross-provider identity (Anthropic, OpenAI, etc.) -- this pattern
+  is GitHub-specific; the LLM-side analogue is #520.
+- Replacing the SCM/REST migration -- #976 owns that track; this
+  pattern is complementary, not a substitute.

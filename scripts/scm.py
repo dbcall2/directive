@@ -20,14 +20,55 @@ The JSON-shape contract Story 2 consumes is pinned independently by the
 ``tests/fixtures/scm_issue_view.json`` -- this script does NOT validate or
 transform the JSON; it forwards stdout/stderr/exit-code from the underlying
 binary verbatim.
+
+REST opt-in mode (#976)
+-----------------------
+A new ``--rest`` flag is recognised on ``issue view`` and ``issue list``
+invocations. When present, the stub routes the read through the REST
+helpers in :mod:`scripts.gh_rest` (``rest_issue_view`` /
+``rest_issue_list``) instead of forwarding ``gh issue view|list`` to the
+underlying binary. This sidesteps the GraphQL bucket entirely so a
+depleted ``graphql.remaining`` (a recurring failure mode -- see #976,
+#961, #884) no longer fails read-only smoke / cache flows.
+
+The REST shape differs from the gh ``--json`` GraphQL shape (e.g. REST
+emits ``user`` not ``author``, ``created_at`` not ``createdAt``, lower-
+case ``state``). Story 2 ``cache:fetch-all`` continues to consume the
+legacy GraphQL shape via the default code path; only callers that
+opt in via ``--rest`` see the REST shape. The smoke test
+(``tests/integration/test_scm_smoke.py``) and any other non-cache
+reader can opt in safely. Mutations (``close``, ``edit``) still
+forward to ``gh`` -- they have non-trivial flag surfaces (--body-file,
+--add-label, --remove-label, ...) that this stub deliberately does not
+re-implement; #881 owns the full surface.
+
+GraphQL-only operations (cannot be REST-migrated)
+--------------------------------------------------
+GitHub exposes two PR-state mutations only via GraphQL; they have NO
+REST equivalent and remain budgeted GraphQL spend wherever they appear:
+
+- ``markPullRequestReadyForReview`` (``gh pr ready``). Used by the
+  release/PR flow; documented in
+  :mod:`scripts.gh_rest` module docstring known limitations.
+- ``addPullRequestReview`` (``gh pr review --approve|--request-changes``).
+  Required for formal review verdicts; ``rest_post_comment`` is the
+  REST-budget alternative when no approval semantics are needed.
+
+Future agents touching this stub: those two surfaces are accidental-drain-free
+and legitimate GraphQL spend. Every OTHER GraphQL-backed gh invocation in
+this stub's surface is candidate for REST migration -- the ``--rest`` flag
+is the v1 wedge.
 """
 
 from __future__ import annotations
 
+import importlib
+import json
 import shutil
 import subprocess
 import sys
 from collections.abc import Sequence
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -117,6 +158,164 @@ def build_command(
 
 
 # ---------------------------------------------------------------------------
+# REST opt-in (#976)
+# ---------------------------------------------------------------------------
+
+#: Verbs that support the ``--rest`` opt-in. Only read paths -- mutations
+#: (close, edit) keep forwarding to gh in the v1 stub.
+_REST_OPT_IN_VERBS: tuple[str, ...] = ("view", "list")
+
+
+def _extract_flag(extra: list[str], flag: str) -> tuple[bool, list[str]]:
+    """Return ``(present, remainder)`` after removing every occurrence of ``flag``.
+
+    Used to peel off the ``--rest`` opt-in flag before the remaining argv
+    is consumed by the REST dispatcher (or, in the legacy path, forwarded
+    to ``ghx|gh``).
+    """
+    present = flag in extra
+    remainder = [a for a in extra if a != flag]
+    return present, remainder
+
+
+def _extract_value_flag(
+    extra: list[str], flag: str, default: str | None = None
+) -> tuple[str | None, list[str]]:
+    """Return ``(value, remainder)`` for ``--flag VALUE`` or ``--flag=VALUE``.
+
+    Removes the consumed tokens from ``extra``. Mirrors the small subset of
+    argv parsing the stub does so it can extract ``--repo`` / ``--json`` /
+    ``--state`` etc. from the pass-through args without pulling in argparse.
+    The first occurrence wins; a missing flag returns ``default``.
+    """
+    out: list[str] = []
+    value = default
+    seen = False
+    i = 0
+    while i < len(extra):
+        token = extra[i]
+        if not seen and token == flag and i + 1 < len(extra):
+            value = extra[i + 1]
+            seen = True
+            i += 2
+            continue
+        if not seen and token.startswith(flag + "="):
+            value = token.split("=", 1)[1]
+            seen = True
+            i += 1
+            continue
+        out.append(token)
+        i += 1
+    return value, out
+
+
+def _filter_json_fields(obj: Any, fields: Sequence[str]) -> Any:
+    """Project ``obj`` (dict or list[dict]) onto ``fields``.
+
+    Mirrors gh's ``--json field1,field2`` semantics for the REST shape:
+    only the named keys survive. Unknown fields are silently dropped
+    rather than raised, matching gh's own behaviour. Empty ``fields``
+    returns ``obj`` unchanged so callers that omit ``--json`` get the
+    full REST response.
+    """
+    if not fields:
+        return obj
+    field_set = list(fields)
+    if isinstance(obj, list):
+        return [_filter_json_fields(item, field_set) for item in obj]
+    if isinstance(obj, dict):
+        return {k: obj[k] for k in field_set if k in obj}
+    return obj
+
+
+def _run_rest_view(extra: list[str]) -> int:
+    """Dispatch ``scm.py issue view --rest <N> --repo X [--json fields]``.
+
+    Routes through :func:`scripts.gh_rest.rest_issue_view` so the read
+    never touches GraphQL. Emits the REST response (filtered to
+    ``--json`` fields if provided) to stdout as JSON, mirroring the
+    legacy gh stdout contract callers consume.
+    """
+    repo, extra = _extract_value_flag(extra, "--repo")
+    json_spec, extra = _extract_value_flag(extra, "--json")
+    if not repo:
+        print("error: --rest issue view requires --repo OWNER/NAME", file=sys.stderr)
+        return 2
+    # The remaining positional arg (after stripping --repo/--json) is the
+    # issue number. Reject extra unknown flags loudly so a typo is caught.
+    positionals = [t for t in extra if not t.startswith("-")]
+    if len(positionals) != 1:
+        print(
+            "error: --rest issue view expects exactly one positional issue "
+            f"number; got {positionals!r}",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        issue_n = int(positionals[0])
+    except ValueError:
+        print(
+            f"error: issue number must be an integer; got {positionals[0]!r}",
+            file=sys.stderr,
+        )
+        return 2
+    gh_rest = importlib.import_module("gh_rest")
+    try:
+        response = gh_rest.rest_issue_view(repo, issue_n)
+    except gh_rest.GhRestError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    fields = [f.strip() for f in json_spec.split(",")] if json_spec else []
+    filtered = _filter_json_fields(response, fields)
+    print(json.dumps(filtered, ensure_ascii=False))
+    return 0
+
+
+def _run_rest_list(extra: list[str]) -> int:
+    """Dispatch ``scm.py issue list --rest --repo X [...flags]``.
+
+    Supported flags: ``--state {open|closed|all}`` (default open),
+    ``--label NAME[,NAME...]`` (comma-separated label filter),
+    ``--limit N`` (REST per_page, default 30), ``--json field1,field2``
+    (project the response onto the named keys, list-aware).
+
+    Routes through :func:`scripts.gh_rest.rest_issue_list`.
+    """
+    repo, extra = _extract_value_flag(extra, "--repo")
+    state, extra = _extract_value_flag(extra, "--state", default="open")
+    json_spec, extra = _extract_value_flag(extra, "--json")
+    label, extra = _extract_value_flag(extra, "--label")
+    limit_str, extra = _extract_value_flag(extra, "--limit", default="30")
+    if not repo:
+        print("error: --rest issue list requires --repo OWNER/NAME", file=sys.stderr)
+        return 2
+    try:
+        per_page = int(limit_str) if limit_str is not None else 30
+    except ValueError:
+        print(
+            f"error: --limit must be an integer; got {limit_str!r}",
+            file=sys.stderr,
+        )
+        return 2
+    labels: tuple[str, ...] = tuple(
+        item.strip() for item in label.split(",") if item.strip()
+    ) if label else ()
+    gh_rest = importlib.import_module("gh_rest")
+    assert state is not None  # default ensures non-None
+    try:
+        response = gh_rest.rest_issue_list(
+            repo, state=state, labels=labels, per_page=per_page
+        )
+    except gh_rest.GhRestError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    fields = [f.strip() for f in json_spec.split(",")] if json_spec else []
+    filtered = _filter_json_fields(response, fields)
+    print(json.dumps(filtered, ensure_ascii=False))
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -127,23 +326,49 @@ def main(argv: list[str] | None = None) -> int:
     Argv layout:
         argv[0] = namespace (only ``issue`` in the v1 stub)
         argv[1] = verb (one of list/view/close/edit)
-        argv[2:] = pass-through args forwarded to ``ghx|gh``
+        argv[2:] = pass-through args forwarded to ``ghx|gh`` (legacy path)
+                   OR consumed by the REST dispatcher when ``--rest`` is
+                   present (#976).
 
     No argparse: the stub deliberately avoids capturing ``--help`` / ``--json``
-    / etc. flags itself, so they reach the underlying binary untouched. The
-    only argv inspection the stub performs is the namespace + verb whitelist
-    in :func:`build_command` (which fails loud rather than dispatching unknown
-    surfaces).
+    / etc. flags itself in the legacy path, so they reach the underlying
+    binary untouched. The only argv inspection the stub performs is:
+
+    1. The namespace + verb whitelist in :func:`build_command` (which fails
+       loud rather than dispatching unknown surfaces).
+    2. The ``--rest`` opt-in extraction (#976) -- when present on a
+       supported read verb (``view``, ``list``), routes the read through
+       :mod:`scripts.gh_rest` REST helpers instead of forwarding to
+       ``ghx|gh``. The flag is stripped before any forwarding so the
+       legacy path is unaffected on calls that don't opt in.
     """
     args = list(sys.argv[1:] if argv is None else argv)
     if len(args) < 2:
         print(
             "usage: scm.py <namespace> <verb> [pass-through args...]\n"
-            "       (v1 stub: namespace=issue, verb=list|view|close|edit)",
+            "       (v1 stub: namespace=issue, verb=list|view|close|edit)\n"
+            "       --rest opt-in is supported on issue view/list (#976)",
             file=sys.stderr,
         )
         return 2
     namespace, verb, *extra = args
+    # #976: detect and consume the --rest opt-in BEFORE any gh forwarding.
+    # The flag is stripped from extra so the legacy path stays argv-pure.
+    rest_mode, extra = _extract_flag(extra, "--rest")
+    if rest_mode:
+        if namespace != "issue" or verb not in _REST_OPT_IN_VERBS:
+            print(
+                f"error: --rest is only supported on 'issue {{view|list}}'; "
+                f"got 'scm.py {namespace} {verb}'. Mutations (close, edit) "
+                "still forward to gh in the v1 stub; #881 owns the full "
+                "REST migration.",
+                file=sys.stderr,
+            )
+            return 2
+        if verb == "view":
+            return _run_rest_view(extra)
+        return _run_rest_list(extra)
+
     try:
         cmd = build_command(namespace, verb, extra)
     except ScmStubError as exc:

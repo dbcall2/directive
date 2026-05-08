@@ -20,9 +20,14 @@ Test surfaces (per issue #961 acceptance criteria):
    :class:`GhRestError`.
 6. ``TestRestIssueView``, ``TestRestPrView`` -- read helpers; argv shape
    + success/failure paths.
-7. ``TestPublicSurfaceContract`` -- pins the seven helper names exported
-   from the module so a future rename / accidental drop / accidental
-   addition fails CI immediately.
+7. ``TestPublicSurfaceContract`` -- pins the eight helper names exported
+   from the module (seven from #961 plus ``rest_issue_list`` from #976)
+   so a future rename / accidental drop / accidental addition fails
+   CI immediately.
+8. ``TestRestIssueList`` -- read collection helper added in #976 for
+   the SCM REST migration; argv shape (state / per_page / labels
+   query params), success returns parsed list, expect_list shape
+   guard rejects a dict response.
 
 Hermetic: every test mocks ``gh_rest._run_gh_api`` (and ``scm.resolve_binary``
 on the seam-level test) -- no live subprocess, no live API call.
@@ -336,7 +341,12 @@ class TestExec:
         # The stderr field carries the diagnostic; the hint field carries
         # the recovery guidance. Both surfaces are visible to callers.
         assert "unexpected top-level type list" in exc.value.stderr
-        assert "non-object" in exc.value.hint
+        # Hint identifies the expected type explicitly so callers can
+        # distinguish single-resource vs collection mismatches; #976
+        # added expect_list=True for collection endpoints so the
+        # default (dict) emits "non-dict; expected dict".
+        assert "non-dict" in exc.value.hint
+        assert "expected dict" in exc.value.hint
 
 
 # ---------------------------------------------------------------------------
@@ -635,6 +645,85 @@ class TestRestPrView:
         assert captured["args"] == ["repos/deftai/directive/pulls/100"]
 
 
+class TestRestIssueList:
+    """#976 SCM REST migration: ``GET /repos/{owner}/{repo}/issues``."""
+
+    def test_argv_and_success_default_state(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # gh api emits the response as a JSON array for collection endpoints;
+        # _exec(expect_list=True) parses it as list[dict].
+        captured = _record_seam(
+            monkeypatch,
+            _ok_completed(
+                stdout='[{"number": 1, "title": "a", "state": "open"}]'
+            ),
+        )
+        result = gh_rest.rest_issue_list("deftai/directive")
+        assert result == [{"number": 1, "title": "a", "state": "open"}]
+        # Argv shape: endpoint + GET method + state=open + per_page=30
+        # (defaults). Labels not appended when empty.
+        assert captured["args"] == [
+            "repos/deftai/directive/issues",
+            "--method", "GET",
+            "--raw-field", "state=open",
+            "--raw-field", "per_page=30",
+        ]
+
+    def test_argv_with_state_labels_and_per_page(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        captured = _record_seam(monkeypatch, _ok_completed(stdout="[]"))
+        gh_rest.rest_issue_list(
+            "deftai/directive",
+            state="closed",
+            labels=("epic", "cache"),
+            per_page=50,
+        )
+        assert captured["args"] == [
+            "repos/deftai/directive/issues",
+            "--method", "GET",
+            "--raw-field", "state=closed",
+            "--raw-field", "per_page=50",
+            "--raw-field", "labels=epic,cache",
+        ]
+
+    def test_dict_response_raises_with_list_hint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A dict response would indicate a wrong endpoint or a gh / GitHub
+        # API regression; expect_list=True surfaces it as a typed error.
+        _record_seam(
+            monkeypatch, _ok_completed(stdout='{"unexpected": "object"}')
+        )
+        with pytest.raises(gh_rest.GhRestError) as exc:
+            gh_rest.rest_issue_list("deftai/directive")
+        assert "non-list" in exc.value.hint
+
+    def test_failure_raises_with_endpoint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _record_seam(monkeypatch, _err_completed(stderr="HTTP 404"))
+        with pytest.raises(gh_rest.GhRestError) as exc:
+            gh_rest.rest_issue_list("deftai/directive")
+        assert exc.value.endpoint == "repos/deftai/directive/issues"
+        assert exc.value.payload is None
+
+    def test_invalid_repo_raises(self) -> None:
+        with pytest.raises(gh_rest.InvalidRepoError):
+            gh_rest.rest_issue_list("not-a-repo")
+
+    def test_empty_stdout_returns_empty_list(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Defensive: an empty stdout (no 204 expected for GET, but pinned
+        # symmetry with mutations) returns the empty-collection sentinel
+        # rather than {}, so callers iterating the result do not break.
+        _record_seam(monkeypatch, _ok_completed(stdout=""))
+        result = gh_rest.rest_issue_list("deftai/directive")
+        assert result == []
+
+
 # ---------------------------------------------------------------------------
 # Public surface contract
 # ---------------------------------------------------------------------------
@@ -657,6 +746,7 @@ class TestPublicSurfaceContract:
         "rest_merge_pr",
         "rest_issue_view",
         "rest_pr_view",
+        "rest_issue_list",
     )
 
     def test_public_helpers_constant_matches_expected(self) -> None:

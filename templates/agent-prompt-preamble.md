@@ -92,7 +92,23 @@ Decision tree:
 
 The probe itself is a `core`-bucket call, so polling it cheaply does not consume GraphQL.
 
-## 8. Sub-agent spawn rules per #727
+## 8. Identity separation -- consume dispatcher credential, never fall back to host gh auth (#983)
+
+Workers MUST consume the GitHub credential injected by the dispatcher (typically `GH_TOKEN` in the prompt-supplied env). Workers MUST NOT fall back to the host's `gh auth status` token.
+
+Why: maintainer and workers sharing a single PAT couples the human review/merge workflow and N concurrent workers onto one 5,000-req/hr GraphQL bucket per identity. The maintainer gets rate-limited by their own swarm; audit logs conflate human and machine actions under one `actor.login`; a leaked worker prompt acts with the full scope of the maintainer's PAT instead of the narrow scope a worker actually needs (issues:write / pulls:write / contents:read). The architectural fix is bucket partitioning by identity -- the maintainer keeps their PAT for review/merge/release, workers consume a dedicated bot account or GitHub App installation token. The full pattern (provisioning, scoping, rotation, leaked-token recovery) lives at `patterns/multi-agent.md`.
+
+Enforcement at the worker side:
+
+- ! After AGENTS.md read, verify `GH_TOKEN` is set. If unset and no other dispatcher-supplied credential is present, FAIL LOUD with a clear error -- do not silently run under the host's `gh auth status` token.
+- ~ Confirm the credential's identity matches expectation: `gh api user --jq .login` should return the bot/App login, not the maintainer login. Mismatch is `BLOCKED: identity mismatch` to the parent.
+- ⊗ Inherit the maintainer's `gh auth status` token implicitly. The dispatch envelope is the contract; an implicit fallback re-introduces the bucket coupling and audit conflation this rule eliminates.
+
+Dispatchers (orchestrators / monitor agents / scheduled runs) are the other side of the contract: they MUST inject the worker credential into the env at spawn time and MUST NOT pass through the maintainer's credential. v1 deliberately ships docs-only per #983 non-goals; the env-var injection contract is operator-implemented today.
+
+This rule is complementary to S5 (REST-by-default) and S7 (rate-limit-aware throttle): REST-by-default reduces GraphQL demand on whichever bucket the worker is using; rate-limit throttle keeps the worker from exhausting its own bucket; identity separation prevents the worker bucket from being the maintainer's bucket. All three are required for stable swarm operation.
+
+## 9. Sub-agent spawn rules per #727
 
 If you (the worker) need to spawn a sub-agent yourself:
 
@@ -100,8 +116,9 @@ If you (the worker) need to spawn a sub-agent yourself:
 - Destructive operations (worktree removal, branch deletion, force-push) run alone, never in parallel.
 - Each sub-agent receives its own dispatch envelope including this preamble (or a reference to it).
 - Coordinate shared append-only files (CHANGELOG, lessons.md) with explicit ownership at dispatch time.
+- Sub-agents inherit the parent worker's `GH_TOKEN`; they MUST NOT mint or fall back to a different credential. Identity separation per §8 cascades through the spawn tree.
 
-## 9. Dispatcher lifecycle hygiene -- workers are all-or-nothing
+## 10. Dispatcher lifecycle hygiene -- workers are all-or-nothing
 
 If your dispatch envelope contains a "pause for user approval" step in the middle of the worker's scope, REWRITE IT into two dispatches:
 
@@ -118,7 +135,7 @@ Workers must therefore be all-or-nothing on their dispatch envelope. Approval ga
 
 Reference: scope-expansion comment 4399553752 on issue #954.
 
-## 10. Mandatory DONE message even on early exit
+## 11. Mandatory DONE message even on early exit
 
 Every worker MUST send a final status message before exiting its tool loop, regardless of outcome:
 

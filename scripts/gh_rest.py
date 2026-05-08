@@ -36,11 +36,13 @@ Mutations (5):
                   commit_message=None) -> dict
         PUT /repos/{owner}/{repo}/pulls/{n}/merge
 
-Reads (2):
+Reads (3):
     rest_issue_view(repo, n) -> dict
         GET /repos/{owner}/{repo}/issues/{n}
     rest_pr_view(repo, n) -> dict
         GET /repos/{owner}/{repo}/pulls/{n}
+    rest_issue_list(repo, *, state, labels, per_page) -> list[dict]
+        GET /repos/{owner}/{repo}/issues -- list issues (#976 SCM REST migration)
 
 Each helper returns the raw GitHub REST response dict (parsed JSON). On
 non-zero ``gh`` exit, every helper raises :class:`GhRestError` carrying
@@ -150,6 +152,7 @@ PUBLIC_HELPERS: tuple[str, ...] = (
     "rest_merge_pr",
     "rest_issue_view",
     "rest_pr_view",
+    "rest_issue_list",
 )
 
 
@@ -284,11 +287,19 @@ def _exec(
     endpoint: str,
     payload: dict[str, Any] | None,
     hint: str = "",
-) -> dict[str, Any]:
+    expect_list: bool = False,
+) -> Any:
     """Run ``gh api`` and parse the JSON response, raising on failure.
 
-    All seven helpers funnel through this one function so the error-path
+    All helpers funnel through this one function so the error-path
     semantics (typed exception with structured attributes) are uniform.
+
+    Args:
+        expect_list: When ``True`` the top-level JSON response must be a
+            list (for collection endpoints like ``GET /repos/.../issues``).
+            When ``False`` (default) the response must be a dict (single-
+            resource endpoints). The check guards against gh / endpoint
+            mismatches that would otherwise silently mishandle results.
     """
     result = _run_gh_api(args)
     if result.returncode != 0:
@@ -303,8 +314,9 @@ def _exec(
     if not stdout:
         # Some PUT/PATCH responses may return 204 No Content; ``gh api``
         # surfaces this as empty stdout + zero exit. Treat as success
-        # with an empty dict so callers do not need to special-case.
-        return {}
+        # with an empty dict (or empty list for collection endpoints) so
+        # callers do not need to special-case.
+        return [] if expect_list else {}
     try:
         parsed = json.loads(stdout)
     except json.JSONDecodeError as exc:
@@ -315,16 +327,21 @@ def _exec(
             payload=payload,
             hint="REST endpoint returned non-JSON; check gh / ghx version",
         ) from exc
-    if not isinstance(parsed, dict):
-        # All seven endpoints return a top-level object on success. A
-        # list response would indicate a bug (wrong endpoint) or a gh
-        # version mismatch; raise so callers do not silently mishandle.
+    expected_type = list if expect_list else dict
+    if not isinstance(parsed, expected_type):
+        # The endpoints used by this module return either a top-level
+        # object (single-resource) or a list (collection). A mismatch
+        # would indicate a bug (wrong endpoint) or a gh version mismatch;
+        # raise so callers do not silently mishandle.
         raise GhRestError(
             stderr=f"unexpected top-level type {type(parsed).__name__}",
             exit_code=0,
             endpoint=endpoint,
             payload=payload,
-            hint="REST endpoint returned non-object; expected dict",
+            hint=(
+                f"REST endpoint returned non-{expected_type.__name__}; "
+                f"expected {expected_type.__name__}"
+            ),
         )
     return parsed
 
@@ -600,6 +617,74 @@ def rest_issue_view(repo: str, n: int) -> dict[str, Any]:
     )
 
 
+def rest_issue_list(
+    repo: str,
+    *,
+    state: str = "open",
+    labels: tuple[str, ...] = (),
+    per_page: int = 30,
+) -> list[dict[str, Any]]:
+    """``GET /repos/{owner}/{repo}/issues`` -- list issues (REST collection).
+
+    Added in #976 to give the SCM stub a REST-backed list path so the
+    Story 2 ``cache:fetch-all`` enumeration step (and the live SCM smoke)
+    no longer have to drain the GraphQL bucket via ``gh issue list``.
+
+    Note: GitHub's REST ``GET /issues`` endpoint returns BOTH issues and
+    pull requests (PRs are issues in the REST data model). Each item in
+    the response carries a ``pull_request`` key when it is a PR; callers
+    that want issues only must filter on ``"pull_request" not in item``.
+    The deliberate non-filtering here mirrors GitHub's REST contract --
+    callers compose the filter explicitly so the helper stays a thin
+    wrapper over the endpoint.
+
+    Args:
+        repo: ``"owner/repo"`` slug.
+        state: One of ``"open"`` (default), ``"closed"``, ``"all"``.
+            Mirrors gh CLI's ``--state`` flag and the REST ``state``
+            query param.
+        labels: Optional iterable of label names to filter by. Joined
+            with ``,`` per the REST contract (issues matching ANY of
+            the labels are returned). Empty tuple (default) applies
+            no label filter.
+        per_page: Max items per page. GitHub caps this at 100; the
+            default of 30 mirrors the REST API's own default. This
+            helper does NOT auto-paginate -- callers needing more than
+            ``per_page`` items must paginate explicitly via the
+            ``page`` REST param (add to gh_rest if a call site needs it).
+
+    Returns:
+        Parsed REST issues list (each entry is a REST issue object:
+        number, title, state, user, labels, created_at, updated_at,
+        pull_request (when applicable), ...).
+
+    Raises:
+        InvalidRepoError: Malformed ``repo``.
+        GhRestError: Non-zero ``gh api`` exit (404 not found, 403 auth,
+            non-list response shape, ...).
+    """
+    owner, name = _split_repo(repo)
+    endpoint = f"repos/{owner}/{name}/issues"
+    # gh api accepts repeated -F / --raw-field for query-string params;
+    # we use --raw-field for state / per_page and -F for labels (joined
+    # comma-separated per the REST contract).
+    args: list[str] = [endpoint, "--method", "GET"]
+    args.extend(["--raw-field", f"state={state}"])
+    args.extend(["--raw-field", f"per_page={per_page}"])
+    if labels:
+        args.extend(["--raw-field", f"labels={','.join(labels)}"])
+    return _exec(
+        args,
+        endpoint=endpoint,
+        payload=None,
+        hint=(
+            "verify repo, state value (open|closed|all), labels exist, "
+            "and core REST bucket has remaining quota"
+        ),
+        expect_list=True,
+    )
+
+
 def rest_pr_view(repo: str, n: int) -> dict[str, Any]:
     """``GET /repos/{owner}/{repo}/pulls/{n}`` -- read a single pull request.
 
@@ -637,6 +722,7 @@ __all__ = [
     "PUBLIC_HELPERS",
     "rest_close_issue",
     "rest_create_issue",
+    "rest_issue_list",
     "rest_issue_view",
     "rest_merge_pr",
     "rest_open_pr",

@@ -1,7 +1,7 @@
-"""tests/integration/test_scm_smoke.py -- integration smoke for #883 Story 1.
+"""tests/integration/test_scm_smoke.py -- integration smoke for #883 Story 1 + #976.
 
-Single live test exercising the scm.py wrapper against the real ``gh`` CLI
-and the real ``deftai/directive`` repository. Skipped when:
+Live test exercising the scm.py wrapper against the real ``gh`` CLI / REST
+endpoints and the real ``deftai/directive`` repository. Skipped when:
 
 - ``DEFT_NO_NETWORK=1`` is set (CI lanes that disallow network).
 - ``gh`` (or ``ghx``) is not on PATH (we have no binary to dispatch to).
@@ -9,11 +9,24 @@ and the real ``deftai/directive`` repository. Skipped when:
   exported into the test job env). The smoke is meant to prove wrapper
   round-trips against a real gh; it is not a credential gate, so we skip
   cleanly when no usable token is present rather than fail the lane.
+- Bucket awareness (#976): a live ``gh api rate_limit`` probe (REST, the
+  uncached form per AGENTS.md ``## Multi-agent orchestration discipline
+  (#954)``) checks that the bucket the smoke depends on has remaining
+  quota. The REST path requires only ``core.remaining``; if depleted, we
+  skip cleanly. Pre-#976 the smoke shelled out to ``gh issue view --json``
+  which routes through GraphQL, so unrelated GraphQL exhaustion (e.g.
+  swarm cohorts elsewhere on the same identity) would fail this smoke
+  and block ``task check`` on PRs that did not touch the SCM stub. The
+  smoke now opts into ``--rest`` so GraphQL exhaustion is no longer a
+  failure mode.
 
 Asserts a non-empty JSON body comes back with at minimum {number, title}
-populated -- enough to prove the wrapper round-trips a real gh response
+populated -- enough to prove the wrapper round-trips a real REST response
 without re-implementing the full contract suite (that lives in the unit
 tests at tests/test_scm_stub.py).
+
+Refs #976 (REST migration), #883 (Story 1 stub), #884 (ghx ladder), #954
+(REST-by-default rule), #961 (REST helpers).
 """
 
 from __future__ import annotations
@@ -41,6 +54,11 @@ scm = importlib.import_module("scm")
 # unit tests (test_scm_stub.py) where they don't depend on network.
 SMOKE_REPO = "deftai/directive"
 SMOKE_ISSUE = "1"
+
+#: Minimum REST `core` budget required for one ``rest_issue_view`` call
+#: plus the rate-limit probe itself plus margin for any retries. Below
+#: this the smoke skips cleanly with a clear reason.
+_MIN_CORE_BUDGET = 10
 
 
 pytestmark = pytest.mark.skipif(
@@ -78,6 +96,45 @@ def _gh_authenticated() -> bool:
     return proc.returncode == 0
 
 
+def _probe_rate_limit() -> dict[str, int] | None:
+    """Return ``{"core": N, "graphql": M}`` from a live ``gh api rate_limit`` call.
+
+    Returns ``None`` if the probe itself fails (network down, gh
+    unauthenticated, etc.) so the caller can downgrade to a soft skip
+    instead of treating a probe failure as a smoke failure.
+
+    Per AGENTS.md ``## Multi-agent orchestration discipline (#954)`` the
+    probe MUST be the live REST form (``gh api rate_limit``) NOT
+    ``ghx api rate_limit``: ghx is a cached read-only proxy whose
+    cached value can be stale under N concurrent workers between probe
+    and use, defeating the throttle.
+    """
+    if shutil.which("gh") is None:
+        return None
+    try:
+        proc = subprocess.run(
+            ["gh", "api", "rate_limit"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if proc.returncode != 0 or not proc.stdout.strip():
+        return None
+    try:
+        body = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None
+    resources = body.get("resources", {}) if isinstance(body, dict) else {}
+    core = resources.get("core", {})
+    graphql = resources.get("graphql", {})
+    return {
+        "core": int(core.get("remaining", 0)),
+        "graphql": int(graphql.get("remaining", 0)),
+    }
+
+
 @pytest.mark.skipif(
     not _binary_available(),
     reason="neither ghx nor gh on PATH; skipping live smoke",
@@ -86,10 +143,31 @@ def _gh_authenticated() -> bool:
     not _gh_authenticated(),
     reason="gh CLI is not authenticated (no GH_TOKEN); skipping live smoke",
 )
-def test_scm_issue_view_returns_nonempty_json() -> None:
-    """`scm.py issue view 1 --repo deftai/directive --json number,title` -> populated dict."""
+def test_scm_issue_view_rest_returns_nonempty_json() -> None:
+    """``scm.py issue view --rest 1 --repo deftai/directive --json number,title`` -> populated dict.
+
+    Bucket-aware (#976): exercises the REST opt-in path so GraphQL
+    depletion (a recurring failure mode under shared-identity swarm
+    workflows) no longer fails this smoke. Skips cleanly if the REST
+    ``core`` bucket is itself depleted -- treating bucket exhaustion
+    as a runtime condition rather than a test failure prevents this
+    smoke from blocking unrelated PRs.
+    """
+    rate = _probe_rate_limit()
+    if rate is None:
+        pytest.skip(
+            "gh api rate_limit probe failed -- live smoke requires a probe "
+            "baseline; skipping rather than failing on indeterminate state"
+        )
+    if rate["core"] < _MIN_CORE_BUDGET:
+        pytest.skip(
+            f"REST core bucket depleted (remaining={rate['core']} < "
+            f"{_MIN_CORE_BUDGET}); skipping live smoke until reset. "
+            "GraphQL bucket state is irrelevant here -- the --rest path "
+            "does not touch GraphQL."
+        )
     # Invoke scm.py via subprocess so the test actually exercises the
-    # PATH-resolved binary, not just the in-process build_command(). The
+    # PATH-resolved binary AND the --rest dispatcher end-to-end. The
     # alternative (calling scm.main directly) would inherit pytest's
     # captured stdout and miss the real subprocess plumbing this smoke
     # is meant to verify.
@@ -98,6 +176,7 @@ def test_scm_issue_view_returns_nonempty_json() -> None:
         str(SCRIPTS_DIR / "scm.py"),
         "issue",
         "view",
+        "--rest",
         SMOKE_ISSUE,
         "--repo",
         SMOKE_REPO,
@@ -106,13 +185,13 @@ def test_scm_issue_view_returns_nonempty_json() -> None:
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
     assert proc.returncode == 0, (
-        f"scm.py exit={proc.returncode} stderr={proc.stderr!r}"
+        f"scm.py --rest exit={proc.returncode} stderr={proc.stderr!r}"
     )
     payload = proc.stdout.strip()
-    assert payload, "scm.py issue view emitted empty stdout against a real gh"
+    assert payload, "scm.py --rest issue view emitted empty stdout against real REST"
     parsed = json.loads(payload)
     assert isinstance(parsed, dict), (
-        f"expected JSON object from scm:issue:view, got {type(parsed).__name__}"
+        f"expected JSON object from --rest issue view, got {type(parsed).__name__}"
     )
     assert "number" in parsed and isinstance(parsed["number"], int)
     assert parsed["number"] == int(SMOKE_ISSUE)

@@ -1,7 +1,7 @@
 version: '3'
 
 # ---------------------------------------------------------------------------
-# scm.yml -- STUB for #883 v1 cache layer (Story 1).
+# scm.yml -- STUB for #883 v1 cache layer (Story 1) + #976 REST opt-in.
 #
 # DO NOT EXTEND. DO NOT ADD NEW COMMANDS HERE.
 #
@@ -18,6 +18,19 @@ version: '3'
 # or `gh <verb>` (fallback). Output JSON via the consumer-supplied --json
 # flag. The JSON-shape contract Story 2 depends on is pinned by the
 # tests/test_scm_contract.py contract test against tests/fixtures/scm_issue_view.json.
+#
+# REST opt-in (#976): callers may pass `--rest` to scm:issue:view /
+# scm:issue:list to route the read through scripts/gh_rest.py REST
+# helpers (rest_issue_view / rest_issue_list) instead of forwarding to
+# `ghx|gh issue view|list`. This sidesteps the GraphQL bucket entirely so
+# a depleted graphql.remaining no longer fails read-only smoke / cache
+# flows. The REST shape differs from the gh --json GraphQL shape (REST
+# emits user/created_at/lowercase state vs GraphQL author/createdAt/
+# uppercase state); only callers that opt in see the REST shape. Story 2
+# cache:fetch-all keeps the legacy (GraphQL) path until #881. Mutations
+# (close, edit) keep forwarding to gh -- they have non-trivial flag
+# surfaces (--body-file, --add-label, --remove-label, ...) that this
+# stub deliberately does not re-implement; #881 owns the full surface.
 #
 # Forward-compat marker: the ONLY scm:* surface in v1 is the four issue:*
 # commands above. PR commands (scm:pr:list/view/merge/close) and any
@@ -39,7 +52,7 @@ vars:
 # the cached cmds skip would silently discard the recovery flag.
 tasks:
   issue:list:
-    desc: "[#883 stub] List issues -- task scm:issue:list -- --repo OWNER/NAME --json number,title,state,updatedAt [--state ...]"
+    desc: "[#883 stub] List issues -- task scm:issue:list -- [--rest] --repo OWNER/NAME --json number,title,state,updatedAt [--state ...] (#976 --rest routes via REST helpers; default forwards to ghx|gh)"
     dir: '{{.USER_WORKING_DIR}}'
     env:
       PYTHONUTF8: "1"
@@ -47,7 +60,7 @@ tasks:
       - uv run python "{{.DEFT_ROOT}}/scripts/scm.py" issue list {{.CLI_ARGS}}
 
   issue:view:
-    desc: "[#883 stub] View an issue -- task scm:issue:view -- <N> --repo OWNER/NAME --json number,title,body,state,author,createdAt,updatedAt,labels,comments"
+    desc: "[#883 stub] View an issue -- task scm:issue:view -- [--rest] <N> --repo OWNER/NAME --json number,title,body,state,author,createdAt,updatedAt,labels,comments (#976 --rest routes via REST helpers and emits REST shape; default forwards to ghx|gh GraphQL shape)"
     dir: '{{.USER_WORKING_DIR}}'
     env:
       PYTHONUTF8: "1"
