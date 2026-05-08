@@ -34,6 +34,8 @@ Download the installer for your platform from [GitHub Releases](https://github.c
 > - **macOS:** [`install-macos-universal`](https://github.com/deftai/directive/releases/latest/download/install-macos-universal) (Intel + Apple Silicon)
 > - **Linux:** [`install-linux-amd64`](https://github.com/deftai/directive/releases/latest/download/install-linux-amd64) | [`install-linux-arm64`](https://github.com/deftai/directive/releases/latest/download/install-linux-arm64) (Raspberry Pi / ARM)
 
+> **🌐 Alternative installer — hosted webinstaller:** prefer not to download and run a local binary first? The hosted webinstaller at **<https://webinstaller.fly.dev/>** walks through the same setup in your browser. Trade-off: hosted convenience vs. the local-only install above (the binaries linked here stay on your machine and can be inspected before running). The webinstaller is an alternative path, not the default — for offline / air-gapped environments and security-conscious teams, prefer the local binaries.
+
 > **📢 Cloned manually (no installer)?** Tell your agent: `Read deft/QUICK-START.md and follow it.` It creates your project's `AGENTS.md` and starts the setup flow automatically.
 
 > **🔄 Upgrading from a previous version?** Read [UPGRADING.md](./UPGRADING.md) before proceeding. **Agents:** ! Read [UPGRADING.md](./UPGRADING.md) on the first session after a framework update.
@@ -113,6 +115,20 @@ Read vbrief/PROJECT-DEFINITION.vbrief.json and the scope vBRIEFs in
 vbrief/active/ (or vbrief/pending/ if none are active yet) and implement
 the project following deft/main.md standards.
 ```
+
+### 5. Backlog triage (working an existing backlog)
+
+Already have a populated backlog — an existing project, a brownfield migration, or an upstream issue tracker that has been accumulating? Trigger the refinement workflow's pre-ingest **Phase 0 action menu** with words like **"triage"**, **"work the cache"**, or **"pre-ingest"**. The agent walks each cached candidate through the menu (`accept | reject | defer | needs-ac | mark-duplicate`) and only **accepted** items land in `vbrief/proposed/` — rejected and deferred items are recorded in the audit log without polluting the backlog.
+
+First populate is scoped via flags so the upstream rate limit does not bite:
+
+```bash
+task triage:bootstrap -- --limit 50 --state open
+```
+
+Why scoped flags? An unbounded populate against a real-sized backlog can drain the shared GitHub GraphQL bucket (see [#976](https://github.com/deftai/directive/issues/976)); the `--limit` / `--state` / `--batch-size` / `--delay-ms` surface keeps the populate inside the REST budget with batched delays. The cache (`task cache:fetch-all`) is REST-backed and reproducible across re-runs — no live `gh issue view` per decision.
+
+Full walkthrough — including the three-tier model (cache → audit log → accepted backlog), the action menu, and how to re-enter triage on subsequent passes — lives in [`docs/getting-started.md` § Working an existing backlog](./docs/getting-started.md#working-an-existing-backlog). The verb-to-outcome reference for every `task triage:*` and `task cache:*` command is in [`commands.md`](./commands.md#backlog-triage--cache-tasks).
 
 ## 🪜 Layered Architecture (at a glance)
 
