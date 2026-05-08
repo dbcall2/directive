@@ -311,6 +311,60 @@ class TestRestListDispatch:
         assert "does not recognise these flags" in err
         assert "--unknown-flag" in err
 
+    def test_main_rest_list_leftover_positional_rejected(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Greptile P1 (#976 second-pass review): `_run_rest_list` previously
+        # validated leftover flag-shaped tokens but never inspected leftover
+        # positionals. A caller who typo'd `scm.py issue list --rest 123
+        # --repo o/r` (meaning `issue view`) silently received the entire
+        # open-issues collection instead of an error. The list verb takes
+        # NO positional arguments; this guard surfaces the typo with a
+        # `Did you mean ... issue view ...?` hint.
+        rc = scm.main([
+            "issue", "list", "--rest", "123",
+            "--repo", "deftai/directive",
+        ])
+        assert rc == 2
+        err = capsys.readouterr().err
+        assert "takes no positional arguments" in err
+        assert "'123'" in err
+        assert "issue view --rest 123" in err
+
+    def test_main_rest_list_leftover_positional_rejected_before_helper(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Belt-and-suspenders: positional rejection MUST short-circuit
+        # before the REST helper is invoked so a stray token never
+        # consumes a REST-bucket request. We assert via a fake helper
+        # that records every call: zero invocations means the guard
+        # fired before dispatch.
+        invocations: list[tuple[str, dict[str, Any]]] = []
+
+        def fake_list(
+            repo: str,
+            *,
+            state: str = "open",
+            labels: tuple[str, ...] = (),
+            per_page: int = 30,
+        ) -> list[dict[str, Any]]:
+            invocations.append(
+                (repo, {"state": state, "labels": labels, "per_page": per_page})
+            )
+            return []
+
+        with mock.patch.object(scm.importlib, "import_module") as imp:
+            imp.return_value = SimpleNamespace(
+                rest_issue_list=fake_list,
+                GhRestError=gh_rest.GhRestError,
+            )
+            rc = scm.main([
+                "issue", "list", "--rest", "42",
+                "--repo", "deftai/directive",
+            ])
+        assert rc == 2
+        assert invocations == []  # helper was never called
+
     def test_main_rest_list_repeated_label_flags_merge(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:

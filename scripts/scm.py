@@ -303,6 +303,13 @@ def _run_rest_list(extra: list[str]) -> int:
     dropped any leftover ``--foo`` token, which produced subtly wrong
     behaviour (e.g. a typo'd ``--label-name`` was ignored without error).
 
+    The list verb takes NO positional arguments; any leftover positional
+    token is rejected loudly so a caller who typo'd `issue list --rest 123
+    --repo o/r` (meaning `issue view`) sees the mistake immediately
+    instead of receiving the full open-issues collection silently
+    (Greptile P1 #976 second-pass review). Mirrors the parallel guard
+    in ``_run_rest_view`` for symmetry.
+
     Routes through :func:`scripts.gh_rest.rest_issue_list`.
     """
     repo, extra = _extract_value_flag(extra, "--repo")
@@ -323,6 +330,15 @@ def _run_rest_list(extra: list[str]) -> int:
             f"error: --rest issue list does not recognise these flags: "
             f"{leftover_flags!r}. Supported flags are --repo, --state, "
             "--label, --limit, --json. Additional filters belong on #881.",
+            file=sys.stderr,
+        )
+        return 2
+    leftover_positionals = [t for t in extra if not t.startswith("-")]
+    if leftover_positionals:
+        print(
+            f"error: --rest issue list takes no positional arguments; "
+            f"got {leftover_positionals!r}. Did you mean "
+            f"`scm.py issue view --rest {leftover_positionals[0]} --repo OWNER/NAME`?",
             file=sys.stderr,
         )
         return 2
