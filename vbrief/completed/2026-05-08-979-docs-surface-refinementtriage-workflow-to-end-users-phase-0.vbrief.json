@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "docs: surface refinement/triage workflow to end users (Phase 0 / cache / ingest)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "docs: surface refinement/triage workflow to end users (Phase 0 / cache / ingest)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/979",
@@ -25,6 +25,6 @@
         "title": "Issue #979: docs: surface refinement/triage workflow to end users (Phase 0 / cache / ingest)"
       }
     ],
-    "updated": "2026-05-08T19:45:02Z"
+    "updated": "2026-05-08T21:50:28Z"
   }
 }
