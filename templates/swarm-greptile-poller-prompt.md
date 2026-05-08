@@ -126,7 +126,7 @@ for m in _TIER2_RE.finditer(body):
 # `Zero P1 findings` MUST NOT trigger). The `Not safe to merge` substring is
 # Greptile's explicit human-readable verdict and is treated as a hard block.
 _TIER3_COUNT_RE = re.compile(
-    r"\b(?:One|Two|Three|Four|Five|\d+)\s+P[01]\s+findings?\b",
+    r"\b(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\d+)\s+P[01]\s+findings?\b",
     re.IGNORECASE,
 )
 _TIER3_LINE_RE = re.compile(r"^\s*P[01]\s+--\s", re.MULTILINE)

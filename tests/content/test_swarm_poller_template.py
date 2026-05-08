@@ -42,7 +42,7 @@ _TIER2_RE = re.compile(r"^[\s\-\*]*\*\*P([01])\b[^*]*\*\*", re.MULTILINE)
 _TIER2_NEGATIONS = ("No ", "Zero ", "0 ", "no ")
 
 _TIER3_COUNT_RE = re.compile(
-    r"\b(?:One|Two|Three|Four|Five|\d+)\s+P[01]\s+findings?\b",
+    r"\b(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\d+)\s+P[01]\s+findings?\b",
     re.IGNORECASE,
 )
 _TIER3_LINE_RE = re.compile(r"^\s*P[01]\s+--\s", re.MULTILINE)
@@ -283,9 +283,9 @@ def test_template_contains_tier2_regex(template_text: str) -> None:
 
 
 def test_template_contains_tier3_count_prose_regex(template_text: str) -> None:
-    """Template MUST encode the inline-prose count regex (One|Two|...|\\d+ P[01] findings)."""
+    """Template MUST encode the inline-prose count regex (One..Ten|\\d+ P[01] findings)."""
     assert (
-        r"\b(?:One|Two|Three|Four|Five|\d+)\s+P[01]\s+findings?\b"
+        r"\b(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\d+)\s+P[01]\s+findings?\b"
         in template_text
     ), "template missing Tier 3 count-prose regex (#910)"
 
@@ -303,6 +303,25 @@ def test_template_contains_not_safe_to_merge_substring(template_text: str) -> No
     assert "Not safe to merge" in template_text, (
         "template missing Tier 3 `Not safe to merge` substring sentinel (#910)"
     )
+
+
+def test_template_contains_tier1_badge_count_strings(template_text: str) -> None:
+    """Template MUST encode the canonical Tier 1 HTML-badge substring counts.
+
+    Greptile review on PR #996 surfaced this gap: the Tier 2 / Tier 3 sync
+    tests pin their regex strings, but nothing pinned the Tier 1
+    ``body.count('<img alt="P0"')`` / ``body.count('<img alt="P1"')`` calls
+    that drive the badge tier. A future editor renaming the HTML attribute
+    (e.g. switching to ``data-severity="P0"`` or upstream Greptile changing
+    the badge tag) would silently break Tier 1 with no sync-test failure.
+    Pin both calls verbatim.
+    """
+    assert (
+        "body.count('<img alt=\"P0\"')" in template_text
+    ), "template missing Tier 1 badge count for P0 (`body.count('<img alt=\"P0\"')`) (#910)"
+    assert (
+        "body.count('<img alt=\"P1\"')" in template_text
+    ), "template missing Tier 1 badge count for P1 (`body.count('<img alt=\"P1\"')`) (#910)"
 
 
 def test_template_combined_verdict_uses_max_per_severity(template_text: str) -> None:
