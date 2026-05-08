@@ -23,6 +23,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 _SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
@@ -116,6 +118,7 @@ def test_populate_cache_skips_when_no_repo(tmp_path: Path) -> None:
     assert outcome.ok is True
 
 
+@pytest.mark.slow
 def test_populate_cache_defers_when_cache_module_missing(tmp_path: Path) -> None:
     outcome = triage_bootstrap.step_populate_cache(
         tmp_path,

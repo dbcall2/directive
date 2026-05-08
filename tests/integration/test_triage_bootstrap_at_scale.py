@@ -144,6 +144,7 @@ def fake_cache(monkeypatch: pytest.MonkeyPatch) -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_run_bootstrap_completes_within_wall_clock_cap(
     tmp_path: Path, fake_cache: None
 ) -> None:
@@ -216,6 +217,7 @@ def test_run_bootstrap_completes_within_wall_clock_cap(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_run_bootstrap_emits_per_step_progress(
     tmp_path: Path, fake_cache: None
 ) -> None:
@@ -258,6 +260,7 @@ def test_run_bootstrap_emits_per_step_progress(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_run_bootstrap_watchdog_fires_when_fetch_hangs(tmp_path: Path) -> None:
     """A wedged cache_fetch_all is bounded by ``fetch_timeout_s``.
 
@@ -327,6 +330,7 @@ def test_run_bootstrap_watchdog_fires_when_fetch_hangs(tmp_path: Path) -> None:
 #       not aborted).
 
 
+@pytest.mark.slow
 def test_run_bootstrap_watchdog_emits_timeout_progress_and_structured_exit(
     tmp_path: Path,
 ) -> None:
@@ -476,6 +480,7 @@ def test_run_with_timeout_synthesizes_error_on_silent_thread_death(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_run_bootstrap_watchdog_disabled_with_zero_timeout(
     tmp_path: Path, fake_cache: None
 ) -> None:

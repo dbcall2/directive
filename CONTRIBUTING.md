@@ -107,6 +107,23 @@ task check    # runs: validate + lint + test
 
 ⊗ Commit code that has not passed `task check`.
 
+### Slow tests (#975)
+
+Deft uses a `slow` pytest marker to keep `task check` fast on tight-loop iteration. Tests whose wall-clock exceeds ~0.5s (e.g. real `time.sleep` / thread-join waits in the watchdog regression suite) are marked with `@pytest.mark.slow` and **excluded by default** from `task check` via `addopts = "-m 'not slow'"` in `pyproject.toml`.
+
+```bash
+task check        # default lane -- skips @pytest.mark.slow tests (fast)
+task check:slow   # slow lane -- runs only @pytest.mark.slow tests
+```
+
+! When a test you write exceeds ~1s, mark it with `@pytest.mark.slow` or refactor it to use injected clocks / `monkeypatch` so it runs in milliseconds. The slow lane is intended as a stop-gap; the long-term fix for any genuinely slow test is to remove the wall-clock dependency, not to leave the marker in place forever.
+
+~ Run `task check:slow` locally before pushing changes that touch any `@pytest.mark.slow` test (or the watchdog / threading code those tests cover) so the slow lane stays green. CI runs both lanes.
+
+~ When profiling a suite that feels slow, run `pytest <file> --durations=20` (or the equivalent `task` invocation) to see the top wall-clock offenders. If a single test exceeds 1s, mark it `@pytest.mark.slow` or refactor it before merging.
+
+⊗ Add `@pytest.mark.slow` to tests that are fast but flaky -- the marker is for genuine wall-clock cost, not for hiding intermittent failures. Flaky tests should be fixed at the root cause.
+
 ## Running CLI Locally
 
 The Deft CLI is a Python script at the repo root. Run it with:

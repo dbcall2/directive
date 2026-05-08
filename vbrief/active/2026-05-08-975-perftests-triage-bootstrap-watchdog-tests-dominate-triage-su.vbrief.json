@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #975"
+    "description": "Scope vBRIEF ingested from GitHub issue #975",
+    "updated": "2026-05-08T21:02:58Z"
   },
   "plan": {
     "title": "perf(tests): triage_bootstrap watchdog tests dominate triage suite (top 5 = 68% of triage time)",
-    "status": "pending",
+    "status": "running",
     "narratives": {
       "Description": "perf(tests): triage_bootstrap watchdog tests dominate triage suite (top 5 = 68% of triage time)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/975",

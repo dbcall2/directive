@@ -24,6 +24,22 @@ tmp_path_retention_count = 0  # Prevent WinError 448: pytest-current symlink cle
 # --cov is intentionally absent here. Use `task test:coverage` for coverage runs.
 # Adding --cov to addopts causes false failures when running content tests in
 # isolation (no Python source is exercised, so coverage reports 0%).
+#
+# Slow-marker convention (#975): the watchdog regression suite at
+# tests/integration/test_triage_bootstrap_at_scale.py + the
+# test_populate_cache_defers_when_cache_module_missing case in
+# tests/test_triage_bootstrap.py burn ~5.85s on real time.sleep / thread
+# joins (top 5 watchdog tests = 68% of triage suite wall-clock per the
+# 2026-05-08 profile). They are marked @pytest.mark.slow and excluded by
+# default via addopts so `task check` -> `pytest tests/` skips them; the
+# new `task check:slow` lane runs the full suite (slow included). See
+# CONTRIBUTING.md "Slow tests (#975)" for the contributor convention
+# and the follow-up refactor tracker for the proper monkeypatch-based
+# fix that retires the slow markers.
+markers = [
+    "slow: tests that exceed ~0.5s wall-clock (e.g. real-time watchdog joins). Skipped by default; run via `task check:slow`. See CONTRIBUTING.md for the convention. (#975)",
+]
+addopts = "-m 'not slow'"
 
 [tool.coverage.run]
 source = ["."]

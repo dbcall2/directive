@@ -181,7 +181,7 @@ tasks:
 
   # Backward-compatible aliases -- project convention is `task check`, `task test`, etc.
   check:
-    desc: Run all pre-commit checks
+    desc: "Run all pre-commit checks (skips @pytest.mark.slow tests via pyproject addopts -- run `task check:slow` for the slow lane, #975)"
     deps:
       - core:validate
       - core:lint
@@ -195,6 +195,19 @@ tasks:
       - vbrief:validate
     cmds:
       - echo "All checks passed"
+
+  # `task check:slow` runs the @pytest.mark.slow lane that the default
+  # `task check` skips (#975). The slow lane is dominated by the
+  # triage_bootstrap watchdog regression suite (5 of the 6 marked tests),
+  # which burns ~5.85s on real time.sleep / thread joins -- the proper
+  # monkeypatch refactor is tracked as a follow-up to #975. The `-o
+  # addopts=` reset overrides the pyproject default of `-m 'not slow'`
+  # so the `-m slow` selector here actually picks up the marked tests.
+  check:slow:
+    desc: "Run the @pytest.mark.slow test lane (watchdog regression suite excluded from `task check` by default, #975)"
+    cmds:
+      - uv run pytest tests/ -o addopts= -m slow
+
   test:
     desc: Run test suite (alias for core:test)
     cmds:
