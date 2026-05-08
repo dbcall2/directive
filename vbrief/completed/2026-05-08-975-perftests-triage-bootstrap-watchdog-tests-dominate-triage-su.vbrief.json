@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "perf(tests): triage_bootstrap watchdog tests dominate triage suite (top 5 = 68% of triage time)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "perf(tests): triage_bootstrap watchdog tests dominate triage suite (top 5 = 68% of triage time)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/975",
@@ -24,6 +24,6 @@
         "title": "Issue #975: perf(tests): triage_bootstrap watchdog tests dominate triage suite (top 5 = 68% of triage time)"
       }
     ],
-    "updated": "2026-05-08T19:44:49Z"
+    "updated": "2026-05-08T21:45:24Z"
   }
 }
