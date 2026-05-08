@@ -8,7 +8,7 @@
   "plan": {
     "id": "961-gh-rest-helpers",
     "title": "feat(scripts): gh_rest.py REST-fallback helpers for gh mutations and reads (#961)",
-    "status": "running",
+    "status": "completed",
     "planRef": "#961",
     "narratives": {
       "Problem": "Mid-session 2026-05-07 the `graphql` bucket exhausted (gh api rate_limit reported graphql: 0/5000, core: 4996/5000). gh issue create / close / comment, gh pr ready / merge, gh pr view --json, gh issue view --json all routed through GraphQL and failed hard, even though every operation has a working REST equivalent. The session worked around it by inlining gh api repos/.../<endpoint> --method POST/PATCH/PUT --input <payload.json> per call site -- repetitive, error-prone (PS 5.1 inline-string operations corrupt non-ASCII content), and the pattern lives only as prose in meta/lessons.md. Same root cause re-fired today during the v0.26.1 publish: scripts/release_publish.py line 144 (`gh release view --json ...`) and line 182 (`gh release edit ... --draft=false`) are both GraphQL surfaces, and they failed when the bucket exhausted. Without REST equivalents at those call sites the publish stalled. Reifying the issue/PR pattern as scripts/gh_rest.py + refactoring release_publish.py to use inline REST closes the recurrence at every mutation call site we currently own.",
@@ -136,6 +136,6 @@
         "title": "Canonical preamble § 5 (REST-by-default rule) -- the institutional-memory anchor that this module ships at the script layer"
       }
     ],
-    "updated": "2026-05-07T22:31:28Z"
+    "updated": "2026-05-08T01:46:32Z"
   }
 }
