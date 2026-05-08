@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "swarm cascade: CHANGELOG.md [Unreleased] conflict resolution should union-merge, not HEAD-take",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "swarm cascade: CHANGELOG.md [Unreleased] conflict resolution should union-merge, not HEAD-take",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/911",
@@ -25,6 +25,6 @@
         "title": "Issue #911: swarm cascade: CHANGELOG.md [Unreleased] conflict resolution should union-merge, not HEAD-take"
       }
     ],
-    "updated": "2026-05-08T19:44:43Z"
+    "updated": "2026-05-08T22:06:54Z"
   }
 }
