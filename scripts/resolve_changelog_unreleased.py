@@ -333,7 +333,7 @@ def render_resolved(
     the existing CHANGELOG.md house style.
     """
     out: list[str] = []
-    for idx, (name, entries) in enumerate(merged):
+    for name, entries in merged:
         if name != ambient_subsection:
             if out and out[-1] != "":
                 out.append("")
@@ -346,7 +346,6 @@ def render_resolved(
         # next iteration's leading-blank insertion above. The final
         # subsection gets no trailing blank here; the surrounding file
         # context provides the spacing.
-        _ = idx
     return out
 
 
@@ -495,7 +494,10 @@ def evaluate(
 
     new_content, message = resolve_changelog(content)
     if new_content is None:
-        return 1, f"unresolvable: {message}\n  Path: {changelog_path}"
+        # Greptile P2 (PR #999): inner messages from resolve_changelog already
+        # carry the canonical ``unresolvable: ...`` prefix; do not re-prefix
+        # here or operators see ``unresolvable: unresolvable: ...`` on stderr.
+        return 1, f"{message}\n  Path: {changelog_path}"
 
     if new_content == content:
         return 0, f"OK {changelog_path}: {message}"

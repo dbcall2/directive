@@ -414,6 +414,28 @@ class TestMainExitCodes:
         rc = resolver.main(["--changelog-path", str(tmp_path)])
         assert rc == 2
 
+    def test_unresolvable_prefix_not_doubled_in_stderr(self, tmp_path, capsys):
+        """Greptile P2 (PR #999): the inner message from ``resolve_changelog``
+        already carries the ``unresolvable:`` prefix; ``evaluate()`` must NOT
+        re-prefix or operators see ``unresolvable: unresolvable: ...`` on
+        stderr for every exit-1 path.
+        """
+        path = tmp_path / "CHANGELOG.md"
+        body = (
+            "### Added\n"
+            "<<<<<<< HEAD\n"
+            "- entry\n"
+            ">>>>>>> sha\n"
+        )
+        path.write_text(_build_changelog(body), encoding="utf-8")
+        rc = resolver.main(["--changelog-path", str(path)])
+        assert rc == 1
+        err = capsys.readouterr().err
+        # The diagnostic carries exactly ONE ``unresolvable:`` prefix.
+        assert err.count("unresolvable:") == 1, (
+            f"prefix doubled in stderr: {err!r}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers -- finer-grained coverage
