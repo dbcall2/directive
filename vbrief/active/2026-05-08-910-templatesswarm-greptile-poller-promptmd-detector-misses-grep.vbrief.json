@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #910"
+    "description": "Scope vBRIEF ingested from GitHub issue #910",
+    "updated": "2026-05-08T21:00:16Z"
   },
   "plan": {
     "title": "templates/swarm-greptile-poller-prompt.md detector misses Greptile findings rendered as markdown bullets or inline prose",
-    "status": "pending",
+    "status": "running",
     "narratives": {
       "Description": "templates/swarm-greptile-poller-prompt.md detector misses Greptile findings rendered as markdown bullets or inline prose",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/910",
