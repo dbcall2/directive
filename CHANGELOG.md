@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+### Verified
+- cmd/deft-install installer conformance audit for cohort #992: drifts-tracked-as-#1020; F2 .gitignore default + marker v2 + canonical .deft/core/ layout verified; see docs/audit-2026-05-10-installer-conformance.md
+
 ## [0.27.1] - 2026-05-10
 
 > v0.27.1: relocator self-bootstrap (#1015) + release_publish DRAFT-lookup fix (#1016) -- closes the v0.27.0 cohort follow-up pair under #992.
