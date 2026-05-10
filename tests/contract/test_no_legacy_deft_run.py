@@ -173,6 +173,18 @@ _EXCLUDED_EXACT_PATHS = frozenset(
         # and TO. The F1 "Manual edits required after relocate" subsection
         # is the operator's worklist; the literal token is load-bearing.
         "UPGRADING.md",
+        # #992 PR5 (rc1 dogfood evidence): the smoke doc verbatim-quotes
+        # the relocator's `advise_external_hardcodes()` advisory stdout
+        # captured during a real dogfood run against `deftai/postmortem`.
+        # That stdout legitimately contains the `deft/run` substring -- it
+        # is the relocator REPORTING what it found in the consumer's
+        # pre-v0.27 AGENTS.md `## Commands` block, which is itself the
+        # operator-actionable signal the F1 follow-up was designed to
+        # surface. Rewriting the doc to obfuscate the substring would
+        # silently break the advisory output's evidentiary value. Mirrors
+        # the `meta/lessons.md` carve-out shape (historical content that
+        # quotes pre-flip surfaces verbatim).
+        "docs/smoke-2026-05-10-v0.27.1-relocator-dogfood.md",
     }
 )
 
