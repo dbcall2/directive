@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 ### Verified
-- cmd/deft-install installer conformance audit for cohort #992: drifts-tracked-as-#1020; F2 .gitignore default + marker v2 + canonical .deft/core/ layout verified; see docs/audit-2026-05-10-installer-conformance.md
+- cmd/deft-install installer conformance audit for cohort #992: 3/8 assertions pass (marker v2 only); 5/8 fail (legacy deft/ deposit, no .gitignore upkeep on `.deft-cache/` / `vbrief/.eval/`, no `.deft/core/` deposit, no consumer-root `vbrief/` + schemas); drifts tracked as #1020 (adoption-blocker); see docs/audit-2026-05-10-installer-conformance.md
 
 ## [0.27.1] - 2026-05-10
 
