@@ -117,6 +117,34 @@ for m in _TIER2_RE.finditer(body):
     else:
         tier2_p1 += 1
 
+# --- Tier 2.5: SLizard `### P[01] ·` heading form (#1035) ----------------
+# SLizard renders findings as level-3 markdown headings prefixed with the
+# severity tag and a separator glyph -- e.g. `### P1 ` followed by middot,
+# bullet, hyphenation point, or ASCII hyphen, then the finding title:
+#     ### P1 · Inaccurate description claim about ROADMAP.md
+#     ### P0 • data-loss risk in cache eviction
+# The Tier 2 markdown-bullet bold regex requires `**P[01] ... **` wrapping,
+# so SLizard's heading form passes through invisible. Tier 2.5 closes that
+# gap WITHOUT renumbering Tiers 1/2/3 (the existing detector citations in
+# meta/lessons.md and the swarm-skill anti-patterns key on the 1/2/3 names).
+# Recurrence record: PR #1034 (2026-05-11) live SLizard P1 missed by the
+# triple-tier detector -- #1035 (this fix).
+# Negation-context guard MUST apply the same line-scoped tokens as Tier 2.
+_TIER25_RE = re.compile(
+    r"^#{{1,6}}\s+P([01])\s*[\u00b7\u2027\u2022\-]\s", re.MULTILINE
+)
+
+tier25_p0 = 0
+tier25_p1 = 0
+for m in _TIER25_RE.finditer(body):
+    line = _line_for(body, m.start())
+    if any(neg in line for neg in _TIER2_NEGATIONS):
+        continue  # negation context -- skip
+    if m.group(1) == "0":
+        tier25_p0 += 1
+    else:
+        tier25_p1 += 1
+
 # --- Tier 3: inline-prose sentinels ---------------------------------------
 # Greptile sometimes inlines the verdict as plain prose, e.g.
 #     Three P1 findings (two from prior review, one new): wrong exception ...
@@ -153,15 +181,21 @@ def _has_tier3_sentinel(body: str) -> bool:
 tier3_sentinel = _has_tier3_sentinel(body)
 
 # --- Combined verdict -----------------------------------------------------
-# Use max() per severity so a finding visible in BOTH Tier 1 and Tier 2 is
-# not double-counted; sum P0+P1 across the union; OR with the Tier 3
-# sentinel (which is severity-agnostic by construction).
+# Use max() per severity so a finding visible in MULTIPLE tiers is not
+# double-counted; sum P0+P1 across the union; OR with the Tier 3 sentinel
+# (which is severity-agnostic by construction). Tier 2.5 (#1035) joins the
+# per-severity max() so SLizard `### P[01] · ...` heading-form findings
+# count toward has_blocking regardless of whether Tier 1 or Tier 2 fired.
 has_blocking = (
-    (max(tier1_p0, tier2_p0) + max(tier1_p1, tier2_p1)) > 0
+    (
+        max(tier1_p0, tier2_p0, tier25_p0)
+        + max(tier1_p1, tier2_p1, tier25_p1)
+    )
+    > 0
     or tier3_sentinel
 )
-p0_count = max(tier1_p0, tier2_p0)
-p1_count = max(tier1_p1, tier2_p1)
+p0_count = max(tier1_p0, tier2_p0, tier25_p0)
+p1_count = max(tier1_p1, tier2_p1, tier25_p1)
 ```
 
 **Optional structured-section fallback:** Greptile occasionally emits `### P0 findings (N)` / `### P1 findings (N)` headings. This surface is rare relative to the three tiers above and is provided as a diagnostic-only readout, NOT as a fourth tier in the `has_blocking` formula:
@@ -181,11 +215,21 @@ def severity_count(body, sev):
 
 ### Confidence parse
 
-Greptile's summary contains a line like `Confidence Score: 5/5` (or `4/5`, etc.). Parse it:
+Greptile's summary contains a line like `Confidence Score: 5/5` (or `4/5`, etc.). The line is sometimes inline prose and sometimes rendered as a markdown heading (`## Confidence Score: 3/5` -- the rolling-summary header form Greptile uses on PR rolling comments). The inline regex `re.search` does match inline AND most heading forms because it is unanchored, but defence-in-depth requires an explicit heading-form fallback for the case where the heading line carries trailing markup or whitespace that the inline regex declines (#1035 surfacing event: PR #1034 rolling-summary header `## Confidence Score: 3/5` paired with verdict prose `Safe to merge once corrected` produced a missed parse and the poller fell through to TIMEOUT). Parse via the inline-or-line form first; on miss, attempt the strictly-anchored heading-form regex:
 
 ```python
 import re
 m = re.search(r"Confidence Score:\s*(\d+)\s*/\s*5", body)
+if m is None:
+    # Heading-form fallback (#1035): anchored ^...$ multiline so a stray `0`
+    # outside the `/5` slash form cannot trip the gate. `0/5` is a valid
+    # score and MUST parse; the slash form requirement is the structural
+    # leading-`0` rejection guard.
+    m = re.search(
+        r"^#{{1,6}}\s*Confidence Score:\s*(\d+)\s*/\s*5\s*$",
+        body,
+        re.MULTILINE,
+    )
 confidence = int(m.group(1)) if m else None
 ```
 
@@ -283,7 +327,7 @@ Dogfood lessons captured during the #727 self-review cycle. The template body ab
 
 - **Do NOT window-slice the Greptile body before searching for `Confidence Score:` or `Last reviewed commit:`.** Greptile places the confidence header near the TOP of its summary, while the `Last reviewed commit:` anchor is near the BOTTOM (typically ~5KB lower in real PRs). A naive optimization like `body[idx-200:idx+4000]` around the SHA anchor will silently miss the confidence score. Always run `re.search(...)` against the FULL `gh pr view --comments` output. (Captured during the #727 dogfood self-review where this exact micro-optimization caused the prior agent's poll script to miss the confidence parse; the template's prescribed full-body search is correct.)
 - **`Last reviewed commit:` regex is markdown-link aware.** The recommended pattern is `r"Last reviewed commit:\s*\[[^\]]*\]\(https?://github\.com/[^/]+/[^/]+/commit/(?P<sha>[0-9a-f]{{7,40}})"`. The naive inline-SHA form (`r"Last reviewed commit:\s*([0-9a-f]{{7,40}})"`) does NOT match Greptile's actual output -- Greptile emits `Last reviewed commit: [<subject>](<url>/commit/<sha>)` -- and is the bug Agent D's poll script hit (see #727 followup comments).
-- **P0/P1 detection uses the triple-tier detector at `### P0/P1 findings detection` above (#910).** The detector body in this template is the authoritative implementation -- combine Tier 1 (HTML badge count via `body.count('<img alt="P0"')` / `body.count('<img alt="P1"')`), Tier 2 (markdown-bullet bold scan with line-scoped negation guards), and Tier 3 (inline-prose sentinels: `Not safe to merge` substring + count-prose regex + line-anchored `^P[01] -- ` regex) via `has_blocking = (max(tier1_p0, tier2_p0) + max(tier1_p1, tier2_p1)) > 0 or tier3_sentinel`. The single-tier badge-only approach is INSUFFICIENT and was the recurrence cause of three false-negatives in the v0.25.1 swarm session (#907 first review, #908 first review, #908 retrigger). A `\b(P0|P1)\b` raw substring scan false-positives on the clean-summary phrase `No P0 or P1 issues found` and is forbidden -- the Tier 2 / Tier 3 implementations above embed the negation-context guards (`No `, `Zero `, `0 `, lowercase `no `) and MUST be used verbatim.
+- **P0/P1 detection uses the triple-tier detector at `### P0/P1 findings detection` above (#910), extended with Tier 2.5 SLizard heading form (#1035).** The detector body in this template is the authoritative implementation -- combine Tier 1 (HTML badge count via `body.count('<img alt="P0"')` / `body.count('<img alt="P1"')`), Tier 2 (markdown-bullet bold scan with line-scoped negation guards), Tier 2.5 (SLizard `### P[01]` heading-form regex `^#{{1,6}}\s+P([01])\s*[\u00b7\u2027\u2022\-]\s` with the SAME line-scoped negation-context guard as Tier 2), and Tier 3 (inline-prose sentinels: `Not safe to merge` substring + count-prose regex + line-anchored `^P[01] -- ` regex) via `has_blocking = (max(tier1_p0, tier2_p0, tier25_p0) + max(tier1_p1, tier2_p1, tier25_p1)) > 0 or tier3_sentinel`. Tier 2.5 is numbered 2.5 (not renumbered as a new Tier 4) so existing detector citations in `meta/lessons.md` and the swarm-skill anti-patterns -- which key on the 1/2/3 names -- stay stable. The single-tier badge-only approach is INSUFFICIENT and was the recurrence cause of three false-negatives in the v0.25.1 swarm session (#907 first review, #908 first review, #908 retrigger); the triple-tier-without-Tier-2.5 detector missed SLizard's `### P1 · ...` heading form on PR #1034 (2026-05-11, #1035). A `\b(P0|P1)\b` raw substring scan false-positives on the clean-summary phrase `No P0 or P1 issues found` and is forbidden -- the Tier 2 / Tier 2.5 / Tier 3 implementations above embed the negation-context guards (`No `, `Zero `, `0 `, lowercase `no `) and MUST be used verbatim.
 
 ## Cross-references
 
