@@ -145,9 +145,13 @@ EXIT_CONFIG_ERROR: int = 2
 CANONICAL_FRAMEWORK_DIR: str = ".deft/core"
 LEGACY_FRAMEWORK_DIR: str = "deft"
 
-#: Managed-section markers (#768 + #992 PR1 marker bump v1 -> v2). Mirrored
-#: from the in-tree ``run`` script's constants verbatim.
-AGENTS_MANAGED_OPEN: str = "<!-- deft:managed-section v2 -->"
+#: Managed-section markers (#768 + #992 PR1 marker bump v1 -> v2;
+#: #1046 PR-B AC-5 bump v2 -> v3 with refresh provenance attributes
+#: emitted by ``run::cmd_agents_refresh``). Mirrored from the in-tree
+#: ``run`` script's constants verbatim. The v2 form is parsed for one
+#: release cycle (v0.28 only; v0.29 deprecates v2) via
+#: ``scripts/_relocate_states.py::_AGENTS_MANAGED_OPEN_RE``.
+AGENTS_MANAGED_OPEN: str = "<!-- deft:managed-section v3 -->"
 AGENTS_MANAGED_CLOSE: str = "<!-- /deft:managed-section -->"
 
 #: Top-level entries excluded from the framework deposit.

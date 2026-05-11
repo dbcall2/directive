@@ -437,7 +437,7 @@ class TestAgentsBootstrap:
     # was flipped in #1020 to the ``deft:managed-section v2`` marker (stable
     # across both canonical and legacy install layouts).
     SENTINEL = "deft/main.md"
-    TEMPLATE_SENTINEL = "<!-- deft:managed-section v2 -->"
+    TEMPLATE_SENTINEL = "<!-- deft:managed-section v3 -->"
 
     def test_trampoline_exists_at_repo_root(self):
         """QUICK-START.md must exist at the repository root."""

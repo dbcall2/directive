@@ -17,20 +17,27 @@ import (
 // projects. It is sourced from templates/agents-entry.md via //go:embed (see
 // templates/embed.go) so that editing the template alone is sufficient to
 // change what the installer writes -- no Go file edit required (closes #636).
-// It must contain agentsMDSentinel (the v0.27 deft:managed-section v2 marker)
-// for idempotency -- WriteAgentsMD checks for that string (or the pre-v0.27
-// `deft/main.md` legacy sentinel) before appending (#1020).
+// It must contain agentsMDSentinel (the v0.28 deft:managed-section v3 marker)
+// for idempotency -- WriteAgentsMD checks for that string (or the v2 / pre-v0.27
+// `deft/main.md` legacy sentinels) before appending (#1020, #1046 PR-B AC-5).
 var agentsMDEntry = templates.AgentsEntry
 
 const (
 	deftRepoURL = "https://github.com/deftai/directive"
 
 	// agentsMDSentinel detects an existing deft entry in AGENTS.md for the
-	// idempotency probe in WriteAgentsMD. We use the v0.27 marker open token
+	// idempotency probe in WriteAgentsMD. We use the v0.28 marker open token
 	// (the same marker the relocator and `run agents:refresh` use) because it
 	// is stable across both the canonical (`.deft/core/`) and legacy (`deft/`)
 	// install layouts -- a re-run after a layout flip MUST NOT re-append.
-	agentsMDSentinel = "<!-- deft:managed-section v2 -->"
+	agentsMDSentinel = "<!-- deft:managed-section v3 -->"
+
+	// agentsMDV2Sentinel is the v0.27 marker form retained for one release
+	// cycle (v0.28 only; v0.29 deprecates v2). #1046 PR-B AC-5 bumps the
+	// canonical marker to v3 with refresh provenance attributes; the v2 form
+	// is still recognised here so a fresh canonical install on top of a
+	// v0.27 AGENTS.md still recognises the deft entry and skips re-appending.
+	agentsMDV2Sentinel = "<!-- deft:managed-section v2 -->"
 
 	// agentsMDLegacySentinel is the pre-v0.27 idempotency marker. It is
 	// retained so a fresh canonical install on top of a legacy AGENTS.md still
@@ -219,7 +226,9 @@ func WriteAgentsMD(w *Wizard, projectDir string) error {
 	existing, err := os.ReadFile(path)
 	if err == nil {
 		s := string(existing)
-		if strings.Contains(s, agentsMDSentinel) || strings.Contains(s, agentsMDLegacySentinel) {
+		if strings.Contains(s, agentsMDSentinel) ||
+			strings.Contains(s, agentsMDV2Sentinel) ||
+			strings.Contains(s, agentsMDLegacySentinel) {
 			w.printf("AGENTS.md already contains deft entries — skipping.\n")
 			return nil
 		}

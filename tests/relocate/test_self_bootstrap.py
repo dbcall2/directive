@@ -100,7 +100,7 @@ class TestSelfBootstrapHelperInjectsSentinelAndTempPath:
         )
         (framework / "templates").mkdir(parents=True)
         (framework / "templates" / "agents-entry.md").write_text(
-            "<!-- deft:managed-section v2 -->\n# stub\n<!-- /deft:managed-section -->\n",
+            "<!-- deft:managed-section v3 -->\n# stub\n<!-- /deft:managed-section -->\n",
             encoding="utf-8",
         )
         # A noise file that the ignore-set MUST skip during copy.
@@ -339,7 +339,7 @@ class TestF3RollbackResidue:
         root.mkdir(parents=True, exist_ok=True)
         (root / "templates").mkdir(parents=True, exist_ok=True)
         (root / "templates" / "agents-entry.md").write_text(
-            "<!-- deft:managed-section v2 -->\n# stub\n<!-- /deft:managed-section -->\n",
+            "<!-- deft:managed-section v3 -->\n# stub\n<!-- /deft:managed-section -->\n",
             encoding="utf-8",
         )
         (root / "main.md").write_text("# main.md\n", encoding="utf-8")

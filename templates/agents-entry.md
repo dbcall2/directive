@@ -1,4 +1,4 @@
-<!-- deft:managed-section v2 -->
+<!-- deft:managed-section v3 -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md

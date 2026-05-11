@@ -269,7 +269,7 @@ def test_setup_go_mirrors_pre_cutover_branch() -> None:
     # The `Full guidelines: .deft/core/main.md` line is the single
     # canonical-path reference inside the entry (#1020 flipped the body
     # from `deft/main.md` to `.deft/core/main.md`). The idempotency
-    # contract is now anchored on the `<!-- deft:managed-section v2 -->`
+    # contract is now anchored on the `<!-- deft:managed-section v3 -->`
     # marker, not on the path string, so this assertion pins the
     # canonical-path token shape rather than the marker.
     assert entry.count(".deft/core/main.md") == 1, (

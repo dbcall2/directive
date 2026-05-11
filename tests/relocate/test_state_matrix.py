@@ -72,7 +72,7 @@ def _build_framework_source(root: Path) -> Path:
     # render_managed_section yields a meaningful block.
     (root / "templates").mkdir(parents=True, exist_ok=True)
     (root / "templates" / "agents-entry.md").write_text(
-        "<!-- deft:managed-section v2 -->\n"
+        "<!-- deft:managed-section v3 -->\n"
         "# Deft -- AI Development Framework\n"
         "\n"
         "Test fixture template.\n"
@@ -291,7 +291,7 @@ def _assert_canonical_end_state(
     if expect_legacy_removed:
         assert not (project_root / "deft").exists(), "legacy deft/ should have been removed"
     agents = (project_root / "AGENTS.md").read_text(encoding="utf-8")
-    assert "<!-- deft:managed-section v2 -->" in agents, "v2 marker open absent"
+    assert "<!-- deft:managed-section v3 -->" in agents, "v2 marker open absent"
     assert "<!-- /deft:managed-section -->" in agents, "v2 marker close absent"
     gitignore = (project_root / ".gitignore").read_text(encoding="utf-8")
     assert ".deft-cache/" in gitignore, ".gitignore missing .deft-cache/ entry"
@@ -574,7 +574,7 @@ class TestAgentsMdRender:
         text = (project_root / "AGENTS.md").read_text(encoding="utf-8")
         assert "# Consumer Prose Header" in text
         assert "Hand-rolled notes survive." in text
-        assert "<!-- deft:managed-section v2 -->" in text
+        assert "<!-- deft:managed-section v3 -->" in text
 
     def test_legacy_unwrapped_content_is_wrapped_below(
         self, relocate: Any, project_root: Path, framework_source: Path
@@ -587,7 +587,7 @@ class TestAgentsMdRender:
         text = (project_root / "AGENTS.md").read_text(encoding="utf-8")
         assert "# Legacy AGENTS.md" in text, "legacy content stripped"
         assert "Deft v0.19 install notes." in text, "legacy content stripped"
-        assert "<!-- deft:managed-section v2 -->" in text, "marker not appended"
+        assert "<!-- deft:managed-section v3 -->" in text, "marker not appended"
 
 
 # ---------------------------------------------------------------------------
