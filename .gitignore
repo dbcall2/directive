@@ -74,3 +74,13 @@ vbrief/.eval/
 
 # Monitor scratch (poller scripts, banner-edit helpers, etc.)
 .swarm/
+
+# Scratch automation + issue/PR bodies in history/ (WD AI guideline: "prior tasks -> history/").
+# These accumulate as one-off helpers per session; never versioned.
+history/_*
+history/issue-*
+history/*.json
+history/post-issue.py
+
+# One-off operator scripts left at root from prior sessions -- move to history/ or delete.
+poll-fetch.ps1
