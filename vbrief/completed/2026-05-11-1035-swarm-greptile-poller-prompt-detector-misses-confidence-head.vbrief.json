@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1035"
+    "description": "Scope vBRIEF ingested from GitHub issue #1035",
+    "updated": "2026-05-11T22:23:07Z"
   },
   "plan": {
     "title": "swarm-greptile-poller-prompt detector misses confidence-heading form AND SLizard ### P1 · heading form -- false-negatives on PR #1034",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "swarm-greptile-poller-prompt detector misses confidence-heading form AND SLizard ### P1 · heading form -- false-negatives on PR #1034",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1035",
@@ -23,6 +24,6 @@
         "title": "Issue #1035: swarm-greptile-poller-prompt detector misses confidence-heading form AND SLizard ### P1 · heading form -- false-negatives on PR #1034"
       }
     ],
-    "updated": "2026-05-11T17:10:13Z"
+    "updated": "2026-05-11T22:23:07Z"
   }
 }

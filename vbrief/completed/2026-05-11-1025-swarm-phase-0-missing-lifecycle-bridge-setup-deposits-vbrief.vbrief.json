@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1025"
+    "description": "Scope vBRIEF ingested from GitHub issue #1025",
+    "updated": "2026-05-11T22:23:07Z"
   },
   "plan": {
     "title": "Swarm Phase 0 missing lifecycle bridge: setup deposits vBRIEFs in proposed/, swarm expects active/",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Swarm Phase 0 missing lifecycle bridge: setup deposits vBRIEFs in proposed/, swarm expects active/",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1025",
@@ -26,6 +27,6 @@
         "title": "Issue #1025: Swarm Phase 0 missing lifecycle bridge: setup deposits vBRIEFs in proposed/, swarm expects active/"
       }
     ],
-    "updated": "2026-05-11T03:59:41Z"
+    "updated": "2026-05-11T22:23:07Z"
   }
 }

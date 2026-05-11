@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1039"
+    "description": "Scope vBRIEF ingested from GitHub issue #1039",
+    "updated": "2026-05-11T22:23:07Z"
   },
   "plan": {
     "title": "Greptile poller wedges past CLEAN -- CLEAN gate fails silent, burns 30-min cap (recurrence on PR #1038)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Greptile poller wedges past CLEAN -- CLEAN gate fails silent, burns 30-min cap (recurrence on PR #1038)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1039",
@@ -54,6 +55,6 @@
         "title": "Issue #1039: Greptile poller wedges past CLEAN -- CLEAN gate fails silent, burns 30-min cap (recurrence on PR #1038)"
       }
     ],
-    "updated": "2026-05-11T17:10:12Z"
+    "updated": "2026-05-11T22:23:07Z"
   }
 }

@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1020"
+    "description": "Scope vBRIEF ingested from GitHub issue #1020",
+    "updated": "2026-05-11T22:23:07Z"
   },
   "plan": {
     "title": "installer: cmd/deft-install drifts from v0.27.1 canonical layout (F2)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "installer: cmd/deft-install drifts from v0.27.1 canonical layout (F2)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1020",
@@ -24,6 +25,6 @@
         "title": "Issue #1020: installer: cmd/deft-install drifts from v0.27.1 canonical layout (F2)"
       }
     ],
-    "updated": "2026-05-11T03:59:41Z"
+    "updated": "2026-05-11T22:23:07Z"
   }
 }

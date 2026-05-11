@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1006"
+    "description": "Scope vBRIEF ingested from GitHub issue #1006",
+    "updated": "2026-05-11T22:23:07Z"
   },
   "plan": {
     "title": "feat(coding): fail-loud rule — never claim completion when anything was skipped silently",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "feat(coding): fail-loud rule — never claim completion when anything was skipped silently",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1006",
@@ -23,6 +24,6 @@
         "title": "Issue #1006: feat(coding): fail-loud rule — never claim completion when anything was skipped silently"
       }
     ],
-    "updated": "2026-05-11T03:59:40Z"
+    "updated": "2026-05-11T22:23:07Z"
   }
 }

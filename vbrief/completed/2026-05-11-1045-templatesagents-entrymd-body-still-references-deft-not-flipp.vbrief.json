@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF ingested from GitHub issue #1045",
-    "updated": "2026-05-11T18:24:39Z"
+    "updated": "2026-05-11T22:23:07Z"
   },
   "plan": {
     "title": "templates/agents-entry.md body still references deft/ — not flipped to .deft/core/ for v0.27 contract",
-    "status": "cancelled",
+    "status": "completed",
     "narratives": {
       "Description": "templates/agents-entry.md body still references deft/ — not flipped to .deft/core/ for v0.27 contract",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1045",
@@ -27,6 +27,6 @@
         "title": "Issue #1045: templates/agents-entry.md body still references deft/ — not flipped to .deft/core/ for v0.27 contract"
       }
     ],
-    "updated": "2026-05-11T18:24:39Z"
+    "updated": "2026-05-11T22:23:07Z"
   }
 }

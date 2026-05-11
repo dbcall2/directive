@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1005"
+    "description": "Scope vBRIEF ingested from GitHub issue #1005",
+    "updated": "2026-05-11T22:23:07Z"
   },
   "plan": {
     "title": "feat(coding): surface-conflicts-rule — when two codebase patterns contradict, pick one and explain; never average them",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "feat(coding): surface-conflicts-rule — when two codebase patterns contradict, pick one and explain; never average them",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1005",
@@ -23,6 +24,6 @@
         "title": "Issue #1005: feat(coding): surface-conflicts-rule — when two codebase patterns contradict, pick one and explain; never average them"
       }
     ],
-    "updated": "2026-05-11T03:59:40Z"
+    "updated": "2026-05-11T22:23:07Z"
   }
 }

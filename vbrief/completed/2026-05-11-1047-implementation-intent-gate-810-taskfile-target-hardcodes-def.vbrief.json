@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF ingested from GitHub issue #1047",
-    "updated": "2026-05-11T18:24:39Z"
+    "updated": "2026-05-11T22:23:07Z"
   },
   "plan": {
     "title": "Implementation Intent Gate (#810): Taskfile target hardcodes deft/scripts/preflight_implementation.py; safety gate fails open in v0.27 install layout",
-    "status": "cancelled",
+    "status": "completed",
     "narratives": {
       "Description": "Implementation Intent Gate (#810): Taskfile target hardcodes deft/scripts/preflight_implementation.py; safety gate fails open in v0.27 install layout",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1047",
@@ -27,6 +27,6 @@
         "title": "Issue #1047: Implementation Intent Gate (#810): Taskfile target hardcodes deft/scripts/preflight_implementation.py; safety gate fails open in v0.27 install layout"
       }
     ],
-    "updated": "2026-05-11T18:24:39Z"
+    "updated": "2026-05-11T22:23:07Z"
   }
 }

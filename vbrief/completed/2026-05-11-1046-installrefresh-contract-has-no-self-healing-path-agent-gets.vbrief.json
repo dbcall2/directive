@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF #1046 -- Install/refresh contract self-healing cohort (ADR Choice C). Refined 2026-05-11; absorbs #1045 (PR-A) and #1047 (PR-C); PR-B ships task framework:doctor + canonical manifest + v3 sentinel.",
-    "updated": "2026-05-11T18:50:28Z"
+    "updated": "2026-05-11T22:23:07Z"
   },
   "plan": {
     "title": "Install/refresh contract has no self-healing path (#1046 cohort) -- canonical-path enforcement + framework:doctor + vbrief:preflight resolver",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Install/refresh contract has no self-healing path: agent gets stuck in a no-op Case G loop when install layout disagrees with AGENTS.md",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1046",
@@ -144,7 +144,7 @@
         "title": "Issue #1050: installer consent gate (#1046 Finding #5 follow-up, DEFERRED to v0.29+)"
       }
     ],
-    "updated": "2026-05-11T18:50:28Z",
+    "updated": "2026-05-11T22:23:07Z",
     "metadata": {
       "x-tracking": {
         "cohort_id": "1046-install-contract-self-healing",
