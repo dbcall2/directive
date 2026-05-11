@@ -378,17 +378,45 @@ def _resolve_gh() -> str | None:
 #: stale value cannot leak into a subsequent operator shell session.
 _BRANCH_GATE_BYPASS_ENV = "DEFT_ALLOW_DEFAULT_BRANCH_COMMIT"
 
+#: Programmatic use of the #1019 destructive-gh-verb env-var bypass.
+#: Same pattern as #867 above, applied to the #1019 ``.githooks/pre-push``
+#: gate that refuses pushes to the default branch (force-push or otherwise).
+#: The release pipeline's Step 11 atomic push on master triggers the gate's
+#: ``force_push_default`` detection; without this carve-out the cut halts
+#: at Step 11 with no path forward except a manual env-var override.
+#: Surfaced during the v0.28.0 cut session 2026-05-11 (the release that
+#: introduced #1019); fix lands in the same release to keep master never
+#: in a release-blocking-itself state. The CHANGELOG entry for #1019
+#: documents the env-var as the canonical bypass mirroring
+#: ``DEFT_ALLOW_DEFAULT_BRANCH_COMMIT``; this carve-out makes the
+#: release-pipeline integration explicit. Parent ``os.environ`` is
+#: intentionally NEVER mutated, mirroring the #867 contract.
+_DESTRUCTIVE_GH_GATE_BYPASS_ENV = "DEFT_ALLOW_DESTRUCTIVE_GH_VERBS"
+
 
 def _release_subprocess_env() -> dict[str, str]:
-    """Return a copy of ``os.environ`` with the #747 branch-gate bypass set (#867).
+    """Return a copy of ``os.environ`` with the release-pipeline gate bypasses set.
 
     The returned dict is suitable for passing as ``env=`` to
     ``subprocess.run``/``_run_git`` for the release-pipeline mutations on
     master (commit + tag + push). The parent-process environment is left
-    untouched so the bypass cannot leak to subsequent operator commands.
+    untouched so the bypasses cannot leak to subsequent operator commands.
+
+    Two bypasses are set:
+
+    - ``DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1`` (#867) -- recognised by the
+      #747 branch-protection gate at commit + push time.
+    - ``DEFT_ALLOW_DESTRUCTIVE_GH_VERBS=1`` (added in v0.28.0 alongside
+      #1019) -- recognised by the #1019 destructive-gh-verb pre-push gate
+      so the pipeline's atomic push of master + the annotated tag is not
+      refused by the new gate's ``force_push_default`` classifier.
+
+    Both bypasses are scoped uses of documented operator-side escape
+    hatches, not new bypasses.
     """
     env = os.environ.copy()
     env[_BRANCH_GATE_BYPASS_ENV] = "1"
+    env[_DESTRUCTIVE_GH_GATE_BYPASS_ENV] = "1"
     return env
 
 

@@ -70,6 +70,12 @@ release = _load_module()
 
 
 BYPASS_ENV = "DEFT_ALLOW_DEFAULT_BRANCH_COMMIT"
+# #1019: the destructive-gh-verb pre-push gate has its own bypass env-var
+# that mirrors DEFT_ALLOW_DEFAULT_BRANCH_COMMIT. The release pipeline's
+# atomic push triggers the gate's force_push_default classifier (a push
+# to the default branch), so the release-pipeline subprocess env MUST
+# carry both bypasses. Surfaced during the v0.28.0 cut session 2026-05-11.
+DESTRUCTIVE_GH_BYPASS_ENV = "DEFT_ALLOW_DESTRUCTIVE_GH_VERBS"
 
 
 # ---------------------------------------------------------------------------
@@ -122,6 +128,47 @@ class TestReleaseSubprocessEnv:
         monkeypatch.setenv(BYPASS_ENV, "0")
         env = release._release_subprocess_env()
         assert env[BYPASS_ENV] == "1"
+
+    # ---- #1019 destructive-gh-verb bypass --------------------------------
+
+    def test_returns_dict_with_destructive_gh_bypass_set_to_1(self, monkeypatch):
+        # Strip the bypass from the parent process so we test the
+        # set-from-scratch path explicitly (mirrors the #867 contract).
+        monkeypatch.delenv(DESTRUCTIVE_GH_BYPASS_ENV, raising=False)
+        env = release._release_subprocess_env()
+        assert isinstance(env, dict)
+        assert env.get(DESTRUCTIVE_GH_BYPASS_ENV) == "1", (
+            f"_release_subprocess_env() MUST set {DESTRUCTIVE_GH_BYPASS_ENV}=1 "
+            f"alongside {BYPASS_ENV}=1 so the #1019 destructive-gh-verb pre-push "
+            f"gate does not refuse the pipeline's atomic push to master. "
+            f"observed env[{DESTRUCTIVE_GH_BYPASS_ENV}]={env.get(DESTRUCTIVE_GH_BYPASS_ENV)!r}"
+        )
+
+    def test_sets_both_bypasses_together(self, monkeypatch):
+        # Both env-vars MUST be present in a single call; #867 and #1019
+        # gates fire at the same surfaces (commit + push on master) so
+        # setting only one leaves the other surface refused.
+        monkeypatch.delenv(BYPASS_ENV, raising=False)
+        monkeypatch.delenv(DESTRUCTIVE_GH_BYPASS_ENV, raising=False)
+        env = release._release_subprocess_env()
+        assert env.get(BYPASS_ENV) == "1"
+        assert env.get(DESTRUCTIVE_GH_BYPASS_ENV) == "1"
+
+    def test_destructive_gh_bypass_does_not_mutate_os_environ(self, monkeypatch):
+        # Mirrors the #867 no-leak contract for the new bypass.
+        monkeypatch.delenv(DESTRUCTIVE_GH_BYPASS_ENV, raising=False)
+        baseline = os.environ.copy()
+        _ = release._release_subprocess_env()
+        assert DESTRUCTIVE_GH_BYPASS_ENV not in os.environ
+        assert os.environ == baseline
+
+    def test_destructive_gh_bypass_overrides_inherited_falsy_value(self, monkeypatch):
+        # If the parent shell already has the bypass set to "0" or some
+        # other value, the helper MUST still emit "1" so the subprocess
+        # env unambiguously activates the gate's truthy check.
+        monkeypatch.setenv(DESTRUCTIVE_GH_BYPASS_ENV, "0")
+        env = release._release_subprocess_env()
+        assert env[DESTRUCTIVE_GH_BYPASS_ENV] == "1"
 
 
 # ---------------------------------------------------------------------------
@@ -411,4 +458,59 @@ class TestAllThreeMutationsCarryBypass:
             )
 
         # Final assertion: parent os.environ remains pristine.
+        # (#1019 bypass coverage lives in the dedicated test below to keep
+        # this #867 test pristine on its single contract; the dedicated
+        # test does its own monkeypatch.delenv for the new env var.)
         assert BYPASS_ENV not in os.environ
+
+    def test_all_recorded_git_mutations_carry_destructive_gh_bypass(
+        self, monkeypatch, tmp_path, capture_subprocess
+    ):
+        """Mirror of test_all_recorded_git_mutations_carry_bypass for #1019.
+
+        Every mutation surface (commit / tag / push) MUST carry the
+        DEFT_ALLOW_DESTRUCTIVE_GH_VERBS=1 bypass in its env= kwarg so
+        the #1019 pre-push gate does not refuse the pipeline's push.
+        Surfaced during the v0.28.0 cut session when the bypass was
+        only set for #867 and the push failed at Step 11.
+        """
+        (tmp_path / "CHANGELOG.md").write_text("# changelog\n", encoding="utf-8")
+        captured = capture_subprocess
+
+        def smart_run(*args, **kwargs):
+            captured.append((args, kwargs))
+            argv = args[0] if args else []
+            if (
+                isinstance(argv, list)
+                and len(argv) >= 6
+                and argv[3:6] == ["diff", "--cached", "--quiet"]
+            ):
+                return SimpleNamespace(stdout="", stderr="", returncode=1)
+            return SimpleNamespace(stdout="", stderr="", returncode=0)
+
+        captured.clear()
+        monkeypatch.setattr(release.subprocess, "run", smart_run)
+        monkeypatch.delenv(BYPASS_ENV, raising=False)
+        monkeypatch.delenv(DESTRUCTIVE_GH_BYPASS_ENV, raising=False)
+
+        release.commit_release_artifacts(tmp_path, "0.28.0")
+        release.create_tag(tmp_path, "0.28.0")
+        release.push_release(tmp_path, "0.28.0", "master")
+
+        mutation_subcommands = {"commit", "tag", "push"}
+        for argv, kwargs in _git_commands(captured):
+            if len(argv) < 4:
+                continue
+            sub = argv[3]
+            if sub not in mutation_subcommands:
+                continue
+            env = kwargs.get("env")
+            assert env is not None
+            assert env.get(DESTRUCTIVE_GH_BYPASS_ENV) == "1", (
+                f"git {sub} env MUST carry {DESTRUCTIVE_GH_BYPASS_ENV}=1 (#1019); "
+                f"observed env[{DESTRUCTIVE_GH_BYPASS_ENV}]={env.get(DESTRUCTIVE_GH_BYPASS_ENV)!r}"
+            )
+
+        # Parent os.environ remains pristine for both bypasses.
+        assert BYPASS_ENV not in os.environ
+        assert DESTRUCTIVE_GH_BYPASS_ENV not in os.environ
