@@ -1222,6 +1222,14 @@ def _maybe_run_framework_doctor(project_root: Path) -> None:
     blocks the gate -- on a drift verdict (exit 1) we emit a one-line
     advisory pointing the operator at ``task framework:doctor`` for the
     full report. Mirrors the #801 remote-version probe contract.
+
+    Throttle invariant: ``_DOCTOR_NOTIFIED_THIS_SESSION`` is set on ALL
+    non-error exits (clean OR drift) so chained ``run`` commands
+    (``cmd_install`` -> ``cmd_project`` -> ``cmd_spec``) trigger the
+    four-check file-I/O loop at most ONCE per ``run`` invocation chain
+    (#1046 PR-B Greptile review #1057). A previous shape set the flag
+    only on the drift-and-warn branch, which let clean runs silently
+    re-shell the probe on every gate call.
     """
     global _DOCTOR_NOTIFIED_THIS_SESSION
     if _DOCTOR_NOTIFIED_THIS_SESSION:
@@ -1234,10 +1242,16 @@ def _maybe_run_framework_doctor(project_root: Path) -> None:
         result = run_checks(project_root)
         exit_code = int(result.get("exit_code", 0))
         if exit_code == 0:
-            return  # clean -- no advisory needed
+            # Clean -- no advisory needed, but mark the session as probed
+            # so chained commands skip the redundant file-I/O loop.
+            _DOCTOR_NOTIFIED_THIS_SESSION = True
+            return
         checks = result.get("checks", []) or []
         failed = [c for c in checks if c.get("status") not in ("pass", "skip")]
         if not failed:
+            # No actionable failures (e.g. all checks skip) -- still mark
+            # the session as probed to honour the throttle invariant.
+            _DOCTOR_NOTIFIED_THIS_SESSION = True
             return
         names = ", ".join(c.get("name", "?") for c in failed[:3])
         warn(
@@ -2240,15 +2254,26 @@ def _build_install_manifest_text(
     Pure -- no I/O. Mirrors the ``oz-agent-upgrade`` shape (single-quoted
     values, ordered ref/sha/tag/fetched_at/fetched_by) so a doctor probe
     that re-reads after a ``cmd_install`` write does not flag a shape
-    mismatch. ``ref`` defaults to ``v<tag>`` when None for callers that
-    only carry the bare version (matches the ``oz-agent-upgrade`` rail
-    where ``ref`` is a tag reference like ``v0.27.1``).
+    mismatch. Both ``ref`` and ``tag`` are normalised to the ``v<X.Y.Z>``
+    tag-reference form to match the ``oz-agent-upgrade`` rail and the
+    documented shape in ``docs/install-manifest.md``; ``ref`` defaults to
+    the normalised tag when None. The bare-derivative regeneration path
+    (``_install_manifest_tag_to_version``) ``lstrip("v")`` so the
+    derivative ``.deft-version`` still ends up as ``0.27.1``.
     """
-    effective_ref = ref if ref is not None else f"v{tag}" if not tag.startswith("v") else tag
+    # Normalise both ref and tag to the v-prefixed tag-reference form so
+    # consumers reading the raw YAML (oz-agent-upgrade pipeline, doctor
+    # report, external tooling) see one consistent shape regardless of
+    # whether the caller passed ``"0.27.1"`` or ``"v0.27.1"`` (#1046 PR-B,
+    # Greptile review #1057). Prior to this fix ``ref`` was v-prefixed but
+    # ``tag`` was bare -- the mismatch was harmless for internal use
+    # (lstrip handles both) but diverged from documented contract.
+    effective_tag = tag if tag.startswith("v") else f"v{tag}"
+    effective_ref = ref if ref is not None else effective_tag
     lines = [
         f"ref: '{effective_ref}'",
         f"sha: '{sha}'",
-        f"tag: '{tag}'",
+        f"tag: '{effective_tag}'",
         f"fetched_at: '{fetched_at}'",
         f"fetched_by: '{fetched_by}'",
     ]

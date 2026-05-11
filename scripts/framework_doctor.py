@@ -27,11 +27,13 @@ Four checks:
    manifest's ``tag`` (with leading ``v`` stripped) MUST equal the bare
    file content (whitespace-stripped). On drift, the YAML manifest wins
    per the #1046 PR-B AC-4 fix-shape; the report says so.
-4. ``install-path-consistency`` -- the path AGENTS.md claims (first
-   non-comment install-root declaration) MUST equal the directory
-   containing the YAML manifest. On drift, the YAML manifest wins; the
-   report names which is authoritative and what the operator should do
-   to reconcile.
+4. ``install-path-consistency`` -- the install root AGENTS.md declares
+   (first non-comment install-root declaration) MUST resolve to a real
+   directory on disk. The cross-check that the YAML manifest is
+   co-located at that root is intentionally owned by check #3
+   (``manifest-agreement``) -- splitting responsibilities keeps each
+   check independently actionable. See ``_check_install_path_consistency``
+   for the rationale.
 
 The probe is read-only. It NEVER mutates filesystem state -- ``cmd_upgrade``
 remains the single mutation surface for the canonical install manifest.
@@ -413,7 +415,19 @@ def _check_manifest_agreement(project_root: Path, install_root: str | None) -> C
 
 
 def _check_install_path_consistency(project_root: Path, install_root: str | None) -> CheckResult:
-    """Check #4: AGENTS.md install-root claim equals the manifest directory."""
+    """Check #4: AGENTS.md install-root claim resolves to an on-disk directory.
+
+    Narrow scope by design (#1046 PR-B Greptile review #1057): this check
+    only verifies that the install root AGENTS.md declares is a real
+    directory on disk. The cross-check that the YAML manifest is
+    **co-located** at that root is the responsibility of check #3
+    (``manifest-agreement``) -- when the manifest lives at a different
+    install root (e.g. legacy ``deft/VERSION`` while AGENTS.md claims
+    ``.deft/core``), check #3 reports the drift with the manifest as the
+    authoritative source. Splitting the responsibility keeps each check
+    independently actionable: this one says "reinstall or fix AGENTS.md",
+    check #3 says "reconcile the manifest with the bare derivative".
+    """
     if install_root is None:
         return CheckResult(
             name="install-path-consistency",
@@ -438,10 +452,10 @@ def _check_install_path_consistency(project_root: Path, install_root: str | None
                 "claimed_dir_exists": False,
             },
         )
-    # Cross-check: if a manifest exists at <claimed_dir>/VERSION, it is
-    # by definition co-located -- this check passes. The drift case is
-    # caught by check #3 when the manifest exists somewhere else (e.g.
-    # legacy ``deft/VERSION`` while AGENTS.md claims ``.deft/core``).
+    # Note: this check intentionally does NOT verify the YAML manifest
+    # is co-located at ``<claimed_dir>/VERSION`` -- that cross-check is
+    # owned by check #3 (``manifest-agreement``). See docstring for the
+    # rationale and the per-check responsibility split.
     return CheckResult(
         name="install-path-consistency",
         status="pass",

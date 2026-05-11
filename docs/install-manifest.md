@@ -45,7 +45,7 @@ fetched_by: 'oz-agent-upgrade'
 | ------------ | -------- | ------------------------------------------------------------------------------------------------------------ |
 | `ref`        | yes      | Upstream ref the framework was fetched from. Usually a tag (`v0.27.1`) but may be a branch (`main`) for HEAD installs.    |
 | `sha`        | yes      | Full 40-char commit SHA of the framework HEAD at fetch time. Lets the doctor reconcile against `git rev-parse HEAD`.       |
-| `tag`        | yes      | The bare version (`0.27.1`) -- the same string the legacy `.deft-version` file carries. Drives the derivative regeneration.|
+| `tag`        | yes      | The tag-reference version (`v0.27.1`) -- mirrors `oz-agent-upgrade` shape. The leading `v` is stripped when regenerating the bare `.deft-version` derivative (`0.27.1`).|
 | `fetched_at` | yes      | ISO-8601 UTC timestamp of the install. Used by the doctor to flag stale installs against an `--age-days` threshold. |
 | `fetched_by` | yes      | Identifier for the rail that produced the manifest (`oz-agent-upgrade`, `run-install`, `run-upgrade`, `webinstaller`, ...). |
 
