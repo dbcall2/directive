@@ -408,18 +408,6 @@ Larger feature work -- only after issues are resolved and content is stable.
 - **#985** -- bug(triage,refinement): `task triage:accept` skips `issue:ingest` delegation -- Phase 0 accepted candidates never reach `vbrief/proposed/` -- `[completed]`
 - **#988** -- bug(refinement,ingest): `task issue:ingest` produces stub vBRIEFs without `plan.narratives.Overview` or `plan.items` -- ingested items are not swarm-ready -- `[completed]`
 - **#992** -- feat(installer): adopt .deft/core/ as canonical install layout; ship relocator and contract flip in v0.27 (#992) -- `[completed]`
-- **#1005** -- feat(coding): surface-conflicts-rule — when two codebase patterns contradict, pick one and explain; never average them -- `[completed]`
-- **#1006** -- feat(coding): fail-loud rule — never claim completion when anything was skipped silently -- `[completed]`
-- **#1011** -- Framework `uv run` invocations leak into ancestor `pyproject.toml`; pin project root -- `[completed]`
-- **#1019** -- feat(scripts): add preflight gate for destructive gh verbs (delete_repo, force-push to default, unauthorized merge) -- `[completed]`
-- **#1020** -- installer: cmd/deft-install drifts from v0.27.1 canonical layout (F2) -- `[completed]`
-- **#1021** -- tests: test_scm_issue_view_rest_returns_nonempty_json flakes on Windows via Python subprocess (STATUS_DLL_INIT_FAILED 0xC0000142) -- `[completed]`
-- **#1025** -- Swarm Phase 0 missing lifecycle bridge: setup deposits vBRIEFs in proposed/, swarm expects active/ -- `[completed]`
-- **#1035** -- swarm-greptile-poller-prompt detector misses confidence-heading form AND SLizard ### P1 · heading form -- false-negatives on PR #1034 -- `[completed]`
-- **#1039** -- Greptile poller wedges past CLEAN -- CLEAN gate fails silent, burns 30-min cap (recurrence on PR #1038) -- `[completed]`
-- **#1045** -- templates/agents-entry.md body still references deft/ — not flipped to .deft/core/ for v0.27 contract -- `[completed]`
-- **#1046** -- Install/refresh contract has no self-healing path (#1046 cohort) -- canonical-path enforcement + framework:doctor + vbrief:preflight resolver -- `[completed]`
-- **#1047** -- Implementation Intent Gate (#810): Taskfile target hardcodes deft/scripts/preflight_implementation.py; safety gate fails open in v0.27 install layout -- `[completed]`
 - **#401** -- feat(skills): prepare PR #441 deft-glossary for merge -- rename to deft-directive-glossary + .agents stub + AGENTS.md routing + CHANGELOG + rebase -- `[completed]`
 - **#757** -- Add probe strategy + deft-gh-slice/triage skills (re-author of #440) -- `[completed]`
 
