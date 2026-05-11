@@ -13,19 +13,39 @@ tasks:
       - uv --project "{{.DEFT_ROOT}}" run python "{{.DEFT_ROOT}}/scripts/vbrief_validate.py" --vbrief-dir "{{.USER_WORKING_DIR}}/vbrief"
 
   preflight:
-    # Implementation-intent preflight wrapper (#810 / PR #812 fixup).
-    # Skill files (skills/deft-directive-build/SKILL.md Step 0,
+    # Implementation-intent preflight wrapper (#810 / PR #812 fixup;
+    # #1046 PR-C / #1047 fail-closed resolver). Skill files
+    # (skills/deft-directive-build/SKILL.md Step 0,
     # skills/deft-directive-swarm/SKILL.md Phase 0 Step 1) and the
     # AGENTS.md template (templates/agents-entry.md Implementation Intent
     # Gate block) reference THIS task rather than the underlying Python
-    # script directly so the skills are path-prefix-agnostic between
-    # framework-internal (`scripts/...`) and consumer-installed
-    # (`deft/scripts/...`) contexts. `{{.DEFT_ROOT}}` resolves correctly
-    # in both cases via the shared joinPath idiom (see header of this
-    # file).
+    # script directly so the skills are path-prefix-agnostic across the
+    # three supported install layouts:
     #
-    # The task bakes `--vbrief-path` so callers pass only the vBRIEF
-    # path: `task vbrief:preflight -- <path>`.
+    #   1. ``.deft/core/scripts/...`` (v0.27+ canonical install per #992)
+    #   2. ``deft/scripts/...``       (legacy v0.20-v0.26 install)
+    #   3. ``scripts/...``            (in-repo case: deft framework itself)
+    #
+    # The wrapped ``preflight_implementation.py`` script is located
+    # via ``scripts/_resolve_preflight_path.py`` (#1046 PR-C / #1047),
+    # which probes the three candidate locations under
+    # ``{{.USER_WORKING_DIR}}`` in priority order and exits 2 with a
+    # structured ``gate misconfigured`` error pointing at
+    # ``task framework:doctor`` (#1046 PR-B / #1057) when no candidate
+    # resolves. The two-step invocation (resolve, then run) makes the
+    # fail-closed semantic explicit: if the resolver returns non-zero
+    # the inline ``sh:`` block exits with the same code BEFORE the
+    # downstream ``uv run python <script>`` ever fires, so the gate
+    # never silently fails open on a misconfigured install (the safety
+    # regression #1047 described).
+    #
+    # The resolver script ITSELF is dispatched via ``{{.DEFT_ROOT}}``
+    # (the Taskfile-relative install root) so it lives wherever the
+    # framework lives -- the resolver then probes the consumer's
+    # project root via ``{{.USER_WORKING_DIR}}``.
+    #
+    # The task bakes ``--vbrief-path`` so callers pass only the vBRIEF
+    # path: ``task vbrief:preflight -- <path>``.
     #
     # CLI_ARGS forwarding (#577): bare ``{{.CLI_ARGS}}`` -- DO NOT wrap
     # in Taskfile-level double quotes. go-task already shell-escapes
@@ -41,12 +61,18 @@ tasks:
     # NOTE: NO ``sources:`` / ``generates:`` per ``conventions/task-caching.md``
     # because the vBRIEF path is a user-facing argument forwarded via
     # {{.CLI_ARGS}} and a cached cmds skip would silently swallow it.
-    desc: "Preflight an implementation-intent gate (#810): exits 0 only when vBRIEF is in vbrief/active/ AND plan.status == 'running'."
+    desc: "Preflight an implementation-intent gate (#810): exits 0 only when vBRIEF is in vbrief/active/ AND plan.status == 'running'. Fails closed (#1046 PR-C / #1047) if the wrapped script cannot be resolved."
     dir: '{{.USER_WORKING_DIR}}'
     env:
       PYTHONUTF8: "1"
     cmds:
-      - uv --project "{{.DEFT_ROOT}}" run python "{{.DEFT_ROOT}}/scripts/preflight_implementation.py" --vbrief-path {{.CLI_ARGS}}
+      # Two-step fail-closed invocation. Step 1 resolves the path; on
+      # non-zero exit (no candidate resolves) the ``||`` short-circuits
+      # and the whole ``sh:`` block exits with the resolver's code (2).
+      # Step 2 only fires when Step 1 produced a usable absolute path.
+      - |
+        resolved=$(uv --project "{{.DEFT_ROOT}}" run python "{{.DEFT_ROOT}}/scripts/_resolve_preflight_path.py" --project-root "{{.USER_WORKING_DIR}}") || exit $?
+        uv --project "{{.DEFT_ROOT}}" run python "$resolved" --vbrief-path {{.CLI_ARGS}}
 
   activate:
     # Implementation-intent activation gate companion (#810). Idempotent:
