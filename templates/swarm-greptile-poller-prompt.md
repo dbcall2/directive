@@ -31,7 +31,7 @@ placeholders below are the ONLY single-braced tokens.
 
 TASK: You are a review-cycle agent for PR #{pr_number} in {repo}. Embody `skills/deft-directive-review-cycle/SKILL.md` end-to-end as a single coherent role -- you handle BOTH polling Greptile for review state AND fixing any P0/P1 findings. Do NOT split into separate "poll" and "fix" agents. Do NOT exit until the exit condition is met OR you hit a terminal error / timeout.
 
-DO NOT STOP until ONE of the four terminal exit conditions below fires.
+DO NOT STOP until ONE of the five terminal exit conditions below fires.
 
 ## Role posture
 
@@ -235,9 +235,67 @@ confidence = int(m.group(1)) if m else None
 
 The clean threshold is `confidence > 3`, i.e. 4/5 or 5/5. Lower scores indicate Greptile is uncertain -- do NOT exit clean.
 
+## CLEAN gate evaluation, `clean_gate_holdout`, and per-poll instrumentation (#1039)
+
+The (1) CLEAN terminal exit is an AND of the five conditions enumerated under `### (1) CLEAN` below. A parse failure in ANY of the five (regex doesn't match Greptile's actual rendering / parse silently returns None / a `CI / *` check is `pending` rather than `completed`) keeps both `has_blocking = False` AND `is_clean = False` simultaneously, dropping the poller into the fall-through path that polls until the `{poll_cap_minutes}`-minute cap (PR #1038 recurrence, 2026-05-11; #1039). The gate evaluator below names the FIRST failing condition (in (1)/(2)/(3)/(4)/(5) order) as `clean_gate_holdout` so the per-poll log AND the (4) TIMEOUT / (5) STALL exit messages surface WHICH of the five conditions held the gate -- the operator MUST NEVER have to ask "which condition failed?" (Tier 3 per-condition fail-loud, #1039).
+
+Holdout names map to the five conditions verbatim: condition (1) -> `sha_match`, (2) -> `has_blocking`, (3) -> `confidence`, (4) -> `ci_failures`, (5) -> `errored`. The function MUST evaluate in this exact order so the holdout names the first failure, not a downstream cascade:
+
+```python
+def evaluate_clean_gate(
+    last_reviewed_sha,
+    head_sha,
+    has_blocking,
+    confidence,
+    ci_failures,
+    errored,
+):
+    """Return (is_clean, clean_gate_holdout) per the (5)-condition AND gate.
+
+    clean_gate_holdout names the FIRST failing condition (in 1/2/3/4/5
+    order) or None when all five pass. The order is the operative
+    contract -- callers MUST NOT reorder the checks or the holdout will
+    name a downstream cascade rather than the root cause (#1039).
+    """
+    if last_reviewed_sha is None or last_reviewed_sha != head_sha:
+        return False, "sha_match"
+    if has_blocking:
+        return False, "has_blocking"
+    if confidence is None or confidence <= 3:
+        return False, "confidence"
+    if ci_failures > 0:
+        return False, "ci_failures"
+    if errored:
+        return False, "errored"
+    return True, None
+```
+
+Each poll iteration MUST emit a Tier 1 diagnostic log line (#1039 AC-1) with the fields below in this exact order so a future operator can grep the poller's transcript for `is_clean=False` and see WHICH of the five conditions was the holdout. The fields appear verbatim in this order -- a future edit MUST NOT reorder, rename, or drop them; the `tests/content/test_swarm_poller_template.py` sync tests pin the field set:
+
+```python
+is_clean, clean_gate_holdout = evaluate_clean_gate(
+    last_reviewed_sha=last_reviewed_sha,
+    head_sha=head_sha,
+    has_blocking=has_blocking,
+    confidence=confidence,
+    ci_failures=ci_failure_count,
+    errored=errored,
+)
+print(
+    f"[poll {{i}}/{{cap}}] last_reviewed_sha={{last_reviewed_sha}} "
+    f"head={{head_sha}} sha_match={{last_reviewed_sha == head_sha}} "
+    f"confidence={{confidence}} has_blocking={{has_blocking}} "
+    f"p0={{p0_count}} p1={{p1_count}} errored={{errored}} "
+    f"ci_failures={{ci_failure_count}} is_clean={{is_clean}} "
+    f"clean_gate_holdout={{clean_gate_holdout}}"
+)
+```
+
+Also track a `stall_streak` counter across polls: increment when `has_blocking is False and is_clean is False` (the wedged signature -- no blocking signals detected, no CLEAN exit reachable); reset to 0 on any poll where either `has_blocking` becomes True (drops into (2) NEW P0/P1 FINDINGS) or `is_clean` becomes True (drops into (1) CLEAN). `stall_streak >= 3` is the (5) STALL trip condition below.
+
 ## Terminal exit conditions
 
-When ANY of the four conditions below fires, send the corresponding message to `{parent_agent_id}` and exit. Each message body MUST end with the exact line `-- no more polling, exiting now` so the parent can detect the exit unambiguously.
+When ANY of the five conditions below fires, send the corresponding message to `{parent_agent_id}` and exit. Each message body MUST end with the exact line `-- no more polling, exiting now` so the parent can detect the exit unambiguously.
 
 ### (1) CLEAN
 
@@ -292,7 +350,7 @@ Retry ONCE: post `@greptileai review` as a PR comment via `gh pr comment {pr_num
 
 ### (4) TIMEOUT
 
-`{poll_cap_minutes}` minutes elapsed without reaching CLEAN, NEW P0/P1 FINDINGS escalation, or ERRORED.
+`{poll_cap_minutes}` minutes elapsed without reaching CLEAN, NEW P0/P1 FINDINGS escalation, ERRORED, or (5) STALL.
 
 Send:
 
@@ -307,6 +365,28 @@ Send:
         P1 count: <N>
         Greptile errored: <true|false>
         CI: <statuses>
+        clean_gate_holdout: <which-of-the-five-conditions-failed>
+      -- no more polling, exiting now
+
+### (5) STALL
+
+`has_blocking` is False (no blocking signals detected) AND `is_clean` is False (CLEAN gate not satisfied) for N consecutive polls (default N=3, ~4.5 min at the recommended 90s interval). This is the bounded fail-loud exit (#1039 AC-2) that surfaces a parse-gap or detector-coverage gap immediately, instead of letting the poller burn its `{poll_cap_minutes}`-minute cap polling stale state (PR #1038, 2026-05-11; the recurrence record). The exit message MUST surface `clean_gate_holdout` so the operator sees WHICH of the five CLEAN-gate conditions blocked progress (#1039 AC-3).
+
+Increment the `stall_streak` counter introduced under `## CLEAN gate evaluation, clean_gate_holdout, and per-poll instrumentation (#1039)` above; reset on any poll where `has_blocking` or `is_clean` flips True. When `stall_streak >= 3`, send:
+
+    Subject: PR #{pr_number} poll loop wedged -- terminal-condition detection failure
+    Body:
+      Detector cannot reach CLEAN or NEW P0/P1 FINDINGS but no blocking signals
+      are visible. Likely terminal-condition detection gap on this PR's review surface.
+      Latest state:
+        last_reviewed_sha: <sha or "unparsed">
+        head_sha: <sha>
+        confidence: <N or "unparsed">
+        has_blocking: <True|False>
+        ci_failures: <N>
+        errored: <true|false>
+        clean_gate_holdout: <which-of-the-five-conditions-failed>
+      Parent should diagnose via Tier 1 instrumentation log.
       -- no more polling, exiting now
 
 ## Constraints (non-negotiable)
@@ -319,7 +399,7 @@ Send:
 - ! Set `$env:GIT_EDITOR = "true"` (Windows PowerShell) or `GIT_EDITOR=true` (Unix) BEFORE any git command that could open an editor (rebase, commit --amend) to prevent terminal lockup.
 - ! Use Python scripts (single `run_shell_command` call) for the poll loop, NEVER shell `Start-Sleep` + repeated tool calls. The Python script handles `time.sleep({poll_interval_seconds})` between polls and exits when a terminal condition fires.
 - ! Always pass `do_not_summarize_output: true` semantics when fetching `gh pr view --comments` -- summarizers silently drop the Outside-Diff section.
-- ! Send a status message to `{parent_agent_id}` at start (acknowledging the task) and at every terminal exit (CLEAN / NEW P0/P1 FINDINGS escalation / ERRORED / TIMEOUT). Do NOT silently complete.
+- ! Send a status message to `{parent_agent_id}` at start (acknowledging the task) and at every terminal exit (CLEAN / NEW P0/P1 FINDINGS escalation / ERRORED / TIMEOUT / STALL). Do NOT silently complete.
 
 ## Implementation Notes
 
@@ -328,6 +408,7 @@ Dogfood lessons captured during the #727 self-review cycle. The template body ab
 - **Do NOT window-slice the Greptile body before searching for `Confidence Score:` or `Last reviewed commit:`.** Greptile places the confidence header near the TOP of its summary, while the `Last reviewed commit:` anchor is near the BOTTOM (typically ~5KB lower in real PRs). A naive optimization like `body[idx-200:idx+4000]` around the SHA anchor will silently miss the confidence score. Always run `re.search(...)` against the FULL `gh pr view --comments` output. (Captured during the #727 dogfood self-review where this exact micro-optimization caused the prior agent's poll script to miss the confidence parse; the template's prescribed full-body search is correct.)
 - **`Last reviewed commit:` regex is markdown-link aware.** The recommended pattern is `r"Last reviewed commit:\s*\[[^\]]*\]\(https?://github\.com/[^/]+/[^/]+/commit/(?P<sha>[0-9a-f]{{7,40}})"`. The naive inline-SHA form (`r"Last reviewed commit:\s*([0-9a-f]{{7,40}})"`) does NOT match Greptile's actual output -- Greptile emits `Last reviewed commit: [<subject>](<url>/commit/<sha>)` -- and is the bug Agent D's poll script hit (see #727 followup comments).
 - **P0/P1 detection uses the triple-tier detector at `### P0/P1 findings detection` above (#910), extended with Tier 2.5 SLizard heading form (#1035).** The detector body in this template is the authoritative implementation -- combine Tier 1 (HTML badge count via `body.count('<img alt="P0"')` / `body.count('<img alt="P1"')`), Tier 2 (markdown-bullet bold scan with line-scoped negation guards), Tier 2.5 (SLizard `### P[01]` heading-form regex `^#{{1,6}}\s+P([01])\s*[\u00b7\u2027\u2022\-]\s` with the SAME line-scoped negation-context guard as Tier 2), and Tier 3 (inline-prose sentinels: `Not safe to merge` substring + count-prose regex + line-anchored `^P[01] -- ` regex) via `has_blocking = (max(tier1_p0, tier2_p0, tier25_p0) + max(tier1_p1, tier2_p1, tier25_p1)) > 0 or tier3_sentinel`. Tier 2.5 is numbered 2.5 (not renumbered as a new Tier 4) so existing detector citations in `meta/lessons.md` and the swarm-skill anti-patterns -- which key on the 1/2/3 names -- stay stable. The single-tier badge-only approach is INSUFFICIENT and was the recurrence cause of three false-negatives in the v0.25.1 swarm session (#907 first review, #908 first review, #908 retrigger); the triple-tier-without-Tier-2.5 detector missed SLizard's `### P1 · ...` heading form on PR #1034 (2026-05-11, #1035). A `\b(P0|P1)\b` raw substring scan false-positives on the clean-summary phrase `No P0 or P1 issues found` and is forbidden -- the Tier 2 / Tier 2.5 / Tier 3 implementations above embed the negation-context guards (`No `, `Zero `, `0 `, lowercase `no `) and MUST be used verbatim.
+- **CLEAN-gate detector failures fail LOUD via (5) STALL, not silent via 30-min TIMEOUT (#1039).** The pre-#1039 poller could not distinguish a parse-gap (regex doesn't match Greptile's actual rendering -> `last_reviewed_sha = None` -> condition (1) False) from "Greptile is still working" (no review posted yet -> same outcome), so the wedged signature kept both `has_blocking = False` AND `is_clean = False` and the poller burned its `{poll_cap_minutes}`-minute cap. The (5) STALL terminal exit above bounds the wedged-signature exit at ~4.5 min (N=3 consecutive polls at the recommended 90s interval) and the `clean_gate_holdout` field in BOTH (4) TIMEOUT and (5) STALL exit messages names the FIRST of the five conditions that blocked the gate -- the operator MUST NEVER have to ask "which condition failed?" Recurrence record: PR #1038 (2026-05-11) poller agent `5794b0e7-...` wedged 30 min on a textbook clean review; maintainer intervened out-of-band; #1039.
 
 ## Cross-references
 
@@ -336,3 +417,4 @@ Dogfood lessons captured during the #727 self-review cycle. The template body ab
 - `skills/deft-directive-swarm/SKILL.md` Phase 6 Step 1 -- Greptile errored-state retry / escalation procedure (#526).
 - `meta/lessons.md` `## Orchestrator Role Separation + Canonical Poller Template (2026-04)` -- short cross-reference; the rule body lives in the skills above (per `main.md` Rule Authority [AXIOM]).
 - #727 -- this template's acceptance issue and the full anti-pattern record (rm-chaining, parsing-bug recurrence, role-conflation in implementation-agent prompts).
+- #1039 -- (5) STALL terminal exit + Tier 1 instrumentation + Tier 3 per-condition fail-loud (`clean_gate_holdout`); the third recurrence in this template's detector-gap chain after #910 (triple-tier) and #1035 (Tier 2.5 + confidence-heading).
