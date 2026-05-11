@@ -31,7 +31,7 @@ import pytest
 # The marker open/close text is intentionally pinned in this test rather than
 # imported from `run` so the test fails closed if a future PR re-bumps the
 # marker without updating the layout-detector contract.
-_MANAGED_OPEN_V2 = "<!-- deft:managed-section v2 -->"
+_MANAGED_OPEN_V2 = "<!-- deft:managed-section v3 -->"
 _MANAGED_CLOSE = "<!-- /deft:managed-section -->"
 
 

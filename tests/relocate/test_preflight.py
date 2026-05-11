@@ -55,7 +55,7 @@ def _build_framework_source(root: Path) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     (root / "templates").mkdir(parents=True, exist_ok=True)
     (root / "templates" / "agents-entry.md").write_text(
-        "<!-- deft:managed-section v2 -->\n"
+        "<!-- deft:managed-section v3 -->\n"
         "# Deft -- AI Development Framework\n"
         "\n"
         "Test fixture template.\n"

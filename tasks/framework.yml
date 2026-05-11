@@ -34,3 +34,25 @@ tasks:
       - >-
         python3 "{{.DEFT_ROOT}}/run" check-updates
         {{regexReplaceAll "(^|\\s)--force(\\s|$)" .CLI_ARGS " "}}
+
+  doctor:
+    # #1046 PR-B AC-3: local install-integrity probe. Four checks:
+    # QUICK-START resolves, skill paths resolve, manifest agreement,
+    # install-path consistency. Three-state exit (0 clean / 1 drift /
+    # 2 config error). Pure stdlib via scripts/framework_doctor.py;
+    # mirrors the scripts/preflight_branch.py (#747) shape with the
+    # #814 UTF-8 self-reconfigure at main() entry. Read-only -- the
+    # probe NEVER mutates filesystem state. Mutation belongs to
+    # ``task upgrade``.
+    #
+    # Per ``conventions/task-caching.md`` (#574): the doctor task
+    # accepts user-facing flags (--json, --quiet, --project-root)
+    # forwarded via ``{{.CLI_ARGS}}`` and therefore MUST NOT declare
+    # ``sources:`` / ``generates:`` -- a cached cmds skip would silently
+    # swallow the flags.
+    desc: "Local install-integrity probe (#1046 PR-B AC-3) -- task framework:doctor [-- --json | --quiet | --project-root <path>]. Three-state exit: 0 clean / 1 drift / 2 config error."
+    dir: '{{.USER_WORKING_DIR}}'
+    env:
+      PYTHONUTF8: "1"
+    cmds:
+      - python3 "{{.DEFT_ROOT}}/scripts/framework_doctor.py" --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}

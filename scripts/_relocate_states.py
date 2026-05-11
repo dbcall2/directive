@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -32,8 +33,19 @@ from pathlib import Path
 CANONICAL_FRAMEWORK_DIR: str = ".deft/core"
 LEGACY_FRAMEWORK_DIR: str = "deft"
 
-AGENTS_MANAGED_OPEN: str = "<!-- deft:managed-section v2 -->"
+AGENTS_MANAGED_OPEN: str = "<!-- deft:managed-section v3 -->"
 AGENTS_MANAGED_CLOSE: str = "<!-- /deft:managed-section -->"
+
+# v2 -> v3 marker bump (#1046 PR-B AC-5). Detection MUST accept both forms
+# for one release cycle so consumers on v0.27.x still classify as having a
+# managed section after marker drift -- the relocator's regenerate path
+# will rewrite them to v3. The bare ``v3`` form is the template literal;
+# the regex's optional attribute group covers the per-refresh
+# ``sha=<sha> refreshed=<iso> session=<id>`` tokens emitted by
+# ``run::cmd_agents_refresh``.
+_AGENTS_MANAGED_OPEN_RE = re.compile(
+    r"<!--\s*deft:managed-section\s+v(2|3)(?:\s+[^>]*?)?\s*-->"
+)
 
 ADVISORY_LEGACY_TOKEN: str = "deft/run"
 
@@ -110,7 +122,14 @@ def iter_files(root: Path) -> Iterator[Path]:
 
 
 def _has_managed_markers(text: str) -> bool:
-    return AGENTS_MANAGED_OPEN in text and AGENTS_MANAGED_CLOSE in text
+    # Accept both the v3 (canonical, #1046 PR-B AC-5) and v2 (legacy,
+    # one-release back-compat window) open markers so a v0.27.x consumer
+    # still classifies as state CANONICAL until the relocator rewrites the
+    # marker to v3. The close marker is shared across versions.
+    return (
+        _AGENTS_MANAGED_OPEN_RE.search(text) is not None
+        and AGENTS_MANAGED_CLOSE in text
+    )
 
 
 def detect_install_state(

@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 
 _TEMPLATE_BODY = (
-    "<!-- deft:managed-section v2 -->\n"
+    "<!-- deft:managed-section v3 -->\n"
     "# Deft\n"
     "Body\n"
     "<!-- /deft:managed-section -->\n"
@@ -48,9 +48,14 @@ class TestFreshWrite:
 
         assert result.return_code == 0
         assert (tmp_path / "AGENTS.md").is_file()
-        # Managed section content lives in the file
+        # Managed section content lives in the file. The v3 marker carries
+        # per-refresh provenance attributes (#1046 PR-B AC-5) so match the
+        # opening tag with a regex rather than a literal substring.
+        import re as _re
         content = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
-        assert "<!-- deft:managed-section v2 -->" in content
+        assert _re.search(
+            r"<!--\s*deft:managed-section v3(?:\s+[^>]*)?\s*-->", content
+        )
         assert "<!-- /deft:managed-section -->" in content
 
 
@@ -73,7 +78,7 @@ class TestMarkerRoundTrip:
             "# My consumer notes (preserved)\n"
             "Custom rules.\n"
             "\n"
-            "<!-- deft:managed-section v2 -->\n"
+            "<!-- deft:managed-section v3 -->\n"
             "# Old body\n"
             "Old content\n"
             "<!-- /deft:managed-section -->\n"
@@ -118,7 +123,7 @@ class TestMarkerRoundTrip:
         _patch_template(monkeypatch, deft_run_module)
         (tmp_path / "AGENTS.md").write_text(
             "preamble\n"
-            "<!-- deft:managed-section v2 -->\n"
+            "<!-- deft:managed-section v3 -->\n"
             "old\n"
             "<!-- /deft:managed-section -->\n",
             encoding="utf-8",
@@ -156,14 +161,19 @@ class TestLegacyMigration:
 
         assert result.return_code == 0
         new = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+        import re as _re
         assert "Old hand-rolled v0.19 entry" in new
         assert "Custom rules from before the marker contract" in new
-        assert "<!-- deft:managed-section v2 -->" in new
+        # v3 marker carries per-refresh attributes (#1046 PR-B AC-5); accept
+        # either the bare or attributed form via regex.
+        marker_match = _re.search(
+            r"<!--\s*deft:managed-section v3(?:\s+[^>]*)?\s*-->", new
+        )
+        assert marker_match is not None
         assert "<!-- /deft:managed-section -->" in new
         # Markers come AFTER the legacy content -> migration shape
         legacy_idx = new.index("Custom rules from before")
-        marker_idx = new.index("<!-- deft:managed-section v2 -->")
-        assert legacy_idx < marker_idx
+        assert legacy_idx < marker_match.start()
 
     def test_legacy_migration_then_refresh_is_idempotent(
         self, tmp_path, run_command, deft_run_module, monkeypatch
@@ -217,7 +227,7 @@ class TestCheckMode:
             (tmp_path / "AGENTS.md").write_text("# legacy\n", encoding="utf-8")
         elif scenario == "stale":
             (tmp_path / "AGENTS.md").write_text(
-                "<!-- deft:managed-section v2 -->\nold\n<!-- /deft:managed-section -->\n",
+                "<!-- deft:managed-section v3 -->\nold\n<!-- /deft:managed-section -->\n",
                 encoding="utf-8",
             )
         # absent: no AGENTS.md written
@@ -259,7 +269,7 @@ class TestDryRun:
         monkeypatch.chdir(tmp_path)
         _patch_template(monkeypatch, deft_run_module)
         (tmp_path / "AGENTS.md").write_text(
-            "<!-- deft:managed-section v2 -->\nold\n<!-- /deft:managed-section -->\n",
+            "<!-- deft:managed-section v3 -->\nold\n<!-- /deft:managed-section -->\n",
             encoding="utf-8",
         )
         before = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")

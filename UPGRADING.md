@@ -8,6 +8,49 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 ---
 
+<!-- 1046-prb: From v0.27.x -> v0.28 install-manifest transition BEGIN -->
+## From v0.27.x -> v0.28 (canonical install manifest at `<install>/VERSION`)
+
+- **Applies when:** any project on deft v0.27.0, v0.27.1, or v0.27.2 that has an existing `./.deft-version` marker but no `<install>/VERSION` YAML provenance manifest at the install root (`./.deft/core/VERSION` for canonical installs, `./deft/VERSION` for legacy state-A installs). Detection: `task framework:doctor` reports the `manifest-agreement` check as FAIL with `missing-manifest`; the upgrade gate emits a one-line advisory (`[deft framework:doctor] 1 check(s) drifted (manifest-agreement). Run \`task framework:doctor\` for the full report. Refs #1046.`) on every CLI invocation. Pre-v0.27 projects skip this section -- they pick up the manifest on first `task upgrade` after landing v0.28.
+- **Safe to auto-run:** Yes. The transition is fully automatic on first `task upgrade` (or `run upgrade`, or `run install --force`) post-v0.28 install. `cmd_upgrade` / `cmd_install` write the canonical YAML manifest at the install root with `fetched_by: run-upgrade` / `run-install`, current framework VERSION as `tag`, resolved git SHA as `sha`, and UTC `fetched_at`. The bare `.deft-version` is regenerated from the manifest's `tag` field (matching the v0.27 single-string format). No operator action required -- the gate advisory is purely informational and never blocks the CLI invocation.
+- **Restart required:** No -- the manifest is structural state on disk; the agent's in-memory context does not depend on it. Future `task framework:doctor` invocations transition the `manifest-agreement` check from FAIL to PASS without a session restart.
+- **Commands:**
+  - `task framework:doctor` (read the four-check report; FAIL on the `manifest-agreement` check is the canonical pre-transition state)
+  - `task framework:doctor -- --json` (machine-readable form -- the `checks` array carries per-check status; useful for CI assertions)
+  - `task upgrade` (writes the canonical manifest + regenerates the derivative; idempotent on re-run -- a second invocation against a current manifest is a no-op)
+  - `run install --force <path>` (rewrites the framework dir AND stamps a fresh manifest; the operator-consent path for reinstalls)
+
+### What changes for consumers
+
+- **Canonical manifest.** `<install>/VERSION` (YAML provenance: `ref`, `sha`, `tag`, `fetched_at`, `fetched_by`) is the canonical source of truth for what the framework believes about itself on disk. See [`docs/install-manifest.md`](./docs/install-manifest.md) for the full field reference and write-rail catalogue.
+- **`.deft-version` is now a derivative.** The bare project-root file is regenerated from the manifest's `tag` field on every install / upgrade. Operators should NOT hand-edit it -- update the manifest and re-run `task upgrade`.
+- **Doctor probe.** `task framework:doctor` adds four checks: `quick-start-resolves`, `skill-paths-resolve`, `manifest-agreement`, `install-path-consistency`. Three-state exit (0 clean / 1 drift / 2 config error). The probe is read-only -- it NEVER mutates state. Mutation belongs to `task upgrade`.
+- **Upgrade-gate advisory.** `_check_upgrade_gate` runs the doctor probe in lazy-import mode after the install-layout prompt and emits a one-line advisory on positive drift. Informational only; never sets `needs_prompt` and never blocks the gate.
+- **Managed-section marker v2 -> v3.** Refreshed AGENTS.md files carry a v3 marker (`<!-- deft:managed-section v3 sha=<framework-sha> refreshed=<iso> session=<id> -->`) with refresh-time provenance. The v2 form is parsed for one release cycle (v0.28 only; v0.29 deprecates v2) and forces a refresh-to-v3 on the next `task upgrade` / `run agents:refresh` invocation. Session-boundary detection: when `DEFT_SESSION_ID` is set AND matches the embedded `session=` token, the gate emits a warn telling the operator to start a new session before re-running the refresh (#1046 finding #6 -- prevents Case G no-op re-entry within the same session).
+
+### What `task framework:doctor` does NOT do
+
+- ⊗ It does NOT mutate any filesystem state during detection or emission.
+- ⊗ It does NOT block the CLI invocation it fires alongside; the gate stays exit-0 for manifest drift (mirrors the #801 remote-version probe's informational-only contract).
+- ⊗ It does NOT auto-rewrite the manifest -- writing belongs to `task upgrade` / `run install` / `oz-agent-upgrade` / the webinstaller.
+- ⊗ It does NOT call `read_yn` / interactive confirm helpers; the advisory is a one-line warn, not a prompt.
+
+### Rollback
+
+The transition is one-way -- v0.28 has no shim back to the bare-only marker. To revert to v0.27.x behaviour, pin the framework to a v0.27.x tag and delete `<install>/VERSION`. The bare `.deft-version` survives the rollback and is read by the v0.27 upgrade gate verbatim.
+
+### References
+
+- [#1046](https://github.com/deftai/directive/issues/1046) -- install / refresh contract umbrella (PR-B AC-3 + AC-4 + AC-5 ship the doctor, manifest, and v3 sentinel respectively).
+- [#992](https://github.com/deftai/directive/issues/992) -- canonical install layout (`.deft/core/`) -- the install root this manifest is anchored to.
+- [#410](https://github.com/deftai/directive/issues/410) -- original upgrade gate + `.deft-version` marker (predecessor surface).
+- [`docs/install-manifest.md`](./docs/install-manifest.md) -- canonical manifest field reference + write-rail catalogue.
+- [`scripts/framework_doctor.py`](./scripts/framework_doctor.py) -- doctor probe source (PR-B AC-3).
+- [`tasks/framework.yml`](./tasks/framework.yml) -- `task framework:doctor` Taskfile fragment.
+
+---
+<!-- 1046-prb: From v0.27.x -> v0.28 install-manifest transition END -->
+
 <!-- 992-pr3: From deft/ -> .deft/core/ migration BEGIN -->
 ## From deft/ -> .deft/core/
 

@@ -1144,6 +1144,111 @@ def _maybe_emit_remote_drift_warning(project_root: Path) -> None:
         return
 
 
+# --- #1046 PR-B: framework:doctor + session-boundary hooks -----------------
+#
+# Both hooks are best-effort -- their failure modes are swallowed so the
+# upgrade gate never breaks because of the doctor probe (mirrors the
+# #801 remote-version probe contract). The doctor hook fires AFTER the
+# install-layout prompt so its diagnostics layer on top of the existing
+# detection signal (Case K + B/C/D states still surface first).
+
+_DOCTOR_NOTIFIED_THIS_SESSION = False
+_SAME_SESSION_REFRESH_WARNED = False
+
+
+def _maybe_warn_same_session_refresh(project_root: Path) -> None:
+    """Warn when AGENTS.md was refreshed within the current session lineage (#1046 PR-B AC-5).
+
+    Implements the Finding #6 enforcement: when ``DEFT_SESSION_ID`` is
+    set AND equals the embedded ``session=`` token on the managed-section
+    marker, the gate emits a one-line warn telling the operator to start
+    a new session instead of silently letting Case G re-run with stale
+    in-memory context. Best-effort -- silently degrades on any read /
+    parse failure so the gate never breaks because of the hook.
+
+    No-op (no warn line, no side effect) when:
+      * ``DEFT_SESSION_ID`` is unset (no way to detect lineage).
+      * AGENTS.md is absent or has no v3 marker.
+      * Embedded session id differs from the current ``DEFT_SESSION_ID``.
+      * The hook has already fired this run (``_SAME_SESSION_REFRESH_WARNED``
+        is set).
+    """
+    global _SAME_SESSION_REFRESH_WARNED
+    if _SAME_SESSION_REFRESH_WARNED:
+        return
+    try:
+        current_session = os.environ.get(_ENV_SESSION_ID, "").strip()
+        if not current_session:
+            return
+        agents_md = project_root / "AGENTS.md"
+        if not agents_md.is_file():
+            return
+        text = agents_md.read_text(encoding="utf-8", errors="replace")
+        extracted = _extract_managed_section(text)
+        if extracted is None:
+            return
+        attrs = _parse_managed_section_attrs(extracted)
+        if attrs is None or attrs["version"] < 3:
+            return
+        embedded_session = (attrs.get("session") or "").strip()
+        if not embedded_session or embedded_session != current_session:
+            return
+        refreshed = (attrs.get("refreshed") or "").strip()
+        sha_hint = (attrs.get("sha") or "unknown").strip()
+        warn(
+            "AGENTS.md managed section was refreshed in THIS session "
+            f"(session={embedded_session}, refreshed={refreshed}, sha={sha_hint}). "
+            "Start a NEW agent session before re-running the refresh -- "
+            "the current context still holds the pre-refresh AGENTS.md "
+            "and re-running Case G would be a documented no-op. "
+            "Refs #1046 finding #6."
+        )
+        _SAME_SESSION_REFRESH_WARNED = True
+    except Exception:  # noqa: BLE001 -- detection MUST NOT break the gate
+        return
+
+
+def _maybe_run_framework_doctor(project_root: Path) -> None:
+    """Run the framework:doctor probe + emit a one-line summary (#1046 PR-B AC-3).
+
+    Best-effort: silently degrades on any failure mode (subprocess missing,
+    import error, malformed probe output) so the gate never breaks because
+    of the doctor probe. Throttled per-session via
+    ``_DOCTOR_NOTIFIED_THIS_SESSION`` so chained commands
+    (``cmd_install`` -> ``cmd_project`` -> ``cmd_spec``) emit at most one
+    advisory per ``run`` invocation chain.
+
+    The probe is INFORMATIONAL: it never sets ``needs_prompt`` and never
+    blocks the gate -- on a drift verdict (exit 1) we emit a one-line
+    advisory pointing the operator at ``task framework:doctor`` for the
+    full report. Mirrors the #801 remote-version probe contract.
+    """
+    global _DOCTOR_NOTIFIED_THIS_SESSION
+    if _DOCTOR_NOTIFIED_THIS_SESSION:
+        return
+    try:
+        scripts_dir = get_script_dir() / "scripts"
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        from framework_doctor import run_checks  # type: ignore[import-not-found]
+        result = run_checks(project_root)
+        exit_code = int(result.get("exit_code", 0))
+        if exit_code == 0:
+            return  # clean -- no advisory needed
+        checks = result.get("checks", []) or []
+        failed = [c for c in checks if c.get("status") not in ("pass", "skip")]
+        if not failed:
+            return
+        names = ", ".join(c.get("name", "?") for c in failed[:3])
+        warn(
+            f"[deft framework:doctor] {len(failed)} check(s) drifted ({names}). "
+            "Run `task framework:doctor` for the full report. Refs #1046."
+        )
+        _DOCTOR_NOTIFIED_THIS_SESSION = True
+    except Exception:  # noqa: BLE001 -- detection MUST NOT break the gate
+        return
+
+
 def _check_upgrade_gate(command: str) -> bool:
     """Warn (and prompt when interactive) on framework/project version drift.
 
@@ -1165,6 +1270,14 @@ def _check_upgrade_gate(command: str) -> bool:
            that an upstream release is available, so it MUST run on the
            happy path. Throttled (24h cadence + per-tag re-notification +
            per-session dedup) so the cost of running it always is bounded.
+        3. framework:doctor advisory + warn line on positive DRIFT (#1046 PR-B)
+           -- the doctor is the only signal for layout-mismatch /
+           manifest-drift / skill-path resolution failures that the
+           remote probe does not cover. Informational only.
+        4. same-session-refresh warn line on DEFT_SESSION_ID match
+           (#1046 PR-B AC-5; finding #6) -- detects Case G no-op re-entry
+           inside the same agent session and escalates instead of silently
+           letting the refresh re-run.
     """
     if command in _UPGRADE_GATE_SKIP_COMMANDS:
         return True
@@ -1265,6 +1378,28 @@ def _check_upgrade_gate(command: str) -> bool:
     except Exception:  # noqa: BLE001 -- detection MUST NOT break the gate
         pass
 
+    # #1046 PR-B AC-3: framework:doctor advisory hook. Runs AFTER the
+    # install-layout prompt so Case K (#1046 finding #2) still surfaces
+    # first; doctor layers on top with layout-mismatch / manifest-drift /
+    # skill-path-resolution diagnostics. Informational only; never sets
+    # ``needs_prompt``. The full report lives behind ``task
+    # framework:doctor``.
+    try:
+        _maybe_run_framework_doctor(project_root)
+    except Exception:  # noqa: BLE001 -- detection MUST NOT break the gate
+        pass
+
+    # #1046 PR-B AC-5: same-session refresh detection. Fires when
+    # DEFT_SESSION_ID is set AND matches the embedded session token on
+    # the v3 marker -- the Finding #6 escalation that prevents Case G
+    # from silently re-running in the same agent session. Informational
+    # only; never sets ``needs_prompt`` (the warn line is the
+    # actionable surface).
+    try:
+        _maybe_warn_same_session_refresh(project_root)
+    except Exception:  # noqa: BLE001 -- detection MUST NOT break the gate
+        pass
+
     # On the happy path (no local drift, no legacy artifacts), there is no
     # actionable prompt to surface even if the remote probe emitted a banner
     # -- remote drift is informational, not blocking.
@@ -1307,8 +1442,36 @@ def _check_upgrade_gate(command: str) -> bool:
 # Both functions are intentionally side-effect-free apart from `print()` so
 # the test harness can capture stdout via the `run_command` fixture.
 
-_AGENTS_MANAGED_OPEN = "<!-- deft:managed-section v2 -->"
+# Managed-section marker contract.
+#
+# v2 was the v0.27 marker (#992 PR1, bumped from v1). v3 is the #1046 PR-B
+# marker that carries refresh provenance as attributes on the open tag:
+# ``<!-- deft:managed-section v3 sha=<framework-sha> refreshed=<iso>
+# session=<id> -->``. ``cmd_agents_refresh`` stamps the attributes at write
+# time; the staleness classifier normalises the open tag to the bare v3
+# form before byte-comparing so the attributes do not poison
+# idempotency. Parser back-compat: ``_AGENTS_MANAGED_OPEN_RE`` accepts
+# BOTH v2 and v3 with-or-without attributes for ONE release cycle (v0.28
+# only; v0.29 deprecates v2 -- see ``meta/lessons.md`` for the
+# deprecation window precedent).
+_AGENTS_MANAGED_OPEN = "<!-- deft:managed-section v3 -->"
+_AGENTS_MANAGED_OPEN_V2_LITERAL = "<!-- deft:managed-section v2 -->"
+_AGENTS_MANAGED_OPEN_V3_LITERAL = "<!-- deft:managed-section v3 -->"
 _AGENTS_MANAGED_CLOSE = "<!-- /deft:managed-section -->"
+
+# Accepts ``<!-- deft:managed-section v2 -->`` and ``<!-- deft:managed-section
+# v3 [attrs] -->``. Group 1 = version (2 or 3). Group 2 = the raw attribute
+# string (without leading whitespace) or '' when no attributes are present.
+_AGENTS_MANAGED_OPEN_RE = re.compile(
+    r"<!--\s*deft:managed-section\s+v(2|3)(?:\s+([^>]*?))?\s*-->"
+)
+
+# Recognised attribute keys on the v3 marker. Extra keys are tolerated
+# (parsed into the dict) so a future minor extension does not require a
+# marker rebump; absence of any recognised key is also tolerated (the bare
+# ``v3`` form is the canonical template-shipped marker; attributes are
+# stamped at refresh time by ``cmd_agents_refresh``).
+_AGENTS_MANAGED_V3_ATTR_KEYS: tuple[str, ...] = ("sha", "refreshed", "session")
 
 
 def _agents_template_path() -> Path:
@@ -1332,39 +1495,126 @@ def _read_agents_template() -> Optional[str]:
         return None
 
 
-def _render_managed_section(template_text: str) -> Optional[str]:
-    """Extract the `<!-- deft:managed-section v2 -->` block from the template.
+def _find_managed_open_marker(text: str) -> Optional[re.Match]:
+    """Return the regex match for the open marker (v2 OR v3), or None (#1046 PR-B).
 
-    Returns the byte sequence (newlines normalised to ``\n``) bracketed by
-    the open/close markers, INCLUSIVE. Returns None when either marker is
-    missing -- the contract test asserts the template carries both.
+    Accepts ``<!-- deft:managed-section v2 -->`` AND
+    ``<!-- deft:managed-section v3 [attrs] -->``. The v2 back-compat
+    window is one release cycle per the #1046 PR-B Constraint narrative
+    (v0.28 only; v0.29 deprecates v2).
+    """
+    return _AGENTS_MANAGED_OPEN_RE.search(text)
+
+
+def _parse_managed_section_attrs(extracted: str) -> Optional[dict]:
+    """Parse the open-marker attributes from an extracted managed section (#1046 PR-B).
+
+    Returns a dict with keys ``version`` (int, 2 or 3), ``sha`` (str or
+    None), ``refreshed`` (ISO 8601 str or None), ``session`` (str or
+    None), and ``extras`` (dict of unrecognised key=value attribute
+    pairs). Returns None when ``extracted`` does not match the open
+    marker regex.
+
+    Attribute syntax is ``key=value`` separated by whitespace. Quoted
+    values are tolerated (``key='value'``, ``key="value"``) and unwrapped
+    automatically so the parser handles both the YAML-ish quoted form
+    and the bare form the canonical writer emits. Unknown keys are
+    captured in ``extras`` rather than silently dropped so a future
+    minor extension shows up in test output instead of disappearing.
+    """
+    match = _find_managed_open_marker(extracted)
+    if match is None:
+        return None
+    version = int(match.group(1))
+    attrs_raw = match.group(2) or ""
+    result: dict = {
+        "version": version,
+        "sha": None,
+        "refreshed": None,
+        "session": None,
+        "extras": {},
+    }
+    # Tokenise the attribute string into key=value pairs. We split on
+    # whitespace inside the regex's group (the regex's outer ``\s+``
+    # bounds already ensured at least one whitespace separator).
+    for raw_pair in attrs_raw.split():
+        if "=" not in raw_pair:
+            continue
+        key, _, value = raw_pair.partition("=")
+        key = key.strip().lower()
+        value = value.strip().strip("'\"")
+        if not key:
+            continue
+        if key in _AGENTS_MANAGED_V3_ATTR_KEYS:
+            result[key] = value
+        else:
+            result["extras"][key] = value
+    return result
+
+
+def _strip_managed_section_attrs(section: str) -> str:
+    """Normalise the open marker to the bare v3 form (#1046 PR-B).
+
+    Replaces ``<!-- deft:managed-section v2 -->`` or any
+    ``<!-- deft:managed-section v3 [attrs] -->`` form with the bare
+    ``<!-- deft:managed-section v3 -->`` literal so byte-equality
+    comparisons against the rendered template are not poisoned by the
+    per-refresh ``sha`` / ``refreshed`` / ``session`` tokens.
+
+    Only the FIRST open marker is normalised -- the regex bound stops
+    at the close marker so nested content (which is not legal in this
+    contract) cannot cause double substitution. Pure -- no I/O.
+    """
+    return _AGENTS_MANAGED_OPEN_RE.sub(
+        _AGENTS_MANAGED_OPEN_V3_LITERAL, section, count=1
+    )
+
+
+def _render_managed_section(template_text: str) -> Optional[str]:
+    """Extract the deft:managed-section block from the template.
+
+    Returns the byte sequence (newlines normalised to ``\n``) bracketed
+    by the open/close markers, INCLUSIVE, with the open marker
+    normalised to the bare v3 form (the canonical staleness-comparison
+    baseline). Returns None when either marker is missing -- the
+    contract test asserts the template carries both.
 
     Placeholder substitution is intentionally a no-op in the v1 reference
     implementation: the documented tokens (`{{UPSTREAM_SHA}}`, etc.) are
-    inherited from the webinstaller pin-marker contract and rendered there.
-    Leaving them as literal `{{TOKEN}}` text keeps `--check` byte-stable
-    when the framework is checked out without git metadata, and is the
-    documented behaviour in `templates/agents-entry.placeholders.md`.
+    inherited from the webinstaller pin-marker contract and rendered
+    there. Leaving them as literal `{{TOKEN}}` text keeps `--check`
+    byte-stable when the framework is checked out without git metadata,
+    and is the documented behaviour in
+    `templates/agents-entry.placeholders.md`.
     """
     normalised = template_text.replace("\r\n", "\n")
-    open_idx = normalised.find(_AGENTS_MANAGED_OPEN)
-    close_idx = normalised.find(_AGENTS_MANAGED_CLOSE)
-    if open_idx < 0 or close_idx < 0 or close_idx <= open_idx:
+    open_match = _find_managed_open_marker(normalised)
+    if open_match is None:
+        return None
+    open_idx = open_match.start()
+    close_idx = normalised.find(_AGENTS_MANAGED_CLOSE, open_match.end())
+    if close_idx < 0:
         return None
     end = close_idx + len(_AGENTS_MANAGED_CLOSE)
-    return normalised[open_idx:end]
+    block = normalised[open_idx:end]
+    return _strip_managed_section_attrs(block)
 
 
 def _extract_managed_section(text: str) -> Optional[str]:
     """Pull the managed-section block out of the consumer's AGENTS.md text.
 
-    Returns the bracketed block (normalised to LF) or None if either
-    marker is absent.
+    Returns the bracketed block (normalised to LF, marker bytes preserved
+    verbatim including any v3 ``sha=/refreshed=/session=`` attributes) or
+    None if either marker is absent. Accepts BOTH the legacy v2 and the
+    canonical v3 open markers (#1046 PR-B back-compat parser).
     """
     normalised = text.replace("\r\n", "\n")
-    open_idx = normalised.find(_AGENTS_MANAGED_OPEN)
-    close_idx = normalised.find(_AGENTS_MANAGED_CLOSE)
-    if open_idx < 0 or close_idx < 0 or close_idx <= open_idx:
+    open_match = _find_managed_open_marker(normalised)
+    if open_match is None:
+        return None
+    open_idx = open_match.start()
+    close_idx = normalised.find(_AGENTS_MANAGED_CLOSE, open_match.end())
+    if close_idx < 0:
         return None
     end = close_idx + len(_AGENTS_MANAGED_CLOSE)
     return normalised[open_idx:end]
@@ -1375,8 +1625,17 @@ def _classify_agents_md(project_root: Path) -> str:
 
     - ``absent``  -> ./AGENTS.md does not exist
     - ``missing`` -> ./AGENTS.md exists but has no managed-section markers
-    - ``stale``   -> markers present but bracketed bytes != current template render
-    - ``current`` -> bracketed bytes byte-identical to current template render
+    - ``stale``   -> markers present but bracketed bytes (after open-marker
+                     normalisation) != current template render OR the open
+                     marker is the legacy v2 form (forces upgrade to v3)
+    - ``current`` -> bracketed bytes byte-identical to current template
+                     render after stripping v3 marker attributes
+
+    A v2-marker consumer file always classifies as ``stale`` so the
+    next refresh upgrades to the v3 form. After upgrade the v3 marker's
+    per-refresh ``sha`` / ``refreshed`` / ``session`` attributes do NOT
+    poison the staleness check -- ``_strip_managed_section_attrs``
+    normalises both sides to the bare ``v3`` form before comparison.
 
     A missing or unreadable template falls through to ``current`` so the
     gate never fires solely because the framework checkout itself is
@@ -1392,15 +1651,21 @@ def _classify_agents_md(project_root: Path) -> str:
     extracted = _extract_managed_section(existing)
     if extracted is None:
         return "missing"
+    attrs = _parse_managed_section_attrs(extracted)
+    if attrs is not None and attrs["version"] == 2:
+        # v2 marker -- force upgrade to v3 by classifying as stale
+        # regardless of whether the body bytes match. The v2 -> v3
+        # transition is the load-bearing AC-5 deliverable.
+        return "stale"
     template_text = _read_agents_template()
     if template_text is None:
-        # Framework checkout incomplete -- err on the side of "current" so
-        # the universal gate doesn't refuse to start.
+        # Framework checkout incomplete -- err on the side of "current"
+        # so the universal gate doesn't refuse to start.
         return "current"
     rendered = _render_managed_section(template_text)
     if rendered is None:
         return "current"
-    return "current" if extracted == rendered else "stale"
+    return "current" if _strip_managed_section_attrs(extracted) == rendered else "stale"
 
 
 # --- Install-layout state detector + auto-prompt (#992 PR3) ----------------
@@ -1487,7 +1752,8 @@ def _agents_md_has_managed_markers(project_root: Path) -> bool:
     comparison: the install-layout detector only needs to know whether the
     file declares itself as deft-managed, not whether the bracketed bytes
     are byte-identical to the rendered template. Read-only -- never
-    modifies the file.
+    modifies the file. Accepts BOTH v2 and v3 open markers per the
+    #1046 PR-B AC-5 back-compat parser (one-release window).
     """
     agents_md = project_root / "AGENTS.md"
     if not agents_md.is_file():
@@ -1496,7 +1762,10 @@ def _agents_md_has_managed_markers(project_root: Path) -> bool:
         text = agents_md.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return False
-    return _AGENTS_MANAGED_OPEN in text and _AGENTS_MANAGED_CLOSE in text
+    return (
+        _AGENTS_MANAGED_OPEN_RE.search(text) is not None
+        and _AGENTS_MANAGED_CLOSE in text
+    )
 
 
 def _agents_md_declared_main_md(project_root: Path) -> Optional[str]:
@@ -1786,8 +2055,259 @@ def _wrap_legacy_in_markers(existing: str, rendered: str) -> str:
     return rendered + "\n"
 
 
+# --- Framework SHA + session id resolution (#1046 PR-B AC-5) ---------------
+
+
+def _resolve_framework_sha() -> str:
+    """Return the current framework checkout's HEAD sha (short form).
+
+    Resolution order: ``git rev-parse --short=12 HEAD`` rooted at the
+    directory containing this ``run`` script. Falls back to ``unknown``
+    on subprocess failure (git missing / non-git checkout / hook
+    permission error). Best-effort -- the v3 marker tolerates the
+    fallback string verbatim so refresh remains idempotent across
+    environments lacking git metadata. See #1046 finding #6 fix-shape.
+    """
+    script_dir = str(get_script_dir())
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short=12", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+            cwd=script_dir,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return "unknown"
+    if result.returncode != 0:
+        return "unknown"
+    sha = (result.stdout or "").strip()
+    return sha or "unknown"
+
+
+# Environment variable the agent runtime may export to identify the
+# current session lineage. When set, ``_maybe_warn_same_session_refresh``
+# compares the value against the embedded ``session=`` token on the
+# managed-section marker to detect Case G no-op re-entry within the
+# same session (#1046 finding #6).
+_ENV_SESSION_ID = "DEFT_SESSION_ID"
+
+
+def _new_session_id() -> str:
+    """Return a freshly-synthesised 12-char session id (#1046 PR-B AC-5).
+
+    Uses ``uuid.uuid4().hex[:12]`` so each refresh stamps a unique token
+    on the marker. Ephemeral -- never persisted outside the AGENTS.md
+    marker itself; the v3 contract is per-refresh, not per-session.
+    """
+    import uuid
+    return uuid.uuid4().hex[:12]
+
+
+def _attribute_render_managed_section(
+    rendered: str,
+    *,
+    framework_sha: str,
+    refreshed: str,
+    session_id: str,
+) -> str:
+    """Inject v3 attributes into a bare-rendered managed section (#1046 PR-B AC-5).
+
+    Takes the byte-stable ``rendered`` block (open marker = bare
+    ``<!-- deft:managed-section v3 -->``) emitted by
+    ``_render_managed_section`` and produces the attribute-rich form
+    consumers write to disk:
+
+        ``<!-- deft:managed-section v3 sha=<sha> refreshed=<iso>
+        session=<id> -->``
+
+    Only the open marker is mutated -- the body bytes between the
+    open/close markers are preserved verbatim so subsequent staleness
+    classification (after attribute stripping) returns ``current``.
+    """
+    attr_string = f"v3 sha={framework_sha} refreshed={refreshed} session={session_id}"
+    attributed_open = f"<!--{' '}deft:managed-section {attr_string} -->"
+    # The bare marker is fixed-length so a single replacement is
+    # unambiguous; we use replace(..., count=1) to avoid double-substitution
+    # if a future template carries the literal in a code-block example.
+    return rendered.replace(_AGENTS_MANAGED_OPEN_V3_LITERAL, attributed_open, 1)
+
+
+# --- Canonical install manifest (#1046 PR-B AC-4) --------------------------
+#
+# The YAML provenance file at ``<install>/VERSION`` is the canonical install
+# manifest (#1046 finding #4 fix-shape). It carries the install-time
+# provenance ``oz-agent-upgrade`` already produces:
+#
+#     ref: 'v0.27.1'
+#     sha: 'af829f4ec5bbe6ef562722d76080bb94ba893f8e'
+#     tag: 'v0.27.1'
+#     fetched_at: '2026-05-11T15:30:52Z'
+#     fetched_by: 'oz-agent-upgrade'
+#
+# ``<project-root>/.deft-version`` (bare version) becomes a derivative
+# regenerated at install time from the manifest's ``tag`` field (with the
+# leading ``v`` stripped). ``framework_doctor`` check #3 verifies the two
+# are in agreement; on drift, prefer the YAML manifest.
+
+_INSTALL_MANIFEST_FILENAME = "VERSION"
+
+# Minimal single-line ``key: value`` parser for the YAML provenance file.
+# Values are stripped of surrounding single / double quotes. Lines that
+# do not match are ignored so a free-form comment header does not break
+# the parse. Stdlib-only -- the framework's ``cmd_install`` path cannot
+# assume PyYAML is installed.
+_INSTALL_MANIFEST_LINE_RE = re.compile(
+    r"^\s*(?P<key>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?P<value>.*?)\s*$"
+)
+
+
+def _install_manifest_path(install_root: Path) -> Path:
+    """Return the canonical ``<install>/VERSION`` manifest path (#1046 PR-B)."""
+    return install_root / _INSTALL_MANIFEST_FILENAME
+
+
+def _parse_install_manifest(text: str) -> dict:
+    """Parse a YAML-ish provenance manifest body (#1046 PR-B AC-4).
+
+    Returns a dict of recognised string fields. Tolerates trailing /
+    leading whitespace, single-quoted / double-quoted values, and
+    free-form comment lines (any line not matching ``key: value`` is
+    silently dropped). Empty input returns an empty dict. Pure -- no I/O.
+    """
+    parsed: dict = {}
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        match = _INSTALL_MANIFEST_LINE_RE.match(stripped)
+        if match is None:
+            continue
+        key = match.group("key").strip().lower()
+        value = match.group("value").strip().strip("'\"")
+        if key:
+            parsed[key] = value
+    return parsed
+
+
+def _read_install_manifest(install_root: Path) -> Optional[dict]:
+    """Read the canonical install manifest at ``<install>/VERSION`` (#1046 PR-B AC-4).
+
+    Returns the parsed dict on success, or None when the file is absent
+    / unreadable. Best-effort: a malformed file returns the partial
+    parse rather than raising so the gate / doctor can still surface a
+    meaningful drift report.
+    """
+    candidate = _install_manifest_path(install_root)
+    if not candidate.is_file():
+        return None
+    try:
+        text = candidate.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    return _parse_install_manifest(text)
+
+
+def _install_manifest_tag_to_version(manifest: dict) -> Optional[str]:
+    """Derive the bare ``.deft-version`` value from a manifest (#1046 PR-B AC-4).
+
+    Prefers ``tag`` over ``ref`` (both YAML provenance keys produced by
+    ``oz-agent-upgrade``). Strips the leading ``v`` so the derivative
+    file format matches the v0.27 bare-file shape (``0.27.1`` not
+    ``v0.27.1``). Returns None when neither key is present.
+    """
+    for key in ("tag", "ref"):
+        raw = manifest.get(key)
+        if not isinstance(raw, str):
+            continue
+        candidate = raw.strip().lstrip("v")
+        if candidate:
+            return candidate
+    return None
+
+
+def _build_install_manifest_text(
+    *,
+    tag: str,
+    sha: str,
+    fetched_at: str,
+    fetched_by: str,
+    ref: Optional[str] = None,
+) -> str:
+    """Render the canonical YAML provenance manifest text (#1046 PR-B AC-4).
+
+    Pure -- no I/O. Mirrors the ``oz-agent-upgrade`` shape (single-quoted
+    values, ordered ref/sha/tag/fetched_at/fetched_by) so a doctor probe
+    that re-reads after a ``cmd_install`` write does not flag a shape
+    mismatch. ``ref`` defaults to ``v<tag>`` when None for callers that
+    only carry the bare version (matches the ``oz-agent-upgrade`` rail
+    where ``ref`` is a tag reference like ``v0.27.1``).
+    """
+    effective_ref = ref if ref is not None else f"v{tag}" if not tag.startswith("v") else tag
+    lines = [
+        f"ref: '{effective_ref}'",
+        f"sha: '{sha}'",
+        f"tag: '{tag}'",
+        f"fetched_at: '{fetched_at}'",
+        f"fetched_by: '{fetched_by}'",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def _write_install_manifest(
+    install_root: Path,
+    *,
+    fetched_by: str,
+    tag: Optional[str] = None,
+    sha: Optional[str] = None,
+    fetched_at: Optional[str] = None,
+) -> Optional[Path]:
+    """Write the canonical install manifest at ``<install>/VERSION`` (#1046 PR-B AC-4).
+
+    Best-effort: silently degrades on OSError (read-only filesystem,
+    permission denied) rather than crashing the install flow. Returns
+    the manifest path on success, None on failure. ``tag`` defaults to
+    ``VERSION`` (the run-resolved framework version) when None;
+    ``sha`` defaults to ``_resolve_framework_sha()`` when None;
+    ``fetched_at`` defaults to ``_now_utc_iso()`` when None.
+
+    The companion bare ``.deft-version`` file is regenerated from the
+    manifest's ``tag`` field by ``cmd_install`` / ``cmd_upgrade`` so
+    the two stay in sync on every install.
+    """
+    effective_tag = tag if tag is not None else VERSION
+    effective_sha = sha if sha is not None else _resolve_framework_sha()
+    effective_fetched_at = fetched_at if fetched_at is not None else _now_utc_iso()
+    body = _build_install_manifest_text(
+        tag=effective_tag,
+        sha=effective_sha,
+        fetched_at=effective_fetched_at,
+        fetched_by=fetched_by,
+    )
+    path = _install_manifest_path(install_root)
+    try:
+        install_root.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+    except OSError:
+        return None
+    return path
+
+
 def _agents_refresh_plan(project_root: Path) -> dict:
-    """Compute the plan ``cmd_agents_refresh`` would apply (no I/O)."""
+    """Compute the plan ``cmd_agents_refresh`` would apply (no I/O).
+
+    The plan dict reports a ``state`` (``current`` / ``stale`` /
+    ``missing`` / ``absent`` / ``unreadable`` / ``template-missing`` /
+    ``template-malformed``) and the byte-content the command would write
+    on a non-current state. The stale / absent / missing payloads carry
+    the v3-attributed marker stamped by ``cmd_agents_refresh`` with a
+    fresh sha / refreshed / session triple so each refresh records its
+    own session lineage (#1046 PR-B AC-5). The staleness check itself
+    ignores those attributes -- both the extracted block and the
+    rendered template are normalised to the bare ``v3`` marker before
+    byte-comparing, so re-running refresh on a current file is a no-op.
+    """
     template_text = _read_agents_template()
     if template_text is None:
         return {
@@ -1806,14 +2326,27 @@ def _agents_refresh_plan(project_root: Path) -> dict:
             "existing": None,
             "new_content": None,
         }
+    framework_sha = _resolve_framework_sha()
+    refreshed = _now_utc_iso()
+    session_id = _new_session_id()
+    attributed_rendered = _attribute_render_managed_section(
+        rendered,
+        framework_sha=framework_sha,
+        refreshed=refreshed,
+        session_id=session_id,
+    )
     agents_md = project_root / "AGENTS.md"
     if not agents_md.is_file():
         return {
             "state": "absent",
             "path": str(agents_md),
             "rendered": rendered,
+            "attributed_rendered": attributed_rendered,
+            "sha": framework_sha,
+            "refreshed": refreshed,
+            "session": session_id,
             "existing": None,
-            "new_content": rendered + "\n",
+            "new_content": attributed_rendered + "\n",
         }
     try:
         existing = agents_md.read_text(encoding="utf-8", errors="replace")
@@ -1831,15 +2364,26 @@ def _agents_refresh_plan(project_root: Path) -> dict:
     if extracted is None:
         # Legacy file with no markers -- one-time migration: wrap the
         # existing content + render the managed-section beneath it.
-        new_content = _wrap_legacy_in_markers(normalised, rendered)
+        new_content = _wrap_legacy_in_markers(normalised, attributed_rendered)
         return {
             "state": "missing",
             "path": str(agents_md),
             "rendered": rendered,
+            "attributed_rendered": attributed_rendered,
+            "sha": framework_sha,
+            "refreshed": refreshed,
+            "session": session_id,
             "existing": existing,
             "new_content": new_content,
         }
-    if extracted == rendered:
+    # #1046 PR-B AC-5: force-upgrade v2 -> v3 even when body bytes match.
+    # The classifier's ``_classify_agents_md`` rule (v2 markers always
+    # classify as stale) must agree with the plan; otherwise a v0.27.x
+    # consumer whose body is byte-identical to the v0.28 template would
+    # stay on the v2 marker indefinitely.
+    extracted_attrs = _parse_managed_section_attrs(extracted)
+    is_v2_marker = extracted_attrs is not None and extracted_attrs["version"] == 2
+    if not is_v2_marker and _strip_managed_section_attrs(extracted) == rendered:
         return {
             "state": "current",
             "path": str(agents_md),
@@ -1847,12 +2391,18 @@ def _agents_refresh_plan(project_root: Path) -> dict:
             "existing": existing,
             "new_content": existing,
         }
-    # Stale: byte-replace the bracketed block in place.
-    new_content = normalised.replace(extracted, rendered, 1)
+    # Stale: byte-replace the bracketed block in place with the
+    # v3-attributed rendered block. Re-stamps sha / refreshed / session
+    # so the next gate-side check has fresh provenance.
+    new_content = normalised.replace(extracted, attributed_rendered, 1)
     return {
         "state": "stale",
         "path": str(agents_md),
         "rendered": rendered,
+        "attributed_rendered": attributed_rendered,
+        "sha": framework_sha,
+        "refreshed": refreshed,
+        "session": session_id,
         "existing": existing,
         "new_content": new_content,
     }
@@ -2060,6 +2610,20 @@ def cmd_upgrade(args: List[str]):
     vbrief_dir = project_root / "vbrief"
     target_dir = vbrief_dir if vbrief_dir.is_dir() else project_root
     _write_version_marker(target_dir)
+
+    # #1046 PR-B AC-4: write the canonical YAML provenance manifest at
+    # ``<install>/VERSION``. The install root is wherever the framework
+    # is laid out on disk (``.deft/core`` for canonical installs;
+    # ``deft`` for legacy state-A installs). Best-effort -- a missing
+    # install directory silently skips the write (the bare
+    # ``.deft-version`` is still recorded above).
+    for install_candidate in (
+        project_root / ".deft" / "core",
+        project_root / "deft",
+    ):
+        if install_candidate.is_dir():
+            _write_install_manifest(install_candidate, fetched_by="run-upgrade")
+            break
 
     if recorded is None:
         success(f"Recorded framework version {VERSION} in .deft-version.")
@@ -3214,7 +3778,12 @@ def cmd_install(args: List[str]):
             shutil.rmtree(deft_dir)
         
         shutil.copytree(script_dir, deft_dir)
-        
+
+        # #1046 PR-B AC-4: stamp the canonical YAML manifest at
+        # ``<install>/VERSION``. Best-effort -- silently degrades on a
+        # read-only filesystem.
+        _write_install_manifest(deft_dir, fetched_by="run-install")
+
         # Create project-specific files
         Path("secrets").mkdir(exist_ok=True)
         Path("docs").mkdir(exist_ok=True)
