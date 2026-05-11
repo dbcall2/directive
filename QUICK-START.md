@@ -22,13 +22,20 @@ Run these deterministic checks, in order:
 - **No:** treat as fresh install — jump to Case F ("No AGENTS.md") in Step 3.
 - **Yes:** continue to 2b.
 
-### 2b. Does `../AGENTS.md` reference any `deft/skills/` path that does not exist on disk?
+### 2b. Does `../AGENTS.md`'s managed section match the current template? Do referenced paths resolve?
 
-Parse `../AGENTS.md` and extract every token matching `deft/skills/<name>/SKILL.md`. For each extracted path, verify the file exists under `./skills/<name>/SKILL.md` (relative to this QUICK-START.md).
+Three checks here, in this order. The first match wins; later checks only run when earlier checks pass.
 
-- ! If any referenced path does not exist on disk, treat `../AGENTS.md` as **stale** — jump to Case G ("Stale AGENTS.md") in Step 3.
-- ! If the referenced path exists but its first 200 characters contain `<!-- deft:deprecated-skill-redirect -->`, also treat as stale. These stubs exist to keep v0.19 `AGENTS.md` files working until QUICK-START can refresh them. (The 200-character window matches the same budget used in 2c and is guaranteed to cover the sentinel position in every stub this repo ships -- see `tests/content/test_deprecated_skill_redirects.py::test_stub_has_sentinel`.)
-- If all referenced paths exist and none are redirect stubs, continue to 2c.
+1. **Template-content byte comparison (Case G gate).** Locate the managed section in `../AGENTS.md` (the block bounded by the `<!-- deft:managed-section v2 -->` and `<!-- /deft:managed-section -->` markers). Compare those bytes against the current `./templates/agents-entry.md` rendered managed-section output.
+   - ! If the managed section is **byte-different** from the current template render (or the markers are absent in `../AGENTS.md`), treat as **stale content** -- jump to Case G ("Stale AGENTS.md") in Step 3. Case G is the right remediation for byte-different staleness because the refresh actually rewrites the content.
+2. **Install-path resolution (Case K gate -- #1046 PR-A).** When the managed section IS byte-current, parse the section for its install-path declaration (`Full guidelines: <root>/main.md`, e.g. `.deft/core/main.md` for the canonical install layout or `deft/main.md` for the legacy install layout). Verify that `../<root>/main.md` exists on disk.
+   - ! If the managed section is **byte-identical** to the current template render BUT the declared install path does NOT resolve, jump to **Case K ("Install location mismatch")** in Step 3. Refreshing the managed section is a documented no-op when the content already matches -- Case K is a different failure class than Case G and demands a different remediation (#1046 finding #2).
+3. **Legacy skill-path resolution (v0.19 AGENTS.md backstop).** Parse `../AGENTS.md` for any token matching `deft/skills/<name>/SKILL.md` (the legacy v0.19 path shape) and verify the file exists under `./skills/<name>/SKILL.md` (relative to this QUICK-START.md).
+   - ! If any referenced path does not exist on disk, treat `../AGENTS.md` as **stale** -- jump to Case G in Step 3.
+   - ! If the referenced path exists but its first 200 characters contain `<!-- deft:deprecated-skill-redirect -->`, also treat as stale. These stubs exist to keep v0.19 `AGENTS.md` files working until QUICK-START can refresh them. (The 200-character window matches the same budget used in 2c and is guaranteed to cover the sentinel position in every stub this repo ships -- see `tests/content/test_deprecated_skill_redirects.py::test_stub_has_sentinel`.)
+   - If all referenced paths exist and none are redirect stubs, continue to 2c.
+
+Priority ordering: Case G (byte-different content) always wins over Case K (install-path mismatch) because the refresh path is the higher-priority remediation -- when the template content has moved on, the refresh closes BOTH the content drift and any incidental install-path mismatch that the new content might re-introduce. Case K only fires when the content is byte-current AND the path is unresolved -- the exact "refresh would be a no-op" failure class issue #1046 documents.
 
 ### 2c. Are there pre-v0.20 artifacts at the user's project root?
 
@@ -88,6 +95,15 @@ Pick exactly one case from Step 2 and follow its instructions. Do not mix cases.
 
 1. Tell the user: "✓ Deft is already configured and current in your AGENTS.md."
 2. Continue to Step 4.
+
+### Case K — Install location mismatch (#1046 PR-A)
+
+The managed section in `../AGENTS.md` is byte-identical to the current `./templates/agents-entry.md` render, BUT the install path the managed section declares (e.g. `.deft/core/main.md`) does NOT resolve on disk. This is the failure class issue #1046 finding #2 documents: Case G's "refresh the managed section" prescription is a byte-for-byte no-op against the current template, so re-running just re-detects the same staleness next session.
+
+1. Tell the user (verbatim phrasing, naming the unresolved path): "AGENTS.md's managed section is byte-identical to the current template, but the install path it declares (`<declared-path>`) does NOT exist on disk. Refreshing the managed section would be a no-op -- Case G's remediation does not fix install-location mismatches."
+2. ! Direct the user to run `task framework:doctor` (forthcoming in PR-B of the #1046 cohort -- the diagnostic + remediation surface that owns Case K's fix path) OR to manually verify that the install path AGENTS.md claims actually exists on disk. Until PR-B merges, the manual check is the operator's only path: confirm the framework is deposited at the path AGENTS.md declares, OR re-run the installer / relocator to deposit at that path, OR hand-edit AGENTS.md to point at the path where the framework actually lives.
+3. ⊗ Run a Case G refresh -- it is a documented no-op for Case K. The managed section already byte-matches the current template; refreshing the bytes back to the same bytes does not change which install path is declared.
+4. ! Instruct the user: **"Stop here. Do not continue to Step 4 until the install-path mismatch is resolved -- subsequent sessions will re-enter Case K until then."**
 
 ## Step 4 — Continue setup
 

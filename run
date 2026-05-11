@@ -1413,7 +1413,7 @@ def _classify_agents_md(project_root: Path) -> str:
 # the gate-side detector + auto-prompt so non-A consumers see a one-line
 # advisory on every CLI invocation directing them to the relocator.
 #
-# Four states (per the active scope vBRIEF Problem narrative):
+# Five states (per the active scope vBRIEF Problem narrative + #1046 PR-A):
 #
 #   A  pure ``deft/``                (legacy install; AGENTS.md + framework agree)
 #   B  pure ``.deft/core/``          (current installer output; broken because
@@ -1421,26 +1421,45 @@ def _classify_agents_md(project_root: Path) -> str:
 #   C  hybrid (both dirs present)    (broken; agents follow whichever they
 #                                     read first)
 #   D  AGENTS.md only                (broken partial install)
+#   K  install location mismatch    (#1046 finding #2; AGENTS.md template
+#                                     byte-matches current render BUT the
+#                                     declared install path does not resolve
+#                                     -- Case G refresh is a documented
+#                                     no-op; ``task framework:doctor`` is
+#                                     the right remediation, forthcoming
+#                                     in PR-B of the #1046 cohort)
 #
 # Detection inputs (read-only filesystem probes):
 #   - ``<project_root>/deft/``               legacy framework dir present?
 #   - ``<project_root>/.deft/core/``         canonical framework dir present?
 #   - ``<project_root>/AGENTS.md``           managed-section markers present?
+#   - AGENTS.md managed-section bytes        byte-equal to current template?
+#   - declared ``Full guidelines: ...``      install path resolves on disk?
 #
-# On detection of a non-A state the gate emits a single-line auto-prompt:
-#
-#   [deft] install layout state: <X> (<description>). \
-#       Run <framework>/run relocate to upgrade. (Y/n)
+# On detection of a non-A state the gate emits a single-line auto-prompt.
+# The remediation prompt branches by state:
+#   B / C / D -> ``[deft] install layout state: <X> (<description>). \
+#                  Run <framework>/run relocate to upgrade. (Y/n)``
+#   K         -> ``[deft] install layout state: K (<description>). \
+#                  Run task framework:doctor (forthcoming in PR-B of #1046
+#                  cohort) OR manually verify the install path AGENTS.md
+#                  claims actually exists on disk. (Y/n)``
 #
 # AUTO-PROMPT ONLY -- the gate NEVER auto-invokes ``task relocate`` or
-# otherwise mutates filesystem state. Mirrors the #884 ghx-install consent
-# gate convention: the operator runs ``task relocate`` on consent.
+# ``task framework:doctor``, NEVER calls the interactive ``read_yn`` /
+# ``ask_confirm`` helpers, and NEVER mutates filesystem state on any code
+# path. Mirrors the #884 ghx-install consent gate convention: the operator
+# runs the suggested remediation on consent.
 
 _INSTALL_LAYOUT_DESCRIPTIONS = {
     "A": "pure deft/ legacy install",
     "B": "pure .deft/core/ canonical install",
     "C": "hybrid (deft/ + .deft/core/)",
     "D": "AGENTS.md only (partial install)",
+    "K": (
+        "install location mismatch -- AGENTS.md template byte-matches but "
+        "declared install path does not resolve"
+    ),
 }
 
 # Canonical relocate target -- the prompt always points at ``.deft/core``
@@ -1448,6 +1467,17 @@ _INSTALL_LAYOUT_DESCRIPTIONS = {
 # into that single namespace (single-namespace contract for v0.27 per the
 # active scope vBRIEF DesignChoice narrative).
 _INSTALL_LAYOUT_RELOCATE_TARGET = ".deft/core"
+
+# Canonical AGENTS.md install-path declaration shape (#1046 PR-A). The
+# rendered managed section emitted by ``templates/agents-entry.md`` carries
+# ``Full guidelines: <root>/main.md`` immediately after the ``Deft is
+# installed in <root>/.`` declaration. The Case K detector parses this
+# line to discover the install path AGENTS.md claims, then checks whether
+# that path resolves on disk. The first match wins -- a well-formed
+# managed section carries exactly one such declaration.
+_AGENTS_DECLARED_MAIN_MD_PATTERN = re.compile(
+    r"Full guidelines:\s+(\S+main\.md)"
+)
 
 
 def _agents_md_has_managed_markers(project_root: Path) -> bool:
@@ -1469,19 +1499,101 @@ def _agents_md_has_managed_markers(project_root: Path) -> bool:
     return _AGENTS_MANAGED_OPEN in text and _AGENTS_MANAGED_CLOSE in text
 
 
+def _agents_md_declared_main_md(project_root: Path) -> Optional[str]:
+    """Return the framework main.md path that AGENTS.md declares, or None (#1046 PR-A).
+
+    Pure parse of AGENTS.md text -- locates the canonical
+    ``Full guidelines: <root>/main.md`` declaration emitted by
+    ``templates/agents-entry.md`` and returns the captured path (forward
+    slash form). Returns None when AGENTS.md is missing, unreadable, or
+    carries no such declaration. Read-only -- never modifies the file.
+    """
+    agents_md = project_root / "AGENTS.md"
+    if not agents_md.is_file():
+        return None
+    try:
+        text = agents_md.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    match = _AGENTS_DECLARED_MAIN_MD_PATTERN.search(text)
+    if match is None:
+        return None
+    return match.group(1)
+
+
+def _install_path_resolves(project_root: Path) -> bool:
+    """True iff the install path AGENTS.md declares resolves on disk (#1046 PR-A).
+
+    Reads AGENTS.md, parses the canonical ``Full guidelines:
+    <root>/main.md`` declaration (e.g. ``.deft/core/main.md`` for the
+    canonical install layout, ``deft/main.md`` for the legacy install
+    layout), and returns True iff ``<project_root>/<declared>`` exists
+    as a file. When AGENTS.md is missing or makes no such declaration,
+    returns True (vacuously -- no claim to invalidate). Read-only --
+    never modifies any state.
+
+    Used by ``_classify_install_layout`` to detect Case K (#1046
+    finding #2): an AGENTS.md whose managed section byte-matches the
+    current template but whose declared install path does not exist on
+    disk produces a documented no-op Case G refresh loop. Distinguishing
+    K from the existing D classification routes the user at
+    ``task framework:doctor`` (forthcoming in PR-B of the #1046 cohort)
+    instead of the broken refresh path.
+    """
+    declared = _agents_md_declared_main_md(project_root)
+    if declared is None:
+        return True
+    return (project_root / declared).is_file()
+
+
+def _template_matches_managed_section(project_root: Path) -> bool:
+    """True iff AGENTS.md's managed section equals the rendered template (#1046 PR-A).
+
+    Thin alias over ``_classify_agents_md`` -- returns True only when
+    the classifier reports ``current`` (managed-section bytes are
+    byte-identical to the current ``templates/agents-entry.md`` render).
+    Used by ``_classify_install_layout`` to distinguish Case K
+    (template current, install path unresolved -- refresh is a no-op)
+    from Case D (template stale, no install dir present -- refresh
+    helps). Read-only -- never modifies any state.
+    """
+    return _classify_agents_md(project_root) == "current"
+
+
 def _classify_install_layout(project_root: Path) -> Optional[str]:
-    """Return one of ``A``, ``B``, ``C``, ``D``, or ``None``.
+    """Return one of ``A``, ``B``, ``C``, ``D``, ``K``, or ``None``.
 
-    Pure read-only filesystem probe -- inspects only the existence of
-    ``./deft/``, ``./.deft/core/``, and the managed-section markers in
-    ``./AGENTS.md``. Never modifies any state.
+    Pure read-only filesystem probe -- inspects the existence of
+    ``./deft/`` and ``./.deft/core/``, the managed-section markers in
+    ``./AGENTS.md``, the byte-equality of AGENTS.md's managed section
+    against the current template render, and the on-disk resolution of
+    the install path AGENTS.md declares. Never modifies any state.
 
-    Mapping (per the active scope vBRIEF Problem narrative):
-        - ``A``  -> ``deft/`` present, ``.deft/core/`` absent
-        - ``B``  -> ``deft/`` absent,  ``.deft/core/`` present
-        - ``C``  -> both present (hybrid)
-        - ``D``  -> neither present, AGENTS.md present with managed markers
-        - ``None`` -> neither present, no managed AGENTS.md (not a deft project)
+    Mapping (per the active scope vBRIEF Problem narrative +
+    #1046 PR-A AC-2):
+        - ``A``    -> ``deft/`` present, ``.deft/core/`` absent
+        - ``B``    -> ``deft/`` absent,  ``.deft/core/`` present
+        - ``C``    -> both install dirs present (hybrid)
+        - ``D``    -> neither install dir present; AGENTS.md with managed
+                      markers; template content differs from the current
+                      render OR the declared install path resolves
+                      (refresh would help, or no Case K signal)
+        - ``K``    -> neither install dir present; AGENTS.md template
+                      byte-matches current rendered template; AND the
+                      declared install path does not resolve on disk
+                      (#1046 finding #2 -- refresh is a documented
+                      no-op; ``task framework:doctor`` is the right
+                      remediation, forthcoming in PR-B of the #1046
+                      cohort)
+        - ``None`` -> neither install dir present; no managed AGENTS.md
+                      (not a deft project)
+
+    Priority: directory presence (A/B/C) takes precedence over content
+    classification (D/K). When ``deft/`` is on disk and AGENTS.md's
+    template content is current, the classifier returns A because A is
+    by definition the layout in which AGENTS.md and the framework agree
+    -- the K branch only fires when no install dir anchors the legacy
+    or canonical contract.
     """
     deft_present = (project_root / "deft").is_dir()
     dotdeft_present = (project_root / ".deft" / "core").is_dir()
@@ -1491,9 +1603,17 @@ def _classify_install_layout(project_root: Path) -> Optional[str]:
         return "A"
     if dotdeft_present:
         return "B"
-    if _agents_md_has_managed_markers(project_root):
-        return "D"
-    return None
+    if not _agents_md_has_managed_markers(project_root):
+        return None
+    # AGENTS.md is managed but no install dir is present. Distinguish
+    # K (template current; refresh is a no-op -- #1046 finding #2) from
+    # D (template stale OR install path still resolves; refresh helps).
+    if (
+        _template_matches_managed_section(project_root)
+        and not _install_path_resolves(project_root)
+    ):
+        return "K"
+    return "D"
 
 
 def _format_install_layout_prompt(state: str) -> str:
@@ -1502,8 +1622,25 @@ def _format_install_layout_prompt(state: str) -> str:
     Pure -- no I/O. Returns the single-line stdout surface consumed by
     operators reading CLI output. The prompt asks ``(Y/n)`` purely as a
     visual consent affordance; the gate NEVER acts on the answer.
+
+    Branches:
+      * ``B`` / ``C`` / ``D`` -- the relocator
+        (``.deft/core/run relocate``) is the canonical remediation
+        (single-namespace contract per #992).
+      * ``K`` -- install-location mismatch surfaced by #1046 PR-A. The
+        relocator does not fix this state (template content is already
+        current); the right remediation is ``task framework:doctor``
+        (forthcoming in PR-B of the #1046 cohort). Until PR-B merges
+        the prompt advises a manual install-path check.
     """
     description = _INSTALL_LAYOUT_DESCRIPTIONS.get(state, "")
+    if state == "K":
+        return (
+            f"[deft] install layout state: {state} ({description}). "
+            f"Run task framework:doctor (forthcoming in PR-B of #1046 "
+            f"cohort) OR manually verify the install path AGENTS.md "
+            f"claims actually exists on disk. (Y/n)"
+        )
     framework = _INSTALL_LAYOUT_RELOCATE_TARGET
     return (
         f"[deft] install layout state: {state} ({description}). "
