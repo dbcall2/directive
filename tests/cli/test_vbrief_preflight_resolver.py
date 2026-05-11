@@ -229,10 +229,16 @@ def test_main_fail_closed_enumerates_probed_layouts(resolver, tmp_path, capsys):
     resolver.main(["--project-root", str(tmp_path)])
     captured = capsys.readouterr()
     # Each of the three canonical subpath prefixes MUST appear in the
-    # operator-facing error so the diagnostic is self-describing.
+    # operator-facing error so the diagnostic is self-describing. The
+    # in-repo assertion uses a uniquely-anchored substring (`, scripts/`
+    # -- the comma-separated list-element form `_resolve_preflight_path`
+    # emits, e.g. `(.deft/core/scripts/, deft/scripts/, scripts/)`) so
+    # the check cannot be vacuously satisfied by the trailing
+    # `scripts/` already present inside `.deft/core/scripts/` and
+    # `deft/scripts/` (Greptile review of PR #1058).
     assert ".deft/core/scripts/" in captured.err
     assert "deft/scripts/" in captured.err
-    assert "scripts/" in captured.err
+    assert ", scripts/" in captured.err or " scripts/)" in captured.err
 
 
 def test_main_default_project_root_is_cwd(resolver, tmp_path, capsys, monkeypatch):
