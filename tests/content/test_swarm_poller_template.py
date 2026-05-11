@@ -668,3 +668,628 @@ def test_template_renders_via_format() -> None:
     )
     assert "PR #910" in rendered
     assert "deftai/directive" in rendered
+
+
+# ---------------------------------------------------------------------------
+# #1039 -- (5) STALL terminal exit + Tier 1 instrumentation + Tier 3 per-
+# condition fail-loud (clean_gate_holdout). The behaviour-matrix lane below
+# pins each AC item via a Python reference implementation of the (5)-condition
+# CLEAN gate that mirrors the template body's `evaluate_clean_gate` function.
+# The synchronization-test lane pins the template encoding so a future edit
+# that drops the (5) STALL block, the clean_gate_holdout surface, or the
+# Tier 1 instrumentation log line fails CI immediately.
+# ---------------------------------------------------------------------------
+
+
+# Naive INLINE-SHA regex used by the negative-control case below.
+# Greptile emits the SHA as a markdown link, NOT inline; a poller that copies
+# THIS regex into its poll script will fall through every iteration with
+# last_reviewed_sha=None. The template's prescribed markdown-link regex
+# (mirrored at the top of this module) is the correct surface.
+_NAIVE_INLINE_SHA_RE = re.compile(
+    r"Last reviewed commit:\s*([0-9a-f]{7,40})"
+)
+# Template-prescribed markdown-link regex (verbatim mirror of the template's
+# `Last reviewed commit:` section). Doubled-brace form not needed here because
+# this is the reference Python module, not the template body.
+_MARKDOWN_LINK_SHA_RE = re.compile(
+    r"Last reviewed commit:\s*\[[^\]]*\]\("
+    r"https?://github\.com/[^/]+/[^/]+/commit/(?P<sha>[0-9a-f]{7,40})"
+)
+
+
+def parse_last_reviewed_sha_markdown_link(body: str):
+    """Reference markdown-link SHA parser mirroring the template body."""
+    m = _MARKDOWN_LINK_SHA_RE.search(body)
+    return m.group("sha") if m else None
+
+
+def parse_last_reviewed_sha_naive_inline(body: str):
+    """Negative-control: the naive inline-SHA regex that does NOT match."""
+    m = _NAIVE_INLINE_SHA_RE.search(body)
+    return m.group(1) if m else None
+
+
+def evaluate_clean_gate(
+    *,
+    last_reviewed_sha,
+    head_sha: str,
+    has_blocking: bool,
+    confidence,
+    ci_failures: int,
+    errored: bool,
+):
+    """Reference (5)-condition CLEAN gate evaluator.
+
+    Mirrors the template body's `evaluate_clean_gate` function exactly --
+    the order of checks is the operative contract so `clean_gate_holdout`
+    names the FIRST failing condition, not a downstream cascade. Returns
+    a tuple of ``(is_clean: bool, clean_gate_holdout: Optional[str])`` per
+    the template body.
+    """
+    if last_reviewed_sha is None or last_reviewed_sha != head_sha:
+        return False, "sha_match"
+    if has_blocking:
+        return False, "has_blocking"
+    if confidence is None or confidence <= 3:
+        return False, "confidence"
+    if ci_failures > 0:
+        return False, "ci_failures"
+    if errored:
+        return False, "errored"
+    return True, None
+
+
+def format_poll_log_line(
+    *,
+    i: int,
+    cap: int,
+    last_reviewed_sha,
+    head_sha,
+    confidence,
+    has_blocking,
+    p0_count,
+    p1_count,
+    errored,
+    ci_failures,
+    is_clean,
+    clean_gate_holdout,
+) -> str:
+    """Reference Tier 1 instrumentation formatter mirroring the template body.
+
+    A poller transcript line emitted via this format MUST be greppable on
+    ``is_clean=False`` so the operator can see WHICH of the five conditions
+    was the holdout (the load-bearing #1039 AC-1 contract).
+    """
+    return (
+        f"[poll {i}/{cap}] last_reviewed_sha={last_reviewed_sha} "
+        f"head={head_sha} sha_match={last_reviewed_sha == head_sha} "
+        f"confidence={confidence} has_blocking={has_blocking} "
+        f"p0={p0_count} p1={p1_count} errored={errored} "
+        f"ci_failures={ci_failures} is_clean={is_clean} "
+        f"clean_gate_holdout={clean_gate_holdout}"
+    )
+
+
+def simulate_poll_loop(
+    *,
+    body: str,
+    head_sha: str,
+    ci_failures: int = 0,
+    max_polls: int = 5,
+    stall_threshold: int = 3,
+):
+    """Drive a synthetic poll loop over a static rolling-summary body.
+
+    Returns ``(exit_class, polls_run, last_holdout, log_lines)`` where
+    ``exit_class`` is one of ``"CLEAN"`` / ``"NEW_P0P1"`` / ``"ERRORED"`` /
+    ``"STALL"`` / ``"RUNNING"``. The body is held static across polls because
+    a real Greptile rolling-summary comment is stable between Greptile
+    updates -- which is exactly the regime the (5) STALL exit is sized for.
+    The errored sentinel from #526 fires when the body equals the canonical
+    error string.
+    """
+    errored_sentinel = "Greptile encountered an error while reviewing this PR"
+    last_reviewed_sha = parse_last_reviewed_sha_markdown_link(body)
+    confidence = parse_confidence(body)
+    findings = detect(body)
+    has_blocking = findings["has_blocking"]
+    errored = body.strip() == errored_sentinel
+    stall_streak = 0
+    log_lines: list[str] = []
+    last_holdout = None
+    for i in range(1, max_polls + 1):
+        is_clean, clean_gate_holdout = evaluate_clean_gate(
+            last_reviewed_sha=last_reviewed_sha,
+            head_sha=head_sha,
+            has_blocking=has_blocking,
+            confidence=confidence,
+            ci_failures=ci_failures,
+            errored=errored,
+        )
+        last_holdout = clean_gate_holdout
+        log_lines.append(
+            format_poll_log_line(
+                i=i,
+                cap=max_polls,
+                last_reviewed_sha=last_reviewed_sha,
+                head_sha=head_sha,
+                confidence=confidence,
+                has_blocking=has_blocking,
+                p0_count=findings["p0_count"],
+                p1_count=findings["p1_count"],
+                errored=errored,
+                ci_failures=ci_failures,
+                is_clean=is_clean,
+                clean_gate_holdout=clean_gate_holdout,
+            )
+        )
+        if is_clean:
+            return "CLEAN", i, clean_gate_holdout, log_lines
+        if has_blocking and last_reviewed_sha == head_sha:
+            return "NEW_P0P1", i, clean_gate_holdout, log_lines
+        if errored:
+            return "ERRORED", i, clean_gate_holdout, log_lines
+        if not has_blocking and not is_clean:
+            stall_streak += 1
+        else:
+            stall_streak = 0
+        if stall_streak >= stall_threshold:
+            return "STALL", i, clean_gate_holdout, log_lines
+    return "RUNNING", max_polls, last_holdout, log_lines
+
+
+# ---------------------------------------------------------------------------
+# AC-4 behaviour-matrix bodies. The CLEAN body uses a markdown-link SHA + a
+# clean-signal review; the stall bodies vary one parse surface at a time so
+# the resulting holdout names the precise failure root cause.
+# ---------------------------------------------------------------------------
+
+_HEAD_SHA = "abcdef1234567"
+
+BODY_AC4_MARKDOWN_LINK_CLEAN = (
+    "Greptile review of head 1234567\n"
+    "\n"
+    "## Confidence Score: 5/5\n"
+    "\n"
+    "No P0 or P1 issues found. The change looks clean and well-tested.\n"
+    "\n"
+    f"Last reviewed commit: [fix: foo](https://github.com/deftai/directive/commit/{_HEAD_SHA})\n"
+)
+
+# Inline SHA (no markdown link) -- the prescribed regex returns None, condition
+# (1) `sha_match` holds the gate, and (since the body otherwise looks clean)
+# both has_blocking AND is_clean are False on every poll -> STALL within 3.
+BODY_AC4_INLINE_SHA_CLEAN = (
+    "Greptile review of head 1234567\n"
+    "\n"
+    "## Confidence Score: 5/5\n"
+    "\n"
+    "No P0 or P1 issues found. The change looks clean.\n"
+    "\n"
+    f"Last reviewed commit: {_HEAD_SHA}\n"  # inline, no `[<subject>](<url>)` wrapper
+)
+
+# Confidence rendered in a third unanticipated form -- neither the inline
+# regex nor the heading-form fallback match. Holdout: `sha_match` then
+# `confidence` cascade -- but because the SHA parses successfully, the
+# first holdout is `confidence`.
+BODY_AC4_THIRD_CONFIDENCE_FORM = (
+    "Greptile review of head 1234567\n"
+    "\n"
+    "| Metric            | Value |\n"
+    "| ----------------- | ----- |\n"
+    "| Confidence Score  | 5 of 5 |\n"  # `X of 5` not `X/5` -- neither regex matches
+    "\n"
+    "No P0 or P1 issues found. The change looks clean.\n"
+    "\n"
+    f"Last reviewed commit: [fix: foo](https://github.com/deftai/directive/commit/{_HEAD_SHA})\n"
+)
+
+# Empty / truncated body -- every parse surface returns None; holdout is
+# `sha_match` (first failing condition in 1/2/3/4/5 order).
+BODY_AC4_EMPTY = ""
+BODY_AC4_TRUNCATED = (
+    "Greptile review of head 1234567\n"
+    "\n"
+    "## Confidence Score:"
+    # ... output truncated mid-line before the slash form, before the SHA
+    # anchor, before the findings. The poller's body window is incomplete.
+)
+
+
+def test_ac4_markdown_link_sha_clean_exits_clean_within_one_poll() -> None:
+    """AC-4 case 1: markdown-link SHA + clean signals -> CLEAN within 1 poll."""
+    exit_class, polls_run, holdout, log_lines = simulate_poll_loop(
+        body=BODY_AC4_MARKDOWN_LINK_CLEAN, head_sha=_HEAD_SHA, max_polls=5
+    )
+    assert exit_class == "CLEAN", (
+        f"markdown-link SHA + clean body must exit CLEAN, got {exit_class!r}; "
+        f"log_lines={log_lines!r}"
+    )
+    assert polls_run == 1
+    assert holdout is None, f"CLEAN exit must have holdout=None, got {holdout!r}"
+
+
+def test_ac4_inline_sha_clean_exits_stall_within_three_polls() -> None:
+    """AC-4 case 2: INLINE SHA + clean signals -> STALL within 3 polls.
+
+    The naive inline-SHA regex would match the body's `Last reviewed commit: <SHA>`
+    inline form (negative-control), but the template's prescribed markdown-link
+    regex returns None -> condition (1) `sha_match` is the first failure ->
+    `has_blocking=False AND is_clean=False` on every poll -> STALL fires after
+    3 consecutive wedged polls (#1039 AC-2).
+    """
+    # Negative control: the naive inline regex DOES match the inline form --
+    # this asserts the body really does contain a parseable inline SHA, so the
+    # markdown-link miss below is a regex-shape gap, not a missing-SHA gap.
+    assert (
+        parse_last_reviewed_sha_naive_inline(BODY_AC4_INLINE_SHA_CLEAN) == _HEAD_SHA
+    )
+    # The template-prescribed regex declines the inline form.
+    assert parse_last_reviewed_sha_markdown_link(BODY_AC4_INLINE_SHA_CLEAN) is None
+
+    exit_class, polls_run, holdout, log_lines = simulate_poll_loop(
+        body=BODY_AC4_INLINE_SHA_CLEAN, head_sha=_HEAD_SHA, max_polls=5
+    )
+    assert exit_class == "STALL", (
+        f"inline-SHA + clean body must exit STALL, got {exit_class!r}; "
+        f"log_lines={log_lines!r}"
+    )
+    assert polls_run == 3, (
+        f"STALL threshold is 3 consecutive wedged polls; got polls_run={polls_run}"
+    )
+    assert holdout == "sha_match", (
+        f"STALL holdout must name `sha_match` (condition 1), got {holdout!r}"
+    )
+
+
+def test_ac4_third_confidence_form_exits_stall_within_three_polls() -> None:
+    """AC-4 case 3: confidence in a third form -> STALL within 3 polls.
+
+    The SHA parses (markdown-link form), `has_blocking` is False (clean body),
+    but `confidence = None` because the table-cell `5 of 5` matches NEITHER
+    the inline `X/5` regex NOR the heading-form `^#+ ... X/5 $` regex. The
+    holdout is `confidence` (condition 3), since (1) and (2) pass.
+    """
+    assert (
+        parse_last_reviewed_sha_markdown_link(BODY_AC4_THIRD_CONFIDENCE_FORM)
+        == _HEAD_SHA
+    ), "sha_match must pass on a markdown-link SHA pointing at HEAD"
+    assert parse_confidence(BODY_AC4_THIRD_CONFIDENCE_FORM) is None, (
+        "the third confidence form (`5 of 5` in a table cell) must NOT parse"
+    )
+
+    exit_class, polls_run, holdout, _log_lines = simulate_poll_loop(
+        body=BODY_AC4_THIRD_CONFIDENCE_FORM, head_sha=_HEAD_SHA, max_polls=5
+    )
+    assert exit_class == "STALL"
+    assert polls_run == 3
+    assert holdout == "confidence", (
+        f"holdout must name `confidence` (condition 3), got {holdout!r}"
+    )
+
+
+@pytest.mark.parametrize(
+    "body",
+    [BODY_AC4_EMPTY, BODY_AC4_TRUNCATED],
+    ids=["empty", "truncated"],
+)
+def test_ac4_empty_or_truncated_body_exits_stall_within_three_polls(body: str) -> None:
+    """AC-4 case 4: empty / truncated body -> STALL within 3 polls.
+
+    Every parse surface returns None; the SHA never matches HEAD; holdout
+    is `sha_match` (condition 1, the first failing check).
+    """
+    exit_class, polls_run, holdout, _log_lines = simulate_poll_loop(
+        body=body, head_sha=_HEAD_SHA, max_polls=5
+    )
+    assert exit_class == "STALL"
+    assert polls_run == 3
+    assert holdout == "sha_match"
+
+
+def test_ac4_per_poll_instrumentation_line_present_in_log() -> None:
+    """AC-4 case 5: every poll iteration emits the Tier 1 instrumentation line.
+
+    The line MUST carry the eleven fields in the exact order documented in
+    `## CLEAN gate evaluation, clean_gate_holdout, and per-poll instrumentation`
+    of the template body. A future edit that drops or reorders fields will
+    fail this assertion AND the synchronization test on the template body.
+    """
+    _exit_class, _polls_run, _holdout, log_lines = simulate_poll_loop(
+        body=BODY_AC4_INLINE_SHA_CLEAN, head_sha=_HEAD_SHA, max_polls=5
+    )
+    assert len(log_lines) >= 1, "poll loop MUST emit at least one log line"
+    expected_field_order = [
+        "last_reviewed_sha=",
+        "head=",
+        "sha_match=",
+        "confidence=",
+        "has_blocking=",
+        "p0=",
+        "p1=",
+        "errored=",
+        "ci_failures=",
+        "is_clean=",
+        "clean_gate_holdout=",
+    ]
+    for line in log_lines:
+        assert line.startswith("[poll "), f"line must start with `[poll `, got {line!r}"
+        prev_idx = -1
+        for field in expected_field_order:
+            idx = line.find(field)
+            assert idx != -1, (
+                f"log line missing field {field!r}: {line!r}"
+            )
+            assert idx > prev_idx, (
+                f"log line field order regression -- {field!r} appears before "
+                f"a prior field: {line!r}"
+            )
+            prev_idx = idx
+
+
+def test_ac3_clean_gate_holdout_names_first_failing_condition() -> None:
+    """AC-3 unit test: the gate names the FIRST failing condition.
+
+    Drive the gate evaluator with adversarial inputs that fail multiple
+    conditions simultaneously and assert the holdout names the lowest-
+    numbered failure -- the operative contract documented in the template
+    body ("the holdout names the first failure, not a downstream cascade").
+    """
+    # Conditions (1) AND (3) fail simultaneously -- holdout MUST be `sha_match`.
+    is_clean, holdout = evaluate_clean_gate(
+        last_reviewed_sha=None,
+        head_sha=_HEAD_SHA,
+        has_blocking=False,
+        confidence=None,
+        ci_failures=0,
+        errored=False,
+    )
+    assert (is_clean, holdout) == (False, "sha_match")
+
+    # (2) AND (3) fail; (1) passes -- holdout MUST be `has_blocking`.
+    is_clean, holdout = evaluate_clean_gate(
+        last_reviewed_sha=_HEAD_SHA,
+        head_sha=_HEAD_SHA,
+        has_blocking=True,
+        confidence=2,
+        ci_failures=0,
+        errored=False,
+    )
+    assert (is_clean, holdout) == (False, "has_blocking")
+
+    # (3) AND (4) fail; (1)/(2) pass -- holdout MUST be `confidence`.
+    is_clean, holdout = evaluate_clean_gate(
+        last_reviewed_sha=_HEAD_SHA,
+        head_sha=_HEAD_SHA,
+        has_blocking=False,
+        confidence=2,
+        ci_failures=3,
+        errored=False,
+    )
+    assert (is_clean, holdout) == (False, "confidence")
+
+    # (4) AND (5) fail; (1)/(2)/(3) pass -- holdout MUST be `ci_failures`.
+    is_clean, holdout = evaluate_clean_gate(
+        last_reviewed_sha=_HEAD_SHA,
+        head_sha=_HEAD_SHA,
+        has_blocking=False,
+        confidence=5,
+        ci_failures=1,
+        errored=True,
+    )
+    assert (is_clean, holdout) == (False, "ci_failures")
+
+    # Only (5) fails -- holdout MUST be `errored`.
+    is_clean, holdout = evaluate_clean_gate(
+        last_reviewed_sha=_HEAD_SHA,
+        head_sha=_HEAD_SHA,
+        has_blocking=False,
+        confidence=5,
+        ci_failures=0,
+        errored=True,
+    )
+    assert (is_clean, holdout) == (False, "errored")
+
+    # All five pass -- holdout MUST be None.
+    is_clean, holdout = evaluate_clean_gate(
+        last_reviewed_sha=_HEAD_SHA,
+        head_sha=_HEAD_SHA,
+        has_blocking=False,
+        confidence=5,
+        ci_failures=0,
+        errored=False,
+    )
+    assert (is_clean, holdout) == (True, None)
+
+
+def test_ac4_regression_clean_exit_unchanged_on_pre_1039_bodies() -> None:
+    """AC-4 regression guard: existing #910 / #1035 detector bodies still
+    drive CLEAN / NEW_P0P1 correctly under the new (5)-condition gate.
+
+    For the bodies fixtures defined earlier in this module the gate's
+    `has_blocking` reflects the detector's verdict; CLEAN fires when the
+    SHA matches AND confidence > 3 AND no blocking; NEW_P0P1 fires when
+    has_blocking is True on the matched SHA. These two regression cases
+    pin that the #1039 (5) STALL surface is purely additive -- existing
+    exits behave identically to the pre-#1039 poller.
+    """
+    # BODY_CLEAN has confidence 5/5, no findings, markdown-link SHA at
+    # `1111111aaa2222b`. Drive the loop with the matching head SHA.
+    clean_head = "1111111aaa2222b"
+    exit_class, polls_run, holdout, _ = simulate_poll_loop(
+        body=BODY_CLEAN, head_sha=clean_head, max_polls=5
+    )
+    assert (exit_class, polls_run, holdout) == ("CLEAN", 1, None)
+
+    # BODY_SLIZARD_HEADING_P1 has a Tier 2.5 P1 finding + markdown-link SHA
+    # `3333333abcdef12`. Confidence is 3/5 -- the gate's condition (2)
+    # has_blocking fires BEFORE condition (3) confidence under the documented
+    # 1/2/3/4/5 evaluation order. Holdout name MUST be `has_blocking`.
+    slizard_head = "3333333abcdef12"
+    exit_class, polls_run, holdout, _ = simulate_poll_loop(
+        body=BODY_SLIZARD_HEADING_P1, head_sha=slizard_head, max_polls=5
+    )
+    assert exit_class == "NEW_P0P1"
+    assert polls_run == 1
+    assert holdout == "has_blocking"
+
+
+# ---------------------------------------------------------------------------
+# Synchronization tests -- pin the template encoding so a future edit that
+# drops the (5) STALL block, the clean_gate_holdout surface, or the Tier 1
+# instrumentation log line fails CI immediately.
+# ---------------------------------------------------------------------------
+
+
+def test_template_section_intro_says_five_terminal_exits(template_text: str) -> None:
+    """Template MUST advertise FIVE terminal exit conditions (#1039 AC-2)."""
+    assert "five terminal exit conditions" in template_text, (
+        "template intro must say `five terminal exit conditions` (#1039)"
+    )
+    assert (
+        "When ANY of the five conditions below fires" in template_text
+    ), "`## Terminal exit conditions` intro must enumerate five conditions (#1039)"
+
+
+def test_template_contains_evaluate_clean_gate_function(template_text: str) -> None:
+    """Template MUST encode the evaluate_clean_gate function body (#1039 AC-3)."""
+    assert "def evaluate_clean_gate(" in template_text, (
+        "template missing evaluate_clean_gate function (#1039)"
+    )
+    # The five holdout names MUST be present verbatim in the function body so
+    # a downstream poller copying the snippet emits exactly these names.
+    for holdout_name in (
+        '"sha_match"',
+        '"has_blocking"',
+        '"confidence"',
+        '"ci_failures"',
+        '"errored"',
+    ):
+        assert holdout_name in template_text, (
+            f"template missing canonical holdout name {holdout_name} (#1039)"
+        )
+
+
+def test_template_contains_stall_terminal_exit(template_text: str) -> None:
+    """Template MUST contain the `### (5) STALL` section + canonical subject (#1039 AC-2)."""
+    assert "### (5) STALL" in template_text, (
+        "template missing `### (5) STALL` terminal exit section (#1039)"
+    )
+    # Canonical subject line from the issue body.
+    assert (
+        "poll loop wedged -- terminal-condition detection failure" in template_text
+    ), "template missing canonical STALL subject (#1039 issue body)"
+    # The state dump in the (5) STALL body MUST include clean_gate_holdout.
+    stall_idx = template_text.index("### (5) STALL")
+    stall_block = template_text[stall_idx : stall_idx + 2000]
+    assert "clean_gate_holdout:" in stall_block, (
+        "`### (5) STALL` body must surface clean_gate_holdout in state dump (#1039 AC-3)"
+    )
+    assert "-- no more polling, exiting now" in stall_block, (
+        "`### (5) STALL` body must end with the canonical exit-contract line"
+    )
+    # The 3-poll streak threshold (~4.5 min at 90s) is the load-bearing
+    # bounded-exit promise.
+    assert "3 consecutive wedged polls" in template_text or (
+        "N=3" in template_text and "3 consecutive polls" in template_text
+    ) or "stall_streak >= 3" in template_text, (
+        "template must pin the 3-consecutive-poll STALL threshold (#1039)"
+    )
+    assert "~4.5 min" in template_text, (
+        "template must surface the ~4.5-min bounded-exit promise (#1039 AC-2)"
+    )
+
+
+def test_template_contains_clean_gate_holdout_in_timeout(template_text: str) -> None:
+    """Template MUST surface clean_gate_holdout in the (4) TIMEOUT body (#1039 AC-3)."""
+    timeout_idx = template_text.index("### (4) TIMEOUT")
+    next_section_idx = template_text.index("### (5) STALL", timeout_idx)
+    timeout_block = template_text[timeout_idx:next_section_idx]
+    assert "clean_gate_holdout:" in timeout_block, (
+        "`### (4) TIMEOUT` body must surface clean_gate_holdout (#1039 AC-3)"
+    )
+
+
+def test_template_contains_tier1_instrumentation_log(template_text: str) -> None:
+    """Template MUST encode the Tier 1 per-poll instrumentation line (#1039 AC-1).
+
+    The doubled-brace form is what the on-disk template carries; the
+    single-brace form is what str.format(...) renders to. Pin both.
+    """
+    # Pin the leading `[poll {{i}}/{{cap}}]` token in doubled-brace form.
+    assert "[poll {{i}}/{{cap}}]" in template_text, (
+        "template missing Tier 1 instrumentation prefix `[poll {{i}}/{{cap}}]` (#1039)"
+    )
+    # Anchor the field-order search to the slice STARTING at the `[poll ` prefix
+    # AND ending at the close of the `print(...)` block; without this, tokens
+    # like `confidence=` would match the earlier kwarg in `evaluate_clean_gate(`
+    # rather than the instrumentation block we are pinning here (the
+    # observed false positive in the first test run).
+    instr_start = template_text.index("[poll {{i}}/{{cap}}]")
+    # The print block fits in ~600 chars; take a generous slice and stop at the
+    # closing `)` of `print(...)`.
+    instr_window = template_text[instr_start : instr_start + 800]
+    # Pin the eleven verbatim fields in the canonical order within the slice.
+    expected_field_tokens = [
+        "last_reviewed_sha=",
+        "head=",
+        "sha_match=",
+        "confidence=",
+        "has_blocking=",
+        "p0=",
+        "p1=",
+        "errored=",
+        "ci_failures=",
+        "is_clean=",
+        "clean_gate_holdout=",
+    ]
+    prev_idx = -1
+    for token in expected_field_tokens:
+        idx = instr_window.find(token)
+        assert idx != -1, (
+            f"template Tier 1 instrumentation missing field {token!r} "
+            f"in instrumentation print block (#1039)"
+        )
+        assert idx > prev_idx, (
+            f"template Tier 1 instrumentation field order regression -- "
+            f"{token!r} appears before a prior field in the print block (#1039)"
+        )
+        prev_idx = idx
+    # Render the template; the single-brace form must be present in the
+    # rendered output (defence-in-depth against a typo that escapes one
+    # side and not the other -- mirrors the #1035 sync-test contract).
+    rendered = template_text.format(
+        pr_number=1039,
+        repo="deftai/directive",
+        poll_interval_seconds=90,
+        poll_cap_minutes=30,
+        parent_agent_id="parent-id",
+    )
+    assert "[poll {i}/{cap}]" in rendered, (
+        "rendered template missing single-brace `[poll {i}/{cap}]` (#1039)"
+    )
+
+
+def test_template_status_message_list_includes_stall(template_text: str) -> None:
+    """Constraints status-message list MUST include STALL alongside the four
+    pre-#1039 exits so the worker sends a status message on every terminal
+    exit (the existing rule -- extended to cover the new (5) STALL exit)."""
+    assert (
+        "(CLEAN / NEW P0/P1 FINDINGS escalation / ERRORED / TIMEOUT / STALL)"
+        in template_text
+    ), "Constraints status-message list must include STALL (#1039)"
+
+
+def test_template_recurrence_record_cites_1039(template_text: str) -> None:
+    """Template MUST cite the #1039 / PR #1038 recurrence record."""
+    assert "#1039" in template_text, (
+        "template must cite the (5) STALL + Tier 1 instrumentation issue (#1039)"
+    )
+    assert "PR #1038" in template_text, (
+        "template must cite the PR #1038 stall recurrence record (#1039)"
+    )
+    assert "5794b0e7" in template_text, (
+        "template must cite the wedged poller agent id `5794b0e7-...` (#1039)"
+    )
