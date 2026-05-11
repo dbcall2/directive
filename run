@@ -1413,7 +1413,7 @@ def _classify_agents_md(project_root: Path) -> str:
 # the gate-side detector + auto-prompt so non-A consumers see a one-line
 # advisory on every CLI invocation directing them to the relocator.
 #
-# Four states (per the active scope vBRIEF Problem narrative):
+# Five states (per the active scope vBRIEF Problem narrative + #1046 PR-A):
 #
 #   A  pure ``deft/``                (legacy install; AGENTS.md + framework agree)
 #   B  pure ``.deft/core/``          (current installer output; broken because
@@ -1421,20 +1421,35 @@ def _classify_agents_md(project_root: Path) -> str:
 #   C  hybrid (both dirs present)    (broken; agents follow whichever they
 #                                     read first)
 #   D  AGENTS.md only                (broken partial install)
+#   K  install location mismatch    (#1046 finding #2; AGENTS.md template
+#                                     byte-matches current render BUT the
+#                                     declared install path does not resolve
+#                                     -- Case G refresh is a documented
+#                                     no-op; ``task framework:doctor`` is
+#                                     the right remediation, forthcoming
+#                                     in PR-B of the #1046 cohort)
 #
 # Detection inputs (read-only filesystem probes):
 #   - ``<project_root>/deft/``               legacy framework dir present?
 #   - ``<project_root>/.deft/core/``         canonical framework dir present?
 #   - ``<project_root>/AGENTS.md``           managed-section markers present?
+#   - AGENTS.md managed-section bytes        byte-equal to current template?
+#   - declared ``Full guidelines: ...``      install path resolves on disk?
 #
-# On detection of a non-A state the gate emits a single-line auto-prompt:
-#
-#   [deft] install layout state: <X> (<description>). \
-#       Run <framework>/run relocate to upgrade. (Y/n)
+# On detection of a non-A state the gate emits a single-line auto-prompt.
+# The remediation prompt branches by state:
+#   B / C / D -> ``[deft] install layout state: <X> (<description>). \
+#                  Run <framework>/run relocate to upgrade. (Y/n)``
+#   K         -> ``[deft] install layout state: K (<description>). \
+#                  Run task framework:doctor (forthcoming in PR-B of #1046
+#                  cohort) OR manually verify the install path AGENTS.md
+#                  claims actually exists on disk. (Y/n)``
 #
 # AUTO-PROMPT ONLY -- the gate NEVER auto-invokes ``task relocate`` or
-# otherwise mutates filesystem state. Mirrors the #884 ghx-install consent
-# gate convention: the operator runs ``task relocate`` on consent.
+# ``task framework:doctor``, NEVER calls the interactive ``read_yn`` /
+# ``ask_confirm`` helpers, and NEVER mutates filesystem state on any code
+# path. Mirrors the #884 ghx-install consent gate convention: the operator
+# runs the suggested remediation on consent.
 
 _INSTALL_LAYOUT_DESCRIPTIONS = {
     "A": "pure deft/ legacy install",

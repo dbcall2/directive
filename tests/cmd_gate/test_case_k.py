@@ -204,33 +204,43 @@ class TestClassifyCaseK:
         (tmp_path / "deft").mkdir()
         assert deft_run_module._classify_install_layout(tmp_path) == "A"
 
-    def test_byte_current_template_with_resolving_install_path_does_not_fire_k(
+    def test_install_dir_presence_takes_priority_when_both_signals_satisfied(
         self, tmp_path, deft_run_module
     ):
-        """Byte-current AGENTS.md + declared install path resolves -> D, NOT K.
+        """Byte-current AGENTS.md + ``.deft/core/`` install present -> B, NOT K.
 
-        When the declared install path actually exists on disk (e.g. the
-        consumer manually placed a ``.deft/core/main.md`` without the
-        surrounding directory tree), K does NOT fire because there is no
-        Case K signal to surface -- the install path resolution check
-        gates the K branch.
+        When the canonical install dir is present on disk AND the declared
+        ``main.md`` exists inside it, the install-dir-presence check at the
+        top of ``_classify_install_layout`` returns B before the D / K
+        content-vs-path branch is even evaluated. The K branch is
+        unreachable when any install dir anchors the layout -- by design,
+        because A / B / C are the layouts in which AGENTS.md and the
+        framework on disk agree.
 
-        Note: ``.deft/core`` is created as a file path here (only
-        ``main.md``) NOT as a directory, so ``dotdeft_present`` is False
-        and the classifier falls through to the D/K decision. The
-        ``_install_path_resolves`` helper returns True because
-        ``.deft/core/main.md`` is a file, so the K branch is skipped.
+        Note: ``.deft/core/`` is created as a real directory here (via
+        ``mkdir(parents=True)``), so ``dotdeft_present`` is True at the
+        top of the classifier and the function returns B. Even if we
+        bypassed that check, ``_install_path_resolves`` would also return
+        True because ``.deft/core/main.md`` exists as a file -- so neither
+        precondition for K is met. This test pins both invariants
+        simultaneously.
         """
         _make_state_k(tmp_path, deft_run_module)
-        # Place just the main.md file the template declares -- NOT the
-        # full .deft/core/ install dir, so the install-dir presence check
-        # at the top of the classifier still falls through.
+        # Create the canonical install dir + the main.md file the template
+        # declares. The .deft/core/ directory presence is what dominates
+        # the classification; the main.md file additionally ensures
+        # _install_path_resolves returns True, so the K branch is
+        # doubly-unreachable.
         (tmp_path / ".deft" / "core").mkdir(parents=True)
         (tmp_path / ".deft" / "core" / "main.md").write_text(
             "# Deft\n", encoding="utf-8"
         )
         # State B fires because .deft/core/ is now a present install dir.
         assert deft_run_module._classify_install_layout(tmp_path) == "B"
+        # Defence-in-depth: also pin that _install_path_resolves would
+        # have returned True if the install-dir presence check were
+        # bypassed (so K's second precondition is independently invalid).
+        assert deft_run_module._install_path_resolves(tmp_path) is True
 
 
 # --- _install_path_resolves --------------------------------------------------
