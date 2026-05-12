@@ -427,4 +427,6 @@ Larger feature work -- only after issues are resolved and content is stable.
 - **#1060** -- installer: WriteAgentsMD skips legacy AGENTS.md on canonical install -- leaves install-root drift the doctor flags -- `[completed]`
 - **#1061** -- framework:doctor failure prose names commands that don't exist; sharpen + add UPGRADING.md mitigation paragraph -- `[completed]`
 - **#1062** -- Add install_root field to <install>/VERSION manifest -- single source of truth for install-layout contract -- `[completed]`
+- **#1070** -- chore(security): supply-chain quick wins -- PEM fixture, curl|bash, dependabot.yml (parent #1069) -- `[completed]`
+- **#1071** -- chore(security): resolve 40 OSV advisories across committed manifests (parent #1069) -- `[completed]`
 
