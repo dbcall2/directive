@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.29.0] - 2026-05-12
+### Added
+
 - **feat(tasks,docs): `task upgrade` wrapper + `UPGRADING.md` drift-repair section (#1061)** -- new top-level `task upgrade` alias (root `Taskfile.yml`) plus the `install:upgrade` wrapper in `tasks/install.yml` that delegates to `run upgrade` (which writes the bare `.deft-version` marker, the canonical `<install>/VERSION` manifest including the #1062 `install_root` field, and refreshes the AGENTS.md managed section to the v3 marker via `cmd_agents_refresh`). The wrapper exists so the `framework:doctor` failure prose and `docs/install-manifest.md` can cite a real Taskfile target rather than a raw `run` invocation -- before this PR the same prose cited `task upgrade` as a Taskfile target that did not exist, sending operators on a research detour. New `UPGRADING.md` section `## From drifted AGENTS.md -> current managed-section (\`task upgrade\` repair path)` carries the canonical four-field header (Applies when / Safe to auto-run / Restart required / Commands) and three explanatory subsections: (1) AGENTS.md drift symptoms and detection -- documents both axes (marker-version mismatch from the #1060 canonical-reinstall-over-pre-v0.27 case, and install-path mismatch detected via the #1062 manifest `install_root` field); (2) what to do if the doctor's failure prose looks wrong (escalation note pointing at the GitHub issues path with the structured `--json` reproducer); (3) references back to #1060 / #1061 / #1062 plus the source files. Companion `docs/install-manifest.md` already cites `task upgrade` correctly (no schema-row edits -- that section is owned by #1062 / PR #1063). Refs #1060 (recurrence pattern motivating the repair path), #1062 (`install_root` manifest field this section describes).
 
 - **feat(install): record `install_root` in `<install>/VERSION` manifest as single source of truth for install-layout contract (#1062)**
@@ -2665,7 +2674,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/deftai/directive/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/deftai/directive/compare/v0.27.1...v0.28.0
 
 [0.27.1]: https://github.com/deftai/directive/compare/v0.27.0...v0.27.1
