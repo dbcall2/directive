@@ -24,6 +24,11 @@ will surface it.
 Refs:
   - deftai/directive#733 -- root regression issue
   - deftai/directive#716 -- Phase 5 safety hardening / user-only authority
+  - deftai/directive#1072 -- SHA-pin every remote ``uses:`` (the action
+    reference is now a 40-char commit SHA with a ``# vX.Y.Z`` trailing
+    comment; the detector below accepts BOTH the legacy ``@vN`` floating
+    form AND the SHA-pinned form so the ``draft: true`` contract pins
+    independently of how the upstream version reference is encoded).
   - skills/deft-directive-release/SKILL.md -- canonical release workflow
 """
 
@@ -51,8 +56,13 @@ def workflow_text() -> str:
 # ---------------------------------------------------------------------------
 
 
+# Accept both the legacy floating-ref form (``@v2``) AND the SHA-pinned
+# form introduced by #1072 (``@<40-hex-sha>`` optionally followed by a
+# ``# vX.Y.Z`` trailing comment). The contract under test is
+# ``draft: true`` on the action's ``with:`` block, which is independent
+# of whether the upstream version is referenced by tag or by SHA.
 _ACTION_RE = re.compile(
-    r"uses:\s*softprops/action-gh-release@v\S+",
+    r"uses:\s*softprops/action-gh-release@(?:v\S+|[0-9a-f]{40})\b",
     re.IGNORECASE,
 )
 
