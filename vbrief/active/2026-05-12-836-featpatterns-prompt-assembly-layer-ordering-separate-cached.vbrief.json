@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #836"
+    "description": "Scope vBRIEF ingested from GitHub issue #836",
+    "updated": "2026-05-12T23:50:41Z"
   },
   "plan": {
     "title": "feat(patterns): prompt-assembly-layer-ordering — separate cached system prompt layers from ephemeral per-turn injections",
-    "status": "pending",
+    "status": "running",
     "narratives": {
       "Description": "feat(patterns): prompt-assembly-layer-ordering — separate cached system prompt layers from ephemeral per-turn injections",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/836",
