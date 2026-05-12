@@ -336,12 +336,27 @@ class TestCredentials:
             ("xoxb-" + "1234567890-1234567890-AbCdEf", "slack-token"),
             ("xoxp-" + "abcdefghijklmnopqrst", "slack-token"),
             ("AKIA" + "ABCD1234EFGH5678", "aws-access-key"),
+            # Synthetic PEM fixtures (#1070): the canonical BEGIN sentinel is
+            # split across two adjacent literals so no single source line
+            # carries the gitleaks `private-key` rule trigger. The scanner
+            # regex (`scripts/cache_scanner.py::_CREDENTIAL_PATTERNS`) sees
+            # the runtime-concatenated string and still flags. The
+            # `# gitleaks:allow` annotation is belt-and-braces for any
+            # future gitleaks variant that scans concatenated literals.
+            # Greptile #1077 P2: gitleaks evaluates `# gitleaks:allow`
+            # on the SAME source line as the match, so the annotation
+            # is co-located with the BEGIN-fragment literal below. The
+            # primary defence remains the string split (no single
+            # source line carries the full BEGIN sentinel), the
+            # annotation is belt-and-braces.
             (
-                "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQ...",
+                "-----BEGIN RSA"  # gitleaks:allow synthetic fixture (#1070)
+                + " PRIVATE KEY-----\nREDACTED-FIXTURE-BODY",
                 "pem-private-key",
             ),
             (
-                "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNza...",
+                "-----BEGIN OPENSSH"  # gitleaks:allow synthetic fixture (#1070)
+                + " PRIVATE KEY-----\nREDACTED-FIXTURE-BODY",
                 "pem-private-key",
             ),
             (
