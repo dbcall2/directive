@@ -2270,6 +2270,23 @@ def _speckit_ip_index(item: dict, fallback_index: int) -> int:
     return fallback_index
 
 
+def _speckit_reference_with_default_trust(ref: dict) -> dict:
+    normalized = dict(ref)
+    if "TrustLevel" in normalized:
+        return normalized
+    ref_type = normalized.get("type")
+    if ref_type in {"x-vbrief/plan", "x-vbrief/spec-section", "x-vbrief/user-request"}:
+        normalized["TrustLevel"] = "internal"
+    elif ref_type in {
+        "x-vbrief/github-issue",
+        "x-vbrief/github-pr",
+        "x-vbrief/jira-ticket",
+        "x-vbrief/web-page",
+    }:
+        normalized["TrustLevel"] = "external"
+    return normalized
+
+
 def _create_speckit_scope_vbrief(
     item: dict,
     *,
@@ -2316,22 +2333,23 @@ def _create_speckit_scope_vbrief(
             narratives[extra] = value.strip()
 
     references = [
-        {"type": "x-vbrief/plan", "url": spec_ref},
+        {"type": "x-vbrief/plan", "uri": spec_ref, "TrustLevel": "internal"},
     ]
     # Copy any origin-provenance refs from the item (e.g. github-issue).
     for ref in item.get("references", []) or []:
         if isinstance(ref, dict) and ref.get("type") != "x-vbrief/plan":
-            references.append(ref)
+            references.append(_speckit_reference_with_default_trust(ref))
 
     plan: dict = {
         "title": title,
         "status": "pending",
         "narratives": narratives,
         "items": [],
+        "metadata": {"kind": "phase"},
         "references": references,
     }
     if dependencies:
-        plan["metadata"] = {"dependencies": list(dependencies)}
+        plan["metadata"]["dependencies"] = list(dependencies)
 
     return {
         "vBRIEFInfo": {
@@ -2347,7 +2365,7 @@ def migrate_speckit_plan(
     *,
     pending_dir: Path | None = None,
     date: str | None = None,
-    spec_ref: str = "../specification.vbrief.json",
+    spec_ref: str = "./specification.vbrief.json",
 ) -> tuple[bool, list[str]]:
     """Translate a speckit-shaped ``plan.vbrief.json`` into scope vBRIEFs.
 

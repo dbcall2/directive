@@ -20,10 +20,27 @@ from _vbrief_build import (
 )
 
 
+def _reference_with_default_trust(ref: dict) -> dict:
+    normalized = dict(ref)
+    if "TrustLevel" in normalized:
+        return normalized
+    ref_type = normalized.get("type")
+    if ref_type in {"x-vbrief/plan", "x-vbrief/spec-section", "x-vbrief/user-request"}:
+        normalized["TrustLevel"] = "internal"
+    elif ref_type in {
+        "x-vbrief/github-issue",
+        "x-vbrief/github-pr",
+        "x-vbrief/jira-ticket",
+        "x-vbrief/web-page",
+    }:
+        normalized["TrustLevel"] = "external"
+    return normalized
+
+
 def edge_nodes(edge: dict) -> tuple[str, str]:
     """Return (from_id, to_id) for a vBRIEF edge, reading both dialects.
 
-    The canonical v0.5 key names are ``from`` / ``to``, but earlier speckit
+    The canonical v0.6 key names are ``from`` / ``to``, but earlier speckit
     drafts used ``source`` / ``target``.  Prefer the canonical keys when
     they are populated and fall back to the legacy keys.
     """
@@ -119,20 +136,23 @@ def create_speckit_scope_vbrief(
         if isinstance(value, str) and value.strip():
             narratives[extra] = value.strip()
 
-    references = [{"type": "x-vbrief/plan", "url": spec_ref}]
+    references = [
+        {"type": "x-vbrief/plan", "uri": spec_ref, "TrustLevel": "internal"}
+    ]
     for ref in item.get("references", []) or []:
         if isinstance(ref, dict) and ref.get("type") != "x-vbrief/plan":
-            references.append(ref)
+            references.append(_reference_with_default_trust(ref))
 
     plan: dict = {
         "title": title,
         "status": "pending",
         "narratives": narratives,
         "items": [],
+        "metadata": {"kind": "phase"},
         "references": references,
     }
     if dependencies:
-        plan["metadata"] = {"dependencies": list(dependencies)}
+        plan["metadata"]["dependencies"] = list(dependencies)
 
     return {
         "vBRIEFInfo": {
@@ -148,7 +168,7 @@ def migrate_speckit_plan(
     *,
     pending_dir: Path | None = None,
     date: str | None = None,
-    spec_ref: str = "../specification.vbrief.json",
+    spec_ref: str = "./specification.vbrief.json",
     today: str | None = None,
 ) -> tuple[bool, list[str]]:
     """Translate a speckit-shaped ``plan.vbrief.json`` into scope vBRIEFs.
