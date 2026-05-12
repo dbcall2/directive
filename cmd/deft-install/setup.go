@@ -41,16 +41,28 @@ const (
 	// install layouts -- a re-run after a layout flip MUST NOT re-append.
 	agentsMDSentinel = "<!-- deft:managed-section v3 -->"
 
+	// agentsMDFenceClose is the closing marker for the deft-managed section.
+	// The v0.28 v3 template (templates/agents-entry.md) fences its body with
+	// agentsMDSentinel ... agentsMDFenceClose so WriteAgentsMD can surgically
+	// replace the managed slice without disturbing operator-authored prose
+	// elsewhere in AGENTS.md (#1060 cross-layout rewrite).
+	agentsMDFenceClose = "<!-- /deft:managed-section -->"
+
 	// agentsMDV2Sentinel is the v0.27 marker form retained for one release
 	// cycle (v0.28 only; v0.29 deprecates v2). #1046 PR-B AC-5 bumps the
 	// canonical marker to v3 with refresh provenance attributes; the v2 form
 	// is still recognised here so a fresh canonical install on top of a
-	// v0.27 AGENTS.md still recognises the deft entry and skips re-appending.
+	// v0.27 AGENTS.md still recognises the deft entry.
 	agentsMDV2Sentinel = "<!-- deft:managed-section v2 -->"
 
-	// agentsMDLegacySentinel is the pre-v0.27 idempotency marker. It is
-	// retained so a fresh canonical install on top of a legacy AGENTS.md still
-	// recognises the deft entry and skips re-appending (#1020).
+	// agentsMDLegacySentinel is the pre-v0.27 idempotency marker. It still
+	// participates in detection so a fresh canonical install on top of a
+	// pre-v0.27 AGENTS.md recognises the deft entry, but per #1060 it no
+	// longer triggers a skip when the install layout disagrees with the body --
+	// the legacy body advertises `deft/main.md` while a canonical install is
+	// depositing at `.deft/core/`, and silently skipping leaves the consumer
+	// in cross-layout drift the framework:doctor probe (#1046 PR-B AC-3)
+	// then flags. WriteAgentsMD now rewrites the managed block in that case.
 	agentsMDLegacySentinel = "deft/main.md"
 
 	// agentsSkillDeft is the thin pointer content for .agents/skills/deft/SKILL.md.
@@ -332,41 +344,210 @@ func UpdateDeft(w *Wizard, result *WizardResult, branch string) error {
 // 4.2 Write AGENTS.md
 // ---------------------------------------------------------------------------
 
-// WriteAgentsMD creates or appends deft entries to AGENTS.md in the project
-// folder. If the entries already exist the file is left unchanged (idempotent).
-// Both the canonical v2 marker and the pre-v0.27 "deft/main.md" sentinel
-// count as "already present" so a canonical re-install over a legacy
-// AGENTS.md does NOT duplicate the entry (#1020).
+// canonicalInstallRootPOSIX is the POSIX-style canonical install root the
+// embedded templates.AgentsEntry body is keyed to. Used by renderAgentsEntry
+// to detect when a path substitution is needed for legacy installs and by
+// agentsMDLayoutClaim to build the layout-specific body claim.
+const canonicalInstallRootPOSIX = ".deft/core"
+
+// renderAgentsEntry returns the v3 AGENTS.md managed-section body with paths
+// rewritten to match the install layout the installer is depositing at. The
+// embedded templates.AgentsEntry body is authored against `.deft/core/`
+// (the v0.27+ canonical layout); for the legacy `deft/` layout (`--legacy-layout`),
+// every `.deft/core/` prefix in the body is rewritten to `<installRoot>/` so the
+// written AGENTS.md matches the on-disk deposit.
+//
+// installRoot is expected to be the POSIX-style relative install path the
+// installer chose for the current run (e.g. ".deft/core" or "deft"). An empty
+// string falls back to the canonical body unchanged.
+func renderAgentsEntry(installRoot string) string {
+	posix := filepath.ToSlash(installRoot)
+	if posix == "" || posix == canonicalInstallRootPOSIX {
+		return agentsMDEntry
+	}
+	return strings.ReplaceAll(agentsMDEntry, canonicalInstallRootPOSIX+"/", posix+"/")
+}
+
+// agentsMDLayoutClaim returns the layout-specific body claim used by the
+// idempotency probe in WriteAgentsMD. The v3 template's lead sentence is
+// `Deft is installed in <installRoot>/.` -- when an existing AGENTS.md
+// carries the v3 marker AND this claim, the body's install root matches the
+// one the installer is depositing into and the file is up-to-date.
+func agentsMDLayoutClaim(installRoot string) string {
+	posix := filepath.ToSlash(installRoot)
+	return "Deft is installed in " + posix + "/."
+}
+
+// detectAgentsMDLayoutLabel inspects the existing AGENTS.md body for a
+// recognisable install-root claim and returns a short label suitable for the
+// installer log when a rewrite fires. The order matches the supported
+// layouts: canonical `.deft/core` -> legacy `deft` -> unknown (the file
+// carries a deft sentinel but no body claim we can pin to a layout).
+func detectAgentsMDLayoutLabel(body string) string {
+	for _, candidate := range []string{canonicalInstallRootPOSIX, LegacyFrameworkSubdir} {
+		if strings.Contains(body, agentsMDLayoutClaim(candidate)) {
+			return candidate
+		}
+	}
+	if strings.Contains(body, agentsMDLegacySentinel) {
+		return "deft (pre-v0.27)"
+	}
+	return "unknown"
+}
+
+// agentsMDManagedSlice returns the substring of body between the first v3 or
+// v2 open marker and the matching closing fence (inclusive of the close fence
+// bytes). Returns (slice, true) when a fenced managed section is found, or
+// ("", false) when no fenced block is detected (pre-v0.27 unfenced legacy
+// body, or no deft sentinel at all). Used by WriteAgentsMD to scope the
+// idempotency probe to the managed slice ONLY (Greptile P1 #1066: file-wide
+// claim check could produce a false skip when operator-authored prose
+// outside the fence contains the layout claim while the managed block stays
+// stale).
+func agentsMDManagedSlice(body string) (string, bool) {
+	for _, openMarker := range []string{agentsMDSentinel, agentsMDV2Sentinel} {
+		idx := strings.Index(body, openMarker)
+		if idx < 0 {
+			continue
+		}
+		closeOff := strings.Index(body[idx:], agentsMDFenceClose)
+		if closeOff < 0 {
+			continue
+		}
+		closeIdx := idx + closeOff + len(agentsMDFenceClose)
+		return body[idx:closeIdx], true
+	}
+	return "", false
+}
+
+// rewriteAgentsMDBlock replaces the deft-managed section inside body with the
+// rendered replacement and returns (newBody, surgical). When the section is
+// fenced by a v2/v3 open marker AND the closing marker, only the fenced range
+// is rewritten (`surgical=true`) so any operator prose outside the managed
+// section is preserved verbatim. The pre-v0.27 layout has no closing fence,
+// so when only the unfenced legacy sentinel is present the entire file is
+// replaced with the replacement (`surgical=false`); the legacy body has no
+// reliable terminator the installer can detect, and leaving stale legacy
+// prose alongside the new canonical body would itself produce the kind of
+// cross-layout drift #1060 closes.
+//
+// When the replacement already ends in a newline AND the byte immediately
+// after the closing fence is also a newline, one trailing newline is
+// consumed from body so repeated surgical rewrites don't accumulate blank
+// lines at the boundary (Greptile P1 #1066: cosmetic drift across upgrades).
+func rewriteAgentsMDBlock(body, replacement string) (string, bool) {
+	for _, openMarker := range []string{agentsMDSentinel, agentsMDV2Sentinel} {
+		idx := strings.Index(body, openMarker)
+		if idx < 0 {
+			continue
+		}
+		closeOff := strings.Index(body[idx:], agentsMDFenceClose)
+		if closeOff < 0 {
+			continue
+		}
+		closeIdx := idx + closeOff + len(agentsMDFenceClose)
+		if strings.HasSuffix(replacement, "\n") && closeIdx < len(body) && body[closeIdx] == '\n' {
+			closeIdx++
+		}
+		return body[:idx] + replacement + body[closeIdx:], true
+	}
+	return replacement, false
+}
+
+// WriteAgentsMD creates, rewrites, or appends the deft managed section in
+// AGENTS.md so the file always advertises the install root the installer is
+// depositing at. Layout-aware sentinel logic (#1060):
+//
+//   - AGENTS.md absent              -> write the layout-correct v3 body.
+//   - v3 marker AND matching claim  -> skip (file is up-to-date).
+//   - v3 marker but foreign layout  -> surgically rewrite the managed block
+//     to the layout-correct v3 body (preserving operator prose outside the
+//     fence).
+//   - v2 marker (pre-v0.28)         -> surgically rewrite to v3.
+//   - pre-v0.27 legacy sentinel     -> rewrite the entire file to the
+//     layout-correct v3 body (the legacy body is unfenced so a surgical
+//     replacement is not safe -- see rewriteAgentsMDBlock).
+//   - no deft sentinel at all       -> append the layout-correct v3 body to
+//     the existing file (preserves the operator's pre-existing AGENTS.md).
+//
+// The install root is derived from the Wizard's selected framework subdir
+// (the same value the deposit path uses) and normalised to POSIX form so the
+// AGENTS.md body never carries Windows backslashes regardless of host OS.
 func WriteAgentsMD(w *Wizard, projectDir string) error {
+	installRoot := filepath.ToSlash(w.frameworkSubdir())
 	path := filepath.Join(projectDir, "AGENTS.md")
+	body := renderAgentsEntry(installRoot)
 
 	existing, err := os.ReadFile(path)
-	if err == nil {
-		s := string(existing)
-		if strings.Contains(s, agentsMDSentinel) ||
-			strings.Contains(s, agentsMDV2Sentinel) ||
-			strings.Contains(s, agentsMDLegacySentinel) {
-			w.printf("AGENTS.md already contains deft entries — skipping.\n")
-			return nil
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("could not read AGENTS.md: %w", err)
 		}
-		// Append to existing file.
-		content := s
-		if !strings.HasSuffix(content, "\n") {
-			content += "\n"
+		// File does not exist — create it.
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			return fmt.Errorf("could not create AGENTS.md: %w", err)
 		}
-		content += "\n" + agentsMDEntry
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-			return fmt.Errorf("could not update AGENTS.md: %w", err)
-		}
-		w.printf("AGENTS.md updated with deft entries.\n")
+		w.printf("AGENTS.md created.\n")
 		return nil
 	}
 
-	// File does not exist — create it.
-	if err := os.WriteFile(path, []byte(agentsMDEntry), 0o644); err != nil {
-		return fmt.Errorf("could not create AGENTS.md: %w", err)
+	s := string(existing)
+	expectedClaim := agentsMDLayoutClaim(installRoot)
+	hasV3 := strings.Contains(s, agentsMDSentinel)
+	hasV2 := strings.Contains(s, agentsMDV2Sentinel)
+	hasLegacy := strings.Contains(s, agentsMDLegacySentinel)
+
+	// Scope the layout-claim probe to the fenced managed slice when one
+	// exists -- operator-authored prose OUTSIDE the fence that happens to
+	// contain the claim string (e.g. a documentation callout copy-quoting
+	// the rendered template) MUST NOT mask a stale claim inside the managed
+	// block (Greptile P1 #1066: file-wide claim check could produce a false
+	// skip). When no fence exists (pre-v0.27 unfenced legacy body), the
+	// full-file probe is the correct surface -- there is no narrower slice
+	// the installer can isolate, and the unfenced legacy body always
+	// triggers a whole-file rewrite below regardless of hasClaim.
+	probe := s
+	if slice, ok := agentsMDManagedSlice(s); ok {
+		probe = slice
 	}
-	w.printf("AGENTS.md created.\n")
+	hasClaim := strings.Contains(probe, expectedClaim)
+
+	// Up-to-date: v3 marker AND body advertises the install root we are
+	// depositing at. This is the only happy-path that may legitimately skip
+	// the rewrite per the #1060 layout-aware contract.
+	if hasV3 && hasClaim {
+		w.printf("AGENTS.md already advertises install root %s — skipping.\n", installRoot)
+		return nil
+	}
+
+	// Any deft sentinel present but body is stale (older marker) or pointing
+	// at a foreign layout: rewrite to the layout-correct v3 body so the
+	// installer never leaves the consumer in the cross-layout drift the
+	// framework:doctor probe would flag (#1060).
+	if hasV3 || hasV2 || hasLegacy {
+		newBody, surgical := rewriteAgentsMDBlock(s, body)
+		if err := os.WriteFile(path, []byte(newBody), 0o644); err != nil {
+			return fmt.Errorf("could not rewrite AGENTS.md: %w", err)
+		}
+		oldLabel := detectAgentsMDLayoutLabel(s)
+		scope := "managed section"
+		if !surgical {
+			scope = "file (legacy pre-v0.27 layout had no closing fence)"
+		}
+		w.printf("[deft-install] rewriting AGENTS.md %s from layout %s -> %s\n", scope, oldLabel, installRoot)
+		return nil
+	}
+
+	// No deft sentinel — append to existing operator prose.
+	content := s
+	if !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	content += "\n" + body
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("could not update AGENTS.md: %w", err)
+	}
+	w.printf("AGENTS.md updated with deft entries.\n")
 	return nil
 }
 
