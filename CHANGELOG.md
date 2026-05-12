@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.29.2] - 2026-05-12
+
+> Security supply-chain hardening cohort closure: GitHub Actions pinned to SHAs with least-privilege permissions blocks, docs/security.md baseline records the 2026-05-12 audit, parent umbrella #1069 resolved.
+
+### Added
 - **docs(security): record 2026-05-12 audit baseline in `docs/security.md` (#1073, parent #1069 -- final slice in the 2026-05-12 supply-chain hygiene cohort)** -- new `docs/security.md` records the inaugural audit baseline for `deftai/directive`: audit date (2026-05-12), the scanners run (`osv-scanner scan source --recursive .` + `gitleaks detect --redact`; future cadence adds `trivy fs --severity CRITICAL,HIGH --ignore-unfixed`), the five findings resolved (gitleaks PEM fixture remediated via PR #1077 / #1070; `curl | bash` removed from CI via PR #1077 / #1070; 22 OSV stdlib advisories resolved via PR #1076 / #1071 -- live count diverged from the 40 cited in #1069 because intervening dependabot bumps auto-cleared the rest; `.github/dependabot.yml` deposited via PR #1077 / #1070; Actions SHA-pinning + least-privilege `permissions:` blocks via the #1072 PR landing alongside this slice, cited prospectively per the vBRIEF escape hatch), and the residual-risk verdict (`osv-scanner scan source --recursive .` reports `No issues found` on master at tag `v0.29.1`; zero gitleaks `private-key` hits after PR #1077). New `## Audit cadence` section names the quarterly + event-driven cadence (dependabot security PR failure, scanner-CI escalation, newly-disclosed advisory at the pinned toolchain version). New `## Reporting a vulnerability` section points contributors at the canonical GitHub Security Advisories flow at <https://github.com/deftai/directive/security/advisories/new>. New `## Out of scope / follow-ups` section names **#1084** (PyPI OIDC trusted-publishing workflow, deferred -- blocked-by #11 because trusted-publishing is meaningless until Deft is published to PyPI, and the PyPI proposal is still OPEN). Companion `README.md` Security cross-reference section and `## Learn More` entry point consumers at the canonical body. Closes #1073, closes #1069 (umbrella close-out for the 2026-05-12 supply-chain cohort). Refs #1072 (Actions SHA-pinning + permissions hardening, landing alongside this slice), #1084 (deferred PyPI OIDC follow-up).
 
 ### Changed
@@ -2697,7 +2709,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.29.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.29.2...HEAD
+[0.29.2]: https://github.com/deftai/directive/compare/v0.29.1...v0.29.2
 [0.29.1]: https://github.com/deftai/directive/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/deftai/directive/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/deftai/directive/compare/v0.27.1...v0.28.0
