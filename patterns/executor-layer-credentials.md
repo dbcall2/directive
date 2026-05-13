@@ -90,18 +90,37 @@ The agent talks to the sidecar via an unauthenticated local endpoint;
 the sidecar talks to upstream with the credential.
 
 ```python path=null start=null
-# trusted sidecar
+# trusted sidecar -- DO NOT copy this naively
+UPSTREAM_BASE = "https://api.example.com"
+ALLOWED_PATHS = {"/v1/datasets/foo", "/v1/datasets/bar"}      # explicit allow-list
+FORWARD_HEADERS = {"content-type", "accept", "accept-encoding"}  # explicit allow-list
+
 def proxy_handler(request):
-    upstream_headers = {**request.headers, "Authorization": f"Bearer {load_secret('upstream_token')}"}
-    return forward(upstream_url + request.path, headers=upstream_headers, body=request.body)
+    # 1. Validate the path against an allow-list -- agent-controlled path concatenation
+    #    is an SSRF vector that lets a prompt-injected agent route the bound credential
+    #    to an attacker-controlled host (e.g. `request.path = "//attacker.com/steal"`
+    #    would resolve `UPSTREAM_BASE + request.path` to `https://attacker.com/steal`).
+    if request.path not in ALLOWED_PATHS:
+        return Response(403, b"path not in allow-list")
+    # 2. Filter incoming headers to a known-good set -- forwarding `{**request.headers}`
+    #    unfiltered lets the agent inject `Host: attacker.com`, `X-Admin: true`, or
+    #    smuggle additional auth headers upstream.
+    safe_headers = {k: v for k, v in request.headers.items() if k.lower() in FORWARD_HEADERS}
+    # 3. Add the upstream auth header in trusted code, NEVER from request.headers.
+    safe_headers["Authorization"] = f"Bearer {load_secret('upstream_token')}"
+    # 4. Use urljoin (or a strict path-prefix concat) so the path cannot escape the base.
+    upstream_url = urljoin(UPSTREAM_BASE, request.path)
+    return forward(upstream_url, headers=safe_headers, body=request.body)
 
 # agent-reachable surface (local loopback, no auth)
 agent.fetch("http://localhost:7100/v1/datasets/foo")  # the sidecar attaches the upstream token
 ```
 
+- ! MUST validate the agent-supplied path against an explicit allow-list of upstream endpoints before concatenating it with the upstream base URL; raw concatenation of an agent-controlled path is an SSRF vector that forwards the bound credential to an attacker-controlled host
+- ! MUST filter incoming headers to a known-good allow-list and add the upstream `Authorization` header from trusted code (never copy it from the request); spreading `{**request.headers}` lets the agent smuggle `Host`, `X-Admin`, or replacement auth headers upstream
 - ⊗ MUST NOT let the agent see the upstream `Authorization` header in any response, log, error, or trace
 - ⊗ MUST NOT bind the sidecar to a non-loopback interface unless it carries its own access control; the sidecar's job is to keep the upstream credential off the agent's reachable surface, not to add a new public endpoint
-- ~ SHOULD scope the sidecar's allow-list of upstream endpoints to the minimum the agent needs (a sidecar that proxies every URL is just a public credential)
+- ⊗ MUST NOT concatenate the agent-supplied path onto the upstream base URL without validation -- a prompt-injected agent supplying `//attacker.com/x` turns `UPSTREAM_BASE + request.path` into `https://attacker.com/x` and exfiltrates the bound credential the pattern was designed to protect
 
 ### SDKs
 

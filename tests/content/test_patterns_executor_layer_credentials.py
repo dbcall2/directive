@@ -32,6 +32,7 @@ REQUIRED_SECTIONS = (
     "### HTTP APIs",
     "### SDKs",
     "### MCP servers",
+    "### Shells and arbitrary subprocesses",
     "## Operator runbook",
     "## Anti-patterns",
     "## Cross-references",
