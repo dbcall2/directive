@@ -17,7 +17,6 @@ Near-up structural priority -- post-cutover stabilization, structural unblockers
 - **#635** -- Events: behavioral wiring (3 items: session interrupt/resume pair, plan:approved, legacy:detected)
 - **#635** -- Events: detection-bound wiring (5 events with existing detectors)
 - **#635** -- Rule Ownership Map: data file + lint enforcement (replaces REFERENCES.md prose section)
-- **#481** -- feat(patterns): add patterns/ directory and patterns/llm-app.md for LLM application standards
 - **#762** -- feat(vbrief): centralize phase taxonomy in PROJECT-DEFINITION.vbrief.json; renderer reads from there
 
 ## Phase 3 -- Documentation & Content Fixes
@@ -76,18 +75,6 @@ Larger feature work -- only after issues are resolved and content is stable.
 - **#95** -- Compliance-aligned constitution templates + readiness scanners (SOC 2, ISO 27001, HIPAA, HiTrust); sub-issues #96–#100 cover config schema, control mapping registry, scoring, evidence gap analysis, and automation hooks
 - **#96** -- [Compliance] Config schema + compliance-aware constitution templates
 - **#758** -- **#84 Phase 3** -- Deft as teacher: teach strategy, lessons evolution
-
-## Ungrouped
-
-- **#1096** -- fix(scripts): task issue:ingest dedup is too broad -- non-provenance references trigger false-positive blocks
-- **#480** -- feat(security): agent trap defenses — instruction hierarchy, oversight evasion, external content trust
-- **#587** -- feat(coding): add no-read-secret rule for agentic application development
-- **#661** -- feat(coding): add coding/security.md — baseline security standards for every project
-- **#686** -- feat(coding): tool-call safety is independent of text-level safety — add as named security rule
-- **#708** -- AI-agent destructive-op guardrails: env-isolation gate, irreversibility gate, incidents library, eval
-- **#806** -- feat(patterns): add executor-layer-credentials — bind secrets at invocation layer, never in agent context
-- **#816** -- feat(patterns): add role-as-overlay — persona/role instructions must be system-prompt overlays, never injected into message history
-- **#836** -- feat(patterns): prompt-assembly-layer-ordering — separate cached system prompt layers from ephemeral per-turn injections
 
 ## Completed
 
@@ -358,6 +345,7 @@ Larger feature work -- only after issues are resolved and content is stable.
 - **#737** -- feat(scripts,tasks,skills): pre-PR closing-keyword negation-context lint to prevent Layer 0 false-positive auto-closes -- `[completed]`
 - **#741** -- fix(scripts/release.py): bump VERSION literal in run during release flow -- `[completed]`
 - **#730** -- Release CHANGELOG promotion accepts --summary blockquote (per [AXIOM] deterministic tier) -- `[completed]`
+- **#481** -- feat(patterns): add patterns/ directory and patterns/llm-app.md for LLM application standards -- `[completed]`
 - **#564** -- review-cycle: add stall detection rubric, escalate to user after threshold -- `[completed]`
 - **#565** -- spec-validate: v0.6 envelope message + wire VALID_VBRIEF_VERSIONS into check (P2 cleanup) -- `[completed]`
 - **#573** -- prd:render: task -- --force silently no-ops because go-task cache layer wins before script --force reaches the code -- `[completed]`
@@ -444,4 +432,13 @@ Larger feature work -- only after issues are resolved and content is stable.
 - **#1071** -- chore(security): resolve 40 OSV advisories across committed manifests (parent #1069) -- `[completed]`
 - **#1072** -- chore(security): pin GitHub Actions to SHAs + least-privilege permissions + PyPI OIDC (parent #1069) -- `[completed]`
 - **#1073** -- docs(security): record 2026-05-12 audit baseline in docs/security.md (parent #1069) -- `[completed]`
+- **#1096** -- fix(scripts): task issue:ingest dedup is too broad -- non-provenance references trigger false-positive blocks -- `[completed]`
+- **#480** -- feat(security): agent trap defenses — instruction hierarchy, oversight evasion, external content trust -- `[completed]`
+- **#587** -- feat(coding): add no-read-secret rule for agentic application development -- `[completed]`
+- **#661** -- feat(coding): add coding/security.md — baseline security standards for every project -- `[completed]`
+- **#686** -- feat(coding): tool-call safety is independent of text-level safety — add as named security rule -- `[completed]`
+- **#708** -- AI-agent destructive-op guardrails: env-isolation gate, irreversibility gate, incidents library, eval -- `[completed]`
+- **#806** -- feat(patterns): add executor-layer-credentials — bind secrets at invocation layer, never in agent context -- `[completed]`
+- **#816** -- feat(patterns): add role-as-overlay — persona/role instructions must be system-prompt overlays, never injected into message history -- `[completed]`
+- **#836** -- feat(patterns): prompt-assembly-layer-ordering — separate cached system prompt layers from ephemeral per-turn injections -- `[completed]`
 
