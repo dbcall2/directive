@@ -108,7 +108,10 @@ def proxy_handler(request):
     safe_headers = {k: v for k, v in request.headers.items() if k.lower() in FORWARD_HEADERS}
     # 3. Add the upstream auth header in trusted code, NEVER from request.headers.
     safe_headers["Authorization"] = f"Bearer {load_secret('upstream_token')}"
-    # 4. Use urljoin (or a strict path-prefix concat) so the path cannot escape the base.
+    # 4. Assemble the final URL. Safety comes from the allow-list check at step 1, NOT
+    #    from urljoin -- `urllib.parse.urljoin` with an absolute path (starting with `/`)
+    #    replaces the base URL's path component entirely, so it does NOT prevent path
+    #    escaping on its own. urljoin is used here only as a URL-assembly utility.
     upstream_url = urljoin(UPSTREAM_BASE, request.path)
     return forward(upstream_url, headers=safe_headers, body=request.body)
 
