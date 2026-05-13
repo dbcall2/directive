@@ -138,6 +138,44 @@ def test_ordering_rule_present() -> None:
     )
 
 
+def test_cached_prefix_fragments_are_in_most_stable_first_order() -> None:
+    """The six cached-prefix fragments MUST appear in most-stable-first order.
+
+    Provider prefix caches are byte-prefix caches: one variable byte at
+    position k invalidates every byte from k onward. The pattern body
+    pins the canonical ordering (Agent identity -> Tool-aware behaviour
+    guidance -> Frozen memory snapshot -> Skills index -> Context files
+    -> Session timestamp) precisely because a reorder silently degrades
+    prefix-cache effectiveness across deploys, sessions, and projects.
+
+    Without this test, ``test_cached_prefix_fragments_enumerated`` only
+    pins the presence of each fragment and ``test_ordering_rule_present``
+    only pins the 'most-stable' token -- a future edit could reshuffle
+    the list and the rule violation would not surface in CI. Pin the
+    ordering directly by asserting first-occurrence indices in the file
+    body are strictly ascending in the canonical sequence.
+    """
+    text = _read(PATTERNS_FILE)
+    positions = [(name, text.find(name)) for name in CACHED_PREFIX_FRAGMENTS]
+    missing = [name for name, idx in positions if idx < 0]
+    assert not missing, (
+        "patterns/prompt-assembly-layer-ordering.md: ordering check "
+        f"cannot run because the following cached-prefix fragments are "
+        f"absent from the file: {missing} -- see "
+        "test_cached_prefix_fragments_enumerated for the presence gate"
+    )
+    indices = [idx for _name, idx in positions]
+    assert indices == sorted(indices), (
+        "patterns/prompt-assembly-layer-ordering.md: cached-prefix "
+        "fragments MUST appear in most-stable-first order "
+        f"({list(CACHED_PREFIX_FRAGMENTS)}); first-occurrence indices "
+        f"in the file body are {indices}, which is not ascending -- "
+        "a reorder collapses provider prefix-cache effectiveness and "
+        "silently multiplies token cost (see lines 60-82 of the file "
+        "body for the byte-prefix-cache rationale this gate enforces)"
+    )
+
+
 def test_frozen_memory_snapshot_cross_reference() -> None:
     """The file MUST cross-reference #832 (frozen-memory-snapshot)."""
     text = _read(PATTERNS_FILE)
