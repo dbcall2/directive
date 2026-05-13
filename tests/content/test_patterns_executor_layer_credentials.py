@@ -180,7 +180,9 @@ def test_patterns_executor_uses_must_and_must_not_tokens() -> None:
     """The file MUST carry both '!' MUST and '⊗' MUST NOT rules so the
     rule body is predominantly RFC2119-strength."""
     text = _read(PATTERNS_EXECUTOR)
-    must_count = text.count("- ! ") + text.count("! MUST")
+    # Count `! MUST` only (the canonical RFC2119 strength marker in this file).
+    # Avoid double-counting lines that match both `- ! ` and `! MUST`.
+    must_count = text.count("! MUST")
     must_not_count = text.count("- ⊗ ")
     assert must_count >= 5, (
         f"patterns/executor-layer-credentials.md: too few MUST rules "
@@ -211,7 +213,7 @@ def test_cross_references_to_security_md() -> None:
 
 
 def test_cross_references_to_sibling_patterns() -> None:
-    """The file SHOULD cross-reference the sibling pattern files
+    """The file MUST cross-reference the sibling pattern files
     (`patterns/llm-app.md`, `patterns/multi-agent.md`) -- they describe
     adjacent surfaces of the same agent-security model."""
     text = _read(PATTERNS_EXECUTOR)
