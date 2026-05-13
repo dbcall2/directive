@@ -15,7 +15,7 @@ module pins:
 2. Each new section carries the load-bearing MUST + MUST NOT tokens.
 3. Each new section cross-references its companion artefacts.
 4. The `incidents/` library exists with README, template, and seed entry.
-5. The seed entry cross-references the rule body for both #708 and #686.
+5. The seed entry cross-references the rule body for #587, #686, and #708.
 
 A future rename, section drop, or accidental deletion of any cross-
 reference fails this lane before the change can land via `task check`.
@@ -38,6 +38,22 @@ INCIDENTS_SEED = INCIDENTS_DIR / "2026-04-pocketos-railway-prod-db-wipe.md"
 
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
+
+def _locate_section(text: str, heading: str) -> int:
+    """Return the index of the section ``heading`` in ``text``, anchored
+    on a newline boundary so prose mentions (e.g. cross-references from
+    earlier sections) do not capture the lookup. Fails the test with a
+    descriptive ``AssertionError`` when the heading is absent (instead
+    of leaking a raw ``ValueError`` from ``str.index``)."""
+    anchored = "\n" + heading
+    idx = text.find(anchored)
+    assert idx >= 0, (
+        f"coding/security.md: section heading {heading!r} not "
+        f"found at a newline-anchored position -- the section-specific "
+        f"test that consumes this lookup cannot proceed."
+    )
+    return idx + 1  # skip the leading newline so the caller's slice
+    # window starts at the heading itself.
 
 
 # ---------------------------------------------------------------------------
@@ -72,8 +88,8 @@ def test_no_read_secret_rule_section_present() -> None:
     """#587: the no-read-secret rule MUST carry MUST + MUST NOT bullets and
     name the credential-proxy + per-identity scoping mitigations."""
     text = _read(SECURITY_MD)
-    section_start = text.index(
-        "## No-Read-Secret Rule for Agent Systems (#587)"
+    section_start = _locate_section(
+        text, "## No-Read-Secret Rule for Agent Systems (#587)"
     )
     section = text[section_start:section_start + 2500]
 
@@ -109,8 +125,8 @@ def test_tool_call_safety_rule_section_present() -> None:
     """#686: tool-call safety section MUST name the constraint-tier
     declaration requirement and the call-site enforcement contract."""
     text = _read(SECURITY_MD)
-    section_start = text.index(
-        "## Tool-Call Safety Is Independent of Text-Level Safety (#686)"
+    section_start = _locate_section(
+        text, "## Tool-Call Safety Is Independent of Text-Level Safety (#686)"
     )
     section = text[section_start:section_start + 2500]
 
@@ -148,8 +164,8 @@ def test_destructive_op_guardrails_section_present() -> None:
     gate AND the irreversibility gate, including the backup-is-first-class
     rule (the load-bearing detail the PocketOS incident missed)."""
     text = _read(SECURITY_MD)
-    section_start = text.index(
-        "## Destructive-Op Guardrails -- Environment Isolation + Irreversibility (#708)"
+    section_start = _locate_section(
+        text, "## Destructive-Op Guardrails -- Environment Isolation + Irreversibility (#708)"
     )
     # Look at a generous window: this section has two subheadings.
     section = text[section_start:section_start + 4000]

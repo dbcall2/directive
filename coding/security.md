@@ -37,7 +37,7 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 ## Secrets Management
 
-Extends and reinforces [coding.md Secrets rule](coding.md#code-organization).
+Extends and reinforces [coding.md Secrets rule](coding.md#code-organization). Projects that include any AI agent process MUST also apply the tightened `## No-Read-Secret Rule for Agent Systems (#587)` section below -- the `.env`-files-as-default pattern that is compliant for traditional services is NOT compliant when an agent can read the filesystem.
 
 - ! Store ALL secrets in `secrets/` as `.env` files (or a dedicated secret manager), gitignored
 - ! Read secrets via environment variables / vault clients at runtime
@@ -99,7 +99,7 @@ When AI agents are part of the system, every filesystem-accessible secret is one
 - ⊗ Commit `.env` files in projects where any agent process can read the filesystem -- the agent's context (and any external inference server it calls) inherits everything the agent can read
 - ⊗ Share one API key across multiple agents -- per-identity scoping is what makes the audit log usable when a key is compromised
 
-Cross-references: [coding.md `Secrets`](coding.md#code-organization) (this rule extends the existing Secrets rule for agent contexts) | `Secrets Management` section above | [`patterns/executor-layer-credentials.md`](../patterns/executor-layer-credentials.md) (credential-proxy pattern, merging in Wave 2) | Infisical Agent Vault <https://github.com/Infisical/agent-vault> (reference implementation).
+Cross-references: [coding.md `Secrets`](coding.md#code-organization) (this rule extends the existing Secrets rule for agent contexts) | `Secrets Management` section above | the in-flight `patterns/executor-layer-credentials.md` credential-proxy pattern (Wave 2, tracked at [#806](https://github.com/deftai/directive/issues/806); not yet on master) | Infisical Agent Vault <https://github.com/Infisical/agent-vault> (reference implementation).
 
 ## Tool-Call Safety Is Independent of Text-Level Safety (#686)
 
@@ -112,7 +112,7 @@ Text-level safety alignment does not transfer to the tool-call boundary. An agen
 - ⊗ Rely on model-level safety training as the only barrier between an agent and a destructive tool call -- text alignment provides no guarantee at the tool boundary
 - ⊗ Ship a tool registry where any tool is missing a constraint-tier declaration -- the default-to-`destructive` fallback exists for staging, not production
 
-Cross-references: `Agent-Specific Threats` section above | [`patterns/executor-layer-credentials.md`](../patterns/executor-layer-credentials.md) (tool-call gateway pattern, merging in Wave 2) | [`scripts/preflight_gh.py`](../scripts/preflight_gh.py) (#1019 reference implementation of a per-tool deterministic safety classifier) | Cartagena & Teixeira 2026 <https://arxiv.org/abs/2602.22302>.
+Cross-references: `Agent-Specific Threats` section above | the in-flight `patterns/executor-layer-credentials.md` tool-call gateway pattern (Wave 2, tracked at [#806](https://github.com/deftai/directive/issues/806); not yet on master) | [`scripts/preflight_gh.py`](../scripts/preflight_gh.py) (#1019 reference implementation of a per-tool deterministic safety classifier) | Cartagena & Teixeira 2026 <https://arxiv.org/abs/2602.22302>.
 
 ## Destructive-Op Guardrails -- Environment Isolation + Irreversibility (#708)
 
@@ -131,7 +131,7 @@ The April 2026 PocketOS / Railway incident -- a Cursor/Claude agent deleted a pr
 - ! Destructive operations -- DB `DROP` / `TRUNCATE` / `DELETE` without `WHERE`, `rm -rf`, force-push to a shared branch, table rename over an existing target, AND any mutation of a backup -- require BOTH a tested rollback path AND an explicit in-session human ack token before execution
 - ! Backups are first-class state. Deleting, overwriting, truncating, or "rotating" a backup is itself a destructive operation and MUST go through this gate
 - ! A verified non-prod environment (Environment Isolation Gate passed with `env != prod`) MAY relax the human-ack requirement but does NOT remove the rollback-path requirement -- a dev DB without a rollback is still a footgun
-- ~ Declare the irreversibility-tier classification for the project's destructive verbs in [`conventions/verb-classification.json`](../conventions/verb-classification.json) (consumed by the #1095 closed-verb scope-expansion gate). Inline declaration in the operation's runbook is acceptable until that file lands
+- ~ Declare the irreversibility-tier classification for the project's destructive verbs in the in-flight `conventions/verb-classification.json` (tracked at [#1095](https://github.com/deftai/directive/issues/1095) closed-verb scope-expansion gate; not yet on master). Inline declaration in the operation's runbook is acceptable until that file lands
 - ⊗ Execute a destructive operation in a verified prod environment without an in-session human ack token -- "the user authorised the project" is not session-scoped consent
 - ⊗ Treat a backup as out-of-scope for the irreversibility gate -- the PocketOS incident is the recurrence record; backups were destroyed in the same nine-second window as the live database
 
