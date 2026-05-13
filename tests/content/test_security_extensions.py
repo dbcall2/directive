@@ -148,8 +148,13 @@ def test_tool_call_safety_rule_section_present() -> None:
         "#686 section: missing any `- \u2297 ` MUST NOT bullet"
     )
 
-    # Source attribution -- empirical claim cites the ABC paper.
-    assert "Cartagena" in section or "arxiv.org" in section, (
+    # Source attribution -- empirical claim cites the ABC paper. Match
+    # against either the author surname or the full arxiv URL form so the
+    # check is unambiguous (CodeQL py/incomplete-url-substring-sanitization
+    # flags the bare-domain substring form as a potential URL-validation
+    # foot-gun; using the full https://arxiv.org/abs/ prefix avoids that
+    # heuristic while strengthening the assertion).
+    assert "Cartagena" in section or "https://arxiv.org/abs/" in section, (
         "#686 section: missing source attribution for the empirical claim"
     )
 
