@@ -22,12 +22,14 @@
       {
         "uri": "https://github.com/deftai/directive/issues/480",
         "type": "x-vbrief/github-issue",
-        "title": "Issue #480: feat(security): agent trap defenses — instruction hierarchy, oversight evasion, external content trust"
+        "title": "Issue #480: feat(security): agent trap defenses — instruction hierarchy, oversight evasion, external content trust",
+        "TrustLevel": "external"
       },
       {
         "uri": "completed/2026-04-30-481-patterns-directory-and-llm-app-standards.vbrief.json",
         "type": "x-vbrief/related-plan",
-        "title": "Related plan: #481 patterns/ directory + patterns/llm-app.md (sibling work informed by the same AI Agent Traps paper; #481 landed via PR #1107 and the vBRIEF moved active/ -> completed/ in #1109 Wave 1 closeout on 2026-05-12)"
+        "title": "Related plan: #481 patterns/ directory + patterns/llm-app.md (sibling work informed by the same AI Agent Traps paper; #481 landed via PR #1107 and the vBRIEF moved active/ -> completed/ in #1109 Wave 1 closeout on 2026-05-12)",
+        "TrustLevel": "internal"
       }
     ],
     "updated": "2026-05-12T20:45:08Z"
