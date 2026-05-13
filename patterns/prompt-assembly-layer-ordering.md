@@ -67,7 +67,7 @@ for every byte from `k` onward. Therefore, within the cached prefix,
 
 Canonical ordering, most-stable to least-stable:
 
-```text path=null start=null
+```text
 1. Agent identity              <- changes least (frozen until next deploy)
 2. Tool-aware behaviour guidance
 3. Frozen memory snapshot      <- changes only between sessions (#832)

@@ -158,6 +158,24 @@ def test_llm_app_cross_reference() -> None:
     )
 
 
+def test_role_as_overlay_cross_reference() -> None:
+    """The file MUST cross-reference #816 (role-as-overlay).
+
+    Role overlays are ephemeral, not cached; they live in the per-turn
+    injection layer. The pattern body names this in three load-bearing
+    places (ephemeral-content list, anti-patterns, cross-references)
+    and the CHANGELOG promises this gate exists -- pinning it here
+    prevents a future edit that drops all four references from
+    passing CI silently.
+    """
+    text = _read(PATTERNS_FILE)
+    assert "#816" in text, (
+        "patterns/prompt-assembly-layer-ordering.md: missing #816 "
+        "cross-reference -- role-as-overlay belongs to the ephemeral "
+        "layer; the four citations in the file body are load-bearing"
+    )
+
+
 def test_patterns_file_uses_must_and_must_not_tokens() -> None:
     """The file MUST carry both '!' MUST and '⊗' MUST NOT rules."""
     text = _read(PATTERNS_FILE)
