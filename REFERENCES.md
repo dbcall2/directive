@@ -81,6 +81,11 @@ Load as needed:
 - Contains: the role-as-system-overlay rule (never role-as-user-message), failure modes of role-injection-as-messages (history pollution, retrieval corruption, context-rot acceleration, false-memory propagation, resumption breakage), the call > session > agent precedence chain, the implementation contract for skills and sub-agent dispatch, and a provider-surface mapping (Anthropic `system`, OpenAI Chat `messages[0] role:system` / Responses `instructions`, Gemini `system_instruction`)
 - Source material: Flue SDK ([withastro/flue](https://github.com/withastro/flue)) README
 
+**[patterns/prompt-assembly-layer-ordering.md](./patterns/prompt-assembly-layer-ordering.md)** - Prompt assembly layer ordering (#836)
+- Load: When the project assembles a system prompt from more than one fragment, relies on provider-side prompt caching (Anthropic / OpenAI / local), or operates an agent across more than one user turn per session
+- Contains: the cached-prefix-vs-ephemeral-injection invariant, canonical content for each layer, most-stable-first ordering inside the cached prefix, observability fields for cache-tier telemetry, and the load-bearing link to frozen-memory-snapshot (#832)
+- Extends: `patterns/llm-app.md` `## Prompt construction` + `## LLM-specific observability`
+
 ### When Managing Context or Long Tasks
 
 - **[context/context.md](./context/context.md)** - Core context engineering strategies (Write, Select, Compress, Isolate)
