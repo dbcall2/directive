@@ -25,9 +25,9 @@
         "title": "Issue #480: feat(security): agent trap defenses — instruction hierarchy, oversight evasion, external content trust"
       },
       {
-        "uri": "pending/2026-04-30-481-patterns-directory-and-llm-app-standards.vbrief.json",
+        "uri": "completed/2026-04-30-481-patterns-directory-and-llm-app-standards.vbrief.json",
         "type": "x-vbrief/related-plan",
-        "title": "Related plan: #481 patterns/ directory + patterns/llm-app.md (sibling work informed by the same AI Agent Traps paper; previously cross-referenced as a companion ref on #481's vBRIEF, moved here on 2026-05-12 to unblock #480 ingest dedup)"
+        "title": "Related plan: #481 patterns/ directory + patterns/llm-app.md (sibling work informed by the same AI Agent Traps paper; #481 landed via PR #1107 and the vBRIEF moved active/ -> completed/ in #1109 Wave 1 closeout on 2026-05-12)"
       }
     ],
     "updated": "2026-05-12T20:45:08Z"

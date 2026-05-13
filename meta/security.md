@@ -16,7 +16,7 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 - ! Always-loadable alongside `meta/morals.md` -- the file is short and the taxonomy is referenced from every external-content-handling skill. Treat it as part of the meta layer alongside `morals.md`, NOT as a lazy-load
 - ! Lazy-load trigger: re-read this file whenever the agent is about to process externally-sourced content (web pages, GitHub issue / PR bodies and comments, retrieved files, third-party documentation, tool outputs that quote external sources, sibling-agent messages quoting external content) so the trap-class mental model is fresh at the moment it is needed
-- ~ The `deft-directive-*` skills that ingest external content (`deft-directive-gh-slice`, `deft-directive-gh-triage`, `deft-directive-refinement`, `deft-directive-build` when consuming an issue-ingested scope vBRIEF) cite this file's `## Security context` block verbatim in their preambles -- the taxonomy here is the authoritative source
+- ~ External-content-ingesting `deft-directive-*` skills SHOULD carry a `## Security context (#480)` block in their preamble that cross-references this taxonomy. As of #480 landing, `deft-directive-gh-slice` and `deft-directive-gh-triage` carry this block; the analogous block for `deft-directive-refinement` and for `deft-directive-build` (when it consumes an issue-ingested scope vBRIEF) is a follow-up. The two `deft-gh-arch` / `deft-gh-refactor` skills cited in the #480 issue body are OPEN PRs (#442 / #443) and SHOULD adopt the same `## Security context (#480)` block on their next iteration. This file is the authoritative source the skill-side blocks point at
 
 ## Source material
 
