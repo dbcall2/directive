@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #708"
+    "description": "Scope vBRIEF ingested from GitHub issue #708",
+    "updated": "2026-05-12T23:51:42Z"
   },
   "plan": {
     "title": "AI-agent destructive-op guardrails: env-isolation gate, irreversibility gate, incidents library, eval",
-    "status": "pending",
+    "status": "running",
     "narratives": {
       "Description": "AI-agent destructive-op guardrails: env-isolation gate, irreversibility gate, incidents library, eval",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/708",

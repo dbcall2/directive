@@ -88,6 +88,55 @@ Directive builds AI agent frameworks; agents introduce a distinct threat surface
 - ! Acknowledge reports within a documented SLA; never silently close
 - ⊗ Discuss unfixed vulnerabilities in public issues / PRs
 
+## No-Read-Secret Rule for Agent Systems (#587)
+
+When AI agents are part of the system, every filesystem-accessible secret is one a prompt-injection attack could exfiltrate to an external inference server. The `.env`-on-disk pattern that is fine for traditional services becomes a structural security hole the moment a non-deterministic reader is in the loop -- the standard `dotenv` flow makes secrets part of the agent's context by construction.
+
+- ! When the project includes any AI agent process, store secrets in a dedicated secret manager (cloud KMS / Vault / 1Password / Infisical Agent Vault) -- not in `.env` files on disk
+- ! Inject secrets at process start into the agent's environment (or, preferred, deliver them via a credential proxy so the agent never reads the underlying value); fetch from the secret store at runtime, do not bake into images
+- ! Scope each credential to the agent identity that uses it -- one scoped credential per agent or per deployment, auditable separately
+- ~ For production agent systems, prefer the agent credential proxy pattern: a TLS-intercepting forward proxy (or sidecar) attaches credentials to outbound requests so the agent completes its work without ever reading the plaintext secret
+- ⊗ Commit `.env` files in projects where any agent process can read the filesystem -- the agent's context (and any external inference server it calls) inherits everything the agent can read
+- ⊗ Share one API key across multiple agents -- per-identity scoping is what makes the audit log usable when a key is compromised
+
+Cross-references: [coding.md `Secrets`](coding.md#code-organization) (this rule extends the existing Secrets rule for agent contexts) | `Secrets Management` section above | [`patterns/executor-layer-credentials.md`](../patterns/executor-layer-credentials.md) (credential-proxy pattern, merging in Wave 2) | Infisical Agent Vault <https://github.com/Infisical/agent-vault> (reference implementation).
+
+## Tool-Call Safety Is Independent of Text-Level Safety (#686)
+
+Text-level safety alignment does not transfer to the tool-call boundary. An agent whose text outputs satisfy safety constraints can still execute harmful tool calls -- empirically demonstrated in the Agent Behavioral Contracts literature (Cartagena & Teixeira 2026). A safety-aligned model is NOT safe at the tool boundary unless the tool boundary enforces it separately.
+
+- ! Enforce hard constraints on high-impact tools at the call site -- middleware, gateway, or contract layer -- separate from the model's text-level safety training
+- ! Declare an explicit constraint tier for every tool in the tool registry: `read-only`, `reversible`, `irreversible`, or `destructive`. Tools without a declared tier MUST be treated as `destructive` by default
+- ! Audit-log every tool invocation at the tool-call layer (tool name, arguments redacted for secrets, caller identity, outcome). Text-level logs of the model's reasoning are insufficient for post-incident review
+- ! For `irreversible` / `destructive` tools, gate execution with a deterministic preflight (allow-list, environment check, ack token) outside the model -- never let the model decide on its own that an operation is safe
+- ⊗ Rely on model-level safety training as the only barrier between an agent and a destructive tool call -- text alignment provides no guarantee at the tool boundary
+- ⊗ Ship a tool registry where any tool is missing a constraint-tier declaration -- the default-to-`destructive` fallback exists for staging, not production
+
+Cross-references: `Agent-Specific Threats` section above | [`patterns/executor-layer-credentials.md`](../patterns/executor-layer-credentials.md) (tool-call gateway pattern, merging in Wave 2) | [`scripts/preflight_gh.py`](../scripts/preflight_gh.py) (#1019 reference implementation of a per-tool deterministic safety classifier) | Cartagena & Teixeira 2026 <https://arxiv.org/abs/2602.22302>.
+
+## Destructive-Op Guardrails -- Environment Isolation + Irreversibility (#708)
+
+The April 2026 PocketOS / Railway incident -- a Cursor/Claude agent deleted a production database AND its backups in roughly nine seconds after being told to "clean up the staging DB" -- is the canonical recurrence record for two distinct gaps: acting on a prompt-claimed environment instead of a verified one, and treating "destructive" as excluding backups. The two gates below close those gaps; the incident is documented at [`incidents/2026-04-pocketos-railway-prod-db-wipe.md`](../incidents/2026-04-pocketos-railway-prod-db-wipe.md).
+
+### Environment Isolation Gate
+
+- ! Before any write or destructive operation, the agent MUST positively identify the target environment (prod / staging / dev) from a TRUSTED, NON-PROMPT signal -- env var (e.g. `APP_ENV`), config file, or connection-string introspection. The user's wording is NOT a trusted signal
+- ! Enumerate the prod-detection heuristics explicitly in the project's runbook: hostname or connection-string contains `prod` / `production`, matches the documented prod hostname(s), or resolves into a documented prod-VPC CIDR. A trusted signal that disagrees with the prompt always wins
+- ! If the environment cannot be verified from a trusted signal, the agent MUST refuse the operation and escalate to a human. "Probably staging" is a refusal, not an approval
+- ⊗ Trust the user's wording (e.g. "clean up the staging DB") as environment authorisation -- the prompt is the untrusted input, the env var / connection string is the trusted signal
+- ⊗ Heuristically downgrade an unverified environment to "non-prod" so the operation can proceed -- the gate fails closed
+
+### Irreversibility Gate
+
+- ! Destructive operations -- DB `DROP` / `TRUNCATE` / `DELETE` without `WHERE`, `rm -rf`, force-push to a shared branch, table rename over an existing target, AND any mutation of a backup -- require BOTH a tested rollback path AND an explicit in-session human ack token before execution
+- ! Backups are first-class state. Deleting, overwriting, truncating, or "rotating" a backup is itself a destructive operation and MUST go through this gate
+- ! A verified non-prod environment (Environment Isolation Gate passed with `env != prod`) MAY relax the human-ack requirement but does NOT remove the rollback-path requirement -- a dev DB without a rollback is still a footgun
+- ~ Declare the irreversibility-tier classification for the project's destructive verbs in [`conventions/verb-classification.json`](../conventions/verb-classification.json) (consumed by the #1095 closed-verb scope-expansion gate). Inline declaration in the operation's runbook is acceptable until that file lands
+- ⊗ Execute a destructive operation in a verified prod environment without an in-session human ack token -- "the user authorised the project" is not session-scoped consent
+- ⊗ Treat a backup as out-of-scope for the irreversibility gate -- the PocketOS incident is the recurrence record; backups were destroyed in the same nine-second window as the live database
+
+Cross-references: [`incidents/README.md`](../incidents/README.md) (incidents library format) | [`incidents/2026-04-pocketos-railway-prod-db-wipe.md`](../incidents/2026-04-pocketos-railway-prod-db-wipe.md) (seed entry) | `Agent-Specific Threats` section above (this section extends it) | [`scripts/preflight_gh.py`](../scripts/preflight_gh.py) (#1019 deterministic-classifier reference) | #1095 closed-verb scope-expansion gate (consumes the irreversibility-tier classification).
+
 ## Anti-Patterns
 
 - ⊗ "We'll add security later" — baseline standards apply from day one
@@ -100,4 +149,4 @@ Directive builds AI agent frameworks; agents introduce a distinct threat surface
 
 ---
 
-**See also**: [coding.md](coding.md) (general coding standards, Secrets rule) | [testing.md](testing.md) (Security Tests section) | [hygiene.md](hygiene.md) (error-hiding anti-patterns) | [../scm/github.md](../scm/github.md) (destructive `gh` verbs preflight gate #1019)
+**See also**: [coding.md](coding.md) (general coding standards, Secrets rule) | [testing.md](testing.md) (Security Tests section) | [hygiene.md](hygiene.md) (error-hiding anti-patterns) | [../scm/github.md](../scm/github.md) (destructive `gh` verbs preflight gate #1019) | [../incidents/README.md](../incidents/README.md) (incidents library, #708)

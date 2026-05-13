@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #686"
+    "description": "Scope vBRIEF ingested from GitHub issue #686",
+    "updated": "2026-05-12T23:51:42Z"
   },
   "plan": {
     "title": "feat(coding): tool-call safety is independent of text-level safety — add as named security rule",
-    "status": "pending",
+    "status": "running",
     "narratives": {
       "Description": "feat(coding): tool-call safety is independent of text-level safety — add as named security rule",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/686",
