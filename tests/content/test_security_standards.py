@@ -8,7 +8,8 @@ fails CI if the rule body or its cross-references drift. This module
 pins:
 
 1. `coding/security.md` exists at the canonical path.
-2. The file is <= 150 lines (the #661 vBRIEF ceiling).
+2. The file is <= 250 lines (#661 baseline relaxed by Wave 2 cohort
+   #587 / #686 / #708 extension).
 3. The RFC2119 legend is present near the top.
 4. Every required section heading from the vBRIEF is present.
 5. `coding/coding.md` carries a cross-link to `coding/security.md`.
@@ -31,8 +32,14 @@ SECURITY_MD = _REPO_ROOT / "coding" / "security.md"
 CODING_MD = _REPO_ROOT / "coding" / "coding.md"
 REFERENCES_MD = _REPO_ROOT / "REFERENCES.md"
 
-# Line ceiling per the #661 vBRIEF: "It should stay <=150 lines."
-MAX_LINES = 150
+# Line ceiling: the #661 vBRIEF originally pinned <=150 lines for the
+# baseline file. The Wave 2 cohort #587 / #686 / #708 extends the file with
+# three named rule sections (no-read-secret, tool-call-safety, destructive-op
+# guardrails). The ceiling is relaxed to 250 lines to accommodate the
+# extension while still bounding the file's growth -- if a future change
+# needs more headroom it should split into a sub-file rather than relax
+# the ceiling further.
+MAX_LINES = 250
 
 # Required section headings per the #661 vBRIEF Action section.
 REQUIRED_SECTIONS = (
@@ -66,11 +73,11 @@ def test_security_md_exists() -> None:
 
 
 def test_security_md_line_ceiling() -> None:
-    """File MUST stay <=150 lines per the #661 vBRIEF scope contract."""
+    """File MUST stay within the cohort-relaxed line ceiling (#587/#686/#708)."""
     line_count = len(_read(SECURITY_MD).splitlines())
     assert line_count <= MAX_LINES, (
         f"coding/security.md: {line_count} lines exceeds the {MAX_LINES} "
-        "ceiling from the #661 vBRIEF (\"It should stay <=150 lines\")"
+        "line ceiling (#661 baseline relaxed by Wave 2 cohort #587/#686/#708)"
     )
 
 
