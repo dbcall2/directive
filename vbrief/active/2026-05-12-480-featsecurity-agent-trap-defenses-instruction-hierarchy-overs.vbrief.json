@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #480"
+    "description": "Scope vBRIEF ingested from GitHub issue #480",
+    "updated": "2026-05-12T23:51:01Z"
   },
   "plan": {
     "title": "feat(security): agent trap defenses — instruction hierarchy, oversight evasion, external content trust",
-    "status": "pending",
+    "status": "running",
     "narratives": {
       "Description": "feat(security): agent trap defenses — instruction hierarchy, oversight evasion, external content trust",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/480",
@@ -21,12 +22,14 @@
       {
         "uri": "https://github.com/deftai/directive/issues/480",
         "type": "x-vbrief/github-issue",
-        "title": "Issue #480: feat(security): agent trap defenses — instruction hierarchy, oversight evasion, external content trust"
+        "title": "Issue #480: feat(security): agent trap defenses — instruction hierarchy, oversight evasion, external content trust",
+        "TrustLevel": "external"
       },
       {
-        "uri": "pending/2026-04-30-481-patterns-directory-and-llm-app-standards.vbrief.json",
+        "uri": "completed/2026-04-30-481-patterns-directory-and-llm-app-standards.vbrief.json",
         "type": "x-vbrief/related-plan",
-        "title": "Related plan: #481 patterns/ directory + patterns/llm-app.md (sibling work informed by the same AI Agent Traps paper; previously cross-referenced as a companion ref on #481's vBRIEF, moved here on 2026-05-12 to unblock #480 ingest dedup)"
+        "title": "Related plan: #481 patterns/ directory + patterns/llm-app.md (sibling work informed by the same AI Agent Traps paper; #481 landed via PR #1107 and the vBRIEF moved active/ -> completed/ in #1109 Wave 1 closeout on 2026-05-12)",
+        "TrustLevel": "internal"
       }
     ],
     "updated": "2026-05-12T20:45:08Z"

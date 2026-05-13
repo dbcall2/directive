@@ -54,6 +54,12 @@ semantics.
 
 Consumer projects ? MAY extend the registry with additional `x-vbrief/*` values. When you do, document them in a project-local conventions file and cite them from `PROJECT-DEFINITION.vbrief.json`.
 
+### Additive sibling fields
+
+`References` entries MAY carry additional sibling fields alongside the schema-defined `uri` / `type` / `title` / `description` / `tags`. The following extension is recognised by deft tooling:
+
+- `TrustLevel` (`verified` | `internal` | `external`) -- source-trust classification, sourced from the AI Agent Traps paper's Cognitive State / Latent Memory Poisoning trap class. Canonical field shape, value enum, and rule body live in [`../vbrief/vbrief.md`](../vbrief/vbrief.md) `### TrustLevel (#480)`. The safe default for a missing field is `external` (#480).
+
 ## Origin Provenance (D11)
 
 Scope vBRIEFs in `vbrief/pending/` and `vbrief/active/` SHOULD carry at least
