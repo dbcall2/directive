@@ -76,6 +76,11 @@ Load as needed:
 - Contains: prompt construction (delimiters, parameterized templates), explicit trust tiers (system > few-shot > user > retrieved > web), tool/function-call validation (confused-deputy mitigation), RAG hygiene (no LLM-write-back, provenance), output handling (schema validation, XSS sanitization), multi-agent orchestration (sub-agent-output-is-untrusted), LLM-specific observability
 - Source material: AI Agent Traps paper (`docs/ssrn-6372438.pdf`)
 
+**[patterns/role-as-overlay.md](./patterns/role-as-overlay.md)** - Role as overlay (#816)
+- Load: When the project applies a persona / role / stance to an LLM call (skill-defined reviewer / builder / summarizer roles, agent-level identities, per-call stance overrides) or designs a multi-turn agent that persists message history across turns
+- Contains: the role-as-system-overlay rule (never role-as-user-message), failure modes of role-injection-as-messages (history pollution, retrieval corruption, context-rot acceleration, false-memory propagation, resumption breakage), the call > session > agent precedence chain, the implementation contract for skills and sub-agent dispatch, and a provider-surface mapping (Anthropic `system`, OpenAI Chat `messages[0] role:system` / Responses `instructions`, Gemini `system_instruction`)
+- Source material: Flue SDK ([withastro/flue](https://github.com/withastro/flue)) README
+
 ### When Managing Context or Long Tasks
 
 - **[context/context.md](./context/context.md)** - Core context engineering strategies (Write, Select, Compress, Isolate)

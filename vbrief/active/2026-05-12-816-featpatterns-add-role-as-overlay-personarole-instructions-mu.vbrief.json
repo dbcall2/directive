@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #816"
+    "description": "Scope vBRIEF ingested from GitHub issue #816",
+    "updated": "2026-05-12T23:50:25Z"
   },
   "plan": {
     "title": "feat(patterns): add role-as-overlay — persona/role instructions must be system-prompt overlays, never injected into message history",
-    "status": "pending",
+    "status": "running",
     "narratives": {
       "Description": "feat(patterns): add role-as-overlay — persona/role instructions must be system-prompt overlays, never injected into message history",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/816",
