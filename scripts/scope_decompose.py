@@ -237,7 +237,8 @@ def _validate_dag(story_ids: list[str], deps_by_story: dict[str, list[str]]) -> 
         if story_id in visited:
             return
         if story_id in visiting:
-            cycle = " -> ".join([*path, story_id])
+            start = path.index(story_id) if story_id in path else 0
+            cycle = " -> ".join([*path[start:], story_id])
             raise DecompositionError(f"dependency cycle detected: {cycle}")
         visiting.add(story_id)
         for dep in deps_by_story.get(story_id, []):

@@ -154,6 +154,51 @@ def test_scope_decompose_check_rejects_dependency_cycles(tmp_path: Path) -> None
     assert "dependency cycle" in result.stderr
 
 
+def test_scope_decompose_cycle_report_excludes_upstream_story(tmp_path: Path) -> None:
+    parent = _parent(tmp_path)
+
+    def story(story_id: str, deps: list[str]) -> dict:
+        return {
+            "id": story_id,
+            "title": story_id,
+            "acceptance": [f"{story_id} acceptance"],
+            "traces": ["FR-1"],
+            "swarm": {
+                "readiness": "ready",
+                "parallel_safe": True,
+                "file_scope": [f"src/{story_id}.ts"],
+                "verify_commands": [f"npm test -- {story_id}"],
+                "expected_outputs": ["tests pass"],
+                "depends_on": deps,
+                "size": "small",
+                "file_scope_confidence": "high",
+            },
+        }
+
+    draft = _write_json(
+        tmp_path / "decomposition.json",
+        {
+            "stories": [
+                story("story-entry", ["story-branch"]),
+                story("story-branch", ["story-loop"]),
+                story("story-loop", ["story-branch"]),
+            ]
+        },
+    )
+
+    result = _run(
+        tmp_path,
+        str(parent.relative_to(tmp_path)),
+        "--draft",
+        str(draft.relative_to(tmp_path)),
+        "--check",
+    )
+
+    assert result.returncode == 1
+    assert "dependency cycle detected: story-branch -> story-loop -> story-branch" in result.stderr
+    assert "story-entry -> story-branch -> story-loop -> story-branch" not in result.stderr
+
+
 def test_scope_decompose_rejects_ready_story_missing_required_fields(tmp_path: Path) -> None:
     parent = _parent(tmp_path)
     draft = _write_json(

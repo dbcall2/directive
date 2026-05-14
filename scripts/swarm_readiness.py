@@ -385,8 +385,6 @@ def _file_overlaps(
 ) -> dict[str, list[str]]:
     file_to_ids: dict[str, list[str]] = defaultdict(list)
     for candidate in _ready_stories(candidates):
-        if candidate.swarm.get("parallel_safe") is not True:
-            continue
         for file_path in _as_str_list(candidate.swarm.get("file_scope")):
             file_to_ids[file_path].append(candidate.story_id)
 

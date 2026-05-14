@@ -72,11 +72,10 @@ def slugify(text: str) -> str:
 # without it leaking into user-visible narratives.
 #
 # The surface key is a string (``"x-migrator"``) rather than a dotted
-# path because ``plan.metadata`` is schema-defined as ``{type: object}``
-# with no structural constraints -- any key is legal. Using the
-# ``x-migrator`` namespace signals "this value comes from `task
-# migrate:vbrief`" at a glance and keeps the payload compatible with the
-# vendored v0.6 schema without touching it.
+# path because ``plan.metadata`` is the extension point for tool-specific
+# metadata. Using the ``x-migrator`` namespace signals "this value comes
+# from `task migrate:vbrief`" at a glance and keeps the payload compatible
+# with the vendored v0.6 schema without touching it.
 MIGRATOR_METADATA_KEY: str = "x-migrator"
 
 # ----------------------------------------------------------------------------
