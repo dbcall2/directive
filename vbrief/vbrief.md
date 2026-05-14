@@ -214,6 +214,7 @@ For `kind = "story"` and `swarm.readiness = "ready"`:
 - ! traces MUST exist through item/story `Traces`, `x-vbrief/spec-section` references, or an explicit `missing_traces_justification`
 - ! `planRef` MUST point to the parent phase/epic when the story was decomposed from one
 - ! parent phase/epic `references` MUST include child story paths with `type: x-vbrief/plan` and `TrustLevel: internal`
+- ~ `parallel_safe: false` is a valid explicit declaration for sequential-only work, but it is not ready for concurrent swarm allocation
 - ⊗ Set `parallel_safe: true` on a `size: "large"` story
 - ⊗ Treat `file_scope_confidence: "low"` as parallel-safe by default
 

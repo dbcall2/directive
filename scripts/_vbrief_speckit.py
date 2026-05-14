@@ -16,25 +16,9 @@ from pathlib import Path
 
 from _vbrief_build import (
     EMITTED_VBRIEF_VERSION as _EMITTED_VBRIEF_VERSION,
+    reference_with_default_trust as _reference_with_default_trust,
     slugify as _slugify_shared,
 )
-
-
-def _reference_with_default_trust(ref: dict) -> dict:
-    normalized = dict(ref)
-    if "TrustLevel" in normalized:
-        return normalized
-    ref_type = normalized.get("type")
-    if ref_type in {"x-vbrief/plan", "x-vbrief/spec-section", "x-vbrief/user-request"}:
-        normalized["TrustLevel"] = "internal"
-    elif ref_type in {
-        "x-vbrief/github-issue",
-        "x-vbrief/github-pr",
-        "x-vbrief/jira-ticket",
-        "x-vbrief/web-page",
-    }:
-        normalized["TrustLevel"] = "external"
-    return normalized
 
 
 def edge_nodes(edge: dict) -> tuple[str, str]:
@@ -137,7 +121,7 @@ def create_speckit_scope_vbrief(
             narratives[extra] = value.strip()
 
     references = [
-        {"type": "x-vbrief/plan", "uri": spec_ref, "TrustLevel": "internal"}
+        _reference_with_default_trust({"type": "x-vbrief/plan", "uri": spec_ref})
     ]
     for ref in item.get("references", []) or []:
         if isinstance(ref, dict) and ref.get("type") != "x-vbrief/plan":

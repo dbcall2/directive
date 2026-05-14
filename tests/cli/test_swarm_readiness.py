@@ -25,6 +25,7 @@ def _story(
     depends_on: list[str] | None = None,
     size: str = "small",
     confidence: str = "high",
+    parallel_safe: bool = True,
 ) -> Path:
     return _write_json(
         project / "vbrief" / "active" / f"2026-05-12-{story_id}.vbrief.json",
@@ -47,7 +48,7 @@ def _story(
                     "kind": "story",
                     "swarm": {
                         "readiness": "ready",
-                        "parallel_safe": True,
+                        "parallel_safe": parallel_safe,
                         "file_scope": [f"src/{story_id}.ts"] if file_scope is None else file_scope,
                         "verify_commands": (
                             [f"npm test -- {story_id}"]
@@ -145,6 +146,18 @@ def test_readiness_rejects_large_parallel_safe_story(tmp_path: Path) -> None:
     assert "size=large cannot be parallel_safe=true" in result.stdout
 
 
+def test_readiness_reports_parallel_safe_false_as_sequential(tmp_path: Path) -> None:
+    story = _story(tmp_path, "story-sequential", parallel_safe=False)
+
+    result = _run(tmp_path, story)
+
+    assert result.returncode == 1
+    assert "Sequential stories:" in result.stdout
+    assert "story-sequential" in result.stdout
+    assert "parallel_safe=false: requires sequential allocation" in result.stdout
+    assert "plan.metadata.swarm.parallel_safe=true" not in result.stdout
+
+
 def test_readiness_rejects_low_confidence_parallel_safe_story(tmp_path: Path) -> None:
     story = _story(tmp_path, "story-low-confidence", confidence="low")
 
@@ -152,3 +165,15 @@ def test_readiness_rejects_low_confidence_parallel_safe_story(tmp_path: Path) ->
 
     assert result.returncode == 1
     assert "low-confidence file scope cannot be parallel-safe by default" in result.stdout
+
+
+def test_readiness_cycle_report_excludes_upstream_non_cycle_node(tmp_path: Path) -> None:
+    upstream = _story(tmp_path, "story-upstream", depends_on=["story-cycle-a"])
+    cycle_a = _story(tmp_path, "story-cycle-a", depends_on=["story-cycle-b"])
+    cycle_b = _story(tmp_path, "story-cycle-b", depends_on=["story-cycle-a"])
+
+    result = _run(tmp_path, upstream, cycle_a, cycle_b)
+
+    assert result.returncode == 1
+    assert "dependency cycle: story-cycle-a -> story-cycle-b -> story-cycle-a" in result.stdout
+    assert "dependency cycle: story-upstream" not in result.stdout

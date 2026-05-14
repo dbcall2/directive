@@ -443,6 +443,7 @@ class TestBuildProjectDefinition:
         ref = plan_items[0]["references"][0]
         assert ref["type"] == "x-vbrief/github-issue"
         assert ref["uri"] == "https://github.com/owner/repo/issues/42"
+        assert ref["TrustLevel"] == "external"
         assert ref["title"] == "Issue #42: Test item"
         # Legacy keys must not leak into the canonical shape (#613).
         assert "id" not in ref
@@ -513,6 +514,7 @@ class TestCreateScopeVbrief:
         assert ref["uri"] == "https://github.com/owner/repo/issues/99"
         assert ref["type"] == "x-vbrief/github-issue"
         assert ref["title"] == "Issue #99: Test feature"
+        assert ref["TrustLevel"] == "external"
 
     def test_origin_provenance_canonical_shape(self):
         """#613: refs carry {uri, type: x-vbrief/github-issue, title}."""
@@ -525,6 +527,7 @@ class TestCreateScopeVbrief:
         assert refs[0]["type"] == "x-vbrief/github-issue"
         assert refs[0]["uri"] == "https://github.com/owner/repo/issues/123"
         assert refs[0]["title"] == "Issue #123: Bug fix"
+        assert refs[0]["TrustLevel"] == "external"
         # Legacy fields must not leak into the canonical shape.
         assert "id" not in refs[0]
         assert "url" not in refs[0]

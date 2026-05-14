@@ -36,6 +36,7 @@ class Candidate:
     swarm: dict[str, Any]
     missing: list[str] = field(default_factory=list)
     blocked: list[str] = field(default_factory=list)
+    sequential: list[str] = field(default_factory=list)
     decomposition_needed: bool = False
 
 
@@ -264,8 +265,11 @@ def _validate_candidate(candidate: Candidate, known_ids: dict[str, tuple[Path, s
 
     if candidate.swarm.get("readiness") != READY:
         candidate.missing.append("plan.metadata.swarm.readiness=ready")
-    if candidate.swarm.get("parallel_safe") is not True:
-        candidate.missing.append("plan.metadata.swarm.parallel_safe=true")
+    parallel_safe = candidate.swarm.get("parallel_safe")
+    if parallel_safe is not True and parallel_safe is not False:
+        candidate.missing.append("plan.metadata.swarm.parallel_safe")
+    elif parallel_safe is False:
+        candidate.sequential.append("parallel_safe=false: requires sequential allocation")
     if not _as_str_list(candidate.swarm.get("file_scope")):
         candidate.missing.append("plan.metadata.swarm.file_scope")
     if not _as_str_list(candidate.swarm.get("verify_commands")):
@@ -316,7 +320,8 @@ def _mark_cycles(candidates: list[Candidate], graph: dict[str, list[str]]) -> No
         if story_id in visited:
             return
         if story_id in visiting:
-            cycle = [*path, story_id]
+            start = path.index(story_id) if story_id in path else 0
+            cycle = [*path[start:], story_id]
             message = f"dependency cycle: {' -> '.join(cycle)}"
             for node in cycle:
                 if node in by_id and message not in by_id[node].blocked:
@@ -339,6 +344,7 @@ def _ready_stories(candidates: list[Candidate]) -> list[Candidate]:
         if candidate.kind == "story"
         and not candidate.missing
         and not candidate.blocked
+        and not candidate.sequential
         and not candidate.decomposition_needed
     ]
 
@@ -418,6 +424,14 @@ def _render_report(
         for candidate in candidates
         if candidate.kind == "story" and (candidate.missing or candidate.blocked)
     ]
+    sequential = [
+        candidate
+        for candidate in candidates
+        if candidate.kind == "story"
+        and candidate.sequential
+        and not candidate.missing
+        and not candidate.blocked
+    ]
     needs_decomposition = [candidate for candidate in candidates if candidate.decomposition_needed]
     lines: list[str] = ["Swarm readiness report", ""]
 
@@ -434,6 +448,16 @@ def _render_report(
         for candidate in blocked:
             reasons = [*candidate.missing, *candidate.blocked]
             lines.append(f"- {candidate.story_id}: {candidate.title} -- {'; '.join(reasons)}")
+    else:
+        lines.append("- none")
+    lines.append("")
+
+    lines.append("Sequential stories:")
+    if sequential:
+        for candidate in sequential:
+            lines.append(
+                f"- {candidate.story_id}: {candidate.title} -- {'; '.join(candidate.sequential)}"
+            )
     else:
         lines.append("- none")
     lines.append("")
@@ -497,7 +521,10 @@ def readiness_report(project_root: Path, paths: list[Path]) -> tuple[int, str]:
     overlaps = _file_overlaps(candidates, graph)
     report = _render_report(candidates, graph, overlaps)
     failed = any(
-        candidate.missing or candidate.blocked or candidate.decomposition_needed
+        candidate.missing
+        or candidate.blocked
+        or candidate.sequential
+        or candidate.decomposition_needed
         for candidate in candidates
     ) or bool(overlaps)
     return 1 if failed else 0, report

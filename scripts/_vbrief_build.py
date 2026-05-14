@@ -11,8 +11,10 @@ Story: #454 (task issue:ingest).
 
 from __future__ import annotations
 
+import copy
 import re
 from datetime import UTC, datetime
+from typing import Any
 
 # ----------------------------------------------------------------------------
 # Date helper
@@ -76,6 +78,31 @@ def slugify(text: str) -> str:
 # migrate:vbrief`" at a glance and keeps the payload compatible with the
 # vendored v0.6 schema without touching it.
 MIGRATOR_METADATA_KEY: str = "x-migrator"
+
+# ----------------------------------------------------------------------------
+# Reference provenance / trust helpers (#480)
+# ----------------------------------------------------------------------------
+
+INTERNAL_REFERENCE_TYPES = {"x-vbrief/plan", "x-vbrief/spec-section", "x-vbrief/user-request"}
+EXTERNAL_REFERENCE_TYPES = {
+    "x-vbrief/github-issue",
+    "x-vbrief/github-pr",
+    "x-vbrief/jira-ticket",
+    "x-vbrief/web-page",
+}
+
+
+def reference_with_default_trust(ref: dict[str, Any]) -> dict[str, Any]:
+    """Return a copied reference with the default TrustLevel filled when known."""
+    normalized = copy.deepcopy(ref)
+    if "TrustLevel" in normalized:
+        return normalized
+    ref_type = normalized.get("type")
+    if ref_type in INTERNAL_REFERENCE_TYPES:
+        normalized["TrustLevel"] = "internal"
+    elif ref_type in EXTERNAL_REFERENCE_TYPES:
+        normalized["TrustLevel"] = "external"
+    return normalized
 
 # ----------------------------------------------------------------------------
 # Scope vBRIEF construction
@@ -166,7 +193,7 @@ def create_scope_vbrief(
             "type": "x-vbrief/github-issue",
             "title": ref_title,
         }
-        vbrief["plan"]["references"] = [canonical_ref]
+        vbrief["plan"]["references"] = [reference_with_default_trust(canonical_ref)]
 
     return vbrief
 
@@ -175,6 +202,7 @@ __all__ = [
     "EMITTED_VBRIEF_VERSION",
     "MIGRATOR_METADATA_KEY",
     "TODAY",
+    "reference_with_default_trust",
     "slugify",
     "create_scope_vbrief",
 ]

@@ -55,6 +55,7 @@ def _emit_event(name: str, payload: dict[str, Any]) -> None:
 from _vbrief_build import (  # noqa: E402 -- after sys.path mutate + lazy emit helper
     EMITTED_VBRIEF_VERSION,  # canonical emitted version per #533
     create_scope_vbrief as _create_scope_vbrief_shared,
+    reference_with_default_trust as _reference_with_default_trust,
     slugify as _slugify_shared,
 )
 from _vbrief_validation import (  # noqa: E402
@@ -840,11 +841,15 @@ def _build_project_definition(
                 if item_title and item_title != "Untitled"
                 else f"Issue #{number}"
             )
-            item["references"] = [{
-                "uri": f"{repo_url}/issues/{number}",
-                "type": "x-vbrief/github-issue",
-                "title": ref_title,
-            }]
+            item["references"] = [
+                _reference_with_default_trust(
+                    {
+                        "uri": f"{repo_url}/issues/{number}",
+                        "type": "x-vbrief/github-issue",
+                        "title": ref_title,
+                    }
+                )
+            ]
         items.append(item)
 
     return {
@@ -2270,23 +2275,6 @@ def _speckit_ip_index(item: dict, fallback_index: int) -> int:
     return fallback_index
 
 
-def _speckit_reference_with_default_trust(ref: dict) -> dict:
-    normalized = dict(ref)
-    if "TrustLevel" in normalized:
-        return normalized
-    ref_type = normalized.get("type")
-    if ref_type in {"x-vbrief/plan", "x-vbrief/spec-section", "x-vbrief/user-request"}:
-        normalized["TrustLevel"] = "internal"
-    elif ref_type in {
-        "x-vbrief/github-issue",
-        "x-vbrief/github-pr",
-        "x-vbrief/jira-ticket",
-        "x-vbrief/web-page",
-    }:
-        normalized["TrustLevel"] = "external"
-    return normalized
-
-
 def _create_speckit_scope_vbrief(
     item: dict,
     *,
@@ -2333,12 +2321,12 @@ def _create_speckit_scope_vbrief(
             narratives[extra] = value.strip()
 
     references = [
-        {"type": "x-vbrief/plan", "uri": spec_ref, "TrustLevel": "internal"},
+        _reference_with_default_trust({"type": "x-vbrief/plan", "uri": spec_ref}),
     ]
     # Copy any origin-provenance refs from the item (e.g. github-issue).
     for ref in item.get("references", []) or []:
         if isinstance(ref, dict) and ref.get("type") != "x-vbrief/plan":
-            references.append(_speckit_reference_with_default_trust(ref))
+            references.append(_reference_with_default_trust(ref))
 
     plan: dict = {
         "title": title,

@@ -20,19 +20,16 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _stdio_utf8 import reconfigure_stdio  # noqa: E402
-from _vbrief_build import EMITTED_VBRIEF_VERSION, slugify  # noqa: E402
+from _vbrief_build import (  # noqa: E402
+    EMITTED_VBRIEF_VERSION,
+    reference_with_default_trust as _reference_with_default_trust,
+    slugify,
+)
 
 reconfigure_stdio()
 
 LIFECYCLE_FOLDERS = {"proposed", "pending", "active", "completed", "cancelled"}
 READY = "ready"
-INTERNAL_REFERENCE_TYPES = {"x-vbrief/plan", "x-vbrief/spec-section", "x-vbrief/user-request"}
-EXTERNAL_REFERENCE_TYPES = {
-    "x-vbrief/github-issue",
-    "x-vbrief/github-pr",
-    "x-vbrief/jira-ticket",
-    "x-vbrief/web-page",
-}
 
 
 class DecompositionError(ValueError):
@@ -299,18 +296,6 @@ def _normalize_references(refs: Any) -> list[dict[str, Any]]:
     return normalized
 
 
-def _reference_with_default_trust(ref: dict[str, Any]) -> dict[str, Any]:
-    normalized = copy.deepcopy(ref)
-    if "TrustLevel" in normalized:
-        return normalized
-    ref_type = normalized.get("type")
-    if ref_type in INTERNAL_REFERENCE_TYPES:
-        normalized["TrustLevel"] = "internal"
-    elif ref_type in EXTERNAL_REFERENCE_TYPES:
-        normalized["TrustLevel"] = "external"
-    return normalized
-
-
 def _dedupe_references(refs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     seen: set[tuple[str, str, str]] = set()
@@ -465,12 +450,13 @@ def apply_decomposition(
         parent_plan["references"] = references
     for target, _story_id, title in child_paths:
         references.append(
-            {
-                "uri": _rel_to_vbrief(vbrief_dir, target),
-                "type": "x-vbrief/plan",
-                "title": title,
-                "TrustLevel": "internal",
-            }
+            _reference_with_default_trust(
+                {
+                    "uri": _rel_to_vbrief(vbrief_dir, target),
+                    "type": "x-vbrief/plan",
+                    "title": title,
+                }
+            )
         )
     parent_plan["references"] = _dedupe_references(
         [ref for ref in references if isinstance(ref, dict)]

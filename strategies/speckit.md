@@ -280,7 +280,7 @@ Use the readiness gate before swarm allocation:
 task swarm:readiness -- vbrief/active/*.vbrief.json
 ```
 
-The readiness report lists ready stories, blocked stories, decomposition-needed epics/phases, dependency waves, conflict groups, a file-overlap matrix, and missing fields. It exits non-zero when candidate work is not swarm-ready.
+The readiness report lists ready stories, sequential-only stories, blocked stories, decomposition-needed epics/phases, dependency waves, conflict groups, a file-overlap matrix, and missing fields. It exits non-zero when candidate work is not swarm-ready for concurrent allocation.
 
 ### Transition Criteria
 

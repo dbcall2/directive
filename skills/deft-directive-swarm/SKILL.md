@@ -115,7 +115,7 @@ Cross-references:
 
 - ! Scan `vbrief/active/` for candidate vBRIEFs (files matching `*.vbrief.json`)
 - ! For each candidate vBRIEF, MUST run `task vbrief:preflight -- <path>` (the structural intent gate, #810; wraps `scripts/preflight_implementation.py` so the same invocation works whether deft is the project root or installed as a `deft/` subdirectory) to validate lifecycle eligibility before allocation work. Skip any vBRIEF that exits non-zero -- the helper's stderr message is the actionable redirect (`task vbrief:activate <path>`). Surface the exit message in the Phase 0 Step 4 analysis so the user can route the lifecycle move; do NOT attempt to allocate, dispatch, or implement against a vBRIEF that fails the preflight.
-- ! Run `task swarm:readiness -- vbrief/active/*.vbrief.json` before any agent allocation. This deterministic report is the allocator's source of truth for ready stories, blocked stories, decomposition-needed epics/phases, dependency waves, conflict groups, file overlap matrix, and missing fields.
+- ! Run `task swarm:readiness -- vbrief/active/*.vbrief.json` before any agent allocation. This deterministic report is the allocator's source of truth for ready stories, sequential-only stories, blocked stories, decomposition-needed epics/phases, dependency waves, conflict groups, file overlap matrix, and missing fields.
 - ! Treat `plan.metadata.kind = "epic"` and `plan.metadata.kind = "phase"` as **needs decomposition**, not merely incomplete. Route broad scopes to `skills/deft-directive-decompose/SKILL.md` instead of assigning them to workers.
 - ! Read only readiness-approved story fields for allocation: `plan.title`, `plan.status`, non-empty `plan.items`, `planRef`, `references`, `plan.metadata.kind`, and `plan.metadata.swarm`.
 - ! Read `vbrief/PROJECT-DEFINITION.vbrief.json` for project-wide context (narratives, scope registry)
@@ -146,7 +146,7 @@ Cross-references:
 ! Present a summary to the user containing:
 
 - **Candidate vBRIEFs**: story-level vBRIEFs eligible for assignment (with titles, statuses, and origin references)
-- **Readiness report**: ready stories, blocked stories, decomposition-needed epics/phases, dependency waves, conflict groups, file overlap matrix, and missing fields from `task swarm:readiness`
+- **Readiness report**: ready stories, sequential-only stories, blocked stories, decomposition-needed epics/phases, dependency waves, conflict groups, file overlap matrix, and missing fields from `task swarm:readiness`
 - **Preflight rejections (#810)**: any vBRIEFs that failed `task vbrief:preflight` (wraps `scripts/preflight_implementation.py`) in Step 1 -- include the file path AND the helper's exit message verbatim so the user can route the appropriate `task vbrief:activate <path>` move. These vBRIEFs MUST NOT be allocated until they pass the preflight on a re-run.
 - **Blockers found**: blocked vBRIEFs, unresolved dependencies, items requiring design decisions
 - **Decomposition needed**: epic/phase scopes that must go through `skills/deft-directive-decompose/SKILL.md` before swarm allocation

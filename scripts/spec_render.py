@@ -215,10 +215,13 @@ def _split_acceptance(value: object) -> list[str]:
         return []
     parts: list[str] = []
     for line in value.splitlines():
-        for chunk in line.split(";"):
-            cleaned = chunk.strip().lstrip("-* ").strip()
-            if cleaned:
-                parts.append(cleaned)
+        cleaned = line.strip()
+        if not cleaned:
+            continue
+        if cleaned.startswith(("- ", "* ")):
+            cleaned = cleaned[2:].strip()
+        if cleaned:
+            parts.append(cleaned)
     return parts
 
 
@@ -404,11 +407,7 @@ def render_spec(
                 if key == "Traces":
                     lines.append(f"**Traces**: {val}\n")
                 elif key == "Acceptance":
-                    if isinstance(val, list):
-                        criteria = val
-                    else:
-                        criteria = [c for c in str(val).split("; ") if c]
-                    for criterion in criteria:
+                    for criterion in _split_acceptance(val):
                         lines.append(f"- {criterion}")
                     lines.append("")
                 else:

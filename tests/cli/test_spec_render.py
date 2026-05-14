@@ -186,7 +186,7 @@ def test_legacy_interview_shape_renders_overview_and_items(render_mod, tmp_path)
             "id": "T1",
             "title": "Do the thing",
             "status": "pending",
-            "narrative": {"Description": "Get it done.", "Acceptance": "A; B"},
+            "narrative": {"Description": "Get it done.", "Acceptance": "- A\n- B"},
         },
         {
             "id": "T2",
@@ -212,6 +212,34 @@ def test_legacy_interview_shape_renders_overview_and_items(render_mod, tmp_path)
     # Acceptance rendered as bullets (pre-existing behavior preserved)
     assert "- A" in content
     assert "- B" in content
+
+
+def test_acceptance_semicolon_text_stays_single_criterion(render_mod, tmp_path) -> None:
+    """A semicolon inside one sentence should not split acceptance bullets."""
+    narratives = {"Overview": "Semicolon regression."}
+    items = [
+        {
+            "id": "T1",
+            "title": "Validate uniqueness",
+            "status": "pending",
+            "narrative": {
+                "Acceptance": "User name must be unique; email must be unique within a tenant"
+            },
+        }
+    ]
+    spec_path = _write_spec(
+        tmp_path / "vbrief", narratives, items=items, title="Semicolon Spec"
+    )
+    out = tmp_path / "SPECIFICATION.md"
+    ok, msg = render_mod.render_spec(str(spec_path), str(out))
+    assert ok, msg
+
+    content = out.read_text(encoding="utf-8")
+    assert (
+        "- User name must be unique; email must be unique within a tenant"
+        in content
+    )
+    assert "- email must be unique within a tenant" not in content
 
 
 # ---------------------------------------------------------------------------
