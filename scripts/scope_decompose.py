@@ -129,9 +129,6 @@ def _swarm_meta(story: dict[str, Any]) -> dict[str, Any]:
     ):
         if key in story and key not in swarm:
             swarm[key] = story[key]
-    swarm.setdefault("readiness", READY)
-    swarm.setdefault("parallel_safe", True)
-    swarm.setdefault("depends_on", [])
     return swarm
 
 
@@ -197,6 +194,20 @@ def _story_has_traces(story: dict[str, Any], items: list[Any], swarm: dict[str, 
             if isinstance(ref, dict) and ref.get("type") == "x-vbrief/spec-section":
                 return True
     return False
+
+
+def _missing_required_swarm_fields(swarm: dict[str, Any]) -> list[str]:
+    missing: list[str] = []
+    for key in ("file_scope", "verify_commands", "expected_outputs"):
+        if not _as_str_list(swarm.get(key)):
+            missing.append(f"plan.metadata.swarm.{key}")
+    if "depends_on" not in swarm:
+        missing.append("plan.metadata.swarm.depends_on")
+    for key in ("conflict_group", "size", "file_scope_confidence", "model_tier"):
+        value = swarm.get(key)
+        if not isinstance(value, str) or not value.strip():
+            missing.append(f"plan.metadata.swarm.{key}")
+    return missing
 
 
 def _items_from_story(story_id: str, story: dict[str, Any]) -> list[Any]:
@@ -265,19 +276,18 @@ def validate_draft(stories: list[dict[str, Any]]) -> list[str]:
         deps = _as_str_list(swarm.get("depends_on") or story.get("depends_on"))
         deps_by_story[story_id] = deps
 
-        if swarm.get("readiness") != READY:
-            continue
-
         items = _items_from_story(story_id, story)
         missing: list[str] = []
+        if swarm.get("readiness") != READY:
+            missing.append("plan.metadata.swarm.readiness=ready")
+        parallel_safe = swarm.get("parallel_safe")
+        if parallel_safe is not True and parallel_safe is not False:
+            missing.append("plan.metadata.swarm.parallel_safe")
         if not items:
             missing.append("plan.items")
         if items and not _items_have_acceptance(items):
             missing.append("plan.items[].narrative.Acceptance")
-        if not _as_str_list(swarm.get("file_scope")):
-            missing.append("plan.metadata.swarm.file_scope")
-        if not _as_str_list(swarm.get("verify_commands")):
-            missing.append("plan.metadata.swarm.verify_commands")
+        missing.extend(_missing_required_swarm_fields(swarm))
         if not _story_has_traces(story, items, swarm):
             missing.append("Traces or missing_traces_justification")
         if missing:

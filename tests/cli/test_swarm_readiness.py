@@ -101,6 +101,32 @@ def test_readiness_fails_missing_acceptance_file_scope_and_verify_commands(tmp_p
     assert "plan.metadata.swarm.verify_commands" in result.stdout
 
 
+def test_readiness_fails_missing_required_swarm_metadata(tmp_path: Path) -> None:
+    story = _story(tmp_path, "story-missing-swarm-metadata")
+    data = json.loads(story.read_text(encoding="utf-8"))
+    swarm = data["plan"]["metadata"]["swarm"]
+    for key in (
+        "expected_outputs",
+        "depends_on",
+        "conflict_group",
+        "size",
+        "file_scope_confidence",
+        "model_tier",
+    ):
+        del swarm[key]
+    story.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    result = _run(tmp_path, story)
+
+    assert result.returncode == 1
+    assert "plan.metadata.swarm.expected_outputs" in result.stdout
+    assert "plan.metadata.swarm.depends_on" in result.stdout
+    assert "plan.metadata.swarm.conflict_group" in result.stdout
+    assert "plan.metadata.swarm.size" in result.stdout
+    assert "plan.metadata.swarm.file_scope_confidence" in result.stdout
+    assert "plan.metadata.swarm.model_tier" in result.stdout
+
+
 def test_readiness_reports_epic_phase_as_decomposition_needed(tmp_path: Path) -> None:
     phase = _write_json(
         tmp_path / "vbrief" / "active" / "2026-05-12-ip001-auth.vbrief.json",

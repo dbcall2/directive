@@ -170,8 +170,10 @@ def test_scope_decompose_cycle_report_excludes_upstream_story(tmp_path: Path) ->
                 "verify_commands": [f"npm test -- {story_id}"],
                 "expected_outputs": ["tests pass"],
                 "depends_on": deps,
+                "conflict_group": "auth",
                 "size": "small",
                 "file_scope_confidence": "high",
+                "model_tier": "medium",
             },
         }
 

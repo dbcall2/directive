@@ -206,6 +206,20 @@ def _has_traces(plan: dict[str, Any], swarm: dict[str, Any]) -> bool:
     return bool(_as_str_list(swarm.get("missing_traces_justification")))
 
 
+def _missing_required_swarm_fields(swarm: dict[str, Any]) -> list[str]:
+    missing: list[str] = []
+    for key in ("file_scope", "verify_commands", "expected_outputs"):
+        if not _as_str_list(swarm.get(key)):
+            missing.append(f"plan.metadata.swarm.{key}")
+    if "depends_on" not in swarm:
+        missing.append("plan.metadata.swarm.depends_on")
+    for key in ("conflict_group", "size", "file_scope_confidence", "model_tier"):
+        value = swarm.get(key)
+        if not isinstance(value, str) or not value.strip():
+            missing.append(f"plan.metadata.swarm.{key}")
+    return missing
+
+
 def _all_scope_ids(project_root: Path) -> dict[str, tuple[Path, str]]:
     ids: dict[str, tuple[Path, str]] = {}
     vbrief_dir = project_root / "vbrief"
@@ -270,10 +284,7 @@ def _validate_candidate(candidate: Candidate, known_ids: dict[str, tuple[Path, s
         candidate.missing.append("plan.metadata.swarm.parallel_safe")
     elif parallel_safe is False:
         candidate.sequential.append("parallel_safe=false: requires sequential allocation")
-    if not _as_str_list(candidate.swarm.get("file_scope")):
-        candidate.missing.append("plan.metadata.swarm.file_scope")
-    if not _as_str_list(candidate.swarm.get("verify_commands")):
-        candidate.missing.append("plan.metadata.swarm.verify_commands")
+    candidate.missing.extend(_missing_required_swarm_fields(candidate.swarm))
     if not _has_traces(candidate.plan, candidate.swarm):
         candidate.missing.append("Traces or missing_traces_justification")
     if candidate.swarm.get("size") == "large" and candidate.swarm.get("parallel_safe") is True:
