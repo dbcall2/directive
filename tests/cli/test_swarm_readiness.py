@@ -28,6 +28,7 @@ def _story(
     size: str = "small",
     confidence: str = "high",
     parallel_safe: bool = True,
+    readiness: str = "ready",
 ) -> Path:
     acceptance_values = (
         [
@@ -74,7 +75,7 @@ def _story(
                 "metadata": {
                     "kind": "story",
                     "swarm": {
-                        "readiness": "ready",
+                        "readiness": readiness,
                         "parallel_safe": parallel_safe,
                         "file_scope": [f"src/{story_id}.ts"] if file_scope is None else file_scope,
                         "verify_commands": (
@@ -264,6 +265,23 @@ def test_readiness_rejects_ready_parallel_safe_false_story(tmp_path: Path) -> No
     assert "story-sequential" in result.stdout
     assert "readiness=ready requires parallel_safe=true" in result.stdout
     assert "Sequential stories:" not in result.stdout
+
+
+def test_readiness_does_not_apply_ready_only_checks_to_sequential_story(
+    tmp_path: Path,
+) -> None:
+    story = _story(
+        tmp_path,
+        "story-sequential",
+        parallel_safe=False,
+        readiness="sequential",
+    )
+
+    result = _run(tmp_path, story)
+
+    assert result.returncode == 1
+    assert "plan.metadata.swarm.readiness=ready for concurrent allocation" in result.stdout
+    assert "readiness=ready requires parallel_safe=true" not in result.stdout
 
 
 def test_readiness_rejects_low_confidence_parallel_safe_story(tmp_path: Path) -> None:

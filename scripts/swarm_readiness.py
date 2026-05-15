@@ -309,6 +309,7 @@ def _validate_candidate(candidate: Candidate, known_ids: dict[str, tuple[Path, s
                 candidate.plan, candidate.swarm
             ),
             swarm=candidate.swarm,
+            concurrent_ready=candidate.swarm.get("readiness") == READY,
         )
     )
     if candidate.swarm.get("size") == "large" and candidate.swarm.get("parallel_safe") is True:
