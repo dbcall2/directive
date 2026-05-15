@@ -275,7 +275,7 @@ def _validate_candidate(candidate: Candidate, known_ids: dict[str, tuple[Path, s
     if candidate.kind in {"epic", "phase"}:
         candidate.decomposition_needed = True
         return
-    if candidate.kind != "story":
+    if candidate.kind != "story" or _metadata(candidate.plan).get("kind") != "story":
         candidate.missing.append("plan.metadata.kind=story")
     if candidate.folder == "active" and candidate.status != "running":
         candidate.blocked.append("active candidate plan.status must be running")

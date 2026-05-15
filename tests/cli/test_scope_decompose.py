@@ -38,6 +38,12 @@ def _parent(project: Path, folder: str = "pending") -> Path:
                         "type": "x-vbrief/plan",
                         "title": "Specification",
                         "TrustLevel": "internal",
+                    },
+                    {
+                        "uri": "./pending/2026-05-12-ip001-auth.vbrief.json#Acceptance",
+                        "type": "x-vbrief/acceptance",
+                        "title": "Parent Acceptance",
+                        "TrustLevel": "internal",
                     }
                 ],
             },
@@ -180,6 +186,10 @@ def test_scope_decompose_creates_child_stories_and_updates_parent_refs(tmp_path:
     assert child["plan"]["items"]
     assert child["plan"]["references"][0]["uri"] == "./specification.vbrief.json"
     assert child["plan"]["references"][0]["TrustLevel"] == "internal"
+    assert all(
+        "acceptance" not in ref.get("type", "").lower()
+        for ref in child["plan"]["references"]
+    )
 
     updated_parent = json.loads(parent.read_text(encoding="utf-8"))
     child_uris = {

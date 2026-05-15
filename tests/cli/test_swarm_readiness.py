@@ -155,6 +155,18 @@ def test_readiness_fails_missing_required_swarm_metadata(tmp_path: Path) -> None
     assert "plan.metadata.swarm.model_tier" in result.stdout
 
 
+def test_readiness_requires_explicit_story_kind(tmp_path: Path) -> None:
+    story = _story(tmp_path, "story-missing-kind")
+    data = json.loads(story.read_text(encoding="utf-8"))
+    del data["plan"]["metadata"]["kind"]
+    story.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    result = _run(tmp_path, story)
+
+    assert result.returncode == 1
+    assert "plan.metadata.kind=story" in result.stdout
+
+
 @pytest.mark.parametrize(
     ("mutate", "expected"),
     [

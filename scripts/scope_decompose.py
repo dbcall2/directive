@@ -374,6 +374,14 @@ def _normalize_references(refs: Any) -> list[dict[str, Any]]:
     return normalized
 
 
+def _child_provenance_references(refs: Any) -> list[dict[str, Any]]:
+    return [
+        ref
+        for ref in _normalize_references(refs)
+        if "acceptance" not in str(ref.get("type") or "").lower()
+    ]
+
+
 def _dedupe_references(refs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     seen: set[tuple[str, str, str]] = set()
@@ -445,7 +453,7 @@ def _build_child_vbrief(
 
     parent_plan = parent.get("plan", {}) if isinstance(parent, dict) else {}
     parent_refs = (
-        _normalize_references(parent_plan.get("references"))
+        _child_provenance_references(parent_plan.get("references"))
         if isinstance(parent_plan, dict)
         else []
     )
