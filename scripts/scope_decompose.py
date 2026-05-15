@@ -498,8 +498,10 @@ def apply_decomposition(
         title = str(story.get("title") or story_id)
         filename = _child_filename(story, story_id, title, date)
         target = output_dir / filename
-        if target.exists() and not check_only:
-            raise DecompositionError(f"{target}: refusing to overwrite existing child story")
+        if not check_only and (target.is_file() or target.is_dir() or target.is_symlink()):
+            raise DecompositionError(
+                f"{target}: child story path already exists; overwriting is not supported"
+            )
         child = _build_child_vbrief(
             story=story,
             story_id=story_id,
@@ -516,21 +518,31 @@ def apply_decomposition(
     if check_only:
         return actions
 
+    parent_plan = parent.get("plan")
+    if parent_plan is None:
+        parent_plan = {}
+        parent["plan"] = parent_plan
+    if not isinstance(parent_plan, dict):
+        raise DecompositionError(f"{parent_path}: plan must be an object")
+    metadata = parent_plan.get("metadata")
+    if metadata is None:
+        metadata = {}
+        parent_plan["metadata"] = metadata
+    if not isinstance(metadata, dict):
+        raise DecompositionError(f"{parent_path}: plan.metadata must be an object")
+    metadata.setdefault("kind", "epic")
+    references = parent_plan.get("references")
+    if references is None:
+        references = []
+        parent_plan["references"] = references
+    if not isinstance(references, list):
+        raise DecompositionError(f"{parent_path}: plan.references must be an array")
+
     for target, _story_id, _title in child_paths:
         target.parent.mkdir(parents=True, exist_ok=True)
     for (target, _story_id, _title), child in zip(child_paths, child_docs, strict=True):
         _write_json(target, child)
 
-    parent_plan = parent.setdefault("plan", {})
-    if not isinstance(parent_plan, dict):
-        raise DecompositionError(f"{parent_path}: plan must be an object")
-    metadata = parent_plan.setdefault("metadata", {})
-    if isinstance(metadata, dict):
-        metadata.setdefault("kind", "epic")
-    references = parent_plan.setdefault("references", [])
-    if not isinstance(references, list):
-        references = []
-        parent_plan["references"] = references
     for target, _story_id, title in child_paths:
         references.append(
             _reference_with_default_trust(

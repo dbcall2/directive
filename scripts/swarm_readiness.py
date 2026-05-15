@@ -368,6 +368,33 @@ def _mark_cycles(candidates: list[Candidate], graph: dict[str, list[str]]) -> No
         visit(candidate.story_id, [])
 
 
+def _propagate_blocked_dependencies(
+    candidates: list[Candidate],
+    graph: dict[str, list[str]],
+) -> None:
+    by_id = {candidate.story_id: candidate for candidate in candidates}
+    changed = True
+    while changed:
+        changed = False
+        for candidate in candidates:
+            if candidate.kind != "story":
+                continue
+            for dep in graph.get(candidate.story_id, []):
+                dep_candidate = by_id.get(dep)
+                if dep_candidate is None:
+                    continue
+                if (
+                    not dep_candidate.missing
+                    and not dep_candidate.blocked
+                    and not dep_candidate.decomposition_needed
+                ):
+                    continue
+                message = f"dependency {dep!r} is blocked"
+                if message not in candidate.blocked:
+                    candidate.blocked.append(message)
+                    changed = True
+
+
 def _ready_stories(candidates: list[Candidate]) -> list[Candidate]:
     return [
         candidate
@@ -528,6 +555,7 @@ def readiness_report(project_root: Path, paths: list[Path]) -> tuple[int, str]:
         _validate_candidate(candidate, known_ids)
     graph = _candidate_dep_graph(candidates, known_ids)
     _mark_cycles(candidates, graph)
+    _propagate_blocked_dependencies(candidates, graph)
     overlaps = _file_overlaps(candidates, graph)
     report = _render_report(candidates, graph, overlaps)
     failed = any(

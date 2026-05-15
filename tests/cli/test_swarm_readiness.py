@@ -303,3 +303,11 @@ def test_readiness_cycle_report_excludes_upstream_non_cycle_node(tmp_path: Path)
     assert result.returncode == 1
     assert "dependency cycle: story-cycle-a -> story-cycle-b -> story-cycle-a" in result.stdout
     assert "dependency cycle: story-upstream" not in result.stdout
+    assert (
+        "story-upstream: story-upstream -- dependency 'story-cycle-a' is blocked"
+        in result.stdout
+    )
+    ready_section = result.stdout.split("Ready stories:", 1)[1].split("\n\n", 1)[0]
+    waves_section = result.stdout.split("Dependency waves:", 1)[1].split("\n\n", 1)[0]
+    assert "story-upstream" not in ready_section
+    assert "story-upstream" not in waves_section

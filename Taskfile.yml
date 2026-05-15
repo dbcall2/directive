@@ -99,7 +99,7 @@ includes:
     optional: true
   swarm:
     taskfile: ./tasks/swarm.yml
-    optional: true
+    optional: false
   roadmap:
     taskfile: ./tasks/roadmap.yml
     optional: true

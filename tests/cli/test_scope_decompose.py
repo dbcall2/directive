@@ -196,6 +196,48 @@ def test_scope_decompose_creates_child_stories_and_updates_parent_refs(tmp_path:
     assert updated_parent["plan"]["narratives"]["Acceptance"].startswith("Auth epic")
 
 
+def test_scope_decompose_rejects_existing_child_path(tmp_path: Path) -> None:
+    parent = _parent(tmp_path)
+    draft = _draft(tmp_path)
+    _write_json(
+        tmp_path / "vbrief" / "pending" / "2026-05-12-auth-model.vbrief.json",
+        {"existing": True},
+    )
+
+    result = _run(
+        tmp_path,
+        str(parent.relative_to(tmp_path)),
+        "--draft",
+        str(draft.relative_to(tmp_path)),
+        "--date",
+        "2026-05-12",
+    )
+
+    assert result.returncode == 1
+    assert "overwriting is not supported" in result.stderr
+
+
+def test_scope_decompose_rejects_non_object_parent_metadata(tmp_path: Path) -> None:
+    parent = _parent(tmp_path)
+    parent_data = json.loads(parent.read_text(encoding="utf-8"))
+    parent_data["plan"]["metadata"] = "phase"
+    _write_json(parent, parent_data)
+    draft = _draft(tmp_path)
+
+    result = _run(
+        tmp_path,
+        str(parent.relative_to(tmp_path)),
+        "--draft",
+        str(draft.relative_to(tmp_path)),
+        "--date",
+        "2026-05-12",
+    )
+
+    assert result.returncode == 1
+    assert "plan.metadata must be an object" in result.stderr
+    assert not list((tmp_path / "vbrief" / "pending").glob("2026-05-12-auth-*.vbrief.json"))
+
+
 def test_scope_decompose_check_rejects_dependency_cycles(tmp_path: Path) -> None:
     parent = _parent(tmp_path)
     draft = _draft(tmp_path, cycle=True)
