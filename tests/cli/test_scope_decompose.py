@@ -50,6 +50,21 @@ def _draft(project: Path, *, cycle: bool = False, output_dir: str | None = None)
         {
             "id": "story-auth-model",
             "title": "Auth model",
+            "description": (
+                "Persisted auth model behavior stores user identity and session state for the "
+                "authentication workflow. The story covers focused model changes plus matching "
+                "unit tests for save and load behavior."
+            ),
+            "implementation_plan": [
+                (
+                    "Update the auth model persistence code so valid user payloads are saved "
+                    "and loaded through the existing model boundary."
+                ),
+                (
+                    "Add focused model tests for successful persistence and missing-record "
+                    "behavior using the auth model test fixture."
+                ),
+            ],
             "user_story": (
                 "As an auth maintainer, I want persisted user records, "
                 "so that login state survives requests."
@@ -81,6 +96,21 @@ def _draft(project: Path, *, cycle: bool = False, output_dir: str | None = None)
         {
             "id": "story-auth-routes",
             "title": "Auth routes",
+            "description": (
+                "Auth route behavior turns credential checks into API responses for session "
+                "creation. The story stays within route handling and focused route tests so it "
+                "can run after the auth model contract is stable."
+            ),
+            "implementation_plan": [
+                (
+                    "Wire the login route to the auth model result and return the token "
+                    "response for valid credentials."
+                ),
+                (
+                    "Add route-level tests for successful token return and invalid "
+                    "credential rejection."
+                ),
+            ],
             "user_story": (
                 "As an API consumer, I want auth routes to return tokens, "
                 "so that I can start a session."
@@ -189,6 +219,14 @@ def test_scope_decompose_cycle_report_excludes_upstream_story(tmp_path: Path) ->
         return {
             "id": story_id,
             "title": story_id,
+            "description": (
+                f"{story_id} covers a narrow dependency-graph behavior for decomposition safety. "
+                "The story text is intentionally concrete enough to exercise cycle validation."
+            ),
+            "implementation_plan": [
+                f"Implement the {story_id} scoped behavior inside its isolated source file.",
+                f"Add a focused test proving {story_id} returns success and rejects failure input.",
+            ],
             "user_story": (
                 f"As a developer, I want {story_id} behavior isolated, "
                 "so that dependency order stays safe."
@@ -312,6 +350,14 @@ def test_scope_decompose_rejects_ready_story_missing_required_fields(tmp_path: P
         (
             lambda story: story.update({"user_story": "Build auth model."}),
             "UserStory must match",
+        ),
+        (
+            lambda story: story.update({"description": "Persist auth records."}),
+            "plan.narratives.Description must contain at least two concrete sentences",
+        ),
+        (
+            lambda story: story.update({"implementation_plan": "Update model code."}),
+            "plan.narratives.ImplementationPlan must contain at least two concrete steps",
         ),
     ],
 )

@@ -30,7 +30,9 @@ Convert approved specification/phase/epic scope vBRIEFs into swarm-ready child s
 ## Phase 1: Draft
 
 - ! Draft a decomposition JSON proposal with child stories only; do not write child vBRIEFs yet
-- ! Each story MUST include `id`, `title`, `UserStory`, executable `items` or `acceptance`, `traces` or explicit trace justification, `swarm.file_scope`, `swarm.verify_commands`, `swarm.expected_outputs`, `swarm.depends_on`, `swarm.conflict_group`, `swarm.size`, `swarm.file_scope_confidence`, and `swarm.model_tier`
+- ! Each story MUST include `id`, `title`, `Description`, `ImplementationPlan`, `UserStory`, executable `items` or `acceptance`, `traces` or explicit trace justification, `swarm.file_scope`, `swarm.verify_commands`, `swarm.expected_outputs`, `swarm.depends_on`, `swarm.conflict_group`, `swarm.size`, `swarm.file_scope_confidence`, and `swarm.model_tier`
+- ! `Description` MUST provide at least two concrete sentences explaining the user/product behavior, boundaries, and why this story is independently buildable
+- ! `ImplementationPlan` MUST provide at least two concrete implementation steps that identify the expected code path, state/data changes, and test/evidence approach
 - ! `UserStory` MUST use the exact product-story shape `As a <role>, I want <capability>, so that <outcome>.`
 - ! Each ready story MUST have 2-5 concrete acceptance criteria unless `swarm.acceptance_criteria_justification` explains the exception
 - ! Acceptance criteria MUST be observable behavior, preferably Given/When/Then or equivalent testable product behavior

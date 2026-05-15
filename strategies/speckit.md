@@ -248,6 +248,8 @@ Each Phase 4.5 child story vBRIEF MUST include:
 
 - ! `plan.metadata.kind = "story"`
 - ! non-empty `plan.items`
+- ! `plan.narratives.Description` with at least two concrete sentences
+- ! `plan.narratives.ImplementationPlan` with at least two concrete implementation steps
 - ! executable acceptance in each story's `plan.items`
 - ! `plan.narratives.UserStory` in the form `As a <role>, I want <capability>, so that <outcome>.`
 - ! 2-5 concrete, observable acceptance criteria unless explicitly justified

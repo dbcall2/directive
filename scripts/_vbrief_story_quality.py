@@ -93,6 +93,7 @@ def story_quality_issues(
     *,
     title: str,
     description: str,
+    implementation_plan: str,
     user_story: str,
     acceptance_texts: list[str],
     acceptance_count_justification: str,
@@ -104,6 +105,8 @@ def story_quality_issues(
         issues.append(
             "UserStory must match 'As a <role>, I want <capability>, so that <outcome>.'"
         )
+    issues.extend(_description_issues(description))
+    issues.extend(_implementation_plan_issues(implementation_plan))
     if not (2 <= len(acceptance_texts) <= 5) and not acceptance_count_justification.strip():
         issues.append("2-5 acceptance criteria required unless justified")
 
@@ -157,8 +160,47 @@ def _verify_command_issues(swarm: dict[str, Any]) -> list[str]:
     return []
 
 
+def _description_issues(description: str) -> list[str]:
+    if not description.strip():
+        return ["plan.narratives.Description is required"]
+    if _sentence_count(description) < 2 or _word_count(description) < 20:
+        return ["plan.narratives.Description must contain at least two concrete sentences"]
+    return []
+
+
+def _implementation_plan_issues(implementation_plan: str) -> list[str]:
+    if not implementation_plan.strip():
+        return ["plan.narratives.ImplementationPlan is required"]
+    if _step_count(implementation_plan) < 2 or _word_count(implementation_plan) < 20:
+        return ["plan.narratives.ImplementationPlan must contain at least two concrete steps"]
+    lower = implementation_plan.lower()
+    if any(pattern in lower for pattern in PLACEHOLDER_ACCEPTANCE_PATTERNS):
+        return ["plan.narratives.ImplementationPlan must not be placeholder text"]
+    return []
+
+
 def _looks_observable(lower: str) -> bool:
     return any(term in lower for term in OBSERVABLE_TERMS)
+
+
+def _sentence_count(value: str) -> int:
+    return len([part for part in re.split(r"[.!?]+(?:\s+|$)", value.strip()) if part.strip()])
+
+
+def _step_count(value: str) -> int:
+    lines = [line.strip() for line in value.splitlines() if line.strip()]
+    bullet_lines = [
+        line
+        for line in lines
+        if re.match(r"^([-*]|\d+[.)])\s+", line)
+    ]
+    if len(bullet_lines) >= 2:
+        return len(bullet_lines)
+    return _sentence_count(value)
+
+
+def _word_count(value: str) -> int:
+    return len(re.findall(r"\b\w+\b", value))
 
 
 def _normalize(value: str) -> str:

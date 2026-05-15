@@ -16,6 +16,7 @@ def test_speckit_documents_phase_45() -> None:
     assert "task swarm:readiness" in text
     assert "plan.metadata.swarm" in text
     assert "Parent `plan.items` are input signals, not automatic child stories" in text
+    assert "plan.narratives.ImplementationPlan" in text
 
 
 def test_vbrief_documents_epic_phase_story_swarm_semantics() -> None:
@@ -27,6 +28,8 @@ def test_vbrief_documents_epic_phase_story_swarm_semantics() -> None:
         "plan.metadata.swarm",
         "Story vBRIEFs are the only valid inputs for concurrent swarm worker allocation.",
         "TrustLevel: internal",
+        "plan.narratives.Description",
+        "plan.narratives.ImplementationPlan",
         "parallel_safe",
         "file_scope_confidence",
         "As a <role>, I want <capability>, so that <outcome>.",
@@ -52,6 +55,7 @@ def test_decompose_skill_exists_and_uses_deterministic_commands() -> None:
     assert "Leave lifecycle promotion/activation to the existing approved flow" in text
     assert "parent `plan.items` as input signals only" in text
     assert "As a <role>, I want <capability>, so that <outcome>." in text
+    assert "ImplementationPlan" in text
     assert "2-5 concrete acceptance criteria" in text
     assert "to refine from parent scope" in text
 

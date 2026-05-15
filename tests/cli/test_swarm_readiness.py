@@ -46,7 +46,16 @@ def _story(
                 "title": story_id,
                 "status": "running",
                 "narratives": {
-                    "Description": f"{story_id} implements a focused product behavior.",
+                    "Description": (
+                        f"{story_id} implements a focused product behavior for the active "
+                        "workflow. The story stays within a narrow code path and includes "
+                        "targeted tests for success and failure behavior."
+                    ),
+                    "ImplementationPlan": (
+                        f"1. Update the {story_id} source path to implement the focused "
+                        "workflow behavior.\n"
+                        f"2. Add targeted tests for {story_id} success and failure outcomes."
+                    ),
                     "Traces": "FR-1",
                     "UserStory": (
                         f"As a product user, I want {story_id} behavior, "
@@ -151,6 +160,18 @@ def test_readiness_fails_missing_required_swarm_metadata(tmp_path: Path) -> None
         (
             lambda data: data["plan"]["narratives"].update({"UserStory": "Build auth."}),
             "UserStory must match",
+        ),
+        (
+            lambda data: data["plan"]["narratives"].update(
+                {"Description": "Implement the behavior."}
+            ),
+            "plan.narratives.Description must contain at least two concrete sentences",
+        ),
+        (
+            lambda data: data["plan"]["narratives"].update(
+                {"ImplementationPlan": "Change the code."}
+            ),
+            "plan.narratives.ImplementationPlan must contain at least two concrete steps",
         ),
         (
             lambda data: data["plan"]["items"][0]["narrative"].update(

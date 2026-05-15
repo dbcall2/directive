@@ -302,6 +302,7 @@ def _validate_candidate(candidate: Candidate, known_ids: dict[str, tuple[Path, s
         story_quality_issues(
             title=candidate.title,
             description=_plan_narrative(candidate.plan, "Description"),
+            implementation_plan=_plan_narrative(candidate.plan, "ImplementationPlan"),
             user_story=_plan_narrative(candidate.plan, "UserStory"),
             acceptance_texts=acceptance_texts_from_items(items),
             acceptance_count_justification=_acceptance_count_justification(

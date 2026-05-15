@@ -209,6 +209,19 @@ def _story_description(story: dict[str, Any]) -> str:
     return ""
 
 
+def _story_implementation_plan(story: dict[str, Any]) -> str:
+    narratives = story.get("narratives")
+    if isinstance(narratives, dict):
+        value = narratives.get("ImplementationPlan")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    for key in ("implementation_plan", "ImplementationPlan"):
+        values = _as_str_list(story.get(key))
+        if values:
+            return "\n".join(values)
+    return ""
+
+
 def _story_user_story(story: dict[str, Any]) -> str:
     narratives = story.get("narratives")
     if isinstance(narratives, dict):
@@ -336,6 +349,7 @@ def validate_draft(stories: list[dict[str, Any]]) -> list[str]:
             story_quality_issues(
                 title=str(story.get("title") or story_id),
                 description=_story_description(story),
+                implementation_plan=_story_implementation_plan(story),
                 user_story=_story_user_story(story),
                 acceptance_texts=acceptance_texts_from_items(items),
                 acceptance_count_justification=_acceptance_count_justification(story, swarm),
@@ -386,6 +400,8 @@ def _story_narratives(story: dict[str, Any]) -> dict[str, str]:
     for draft_key, narrative_key in (
         ("description", "Description"),
         ("summary", "Description"),
+        ("implementation_plan", "ImplementationPlan"),
+        ("ImplementationPlan", "ImplementationPlan"),
         ("user_story", "UserStory"),
         ("UserStory", "UserStory"),
         ("traces", "Traces"),
@@ -394,7 +410,8 @@ def _story_narratives(story: dict[str, Any]) -> dict[str, str]:
             continue
         values = _as_str_list(story.get(draft_key))
         if values:
-            narratives[narrative_key] = ", ".join(values)
+            separator = "\n" if narrative_key == "ImplementationPlan" else ", "
+            narratives[narrative_key] = separator.join(values)
     return narratives
 
 

@@ -185,6 +185,8 @@ Swarm-ready story metadata lives under `plan.metadata.swarm` so the v0.6 schema 
 {
   "plan": {
     "narratives": {
+      "Description": "This story delivers one focused behavior inside a narrow product workflow. It identifies the implementation boundary and the evidence needed for an independent agent build.",
+      "ImplementationPlan": "1. Update the focused source path and any directly owned test fixture.\n2. Add targeted tests that prove the behavior and capture the expected evidence.",
       "UserStory": "As a user, I want focused behavior, so that I can complete a workflow."
     },
     "metadata": {
@@ -209,6 +211,8 @@ Swarm-ready story metadata lives under `plan.metadata.swarm` so the v0.6 schema 
 For `kind = "story"` and `swarm.readiness = "ready"`:
 
 - ! `ready` means ready for concurrent swarm allocation, not merely ready for sequential work
+- ! `plan.narratives.Description` MUST contain at least two concrete sentences
+- ! `plan.narratives.ImplementationPlan` MUST contain at least two concrete implementation steps
 - ! `plan.narratives.UserStory` MUST use `As a <role>, I want <capability>, so that <outcome>.`
 - ! `plan.items` MUST be non-empty
 - ! executable acceptance MUST live in `plan.items[].narrative.Acceptance`
