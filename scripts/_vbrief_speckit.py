@@ -152,7 +152,7 @@ def migrate_speckit_plan(
     *,
     pending_dir: Path | None = None,
     date: str | None = None,
-    spec_ref: str = "./specification.vbrief.json",
+    spec_ref: str = "specification.vbrief.json",
     today: str | None = None,
 ) -> tuple[bool, list[str]]:
     """Translate a speckit-shaped ``plan.vbrief.json`` into scope vBRIEFs.

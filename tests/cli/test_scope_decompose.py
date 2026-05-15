@@ -34,13 +34,13 @@ def _parent(project: Path, folder: str = "pending") -> Path:
                 "metadata": {"kind": "phase", "dependencies": []},
                 "references": [
                     {
-                        "uri": "./specification.vbrief.json",
+                        "uri": "specification.vbrief.json",
                         "type": "x-vbrief/plan",
                         "title": "Specification",
                         "TrustLevel": "internal",
                     },
                     {
-                        "uri": "./pending/2026-05-12-ip001-auth.vbrief.json#Acceptance",
+                        "uri": "pending/2026-05-12-ip001-auth.vbrief.json#Acceptance",
                         "type": "x-vbrief/acceptance",
                         "title": "Parent Acceptance",
                         "TrustLevel": "internal",
@@ -180,11 +180,11 @@ def test_scope_decompose_creates_child_stories_and_updates_parent_refs(tmp_path:
     child_paths = sorted((tmp_path / "vbrief" / "pending").glob("2026-05-12-auth-*.vbrief.json"))
     assert len(child_paths) == 2
     child = json.loads(child_paths[0].read_text(encoding="utf-8"))
-    assert child["plan"]["planRef"] == "./pending/2026-05-12-ip001-auth.vbrief.json"
+    assert child["plan"]["planRef"] == "pending/2026-05-12-ip001-auth.vbrief.json"
     assert child["plan"]["metadata"]["kind"] == "story"
     assert child["plan"]["metadata"]["swarm"]["readiness"] == "ready"
     assert child["plan"]["items"]
-    assert child["plan"]["references"][0]["uri"] == "./specification.vbrief.json"
+    assert child["plan"]["references"][0]["uri"] == "specification.vbrief.json"
     assert child["plan"]["references"][0]["TrustLevel"] == "internal"
     assert all(
         "acceptance" not in ref.get("type", "").lower()
@@ -193,7 +193,7 @@ def test_scope_decompose_creates_child_stories_and_updates_parent_refs(tmp_path:
 
     updated_parent = json.loads(parent.read_text(encoding="utf-8"))
     child_uris = {
-        f"./pending/{path.name}"
+        f"pending/{path.name}"
         for path in child_paths
     }
     child_refs = [
@@ -246,6 +246,27 @@ def test_scope_decompose_rejects_non_object_parent_metadata(tmp_path: Path) -> N
     assert result.returncode == 1
     assert "plan.metadata must be an object" in result.stderr
     assert not list((tmp_path / "vbrief" / "pending").glob("2026-05-12-auth-*.vbrief.json"))
+
+
+def test_scope_decompose_rejects_output_dir_outside_vbrief(tmp_path: Path) -> None:
+    parent = _parent(tmp_path)
+    draft = _draft(tmp_path)
+    draft_data = json.loads(draft.read_text(encoding="utf-8"))
+    draft_data["output_dir"] = str(tmp_path / "outside" / "active")
+    _write_json(draft, draft_data)
+
+    result = _run(
+        tmp_path,
+        str(parent.relative_to(tmp_path)),
+        "--draft",
+        str(draft.relative_to(tmp_path)),
+        "--date",
+        "2026-05-12",
+    )
+
+    assert result.returncode == 1
+    assert "output_dir must be inside vbrief/" in result.stderr
+    assert "Traceback" not in result.stderr
 
 
 def test_scope_decompose_check_rejects_dependency_cycles(tmp_path: Path) -> None:

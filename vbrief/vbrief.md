@@ -137,7 +137,7 @@ Additive extension to the source-provenance shape, sourced from the **AI Agent T
     "TrustLevel": "external"
   },
   {
-    "uri": "./completed/2026-05-12-481-patterns-directory-and-llm-app-standards.vbrief.json",
+    "uri": "completed/2026-05-12-481-patterns-directory-and-llm-app-standards.vbrief.json",
     "type": "x-vbrief/plan",
     "title": "Sibling plan #481",
     "TrustLevel": "internal"
@@ -240,8 +240,8 @@ Sequential-safe work MAY use `swarm.readiness = "sequential"` and refinement wor
     "title": "Auth system overhaul",
     "status": "running",
     "references": [
-      { "type": "x-vbrief/plan", "uri": "./active/2026-04-12-oauth-flow.vbrief.json", "TrustLevel": "internal" },
-      { "type": "x-vbrief/plan", "uri": "./active/2026-04-12-session-mgmt.vbrief.json", "TrustLevel": "internal" }
+      { "type": "x-vbrief/plan", "uri": "active/2026-04-12-oauth-flow.vbrief.json", "TrustLevel": "internal" },
+      { "type": "x-vbrief/plan", "uri": "active/2026-04-12-session-mgmt.vbrief.json", "TrustLevel": "internal" }
     ]
   }
 }
@@ -254,7 +254,7 @@ Sequential-safe work MAY use `swarm.readiness = "sequential"` and refinement wor
   "plan": {
     "title": "Implement OAuth flow",
     "status": "running",
-    "planRef": "./active/2026-04-10-auth-system-overhaul.vbrief.json"
+    "planRef": "active/2026-04-10-auth-system-overhaul.vbrief.json"
   }
 }
 ```
@@ -505,7 +505,7 @@ The synthesized project identity — what this project IS right now. Uses the ca
         "title": "Add OAuth flow",
         "status": "running",
         "references": [
-          { "type": "x-vbrief/plan", "uri": "./active/2026-04-12-add-oauth-flow.vbrief.json" }
+          { "type": "x-vbrief/plan", "uri": "active/2026-04-12-add-oauth-flow.vbrief.json" }
         ]
       }
     ]

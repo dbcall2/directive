@@ -69,8 +69,10 @@ def _vbrief_dir(project_root: Path) -> Path:
 
 
 def _rel_to_vbrief(vbrief_dir: Path, path: Path) -> str:
-    rel = path.resolve().relative_to(vbrief_dir.resolve()).as_posix()
-    return f"./{rel}"
+    try:
+        return path.resolve().relative_to(vbrief_dir.resolve()).as_posix()
+    except ValueError as exc:
+        raise DecompositionError(f"{path}: path must be inside {vbrief_dir}") from exc
 
 
 def _scope_folder(parent_path: Path, vbrief_dir: Path) -> Path:
@@ -495,6 +497,10 @@ def apply_decomposition(
     ) or _scope_folder(parent_path, vbrief_dir)
     if output_dir.name not in LIFECYCLE_FOLDERS:
         raise DecompositionError("output_dir must be a vbrief lifecycle folder")
+    try:
+        output_dir.resolve().relative_to(vbrief_dir.resolve())
+    except ValueError as exc:
+        raise DecompositionError("output_dir must be inside vbrief/") from exc
     status = str(draft.get("status") or _default_status_for_folder(output_dir))
     parent_rel = _rel_to_vbrief(vbrief_dir, parent_path)
 

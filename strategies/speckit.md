@@ -185,7 +185,7 @@ For each implementation phase IP-N, write a scope vBRIEF with:
       "dependencies": ["ip-1", "ip-2"]
     },
     "references": [
-      { "type": "x-vbrief/plan", "uri": "./specification.vbrief.json", "TrustLevel": "internal" }
+      { "type": "x-vbrief/plan", "uri": "specification.vbrief.json", "TrustLevel": "internal" }
     ],
     "items": []
   }
