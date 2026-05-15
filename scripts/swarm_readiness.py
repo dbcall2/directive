@@ -15,6 +15,11 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _stdio_utf8 import reconfigure_stdio  # noqa: E402
+from _vbrief_story_quality import (  # noqa: E402
+    acceptance_texts_from_items,
+    as_str_list as _quality_as_str_list,
+    story_quality_issues,
+)
 
 reconfigure_stdio()
 
@@ -36,7 +41,6 @@ class Candidate:
     swarm: dict[str, Any]
     missing: list[str] = field(default_factory=list)
     blocked: list[str] = field(default_factory=list)
-    sequential: list[str] = field(default_factory=list)
     decomposition_needed: bool = False
 
 
@@ -96,13 +100,7 @@ def _swarm(metadata: dict[str, Any]) -> dict[str, Any]:
 
 
 def _as_str_list(value: Any) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, str):
-        return [value] if value.strip() else []
-    if isinstance(value, list):
-        return [str(item) for item in value if str(item).strip()]
-    return []
+    return _quality_as_str_list(value)
 
 
 def _has_child_plan_refs(plan: dict[str, Any]) -> bool:
@@ -206,6 +204,21 @@ def _has_traces(plan: dict[str, Any], swarm: dict[str, Any]) -> bool:
     return bool(_as_str_list(swarm.get("missing_traces_justification")))
 
 
+def _plan_narrative(plan: dict[str, Any], key: str) -> str:
+    narratives = plan.get("narratives")
+    if not isinstance(narratives, dict):
+        return ""
+    value = narratives.get(key)
+    return value.strip() if isinstance(value, str) and value.strip() else ""
+
+
+def _acceptance_count_justification(plan: dict[str, Any], swarm: dict[str, Any]) -> str:
+    value = swarm.get("acceptance_criteria_justification")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return _plan_narrative(plan, "AcceptanceJustification")
+
+
 def _missing_required_swarm_fields(swarm: dict[str, Any]) -> list[str]:
     missing: list[str] = []
     for key in ("file_scope", "verify_commands", "expected_outputs"):
@@ -278,22 +291,27 @@ def _validate_candidate(candidate: Candidate, known_ids: dict[str, tuple[Path, s
         candidate.missing.append("plan.items[].narrative.Acceptance")
 
     if candidate.swarm.get("readiness") != READY:
-        candidate.missing.append("plan.metadata.swarm.readiness=ready")
+        candidate.missing.append("plan.metadata.swarm.readiness=ready for concurrent allocation")
     parallel_safe = candidate.swarm.get("parallel_safe")
     if parallel_safe is not True and parallel_safe is not False:
         candidate.missing.append("plan.metadata.swarm.parallel_safe")
-    elif parallel_safe is False:
-        candidate.sequential.append("parallel_safe=false: requires sequential allocation")
     candidate.missing.extend(_missing_required_swarm_fields(candidate.swarm))
     if not _has_traces(candidate.plan, candidate.swarm):
         candidate.missing.append("Traces or missing_traces_justification")
+    candidate.blocked.extend(
+        story_quality_issues(
+            title=candidate.title,
+            description=_plan_narrative(candidate.plan, "Description"),
+            user_story=_plan_narrative(candidate.plan, "UserStory"),
+            acceptance_texts=acceptance_texts_from_items(items),
+            acceptance_count_justification=_acceptance_count_justification(
+                candidate.plan, candidate.swarm
+            ),
+            swarm=candidate.swarm,
+        )
+    )
     if candidate.swarm.get("size") == "large" and candidate.swarm.get("parallel_safe") is True:
         candidate.blocked.append("size=large cannot be parallel_safe=true")
-    if (
-        candidate.swarm.get("file_scope_confidence") == "low"
-        and candidate.swarm.get("parallel_safe") is True
-    ):
-        candidate.blocked.append("low-confidence file scope cannot be parallel-safe by default")
 
     for dep in _as_str_list(candidate.swarm.get("depends_on")):
         if dep not in known_ids:
@@ -355,7 +373,6 @@ def _ready_stories(candidates: list[Candidate]) -> list[Candidate]:
         if candidate.kind == "story"
         and not candidate.missing
         and not candidate.blocked
-        and not candidate.sequential
         and not candidate.decomposition_needed
     ]
 
@@ -433,14 +450,6 @@ def _render_report(
         for candidate in candidates
         if candidate.kind == "story" and (candidate.missing or candidate.blocked)
     ]
-    sequential = [
-        candidate
-        for candidate in candidates
-        if candidate.kind == "story"
-        and candidate.sequential
-        and not candidate.missing
-        and not candidate.blocked
-    ]
     needs_decomposition = [candidate for candidate in candidates if candidate.decomposition_needed]
     lines: list[str] = ["Swarm readiness report", ""]
 
@@ -457,16 +466,6 @@ def _render_report(
         for candidate in blocked:
             reasons = [*candidate.missing, *candidate.blocked]
             lines.append(f"- {candidate.story_id}: {candidate.title} -- {'; '.join(reasons)}")
-    else:
-        lines.append("- none")
-    lines.append("")
-
-    lines.append("Sequential stories:")
-    if sequential:
-        for candidate in sequential:
-            lines.append(
-                f"- {candidate.story_id}: {candidate.title} -- {'; '.join(candidate.sequential)}"
-            )
     else:
         lines.append("- none")
     lines.append("")
@@ -532,7 +531,6 @@ def readiness_report(project_root: Path, paths: list[Path]) -> tuple[int, str]:
     failed = any(
         candidate.missing
         or candidate.blocked
-        or candidate.sequential
         or candidate.decomposition_needed
         for candidate in candidates
     ) or bool(overlaps)

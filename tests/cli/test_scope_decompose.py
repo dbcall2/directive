@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "scope_decompose.py"
 
@@ -48,7 +50,20 @@ def _draft(project: Path, *, cycle: bool = False, output_dir: str | None = None)
         {
             "id": "story-auth-model",
             "title": "Auth model",
-            "acceptance": ["Auth model persists users"],
+            "user_story": (
+                "As an auth maintainer, I want persisted user records, "
+                "so that login state survives requests."
+            ),
+            "acceptance": [
+                (
+                    "Given a valid user payload, when the auth model saves it, "
+                    "then the user record persists."
+                ),
+                (
+                    "Given an existing user, when the auth model loads it, "
+                    "then the saved identity returns."
+                ),
+            ],
             "traces": ["FR-1"],
             "swarm": {
                 "readiness": "ready",
@@ -66,7 +81,20 @@ def _draft(project: Path, *, cycle: bool = False, output_dir: str | None = None)
         {
             "id": "story-auth-routes",
             "title": "Auth routes",
-            "acceptance": ["Auth routes return tokens"],
+            "user_story": (
+                "As an API consumer, I want auth routes to return tokens, "
+                "so that I can start a session."
+            ),
+            "acceptance": [
+                (
+                    "Given valid credentials, when the login route runs, "
+                    "then it returns an access token."
+                ),
+                (
+                    "Given invalid credentials, when the login route runs, "
+                    "then it rejects the request."
+                ),
+            ],
             "traces": ["FR-2"],
             "swarm": {
                 "readiness": "ready",
@@ -161,7 +189,17 @@ def test_scope_decompose_cycle_report_excludes_upstream_story(tmp_path: Path) ->
         return {
             "id": story_id,
             "title": story_id,
-            "acceptance": [f"{story_id} acceptance"],
+            "user_story": (
+                f"As a developer, I want {story_id} behavior isolated, "
+                "so that dependency order stays safe."
+            ),
+            "acceptance": [
+                f"Given {story_id} input, when the story runs, then it returns a scoped result.",
+                (
+                    f"Given {story_id} failure input, when the story runs, "
+                    "then it rejects the request."
+                ),
+            ],
             "traces": ["FR-1"],
             "swarm": {
                 "readiness": "ready",
@@ -228,6 +266,98 @@ def test_scope_decompose_rejects_ready_story_missing_required_fields(tmp_path: P
     assert "plan.items" in result.stderr
     assert "file_scope" in result.stderr
     assert "verify_commands" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("mutate", "expected"),
+    [
+        (
+            lambda story: story.update(
+                {
+                    "acceptance": [
+                        "to refine from parent scope",
+                        "Given a valid payload, when auth saves it, then it returns success.",
+                    ]
+                }
+            ),
+            "placeholder acceptance criterion",
+        ),
+        (
+            lambda story: story.update(
+                {
+                    "acceptance": [
+                        story["title"],
+                        "Given a valid payload, when auth saves it, then it returns success.",
+                    ]
+                }
+            ),
+            "acceptance criterion duplicates title or description",
+        ),
+        (
+            lambda story: story["swarm"].update({"file_scope": ["backend/**"]}),
+            "broad file_scope is not swarm-ready",
+        ),
+        (
+            lambda story: story["swarm"].update({"verify_commands": ["task check"]}),
+            "generic verify command is not swarm-ready",
+        ),
+        (
+            lambda story: story["swarm"].update({"parallel_safe": False}),
+            "readiness=ready requires parallel_safe=true",
+        ),
+        (
+            lambda story: story["swarm"].update({"file_scope_confidence": "low"}),
+            "readiness=ready requires file_scope_confidence above low",
+        ),
+        (
+            lambda story: story.update({"user_story": "Build auth model."}),
+            "UserStory must match",
+        ),
+    ],
+)
+def test_scope_decompose_rejects_low_quality_ready_story(
+    tmp_path: Path, mutate, expected: str
+) -> None:
+    parent = _parent(tmp_path)
+    draft = _draft(tmp_path)
+    data = json.loads(draft.read_text(encoding="utf-8"))
+    mutate(data["stories"][0])
+    draft.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    result = _run(
+        tmp_path,
+        str(parent.relative_to(tmp_path)),
+        "--draft",
+        str(draft.relative_to(tmp_path)),
+        "--check",
+    )
+
+    assert result.returncode == 1
+    assert expected in result.stderr
+
+
+def test_scope_decompose_allows_non_ready_sequential_story(tmp_path: Path) -> None:
+    parent = _parent(tmp_path)
+    draft = _draft(tmp_path)
+    data = json.loads(draft.read_text(encoding="utf-8"))
+    data["stories"][0]["swarm"].update(
+        {
+            "readiness": "sequential",
+            "parallel_safe": False,
+            "file_scope_confidence": "low",
+        }
+    )
+    draft.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    result = _run(
+        tmp_path,
+        str(parent.relative_to(tmp_path)),
+        "--draft",
+        str(draft.relative_to(tmp_path)),
+        "--check",
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_scope_decompose_to_active_stories_passes_readiness(tmp_path: Path) -> None:

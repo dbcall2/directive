@@ -249,6 +249,8 @@ Each Phase 4.5 child story vBRIEF MUST include:
 - ! `plan.metadata.kind = "story"`
 - ! non-empty `plan.items`
 - ! executable acceptance in each story's `plan.items`
+- ! `plan.narratives.UserStory` in the form `As a <role>, I want <capability>, so that <outcome>.`
+- ! 2-5 concrete, observable acceptance criteria unless explicitly justified
 - ! explicit dependencies in `plan.metadata.swarm.depends_on`
 - ! traceability back to requirements via `Traces` narratives or explicit trace justification
 - ! expected file scope in `plan.metadata.swarm.file_scope`
@@ -268,7 +270,7 @@ task scope:decompose -- vbrief/pending/2026-05-12-ip001-auth.vbrief.json --draft
 task scope:decompose -- --check
 ```
 
-The command validates and applies a proposed decomposition rather than freely inventing one. It creates child story vBRIEFs, preserves origin/provenance references, sets each child `planRef` to the parent scope, updates parent references to include children, validates the dependency DAG, rejects dependency cycles, and rejects ready stories missing acceptance, file scope, verify commands, or traces.
+The command validates and applies a proposed decomposition rather than freely inventing one. It creates child story vBRIEFs, preserves origin/provenance references, sets each child `planRef` to the parent scope, updates parent references to include children, validates the dependency DAG, rejects dependency cycles, and rejects ready stories missing user-story shape, concrete observable acceptance, narrow file scope, focused verify commands, or traces. Parent `plan.items` are input signals, not automatic child stories.
 
 Parent phase/epic acceptance MAY remain in `plan.narratives.Acceptance` as context. Executable acceptance for swarm work MUST be redistributed into child story `plan.items`.
 
@@ -280,17 +282,17 @@ Use the readiness gate before swarm allocation:
 task swarm:readiness -- vbrief/active/*.vbrief.json
 ```
 
-The readiness report lists ready stories, sequential-only stories, blocked stories, decomposition-needed epics/phases, dependency waves, conflict groups, a file-overlap matrix, and missing fields. It exits non-zero when candidate work is not swarm-ready for concurrent allocation.
+The readiness report lists ready stories, blocked stories, decomposition-needed epics/phases, dependency waves, conflict groups, a file-overlap matrix, and missing fields. It exits non-zero when candidate work is not swarm-ready for concurrent allocation. `readiness=ready` means ready for concurrent allocation; sequential-safe or low-confidence work MUST use another state such as `sequential` or `needs_refinement` and will fail this gate until refined or scheduled outside concurrent swarm allocation.
 
 ### Transition Criteria
 
 - ! Candidate swarm work consists only of `kind=story` vBRIEFs
 - ! Every candidate story has non-empty `plan.items`
-- ! Every candidate story has file scope, verify commands, traces or trace justification, and readiness metadata
+- ! Every candidate story has a product-shaped `UserStory`, 2-5 observable acceptance criteria unless justified, file scope, verify commands, traces or trace justification, and readiness metadata
 - ! Dependencies resolve and form a DAG
 - ! No unsafe file-scope overlap exists among parallel stories
 - ! No `size=large` story is marked `parallel_safe=true`
-- ! Low-confidence file scopes are not treated as parallel-safe by default
+- ! No ready story uses broad file globs, only generic verification such as `task check`, `parallel_safe=false`, or `file_scope_confidence=low`
 
 ---
 

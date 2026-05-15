@@ -22,15 +22,24 @@ Convert approved specification/phase/epic scope vBRIEFs into swarm-ready child s
 - ! Read `vbrief/specification.vbrief.json` and relevant scope vBRIEFs from `vbrief/proposed/`, `vbrief/pending/`, and `vbrief/active/`
 - ! Identify broad scopes with `plan.metadata.kind = "phase"` or `"epic"` or scopes with broad `plan.narratives.Acceptance` and empty `plan.items`
 - ! Preserve parent acceptance as context; do not treat it as executable story acceptance
+- ! Treat parent `plan.items` as input signals only; they are not automatically child stories
+- ! Inspect relevant codebase paths before drafting file scope so stories reflect real product/code boundaries, not only parent scope prose
 - ! Identify requirement traces, likely file scope, verification commands, outputs/evidence, dependencies, and conflict groups
 - ⊗ Allocate a broad phase/epic scope to concurrent workers during this skill
 
 ## Phase 1: Draft
 
 - ! Draft a decomposition JSON proposal with child stories only; do not write child vBRIEFs yet
-- ! Each story MUST include `id`, `title`, executable `items` or `acceptance`, `traces` or explicit trace justification, `swarm.file_scope`, `swarm.verify_commands`, `swarm.expected_outputs`, `swarm.depends_on`, `swarm.conflict_group`, `swarm.size`, `swarm.file_scope_confidence`, and `swarm.model_tier`
+- ! Each story MUST include `id`, `title`, `UserStory`, executable `items` or `acceptance`, `traces` or explicit trace justification, `swarm.file_scope`, `swarm.verify_commands`, `swarm.expected_outputs`, `swarm.depends_on`, `swarm.conflict_group`, `swarm.size`, `swarm.file_scope_confidence`, and `swarm.model_tier`
+- ! `UserStory` MUST use the exact product-story shape `As a <role>, I want <capability>, so that <outcome>.`
+- ! Each ready story MUST have 2-5 concrete acceptance criteria unless `swarm.acceptance_criteria_justification` explains the exception
+- ! Acceptance criteria MUST be observable behavior, preferably Given/When/Then or equivalent testable product behavior
+- ⊗ Mark a story ready when acceptance says only "to refine from parent scope", duplicates the title/description, is placeholder text, or is vague docs-only acceptance
+- ⊗ Mark a story ready with broad write scope such as `backend/**`, `frontend/**`, `docs/**`, `vbrief/**`, or any other directory glob
+- ⊗ Mark a story ready when verification is only generic validation such as `task check`
+- ⊗ Mark a story ready with `parallel_safe: false` or `file_scope_confidence: low`; use `readiness: sequential` or `readiness: needs_refinement` instead
 - ! Model dependencies as story IDs and ensure they form a DAG
-- ! Mark a story `parallel_safe: false` when the expected file scope is broad, low-confidence, or likely to collide
+- ~ Draft sequential-safe or low-confidence work as `readiness: sequential` or `readiness: needs_refinement`; it is not eligible for concurrent allocation
 - ⊗ Use deprecated `subItems` in newly drafted story items; use `items`
 
 ## Phase 2: Approval
@@ -54,7 +63,7 @@ task scope:decompose -- <parent.vbrief.json> --draft <decomposition.json> --chec
 task scope:decompose -- <parent.vbrief.json> --draft <decomposition.json>
 ```
 
-The command creates child story vBRIEFs, preserves origin/provenance references, sets each child `planRef` to the parent, updates parent references to include the children, rejects dependency cycles, and rejects ready stories missing executable acceptance, file scope, verify commands, or traces.
+The command creates child story vBRIEFs, preserves origin/provenance references, sets each child `planRef` to the parent, updates parent references to include the children, rejects dependency cycles, and rejects ready stories missing executable acceptance, user-story shape, concrete acceptance, narrow file scope, focused verify commands, or traces.
 
 ## Phase 4: Readiness
 

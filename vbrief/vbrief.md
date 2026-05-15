@@ -184,6 +184,9 @@ Swarm-ready story metadata lives under `plan.metadata.swarm` so the v0.6 schema 
 ```json
 {
   "plan": {
+    "narratives": {
+      "UserStory": "As a user, I want focused behavior, so that I can complete a workflow."
+    },
     "metadata": {
       "kind": "story",
       "swarm": {
@@ -205,18 +208,25 @@ Swarm-ready story metadata lives under `plan.metadata.swarm` so the v0.6 schema 
 
 For `kind = "story"` and `swarm.readiness = "ready"`:
 
+- ! `ready` means ready for concurrent swarm allocation, not merely ready for sequential work
+- ! `plan.narratives.UserStory` MUST use `As a <role>, I want <capability>, so that <outcome>.`
 - ! `plan.items` MUST be non-empty
 - ! executable acceptance MUST live in `plan.items[].narrative.Acceptance`
+- ! ready stories MUST carry 2-5 concrete acceptance criteria unless `swarm.acceptance_criteria_justification` explains the exception
+- ! acceptance MUST describe observable behavior, preferably Given/When/Then or equivalent testable behavior
 - ! dependency IDs MUST live in `plan.metadata.swarm.depends_on`
 - ! `file_scope` MUST be non-empty
 - ! `verify_commands` MUST be non-empty
-- ! `expected_outputs` SHOULD describe the evidence the worker is expected to produce
+- ! `expected_outputs` MUST describe the evidence the worker is expected to produce
 - ! traces MUST exist through item/story `Traces`, `x-vbrief/spec-section` references, or an explicit `missing_traces_justification`
 - ! `planRef` MUST point to the parent phase/epic when the story was decomposed from one
 - ! parent phase/epic `references` MUST include child story paths with `type: x-vbrief/plan` and `TrustLevel: internal`
-- ~ `parallel_safe: false` is a valid explicit declaration for sequential-only work, but it is not ready for concurrent swarm allocation
+- ⊗ Use `swarm.readiness = "ready"` with `parallel_safe: false`; use `readiness: "sequential"` or `readiness: "needs_refinement"` for non-concurrent work
 - ⊗ Set `parallel_safe: true` on a `size: "large"` story
-- ⊗ Treat `file_scope_confidence: "low"` as parallel-safe by default
+- ⊗ Use `swarm.readiness = "ready"` with `file_scope_confidence: "low"`
+- ⊗ Use placeholder acceptance such as "to refine from parent scope", criteria identical to the title/description, vague docs-only acceptance, broad file globs such as `backend/**`, `frontend/**`, `docs/**`, `vbrief/**`, or generic verification such as only `task check`
+
+Sequential-safe work MAY use `swarm.readiness = "sequential"` and refinement work MAY use `swarm.readiness = "needs_refinement"`, but `task swarm:readiness` fails non-zero for both because neither state is eligible for concurrent worker allocation.
 
 **Epic → Stories** (via `references`):
 ```json

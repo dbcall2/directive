@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "swarm_readiness.py"
 
@@ -21,12 +23,20 @@ def _story(
     *,
     file_scope: list[str] | None = None,
     verify_commands: list[str] | None = None,
-    acceptance: str = "Story acceptance passes",
+    acceptance: str | list[str] | None = None,
     depends_on: list[str] | None = None,
     size: str = "small",
     confidence: str = "high",
     parallel_safe: bool = True,
 ) -> Path:
+    acceptance_values = (
+        [
+            f"Given {story_id} input, when the story runs, then it returns a scoped result.",
+            f"Given {story_id} failure input, when the story runs, then it rejects the request.",
+        ]
+        if acceptance is None
+        else ([acceptance] if isinstance(acceptance, str) else acceptance)
+    )
     return _write_json(
         project / "vbrief" / "active" / f"2026-05-12-{story_id}.vbrief.json",
         {
@@ -35,14 +45,22 @@ def _story(
                 "id": story_id,
                 "title": story_id,
                 "status": "running",
-                "narratives": {"Traces": "FR-1"},
+                "narratives": {
+                    "Description": f"{story_id} implements a focused product behavior.",
+                    "Traces": "FR-1",
+                    "UserStory": (
+                        f"As a product user, I want {story_id} behavior, "
+                        "so that I can complete the workflow."
+                    ),
+                },
                 "items": [
                     {
-                        "id": f"{story_id}-a1",
-                        "title": "Acceptance item",
+                        "id": f"{story_id}-a{index}",
+                        "title": f"Acceptance item {index}",
                         "status": "pending",
-                        "narrative": {"Acceptance": acceptance, "Traces": "FR-1"},
+                        "narrative": {"Acceptance": criterion, "Traces": "FR-1"},
                     }
+                    for index, criterion in enumerate(acceptance_values, start=1)
                 ],
                 "metadata": {
                     "kind": "story",
@@ -127,6 +145,49 @@ def test_readiness_fails_missing_required_swarm_metadata(tmp_path: Path) -> None
     assert "plan.metadata.swarm.model_tier" in result.stdout
 
 
+@pytest.mark.parametrize(
+    ("mutate", "expected"),
+    [
+        (
+            lambda data: data["plan"]["narratives"].update({"UserStory": "Build auth."}),
+            "UserStory must match",
+        ),
+        (
+            lambda data: data["plan"]["items"][0]["narrative"].update(
+                {"Acceptance": "to refine from parent scope"}
+            ),
+            "placeholder acceptance criterion",
+        ),
+        (
+            lambda data: data["plan"]["items"][0]["narrative"].update(
+                {"Acceptance": data["plan"]["title"]}
+            ),
+            "acceptance criterion duplicates title or description",
+        ),
+        (
+            lambda data: data["plan"]["metadata"]["swarm"].update({"file_scope": ["frontend/**"]}),
+            "broad file_scope is not swarm-ready",
+        ),
+        (
+            lambda data: data["plan"]["metadata"]["swarm"].update(
+                {"verify_commands": ["task check"]}
+            ),
+            "generic verify command is not swarm-ready",
+        ),
+    ],
+)
+def test_readiness_rejects_low_quality_ready_story(tmp_path: Path, mutate, expected: str) -> None:
+    story = _story(tmp_path, "story-low-quality")
+    data = json.loads(story.read_text(encoding="utf-8"))
+    mutate(data)
+    story.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    result = _run(tmp_path, story)
+
+    assert result.returncode == 1
+    assert expected in result.stdout
+
+
 def test_readiness_reports_epic_phase_as_decomposition_needed(tmp_path: Path) -> None:
     phase = _write_json(
         tmp_path / "vbrief" / "active" / "2026-05-12-ip001-auth.vbrief.json",
@@ -172,16 +233,16 @@ def test_readiness_rejects_large_parallel_safe_story(tmp_path: Path) -> None:
     assert "size=large cannot be parallel_safe=true" in result.stdout
 
 
-def test_readiness_reports_parallel_safe_false_as_sequential(tmp_path: Path) -> None:
+def test_readiness_rejects_ready_parallel_safe_false_story(tmp_path: Path) -> None:
     story = _story(tmp_path, "story-sequential", parallel_safe=False)
 
     result = _run(tmp_path, story)
 
     assert result.returncode == 1
-    assert "Sequential stories:" in result.stdout
+    assert "Blocked stories:" in result.stdout
     assert "story-sequential" in result.stdout
-    assert "parallel_safe=false: requires sequential allocation" in result.stdout
-    assert "plan.metadata.swarm.parallel_safe=true" not in result.stdout
+    assert "readiness=ready requires parallel_safe=true" in result.stdout
+    assert "Sequential stories:" not in result.stdout
 
 
 def test_readiness_rejects_low_confidence_parallel_safe_story(tmp_path: Path) -> None:
@@ -190,7 +251,7 @@ def test_readiness_rejects_low_confidence_parallel_safe_story(tmp_path: Path) ->
     result = _run(tmp_path, story)
 
     assert result.returncode == 1
-    assert "low-confidence file scope cannot be parallel-safe by default" in result.stdout
+    assert "readiness=ready requires file_scope_confidence above low" in result.stdout
 
 
 def test_readiness_cycle_report_excludes_upstream_non_cycle_node(tmp_path: Path) -> None:

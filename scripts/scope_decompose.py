@@ -25,11 +25,17 @@ from _vbrief_build import (  # noqa: E402
     reference_with_default_trust as _reference_with_default_trust,
     slugify,
 )
+from _vbrief_story_quality import (  # noqa: E402
+    acceptance_texts_from_items,
+    as_str_list as _quality_as_str_list,
+    story_quality_issues,
+)
 
 reconfigure_stdio()
 
 LIFECYCLE_FOLDERS = {"proposed", "pending", "active", "completed", "cancelled"}
 READY = "ready"
+STORY_READINESS_STATES = {READY, "sequential", "needs_refinement"}
 
 
 class DecompositionError(ValueError):
@@ -133,13 +139,7 @@ def _swarm_meta(story: dict[str, Any]) -> dict[str, Any]:
 
 
 def _as_str_list(value: Any) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, str):
-        return [value] if value.strip() else []
-    if isinstance(value, list):
-        return [str(item) for item in value if str(item).strip()]
-    return []
+    return _quality_as_str_list(value)
 
 
 def _item_has_acceptance(item: dict[str, Any]) -> bool:
@@ -194,6 +194,47 @@ def _story_has_traces(story: dict[str, Any], items: list[Any], swarm: dict[str, 
             if isinstance(ref, dict) and ref.get("type") == "x-vbrief/spec-section":
                 return True
     return False
+
+
+def _story_description(story: dict[str, Any]) -> str:
+    narratives = story.get("narratives")
+    if isinstance(narratives, dict):
+        value = narratives.get("Description")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    for key in ("description", "summary"):
+        value = story.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _story_user_story(story: dict[str, Any]) -> str:
+    narratives = story.get("narratives")
+    if isinstance(narratives, dict):
+        value = narratives.get("UserStory")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    for key in ("user_story", "UserStory"):
+        value = story.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _acceptance_count_justification(story: dict[str, Any], swarm: dict[str, Any]) -> str:
+    for value in (
+        swarm.get("acceptance_criteria_justification"),
+        story.get("acceptance_criteria_justification"),
+    ):
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    narratives = story.get("narratives")
+    if isinstance(narratives, dict):
+        value = narratives.get("AcceptanceJustification")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
 
 
 def _missing_required_swarm_fields(swarm: dict[str, Any]) -> list[str]:
@@ -277,21 +318,33 @@ def validate_draft(stories: list[dict[str, Any]]) -> list[str]:
         deps_by_story[story_id] = deps
 
         items = _items_from_story(story_id, story)
-        missing: list[str] = []
-        if swarm.get("readiness") != READY:
-            missing.append("plan.metadata.swarm.readiness=ready")
+        issues: list[str] = []
+        readiness = swarm.get("readiness")
+        if readiness not in STORY_READINESS_STATES:
+            issues.append("plan.metadata.swarm.readiness")
         parallel_safe = swarm.get("parallel_safe")
         if parallel_safe is not True and parallel_safe is not False:
-            missing.append("plan.metadata.swarm.parallel_safe")
+            issues.append("plan.metadata.swarm.parallel_safe")
         if not items:
-            missing.append("plan.items")
+            issues.append("plan.items")
         if items and not _items_have_acceptance(items):
-            missing.append("plan.items[].narrative.Acceptance")
-        missing.extend(_missing_required_swarm_fields(swarm))
+            issues.append("plan.items[].narrative.Acceptance")
+        issues.extend(_missing_required_swarm_fields(swarm))
         if not _story_has_traces(story, items, swarm):
-            missing.append("Traces or missing_traces_justification")
-        if missing:
-            raise DecompositionError(f"{story_id}: ready story missing {', '.join(missing)}")
+            issues.append("Traces or missing_traces_justification")
+        issues.extend(
+            story_quality_issues(
+                title=str(story.get("title") or story_id),
+                description=_story_description(story),
+                user_story=_story_user_story(story),
+                acceptance_texts=acceptance_texts_from_items(items),
+                acceptance_count_justification=_acceptance_count_justification(story, swarm),
+                swarm=swarm,
+                concurrent_ready=readiness == READY,
+            )
+        )
+        if issues:
+            raise DecompositionError(f"{story_id}: story invalid: {', '.join(issues)}")
 
     _validate_dag(story_ids, deps_by_story)
     return story_ids
@@ -333,6 +386,8 @@ def _story_narratives(story: dict[str, Any]) -> dict[str, str]:
     for draft_key, narrative_key in (
         ("description", "Description"),
         ("summary", "Description"),
+        ("user_story", "UserStory"),
+        ("UserStory", "UserStory"),
         ("traces", "Traces"),
     ):
         if narrative_key in narratives:
