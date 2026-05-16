@@ -90,6 +90,7 @@ def create_speckit_scope_vbrief(
     and links back to the parent ``specification.vbrief.json`` via a
     ``x-vbrief/plan`` reference.
     """
+    spec_ref = _vbrief_relative_spec_ref(spec_ref)
     title = str(item.get("title", f"IP-{ip_index}") or f"IP-{ip_index}")
     narrative = item.get("narrative") or {}
     if not isinstance(narrative, dict):
@@ -145,6 +146,14 @@ def create_speckit_scope_vbrief(
         },
         "plan": plan,
     }
+
+
+def _vbrief_relative_spec_ref(spec_ref: str) -> str:
+    """Return a vbrief-directory-relative reference for the parent spec."""
+    normalized = spec_ref.strip()
+    while normalized.startswith("../"):
+        normalized = normalized[3:]
+    return normalized or "specification.vbrief.json"
 
 
 def migrate_speckit_plan(

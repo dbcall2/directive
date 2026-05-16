@@ -463,7 +463,7 @@ def apply_decomposition(
     stories = _story_specs(draft)
     story_ids = validate_draft(stories)
     output_dir = _resolve_path(
-        project_root, str(draft.get("output_dir", ""))
+        project_root, draft.get("output_dir") or ""
     ) or _scope_folder(parent_path, vbrief_dir)
     if output_dir.name not in LIFECYCLE_FOLDERS:
         raise DecompositionError("output_dir must be a vbrief lifecycle folder")

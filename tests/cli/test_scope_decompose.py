@@ -293,6 +293,25 @@ def test_scope_decompose_rejects_output_dir_outside_vbrief(tmp_path: Path) -> No
     assert "Traceback" not in result.stderr
 
 
+def test_scope_decompose_null_output_dir_uses_parent_lifecycle_folder(tmp_path: Path) -> None:
+    parent = _parent(tmp_path)
+    draft = _draft(tmp_path)
+    draft_data = json.loads(draft.read_text(encoding="utf-8"))
+    draft_data["output_dir"] = None
+    _write_json(draft, draft_data)
+
+    result = _run(
+        tmp_path,
+        str(parent.relative_to(tmp_path)),
+        "--draft",
+        str(draft.relative_to(tmp_path)),
+        "--check",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "CHECK pending/" in result.stdout
+
+
 def test_scope_decompose_check_rejects_dependency_cycles(tmp_path: Path) -> None:
     parent = _parent(tmp_path)
     draft = _draft(tmp_path, cycle=True)

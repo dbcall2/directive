@@ -1515,7 +1515,7 @@ class TestCreateSpeckitScopeVbrief:
             item,
             ip_index=3,
             dependencies=["ip-1", "ip-2"],
-            spec_ref="../specification.vbrief.json",
+            spec_ref="specification.vbrief.json",
         )
         narratives = result["plan"]["narratives"]
         assert narratives["Description"] == "Stand up repositories."
@@ -1525,7 +1525,10 @@ class TestCreateSpeckitScopeVbrief:
     def test_dependencies_written_at_plan_level(self):
         item = {"id": "ip-3", "title": "IP-3: X"}
         result = _create_speckit_scope_vbrief(
-            item, ip_index=3, dependencies=["ip-1"], spec_ref="../specification.vbrief.json"
+            item,
+            ip_index=3,
+            dependencies=["ip-1"],
+            spec_ref="specification.vbrief.json",
         )
         assert result["plan"]["metadata"]["kind"] == "phase"
         assert result["plan"]["metadata"]["dependencies"] == ["ip-1"]
@@ -1533,12 +1536,12 @@ class TestCreateSpeckitScopeVbrief:
     def test_reference_links_back_to_spec(self):
         item = {"id": "ip-1", "title": "IP-1: Bootstrap"}
         result = _create_speckit_scope_vbrief(
-            item, ip_index=1, dependencies=[], spec_ref="../specification.vbrief.json"
+            item, ip_index=1, dependencies=[], spec_ref="specification.vbrief.json"
         )
         refs = result["plan"]["references"]
         assert any(
             r.get("type") == "x-vbrief/plan"
-            and r.get("uri") == "../specification.vbrief.json"
+            and r.get("uri") == "specification.vbrief.json"
             and r.get("TrustLevel") == "internal"
             for r in refs
         )
@@ -1546,14 +1549,14 @@ class TestCreateSpeckitScopeVbrief:
     def test_status_is_pending(self):
         item = {"id": "ip-1", "title": "IP-1: Bootstrap"}
         result = _create_speckit_scope_vbrief(
-            item, ip_index=1, dependencies=[], spec_ref="../specification.vbrief.json"
+            item, ip_index=1, dependencies=[], spec_ref="specification.vbrief.json"
         )
         assert result["plan"]["status"] == "pending"
 
     def test_synthesizes_acceptance_when_missing(self):
         item = {"id": "ip-5", "title": "IP-5: Ship"}
         result = _create_speckit_scope_vbrief(
-            item, ip_index=5, dependencies=[], spec_ref="../specification.vbrief.json"
+            item, ip_index=5, dependencies=[], spec_ref="specification.vbrief.json"
         )
         assert "IP-5" in result["plan"]["narratives"]["Acceptance"]
 
@@ -1655,7 +1658,7 @@ class TestMigrateSpeckitPlan:
         assert data["plan"]["narratives"]["Traces"] == "FR-1, IP-1"
         refs = data["plan"]["references"]
         assert refs[0]["type"] == "x-vbrief/plan"
-        assert "specification.vbrief.json" in refs[0]["uri"]
+        assert refs[0]["uri"] == "specification.vbrief.json"
         assert refs[0]["TrustLevel"] == "internal"
         assert "url" not in refs[0]
         assert data["plan"]["metadata"]["kind"] == "phase"
