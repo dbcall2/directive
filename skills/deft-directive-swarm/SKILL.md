@@ -146,7 +146,7 @@ Cross-references:
 ! Present a summary to the user containing:
 
 - **Candidate vBRIEFs**: story-level vBRIEFs eligible for assignment (with titles, statuses, and origin references)
-- **Readiness report**: ready stories, blocked stories, decomposition-needed epics/phases, dependency waves, conflict groups, file overlap matrix, and missing fields from `task swarm:readiness`
+- **Readiness report**: ready stories, blocked stories, decomposition-needed epics/phases, dependency waves, conflict groups, file overlap matrix, and missing fields from `task swarm:readiness`.
 - **Preflight rejections (#810)**: any vBRIEFs that failed `task vbrief:preflight` (wraps `scripts/preflight_implementation.py`) in Step 1 -- include the file path AND the helper's exit message verbatim so the user can route the appropriate `task vbrief:activate <path>` move. These vBRIEFs MUST NOT be allocated until they pass the preflight on a re-run.
 - **Blockers found**: blocked vBRIEFs, unresolved dependencies, items requiring design decisions
 - **Decomposition needed**: epic/phase scopes that must go through `skills/deft-directive-decompose/SKILL.md` before swarm allocation

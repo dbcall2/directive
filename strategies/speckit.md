@@ -160,6 +160,7 @@ Phase 4 scopes are planning containers. They MAY keep broad acceptance in `plan.
 
 For each implementation phase IP-N, write a scope vBRIEF with:
 
+- ! `vBRIEFInfo.version` — current `scripts/_vbrief_build.py::EMITTED_VBRIEF_VERSION`
 - ! `plan.title` — phase title (e.g. "IP-3: Implement data layer")
 - ! `plan.status` — `pending`
 - ! `plan.narratives.Description` — short human summary of the phase
@@ -171,7 +172,7 @@ For each implementation phase IP-N, write a scope vBRIEF with:
 
 ```json
 {
-  "vBRIEFInfo": { "version": "0.6" },
+  "vBRIEFInfo": { "version": "<EMITTED_VBRIEF_VERSION>" },
   "plan": {
     "title": "IP-3: Implement data layer",
     "status": "pending",
@@ -290,7 +291,7 @@ The readiness report lists ready stories, blocked stories, decomposition-needed 
 
 - ! Candidate swarm work consists only of `kind=story` vBRIEFs
 - ! Every candidate story has non-empty `plan.items`
-- ! Every candidate story has a product-shaped `UserStory`, 2-5 observable acceptance criteria unless justified, file scope, verify commands, traces or trace justification, and readiness metadata
+- ! Every candidate story has a product-shaped `UserStory`, 2-5 observable acceptance criteria unless justified, file scope, verify commands, traces or trace justification, and readiness metadata.
 - ! Dependencies resolve and form a DAG
 - ! No unsafe file-scope overlap exists among parallel stories
 - ! No `size=large` story is marked `parallel_safe=true`

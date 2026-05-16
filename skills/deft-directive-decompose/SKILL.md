@@ -30,7 +30,7 @@ Convert approved specification/phase/epic scope vBRIEFs into swarm-ready child s
 ## Phase 1: Draft
 
 - ! Draft a decomposition JSON proposal with child stories only; do not write child vBRIEFs yet
-- ! Each story MUST include `id`, `title`, `Description`, `ImplementationPlan`, `UserStory`, executable `items` or `acceptance`, `traces` or explicit trace justification, `swarm.file_scope`, `swarm.verify_commands`, `swarm.expected_outputs`, `swarm.depends_on`, `swarm.conflict_group`, `swarm.size`, `swarm.file_scope_confidence`, and `swarm.model_tier`
+- ! Each story MUST include `id`, `title`, `Description`, `ImplementationPlan`, `UserStory`, executable `items` or `acceptance`, `traces` or explicit trace justification, `swarm.file_scope`, `swarm.verify_commands`, `swarm.expected_outputs`, `swarm.depends_on`, `swarm.conflict_group`, `swarm.size`, `swarm.file_scope_confidence`, and `swarm.model_tier`.
 - ! `Description` MUST provide at least two concrete sentences explaining the user/product behavior, boundaries, and why this story is independently buildable
 - ! `ImplementationPlan` MUST provide at least two concrete implementation steps that identify the expected code path, state/data changes, and test/evidence approach
 - ! `UserStory` MUST use the exact product-story shape `As a <role>, I want <capability>, so that <outcome>.`
@@ -49,7 +49,8 @@ Convert approved specification/phase/epic scope vBRIEFs into swarm-ready child s
 - ! Present the decomposition draft to the user before writing files
 - ! Ask for explicit approval to apply the draft
 - ! If the user requests changes, revise the draft and re-present it
-- ⊗ Run `task scope:decompose` before explicit approval
+- ? Run `task scope:decompose ... --check` before explicit approval only to validate a draft without writing files.
+- ⊗ Apply `task scope:decompose` without `--check` before explicit approval.
 
 ## Phase 3: Apply
 
@@ -77,8 +78,8 @@ task swarm:readiness -- vbrief/active/*.vbrief.json
 
 - ~ If child stories are still pending, run readiness against their explicit paths for a dry readiness review before activation
 - ! Route blocked or overlapping stories back to Phase 1 for draft refinement
-- ! Leave lifecycle promotion/activation to the existing approved flow (`task scope:promote`, `task scope:activate`, and the swarm skill lifecycle bridge)
-- ⊗ Promote or activate child stories solely because decomposition succeeded
+- ! Leave lifecycle promotion/activation to the existing approved flow (`task scope:promote`, `task scope:activate`, and the swarm skill lifecycle bridge).
+- ⊗ Promote or activate child stories solely because decomposition succeeded.
 
 ## Exit
 

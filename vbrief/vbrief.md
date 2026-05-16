@@ -228,7 +228,7 @@ For `kind = "story"` and `swarm.readiness = "ready"`:
 - ⊗ Use `swarm.readiness = "ready"` with `parallel_safe: false`; use `readiness: "sequential"` or `readiness: "needs_refinement"` for non-concurrent work
 - ⊗ Set `parallel_safe: true` on a `size: "large"` story
 - ⊗ Use `swarm.readiness = "ready"` with `file_scope_confidence: "low"`
-- ⊗ Use placeholder acceptance such as "to refine from parent scope", criteria identical to the title/description, vague docs-only acceptance, broad file globs such as `backend/**`, `frontend/**`, `docs/**`, `vbrief/**`, or generic verification such as only `task check`
+- ⊗ Use placeholder acceptance such as "to refine from parent scope", criteria identical to the title/description, vague docs-only acceptance, broad file globs such as `backend/**`, `frontend/**`, `docs/**`, `vbrief/**`, or generic verification such as only `task check`.
 
 Sequential-safe work MAY use `swarm.readiness = "sequential"` and refinement work MAY use `swarm.readiness = "needs_refinement"`, but `task swarm:readiness` fails non-zero for both because neither state is eligible for concurrent worker allocation.
 

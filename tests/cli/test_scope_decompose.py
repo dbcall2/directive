@@ -312,6 +312,42 @@ def test_scope_decompose_null_output_dir_uses_parent_lifecycle_folder(tmp_path: 
     assert "CHECK pending/" in result.stdout
 
 
+def test_scope_decompose_rejects_active_output_dir(tmp_path: Path) -> None:
+    parent = _parent(tmp_path)
+    draft = _draft(tmp_path)
+    draft_data = json.loads(draft.read_text(encoding="utf-8"))
+    draft_data["output_dir"] = "vbrief/active"
+    _write_json(draft, draft_data)
+
+    result = _run(
+        tmp_path,
+        str(parent.relative_to(tmp_path)),
+        "--draft",
+        str(draft.relative_to(tmp_path)),
+    )
+
+    assert result.returncode == 1
+    assert "output_dir must not be vbrief/active" in result.stderr
+
+
+def test_scope_decompose_rejects_running_child_status(tmp_path: Path) -> None:
+    parent = _parent(tmp_path)
+    draft = _draft(tmp_path)
+    draft_data = json.loads(draft.read_text(encoding="utf-8"))
+    draft_data["stories"][0]["status"] = "running"
+    _write_json(draft, draft_data)
+
+    result = _run(
+        tmp_path,
+        str(parent.relative_to(tmp_path)),
+        "--draft",
+        str(draft.relative_to(tmp_path)),
+    )
+
+    assert result.returncode == 1
+    assert "cannot create active/running child stories" in result.stderr
+
+
 def test_scope_decompose_check_rejects_dependency_cycles(tmp_path: Path) -> None:
     parent = _parent(tmp_path)
     draft = _draft(tmp_path, cycle=True)
@@ -585,9 +621,9 @@ def test_scope_decompose_allows_non_ready_sequential_story(tmp_path: Path) -> No
     assert result.returncode == 0, result.stderr
 
 
-def test_scope_decompose_to_active_stories_passes_readiness(tmp_path: Path) -> None:
+def test_scope_decompose_from_active_parent_writes_pending_stories(tmp_path: Path) -> None:
     parent = _parent(tmp_path, folder="active")
-    draft = _draft(tmp_path, output_dir="vbrief/active")
+    draft = _draft(tmp_path)
 
     result = _run(
         tmp_path,
@@ -599,11 +635,15 @@ def test_scope_decompose_to_active_stories_passes_readiness(tmp_path: Path) -> N
     )
 
     assert result.returncode == 0, result.stderr
-    story_paths = [
+    story_paths = sorted((tmp_path / "vbrief" / "pending").glob("*.vbrief.json"))
+    assert len(story_paths) == 2
+    assert not [
         path
-        for path in sorted((tmp_path / "vbrief" / "active").glob("*.vbrief.json"))
+        for path in (tmp_path / "vbrief" / "active").glob("*.vbrief.json")
         if path.name != parent.name
     ]
+    child = json.loads(story_paths[0].read_text(encoding="utf-8"))
+    assert child["plan"]["status"] == "pending"
     readiness = subprocess.run(
         [
             sys.executable,

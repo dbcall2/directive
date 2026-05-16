@@ -24,9 +24,9 @@ from _vbrief_build import (
 def edge_nodes(edge: dict) -> tuple[str, str]:
     """Return (from_id, to_id) for a vBRIEF edge, reading both dialects.
 
-    The canonical v0.6 key names are ``from`` / ``to``, but earlier speckit
-    drafts used ``source`` / ``target``.  Prefer the canonical keys when
-    they are populated and fall back to the legacy keys.
+    Speckit plan edges use ``from`` / ``to`` in current drafts, but earlier
+    drafts used ``source`` / ``target``. Prefer the current keys when they
+    are populated and fall back to the legacy keys.
     """
     if not isinstance(edge, dict):
         return "", ""
@@ -76,6 +76,11 @@ def speckit_ip_index(item: dict, fallback_index: int) -> int:
     return fallback_index
 
 
+def _non_empty_text(value: object, fallback: str) -> str:
+    text = str(value or "").strip()
+    return text or fallback
+
+
 def create_speckit_scope_vbrief(
     item: dict,
     *,
@@ -91,7 +96,7 @@ def create_speckit_scope_vbrief(
     ``x-vbrief/plan`` reference.
     """
     spec_ref = _vbrief_relative_spec_ref(spec_ref)
-    title = str(item.get("title", f"IP-{ip_index}") or f"IP-{ip_index}")
+    title = _non_empty_text(item.get("title"), f"IP-{ip_index}")
     narrative = item.get("narrative") or {}
     if not isinstance(narrative, dict):
         narrative = {}
@@ -101,7 +106,7 @@ def create_speckit_scope_vbrief(
             value = narrative.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()
-        return default
+        return default.strip()
 
     description = _pick("Description", "Summary", default=title)
     acceptance = _pick("Acceptance", "AcceptanceCriteria", default="")

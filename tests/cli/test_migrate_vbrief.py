@@ -548,6 +548,16 @@ class TestCreateScopeVbrief:
         result = _create_scope_vbrief(item, repo_url="")
         assert "references" not in result["plan"]
 
+    def test_blank_origin_values_do_not_emit_empty_reference(self):
+        """Origin references are omitted unless both issue and repo are meaningful."""
+        missing_issue = _create_scope_vbrief(
+            {"number": "   ", "title": "Bug fix"}, repo_url="https://github.com/owner/repo"
+        )
+        missing_repo = _create_scope_vbrief({"number": "123", "title": "Bug fix"}, repo_url="   ")
+
+        assert "references" not in missing_issue["plan"]
+        assert "references" not in missing_repo["plan"]
+
     def test_tier_moved_to_migrator_metadata(self):
         """#616: Tier is migrator provenance, not a narrative."""
         item = {"number": "99", "title": "Feature", "phase": "Phase 2", "tier": "Tier 1"}
@@ -1559,6 +1569,14 @@ class TestCreateSpeckitScopeVbrief:
             item, ip_index=5, dependencies=[], spec_ref="specification.vbrief.json"
         )
         assert "IP-5" in result["plan"]["narratives"]["Acceptance"]
+
+    def test_blank_title_and_bad_narrative_have_non_empty_description(self):
+        item = {"id": "", "title": "   ", "narrative": "not a dict"}
+        result = _create_speckit_scope_vbrief(
+            item, ip_index=4, dependencies=[], spec_ref="specification.vbrief.json"
+        )
+        assert result["plan"]["title"] == "IP-4"
+        assert result["plan"]["narratives"]["Description"] == "IP-4"
 
 
 class TestMigrateSpeckitPlan:

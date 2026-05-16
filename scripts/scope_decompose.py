@@ -38,6 +38,7 @@ from _vbrief_story_quality import (  # noqa: E402
 reconfigure_stdio()
 
 LIFECYCLE_FOLDERS = {"proposed", "pending", "active", "completed", "cancelled"}
+ACTIVE_DECOMPOSITION_STATUSES = {"active", "running"}
 READY = "ready"
 STORY_READINESS_STATES = {READY, "sequential", "needs_refinement"}
 
@@ -54,7 +55,7 @@ def _load_json(path: Path) -> dict[str, Any]:
     except json.JSONDecodeError as exc:
         raise DecompositionError(f"{path}: invalid JSON: {exc}") from exc
     if not isinstance(data, dict):
-        raise DecompositionError(f"{path}: expected a JSON object")
+        raise DecompositionError(f"{path}: expected a JSON object") from None
     return data
 
 
@@ -82,8 +83,6 @@ def _rel_to_vbrief(vbrief_dir: Path, path: Path) -> str:
 
 
 def _scope_folder(parent_path: Path, vbrief_dir: Path) -> Path:
-    if parent_path.parent.name in LIFECYCLE_FOLDERS:
-        return parent_path.parent
     return vbrief_dir / "pending"
 
 
@@ -439,7 +438,7 @@ def _build_child_vbrief(
         "plan": {
             "id": story_id,
             "title": title,
-            "status": str(story.get("status") or status),
+            "status": status,
             "planRef": parent_rel,
             "narratives": _story_narratives(story),
             "items": items,
@@ -471,7 +470,17 @@ def apply_decomposition(
         output_dir.resolve().relative_to(vbrief_dir.resolve())
     except ValueError as exc:
         raise DecompositionError("output_dir must be inside vbrief/") from exc
+    if output_dir.name == "active":
+        raise DecompositionError(
+            "output_dir must not be vbrief/active; write pending stories and use "
+            "task scope:activate when work begins"
+        )
     status = str(draft.get("status") or _default_status_for_folder(output_dir))
+    if status in ACTIVE_DECOMPOSITION_STATUSES:
+        raise DecompositionError(
+            "decomposition cannot create active/running child stories; write pending "
+            "stories and use task scope:activate when work begins"
+        )
     parent_rel = _rel_to_vbrief(vbrief_dir, parent_path)
 
     actions = [f"VALIDATED {len(stories)} story decomposition draft"]
@@ -480,6 +489,12 @@ def apply_decomposition(
     for index, story in enumerate(stories, start=1):
         story_id = story_ids[index - 1]
         title = str(story.get("title") or story_id)
+        story_status = str(story.get("status") or status)
+        if story_status in ACTIVE_DECOMPOSITION_STATUSES:
+            raise DecompositionError(
+                f"{story_id}: decomposition cannot create active/running child stories; "
+                "write pending stories and use task scope:activate when work begins"
+            )
         filename = _child_filename(story, story_id, title, date)
         target = output_dir / filename
         if not check_only and (target.is_file() or target.is_dir() or target.is_symlink()):
@@ -492,7 +507,7 @@ def apply_decomposition(
             story_index=index,
             parent=parent,
             parent_rel=parent_rel,
-            status=status,
+            status=story_status,
         )
         child_paths.append((target, story_id, title))
         child_docs.append(child)

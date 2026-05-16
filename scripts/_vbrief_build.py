@@ -103,6 +103,27 @@ def reference_with_default_trust(ref: dict[str, Any]) -> dict[str, Any]:
         normalized["TrustLevel"] = "external"
     return normalized
 
+
+def _github_issue_reference(
+    *, repo_url: str, number: Any, title: Any
+) -> dict[str, str] | None:
+    cleaned_repo = str(repo_url or "").strip().rstrip("/")
+    cleaned_number = str(number or "").strip().lstrip("#").strip()
+    if not cleaned_repo or not cleaned_number:
+        return None
+    cleaned_title = str(title or "").strip()
+    ref_title = (
+        f"Issue #{cleaned_number}: {cleaned_title}"
+        if cleaned_title and cleaned_title != "Untitled"
+        else f"Issue #{cleaned_number}"
+    )
+    return {
+        "uri": f"{cleaned_repo}/issues/{cleaned_number}",
+        "type": "x-vbrief/github-issue",
+        "title": ref_title,
+    }
+
+
 # ----------------------------------------------------------------------------
 # Scope vBRIEF construction
 # ----------------------------------------------------------------------------
@@ -142,8 +163,8 @@ def create_scope_vbrief(
         to the canonical shape -- see ``scripts/reconcile_issues.py``
         for a bilingual reader example.
     """
-    number = item.get("number", "")
-    title = item.get("title", "Untitled")
+    number = str(item.get("number", "") or "").strip().lstrip("#").strip()
+    title = str(item.get("title", "Untitled") or "Untitled").strip() or "Untitled"
     phase = item.get("phase", "")
     tier = item.get("tier", "")
 
@@ -182,16 +203,12 @@ def create_scope_vbrief(
     # so we cannot honestly emit a reference without a resolvable URL.
     # ROADMAP bare-text rows (no issue number) legitimately ship with no
     # origin reference; the migrator logs them as proposed/ orphans.
-    if number and repo_url:
-        ref_title = (
-            f"Issue #{number}: {title}" if title and title != "Untitled"
-            else f"Issue #{number}"
-        )
-        canonical_ref: dict = {
-            "uri": f"{repo_url}/issues/{number}",
-            "type": "x-vbrief/github-issue",
-            "title": ref_title,
-        }
+    canonical_ref = _github_issue_reference(
+        repo_url=repo_url,
+        number=number,
+        title=title,
+    )
+    if canonical_ref is not None:
         vbrief["plan"]["references"] = [reference_with_default_trust(canonical_ref)]
 
     return vbrief
