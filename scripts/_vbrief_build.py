@@ -124,6 +124,16 @@ def _github_issue_reference(
     }
 
 
+def _reference_has_required_fields(ref: dict[str, Any] | None) -> bool:
+    if ref is None:
+        return False
+    for key in ("uri", "type"):
+        value = ref.get(key)
+        if not isinstance(value, str) or not value.strip():
+            return False
+    return True
+
+
 # ----------------------------------------------------------------------------
 # Scope vBRIEF construction
 # ----------------------------------------------------------------------------
@@ -208,8 +218,13 @@ def create_scope_vbrief(
         number=number,
         title=title,
     )
-    if canonical_ref is not None:
-        vbrief["plan"]["references"] = [reference_with_default_trust(canonical_ref)]
+    trusted_ref = (
+        reference_with_default_trust(canonical_ref)
+        if _reference_has_required_fields(canonical_ref)
+        else None
+    )
+    if trusted_ref is not None and _reference_has_required_fields(trusted_ref):
+        vbrief["plan"]["references"] = [trusted_ref]
 
     return vbrief
 

@@ -96,21 +96,22 @@ def create_speckit_scope_vbrief(
     ``x-vbrief/plan`` reference.
     """
     spec_ref = _vbrief_relative_spec_ref(spec_ref)
-    title = _non_empty_text(item.get("title"), f"IP-{ip_index}")
+    fallback_title = f"IP-{ip_index}"
+    title = _non_empty_text(item.get("title"), fallback_title)
     narrative = item.get("narrative") or {}
     if not isinstance(narrative, dict):
         narrative = {}
 
-    def _pick(*keys: str, default: str = "") -> str:
+    def _pick(*keys: str) -> str:
         for key in keys:
             value = narrative.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()
-        return default.strip()
+        return ""
 
-    description = _pick("Description", "Summary", default=title)
-    acceptance = _pick("Acceptance", "AcceptanceCriteria", default="")
-    traces = _pick("Traces", "Trace", "Requirements", default=f"IP-{ip_index}")
+    description = _pick("Description", "Summary") or title or fallback_title
+    acceptance = _pick("Acceptance", "AcceptanceCriteria")
+    traces = _pick("Traces", "Trace", "Requirements") or fallback_title
 
     default_acceptance = (
         f"Acceptance criteria for IP-{ip_index} "
