@@ -51,6 +51,8 @@ def test_decompose_skill_exists_and_uses_deterministic_commands() -> None:
     text = _read("skills/deft-directive-decompose/SKILL.md")
     assert "task scope:decompose" in text
     assert "task swarm:readiness" in text
+    assert "task swarm:readiness -- vbrief/pending/<child-story-1>.vbrief.json" in text
+    assert "task swarm:readiness -- vbrief/active/*.vbrief.json" not in text
     assert "explicit approval" in text
     assert "Leave lifecycle promotion/activation to the existing approved flow" in text
     assert "parent `plan.items` as input signals only" in text

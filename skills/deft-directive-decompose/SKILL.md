@@ -68,15 +68,15 @@ task scope:decompose -- <parent.vbrief.json> --draft <decomposition.json>
 
 The command creates child story vBRIEFs, preserves origin/provenance references, sets each child `planRef` to the parent, updates parent references to include the children, rejects dependency cycles, and rejects ready stories missing executable acceptance, user-story shape, concrete acceptance, narrow file scope, focused verify commands, or traces.
 
-## Phase 4: Readiness
+## Phase 4: Pending Readiness
 
-- ! Run readiness after decomposition:
+- ! Run readiness against the generated pending child story paths after decomposition:
 
 ```bash
-task swarm:readiness -- vbrief/active/*.vbrief.json
+task swarm:readiness -- vbrief/pending/<child-story-1>.vbrief.json vbrief/pending/<child-story-2>.vbrief.json
 ```
 
-- ~ If child stories are still pending, run readiness against their explicit paths for a dry readiness review before activation
+- ! Treat this as a dry readiness review before activation; do not allocate workers from pending paths
 - ! Route blocked or overlapping stories back to Phase 1 for draft refinement
 - ! Leave lifecycle promotion/activation to the existing approved flow (`task scope:promote`, `task scope:activate`, and the swarm skill lifecycle bridge).
 - ⊗ Promote or activate child stories solely because decomposition succeeded.

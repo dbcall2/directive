@@ -348,6 +348,45 @@ def test_scope_decompose_rejects_running_child_status(tmp_path: Path) -> None:
     assert "cannot create active/running child stories" in result.stderr
 
 
+def test_scope_decompose_rejects_normalized_active_draft_status(tmp_path: Path) -> None:
+    parent = _parent(tmp_path)
+    draft = _draft(tmp_path)
+    draft_data = json.loads(draft.read_text(encoding="utf-8"))
+    draft_data["status"] = " Active "
+    _write_json(draft, draft_data)
+
+    result = _run(
+        tmp_path,
+        str(parent.relative_to(tmp_path)),
+        "--draft",
+        str(draft.relative_to(tmp_path)),
+    )
+
+    assert result.returncode == 1
+    assert "cannot create active/running child stories" in result.stderr
+
+
+def test_scope_decompose_rejects_normalized_running_child_status(tmp_path: Path) -> None:
+    parent = _parent(tmp_path)
+    draft = _draft(tmp_path)
+    draft_data = json.loads(draft.read_text(encoding="utf-8"))
+    draft_data["stories"][0]["status"] = " RUNNING "
+    _write_json(draft, draft_data)
+
+    result = _run(
+        tmp_path,
+        str(parent.relative_to(tmp_path)),
+        "--draft",
+        str(draft.relative_to(tmp_path)),
+    )
+
+    assert result.returncode == 1
+    assert (
+        "story-auth-model: decomposition cannot create active/running child stories"
+        in result.stderr
+    )
+
+
 def test_scope_decompose_check_rejects_dependency_cycles(tmp_path: Path) -> None:
     parent = _parent(tmp_path)
     draft = _draft(tmp_path, cycle=True)

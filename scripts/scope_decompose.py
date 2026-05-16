@@ -82,7 +82,7 @@ def _rel_to_vbrief(vbrief_dir: Path, path: Path) -> str:
         raise DecompositionError(f"{path}: path must be inside {vbrief_dir}") from exc
 
 
-def _scope_folder(parent_path: Path, vbrief_dir: Path) -> Path:
+def _pending_scope_folder(vbrief_dir: Path) -> Path:
     return vbrief_dir / "pending"
 
 
@@ -94,6 +94,13 @@ def _default_status_for_folder(folder: Path) -> str:
         "completed": "completed",
         "cancelled": "cancelled",
     }.get(folder.name, "pending")
+
+
+def _normalize_status(value: Any, default: str) -> str:
+    if value is None:
+        return default
+    status = str(value).strip().lower()
+    return status or default
 
 
 def _story_specs(draft: dict[str, Any]) -> list[dict[str, Any]]:
@@ -463,7 +470,7 @@ def apply_decomposition(
     story_ids = validate_draft(stories)
     output_dir = _resolve_path(
         project_root, draft.get("output_dir") or ""
-    ) or _scope_folder(parent_path, vbrief_dir)
+    ) or _pending_scope_folder(vbrief_dir)
     if output_dir.name not in LIFECYCLE_FOLDERS:
         raise DecompositionError("output_dir must be a vbrief lifecycle folder")
     try:
@@ -475,7 +482,7 @@ def apply_decomposition(
             "output_dir must not be vbrief/active; write pending stories and use "
             "task scope:activate when work begins"
         )
-    status = str(draft.get("status") or _default_status_for_folder(output_dir))
+    status = _normalize_status(draft.get("status"), _default_status_for_folder(output_dir))
     if status in ACTIVE_DECOMPOSITION_STATUSES:
         raise DecompositionError(
             "decomposition cannot create active/running child stories; write pending "
@@ -489,7 +496,7 @@ def apply_decomposition(
     for index, story in enumerate(stories, start=1):
         story_id = story_ids[index - 1]
         title = str(story.get("title") or story_id)
-        story_status = str(story.get("status") or status)
+        story_status = _normalize_status(story.get("status"), status)
         if story_status in ACTIVE_DECOMPOSITION_STATUSES:
             raise DecompositionError(
                 f"{story_id}: decomposition cannot create active/running child stories; "
