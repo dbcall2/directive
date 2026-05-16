@@ -481,7 +481,7 @@ def apply_decomposition(
         raise DecompositionError(
             "output_dir must not be vbrief/active; write pending stories and use "
             "task scope:activate when work begins"
-        )
+        ) from None
     status = _normalize_status(draft.get("status"), _default_status_for_folder(output_dir))
     if status in ACTIVE_DECOMPOSITION_STATUSES:
         raise DecompositionError(
