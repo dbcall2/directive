@@ -242,6 +242,31 @@ def test_acceptance_semicolon_text_stays_single_criterion(render_mod, tmp_path) 
     assert "- email must be unique within a tenant" not in content
 
 
+def test_acceptance_indented_markdown_bullets_render_cleanly(render_mod, tmp_path) -> None:
+    """Indented markdown bullets should render the same as flush-left bullets."""
+    narratives = {"Overview": "Indented acceptance regression."}
+    items = [
+        {
+            "id": "T1",
+            "title": "Normalize bullets",
+            "status": "pending",
+            "narrative": {"Acceptance": "  - Criterion A\n    * Criterion B"},
+        }
+    ]
+    spec_path = _write_spec(
+        tmp_path / "vbrief", narratives, items=items, title="Indented Bullet Spec"
+    )
+    out = tmp_path / "SPECIFICATION.md"
+    ok, msg = render_mod.render_spec(str(spec_path), str(out))
+    assert ok, msg
+
+    content = out.read_text(encoding="utf-8")
+    assert "- Criterion A" in content
+    assert "- Criterion B" in content
+    assert "-   - Criterion A" not in content
+    assert "-     * Criterion B" not in content
+
+
 # ---------------------------------------------------------------------------
 # #435 -- lifecycle-scope aggregator
 # ---------------------------------------------------------------------------

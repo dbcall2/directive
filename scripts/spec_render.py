@@ -407,8 +407,8 @@ def render_spec(
                 if key == "Traces":
                     lines.append(f"**Traces**: {val}\n")
                 elif key == "Acceptance":
-                    for criterion in _split_acceptance(val):
-                        lines.append(f"- {criterion}")
+                    for acceptance_line in _split_acceptance(val):
+                        lines.append(f"- {acceptance_line}")
                     lines.append("")
                 else:
                     lines.append(f"{val}\n")

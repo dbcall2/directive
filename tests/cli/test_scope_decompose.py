@@ -1,14 +1,25 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "scope_decompose.py"
+
+
+def _load_scope_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("scope_decompose_script", SCRIPT)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _write_json(path: Path, data: dict) -> Path:
@@ -161,6 +172,19 @@ def _run(project: Path, *args: str) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         check=False,
     )
+
+
+def test_load_json_wraps_read_errors(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    module = _load_scope_module()
+    path = tmp_path / "decomposition.json"
+
+    def fail_read_text(self: Path, *args: object, **kwargs: object) -> str:
+        raise OSError("boom")
+
+    monkeypatch.setattr(Path, "read_text", fail_read_text)
+
+    with pytest.raises(module.DecompositionError, match="cannot read file"):
+        module._load_json(path)
 
 
 def test_scope_decompose_creates_child_stories_and_updates_parent_refs(tmp_path: Path) -> None:
@@ -409,6 +433,10 @@ def test_scope_decompose_rejects_ready_story_missing_required_fields(tmp_path: P
             "broad file_scope is not swarm-ready",
         ),
         (
+            lambda story: story["swarm"].update({"file_scope": ["src/*.ts"]}),
+            "broad file_scope is not swarm-ready",
+        ),
+        (
             lambda story: story["swarm"].update({"verify_commands": ["task check"]}),
             "generic verify command is not swarm-ready",
         ),
@@ -432,6 +460,31 @@ def test_scope_decompose_rejects_ready_story_missing_required_fields(tmp_path: P
             lambda story: story.update({"implementation_plan": "Update model code."}),
             "plan.narratives.ImplementationPlan must contain at least two concrete steps",
         ),
+        (
+            lambda story: story.update(
+                {
+                    "implementation_plan": [
+                        "Update the code so the feature is implemented in the application.",
+                        "Add tests so it works as expected for users.",
+                    ]
+                }
+            ),
+            "plan.narratives.ImplementationPlan must identify concrete code paths",
+        ),
+        (
+            lambda story: story.update(
+                {
+                    "acceptance": [
+                        "The system displays a message",
+                        (
+                            "Given a valid payload, when auth saves it, "
+                            "then it returns success."
+                        ),
+                    ]
+                }
+            ),
+            "acceptance criterion must describe specific observable behavior",
+        ),
     ],
 )
 def test_scope_decompose_rejects_low_quality_ready_story(
@@ -453,6 +506,40 @@ def test_scope_decompose_rejects_low_quality_ready_story(
 
     assert result.returncode == 1
     assert expected in result.stderr
+
+
+def test_scope_decompose_rejects_deprecated_subitems_in_story_items(tmp_path: Path) -> None:
+    parent = _parent(tmp_path)
+    draft = _draft(tmp_path)
+    data = json.loads(draft.read_text(encoding="utf-8"))
+    first_story = data["stories"][0]
+    first_story["items"] = [
+        {
+            "id": "story-auth-model-a1",
+            "title": "Persist user payload",
+            "status": "pending",
+            "narrative": {
+                "Acceptance": (
+                    "Given a valid payload, when auth saves it, then it returns success."
+                ),
+                "Traces": "FR-1",
+            },
+            "subItems": [],
+        }
+    ]
+    del first_story["acceptance"]
+    draft.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    result = _run(
+        tmp_path,
+        str(parent.relative_to(tmp_path)),
+        "--draft",
+        str(draft.relative_to(tmp_path)),
+        "--check",
+    )
+
+    assert result.returncode == 1
+    assert "subItems is deprecated; use items" in result.stderr
 
 
 def test_scope_decompose_allows_non_ready_sequential_story(tmp_path: Path) -> None:

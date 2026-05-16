@@ -532,6 +532,16 @@ class TestCreateScopeVbrief:
         assert "id" not in refs[0]
         assert "url" not in refs[0]
 
+    def test_origin_provenance_trust_level_when_title_is_empty(self):
+        """Issue refs still receive default trust when the item title is empty."""
+        item = {"number": "123", "title": "", "phase": "Phase 2"}
+        result = _create_scope_vbrief(
+            item, repo_url="https://github.com/owner/repo"
+        )
+        ref = result["plan"]["references"][0]
+        assert ref["title"] == "Issue #123"
+        assert ref["TrustLevel"] == "external"
+
     def test_no_reference_without_repo_url(self):
         """#613: schema requires uri; if no repo_url we cannot build it."""
         item = {"number": "123", "title": "Bug fix", "phase": "Phase 2"}

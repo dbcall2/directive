@@ -38,7 +38,7 @@
         "title": "Update skills, renderers, templates, and stale Speckit examples",
         "status": "completed",
         "narrative": {
-          "Acceptance": "Swarm Phase 0 uses readiness reports; Speckit/template examples use v0.6, uri references, and PlanItem items; spec_render preserves epic and story acceptance.",
+          "Acceptance": "skills/deft-directive-swarm/SKILL.md requires readiness reports before allocation; strategies/speckit.md and templates/make-spec.md use v0.6, uri references, and PlanItem items; tests/cli/test_spec_render.py covers epic and story acceptance rendering.",
           "Traces": "user-request"
         }
       },

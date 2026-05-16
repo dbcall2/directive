@@ -17,7 +17,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _stdio_utf8 import reconfigure_stdio  # noqa: E402
 from _vbrief_story_quality import (  # noqa: E402
     acceptance_texts_from_items,
-    as_str_list as _quality_as_str_list,
+    as_str_list as _as_str_list,
+    deprecated_subitems_issues,
+    item_has_traces,
+    items_have_acceptance,
+    missing_required_swarm_fields,
     story_quality_issues,
 )
 
@@ -99,10 +103,6 @@ def _swarm(metadata: dict[str, Any]) -> dict[str, Any]:
     return swarm if isinstance(swarm, dict) else {}
 
 
-def _as_str_list(value: Any) -> list[str]:
-    return _quality_as_str_list(value)
-
-
 def _has_child_plan_refs(plan: dict[str, Any]) -> bool:
     refs = plan.get("references")
     if not isinstance(refs, list):
@@ -149,42 +149,6 @@ def _story_id(path: Path, plan: dict[str, Any]) -> str:
     return name[: -len(".vbrief.json")] if name.endswith(".vbrief.json") else path.stem
 
 
-def _item_has_acceptance(item: dict[str, Any]) -> bool:
-    narrative = item.get("narrative")
-    if isinstance(narrative, dict):
-        acceptance = narrative.get("Acceptance")
-        if isinstance(acceptance, str) and acceptance.strip():
-            return True
-    for key in ("items", "subItems"):
-        children = item.get(key)
-        if isinstance(children, list):
-            for child in children:
-                if isinstance(child, dict) and _item_has_acceptance(child):
-                    return True
-    return False
-
-
-def _items_have_acceptance(items: Any) -> bool:
-    if not isinstance(items, list):
-        return False
-    return any(isinstance(item, dict) and _item_has_acceptance(item) for item in items)
-
-
-def _item_has_traces(item: dict[str, Any]) -> bool:
-    narrative = item.get("narrative")
-    if isinstance(narrative, dict):
-        traces = narrative.get("Traces")
-        if isinstance(traces, str) and traces.strip():
-            return True
-    for key in ("items", "subItems"):
-        children = item.get(key)
-        if isinstance(children, list):
-            for child in children:
-                if isinstance(child, dict) and _item_has_traces(child):
-                    return True
-    return False
-
-
 def _has_traces(plan: dict[str, Any], swarm: dict[str, Any]) -> bool:
     narratives = plan.get("narratives")
     if isinstance(narratives, dict):
@@ -194,7 +158,7 @@ def _has_traces(plan: dict[str, Any], swarm: dict[str, Any]) -> bool:
     items = plan.get("items")
     if isinstance(items, list):
         for item in items:
-            if isinstance(item, dict) and _item_has_traces(item):
+            if isinstance(item, dict) and item_has_traces(item):
                 return True
     refs = plan.get("references")
     if isinstance(refs, list):
@@ -217,20 +181,6 @@ def _acceptance_count_justification(plan: dict[str, Any], swarm: dict[str, Any])
     if isinstance(value, str) and value.strip():
         return value.strip()
     return _plan_narrative(plan, "AcceptanceJustification")
-
-
-def _missing_required_swarm_fields(swarm: dict[str, Any]) -> list[str]:
-    missing: list[str] = []
-    for key in ("file_scope", "verify_commands", "expected_outputs"):
-        if not _as_str_list(swarm.get(key)):
-            missing.append(f"plan.metadata.swarm.{key}")
-    if "depends_on" not in swarm:
-        missing.append("plan.metadata.swarm.depends_on")
-    for key in ("conflict_group", "size", "file_scope_confidence", "model_tier"):
-        value = swarm.get(key)
-        if not isinstance(value, str) or not value.strip():
-            missing.append(f"plan.metadata.swarm.{key}")
-    return missing
 
 
 def _all_scope_ids(project_root: Path) -> dict[str, tuple[Path, str]]:
@@ -277,6 +227,19 @@ def _validate_candidate(candidate: Candidate, known_ids: dict[str, tuple[Path, s
         return
     if candidate.kind != "story" or _metadata(candidate.plan).get("kind") != "story":
         candidate.missing.append("plan.metadata.kind=story")
+    if not isinstance(candidate.plan.get("id"), str) or not candidate.plan["id"].strip():
+        candidate.missing.append("plan.id")
+    if not isinstance(candidate.plan.get("title"), str) or not candidate.plan["title"].strip():
+        candidate.missing.append("plan.title")
+    description = _plan_narrative(candidate.plan, "Description")
+    implementation_plan = _plan_narrative(candidate.plan, "ImplementationPlan")
+    user_story = _plan_narrative(candidate.plan, "UserStory")
+    if not description:
+        candidate.missing.append("plan.narratives.Description")
+    if not implementation_plan:
+        candidate.missing.append("plan.narratives.ImplementationPlan")
+    if not user_story:
+        candidate.missing.append("plan.narratives.UserStory")
     if candidate.folder == "active" and candidate.status != "running":
         candidate.blocked.append("active candidate plan.status must be running")
     if candidate.status == "running" and candidate.folder != "active":
@@ -287,23 +250,25 @@ def _validate_candidate(candidate: Candidate, known_ids: dict[str, tuple[Path, s
     items = candidate.plan.get("items")
     if not isinstance(items, list) or not items:
         candidate.missing.append("plan.items")
-    elif not _items_have_acceptance(items):
-        candidate.missing.append("plan.items[].narrative.Acceptance")
+    else:
+        if not items_have_acceptance(items):
+            candidate.missing.append("plan.items[].narrative.Acceptance")
+        candidate.blocked.extend(deprecated_subitems_issues(items))
 
     if candidate.swarm.get("readiness") != READY:
         candidate.missing.append("plan.metadata.swarm.readiness=ready for concurrent allocation")
     parallel_safe = candidate.swarm.get("parallel_safe")
     if parallel_safe is not True and parallel_safe is not False:
         candidate.missing.append("plan.metadata.swarm.parallel_safe")
-    candidate.missing.extend(_missing_required_swarm_fields(candidate.swarm))
+    candidate.missing.extend(missing_required_swarm_fields(candidate.swarm))
     if not _has_traces(candidate.plan, candidate.swarm):
         candidate.missing.append("Traces or missing_traces_justification")
     candidate.blocked.extend(
         story_quality_issues(
             title=candidate.title,
-            description=_plan_narrative(candidate.plan, "Description"),
-            implementation_plan=_plan_narrative(candidate.plan, "ImplementationPlan"),
-            user_story=_plan_narrative(candidate.plan, "UserStory"),
+            description=description,
+            implementation_plan=implementation_plan,
+            user_story=user_story,
             acceptance_texts=acceptance_texts_from_items(items),
             acceptance_count_justification=_acceptance_count_justification(
                 candidate.plan, candidate.swarm

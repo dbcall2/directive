@@ -6,6 +6,35 @@ import re
 from typing import Any
 
 BROAD_FILE_SCOPE_ROOTS = {"backend", "frontend", "docs", "vbrief"}
+CODE_PATH_TERMS = (
+    "api",
+    "cli",
+    "component",
+    "config",
+    "database",
+    "endpoint",
+    "file",
+    "handler",
+    "model",
+    "module",
+    "repository",
+    "route",
+    "schema",
+    "script",
+    "service",
+    "source",
+    "src/",
+)
+VERIFY_EVIDENCE_TERMS = (
+    "assert",
+    "evidence",
+    "fixture",
+    "report",
+    "spec",
+    "test",
+    "tests/",
+    "verify",
+)
 GENERIC_VERIFY_COMMANDS = {
     "cargo test",
     "go test ./...",
@@ -33,6 +62,25 @@ DOCS_ONLY_ACCEPTANCE_PATTERNS = (
     "update docs",
     "update documentation",
     "update readme",
+)
+GENERIC_IMPLEMENTATION_PATTERNS = (
+    "add tests so it works",
+    "change the code",
+    "implement the feature",
+    "make it work",
+    "update the code",
+    "works as expected",
+)
+VAGUE_ACCEPTANCE_PATTERNS = (
+    "displays a message",
+    "handles errors",
+    "is implemented",
+    "is updated",
+    "passes tests",
+    "shows a message",
+    "the system displays a message",
+    "updates the ui",
+    "works as expected",
 )
 OBSERVABLE_TERMS = (
     "blocks",
@@ -89,6 +137,75 @@ def acceptance_texts_from_items(items: Any) -> list[str]:
     return texts
 
 
+def item_has_acceptance(item: dict[str, Any]) -> bool:
+    narrative = item.get("narrative")
+    if isinstance(narrative, dict):
+        value = narrative.get("Acceptance")
+        if isinstance(value, str) and value.strip():
+            return True
+    for child_key in ("items", "subItems"):
+        children = item.get(child_key)
+        if isinstance(children, list):
+            for child in children:
+                if isinstance(child, dict) and item_has_acceptance(child):
+                    return True
+    return False
+
+
+def items_have_acceptance(items: Any) -> bool:
+    if not isinstance(items, list):
+        return False
+    return any(isinstance(item, dict) and item_has_acceptance(item) for item in items)
+
+
+def item_has_traces(item: dict[str, Any]) -> bool:
+    narrative = item.get("narrative")
+    if isinstance(narrative, dict):
+        value = narrative.get("Traces")
+        if isinstance(value, str) and value.strip():
+            return True
+    for child_key in ("items", "subItems"):
+        children = item.get(child_key)
+        if isinstance(children, list):
+            for child in children:
+                if isinstance(child, dict) and item_has_traces(child):
+                    return True
+    return False
+
+
+def missing_required_swarm_fields(swarm: dict[str, Any]) -> list[str]:
+    missing: list[str] = []
+    for key in ("file_scope", "verify_commands", "expected_outputs"):
+        if not as_str_list(swarm.get(key)):
+            missing.append(f"plan.metadata.swarm.{key}")
+    if "depends_on" not in swarm:
+        missing.append("plan.metadata.swarm.depends_on")
+    for key in ("conflict_group", "size", "file_scope_confidence", "model_tier"):
+        value = swarm.get(key)
+        if not isinstance(value, str) or not value.strip():
+            missing.append(f"plan.metadata.swarm.{key}")
+    return missing
+
+
+def deprecated_subitems_issues(items: Any, prefix: str = "plan.items") -> list[str]:
+    issues: list[str] = []
+
+    def visit(children: Any, path: str) -> None:
+        if not isinstance(children, list):
+            return
+        for index, item in enumerate(children):
+            if not isinstance(item, dict):
+                continue
+            item_path = f"{path}[{index}]"
+            if "subItems" in item:
+                issues.append(f"{item_path}.subItems is deprecated; use items")
+            visit(item.get("items"), f"{item_path}.items")
+            visit(item.get("subItems"), f"{item_path}.subItems")
+
+    visit(items, prefix)
+    return issues
+
+
 def story_quality_issues(
     *,
     title: str,
@@ -121,6 +238,10 @@ def story_quality_issues(
             issues.append("acceptance criterion duplicates title or description")
         if any(pattern in lower for pattern in DOCS_ONLY_ACCEPTANCE_PATTERNS):
             issues.append("vague docs-only acceptance criterion")
+        if _word_count(criterion) < 8 or any(
+            pattern in lower for pattern in VAGUE_ACCEPTANCE_PATTERNS
+        ):
+            issues.append("acceptance criterion must describe specific observable behavior")
         if not _looks_observable(lower):
             issues.append("acceptance criterion must describe observable behavior")
 
@@ -143,8 +264,7 @@ def _file_scope_issues(swarm: dict[str, Any]) -> list[str]:
         normalized = file_path.strip().strip("/")
         root = normalized.split("/", 1)[0]
         if (
-            normalized.endswith("/**")
-            or "**" in normalized
+            any(ch in normalized for ch in "*?[")
             or normalized in BROAD_FILE_SCOPE_ROOTS
             or file_path.rstrip("/") in BROAD_FILE_SCOPE_ROOTS
             or (root in BROAD_FILE_SCOPE_ROOTS and normalized in {root, f"{root}/*"})
@@ -171,12 +291,23 @@ def _description_issues(description: str) -> list[str]:
 def _implementation_plan_issues(implementation_plan: str) -> list[str]:
     if not implementation_plan.strip():
         return ["plan.narratives.ImplementationPlan is required"]
+    issues: list[str] = []
     if _step_count(implementation_plan) < 2 or _word_count(implementation_plan) < 20:
-        return ["plan.narratives.ImplementationPlan must contain at least two concrete steps"]
+        issues.append(
+            "plan.narratives.ImplementationPlan must contain at least two concrete steps"
+        )
     lower = implementation_plan.lower()
     if any(pattern in lower for pattern in PLACEHOLDER_ACCEPTANCE_PATTERNS):
-        return ["plan.narratives.ImplementationPlan must not be placeholder text"]
-    return []
+        issues.append("plan.narratives.ImplementationPlan must not be placeholder text")
+    if any(pattern in lower for pattern in GENERIC_IMPLEMENTATION_PATTERNS) or not (
+        any(term in lower for term in CODE_PATH_TERMS)
+        and any(term in lower for term in VERIFY_EVIDENCE_TERMS)
+    ):
+        issues.append(
+            "plan.narratives.ImplementationPlan must identify concrete code paths "
+            "and verification evidence"
+        )
+    return issues
 
 
 def _looks_observable(lower: str) -> bool:

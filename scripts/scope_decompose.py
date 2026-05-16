@@ -27,7 +27,11 @@ from _vbrief_build import (  # noqa: E402
 )
 from _vbrief_story_quality import (  # noqa: E402
     acceptance_texts_from_items,
-    as_str_list as _quality_as_str_list,
+    as_str_list as _as_str_list,
+    deprecated_subitems_issues,
+    item_has_traces,
+    items_have_acceptance,
+    missing_required_swarm_fields,
     story_quality_issues,
 )
 
@@ -45,6 +49,8 @@ class DecompositionError(ValueError):
 def _load_json(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise DecompositionError(f"{path}: cannot read file: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise DecompositionError(f"{path}: invalid JSON: {exc}") from exc
     if not isinstance(data, dict):
@@ -140,44 +146,6 @@ def _swarm_meta(story: dict[str, Any]) -> dict[str, Any]:
     return swarm
 
 
-def _as_str_list(value: Any) -> list[str]:
-    return _quality_as_str_list(value)
-
-
-def _item_has_acceptance(item: dict[str, Any]) -> bool:
-    narrative = item.get("narrative")
-    if isinstance(narrative, dict):
-        value = narrative.get("Acceptance")
-        if isinstance(value, str) and value.strip():
-            return True
-    for child_key in ("items", "subItems"):
-        children = item.get(child_key)
-        if isinstance(children, list):
-            for child in children:
-                if isinstance(child, dict) and _item_has_acceptance(child):
-                    return True
-    return False
-
-
-def _items_have_acceptance(items: list[Any]) -> bool:
-    return any(isinstance(item, dict) and _item_has_acceptance(item) for item in items)
-
-
-def _item_has_traces(item: dict[str, Any]) -> bool:
-    narrative = item.get("narrative")
-    if isinstance(narrative, dict):
-        value = narrative.get("Traces")
-        if isinstance(value, str) and value.strip():
-            return True
-    for child_key in ("items", "subItems"):
-        children = item.get(child_key)
-        if isinstance(children, list):
-            for child in children:
-                if isinstance(child, dict) and _item_has_traces(child):
-                    return True
-    return False
-
-
 def _story_has_traces(story: dict[str, Any], items: list[Any], swarm: dict[str, Any]) -> bool:
     narratives = story.get("narratives")
     if isinstance(narratives, dict):
@@ -186,7 +154,7 @@ def _story_has_traces(story: dict[str, Any], items: list[Any], swarm: dict[str, 
             return True
     if _as_str_list(story.get("traces")):
         return True
-    if any(isinstance(item, dict) and _item_has_traces(item) for item in items):
+    if any(isinstance(item, dict) and item_has_traces(item) for item in items):
         return True
     if _as_str_list(swarm.get("missing_traces_justification")):
         return True
@@ -250,20 +218,6 @@ def _acceptance_count_justification(story: dict[str, Any], swarm: dict[str, Any]
         if isinstance(value, str) and value.strip():
             return value.strip()
     return ""
-
-
-def _missing_required_swarm_fields(swarm: dict[str, Any]) -> list[str]:
-    missing: list[str] = []
-    for key in ("file_scope", "verify_commands", "expected_outputs"):
-        if not _as_str_list(swarm.get(key)):
-            missing.append(f"plan.metadata.swarm.{key}")
-    if "depends_on" not in swarm:
-        missing.append("plan.metadata.swarm.depends_on")
-    for key in ("conflict_group", "size", "file_scope_confidence", "model_tier"):
-        value = swarm.get(key)
-        if not isinstance(value, str) or not value.strip():
-            missing.append(f"plan.metadata.swarm.{key}")
-    return missing
 
 
 def _items_from_story(story_id: str, story: dict[str, Any]) -> list[Any]:
@@ -333,7 +287,22 @@ def validate_draft(stories: list[dict[str, Any]]) -> list[str]:
         deps_by_story[story_id] = deps
 
         items = _items_from_story(story_id, story)
+        description = _story_description(story)
+        implementation_plan = _story_implementation_plan(story)
+        user_story = _story_user_story(story)
         issues: list[str] = []
+        raw_id = story.get("id") or story.get("story_id") or story.get("key")
+        if not isinstance(raw_id, str) or not raw_id.strip():
+            issues.append("id")
+        raw_title = story.get("title")
+        if not isinstance(raw_title, str) or not raw_title.strip():
+            issues.append("title")
+        if not description:
+            issues.append("plan.narratives.Description")
+        if not implementation_plan:
+            issues.append("plan.narratives.ImplementationPlan")
+        if not user_story:
+            issues.append("plan.narratives.UserStory")
         readiness = swarm.get("readiness")
         if readiness not in STORY_READINESS_STATES:
             issues.append("plan.metadata.swarm.readiness")
@@ -342,17 +311,18 @@ def validate_draft(stories: list[dict[str, Any]]) -> list[str]:
             issues.append("plan.metadata.swarm.parallel_safe")
         if not items:
             issues.append("plan.items")
-        if items and not _items_have_acceptance(items):
+        if items and not items_have_acceptance(items):
             issues.append("plan.items[].narrative.Acceptance")
-        issues.extend(_missing_required_swarm_fields(swarm))
+        issues.extend(deprecated_subitems_issues(items))
+        issues.extend(missing_required_swarm_fields(swarm))
         if not _story_has_traces(story, items, swarm):
             issues.append("Traces or missing_traces_justification")
         issues.extend(
             story_quality_issues(
                 title=str(story.get("title") or story_id),
-                description=_story_description(story),
-                implementation_plan=_story_implementation_plan(story),
-                user_story=_story_user_story(story),
+                description=description,
+                implementation_plan=implementation_plan,
+                user_story=user_story,
                 acceptance_texts=acceptance_texts_from_items(items),
                 acceptance_count_justification=_acceptance_count_justification(story, swarm),
                 swarm=swarm,

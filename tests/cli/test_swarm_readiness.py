@@ -187,6 +187,17 @@ def test_readiness_requires_explicit_story_kind(tmp_path: Path) -> None:
             "plan.narratives.ImplementationPlan must contain at least two concrete steps",
         ),
         (
+            lambda data: data["plan"]["narratives"].update(
+                {
+                    "ImplementationPlan": (
+                        "1. Update the code so the feature is implemented in the application.\n"
+                        "2. Add tests so it works as expected for users."
+                    )
+                }
+            ),
+            "plan.narratives.ImplementationPlan must identify concrete code paths",
+        ),
+        (
             lambda data: data["plan"]["items"][0]["narrative"].update(
                 {"Acceptance": "to refine from parent scope"}
             ),
@@ -199,7 +210,17 @@ def test_readiness_requires_explicit_story_kind(tmp_path: Path) -> None:
             "acceptance criterion duplicates title or description",
         ),
         (
+            lambda data: data["plan"]["items"][0]["narrative"].update(
+                {"Acceptance": "The system displays a message"}
+            ),
+            "acceptance criterion must describe specific observable behavior",
+        ),
+        (
             lambda data: data["plan"]["metadata"]["swarm"].update({"file_scope": ["frontend/**"]}),
+            "broad file_scope is not swarm-ready",
+        ),
+        (
+            lambda data: data["plan"]["metadata"]["swarm"].update({"file_scope": ["src/*.ts"]}),
             "broad file_scope is not swarm-ready",
         ),
         (
@@ -220,6 +241,18 @@ def test_readiness_rejects_low_quality_ready_story(tmp_path: Path, mutate, expec
 
     assert result.returncode == 1
     assert expected in result.stdout
+
+
+def test_readiness_rejects_deprecated_subitems_in_story_items(tmp_path: Path) -> None:
+    story = _story(tmp_path, "story-subitems")
+    data = json.loads(story.read_text(encoding="utf-8"))
+    data["plan"]["items"][0]["subItems"] = []
+    story.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    result = _run(tmp_path, story)
+
+    assert result.returncode == 1
+    assert "subItems is deprecated; use items" in result.stdout
 
 
 def test_readiness_reports_epic_phase_as_decomposition_needed(tmp_path: Path) -> None:
