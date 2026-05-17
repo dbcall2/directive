@@ -16,6 +16,7 @@ from pathlib import Path
 
 from _vbrief_build import (
     EMITTED_VBRIEF_VERSION as _EMITTED_VBRIEF_VERSION,
+    reference_with_default_trust as _reference_with_default_trust,
     slugify as _slugify_shared,
 )
 
@@ -23,9 +24,9 @@ from _vbrief_build import (
 def edge_nodes(edge: dict) -> tuple[str, str]:
     """Return (from_id, to_id) for a vBRIEF edge, reading both dialects.
 
-    The canonical v0.5 key names are ``from`` / ``to``, but earlier speckit
-    drafts used ``source`` / ``target``.  Prefer the canonical keys when
-    they are populated and fall back to the legacy keys.
+    Speckit plan edges use ``from`` / ``to`` in current drafts, but earlier
+    drafts used ``source`` / ``target``. Prefer the current keys when they
+    are populated and fall back to the legacy keys.
     """
     if not isinstance(edge, dict):
         return "", ""
@@ -75,6 +76,11 @@ def speckit_ip_index(item: dict, fallback_index: int) -> int:
     return fallback_index
 
 
+def _non_empty_text(value: object, fallback: str) -> str:
+    text = str(value or "").strip()
+    return text or fallback
+
+
 def create_speckit_scope_vbrief(
     item: dict,
     *,
@@ -89,21 +95,23 @@ def create_speckit_scope_vbrief(
     and links back to the parent ``specification.vbrief.json`` via a
     ``x-vbrief/plan`` reference.
     """
-    title = str(item.get("title", f"IP-{ip_index}") or f"IP-{ip_index}")
+    spec_ref = _vbrief_relative_spec_ref(spec_ref)
+    fallback_title = f"IP-{ip_index}"
+    title = _non_empty_text(item.get("title"), fallback_title)
     narrative = item.get("narrative") or {}
     if not isinstance(narrative, dict):
         narrative = {}
 
-    def _pick(*keys: str, default: str = "") -> str:
+    def _pick(*keys: str) -> str:
         for key in keys:
             value = narrative.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()
-        return default
+        return ""
 
-    description = _pick("Description", "Summary", default=title)
-    acceptance = _pick("Acceptance", "AcceptanceCriteria", default="")
-    traces = _pick("Traces", "Trace", "Requirements", default=f"IP-{ip_index}")
+    description = _pick("Description", "Summary") or title or fallback_title
+    acceptance = _pick("Acceptance", "AcceptanceCriteria")
+    traces = _pick("Traces", "Trace", "Requirements") or fallback_title
 
     default_acceptance = (
         f"Acceptance criteria for IP-{ip_index} "
@@ -119,20 +127,23 @@ def create_speckit_scope_vbrief(
         if isinstance(value, str) and value.strip():
             narratives[extra] = value.strip()
 
-    references = [{"type": "x-vbrief/plan", "url": spec_ref}]
+    references = [
+        _reference_with_default_trust({"type": "x-vbrief/plan", "uri": spec_ref})
+    ]
     for ref in item.get("references", []) or []:
         if isinstance(ref, dict) and ref.get("type") != "x-vbrief/plan":
-            references.append(ref)
+            references.append(_reference_with_default_trust(ref))
 
     plan: dict = {
         "title": title,
         "status": "pending",
         "narratives": narratives,
         "items": [],
+        "metadata": {"kind": "phase"},
         "references": references,
     }
     if dependencies:
-        plan["metadata"] = {"dependencies": list(dependencies)}
+        plan["metadata"]["dependencies"] = list(dependencies)
 
     return {
         "vBRIEFInfo": {
@@ -143,12 +154,20 @@ def create_speckit_scope_vbrief(
     }
 
 
+def _vbrief_relative_spec_ref(spec_ref: str) -> str:
+    """Return a vbrief-directory-relative reference for the parent spec."""
+    normalized = spec_ref.strip()
+    while normalized.startswith("../"):
+        normalized = normalized[3:]
+    return normalized or "specification.vbrief.json"
+
+
 def migrate_speckit_plan(
     plan_path: Path,
     *,
     pending_dir: Path | None = None,
     date: str | None = None,
-    spec_ref: str = "../specification.vbrief.json",
+    spec_ref: str = "specification.vbrief.json",
     today: str | None = None,
 ) -> tuple[bool, list[str]]:
     """Translate a speckit-shaped ``plan.vbrief.json`` into scope vBRIEFs.

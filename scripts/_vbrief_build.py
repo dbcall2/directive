@@ -11,8 +11,10 @@ Story: #454 (task issue:ingest).
 
 from __future__ import annotations
 
+import copy
 import re
 from datetime import UTC, datetime
+from typing import Any
 
 # ----------------------------------------------------------------------------
 # Date helper
@@ -70,12 +72,67 @@ def slugify(text: str) -> str:
 # without it leaking into user-visible narratives.
 #
 # The surface key is a string (``"x-migrator"``) rather than a dotted
-# path because ``plan.metadata`` is schema-defined as ``{type: object}``
-# with no structural constraints -- any key is legal. Using the
-# ``x-migrator`` namespace signals "this value comes from `task
-# migrate:vbrief`" at a glance and keeps the payload compatible with the
-# vendored v0.6 schema without touching it.
+# path because ``plan.metadata`` is the extension point for tool-specific
+# metadata. Using the ``x-migrator`` namespace signals "this value comes
+# from `task migrate:vbrief`" at a glance and keeps the payload compatible
+# with the vendored v0.6 schema without touching it.
 MIGRATOR_METADATA_KEY: str = "x-migrator"
+
+# ----------------------------------------------------------------------------
+# Reference provenance / trust helpers (#480)
+# ----------------------------------------------------------------------------
+
+INTERNAL_REFERENCE_TYPES = {"x-vbrief/plan", "x-vbrief/spec-section", "x-vbrief/user-request"}
+EXTERNAL_REFERENCE_TYPES = {
+    "x-vbrief/github-issue",
+    "x-vbrief/github-pr",
+    "x-vbrief/jira-ticket",
+    "x-vbrief/web-page",
+}
+
+
+def reference_with_default_trust(ref: dict[str, Any]) -> dict[str, Any]:
+    """Return a copied reference with the default TrustLevel filled when known."""
+    normalized = copy.deepcopy(ref)
+    if "TrustLevel" in normalized:
+        return normalized
+    ref_type = normalized.get("type")
+    if ref_type in INTERNAL_REFERENCE_TYPES:
+        normalized["TrustLevel"] = "internal"
+    elif ref_type in EXTERNAL_REFERENCE_TYPES:
+        normalized["TrustLevel"] = "external"
+    return normalized
+
+
+def _github_issue_reference(
+    *, repo_url: str, number: Any, title: Any
+) -> dict[str, str] | None:
+    cleaned_repo = str(repo_url or "").strip().rstrip("/")
+    cleaned_number = str(number or "").strip().lstrip("#").strip()
+    if not cleaned_repo or not cleaned_number:
+        return None
+    cleaned_title = str(title or "").strip()
+    ref_title = (
+        f"Issue #{cleaned_number}: {cleaned_title}"
+        if cleaned_title and cleaned_title != "Untitled"
+        else f"Issue #{cleaned_number}"
+    )
+    return {
+        "uri": f"{cleaned_repo}/issues/{cleaned_number}",
+        "type": "x-vbrief/github-issue",
+        "title": ref_title,
+    }
+
+
+def _reference_has_required_fields(ref: dict[str, Any] | None) -> bool:
+    if ref is None:
+        return False
+    for key in ("uri", "type"):
+        value = ref.get(key)
+        if not isinstance(value, str) or not value.strip():
+            return False
+    return True
+
 
 # ----------------------------------------------------------------------------
 # Scope vBRIEF construction
@@ -116,8 +173,8 @@ def create_scope_vbrief(
         to the canonical shape -- see ``scripts/reconcile_issues.py``
         for a bilingual reader example.
     """
-    number = item.get("number", "")
-    title = item.get("title", "Untitled")
+    number = str(item.get("number", "") or "").strip().lstrip("#").strip()
+    title = str(item.get("title", "Untitled") or "Untitled").strip() or "Untitled"
     phase = item.get("phase", "")
     tier = item.get("tier", "")
 
@@ -156,17 +213,18 @@ def create_scope_vbrief(
     # so we cannot honestly emit a reference without a resolvable URL.
     # ROADMAP bare-text rows (no issue number) legitimately ship with no
     # origin reference; the migrator logs them as proposed/ orphans.
-    if number and repo_url:
-        ref_title = (
-            f"Issue #{number}: {title}" if title and title != "Untitled"
-            else f"Issue #{number}"
-        )
-        canonical_ref: dict = {
-            "uri": f"{repo_url}/issues/{number}",
-            "type": "x-vbrief/github-issue",
-            "title": ref_title,
-        }
-        vbrief["plan"]["references"] = [canonical_ref]
+    canonical_ref = _github_issue_reference(
+        repo_url=repo_url,
+        number=number,
+        title=title,
+    )
+    trusted_ref = (
+        reference_with_default_trust(canonical_ref)
+        if _reference_has_required_fields(canonical_ref)
+        else None
+    )
+    if trusted_ref is not None and _reference_has_required_fields(trusted_ref):
+        vbrief["plan"]["references"] = [trusted_ref]
 
     return vbrief
 
@@ -175,6 +233,7 @@ __all__ = [
     "EMITTED_VBRIEF_VERSION",
     "MIGRATOR_METADATA_KEY",
     "TODAY",
+    "reference_with_default_trust",
     "slugify",
     "create_scope_vbrief",
 ]

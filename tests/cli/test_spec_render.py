@@ -186,7 +186,7 @@ def test_legacy_interview_shape_renders_overview_and_items(render_mod, tmp_path)
             "id": "T1",
             "title": "Do the thing",
             "status": "pending",
-            "narrative": {"Description": "Get it done.", "Acceptance": "A; B"},
+            "narrative": {"Description": "Get it done.", "Acceptance": "- A\n- B"},
         },
         {
             "id": "T2",
@@ -212,6 +212,59 @@ def test_legacy_interview_shape_renders_overview_and_items(render_mod, tmp_path)
     # Acceptance rendered as bullets (pre-existing behavior preserved)
     assert "- A" in content
     assert "- B" in content
+
+
+def test_acceptance_semicolon_text_stays_single_criterion(render_mod, tmp_path) -> None:
+    """A semicolon inside one sentence should not split acceptance bullets."""
+    narratives = {"Overview": "Semicolon regression."}
+    items = [
+        {
+            "id": "T1",
+            "title": "Validate uniqueness",
+            "status": "pending",
+            "narrative": {
+                "Acceptance": "User name must be unique; email must be unique within a tenant"
+            },
+        }
+    ]
+    spec_path = _write_spec(
+        tmp_path / "vbrief", narratives, items=items, title="Semicolon Spec"
+    )
+    out = tmp_path / "SPECIFICATION.md"
+    ok, msg = render_mod.render_spec(str(spec_path), str(out))
+    assert ok, msg
+
+    content = out.read_text(encoding="utf-8")
+    assert (
+        "- User name must be unique; email must be unique within a tenant"
+        in content
+    )
+    assert "- email must be unique within a tenant" not in content
+
+
+def test_acceptance_indented_markdown_bullets_render_cleanly(render_mod, tmp_path) -> None:
+    """Indented markdown bullets should render the same as flush-left bullets."""
+    narratives = {"Overview": "Indented acceptance regression."}
+    items = [
+        {
+            "id": "T1",
+            "title": "Normalize bullets",
+            "status": "pending",
+            "narrative": {"Acceptance": "  - Criterion A\n    * Criterion B"},
+        }
+    ]
+    spec_path = _write_spec(
+        tmp_path / "vbrief", narratives, items=items, title="Indented Bullet Spec"
+    )
+    out = tmp_path / "SPECIFICATION.md"
+    ok, msg = render_mod.render_spec(str(spec_path), str(out))
+    assert ok, msg
+
+    content = out.read_text(encoding="utf-8")
+    assert "- Criterion A" in content
+    assert "- Criterion B" in content
+    assert "-   - Criterion A" not in content
+    assert "-     * Criterion B" not in content
 
 
 # ---------------------------------------------------------------------------
@@ -326,6 +379,54 @@ def test_aggregator_emits_implementation_plan_section(render_mod, tmp_path) -> N
     active_pos = content.index("### Active")
     completed_pos = content.index("### Completed")
     assert pending_pos < active_pos < completed_pos
+
+
+def test_aggregator_preserves_epic_and_story_acceptance(render_mod, tmp_path) -> None:
+    """Lifecycle rendering must show broad epic acceptance and story item acceptance."""
+    vbrief_dir = tmp_path / "vbrief"
+    spec_path = _write_spec(vbrief_dir, {"Overview": "Acceptance visibility."})
+    _write_scope(
+        vbrief_dir / "pending",
+        "2026-05-12-ip001-auth.vbrief.json",
+        _scope(
+            "IP-1: Auth epic",
+            "pending",
+            {
+                "Description": "Broad auth phase.",
+                "Acceptance": "Parent acceptance remains visible.",
+                "Traces": "FR-1",
+            },
+            items=[],
+        ),
+    )
+    _write_scope(
+        vbrief_dir / "active",
+        "2026-05-12-auth-story.vbrief.json",
+        _scope(
+            "Auth story",
+            "running",
+            {"Description": "Executable auth story."},
+            items=[
+                {
+                    "id": "story-a",
+                    "title": "Implement login",
+                    "status": "pending",
+                    "narrative": {
+                        "Acceptance": "Login returns a token.",
+                        "Traces": "FR-1",
+                    },
+                }
+            ],
+        ),
+    )
+
+    out = tmp_path / "SPECIFICATION.md"
+    ok, msg = render_mod.render_spec(str(spec_path), str(out))
+    assert ok, msg
+    content = out.read_text(encoding="utf-8")
+    assert "**Scope Acceptance**:" in content
+    assert "Parent acceptance remains visible." in content
+    assert "Login returns a token." in content
 
 
 def test_include_scopes_off_suppresses_aggregator(render_mod, tmp_path) -> None:

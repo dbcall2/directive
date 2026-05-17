@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `deft-directive-gh-arch` skill -- explore codebase for shallow modules, design competing interfaces in parallel, file refactor RFC as GitHub Issue (re-land of #442; original author @visionik).
+- **feat(directive): add story decomposition and swarm-readiness gates** -- introduces Phase 4.5 Story Decomposition / Swarm Readiness between Speckit phase/epic scope emission and swarm implementation. Adds deterministic `task scope:decompose` and `task swarm:readiness` commands, a canonical `plan.metadata.kind` / `plan.metadata.swarm` story contract, a new `deft-directive-decompose` skill, swarm Phase 0 readiness gating, acceptance-preserving spec rendering, and regression coverage for decomposition, readiness, Speckit translation, and stale vBRIEF template guidance.
 
 ### Changed
 
@@ -2867,4 +2868,3 @@ If you have custom scripts or references to deft files, update these paths:
 [0.2.0]: https://github.com/visionik/warping/releases/tag/v0.2.0
 
 [0.1.0]: https://github.com/visionik/warping/releases/tag/v0.1.0
-

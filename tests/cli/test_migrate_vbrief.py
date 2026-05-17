@@ -443,6 +443,7 @@ class TestBuildProjectDefinition:
         ref = plan_items[0]["references"][0]
         assert ref["type"] == "x-vbrief/github-issue"
         assert ref["uri"] == "https://github.com/owner/repo/issues/42"
+        assert ref["TrustLevel"] == "external"
         assert ref["title"] == "Issue #42: Test item"
         # Legacy keys must not leak into the canonical shape (#613).
         assert "id" not in ref
@@ -513,6 +514,7 @@ class TestCreateScopeVbrief:
         assert ref["uri"] == "https://github.com/owner/repo/issues/99"
         assert ref["type"] == "x-vbrief/github-issue"
         assert ref["title"] == "Issue #99: Test feature"
+        assert ref["TrustLevel"] == "external"
 
     def test_origin_provenance_canonical_shape(self):
         """#613: refs carry {uri, type: x-vbrief/github-issue, title}."""
@@ -525,15 +527,36 @@ class TestCreateScopeVbrief:
         assert refs[0]["type"] == "x-vbrief/github-issue"
         assert refs[0]["uri"] == "https://github.com/owner/repo/issues/123"
         assert refs[0]["title"] == "Issue #123: Bug fix"
+        assert refs[0]["TrustLevel"] == "external"
         # Legacy fields must not leak into the canonical shape.
         assert "id" not in refs[0]
         assert "url" not in refs[0]
+
+    def test_origin_provenance_trust_level_when_title_is_empty(self):
+        """Issue refs still receive default trust when the item title is empty."""
+        item = {"number": "123", "title": "", "phase": "Phase 2"}
+        result = _create_scope_vbrief(
+            item, repo_url="https://github.com/owner/repo"
+        )
+        ref = result["plan"]["references"][0]
+        assert ref["title"] == "Issue #123"
+        assert ref["TrustLevel"] == "external"
 
     def test_no_reference_without_repo_url(self):
         """#613: schema requires uri; if no repo_url we cannot build it."""
         item = {"number": "123", "title": "Bug fix", "phase": "Phase 2"}
         result = _create_scope_vbrief(item, repo_url="")
         assert "references" not in result["plan"]
+
+    def test_blank_origin_values_do_not_emit_empty_reference(self):
+        """Origin references are omitted unless both issue and repo are meaningful."""
+        missing_issue = _create_scope_vbrief(
+            {"number": "   ", "title": "Bug fix"}, repo_url="https://github.com/owner/repo"
+        )
+        missing_repo = _create_scope_vbrief({"number": "123", "title": "Bug fix"}, repo_url="   ")
+
+        assert "references" not in missing_issue["plan"]
+        assert "references" not in missing_repo["plan"]
 
     def test_tier_moved_to_migrator_metadata(self):
         """#616: Tier is migrator provenance, not a narrative."""
@@ -1419,7 +1442,7 @@ def _write_speckit_plan(
     """Write a speckit-shaped plan.vbrief.json fixture."""
     plan_path.parent.mkdir(parents=True, exist_ok=True)
     data = {
-        "vBRIEFInfo": {"version": "0.5", "description": "speckit plan fixture"},
+        "vBRIEFInfo": {"version": "0.6", "description": "speckit plan fixture"},
         "plan": {
             "title": "speckit IPs",
             "status": "running",
@@ -1502,7 +1525,7 @@ class TestCreateSpeckitScopeVbrief:
             item,
             ip_index=3,
             dependencies=["ip-1", "ip-2"],
-            spec_ref="../specification.vbrief.json",
+            spec_ref="specification.vbrief.json",
         )
         narratives = result["plan"]["narratives"]
         assert narratives["Description"] == "Stand up repositories."
@@ -1512,35 +1535,48 @@ class TestCreateSpeckitScopeVbrief:
     def test_dependencies_written_at_plan_level(self):
         item = {"id": "ip-3", "title": "IP-3: X"}
         result = _create_speckit_scope_vbrief(
-            item, ip_index=3, dependencies=["ip-1"], spec_ref="../specification.vbrief.json"
+            item,
+            ip_index=3,
+            dependencies=["ip-1"],
+            spec_ref="specification.vbrief.json",
         )
+        assert result["plan"]["metadata"]["kind"] == "phase"
         assert result["plan"]["metadata"]["dependencies"] == ["ip-1"]
 
     def test_reference_links_back_to_spec(self):
         item = {"id": "ip-1", "title": "IP-1: Bootstrap"}
         result = _create_speckit_scope_vbrief(
-            item, ip_index=1, dependencies=[], spec_ref="../specification.vbrief.json"
+            item, ip_index=1, dependencies=[], spec_ref="specification.vbrief.json"
         )
         refs = result["plan"]["references"]
         assert any(
             r.get("type") == "x-vbrief/plan"
-            and r.get("url") == "../specification.vbrief.json"
+            and r.get("uri") == "specification.vbrief.json"
+            and r.get("TrustLevel") == "internal"
             for r in refs
         )
 
     def test_status_is_pending(self):
         item = {"id": "ip-1", "title": "IP-1: Bootstrap"}
         result = _create_speckit_scope_vbrief(
-            item, ip_index=1, dependencies=[], spec_ref="../specification.vbrief.json"
+            item, ip_index=1, dependencies=[], spec_ref="specification.vbrief.json"
         )
         assert result["plan"]["status"] == "pending"
 
     def test_synthesizes_acceptance_when_missing(self):
         item = {"id": "ip-5", "title": "IP-5: Ship"}
         result = _create_speckit_scope_vbrief(
-            item, ip_index=5, dependencies=[], spec_ref="../specification.vbrief.json"
+            item, ip_index=5, dependencies=[], spec_ref="specification.vbrief.json"
         )
         assert "IP-5" in result["plan"]["narratives"]["Acceptance"]
+
+    def test_blank_title_and_bad_narrative_have_non_empty_description(self):
+        item = {"id": "", "title": "   ", "narrative": "not a dict"}
+        result = _create_speckit_scope_vbrief(
+            item, ip_index=4, dependencies=[], spec_ref="specification.vbrief.json"
+        )
+        assert result["plan"]["title"] == "IP-4"
+        assert result["plan"]["narratives"]["Description"] == "IP-4"
 
 
 class TestMigrateSpeckitPlan:
@@ -1640,7 +1676,10 @@ class TestMigrateSpeckitPlan:
         assert data["plan"]["narratives"]["Traces"] == "FR-1, IP-1"
         refs = data["plan"]["references"]
         assert refs[0]["type"] == "x-vbrief/plan"
-        assert "specification.vbrief.json" in refs[0]["url"]
+        assert refs[0]["uri"] == "specification.vbrief.json"
+        assert refs[0]["TrustLevel"] == "internal"
+        assert "url" not in refs[0]
+        assert data["plan"]["metadata"]["kind"] == "phase"
 
     def test_plan_rewritten_to_session_scaffold(self, tmp_path):
         plan_path = tmp_path / "vbrief" / "plan.vbrief.json"

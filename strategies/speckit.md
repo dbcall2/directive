@@ -1,6 +1,6 @@
 # SpecKit Strategy
 
-A five-phase spec-driven development workflow inspired by [GitHub's spec-kit](https://github.com/github/spec-kit).
+A spec-driven development workflow inspired by [GitHub's spec-kit](https://github.com/github/spec-kit), with a Phase 4.5 readiness layer for decomposing broad implementation scopes into swarm-safe stories.
 
 Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
@@ -22,19 +22,22 @@ flowchart LR
         P["📜 Principles<br/><i>PROJECT-DEFINITION.vbrief.json</i>"]
         S["📝 Specify<br/><i>WHAT/WHY → specification.vbrief.json</i>"]
         PL["🏗️ Plan<br/><i>HOW → specification.vbrief.json</i>"]
-        T["✅ Tasks<br/><i>Executable list</i>"]
+        T["✅ Scope<br/><i>Phase/epic vBRIEFs</i>"]
+        D["🧩 Decompose<br/><i>Story readiness</i>"]
         I["🔨 Implement<br/><i>Execute</i>"]
     end
 
     P -->|"Established"| S
     S -->|"Approved"| PL
     PL -->|"Reviewed"| T
-    T -->|"Ready"| I
+    T -->|"Approved"| D
+    D -->|"Ready stories"| I
 
     style P fill:#c4b5fd,stroke:#7c3aed,color:#000
     style S fill:#fef08a,stroke:#ca8a04,color:#000
     style PL fill:#6ee7b7,stroke:#059669,color:#000
     style T fill:#7dd3fc,stroke:#0284c7,color:#000
+    style D fill:#fde68a,stroke:#d97706,color:#000
     style I fill:#f0abfc,stroke:#a855f7,color:#000
 ```
 
@@ -143,29 +146,33 @@ Add the following narrative keys to `vbrief/specification.vbrief.json` `plan.nar
 
 ---
 
-## Phase 4: Tasks (Scope vBRIEF Emission)
+## Phase 4: Implementation Phase / Epic Scope Emission
 
-**Goal:** Emit one scope vBRIEF per implementation phase so downstream tooling (`task roadmap:render`, `task project:render`, swarm allocation) can operate against the lifecycle model described in [vbrief/vbrief.md](../vbrief/vbrief.md).
+**Goal:** Emit one broad scope vBRIEF per implementation phase or epic so downstream tooling (`task roadmap:render`, `task project:render`, and Phase 4.5 decomposition) can operate against the lifecycle model described in [vbrief/vbrief.md](../vbrief/vbrief.md).
 
 **Input:** Approved HOW narratives in `vbrief/specification.vbrief.json` (`ImplementationPhases` narrative describes IP-1..IP-N).
 
-**Output:** N scope vBRIEFs in `./vbrief/pending/`, one per implementation phase, using the filename convention `YYYY-MM-DD-ip<NNN>-<slug>.vbrief.json` (NNN = 3-digit zero-padded, 001..N). See [vbrief/vbrief.md — speckit Phase 4 scope vBRIEFs](../vbrief/vbrief.md#speckit-phase-4-scope-vbriefs) for the canonical convention.
+**Output:** N phase/epic scope vBRIEFs in `./vbrief/pending/`, one per implementation phase or epic, using the filename convention `YYYY-MM-DD-ip<NNN>-<slug>.vbrief.json` (NNN = 3-digit zero-padded, 001..N). See [vbrief/vbrief.md — speckit Phase 4 scope vBRIEFs](../vbrief/vbrief.md#speckit-phase-4-scope-vbriefs) for the canonical convention.
+
+Phase 4 scopes are planning containers. They MAY keep broad acceptance in `plan.narratives.Acceptance` and MAY have `plan.items: []`. They are not valid concurrent swarm worker inputs unless explicitly marked as a single-story scope. Broad phase/epic scopes MUST pass through Phase 4.5 before swarm allocation.
 
 ### Scope vBRIEF Shape
 
 For each implementation phase IP-N, write a scope vBRIEF with:
 
+- ! `vBRIEFInfo.version` — current `scripts/_vbrief_build.py::EMITTED_VBRIEF_VERSION`
 - ! `plan.title` — phase title (e.g. "IP-3: Implement data layer")
 - ! `plan.status` — `pending`
 - ! `plan.narratives.Description` — short human summary of the phase
 - ! `plan.narratives.Acceptance` — acceptance criteria copied from the spec
 - ! `plan.narratives.Traces` — FR/NFR/IP IDs the phase covers (e.g. `FR-001, FR-003, NFR-002, IP-3`)
-- ! `plan.references` — link back to the parent `vbrief/specification.vbrief.json` (`type: x-vbrief/plan`)
+- ! `plan.references` — link back to the parent `vbrief/specification.vbrief.json` (`type: x-vbrief/plan`, `TrustLevel: internal`)
+- ! `plan.metadata.kind` — `phase` or `epic`
 - ! `plan.metadata.dependencies` — array of IP IDs this phase depends on / is blocked by (plan-level; mirrors the `edges[].blocks` structure used in earlier drafts)
 
 ```json
 {
-  "vBRIEFInfo": { "version": "0.5" },
+  "vBRIEFInfo": { "version": "<EMITTED_VBRIEF_VERSION>" },
   "plan": {
     "title": "IP-3: Implement data layer",
     "status": "pending",
@@ -175,10 +182,11 @@ For each implementation phase IP-N, write a scope vBRIEF with:
       "Traces": "FR-001, FR-003, NFR-002, IP-3"
     },
     "metadata": {
+      "kind": "phase",
       "dependencies": ["ip-1", "ip-2"]
     },
     "references": [
-      { "type": "x-vbrief/plan", "url": "../specification.vbrief.json" }
+      { "type": "x-vbrief/plan", "uri": "specification.vbrief.json", "TrustLevel": "internal" }
     ],
     "items": []
   }
@@ -204,15 +212,90 @@ For each implementation phase IP-N, write a scope vBRIEF with:
 - ! Derive one scope vBRIEF per implementation phase from `ImplementationPhases`
 - ! Populate `Description`, `Acceptance`, and `Traces` narratives per [vbrief/vbrief.md — canonical narrative keys](../vbrief/vbrief.md#scope-vbrief-narrative-keys)
 - ! Use `plan.metadata.dependencies` (plan-level) rather than item-level `blocks` edges for cross-scope dependencies
+- ! Use `plan.metadata.kind = "phase"` or `"epic"` for broad implementation scopes
 - ~ Size each phase for 1-4 hours of work so the swarm allocator can distribute cleanly
 - ⊗ Create phases not traceable to a spec requirement
+- ⊗ Allocate Phase 4 phase/epic scope vBRIEFs directly to concurrent swarm workers
 
 ### Transition Criteria
 
 - ! Every implementation phase from `ImplementationPhases` has a matching scope vBRIEF in `./vbrief/pending/`
 - ! Each scope vBRIEF has `Description`, `Acceptance`, and `Traces` narratives
-- ! Each scope vBRIEF carries a `references` entry linking back to `vbrief/specification.vbrief.json`
+- ! Each scope vBRIEF carries a `references` entry linking back to `vbrief/specification.vbrief.json` with `TrustLevel: internal`
 - ! Cross-scope dependencies in `plan.metadata.dependencies` form a valid DAG (no cycles)
+
+---
+
+## Phase 4.5: Story Decomposition / Swarm Readiness
+
+**Goal:** Convert approved Phase 4 phase/epic scopes into child story vBRIEFs suitable for parallel agents.
+
+**Input:** Phase 4 phase/epic vBRIEFs in `./vbrief/pending/` or `./vbrief/active/`.
+
+**Output:** Story-level child vBRIEFs whose executable acceptance criteria live in `plan.items` and whose `plan.metadata.swarm` contract proves they are safe to allocate.
+
+### Process
+
+1. ! Inspect approved specification narratives and Phase 4 scope vBRIEFs.
+2. ! Identify `plan.metadata.kind = "phase"` or `"epic"` scopes that are too broad for direct implementation.
+3. ! Draft a deterministic decomposition proposal: stories, dependencies, expected file scope, verification commands, traces, and conflict groups.
+4. ! Ask for explicit user approval before writing child story vBRIEFs.
+5. ! Apply the approved draft with `task scope:decompose -- <parent.vbrief.json> --draft <decomposition.json>`.
+6. ! Run `task swarm:readiness -- vbrief/active/*.vbrief.json` before concurrent allocation, or point it at the candidate child story files for a dry readiness review before activation.
+
+### Story vBRIEF Requirements
+
+Each Phase 4.5 child story vBRIEF MUST include:
+
+- ! `plan.metadata.kind = "story"`
+- ! non-empty `plan.items`
+- ! `plan.narratives.Description` with at least two concrete sentences
+- ! `plan.narratives.ImplementationPlan` with at least two concrete implementation steps
+- ! executable acceptance in each story's `plan.items`
+- ! `plan.narratives.UserStory` in the form `As a <role>, I want <capability>, so that <outcome>.`
+- ! 2-5 concrete, observable acceptance criteria unless explicitly justified
+- ! explicit dependencies in `plan.metadata.swarm.depends_on`
+- ! traceability back to requirements via `Traces` narratives or explicit trace justification
+- ! expected file scope in `plan.metadata.swarm.file_scope`
+- ! verify commands in `plan.metadata.swarm.verify_commands`
+- ! expected outputs/evidence in `plan.metadata.swarm.expected_outputs`
+- ! swarm readiness metadata in `plan.metadata.swarm`
+- ! `planRef` pointing to the parent phase/epic scope
+- ! parent phase/epic `references` updated to point to every child story
+
+### Decomposition Command
+
+Use the deterministic command surface:
+
+```bash
+task scope:decompose -- vbrief/pending/2026-05-12-ip001-auth.vbrief.json --draft decomposition.json
+task scope:decompose -- vbrief/pending/2026-05-12-ip001-auth.vbrief.json --draft decomposition.json --check
+task scope:decompose -- --check
+```
+
+The command validates and applies a proposed decomposition rather than freely inventing one. It creates child story vBRIEFs, preserves origin/provenance references, sets each child `planRef` to the parent scope, updates parent references to include children, validates the dependency DAG, rejects dependency cycles, and rejects ready stories missing user-story shape, concrete observable acceptance, narrow file scope, focused verify commands, or traces. Parent `plan.items` are input signals, not automatic child stories.
+
+Parent phase/epic acceptance MAY remain in `plan.narratives.Acceptance` as context. Executable acceptance for swarm work MUST be redistributed into child story `plan.items`.
+
+### Swarm Readiness Command
+
+Use the readiness gate before swarm allocation:
+
+```bash
+task swarm:readiness -- vbrief/active/*.vbrief.json
+```
+
+The readiness report lists ready stories, blocked stories, decomposition-needed epics/phases, dependency waves, conflict groups, a file-overlap matrix, and missing fields. It exits non-zero when candidate work is not swarm-ready for concurrent allocation. `readiness=ready` means ready for concurrent allocation; sequential-safe or low-confidence work MUST use another state such as `sequential` or `needs_refinement` and will fail this gate until refined or scheduled outside concurrent swarm allocation.
+
+### Transition Criteria
+
+- ! Candidate swarm work consists only of `kind=story` vBRIEFs
+- ! Every candidate story has non-empty `plan.items`
+- ! Every candidate story has a product-shaped `UserStory`, 2-5 observable acceptance criteria unless justified, file scope, verify commands, traces or trace justification, and readiness metadata.
+- ! Dependencies resolve and form a DAG
+- ! No unsafe file-scope overlap exists among parallel stories
+- ! No `size=large` story is marked `parallel_safe=true`
+- ! No ready story uses broad file globs, only generic verification such as `task check`, `parallel_safe=false`, or `file_scope_confidence=low`
 
 ---
 
@@ -220,7 +303,7 @@ For each implementation phase IP-N, write a scope vBRIEF with:
 
 **Goal:** Execute scope vBRIEFs following test-first discipline.
 
-**Input:** Scope vBRIEFs in `./vbrief/pending/` (promote to `./vbrief/active/` via `task scope:activate` when work begins). `./vbrief/plan.vbrief.json` holds the current session's tactical todo list and carries a `planRef` to the active scope.
+**Input:** Story-level scope vBRIEFs in `./vbrief/pending/` (promote to `./vbrief/active/` via `task scope:activate` when work begins). `./vbrief/plan.vbrief.json` holds the current session's tactical todo list and carries a `planRef` to the active scope. Concurrent swarm implementation requires Phase 4.5-ready stories.
 
 ### Process
 
@@ -229,7 +312,7 @@ For each implementation phase IP-N, write a scope vBRIEF with:
 - ! Refactor while keeping tests green (Refactor)
 - ! Update scope vBRIEF `plan.status` and folder via `task scope:*` commands as work progresses (`pending` → `running` → `completed`)
 - ! Update `./vbrief/plan.vbrief.json` session todos as tactical steps progress (session-scoped; do NOT put the project-wide IP list here)
-- ~ Work on scope vBRIEFs whose `plan.metadata.dependencies` are already completed in parallel when possible
+- ~ Work on story vBRIEFs whose `plan.metadata.swarm.depends_on` entries are already completed in parallel when possible
 
 ### File Creation Order
 
@@ -245,6 +328,7 @@ For each implementation phase IP-N, write a scope vBRIEF with:
 - ⊗ Implement without failing tests first
 - ⊗ Skip refactoring phase
 - ⊗ Write the project-wide IP list to `plan.vbrief.json` — use `vbrief/pending/` scope vBRIEFs as the durable task tracker
+- ⊗ Allocate broad `kind=epic` or `kind=phase` scopes to concurrent swarm workers before decomposition
 
 ---
 
@@ -257,9 +341,10 @@ For each implementation phase IP-N, write a scope vBRIEF with:
 | 3. Plan | `vbrief/specification.vbrief.json` | HOW narratives (enriches Phase 2) |
 | 3b. Render SPECIFICATION | `SPECIFICATION.md` (rendered via `task spec:render`) | Read-only human review export |
 | 3c. Render PRD | `PRD.md` (rendered via `task prd:render`) | Optional stakeholder-review export |
-| 4. Tasks | `./vbrief/pending/YYYY-MM-DD-ip<NNN>-<slug>.vbrief.json` (one per IP) | Scope vBRIEFs drive roadmap/project render + swarm |
+| 4. Tasks | `./vbrief/pending/YYYY-MM-DD-ip<NNN>-<slug>.vbrief.json` (one per IP/epic) | Phase/epic scope vBRIEFs drive roadmap/project render + decomposition |
+| 4.5. Story decomposition | Child story vBRIEFs with `plan.metadata.swarm` | Swarm-ready executable units |
 | 4b. Session todos | `./vbrief/plan.vbrief.json` | Session-level tactical plan (carries `planRef` to active scope) |
-| 5. Implement | Code + tests | Working software |
+| 5. Implement | Code + tests | Working software, optionally via swarm |
 
 ## Directory Structure
 
@@ -269,8 +354,8 @@ project/
 │   ├── PROJECT-DEFINITION.vbrief.json  # Phase 1: Principles narrative
 │   ├── specification.vbrief.json       # Phase 2+3: WHAT/WHY + HOW narratives
 │   ├── plan.vbrief.json                # Phase 4b: session todos (planRef to active scope)
-│   └── pending/                        # Phase 4: IP-level scope vBRIEFs
-│       └── YYYY-MM-DD-ip001-….vbrief.json
+│   └── pending/                        # Phase 4/4.5: IP-level scopes + child stories
+│       └── YYYY-MM-DD-ip001-....vbrief.json
 ├── SPECIFICATION.md                    # Rendered export (task spec:render)
 ├── PRD.md                              # Optional rendered export (task prd:render)
 └── src/                                # Phase 5

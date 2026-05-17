@@ -207,6 +207,31 @@ def _scope_summary_narrative(plan: dict) -> str:
     return ""
 
 
+def _split_acceptance(value: object) -> list[str]:
+    """Normalize acceptance text/list values into visible markdown bullets."""
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if not isinstance(value, str):
+        return []
+    parts: list[str] = []
+    for line in value.splitlines():
+        cleaned = line.strip()
+        if not cleaned:
+            continue
+        if cleaned.startswith(("- ", "* ")):
+            cleaned = cleaned[2:].strip()
+        if cleaned:
+            parts.append(cleaned)
+    return parts
+
+
+def _item_acceptance(item: dict) -> list[str]:
+    narrative = item.get("narrative")
+    if not isinstance(narrative, dict):
+        return []
+    return _split_acceptance(narrative.get("Acceptance"))
+
+
 def _render_scope_block(stem: str, vbrief: dict) -> list[str]:
     """Render a single scope vBRIEF as a markdown block inside Implementation Plan."""
     plan = vbrief.get("plan", {})
@@ -223,6 +248,15 @@ def _render_scope_block(stem: str, vbrief: dict) -> list[str]:
     if summary:
         lines.append(f"{summary}\n")
 
+    narratives = plan.get("narratives", {})
+    if isinstance(narratives, dict):
+        scope_acceptance = _split_acceptance(narratives.get("Acceptance"))
+        if scope_acceptance:
+            lines.append("**Scope Acceptance**:\n")
+            for criterion in scope_acceptance:
+                lines.append(f"- {criterion}")
+            lines.append("")
+
     # Acceptance items -- each plan.items entry rendered as a bullet with status.
     items = plan.get("items", [])
     if isinstance(items, list) and items:
@@ -236,6 +270,9 @@ def _render_scope_block(stem: str, vbrief: dict) -> list[str]:
             if item_status:
                 bullet += f" `[{item_status}]`"
             lines.append(bullet)
+            for criterion in _item_acceptance(item):
+                if criterion != item_title:
+                    lines.append(f"  - Acceptance: {criterion}")
         lines.append("")
     return lines
 
@@ -370,12 +407,8 @@ def render_spec(
                 if key == "Traces":
                     lines.append(f"**Traces**: {val}\n")
                 elif key == "Acceptance":
-                    if isinstance(val, list):
-                        criteria = val
-                    else:
-                        criteria = [c for c in str(val).split("; ") if c]
-                    for criterion in criteria:
-                        lines.append(f"- {criterion}")
+                    for acceptance_line in _split_acceptance(val):
+                        lines.append(f"- {acceptance_line}")
                     lines.append("")
                 else:
                     lines.append(f"{val}\n")
