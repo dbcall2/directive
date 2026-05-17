@@ -441,4 +441,6 @@ Larger feature work -- only after issues are resolved and content is stable.
 - **#806** -- feat(patterns): add executor-layer-credentials — bind secrets at invocation layer, never in agent context -- `[completed]`
 - **#816** -- feat(patterns): add role-as-overlay — persona/role instructions must be system-prompt overlays, never injected into message history -- `[completed]`
 - **#836** -- feat(patterns): prompt-assembly-layer-ordering — separate cached system prompt layers from ephemeral per-turn injections -- `[completed]`
+- Directive story decomposition and swarm readiness -- `[completed]`
+- feat(skills): re-land deft-directive-gh-arch (supersedes #442) -- `[completed]`
 

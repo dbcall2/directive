@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.31.0] - 2026-05-17
+
+> Adds story decomposition / swarm-readiness gates and re-lands the deft-directive-gh-arch skill.
+
+### Added
 - `deft-directive-gh-arch` skill -- explore codebase for shallow modules, design competing interfaces in parallel, file refactor RFC as GitHub Issue (re-land of #442; original author @visionik).
 - **feat(directive): add story decomposition and swarm-readiness gates** -- introduces Phase 4.5 Story Decomposition / Swarm Readiness between Speckit phase/epic scope emission and swarm implementation. Adds deterministic `task scope:decompose` and `task swarm:readiness` commands, a canonical `plan.metadata.kind` / `plan.metadata.swarm` story contract, a new `deft-directive-decompose` skill, swarm Phase 0 readiness gating, acceptance-preserving spec rendering, and regression coverage for decomposition, readiness, Speckit translation, and stale vBRIEF template guidance.
 
@@ -2746,7 +2758,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/deftai/directive/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/deftai/directive/compare/v0.29.2...v0.30.0
 [0.29.2]: https://github.com/deftai/directive/compare/v0.29.1...v0.29.2
 [0.29.1]: https://github.com/deftai/directive/compare/v0.29.0...v0.29.1
