@@ -348,24 +348,24 @@ class TestStoryQualityIssues:
 
     @pytest.fixture
     def base_kwargs(self) -> dict[str, Any]:
-        return dict(
-            title="Auth model",
-            description=(
+        return {
+            "title": "Auth model",
+            "description": (
                 "Auth model persistence stores user identity and session "
                 "state. The story covers focused model changes plus matching "
                 "unit tests for save and load behavior."
             ),
-            implementation_plan=(
+            "implementation_plan": (
                 "- Update the src/auth model persistence code so valid "
                 "payloads are saved through the model boundary.\n"
                 "- Add focused tests for successful persistence and a "
                 "missing-record fixture in tests/auth/model."
             ),
-            user_story=(
+            "user_story": (
                 "As an auth maintainer, I want persisted user records, "
                 "so that login state survives requests."
             ),
-            acceptance_texts=[
+            "acceptance_texts": [
                 (
                     "Given a valid user payload, when the auth model saves "
                     "it, then the user record persists."
@@ -375,15 +375,15 @@ class TestStoryQualityIssues:
                     "then the saved identity returns."
                 ),
             ],
-            acceptance_count_justification="",
-            swarm={
+            "acceptance_count_justification": "",
+            "swarm": {
                 "file_scope": ["src/auth/model.ts", "tests/auth/model.test.ts"],
                 "verify_commands": ["npm test -- auth/model"],
                 "parallel_safe": True,
                 "file_scope_confidence": "high",
             },
-            concurrent_ready=True,
-        )
+            "concurrent_ready": True,
+        }
 
     def test_happy_path_has_no_issues(
         self, quality: ModuleType, base_kwargs: dict[str, Any]
