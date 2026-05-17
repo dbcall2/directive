@@ -157,7 +157,7 @@ def _draft(project: Path, *, cycle: bool = False, output_dir: str | None = None)
             },
         },
     ]
-    draft = {"stories": stories}
+    draft: dict[str, object] = {"stories": stories}
     if output_dir:
         draft["output_dir"] = output_dir
         draft["status"] = "running"
