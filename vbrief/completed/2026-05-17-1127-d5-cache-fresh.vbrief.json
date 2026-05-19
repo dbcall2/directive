@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: D5 (#1127) -- task verify:cache-fresh pre-start_agent gate (subscription-aware).",
-    "updated": "2026-05-17T21:03:20Z"
+    "updated": "2026-05-19T21:22:20Z"
   },
   "plan": {
     "title": "feat(verify): verify:cache-fresh pre-start_agent gate (subscription-aware) (#1127)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "D5 lands the pre-start_agent gate that refuses implementation dispatch when the triage cache is stale. New scripts/preflight_cache.py (pure stdlib, three-state exit mirroring scripts/preflight_branch.py) checks (a) .deft-cache/github-issue/<owner>/<repo>/ has at least one entry, (b) the most recent meta.json fetched_at is within the freshness window (default 24h, env DEFT_CACHE_MAX_AGE_HOURS), (c) vbrief/.eval/candidates.jsonl exists, (d) optional --for-issue refuses dispatch when the latest decision is not accept, (e) optional --allow-stale escape hatch. Subscription-aware via the D12 surface scripts/triage_scope.py (#1131): the freshness scope is scoped to subscribed issues, and --for-issue verifies the target is in plan.policy.triageScope[] coverage. New task verify:cache-fresh wired into the task check aggregate alongside verify:branch / verify:encoding. templates/agent-prompt-preamble.md gains the dispatcher rule: run task verify:cache-fresh --for-issue <N> before any start_agent and refuse on non-zero exit.",
       "Origin": "Wave-1 D5 child of umbrella #1119. Anchored to the issue body on #1127 (no Current Shape filed -- issue body is the spec).",
@@ -31,6 +31,6 @@
         "title": "D12 #1131: subscription surface (scripts/triage_scope.py)"
       }
     ],
-    "updated": "2026-05-17T21:03:20Z"
+    "updated": "2026-05-19T21:22:20Z"
   }
 }

@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: N12 (#1152) -- umbrella current-shape convention (AGENTS.md rules + skill cross-references; v1 discipline-only).",
-    "updated": "2026-05-18T13:09:47Z"
+    "updated": "2026-05-19T21:22:21Z"
   },
   "plan": {
     "title": "feat(agents-md): umbrella current-shape convention rules (#1152)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "N12 codifies the discipline that every umbrella issue carries ONE canonical `## Current shape (as of pass-N)` comment, edited in place after each design pass. The body structure (Last updated / Last pass type / Child count / Child-count history / Open children / Closed children / Wave order / Open questions / Reading order) is documented; prior amendment comments stay as the audit trail. v1 is discipline-only -- no mechanical render (deferred to v2 per the issue body).",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1152",
@@ -30,6 +30,6 @@
         "title": "Meta-umbrella #1140: design-pass churn"
       }
     ],
-    "updated": "2026-05-18T13:09:41Z"
+    "updated": "2026-05-19T21:22:21Z"
   }
 }

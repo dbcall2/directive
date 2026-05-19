@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: D13 child of #1119 -- slices.jsonl writer + orphan/cohort surfaces.",
-    "updated": "2026-05-18T20:10:00Z"
+    "updated": "2026-05-19T21:22:20Z"
   },
   "plan": {
     "title": "feat(triage): slices.jsonl writer + orphan/slice-coverage audit flags + D3 slice-wave-ready atomic (#1132)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "D13 child of the #1119 Wave-2c swarm. Introduce vbrief/.eval/slices.jsonl (committed) as the durable cohort record sibling to candidates.jsonl. Slicing skills (gh-slice, gh-arch, refinement slice-phase) call scripts/slice_record.py::write_slice to append a cohort entry. Three new read-only flags on task triage:audit: --orphans, --slice-stalled --days N, --slice-coverage; all accept --format=json. task triage:queue renders [ORPHAN] prefix and applies +8 ranking score for orphans. D3 grammar gains slice-wave-ready:<slice_id>:<wave> atomic (Option A from the issue body). Framework default = empty / consumer-agnostic; no deft-specific labels.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1132. Issue body is the spec; no Current Shape comment filed.",
@@ -35,6 +35,6 @@
         "title": "Sibling D3 (resume-condition grammar): scripts/resume_conditions.py"
       }
     ],
-    "updated": "2026-05-18T20:10:00Z"
+    "updated": "2026-05-19T21:22:20Z"
   }
 }

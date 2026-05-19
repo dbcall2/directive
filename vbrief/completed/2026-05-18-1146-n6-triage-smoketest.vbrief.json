@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: N6 child of #1119 Wave-2d-1 -- task triage:smoketest end-to-end synthetic test of the cache-as-operator-working-set surface.",
-    "updated": "2026-05-18T21:35:00Z"
+    "updated": "2026-05-19T21:22:20Z"
   },
   "plan": {
     "title": "feat(triage): task triage:smoketest end-to-end synthetic test (#1146 / N6)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "N6 child of #1119 Wave-2d-1. Ship `task triage:smoketest` as a 9-stage end-to-end smoketest of the cache-as-operator-working-set surface: a hermetic 20-issue fixture under `tests/fixtures/triage_smoketest/`, a driver `scripts/triage_smoketest.py` that copies the fixture into a temp working directory and runs the full triage lifecycle against it (bootstrap, auto-classify, audit decision counts, queue determinism, defer w/ resume-on, evaluate-resume, scope:promote, scope:demote, scope:undo, triage:summary), and a `tasks/triage-smoketest.yml` Taskfile fragment + root alias `task triage:smoketest`.",
       "Origin": "Issue body at https://github.com/deftai/directive/issues/1146 plus orchestrator scope (Wave-2d-1 batch). D18 #1136 (`scope:promote --from-issue`) is OPEN-not-implemented; the smoketest uses the existing `scope:promote <vbrief-file>` fallback form. D15 #1134 (`scope:undo`) is parallel in this wave; the smoketest gracefully skips the undo stage when the verb is absent.",
@@ -60,6 +60,6 @@
         "title": "D18: scope:promote --from-issue (future integration)"
       }
     ],
-    "updated": "2026-05-18T21:35:00Z"
+    "updated": "2026-05-19T21:22:20Z"
   }
 }

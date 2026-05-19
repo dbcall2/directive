@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: N2 child of #1119 Wave-2d-1 -- rewrite swarm Phase 0 from folder-scan to queue-driven cohort selection.",
-    "updated": "2026-05-18T21:35:00Z"
+    "updated": "2026-05-19T21:22:21Z"
   },
   "plan": {
     "title": "docs(skills): rewrite swarm Phase 0 queue-driven (#1142 / N2)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "N2 child of the #1119 Wave-2d-1 batch. Rewrite `skills/deft-directive-swarm/SKILL.md` Phase 0 so cohort selection consults the triage cache (D2 / #1122 `task triage:summary` and D11 / #1128 `task triage:queue --state=accept --limit=20`) instead of scanning `vbrief/pending/` or picking by hand. Phase 0c is a promote-fill-cap loop driven by `task scope:promote <vbrief-file>` (D18 / #1136 fallback for the `--from-issue=<N>` shape -- TODO marker references #1136). When wipCap (D4 / #1124, default 10) is reached the cohort selection exits cleanly with a count of what was filled; unpicked queue entries stay queued for the next session. Existing swarm Phase 1+ (Select / Setup / Launch / Monitor / Review / Close) proceeds unchanged. AGENTS.md is HARD-NO this wave -- N9 (#1149) already amended the swarm routing entry with `Phase 0 is queue-driven (see N2 / #1142)`.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1142. Issue body is the spec (no Current Shape comment filed); umbrella #1119 Current Shape v3 supplies the default wipCap=10. D18 #1136 is OPEN but not yet implemented -- this PR uses `task scope:promote <vbrief-file>` as the fallback verb and adds a TODO referencing #1136 for the future `--from-issue=<N>` integration point.",
@@ -30,6 +30,6 @@
         "title": "Issue #1136: D18 -- task scope:promote --from-issue=<N> (future integration point)"
       }
     ],
-    "updated": "2026-05-18T21:35:00Z"
+    "updated": "2026-05-19T21:22:21Z"
   }
 }

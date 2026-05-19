@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: D2 child of #1119 Wave-1 -- task triage:summary one-liner + summary-history.jsonl write.",
-    "updated": "2026-05-17T21:08:10Z"
+    "updated": "2026-05-19T21:22:20Z"
   },
   "plan": {
     "title": "feat(triage): task triage:summary one-liner + summary-history.jsonl write (#1122)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "D2 child of the #1119 Wave-1 swarm. Ship `task triage:summary` as a single-line status surface that the session-start ritual (N9 / #1149) calls before the agent answers the operator's first prompt. The verb reads the existing `.deft-cache/github-issue/<owner>/<repo>/` layout + `vbrief/.eval/candidates.jsonl` audit log and emits one bounded (<=120 char) line describing untriaged / stale-defer / in-flight / WIP counts, with a warning glyph when WIP is at-or-above the typed cap. Empty/missing cache prints the documented `[triage] cache empty -- run task triage:bootstrap` prompt instead of zeros. Every emission appends a JSONL record to `vbrief/.eval/summary-history.jsonl` (gitignored per N4 / #1144) so operators can replay drift offline.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1122. Issue body is the spec (no Current Shape comment filed).",
@@ -30,6 +30,6 @@
         "title": "Sibling D11: task triage:audit --format=json (planned wrap-up consumer)"
       }
     ],
-    "updated": "2026-05-17T21:08:03Z"
+    "updated": "2026-05-19T21:22:20Z"
   }
 }

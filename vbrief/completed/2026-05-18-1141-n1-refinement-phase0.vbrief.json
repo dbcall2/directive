@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: N1 child of #1119 Wave-2d-1 -- refinement skill Phase 0 cache-first rewrite.",
-    "updated": "2026-05-18T21:42:14Z"
+    "updated": "2026-05-19T21:22:21Z"
   },
   "plan": {
     "title": "docs(skills): rewrite refinement Phase 0 cache-first (#1141 / N1)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "N1 child of the #1119 Wave-2d-1 batch. Rewrite Phase 0 of skills/deft-directive-refinement/SKILL.md from folder-scan to triage-first: 0a triage gate (task triage:summary, D2/#1122), 0b cache-first ingestion (task triage:queue --state=accept, D11/#1128), 0c [RESUME]-tagged items first (D3/#1123). Phase 4 verb table gains scope:undo (D15/#1134). New See-also footer points at skills/deft-directive-triage/SKILL.md (D6/#1130). Empty-cache fallback emits stderr prompt pointing at task triage:welcome (N3/#1143). Adds tests/content/test_refinement_skill.py asserting the three sub-phases, canonical verbs, See-also footer, and empty-cache fallback.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1141. Issue body is the spec (no Current Shape comment filed); umbrella #1119 Wave-2d-1.",
@@ -25,6 +25,6 @@
         "title": "Umbrella #1119: triage-eval governance swarm"
       }
     ],
-    "updated": "2026-05-18T21:42:09Z"
+    "updated": "2026-05-19T21:22:21Z"
   }
 }

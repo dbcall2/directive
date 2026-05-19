@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: D1 (#1121) -- scope:demote + --batch + demote_meta audit instrumentation.",
-    "updated": "2026-05-17T21:05:00Z"
+    "updated": "2026-05-19T21:22:20Z"
   },
   "plan": {
     "title": "feat(scope): scope:demote + --batch + demote_meta audit instrumentation (#1121)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "D1 introduces a `task scope:demote` verb that moves a scope vBRIEF from `vbrief/pending/` back to `vbrief/proposed/`. Single-file and `--batch --older-than-days <N>` (default 45) modes are supported. Every demote (single or batch) appends a structured audit entry to `vbrief/.eval/scope-lifecycle.jsonl` with a `demote_meta` block containing: `was_promoted` (bool, true if the source was `pending/`), `original_promotion_decision_id` (UUID of prior promote audit entry on the same path, null when no prior entry exists), `days_in_pending` (int, derived from `plan.updated` or file mtime), `demote_reason` (free-text or batch-rule name), and `demoted_from` (source folder). The 30%-threshold falsification gate (Current Shape Decision 2) is explicitly out of scope; lightweight metrics over the audit log live in #1180. Append-only audit log file is operator-private (gitignored alongside the existing `candidates.jsonl` / `summary-history.jsonl` entries) and is covered by the `vbrief/.eval/*.jsonl merge=union` rule in `.gitattributes`.",
       "Origin": "Wave-1 D1 child of umbrella #1119. Anchored to Current Shape comment 4471271992 on #1121 (canonical, supersedes prior amendments).",
@@ -25,6 +25,6 @@
         "title": "Umbrella #1119: Wave-0/1 swarm"
       }
     ],
-    "updated": "2026-05-17T21:07:57Z"
+    "updated": "2026-05-19T21:22:20Z"
   }
 }

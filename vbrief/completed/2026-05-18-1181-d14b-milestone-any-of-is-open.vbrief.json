@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: D14b (#1181) -- milestone rule any-of + is-open variants.",
-    "updated": "2026-05-18T18:35:00Z"
+    "updated": "2026-05-19T21:22:20Z"
   },
   "plan": {
     "title": "feat(triage-scope): milestone rule any-of + is-open variants (#1181)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "D14b extends the milestone rule grammar shipped in D14 (#1133) with two new variants. The basic `{rule: 'milestone', name: '<exact-name>'}` form is preserved; the new variants are `{rule: 'milestone', any-of: [<names>...]}` (issue matches when its milestone title is in the list) and `{rule: 'milestone', is-open: true}` (issue matches when its milestone is currently open upstream). The is-open resolver queries `gh api repos/<o>/<r>/milestones?state=open` once per evaluate_rules call (memoized snapshot, never per-issue). Validator enforces mutual exclusion across `name` / `any-of` / `is-open` within a single milestone rule; rejects empty any-of, non-bool is-open, and `is-open: false`. Drift detector recognises milestones subscribed via any-of or is-open so they DO NOT appear in unsubscribed-milestones drift output.",
       "Origin": "Wave-2b D14 child of umbrella #1119. D14 (#1133) shipped the basic exact-match milestone rule plus the drift detector and ignore-list foundation. D14b adds the two deferred variants. Issue body #1181 is canonical. Orchestrator prompt anchors the cross-child boundary with D14c (#1182) -- D14b owns the grammar extensions; D14c owns the `author` rule type + task wrapper-verb flag set.",
@@ -30,6 +30,6 @@
         "title": "D14 -- scope-drift + milestone rule v1"
       }
     ],
-    "updated": "2026-05-18T18:35:00Z"
+    "updated": "2026-05-19T21:22:20Z"
   }
 }

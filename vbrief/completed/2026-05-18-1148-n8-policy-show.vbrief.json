@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: N8 child of #1119 Wave-2d-1 -- task policy:show consolidated typed-policy inspector.",
-    "updated": "2026-05-18T21:34:30Z"
+    "updated": "2026-05-19T21:22:21Z"
   },
   "plan": {
     "title": "feat(policy): task policy:show consolidated typed-policy inspector (#1148 / N8)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "N8 child of the #1119 Wave-2d-1 swarm. Ship `task policy:show` as the single read verb that enumerates every registered typed-policy field on plan.policy.* with its current value, default, and source (typed / default / legacy). Replaces the existing single-field branch-policy `task policy:show` (#746) with a consolidated inspector that walks _REGISTERED_POLICIES. Future typed-flag children append to that constant; no code change required in this PR or its consumers beyond append-and-test.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1148. Issue body is canonical (no Current Shape comment filed). Umbrella #1119 Wave-2d-1 batch handed off by orchestrator 019e374b-d84c-70e6-ac54-9d32202b8552; HARD-NO on AGENTS.md edits and the already-merged #1186 consumer-example.",
@@ -25,6 +25,6 @@
         "title": "Umbrella #1119: triage-eval governance swarm"
       }
     ],
-    "updated": "2026-05-18T21:34:30Z"
+    "updated": "2026-05-19T21:22:21Z"
   }
 }

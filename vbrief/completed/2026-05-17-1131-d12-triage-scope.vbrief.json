@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: D12 (#1131) -- cache-scope contract as typed plan.policy.triageScope[] subscription.",
-    "updated": "2026-05-17T20:11:58Z"
+    "updated": "2026-05-19T21:22:20Z"
   },
   "plan": {
     "title": "feat(triage): typed plan.policy.triageScope[] subscription + denominator cache + triage:scope verb (#1131)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "D12 introduces a typed cache-scope contract on PROJECT-DEFINITION.vbrief.json. plan.policy.triageScope[] is a list of rule objects (all-open, labels {any-of|all-of}, opened-since {duration}, updated-since {duration}, referenced-by-vbrief {scope}, sliced-from {scope}, explicit-watch {issues:[{n,note}]}). Framework default when unset is [{rule:'all-open'}]; consumer-specific subscriptions live outside the framework. The milestone rule type is explicitly deferred to D14b / #1181. Coverage denominator caching writes to .deft-cache/<source>/<owner>/<repo>/coverage.json with TTL DEFT_COVERAGE_MAX_AGE_HOURS (24h default); read paths never trigger a recompute and render coverage 247/? when stale. A new task triage:scope verb provides --list (effective rules + per-issue notes) and --refresh-denominator. Subscription hash is canonical-JSON SHA-256 truncated.",
       "Origin": "Wave-1 D12 child of umbrella #1119. Anchored to Current Shape comment 4471901494 on #1131 (canonical, supersedes 2026-05-13 deep-pass amendment).",
@@ -25,6 +25,6 @@
         "title": "Umbrella #1119: Wave-0/1 swarm"
       }
     ],
-    "updated": "2026-05-17T20:11:51Z"
+    "updated": "2026-05-19T21:22:20Z"
   }
 }

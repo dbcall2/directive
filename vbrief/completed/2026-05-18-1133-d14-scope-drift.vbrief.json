@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: D14 (#1133) -- subscription drift detection + milestone rule + subscribe/unsubscribe mutation verbs + triageScopeIgnores[] foundation.",
-    "updated": "2026-05-18T14:30:00Z"
+    "updated": "2026-05-19T21:22:20Z"
   },
   "plan": {
     "title": "feat(triage): scope-drift detector + milestone rule type + subscribe/unsubscribe verbs + triageScopeIgnores[] foundation (#1133)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "D14 extends the D12 subscription contract with three new surfaces: (a) drift detection that walks the .deft-cache/ entries, extracts labels + milestones, and surfaces unsubscribed signals when >=3 cached issues carry them; threshold lives at scripts/triage_scope_drift.py::_DRIFT_MIN_ISSUES = 3 as a framework constant. (b) the milestone rule type {rule: 'milestone', name: '<exact-name>'} added to triageScope[] grammar; any-of/is-open variants stay deferred to D14b/#1181. (c) task triage:scope-drift / triage:subscribe / triage:unsubscribe verbs that atomically mutate PROJECT-DEFINITION.vbrief.json, record a subscription-change audit entry to vbrief/.eval/subscription-history.jsonl (sidecar mirroring D2's summary-history.jsonl precedent; the canonical candidates.jsonl schema is frozen so a subscription change cannot ride it), prompt the operator to re-bootstrap, and remain idempotent. (d) plan.policy.triageScopeIgnores[] typed field accepts {label: <L>} / {milestone: <M>} entries so the drift detector can be told 'don't surface this again' without subscribing. D2's one-liner gains a '[scope-drift] N' segment (suppressed at 0). D6 triage skill mentions the surface in Phase 0 (sync) and Phase 4 (audit).",
       "Origin": "Wave-2b D14 child of umbrella #1119. Issue body #1133 is canonical; umbrella v3 Current Shape comment 4471269010 §9 also pins D14a (this) vs D14b (#1181) vs D14c (#1182) split. Orchestrator prompt clarifies D14 ships the basic milestone rule (exact match) here; D14b will later add any-of / is-open variants.",
@@ -25,6 +25,6 @@
         "title": "Umbrella #1119: Wave-0/1/2 swarm"
       }
     ],
-    "updated": "2026-05-18T14:30:00Z"
+    "updated": "2026-05-19T21:22:20Z"
   }
 }

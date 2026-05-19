@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: D4 (#1124) -- plan.policy.wipCap (default 10) + scope:promote enforcement + D2 default-drift fix.",
-    "updated": "2026-05-18T13:10:00Z"
+    "updated": "2026-05-19T21:22:20Z"
   },
   "plan": {
     "title": "feat(policy): plan.policy.wipCap (default 10) + scope:promote enforcement + D2 default-drift fix (#1124)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "D4 introduces the `plan.policy.wipCap` typed integer field (default 10 per umbrella Current Shape v3 override of issue body's 12) and refuses `task scope:promote` when `pending/ + active/` count is at-or-above cap. `--force` succeeds with a stderr warning and an audit-log entry tagged `wip-cap-override`. Extends `scripts/policy.py` with `WipCapResult` + `resolve_wip_cap`; `scripts/policy_set.py` with a `wip-cap` subcommand; `scripts/vbrief_validate.py` with a lazy-import validation hook; and wires `verify:wip-cap` into `task check`. Fixes D2 (#1122) default-drift by importing the shared `DEFAULT_WIP_CAP = 10` constant in `scripts/triage_summary.py::resolve_wip_cap`.",
       "Origin": "Wave-2a D4 child of umbrella #1119. Issue body says default 12; umbrella Current Shape v3 (comment 4471269010) OVERRIDES to default = 10.",
@@ -25,6 +25,6 @@
         "title": "Umbrella #1119: Wave-2a swarm"
       }
     ],
-    "updated": "2026-05-18T13:10:00Z"
+    "updated": "2026-05-19T21:22:20Z"
   }
 }

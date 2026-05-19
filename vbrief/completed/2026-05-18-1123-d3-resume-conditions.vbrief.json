@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: D3 child of #1119 -- triage:defer --resume-on structured grammar + resume-eligible evaluation.",
-    "updated": "2026-05-18T13:13:18Z"
+    "updated": "2026-05-19T21:22:20Z"
   },
   "plan": {
     "title": "feat(triage): triage:defer --resume-on structured grammar + resume-eligible evaluation (#1123)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "D3 child of the #1119 Wave-2a swarm. Convert defer from a one-way trapdoor to a reversible-by-machine state. Extend `task triage:defer <N>` with required `--reason=\"...\"` and optional `--resume-on=\"<expression>\"` flags. Persist both as structured fields on the `defer` audit-log entry in `vbrief/.eval/candidates.jsonl`. Ship a minimal v1 grammar covering five atomic condition types and top-level AND/OR composition. Extend `task triage:refresh-active` plus a new `task triage:audit --evaluate-resume` flag to walk open defer entries, evaluate each non-null `resume_on` against the cache + current date + pending/ count, and APPEND a `resume-eligible` audit entry (referencing the prior defer's decision_id) whenever the condition fires. Do NOT auto-un-defer. `resume-eligible` items flow into D11's existing `[RESUME]` queue bucket via `derive_group` and contribute to D2's `stale-defer (resume condition met)` count.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1123. Issue body is the spec (no Current Shape comment filed; umbrella #1119 Current Shape v3 takes precedence where overlapping per N12).",
@@ -35,6 +35,6 @@
         "title": "Sibling D11 (consumer of [RESUME] surface): task triage:queue + audit"
       }
     ],
-    "updated": "2026-05-18T13:13:04Z"
+    "updated": "2026-05-19T21:22:20Z"
   }
 }

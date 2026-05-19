@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: N9 (#1149) -- consolidate Wave-1 AGENTS.md session-start + skill-routing edits into a single PR.",
-    "updated": "2026-05-17T18:57:29Z"
+    "updated": "2026-05-19T21:22:21Z"
   },
   "plan": {
     "title": "feat(agents-md): consolidate Wave-1 session-start + skill-routing edits (#1149)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "N9 absorbs every AGENTS.md edit that D2 (#1122), D5 (#1127), D6 (#1130), and D12 (#1131) would otherwise carry. Single PR delivers: (a) canonical Session-start ritual preamble order, (b) 5 new skill-routing entries, (c) cache-as-authoritative top-tier ! / x rule, (d) pre-start_agent gate stack ordering, (e) snapshot-style test asserting all of the above.",
       "Origin": "Wave-0 of #1119 swarm; orchestrator dispatch with Current Shape comment 4471945068. Framework-only meta-instruction edits; no consumer-specific values land in AGENTS.md per the section 12 framework-vs-consumer boundary.",
@@ -25,6 +25,6 @@
         "title": "Umbrella #1119: Wave-0/1 swarm"
       }
     ],
-    "updated": "2026-05-17T18:59:50Z"
+    "updated": "2026-05-19T21:22:21Z"
   }
 }

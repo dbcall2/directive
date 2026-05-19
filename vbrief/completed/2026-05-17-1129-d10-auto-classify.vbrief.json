@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: D10 (#1129) -- auto-classification framework universal rules + plan.policy.triageAutoClassify[] typed consumer config.",
-    "updated": "2026-05-17T21:07:39Z"
+    "updated": "2026-05-19T21:22:20Z"
   },
   "plan": {
     "title": "feat(triage): auto-classification universal rules + plan.policy.triageAutoClassify[] (#1129)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "D10 introduces auto-classification of upstream issues on every triage sync/bootstrap. Four framework universal rules are hardcoded (label-agnostic, body+state+age+vbrief-ref based) per Current Shape Decision 1; consumer-specific rules layer on top via plan.policy.triageAutoClassify[] (typed-matcher schema -- labels, body-text, state, age-days; action defer/archive/escalate/accept; reason; optional resume-on). Hold-marker phrases are configurable via plan.policy.triageHoldMarkers[] (defaults: 'do not implement', 'BLOCKED', 'HOLDING', 'Holding / capture only'). Order of evaluation: framework universal rules first, then consumer rules in declared order; first match wins. Validation lives next to D12's plan.policy validation in scripts/vbrief_validate.py via a hook in the new scripts/triage_classify.py module. Framework defaults MUST NOT reference deft-specific labels (status:superseded-pending, rfc, type:research, wontfix, duplicate, fixed-pending-merge) -- those ship in #1186 consumer-example.",
       "Origin": "Wave-1 D10 child of umbrella #1119. Anchored to Current Shape comment 4471901622 on #1129 (canonical).",
@@ -25,6 +25,6 @@
         "title": "Umbrella #1119: Wave-0/1 swarm"
       }
     ],
-    "updated": "2026-05-17T21:07:34Z"
+    "updated": "2026-05-19T21:22:20Z"
   }
 }

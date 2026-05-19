@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: N4 child of #1119 swarm -- govern vbrief/.eval/ tracking (hybrid) + merge=union + README.",
-    "updated": "2026-05-17T14:59:32Z"
+    "updated": "2026-05-19T21:22:21Z"
   },
   "plan": {
     "title": "feat(eval): govern vbrief/.eval/ tracking + merge=union (#1144)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "N4 child of the #1119 Wave-0 swarm. Replace the blanket `vbrief/.eval/` gitignore with the hybrid tracking policy from the Current Shape comment (4471302391): candidates.jsonl + summary-history.jsonl gitignored (operator-private), slices.jsonl tracked (team-shared). Add a `.gitattributes` rule `vbrief/.eval/*.jsonl merge=union` so append-only JSONL conflicts auto-resolve on rebase. Ship a concise vbrief/.eval/README.md documenting which files are tracked vs gitignored, the merge=union policy, and how to regenerate candidates.jsonl on a fresh clone via `task triage:bootstrap`. Tests simulate two append-branches and verify auto-merge produces the union of appended lines.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1144. Canonical Current Shape comment: https://github.com/deftai/directive/issues/1144#issuecomment-4471302391.",
@@ -30,6 +30,6 @@
         "title": "Umbrella #1119: Wave-0 triage-eval governance swarm"
       }
     ],
-    "updated": "2026-05-17T19:00:29Z"
+    "updated": "2026-05-19T21:22:21Z"
   }
 }

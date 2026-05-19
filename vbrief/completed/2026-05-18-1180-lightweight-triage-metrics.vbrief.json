@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF: #1180 -- lightweight triage metrics; add --since=<window> + --action=<verb> filter flags to D11's task triage:audit verb (lightweight replacement for closed D17 #1135).",
-    "updated": "2026-05-18T20:07:39Z"
+    "updated": "2026-05-19T21:22:20Z"
   },
   "plan": {
     "title": "feat(triage-audit): --since=<window> + --action=<verb> filters (#1180)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Extend D11's task triage:audit verb with two filter flags: --since=<window> (Nd / Nh / Nm or ISO-8601 PnDTnHnMnS, reuses scripts/triage_scope.parse_duration) filters entries newer than now()-window; --action=<verb> filters to a single decision verb. Both flags work with --format=plain and --format=json. No automated trend computation, no falsification gate, no summary-history schema. Read raw, transform with jq.",
       "Origin": "Wave-2c/2e child of umbrella #1119; supersedes closed D17 (#1135) per the 2026-05-14 subtractive pass OE-1. The 2026-05-17 walkthrough kept the demote_meta instrumentation from D1 (#1121) but discarded D17's threshold/gate scaffolding. This child fills the gap with the minimal read surface required to consume the demote_meta data via jq.",
@@ -30,6 +30,6 @@
         "title": "Issue #1128: D11 task triage:queue + audit + show (base verb)"
       }
     ],
-    "updated": "2026-05-18T20:07:33Z"
+    "updated": "2026-05-19T21:22:20Z"
   }
 }
