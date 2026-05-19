@@ -443,4 +443,38 @@ Larger feature work -- only after issues are resolved and content is stable.
 - **#836** -- feat(patterns): prompt-assembly-layer-ordering — separate cached system prompt layers from ephemeral per-turn injections -- `[completed]`
 - Directive story decomposition and swarm readiness -- `[completed]`
 - feat(skills): re-land deft-directive-gh-arch (supersedes #442) -- `[completed]`
+- **#1121** -- feat(scope): scope:demote + --batch + demote_meta audit instrumentation (#1121) -- `[completed]`
+- **#1122** -- feat(triage): task triage:summary one-liner + summary-history.jsonl write (#1122) -- `[completed]`
+- **#1127** -- feat(verify): verify:cache-fresh pre-start_agent gate (subscription-aware) (#1127) -- `[completed]`
+- **#1128** -- feat(triage): triage:queue + audit + show with group-by-state and updated_at within-group (#1128) -- `[completed]`
+- **#1129** -- feat(triage): auto-classification universal rules + plan.policy.triageAutoClassify[] (#1129) -- `[completed]`
+- **#1131** -- feat(triage): typed plan.policy.triageScope[] subscription + denominator cache + triage:scope verb (#1131) -- `[completed]`
+- **#1144** -- feat(eval): govern vbrief/.eval/ tracking + merge=union (#1144) -- `[completed]`
+- **#1149** -- feat(agents-md): consolidate Wave-1 session-start + skill-routing edits (#1149) -- `[completed]`
+- **#1123** -- feat(triage): triage:defer --resume-on structured grammar + resume-eligible evaluation (#1123) -- `[completed]`
+- **#1124** -- feat(policy): plan.policy.wipCap (default 10) + scope:promote enforcement + D2 default-drift fix (#1124) -- `[completed]`
+- **#1132** -- feat(triage): slices.jsonl writer + orphan/slice-coverage audit flags + D3 slice-wave-ready atomic (#1132) -- `[completed]`
+- **#1133** -- feat(triage): scope-drift detector + milestone rule type + subscribe/unsubscribe verbs + triageScopeIgnores[] foundation (#1133) -- `[completed]`
+- **#1134** -- feat(scope): task scope:undo (single + batch-id reversibility) (#1134 / D15) -- `[completed]`
+- **#1141** -- docs(skills): rewrite refinement Phase 0 cache-first (#1141 / N1) -- `[completed]`
+- **#1142** -- docs(skills): rewrite swarm Phase 0 queue-driven (#1142 / N2) -- `[completed]`
+- **#1143** -- feat(triage): task triage:welcome 6-phase onboarding ritual (#1143) -- `[completed]`
+- **#1146** -- feat(triage): task triage:smoketest end-to-end synthetic test (#1146 / N6) -- `[completed]`
+- **#1148** -- feat(policy): task policy:show consolidated typed-policy inspector (#1148 / N8) -- `[completed]`
+- **#1152** -- feat(agents-md): umbrella current-shape convention rules (#1152) -- `[completed]`
+- **#1180** -- feat(triage-audit): --since=<window> + --action=<verb> filters (#1180) -- `[completed]`
+- **#1181** -- feat(triage-scope): milestone rule any-of + is-open variants (#1181) -- `[completed]`
+- **#1182** -- feat(triage-scope): triageScopeIgnores[] author rules + triage:scope wrapper verbs (#1182) -- `[completed]`
+- **#1186** -- feat(consumer-example): deft's triage config + reference doc (#1186) -- `[completed]`
+- **#1145** -- Source-agnostic verb boundary scaffold (partial #445/#935 down-payment) (N5 of #1119) -- `[completed]`
+- **#1147** -- task slice:record-existing — backfill slice records for hand-filed cohorts (N7 of #1119) -- `[completed]`
+- **#1150** -- Categorized verb help surface for task triage / task scope (N10 of #1119) -- `[completed]`
+- **#1228** -- tests(triage_help): add scope-namespace coverage + document triage_subscribe __default__ fallback (#1150 follow-up) -- `[completed]`
+- **#1230** -- fix(slice): address P2 Greptile findings on slice_record_existing (#1147 follow-up) -- `[completed]`
+- **#1231** -- fix(slice): atomic idempotency + Windows quoting (#1147 follow-up) -- `[completed]`
+- **#1236** -- bug(triage): triage:queue returns zero items after bootstrap (case mismatch on cached state field) -- `[completed]`
+- **#1237** -- bug(triage:bootstrap): backfill_audit_log skips with 'no --repo provided' while step 1 inferred the repo -- `[completed]`
+- **#1239** -- perf(cache): triage:bootstrap is GraphQL-heavy; #954 mandates REST-first -- `[completed]`
+- **#1240** -- bug(verify:cache-fresh): still reports 'bootstrap state' after a successful triage:bootstrap -- `[completed]`
+- **#1242** -- docs(changelog): entries MUST be brief release-notes, not implementation detail (v0.32.0 release-blocker) -- `[completed]`
 

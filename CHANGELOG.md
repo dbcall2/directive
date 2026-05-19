@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.32.0] - 2026-05-19
+
+> v0.32.0 ships #1119 cache-as-operator-working-set: REST bootstrap (40x faster), ranked triage queue, slice tracking, scope:undo, queue-driven swarm Phase 0.
+
 ### Fixed
 - **fix(cache): REST writer migration + bootstrap state-machine cleanup (#1236, #1237, #1239, #1240)** -- four v0.32.0 release-blocker fixes that cut `task triage:bootstrap` for the 396-issue cohort from ~504s GraphQL to ~13s paginated REST and let `task triage:queue` find cached issues again. The cache writer now goes through paginated REST with defensive lowercase-state normalisation in the reader, `task triage:bootstrap` resolves the repo once and threads it through every step, and `task verify:cache-fresh` distinguishes never-bootstrapped from freshly-bootstrapped from actively-triaging. Closes #1236, Closes #1237, Closes #1239, Closes #1240. Refs #1119, #1186.
 - **fix(slice): atomic idempotency + Greptile P2 cleanup on `slice_record_existing` (#1230, #1231)** -- closes the deferred P1 TOCTOU race on `task slice:record-existing` so two concurrent invocations without `--force` cannot both observe "no duplicate" and double-write a cohort record; also corrects the `--wave-1` double-count in the summary line, replaces an assert-based safety check that disappeared under `python -O`, and documents the Windows `{{.CLI_ARGS}}` quoting limitation in `CONTRIBUTING.md`. Refs #1119, #1147, #1229.
@@ -2791,7 +2803,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/deftai/directive/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/deftai/directive/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/deftai/directive/compare/v0.29.2...v0.30.0
 [0.29.2]: https://github.com/deftai/directive/compare/v0.29.1...v0.29.2
