@@ -1179,7 +1179,11 @@ REGISTRY: dict[str, VerbHelp] = {
         ),
         usage="task scope:decompose -- <parent> --draft <draft> [--check] [--date YYYY-MM-DD]",
         flags=(
-            ("<parent>", "(required)", "Parent epic/phase vBRIEF path."),
+            (
+                "<parent>",
+                "(conditional)",
+                "Parent epic/phase vBRIEF path; required with --draft, omit only for --check no-op.",
+            ),
             (
                 "--draft PATH",
                 "(required)",

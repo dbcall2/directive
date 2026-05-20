@@ -571,7 +571,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Validate and apply an approved epic/phase story decomposition draft."
     )
-    parser.add_argument("parent", nargs="?", help="Parent epic/phase vBRIEF path")
+    parser.add_argument(
+        "parent",
+        nargs="?",
+        help="Parent epic/phase vBRIEF path (required with --draft; omit only for --check no-op)",
+    )
     parser.add_argument(
         "--draft",
         help=(

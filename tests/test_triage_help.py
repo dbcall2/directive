@@ -299,6 +299,7 @@ def test_intercept_help_scope_decompose_single_verb_default() -> None:
     rendered = sink.getvalue()
     assert rendered.startswith("task scope:decompose")
     assert "--draft" in rendered
+    assert "required with --draft, omit only for --check no-op" in rendered
 
 
 def test_intercept_help_scope_lifecycle_promote_subcommand() -> None:
