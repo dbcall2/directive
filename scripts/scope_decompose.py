@@ -572,7 +572,13 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         description="Validate and apply an approved epic/phase story decomposition draft."
     )
     parser.add_argument("parent", nargs="?", help="Parent epic/phase vBRIEF path")
-    parser.add_argument("--draft", help="Approved decomposition JSON draft")
+    parser.add_argument(
+        "--draft",
+        help=(
+            "Approved decomposition JSON draft "
+            "(recommended: vbrief/.eval/decompositions/<parent-slug>.json)"
+        ),
+    )
     parser.add_argument("--check", action="store_true", help="Validate only; do not write")
     parser.add_argument("--date", help="Creation date for generated child filenames")
     parser.add_argument("--project-root", default=".", help="Project root containing vbrief/")

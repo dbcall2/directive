@@ -1173,18 +1173,23 @@ REGISTRY: dict[str, VerbHelp] = {
         refs="(deft-directive-decompose skill)",
         description=(
             "Validate or apply an approved epic/phase -> story "
-            "decomposition draft. Writes pending child vBRIEFs and "
+            "decomposition draft. The draft is a temporary proposal "
+            "artifact, not a vBRIEF. Writes pending child vBRIEFs and "
             "wires references back into the parent epic."
         ),
         usage="task scope:decompose -- <parent> --draft <draft> [--check] [--date YYYY-MM-DD]",
         flags=(
             ("<parent>", "(required)", "Parent epic/phase vBRIEF path."),
-            ("--draft PATH", "(required)", "Approved decomposition JSON draft."),
+            (
+                "--draft PATH",
+                "(required)",
+                "Approved decomposition JSON draft; prefer vbrief/.eval/decompositions/<parent-slug>.json.",
+            ),
             ("--check", "(off)", "Validate only; do not write."),
             ("--date YYYY-MM-DD", "today", "Creation date for generated child filenames."),
         ),
         examples=(
-            "task scope:decompose -- vbrief/active/epic.vbrief.json --draft draft.json --check",
+            "task scope:decompose -- vbrief/active/epic.vbrief.json --draft vbrief/.eval/decompositions/epic.json --check",
         ),
         see_also=(
             "task scope:promote",

@@ -13,6 +13,9 @@ def test_speckit_documents_phase_45() -> None:
     text = _read("strategies/speckit.md")
     assert "## Phase 4.5: Story Decomposition / Swarm Readiness" in text
     assert "task scope:decompose" in text
+    assert "vbrief/.eval/decompositions/ip001-auth.json" in text
+    assert "temporary proposal artifact, not a vBRIEF" in text
+    assert "agents MUST NOT leave decomposition draft JSON files at the workspace root" in text
     assert "task swarm:readiness" in text
     assert "plan.metadata.swarm" in text
     assert "Parent `plan.items` are input signals, not automatic child stories" in text
@@ -35,6 +38,10 @@ def test_vbrief_documents_epic_phase_story_swarm_semantics() -> None:
         "As a <role>, I want <capability>, so that <outcome>.",
         "2-5 concrete acceptance criteria",
         "readiness = \"sequential\"",
+        "vbrief/.eval/decompositions/",
+        "temporary proposal artifact, not a vBRIEF",
+        "MUST NOT leave decomposition draft JSON files at the workspace root",
+        "default to `vbrief/pending/`",
     ):
         assert token in text
 
@@ -60,6 +67,25 @@ def test_decompose_skill_exists_and_uses_deterministic_commands() -> None:
     assert "ImplementationPlan" in text
     assert "2-5 concrete acceptance criteria" in text
     assert "to refine from parent scope" in text
+    assert "temporary proposal artifact, not a vBRIEF" in text
+    assert "vbrief/.eval/decompositions/ip001-auth.json" in text
+    assert "Agents MUST NOT leave decomposition draft JSON files at the workspace root" in text
+    assert "defaulting to `vbrief/pending/`" in text
+
+
+def test_decomposition_docs_do_not_teach_root_draft_paths() -> None:
+    for path in (
+        "skills/deft-directive-decompose/SKILL.md",
+        "strategies/speckit.md",
+        "vbrief/vbrief.md",
+        "scripts/scope_decompose.py",
+        "scripts/triage_help.py",
+    ):
+        text = _read(path)
+        assert "--draft decomposition.json" not in text
+        assert "--draft draft.json" not in text
+        assert "--draft <decomposition.json>" not in text
+        assert "--draft <draft.json>" not in text
 
 
 def test_make_spec_no_longer_teaches_stale_planitem_patterns() -> None:
