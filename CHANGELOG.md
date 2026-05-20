@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
+### Removed
+
+## [0.32.1] - 2026-05-20
+
+> v0.32.1 ships seven cache-aware triage dogfood bug fixes (#1244-#1248, #1250, #1251), unblocking the v0.32.0 first-session experience.
+
+### Added
+
+### Changed
+
+### Fixed
 - **fix(triage,determinism): `task verify:cache-fresh` no longer false-fails on a backfill-only cache state (#1245)** -- the pre-`start_agent` freshness gate previously refused a fresh `task triage:bootstrap` whenever every cached open issue happened to fall outside the active `plan.policy.triageScope[]` subscription, even though the backfilled `accept` audit-log rows showed the consumer was actively triaging. The recovery hint ("widen the subscription") was wrong for that state. The gate now distinguishes a backfill-only cache (cached entries present, none in subscription, audit log populated) from a genuine misconfiguration (no in-scope entries AND no triage activity); the first state exits 0 with a state-aware message so the pre-`start_agent` gate stack composes, while downstream `--for-issue` dispatch still enforces per-issue scope + decision. Closes #1245.
 - **fix(triage): `task triage:welcome` no longer silently skips bootstrap (#1244)** -- the welcome ritual now reliably populates `vbrief/.eval/candidates.jsonl` on first-session runs. Phase 3 keys off the canonical "bootstrap finished" audit log the same way downstream verbs (`task triage:queue`, `task verify:cache-fresh`) consume, so a partially-populated `.deft-cache/` from a prior run cannot trick the ritual into reporting completion while the cache is empty. Dry-mode runs (`--no-subprocess`) loudly surface that the cache will remain absent, and operators can explicitly decline bootstrap via a new `--skip-bootstrap` flag that records a persistent audit trail. Closes #1244.
 - **fix(ingest): `task issue:ingest` enriches vBRIEFs from issue body (#1248)** -- the ingester no longer produces stub-only scope vBRIEFs. `narratives.Overview` continues to carry the issue body verbatim, and `plan.items[]` is now populated from Markdown task-list checkboxes (`- [ ] ...`) or from a numbered / bulleted list under an `Acceptance Criteria` heading. Closing-keyword cross-refs in the body (`Closes #N`, `Refs #N`, `Blocked by #N`) lift into typed `plan.references[]` entries (`x-vbrief/closes`, `x-vbrief/refs`, `x-vbrief/blocks`); code-fenced examples and self-references are skipped. Closes #1248.
@@ -2810,7 +2822,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.32.1...HEAD
+[0.32.1]: https://github.com/deftai/directive/compare/v0.32.0...v0.32.1
 [0.32.0]: https://github.com/deftai/directive/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/deftai/directive/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/deftai/directive/compare/v0.29.2...v0.30.0
