@@ -310,7 +310,10 @@ def test_clean_install_runs_all_phases(tmp_path: Path) -> None:
     assert 4 in outcome.phases_run
     assert 5 in outcome.phases_skipped  # WIP 0 <= cap 10
     assert 6 in outcome.phases_run
-    # Subscription + cap landed on PROJECT-DEFINITION.
+    # Subscription landed; #1250: wipCap MUST remain unset when the
+    # operator accepts the framework default on a fresh consumer
+    # (per #1186 Deliverable 1 -- the field is omitted, consumers
+    # inherit the default).
     data = json.loads(
         (tmp_path / "vbrief" / "PROJECT-DEFINITION.vbrief.json").read_text(
             encoding="utf-8"
@@ -319,7 +322,27 @@ def test_clean_install_runs_all_phases(tmp_path: Path) -> None:
     assert data["plan"]["policy"]["triageScope"] == triage_welcome.SUBSCRIPTION_PRESETS[
         "mid"
     ]
-    assert data["plan"]["policy"]["wipCap"] == 10
+    assert "wipCap" not in data["plan"]["policy"], (
+        "plan.policy.wipCap must remain unset when the operator accepts "
+        "the framework default 10 on a fresh consumer (#1250 / #1186 "
+        "Deliverable 1)."
+    )
+    # And the no-op MUST NOT append a row to meta/policy-changes.log
+    # for the wipCap default-confirm -- only the triageScope write does.
+    audit_log = (tmp_path / triage_welcome.AUDIT_LOG_REL_PATH).read_text(
+        encoding="utf-8"
+    )
+    assert "field=plan.policy.wipCap" not in audit_log, (
+        "#1250: default-confirm wipCap must not write a policy-changes.log row"
+    )
+    joined = output.joined()
+    assert "Wrote plan.policy.wipCap = 10" not in joined, (
+        "#1250: default-confirm wipCap must not claim a write happened"
+    )
+    assert (
+        "plan.policy.wipCap = 10 "
+        "(framework default; field not materialized)"
+    ) in joined
 
 
 def test_partial_install_skips_completed_phases(tmp_path: Path) -> None:
@@ -499,7 +522,7 @@ def test_back_at_phase_4_rewinds_to_phase_2_and_completes(tmp_path: Path) -> Non
     )
     joined = output.joined()
     assert outcome.exit_code == 0
-    # Phase 4 actually wrote wipCap this time (P1 #2 regression guard).
+    # Phase 4 visited and the operator picked the default (P1 #2 regression guard).
     assert outcome.wip_cap_choice == 10
     # Phase 2 was visited (Back forced the re-prompt), Phase 4 ran, Phase 6 ran.
     assert 2 in outcome.phases_run
@@ -507,8 +530,9 @@ def test_back_at_phase_4_rewinds_to_phase_2_and_completes(tmp_path: Path) -> Non
     assert 6 in outcome.phases_run
     # Operator-visible Back-rewind line was emitted.
     assert "[back] Rewinding to Phase 2" in joined
-    # Persisted state: subscription changed mid (orig) -> small (post-Back),
-    # wipCap=10 set.
+    # Persisted state: subscription changed mid (orig) -> small (post-Back).
+    # #1250: wipCap MUST remain unset because the operator picked the
+    # framework default on a previously-unset consumer.
     data = json.loads(
         (tmp_path / "vbrief" / "PROJECT-DEFINITION.vbrief.json").read_text(
             encoding="utf-8"
@@ -518,7 +542,9 @@ def test_back_at_phase_4_rewinds_to_phase_2_and_completes(tmp_path: Path) -> Non
         data["plan"]["policy"]["triageScope"]
         == triage_welcome.SUBSCRIPTION_PRESETS["small"]
     )
-    assert data["plan"]["policy"]["wipCap"] == 10
+    assert "wipCap" not in data["plan"]["policy"], (
+        "#1250: default-confirm at Phase 4 must not materialize wipCap"
+    )
 
 
 def test_back_at_phase_2_rewinds_to_phase_1_without_recursion(
@@ -866,3 +892,4 @@ def test_cli_skip_bootstrap_flag_threads_through(
     )
     assert rc == 0
     assert captured.get("skip_bootstrap") is True
+

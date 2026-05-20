@@ -1,46 +1,10 @@
 #!/usr/bin/env python3
-"""triage_welcome.py -- ``task triage:welcome`` 6-phase onboarding ritual (#1143).
+"""``task triage:welcome`` 6-phase onboarding ritual (#1143).
 
-N3 child of the #1119 Wave-2a swarm. Consolidates the half-dozen verbs a
-v0.26 consumer must learn after upgrading to v0.27 (`triage:bootstrap`,
-`triage:scope`, policy writes for `wipCap`, `scope:demote --batch`,
-`triage:summary`, the new triage skill) into a single idempotent walkthrough.
-
-Six phases, each detection-bound so a partial re-run resumes cleanly:
-
-1. **Detect prior state** -- read ``vbrief/PROJECT-DEFINITION.vbrief.json``
-   for ``plan.policy.triageScope[]`` and ``plan.policy.wipCap``; walk the
-   unified ``.deft-cache/<source>/<owner>/<repo>/`` cache (#883 Story 2);
-   count vBRIEFs in ``vbrief/pending/`` + ``vbrief/active/``.
-2. **Prompt subscription scope** -- numbered menu (Small / Mid / Mega) per
-   :doc:`contracts/deterministic-questions.md`; writes the typed array
-   ``plan.policy.triageScope[]`` (#1131 / D12) via :func:`write_triage_scope`.
-   Skipped when already set.
-3. **Run ``task triage:bootstrap``** -- subprocess hop into the existing
-   D10 (#1129) / cache (#883) bootstrap. Skipped when the cache is
-   already populated.
-4. **Prompt ``wipCap``** -- numbered menu (8 / 10 / 15 / custom); default
-   = **10** per umbrella Current Shape v3 (NOT 12 from the stale issue
-   body wording). Writes ``plan.policy.wipCap`` via
-   :func:`write_wip_cap`. Skipped when already set.
-5. **Offer WIP relief** -- when ``vbrief/pending/ + vbrief/active/``
-   exceeds the chosen cap, preview the planned
-   ``task scope:demote --batch --older-than-days 30`` (#1121 / D1)
-   relief invocation; require explicit confirmation before the real run.
-6. **Final summary** -- emit ``task triage:summary`` (#1122 / D2) and
-   point the operator at ``skills/deft-directive-triage/SKILL.md`` (#1130).
-
-The ritual is pure-stdlib so it runs on a fresh worktree before ``uv sync``
-has executed (the parent Taskfile dispatch already brings up the env).
-Inputs are stdin-driven for end-to-end CLI use but every phase accepts
-injected ``input_fn`` / ``output_fn`` for the test suite to drive
-deterministically.
-
-D4 (#1124, parallel-wave) ships the dedicated ``policy_set.py wip-cap``
-subcommand for the typed-flag writer surface. Until then this module
-hand-rolls the write (mirroring :mod:`policy`'s ``set_policy`` shape) and
-the follow-up swap to D4's surface lands as a small refactor once D4
-merges.
+Consolidates triage bootstrap, subscription scope, wipCap, WIP relief,
+summary, and triage-skill handoff into one idempotent walkthrough.
+D4 (#1124) will replace the hand-rolled wipCap writer with the dedicated
+policy-set surface once that parallel-wave work merges.
 """
 
 from __future__ import annotations
@@ -58,6 +22,11 @@ from typing import Any
 # Make sibling scripts importable when invoked as
 # ``python scripts/triage_welcome.py``.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from _project_definition_io import (  # noqa: E402  (after sys.path tweak)
+    atomic_write_project_definition,
+    project_definition_mutation_lock,
+)
 
 # UTF-8 self-reconfigure -- the prompts emit ⊗ / · / arrows / checkmarks.
 for _stream in (sys.stdout, sys.stderr):
@@ -344,31 +313,29 @@ def write_triage_scope(
             joined = "; ".join(errors)
             raise ValueError(f"plan.policy.triageScope schema errors: {joined}")
 
-    data = json.loads(path.read_text(encoding="utf-8"))
-    plan = data.setdefault("plan", {})
-    if not isinstance(plan, dict):
-        raise ValueError("PROJECT-DEFINITION 'plan' is not an object")
-    policy = plan.setdefault("policy", {})
-    if not isinstance(policy, dict):
-        raise ValueError("plan.policy is not an object")
-    previous = policy.get("triageScope")
-    policy["triageScope"] = rules
-    path.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    with project_definition_mutation_lock(project_root):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        plan = data.setdefault("plan", {})
+        if not isinstance(plan, dict):
+            raise ValueError("PROJECT-DEFINITION 'plan' is not an object")
+        policy = plan.setdefault("policy", {})
+        if not isinstance(policy, dict):
+            raise ValueError("plan.policy is not an object")
+        previous = policy.get("triageScope")
+        policy["triageScope"] = rules
+        atomic_write_project_definition(path, data)
 
-    changed = previous != rules
-    audit_parts = [
-        f"actor={actor}",
-        "field=plan.policy.triageScope",
-        f"preset={preset_label}",
-        f"rule_count={len(rules)}",
-        f"changed={'true' if changed else 'false'}",
-    ]
-    audit_entry = " ".join(audit_parts)
-    append_audit_entry(project_root, audit_entry)
-    return changed, audit_entry
+        changed = previous != rules
+        audit_parts = [
+            f"actor={actor}",
+            "field=plan.policy.triageScope",
+            f"preset={preset_label}",
+            f"rule_count={len(rules)}",
+            f"changed={'true' if changed else 'false'}",
+        ]
+        audit_entry = " ".join(audit_parts)
+        append_audit_entry(project_root, audit_entry)
+        return changed, audit_entry
 
 
 # ---------------------------------------------------------------------------
@@ -382,39 +349,60 @@ def write_wip_cap(
     *,
     actor: str = WELCOME_AUDIT_TAG,
 ) -> tuple[bool, str]:
-    """In-place set ``plan.policy.wipCap`` to *wip_cap*.
+    """Persist, omit, or clear ``plan.policy.wipCap`` per #1250.
 
-    Hand-rolled because D4 (#1124) ships in parallel; once D4's
-    ``policy_set.py wip-cap`` subcommand lands the body here becomes a
-    thin subprocess delegation. The function signature is the contract.
+    Matrix: fresh default-confirm => no JSON write and no audit row;
+    existing override reset to default => remove the typed field and
+    audit cleanup; non-default values => materialize/audit the typed
+    override, with ``changed=false`` for same-value re-confirm.
+
+    Hand-rolled until D4 (#1124) lands the dedicated policy-set surface.
     """
     if not isinstance(wip_cap, int) or isinstance(wip_cap, bool) or wip_cap < 1:
         raise ValueError(f"wipCap must be a positive int, got {wip_cap!r}")
     path = project_definition_path(project_root)
     if not path.is_file():
         raise FileNotFoundError(f"PROJECT-DEFINITION not found at {path}")
-    data = json.loads(path.read_text(encoding="utf-8"))
-    plan = data.setdefault("plan", {})
-    if not isinstance(plan, dict):
-        raise ValueError("PROJECT-DEFINITION 'plan' is not an object")
-    policy = plan.setdefault("policy", {})
-    if not isinstance(policy, dict):
-        raise ValueError("plan.policy is not an object")
-    previous = policy.get("wipCap")
-    policy["wipCap"] = wip_cap
-    path.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    with project_definition_mutation_lock(project_root):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        plan = data.setdefault("plan", {})
+        if not isinstance(plan, dict):
+            raise ValueError("PROJECT-DEFINITION 'plan' is not an object")
+        policy = plan.setdefault("policy", {})
+        if not isinstance(policy, dict):
+            raise ValueError("plan.policy is not an object")
+        previous = policy.get("wipCap")
 
-    changed = previous != wip_cap
-    audit_entry = (
-        f"actor={actor} field=plan.policy.wipCap "
-        f"value={wip_cap} previous={previous!r} "
-        f"changed={'true' if changed else 'false'}"
-    )
-    append_audit_entry(project_root, audit_entry)
-    return changed, audit_entry
+        # Case 1: default-confirm on a fresh consumer -- the field stays
+        # omitted (#1250 / #1186 Deliverable 1). No JSON write, no audit row.
+        if previous is None and wip_cap == DEFAULT_WIP_CAP:
+            return False, ""
+
+        # Case 2: operator cleared back to the framework default -- remove the
+        # typed field so downstream resolvers report ``source=default``.
+        if previous is not None and wip_cap == DEFAULT_WIP_CAP:
+            del policy["wipCap"]
+            atomic_write_project_definition(path, data)
+            audit_entry = (
+                f"actor={actor} field=plan.policy.wipCap "
+                f"action=cleared-to-default value={wip_cap} "
+                f"previous={previous!r} changed=true"
+            )
+            append_audit_entry(project_root, audit_entry)
+            return True, audit_entry
+
+        # Case 3: explicit non-default write (including same-value re-confirm).
+        policy["wipCap"] = wip_cap
+        atomic_write_project_definition(path, data)
+
+        changed = previous != wip_cap
+        audit_entry = (
+            f"actor={actor} field=plan.policy.wipCap "
+            f"value={wip_cap} previous={previous!r} "
+            f"changed={'true' if changed else 'false'}"
+        )
+        append_audit_entry(project_root, audit_entry)
+        return changed, audit_entry
 
 
 # ---------------------------------------------------------------------------
@@ -871,7 +859,18 @@ def run_welcome(
                 out_fn(f"  ! Failed to write plan.policy.wipCap: {exc}")
                 outcome.exit_code = 2
                 return outcome
-            out_fn(f"  Wrote plan.policy.wipCap = {cap_choice}")
+            if "action=cleared-to-default" in _entry:
+                out_fn(
+                    "  Cleared plan.policy.wipCap override "
+                    f"(inheriting framework default {cap_choice})"
+                )
+            elif _entry:
+                out_fn(f"  Wrote plan.policy.wipCap = {cap_choice}")
+            else:
+                out_fn(
+                    f"  plan.policy.wipCap = {cap_choice} "
+                    "(framework default; field not materialized)"
+                )
             outcome.wip_cap_choice = cap_choice
             _record_run(4)
             phase = 5
