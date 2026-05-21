@@ -15,7 +15,8 @@ def test_speckit_documents_phase_45() -> None:
     assert "task scope:decompose" in text
     assert "vbrief/.eval/decompositions/ip001-auth.json" in text
     assert "temporary proposal artifact, not a vBRIEF" in text
-    assert "agents MUST NOT leave decomposition draft JSON files at the workspace root" in text
+    assert "Agents MUST NOT leave decomposition draft JSON files at the workspace root" in text
+    assert "Derive `<parent-slug>` from the parent vBRIEF filename" in text
     assert "task swarm:readiness" in text
     assert "plan.metadata.swarm" in text
     assert "Parent `plan.items` are input signals, not automatic child stories" in text
@@ -41,6 +42,7 @@ def test_vbrief_documents_epic_phase_story_swarm_semantics() -> None:
         "vbrief/.eval/decompositions/",
         "temporary proposal artifact, not a vBRIEF",
         "MUST NOT leave decomposition draft JSON files at the workspace root",
+        "Derive `<parent-slug>` from the parent vBRIEF filename",
         "default to `vbrief/pending/`",
     ):
         assert token in text
@@ -69,6 +71,7 @@ def test_decompose_skill_exists_and_uses_deterministic_commands() -> None:
     assert "to refine from parent scope" in text
     assert "temporary proposal artifact, not a vBRIEF" in text
     assert "vbrief/.eval/decompositions/ip001-auth.json" in text
+    assert "Derive `<parent-slug>` from the parent vBRIEF filename" in text
     assert "Agents MUST NOT leave decomposition draft JSON files at the workspace root" in text
     assert "defaulting to `vbrief/pending/`" in text
 

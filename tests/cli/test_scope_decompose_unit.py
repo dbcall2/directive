@@ -1309,6 +1309,26 @@ class TestMainCLI:
         captured = capsys.readouterr()
         assert "parent path and --draft are required" in captured.err
 
+    def test_main_check_with_draft_but_no_parent_errors(
+        self,
+        scope: ModuleType,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        draft = _write_json(tmp_path / "decomp.json", _good_draft())
+        rc = scope.main(
+            [
+                "--draft",
+                str(draft),
+                "--check",
+                "--project-root",
+                str(tmp_path),
+            ]
+        )
+        assert rc == 2
+        captured = capsys.readouterr()
+        assert "parent path and --draft are required" in captured.err
+
     def test_main_missing_parent_file(
         self,
         scope: ModuleType,
@@ -1348,6 +1368,60 @@ class TestMainCLI:
         assert rc == 2
         captured = capsys.readouterr()
         assert "decomposition draft not found" in captured.err
+
+    def test_main_invalid_date_errors(
+        self,
+        scope: ModuleType,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        parent = _write_parent(tmp_path)
+        draft = _write_json(tmp_path / "decomp.json", _good_draft())
+        rc = scope.main(
+            [
+                str(parent),
+                "--draft",
+                str(draft),
+                "--date",
+                "2026-99-99",
+                "--check",
+                "--project-root",
+                str(tmp_path),
+            ]
+        )
+        assert rc == 2
+        captured = capsys.readouterr()
+        assert "--date must be YYYY-MM-DD" in captured.err
+
+    def test_main_unwritable_parent_errors_before_apply(
+        self,
+        scope: ModuleType,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        parent = _write_parent(tmp_path)
+        draft = _write_json(tmp_path / "decomp.json", _good_draft())
+
+        def fake_access(candidate: Path, mode: int) -> bool:
+            return not (Path(candidate) == parent and mode == scope.os.W_OK)
+
+        monkeypatch.setattr(scope.os, "access", fake_access)
+
+        rc = scope.main(
+            [
+                str(parent),
+                "--draft",
+                str(draft),
+                "--date",
+                "2026-05-12",
+                "--project-root",
+                str(tmp_path),
+            ]
+        )
+        assert rc == 2
+        captured = capsys.readouterr()
+        assert "parent vBRIEF is not writable" in captured.err
 
     def test_main_success_prints_actions(
         self,

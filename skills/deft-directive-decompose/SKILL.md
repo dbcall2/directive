@@ -32,6 +32,7 @@ Convert approved specification/phase/epic scope vBRIEFs into swarm-ready child s
 - ! Draft a decomposition JSON proposal with child stories only; do not write child vBRIEFs yet.
 - ! Treat the draft JSON as a temporary proposal artifact, not a vBRIEF.
 - ! Write draft proposals under `vbrief/.eval/decompositions/`, using a parent-derived slug such as `vbrief/.eval/decompositions/ip001-auth.json`.
+- ! Derive `<parent-slug>` from the parent vBRIEF filename by removing `.vbrief.json` and any leading `YYYY-MM-DD-` date prefix; for example, `vbrief/pending/2026-05-12-ip001-auth.vbrief.json` uses `ip001-auth`, while `vbrief/pending/feature-xyz.vbrief.json` uses `feature-xyz`.
 - ⊗ Agents MUST NOT leave decomposition draft JSON files at the workspace root.
 - ! Each story MUST include `id`, `title`, `Description`, `ImplementationPlan`, `UserStory`, executable `items` or `acceptance`, `traces` or explicit trace justification, `swarm.file_scope`, `swarm.verify_commands`, `swarm.expected_outputs`, `swarm.depends_on`, `swarm.conflict_group`, `swarm.size`, `swarm.file_scope_confidence`, and `swarm.model_tier`.
 - ! `Description` MUST provide at least two concrete sentences explaining the user/product behavior, boundaries, and why this story is independently buildable.

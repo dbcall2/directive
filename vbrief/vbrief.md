@@ -289,6 +289,7 @@ When a scope grows too large, the parent vBRIEF becomes an epic and children are
 - ! Scope splitting MUST use an approved draft and `task scope:decompose` for child writes
 - ! Decomposition draft JSON is a temporary proposal artifact, not a vBRIEF
 - ! Agents SHOULD write decomposition draft proposals under `vbrief/.eval/decompositions/`
+- ! Derive `<parent-slug>` from the parent vBRIEF filename by removing `.vbrief.json` and any leading `YYYY-MM-DD-` date prefix; for example, `2026-05-12-ip001-auth.vbrief.json` becomes `ip001-auth`
 - ⊗ Agents MUST NOT leave decomposition draft JSON files at the workspace root
 - ! Generated child story vBRIEFs remain lifecycle artifacts and default to `vbrief/pending/`
 - ! Run `task swarm:readiness` after decomposition before concurrent worker allocation

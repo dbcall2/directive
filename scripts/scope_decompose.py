@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -69,6 +70,17 @@ def _resolve_path(project_root: Path, value: str | None) -> Path | None:
         return None
     path = Path(value)
     return path if path.is_absolute() else project_root / path
+
+
+def _is_valid_creation_date(value: str) -> bool:
+    """Return whether value is an exact YYYY-MM-DD calendar date."""
+    if len(value) != 10:
+        return False
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return False
+    return parsed.strftime("%Y-%m-%d") == value
 
 
 def _vbrief_dir(project_root: Path) -> Path:
@@ -600,10 +612,13 @@ def main(argv: list[str] | None = None) -> int:
     project_root = Path(args.project_root).resolve()
     parent_path = _resolve_path(project_root, args.parent)
     draft_path = _resolve_path(project_root, args.draft)
-    if parent_path is None or draft_path is None:
+    if parent_path is None and draft_path is None:
         if args.check:
             print("OK no decomposition draft supplied; nothing to apply.")
             return 0
+        print("ERROR: parent path and --draft are required", file=sys.stderr)
+        return 2
+    if parent_path is None or draft_path is None:
         print("ERROR: parent path and --draft are required", file=sys.stderr)
         return 2
     if not parent_path.is_file():
@@ -613,6 +628,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: decomposition draft not found: {draft_path}", file=sys.stderr)
         return 2
     date = args.date or datetime.now(UTC).strftime("%Y-%m-%d")
+    if not _is_valid_creation_date(date):
+        print(f"ERROR: --date must be YYYY-MM-DD, got {date!r}", file=sys.stderr)
+        return 2
+    if not args.check and not os.access(parent_path, os.W_OK):
+        print(f"ERROR: parent vBRIEF is not writable: {parent_path}", file=sys.stderr)
+        return 2
     try:
         actions = apply_decomposition(
             project_root=project_root,

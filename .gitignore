@@ -77,12 +77,16 @@ vbrief/*.premigrate.*
 #                               audit decisions; D1 / #1121). Per-operator
 #                               demote stream; sharing would conflate
 #                               operators' demote timing across the team.
+#   - decompositions/        -> gitignored (temporary decomposition proposal
+#                               drafts; generated child story vBRIEFs live in
+#                               lifecycle folders via task scope:decompose).
 #   - slices.jsonl           -> TRACKED (team-shared cohort records produced
 #                               by slicing skills; see #1132 / D13).
 # See vbrief/.eval/README.md for the full policy + merge=union rebase note.
 vbrief/.eval/candidates.jsonl
 vbrief/.eval/summary-history.jsonl
 vbrief/.eval/scope-lifecycle.jsonl
+vbrief/.eval/decompositions/
 vbrief/.eval/*.lock
 
 # N6 (#1146) triage:smoketest assert log -- runtime artefact, never committed.

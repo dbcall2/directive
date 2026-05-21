@@ -43,6 +43,12 @@ def test_gitignore_has_selective_eval_entries() -> None:
     assert "vbrief/.eval/summary-history.jsonl" in body, (
         "operator-private summary-history.jsonl must be gitignored (#1144)"
     )
+    assert "vbrief/.eval/scope-lifecycle.jsonl" in body, (
+        "operator-private scope-lifecycle.jsonl must be gitignored (#1144)"
+    )
+    assert "vbrief/.eval/decompositions/" in body, (
+        "temporary decomposition proposal drafts must be gitignored"
+    )
 
 
 def test_gitignore_does_not_blanket_ignore_eval_directory() -> None:
@@ -83,7 +89,7 @@ def test_gitattributes_declares_merge_union_for_eval_jsonl() -> None:
 
 
 def test_eval_readme_documents_policy() -> None:
-    """`vbrief/.eval/README.md` exists and covers the three load-bearing claims."""
+    """`vbrief/.eval/README.md` exists and covers load-bearing policy claims."""
     readme = REPO_ROOT / "vbrief" / ".eval" / "README.md"
     assert readme.is_file(), "vbrief/.eval/README.md must exist (#1144)"
     body = readme.read_text(encoding="utf-8")
@@ -91,6 +97,10 @@ def test_eval_readme_documents_policy() -> None:
     assert "slices.jsonl" in body
     assert "candidates.jsonl" in body
     assert "summary-history.jsonl" in body
+    assert "scope-lifecycle.jsonl" in body
+    assert "decompositions/" in body
+    assert "Temporary story-decomposition proposal drafts" in body
+    assert "not vBRIEFs" in body
     # Fresh-clone regeneration command
     assert "task triage:bootstrap" in body
     # merge=union policy + the load-bearing "no dedupe" qualifier so future
