@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **chore(vbrief): decompose #742 into three homes (#1283, #1284, #1285)** -- split the ADR-001 alignment vehicle into a pack-slicing RFC (#1283), a vBRIEF-as-canonical epic (#1284), and a CRUD-harness epic (#1285); filed 14 new children, adopted #1274, and cancelled the empirical-validation vBRIEF. Closes #742; refs #1273, #1167, #1119.
 
 ### Changed
 
