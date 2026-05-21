@@ -706,14 +706,63 @@ def _detect_pre_cutover_legacy(project_root: Path) -> List[str]:
     return legacy
 
 
+# Positive framework-repo markers used by `_running_inside_deft_repo` to
+# distinguish the deft source checkout from a consumer project that happens
+# to carry a root-level `main.md` for unrelated reasons. Both must resolve
+# under `project_root` for the heuristic to fire as "yes, this is the deft
+# framework repo itself" -- a consumer mirroring even one of these paths is
+# vanishingly unlikely (each is purely framework-internal), and requiring
+# BOTH defends against accidental drift if a future consumer convention
+# starts colliding with a single name. See #1303 review (SLizard P1 +
+# Greptile carryover).
+_DEFT_REPO_POSITIVE_MARKERS = (
+    Path("templates") / "agents-entry.md",
+    Path("skills") / "deft-directive-build" / "SKILL.md",
+)
+
+
 def _running_inside_deft_repo(project_root: Path) -> bool:
     """Heuristic: True when `run` is invoked from inside the deft repo itself.
 
-    Consumer projects embed deft as `./deft/`; the deft source repo has
-    `main.md` at its root and no `./deft/` subdirectory.  Skipping the gate
-    here avoids nagging deft maintainers on every `run` invocation.
+    Consumer projects embed deft as ``./deft/`` (legacy) or ``./.deft/core/``
+    (canonical) and consume the framework's published surface; the deft
+    source repo carries ``main.md`` at its root, has neither install
+    location materialised inside its own checkout, AND ships a set of
+    framework-internal artefacts (notably ``templates/agents-entry.md`` and
+    ``skills/deft-directive-build/SKILL.md``) a consumer would have no
+    reason to mirror.
+
+    The heuristic fires only when ALL of the following hold:
+      * ``main.md`` is present at ``project_root`` (the documented entry
+        point a consumer never reproduces verbatim).
+      * NEITHER ``./deft`` (legacy install) NOR ``./.deft/core`` (canonical
+        install) exists at the project root -- both indicate the deft
+        framework was installed INTO this directory rather than that this
+        directory IS the framework.
+      * ALL of the markers in ``_DEFT_REPO_POSITIVE_MARKERS`` resolve --
+        framework-internal paths a consumer would never reproduce.
+
+    The original heuristic (#1272 baseline) checked only ``main.md`` plus
+    the absence of ``./deft``; that mis-fired on a consumer who happened
+    to carry a root-level ``main.md`` for unrelated reasons OR who
+    installed canonically to ``./.deft/core`` and so genuinely had no
+    ``./deft`` subdirectory -- doctor would then silently skip the
+    Taskfile-include diagnostic in exactly the place it was meant to
+    surface (#1303 review SLizard P1, Greptile carryover).
+
+    Skipping the gate here avoids nagging deft maintainers on every
+    ``run`` invocation against the framework checkout itself.
     """
-    return (project_root / "main.md").is_file() and not (project_root / "deft").is_dir()
+    if not (project_root / "main.md").is_file():
+        return False
+    if (project_root / "deft").is_dir():
+        return False
+    if (project_root / ".deft" / "core").is_dir():
+        return False
+    for marker in _DEFT_REPO_POSITIVE_MARKERS:
+        if not (project_root / marker).is_file():
+            return False
+    return True
 
 
 # Commands for which the gate is silent -- they never touch project state.
@@ -731,6 +780,20 @@ _UPGRADE_GATE_SKIP_COMMANDS = frozenset({
     # internally; invoking it from the CLI must not recursively re-trigger
     # the gate (which would itself call the probe).
     "check-updates",
+    # #1272 / #1303 review: ``run doctor`` (and the ``task doctor`` shim that
+    # wraps it) is the canonical surface operators reach for when the gate
+    # itself is misbehaving. It MUST run without invoking the upgrade-gate
+    # prompt because:
+    #   (a) ``--session`` advertises a "NEVER prompts" contract for
+    #       session-start rituals, and the gate's interactive prompt would
+    #       violate that promise.
+    #   (b) Operators in a drift state would be unable to diagnose the
+    #       drift if the gate refused them entry to the diagnostic.
+    # The gate's drift advisories surface during the routine commands that
+    # actually mutate project state (install / project / spec / migrate);
+    # the doctor surface is read-only by default and never warrants the
+    # gate prompt.
+    "doctor",
 })
 
 
@@ -4085,37 +4148,430 @@ def _check_uv_available() -> bool:
     return shutil.which("uv") is not None
 
 
+# ── #1272 root Taskfile.yml include diagnostics ──────────────────────────
+#
+# A freshly installed directive project does not have a working `task X`
+# surface from the project root until the consumer wires their
+# root-level Taskfile.yml to include `.deft/core/Taskfile.yml`. The
+# install policy in `main.md` correctly prohibits silent mutation of
+# the consumer's existing Taskfile.yml, but the framework should still
+# *diagnose* the missing-include / missing-file shapes the moment the
+# operator runs doctor. Interactive `run doctor --fix` may offer to
+# create a Taskfile.yml when one is absent (explicit consent required);
+# the default and `--session` paths NEVER mutate filesystem state.
+#
+# The canonical snippet is mirrored verbatim from `.deft/core/main.md`
+# ("Publishing deft tasks in your project root") so doctor's output and
+# the prose documentation never drift.
+
+# Canonical YAML snippet emitted by doctor's diagnostic output and
+# written verbatim when the operator opts in to interactive repair.
+# Kept as a module-level constant so tests can compare against the
+# exact bytes a write would produce.
+_TASKFILE_INCLUDE_SNIPPET = (
+    "version: '3'\n"
+    "\n"
+    "includes:\n"
+    "  deft:\n"
+    "    taskfile: ./.deft/core/Taskfile.yml\n"
+    "    optional: true\n"
+)
+
+# Matches a top-level YAML ``includes:`` declaration. Used by the
+# indentation-aware state machine in :func:`_includes_block_has_deft_taskfile`
+# to anchor the scan: a ``taskfile:`` line that lives inside any other
+# block (e.g. ``vars:``, ``tasks:`` cmds, a YAML comment, a long string
+# scalar) MUST NOT count as a valid deft framework include, otherwise
+# the diagnostic mis-reports ``ok`` on a Taskfile that mentions the
+# string ``taskfile: ./.deft/core/Taskfile.yml`` in unrelated context
+# (a comment, an example block, an echo cmd). See #1303 review.
+_TASKFILE_INCLUDES_KEY_RE = re.compile(
+    r"^(?P<indent>[\t ]*)includes\s*:\s*(?:#.*)?$",
+    re.IGNORECASE,
+)
+
+# Matches ``taskfile: <path-to-deft-framework-Taskfile>`` value lines that
+# appear under the ``includes:`` mapping. Tolerates leading ``./``,
+# surrounding whitespace, optional single/double quotes around the value,
+# and an inline ``# ...`` comment trailing the value. Case-insensitive so
+# both ``Taskfile.yml`` and ``taskfile.yml`` match. Indent MUST be > 0
+# under a top-level ``includes:`` block.
+_TASKFILE_INCLUDE_VALUE_RE = re.compile(
+    r"^[\t ]+taskfile\s*:\s*[\"']?\.?/?(?:\.deft/core|deft)/Taskfile\.ya?ml[\"']?"
+    r"\s*(?:#.*)?$",
+    re.IGNORECASE,
+)
+
+
+def _includes_block_has_deft_taskfile(text: str) -> bool:
+    """Return True iff a top-level ``includes:`` mapping points at deft.
+
+    Walks ``text`` line-by-line with a small indentation-aware state
+    machine: anchors on a top-level (indent 0) ``includes:`` key, then
+    scans the strictly-greater-indent body for a ``taskfile:`` property
+    whose value resolves to either the canonical ``./.deft/core/Taskfile.yml``
+    or the pre-v0.27 legacy ``./deft/Taskfile.yml``. Lines whose indent
+    is less-than-or-equal-to the ``includes:`` indent end the block.
+
+    Stdlib-only: ``run`` is the bootstrap entry point and cannot assume
+    PyYAML is installed. A full YAML walk would be more robust but adds
+    a runtime dependency we deliberately avoid here.
+    """
+    includes_indent: Optional[int] = None
+    in_includes = False
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw_line) - len(raw_line.lstrip(" \t"))
+        if not in_includes:
+            match = _TASKFILE_INCLUDES_KEY_RE.match(raw_line)
+            if match is not None and indent == 0:
+                includes_indent = indent
+                in_includes = True
+            continue
+        if indent <= (includes_indent or 0):
+            in_includes = False
+            match = _TASKFILE_INCLUDES_KEY_RE.match(raw_line)
+            if match is not None and indent == 0:
+                includes_indent = indent
+                in_includes = True
+            continue
+        if _TASKFILE_INCLUDE_VALUE_RE.match(raw_line):
+            return True
+    return False
+
+
+def _resolve_consumer_taskfile(
+    project_root: Optional[Path] = None,
+) -> Optional[Path]:
+    """Return the consumer project's root Taskfile path, or None if absent.
+
+    Recognises both ``Taskfile.yml`` and ``Taskfile.yaml`` so the
+    diagnostic accepts whichever spelling the consumer chose. Returns
+    the first candidate that exists on disk; returns ``None`` when
+    neither file is present so callers can distinguish the
+    missing-file case from the missing-include case.
+
+    ``project_root`` defaults to ``Path.cwd()`` when omitted so existing
+    callers stay backward-compatible; the explicit-argument shape is the
+    canonical form so :func:`cmd_doctor` can honour a user-supplied
+    ``--project-root <path>`` (#1303 review).
+    """
+    if project_root is None:
+        project_root = Path.cwd()
+    for name in ("Taskfile.yml", "Taskfile.yaml"):
+        candidate = project_root / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _classify_taskfile_include(project_root: Path) -> str:
+    """Classify the consumer's root Taskfile include health (#1272).
+
+    Returns one of:
+        ``ok``              -- root Taskfile.yml present and includes the
+                               deft framework Taskfile (``./.deft/core/Taskfile.yml``
+                               or the legacy ``./deft/Taskfile.yml``).
+        ``missing-file``    -- neither ``Taskfile.yml`` nor ``Taskfile.yaml``
+                               exists at the project root. Interactive
+                               ``run doctor --fix`` may create one with
+                               explicit consent.
+        ``missing-include`` -- a root Taskfile exists but contains no
+                               include pointing at the deft framework
+                               Taskfile. Doctor NEVER mutates an
+                               existing user-owned Taskfile -- diagnose
+                               only; the operator pastes the snippet.
+        ``unreadable``      -- a root Taskfile exists but could not be
+                               read (permission error, etc.). Diagnose;
+                               do not repair.
+
+    Pure -- read-only filesystem probe + indentation-aware string walk.
+    Never mutates state.
+    """
+    taskfile = _resolve_consumer_taskfile(project_root)
+    if taskfile is None:
+        return "missing-file"
+    try:
+        # ``utf-8-sig`` transparently strips a leading UTF-8 BOM if present.
+        # Windows editors (Notepad, some VS Code configurations) persist YAML
+        # with a BOM byte at the head; ``utf-8`` would keep the ``\ufeff``
+        # prefix in ``text`` and defeat the ``^[\t ]*includes`` anchor in
+        # :func:`_includes_block_has_deft_taskfile`, producing a spurious
+        # ``missing-include`` diagnostic on a legitimately wired Taskfile.
+        # See #1303 pass-2 review.
+        text = taskfile.read_text(encoding="utf-8-sig", errors="replace")
+    except OSError:
+        return "unreadable"
+    if _includes_block_has_deft_taskfile(text):
+        return "ok"
+    return "missing-include"
+
+
+def _format_missing_include_snippet() -> str:
+    """Return the paste-ready `includes:` fragment for an existing Taskfile.
+
+    Used by doctor's ``missing-include`` diagnostic so the operator
+    sees the exact YAML they need to paste under their existing
+    ``includes:`` block, without the ``version: '3'`` header (which
+    their existing file already supplies).
+    """
+    return (
+        "  deft:\n"
+        "    taskfile: ./.deft/core/Taskfile.yml\n"
+        "    optional: true\n"
+    )
+
+
+def _parse_doctor_flags(args: List[str]) -> dict:
+    """Parse the doctor-specific CLI flags (#1272, #1303 review).
+
+    Recognises (whitelist; unknown tokens surface as ``unknown``):
+        ``--session``                -- diagnose-only, session-safe mode.
+                                        NEVER prompts, NEVER mutates
+                                        filesystem state. Suitable for
+                                        invocation from session-start
+                                        rituals.
+        ``--fix`` / ``--repair`` /   -- offer interactive repair when
+        ``--repair-taskfile``           actionable (currently: create
+                                        missing root Taskfile.yml with
+                                        the canonical include). Requires
+                                        an interactive TTY AND explicit
+                                        operator approval at the prompt;
+                                        ignored when ``--session`` is
+                                        also passed.
+        ``--json``                   -- emit a single JSON object on
+                                        stdout describing the findings;
+                                        suppresses the human-readable
+                                        prose surface. Exit code is
+                                        still 0 (clean) / 1 (errors).
+        ``--quiet``                  -- suppress the per-check success
+                                        lines; errors and warnings still
+                                        surface.
+        ``--project-root <path>`` /  -- override the project root used
+        ``--project-root=<path>``       for the Taskfile diagnostic.
+                                        Defaults to :func:`Path.cwd`.
+        ``-h`` / ``--help``          -- accepted (caller decides how to
+                                        render help text); does not run
+                                        the diagnostics.
+
+    Unknown tokens are collected into ``flags["unknown"]`` so the caller
+    can exit non-zero with a useful error message rather than silently
+    swallowing a typo (e.g. ``--repare`` instead of ``--repair`` -- the
+    pre-review behaviour shipped diagnostics that ignored the typo,
+    masking the fact that the user never opted into repair).
+    """
+    flags = {
+        "session": False,
+        "fix": False,
+        "json": False,
+        "quiet": False,
+        "help": False,
+        "project_root": None,
+        "unknown": [],
+    }
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token == "--session":
+            flags["session"] = True
+        elif token in ("--fix", "--repair", "--repair-taskfile"):
+            flags["fix"] = True
+        elif token == "--json":
+            flags["json"] = True
+        elif token == "--quiet":
+            flags["quiet"] = True
+        elif token in ("-h", "--help"):
+            flags["help"] = True
+        elif token == "--project-root":
+            if i + 1 >= len(args):
+                flags["unknown"].append("--project-root (missing value)")
+            else:
+                i += 1
+                flags["project_root"] = args[i]
+        elif token.startswith("--project-root="):
+            value = token.split("=", 1)[1]
+            if value:
+                flags["project_root"] = value
+            else:
+                flags["unknown"].append("--project-root= (empty value)")
+        else:
+            flags["unknown"].append(token)
+        i += 1
+    return flags
+
+
+# Allowed flag set for ``run doctor`` -- surfaced in the error message
+# emitted when ``_parse_doctor_flags`` collects an unknown token (#1303
+# review correctness #3). Keep in sync with the registered branches in
+# :func:`_parse_doctor_flags`.
+_DOCTOR_ALLOWED_FLAGS = (
+    "--session",
+    "--fix",
+    "--repair",
+    "--repair-taskfile",
+    "--json",
+    "--quiet",
+    "--project-root",
+    "-h",
+    "--help",
+)
+
+
 def cmd_doctor(args: List[str]):
-    """Doctor command - check system dependencies"""
-    print_header(f"Deft CLI v{VERSION} - Doctor")
-    print()
-    info("Checking system dependencies...")
-    print()
-    
-    errors = 0
-    warnings = 0
-    
+    """Canonical doctor surface for task-surface health (#1272, #1303 review).
+
+    Diagnoses (and optionally repairs, with explicit consent):
+
+    1. Required tools on PATH (uv, git) and optional tools (task,
+       python3, go, node) -- the existing #792 dependency probe.
+    2. Expected framework directory layout (#792).
+    3. Consumer root Taskfile.yml include health (#1272). When run
+       inside a consumer project, doctor detects:
+         * missing root Taskfile.yml          -> diagnose + print snippet;
+                                                 interactive ``--fix``
+                                                 may CREATE the file after
+                                                 explicit operator consent.
+         * root Taskfile.yml exists, no       -> diagnose + print snippet;
+           deft include                          NEVER mutates the existing
+                                                 user-owned Taskfile.
+         * include present                    -> OK.
+
+    Flags (parsed via :func:`_parse_doctor_flags`):
+        ``--session``       diagnose-only, session-safe; no prompt, no
+                            mutation.
+        ``--fix``           interactive repair offered when actionable
+                            (Taskfile creation only); ignored under
+                            ``--session``.
+        ``--json``          emit a single JSON object on stdout and
+                            suppress the human-readable prose; exit
+                            code unchanged.
+        ``--quiet``         suppress per-check success lines; errors
+                            and warnings still surface.
+        ``--project-root``  override the project root used for the
+                            Taskfile diagnostic. Defaults to
+                            :func:`Path.cwd`.
+
+    Returns:
+        ``0`` on a clean check OR a warning-only check (warnings are
+        informational and never exit-failing).
+        ``1`` on a hard error (missing required tool OR Taskfile drift
+        detected).
+        ``2`` on argument-parse failure (an unknown flag was passed --
+        the doctor refuses to run the diagnostics so the typo cannot
+        masquerade as a clean check).
+
+    Non-zero return is informational -- doctor's role is to surface
+    the failure, not to block the upgrade gate.
+    """
+    flags = _parse_doctor_flags(args)
+
+    # Reject unknown flags loudly. The previous shape silently swallowed
+    # typos (`--repare` instead of `--repair`), so an operator who
+    # mistyped never realised they had not opted into repair -- the
+    # diagnostic still ran in default mode and the prose suggested the
+    # repair was offered. Surface the unknown tokens, list the allowed
+    # set, and exit 2 so CI wrappers can distinguish a malformed
+    # invocation from a real diagnostic failure (#1303 review #3).
+    if flags.get("unknown"):
+        error(
+            "Unknown flag(s): "
+            + ", ".join(flags["unknown"])
+        )
+        info(
+            "Allowed: " + ", ".join(_DOCTOR_ALLOWED_FLAGS)
+        )
+        return 2
+
+    session_mode = flags["session"]
+    fix_mode = flags["fix"] and not session_mode
+    json_mode = flags["json"]
+    quiet_mode = flags["quiet"]
+
+    # ``--project-root`` lets operators invoke doctor against an
+    # arbitrary directory rather than ``Path.cwd``. Defaults to the
+    # current working directory so existing callers (``task doctor``,
+    # the ``run doctor`` CLI without overrides) are unaffected. The
+    # path is normalised through :func:`resolve_path` so ``~`` and
+    # relative paths work (#1303 review #5).
+    project_root_arg = flags.get("project_root")
+    if project_root_arg:
+        project_root = resolve_path(project_root_arg)
+    else:
+        project_root = Path.cwd()
+
+    # Findings are the single source of truth for the summary, the
+    # JSON payload, and the exit code (#1303 review #1 / #4). Replaces
+    # the prior ``errors += 1`` / ``errors -= 1`` accounting pair that
+    # was brittle when the interactive ``--fix`` path repaired a
+    # missing-file finding -- the decrement coupled two unrelated
+    # branches and made the summary easy to mis-read.
+    findings: List[dict] = []
+
+    def _add_finding(severity: str, message: str, **extras: object) -> None:
+        entry: dict = {"severity": severity, "message": message}
+        entry.update(extras)
+        findings.append(entry)
+
+    def _emit_info(msg: str) -> None:
+        if not json_mode:
+            info(msg)
+
+    def _emit_success(msg: str) -> None:
+        if json_mode or quiet_mode:
+            return
+        success(msg)
+
+    def _emit_warn(msg: str) -> None:
+        if not json_mode:
+            warn(msg)
+
+    def _emit_error(msg: str) -> None:
+        if not json_mode:
+            error(msg)
+
+    if not json_mode:
+        print_header(f"Deft CLI v{VERSION} - Doctor")
+        print()
+    _emit_info("Checking system dependencies...")
+    if not json_mode:
+        print()
+
     # Check for required tools.  Errors and warnings are tracked
     # separately (#792) so a missing required tool surfaces above
     # optional-tool warnings in the summary and forces a non-zero
     # return code.
     def check_command(cmd: str, name: str, required: bool = False,
                        install_url: str = ""):
-        nonlocal errors, warnings
         if shutil.which(cmd):
-            success(f"{name} is installed")
+            _emit_success(f"{name} is installed")
             return
         url_hint = f" - install: {install_url}" if install_url else ""
         if required:
-            error(f"{name} not found - required{url_hint}")
-            errors += 1
+            message = f"{name} not found - required{url_hint}"
+            _emit_error(message)
+            _add_finding(
+                "error",
+                message,
+                check="dependency",
+                tool=cmd,
+                suggestion=install_url or None,
+            )
             return
         if cmd == "task":
-            warn(f"{name} not found - install from https://taskfile.dev")
+            message = f"{name} not found - install from https://taskfile.dev"
         else:
-            warn(f"{name} not found{url_hint}")
-        warnings += 1
-    
+            message = f"{name} not found{url_hint}"
+        _emit_warn(message)
+        _add_finding(
+            "warning",
+            message,
+            check="dependency",
+            tool=cmd,
+            suggestion=install_url or None,
+        )
+
     # uv is required: every deft task script invokes `uv run python ...`,
     # so a green doctor on a machine without uv would mask an adoption
     # blocker (#792).  Surface it before optional tools so the error is
@@ -4131,7 +4587,7 @@ def cmd_doctor(args: List[str]):
     check_command("python3", "python3")
     check_command("go", "go")
     check_command("node", "node")
-    
+
     # Check directory structure.  Updated to the v0.20+ canonical
     # layout (#792); pre-v0.20 entries (core, interfaces, tools, swarm,
     # meta) were dropped because they no longer reflect the framework's
@@ -4139,9 +4595,10 @@ def cmd_doctor(args: List[str]):
     # warnings on every clean checkout.  Cross-referenced with
     # `skills/deft-directive-setup/SKILL.md` § Environment Preflight
     # (vbrief lifecycle requirement) and the project tree on master.
-    print()
-    info("Checking Deft structure...")
-    
+    if not json_mode:
+        print()
+    _emit_info("Checking Deft structure...")
+
     script_dir = get_script_dir()
     expected_dirs = [
         "languages",
@@ -4152,29 +4609,179 @@ def cmd_doctor(args: List[str]):
         "scripts",
         "vbrief",
     ]
-    
+
     for dir_name in expected_dirs:
         dir_path = script_dir / dir_name
         if dir_path.is_dir():
-            success(f"Directory: {dir_name}/")
+            _emit_success(f"Directory: {dir_name}/")
         else:
-            warn(f"Missing directory: {dir_name}/")
-            warnings += 1
-    
+            message = f"Missing directory: {dir_name}/"
+            _emit_warn(message)
+            _add_finding(
+                "warning",
+                message,
+                check="framework-layout",
+                directory=dir_name,
+            )
+
+    # #1272 root Taskfile.yml include health. Skip when invoked from
+    # inside the deft framework repo itself -- the deft repo's own
+    # Taskfile.yml is the source of truth for its surface and does not
+    # need (and must not declare) a `deft:` include to itself.
+    if not json_mode:
+        print()
+    _emit_info("Checking root Taskfile.yml include...")
+    if _running_inside_deft_repo(project_root):
+        _emit_info(
+            "Skipping Taskfile include check -- running inside the deft "
+            "framework repo (the repo's own Taskfile.yml is the surface)."
+        )
+    else:
+        # ``include_missing`` is True until a successful interactive
+        # repair flips it off. Replaces the prior ``errors -= 1``
+        # gymnastic on the missing-file branch (#1303 review #1).
+        include_status = _classify_taskfile_include(project_root)
+        if include_status == "ok":
+            _emit_success("Root Taskfile.yml includes the deft framework")
+        elif include_status == "missing-file":
+            include_missing = True
+            target = project_root / "Taskfile.yml"
+            message = (
+                "Root Taskfile.yml missing -- the `task X` surface "
+                "(task vbrief:preflight / task spec:render / task check) "
+                f"will not resolve until you add one. Paste this into {target}:"
+            )
+            _emit_error(message)
+            if not json_mode:
+                print()
+                print(_TASKFILE_INCLUDE_SNIPPET)
+            # Interactive repair path. All gates MUST hold before any
+            # write: (1) --fix was requested AND we are not under
+            # --session (both folded into ``fix_mode`` -- see
+            # ``fix_mode = flags["fix"] and not session_mode`` above);
+            # (2) stdin is a TTY (so we can prompt); (3) we are not
+            # emitting JSON (JSON mode is diagnose-only). Even then,
+            # the operator must explicitly approve at the prompt.
+            # #1303 pass-3 review (Greptile run:4664-4669 -- redundant
+            # session_mode guard): the prior shape repeated
+            # ``and not session_mode`` here, but fix_mode already
+            # incorporates that condition; the duplicate gate could
+            # never change the outcome and invited confusion.
+            if (
+                fix_mode
+                and not json_mode
+                and sys.stdin.isatty()
+            ):
+                if read_yn(
+                    f"Create {target} with the canonical include now?",
+                    default=False,
+                ):
+                    try:
+                        # ``newline="\n"`` enforces LF line endings on
+                        # every host -- ``write_text`` otherwise honours
+                        # the platform default, which produces CRLF on
+                        # Windows and breaks the byte-equality contract
+                        # tests rely on (#1303 review #6).
+                        target.write_text(
+                            _TASKFILE_INCLUDE_SNIPPET,
+                            encoding="utf-8",
+                            newline="\n",
+                        )
+                        _emit_success(f"Wrote {target}")
+                        # The drift was just repaired -- flip the
+                        # boolean so the summary reflects the
+                        # post-repair state (replaces the prior
+                        # ``errors -= 1`` decrement pair).
+                        include_missing = False
+                    except OSError as exc:
+                        _emit_error(f"Failed to write {target}: {exc}")
+                else:
+                    _emit_info(
+                        "Skipped Taskfile.yml creation -- paste the "
+                        "snippet above when you are ready."
+                    )
+            if include_missing:
+                _add_finding(
+                    "error",
+                    "Root Taskfile.yml missing",
+                    check="taskfile-include",
+                    file=str(target),
+                    suggestion=_TASKFILE_INCLUDE_SNIPPET,
+                )
+        elif include_status == "missing-include":
+            message = (
+                "Root Taskfile.yml exists but does not include the deft "
+                "framework. Add this to its `includes:` block (doctor "
+                "NEVER mutates an existing user-owned Taskfile):"
+            )
+            _emit_error(message)
+            if not json_mode:
+                print()
+                print(_format_missing_include_snippet())
+            taskfile_path = _resolve_consumer_taskfile(project_root)
+            _add_finding(
+                "error",
+                "Root Taskfile.yml does not include the deft framework",
+                check="taskfile-include",
+                file=str(taskfile_path) if taskfile_path else None,
+                suggestion=_format_missing_include_snippet(),
+            )
+        elif include_status == "unreadable":
+            # Resolve the actual Taskfile path so a consumer who chose the
+            # ``.yaml`` spelling sees the right file name in the error
+            # message and in the JSON `file` field (#1303 review,
+            # Greptile #2). Falls back to ``Taskfile.yml`` only if the
+            # resolver returns None -- which shouldn't happen here
+            # because the `unreadable` branch is only reached when a
+            # candidate file was found, but the fallback keeps the
+            # diagnostic informative under any future code drift.
+            taskfile_path = (
+                _resolve_consumer_taskfile(project_root)
+                or (project_root / "Taskfile.yml")
+            )
+            message = (
+                f"Root Taskfile.yml at {taskfile_path} "
+                "exists but could not be read -- check file permissions."
+            )
+            _emit_warn(message)
+            _add_finding(
+                "warning",
+                message,
+                check="taskfile-include",
+                file=str(taskfile_path),
+            )
+
+    error_count = sum(1 for f in findings if f["severity"] == "error")
+    warning_count = sum(1 for f in findings if f["severity"] == "warning")
+    exit_code = 1 if error_count else 0
+
+    if json_mode:
+        payload = {
+            "ok": exit_code == 0,
+            "findings": findings,
+            "summary": {
+                "errors": error_count,
+                "warnings": warning_count,
+            },
+            "project_root": str(project_root),
+        }
+        print(json.dumps(payload, sort_keys=True))
+        return exit_code
+
     print()
-    if errors == 0 and warnings == 0:
+    if error_count == 0 and warning_count == 0:
         success("System check passed!")
         return 0
-    if errors:
+    if error_count:
         # Errors first so missing-uv (or git) is not buried under
         # optional-tool warnings.
         error(
-            f"System check failed with {errors} error(s)"
-            + (f" and {warnings} warning(s)" if warnings else "")
+            f"System check failed with {error_count} error(s)"
+            + (f" and {warning_count} warning(s)" if warning_count else "")
             + "."
         )
         return 1
-    warn(f"System check completed with {warnings} warning(s).")
+    warn(f"System check completed with {warning_count} warning(s).")
     return 0
 
 def cmd_update(args: List[str]):

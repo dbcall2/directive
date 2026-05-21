@@ -577,11 +577,20 @@ func TestWriteAgentsMD_Idempotent(t *testing.T) {
 	tmp := t.TempDir()
 	w := NewWizard(strings.NewReader(""), &bytes.Buffer{}, false)
 
-	// Write twice.
-	WriteAgentsMD(w, tmp)
-	WriteAgentsMD(w, tmp)
+	// Write twice. Surface any write error so a regression in WriteAgentsMD
+	// fails the test loudly rather than masquerading as a sentinel-count
+	// mismatch (#1281).
+	if err := WriteAgentsMD(w, tmp); err != nil {
+		t.Fatalf("first WriteAgentsMD failed: %v", err)
+	}
+	if err := WriteAgentsMD(w, tmp); err != nil {
+		t.Fatalf("second WriteAgentsMD failed: %v", err)
+	}
 
-	data, _ := os.ReadFile(filepath.Join(tmp, "AGENTS.md"))
+	data, err := os.ReadFile(filepath.Join(tmp, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("could not read AGENTS.md: %v", err)
+	}
 	count := strings.Count(string(data), agentsMDSentinel)
 	if count != 1 {
 		t.Errorf("expected exactly 1 deft entry, found %d", count)
@@ -1101,10 +1110,25 @@ func TestWriteConsumerVbrief_CreatesNew(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(projectDir, "vbrief", "vbrief.md")); err != nil {
 		t.Errorf("vbrief.md was not deposited: %v", err)
 	}
-	// Lifecycle dirs MUST NOT be pre-created (#1020 4g contract).
-	for _, lifecycle := range []string{"active", "pending", "proposed", "completed", "cancelled"} {
-		if _, err := os.Stat(filepath.Join(projectDir, "vbrief", lifecycle)); err == nil {
-			t.Errorf("consumer-root vbrief/%s/ MUST NOT be auto-created", lifecycle)
+	// Lifecycle dirs MUST be pre-created (#1179 reverses the #1020 4g
+	// "do not pre-create" contract -- AGENTS.md pre-cutover condition 3
+	// fires on a fresh install when any of the five lifecycle subfolders is
+	// missing, dead-ending the very first agent turn before Phase 2 of
+	// deft-directive-setup runs). Order matches the canonical setup.go
+	// `vbriefLifecycleDirs` (proposed -> pending -> active -> completed ->
+	// cancelled); imported via `vbriefLifecycleDirsExpected` from
+	// `setup_test.go` (same package) so a typo here cannot drift away
+	// from the production contract. Each lifecycle directory MUST also
+	// carry the `.gitkeep` placeholder so the empty directory survives
+	// `git add` and installer packaging (#1179 / tests reviewer MINOR-5).
+	for _, lifecycle := range vbriefLifecycleDirsExpected {
+		dir := filepath.Join(projectDir, "vbrief", lifecycle)
+		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+			t.Errorf("consumer-root vbrief/%s/ MUST be auto-created (#1179): %v", lifecycle, err)
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(dir, ".gitkeep")); err != nil {
+			t.Errorf("consumer-root vbrief/%s/.gitkeep MUST be deposited so the empty lifecycle dir survives packaging (#1179): %v", lifecycle, err)
 		}
 	}
 }

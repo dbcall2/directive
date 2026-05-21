@@ -396,7 +396,16 @@ func (w *Wizard) askUpdate(deftDir string) (bool, error) {
 
 func (w *Wizard) confirmExit() bool {
 	w.printf("Are you sure you want to exit? [y/N]: ")
-	input, _ := w.readLine()
+	// An I/O error on the readLine here is treated as "do not exit" so the
+	// wizard remains responsive on EOF / piped-input corner cases; surface
+	// the error in debug mode rather than swallowing it entirely (#1281).
+	input, err := w.readLine()
+	if err != nil {
+		if w.debug {
+			w.printf("[debug] confirmExit readLine: %v\n", err)
+		}
+		return false
+	}
 	return strings.TrimSpace(strings.ToLower(input)) == "y"
 }
 
@@ -519,12 +528,22 @@ func CheckWritePermission(dir string) error {
 	}
 
 	// Try creating and removing a temp file to verify write access.
-	tmp := filepath.Join(check, ".deft-install-write-test")
-	f, err := os.Create(tmp)
+	// #1303 pass-3 review (SLizard live P1 wizard.go:379-524 —
+	// CheckWritePermission race): use os.CreateTemp so two concurrent
+	// `deft-install` runs probing the same directory do not race on a
+	// static `.deft-install-write-test` filename. The `*` in the pattern
+	// is expanded to a unique suffix; defer os.Remove on the returned
+	// path so cleanup runs on every exit (success or failure), mirroring
+	// the git-installer fix in cmd/deft-install/git.go:235-249.
+	f, err := os.CreateTemp(check, ".deft-install-write-test-*")
 	if err != nil {
-		return fmt.Errorf("no write permission on %s — try running as administrator", check)
+		// Wrap the underlying os.CreateTemp error so callers can match
+		// it with errors.Is (e.g. fs.ErrPermission) and tooling
+		// preserves the root cause for diagnostics (#1281).
+		return fmt.Errorf("no write permission on %s — try running as administrator: %w", check, err)
 	}
+	tmpPath := f.Name()
+	defer os.Remove(tmpPath)
 	f.Close()
-	os.Remove(tmp)
 	return nil
 }
