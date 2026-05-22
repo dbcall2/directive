@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- **fix(scripts,vbrief): canonical scratch path + input hardening for `task scope:decompose` (#1267)** -- `task scope:decompose` now validates inputs more strictly (parent + draft pair, `--date` format, parent writability) and `task vbrief:validate` fails when a decomposition draft JSON file is found at the workspace root. Drafts have a canonical scratch path under `vbrief/.eval/decompositions/<parent-slug>.json`; generated child story vBRIEFs still land in `vbrief/pending/`. Closes the operator-trap where agents left `decomposition.json` at the workspace root. PR #1267.
 
 ### Fixed
 

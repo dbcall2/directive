@@ -464,6 +464,41 @@ class TestValidateAll:
         assert any("invalid JSON" in e for e in errors)
 
 
+class TestValidateNoRootDecompositionDrafts:
+    def test_root_decomposition_draft_errors(self, tmp_path):
+        vd = tmp_path / "vbrief"
+        vd.mkdir()
+        _write_json(tmp_path / "decomposition.json", {"stories": []})
+
+        errors = vv.validate_no_root_decomposition_drafts(vd)
+
+        assert errors
+        assert "decomposition draft JSON must not live at workspace root" in errors[0]
+        assert "vbrief/.eval/decompositions/" in errors[0]
+
+    def test_eval_decomposition_draft_is_allowed(self, tmp_path):
+        vd = tmp_path / "vbrief"
+        (vd / ".eval" / "decompositions").mkdir(parents=True)
+        _write_json(
+            vd / ".eval" / "decompositions" / "parent.json",
+            {"stories": []},
+        )
+
+        assert vv.validate_no_root_decomposition_drafts(vd) == []
+
+    def test_validate_all_surfaces_root_draft(self, tmp_path):
+        vd = tmp_path / "vbrief"
+        _make_lifecycle_dirs(vd)
+        _write_json(tmp_path / "decomposition.json", {"children": {}})
+
+        errors, _warnings, _count = vv.validate_all(vd)
+
+        assert any(
+            "decomposition draft JSON must not live at workspace root" in error
+            for error in errors
+        )
+
+
 class TestMain:
     def test_no_vbrief_dir(self, tmp_path, monkeypatch, capsys):
         monkeypatch.chdir(tmp_path)
@@ -525,6 +560,21 @@ class TestMain:
         rc = vv.main()
         assert rc == 1
         assert "FAIL" in capsys.readouterr().out
+
+    def test_validation_failure_for_root_decomposition_draft(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        vd = tmp_path / "vbrief"
+        _make_lifecycle_dirs(vd)
+        _write_json(tmp_path / "decomposition.json", {"stories": []})
+        monkeypatch.setattr(sys, "argv", ["vbrief_validate.py", "--vbrief-dir", str(vd)])
+
+        rc = vv.main()
+
+        assert rc == 1
+        assert "decomposition draft JSON must not live at workspace root" in (
+            capsys.readouterr().out
+        )
 
     def test_empty_vbrief_directory_passes_with_no_files_note(self, tmp_path, monkeypatch, capsys):
         vd = tmp_path / "vbrief"

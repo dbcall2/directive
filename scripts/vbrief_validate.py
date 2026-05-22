@@ -865,6 +865,31 @@ def discover_vbriefs(vbrief_dir: Path) -> list[Path]:
     return files
 
 
+def _looks_like_decomposition_draft(data: object) -> bool:
+    """Return whether root JSON has the temporary decomposition-draft shape."""
+    if not isinstance(data, dict):
+        return False
+    stories = data.get("stories", data.get("children"))
+    return isinstance(stories, list | dict)
+
+
+def validate_no_root_decomposition_drafts(vbrief_dir: Path) -> list[str]:
+    """Reject decomposition draft proposals left at the workspace root."""
+    project_root = vbrief_dir.parent
+    errors: list[str] = []
+    for path in sorted(project_root.glob("*.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if _looks_like_decomposition_draft(data):
+            errors.append(
+                f"{path}: decomposition draft JSON must not live at workspace root; "
+                "write temporary proposals under vbrief/.eval/decompositions/"
+            )
+    return errors
+
+
 def validate_all(
     vbrief_dir: Path,
     strict_origin_types: bool = False,
@@ -878,6 +903,7 @@ def validate_all(
 
     # Discover scope vBRIEFs in lifecycle folders
     scope_files = discover_vbriefs(vbrief_dir)
+    errors.extend(validate_no_root_decomposition_drafts(vbrief_dir))
 
     # Validate each scope vBRIEF
     for filepath in scope_files:

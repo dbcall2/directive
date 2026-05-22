@@ -30,6 +30,10 @@ Convert approved specification/phase/epic scope vBRIEFs into swarm-ready child s
 ## Phase 1: Draft
 
 - ! Draft a decomposition JSON proposal with child stories only; do not write child vBRIEFs yet.
+- ! Treat the draft JSON as a temporary proposal artifact, not a vBRIEF.
+- ! Write draft proposals under `vbrief/.eval/decompositions/`, using a parent-derived slug such as `vbrief/.eval/decompositions/ip001-auth.json`.
+- ! Derive `<parent-slug>` from the parent vBRIEF filename by removing `.vbrief.json` and any leading `YYYY-MM-DD-` date prefix; for example, `vbrief/pending/2026-05-12-ip001-auth.vbrief.json` uses `ip001-auth`, while `vbrief/pending/feature-xyz.vbrief.json` uses `feature-xyz`.
+- ⊗ Agents MUST NOT leave decomposition draft JSON files at the workspace root.
 - ! Each story MUST include `id`, `title`, `Description`, `ImplementationPlan`, `UserStory`, executable `items` or `acceptance`, `traces` or explicit trace justification, `swarm.file_scope`, `swarm.verify_commands`, `swarm.expected_outputs`, `swarm.depends_on`, `swarm.conflict_group`, `swarm.size`, `swarm.file_scope_confidence`, and `swarm.model_tier`.
 - ! `Description` MUST provide at least two concrete sentences explaining the user/product behavior, boundaries, and why this story is independently buildable.
 - ! `ImplementationPlan` MUST provide at least two concrete implementation steps that identify the expected code path, state/data changes, and test/evidence approach.
@@ -49,6 +53,7 @@ Convert approved specification/phase/epic scope vBRIEFs into swarm-ready child s
 - ! Present the decomposition draft to the user before writing files.
 - ! Ask for explicit approval to apply the draft.
 - ! If the user requests changes, revise the draft and re-present it.
+- ! After explicit approval, run `task scope:decompose ... --check`, then apply without `--check`.
 - ? Run `task scope:decompose ... --check` before explicit approval only to validate a draft without writing files.
 - ⊗ Apply `task scope:decompose` without `--check` before explicit approval.
 
@@ -57,16 +62,16 @@ Convert approved specification/phase/epic scope vBRIEFs into swarm-ready child s
 - ! Validate the approved draft first:
 
 ```bash
-task scope:decompose -- <parent.vbrief.json> --draft <decomposition.json> --check
+task scope:decompose -- vbrief/pending/2026-05-12-ip001-auth.vbrief.json --draft vbrief/.eval/decompositions/ip001-auth.json --check
 ```
 
 - ! Apply the approved draft:
 
 ```bash
-task scope:decompose -- <parent.vbrief.json> --draft <decomposition.json>
+task scope:decompose -- vbrief/pending/2026-05-12-ip001-auth.vbrief.json --draft vbrief/.eval/decompositions/ip001-auth.json
 ```
 
-The command creates child story vBRIEFs, preserves origin/provenance references, sets each child `planRef` to the parent, updates parent references to include the children, rejects dependency cycles, and rejects ready stories missing executable acceptance, user-story shape, concrete acceptance, narrow file scope, focused verify commands, or traces.
+The command creates generated child story vBRIEFs as lifecycle artifacts, defaulting to `vbrief/pending/`. It preserves origin/provenance references, sets each child `planRef` to the parent, updates parent references to include the children, rejects dependency cycles, and rejects ready stories missing executable acceptance, user-story shape, concrete acceptance, narrow file scope, focused verify commands, or traces.
 
 ## Phase 4: Pending Readiness
 

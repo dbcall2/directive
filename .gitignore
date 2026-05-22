@@ -77,6 +77,9 @@ vbrief/*.premigrate.*
 #                               audit decisions; D1 / #1121). Per-operator
 #                               demote stream; sharing would conflate
 #                               operators' demote timing across the team.
+#   - decompositions/        -> gitignored (temporary decomposition proposal
+#                               drafts; generated child story vBRIEFs live in
+#                               lifecycle folders via task scope:decompose).
 #   - slices.jsonl           -> TRACKED (team-shared cohort records produced
 #                               by slicing skills; see #1132 / D13).
 #   - doctor-state.json      -> gitignored (operator-private doctor throttle
@@ -88,6 +91,7 @@ vbrief/*.premigrate.*
 vbrief/.eval/candidates.jsonl
 vbrief/.eval/summary-history.jsonl
 vbrief/.eval/scope-lifecycle.jsonl
+vbrief/.eval/decompositions/
 vbrief/.eval/doctor-state.json
 vbrief/.eval/*.lock
 
