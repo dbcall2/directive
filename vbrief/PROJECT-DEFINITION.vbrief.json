@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-05-20T19:24:51Z"
+    "updated": "2026-05-22T15:57:28Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -816,57 +816,6 @@
         }
       },
       {
-        "id": "2026-05-01-742-adr-001-empirical-validation",
-        "title": "ADR-001 empirical validation: comprehension parity + CRUD determinism gates",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-05-01-742-adr-001-empirical-validation.vbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/742",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #742 (parent ADR): doc(adr): ADR-001 -- vBRIEF-as-master for the agentic-consumed surface"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/602",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #602: encode latent-vs-deterministic as an explicit coding principle (encoding-form ladder origin)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/634",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #634: detection-strength ladder (orthogonal axis)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/714",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #714: tier-3 extension packs (mechanism for ADR-001 implementation)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/715",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #715: round-trip preservation (prerequisite)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/665",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #665: ADR convention (storage spec for ADR-001)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/336",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #336: migration umbrella (downstream consumer)"
-            },
-            {
-              "uri": "https://github.com/deftai/deft-agent-bench",
-              "type": "x-vbrief/related-repo",
-              "title": "deft-agent-bench (internal): bench infrastructure for this validation effort"
-            }
-          ]
-        }
-      },
-      {
         "id": "2026-05-12-1084-choresecurity-pypi-oidc-trusted-publishing-workflow-blocked",
         "title": "chore(security): PyPI OIDC trusted-publishing workflow (blocked-by #11)",
         "status": "proposed",
@@ -883,6 +832,494 @@
         }
       },
       {
+        "id": "2026-05-21-1283-pack-slicing-rfc",
+        "title": "Pack-aware slice API -- surface, semantics, mechanisms (design RFC)",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1283-pack-slicing-rfc.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1283",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1283: rfc(vbrief,consumption): pack-aware slice API"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/742",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #742: doc(adr): ADR-001 (decomposed)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1273",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1273: UX: research-strategy lifecycle footgun"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1290",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1290: feat(vbrief): reconcile_issues honors stateReason"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1284-epic-vbrief-canonical",
+        "title": "Epic 1 umbrella: vBRIEF-as-canonical for the agentic-consumed surface (approved direction)",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1284-epic-vbrief-canonical.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical for the agentic-consumed surface"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/742",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #742: doc(adr): ADR-001 (decomposed)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1283",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1283: rfc(vbrief,consumption): pack-aware slice API"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1285",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1285: epic(vbrief,crud): CRUD harness epic"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/714",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #714: feat(vbrief): four-tier model"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/715",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #715: feat(vbrief): round-trip preservation"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/748",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #748: rules-classification vocabulary"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1119",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1119: operational-state carve-out"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1273",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1273: research-strategy lifecycle footgun"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1274",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1274: task deft:issue:emit (adopted as Child 1.0b)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/336",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #336: migration umbrella (reframe target)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1285-epic-crud-harness",
+        "title": "Epic 2 umbrella: deterministic CRUD harness for vBRIEF JSON (approved, non-gating)",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1285-epic-crud-harness.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1285",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1285: epic(vbrief,crud): CRUD harness epic"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/742",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #742: doc(adr): ADR-001 (decomposed)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1167",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1167: code-abstraction-over-flat-tools architecture"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1286-triage-queue-blocked-filter",
+        "title": "Demote vBRIEF-status:blocked items in triage:queue",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1286-triage-queue-blocked-filter.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1286",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1286: feat(triage): demote vBRIEF-status:blocked items in triage:queue"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1287-vbrief-reconcile-graph",
+        "title": "task vbrief:reconcile:graph -- cascade-unblock walker",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1287-vbrief-reconcile-graph.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1287",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1287: feat(vbrief): task vbrief:reconcile:graph"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1288-vbrief-reconcile-labels",
+        "title": "task vbrief:reconcile:labels -- SCM label reconciliation",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1288-vbrief-reconcile-labels.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1288",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1288: feat(vbrief,scm): task vbrief:reconcile:labels"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1289-vbrief-reconcile-umbrellas",
+        "title": "task vbrief:reconcile:umbrellas -- umbrella current-shape auto-update",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1289-vbrief-reconcile-umbrellas.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1289",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1289: feat(vbrief,scm): task vbrief:reconcile:umbrellas"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1290-reconcile-state-reason",
+        "title": "reconcile_issues.py honors stateReason + primary-reference filter (NOT_PLANNED -> cancelled/, Axis B canonical-issue resolution)",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1290-reconcile-state-reason.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1290",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1290: feat(vbrief): reconcile_issues.py honors stateReason"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1291-adr-001-doc",
+        "title": "ADR-001 doc deliverable: vBRIEF-as-canonical (write the doc)",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1291-adr-001-doc.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1291",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1291: doc(adr): ADR-001 -- vBRIEF-as-canonical"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/742",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #742: doc(adr): source ADR (decomposed)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/665",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #665: ADR convention"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/401",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #401: AXIOM ship-PR"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1292-issue-336-reframe",
+        "title": "Reframe #336: documentation-tier AXIOM application (drop 5 new core content types)",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1292-issue-336-reframe.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1292",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1292: chore: reframe #336"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/336",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #336: migration umbrella (reframe target)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1293-vbrief-crud-tool",
+        "title": "scripts/vbrief_crud.py -- typed CRUD tool for vBRIEF JSON",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1293-vbrief-crud-tool.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1293",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1293: feat(vbrief): scripts/vbrief_crud.py"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1285",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1285: epic(vbrief,crud): CRUD harness"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1167",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1167: code-abstraction-over-flat-tools architecture"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1294-lessons-pack-pilot",
+        "title": "lessons-pack-0.1 pilot -- first tier-3 extension pack",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1294-lessons-pack-pilot.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1294",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1294: feat(packs): lessons-pack-0.1 pilot"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1274",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1274: task deft:issue:emit (adopted as Child 1.0b; renderer prerequisite)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/714",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #714: tier-3 model"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/715",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #715: round-trip preservation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1295-skills-pack",
+        "title": "skills-pack-0.1 -- second tier-3 pack",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1295-skills-pack.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1295",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1295: feat(packs): skills-pack-0.1"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1296-rules-and-strategies-pack",
+        "title": "rules-pack-0.1 + strategies-pack-0.1",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1296-rules-and-strategies-pack.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1296",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1296: feat(packs): rules-pack-0.1 + strategies-pack-0.1"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/748",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #748: rules-classification vocabulary"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1297-crud-taskfile-wiring",
+        "title": "Wire vBRIEF CRUD into task surface",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1297-crud-taskfile-wiring.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1297",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1297: feat(taskfile): wire vbrief CRUD into task surface"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1285",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1285: epic(vbrief,crud): CRUD harness"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1298-crud-migrate-call-sites",
+        "title": "Migrate existing free-form vBRIEF edit call sites to CRUD tool",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1298-crud-migrate-call-sites.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1298",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1298: chore: migrate existing free-form vBRIEF edit call sites to CRUD tool"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1285",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1285: epic(vbrief,crud): CRUD harness"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1299-crud-contributor-doc",
+        "title": "When to use CRUD tool vs direct vBRIEF authoring (contributor doc)",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-05-21-1299-crud-contributor-doc.vbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1299",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1299: doc(contributing): when to use CRUD tool vs direct vBRIEF authoring"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1285",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1285: epic(vbrief,crud): CRUD harness"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-22-1308-featrunscriptsskills-consolidate-doctor-run-doctor-absorbs-f",
+        "title": "feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger)",
+        "status": "pending",
+        "metadata": {
+          "source_path": "pending/2026-05-22-1308-featrunscriptsskills-consolidate-doctor-run-doctor-absorbs-f.vbrief.json",
+          "lifecycle_folder": "pending",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1308",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1308: feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger)"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-05-13-1125-followup-scope-complete-and-spec-render",
         "title": "chore: complete #1125 scope vBRIEF and catch up SPECIFICATION.md",
         "status": "running",
@@ -894,6 +1331,38 @@
               "uri": "https://github.com/deftai/directive/pull/1125",
               "type": "x-vbrief/github-pr",
               "title": "PR #1125: feat(skills): add deft-directive-gh-arch (re-land of #442) -- merged predecessor"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-20-1269-featritual-session-sentinel-version-aware-welcome-back-banne",
+        "title": "feat(ritual): session sentinel + version-aware welcome-back banner for returning users",
+        "status": "running",
+        "metadata": {
+          "source_path": "active/2026-05-20-1269-featritual-session-sentinel-version-aware-welcome-back-banne.vbrief.json",
+          "lifecycle_folder": "active",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1269",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1269: feat(ritual): session sentinel + version-aware welcome-back banner for returning users"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-22-1309-fixtemplatesagents-mdtests-propagate-welcome-wip-cap-session",
+        "title": "fix(templates,agents-md,tests): propagate welcome / WIP cap / session-start ritual / skill routing from maintainer AGENTS.md into templates/agents-entry.md + propagation-discipline gate",
+        "status": "running",
+        "metadata": {
+          "source_path": "active/2026-05-22-1309-fixtemplatesagents-mdtests-propagate-welcome-wip-cap-session.vbrief.json",
+          "lifecycle_folder": "active",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1309",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1309: fix(templates,agents-md,tests): propagate welcome / WIP cap / session-start ritual / skill routing from maintainer AGENTS.md into templates/agents-entry.md + propagation-discipline gate"
             }
           ]
         }
@@ -8530,6 +8999,137 @@
             }
           ]
         }
+      },
+      {
+        "id": "2026-05-20-1270-fixtriage-triagesummary-in-flight-count-should-be-filesystem",
+        "title": "fix(triage): triage:summary in-flight count should be filesystem-truth with conditional scope-discrepancy line",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-20-1270-fixtriage-triagesummary-in-flight-count-should-be-filesystem.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1270",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1270: fix(triage): triage:summary in-flight count should be filesystem-truth with conditional scope-discrepancy line"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1179-installer-leaves-vbrief-in-partial-state-agentsmd-pre-cutove",
+        "title": "Installer leaves vbrief/ in partial state -> AGENTS.md pre-cutover guard fires on every fresh install",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-21-1179-installer-leaves-vbrief-in-partial-state-agentsmd-pre-cutove.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1179",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1179: Installer leaves vbrief/ in partial state -> AGENTS.md pre-cutover guard fires on every fresh install"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1272-onboarding-detect-missing-root-taskfileyml-include-and-eithe",
+        "title": "Onboarding: detect missing root Taskfile.yml include and either auto-create or loud-fail with the fix",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-21-1272-onboarding-detect-missing-root-taskfileyml-include-and-eithe.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1272",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1272: Onboarding: detect missing root Taskfile.yml include and either auto-create or loud-fail with the fix"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1281-deft-install-go-19-p1-defects-in-cmddeft-install-and-support",
+        "title": "deft-install (Go): 19 P1 defects in cmd/deft-install/* and supporting docs (timeouts, discarded errors, error-wrap, doc/code mismatch)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-21-1281-deft-install-go-19-p1-defects-in-cmddeft-install-and-support.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1281",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1281: deft-install (Go): 19 P1 defects in cmd/deft-install/* and supporting docs (timeouts, discarded errors, error-wrap, doc/code mismatch)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1300-directive-rule-always-confirm-a-cancellation-came-from-the-u",
+        "title": "Directive rule: ALWAYS confirm a cancellation came from the user (not a runtime glitch) before attributing intent",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-21-1300-directive-rule-always-confirm-a-cancellation-came-from-the-u.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1300",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1300: Directive rule: ALWAYS confirm a cancellation came from the user (not a runtime glitch) before attributing intent"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-01-742-adr-001-empirical-validation",
+        "title": "ADR-001 empirical validation: comprehension parity + CRUD determinism gates",
+        "status": "cancelled",
+        "metadata": {
+          "source_path": "cancelled/2026-05-01-742-adr-001-empirical-validation.vbrief.json",
+          "lifecycle_folder": "cancelled",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/742",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #742 (parent ADR): doc(adr): ADR-001 -- vBRIEF-as-master for the agentic-consumed surface"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/602",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #602: encode latent-vs-deterministic as an explicit coding principle (encoding-form ladder origin)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/634",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #634: detection-strength ladder (orthogonal axis)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/714",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #714: tier-3 extension packs (mechanism for ADR-001 implementation)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/715",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #715: round-trip preservation (prerequisite)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/665",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #665: ADR convention (storage spec for ADR-001)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/336",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #336: migration umbrella (downstream consumer)"
+            },
+            {
+              "uri": "https://github.com/deftai/deft-agent-bench",
+              "type": "x-vbrief/related-repo",
+              "title": "deft-agent-bench (internal): bench infrastructure for this validation effort"
+            }
+          ]
+        }
       }
     ],
     "metadata": {
@@ -8581,6 +9181,7 @@
         "Narrative 'ProjectConfig' may be stale: completed scope 'strategies: no idempotency guard -- can silently overwrite approved specs and project narratives' shares topics (project)",
         "Narrative 'UserStories' may be stale: completed scope 'Automatically check for updates to cloned repos in a project -- detect stale cloned dependencies, notify user; part of future `deft doctor`/`deft update` (new CLI tooling)' shares topics (user)",
         "Narrative 'UserStories' may be stale: completed scope 'CLI bootstrap overwrites USER.md + input validation' shares topics (user)",
+        "Narrative 'UserStories' may be stale: completed scope 'Directive rule: ALWAYS confirm a cancellation came from the user (not a runtime glitch) before attributing intent' shares topics (user)",
         "Narrative 'UserStories' may be stale: completed scope 'Enforce USER.md gate (skills path)' shares topics (user)",
         "Narrative 'UserStories' may be stale: completed scope 'Enforce USER.md gate in CLI path -- parity with agentic (skills) path' shares topics (user)",
         "Narrative 'UserStories' may be stale: completed scope 'Periodic remote-version probe: occasionally check upstream for new directive tags and prompt the user to update' shares topics (user)",

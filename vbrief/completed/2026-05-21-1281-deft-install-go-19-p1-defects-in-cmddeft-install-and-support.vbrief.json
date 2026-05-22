@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "deft-install (Go): 19 P1 defects in cmd/deft-install/* and supporting docs (timeouts, discarded errors, error-wrap, doc/code mismatch)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "The Go installer has reliability findings that can hang, hide errors, or lose root-cause context during first install. This story hardens the non-setup installer files and supporting pointer docs while coordinating setup.go lifecycle work through the related #1179 story.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1281",
@@ -62,7 +62,7 @@
         "title": "Issue #1281: deft-install (Go): 19 P1 defects in cmd/deft-install/* and supporting docs (timeouts, discarded errors, error-wrap, doc/code mismatch)"
       }
     ],
-    "updated": "2026-05-21T20:18:19Z",
+    "updated": "2026-05-22T15:53:06Z",
     "id": "story-1281-go-installer-hardening",
     "metadata": {
       "kind": "story",
