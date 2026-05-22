@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.33.0] - 2026-05-22
+
+> v0.33.0 hardens the session-start ritual with a single `task doctor` install gate, propagates the welcome / WIP / triage / skill-routing surface to consumer AGENTS.md, and adds a resume-rehydration nudge.
+
+### Added
 - **feat(doctor): consolidated `run doctor` with install-integrity, AGENTS.md freshness, and 24h/4h throttle (#1308)** -- `run doctor` (and the `task doctor` shim) is now the single canonical health-check surface. It folds in the four install-integrity checks from `scripts/framework_doctor.py` (quick-start resolves, skill paths resolve, manifest agreement, install-path consistency) and adds an AGENTS.md managed-section freshness probe alongside the existing toolchain / directory / Taskfile diagnostics. A persistent throttle in `vbrief/.eval/doctor-state.json` short-circuits repeat runs within 24h of a clean result or 4h of a dirty result; `--full` bypasses the gate, a dirty-within-window run still exits non-zero so the session-start ritual stays blocked, and `--json` reports a distinct `status: throttle-skipped` envelope vs the completed-run schema. `task framework:doctor` is now a deprecated alias that prints a redirection notice. Closes #1308.
 - **chore(vbrief): decompose #742 into three homes (#1283, #1284, #1285)** -- split the ADR-001 alignment vehicle into a pack-slicing RFC (#1283), a vBRIEF-as-canonical epic (#1284), and a CRUD-harness epic (#1285); filed 14 new children, adopted #1274, and cancelled the empirical-validation vBRIEF. Closes #742; refs #1273, #1167, #1119.
 - **feat(doctor): canonical `run doctor` health-check surface + `task doctor` shim (#1272)** -- operators now diagnose framework drift from a single entry point. `run doctor` surfaces install-path, Taskfile-include, and skill-resolution health with `--session` (read-only, session-safe), `--fix` (opt-in interactive repair), `--json` (machine-readable), and `--quiet` (suppress per-check success lines) flags; `task doctor` is the thin shim that delegates here. The framework-side Taskfile redaction keeps the diagnostic surface stable whether or not the consumer has wired up the deft include. Closes #1272.
@@ -2831,7 +2843,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.32.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/deftai/directive/compare/v0.32.1...v0.33.0
 [0.32.1]: https://github.com/deftai/directive/compare/v0.32.0...v0.32.1
 [0.32.0]: https://github.com/deftai/directive/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/deftai/directive/compare/v0.30.0...v0.31.0
