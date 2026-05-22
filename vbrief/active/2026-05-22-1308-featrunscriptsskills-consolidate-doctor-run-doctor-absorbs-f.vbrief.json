@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger)",
-    "status": "pending",
+    "status": "running",
     "narratives": {
       "Description": "feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1308",
@@ -24,6 +24,6 @@
         "title": "Issue #1308: feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger)"
       }
     ],
-    "updated": "2026-05-22T15:50:38Z"
+    "updated": "2026-05-22T16:20:11Z"
   }
 }

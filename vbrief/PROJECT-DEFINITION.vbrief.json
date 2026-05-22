@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-05-22T15:57:28Z"
+    "updated": "2026-05-22T16:20:20Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -1304,22 +1304,6 @@
         }
       },
       {
-        "id": "2026-05-22-1308-featrunscriptsskills-consolidate-doctor-run-doctor-absorbs-f",
-        "title": "feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger)",
-        "status": "pending",
-        "metadata": {
-          "source_path": "pending/2026-05-22-1308-featrunscriptsskills-consolidate-doctor-run-doctor-absorbs-f.vbrief.json",
-          "lifecycle_folder": "pending",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1308",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1308: feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger)"
-            }
-          ]
-        }
-      },
-      {
         "id": "2026-05-13-1125-followup-scope-complete-and-spec-render",
         "title": "chore: complete #1125 scope vBRIEF and catch up SPECIFICATION.md",
         "status": "running",
@@ -1347,6 +1331,22 @@
               "uri": "https://github.com/deftai/directive/issues/1269",
               "type": "x-vbrief/github-issue",
               "title": "Issue #1269: feat(ritual): session sentinel + version-aware welcome-back banner for returning users"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-22-1308-featrunscriptsskills-consolidate-doctor-run-doctor-absorbs-f",
+        "title": "feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger)",
+        "status": "running",
+        "metadata": {
+          "source_path": "active/2026-05-22-1308-featrunscriptsskills-consolidate-doctor-run-doctor-absorbs-f.vbrief.json",
+          "lifecycle_folder": "active",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1308",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1308: feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger)"
             }
           ]
         }
@@ -9291,7 +9291,8 @@
         {
           "label": "duplicate"
         }
-      ]
+      ],
+      "allowDirectCommitsToMaster": true
     }
   }
 }
