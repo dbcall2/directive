@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Directive currently exposes two parallel doctor surfaces (run doctor in run::cmd_doctor and task framework:doctor backed by scripts/framework_doctor.py) with overlapping scope, neither of which probes AGENTS.md managed-section freshness or gates the session-start ritual. This story folds the four install-integrity checks into cmd_doctor, adds the freshness check via cmd_agents_refresh --check byte-compare, introduces a 24h/4h throttle backed by vbrief/.eval/doctor-state.json, and makes task doctor the canonical install-integrity gate that halts the ritual on persistent-dirty state.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1308",
@@ -69,7 +69,7 @@
         "title": "Issue #1308: feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger)"
       }
     ],
-    "updated": "2026-05-22T16:30:00Z",
+    "updated": "2026-05-22T18:55:37Z",
     "id": "issue-1308",
     "metadata": {
       "kind": "story",

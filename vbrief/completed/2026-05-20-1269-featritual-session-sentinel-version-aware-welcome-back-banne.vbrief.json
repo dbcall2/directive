@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "feat(ritual): session sentinel + version-aware welcome-back banner for returning users",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "The session-start ritual covers install integrity, branch policy, triage state, cache freshness, and toolchain probe but leaves resume rehydration uncovered, so a returning operator gets no deterministic nudge pointing at the vBRIEF they were last working on. This story adds a per-clone gitignored .deft/last-session.json sentinel plus a sentinel reader/writer module and wires a conditional 6th ritual line that fires only when the previous session was >= 2h ago and the recorded vBRIEF is still under vbrief/active/.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1269",
@@ -64,7 +64,7 @@
         "title": "Issue #1269: feat(ritual): session sentinel + version-aware welcome-back banner for returning users"
       }
     ],
-    "updated": "2026-05-22T16:43:56Z",
+    "updated": "2026-05-22T19:01:49Z",
     "id": "issue-1269",
     "metadata": {
       "kind": "story",

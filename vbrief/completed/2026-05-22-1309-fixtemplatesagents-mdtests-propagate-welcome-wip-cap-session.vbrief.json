@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "fix(templates,agents-md,tests): propagate welcome / WIP cap / session-start ritual / skill routing from maintainer AGENTS.md into templates/agents-entry.md + propagation-discipline gate",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "The maintainer directive/AGENTS.md has grown with consumer-relevant rules (session-start ritual, WIP cap, triage:welcome onboarding, skill routing) that templates/agents-entry.md does not yet mirror, so every consumer-side AGENTS.md managed-section block is narrower than the maintainer intends. This story propagates those sections into the template, adds a propagation-discipline test gate keyed off a curated marker list, and extends scripts/triage_welcome.py with an --onboard flag plus a default-mode nudge so the welcome surface becomes self-bootstrapping.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1309",
@@ -70,7 +70,7 @@
         "title": "Issue #1309: fix(templates,agents-md,tests): propagate welcome / WIP cap / session-start ritual / skill routing from maintainer AGENTS.md into templates/agents-entry.md + propagation-discipline gate"
       }
     ],
-    "updated": "2026-05-22T16:30:00Z",
+    "updated": "2026-05-22T18:43:50Z",
     "id": "issue-1309",
     "metadata": {
       "kind": "story",
