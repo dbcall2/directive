@@ -290,6 +290,7 @@
 - **#767** -- feat(framework,skills): add Discuss + Back as canonical numbered options in all deterministic-mode questions -- `[completed]`
 - **#768** -- Universal upgrade gate: stale-AGENTS.md consumers silently follow obsolete instructions -- `[completed]`
 - **#771** -- release-core: keep pyproject version truthful and define semver -> PEP 440 normalization -- `[completed]`
+- **#742** -- ADR-001 empirical validation: comprehension parity + CRUD determinism gates -- `[completed]`
 - **#791** -- run.bat: resolve `run` against %~dp0 instead of CWD (Windows) -- `[completed]`
 - **#792** -- cmd_doctor: add uv check; replace pre-v0.20 expected_dirs with v0.20+ layout -- `[completed]`
 - **#793** -- Add task migrate:preflight; have migrate:vbrief self-invoke it -- `[completed]`
@@ -413,4 +414,16 @@
 - **#1248** -- enhancement(ingest,skills): task issue:ingest produces stub-only vBRIEFs (no Overview, no items) -- `[completed]`
 - **#1250** -- bug(triage,policy): task triage:welcome materializes plan.policy.wipCap, violating #1186 Deliverable 1 -- `[completed]`
 - **#1251** -- bug(triage,policy): task triage:bootstrap blanket-ignores vbrief/.eval/, violating #1144 hybrid policy -- `[completed]`
+- **#1269** -- feat(ritual): session sentinel + version-aware welcome-back banner for returning users -- `[completed]`
+- **#1270** -- fix(triage): triage:summary in-flight count should be filesystem-truth with conditional scope-discrepancy line -- `[completed]`
+- **#1179** -- Installer leaves vbrief/ in partial state -> AGENTS.md pre-cutover guard fires on every fresh install -- `[completed]`
+- **#1272** -- Onboarding: detect missing root Taskfile.yml include and either auto-create or loud-fail with the fix -- `[completed]`
+- **#1281** -- deft-install (Go): 19 P1 defects in cmd/deft-install/* and supporting docs (timeouts, discarded errors, error-wrap, doc/code mismatch) -- `[completed]`
+- **#1283** -- Pack-aware slice API -- surface, semantics, mechanisms (design RFC) -- `[completed]`
+- **#1284** -- Epic 1 umbrella: vBRIEF-as-canonical for the agentic-consumed surface (approved direction) -- `[completed]`
+- **#1285** -- Epic 2 umbrella: deterministic CRUD harness for vBRIEF JSON (approved, non-gating) -- `[completed]`
+- **#1291** -- ADR-001 doc deliverable: vBRIEF-as-canonical (write the doc) -- `[completed]`
+- **#1300** -- Directive rule: ALWAYS confirm a cancellation came from the user (not a runtime glitch) before attributing intent -- `[completed]`
+- **#1308** -- feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger) -- `[completed]`
+- **#1309** -- fix(templates,agents-md,tests): propagate welcome / WIP cap / session-start ritual / skill routing from maintainer AGENTS.md into templates/agents-entry.md + propagation-discipline gate -- `[completed]`
 

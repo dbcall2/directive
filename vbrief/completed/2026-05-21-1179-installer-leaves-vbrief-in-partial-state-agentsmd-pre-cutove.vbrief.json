@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "Installer leaves vbrief/ in partial state -> AGENTS.md pre-cutover guard fires on every fresh install",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "The Go installer currently deposits a partial `vbrief/` tree that trips AGENTS.md pre-cutover detection on the first agent turn. This story makes the installer produce the full lifecycle folder layout and preserves those empty folders so fresh installs do not dead-end before setup starts.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1179",
@@ -54,7 +54,7 @@
         "title": "Issue #1179: Installer leaves vbrief/ in partial state -> AGENTS.md pre-cutover guard fires on every fresh install"
       }
     ],
-    "updated": "2026-05-21T20:18:09Z",
+    "updated": "2026-05-22T15:52:55Z",
     "id": "story-1179-installer-vbrief-lifecycle-dirs",
     "metadata": {
       "kind": "story",

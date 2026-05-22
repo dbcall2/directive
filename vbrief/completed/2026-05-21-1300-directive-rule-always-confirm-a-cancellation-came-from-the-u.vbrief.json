@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "Directive rule: ALWAYS confirm a cancellation came from the user (not a runtime glitch) before attributing intent",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Agents currently over-attribute tool cancellation signals to user intent, which loses the real runtime failure mode. This story adds an explicit cancellation-attribution rule so future agents retry or investigate runtime cancellations before saying the user cancelled work.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1300",
@@ -54,7 +54,7 @@
         "title": "Issue #1300: Directive rule: ALWAYS confirm a cancellation came from the user (not a runtime glitch) before attributing intent"
       }
     ],
-    "updated": "2026-05-21T20:18:32Z",
+    "updated": "2026-05-22T15:53:11Z",
     "id": "story-1300-cancellation-attribution-rule",
     "metadata": {
       "kind": "story",

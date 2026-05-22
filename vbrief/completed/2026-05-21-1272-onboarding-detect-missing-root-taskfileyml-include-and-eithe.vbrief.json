@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "Onboarding: detect missing root Taskfile.yml include and either auto-create or loud-fail with the fix",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Fresh Deft installs need one deterministic health surface that works even when the root Taskfile is missing. This story makes `.deft/core/run doctor` the canonical entry point for diagnosing and repairing task-surface wiring, while leaving `task` as a convenience shim only after the task surface works.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1272",
@@ -61,7 +61,7 @@
         "title": "Issue #1272: Onboarding: detect missing root Taskfile.yml include and either auto-create or loud-fail with the fix"
       }
     ],
-    "updated": "2026-05-21T20:08:44Z",
+    "updated": "2026-05-22T15:53:00Z",
     "id": "story-1272-run-doctor-task-surface",
     "metadata": {
       "kind": "story",

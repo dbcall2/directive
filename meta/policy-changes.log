@@ -1,0 +1,14 @@
+# meta/policy-changes.log -- audit trail for policy.allowDirectCommitsToMaster transitions (#746)
+2026-05-22T16:03:52Z actor=task policy:allow-direct-commits allowDirectCommitsToMaster=true previous=None
+2026-05-22T16:04:05Z actor=task policy:enforce-branches allowDirectCommitsToMaster=false previous=True
+2026-05-22T16:20:30Z actor=task policy:allow-direct-commits allowDirectCommitsToMaster=true previous=None
+2026-05-22T16:21:20Z actor=task policy:enforce-branches allowDirectCommitsToMaster=false previous=True
+2026-05-22T16:35:40Z actor=task policy:allow-direct-commits allowDirectCommitsToMaster=true previous=True
+2026-05-22T16:36:26Z actor=task policy:enforce-branches allowDirectCommitsToMaster=false previous=True
+2026-05-22T16:44:14Z actor=task policy:allow-direct-commits allowDirectCommitsToMaster=true previous=True
+2026-05-22T16:44:46Z actor=task policy:enforce-branches allowDirectCommitsToMaster=false previous=True
+2026-05-22T19:13:03Z actor=task policy:allow-direct-commits allowDirectCommitsToMaster=true previous=True
+2026-05-22T19:13:30Z actor=task policy:enforce-branches allowDirectCommitsToMaster=false previous=True
+2026-05-22T19:16:28Z actor=task policy:allow-direct-commits allowDirectCommitsToMaster=true previous=True
+2026-05-22T19:16:30Z actor=task policy:enforce-branches allowDirectCommitsToMaster=false previous=True
+2026-05-22T19:48:49Z actor=task policy:allow-direct-commits allowDirectCommitsToMaster=true previous=True
