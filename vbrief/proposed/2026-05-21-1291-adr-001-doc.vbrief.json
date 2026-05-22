@@ -3,12 +3,12 @@
     "version": "0.6",
     "description": "Story vBRIEF for #1291 (doc(adr): ADR-001 -- vBRIEF-as-canonical); part of the #742 decomposition.",
     "created": "2026-05-21T16:32:24Z",
-    "updated": "2026-05-22T19:15:22Z"
+    "updated": "2026-05-22T19:46:56Z"
   },
   "plan": {
     "id": "1291-adr-001-doc",
     "title": "ADR-001 doc deliverable: vBRIEF-as-canonical (write the doc)",
-    "status": "completed",
+    "status": "proposed",
     "planRef": "#1291",
     "narratives": {
       "Description": "Write docs/decisions/ADR-001.md per the #665 ADR convention. Inherits the approved sections of #742's rationale prose verbatim (token-economics, qualifier, two-axis context, defense-in-depth layers, counter-arguments, operational-state carve-out, strategic positioning).",
@@ -75,6 +75,6 @@
         "title": "Issue #401: AXIOM ship-PR"
       }
     ],
-    "updated": "2026-05-22T19:15:22Z"
+    "updated": "2026-05-22T19:46:56Z"
   }
 }

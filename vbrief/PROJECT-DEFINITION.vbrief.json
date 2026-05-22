@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-05-22T19:12:54Z"
+    "updated": "2026-05-22T19:47:07Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -868,103 +868,6 @@
         }
       },
       {
-        "id": "2026-05-21-1284-epic-vbrief-canonical",
-        "title": "Epic 1 umbrella: vBRIEF-as-canonical for the agentic-consumed surface (approved direction)",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-05-21-1284-epic-vbrief-canonical.vbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1284",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical for the agentic-consumed surface"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/742",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #742: doc(adr): ADR-001 (decomposed)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/1283",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1283: rfc(vbrief,consumption): pack-aware slice API"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/1285",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1285: epic(vbrief,crud): CRUD harness epic"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/714",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #714: feat(vbrief): four-tier model"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/715",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #715: feat(vbrief): round-trip preservation"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/748",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #748: rules-classification vocabulary"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/1119",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1119: operational-state carve-out"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/1273",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1273: research-strategy lifecycle footgun"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/1274",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1274: task deft:issue:emit (adopted as Child 1.0b)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/336",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #336: migration umbrella (reframe target)"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-05-21-1285-epic-crud-harness",
-        "title": "Epic 2 umbrella: deterministic CRUD harness for vBRIEF JSON (approved, non-gating)",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-05-21-1285-epic-crud-harness.vbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1285",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1285: epic(vbrief,crud): CRUD harness epic"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/742",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #742: doc(adr): ADR-001 (decomposed)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/1284",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/1167",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1167: code-abstraction-over-flat-tools architecture"
-            }
-          ]
-        }
-      },
-      {
         "id": "2026-05-21-1286-triage-queue-blocked-filter",
         "title": "Demote vBRIEF-status:blocked items in triage:queue",
         "status": "proposed",
@@ -1299,6 +1202,103 @@
               "uri": "https://github.com/deftai/directive/issues/1285",
               "type": "x-vbrief/github-issue",
               "title": "Issue #1285: epic(vbrief,crud): CRUD harness"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1284-epic-vbrief-canonical",
+        "title": "Epic 1 umbrella: vBRIEF-as-canonical for the agentic-consumed surface (approved direction)",
+        "status": "pending",
+        "metadata": {
+          "source_path": "pending/2026-05-21-1284-epic-vbrief-canonical.vbrief.json",
+          "lifecycle_folder": "pending",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical for the agentic-consumed surface"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/742",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #742: doc(adr): ADR-001 (decomposed)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1283",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1283: rfc(vbrief,consumption): pack-aware slice API"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1285",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1285: epic(vbrief,crud): CRUD harness epic"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/714",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #714: feat(vbrief): four-tier model"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/715",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #715: feat(vbrief): round-trip preservation"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/748",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #748: rules-classification vocabulary"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1119",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1119: operational-state carve-out"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1273",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1273: research-strategy lifecycle footgun"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1274",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1274: task deft:issue:emit (adopted as Child 1.0b)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/336",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #336: migration umbrella (reframe target)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-21-1285-epic-crud-harness",
+        "title": "Epic 2 umbrella: deterministic CRUD harness for vBRIEF JSON (approved, non-gating)",
+        "status": "pending",
+        "metadata": {
+          "source_path": "pending/2026-05-21-1285-epic-crud-harness.vbrief.json",
+          "lifecycle_folder": "pending",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1285",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1285: epic(vbrief,crud): CRUD harness epic"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/742",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #742: doc(adr): ADR-001 (decomposed)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1284",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1284: epic(vbrief): vBRIEF-as-canonical"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1167",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1167: code-abstraction-over-flat-tools architecture"
             }
           ]
         }
@@ -6042,6 +6042,57 @@
         }
       },
       {
+        "id": "2026-05-01-742-adr-001-empirical-validation",
+        "title": "ADR-001 empirical validation: comprehension parity + CRUD determinism gates",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-01-742-adr-001-empirical-validation.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/742",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #742 (parent ADR): doc(adr): ADR-001 -- vBRIEF-as-master for the agentic-consumed surface"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/602",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #602: encode latent-vs-deterministic as an explicit coding principle (encoding-form ladder origin)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/634",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #634: detection-strength ladder (orthogonal axis)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/714",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #714: tier-3 extension packs (mechanism for ADR-001 implementation)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/715",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #715: round-trip preservation (prerequisite)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/665",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #665: ADR convention (storage spec for ADR-001)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/336",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #336: migration umbrella (downstream consumer)"
+            },
+            {
+              "uri": "https://github.com/deftai/deft-agent-bench",
+              "type": "x-vbrief/related-repo",
+              "title": "deft-agent-bench (internal): bench infrastructure for this validation effort"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-05-01-791-runbat-resolves-un-against-cwd-instead-of-dp0-windows-path-b",
         "title": "run.bat: resolve `run` against %~dp0 instead of CWD (Windows)",
         "status": "completed",
@@ -9076,57 +9127,6 @@
               "uri": "https://github.com/deftai/directive/issues/1309",
               "type": "x-vbrief/github-issue",
               "title": "Issue #1309: fix(templates,agents-md,tests): propagate welcome / WIP cap / session-start ritual / skill routing from maintainer AGENTS.md into templates/agents-entry.md + propagation-discipline gate"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-05-01-742-adr-001-empirical-validation",
-        "title": "ADR-001 empirical validation: comprehension parity + CRUD determinism gates",
-        "status": "cancelled",
-        "metadata": {
-          "source_path": "cancelled/2026-05-01-742-adr-001-empirical-validation.vbrief.json",
-          "lifecycle_folder": "cancelled",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/742",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #742 (parent ADR): doc(adr): ADR-001 -- vBRIEF-as-master for the agentic-consumed surface"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/602",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #602: encode latent-vs-deterministic as an explicit coding principle (encoding-form ladder origin)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/634",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #634: detection-strength ladder (orthogonal axis)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/714",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #714: tier-3 extension packs (mechanism for ADR-001 implementation)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/715",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #715: round-trip preservation (prerequisite)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/665",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #665: ADR convention (storage spec for ADR-001)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/336",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #336: migration umbrella (downstream consumer)"
-            },
-            {
-              "uri": "https://github.com/deftai/deft-agent-bench",
-              "type": "x-vbrief/related-repo",
-              "title": "deft-agent-bench (internal): bench infrastructure for this validation effort"
             }
           ]
         }
