@@ -1,0 +1,30 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6",
+    "description": "Story vBRIEF for swarm work targeting #1342",
+    "updated": "2026-05-25T17:52:06.659198+00:00"
+  },
+  "plan": {
+    "title": "swarm: add monitoring and takeover support for spawn_subagent agents (slice 3 of #1342)",
+    "status": "completed",
+    "narratives": {
+      "Overview": "Implement Phase 4 monitoring, checkpoints, and takeover triggers that work with spawn_subagent-dispatched agents using worktree polling and the review-cycle skill tiers.",
+      "ProblemStatement": "See GitHub issue #1342 for full context and TDD plan.",
+      "Goals": "Implement the assigned slice(s) from the TDD plan in #1342 using the hybrid workaround approach.",
+      "UserStories": "As a user of Grok Build, I want the swarm skill to support non-Warp environments natively."
+    },
+    "items": [
+      "Define monitoring approach for grok-build platform (worktree + sub-agent messaging)",
+      "Adapt takeover triggers for non-Warp agents",
+      "Integrate with review-cycle skill monitoring tiers",
+      "Update Phase 4 docs and anti-patterns"
+    ],
+    "references": [
+      {
+        "type": "github-issue",
+        "uri": "https://github.com/deftai/directive/issues/1342"
+      }
+    ],
+    "updated": "2026-05-25T20:03:12Z"
+  }
+}

@@ -3,12 +3,12 @@
     "version": "0.6",
     "description": "Epic umbrella vBRIEF for #1285 (epic(vbrief,crud): CRUD harness epic); part of the #742 decomposition.",
     "created": "2026-05-21T16:32:24Z",
-    "updated": "2026-05-22T19:46:56Z"
+    "updated": "2026-05-25T22:35:08Z"
   },
   "plan": {
     "id": "1285-epic-crud-harness",
     "title": "Epic 2 umbrella: deterministic CRUD harness for vBRIEF JSON (approved, non-gating)",
-    "status": "pending",
+    "status": "completed",
     "planRef": "#1285",
     "narratives": {
       "Description": "Approved, non-gating. The CRUD tool is required infrastructure (per #1167's code-abstraction-over-flat-tools) independent of Gate-2 evidence. Gate 2 (synthetic 3-arm evaluation) is dropped as part of the #742 decomposition.",
@@ -74,6 +74,6 @@
         "title": "Issue #1167: code-abstraction-over-flat-tools architecture"
       }
     ],
-    "updated": "2026-05-22T19:46:56Z"
+    "updated": "2026-05-25T22:35:08Z"
   }
 }

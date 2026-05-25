@@ -1,0 +1,30 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6",
+    "description": "Story vBRIEF for swarm work",
+    "updated": "2026-05-25T17:51:56.431154Z"
+  },
+  "plan": {
+    "title": "swarm: extend runtime capability detection for Grok Build / spawn_subagent (slice 1 of #1342)",
+    "status": "completed",
+    "narratives": {
+      "Overview": "Extend the existing Runtime Capability Detection logic in the swarm skill (and align with review-cycle) to recognize spawn_subagent-based environments and return a stable platform descriptor.",
+      "ProblemStatement": "See GitHub issue #1342 for full context.",
+      "Goals": "Implement the assigned slice(s) from the TDD plan in #1342 using the hybrid workaround approach described in the same issue.",
+      "UserStories": "As a developer using Grok Build / non-Warp, I want the swarm skill to work natively."
+    },
+    "items": [
+      "Add detection for presence of spawn_subagent tool + absence of start_agent and WARP_* vars",
+      "Return consistent platform identifier (e.g. grok-build or spawn_subagent)",
+      "Add unit tests for the full detection matrix",
+      "Update anti-patterns and docs"
+    ],
+    "references": [
+      {
+        "type": "github-issue",
+        "uri": "https://github.com/deftai/directive/issues/1342"
+      }
+    ],
+    "updated": "2026-05-25T20:03:05Z"
+  }
+}

@@ -3,12 +3,12 @@
     "version": "0.6",
     "description": "Research vBRIEF for #1283 (pack-slicing RFC); part of the #742 decomposition.",
     "created": "2026-05-21T16:32:24Z",
-    "updated": "2026-05-22T19:46:56Z"
+    "updated": "2026-05-25T22:35:08Z"
   },
   "plan": {
     "id": "1283-pack-slicing-rfc",
     "title": "Pack-aware slice API -- surface, semantics, mechanisms (design RFC)",
-    "status": "proposed",
+    "status": "completed",
     "planRef": "#1283",
     "narratives": {
       "Description": "Design RFC for the pack-aware slice mechanism that vBRIEF-as-canonical (Epic 1) depends on for selective-loading. Carved out from #742 (decomposed); this RFC starts fresh because the original section in #742 was unclear in what it presented.",
@@ -65,6 +65,6 @@
         "title": "Issue #1290: feat(vbrief): reconcile_issues honors stateReason"
       }
     ],
-    "updated": "2026-05-22T19:46:56Z"
+    "updated": "2026-05-25T22:35:08Z"
   }
 }

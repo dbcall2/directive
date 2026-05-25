@@ -1,0 +1,30 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6",
+    "description": "Story vBRIEF for swarm work",
+    "updated": "2026-05-25T17:51:56.432151Z"
+  },
+  "plan": {
+    "title": "swarm: implement Grok Build / spawn_subagent launch path in Phase 3 (slice 2 of #1342)",
+    "status": "completed",
+    "narratives": {
+      "Overview": "Add a first-class launch adapter that uses the available spawn_subagent tool, supplies the canonical preamble + adapted prompt, and works with worktree context.",
+      "ProblemStatement": "See GitHub issue #1342 for full context.",
+      "Goals": "Implement the assigned slice(s) from the TDD plan in #1342 using the hybrid workaround approach described in the same issue.",
+      "UserStories": "As a developer using Grok Build / non-Warp, I want the swarm skill to work natively."
+    },
+    "items": [
+      "Implement launch adapter for detected grok-build platform",
+      "Ensure generated prompts use the canonical agent-prompt-preamble as foundation",
+      "Support the hybrid workaround style described in #1342",
+      "Update Phase 3 documentation and anti-patterns"
+    ],
+    "references": [
+      {
+        "type": "github-issue",
+        "uri": "https://github.com/deftai/directive/issues/1342"
+      }
+    ],
+    "updated": "2026-05-25T20:03:08Z"
+  }
+}
