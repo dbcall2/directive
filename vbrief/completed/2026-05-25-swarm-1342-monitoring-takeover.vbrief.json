@@ -14,10 +14,34 @@
       "UserStories": "As a user of Grok Build, I want the swarm skill to support non-Warp environments natively."
     },
     "items": [
-      "Define monitoring approach for grok-build platform (worktree + sub-agent messaging)",
-      "Adapt takeover triggers for non-Warp agents",
-      "Integrate with review-cycle skill monitoring tiers",
-      "Update Phase 4 docs and anti-patterns"
+      {
+        "title": "Define monitoring approach for grok-build platform (worktree + sub-agent messaging)",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      },
+      {
+        "title": "Adapt takeover triggers for non-Warp agents",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      },
+      {
+        "title": "Integrate with review-cycle skill monitoring tiers",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      },
+      {
+        "title": "Update Phase 4 docs and anti-patterns",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      }
     ],
     "references": [
       {

@@ -14,10 +14,34 @@
       "UserStories": "As a user of Grok Build, I want the swarm skill to support non-Warp environments natively."
     },
     "items": [
-      "Make Phase 6 poller spawning use detected platform mechanism",
-      "Add comprehensive tests for new platform paths",
-      "Extract shared runtime adapter if beneficial",
-      "Update anti-patterns, prompt examples, and workaround section"
+      {
+        "title": "Make Phase 6 poller spawning use detected platform mechanism",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      },
+      {
+        "title": "Add comprehensive tests for new platform paths",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      },
+      {
+        "title": "Extract shared runtime adapter if beneficial",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      },
+      {
+        "title": "Update anti-patterns, prompt examples, and workaround section",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      }
     ],
     "references": [
       {

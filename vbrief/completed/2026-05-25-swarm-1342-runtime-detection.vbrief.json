@@ -14,10 +14,34 @@
       "UserStories": "As a developer using Grok Build / non-Warp, I want the swarm skill to work natively."
     },
     "items": [
-      "Add detection for presence of spawn_subagent tool + absence of start_agent and WARP_* vars",
-      "Return consistent platform identifier (e.g. grok-build or spawn_subagent)",
-      "Add unit tests for the full detection matrix",
-      "Update anti-patterns and docs"
+      {
+        "title": "Add detection for presence of spawn_subagent tool + absence of start_agent and WARP_* vars",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      },
+      {
+        "title": "Return consistent platform identifier (e.g. grok-build or spawn_subagent)",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      },
+      {
+        "title": "Add unit tests for the full detection matrix",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      },
+      {
+        "title": "Update anti-patterns and docs",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      }
     ],
     "references": [
       {

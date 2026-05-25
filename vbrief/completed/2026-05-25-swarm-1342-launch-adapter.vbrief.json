@@ -14,10 +14,34 @@
       "UserStories": "As a developer using Grok Build / non-Warp, I want the swarm skill to work natively."
     },
     "items": [
-      "Implement launch adapter for detected grok-build platform",
-      "Ensure generated prompts use the canonical agent-prompt-preamble as foundation",
-      "Support the hybrid workaround style described in #1342",
-      "Update Phase 3 documentation and anti-patterns"
+      {
+        "title": "Implement launch adapter for detected grok-build platform",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      },
+      {
+        "title": "Ensure generated prompts use the canonical agent-prompt-preamble as foundation",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      },
+      {
+        "title": "Support the hybrid workaround style described in #1342",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      },
+      {
+        "title": "Update Phase 3 documentation and anti-patterns",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Completed as part of #1342 slice work; see linked PR."
+        }
+      }
     ],
     "references": [
       {
