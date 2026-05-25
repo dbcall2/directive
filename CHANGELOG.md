@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **feat(swarm): first-class Grok Build spawn_subagent launch adapter in Phase 3 (#1342 slice 2)** -- Extends the runtime capability detection matrix with explicit spawn_subagent probe and "grok-build" platform descriptor. New Step 2d dispatches via the available primitive while always supplying the full canonical agent-prompt-preamble as the binding foundation. Review-cycle monitoring tiers aligned. Enables end-to-end native swarm in Grok Build. Refs #1342 (sibling slices 1, 3, 4+5).
 
 ### Changed
 - **feat(skills,tests): swarm runtime capability detection now platform-aware for Grok Build / spawn_subagent (#1342 slice 1)** -- The detection matrix in `skills/deft-directive-swarm` (and aligned tiers in review-cycle) recognizes `spawn_subagent` tool presence + absence of `start_agent` / `WARP_*` vars and returns a stable platform descriptor (e.g. "grok-build"). Full matrix covered by content tests. User-visible: swarm orchestration now works natively in Grok Build TUI / non-Warp agent environments (hybrid approach until later slices). Refs #1342 (slice 1 of TDD plan).
