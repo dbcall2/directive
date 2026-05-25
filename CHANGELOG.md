@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.34.0] - 2026-05-25
+
+> Phase 6 swarm/review-cycle dispatch unifies behind the platform adapter (Grok Build / non-Warp first-class via spawn_subagent), plus first-class VBA + Office.js language modules and CI action SHA refreshes.
+
+### Added
 - **feat(languages): add VBA and Office.js language modules (#1333)** -- agents working on Excel automation now have first-class standards for both VBA and Office.js (Excel JavaScript API). Coverage includes error handling, type safety, range operations, application state guards, sync batching, platform awareness, custom functions, and testing patterns for each environment. PR #1333.
 
 ### Changed
@@ -2853,7 +2865,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.33.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.34.0...HEAD
+[0.34.0]: https://github.com/deftai/directive/compare/v0.33.0...v0.34.0
 [0.33.0]: https://github.com/deftai/directive/compare/v0.32.1...v0.33.0
 [0.32.1]: https://github.com/deftai/directive/compare/v0.32.0...v0.32.1
 [0.32.0]: https://github.com/deftai/directive/compare/v0.31.0...v0.32.0

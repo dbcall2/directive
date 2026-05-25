@@ -426,4 +426,10 @@
 - **#1300** -- Directive rule: ALWAYS confirm a cancellation came from the user (not a runtime glitch) before attributing intent -- `[completed]`
 - **#1308** -- feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger) -- `[completed]`
 - **#1309** -- fix(templates,agents-md,tests): propagate welcome / WIP cap / session-start ritual / skill routing from maintainer AGENTS.md into templates/agents-entry.md + propagation-discipline gate -- `[completed]`
+- **#1348** -- Two-tier ritual sentinel + fail-closed verifier for the pre-start_agent gate stack -- `[completed]`
+- **#1349** -- Remove deft-directive-gh-triage skill and reclaim the 'triage' verb for deft-directive-refinement -- `[completed]`
+- **#1342** -- swarm: implement Grok Build / spawn_subagent launch path in Phase 3 (slice 2 of #1342) -- `[completed]`
+- **#1342** -- swarm: add monitoring and takeover support for spawn_subagent agents (slice 3 of #1342) -- `[completed]`
+- **#1342** -- swarm: unify Phase 6 sub-agent spawning + tests/refactor (slices 4+5 of #1342) -- `[completed]`
+- **#1342** -- swarm: extend runtime capability detection for Grok Build / spawn_subagent (slice 1 of #1342) -- `[completed]`
 
