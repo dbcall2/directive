@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **feat(languages): add VBA and Office.js language modules (#1333)** -- agents working on Excel automation now have first-class standards for both VBA and Office.js (Excel JavaScript API). Coverage includes error handling, type safety, range operations, application state guards, sync batching, platform awareness, custom functions, and testing patterns for each environment. PR #1333.
 
 ### Changed
 - **feat(skills): Phase 6 poller and sub-agent spawning unified behind the platform adapter (#1342 slices 4+5)** -- Swarm and review-cycle now dispatch post-PR review-cycle pollers and sub-agents via the stable runtime platform descriptor (spawn_subagent for grok-build, start_agent for Warp-orchestrated). Mandates the canonical poller template and all #727 / #800 safety rules for every path. Enables reliable native swarm usage in Grok Build / non-Warp TUI environments. Refs #1342.
