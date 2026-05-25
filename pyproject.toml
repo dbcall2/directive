@@ -64,8 +64,9 @@ line-length = 100
 exclude = [
     ".venv",
     "__pycache__",
-    "run",        # extension-less CLI entry point — not linted in Phase 1
-    "run.py",     # importlib shim for tests — inherent E402/I001
+    "run",                # extension-less CLI entry point — not linted in Phase 1
+    "run.py",             # importlib shim for tests — inherent E402/I001
+    "swarm-worktrees",    # parallel-agent git worktrees -- linted via their own checkouts
 ]
 
 [tool.ruff.lint]
