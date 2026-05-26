@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "grok-build (Windows): run_terminal_command leaks Get-Content / wrapper noise on any pipeline or redirection (pwsh 7+)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "grok-build (Windows): run_terminal_command leaks Get-Content / wrapper noise on any pipeline or redirection (pwsh 7+)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1353",
@@ -58,6 +58,6 @@
         "title": "Issue #1353: grok-build (Windows): run_terminal_command leaks Get-Content / wrapper noise on any pipeline or redirection (pwsh 7+)"
       }
     ],
-    "updated": "2026-05-26T12:05:31Z"
+    "updated": "2026-05-26T14:01:29Z"
   }
 }

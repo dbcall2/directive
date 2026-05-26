@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "deft-directive-swarm is tightly coupled to the Warp runtime, making it hard to use in other agent environments (Grok Build, etc.)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "deft-directive-swarm is tightly coupled to the Warp runtime, making it hard to use in other agent environments (Grok Build, etc.)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1331",
@@ -53,6 +53,6 @@
         "title": "Issue #1331: deft-directive-swarm is tightly coupled to the Warp runtime, making it hard to use in other agent environments (Grok Build, etc.)"
       }
     ],
-    "updated": "2026-05-26T13:30:00Z"
+    "updated": "2026-05-26T14:01:30Z"
   }
 }
