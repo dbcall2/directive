@@ -432,4 +432,6 @@
 - **#1342** -- swarm: add monitoring and takeover support for spawn_subagent agents (slice 3 of #1342) -- `[completed]`
 - **#1342** -- swarm: unify Phase 6 sub-agent spawning + tests/refactor (slices 4+5 of #1342) -- `[completed]`
 - **#1342** -- swarm: extend runtime capability detection for Grok Build / spawn_subagent (slice 1 of #1342) -- `[completed]`
+- **#1331** -- deft-directive-swarm is tightly coupled to the Warp runtime, making it hard to use in other agent environments (Grok Build, etc.) -- `[completed]`
+- **#1353** -- grok-build (Windows): run_terminal_command leaks Get-Content / wrapper noise on any pipeline or redirection (pwsh 7+) -- `[completed]`
 
