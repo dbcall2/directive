@@ -62,7 +62,7 @@ class TestProjectLifecycleSubdirs:
             ).is_dir(), f"Expected lifecycle folder vbrief/{folder}/ to exist after `run project`"
 
     def test_lifecycle_folders_match_validator_constant(self, deft_run_module):
-        """LIFECYCLE_FOLDERS in run must stay in sync with scripts/vbrief_validate.py.
+        """LIFECYCLE_FOLDERS must stay in sync across detector consumers.
 
         Parses `scripts/vbrief_validate.py` via `ast` (no import, so the
         validator module is not pulled into the coverage report) and
@@ -132,6 +132,10 @@ class TestProjectLifecycleSubdirs:
             validator_folders is not None
         ), "Could not extract LIFECYCLE_FOLDERS from scripts/vbrief_validate.py"
         assert validator_folders == deft_run_module.LIFECYCLE_FOLDERS
+
+        from scripts._precutover import LIFECYCLE_FOLDERS as PRECUTOVER_LIFECYCLE_FOLDERS
+
+        assert PRECUTOVER_LIFECYCLE_FOLDERS == deft_run_module.LIFECYCLE_FOLDERS
 
     def test_cmd_project_writes_version_marker(
         self, run_command, mock_user_input, isolated_env, deft_run_module, monkeypatch
@@ -203,6 +207,12 @@ class TestLegacyDetection:
         self, tmp_path, deft_run_module, write_current_generated_spec
     ):
         write_current_generated_spec(tmp_path)
+        assert deft_run_module._detect_pre_cutover_legacy(tmp_path) == []
+
+    def test_generated_spec_with_missing_lifecycle_is_not_legacy(
+        self, tmp_path, deft_run_module, write_current_generated_spec
+    ):
+        write_current_generated_spec(tmp_path, omit_lifecycle="cancelled")
         assert deft_run_module._detect_pre_cutover_legacy(tmp_path) == []
 
 

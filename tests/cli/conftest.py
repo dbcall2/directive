@@ -96,13 +96,15 @@ def isolated_env(isolated_env_no_user: Path) -> Path:
 
 
 @pytest.fixture
-def write_current_generated_spec() -> Callable[[Path], None]:
+def write_current_generated_spec() -> Callable[..., None]:
     """Write a current rendered SPECIFICATION.md plus its vBRIEF source model."""
 
-    def _write(project_root: Path) -> None:
+    def _write(project_root: Path, *, omit_lifecycle: str | None = None) -> None:
         vbrief_dir = project_root / "vbrief"
         vbrief_dir.mkdir(exist_ok=True)
         for folder in ("proposed", "pending", "active", "completed", "cancelled"):
+            if folder == omit_lifecycle:
+                continue
             (vbrief_dir / folder).mkdir(exist_ok=True)
         (vbrief_dir / "specification.vbrief.json").write_text("{}", encoding="utf-8")
         (project_root / "SPECIFICATION.md").write_text(

@@ -56,6 +56,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _precutover import (  # noqa: E402
     detect_pre_cutover_legacy,
     is_current_generated_specification,
+    is_generated_specification_export,
     missing_lifecycle_folders,
 )
 
@@ -235,6 +236,37 @@ def check_document_model(project_root: Path) -> CheckResult:
             "Legacy root artifact(s) detected: " + ", ".join(legacy) + ".",
         )
 
+    spec_md = project_root / "SPECIFICATION.md"
+    if spec_md.is_file():
+        try:
+            content = spec_md.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            content = ""
+        if is_generated_specification_export(project_root, content):
+            missing = missing_lifecycle_folders(project_root)
+            if missing:
+                return CheckResult(
+                    "document-model",
+                    "FAIL",
+                    (
+                        "Generated SPECIFICATION.md detected "
+                        "(source: vbrief/specification.vbrief.json); "
+                        "repair missing lifecycle folder(s) instead of migrating: "
+                        + ", ".join(missing)
+                        + "."
+                    ),
+                )
+        if is_current_generated_specification(project_root, content):
+            return CheckResult(
+                "document-model",
+                "FAIL",
+                (
+                    "Current generated SPECIFICATION.md detected "
+                    "(source: vbrief/specification.vbrief.json); "
+                    "`task migrate:vbrief` is not needed."
+                ),
+            )
+
     vbrief_root = project_root / "vbrief"
     if vbrief_root.exists():
         missing = missing_lifecycle_folders(project_root)
@@ -245,23 +277,6 @@ def check_document_model(project_root: Path) -> CheckResult:
                 "Partial vBRIEF layout detected; missing lifecycle folder(s): "
                 + ", ".join(missing)
                 + ".",
-            )
-
-    spec_md = project_root / "SPECIFICATION.md"
-    if spec_md.is_file():
-        try:
-            content = spec_md.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            content = ""
-        if is_current_generated_specification(project_root, content):
-            return CheckResult(
-                "document-model",
-                "FAIL",
-                (
-                    "Current generated SPECIFICATION.md detected "
-                    "(source: vbrief/specification.vbrief.json); "
-                    "`task migrate:vbrief` is not needed."
-                ),
             )
 
     return CheckResult(

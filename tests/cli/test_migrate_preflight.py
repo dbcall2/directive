@@ -240,6 +240,17 @@ def test_check_document_model_fails_for_current_generated_spec(
     assert "Current generated SPECIFICATION.md" in result.message
 
 
+def test_check_document_model_fails_for_generated_spec_missing_lifecycle(
+    preflight, tmp_path, write_current_generated_spec
+):
+    project_root = _make_fake_project_root(tmp_path)
+    write_current_generated_spec(project_root, omit_lifecycle="cancelled")
+    result = preflight.check_document_model(project_root)
+    assert result.status == "FAIL"
+    assert "Generated SPECIFICATION.md" in result.message
+    assert "cancelled" in result.message
+
+
 # ---------------------------------------------------------------------------
 # evaluate(): exit 0 / exit 1 paths
 # ---------------------------------------------------------------------------
