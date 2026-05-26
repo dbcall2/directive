@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **feat(check,build): add deterministic validation gate for strategy output shape (#1166)** -- `task check` and the build skill now hard-fail early when a strategy has emitted non-v0.20-conformant artifacts (e.g. undated scope vBRIEFs or missing project definition). Users of yolo, interview, speckit and similar strategies receive an immediate actionable error instead of a confusing downstream build rejection. The gate is exercised on every pre-commit and in CI. Refs #1166.
 
 ### Changed
+- **yolo strategy now emits the v0.20 output shape** -- The yolo auto-pilot strategy produces date-prefixed story vBRIEFs in `vbrief/proposed/`, invokes `task project:render` for a complete `PROJECT-DEFINITION.vbrief.json`, and seeds all five lifecycle folders. Legacy `specification.vbrief.json` output is explicitly forbidden; yolo-generated projects now pass the Pre-Cutover Detection Guard on first attempt. Resolves the yolo row from the #1166 inconsistency table. Refs #1166.
 
 ### Fixed
 
