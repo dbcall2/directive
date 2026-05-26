@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **yolo strategy now emits the v0.20 output shape** -- The yolo auto-pilot strategy produces date-prefixed story vBRIEFs in `vbrief/proposed/`, invokes `task project:render` for a complete `PROJECT-DEFINITION.vbrief.json`, and seeds all five lifecycle folders. Legacy `specification.vbrief.json` output is explicitly forbidden; yolo-generated projects now pass the Pre-Cutover Detection Guard on first attempt. Resolves the yolo row from the #1166 inconsistency table. Refs #1166.
 
+- **feat(strategies): migrate interview (light + full) to v0.20 (#1166)** -- The most common spec strategy now emits date-prefixed scope vBRIEFs under proposed/, triggers task project:render for a complete PROJECT-DEFINITION.vbrief.json, seeds the lifecycle folders, and treats specification.vbrief.json as legacy (no longer primary). Interview-generated projects now pass the v0.20 Pre-Cutover Detection Guard on first build. Refs #1166.
+
 ### Fixed
 
 ### Removed
