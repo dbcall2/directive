@@ -413,7 +413,7 @@ tasks:
     env:
       PYTHONUTF8: "1"
     cmds:
-      - uv --project "{{.TASKFILE_DIR}}" run python "{{.TASKFILE_DIR}}/run" doctor {{.CLI_ARGS}}
+      - uv --project "{{.TASKFILE_DIR}}" run --frozen python "{{.TASKFILE_DIR}}/run" doctor {{.CLI_ARGS}}
 
   setup:
     desc: "Idempotent local-dev setup: configure git hooks (#747); detect-and-prompt ghx (#884). Sets core.hooksPath=.githooks so .githooks/pre-commit + .githooks/pre-push run."

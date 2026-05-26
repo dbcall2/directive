@@ -4,8 +4,8 @@
 Reifies the prose contract documented in
 ``skills/deft-directive-setup/SKILL.md`` § Environment Preflight as a runnable
 task so consumers running ``task migrate:vbrief`` directly (not via the
-agent-driven setup skill) get the same three checks before any destructive
-mutation runs.
+agent-driven setup skill) get the same checks before any destructive mutation
+runs.
 
 Pure stdlib + ``subprocess``. Three-state exit (mirrors
 ``scripts/preflight_branch.py`` (#747) and ``scripts/preflight_implementation.py``
@@ -17,14 +17,17 @@ Pure stdlib + ``subprocess``. Three-state exit (mirrors
   directory. Distinct from FAIL so callers can disambiguate "user can fix"
   from "calling environment is wrong".
 
-The three checks are:
+The checks are:
 
 1. ``uv`` on PATH -- the migrator runs via ``uv run python``; absence is fatal.
 2. v0.20+ layout -- ``<deft-root>/scripts/migrate_vbrief.py`` and
    ``<project>/vbrief/`` (with the ``schemas/`` subdirectory carried by the
    framework checkout) must exist; absence indicates an incomplete or
    pre-cutover checkout.
-3. Git working-tree state -- a dirty tree is reported as WARN (the migrator's
+3. Document-model state -- delegates to ``scripts/_precutover.py`` so a
+   generated ``SPECIFICATION.md`` from ``task spec:render`` does not send a
+   current vBRIEF project through destructive migration.
+4. Git working-tree state -- a dirty tree is reported as WARN (the migrator's
    own dirty-tree guard fires with an actionable ``--force`` pointer; we do
    NOT block here so ``--dry-run`` previews remain usable). Non-git
    directories are also a WARN-level skip rather than a FAIL.
@@ -47,6 +50,14 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import NamedTuple
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from _precutover import (  # noqa: E402
+    detect_pre_cutover_legacy,
+    is_current_generated_specification,
+    missing_lifecycle_folders,
+)
 
 
 class CheckResult(NamedTuple):
@@ -209,6 +220,60 @@ def check_git_clean(project_root: Path) -> CheckResult:
     return CheckResult("git-clean", "PASS", "Working tree is clean.")
 
 
+def check_document_model(project_root: Path) -> CheckResult:
+    """Verify migration is aimed at legacy or incomplete document-model state.
+
+    The preflight is a safety check, so it must not send current vBRIEF
+    projects into the destructive migration path merely because a generated
+    root ``SPECIFICATION.md`` exists.
+    """
+    legacy = detect_pre_cutover_legacy(project_root)
+    if legacy:
+        return CheckResult(
+            "document-model",
+            "PASS",
+            "Legacy root artifact(s) detected: " + ", ".join(legacy) + ".",
+        )
+
+    vbrief_root = project_root / "vbrief"
+    if vbrief_root.exists():
+        missing = missing_lifecycle_folders(project_root)
+        if missing:
+            return CheckResult(
+                "document-model",
+                "PASS",
+                "Partial vBRIEF layout detected; missing lifecycle folder(s): "
+                + ", ".join(missing)
+                + ".",
+            )
+
+    spec_md = project_root / "SPECIFICATION.md"
+    if spec_md.is_file():
+        try:
+            content = spec_md.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            content = ""
+        if is_current_generated_specification(project_root, content):
+            return CheckResult(
+                "document-model",
+                "FAIL",
+                (
+                    "Current generated SPECIFICATION.md detected "
+                    "(source: vbrief/specification.vbrief.json); "
+                    "`task migrate:vbrief` is not needed."
+                ),
+            )
+
+    return CheckResult(
+        "document-model",
+        "WARN",
+        (
+            "No legacy root SPECIFICATION.md/PROJECT.md artifacts detected. "
+            "Migration may have nothing to do."
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Aggregate evaluation
 # ---------------------------------------------------------------------------
@@ -232,6 +297,7 @@ def evaluate(deft_root: Path, project_root: Path) -> tuple[int, list[CheckResult
     results = [
         check_uv(),
         check_layout(deft_root, project_root),
+        check_document_model(project_root),
         check_git_clean(project_root),
     ]
     if any(r.status == "FAIL" for r in results):
@@ -254,24 +320,21 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="migrate_preflight.py",
         description=(
             "Agent-side environment preflight for `task migrate:vbrief` "
-            "(#793). Verifies uv on PATH, v0.20+ layout, and git working-tree "
-            "state before destructive migration mutations."
+            "(#793). Verifies uv on PATH, v0.20+ layout, document-model "
+            "state, and git working-tree state before destructive migration "
+            "mutations."
         ),
     )
     parser.add_argument(
         "--project-root",
         default=".",
-        help=(
-            "Path to the consumer project root (default: current working "
-            "directory)."
-        ),
+        help=("Path to the consumer project root (default: current working " "directory)."),
     )
     parser.add_argument(
         "--deft-root",
         default=None,
         help=(
-            "Path to the deft framework checkout (default: parent of this "
-            "script's directory)."
+            "Path to the deft framework checkout (default: parent of this " "script's directory)."
         ),
     )
     parser.add_argument(
@@ -299,8 +362,7 @@ def main(argv: list[str] | None = None) -> int:
     project_root = Path(args.project_root).resolve()
     if not project_root.exists() or not project_root.is_dir():
         print(
-            f"ERROR: --project-root does not exist or is not a directory: "
-            f"{project_root}",
+            f"ERROR: --project-root does not exist or is not a directory: " f"{project_root}",
             file=sys.stderr,
         )
         return 2
@@ -314,8 +376,7 @@ def main(argv: list[str] | None = None) -> int:
         deft_root = Path(args.deft_root).resolve()
         if not deft_root.exists() or not deft_root.is_dir():
             print(
-                f"ERROR: --deft-root does not exist or is not a directory: "
-                f"{deft_root}",
+                f"ERROR: --deft-root does not exist or is not a directory: " f"{deft_root}",
                 file=sys.stderr,
             )
             return 2

@@ -155,11 +155,12 @@ Projects that pre-date v0.20 (pre-vBRIEF-centric model) can be upgraded with `ta
 
 A consumer project is **pre-cutover** if ANY of these hold:
 
-- `SPECIFICATION.md` or `PROJECT.md` exists at the project root and does NOT contain the `<!-- deft:deprecated-redirect -->` sentinel (real content, not a post-migration redirect stub)
+- `SPECIFICATION.md` exists at the project root and is neither a deprecation redirect nor a current generated spec export. A current generated spec export contains `<!-- Purpose: rendered specification -->` and `<!-- Source of truth: vbrief/specification.vbrief.json -->`, and `vbrief/specification.vbrief.json` plus all five lifecycle folders exist.
+- `PROJECT.md` exists at the project root and is not a deprecation redirect (`<!-- deft:deprecated-redirect -->` or `<!-- Purpose: deprecation redirect -->`)
 - `vbrief/` exists but one or more of the five lifecycle subfolders (`proposed/`, `pending/`, `active/`, `completed/`, `cancelled/`) is missing
 - `vbrief/PROJECT-DEFINITION.vbrief.json` is absent on a project that otherwise looks set up
 
-The full detection flow that agents use lives in [QUICK-START.md](./QUICK-START.md) Step 2 and in [skills/deft-directive-setup/SKILL.md](./skills/deft-directive-setup/SKILL.md) (Pre-Cutover Detection Guard).
+The executable detection helper is [scripts/_precutover.py](./scripts/_precutover.py). The full agent-facing flow lives in [QUICK-START.md](./QUICK-START.md) Step 2 and in [skills/deft-directive-setup/SKILL.md](./skills/deft-directive-setup/SKILL.md) (Pre-Cutover Detection Guard).
 
 ### Publishing deft tasks in your project root
 

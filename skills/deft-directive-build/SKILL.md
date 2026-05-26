@@ -47,10 +47,10 @@ The gate exits 0 only when the candidate vBRIEF lives in `vbrief/active/` AND `p
 
 ### Detection Criteria
 
-A project is **pre-cutover or strategy-nonconformant** if ANY of the following are true:
+A project is **pre-cutover** if ANY of the following are true. This prose mirrors the executable helper in `scripts/_precutover.py`; when in doubt, the helper is canonical.
 
-1. `SPECIFICATION.md` exists and does NOT contain the `<!-- deft:deprecated-redirect -->` sentinel (real content, not a deprecation redirect)
-2. `PROJECT.md` exists and does NOT contain the `<!-- deft:deprecated-redirect -->` sentinel (real content, not a deprecation redirect)
+1. `SPECIFICATION.md` exists and is neither a deprecation redirect nor a current generated spec export. A current generated spec export contains `<!-- Purpose: rendered specification -->` and `<!-- Source of truth: vbrief/specification.vbrief.json -->`, and `vbrief/specification.vbrief.json` plus all five lifecycle folders exist.
+2. `PROJECT.md` exists and contains neither the legacy `<!-- deft:deprecated-redirect -->` sentinel NOR the current `Purpose: deprecation redirect` canonical-banner marker (real content, not a deprecation redirect)
 3. `vbrief/specification.vbrief.json` exists but the lifecycle folders (`vbrief/proposed/`, `vbrief/pending/`, `vbrief/active/`, `vbrief/completed/`, `vbrief/cancelled/`) do NOT exist
 4. Strategy output shape violations (run `task verify-strategy-output` -- the canonical gate -- or the direct form `python .deft/core/scripts/validate_strategy_output.py --project-root <path>` after `deft` install):
    - Any scope vBRIEF under `vbrief/proposed/` (or other lifecycle dirs) lacks the required `YYYY-MM-DD-` date prefix in its filename (e.g. bare `scaffold.vbrief.json`).

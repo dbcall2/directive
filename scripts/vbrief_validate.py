@@ -34,6 +34,11 @@ from typing import Any
 # run directly. Mirrors the pattern in scripts/migrate_vbrief.py.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from _precutover import (  # noqa: E402
+    is_current_generated_specification,
+    is_deprecation_redirect,
+)
+
 
 # #635: Detection-bound emit helper -- lazy-imported so an import-time
 # failure in ``scripts/_event_detect.py`` cannot break the validator's
@@ -50,6 +55,7 @@ def _emit_event(name: str, payload: dict[str, Any]) -> None:
     from _event_detect import emit  # noqa: I001 -- intentional lazy import
 
     emit(name, payload)
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -368,6 +374,7 @@ def validate_project_definition(filepath: Path, data: dict, vbrief_dir: Path) ->
     # lives in scripts/triage_scope.py so this file does not grow.
     with contextlib.suppress(Exception):
         from triage_scope import validate_triage_scope_on_plan  # noqa: I001
+
         errors.extend(validate_triage_scope_on_plan(plan, filepath))
 
     # #1133 (D14): typed plan.policy.triageScopeIgnores[] validation --
@@ -375,11 +382,16 @@ def validate_project_definition(filepath: Path, data: dict, vbrief_dir: Path) ->
     # from triage_scope so the lazy-import hook pattern mirrors D12.
     with contextlib.suppress(Exception):
         from triage_scope import validate_triage_scope_ignores_on_plan  # noqa: I001
+
         errors.extend(validate_triage_scope_ignores_on_plan(plan, filepath))
 
     # #1129 (D10): typed triageAutoClassify[] + triageHoldMarkers[] hooks.
     with contextlib.suppress(Exception):
-        from triage_classify import validate_triage_auto_classify_on_plan as _ac, validate_triage_hold_markers_on_plan as _hm  # noqa: I001,E501
+        from triage_classify import (
+            validate_triage_auto_classify_on_plan as _ac,
+            validate_triage_hold_markers_on_plan as _hm,
+        )  # noqa: I001,E501
+
         errors.extend(_ac(plan, filepath))
         errors.extend(_hm(plan, filepath))
 
@@ -387,6 +399,7 @@ def validate_project_definition(filepath: Path, data: dict, vbrief_dir: Path) ->
     # helper lives in scripts/triage_queue.py so this file does not grow.
     with contextlib.suppress(Exception):
         from triage_queue import validate_triage_ranking_labels_on_plan  # noqa: I001
+
         errors.extend(validate_triage_ranking_labels_on_plan(plan, filepath))
 
     # #1124 (D4): typed plan.policy.wipCap validation -- helper lives in
@@ -394,6 +407,7 @@ def validate_project_definition(filepath: Path, data: dict, vbrief_dir: Path) ->
     # D11 / D12 hook pattern above.
     with contextlib.suppress(Exception):
         from policy import validate_wip_cap_on_plan  # noqa: I001
+
         errors.extend(validate_wip_cap_on_plan(plan, filepath))
 
     # Check items registry entries reference existing scope vBRIEF files
@@ -767,8 +781,11 @@ def _check_spec_staleness(
     except OSError:
         return []
 
-    # Skip deprecation redirects
-    if DEPRECATED_REDIRECT_SENTINEL in content:
+    # Skip deprecation redirects and current generated specification exports.
+    project_root = spec_md_path.parent
+    if is_deprecation_redirect(content) or is_current_generated_specification(
+        project_root, content
+    ):
         return []
 
     msg = (
@@ -828,6 +845,12 @@ def validate_deprecated_placeholders(
         except OSError:
             continue
 
+        if is_deprecation_redirect(content):
+            continue
+        if filename == "SPECIFICATION.md" and is_current_generated_specification(
+            project_root, content
+        ):
+            continue
         if DEPRECATED_REDIRECT_SENTINEL not in content:
             warnings.append(
                 f"{filename} contains non-redirect content -- "

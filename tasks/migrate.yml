@@ -13,21 +13,21 @@ tasks:
     # Reifies the prose contract documented in
     # `skills/deft-directive-setup/SKILL.md` § Environment Preflight as a
     # runnable task so consumers running `task migrate:vbrief` directly
-    # (not via the agent-driven setup skill) get the same three checks
-    # (uv on PATH, v0.20+ layout, git working tree) before any destructive
-    # mutation runs. Three-state exit (0 ready / 1 not-ready / 2 config
+    # (not via the agent-driven setup skill) get the same checks
+    # (uv on PATH, v0.20+ layout, document model, git working tree) before
+    # any destructive mutation runs. Three-state exit (0 ready / 1 not-ready / 2 config
     # error) mirrors `scripts/preflight_branch.py` (#747).
     #
     # NO `sources:` / `generates:` per `conventions/task-caching.md`: the
     # script forwards user-facing CLI flags (`--project-root`, `--deft-root`,
     # `--quiet`) via `{{.CLI_ARGS}}` and a cached cmds skip would silently
     # swallow them.
-    desc: "Verify environment readiness for `task migrate:vbrief` (uv on PATH, v0.20+ layout, git tree). Three-state exit (#793)."
+    desc: "Verify environment readiness for `task migrate:vbrief` (uv on PATH, v0.20+ layout, document model, git tree). Three-state exit (#793)."
     dir: '{{.USER_WORKING_DIR}}'
     env:
       PYTHONUTF8: "1"
     cmds:
-      - uv --project "{{.DEFT_ROOT}}" run python "{{.DEFT_ROOT}}/scripts/migrate_preflight.py" --project-root "{{.USER_WORKING_DIR}}" --deft-root "{{.DEFT_ROOT}}" {{.CLI_ARGS}}
+      - uv --project "{{.DEFT_ROOT}}" run --frozen python "{{.DEFT_ROOT}}/scripts/migrate_preflight.py" --project-root "{{.USER_WORKING_DIR}}" --deft-root "{{.DEFT_ROOT}}" {{.CLI_ARGS}}
 
   vbrief:
     desc: >
