@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.36.0] - 2026-05-26
+
+> Fix P1 strategy inconsistency (#1166): new canonical v0.20 contract + gate, plus migrations for yolo, interview, and speckit families. Consistent output from every strategy.
+
+### Added
 - **docs: add canonical v0.20 strategy output contract (Refs #1166)** -- Strategy authors and users now have one unambiguous source of truth for v0.20-conformant output (lifecycle folders, project definition, dated proposed scope vBRIEFs, deprecation redirects only for spec docs). Closes the inconsistency where most generated projects were immediately rejected by the build pre-cutover guard. Refs #1166.
 
 - **feat(check,build): add deterministic validation gate for strategy output shape (#1166)** -- `task check` and the build skill now hard-fail early when a strategy has emitted non-v0.20-conformant artifacts (e.g. undated scope vBRIEFs or missing project definition). Users of yolo, interview, speckit and similar strategies receive an immediate actionable error instead of a confusing downstream build rejection. The gate is exercised on every pre-commit and in CI. Refs #1166.
@@ -2890,7 +2902,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.35.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.36.0...HEAD
+[0.36.0]: https://github.com/deftai/directive/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/deftai/directive/compare/v0.34.0...v0.35.0
 [0.34.0]: https://github.com/deftai/directive/compare/v0.33.0...v0.34.0
 [0.33.0]: https://github.com/deftai/directive/compare/v0.32.1...v0.33.0
