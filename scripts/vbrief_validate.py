@@ -35,6 +35,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _precutover import (  # noqa: E402
+    DEPRECATED_REDIRECT_SENTINEL,  # noqa: F401 -- re-exported for compatibility
     is_current_generated_specification,
     is_deprecation_redirect,
 )
@@ -161,9 +162,6 @@ LEGACY_ORIGIN_TYPES = frozenset(
         "user-request",
     }
 )
-
-# Story S (#334): deprecation redirect sentinel
-DEPRECATED_REDIRECT_SENTINEL = "<!-- deft:deprecated-redirect -->"
 
 # Files that should contain the redirect sentinel after migration
 DEPRECATED_FILES = ("SPECIFICATION.md", "PROJECT.md")
@@ -851,12 +849,11 @@ def validate_deprecated_placeholders(
             project_root, content
         ):
             continue
-        if DEPRECATED_REDIRECT_SENTINEL not in content:
-            warnings.append(
-                f"{filename} contains non-redirect content -- "
-                "this file is deprecated; use scope vBRIEFs "
-                "in vbrief/ instead"
-            )
+        warnings.append(
+            f"{filename} contains non-redirect content -- "
+            "this file is deprecated; use scope vBRIEFs "
+            "in vbrief/ instead"
+        )
 
     return warnings
 
