@@ -51,8 +51,9 @@ def preflight():
 # ---------------------------------------------------------------------------
 
 
-def _make_fake_deft_root(tmp_path: Path, *, with_migrator: bool = True,
-                         with_schemas: bool = True) -> Path:
+def _make_fake_deft_root(
+    tmp_path: Path, *, with_migrator: bool = True, with_schemas: bool = True
+) -> Path:
     """Build a fake deft framework checkout under ``tmp_path/deft``.
 
     Used by tests that need to exercise the layout check independently of
@@ -221,26 +222,56 @@ def test_check_git_clean_warn_on_non_git_directory(preflight, tmp_path, monkeypa
     assert "not a git repository" in result.message.lower()
 
 
+def test_check_document_model_passes_for_legacy_spec(preflight, tmp_path):
+    project_root = _make_fake_project_root(tmp_path)
+    (project_root / "SPECIFICATION.md").write_text("# legacy spec\n", encoding="utf-8")
+    result = preflight.check_document_model(project_root)
+    assert result.status == "PASS"
+    assert "SPECIFICATION.md" in result.message
+
+
+def test_check_document_model_fails_for_current_generated_spec(
+    preflight, tmp_path, write_current_generated_spec
+):
+    project_root = _make_fake_project_root(tmp_path)
+    write_current_generated_spec(project_root)
+    result = preflight.check_document_model(project_root)
+    assert result.status == "FAIL"
+    assert "Current generated SPECIFICATION.md" in result.message
+
+
+def test_check_document_model_fails_for_generated_spec_missing_lifecycle(
+    preflight, tmp_path, write_current_generated_spec
+):
+    project_root = _make_fake_project_root(tmp_path)
+    write_current_generated_spec(project_root, omit_lifecycle="cancelled")
+    result = preflight.check_document_model(project_root)
+    assert result.status == "FAIL"
+    assert "Generated SPECIFICATION.md" in result.message
+    assert "cancelled" in result.message
+
+
 # ---------------------------------------------------------------------------
 # evaluate(): exit 0 / exit 1 paths
 # ---------------------------------------------------------------------------
 
 
-def test_evaluate_exit_0_when_all_checks_pass(
-    preflight, tmp_path, stub_uv_present, stub_git_clean
-):
+def test_evaluate_exit_0_when_all_checks_pass(preflight, tmp_path, stub_uv_present, stub_git_clean):
     """Exit 0 -- ready: every check PASS."""
     deft_root = _make_fake_deft_root(tmp_path)
     project_root = _make_fake_project_root(tmp_path)
     code, results = preflight.evaluate(deft_root, project_root)
     assert code == 0
-    assert {r.name for r in results} == {"uv", "layout", "git-clean"}
+    assert {r.name for r in results} == {
+        "uv",
+        "layout",
+        "document-model",
+        "git-clean",
+    }
     assert all(r.status in {"PASS", "WARN"} for r in results)
 
 
-def test_evaluate_exit_0_when_warn_only(
-    preflight, tmp_path, stub_uv_present, stub_git_dirty
-):
+def test_evaluate_exit_0_when_warn_only(preflight, tmp_path, stub_uv_present, stub_git_dirty):
     """Dirty git tree is WARN, NOT FAIL: still exit 0."""
     deft_root = _make_fake_deft_root(tmp_path)
     project_root = _make_fake_project_root(tmp_path)
@@ -250,9 +281,7 @@ def test_evaluate_exit_0_when_warn_only(
     assert git_check.status == "WARN"
 
 
-def test_evaluate_exit_1_when_uv_missing(
-    preflight, tmp_path, stub_uv_missing, stub_git_clean
-):
+def test_evaluate_exit_1_when_uv_missing(preflight, tmp_path, stub_uv_missing, stub_git_clean):
     """Exit 1 -- not-ready: uv missing FAILS the gate."""
     deft_root = _make_fake_deft_root(tmp_path)
     project_root = _make_fake_project_root(tmp_path)
@@ -262,9 +291,20 @@ def test_evaluate_exit_1_when_uv_missing(
     assert uv_check.status == "FAIL"
 
 
-def test_evaluate_exit_1_when_layout_invalid(
-    preflight, tmp_path, stub_uv_present, stub_git_clean
+def test_evaluate_exit_1_when_current_generated_spec(
+    preflight, tmp_path, stub_uv_present, stub_git_clean, write_current_generated_spec
 ):
+    """Current generated SPECIFICATION.md blocks destructive migration."""
+    deft_root = _make_fake_deft_root(tmp_path)
+    project_root = _make_fake_project_root(tmp_path)
+    write_current_generated_spec(project_root)
+    code, results = preflight.evaluate(deft_root, project_root)
+    assert code == 1
+    doc_model = next(r for r in results if r.name == "document-model")
+    assert doc_model.status == "FAIL"
+
+
+def test_evaluate_exit_1_when_layout_invalid(preflight, tmp_path, stub_uv_present, stub_git_clean):
     """Exit 1 -- not-ready: framework migrator missing FAILS the gate."""
     deft_root = _make_fake_deft_root(tmp_path, with_migrator=False)
     project_root = _make_fake_project_root(tmp_path)
@@ -315,12 +355,14 @@ def test_main_exit_2_when_deft_root_missing(preflight, tmp_path, capsys):
     """Exit 2 -- config error: ``--deft-root`` doesn't exist."""
     project_root = _make_fake_project_root(tmp_path)
     bogus_deft = tmp_path / "no-such-deft-root"
-    code = preflight.main([
-        "--project-root",
-        str(project_root),
-        "--deft-root",
-        str(bogus_deft),
-    ])
+    code = preflight.main(
+        [
+            "--project-root",
+            str(project_root),
+            "--deft-root",
+            str(bogus_deft),
+        ]
+    )
     assert code == 2
     captured = capsys.readouterr()
     assert "--deft-root" in captured.err
@@ -331,35 +373,35 @@ def test_main_exit_2_when_deft_root_missing(preflight, tmp_path, capsys):
 # ---------------------------------------------------------------------------
 
 
-def test_main_exit_0_smoke(
-    preflight, tmp_path, stub_uv_present, stub_git_clean, capsys
-):
+def test_main_exit_0_smoke(preflight, tmp_path, stub_uv_present, stub_git_clean, capsys):
     """End-to-end exit 0 via ``main()`` with explicit --deft-root + --project-root."""
     deft_root = _make_fake_deft_root(tmp_path)
     project_root = _make_fake_project_root(tmp_path)
-    code = preflight.main([
-        "--project-root",
-        str(project_root),
-        "--deft-root",
-        str(deft_root),
-    ])
+    code = preflight.main(
+        [
+            "--project-root",
+            str(project_root),
+            "--deft-root",
+            str(deft_root),
+        ]
+    )
     assert code == 0
     captured = capsys.readouterr()
     assert "CHECK uv: PASS" in captured.out
 
 
-def test_main_exit_1_smoke(
-    preflight, tmp_path, stub_uv_missing, stub_git_clean, capsys
-):
+def test_main_exit_1_smoke(preflight, tmp_path, stub_uv_missing, stub_git_clean, capsys):
     """End-to-end exit 1 via ``main()`` -- FAIL line surfaces on stderr."""
     deft_root = _make_fake_deft_root(tmp_path)
     project_root = _make_fake_project_root(tmp_path)
-    code = preflight.main([
-        "--project-root",
-        str(project_root),
-        "--deft-root",
-        str(deft_root),
-    ])
+    code = preflight.main(
+        [
+            "--project-root",
+            str(project_root),
+            "--deft-root",
+            str(deft_root),
+        ]
+    )
     assert code == 1
     captured = capsys.readouterr()
     assert "CHECK uv: FAIL" in captured.err
@@ -372,13 +414,15 @@ def test_main_quiet_suppresses_pass_lines(
     """``--quiet`` suppresses PASS lines so CI logs only show issues."""
     deft_root = _make_fake_deft_root(tmp_path)
     project_root = _make_fake_project_root(tmp_path)
-    code = preflight.main([
-        "--project-root",
-        str(project_root),
-        "--deft-root",
-        str(deft_root),
-        "--quiet",
-    ])
+    code = preflight.main(
+        [
+            "--project-root",
+            str(project_root),
+            "--deft-root",
+            str(deft_root),
+            "--quiet",
+        ]
+    )
     assert code == 0
     captured = capsys.readouterr()
     assert "CHECK uv: PASS" not in captured.out

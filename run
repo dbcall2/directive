@@ -691,19 +691,13 @@ def _write_version_marker(vbrief_root: Path) -> None:
 
 
 def _detect_pre_cutover_legacy(project_root: Path) -> List[str]:
-    """Return legacy artifact filenames missing the deprecation redirect sentinel."""
-    legacy: List[str] = []
-    for fname in ("SPECIFICATION.md", "PROJECT.md"):
-        candidate = project_root / fname
-        if not candidate.is_file():
-            continue
-        try:
-            content = candidate.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        if DEPRECATED_REDIRECT_SENTINEL not in content:
-            legacy.append(fname)
-    return legacy
+    """Return legacy pre-v0.20 root artifacts using the shared detector."""
+    scripts_dir = Path(__file__).resolve().parent / "scripts"
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+    from _precutover import detect_pre_cutover_legacy  # type: ignore[import-not-found]
+
+    return detect_pre_cutover_legacy(project_root)
 
 
 # Positive framework-repo markers used by `_running_inside_deft_repo` to

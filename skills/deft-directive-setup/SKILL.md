@@ -25,9 +25,9 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 ### Detection Criteria
 
-A project is **pre-cutover** if ANY of the following are true:
+A project is **pre-cutover** if ANY of the following are true. This prose mirrors the executable helper in `scripts/_precutover.py`; when in doubt, the helper is canonical.
 
-1. `SPECIFICATION.md` exists and contains neither the legacy `<!-- deft:deprecated-redirect -->` sentinel NOR the current `Purpose: deprecation redirect` canonical-banner marker (real content, not a deprecation redirect). Accepting both markers for one release cycle keeps consumers who migrated under rc.1 / rc.2 from being re-flagged as pre-cutover on rc.3 once the canonical 4-line banner from `conventions/machine-generated-banner.md` (#572) lands.
+1. `SPECIFICATION.md` exists and is neither a deprecation redirect nor a current generated spec export. A current generated spec export contains `<!-- Purpose: rendered specification -->` and `<!-- Source of truth: vbrief/specification.vbrief.json -->`, and `vbrief/specification.vbrief.json` plus all five lifecycle folders exist.
 2. `PROJECT.md` exists and contains neither the legacy `<!-- deft:deprecated-redirect -->` sentinel NOR the current `Purpose: deprecation redirect` canonical-banner marker (same one-release-cycle grace window).
 3. `vbrief/specification.vbrief.json` exists but the lifecycle folders (`vbrief/proposed/`, `vbrief/pending/`, `vbrief/active/`, `vbrief/completed/`, `vbrief/cancelled/`) do NOT exist
 
@@ -48,14 +48,15 @@ A project is **pre-cutover** if ANY of the following are true:
 
 ! Before asking the user "Would you like me to run `task migrate:vbrief` now?", run an environment preflight and report the results to the user. Do NOT ask the yes/no prompt until preflight results have been reported. Each failing check must be surfaced with a specific fix pointer so the user (or agent) can resolve the blocker before approving the run.
 
-Run these three checks, in order:
+Run these four checks, in order:
 
-1. **Task resolvability** -- check whether `task migrate:vbrief` is dispatchable from the project root:
+1. **Document-model confirmation** -- re-apply the Detection Criteria above (the executable source is `scripts/_precutover.py`). If `SPECIFICATION.md` is a current generated spec export from `vbrief/specification.vbrief.json` and all lifecycle folders exist, stop: migration is NOT needed and MUST NOT be run.
+2. **Task resolvability** -- check whether `task migrate:vbrief` is dispatchable from the project root:
    - Run `task --list` (or platform-equivalent) and grep the output for a line containing `migrate:vbrief`.
    - If present: the primary command works from the project root -- canonical invocation is `task migrate:vbrief`.
    - If absent: the consumer `Taskfile.yml` does not include `deft/Taskfile.yml`. Fall back to the explicit-taskfile invocation `task -t ./deft/Taskfile.yml migrate:vbrief` and tell the user: "`task migrate:vbrief` is not resolvable from the project root. I will use the fallback invocation `task -t ./deft/Taskfile.yml migrate:vbrief`, which reads the task directly from the framework Taskfile. To make the primary command work in future, add an include for `deft/Taskfile.yml` to your project `Taskfile.yml` — see `deft/main.md` § Publishing deft tasks in your project root."
-2. **`uv` on PATH** -- the migrator runs `uv run python scripts/migrate_vbrief.py`. Check `uv --version` (or equivalent): if it fails, point the user at the uv install docs (`https://docs.astral.sh/uv/`) and stop; migration cannot run without `uv`.
-3. **Migration script present** -- check `deft/scripts/migrate_vbrief.py` exists on disk. If absent, the `deft/` checkout is incomplete or came from a pre-v0.20 framework version; point the user at `deft/QUICK-START.md` (framework refresh guidance) and stop.
+3. **`uv` on PATH** -- the migrator runs `uv run python scripts/migrate_vbrief.py`. Check `uv --version` (or equivalent): if it fails, point the user at the uv install docs (`https://docs.astral.sh/uv/`) and stop; migration cannot run without `uv`.
+4. **Migration script present** -- check `deft/scripts/migrate_vbrief.py` exists on disk. If absent, the `deft/` checkout is incomplete or came from a pre-v0.20 framework version; point the user at `deft/QUICK-START.md` (framework refresh guidance) and stop.
 
 ! Report each preflight check's result to the user (e.g. "✓ task migrate:vbrief resolvable", "✗ uv not on PATH — install from https://docs.astral.sh/uv/") BEFORE prompting for yes/no approval. If any check fails, do NOT offer to run migration until it is resolved.
 

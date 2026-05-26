@@ -30,16 +30,11 @@ def _patch_template(monkeypatch, deft_run_module, template_text: str) -> None:
     ``get_script_dir()``; tests override it so we can inject precisely the
     bytes we want as the rendered managed-section.
     """
-    monkeypatch.setattr(
-        deft_run_module, "_read_agents_template", lambda: template_text
-    )
+    monkeypatch.setattr(deft_run_module, "_read_agents_template", lambda: template_text)
 
 
 _TEMPLATE_BODY = (
-    "<!-- deft:managed-section v3 -->\n"
-    "# Deft\n"
-    "Body\n"
-    "<!-- /deft:managed-section -->\n"
+    "<!-- deft:managed-section v3 -->\n" "# Deft\n" "Body\n" "<!-- /deft:managed-section -->\n"
 )
 
 
@@ -103,9 +98,7 @@ class TestAgentsMdAxis:
         )
         # Markers present but body differs from template -> stale
         stale = (
-            "<!-- deft:managed-section v3 -->\n"
-            "# Old body\n"
-            "<!-- /deft:managed-section -->\n"
+            "<!-- deft:managed-section v3 -->\n" "# Old body\n" "<!-- /deft:managed-section -->\n"
         )
         (tmp_path / "AGENTS.md").write_text(stale, encoding="utf-8")
 
@@ -195,9 +188,7 @@ class TestVersionDrift:
         monkeypatch.setattr(deft_run_module, "HAS_RICH", False)
         monkeypatch.chdir(tmp_path)
         _patch_template(monkeypatch, deft_run_module, _TEMPLATE_BODY)
-        (tmp_path / "SPECIFICATION.md").write_text(
-            "# Real spec content\n", encoding="utf-8"
-        )
+        (tmp_path / "SPECIFICATION.md").write_text("# Real spec content\n", encoding="utf-8")
 
         result = run_command("cmd_gate", [])
 
@@ -226,9 +217,7 @@ class TestPreCutover:
         assert result.return_code == 1
         assert "precutover=SPECIFICATION.md" in result.stdout
 
-    def test_precutover_lists_both(
-        self, tmp_path, run_command, deft_run_module, monkeypatch
-    ):
+    def test_precutover_lists_both(self, tmp_path, run_command, deft_run_module, monkeypatch):
         monkeypatch.setattr(deft_run_module, "HAS_RICH", False)
         monkeypatch.chdir(tmp_path)
         _patch_template(monkeypatch, deft_run_module, _TEMPLATE_BODY)
@@ -254,6 +243,25 @@ class TestPreCutover:
 
         assert result.return_code == 0
 
+    def test_current_generated_specification_does_not_fire(
+        self,
+        tmp_path,
+        run_command,
+        deft_run_module,
+        monkeypatch,
+        write_current_generated_spec,
+    ):
+        monkeypatch.setattr(deft_run_module, "HAS_RICH", False)
+        monkeypatch.chdir(tmp_path)
+        _patch_template(monkeypatch, deft_run_module, _TEMPLATE_BODY)
+        write_current_generated_spec(tmp_path)
+
+        result = run_command("cmd_gate", [])
+
+        assert result.return_code == 0
+        assert "OK v" in result.stdout
+        assert "precutover=SPECIFICATION.md" not in result.stdout
+
 
 # ---------------------------------------------------------------------------
 # --json variant
@@ -263,9 +271,7 @@ class TestPreCutover:
 class TestJsonVariant:
     """`--json` emits the same axes as a single JSON object on stdout."""
 
-    def test_json_ok_payload(
-        self, tmp_path, run_command, deft_run_module, monkeypatch
-    ):
+    def test_json_ok_payload(self, tmp_path, run_command, deft_run_module, monkeypatch):
         monkeypatch.setattr(deft_run_module, "HAS_RICH", False)
         monkeypatch.chdir(tmp_path)
         _patch_template(monkeypatch, deft_run_module, _TEMPLATE_BODY)
@@ -281,18 +287,14 @@ class TestJsonVariant:
         assert payload["agents-md"] == "absent"
         assert "inside_deft_repo" in payload
 
-    def test_json_needs_upgrade_payload(
-        self, tmp_path, run_command, deft_run_module, monkeypatch
-    ):
+    def test_json_needs_upgrade_payload(self, tmp_path, run_command, deft_run_module, monkeypatch):
         monkeypatch.setattr(deft_run_module, "HAS_RICH", False)
         monkeypatch.chdir(tmp_path)
         _patch_template(monkeypatch, deft_run_module, _TEMPLATE_BODY)
         (tmp_path / "vbrief").mkdir()
         (tmp_path / "vbrief" / ".deft-version").write_text("0.5.0\n", encoding="utf-8")
         (tmp_path / "SPECIFICATION.md").write_text("# real\n", encoding="utf-8")
-        (tmp_path / "AGENTS.md").write_text(
-            "# legacy without markers\n", encoding="utf-8"
-        )
+        (tmp_path / "AGENTS.md").write_text("# legacy without markers\n", encoding="utf-8")
 
         result = run_command("cmd_gate", ["--json"])
 

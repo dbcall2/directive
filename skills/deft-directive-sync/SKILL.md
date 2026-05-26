@@ -41,10 +41,10 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 ### Detection Criteria
 
-A project is **pre-cutover** if ANY of the following are true:
+A project is **pre-cutover** if ANY of the following are true. This prose mirrors the executable helper in `scripts/_precutover.py`; when in doubt, the helper is canonical.
 
-1. `SPECIFICATION.md` exists and does NOT contain the `<!-- deft:deprecated-redirect -->` sentinel (real content, not a deprecation redirect)
-2. `PROJECT.md` exists and does NOT contain the `<!-- deft:deprecated-redirect -->` sentinel (real content, not a deprecation redirect)
+1. `SPECIFICATION.md` exists and is neither a deprecation redirect nor a current generated spec export. A current generated spec export contains `<!-- Purpose: rendered specification -->` and `<!-- Source of truth: vbrief/specification.vbrief.json -->`, and `vbrief/specification.vbrief.json` plus all five lifecycle folders exist.
+2. `PROJECT.md` exists and contains neither the legacy `<!-- deft:deprecated-redirect -->` sentinel NOR the current `Purpose: deprecation redirect` canonical-banner marker (real content, not a deprecation redirect)
 3. `vbrief/specification.vbrief.json` exists but the lifecycle folders (`vbrief/proposed/`, `vbrief/pending/`, `vbrief/active/`, `vbrief/completed/`, `vbrief/cancelled/`) do NOT exist
 
 ### Action on Detection

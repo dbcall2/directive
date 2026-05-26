@@ -65,9 +65,7 @@ def _task_yaml_files() -> list[Path]:
 # project's convention is the global form (matches the #1011 vBRIEF), and
 # pinning that single form keeps the regression sweep narrow.
 _UV_RUN_TOKEN = re.compile(r"(?<![\w-])uv\s+run\b")
-_PINNED_UV_RUN = re.compile(
-    r'uv\s+--project\s+"[^"]+"\s+run\b'
-)
+_PINNED_UV_RUN = re.compile(r'uv\s+--project\s+"[^"]+"\s+run\b')
 
 
 def _check_taskfile(taskfile: Path) -> list[tuple[int, str]]:
@@ -107,8 +105,8 @@ def test_no_unpinned_uv_run_in_command_lines(taskfile: Path) -> None:
     assert not offenders, (
         f"{taskfile.relative_to(REPO_ROOT)} contains forbidden unpinned "
         f"``uv run`` invocation (replace with "
-        f'``uv --project \"{{{{.DEFT_ROOT}}}}\" run`` or '
-        f'``uv --project \"{{{{.TASKFILE_DIR}}}}\" run`` -- see #1011):\n'
+        f'``uv --project "{{{{.DEFT_ROOT}}}}" run`` or '
+        f'``uv --project "{{{{.TASKFILE_DIR}}}}" run`` -- see #1011):\n'
         + "\n".join(f"  line {ln}: {text}" for ln, text in offenders)
     )
 
@@ -139,6 +137,19 @@ def test_uv_project_env_set_at_root() -> None:
         "`vbrief/active/2026-05-11-1011-*.vbrief.json` Proposed-fix section "
         "for the full two-layer architecture."
     )
+
+
+def test_read_only_preflight_and_doctor_use_frozen_uv() -> None:
+    """Safety probes must not rewrite uv.lock as a side effect."""
+    migrate_text = (TASKS_DIR / "migrate.yml").read_text(encoding="utf-8")
+    root_text = ROOT_TASKFILE.read_text(encoding="utf-8")
+    assert (
+        'uv --project "{{.DEFT_ROOT}}" run --frozen python '
+        '"{{.DEFT_ROOT}}/scripts/migrate_preflight.py"'
+    ) in migrate_text
+    assert (
+        'uv --project "{{.TASKFILE_DIR}}" run --frozen python ' '"{{.TASKFILE_DIR}}/run" doctor'
+    ) in root_text
 
 
 # ---------------------------------------------------------------------------
@@ -192,9 +203,7 @@ class TestAncestorPyprojectIsolation:
         an empty ``sub/`` directory one level beneath. Returns the path to
         the subdirectory (the cwd from which ``uv run`` will be invoked).
         """
-        (tmp_path / "pyproject.toml").write_text(
-            _POISON_PYPROJECT, encoding="utf-8"
-        )
+        (tmp_path / "pyproject.toml").write_text(_POISON_PYPROJECT, encoding="utf-8")
         sub = tmp_path / "sub"
         sub.mkdir()
         return sub

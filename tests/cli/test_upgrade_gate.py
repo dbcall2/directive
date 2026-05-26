@@ -30,15 +30,15 @@ from pathlib import Path
 def _project_responses(project_path: Path) -> list:
     """Standard 9-response queue for cmd_project (matches test_project.py)."""
     return [
-        str(project_path),   # 1 output path
-        "TestProject",        # 2 project name
-        "1",                  # 3 CLI
-        "1",                  # 4 first language
-        "85",                 # 5 coverage
-        "Flask",              # 6 tech stack
-        "1",                  # 7 strategy
-        "1",                  # 8 branch-based
-        False,                # 9 don't chain to spec
+        str(project_path),  # 1 output path
+        "TestProject",  # 2 project name
+        "1",  # 3 CLI
+        "1",  # 4 first language
+        "85",  # 5 coverage
+        "Flask",  # 6 tech stack
+        "1",  # 7 strategy
+        "1",  # 8 branch-based
+        False,  # 9 don't chain to spec
     ]
 
 
@@ -57,12 +57,12 @@ class TestProjectLifecycleSubdirs:
 
         vbrief_root = project_path.parent
         for folder in ("proposed", "pending", "active", "completed", "cancelled"):
-            assert (vbrief_root / folder).is_dir(), (
-                f"Expected lifecycle folder vbrief/{folder}/ to exist after `run project`"
-            )
+            assert (
+                vbrief_root / folder
+            ).is_dir(), f"Expected lifecycle folder vbrief/{folder}/ to exist after `run project`"
 
     def test_lifecycle_folders_match_validator_constant(self, deft_run_module):
-        """LIFECYCLE_FOLDERS in run must stay in sync with scripts/vbrief_validate.py.
+        """LIFECYCLE_FOLDERS must stay in sync across detector consumers.
 
         Parses `scripts/vbrief_validate.py` via `ast` (no import, so the
         validator module is not pulled into the coverage report) and
@@ -102,21 +102,18 @@ class TestProjectLifecycleSubdirs:
                 ):
                     dict_name = inner.func.value.id
                     for dn in tree.body:
-                        if (
-                            isinstance(dn, (ast.Assign, ast.AnnAssign))
-                            and (
-                                (
-                                    isinstance(dn, ast.Assign)
-                                    and any(
-                                        isinstance(t, ast.Name) and t.id == dict_name
-                                        for t in dn.targets
-                                    )
+                        if isinstance(dn, (ast.Assign, ast.AnnAssign)) and (
+                            (
+                                isinstance(dn, ast.Assign)
+                                and any(
+                                    isinstance(t, ast.Name) and t.id == dict_name
+                                    for t in dn.targets
                                 )
-                                or (
-                                    isinstance(dn, ast.AnnAssign)
-                                    and isinstance(dn.target, ast.Name)
-                                    and dn.target.id == dict_name
-                                )
+                            )
+                            or (
+                                isinstance(dn, ast.AnnAssign)
+                                and isinstance(dn.target, ast.Name)
+                                and dn.target.id == dict_name
                             )
                         ):
                             value_node = dn.value
@@ -131,10 +128,14 @@ class TestProjectLifecycleSubdirs:
                 )
             break
 
-        assert validator_folders is not None, (
-            "Could not extract LIFECYCLE_FOLDERS from scripts/vbrief_validate.py"
-        )
+        assert (
+            validator_folders is not None
+        ), "Could not extract LIFECYCLE_FOLDERS from scripts/vbrief_validate.py"
         assert validator_folders == deft_run_module.LIFECYCLE_FOLDERS
+
+        from scripts._precutover import LIFECYCLE_FOLDERS as PRECUTOVER_LIFECYCLE_FOLDERS
+
+        assert PRECUTOVER_LIFECYCLE_FOLDERS == deft_run_module.LIFECYCLE_FOLDERS
 
     def test_cmd_project_writes_version_marker(
         self, run_command, mock_user_input, isolated_env, deft_run_module, monkeypatch
@@ -202,6 +203,18 @@ class TestLegacyDetection:
         (tmp_path / "PROJECT.md").write_text(sentinel + "\n", encoding="utf-8")
         assert deft_run_module._detect_pre_cutover_legacy(tmp_path) == []
 
+    def test_ignores_current_generated_specification(
+        self, tmp_path, deft_run_module, write_current_generated_spec
+    ):
+        write_current_generated_spec(tmp_path)
+        assert deft_run_module._detect_pre_cutover_legacy(tmp_path) == []
+
+    def test_generated_spec_with_missing_lifecycle_is_not_legacy(
+        self, tmp_path, deft_run_module, write_current_generated_spec
+    ):
+        write_current_generated_spec(tmp_path, omit_lifecycle="cancelled")
+        assert deft_run_module._detect_pre_cutover_legacy(tmp_path) == []
+
 
 class TestRunningInsideDeftRepo:
     """Heuristic that identifies the deft framework repo itself."""
@@ -238,6 +251,7 @@ class TestUpgradeGate:
 
         # Patch isatty on both the attribute and the function
         import sys as _sys
+
         monkeypatch.setattr(_sys.stdin, "isatty", lambda: value, raising=False)
 
     def test_skip_on_no_deft_project(self, tmp_path, deft_run_module, monkeypatch):
@@ -304,6 +318,23 @@ class TestUpgradeGate:
         assert "Pre-v0.20" in combined
         assert "SPECIFICATION.md" in combined
 
+    def test_current_generated_spec_without_marker_does_not_warn(
+        self,
+        tmp_path,
+        deft_run_module,
+        monkeypatch,
+        capsys,
+        write_current_generated_spec,
+    ):
+        write_current_generated_spec(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        self._stdin_tty(monkeypatch, False)
+        assert deft_run_module._check_upgrade_gate("project") is True
+        captured = capsys.readouterr()
+        combined = captured.out + captured.err
+        assert "Pre-v0.20" not in combined
+        assert "task migrate:vbrief" not in combined
+
     def test_canonical_v019_layout_without_vbrief_warns(
         self, tmp_path, deft_run_module, monkeypatch, capsys
     ):
@@ -335,9 +366,9 @@ class TestUpgradeGate:
         (tmp_path / "vbrief" / ".deft-version").write_text("0.1.0\n", encoding="utf-8")
         monkeypatch.chdir(tmp_path)
         for cmd in ("help", "--help", "-h", "version", "--version", "-v", "upgrade"):
-            assert deft_run_module._check_upgrade_gate(cmd) is True, (
-                f"Gate should skip for '{cmd}' but returned False"
-            )
+            assert (
+                deft_run_module._check_upgrade_gate(cmd) is True
+            ), f"Gate should skip for '{cmd}' but returned False"
 
 
 # ---------------------------------------------------------------------------
@@ -361,9 +392,7 @@ class TestCmdUpgrade:
         ).strip() == deft_run_module.VERSION
         assert "Recorded framework version" in result.stdout
 
-    def test_idempotent_when_current(
-        self, run_command, isolated_env, deft_run_module, monkeypatch
-    ):
+    def test_idempotent_when_current(self, run_command, isolated_env, deft_run_module, monkeypatch):
         monkeypatch.setattr(deft_run_module, "HAS_RICH", False)
         (isolated_env / "vbrief").mkdir(exist_ok=True)
         (isolated_env / "vbrief" / ".deft-version").write_text(
@@ -373,9 +402,7 @@ class TestCmdUpgrade:
         assert result.return_code in (0, None)
         assert "already at" in result.stdout.lower()
 
-    def test_updates_marker_on_drift(
-        self, run_command, isolated_env, deft_run_module, monkeypatch
-    ):
+    def test_updates_marker_on_drift(self, run_command, isolated_env, deft_run_module, monkeypatch):
         monkeypatch.setattr(deft_run_module, "HAS_RICH", False)
         (isolated_env / "vbrief").mkdir(exist_ok=True)
         (isolated_env / "vbrief" / ".deft-version").write_text("0.19.0\n", encoding="utf-8")

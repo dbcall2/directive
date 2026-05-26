@@ -11,8 +11,8 @@ Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
 
 **Pre-cutover detected** if ANY of the following are true:
 
-- ./SPECIFICATION.md exists and its first 200 characters do NOT contain <!-- deft:deprecated-redirect -->
-- ./PROJECT.md exists and its first 200 characters do NOT contain <!-- deft:deprecated-redirect -->
+- ./SPECIFICATION.md exists and is neither a deprecation redirect nor a current generated spec export. A current generated spec export contains `<!-- Purpose: rendered specification -->` and `<!-- Source of truth: vbrief/specification.vbrief.json -->`, and `./vbrief/specification.vbrief.json` plus all five lifecycle folders exist. This mirrors `.deft/core/scripts/_precutover.py`.
+- ./PROJECT.md exists and is not a deprecation redirect (`<!-- deft:deprecated-redirect -->` or `<!-- Purpose: deprecation redirect -->`).
 - ./vbrief/ exists but any of the five lifecycle subfolders (proposed/, pending/, active/, completed/, cancelled/) is missing
 
 → On detection: read .deft/core/skills/deft-directive-setup/SKILL.md "Pre-Cutover Detection Guard" section and follow the migration path BEFORE any other action. The Migrating from pre-v0.20 section of the full guidelines has the canonical command, the "task -t ./.deft/core/Taskfile.yml migrate:vbrief" fallback (for when "task migrate:vbrief" is not resolvable from the project root), what migration produces, and the available safety flags.

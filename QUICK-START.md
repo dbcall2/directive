@@ -39,10 +39,11 @@ Priority ordering: Case G (byte-different content) always wins over Case K (inst
 
 ### 2c. Are there pre-v0.20 artifacts at the user's project root?
 
-Check both of these files at `../` (the user's project root):
+Check both of these files at `../` (the user's project root), using the same
+rule implemented by `scripts/_precutover.py`:
 
-- `../SPECIFICATION.md` — exists and the first 200 characters do **not** contain `<!-- deft:deprecated-redirect -->`.
-- `../PROJECT.md` — exists and the first 200 characters do **not** contain `<!-- deft:deprecated-redirect -->`.
+- `../SPECIFICATION.md` — exists and is neither a deprecation redirect nor a current generated spec export. A current generated spec export contains `<!-- Purpose: rendered specification -->` and `<!-- Source of truth: vbrief/specification.vbrief.json -->`, and `../vbrief/specification.vbrief.json` plus all five lifecycle folders exist.
+- `../PROJECT.md` — exists and is not a deprecation redirect (`<!-- deft:deprecated-redirect -->` or `<!-- Purpose: deprecation redirect -->`).
 
 - If **either** holds (real pre-v0.20 content present), treat as **pre-cutover** — jump to Case H ("Pre-cutover migration") in Step 3.
 - If both contain the sentinel (or neither exists), continue to 2d.

@@ -20,6 +20,19 @@ This caused immediate build failures via the Pre-Cutover Detection Guard for any
 
 This contract is the single source of truth. All future strategy implementations and migrations target exactly these artifacts. The build skill, vbrief validators, and (post-s2) deterministic shape gate enforce it.
 
+## When to Use
+
+Use this contract when authoring, reviewing, or migrating a spec-generating strategy that creates project definition artifacts, scope vBRIEFs, rendered views, or migration handoff material. It also applies when a guard, validator, or setup path needs to decide whether a project is current v0.20 output or legacy pre-cutover content.
+
+## Workflow
+
+1. Identify whether the strategy is spec-generating or preparatory.
+2. Apply the matching row in the per-strategy summary table.
+3. Create the required lifecycle folders before writing scope artifacts.
+4. Write authoritative vBRIEF content to `vbrief/PROJECT-DEFINITION.vbrief.json` and date-prefixed `vbrief/proposed/*.vbrief.json` files.
+5. Omit root `SPECIFICATION.md` / `PROJECT.md`, or write only deprecation redirect stubs when transitional UX requires them.
+6. Run the validator and content gates before treating the strategy output as v0.20-conformant.
+
 ## Canonical v0.20 Output Shape
 
 For a project that has completed any spec-generating strategy (or the full speckit flow), the following MUST exist and be the only authoritative sources:
