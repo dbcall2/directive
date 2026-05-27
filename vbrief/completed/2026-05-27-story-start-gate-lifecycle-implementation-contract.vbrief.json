@@ -1,0 +1,90 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6",
+    "description": "Scope vBRIEF for tightening story implementation start and completion gates",
+    "created": "2026-05-27T00:00:00Z",
+    "updated": "2026-05-27T00:00:00Z"
+  },
+  "plan": {
+    "id": "story-start-gate-lifecycle-implementation-contract",
+    "title": "fix(skills): add story start gate and lifecycle checkpoint contract",
+    "status": "completed",
+    "narratives": {
+      "Problem": "Story implementation can currently begin without a universal dirty-work prompt, canonical promote/activate bridge in the build skill, story-sized branch/checkpoint guidance, or a build-skill completion rule.",
+      "Action": "Add hard implementation-unit gate language to generated AGENTS.md, the build skill, and the swarm skill, with content tests pinning the new contract."
+    },
+    "items": [
+      {
+        "title": "AGENTS template contains dirty-work story start gate",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "templates/agents-entry.md and regenerated AGENTS.md require git status --short --branch before starting or switching implementation stories, and require the operator prompt when unrelated dirty work is present."
+        }
+      },
+      {
+        "title": "Build skill bridges lifecycle before preflight",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "skills/deft-directive-build/SKILL.md resolves one target story by default, runs task scope:promote / task scope:activate as needed, and runs task vbrief:preflight before code writing."
+        }
+      },
+      {
+        "title": "Story scope is default branch and checkpoint unit",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "The build skill defaults to one story per branch/PR and requires a checkpoint commit after each completed story before starting another story unless the operator explicitly approves batching."
+        }
+      },
+      {
+        "title": "Build skill completes story lifecycle",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "The build skill requires task scope:complete -- <active-story> after checks pass and before final handoff."
+        }
+      },
+      {
+        "title": "Swarm batching approval is explicit",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "The swarm skill states that multi-story batching is allowed only after explicit operator approval or an approved allocation plan with rationale."
+        }
+      },
+      {
+        "title": "Content tests pin the contract",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "tests/content asserts the dirty-work prompt, scope activation, preflight, one-story default, checkpoint commit, scope completion, and swarm batching approval language."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "determinism",
+      "workflow"
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": false,
+        "file_scope": [
+          "AGENTS.md",
+          "templates/agents-entry.md",
+          "skills/deft-directive-build/SKILL.md",
+          "skills/deft-directive-swarm/SKILL.md",
+          "tests/content/"
+        ],
+        "verify_commands": [
+          "task check",
+          "uv --project . run pytest tests/content -q"
+        ],
+        "depends_on": [],
+        "conflict_group": "implementation-lifecycle-contract",
+        "size": "small",
+        "file_scope_confidence": "high",
+        "model_tier": "standard"
+      }
+    },
+    "updated": "2026-05-27T02:50:46Z"
+  }
+}

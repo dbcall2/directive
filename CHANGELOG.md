@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **fix(gate): generated SPECIFICATION.md no longer trips pre-cutover migration** -- root `SPECIFICATION.md` exports from `task spec:render` are now recognised as current vBRIEF artifacts when they point at `vbrief/specification.vbrief.json` and the lifecycle folders exist. The shared detector feeds the CLI gate, vBRIEF validator, migration preflight, and session-start prose. Migration preflight and `task doctor` now run uv with `--frozen` so read-only safety checks cannot rewrite `uv.lock`.
+- **fix(skills): story implementation now has a start gate** -- the generated agent rules and build skill now require a dirty-work prompt, canonical scope activation, story-sized branch/checkpoint defaults, and `task scope:complete` before final handoff. Swarm batching language now requires explicit operator approval or an approved allocation plan with rationale.
 
 ### Removed
 

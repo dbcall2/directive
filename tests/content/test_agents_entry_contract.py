@@ -252,6 +252,9 @@ _PROPAGATION_COMMAND_MARKERS: tuple[str, ...] = (
     "task verify:branch",
     "task doctor",
     "task agents:refresh",
+    "git status --short --branch",
+    "task scope:activate",
+    "task scope:complete",
 )
 
 _PROPAGATION_POLICY_KEY_MARKERS: tuple[str, ...] = (
@@ -264,6 +267,7 @@ _PROPAGATION_HEADER_MARKERS: tuple[str, ...] = (
     "## Cache-as-authoritative work selection (#1149)",
     "## Skill Routing",
     "## WIP cap",
+    "### Story Start Gate",
     # #1353: new ## PowerShell section in agents-entry.md (per #1309)
     "## PowerShell",
 )

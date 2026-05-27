@@ -21,12 +21,18 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 ## Step 0 -- Implementation Preflight (#810)
 
-- ! Before any code-writing tool call -- the first scaffold edit, the first `task` invocation that mutates files, or any `start_agent` dispatch that will implement scope -- MUST run `task vbrief:preflight -- <path>` (the structural intent gate; wraps `scripts/preflight_implementation.py` so the same invocation works whether deft is the project root or installed as a `deft/` subdirectory).
+- ! Before starting any new implementation story or switching from one story to another, MUST run `git status --short --branch`.
+- ! If the working tree is dirty, MUST stop and summarize the current branch, modified/untracked files, and whether the changes appear related to the target story. Ask the operator to choose one path: commit existing work, stash existing work, include existing work in the current story, or stop.
+- ⊗ Begin a new story while unrelated dirty work is present without explicit operator approval.
+- ! Resolve exactly one target story vBRIEF path by default. One story is the default implementation unit for this skill; if the user asks for a phase/epic, decompose or ask which story to start.
+- ! Batching multiple stories in one branch/PR requires explicit operator approval and a short rationale recorded in the handoff.
+- ! If the target story is in `vbrief/proposed/`, run `task scope:promote -- <path>` first; if it is in `vbrief/pending/`, run `task scope:activate -- <path>`. After activation, update the path to the active-file location before preflight.
+- ! Before any code-writing tool call -- the first scaffold edit, the first `task` invocation that mutates files, or any `start_agent` dispatch that will implement scope -- MUST run `task vbrief:preflight -- <active-story-path>` (the structural intent gate; wraps `scripts/preflight_implementation.py` so the same invocation works whether deft is the project root or installed as a `deft/` subdirectory).
 
 The gate exits 0 only when the candidate vBRIEF lives in `vbrief/active/` AND `plan.status == "running"`. Any other state (pending/, proposed/, completed/, active/-with-non-running-status, malformed JSON, missing keys) exits 1 with an actionable redirect to `task vbrief:activate <path>`.
 
 - ! A non-zero exit MUST halt the skill. Surface the helper's stderr message verbatim to the user; do NOT proceed to USER.md Gate, File Reading, or any later phase.
-- ! The ONLY supported way to satisfy this gate is `task vbrief:activate <path>` (idempotent; flips `plan.status` pending/approved -> running, atomically moves the vBRIEF to `vbrief/active/`, stamps `vBRIEFInfo.updated`). Manual lifecycle moves bypass the activation contract -- use the task.
+- ! Use canonical lifecycle tasks to satisfy this gate: `task scope:promote -- <path>` for proposed stories, `task scope:activate -- <path>` for pending stories, and the helper's idempotent companion `task vbrief:activate <path>` only when following the preflight redirect directly. Manual lifecycle moves bypass the activation contract -- use the task.
 - ⊗ Infer implementation intent from lifecycle vocabulary ("do the full PR process", "start the work", "poller agents"), branching language, or workflow shape. Workflow-shape vocabulary is NOT authorization to spawn an implementation agent (#810 surfacing event).
 - ⊗ Skip this preflight because the user said "yes", "go", or "proceed" -- affirmative continuation phrases are NOT implementation authorization unless the prior turn explicitly proposed implementation. When intent is ambiguous, ask one targeted question before invoking the gate.
 
@@ -239,7 +245,8 @@ See `deft/coding/coding.md` and `deft/coding/testing.md` for full rules.
 
 ## Commit Strategy
 
-- ~ Commit after each meaningful unit of work (per subphase or task)
+- ! Default to one story per branch/PR. Batching multiple stories in one branch requires explicit operator approval and a short rationale.
+- ! Create a checkpoint commit after each completed story before beginning another story.
 - ! Run `task check` before committing
 - ⊗ Claim checks passed without running them
 
@@ -260,6 +267,7 @@ feat(phase-2): add REST API endpoints with integration tests
 ## Completion
 
 - ! When all phases pass and `task check` is green:
+- ! Complete each implemented story via `task scope:complete -- <active-story-path>` after checks pass and before final PR handoff.
 
 > "The project is built and all quality checks pass. Describe any new features you'd like to add — I'll follow the deft standards we've set up."
 
