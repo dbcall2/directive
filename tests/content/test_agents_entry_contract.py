@@ -250,9 +250,9 @@ _PROPAGATION_COMMAND_MARKERS: tuple[str, ...] = (
     "task doctor",
     "task agents:refresh",
     "git status --short --branch",
-    "task scope:promote",
-    "task scope:activate",
-    "task scope:complete",
+    "task scope:promote -- <path>",
+    "task scope:activate -- <path>",
+    "task scope:complete -- <active-story-path>",
 )
 
 _PROPAGATION_POLICY_KEY_MARKERS: tuple[str, ...] = (

@@ -16,42 +16,42 @@
     "items": [
       {
         "title": "AGENTS template contains dirty-work story start gate",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "templates/agents-entry.md and regenerated AGENTS.md require git status --short --branch before starting or switching implementation stories, and require the operator prompt when unrelated dirty work is present."
         }
       },
       {
         "title": "Build skill bridges lifecycle before preflight",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "skills/deft-directive-build/SKILL.md resolves one target story by default, runs task scope:promote / task scope:activate as needed, and runs task vbrief:preflight before code writing."
         }
       },
       {
         "title": "Story scope is default branch and checkpoint unit",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "The build skill defaults to one story per branch/PR and requires a checkpoint commit after each completed story before starting another story unless the operator explicitly approves batching."
         }
       },
       {
         "title": "Build skill completes story lifecycle",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "The build skill requires task scope:complete -- <active-story> after checks pass and before final handoff."
         }
       },
       {
         "title": "Swarm batching approval is explicit",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "The swarm skill states that multi-story batching is allowed only after explicit operator approval or an approved allocation plan with rationale."
         }
       },
       {
         "title": "Content tests pin the contract",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "tests/content asserts the dirty-work prompt, scope activation, preflight, one-story default, checkpoint commit, scope completion, and swarm batching approval language."
         }
