@@ -32,6 +32,12 @@ def test_agents_template_contains_story_start_dirty_tree_guard() -> None:
 def test_agents_md_contains_story_start_lifecycle_guard() -> None:
     text = _read("AGENTS.md")
     assert "### Story Start Gate" in text
+    assert "current branch" in text
+    assert "modified/untracked files" in text
+    assert "commit existing work" in text
+    assert "stash existing work" in text
+    assert "include existing work in the current story" in text
+    assert "unrelated dirty work" in text
     assert "task scope:promote -- <path>" in text
     assert "task scope:activate -- <path>" in text
     assert "task vbrief:preflight -- <active-story-path>" in text
