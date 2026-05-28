@@ -266,8 +266,7 @@ feat(phase-2): add REST API endpoints with integration tests
 
 ## Completion
 
-- ! When all phases pass and `task check` is green:
-- ! Complete each implemented story via `task scope:complete -- <active-story-path>` after checks pass and before final PR handoff.
+- ! When all phases pass and `task check` is green, complete each implemented story via `task scope:complete -- <active-story-path>` before final PR handoff.
 
 > "The project is built and all quality checks pass. Describe any new features you'd like to add — I'll follow the deft standards we've set up."
 
