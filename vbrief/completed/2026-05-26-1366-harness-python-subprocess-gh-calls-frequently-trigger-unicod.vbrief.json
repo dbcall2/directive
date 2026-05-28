@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "harness: Python subprocess + gh calls frequently trigger UnicodeDecodeError in reader threads on Windows, breaking monitoring and readiness tools",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "harness: Python subprocess + gh calls frequently trigger UnicodeDecodeError in reader threads on Windows, breaking monitoring and readiness tools. The default subprocess.run(..., capture_output=True, text=True) binding uses the host codepage (cp1252/cp437) to decode Greptile bot output, and reader-thread crashes leave dependent monitors with head: None state.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1366",
@@ -66,7 +66,7 @@
         "title": "Issue #1366: harness: Python subprocess + gh calls frequently trigger UnicodeDecodeError in reader threads on Windows, breaking monitoring and readiness tools"
       }
     ],
-    "updated": "2026-05-28T16:08:39Z",
+    "updated": "2026-05-28T18:46:11Z",
     "id": "issue-1366",
     "metadata": {
       "kind": "story",

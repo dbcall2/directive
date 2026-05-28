@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "swarm: spawn_subagent review-cycle sub-agents can go completely dark with no visibility or monitoring from the parent",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "swarm: spawn_subagent review-cycle sub-agents can go completely dark with no visibility or monitoring from the parent. Long-running Grok Build sub-agents on the hybrid path emit no heartbeat or progress channel, so stalled agents are indistinguishable from healthy ones at the monitor level.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1365",
@@ -73,7 +73,7 @@
         "title": "Issue #1365: swarm: spawn_subagent review-cycle sub-agents can go completely dark with no visibility or monitoring from the parent"
       }
     ],
-    "updated": "2026-05-28T16:08:39Z",
+    "updated": "2026-05-28T20:57:22Z",
     "id": "issue-1365",
     "metadata": {
       "kind": "story",

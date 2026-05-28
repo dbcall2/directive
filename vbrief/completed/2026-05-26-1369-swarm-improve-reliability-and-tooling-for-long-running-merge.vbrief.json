@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "swarm: Improve reliability and tooling for long-running merge/review cascade automation in Grok Build hybrid path",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "swarm: Improve reliability and tooling for long-running merge/review cascade automation in Grok Build hybrid path. The current cascade pattern relies on hand-authored monitors that babysit each PR; a first-class task surface that survives the documented harness fragility removes the manual-babysitting failure mode.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1369",
@@ -74,7 +74,7 @@
         "title": "Issue #1369: swarm: Improve reliability and tooling for long-running merge/review cascade automation in Grok Build hybrid path"
       }
     ],
-    "updated": "2026-05-28T16:08:39Z",
+    "updated": "2026-05-28T22:32:17Z",
     "id": "issue-1369",
     "metadata": {
       "kind": "story",
