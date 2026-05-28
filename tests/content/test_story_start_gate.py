@@ -35,6 +35,7 @@ def test_agents_template_contains_story_start_dirty_tree_guard() -> None:
 def test_agents_md_contains_story_start_lifecycle_guard() -> None:
     text = _read("AGENTS.md")
     assert "### Story Start Gate" in text
+    assert "git status --short --branch" in text
     assert "current branch" in text
     assert "modified/untracked files" in text
     assert "commit existing work" in text
