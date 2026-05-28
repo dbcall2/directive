@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "monitoring: long-running monitors using pr_merge_readiness are unreliable in Grok Build due to harness fragility",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "monitoring: long-running monitors using pr_merge_readiness are unreliable in Grok Build due to harness fragility. When the underlying gh capture decodes badly, the readiness script returns no JSON and dependent monitors see head: None forever, even though the actual PR state is determinable via REST or check runs.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1368",
@@ -79,7 +79,7 @@
         "title": "Issue #1353"
       }
     ],
-    "updated": "2026-05-28T16:08:39Z",
+    "updated": "2026-05-28T20:57:22Z",
     "id": "issue-1368",
     "metadata": {
       "kind": "story",
