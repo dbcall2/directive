@@ -27,6 +27,9 @@ def test_agents_template_contains_story_start_dirty_tree_guard() -> None:
     assert "stash existing work" in text
     assert "include existing work in the current story" in text
     assert "unrelated dirty work" in text
+    assert "task scope:activate -- <path>" in text
+    assert "task vbrief:preflight -- <active-story-path>" in text
+    assert "task scope:complete -- <active-story-path>" in text
 
 
 def test_agents_md_contains_story_start_lifecycle_guard() -> None:
