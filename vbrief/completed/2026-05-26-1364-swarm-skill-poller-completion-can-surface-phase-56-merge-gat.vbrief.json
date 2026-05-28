@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "swarm skill: poller completion can surface Phase 5→6 merge gate while PRs remain unclean (confidence=3 holdouts)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "swarm skill: poller completion can surface Phase 5→6 merge gate while PRs remain unclean (confidence=3 holdouts). The monitor currently keys the transition to merge discussion on sub-agent lifecycle completion rather than on objective cohort-wide CLEAN state, so a poller that exits with clean_gate_holdout=confidence still lets the orchestrator raise the merge gate.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1364",
@@ -71,7 +71,7 @@
         "title": "Issue #1364: swarm skill: poller completion can surface Phase 5→6 merge gate while PRs remain unclean (confidence=3 holdouts)"
       }
     ],
-    "updated": "2026-05-28T16:08:39Z",
+    "updated": "2026-05-28T18:46:11Z",
     "id": "issue-1364",
     "metadata": {
       "kind": "story",
