@@ -85,8 +85,9 @@ def _is_post_cutover_full_spec_state(project_root: Path) -> bool:
     vbrief_dir = project_root / "vbrief"
     spec_md = _read_text_safe(project_root / "SPECIFICATION.md")
     return (
-        (vbrief_dir / "specification.vbrief.json").is_file()
-        and (vbrief_dir / "PROJECT-DEFINITION.vbrief.json").is_file()
+        # Caller already confirmed specification.vbrief.json exists; the
+        # remaining conditions separate canonical state from a legacy dual-write.
+        (vbrief_dir / "PROJECT-DEFINITION.vbrief.json").is_file()
         and _has_complete_lifecycle(vbrief_dir)
         and GENERATED_SPEC_PURPOSE in spec_md
         and GENERATED_SPEC_SOURCE in spec_md
