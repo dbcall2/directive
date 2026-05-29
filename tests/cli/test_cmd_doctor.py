@@ -38,10 +38,25 @@ Refs: #792, #1272, related #793.
 
 from __future__ import annotations
 
+import importlib.util
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DOCTOR_SCRIPT = REPO_ROOT / "scripts" / "doctor.py"
+
+
+@pytest.fixture()
+def doctor_module():
+    spec = importlib.util.spec_from_file_location("doctor", DOCTOR_SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["doctor"] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _make_fake_which(presence: dict[str, bool]):
@@ -347,7 +362,7 @@ def test_doctor_existing_taskfile_with_include_reports_ok(
 
 
 def test_doctor_session_mode_diagnoses_only_no_prompt_no_mutation(
-    run_command, deft_run_module, monkeypatch, consumer_project
+    run_command, deft_run_module, doctor_module, monkeypatch, consumer_project
 ):
     """--session never prompts and never mutates, even when --fix is also passed."""
     monkeypatch.setattr(deft_run_module, "HAS_RICH", False)
@@ -383,7 +398,7 @@ def test_doctor_session_mode_diagnoses_only_no_prompt_no_mutation(
             "session-safe mode is diagnose-only by contract (#1272)"
         )
 
-    monkeypatch.setattr(deft_run_module, "read_yn", _explode)
+    monkeypatch.setattr(doctor_module, "read_yn", _explode)
 
     result = run_command("cmd_doctor", ["--session", "--fix"])
 
@@ -397,7 +412,7 @@ def test_doctor_session_mode_diagnoses_only_no_prompt_no_mutation(
 
 
 def test_doctor_fix_with_consent_creates_canonical_taskfile(
-    run_command, deft_run_module, monkeypatch, consumer_project
+    run_command, deft_run_module, doctor_module, monkeypatch, consumer_project
 ):
     """--fix + TTY + explicit consent writes the canonical snippet verbatim."""
     monkeypatch.setattr(deft_run_module, "HAS_RICH", False)
@@ -415,9 +430,7 @@ def test_doctor_fix_with_consent_creates_canonical_taskfile(
 
     monkeypatch.setattr(deft_run_module.sys, "stdin", _FakeStdin())
     # Operator approves.
-    monkeypatch.setattr(
-        deft_run_module, "read_yn", lambda *_args, **_kwargs: True
-    )
+    monkeypatch.setattr(doctor_module, "read_yn", lambda *_args, **_kwargs: True)
 
     result = run_command("cmd_doctor", ["--fix"])
 
@@ -429,14 +442,14 @@ def test_doctor_fix_with_consent_creates_canonical_taskfile(
     written = target.read_text(encoding="utf-8")
     # Must match the canonical snippet byte-for-byte so the docs and the
     # write path do not drift over time.
-    assert written == deft_run_module._TASKFILE_INCLUDE_SNIPPET
+    assert written == doctor_module._TASKFILE_INCLUDE_SNIPPET
     # Drift decrement: after a successful in-session repair, the summary
     # should report success rather than 1 error.
     assert "Wrote" in result.stdout
 
 
 def test_doctor_fix_decline_does_not_write(
-    run_command, deft_run_module, monkeypatch, consumer_project
+    run_command, deft_run_module, doctor_module, monkeypatch, consumer_project
 ):
     """--fix + TTY + decline leaves Taskfile.yml absent."""
     monkeypatch.setattr(deft_run_module, "HAS_RICH", False)
@@ -452,9 +465,7 @@ def test_doctor_fix_decline_does_not_write(
             return True
 
     monkeypatch.setattr(deft_run_module.sys, "stdin", _FakeStdin())
-    monkeypatch.setattr(
-        deft_run_module, "read_yn", lambda *_args, **_kwargs: False
-    )
+    monkeypatch.setattr(doctor_module, "read_yn", lambda *_args, **_kwargs: False)
 
     result = run_command("cmd_doctor", ["--fix"])
 
@@ -583,7 +594,7 @@ def test_running_inside_deft_repo_negates_canonical_install_dir(
 
 
 def test_classify_taskfile_include_recognises_legacy_deft_path(
-    deft_run_module, tmp_path
+    doctor_module, tmp_path
 ):
     """_classify_taskfile_include recognises both ``./.deft/core`` and ``./deft`` includes."""
     legacy_form = (
@@ -595,24 +606,24 @@ def test_classify_taskfile_include_recognises_legacy_deft_path(
     )
     (tmp_path / "Taskfile.yml").write_text(legacy_form, encoding="utf-8")
 
-    assert deft_run_module._classify_taskfile_include(tmp_path) == "ok"
+    assert doctor_module._classify_taskfile_include(tmp_path) == "ok"
 
 
-def test_classify_taskfile_include_missing_file_status(deft_run_module, tmp_path):
+def test_classify_taskfile_include_missing_file_status(doctor_module, tmp_path):
     """Missing root Taskfile.yml AND Taskfile.yaml -> missing-file."""
-    assert deft_run_module._classify_taskfile_include(tmp_path) == "missing-file"
+    assert doctor_module._classify_taskfile_include(tmp_path) == "missing-file"
 
 
-def test_classify_taskfile_include_yaml_extension(deft_run_module, tmp_path):
+def test_classify_taskfile_include_yaml_extension(doctor_module, tmp_path):
     """Resolver accepts the ``.yaml`` spelling as well as ``.yml``."""
     (tmp_path / "Taskfile.yaml").write_text(
         "version: '3'\nincludes:\n  deft:\n    taskfile: ./.deft/core/Taskfile.yml\n",
         encoding="utf-8",
     )
-    assert deft_run_module._classify_taskfile_include(tmp_path) == "ok"
+    assert doctor_module._classify_taskfile_include(tmp_path) == "ok"
 
 
-def test_classify_taskfile_include_strips_utf8_bom(deft_run_module, tmp_path):
+def test_classify_taskfile_include_strips_utf8_bom(doctor_module, tmp_path):
     """Taskfile.yml persisted with a UTF-8 BOM must still classify as ``ok``.
 
     Regression guard for the #1303 pass-2 correctness finding: Windows editors
@@ -636,4 +647,4 @@ def test_classify_taskfile_include_strips_utf8_bom(deft_run_module, tmp_path):
     target = tmp_path / "Taskfile.yml"
     target.write_bytes(b"\xef\xbb\xbf" + canonical.encode("utf-8"))
 
-    assert deft_run_module._classify_taskfile_include(tmp_path) == "ok"
+    assert doctor_module._classify_taskfile_include(tmp_path) == "ok"
