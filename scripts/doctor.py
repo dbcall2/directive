@@ -35,6 +35,17 @@ from pathlib import Path
 # Rich is optional; fall back to plain prints. Mirrors run's top-level setup.
 
 HAS_RICH = False
+
+# Safe import of skill-redirect sentinel + window for the bounded exact-header
+# check in _check_skill_paths_resolve. This ports the #1383 / #1321 fix
+# (prevents re-introducing false positives when real skills quote the sentinel
+# in prose/docs after the first 200 chars). Falls back to the literal if the
+# sibling module is not importable in exotic exec contexts.
+try:
+    from _event_detect import DEPRECATED_SKILL_REDIRECT_SENTINEL  # type: ignore[import-not-found]
+except Exception:  # noqa: BLE001 -- graceful fallback
+    DEPRECATED_SKILL_REDIRECT_SENTINEL = "<!-- deft:deprecated-skill-redirect -->"
+_SKILL_SENTINEL_WINDOW = 200
 console = None
 Panel = None
 Markdown = None
@@ -159,9 +170,14 @@ _FULL_GUIDELINES_RE = re.compile(r"Full guidelines:\s+(\S+)/main\.md")
 # (legacy) and ``.deft/core/skills/<name>/SKILL.md`` (canonical).
 _SKILL_PATH_RE = re.compile(r"(?P<root>[\w./-]+?)/skills/(?P<name>[a-z][\w-]*)/SKILL\.md")
 
-# Deprecation-redirect sentinel embedded in stub SKILL.md files (#411).
-# A skill path that resolves but is a redirect stub is treated as still
-# a fail -- the operator needs to act, not be told everything is fine.
+# Deprecation-redirect sentinels (#411 / cross-PR #1383 alignment for #1321).
+# Both variants are recognized in the *header window only* (first 200 chars)
+# when checking skill paths referenced from AGENTS.md. This prevents
+# false-positive "redirect stub" failures on real skills that merely quote
+# the sentinel string in body prose or examples (the exact failure mode
+# fixed in #1383 and re-introduced by the initial doctor.py port).
+# Legacy vbrief-style stubs use the first; real skill deprecation stubs use
+# the second (and must appear early per test_deprecated_skill_redirects.py).
 _DEPRECATED_REDIRECT_SENTINEL = "<!-- deft:deprecated-redirect -->"
 
 
@@ -363,8 +379,16 @@ def _check_skill_paths_resolve(project_root: Path, agents_md_text: str) -> Check
             missing.append(rel)
             continue
         text = _read_text_safe(candidate)
-        if text is not None and _DEPRECATED_REDIRECT_SENTINEL in text:
-            redirect_stubs.append(rel)
+        if text is not None:
+            # Bounded header-window check (first 200 chars) for *either* sentinel.
+            # This is the exact safe behavior ported from #1383 (via _event_detect
+            # + QUICK-START Step 2b) to close the cross-PR regression flagged by
+            # dbcall2 on the 7a0606c head. Real skills quoting the token in body
+            # (after the window) now correctly pass; legacy stubs (even with
+            # preamble before the token) still fail as expected.
+            head = text[:_SKILL_SENTINEL_WINDOW]
+            if _DEPRECATED_REDIRECT_SENTINEL in head or DEPRECATED_SKILL_REDIRECT_SENTINEL in head:
+                redirect_stubs.append(rel)
     if not missing and not redirect_stubs:
         return CheckResult(
             name="skill-paths-resolve",
@@ -1037,16 +1061,42 @@ def _evaluate_doctor_throttle(project_root: Path):
         return None
 
 
-def _format_iso_z(when) -> str:
-    """Render a UTC-aware datetime as YYYY-MM-DDTHH:MM:SSZ."""
-    if when is None:
-        return ""
-
-
 # --- Ported from run (required by cmd_doctor / freshness / throttle paths) ---
 # These were left behind during the initial extraction; without them every
 # `run doctor` (non-throttled path) hits NameError before any check runs.
 # Small batch ports; supporting constants/defs included where referenced.
+
+# Minimal local read_yn (used only in interactive --fix Taskfile repair path
+# under isatty + fix_mode). Closes the "undefined" gap Greptile summary
+# flagged on the post-7a0606c head. Full ask_confirm lives in run; this is
+# the smallest non-crashing implementation sufficient for doctor.
+def read_yn(prompt_text: str, default: bool = False) -> bool:
+    """Yes/No prompt (read_yn alias to run's ask_confirm)."""
+    try:
+        suffix = " (Y/n): " if default else " (y/N): "
+        resp = input(f"{prompt_text}{suffix}").strip().lower()
+        if not resp:
+            return default
+        return resp[0] in ("y", "yes")
+    except (EOFError, KeyboardInterrupt):
+        return default
+
+
+# Minimal stub for _agents_refresh_plan so the AGENTS.md freshness check
+# (always executed unless early marker skip) does not raise NameError and
+# produce a "probe failed -- NameError" warning on every doctor run.
+# The real (large) implementation and its 10+ helper deps live in run.py;
+# this stub returns a benign state that the existing try/except in
+# _run_agents_md_freshness_check will turn into a warning (acceptable
+# until shared-module extraction). This closes the remaining "undefined"
+# surface from the doctor extraction.
+def _agents_refresh_plan(project_root: Path) -> dict:
+    """Stub -- see docstring above."""
+    return {
+        "state": "unreadable",
+        "path": str(project_root / "AGENTS.md"),
+        "error": "agents helpers not fully ported to scripts/doctor.py (interim)",
+    }
 
 
 def _now_utc() -> datetime:
@@ -1098,10 +1148,7 @@ def _running_inside_deft_repo(project_root: Path) -> bool:
         return False
     if (project_root / ".deft" / "core").is_dir():
         return False
-    for marker in _DEFT_REPO_POSITIVE_MARKERS:
-        if not (project_root / marker).is_file():
-            return False
-    return True
+    return all((project_root / marker).is_file() for marker in _DEFT_REPO_POSITIVE_MARKERS)
 
 
 # --- Extracted doctor logic (from run, markers removed, now owned here) ---
@@ -1189,7 +1236,9 @@ def _run_install_integrity_checks(
     emit_info,
     add_finding,
 ) -> None:
-    """Install-integrity checks (ex-framework_doctor.py) folded into canonical doctor (#1308, #1336 retirement)."""
+    """Install-integrity checks (ex-framework_doctor.py) folded into
+    canonical doctor (#1308, #1336 retirement).
+    """
     if _running_inside_deft_repo(project_root):
         emit_info(
             "Skipping install-integrity checks -- running inside the deft "
@@ -1391,10 +1440,9 @@ def cmd_doctor(args: list[str]):
     # path is normalised through :func:`resolve_path` so ``~`` and
     # relative paths work (#1303 review #5).
     project_root_arg = flags.get("project_root")
-    if project_root_arg:
-        project_root = resolve_path(project_root_arg)
-    else:
-        project_root = Path.cwd()
+    project_root = (
+        resolve_path(project_root_arg) if project_root_arg else Path.cwd()
+    )
 
     # #1308: throttle gate. Default = full check, but a recent run
     # within the 24h-clean / 4h-dirty window short-circuits to a
@@ -1537,7 +1585,13 @@ def cmd_doctor(args: list[str]):
         print()
     _emit_info("Checking Deft structure...")
 
-    script_dir = get_script_dir()
+    # Use .parent so the check anchors at the framework root (the directory
+    # containing scripts/doctor.py), restoring the pre-extraction semantics
+    # from run.get_script_dir() (which returned repo root in source layout).
+    # This eliminates the false-positive "Missing directory" warnings for all
+    # seven canonical framework subdirectories on every `run doctor` / `task doctor`
+    # invocation (Greptile framework-layout issue on 7a0606c).
+    framework_root = get_script_dir().parent
     expected_dirs = [
         "languages",
         "strategies",
@@ -1549,7 +1603,7 @@ def cmd_doctor(args: list[str]):
     ]
 
     for dir_name in expected_dirs:
-        dir_path = script_dir / dir_name
+        dir_path = framework_root / dir_name
         if dir_path.is_dir():
             _emit_success(f"Directory: {dir_name}/")
         else:
