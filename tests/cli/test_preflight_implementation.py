@@ -131,6 +131,17 @@ def test_actionable_redirect_on_every_reject(preflight, tmp_path):
         )
 
 
+def test_contract_documents_story_start_gate_boundary(preflight):
+    """The executable gate stays scoped to structural lifecycle checks."""
+    doc = preflight.__doc__ or ""
+    assert "two structural conditions" in doc
+    assert "Story Start Gate" in doc
+    assert "git status --short --branch" in doc
+    assert "dirty-work prompting" in doc
+    assert "one-story/default batching approval" in doc
+    assert "only receives a vBRIEF path" in doc
+
+
 # ---------------------------------------------------------------------------
 # Edge cases: missing / malformed input
 # ---------------------------------------------------------------------------
