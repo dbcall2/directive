@@ -82,3 +82,26 @@ def test_swarm_skill_requires_approval_before_multi_story_batching() -> None:
     text = _read("skills/deft-directive-swarm/SKILL.md")
     assert "only after explicit operator approval or an approved allocation plan" in text
     assert "record the batching rationale" in text
+
+
+def test_build_skill_recognizes_swarm_cohort_consent() -> None:
+    text = _read("skills/deft-directive-build/SKILL.md")
+    assert "Swarm-cohort dispatch carve-out" in text
+    assert "approved Phase 5 allocation plan" in text
+    assert "(#954)" in text
+
+
+def test_build_skill_handles_inter_story_dirty_tree() -> None:
+    text = _read("skills/deft-directive-build/SKILL.md")
+    assert "Within a cohort, between stories" in text
+    assert "checkpoint-commit it and proceed" in text
+    assert "FIRST story-start of a fresh branch" in text
+
+
+def test_agents_md_and_template_carry_swarm_carve_out() -> None:
+    for rel_path in ("AGENTS.md", "templates/agents-entry.md"):
+        text = _read(rel_path)
+        assert "swarm cohort dispatch" in text
+        assert "approved Phase 5 allocation plan" in text
+        assert "(#954)" in text
+        assert "checkpoint-commit it and proceed" in text
