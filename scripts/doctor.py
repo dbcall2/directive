@@ -37,16 +37,6 @@ from pathlib import Path
 
 HAS_RICH = False
 
-# Safe import of skill-redirect sentinel + window for the bounded exact-header
-# check in _check_skill_paths_resolve. This ports the #1383 / #1321 fix
-# (prevents re-introducing false positives when real skills quote the sentinel
-# in prose/docs after the first 200 chars). Falls back to the literal if the
-# sibling module is not importable in exotic exec contexts.
-try:
-    from _event_detect import DEPRECATED_SKILL_REDIRECT_SENTINEL  # type: ignore[import-not-found]
-except Exception:  # noqa: BLE001 -- graceful fallback
-    DEPRECATED_SKILL_REDIRECT_SENTINEL = "<!-- deft:deprecated-skill-redirect -->"
-_SKILL_SENTINEL_WINDOW = 200
 console = None
 Panel = None
 Markdown = None
@@ -171,15 +161,17 @@ _FULL_GUIDELINES_RE = re.compile(r"Full guidelines:\s+(\S+)/main\.md")
 # (legacy) and ``.deft/core/skills/<name>/SKILL.md`` (canonical).
 _SKILL_PATH_RE = re.compile(r"(?P<root>[\w./-]+?)/skills/(?P<name>[a-z][\w-]*)/SKILL\.md")
 
-# Deprecation-redirect sentinels (#411 / cross-PR #1383 alignment for #1321).
-# Both variants are recognized in the *header window only* (first 200 chars)
-# when checking skill paths referenced from AGENTS.md. This prevents
-# false-positive "redirect stub" failures on real skills that merely quote
-# the sentinel string in body prose or examples (the exact failure mode
-# fixed in #1383 and re-introduced by the initial doctor.py port).
-# Legacy vbrief-style stubs use the first; real skill deprecation stubs use
-# the second (and must appear early per test_deprecated_skill_redirects.py).
+# Deprecation-redirect sentinels embedded in stub SKILL.md files (#411).
+# A skill path that resolves but is a redirect stub is treated as still
+# a fail -- the operator needs to act, not be told everything is fine.
+#
+# Important: current real skills legitimately mention the markdown
+# ``deft:deprecated-redirect`` sentinel when describing migrated
+# SPECIFICATION.md / PROJECT.md state. Redirect detection therefore keys on
+# the stub header shape, not substring presence anywhere in a skill body.
 _DEPRECATED_REDIRECT_SENTINEL = "<!-- deft:deprecated-redirect -->"
+_DEPRECATED_SKILL_REDIRECT_SENTINEL = "<!-- deft:deprecated-skill-redirect -->"
+_REDIRECT_STUB_HEADER_LINES = 8
 
 
 @dataclass
@@ -311,6 +303,16 @@ def _manifest_tag_to_version(manifest: dict) -> str | None:
     return None
 
 
+def _is_deprecation_redirect_stub(text: str) -> bool:
+    """Return True when a resolved skill file is an actual redirect stub."""
+    lines = text.replace("\r\n", "\n").lstrip().splitlines()
+    sentinels = {
+        _DEPRECATED_REDIRECT_SENTINEL,
+        _DEPRECATED_SKILL_REDIRECT_SENTINEL,
+    }
+    return any(line.strip() in sentinels for line in lines[:_REDIRECT_STUB_HEADER_LINES])
+
+
 # ---------------------------------------------------------------------------
 # Checks (ported from framework_doctor.py)
 # ---------------------------------------------------------------------------
@@ -380,16 +382,8 @@ def _check_skill_paths_resolve(project_root: Path, agents_md_text: str) -> Check
             missing.append(rel)
             continue
         text = _read_text_safe(candidate)
-        if text is not None:
-            # Bounded header-window check (first 200 chars) for *either* sentinel.
-            # This is the exact safe behavior ported from #1383 (via _event_detect
-            # + QUICK-START Step 2b) to close the cross-PR regression flagged by
-            # dbcall2 on the 7a0606c head. Real skills quoting the token in body
-            # (after the window) now correctly pass; legacy stubs (even with
-            # preamble before the token) still fail as expected.
-            head = text[:_SKILL_SENTINEL_WINDOW]
-            if _DEPRECATED_REDIRECT_SENTINEL in head or DEPRECATED_SKILL_REDIRECT_SENTINEL in head:
-                redirect_stubs.append(rel)
+        if text is not None and _is_deprecation_redirect_stub(text):
+            redirect_stubs.append(rel)
     if not missing and not redirect_stubs:
         return CheckResult(
             name="skill-paths-resolve",

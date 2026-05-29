@@ -55,7 +55,7 @@ A project is **pre-cutover** if ANY of the following are true. This prose mirror
 4. Strategy output shape violations (run `task verify-strategy-output` -- the canonical gate -- or the direct form `python .deft/core/scripts/validate_strategy_output.py --project-root <path>` after `deft` install):
    - Any scope vBRIEF under `vbrief/proposed/` (or other lifecycle dirs) lacks the required `YYYY-MM-DD-` date prefix in its filename (e.g. bare `scaffold.vbrief.json`).
    - `vbrief/PROJECT-DEFINITION.vbrief.json` is missing.
-   - `vbrief/specification.vbrief.json` exists as a legacy dual-write in a user-generated project (the framework source tree is the only tolerated exception).
+   - `vbrief/specification.vbrief.json` exists as a legacy dual-write in a user-generated project. This is tolerated only for the framework source tree or a complete post-cutover full-spec consumer where all lifecycle folders exist and `SPECIFICATION.md` is rendered from `vbrief/specification.vbrief.json`.
 
 ### Action on Detection
 
