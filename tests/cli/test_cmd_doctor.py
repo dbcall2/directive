@@ -51,12 +51,19 @@ DOCTOR_SCRIPT = REPO_ROOT / "scripts" / "doctor.py"
 
 @pytest.fixture()
 def doctor_module():
+    previous = sys.modules.get("doctor")
     spec = importlib.util.spec_from_file_location("doctor", DOCTOR_SCRIPT)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules["doctor"] = module
     spec.loader.exec_module(module)
-    return module
+    try:
+        yield module
+    finally:
+        if previous is None:
+            sys.modules.pop("doctor", None)
+        else:
+            sys.modules["doctor"] = previous
 
 
 def _make_fake_which(presence: dict[str, bool]):

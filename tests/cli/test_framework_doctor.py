@@ -241,6 +241,33 @@ class TestSkillPathsResolve:
             ".deft/core/skills/deft-directive-setup/SKILL.md"
         ]
 
+    def test_redirect_stub_header_window_boundary(self, fd, tmp_path):
+        _write_agents_md(tmp_path)
+        install = _write_install_tree(tmp_path, skills=("deft-directive-setup",))
+        stub_path = install / "skills" / "deft-directive-setup" / "SKILL.md"
+
+        covered_preamble = "".join(f"<!-- preamble {i} -->\n" for i in range(7))
+        stub_path.write_text(
+            covered_preamble + "<!-- deft:deprecated-redirect -->\n# legacy stub\n",
+            encoding="utf-8",
+        )
+        result = fd.run_checks(tmp_path)
+        check = next(c for c in result["checks"] if c["name"] == "skill-paths-resolve")
+        assert check["status"] == "fail"
+        assert check["data"]["redirect_stubs"] == [
+            ".deft/core/skills/deft-directive-setup/SKILL.md"
+        ]
+
+        uncovered_preamble = "".join(f"<!-- preamble {i} -->\n" for i in range(8))
+        stub_path.write_text(
+            uncovered_preamble + "<!-- deft:deprecated-redirect -->\n# legacy stub\n",
+            encoding="utf-8",
+        )
+        result = fd.run_checks(tmp_path)
+        check = next(c for c in result["checks"] if c["name"] == "skill-paths-resolve")
+        assert check["status"] == "pass"
+        assert not check["data"].get("redirect_stubs")
+
     def test_real_skill_mentioning_sentinel_in_body_passes(self, fd, tmp_path):
         _write_agents_md(tmp_path)
         install = _write_install_tree(tmp_path, skills=("deft-directive-setup",))
