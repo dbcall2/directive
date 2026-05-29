@@ -434,4 +434,9 @@
 - **#1342** -- swarm: extend runtime capability detection for Grok Build / spawn_subagent (slice 1 of #1342) -- `[completed]`
 - **#1331** -- deft-directive-swarm is tightly coupled to the Warp runtime, making it hard to use in other agent environments (Grok Build, etc.) -- `[completed]`
 - **#1353** -- grok-build (Windows): run_terminal_command leaks Get-Content / wrapper noise on any pipeline or redirection (pwsh 7+) -- `[completed]`
+- **#1364** -- swarm skill: poller completion can surface Phase 5→6 merge gate while PRs remain unclean (confidence=3 holdouts) -- `[completed]`
+- **#1365** -- swarm: spawn_subagent review-cycle sub-agents can go completely dark with no visibility or monitoring from the parent -- `[completed]`
+- **#1366** -- harness: Python subprocess + gh calls frequently trigger UnicodeDecodeError in reader threads on Windows, breaking monitoring and readiness tools -- `[completed]`
+- **#1368** -- monitoring: long-running monitors using pr_merge_readiness are unreliable in Grok Build due to harness fragility -- `[completed]`
+- **#1369** -- swarm: Improve reliability and tooling for long-running merge/review cascade automation in Grok Build hybrid path -- `[completed]`
 
