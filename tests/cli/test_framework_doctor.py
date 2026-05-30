@@ -1,6 +1,6 @@
-"""tests/cli/test_framework_doctor.py -- framework_doctor probe (#1046 PR-B AC-3).
+"""tests/cli/test_framework_doctor.py -- doctor probe (now scripts/doctor.py per #1335/#1336).
 
-Covers ``scripts/framework_doctor.py`` end-to-end:
+Covers ``scripts/doctor.py`` end-to-end (retired framework_doctor.py name):
 
 - Three-state exit code (0 clean / 1 drift / 2 config error).
 - Per-check pass/fail/skip matrix for the four checks (``quick-start-resolves``,
@@ -13,8 +13,8 @@ Covers ``scripts/framework_doctor.py`` end-to-end:
 - UTF-8 self-reconfigure (#814) at ``main()`` entry -- the U+2713 success
   glyph MUST render under Windows git hooks that default stdout to cp1252.
 
-The tests drive :func:`framework_doctor.run_checks` (pure -- no subprocess)
-and :func:`framework_doctor.main` (full CLI with arg parsing + stdout/stderr).
+The tests drive :func:`doctor.run_checks` (pure -- no subprocess)
+and :func:`doctor.main` (full CLI with arg parsing + stdout/stderr).
 Mirrors the ``tests/cli/test_preflight_branch.py`` (#747) shape so the
 test seam is consistent across the deft preflight family.
 
@@ -32,14 +32,15 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT_PATH = REPO_ROOT / "scripts" / "framework_doctor.py"
+# canonical owner per #1335/#1336 (framework_doctor.py retired)
+SCRIPT_PATH = REPO_ROOT / "scripts" / "doctor.py"
 
 
 def _load_module():
-    spec = importlib.util.spec_from_file_location("framework_doctor", SCRIPT_PATH)
+    spec = importlib.util.spec_from_file_location("doctor", SCRIPT_PATH)
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
-    sys.modules["framework_doctor"] = mod
+    sys.modules["doctor"] = mod
     spec.loader.exec_module(mod)
     return mod
 
@@ -204,6 +205,43 @@ class TestSkillPathsResolve:
         check = next(c for c in result["checks"] if c["name"] == "skill-paths-resolve")
         assert check["status"] == "fail"
         assert check["data"]["redirect_stubs"]
+
+    def test_legacy_stub_with_preamble_still_detected_as_redirect(self, fd, tmp_path):
+        """Regression: legacy stub with preamble before sentinel (within header window)
+        must still be flagged (covers the 'legacy stub with preamble fails' case
+        from dbcall2 cross-PR note on #1383 behavior).
+        """
+        _write_agents_md(tmp_path)
+        install = _write_install_tree(tmp_path, skills=("deft-directive-setup",))
+        stub_path = install / "skills" / "deft-directive-setup" / "SKILL.md"
+        # Preamble (e.g. heading) then sentinel within first 200 chars.
+        stub_path.write_text(
+            "# Legacy\n<!-- deft:deprecated-skill-redirect -->\nRedirecting...\n",
+            encoding="utf-8",
+        )
+        result = fd.run_checks(tmp_path)
+        check = next(c for c in result["checks"] if c["name"] == "skill-paths-resolve")
+        assert check["status"] == "fail"
+        assert "deft-directive-setup" in str(check["data"].get("redirect_stubs", []))
+
+    def test_real_skill_mentioning_sentinel_in_body_passes(self, fd, tmp_path):
+        """Regression: a real (non-stub) skill file that merely quotes a sentinel
+        string deep in its prose (after the 200-char header window) must NOT be
+        flagged as redirect stub (the exact #1321 false-positive case fixed in
+        #1383 and required for safe #1380 landing per dbcall2).
+        """
+        _write_agents_md(tmp_path)
+        install = _write_install_tree(tmp_path, skills=("deft-directive-setup",))
+        real_path = install / "skills" / "deft-directive-setup" / "SKILL.md"
+        # Header (no sentinel) + long prose that includes the token later.
+        # (Split to keep <100 cols per ruff E501.)
+        prefix = "Deft Skill\n\n" + ("x" * 250) + "\nExample: use "
+        body = prefix + "<!-- deft:deprecated-redirect --> only in stubs.\n"
+        real_path.write_text(body, encoding="utf-8")
+        result = fd.run_checks(tmp_path)
+        check = next(c for c in result["checks"] if c["name"] == "skill-paths-resolve")
+        assert check["status"] == "pass"
+        assert not check["data"].get("redirect_stubs")
 
 
 class TestManifestAgreement:
