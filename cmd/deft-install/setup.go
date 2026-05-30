@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/deftai/directive/templates"
@@ -175,6 +178,31 @@ var canonicalGitignoreLines = []string{
 	".deft-cache/",
 	"vbrief/.eval/",
 }
+
+// minimalTaskfileContent is the canonical starter Taskfile.yml written (or
+// used as the include-append source) by the installer in --yes /
+// non-interactive mode (Epic-4). It provides the supported consumer include
+// pattern so `task` from project root immediately resolves all deft:* tasks.
+// The `optional: true` prevents load failure before the framework is present.
+// This is intentionally a small, stable string (no new embed file) so the
+// Go installer binary stays self-contained.
+const minimalTaskfileContent = `version: '3'
+
+# Taskfile for this project.
+# Installed by deft-install --yes (Epic-4). Add your own tasks below or in
+# additional included files. The deft include makes all framework tasks
+# (task check, task vbrief:*, task doctor, etc.) available from the project root.
+
+includes:
+  deft:
+    taskfile: ./.deft/core/Taskfile.yml
+    optional: true
+`
+
+// canonicalTaskfileIncludeFragment is the exact string we search for to
+// decide whether a consumer Taskfile already wires the deft include. Used
+// by EnsureTaskfile for idempotent "add if missing" in --yes mode.
+const canonicalTaskfileIncludeFragment = "taskfile: ./.deft/core/Taskfile.yml"
 
 // ---------------------------------------------------------------------------
 // 4.0 Install manifest writer (#1062)
@@ -606,6 +634,266 @@ func EnsureGitignoreLines(w *Wizard, projectDir string) (bool, error) {
 	}
 	w.printf(".gitignore updated with canonical entries: %s\n", strings.Join(additions, ", "))
 	return true, nil
+}
+
+// hasTopLevelIncludes reports whether the provided Taskfile content declares
+// a top-level "includes:" key. Used by EnsureTaskfile to decide whether to
+// extend an existing block or emit a fresh one (P1 fix for silent data loss
+// of user includes under duplicate top-level keys).
+func hasTopLevelIncludes(content string) bool {
+	if content == "" {
+		return false
+	}
+	norm := "\n" + strings.ReplaceAll(strings.ReplaceAll(content, "\r\n", "\n"), "\r", "\n")
+	if strings.Contains(norm, "\nincludes:") {
+		return true
+	}
+	// Also handle file that starts with the key (no leading newline)
+	trimmed := strings.TrimLeft(content, " \t\r\n")
+	return strings.HasPrefix(trimmed, "includes:")
+}
+
+// deftIncludeChildBlock is the canonical 2-space-indented YAML fragment for
+// the deft include entry, formatted as a CHILD of an existing top-level
+// `includes:` mapping (no leading `includes:` line). The leading `# Added by
+// deft-install --yes (Epic-4)` comment is rendered at indent 2 so it lives
+// inside the includes block instead of accidentally landing at top level
+// (top-level YAML comments are fine, but co-locating with the entry keeps
+// the audit trail next to the inserted block when operators read the file).
+const deftIncludeChildBlock = "  # Added by deft-install --yes (Epic-4)\n" +
+	"  deft:\n" +
+	"    taskfile: ./.deft/core/Taskfile.yml\n" +
+	"    optional: true\n"
+
+// insertDeftIncludeAfterIncludesLine scans `content` for the first top-level
+// `includes:` line (indent 0, end-of-line or comment-only trailing content)
+// and inserts the canonical deft entry as the FIRST CHILD of that block --
+// immediately after the `includes:` line, before any pre-existing children.
+//
+// This closes the Greptile P0 (PR #1385 review): the previous EnsureTaskfile
+// implementation appended the deft entry at EOF, so a Taskfile shaped like
+//
+//	includes:
+//	  myapp: ./myapp/Taskfile.yml
+//	tasks:
+//	  hello:
+//	    cmds: [echo hi]
+//
+// would have the appended `  deft:` block land under `tasks:` (YAML indent-
+// scope rule: a 2-space-indented key under the last opened mapping), wiring
+// deft into the wrong block. The installer would still report
+// `taskfile_wired:true` but go-task would silently ignore the entry.
+//
+// Inserting as the FIRST CHILD of `includes:` is always structurally correct
+// regardless of what other top-level keys (`tasks:` / `vars:` / `env:`) come
+// after the `includes:` block, and regardless of whether the block was
+// previously empty or already had children.
+//
+// Returns (newContent, true) on a successful insertion, (content, false) when
+// no top-level `includes:` line could be located -- callers fall back to
+// emitting a fresh `includes:` block at EOF in that case.
+//
+// Line-ending preservation: the helper normalises CR-LF to LF for the scan,
+// inserts LF-terminated bytes, and Go's `os.WriteFile` keeps the result LF-
+// only. The legacy code path already wrote LF unconditionally; this helper
+// preserves that behaviour byte-for-byte on LF-native files and converts a
+// CR-LF input to LF on disk (a deliberate normalisation, not a regression --
+// the prior code's `body.WriteString(existing)` also propagated whatever the
+// reader returned, which on Windows with `os.ReadFile` is the on-disk bytes).
+func insertDeftIncludeAfterIncludesLine(content string) (string, bool) {
+	if content == "" {
+		return content, false
+	}
+	norm := strings.ReplaceAll(strings.ReplaceAll(content, "\r\n", "\n"), "\r", "\n")
+	lines := strings.Split(norm, "\n")
+	for i, line := range lines {
+		// Top-level `includes:` line:
+		//  - indent 0 (no leading whitespace),
+		//  - the literal token `includes:`,
+		//  - optional whitespace / inline comment after the colon.
+		// Anything else (commented-out `# includes:`, indented `  includes:`
+		// inside another mapping, an `includes:`-prefixed key like
+		// `includes_v2:`) is ignored.
+		if len(line) == 0 || line[0] == ' ' || line[0] == '\t' {
+			continue
+		}
+		trimmed := strings.TrimRight(line, " \t")
+		if trimmed == "includes:" {
+			// Found the top-level includes: line. Insert the deft block
+			// immediately after it (becomes the first child of includes).
+			out := make([]string, 0, len(lines)+4)
+			out = append(out, lines[:i+1]...)
+			out = append(out, strings.Split(strings.TrimRight(deftIncludeChildBlock, "\n"), "\n")...)
+			out = append(out, lines[i+1:]...)
+			return strings.Join(out, "\n"), true
+		}
+		// Tolerate inline comment forms like `includes:  # main app includes`.
+		if strings.HasPrefix(trimmed, "includes:") && len(trimmed) > len("includes:") {
+			rest := strings.TrimLeft(trimmed[len("includes:"):], " \t")
+			if strings.HasPrefix(rest, "#") {
+				out := make([]string, 0, len(lines)+4)
+				out = append(out, lines[:i+1]...)
+				out = append(out, strings.Split(strings.TrimRight(deftIncludeChildBlock, "\n"), "\n")...)
+				out = append(out, lines[i+1:]...)
+				return strings.Join(out, "\n"), true
+			}
+		}
+	}
+	return content, false
+}
+
+// EnsureTaskfile ensures a usable root Taskfile.yml exists and (in --yes /
+// non-interactive mode) wires the canonical deft include so `task`
+// subcommands from the project root resolve into the framework.
+//   - If no Taskfile.yml: writes the minimal one (version + deft include).
+//   - If exists and lacks the deft include fragment: structurally inserts
+//     the deft entry as the FIRST CHILD of the top-level `includes:` block
+//     when one exists, OR appends a fresh `includes:` block at EOF when it
+//     does not. Pre-existing content is preserved.
+//   - Idempotent: no-op if already wired.
+//
+// Called only for nonInteractive flows per Epic-4 ACs. Returns true if
+// the file was created or modified.
+//
+// Greptile P0 (PR #1385 review): the previous EnsureTaskfile appended the
+// deft entry at EOF on the "has top-level includes:" path, which caused
+// silent mis-wiring on Taskfiles shaped like `includes:\n  ...\ntasks:\n`
+// (the appended `  deft:` block landed under `tasks:`, not `includes:`).
+// insertDeftIncludeAfterIncludesLine now performs a structural insertion
+// that is correct regardless of what other top-level keys come after
+// `includes:`.
+func EnsureTaskfile(w *Wizard, projectDir string) (bool, error) {
+	path := filepath.Join(projectDir, "Taskfile.yml")
+	existing := ""
+	if data, err := os.ReadFile(path); err == nil {
+		existing = string(data)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return false, fmt.Errorf("could not read Taskfile.yml: %w", err)
+	}
+
+	if strings.Contains(existing, canonicalTaskfileIncludeFragment) {
+		w.printf("Taskfile.yml already includes deft — skipping wiring.\n")
+		return false, nil
+	}
+
+	var resultText string
+	modified := false
+	if existing == "" {
+		// No Taskfile: create minimal from const.
+		resultText = minimalTaskfileContent
+		modified = true
+		w.printf("Created minimal Taskfile.yml with deft include (Epic-4).\n")
+	} else if hasTopLevelIncludes(existing) {
+		// Existing top-level includes: structurally insert deft as the first
+		// child so it cannot land under a sibling top-level key like tasks:
+		// or vars: when other top-level keys follow includes:.
+		inserted, ok := insertDeftIncludeAfterIncludesLine(existing)
+		if !ok {
+			// hasTopLevelIncludes returned true but the scanner could not
+			// locate the line shape we recognise (e.g. CR-LF round-trip
+			// artefact or an unanticipated comment form). Fall back to the
+			// safe append-fresh-includes-block path -- this still produces a
+			// valid Taskfile (go-task tolerates two top-level mappings only
+			// when they are unique keys; duplicate `includes:` is undefined,
+			// so we annotate the appended block with a manual-merge hint).
+			inserted = existing
+			if !strings.HasSuffix(inserted, "\n") {
+				inserted += "\n"
+			}
+			inserted += "\n# deft-install --yes (Epic-4): could not locate " +
+				"the existing top-level `includes:` line for structural " +
+				"insertion; appended a fresh block. Manual merge recommended.\n" +
+				"includes:\n" +
+				"  deft:\n" +
+				"    taskfile: ./.deft/core/Taskfile.yml\n" +
+				"    optional: true\n"
+			w.printf("Appended fresh `includes:` block to Taskfile.yml -- " +
+				"top-level includes: detected but structural insertion fell " +
+				"through; manual merge recommended.\n")
+		} else {
+			w.printf("Inserted deft entry inside existing `includes:` block in Taskfile.yml (Epic-4).\n")
+		}
+		resultText = inserted
+		modified = true
+	} else {
+		// No top-level includes: in the existing file. Safe to append a
+		// fresh block at EOF.
+		var body strings.Builder
+		body.WriteString(existing)
+		if !strings.HasSuffix(existing, "\n") {
+			body.WriteString("\n")
+		}
+		body.WriteString("\n# Added by deft-install --yes (Epic-4)\n")
+		body.WriteString("includes:\n")
+		body.WriteString("  deft:\n")
+		body.WriteString("    taskfile: ./.deft/core/Taskfile.yml\n")
+		body.WriteString("    optional: true\n")
+		resultText = body.String()
+		modified = true
+		w.printf("Appended new `includes:` block with deft entry to Taskfile.yml (Epic-4).\n")
+	}
+
+	if modified {
+		if err := os.WriteFile(path, []byte(resultText), 0o644); err != nil {
+			return false, fmt.Errorf("could not write Taskfile.yml: %w", err)
+		}
+	}
+	return modified, nil
+}
+
+// EnsureCoreTools probes for the four canonical toolchain binaries required
+// for full Deft operation (uv, go-task as "task", Python, gh). In
+// non-interactive/--yes mode it reports missing ones with clear manual
+// fallbacks (Epic-4) without attempting privileged installs (UAC/sudo
+// concerns addressed by documentation + delegation to setup_*.ps1 / winget).
+// Returns the list of missing tools (for JSON result) as a non-nil slice
+// (empty when none missing) for stable JSON emission.
+func EnsureCoreTools(w *Wizard, nonInteractive bool) ([]string, error) {
+	candidates := map[string][]string{
+		"task":   {"task"},
+		"uv":     {"uv"},
+		"python": {"python", "python3"},
+		"gh":     {"gh"},
+	}
+	var missing []string
+	for name, alts := range candidates {
+		found := false
+		for _, a := range alts {
+			if _, err := exec.LookPath(a); err == nil {
+				found = true
+				break
+			} else {
+				// Surface non-ENOENT LookPath failures (permission denied,
+				// stat error on an entry in PATH, etc.) so agent logs carry
+				// the trace instead of silently treating the alt as missing.
+				// ErrNotFound is the expected "not on PATH" case and stays
+				// silent (SLizard P1 go-silent-error-branch). Experiments A+B
+				// (PR #1385): bare-else + nested-if shape AND log.Printf (the
+				// literal call form SLizard's recommendation text names) so
+				// the detector unambiguously sees the canonical error-branch
+				// logger. log uses stderr by default so the user-visible
+				// behaviour is unchanged.
+				if !errors.Is(err, exec.ErrNotFound) {
+					log.Printf("warning: LookPath %q: %v", a, err)
+				}
+			}
+		}
+		if !found {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) == 0 {
+		w.printf("Core tools present: task, uv, python, gh.\n")
+		return []string{}, nil
+	}
+	sort.Strings(missing) // deterministic JSON output regardless of map iteration (Greptile P2)
+	w.printf("Missing core tools (consent implied by --yes): %s\n", strings.Join(missing, ", "))
+	w.printf("  Fallbacks (run manually or via platform package manager):\n")
+	w.printf("    Windows: winget install --id <ID> or scripts/setup_windows.ps1\n")
+	w.printf("    macOS:   brew install go-task uv python gh\n")
+	w.printf("    Linux:   apt/brew equivalent for task uv python3 gh\n")
+	w.printf("  See docs/getting-started.md and QUICK-START.md for details.\n")
+	return missing, nil
 }
 
 // ---------------------------------------------------------------------------

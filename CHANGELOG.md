@@ -15,11 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **feat(install): --yes/--non-interactive, --upgrade, --repo-root, --json for agent/CI use (Epic-3 #1337); auto Taskfile wiring + core tool (uv/task/python/gh) bootstrap with fallbacks in --yes mode (Epic-4 #1338)** -- non-interactive fast-path bypasses all wizard prompts; --repo-root (or CWD) + --yes produces machine-readable JSON result; Taskfile created or extended with canonical deft include; tools probed with clear manual-install guidance (UAC/privs documented via fallbacks to setup scripts). Go tests + CLI integration coverage added. Closes #1337, #1338.
 
 ### Changed
 - Doctor surfaces consolidated under single implementation: `scripts/doctor.py` now owns the core doctor logic (install-integrity checks + diagnostics). `run doctor` and `task doctor` are thin shims; `--session` mode supports gate callers. Legacy `framework_doctor.py`, `_maybe_run_framework_doctor` hook, and `task framework:doctor` fully retired (no production imports or calls remain). Closes #1335, #1336.
 
 ### Fixed
+- **fix(install): `--json` stdout is now a single parseable JSON object (PR #1385 review)** -- in `--yes --json` mode `PrintNextSteps` prose used to land on stdout immediately after the JSON, so `jq`, `json.loads`, and `json.Unmarshal` all failed on the trailing non-JSON text. The prose is now routed to stderr in JSON mode; humans / log scrapers still see it, and agents / CI get one clean parseable object on stdout as the documented `--json` contract promised. Companion: explicit logging-by-stderr in the non-`os.ErrNotExist` `Stat` / non-`exec.ErrNotFound` `LookPath` else branches so transient filesystem / PATH errors are visible in agent logs. Refs #1337, #1338.
+- **fix(install): `EnsureTaskfile` inserts deft entry inside `includes:` block, not at EOF (PR #1385 Greptile P0)** -- when an existing Taskfile had `includes:` followed by other top-level keys (`tasks:` / `vars:` / `env:`), the appended `  deft:` block landed under the LAST opened mapping under YAML indent-scope rules, wiring deft into the wrong block while the installer reported `taskfile_wired:true`. New `insertDeftIncludeAfterIncludesLine` helper performs a structural insertion as the first child of the top-level `includes:` block, always correct regardless of what other top-level keys follow. Defence-in-depth fallback appends a fresh block with an inline manual-merge hint when the scanner cannot locate the canonical line shape (CR-LF / unanticipated comment forms). New regression test pins the `includes:` + `tasks:` + `vars:` ordering case end-to-end plus idempotent re-run + helper-level edge cases. Refs #1337, #1338.
 
 ### Removed
 
