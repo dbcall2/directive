@@ -25,6 +25,7 @@ import argparse
 import json
 import re
 import shutil
+import subprocess
 import sys
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -1347,6 +1348,182 @@ def _run_agents_md_freshness_check(
     emit_warn(message)
     add_finding("warning", message, check=check_name, status=state)
 
+
+def _run_payload_staleness_check(
+    project_root: Path,
+    *,
+    emit_warn,
+    emit_info,
+    add_finding,
+) -> None:
+    """#1339 (Epic-5): Detect when the installed framework payload is behind its
+    manifest-recorded ref/sha. Reads the canonical <deftDir>/VERSION manifest
+    (single source of truth per #1062), resolves the corresponding remote SHA
+    via git ls-remote, and surfaces a clear "re-run the installer" recommendation
+    when the shas diverge. Skips gracefully inside the deft repo or when git
+    / network / manifest unavailable (non-fatal, best-effort).
+    """
+    check_name = "payload-staleness"
+    # Self-contained "inside deft repo" probe (avoids dependency on private
+    # _running_inside_deft_repo helper that may be scoped inside cmd_doctor).
+    try:
+        agents = project_root / "AGENTS.md"
+        is_deft = agents.exists() and (
+            "Deft — Development Framework (deft repo)" in
+            agents.read_text(encoding="utf-8", errors="ignore")
+        )
+        if is_deft:
+            emit_info(f"{check_name}: skip -- running inside deft framework repo")
+            add_finding(
+                "skip", "inside framework repo (no install manifest)",
+                check=check_name, status="skip",
+            )
+            return
+    except Exception:
+        pass
+
+    # Locate a plausible manifest. Prefer the one next to the scripts/doctor.py
+    # we are running from (when invoked via the installed layout); fall back to
+    # common canonical/legacy locations under project_root.
+    manifest_path = None
+    try:
+        # When doctor.py lives at <deftDir>/scripts/doctor.py the manifest is at <deftDir>/VERSION
+        candidate = get_script_dir().parent / "VERSION"
+        if candidate.exists():
+            manifest_path = candidate
+    except Exception:
+        pass
+    if manifest_path is None:
+        for cand in [
+            project_root / ".deft" / "core" / "VERSION",
+            project_root / "deft" / "VERSION",
+            project_root / ".deft-version",  # legacy marker, not full manifest
+        ]:
+            if cand.exists():
+                manifest_path = cand
+                break
+    if manifest_path is None or not manifest_path.exists():
+        emit_info(f"{check_name}: skip -- no install manifest found (pre-v0.28 or legacy state)")
+        add_finding("skip", "no manifest", check=check_name, status="skip")
+        return
+
+    try:
+        text = manifest_path.read_text(encoding="utf-8", errors="replace")
+        manifest = _parse_install_manifest(text)
+    except Exception as exc:  # noqa: BLE001
+        emit_info(f"{check_name}: skip -- could not read manifest: {exc}")
+        add_finding("skip", f"manifest unreadable: {exc}", check=check_name, status="skip")
+        return
+
+    installed_sha = manifest.get("sha", "").strip()
+    # Greptile P1 on #1384: do NOT fall back to "HEAD" when ref/tag are
+    # absent. `git ls-remote origin HEAD` returns the current remote
+    # default-branch tip, which almost certainly differs from the locally
+    # installed sha for development builds without a ref/tag pinned, and
+    # the check would then emit a permanent false-stale warning. Skip
+    # cleanly when the manifest does not declare a ref/tag.
+    ref = (manifest.get("ref") or manifest.get("tag") or "").strip()
+    if not installed_sha:
+        emit_info(f"{check_name}: skip -- manifest has no sha (incomplete provenance)")
+        add_finding("skip", "no sha in manifest", check=check_name, status="skip")
+        return
+    if not ref:
+        emit_info(
+            f"{check_name}: skip -- manifest has no ref or tag (cannot resolve remote sha)"
+        )
+        add_finding("skip", "no ref/tag in manifest", check=check_name, status="skip")
+        return
+
+    # Resolve current remote SHA for the ref (best effort, may be tag or branch).
+    # Use ls-remote to avoid needing a local fetch or modifying state.
+    try:
+        # Determine the deft dir from manifest location (parent of VERSION)
+        deft_dir = manifest_path.parent
+        # ls-remote origin <ref> (works for branches and tags)
+        proc = subprocess.run(
+            ["git", "-C", str(deft_dir), "ls-remote", "origin", ref],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if proc.returncode != 0:
+            emit_info(f"{check_name}: skip -- git ls-remote failed (no network or no origin)")
+            add_finding("skip", "ls-remote unavailable", check=check_name, status="skip")
+            return
+        # Output is "<sha>\t<refname>"
+        # For annotated tags, ls-remote returns TWO lines:
+        #   <tag-object-sha>	refs/tags/<tag>
+        #   <commit-sha>	refs/tags/<tag>^{}
+        # Prefer the peeled ^{} commit SHA when present (the one that matches
+        # what the installer recorded in the manifest). Fall back to first line.
+        # See Greptile P1 on #1384 (annotated-tag false-positive staleness).
+        remote_sha = ""
+        peeled_sha = ""
+        for line in proc.stdout.splitlines():
+            parts = line.strip().split()
+            if len(parts) >= 2:
+                refname = parts[1]
+                if refname.endswith("^{}"):
+                    peeled_sha = parts[0]
+                elif not remote_sha:
+                    remote_sha = parts[0]
+        if peeled_sha:
+            remote_sha = peeled_sha
+        elif not remote_sha:
+            # last-resort: first token of first line
+            first_line = next((ln for ln in proc.stdout.splitlines() if ln.strip()), "")
+            parts = first_line.strip().split()
+            if parts:
+                remote_sha = parts[0]
+        if not remote_sha:
+            emit_info(f"{check_name}: skip -- ls-remote produced no sha")
+            add_finding("skip", "no remote sha", check=check_name, status="skip")
+            return
+    except Exception as exc:  # noqa: BLE001 -- network/git optional
+        emit_info(f"{check_name}: skip -- could not probe remote ({type(exc).__name__})")
+        add_finding("skip", f"remote probe failed: {exc}", check=check_name, status="skip")
+        return
+
+    if installed_sha == remote_sha:
+        # Current
+        emit_info(f"{check_name}: current (sha matches remote)")
+        return
+
+    # Stale!
+    msg = (
+        f"Framework payload is stale (installed sha {installed_sha[:8]}... "
+        f"behind remote {remote_sha[:8]}... for ref '{ref}'). "
+        "Recommendation: re-run the installer (deft-install binary or "
+        "equivalent) to pull the latest payload."
+    )
+    emit_warn(msg)
+    add_finding(
+        "warning",
+        msg,
+        check=check_name,
+        status="stale",
+        installed_sha=installed_sha,
+        remote_sha=remote_sha,
+        ref=ref,
+        suggestion="re-run the installer to update payload",
+    )
+
+
+def _parse_install_manifest(text: str) -> dict:
+    """Tiny tolerant parser for the single-key: 'value' YAML shape used by the
+    install manifest (#1062). Mirrors the shape expected by run::_parse_install_manifest
+    but kept local here so scripts/doctor.py stays self-contained for the handoff.
+    """
+    data: dict[str, str] = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or ":" not in line:
+            continue
+        k, v = [x.strip() for x in line.split(":", 1)]
+        v = v.strip().strip("'\"")
+        data[k] = v
+    return data
+
 def cmd_doctor(args: list[str]):
     """Thin shim (#1335) -- core doctor logic now owned by scripts/doctor.py.
 
@@ -1569,6 +1746,20 @@ def cmd_doctor(args: list[str]):
     _run_agents_md_freshness_check(
         project_root,
         emit_success=_emit_success,
+        emit_warn=_emit_warn,
+        emit_info=_emit_info,
+        add_finding=_add_finding,
+    )
+
+    # #1339 (Epic-5): payload staleness from the install manifest. Runs after
+    # AGENTS freshness so the handoff from installer always surfaces a clear
+    # "re-run the installer" recommendation when the cloned payload sha lags
+    # the remote (deterministic, works in --session --json mode for agents).
+    if not json_mode:
+        print()
+    _emit_info("Checking payload staleness from install manifest...")
+    _run_payload_staleness_check(
+        project_root,
         emit_warn=_emit_warn,
         emit_info=_emit_info,
         add_finding=_add_finding,

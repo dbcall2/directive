@@ -1281,3 +1281,48 @@ func PrintNextSteps(w *Wizard, result *WizardResult, configDir string, skillsCre
 	w.printf("  3. On first session, the agent will guide you through creating USER.md and PROJECT-DEFINITION.vbrief.json\n")
 	w.printf("\n")
 }
+
+// doHandoffToDoctor implements the #1339 (Epic-5) deterministic installer-to-doctor
+// handoff. It is invoked unconditionally at the end of every successful
+// install/update so that both human operators and agents receive the
+// --session report (which now includes payload staleness detection against
+// the manifest sha). The --json flag is forwarded only when the installer
+// itself is in --json mode so interactive humans see prose output rather
+// than a raw JSON blob (Greptile P1 on #1384). The call is best-effort and
+// never fails the overall install.
+func doHandoffToDoctor(w *Wizard, result *WizardResult, jsonOut bool) {
+	scriptsDoctor := filepath.Join(result.DeftDir, "scripts", "doctor.py")
+	if _, err := os.Stat(scriptsDoctor); err != nil {
+		w.printf("(doctor handoff skipped: canonical doctor not present at %s)\n", scriptsDoctor)
+		return
+	}
+
+	python := "python3"
+	if runtime.GOOS == "windows" {
+		python = "python"
+	}
+
+	// --full bypasses the 24h/4h throttle gate in scripts/doctor.py so the
+	// installer-doctor handoff always runs the staleness check (Greptile P1
+	// on #1384: throttle could otherwise short-circuit the post-install
+	// report whenever doctor was recently run from another entry point).
+	doctorArgs := []string{scriptsDoctor, "--session", "--full"}
+	if jsonOut {
+		doctorArgs = append(doctorArgs, "--json")
+	}
+	doctorArgs = append(doctorArgs, "--project-root", result.ProjectDir)
+	cmd := exec.Command(python, doctorArgs...)
+	cmd.Stdout = w.out
+	cmd.Stderr = w.out
+
+	modeLabel := "prose"
+	if jsonOut {
+		modeLabel = "JSON"
+	}
+	w.printf("\n--- Doctor handoff (post-install state via --session --full %s) ---\n", modeLabel)
+	if err := cmd.Run(); err != nil {
+		// Non-fatal: the report (or any error detail) has already been
+		// emitted above; we simply note that the doctor surfaced issues.
+		w.printf("(doctor handoff completed; see report above for any warnings/recommendations)\n")
+	}
+}
