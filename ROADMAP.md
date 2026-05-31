@@ -439,4 +439,10 @@
 - **#1366** -- harness: Python subprocess + gh calls frequently trigger UnicodeDecodeError in reader threads on Windows, breaking monitoring and readiness tools -- `[completed]`
 - **#1368** -- monitoring: long-running monitors using pr_merge_readiness are unreliable in Grok Build due to harness fragility -- `[completed]`
 - **#1369** -- swarm: Improve reliability and tooling for long-running merge/review cascade automation in Grok Build hybrid path -- `[completed]`
+- **#1335** -- Epic-1: Extract scripts/doctor.py as the single doctor implementation -- `[completed]`
+- **#1336** -- Epic-2: Retire framework_doctor.py and legacy doctor surfaces -- `[completed]`
+- **#1337** -- Epic-3: Harden Go installer for non-interactive agent use -- `[completed]`
+- **#1338** -- Epic-4: Installer – Automatic Taskfile wiring + tool installation -- `[completed]`
+- **#1339** -- Epic-5: Installer → Doctor handoff + payload staleness detection -- `[completed]`
+- **#1340** -- Epic-6: Documentation, skills, and agent guidance collapse -- `[completed]`
 

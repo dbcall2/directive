@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.38.0] - 2026-05-31
+
+> Unified installer + single doctor surface: non-interactive/CI installs, automatic Taskfile wiring, and an installer->doctor payload-staleness handoff (umbrella #1334).
+
+### Added
 - **feat(install): --yes/--non-interactive, --upgrade, --repo-root, --json for agent/CI use (Epic-3 #1337); auto Taskfile wiring + core tool (uv/task/python/gh) bootstrap with fallbacks in --yes mode (Epic-4 #1338)** -- non-interactive fast-path bypasses all wizard prompts; --repo-root (or CWD) + --yes produces machine-readable JSON result; Taskfile created or extended with canonical deft include; tools probed with clear manual-install guidance (UAC/privs documented via fallbacks to setup scripts). Go tests + CLI integration coverage added. Closes #1337, #1338.
 
 - Installer (`cmd/deft-install`) now calls `scripts/doctor.py --session --json` at the very end of every successful install/update (deterministic handoff for agents and humans). Doctor reads the `<install>/VERSION` manifest and, when the recorded sha lags the remote ref, surfaces a clear recommendation: "Framework payload is stale ... re-run the installer to pull the latest payload." Closes #1339 (Epic-5 of #1334).
@@ -2931,7 +2943,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.37.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.38.0...HEAD
+[0.38.0]: https://github.com/deftai/directive/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/deftai/directive/compare/v0.36.0...v0.37.0
 [0.36.0]: https://github.com/deftai/directive/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/deftai/directive/compare/v0.34.0...v0.35.0
