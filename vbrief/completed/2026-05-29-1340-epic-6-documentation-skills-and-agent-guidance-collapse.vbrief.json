@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1340"
+    "description": "Scope vBRIEF ingested from GitHub issue #1340",
+    "updated": "2026-05-31T02:24:35Z"
   },
   "plan": {
     "title": "Epic-6: Documentation, skills, and agent guidance collapse",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "Epic-6: Documentation, skills, and agent guidance collapse",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1340",
@@ -36,6 +37,7 @@
         "type": "x-vbrief/github-issue",
         "title": "Issue #1340: Epic-6: Documentation, skills, and agent guidance collapse"
       }
-    ]
+    ],
+    "updated": "2026-05-31T02:24:35Z"
   }
 }
