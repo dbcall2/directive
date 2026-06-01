@@ -6,7 +6,7 @@
   "plan": {
     "id": "swarm-worktree-map",
     "title": "Pre-created worktree resolver for swarm cohorts",
-    "status": "running",
+    "status": "completed",
     "planRef": "proposed/2026-06-01-1387-headless-swarm-launch.vbrief.json",
     "narratives": {
       "Description": "Adds reusable worktree-map resolution so the swarm can accept pre-created worktrees instead of always creating them inside the phased skill flow. It validates each story-to-worktree path against real git worktree state and the configured base branch, creates any missing worktrees idempotently, and emits a normalized mapping the launch engine consumes. Owning a standalone helper script keeps this independently buildable and unit-testable in isolation against the frozen C3 contract.",
@@ -90,6 +90,6 @@
         "TrustLevel": "external"
       }
     ],
-    "updated": "2026-06-01T03:26:33Z"
+    "updated": "2026-06-01T04:37:32Z"
   }
 }
