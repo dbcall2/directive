@@ -14,9 +14,9 @@ Rules enforced (hard fail):
   (catches interview-style bare names like "scaffold.vbrief.json").
 - vbrief/PROJECT-DEFINITION.vbrief.json MUST exist (full project identity).
 - vbrief/specification.vbrief.json MUST NOT be present as a strategy-produced artifact
-  (legacy dual-write). The framework's own canonical source-of-truth copy is tolerated
-  only when auto-detected as the deft repo itself (presence of AGENTS.md + Taskfile.yml
-  + strategies/ at project root). Generated user projects must never emit it.
+  (legacy dual-write). The framework's own canonical source-of-truth copy is tolerated,
+  as is a post-cutover full-spec consumer tree where specification.vbrief.json is the
+  canonical source rendered to SPECIFICATION.md and all lifecycle folders exist.
 - If vbrief/ exists, the five standard lifecycle subfolders should be present or the
   strategy must have created them (proposed/ at minimum for emission).
 
@@ -46,6 +46,9 @@ from pathlib import Path
 # Filename pattern for v0.20-conformant scope vBRIEFs (date-prefixed).
 # Matches the convention in vbrief/vbrief.md and conventions/vbrief-filenames.md
 DATE_PREFIXED_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.vbrief\.json$")
+GENERATED_SPEC_PURPOSE = "<!-- Purpose: rendered specification -->"
+GENERATED_SPEC_SOURCE = "<!-- Source of truth: vbrief/specification.vbrief.json -->"
+LIFECYCLE_DIRS = ("proposed", "pending", "active", "completed", "cancelled")
 
 
 def _is_deft_framework_root(project_root: Path) -> bool:
@@ -56,6 +59,38 @@ def _is_deft_framework_root(project_root: Path) -> bool:
         (project_root / "AGENTS.md").exists()
         and (project_root / "Taskfile.yml").exists()
         and (project_root / "strategies").is_dir()
+    )
+
+
+def _read_text_safe(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _has_complete_lifecycle(vbrief_dir: Path) -> bool:
+    return all((vbrief_dir / folder).is_dir() for folder in LIFECYCLE_DIRS)
+
+
+def _is_post_cutover_full_spec_state(project_root: Path) -> bool:
+    """Return True for canonical consumer full-spec state.
+
+    This is deliberately stricter than "specification.vbrief.json exists" so
+    the gate still catches strategy-generated legacy dual-writes. A consumer
+    may keep ``vbrief/specification.vbrief.json`` as the source of truth only
+    after the vBRIEF-centric shape is complete and the root SPECIFICATION.md is
+    a rendered export from that source.
+    """
+    vbrief_dir = project_root / "vbrief"
+    spec_md = _read_text_safe(project_root / "SPECIFICATION.md")
+    return (
+        # Caller already confirmed specification.vbrief.json exists; the
+        # remaining conditions separate canonical state from a legacy dual-write.
+        (vbrief_dir / "PROJECT-DEFINITION.vbrief.json").is_file()
+        and _has_complete_lifecycle(vbrief_dir)
+        and GENERATED_SPEC_PURPOSE in spec_md
+        and GENERATED_SPEC_SOURCE in spec_md
     )
 
 
@@ -87,21 +122,26 @@ def validate_strategy_output(project_root: Path, strict: bool = False) -> list[s
         )
 
     # 2. Forbid legacy specification.vbrief.json in generated user projects.
-    #    Framework source tree is the sole exception (its canonical spec source).
+    #    Tolerate canonical source copies only in the framework tree or in
+    #    complete post-cutover consumer full-spec state.
     spec_legacy = vbrief_dir / "specification.vbrief.json"
-    if spec_legacy.exists() and not _is_deft_framework_root(project_root):
+    if (
+        spec_legacy.exists()
+        and not _is_deft_framework_root(project_root)
+        and not _is_post_cutover_full_spec_state(project_root)
+    ):
         errors.append(
             "Legacy artifact vbrief/specification.vbrief.json present. "
             "v0.20 strategies MUST NOT dual-write the old specification.vbrief.json "
             "alongside scope vBRIEFs in the lifecycle folders. "
             "See strategies/v0-20-contract.md (contract) and issue #1166."
         )
-    # Framework source tolerated (canonical spec, not strategy output).
+    # Framework source / post-cutover full-spec state tolerated (canonical spec,
+    # not strategy output).
 
     # 3. Every .vbrief.json under the lifecycle folders (proposed/ primarily, but all)
     #    must be date-prefixed. This is the key shape invariant for s2.
-    lifecycle_dirs = ["proposed", "pending", "active", "completed", "cancelled"]
-    for dname in lifecycle_dirs:
+    for dname in LIFECYCLE_DIRS:
         dpath = vbrief_dir / dname
         if dpath.exists() and dpath.is_dir():
             for f in sorted(dpath.glob("*.vbrief.json")):

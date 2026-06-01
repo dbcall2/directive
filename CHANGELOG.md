@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **`task doctor` no longer false-fails on clean installs (#1321)** -- canonical skills (e.g. `deft-directive-setup`, `deft-directive-sync`) that merely mention the deprecation-redirect sentinel in their pre-cutover docs are no longer misclassified as redirect stubs. The doctor now detects stubs by file shape (an exact sentinel line within the first few header lines) instead of a body-wide substring match, so a healthy v0.31+ layout stops reporting a spurious `skill-paths-resolve: fail` and the no-op refresh loop it caused. Re-lands the fix on the consolidated `scripts/doctor.py` after the v0.38.0 extraction reintroduced it. Closes #1321.
+- **Upgrading to v0.37+ no longer breaks `task check` for full-spec consumers (#1381)** -- `verify-strategy-output` now accepts a post-cutover project that keeps `vbrief/specification.vbrief.json` as the canonical source rendered into `SPECIFICATION.md` (detected via the renderer's provenance markers plus complete lifecycle folders) instead of rejecting it as a legacy strategy dual-write. Strategy-produced dual-writes remain rejected. Closes #1381.
 
 ### Removed
 
