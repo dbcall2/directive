@@ -1,12 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Epic scope vBRIEF for issue #1387 -- low-ceremony / headless swarm launch for pre-approved cohorts (builds on the merged #1378 allocation-context token)"
+    "description": "Epic scope vBRIEF for issue #1387 -- low-ceremony / headless swarm launch for pre-approved cohorts (builds on the merged #1378 allocation-context token)",
+    "updated": "2026-06-01T05:00:00Z"
   },
   "plan": {
     "id": "1387-headless-swarm-launch",
     "title": "Low-ceremony / headless swarm launch for pre-approved cohorts",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "Add a low-ceremony / headless launch path so an operator with a pre-approved cohort of active/ stories can launch a swarm without walking the full Phase 0 promote-fill loop and per-phase approval gates. Builds on the merged #1378 allocation-context consent token and Gate 0 (task verify:story-ready). The deterministic work (story resolution, gate enforcement, worktree mapping, dispatch-envelope generation, launch-manifest emission) lands as a CLI; the actual agent spawn stays agent-driven through the existing swarm skill Phase 3 (start_agent / spawn_subagent).",
       "ProblemStatement": "The swarm skill is a long, conversational, phase-driven workflow with multiple approval gates. For the common 'I have N ready stories, just launch them' case (experience report on deftvisage, #1387) it is too heavyweight, so consumers fall back to manual worktree creation + raw spawn_subagent, losing the blessed monitoring, conflict-group handling, and review-cycle tooling.",
@@ -48,6 +49,6 @@
     "metadata": {
       "kind": "epic"
     },
-    "updated": "2026-06-01T03:20:00Z"
+    "updated": "2026-06-01T05:00:00Z"
   }
 }

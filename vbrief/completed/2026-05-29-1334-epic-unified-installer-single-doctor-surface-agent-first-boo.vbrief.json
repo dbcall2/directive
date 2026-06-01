@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1334"
+    "description": "Scope vBRIEF ingested from GitHub issue #1334",
+    "updated": "2026-06-01T05:00:00Z"
   },
   "plan": {
     "title": "Epic: Unified Installer + Single Doctor Surface (Agent-First Bootstrap & Upgrade)",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "Epic: Unified Installer + Single Doctor Surface (Agent-First Bootstrap & Upgrade)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1334",
@@ -52,6 +53,7 @@
         "type": "x-vbrief/github-issue",
         "title": "Issue #1334: Epic: Unified Installer + Single Doctor Surface (Agent-First Bootstrap & Upgrade)"
       }
-    ]
+    ],
+    "updated": "2026-06-01T05:00:00Z"
   }
 }

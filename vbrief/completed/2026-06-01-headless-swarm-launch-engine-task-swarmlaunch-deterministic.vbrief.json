@@ -7,7 +7,7 @@
     "id": "swarm-launch-cli",
     "title": "Headless swarm launch engine: task swarm:launch deterministic prep CLI",
     "status": "completed",
-    "planRef": "proposed/2026-06-01-1387-headless-swarm-launch.vbrief.json",
+    "planRef": "completed/2026-06-01-1387-headless-swarm-launch.vbrief.json",
     "narratives": {
       "Description": "Provides a deterministic task swarm:launch entry point that turns an operator-supplied, pre-approved cohort into a ready-to-spawn launch manifest. It resolves named stories, enforces the existing task swarm:readiness and #810 preflight gates, and pre-populates the #1378 allocation-context consent token so the monitor can spawn agents without re-running Phase 0 ceremony. This story owns only the launch engine and its Taskfile target, keeping it independently buildable against the frozen C2/C3 contracts.",
       "ImplementationPlan": "1. Add scripts/swarm_launch.py implementing a CLI that resolves --stories (issue numbers) and explicit --paths against vbrief/active, then runs the #810 preflight gate (task vbrief:preflight) and task swarm:readiness per story, exiting nonzero and naming the first failing story.\n2. Consume the frozen worktree-map schema (C3), generate per-agent dispatch envelopes that populate the #1378 allocation-context token, and emit a launch-manifest JSON (C2); register a swarm:launch target in tasks/swarm.yml forwarding CLI_ARGS bare.\n3. Cover story resolution, gate-failure exit codes, and manifest shape with assertions in tests/cli/test_swarm_launch.py.",

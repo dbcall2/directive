@@ -7,7 +7,7 @@
     "id": "swarm-skill-headless-prose",
     "title": "Document the headless / low-ceremony launch path in the swarm skill",
     "status": "completed",
-    "planRef": "proposed/2026-06-01-1387-headless-swarm-launch.vbrief.json",
+    "planRef": "completed/2026-06-01-1387-headless-swarm-launch.vbrief.json",
     "narratives": {
       "Description": "Documents the low-ceremony headless launch path in the swarm skill so operators with a pre-approved cohort can bypass the interactive promote-fill loop and per-phase approval gates. It updates Phase 0, Phase 2, and Phase 3 prose to route through the deterministic launch engine, accept pre-created worktrees, and consume the launch manifest, and mirrors the gate-stack note in AGENTS.md. A content test pins the prose contract so the behavior is observable and regression-guarded.",
       "ImplementationPlan": "1. Extend skills/deft-directive-swarm/SKILL.md Phase 0 with a headless cohort entry that batches the approval gates into a single consent and routes through the task swarm:launch CLI, and Phase 2 to accept a pre-created worktree map.\n2. Document Phase 3 launch-manifest consumption and mirror the gate-stack note in AGENTS.md so both surfaces agree.\n3. Add tests/content/test_swarm_headless_launch.py asserting the headless prose contract is present in both the skill and AGENTS.md.",
