@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1339"
+    "description": "Scope vBRIEF ingested from GitHub issue #1339",
+    "updated": "2026-05-31T02:24:35Z"
   },
   "plan": {
     "title": "Epic-5: Installer → Doctor handoff + payload staleness detection",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "Epic-5: Installer → Doctor handoff + payload staleness detection",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1339",
@@ -41,6 +42,7 @@
         "type": "x-vbrief/github-issue",
         "title": "Issue #1339: Epic-5: Installer → Doctor handoff + payload staleness detection"
       }
-    ]
+    ],
+    "updated": "2026-05-31T02:24:35Z"
   }
 }

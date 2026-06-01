@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1336"
+    "description": "Scope vBRIEF ingested from GitHub issue #1336",
+    "updated": "2026-05-31T02:24:34Z"
   },
   "plan": {
     "title": "Epic-2: Retire framework_doctor.py and legacy doctor surfaces",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "Epic-2: Retire framework_doctor.py and legacy doctor surfaces",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1336",
@@ -40,6 +41,7 @@
         "type": "x-vbrief/github-issue",
         "title": "Issue #1336: Epic-2: Retire framework_doctor.py and legacy doctor surfaces"
       }
-    ]
+    ],
+    "updated": "2026-05-31T02:24:34Z"
   }
 }
