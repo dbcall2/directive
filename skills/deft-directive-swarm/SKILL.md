@@ -196,7 +196,7 @@ Cross-references:
 
 ! The monitor allocates one or more vBRIEFs to each agent based on scope, complexity, and dependencies. There is no fixed per-agent limit.
 
-- ! **Small/independent stories** can be batched to a single agent — group related or low-complexity vBRIEFs together
+- ! **Small/independent stories** can be batched to a single agent only after explicit operator approval or an approved allocation plan -- group related or low-complexity vBRIEFs together and record the batching rationale
 - ! **Large/complex stories** get dedicated agents — a story with broad file scope or high acceptance criteria count should not share an agent
 - ! **Dependency-aware grouping** — vBRIEFs that share `planRef` to the same epic or have `edges` between them should be assigned to the same agent when possible, OR sequenced with clear ordering
 - ! The monitor decides allocation dynamically — no hardcoded 1:1 rule
@@ -212,7 +212,7 @@ Cross-references:
 - **Blockers found**: blocked vBRIEFs, unresolved dependencies, items requiring design decisions
 - **Decomposition needed**: epic/phase scopes that must go through `skills/deft-directive-decompose/SKILL.md` before swarm allocation
 - **Incomplete vBRIEFs**: stories with missing or empty acceptance criteria
-- **Allocation plan**: which agent gets which vBRIEF(s), with reasoning for batching decisions
+- **Allocation plan**: which agent gets which vBRIEF(s), with reasoning for batching decisions; multi-story batching is allowed only after explicit operator approval or approval of this allocation plan
 - **Tentative version bump**: current version (from CHANGELOG.md or latest git tag) and proposed next version (patch/minor/major) based on the scope and nature of candidate items — this is advisory and will be confirmed before merge cascade
 
 ### Step 5: Get User Approval

@@ -103,10 +103,22 @@ When user input matches a trigger keyword, read the corresponding skill:
 
 ### Implementation Intent Gate (#810)
 
-- ! Run `task vbrief:preflight -- <path>` before any code-writing tool call or `start_agent` dispatch -- the gate exits 0 only when the candidate vBRIEF lives in `vbrief/active/` AND `plan.status == "running"`. The Taskfile target wraps `scripts/preflight_implementation.py` so the same invocation works whether deft is the project root or installed as a `deft/` subdirectory. The ONLY supported way to satisfy a non-zero exit is `task vbrief:activate <path>` (idempotent).
+- ! Run `task vbrief:preflight -- <path>` before any code-writing tool call or `start_agent` dispatch -- the gate exits 0 only when the candidate vBRIEF lives in `vbrief/active/` AND `plan.status == "running"`. The Taskfile target wraps `scripts/preflight_implementation.py` so the same invocation works whether deft is the project root or installed as a `deft/` subdirectory. The helper names `task vbrief:activate <path>` as its idempotent activation companion; story workflows should use the Story Start Gate below to bridge proposed/pending scope through `task scope:promote` and `task scope:activate` before invoking preflight.
 - ! Require an explicit action-verb directive (`build`, `implement`, `ship`, `swarm`, `run agents`, `start agent`) from the user before invoking the preflight gate or `start_agent` for implementation. When intent is ambiguous, ask one targeted question instead of inferring.
 - ⊗ Infer implementation intent from lifecycle vocabulary ("do the full PR process", "start the work", "poller agents"), branching language, or workflow shape. Workflow-shape vocabulary is NOT authorization to spawn an implementation agent.
 - ⊗ Treat affirmative continuation phrases (`yes`, `go`, `proceed`, `do it`) as implementation authorization unless the prior turn explicitly proposed implementation. Broad approval is not a substitute for an explicit action-verb directive.
+
+### Story Start Gate
+
+- ! Before starting any new implementation story or switching from one story to another, run `git status --short --branch`.
+- ! If the working tree is dirty, stop and summarize the current branch, modified/untracked files, and whether the changes appear related to the next story. Ask the operator to choose one path: commit existing work, stash existing work, include existing work in the current story, or stop.
+- ⊗ Begin a new story while unrelated dirty work is present without explicit operator approval.
+- ! Resolve exactly one target story vBRIEF path by default. Batching multiple stories requires explicit operator approval and a short rationale.
+- ! When invoked as part of a swarm cohort dispatch, the approved Phase 5 allocation plan satisfies the "explicit operator approval and a short rationale" requirement above -- the dispatched paths and allocation rationale ARE the consent token. Do NOT re-prompt the parent for batching approval mid-cohort; the all-or-nothing dispatch envelope rule (#954) forbids mid-scope user-approval gates.
+- ! Within a swarm cohort, between stories, the working tree MUST be clean (a checkpoint commit + `task scope:complete` just landed). If `git status --short` shows uncommitted state between stories, checkpoint-commit it and proceed -- do NOT pause to ask the operator. The dirty-tree "ask the operator" branch above applies only at the FIRST story-start of a fresh branch.
+- ! If the target story is in `vbrief/proposed/`, run `task scope:promote -- <path>` first; if it is in `vbrief/pending/`, run `task scope:activate -- <path>`. After activation, run `task vbrief:preflight -- <active-story-path>` before code-writing.
+- ! Default to one story per branch/PR. Create a checkpoint commit after each completed story before beginning another story, unless the operator explicitly approved batching.
+- ! After checks pass for the story, complete the lifecycle with `task scope:complete -- <active-story-path>` before final PR handoff.
 
 **Pre-`start_agent` gate stack (#1149):** Before dispatching an implementation sub-agent via `start_agent`, run the gates in the canonical order: (1) vBRIEF implementation-intent gate (#810, `task vbrief:preflight -- <path>`) → (2) `task verify:cache-fresh` (D5 / #1127) → (3) branch-policy gate (existing -- `scripts/preflight_branch.py`, surfaced via `task verify:branch` and the `.githooks/pre-commit` / `pre-push` hooks; see `**Branching:**` below) → (4) `start_agent`. Any non-zero exit aborts dispatch; do NOT spawn the sub-agent past a failed gate. The canonical order makes the four gates composable so each one assumes the previous one has already cleared.
 
@@ -396,10 +408,22 @@ Cross-reference: `.deft/core/docs/analysis/2026-05-26-issue-1353-grok-windows-ca
 
 ### Implementation Intent Gate (#810)
 
-- ! Run `task vbrief:preflight -- <path>` before any code-writing tool call or `start_agent` dispatch -- the gate exits 0 only when the candidate vBRIEF lives in `vbrief/active/` AND `plan.status == "running"`. The Taskfile target resolves the wrapped script via `.deft/core/scripts/_resolve_preflight_path.py` (which probes the canonical, legacy, and in-repo install layouts in priority order) and fails closed with a structured `gate misconfigured` error pointing at `task framework:doctor` if no candidate resolves -- the gate cannot silently fail open on a misconfigured install (#1046 / #1047). The ONLY supported way to satisfy a non-zero gate exit is `task vbrief:activate <path>` (idempotent).
+- ! Run `task vbrief:preflight -- <path>` before any code-writing tool call or `start_agent` dispatch -- the gate exits 0 only when the candidate vBRIEF lives in `vbrief/active/` AND `plan.status == "running"`. The Taskfile target resolves the wrapped script via `.deft/core/scripts/_resolve_preflight_path.py` (which probes the canonical, legacy, and in-repo install layouts in priority order) and fails closed with a structured `gate misconfigured` error pointing at `task framework:doctor` if no candidate resolves -- the gate cannot silently fail open on a misconfigured install (#1046 / #1047). The helper names `task vbrief:activate <path>` as its idempotent activation companion; story workflows should use the Story Start Gate below to bridge proposed/pending scope through `task scope:promote` and `task scope:activate` before invoking preflight.
 - ! Require an explicit action-verb directive (`build`, `implement`, `ship`, `swarm`, `run agents`, `start agent`) from the user before invoking the preflight gate or `start_agent` for implementation. When intent is ambiguous, ask one targeted question instead of inferring.
 - ⊗ Infer implementation intent from lifecycle vocabulary ("do the full PR process", "start the work", "poller agents"), branching language, or workflow shape. Workflow-shape vocabulary is NOT authorization to spawn an implementation agent.
 - ⊗ Treat affirmative continuation phrases (`yes`, `go`, `proceed`, `do it`) as implementation authorization unless the prior turn explicitly proposed implementation. Broad approval is not a substitute for an explicit action-verb directive.
+
+### Story Start Gate
+
+- ! Before starting any new implementation story or switching from one story to another, run `git status --short --branch`.
+- ! If the working tree is dirty, stop and summarize the current branch, modified/untracked files, and whether the changes appear related to the next story. Ask the operator to choose one path: commit existing work, stash existing work, include existing work in the current story, or stop.
+- ⊗ Begin a new story while unrelated dirty work is present without explicit operator approval.
+- ! Resolve exactly one target story vBRIEF path by default. Batching multiple stories requires explicit operator approval and a short rationale.
+- ! When invoked as part of a swarm cohort dispatch, the approved Phase 5 allocation plan satisfies the "explicit operator approval and a short rationale" requirement above -- the dispatched paths and allocation rationale ARE the consent token. Do NOT re-prompt the parent for batching approval mid-cohort; the all-or-nothing dispatch envelope rule (#954) forbids mid-scope user-approval gates.
+- ! Within a swarm cohort, between stories, the working tree MUST be clean (a checkpoint commit + `task scope:complete` just landed). If `git status --short` shows uncommitted state between stories, checkpoint-commit it and proceed -- do NOT pause to ask the operator. The dirty-tree "ask the operator" branch above applies only at the FIRST story-start of a fresh branch.
+- ! If the target story is in `vbrief/proposed/`, run `task scope:promote -- <path>` first; if it is in `vbrief/pending/`, run `task scope:activate -- <path>`. After activation, run `task vbrief:preflight -- <active-story-path>` before code-writing.
+- ! Default to one story per branch/PR. Create a checkpoint commit after each completed story before beginning another story, unless the operator explicitly approved batching.
+- ! After checks pass for the story, complete the lifecycle with `task scope:complete -- <active-story-path>` before final PR handoff.
 
 ## Commands
 

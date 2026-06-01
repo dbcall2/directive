@@ -169,22 +169,23 @@ def test_managed_section_contains_implementation_intent_gate_anchor() -> None:
     )
 
 
+def _implementation_intent_gate_region() -> str:
+    section = _managed_section_text()
+    anchor_idx = section.index("Implementation Intent Gate")
+    rest = section[anchor_idx:]
+    next_heading = re.search(r"\n#{2,6} ", rest)
+    return rest[: next_heading.start()] if next_heading else rest
+
+
 def test_managed_section_implementation_intent_gate_has_four_bullets() -> None:
     """The Implementation Intent Gate block MUST contain at least four bullets.
 
     Counts list items starting with `- ` between the gate's heading and
-    the next `## ` (or end of managed section). Pinning the count, not
+    the next Markdown heading (or end of managed section). Pinning the count, not
     exact wording, lets future copy-edits adjust phrasing without
     breaking the contract (#810).
     """
-    section = _managed_section_text()
-    # Locate the gate region: from the anchor heading to the next `## `
-    # heading or close marker.
-    anchor_idx = section.index("Implementation Intent Gate")
-    rest = section[anchor_idx:]
-    # Next top-level section starts with `\n## ` (two hashes, space).
-    next_section = re.search(r"\n## ", rest)
-    region = rest[: next_section.start()] if next_section else rest
+    region = _implementation_intent_gate_region()
     bullets = [line for line in region.splitlines() if line.lstrip().startswith("- ")]
     assert len(bullets) >= 4, (
         f"Implementation Intent Gate block MUST contain at least 4 bullets "
@@ -200,11 +201,7 @@ def test_managed_section_implementation_intent_gate_uses_required_tokens() -> No
     exact wording) preserves the prohibition / requirement balance
     while letting copy-edits land freely.
     """
-    section = _managed_section_text()
-    anchor_idx = section.index("Implementation Intent Gate")
-    rest = section[anchor_idx:]
-    next_section = re.search(r"\n## ", rest)
-    region = rest[: next_section.start()] if next_section else rest
+    region = _implementation_intent_gate_region()
 
     must_count = 0
     forbid_count = 0
@@ -252,6 +249,10 @@ _PROPAGATION_COMMAND_MARKERS: tuple[str, ...] = (
     "task verify:branch",
     "task doctor",
     "task agents:refresh",
+    "git status --short --branch",
+    "task scope:promote -- <path>",
+    "task scope:activate -- <path>",
+    "task scope:complete -- <active-story-path>",
 )
 
 _PROPAGATION_POLICY_KEY_MARKERS: tuple[str, ...] = (
@@ -264,6 +265,7 @@ _PROPAGATION_HEADER_MARKERS: tuple[str, ...] = (
     "## Cache-as-authoritative work selection (#1149)",
     "## Skill Routing",
     "## WIP cap",
+    "### Story Start Gate",
     # #1353: new ## PowerShell section in agents-entry.md (per #1309)
     "## PowerShell",
 )

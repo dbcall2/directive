@@ -2,7 +2,8 @@
 """preflight_implementation.py -- structural implementation-intent gate (#810).
 
 Asserts a vBRIEF is eligible to be implemented before any code-writing
-sub-agent spawns. The gate is two structural conditions:
+sub-agent spawns. The executable preflight gate is intentionally limited
+to two structural conditions:
 
 1. The vBRIEF's containing folder is ``vbrief/active/``.
 2. ``plan.status == "running"``.
@@ -12,6 +13,13 @@ Both conditions together encode the explicit lifecycle handoff that
 status flip pending/approved -> running). The gate fails closed: any
 ambiguous, malformed, or pre-activation state exits non-zero with an
 actionable redirect to ``task vbrief:activate``.
+
+Story-workflow controls such as ``git status --short --branch``,
+dirty-work prompting, one-story/default batching approval, and checkpoint
+commits live in the Story Start Gate documentation. They must run before
+this helper is invoked, because this helper only receives a vBRIEF path
+and stays deterministic, side-effect-free, and path-prefix agnostic across
+consumer installs.
 
 Mirrors ``scripts/preflight_branch.py`` (#747) in shape: pure stdlib,
 ``evaluate(path) -> (exit_code, message)`` separated from CLI plumbing
@@ -35,6 +43,7 @@ operator.
 Refs:
 - #810 (this gate)
 - #747 (precedent shape: ``scripts/preflight_branch.py``)
+- #1371 (Story Start Gate; this helper remains the structural lifecycle sub-gate)
 """
 
 from __future__ import annotations
