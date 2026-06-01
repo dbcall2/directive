@@ -439,10 +439,20 @@
 - **#1366** -- harness: Python subprocess + gh calls frequently trigger UnicodeDecodeError in reader threads on Windows, breaking monitoring and readiness tools -- `[completed]`
 - **#1368** -- monitoring: long-running monitors using pr_merge_readiness are unreliable in Grok Build due to harness fragility -- `[completed]`
 - **#1369** -- swarm: Improve reliability and tooling for long-running merge/review cascade automation in Grok Build hybrid path -- `[completed]`
+- fix(skills): add story start gate and lifecycle checkpoint contract -- `[completed]`
+- **#1334** -- Epic: Unified Installer + Single Doctor Surface (Agent-First Bootstrap & Upgrade) -- `[completed]`
 - **#1335** -- Epic-1: Extract scripts/doctor.py as the single doctor implementation -- `[completed]`
 - **#1336** -- Epic-2: Retire framework_doctor.py and legacy doctor surfaces -- `[completed]`
 - **#1337** -- Epic-3: Harden Go installer for non-interactive agent use -- `[completed]`
 - **#1338** -- Epic-4: Installer – Automatic Taskfile wiring + tool installation -- `[completed]`
 - **#1339** -- Epic-5: Installer → Doctor handoff + payload staleness detection -- `[completed]`
 - **#1340** -- Epic-6: Documentation, skills, and agent guidance collapse -- `[completed]`
+- **#1378** -- chore(scripts): address #1378 Story C P2 follow-ups in preflight_story_start.py -- `[completed]`
+- **#1378** -- feat(preamble): first-class ## Allocation context dispatch-envelope schema (#1378 Story A) -- `[completed]`
+- **#1378** -- feat(skills): recognize + populate ## Allocation context consent token (#1378 Story B) -- `[completed]`
+- **#1378** -- feat(scripts): scripts/preflight_story_start.py Gate 0 + verify:story-ready (#1378 Story C) -- `[completed]`
+- **#1387** -- Low-ceremony / headless swarm launch for pre-approved cohorts -- `[completed]`
+- **#1387** -- Document the headless / low-ceremony launch path in the swarm skill -- `[completed]`
+- **#1387** -- Headless swarm launch engine: task swarm:launch deterministic prep CLI -- `[completed]`
+- **#1387** -- Pre-created worktree resolver for swarm cohorts -- `[completed]`
 

@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.39.0] - 2026-06-01
+
+> Headless swarm launch for pre-approved cohorts via task swarm:launch, plus the canonical deft-install --yes --upgrade headless upgrader for consumers.
+
+### Added
 - **Dispatch envelopes now carry a structured `## Allocation context` section (#1378, Story A)** -- swarm-cohort dispatches declare operator approval through five canonical fields instead of free-form prose, so downstream skills and the Story Start Gate can recognise the #1371 batching consent token mechanically rather than by pattern-matching. An absent section falls back to the existing #1371 prose carve-out. Refs #1378, #1371.
 - **Story starts now have a machine-checkable Gate 0 (#1378)** -- a new `task verify:story-ready` deterministically checks the three story-start preconditions before an implementation sub-agent is dispatched: a clean working tree (or an explicit `--allow-dirty`), the target vBRIEF in `vbrief/active/` with a running plan, and the dispatch envelope's `## Allocation context` consent token. A `swarm-cohort` dispatch is ready only when its allocation-plan id and batching rationale are both present; an absent section is the solo path. Three-state exit (0 ready / 1 not ready / 2 config error) makes the prior prose-only swarm carve-out enforceable instead of trust-based. Refs #1378, #1371.
 - **Swarm skill now documents a headless / low-ceremony launch path for pre-approved cohorts (#1387)** -- operators with a curated cohort can launch through the `task swarm:launch` CLI with a single consent (the #1378 allocation-context token) instead of walking the per-phase interactive gates. The swarm skill's Phase 0 gains a headless fast-path that skips the promote-fill loop, Phase 2 accepts a pre-created worktree map, and Phase 3 consumes the emitted launch-manifest as dispatch prep (the agent spawn itself stays agent-driven). A matching gate-stack note lands in AGENTS.md so both surfaces agree. Refs #1387, #1378.
@@ -2951,7 +2963,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.38.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.39.0...HEAD
+[0.39.0]: https://github.com/deftai/directive/compare/v0.38.0...v0.39.0
 [0.38.0]: https://github.com/deftai/directive/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/deftai/directive/compare/v0.36.0...v0.37.0
 [0.36.0]: https://github.com/deftai/directive/compare/v0.35.0...v0.36.0
