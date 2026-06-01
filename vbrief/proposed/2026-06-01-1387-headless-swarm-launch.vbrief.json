@@ -27,19 +27,19 @@
         "title": "Issue #1378: allocation-context token + Gate 0 (merged enabler)"
       },
       {
-        "uri": "pending/2026-06-01-headless-swarm-launch-engine-task-swarmlaunch-deterministic.vbrief.json",
+        "uri": "active/2026-06-01-headless-swarm-launch-engine-task-swarmlaunch-deterministic.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Headless swarm launch engine: task swarm:launch deterministic prep CLI",
         "TrustLevel": "internal"
       },
       {
-        "uri": "pending/2026-06-01-pre-created-worktree-resolver-for-swarm-cohorts.vbrief.json",
+        "uri": "active/2026-06-01-pre-created-worktree-resolver-for-swarm-cohorts.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Pre-created worktree resolver for swarm cohorts",
         "TrustLevel": "internal"
       },
       {
-        "uri": "pending/2026-06-01-document-the-headless-low-ceremony-launch-path-in-the-swarm.vbrief.json",
+        "uri": "active/2026-06-01-document-the-headless-low-ceremony-launch-path-in-the-swarm.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Document the headless / low-ceremony launch path in the swarm skill",
         "TrustLevel": "internal"
