@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.39.3] - 2026-06-02
+
+> Fix vendored deft-install --upgrade aborting on the GitHub tarball PAX header (#1433); README documents vendored vs clone install layouts; release notes now lead with upgrade guidance (#1413).
+
+### Added
 - **Directive release notes now lead with an upgrade-guidance banner (#1413)** -- every maintainer-mode GitHub release for deftai/directive is now prefixed with a standard "Upgrading from an older version?" section pointing at the canonical `deft-install --yes --upgrade --repo-root . --json` command and #1411, sourced from an editable `.github/release-notes/upgrade-banner.md` template. Consumer-mode releases are unaffected. Closes #1413.
 
 ### Changed
@@ -2996,7 +3008,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.39.2...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.39.3...HEAD
+[0.39.3]: https://github.com/deftai/directive/compare/v0.39.2...v0.39.3
 [0.39.2]: https://github.com/deftai/directive/compare/v0.39.1...v0.39.2
 [0.39.1]: https://github.com/deftai/directive/compare/v0.39.0...v0.39.1
 [0.39.0]: https://github.com/deftai/directive/compare/v0.38.0...v0.39.0
