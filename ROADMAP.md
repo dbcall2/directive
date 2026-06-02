@@ -5,6 +5,64 @@
 
 # Roadmap
 
+## docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up) (#1000)
+
+## Problem
+
+`README.md` and `docs/getting-started.md` (added under #979 / PR #995) document four trigger phrases for the refinement skill's Phase 0 triage workflow:
+
+- `triage`
+- `work the cache`
+- `pre-ingest`
+- `action menu`
+
+These phrases ARE listed inside `skills/deft-directive-refinement/SKILL.md` `triggers:` frontmatter (already present today) and in its Session Model section, so an agent that loads that skill recognises them. **However**, `AGENTS.md` Skill Routing (currently around line 51) only maps:
+
+```
+"refinement" / "reprioritize" / "refine" → skills/deft-directive-refinement/SKILL.md
+```
+
+A user who reads the new README "Backlog triage" subsection or `docs/getting-started.md` "Working an existing backlog" and types one of the additional phrases (e.g. `triage`, `pre-ingest`) into a fresh agent session may not get automatic routing to the refinement skill from the `AGENTS.md` routing table on its own -- the discovery path goes via the skill's internal triggers, not via the top-level routing table.
+
+This was surfaced by Greptile review on PR #995 (issue 3 of 3).
+
+## Proposed remediation
+
+Update the AGENTS.md Skill Routing table line for `deft-directive-refinement` to add the four additional phrases:
+
+```
+- "refinement" / "reprioritize" / "refine" / "triage" / "work the cache" / "pre-ingest" / "action menu" → skills/deft-directive-refinement/SKILL.md — chains to deft-directive-review-cycle at exit
+```
+
+This matches the canonical `triggers:` set already in `skills/deft-directive-refinement/SKILL.md` frontmatter and closes the documented-vs-routed gap end users see.
+
+## Acceptance criteria
+
+- [ ] AGENTS.md Skill Routing entry for `deft-directive-refinement` lists all seven trigger phrases (the existing three plus `triage` / `work the cache` / `pre-ingest` / `action menu`).
+- [ ] Wording matches the canonical phrasing in `skills/deft-directive-refinement/SKILL.md` `triggers:` frontmatter.
+- [ ] No drift between AGENTS.md routing and the skill's own `triggers:` list.
+
+## Out of scope
+
+- This is purely a routing-table addition. The skill itself already lists these triggers; the skill body, README, getting-started, and commands.md docs are unchanged.
+- Not a duplicate of #979 -- #979 was the docs surface; this is the AGENTS.md routing-table follow-up specifically.
+
+## Related
+
+- #979 -- the docs surface that introduced the user-facing trigger words.
+- #984 -- the companion webinstaller callout (shipped in the same PR #995).
+- PR #995 -- where the gap was first surfaced (Greptile P2 follow-up).
+- `skills/deft-directive-refinement/SKILL.md` -- canonical source of the four additional trigger phrases.
+
+
+### AGENTS.md Skill Routing entry for `deft-directive-refinement` lists all seven trigger phrases (the existing three plus `triage` / `work the cache` / `pre-ingest` / `action menu`). `[proposed]`
+
+### Wording matches the canonical phrasing in `skills/deft-directive-refinement/SKILL.md` `triggers:` frontmatter. `[proposed]`
+
+### No drift between AGENTS.md routing and the skill's own `triggers:` list. `[proposed]`
+
+---
+
 ## Completed
 
 - **#365** -- bdd strategy: move context and scenarios to vbrief; remove specs/ folder -- `[completed]`
@@ -372,6 +430,7 @@
 - **#816** -- feat(patterns): add role-as-overlay — persona/role instructions must be system-prompt overlays, never injected into message history -- `[completed]`
 - **#836** -- feat(patterns): prompt-assembly-layer-ordering — separate cached system prompt layers from ephemeral per-turn injections -- `[completed]`
 - Directive story decomposition and swarm readiness -- `[completed]`
+- chore: complete #1125 scope vBRIEF and catch up SPECIFICATION.md -- `[completed]`
 - feat(skills): re-land deft-directive-gh-arch (supersedes #442) -- `[completed]`
 - **#1121** -- feat(scope): scope:demote + --batch + demote_meta audit instrumentation (#1121) -- `[completed]`
 - **#1122** -- feat(triage): task triage:summary one-liner + summary-history.jsonl write (#1122) -- `[completed]`
@@ -455,4 +514,5 @@
 - **#1387** -- Document the headless / low-ceremony launch path in the swarm skill -- `[completed]`
 - **#1387** -- Headless swarm launch engine: task swarm:launch deterministic prep CLI -- `[completed]`
 - **#1387** -- Pre-created worktree resolver for swarm cohorts -- `[completed]`
+- **#1425** -- fix(installer): deft-install --upgrade safe + working on vendored (no-.git) webinstaller installs (#1425) -- `[completed]`
 

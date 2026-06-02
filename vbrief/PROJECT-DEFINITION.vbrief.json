@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-05-29T03:31:32Z"
+    "updated": "2026-06-02T20:37:42Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -1135,129 +1135,17 @@
         }
       },
       {
-        "id": "2026-05-29-1334-epic-unified-installer-single-doctor-surface-agent-first-boo",
-        "title": "Epic: Unified Installer + Single Doctor Surface (Agent-First Bootstrap & Upgrade)",
-        "status": "proposed",
+        "id": "2026-06-01-1000-docsagents-wire-refinement-skills-full-trigger-word-set-into",
+        "title": "docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)",
+        "status": "pending",
         "metadata": {
-          "source_path": "proposed/2026-05-29-1334-epic-unified-installer-single-doctor-surface-agent-first-boo.vbrief.json",
-          "lifecycle_folder": "proposed",
+          "source_path": "pending/2026-06-01-1000-docsagents-wire-refinement-skills-full-trigger-word-set-into.vbrief.json",
+          "lifecycle_folder": "pending",
           "references": [
             {
-              "uri": "https://github.com/deftai/directive/issues/1334",
+              "uri": "https://github.com/deftai/directive/issues/1000",
               "type": "x-vbrief/github-issue",
-              "title": "Issue #1334: Epic: Unified Installer + Single Doctor Surface (Agent-First Bootstrap & Upgrade)"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-05-29-1335-epic-1-extract-scriptsdoctorpy-as-the-single-doctor-implemen",
-        "title": "Epic-1: Extract scripts/doctor.py as the single doctor implementation",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-05-29-1335-epic-1-extract-scriptsdoctorpy-as-the-single-doctor-implemen.vbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1335",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1335: Epic-1: Extract scripts/doctor.py as the single doctor implementation"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-05-29-1336-epic-2-retire-framework-doctorpy-and-legacy-doctor-surfaces",
-        "title": "Epic-2: Retire framework_doctor.py and legacy doctor surfaces",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-05-29-1336-epic-2-retire-framework-doctorpy-and-legacy-doctor-surfaces.vbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1336",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1336: Epic-2: Retire framework_doctor.py and legacy doctor surfaces"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-05-29-1337-epic-3-harden-go-installer-for-non-interactive-agent-use",
-        "title": "Epic-3: Harden Go installer for non-interactive agent use",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-05-29-1337-epic-3-harden-go-installer-for-non-interactive-agent-use.vbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1337",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1337: Epic-3: Harden Go installer for non-interactive agent use"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-05-29-1338-epic-4-installer-automatic-taskfile-wiring-tool-installation",
-        "title": "Epic-4: Installer – Automatic Taskfile wiring + tool installation",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-05-29-1338-epic-4-installer-automatic-taskfile-wiring-tool-installation.vbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1338",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1338: Epic-4: Installer – Automatic Taskfile wiring + tool installation"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-05-29-1339-epic-5-installer-doctor-handoff-payload-staleness-detection",
-        "title": "Epic-5: Installer → Doctor handoff + payload staleness detection",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-05-29-1339-epic-5-installer-doctor-handoff-payload-staleness-detection.vbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1339",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1339: Epic-5: Installer → Doctor handoff + payload staleness detection"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-05-29-1340-epic-6-documentation-skills-and-agent-guidance-collapse",
-        "title": "Epic-6: Documentation, skills, and agent guidance collapse",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-05-29-1340-epic-6-documentation-skills-and-agent-guidance-collapse.vbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1340",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1340: Epic-6: Documentation, skills, and agent guidance collapse"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-05-13-1125-followup-scope-complete-and-spec-render",
-        "title": "chore: complete #1125 scope vBRIEF and catch up SPECIFICATION.md",
-        "status": "running",
-        "metadata": {
-          "source_path": "active/2026-05-13-1125-followup-scope-complete-and-spec-render.vbrief.json",
-          "lifecycle_folder": "active",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/pull/1125",
-              "type": "x-vbrief/github-pr",
-              "title": "PR #1125: feat(skills): add deft-directive-gh-arch (re-land of #442) -- merged predecessor"
+              "title": "Issue #1000: docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)"
             }
           ]
         }
@@ -8065,6 +7953,22 @@
         }
       },
       {
+        "id": "2026-05-13-1125-followup-scope-complete-and-spec-render",
+        "title": "chore: complete #1125 scope vBRIEF and catch up SPECIFICATION.md",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-13-1125-followup-scope-complete-and-spec-render.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/pull/1125",
+              "type": "x-vbrief/github-pr",
+              "title": "PR #1125: feat(skills): add deft-directive-gh-arch (re-land of #442) -- merged predecessor"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-05-13-442-reland-skill-deft-directive-gh-arch",
         "title": "feat(skills): re-land deft-directive-gh-arch (supersedes #442)",
         "status": "completed",
@@ -9531,11 +9435,321 @@
             }
           ]
         }
+      },
+      {
+        "id": "2026-05-27-story-start-gate-lifecycle-implementation-contract",
+        "title": "fix(skills): add story start gate and lifecycle checkpoint contract",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-27-story-start-gate-lifecycle-implementation-contract.vbrief.json",
+          "lifecycle_folder": "completed"
+        }
+      },
+      {
+        "id": "2026-05-29-1334-epic-unified-installer-single-doctor-surface-agent-first-boo",
+        "title": "Epic: Unified Installer + Single Doctor Surface (Agent-First Bootstrap & Upgrade)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-29-1334-epic-unified-installer-single-doctor-surface-agent-first-boo.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1334",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1334: Epic: Unified Installer + Single Doctor Surface (Agent-First Bootstrap & Upgrade)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-29-1335-epic-1-extract-scriptsdoctorpy-as-the-single-doctor-implemen",
+        "title": "Epic-1: Extract scripts/doctor.py as the single doctor implementation",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-29-1335-epic-1-extract-scriptsdoctorpy-as-the-single-doctor-implemen.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1335",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1335: Epic-1: Extract scripts/doctor.py as the single doctor implementation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-29-1336-epic-2-retire-framework-doctorpy-and-legacy-doctor-surfaces",
+        "title": "Epic-2: Retire framework_doctor.py and legacy doctor surfaces",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-29-1336-epic-2-retire-framework-doctorpy-and-legacy-doctor-surfaces.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1336",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1336: Epic-2: Retire framework_doctor.py and legacy doctor surfaces"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-29-1337-epic-3-harden-go-installer-for-non-interactive-agent-use",
+        "title": "Epic-3: Harden Go installer for non-interactive agent use",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-29-1337-epic-3-harden-go-installer-for-non-interactive-agent-use.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1337",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1337: Epic-3: Harden Go installer for non-interactive agent use"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-29-1338-epic-4-installer-automatic-taskfile-wiring-tool-installation",
+        "title": "Epic-4: Installer – Automatic Taskfile wiring + tool installation",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-29-1338-epic-4-installer-automatic-taskfile-wiring-tool-installation.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1338",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1338: Epic-4: Installer – Automatic Taskfile wiring + tool installation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-29-1339-epic-5-installer-doctor-handoff-payload-staleness-detection",
+        "title": "Epic-5: Installer → Doctor handoff + payload staleness detection",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-29-1339-epic-5-installer-doctor-handoff-payload-staleness-detection.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1339",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1339: Epic-5: Installer → Doctor handoff + payload staleness detection"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-05-29-1340-epic-6-documentation-skills-and-agent-guidance-collapse",
+        "title": "Epic-6: Documentation, skills, and agent guidance collapse",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-05-29-1340-epic-6-documentation-skills-and-agent-guidance-collapse.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1340",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1340: Epic-6: Documentation, skills, and agent guidance collapse"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-01-1378-p2-cleanup",
+        "title": "chore(scripts): address #1378 Story C P2 follow-ups in preflight_story_start.py",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-01-1378-p2-cleanup.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1378",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1378: first-class allocation-plan reference in dispatch envelope (post #1371 deterministic-tier enabler)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-01-1378a-allocation-context-schema",
+        "title": "feat(preamble): first-class ## Allocation context dispatch-envelope schema (#1378 Story A)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-01-1378a-allocation-context-schema.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1378",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1378: first-class allocation-plan reference in dispatch envelope (post #1371 deterministic-tier enabler)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-01-1378b-skill-allocation-context-recognition",
+        "title": "feat(skills): recognize + populate ## Allocation context consent token (#1378 Story B)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-01-1378b-skill-allocation-context-recognition.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1378",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1378: first-class allocation-plan reference in dispatch envelope (post #1371 deterministic-tier enabler)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-01-1378c-preflight-story-start-gate",
+        "title": "feat(scripts): scripts/preflight_story_start.py Gate 0 + verify:story-ready (#1378 Story C)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-01-1378c-preflight-story-start-gate.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1378",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1378: first-class allocation-plan reference in dispatch envelope (post #1371 deterministic-tier enabler)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-01-1387-headless-swarm-launch",
+        "title": "Low-ceremony / headless swarm launch for pre-approved cohorts",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-01-1387-headless-swarm-launch.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1387",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1387: feat(swarm): low-ceremony / headless launch for pre-approved cohorts (build on #1378 allocation-context token)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1378",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1378: allocation-context token + Gate 0 (merged enabler)"
+            },
+            {
+              "uri": "completed/2026-06-01-headless-swarm-launch-engine-task-swarmlaunch-deterministic.vbrief.json",
+              "type": "x-vbrief/plan",
+              "title": "Headless swarm launch engine: task swarm:launch deterministic prep CLI",
+              "TrustLevel": "internal"
+            },
+            {
+              "uri": "completed/2026-06-01-pre-created-worktree-resolver-for-swarm-cohorts.vbrief.json",
+              "type": "x-vbrief/plan",
+              "title": "Pre-created worktree resolver for swarm cohorts",
+              "TrustLevel": "internal"
+            },
+            {
+              "uri": "completed/2026-06-01-document-the-headless-low-ceremony-launch-path-in-the-swarm.vbrief.json",
+              "type": "x-vbrief/plan",
+              "title": "Document the headless / low-ceremony launch path in the swarm skill",
+              "TrustLevel": "internal"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-01-document-the-headless-low-ceremony-launch-path-in-the-swarm",
+        "title": "Document the headless / low-ceremony launch path in the swarm skill",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-01-document-the-headless-low-ceremony-launch-path-in-the-swarm.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1387",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1387: feat(swarm): low-ceremony / headless launch for pre-approved cohorts (build on #1378 allocation-context token)",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1378",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1378: allocation-context token + Gate 0 (merged enabler)",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-01-headless-swarm-launch-engine-task-swarmlaunch-deterministic",
+        "title": "Headless swarm launch engine: task swarm:launch deterministic prep CLI",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-01-headless-swarm-launch-engine-task-swarmlaunch-deterministic.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1387",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1387: feat(swarm): low-ceremony / headless launch for pre-approved cohorts (build on #1378 allocation-context token)",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1378",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1378: allocation-context token + Gate 0 (merged enabler)",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-01-pre-created-worktree-resolver-for-swarm-cohorts",
+        "title": "Pre-created worktree resolver for swarm cohorts",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-01-pre-created-worktree-resolver-for-swarm-cohorts.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1387",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1387: feat(swarm): low-ceremony / headless launch for pre-approved cohorts (build on #1378 allocation-context token)",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1378",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1378: allocation-context token + Gate 0 (merged enabler)",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-02-1425-installer-upgrade-broken-unsafe-on-vendored-installs",
+        "title": "fix(installer): deft-install --upgrade safe + working on vendored (no-.git) webinstaller installs (#1425)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-02-1425-installer-upgrade-broken-unsafe-on-vendored-installs.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1425",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1425: P0/Upgrade Blocker: deft-install --upgrade is broken and unsafe on webinstaller (vendored, no-.git) installs"
+            }
+          ]
+        }
       }
     ],
     "metadata": {
       "staleness_flags": [
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'Document AGENTS.md managed-section legacy migration in UPGRADING.md' shares topics (legacy)",
+        "Narrative 'LegacyArtifacts' may be stale: completed scope 'Epic-2: Retire framework_doctor.py and legacy doctor surfaces' shares topics (legacy)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'Project bootstrap: purge stale legacy path references across 42 files; add strategy stubs (rapid.md, enterprise.md); add docs/getting-started.md stub' shares topics (legacy)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'SKILL.md platform entry point is entirely pre-cutover -- references old skill names and deprecated artifacts' shares topics (artifacts)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'Stale cross-references to legacy paths' shares topics (legacy)",
