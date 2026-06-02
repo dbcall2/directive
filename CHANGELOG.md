@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.39.2] - 2026-06-02
+
+> Vendored-done-right: git-free vendored installs, clone-to-vendored upgrades, auto-deposited payload neutralization, and canonical-first manifest reads (#1428).
+
+### Added
 - **Installer deposits the framework-payload neutralization on every install (#1430)** -- the Go installer now writes (idempotently, create-if-absent, preserving existing entries) `.gitattributes` linguist `generated`/`vendored` markers for `.deft/core/**`, a Greptile `ignorePatterns` entry in `greptile.json`, a CodeQL `paths-ignore` entry in `.github/codeql/codeql-config.yml`, and an optional `.github/workflows/deft-core-guard.yml` CI guard that fails a PR mixing `.deft/core/**` with non-framework paths. Consumers' language stats, bot reviewers, and CI now treat the vendored framework payload as packaged, machine-managed assets rather than consumer source. Closes #1430. Refs #1428.
 
 ### Changed
@@ -2981,7 +2993,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.39.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.39.2...HEAD
+[0.39.2]: https://github.com/deftai/directive/compare/v0.39.1...v0.39.2
 [0.39.1]: https://github.com/deftai/directive/compare/v0.39.0...v0.39.1
 [0.39.0]: https://github.com/deftai/directive/compare/v0.38.0...v0.39.0
 [0.38.0]: https://github.com/deftai/directive/compare/v0.37.0...v0.38.0
