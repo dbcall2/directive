@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Directive release notes now lead with an upgrade-guidance banner (#1413)** -- every maintainer-mode GitHub release for deftai/directive is now prefixed with a standard "Upgrading from an older version?" section pointing at the canonical `deft-install --yes --upgrade --repo-root . --json` command and #1411, sourced from an editable `.github/release-notes/upgrade-banner.md` template. Consumer-mode releases are unaffected. Closes #1413.
 
 ### Changed
 - **README documents the vendored (git-free) vs clone install layouts (#1433)** -- Getting Started and the upgrade banner no longer describe only the clone model; they now explain both payload origins (binary/clone with `.git` vs webinstaller/vendored without `.git`), that `deft-install --upgrade` detects the layout and refreshes accordingly, and that it never runs git against the consumer repo. Refs #1428, #1425.
