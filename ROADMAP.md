@@ -514,7 +514,9 @@ This matches the canonical `triggers:` set already in `skills/deft-directive-ref
 - **#1387** -- Document the headless / low-ceremony launch path in the swarm skill -- `[completed]`
 - **#1387** -- Headless swarm launch engine: task swarm:launch deterministic prep CLI -- `[completed]`
 - **#1387** -- Pre-created worktree resolver for swarm cohorts -- `[completed]`
+- **#1413** -- Always include upgrade guidance section at the top of directive release notes -- `[completed]`
 - **#1425** -- fix(installer): deft-install --upgrade safe + working on vendored (no-.git) webinstaller installs (#1425) -- `[completed]`
+- **#1433** -- v0.39.2 vendored refresh aborts: extractor treats GitHub tarball pax_global_header as content root; README still says installer clones -- `[completed]`
 - **#1427** -- v0.39.2 doctor manifest tolerant-read (canonical-first _locate_manifest) -- `[completed]`
 - **#1429** -- v0.39.2 Go-installer vendoring + neutralization deposit -- `[completed]`
 
