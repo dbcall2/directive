@@ -9612,7 +9612,9 @@
             "skills",
             "adoption-blocker",
             "blocks-merge",
-            "blocks-release-tag"
+            "blocks-release-tag",
+            "bug",
+            "update-blocker"
           ]
         },
         {
