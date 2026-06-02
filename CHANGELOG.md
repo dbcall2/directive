@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- **README documents the vendored (git-free) vs clone install layouts (#1433)** -- Getting Started and the upgrade banner no longer describe only the clone model; they now explain both payload origins (binary/clone with `.git` vs webinstaller/vendored without `.git`), that `deft-install --upgrade` detects the layout and refreshes accordingly, and that it never runs git against the consumer repo. Refs #1428, #1425.
 
 ### Fixed
 - **`deft-install --upgrade` on a vendored install no longer aborts on the GitHub tarball PAX header (#1433)** -- `extractCoreTarball` captured its content-root name from the first tar entry, which for GitHub source tarballs is the `pax_global_header` global-PAX record, so every git-free vendored refresh failed with `tarball content root "pax_global_header" missing after extract`. The extractor now skips PAX global/extended header entries before resolving the wrapper directory. Refs #1425, #1428.
