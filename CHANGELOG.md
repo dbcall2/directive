@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
+### Removed
+
+## [0.39.1] - 2026-06-02
+
+> Safe deft-install --upgrade on vendored (webinstaller) installs: classify payload, refresh via a git-free tarball file-swap, and never mutate the consumer repo (#1425).
+
+### Added
+
+### Changed
+
+### Fixed
 - **`deft-install --upgrade` is now safe and works on vendored (webinstaller) installs (#1425)** -- upgrading a project installed via the webinstaller (a vendored `.deft/core/` with no `.git/` of its own) previously ran `git` against the *consumer's own repository* via git's upward `.git` discovery, failing with a misleading `pathspec` error and risking a silent checkout of the user's project. The installer now classifies the on-disk payload (clone / vendored / absent) before any git operation, refreshes vendored payloads through a git-free tarball file-swap with a timestamped backup, and never runs a mutating git command against anything but a genuine framework clone. `--json` now reports `payload_layout` and `strategy`. Closes #1425.
 
 ### Removed
@@ -2964,7 +2976,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.39.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.39.1...HEAD
+[0.39.1]: https://github.com/deftai/directive/compare/v0.39.0...v0.39.1
 [0.39.0]: https://github.com/deftai/directive/compare/v0.38.0...v0.39.0
 [0.38.0]: https://github.com/deftai/directive/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/deftai/directive/compare/v0.36.0...v0.37.0
