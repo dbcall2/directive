@@ -8,7 +8,7 @@
   "plan": {
     "id": "v0-39-2-installer-vendoring-neutralization-deposit",
     "title": "v0.39.2 Go-installer vendoring + neutralization deposit",
-    "status": "running",
+    "status": "completed",
     "planRef": "#1429",
     "narratives": {
       "Overview": "Make the Go installer (cmd/deft-install) vendor the framework as a git-free tarball payload on fresh install and migrate existing git-clone payloads to vendored on --upgrade, then deposit the neutralization (.gitattributes linguist markers + Greptile/CodeQL bot-ignore + CI guard) so consumers treat .deft/core/** as packaged framework assets.",
@@ -81,6 +81,6 @@
         "title": "Issue #1427: orphan .deft/VERSION removal (Go installer part)"
       }
     ],
-    "updated": "2026-06-02T22:06:13Z"
+    "updated": "2026-06-02T22:57:46Z"
   }
 }

@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-06-02T20:37:42Z"
+    "updated": "2026-06-02T22:57:47Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -9741,6 +9741,58 @@
               "uri": "https://github.com/deftai/directive/issues/1425",
               "type": "x-vbrief/github-issue",
               "title": "Issue #1425: P0/Upgrade Blocker: deft-install --upgrade is broken and unsafe on webinstaller (vendored, no-.git) installs"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-02-doctor-manifest-tolerant-read-issue-1427",
+        "title": "v0.39.2 doctor manifest tolerant-read (canonical-first _locate_manifest)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-02-doctor-manifest-tolerant-read-issue-1427.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1427",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1427: Install manifest path divergence: doctor tolerant-read + Go-upgrade migration of .deft/VERSION -> .deft/core/VERSION"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1428",
+              "type": "x-vbrief/github-issue",
+              "title": "Umbrella #1428: vendored-done-right cohort"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-02-v0-39-2-installer-vendoring-neutralization-deposit",
+        "title": "v0.39.2 Go-installer vendoring + neutralization deposit",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-02-v0-39-2-installer-vendoring-neutralization-deposit.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1429",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1429: installer vendor on fresh install + clone->vendored upgrade migration (Slice A)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1430",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1430: deposit the neutralization (.gitattributes + bot-ignore + CI guard) (Slice B)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1428",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1428: umbrella - vendored-done-right cohort"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1427",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1427: orphan .deft/VERSION removal (Go installer part)"
             }
           ]
         }

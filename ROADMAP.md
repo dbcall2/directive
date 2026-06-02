@@ -515,4 +515,6 @@ This matches the canonical `triggers:` set already in `skills/deft-directive-ref
 - **#1387** -- Headless swarm launch engine: task swarm:launch deterministic prep CLI -- `[completed]`
 - **#1387** -- Pre-created worktree resolver for swarm cohorts -- `[completed]`
 - **#1425** -- fix(installer): deft-install --upgrade safe + working on vendored (no-.git) webinstaller installs (#1425) -- `[completed]`
+- **#1427** -- v0.39.2 doctor manifest tolerant-read (canonical-first _locate_manifest) -- `[completed]`
+- **#1429** -- v0.39.2 Go-installer vendoring + neutralization deposit -- `[completed]`
 
