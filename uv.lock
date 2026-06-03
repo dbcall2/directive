@@ -166,7 +166,7 @@ toml = [
 
 [[package]]
 name = "deft-directive"
-version = "0.39.6"
+version = "0.39.7"
 source = { virtual = "." }
 
 [package.dev-dependencies]

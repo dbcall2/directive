@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.39.7] - 2026-06-03
+
+> Installer warns on a dirty tree and stages only the framework deposit on --upgrade, and gitignores *.premigrate.* snapshots (#1453/#1450); vendored version resolution no longer bleeds the consumer's git tag and never persists 0.0.0-dev (#1454).
+
+### Added
 - **`deft-install --upgrade` now warns about a dirty working tree up front and stages only the framework deposit for you (#1453)** -- the deposited `deft-core-guard` CI check (#1430/#1440) was the only thing stopping a consumer from committing a `.deft/core/**` framework bump mixed with their own files, and it is a late, PR-time, GitHub-only, deletable backstop. The installer now gives proactive, local guidance. Before an `--upgrade` payload swap it checks `git status --porcelain` and, if the tree is dirty, prints an actionable advisory (commit/stash your own work first; land the framework deposit on its own branch; a mixed PR is rejected by the guard); the default is warn-and-proceed so the initial install and the `--yes` non-interactive agent/CI path are never blocked. A new opt-in `--require-clean` turns the advisory into a hard refusal (escapable via `--force` / `--allow-dirty`), surfaced as a machine-readable `dirty_tree_require_clean` error under `--json` with no interactive hang. After the swap the installer prints the exact scoped `git add <framework + installer-managed paths>` command (explicitly warning against `git add -A`) and best-effort stages ONLY those framework-owned paths -- never consumer app files -- reusing the same installer-managed allowlist the guard exempts. `--json` output gains `dirty_tree`, `dirty_files`, and `staged_paths`. Closes #1453.
 
 ### Changed
@@ -3058,7 +3070,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.39.6...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.39.7...HEAD
+[0.39.7]: https://github.com/deftai/directive/compare/v0.39.6...v0.39.7
 [0.39.6]: https://github.com/deftai/directive/compare/v0.39.5...v0.39.6
 [0.39.5]: https://github.com/deftai/directive/compare/v0.39.4...v0.39.5
 [0.39.4]: https://github.com/deftai/directive/compare/v0.39.3...v0.39.4
