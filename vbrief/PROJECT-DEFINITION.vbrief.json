@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-06-03T02:43:30Z"
+    "updated": "2026-06-03T13:21:38Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -9985,6 +9985,22 @@
               "uri": "https://github.com/deftai/directive/issues/1445",
               "type": "x-vbrief/github-issue",
               "title": "Issue #1445: Vendored --upgrade leaves .deft/core.bak-<ts>/ backups in the working tree: not gitignored, accumulate, escape neutralization (accidental-commit footgun)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-03-1450-migration-leaves-premigrate-snapshots-untracked-at-repo-root",
+        "title": "Migration leaves *.premigrate.* snapshots untracked at repo root (not gitignored, not allowlisted) -- git add -A + deft-core-guard footgun",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1450-migration-leaves-premigrate-snapshots-untracked-at-repo-root.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1450",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1450: Migration leaves *.premigrate.* snapshots untracked at repo root (not gitignored, not allowlisted) -- git add -A + deft-core-guard footgun"
             }
           ]
         }

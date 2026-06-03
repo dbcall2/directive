@@ -529,4 +529,5 @@ This matches the canonical `triggers:` set already in `skills/deft-directive-ref
 - **#1440** -- deft-core-guard rejects every deft-install --upgrade PR: installer-managed root files (AGENTS.md, .agents/, vbrief scaffolding, ...) counted as 'app' -- `[completed]`
 - **#1441** -- Windows installer binary auto-triggers UAC elevation (install-* filename heuristic + no asInvoker manifest); breaks headless --yes installs/upgrades -- `[completed]`
 - **#1445** -- Vendored --upgrade leaves .deft/core.bak-<ts>/ backups in the working tree: not gitignored, accumulate, escape neutralization (accidental-commit footgun) -- `[completed]`
+- **#1450** -- Migration leaves *.premigrate.* snapshots untracked at repo root (not gitignored, not allowlisted) -- git add -A + deft-core-guard footgun -- `[completed]`
 
