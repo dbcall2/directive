@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-06-03T23:01:10Z"
+    "updated": "2026-06-03T23:23:54Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -1156,22 +1156,6 @@
               "uri": "https://github.com/deftai/directive/issues/1484",
               "type": "x-vbrief/refs",
               "title": "Issue #1484"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-06-01-1000-docsagents-wire-refinement-skills-full-trigger-word-set-into",
-        "title": "docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)",
-        "status": "running",
-        "metadata": {
-          "source_path": "active/2026-06-01-1000-docsagents-wire-refinement-skills-full-trigger-word-set-into.vbrief.json",
-          "lifecycle_folder": "active",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1000",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1000: docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)"
             }
           ]
         }
@@ -9579,6 +9563,22 @@
               "uri": "https://github.com/deftai/directive/issues/1340",
               "type": "x-vbrief/github-issue",
               "title": "Issue #1340: Epic-6: Documentation, skills, and agent guidance collapse"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-01-1000-docsagents-wire-refinement-skills-full-trigger-word-set-into",
+        "title": "docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-01-1000-docsagents-wire-refinement-skills-full-trigger-word-set-into.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1000",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1000: docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)"
             }
           ]
         }

@@ -491,6 +491,7 @@ Suggested labels: process, agent-experience. Blocked by #1485. Refs #1484.
 - **#1338** -- Epic-4: Installer – Automatic Taskfile wiring + tool installation -- `[completed]`
 - **#1339** -- Epic-5: Installer → Doctor handoff + payload staleness detection -- `[completed]`
 - **#1340** -- Epic-6: Documentation, skills, and agent guidance collapse -- `[completed]`
+- **#1000** -- docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up) -- `[completed]`
 - **#1378** -- chore(scripts): address #1378 Story C P2 follow-ups in preflight_story_start.py -- `[completed]`
 - **#1378** -- feat(preamble): first-class ## Allocation context dispatch-envelope schema (#1378 Story A) -- `[completed]`
 - **#1378** -- feat(skills): recognize + populate ## Allocation context consent token (#1378 Story B) -- `[completed]`
