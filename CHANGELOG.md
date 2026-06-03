@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
+### Removed
+
+## [0.39.6] - 2026-06-03
+
+> Vendored installs resolve the real framework version, upstream, and sha instead of the consumer's (#1323/#1320/#1332/#1325); task project:render and vendored --upgrade stop leaking .lock/.bak files into the working tree (#1311/#1445).
+
+### Added
+
+### Changed
+
+### Fixed
 - **`task project:render` (and triage mutations) no longer leak a `vbrief/PROJECT-DEFINITION.vbrief.json.lock` file (#1311)** -- the PROJECT-DEFINITION mutation lock created its sidecar `.lock` file on acquisition but never removed it, so a clean render or policy mutation left an untracked 1-byte file in `vbrief/` that `git add -A` trapped on the next chore commit. The lock context manager now deletes the sidecar on exit (happy path and on exception), and the same cleanup discipline is applied to the `vbrief/.eval/*.lock` audit-log sidecars (candidates / slices / scope-lifecycle). The installer's canonical `.gitignore` deposit also gains `vbrief/*.lock` as a belt-and-suspenders guard so consumers are protected even on an interrupted render. Closes #1311.
 - **`deft-install --upgrade` no longer leaves a `.deft/core.bak-*` backup inside the consumer working tree (#1445)** -- the vendored file-swap upgrade wrote its pre-swap payload backup to `.deft/core.bak-<timestamp>/` next to the payload, which escaped the `.deft/core/`-only gitignore policy and was trapped by `git add -A`, staging thousands of backup files outside the #1430 neutralization scope. The backup is now written OUTSIDE the working tree (under the user cache dir, OS temp as a fallback) and its path is printed for rollback, so an upgrade leaves no untracked artefact in the repo and repeated upgrades do not accumulate copies in the tree. The installer's canonical `.gitignore` deposit also gains `.deft/core.bak-*/` and `.deft/*.bak-*` to neutralize any in-tree backup left by an older installer. Closes #1445.
 - **Vendored installs now resolve the framework version instead of reporting `0.0.0-dev` (#1323)** -- on a vendored `.deft/core/` install with no nested `.git`, `git describe` had nothing to read so `run` reported `0.0.0-dev`. The resolver chain in both `run::_resolve_version()` and its mirror `scripts/resolve_version.py` now reads the canonical `<install>/VERSION` manifest (`tag`/`ref`) and the `<install>/.deft-version` plaintext before falling back to `git describe`, so the version the Go installer recorded is what the CLI reports. Closes #1323.
@@ -3043,7 +3055,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.39.5...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.39.6...HEAD
+[0.39.6]: https://github.com/deftai/directive/compare/v0.39.5...v0.39.6
 [0.39.5]: https://github.com/deftai/directive/compare/v0.39.4...v0.39.5
 [0.39.4]: https://github.com/deftai/directive/compare/v0.39.3...v0.39.4
 [0.39.3]: https://github.com/deftai/directive/compare/v0.39.2...v0.39.3
