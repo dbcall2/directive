@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.40.0] - 2026-06-03
+
+> Consumer git hooks now fire in vendored installs, deft-install --upgrade fails loud on a dirty tree by default, and new task triage:reconcile self-heals the triage audit log.
+
+### Added
 - **New `task triage:reconcile` self-heals the triage audit log when it desyncs from your vBRIEFs (#1468)** -- if `vbrief/.eval/candidates.jsonl` is reset or lost (it is operator-private and gitignored, so branch churn can silently wipe it), already-accepted issues started showing up as `untriaged` in `task triage:summary` with no repair path short of a full `task triage:bootstrap` re-fetch. The new idempotent verb derives the missing `accept` decisions directly from the `proposed/`/`pending/`/`active/` vBRIEFs that carry a GitHub-issue reference -- no cache re-fetch, no manual JSONL editing -- and never overrides an existing decision. `task triage:summary` now also emits a `[triage:reconcile] N` hint when it detects the divergence, pointing you at the repair verb. Closes #1468.
 
 ### Changed
@@ -3077,7 +3089,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.39.7...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.40.0...HEAD
+[0.40.0]: https://github.com/deftai/directive/compare/v0.39.7...v0.40.0
 [0.39.7]: https://github.com/deftai/directive/compare/v0.39.6...v0.39.7
 [0.39.6]: https://github.com/deftai/directive/compare/v0.39.5...v0.39.6
 [0.39.5]: https://github.com/deftai/directive/compare/v0.39.4...v0.39.5

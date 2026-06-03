@@ -525,6 +525,7 @@ This matches the canonical `triggers:` set already in `skills/deft-directive-ref
 - **#1325** -- VERSION manifest moved from .deft/VERSION to .deft/core/VERSION without migration; legacy file persists as stale source-of-truth -- `[completed]`
 - **#1332** -- v0.33.0 canonical plain-file installs resolve consumer repo version and false-positive skill redirect stubs -- `[completed]`
 - **#1389** -- doctor: _agents_refresh_plan interim stub emits spurious 'unreadable' AGENTS.md-freshness warning on every consumer task doctor run -- `[completed]`
+- **#1424** -- fix(triage): batch verify:cache-fresh scope filter so milestone is-open fetches once, not per-issue (#1424) -- `[completed]`
 - **#1437** -- v0.39.3 vendored upgrade leaves root artifacts stale: duplicate AGENTS.md managed-section (attributed v3 marker not matched) + bare .deft-version not regenerated -- `[completed]`
 - **#1440** -- deft-core-guard rejects every deft-install --upgrade PR: installer-managed root files (AGENTS.md, .agents/, vbrief scaffolding, ...) counted as 'app' -- `[completed]`
 - **#1441** -- Windows installer binary auto-triggers UAC elevation (install-* filename heuristic + no asInvoker manifest); breaks headless --yes installs/upgrades -- `[completed]`
@@ -532,4 +533,9 @@ This matches the canonical `triggers:` set already in `skills/deft-directive-ref
 - **#1450** -- Migration leaves *.premigrate.* snapshots untracked at repo root (not gitignored, not allowlisted) -- git add -A + deft-core-guard footgun -- `[completed]`
 - **#1453** -- Installer commit-hygiene: warn + prevent mixing the framework deposit with consumer files (scoped staging + dirty-tree advisory + optional local guard hook) -- `[completed]`
 - **#1454** -- Harden vendored version resolution: guard git to the payload's own root + never persist 0.0.0-dev (salvaged from #1447, credit @dbcall2) -- `[completed]`
+- **#1458** -- fix(deft-install): fail loudly on a dirty working tree by default for --upgrade (--force to bypass) + structured --json signals (#1458) -- `[completed]`
+- **#1463** -- fix(installer): wire git hooks in vendored consumer projects (#1463) -- `[completed]`
+- **#1464** -- fix(installer): installer + relocator deposit selective vbrief/.eval/ ignores and heal the forbidden blanket (#1464, supersedes #1452) -- `[completed]`
+- **#1465** -- fix(events): relocate default event log out of the no-longer-gitignored .deft/ so it stops leaking untracked in consumers (#1465) -- `[completed]`
+- **#1468** -- triage: reconcile/self-heal audit log from proposed/pending/active vBRIEF inventory (#1468) -- `[completed]`
 
