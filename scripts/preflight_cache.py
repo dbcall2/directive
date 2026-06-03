@@ -328,23 +328,70 @@ def _issue_in_scope(
 def _filter_scoped_meta_paths(
     meta_paths: list[Path],
     rules: list[dict[str, Any]] | None,
-    project_root: Path,
+    *,
+    open_milestones_fetcher: Any = None,
 ) -> list[Path]:
-    """Filter ``meta_paths`` to those whose raw.json matches the scope rules."""
+    """Filter ``meta_paths`` to those whose raw.json matches the scope rules.
+
+    #1424: evaluate the rule set ONCE over the whole cache rather than
+    once per cached entry. The per-issue fan-out used to call
+    ``evaluate_rules(rules, [issue])`` N times; because
+    ``evaluate_rules`` builds (and memoizes only within a single call) a
+    fresh open-milestones resolver, a ``milestone {is-open: true}`` rule
+    re-fetched the upstream snapshot once per issue -- an O(N) network
+    fan-out (~92s on a 500-entry cache). Batching collapses that to a
+    single ``evaluate_rules`` call (one milestone fetch) with identical
+    semantics, mirroring the proven fetch-once shape in
+    ``triage_scope_drift.compute_drift``.
+
+    Matched entries are resolved by OBJECT IDENTITY (``id(issue)``), not
+    by issue number: ``evaluate_rules`` dedups via
+    ``matched.setdefault(_issue_number(issue), issue)`` and returns the
+    very issue dicts passed in, so number-keying here would risk
+    collisions or drop entries whose ``number`` is missing/None.
+
+    ``open_milestones_fetcher`` is forwarded to ``evaluate_rules`` for
+    the ``milestone {is-open: true}`` variant; production leaves it
+    ``None`` (the default ``gh api`` fetcher fires once), tests inject a
+    counting closure to assert the at-most-once contract.
+    """
     if not rules:
         return meta_paths
-    out: list[Path] = []
+    mod = _load_triage_scope_module()
+    if mod is None:
+        # Subscription module unavailable -> no filtering (over-include).
+        return meta_paths
+
+    all_issues: list[dict[str, Any]] = []
+    issue_id_to_meta: dict[int, Path] = {}
+    # Entries whose raw.json is missing or unparseable are kept: the
+    # freshness check is the load-bearing signal and we'd rather
+    # over-include than mask a stale cache.
+    keep: set[Path] = set()
     for meta_path in meta_paths:
         raw = _read_raw_issue(meta_path)
-        # When raw.json is missing or unparseable, keep the entry: the
-        # freshness check is the load-bearing signal and we'd rather
-        # over-include than mask a stale cache.
         if raw is None:
-            out.append(meta_path)
+            keep.add(meta_path)
             continue
-        if _issue_in_scope(rules, raw, project_root=project_root):
-            out.append(meta_path)
-    return out
+        all_issues.append(raw)
+        issue_id_to_meta[id(raw)] = meta_path
+
+    if all_issues:
+        try:
+            matched = mod.evaluate_rules(
+                rules, all_issues, open_milestones_fetcher=open_milestones_fetcher
+            )
+        except Exception:  # noqa: BLE001 -- defensive: over-include on failure
+            return meta_paths
+        if not isinstance(matched, list):
+            return meta_paths
+        for issue in matched:
+            meta_path = issue_id_to_meta.get(id(issue))
+            if meta_path is not None:
+                keep.add(meta_path)
+
+    # Preserve the original meta_paths ordering.
+    return [meta_path for meta_path in meta_paths if meta_path in keep]
 
 
 # ---------------------------------------------------------------------------
@@ -409,6 +456,38 @@ def _resolve_max_age_hours(explicit: int | None) -> int:
     except ValueError:
         return DEFAULT_MAX_AGE_HOURS
     return max(0, parsed)
+
+
+def is_fetched_at_stale(
+    fetched_at: str | None,
+    *,
+    max_age_hours: int | None = None,
+    now: datetime | None = None,
+) -> bool:
+    """Return True when a cache entry's ``fetched_at`` is older than the window.
+
+    Pure, side-effect-free predicate shared with the #1476 triage:queue
+    defensive stale-state path so the freshness window is resolved the
+    same way everywhere (flag / ``DEFT_CACHE_MAX_AGE_HOURS`` env / 24h
+    default, via :func:`_resolve_max_age_hours`).
+
+    A missing / empty / unparseable ``fetched_at`` is treated as stale
+    (the cache cannot vouch for the entry's age). When the resolved
+    window is ``0`` (freshness disabled) nothing is stale. A negative
+    age (clock skew -- ``fetched_at`` in the future) is clamped to
+    fresh.
+    """
+    if not isinstance(fetched_at, str) or not fetched_at.strip():
+        return True
+    max_age_h = _resolve_max_age_hours(max_age_hours)
+    if max_age_h <= 0:
+        return False
+    try:
+        fetched = _parse_iso(fetched_at)
+    except ValueError:
+        return True
+    age_h = ((now or _utc_now()) - fetched).total_seconds() / 3600.0
+    return age_h > max_age_h
 
 
 # ---------------------------------------------------------------------------
@@ -517,7 +596,7 @@ def evaluate(
 
     # --- Step 4: subscription filter (#1131) -----------------------------
     scope_rules = _resolve_scope_rules(project_root)
-    scoped_meta_paths = _filter_scoped_meta_paths(meta_paths, scope_rules, project_root)
+    scoped_meta_paths = _filter_scoped_meta_paths(meta_paths, scope_rules)
     # #1245: distinguish a ``backfill-only cache`` state (the cache
     # contains entries but none currently match the active subscription,
     # AND the consumer has emitted at least one triage decision
