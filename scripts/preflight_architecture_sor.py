@@ -154,7 +154,12 @@ LOW_RISK_PATH_PREFIXES = (
 
 LOW_RISK_SUFFIXES = frozenset({".md", ".rst", ".txt"})
 
-SCANNER_EXEMPT_PATHS = frozenset({"scripts/preflight_architecture_sor.py"})
+SCANNER_EXEMPT_PATHS = frozenset(
+    {
+        "scripts/preflight_architecture_sor.py",
+        "scripts/_sor_gate_diff.py",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -236,9 +241,12 @@ def _storage_matches(storage: str, declared: object) -> bool:
     if wanted in EXTERNAL_STORAGE_ALIASES:
         aliases.update(EXTERNAL_STORAGE_ALIASES)
 
+    long_aliases = {alias for alias in aliases if len(alias) > 6}
     for item in _as_string_list(declared):
         token = _norm(item)
-        if token in aliases or any(alias in token for alias in aliases):
+        if token in aliases:
+            return True
+        if len(token) > 6 and any(alias in token for alias in long_aliases):
             return True
     return False
 

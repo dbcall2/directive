@@ -149,7 +149,7 @@ def _line_signals(path: str, line_no: int | None, line: str) -> list[DetectedSig
 
     if re.search(
         r"\b(auth|session|permission|membership|role|grant|tenant|organization)\b",
-        f"{path} {stripped}",
+        stripped,
         flags=re.IGNORECASE,
     ):
         signals.append(
@@ -163,7 +163,7 @@ def _line_signals(path: str, line_no: int | None, line: str) -> list[DetectedSig
 
     if re.search(
         r"\b(workflow|job|queue|runtime|orchestration|worker_state|run_state)\b",
-        f"{path} {stripped}",
+        stripped,
         flags=re.IGNORECASE,
     ):
         signals.append(
@@ -341,4 +341,3 @@ def evaluate_diff(project_root: Path, base_ref: str, story_path: Path | None = N
         return error
     assert diff_text is not None
     return evaluate_diff_text(diff_text, project_root=project_root, story_path=story_path)
-

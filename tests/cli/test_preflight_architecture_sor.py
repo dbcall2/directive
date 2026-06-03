@@ -180,6 +180,44 @@ diff --git a/app/workspace_repository.py b/app/workspace_repository.py
     assert "forbids" in result.message or "without a state surface" in result.message
 
 
+def test_storage_matching_does_not_equate_generic_file_with_json_file(preflight):
+    assert preflight._storage_matches("json_file", "json_file")
+    assert preflight._storage_matches("database", "application database")
+    assert not preflight._storage_matches("filesystem", "json_file")
+    assert not preflight._storage_matches("database", "indexeddb")
+
+
+def test_diff_scanner_exempts_its_own_helper_file(preflight):
+    diff = """\
+diff --git a/scripts/_sor_gate_diff.py b/scripts/_sor_gate_diff.py
+--- a/scripts/_sor_gate_diff.py
++++ b/scripts/_sor_gate_diff.py
+@@ -0,0 +1,3 @@
++r"(write_text|write_bytes)"
++r"\\b(auth|session|permission)\\b"
++Path("workspaces.json").write_text("{}")
+"""
+    signals, _ = preflight.scan_diff(diff)
+    assert signals == []
+
+
+def test_auth_and_workflow_signals_do_not_match_path_only(preflight):
+    diff = """\
+diff --git a/app/auth.py b/app/auth.py
+--- a/app/auth.py
++++ b/app/auth.py
+@@ -0,0 +1 @@
++# copy edit only
+diff --git a/app/queue.py b/app/queue.py
+--- a/app/queue.py
++++ b/app/queue.py
+@@ -0,0 +1 @@
++# copy edit only
+"""
+    signals, _ = preflight.scan_diff(diff)
+    assert [signal.kind for signal in signals] == []
+
+
 def test_stateful_diff_without_design_record_fails(preflight):
     diff = """\
 diff --git a/app/routes.py b/app/routes.py
