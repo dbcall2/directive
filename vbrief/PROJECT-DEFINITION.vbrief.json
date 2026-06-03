@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-06-03T23:23:54Z"
+    "updated": "2026-06-03T23:24:28Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -1137,10 +1137,10 @@
       {
         "id": "2026-06-03-1487-swarm-deft-directive-swarm-must-complete-the-cohort-vbrief-l",
         "title": "swarm: deft-directive-swarm must complete the cohort vBRIEF lifecycle (active -> completed) on swarm close",
-        "status": "pending",
+        "status": "running",
         "metadata": {
-          "source_path": "pending/2026-06-03-1487-swarm-deft-directive-swarm-must-complete-the-cohort-vbrief-l.vbrief.json",
-          "lifecycle_folder": "pending",
+          "source_path": "active/2026-06-03-1487-swarm-deft-directive-swarm-must-complete-the-cohort-vbrief-l.vbrief.json",
+          "lifecycle_folder": "active",
           "references": [
             {
               "uri": "https://github.com/deftai/directive/issues/1487",

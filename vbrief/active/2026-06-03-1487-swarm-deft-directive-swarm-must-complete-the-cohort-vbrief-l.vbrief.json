@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "swarm: deft-directive-swarm must complete the cohort vBRIEF lifecycle (active -> completed) on swarm close",
-    "status": "pending",
+    "status": "running",
     "narratives": {
       "Description": "swarm: deft-directive-swarm must complete the cohort vBRIEF lifecycle (active -> completed) on swarm close",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1487",
@@ -46,6 +46,25 @@
         "title": "Issue #1484"
       }
     ],
-    "updated": "2026-06-03T21:38:39Z"
+    "updated": "2026-06-03T23:24:27Z",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "skills/deft-directive-swarm/SKILL.md",
+          "scripts/swarm_complete_cohort.py",
+          "tests/cli/test_swarm_complete_cohort.py"
+        ],
+        "verify_commands": [
+          "task vbrief:validate",
+          "task check"
+        ],
+        "conflict_group": "swarm",
+        "size": "medium",
+        "file_scope_confidence": "medium"
+      }
+    }
   }
 }

@@ -5,49 +5,6 @@
 
 # Roadmap
 
-## swarm: deft-directive-swarm must complete the cohort vBRIEF lifecycle (active -> completed) on swarm close (#1487, #1485, #1484)
-
-## Summary
-
-When the `deft-directive-swarm` skill finishes a cohort (all worker PRs merged), the cohort's story vBRIEFs are left in `vbrief/active/` -- they are never moved to `vbrief/completed/`. The swarm skill should OWN this lifecycle cleanup as part of its completion (Phase 5 "Complete vBRIEFs" / Phase 6 "Close"), so a completed swarm leaves no stories stranded in `active/`.
-
-Observed in the 2026-06-03 swarm: after PR #1484 merged all 8 stories, the 8 child story vBRIEFs remained in `vbrief/active/` and their decompose-created epic parents remained in `vbrief/pending/`. Nothing in the swarm flow swept them to `completed/`.
-
-## Why this is swarm-skill cleanup (not a one-off chore)
-
-This is a recurring gap, not specific to one cohort: every swarm run that decomposes issues into stories leaves the same residue unless the skill cleans up on completion. The skill's Phase 5 "Complete vBRIEFs" step (`task scope:complete` per story) and Phase 6 "Close" already describe completing vBRIEFs, but the headless / multi-worker path did not execute the sweep for the cohort. The skill needs an explicit, reliable completion sweep wired into swarm close.
-
-## Interaction with #1485 (must fix first)
-
-Naively running `task scope:complete` (active -> completed) RE-BREAKS the D4 parent/child linkage, because `scope:complete` moves the child file without updating the parent epic's reference -- the exact bug tracked in #1485. So this work is BLOCKED ON #1485: once lifecycle moves update decomposed-parent back-references, the swarm skill can safely sweep cohort stories active -> completed (and complete/close the now-childless epic parents) while keeping `task vbrief:validate` green.
-
-## Scope
-
-- Add an explicit completion sweep to `deft-directive-swarm` (Phase 6 Close, after the merge cascade): for each fully-merged cohort story, `task scope:complete` the `active/` child; reconcile/complete the decompose-created epic parent once all its children are complete.
-- Ensure the sweep keeps `task vbrief:validate` green (depends on #1485).
-- Cover BOTH the interactive and the headless / multi-worker launch paths.
-- Immediate residue: sweep the 8 stranded 2026-06-03 cohort stories (#1114 #1115 #1420 #1474 #1475 #1476 #1477 #1478) from `active/` -> `completed/` (and their epic parents from `pending/`) once #1485 lands.
-
-## Acceptance criteria
-
-- After a swarm cohort's PRs merge, no cohort story vBRIEFs remain in `vbrief/active/`; each is in `vbrief/completed/` with status `completed`.
-- The decompose-created epic parents are completed/closed once their children are complete.
-- `task vbrief:validate` is green after the sweep (no D4 linkage regressions).
-- The `deft-directive-swarm` SKILL documents the completion sweep as a required Phase 6 step.
-
-Suggested labels: process, agent-experience. Blocked by #1485. Refs #1484.
-
-
-### After a swarm cohort's PRs merge, no cohort story vBRIEFs remain in `vbrief/active/`; each is in `vbrief/completed/` with status `completed`. `[proposed]`
-
-### The decompose-created epic parents are completed/closed once their children are complete. `[proposed]`
-
-### `task vbrief:validate` is green after the sweep (no D4 linkage regressions). `[proposed]`
-
-### The `deft-directive-swarm` SKILL documents the completion sweep as a required Phase 6 step. `[proposed]`
-
----
-
 ## Completed
 
 - **#365** -- bdd strategy: move context and scenarios to vbrief; remove specs/ folder -- `[completed]`
