@@ -531,6 +531,7 @@ Suggested labels: process, agent-experience. Blocked by #1485. Refs #1484.
 - **#1476** -- bug(triage,cache): closed upstream issues remain in triage:queue when cached open entries are TTL-fresh -- `[completed]`
 - **#1477** -- Wired git hooks ship non-executable (mode 100644) -- silently inert on Unix consumers (follow-up to #1463) -- `[completed]`
 - **#1478** -- deft-core-guard allowlist omits .githooks/ -- blocks every consumer v0.40.0 upgrade PR (#1463 deposit vs #1430 guard out of sync) -- `[completed]`
+- **#1485** -- bug(scope): scope:activate/scope:complete do not update decomposed-parent back-references (D4 linkage breaks) -- `[completed]`
 - **#1488** -- RFC: demote the 1000-line file cap from MUST to SHOULD (unenforced, self-violated, anti-deep-modules) -- `[completed]`
 - **#1115** -- Add a big-jump triage entry point to UPGRADING.md for multi-version upgrades -- `[completed]`
 - **#1478** -- Add .githooks/ to deft-core-guard allowlist and refresh the deposited guard -- `[completed]`

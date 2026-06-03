@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "bug(scope): scope:activate/scope:complete do not update decomposed-parent back-references (D4 linkage breaks)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "bug(scope): scope:activate/scope:complete do not update decomposed-parent back-references (D4 linkage breaks)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1485",
@@ -41,7 +41,7 @@
         "title": "Issue #1484"
       }
     ],
-    "updated": "2026-06-03T22:32:59Z",
+    "updated": "2026-06-03T23:01:10Z",
     "metadata": {
       "kind": "story",
       "swarm": {
