@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "deft:check runs framework self-tests in consumers (always-red gate; 14 failed + 6 errors by construction)",
-    "status": "pending",
+    "status": "completed",
     "narratives": {
       "Description": "deft:check runs framework self-tests in consumers (always-red gate; 14 failed + 6 errors by construction)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1474",
@@ -42,13 +42,13 @@
         "title": "Issue #1474: deft:check runs framework self-tests in consumers (always-red gate; 14 failed + 6 errors by construction)"
       },
       {
-        "uri": "active/2026-06-03-scope-consumer-deftcheck-so-it-does-not-run-framework-self-t.vbrief.json",
+        "uri": "completed/2026-06-03-scope-consumer-deftcheck-so-it-does-not-run-framework-self-t.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Scope consumer deft:check so it does not run framework self-tests",
         "TrustLevel": "internal"
       }
     ],
-    "updated": "2026-06-03T19:18:33Z",
+    "updated": "2026-06-03T21:38:04Z",
     "metadata": {
       "kind": "epic"
     }

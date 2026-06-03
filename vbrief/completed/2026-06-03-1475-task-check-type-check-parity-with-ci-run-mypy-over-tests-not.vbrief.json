@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "task check: type-check parity with CI (run mypy over tests/, not just run.py)",
-    "status": "pending",
+    "status": "completed",
     "narratives": {
       "Description": "task check: type-check parity with CI (run mypy over tests/, not just run.py)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1475",
@@ -40,13 +40,13 @@
         "title": "Issue #1475: task check: type-check parity with CI (run mypy over tests/, not just run.py)"
       },
       {
-        "uri": "active/2026-06-03-bring-task-check-mypy-scope-to-parity-with-ci-cover-tests.vbrief.json",
+        "uri": "completed/2026-06-03-bring-task-check-mypy-scope-to-parity-with-ci-cover-tests.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Bring task check mypy scope to parity with CI (cover tests/)",
         "TrustLevel": "internal"
       }
     ],
-    "updated": "2026-06-03T19:18:36Z",
+    "updated": "2026-06-03T21:38:05Z",
     "metadata": {
       "kind": "epic"
     }

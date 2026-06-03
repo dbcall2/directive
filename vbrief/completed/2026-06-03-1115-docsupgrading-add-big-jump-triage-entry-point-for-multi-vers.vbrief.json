@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "docs(UPGRADING): add big-jump triage / entry point for multi-version upgrades",
-    "status": "pending",
+    "status": "completed",
     "narratives": {
       "Description": "docs(UPGRADING): add big-jump triage / entry point for multi-version upgrades",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1115",
@@ -50,13 +50,13 @@
         "title": "Issue #1115: docs(UPGRADING): add big-jump triage / entry point for multi-version upgrades"
       },
       {
-        "uri": "active/2026-06-03-add-a-big-jump-triage-entry-point-to-upgradingmd-for-multi-v.vbrief.json",
+        "uri": "completed/2026-06-03-add-a-big-jump-triage-entry-point-to-upgradingmd-for-multi-v.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Add a big-jump triage entry point to UPGRADING.md for multi-version upgrades",
         "TrustLevel": "internal"
       }
     ],
-    "updated": "2026-06-03T19:28:13Z",
+    "updated": "2026-06-03T21:38:03Z",
     "metadata": {
       "kind": "epic"
     }

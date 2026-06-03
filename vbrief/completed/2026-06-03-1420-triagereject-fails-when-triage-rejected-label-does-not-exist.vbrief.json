@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "triage:reject fails when 'triage-rejected' label does not exist on the repository",
-    "status": "pending",
+    "status": "completed",
     "narratives": {
       "Description": "triage:reject fails when 'triage-rejected' label does not exist on the repository",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1420",
@@ -24,13 +24,13 @@
         "title": "Issue #1420: triage:reject fails when 'triage-rejected' label does not exist on the repository"
       },
       {
-        "uri": "active/2026-06-03-make-triagereject-tolerate-a-missing-triage-rejected-label.vbrief.json",
+        "uri": "completed/2026-06-03-make-triagereject-tolerate-a-missing-triage-rejected-label.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Make triage:reject tolerate a missing triage-rejected label",
         "TrustLevel": "internal"
       }
     ],
-    "updated": "2026-06-03T19:38:33Z",
+    "updated": "2026-06-03T21:38:04Z",
     "metadata": {
       "kind": "epic"
     }
