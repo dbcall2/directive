@@ -23,6 +23,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [0.40.0] - 2026-06-03
+
+> Consumer git hooks now fire in vendored installs, deft-install --upgrade fails loud on a dirty tree by default, and new task triage:reconcile self-heals the triage audit log.
+
+### Added
+- **New `task triage:reconcile` self-heals the triage audit log when it desyncs from your vBRIEFs (#1468)** -- if `vbrief/.eval/candidates.jsonl` is reset or lost (it is operator-private and gitignored, so branch churn can silently wipe it), already-accepted issues started showing up as `untriaged` in `task triage:summary` with no repair path short of a full `task triage:bootstrap` re-fetch. The new idempotent verb derives the missing `accept` decisions directly from the `proposed/`/`pending/`/`active/` vBRIEFs that carry a GitHub-issue reference -- no cache re-fetch, no manual JSONL editing -- and never overrides an existing decision. `task triage:summary` now also emits a `[triage:reconcile] N` hint when it detects the divergence, pointing you at the repair verb. Closes #1468.
+
+### Changed
+- **`deft-install --upgrade` now refuses a dirty working tree by default instead of warning and proceeding (#1458)** -- an upgrade rewrites the framework payload (`.deft/core/**`) and installer-managed files, and committing those mixed with your own work trips the `deft-core-guard` CI check. The installer now fails loudly -- non-zero exit, no payload swap -- on both the interactive and `--yes`/non-interactive paths when the tree is dirty, with a clear message explaining why a clean tree is wanted plus the clean-up-first vs `--force` tradeoffs. `--force` / `--allow-dirty` still upgrades a dirty tree, and `--require-clean` is kept as an accepted no-op alias. Clean-tree upgrades and initial installs are unaffected. Closes #1458.
+
+### Fixed
+- **Git hooks now fire in a vendored consumer project (#1463)** -- after a deft install + `task setup`, the branch-protection (#747), PS-5.1 encoding (#798), and destructive-gh-verb (#1019) gates were silently inert in every consumer because the installer never deposited a usable root `.githooks/` and the hooks could not resolve their helpers under the vendored `.deft/core/` payload, so a direct commit to the default branch went through ungated. The installer now wires consumer-root git hooks (layout-aware for both own-repo and vendored installs), and `task verify:hooks-installed` now fails instead of reporting a false green when the hooks are non-functional. Closes #1463.
+- **`task verify:cache-fresh` is no longer slow on large triage caches (#1424)** -- when the active subscription used a `milestone {is-open: true}` rule, the cache-freshness gate re-fetched the open-milestones list from GitHub once per cached issue, so a 500-entry cache took ~92 seconds and the cost was paid on every session start and before every agent dispatch. The subscription filter now evaluates the rule set a single time across the whole cache, collapsing those N network round-trips to one and bringing the gate back under a second with identical results. Closes #1424.
+- **`deft-install --json` now exposes every actionable dirty-tree and rollback signal as a structured field (#1458)** -- a dirty-tree `--upgrade` refusal emits one JSON object on stdout carrying `error_code`, `dirty_files`, and the new `why`, `remediation`, `force_hint`, and `warnings` fields, so an agent that captures only stdout gets the full picture without parsing stderr prose. The `--json` success result on a vendored upgrade now also includes `backup_path` (the out-of-tree rollback location) and `previous_version`. Closes #1458.
+- **Behavioral framework events no longer leave an untracked `.deft/events.jsonl` in consumer working trees (#1465)** -- the event-log helper assumed `.deft/` was gitignored, but that stopped being true once `.deft/core/` became a committed payload (#11), so emitting a behavioral event (for example `legacy:detected` during a migration) left an untracked log file. The default event-log path now lives under the already-gitignored `.deft-cache/` directory, and the migrator plus events docs were updated to match, so events are recorded without polluting the working tree. Closes #1465.
+- **`deft-install` and `task relocate` no longer hide the team-shared `vbrief/.eval/slices.jsonl` and `README.md` behind a blanket gitignore (#1464)** -- both deposit rails used to write a blanket `vbrief/.eval/` line that contradicted the #1144/#1251 hybrid tracking policy and silently hid the tracked cohort records the bootstrap rail wants committed, so every fresh install / upgrade / relocate re-introduced the exact line `task triage:bootstrap` then warned about. The installer and relocator now deposit the selective per-file ignores (candidates / summary-history / scope-lifecycle / doctor-state) from a single shared source of truth, and an upgrade now HEALS a pre-existing blanket by stripping it instead of re-adding it. Per-machine `task doctor` throttle state (`doctor-state.json`) joins the ignore set across all three rails. Closes #1464. Closes #1452.
+
+### Removed
+
+## [0.39.7] - 2026-06-03
+
+> Installer warns on a dirty tree and stages only the framework deposit on --upgrade, and gitignores *.premigrate.* snapshots (#1453/#1450); vendored version resolution no longer bleeds the consumer's git tag and never persists 0.0.0-dev (#1454).
+
+### Added
+- **`deft-install --upgrade` now warns about a dirty working tree up front and stages only the framework deposit for you (#1453)** -- the deposited `deft-core-guard` CI check (#1430/#1440) was the only thing stopping a consumer from committing a `.deft/core/**` framework bump mixed with their own files, and it is a late, PR-time, GitHub-only, deletable backstop. The installer now gives proactive, local guidance. Before an `--upgrade` payload swap it checks `git status --porcelain` and, if the tree is dirty, prints an actionable advisory (commit/stash your own work first; land the framework deposit on its own branch; a mixed PR is rejected by the guard); the default is warn-and-proceed so the initial install and the `--yes` non-interactive agent/CI path are never blocked. A new opt-in `--require-clean` turns the advisory into a hard refusal (escapable via `--force` / `--allow-dirty`), surfaced as a machine-readable `dirty_tree_require_clean` error under `--json` with no interactive hang. After the swap the installer prints the exact scoped `git add <framework + installer-managed paths>` command (explicitly warning against `git add -A`) and best-effort stages ONLY those framework-owned paths -- never consumer app files -- reusing the same installer-managed allowlist the guard exempts. `--json` output gains `dirty_tree`, `dirty_files`, and `staged_paths`. Closes #1453.
+
+### Changed
+
+### Fixed
+- **`deft-install` now gitignores `*.premigrate.*` migration snapshots so they are not left as an untracked, guard-tripping artefact (#1450)** -- the vBRIEF migration / spec-render step run during install/upgrade writes pre-migration safety snapshots (`ROADMAP.premigrate.md`, `SPECIFICATION.premigrate.md`, `vbrief/specification.premigrate.vbrief.json`) into the consumer working tree, but the installer's canonical `.gitignore` deposit did not cover them -- so `git add -A` swept them in and, mixed with a `.deft/core/**` change, they tripped the deft-core-guard (#1440) as "app" files. The installer deposit now includes the leading-slash-free `*.premigrate.*` glob (matching both the repo-root snapshots and the nested `vbrief/` one at any depth), the same leaked-artefact hygiene class as the `vbrief/*.lock` (#1311) and `.deft/*.bak-*` (#1445) guards. Closes #1450.
+- **Vendored installs no longer bleed the consumer repo's git tag into the framework version, and the `0.0.0-dev` sentinel is never persisted into consumer markers/manifests (#1454)** -- on a vendored `.deft/core/` install with no `<install>/VERSION` manifest and no `.deft-version`, both `run::_resolve_version()` and its mirror `scripts/resolve_version.py` fell through to `git describe`, which -- because git discovers the enclosing `.git` by walking upward -- reported the *consumer's* latest tag as the framework version. The `git describe` fallback is now gated on the framework payload directory being its OWN git top-level (`git rev-parse --show-toplevel` resolving to the payload dir itself): a vendored payload skips git and resolves to `0.0.0-dev` instead of the consumer's tag, while framework-self-dev (where the payload IS the repo) still resolves the real tag. Separately, `_write_version_marker` and `_write_install_manifest` now refuse to write the `0.0.0-dev` sentinel into a consumer's `.deft-version` / `<install>/VERSION`, preserving any prior recorded value rather than clobbering it (the resolver may still RETURN the sentinel in-process; only the WRITE is suppressed). Salvaged from #1447. Closes #1454.
+
+### Removed
+
 ## [0.39.6] - 2026-06-03
 
 > Vendored installs resolve the real framework version, upstream, and sha instead of the consumer's (#1323/#1320/#1332/#1325); task project:render and vendored --upgrade stop leaking .lock/.bak files into the working tree (#1311/#1445).
@@ -3056,7 +3090,9 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.39.6...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.40.0...HEAD
+[0.40.0]: https://github.com/deftai/directive/compare/v0.39.7...v0.40.0
+[0.39.7]: https://github.com/deftai/directive/compare/v0.39.6...v0.39.7
 [0.39.6]: https://github.com/deftai/directive/compare/v0.39.5...v0.39.6
 [0.39.5]: https://github.com/deftai/directive/compare/v0.39.4...v0.39.5
 [0.39.4]: https://github.com/deftai/directive/compare/v0.39.3...v0.39.4

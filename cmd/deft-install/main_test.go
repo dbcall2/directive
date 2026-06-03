@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -974,11 +976,19 @@ func TestEnsureGitignoreLines_CreatesNew(t *testing.T) {
 	if err != nil {
 		t.Fatalf("missing .gitignore: %v", err)
 	}
-	for _, want := range []string{".deft-cache/", "vbrief/.eval/"} {
+	// #1464: selective per-file eval entries, NOT the blanket vbrief/.eval/.
+	for _, want := range []string{
+		".deft-cache/",
+		"vbrief/.eval/candidates.jsonl",
+		"vbrief/.eval/summary-history.jsonl",
+		"vbrief/.eval/scope-lifecycle.jsonl",
+		"vbrief/.eval/doctor-state.json",
+	} {
 		if !strings.Contains(string(data), want) {
 			t.Errorf(".gitignore missing canonical line %q", want)
 		}
 	}
+	assertNoBlanketEvalLine(t, string(data))
 }
 
 func TestEnsureGitignoreLines_AppendsToExisting(t *testing.T) {
@@ -1001,11 +1011,15 @@ func TestEnsureGitignoreLines_AppendsToExisting(t *testing.T) {
 	if !strings.HasPrefix(content, pre) {
 		t.Errorf(".gitignore preamble lost; got:\n%s", content)
 	}
-	for _, want := range []string{"node_modules/", ".env", ".deft-cache/", "vbrief/.eval/"} {
+	for _, want := range []string{
+		"node_modules/", ".env", ".deft-cache/",
+		"vbrief/.eval/candidates.jsonl", "vbrief/.eval/doctor-state.json",
+	} {
 		if !strings.Contains(content, want) {
 			t.Errorf(".gitignore missing %q after augment", want)
 		}
 	}
+	assertNoBlanketEvalLine(t, content)
 }
 
 func TestEnsureGitignoreLines_Idempotent(t *testing.T) {
@@ -1023,11 +1037,178 @@ func TestEnsureGitignoreLines_Idempotent(t *testing.T) {
 		t.Error("expected changed=false on second invocation")
 	}
 	data, _ := os.ReadFile(filepath.Join(tmp, ".gitignore"))
-	countCache := strings.Count(string(data), ".deft-cache/")
-	countEval := strings.Count(string(data), "vbrief/.eval/")
-	if countCache != 1 || countEval != 1 {
-		t.Errorf("expected exactly one of each canonical line, got cache=%d eval=%d", countCache, countEval)
+	// Every canonical line must appear exactly once (no duplicate deposit on
+	// re-run). Count whole lines so substring overlaps (e.g. vbrief/.eval/*
+	// entries all containing "vbrief/.eval/") do not inflate the tally.
+	for _, line := range canonicalGitignoreLines {
+		if n := countWholeLines(string(data), line); n != 1 {
+			t.Errorf("expected canonical line %q exactly once, got %d", line, n)
+		}
 	}
+}
+
+// TestEnsureGitignoreLines_LeakedArtifactGuards asserts the canonical deposit
+// carries every leaked-artefact guard so a consumer's `git add -A` never traps
+// installer/render scratch files (#1311 locks, #1445 backups, #1450 migration
+// snapshots). The `*.premigrate.*` glob is leading-slash-free so it matches
+// both the repo-root snapshots (ROADMAP.premigrate.md) and the nested
+// vbrief/specification.premigrate.vbrief.json at any depth.
+func TestEnsureGitignoreLines_LeakedArtifactGuards(t *testing.T) {
+	tmp := t.TempDir()
+	w := NewWizard(strings.NewReader(""), &bytes.Buffer{}, false)
+
+	if _, err := EnsureGitignoreLines(w, tmp); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(tmp, ".gitignore"))
+	if err != nil {
+		t.Fatalf("missing .gitignore: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{"vbrief/*.lock", ".deft/core.bak-*/", ".deft/*.bak-*", "*.premigrate.*"} {
+		if !strings.Contains(content, want) {
+			t.Errorf(".gitignore deposit missing leaked-artefact guard %q", want)
+		}
+	}
+}
+
+// TestEnsureGitignoreLines_HealsForbiddenBlanket asserts an upgrade STRIPS a
+// pre-existing blanket vbrief/.eval/ line (#1464) -- including one carrying a
+// trailing inline comment -- and deposits the selective per-file entries, so
+// the tracked slices.jsonl / README.md stop being hidden by git. The blanket
+// must NOT survive, the operator's own lines are preserved, and a re-run is a
+// clean no-op.
+func TestEnsureGitignoreLines_HealsForbiddenBlanket(t *testing.T) {
+	tmp := t.TempDir()
+	pre := "# consumer\nnode_modules/\nvbrief/.eval/  # legacy blanket from a pre-#1251 install\n.deft-cache/\n"
+	if err := os.WriteFile(filepath.Join(tmp, ".gitignore"), []byte(pre), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	w := NewWizard(strings.NewReader(""), &bytes.Buffer{}, false)
+	changed, err := EnsureGitignoreLines(w, tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !changed {
+		t.Error("expected changed=true when healing a blanket + adding selective entries")
+	}
+	data, err := os.ReadFile(filepath.Join(tmp, ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+	// The forbidden blanket (even with the inline comment) is gone.
+	assertNoBlanketEvalLine(t, content)
+	// Operator lines preserved; selective entries deposited.
+	for _, want := range []string{
+		"# consumer", "node_modules/", ".deft-cache/",
+		"vbrief/.eval/candidates.jsonl", "vbrief/.eval/doctor-state.json",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf(".gitignore missing %q after heal", want)
+		}
+	}
+	// A re-run is a clean no-op (blanket already healed, entries present).
+	changed2, err := EnsureGitignoreLines(w, tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed2 {
+		t.Error("expected changed=false on re-run after heal")
+	}
+}
+
+// TestEnsureGitignoreLines_HealsBareBlanketOnlyFile covers the heal path when
+// the only eval-related line is a bare `vbrief/.eval` (no trailing slash) and
+// no selective entries are yet present -- the blanket is stripped AND the
+// selective entries are added, and the function reports a change.
+func TestEnsureGitignoreLines_HealsBareBlanketOnlyFile(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmp, ".gitignore"), []byte("vbrief/.eval\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	w := NewWizard(strings.NewReader(""), &bytes.Buffer{}, false)
+	if _, err := EnsureGitignoreLines(w, tmp); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(tmp, ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNoBlanketEvalLine(t, string(data))
+	if !strings.Contains(string(data), "vbrief/.eval/candidates.jsonl") {
+		t.Errorf("selective entries not added after healing bare blanket; got:\n%s", data)
+	}
+}
+
+// TestCanonicalGitignoreEvalEntriesMatchPythonSource pins the Go installer's
+// selective vbrief/.eval/* entries to GITIGNORE_EVAL_ENTRIES in
+// scripts/_triage_bootstrap_gitignore.py (the single source of truth shared
+// with the bootstrap + relocator rails, #1464). If the Python tuple grows or
+// drops a selective entry without the Go mirror following, this fails --
+// forcing the three rails to stay at parity.
+func TestCanonicalGitignoreEvalEntriesMatchPythonSource(t *testing.T) {
+	pyPath := filepath.Join(repoRootFromDeftInstall(t), "scripts", "_triage_bootstrap_gitignore.py")
+	src, err := os.ReadFile(pyPath)
+	if err != nil {
+		t.Fatalf("could not read %s: %v", pyPath, err)
+	}
+	pyEntries := parsePythonEvalEntries(t, string(src))
+	if len(pyEntries) == 0 {
+		t.Fatal("parsed zero GITIGNORE_EVAL_ENTRIES from Python source -- parser drift?")
+	}
+	var goEntries []string
+	for _, line := range canonicalGitignoreLines {
+		if strings.HasPrefix(line, "vbrief/.eval/") {
+			goEntries = append(goEntries, line)
+		}
+	}
+	if strings.Join(goEntries, "\n") != strings.Join(pyEntries, "\n") {
+		t.Errorf("Go canonicalGitignoreLines eval subset drifted from Python GITIGNORE_EVAL_ENTRIES.\n  Go:     %v\n  Python: %v", goEntries, pyEntries)
+	}
+}
+
+// parsePythonEvalEntries extracts the quoted entries inside the
+// GITIGNORE_EVAL_ENTRIES tuple literal from the Python source. Anchored on the
+// typed assignment form so the docstring mention is not matched.
+func parsePythonEvalEntries(t *testing.T, src string) []string {
+	t.Helper()
+	block := regexp.MustCompile(`GITIGNORE_EVAL_ENTRIES:\s*tuple\[str, \.\.\.\]\s*=\s*\(([^)]*)\)`)
+	m := block.FindStringSubmatch(src)
+	if m == nil {
+		t.Fatal("could not locate GITIGNORE_EVAL_ENTRIES tuple in Python source")
+	}
+	quoted := regexp.MustCompile(`"([^"]+)"`)
+	var out []string
+	for _, qm := range quoted.FindAllStringSubmatch(m[1], -1) {
+		out = append(out, qm[1])
+	}
+	return out
+}
+
+// assertNoBlanketEvalLine fails the test if any active .gitignore line is the
+// forbidden blanket vbrief/.eval/ (or vbrief/.eval) entry (#1464), tolerating a
+// trailing inline comment via the same strip the production heal uses.
+func assertNoBlanketEvalLine(t *testing.T, content string) {
+	t.Helper()
+	for _, raw := range strings.Split(content, "\n") {
+		if isForbiddenBlanketEvalLine(stripGitignoreInlineComment(raw)) {
+			t.Errorf("forbidden blanket eval line present in .gitignore: %q", raw)
+		}
+	}
+}
+
+// countWholeLines counts how many lines of content equal target exactly after
+// trimming surrounding whitespace (substring-overlap-proof, unlike
+// strings.Count).
+func countWholeLines(content, target string) int {
+	n := 0
+	for _, raw := range strings.Split(content, "\n") {
+		if strings.TrimSpace(raw) == target {
+			n++
+		}
+	}
+	return n
 }
 
 func TestWriteConsumerVbrief_CreatesNew(t *testing.T) {
@@ -1274,4 +1455,234 @@ func TestBuildNonInteractiveResult_EmptyBasenameFallsBackToProject(t *testing.T)
 	if res.ProjectName == "" {
 		t.Error("ProjectName should never be empty -- expected fallback to \"project\"")
 	}
+}
+
+// ---------------------------------------------------------------------------
+// #1458 -- fail-loud dirty-tree --upgrade default + structured --json signals
+// ---------------------------------------------------------------------------
+
+// newDirtyUpgradeRepo builds a real git work tree with an existing vendored
+// .deft/core payload (marker.txt="orig") and an untracked consumer file so the
+// working tree is dirty. Returns the project dir. Used to drive the install()
+// dirty-tree gate end to end against real git.
+func newDirtyUpgradeRepo(t *testing.T, gitPath string) string {
+	t.Helper()
+	proj := t.TempDir()
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command(gitPath, append([]string{"-C", proj}, args...)...)
+		if out, e := cmd.CombinedOutput(); e != nil {
+			t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), e, out)
+		}
+	}
+	runGit("init", "-q")
+	runGit("config", "user.email", "test@example.com")
+	runGit("config", "user.name", "Test")
+	runGit("config", "commit.gpgsign", "false")
+	core := filepath.Join(proj, ".deft", "core")
+	if err := os.MkdirAll(core, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(core, "marker.txt"), []byte("orig"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Untracked consumer file -> dirty working tree.
+	if err := os.WriteFile(filepath.Join(proj, "app.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return proj
+}
+
+// TestInstall_DirtyTreeUpgradeFailsLoudNonInteractive is the #1458 headline AC
+// on the --yes/non-interactive path: a dirty-tree --upgrade exits non-zero,
+// performs no payload swap (fetchCoreTarballFunc is never called), and leaves
+// the existing payload untouched. The same dirty-tree gate is used after the
+// interactive wizard resolves result.Update, so the refusal behavior is shared.
+func TestInstall_DirtyTreeUpgradeFailsLoudNonInteractive(t *testing.T) {
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git not available; skipping install()-level dirty-tree gate test")
+	}
+	origFetch := fetchCoreTarballFunc
+	defer func() { fetchCoreTarballFunc = origFetch }()
+
+	proj := newDirtyUpgradeRepo(t, gitPath)
+	core := filepath.Join(proj, ".deft", "core")
+	fetchCalled := false
+	fetchCoreTarballFunc = func(string) (string, error) {
+		fetchCalled = true
+		return "", fmt.Errorf("a blocked upgrade must never fetch")
+	}
+	t.Setenv("DEFT_USER_PATH", filepath.Join(t.TempDir(), "cfg"))
+
+	code := install(false, "", false, true, true, proj, false, false, false)
+	if code == 0 {
+		t.Error("dirty-tree --upgrade --yes must exit non-zero (fail loud), got 0")
+	}
+	if fetchCalled {
+		t.Error("a blocked upgrade must not swap the payload (fetchCoreTarballFunc was called)")
+	}
+	if data, err := os.ReadFile(filepath.Join(core, "marker.txt")); err != nil || string(data) != "orig" {
+		t.Errorf("payload must be unchanged on a blocked upgrade: data=%q err=%v", data, err)
+	}
+}
+
+// TestInstall_DirtyTreeUpgradeJSONStructuredObject pins the #1458 / #1385
+// contract on the --json failure path: stdout carries a single structured JSON
+// object including error_code, dirty_files, and the new why / remediation /
+// force_hint / warnings signals so a stdout-only agent gets the full picture.
+func TestInstall_DirtyTreeUpgradeJSONStructuredObject(t *testing.T) {
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git not available; skipping install()-level JSON dirty-tree test")
+	}
+	origFetch := fetchCoreTarballFunc
+	defer func() { fetchCoreTarballFunc = origFetch }()
+	proj := newDirtyUpgradeRepo(t, gitPath)
+	fetchCalled := false
+	fetchCoreTarballFunc = func(string) (string, error) {
+		fetchCalled = true
+		return "", fmt.Errorf("a blocked upgrade must never fetch")
+	}
+	t.Setenv("DEFT_USER_PATH", filepath.Join(t.TempDir(), "cfg"))
+
+	oldStdout := os.Stdout
+	r, wPipe, perr := os.Pipe()
+	if perr != nil {
+		t.Fatalf("os.Pipe: %v", perr)
+	}
+	os.Stdout = wPipe
+	code := install(false, "", false, true, true, proj, true, false, false)
+	_ = wPipe.Close()
+	os.Stdout = oldStdout
+	stdout, _ := io.ReadAll(r)
+
+	if code == 0 {
+		t.Error("dirty-tree --upgrade --yes --json must exit non-zero, got 0")
+	}
+	if fetchCalled {
+		t.Error("a blocked upgrade must not swap the payload")
+	}
+
+	var obj map[string]any
+	if err := json.Unmarshal(stdout, &obj); err != nil {
+		t.Fatalf("stdout is not a single JSON object (#1385): %v\nstdout=%q", err, stdout)
+	}
+	if obj["success"] != false {
+		t.Errorf("success = %v, want false", obj["success"])
+	}
+	if obj["error_code"] != dirtyTreeBlockCode {
+		t.Errorf("error_code = %v, want %q", obj["error_code"], dirtyTreeBlockCode)
+	}
+	for _, field := range []string{"error", "why", "remediation", "force_hint"} {
+		if s, ok := obj[field].(string); !ok || s == "" {
+			t.Errorf("expected non-empty string field %q, got %v", field, obj[field])
+		}
+	}
+	if files, ok := obj["dirty_files"].([]any); !ok || len(files) == 0 {
+		t.Errorf("dirty_files must be a non-empty array, got %v", obj["dirty_files"])
+	}
+	if _, ok := obj["warnings"].([]any); !ok {
+		t.Errorf("warnings must be present as an array, got %v", obj["warnings"])
+	}
+}
+
+// TestInstall_ForceUpgradesDirtyTree proves AC #2 end to end: --force performs
+// the upgrade against a dirty working tree. The vendored file-swap runs and the
+// payload is replaced; the install returns success.
+func TestInstall_ForceUpgradesDirtyTree(t *testing.T) {
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git not available; skipping install()-level --force test")
+	}
+	origFetch := fetchCoreTarballFunc
+	origGit := runGitCaptureFunc
+	defer func() {
+		fetchCoreTarballFunc = origFetch
+		runGitCaptureFunc = origGit
+	}()
+
+	proj := newDirtyUpgradeRepo(t, gitPath)
+	core := filepath.Join(proj, ".deft", "core")
+	// Classify the payload as vendored deterministically so the upgrade uses
+	// the git-free file swap.
+	runGitCaptureFunc = func(string, ...string) (string, error) { return "", fmt.Errorf("not a repo") }
+	tarball := makeCoreTarball(t, "deftai-directive-beef1234", map[string]string{"marker.txt": "new"})
+	fetchCoreTarballFunc = func(string) (string, error) { return tarball, nil }
+	t.Setenv("DEFT_USER_PATH", filepath.Join(t.TempDir(), "cfg"))
+
+	code := install(false, "", false, true, true, proj, false, false, true)
+	if code != 0 {
+		t.Fatalf("--force upgrade of a dirty tree must succeed (exit 0), got %d", code)
+	}
+	if data, err := os.ReadFile(filepath.Join(core, "marker.txt")); err != nil || string(data) != "new" {
+		t.Errorf("--force must perform the swap: marker.txt data=%q err=%v", data, err)
+	}
+}
+
+// TestInstallSummary_JSONObjectIncludesBackupAndPreviousVersion verifies the
+// #1458 success-object additions: backup_path (the out-of-tree rollback
+// location) and previous_version are present, and the slice fields normalise to
+// non-nil arrays for a stable JSON schema even when constructed from nil.
+func TestInstallSummary_JSONObjectIncludesBackupAndPreviousVersion(t *testing.T) {
+	const backup = "/cache/deft/backups/core.bak-20260603-160000"
+	const prev = "v0.39.6"
+	s := installSummary{
+		result:          &WizardResult{ProjectDir: "/proj", DeftDir: "/proj/.deft/core", Update: true},
+		nonInteractive:  true,
+		upgrade:         true,
+		payloadLayout:   payloadLayoutVendored,
+		strategy:        strategyFileSwap,
+		backupPath:      backup,
+		previousVersion: prev,
+	}
+	obj := s.jsonObject()
+
+	if obj["success"] != true {
+		t.Errorf("success = %v, want true", obj["success"])
+	}
+	if obj["backup_path"] != backup {
+		t.Errorf("backup_path = %v, want %q", obj["backup_path"], backup)
+	}
+	if obj["previous_version"] != prev {
+		t.Errorf("previous_version = %v, want %q", obj["previous_version"], prev)
+	}
+	for _, field := range []string{"missing_tools", "dirty_files", "staged_paths"} {
+		if _, ok := obj[field].([]string); !ok {
+			t.Errorf("%s must be a non-nil []string array, got %T", field, obj[field])
+		}
+	}
+	if _, err := json.Marshal(obj); err != nil {
+		t.Fatalf("success result is not JSON-marshalable: %v", err)
+	}
+}
+
+// TestReadInstallManifestTag covers the #1458 pre-upgrade tag reader: it parses
+// the single-quoted tag value, returns "" when no manifest exists, and returns
+// "" when the manifest carries no tag line.
+func TestReadInstallManifestTag(t *testing.T) {
+	t.Run("reads quoted tag", func(t *testing.T) {
+		dir := t.TempDir()
+		body := "ref: 'v0.39.6'\nsha: 'abc123'\ntag: 'v0.39.6'\ninstall_root: '.deft/core'\n"
+		if err := os.WriteFile(filepath.Join(dir, installManifestFilename), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := readInstallManifestTag(dir); got != "v0.39.6" {
+			t.Errorf("readInstallManifestTag = %q, want v0.39.6", got)
+		}
+	})
+	t.Run("missing manifest is empty", func(t *testing.T) {
+		if got := readInstallManifestTag(t.TempDir()); got != "" {
+			t.Errorf("readInstallManifestTag = %q, want empty for a missing manifest", got)
+		}
+	})
+	t.Run("no tag line is empty", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, installManifestFilename), []byte("ref: 'master'\nsha: 'x'\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := readInstallManifestTag(dir); got != "" {
+			t.Errorf("readInstallManifestTag = %q, want empty when no tag line", got)
+		}
+	})
 }
