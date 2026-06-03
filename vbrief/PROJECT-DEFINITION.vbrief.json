@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-06-03T01:11:33Z"
+    "updated": "2026-06-03T02:43:30Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -9830,6 +9830,86 @@
         }
       },
       {
+        "id": "2026-06-03-1311-bugscriptsproject-render-task-projectrender-leaks-vbriefproj",
+        "title": "bug(scripts/project_render): task project:render leaks vbrief/PROJECT-DEFINITION.vbrief.json.lock; trapped by git add -A on every chore commit",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1311-bugscriptsproject-render-task-projectrender-leaks-vbriefproj.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1311",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1311: bug(scripts/project_render): task project:render leaks vbrief/PROJECT-DEFINITION.vbrief.json.lock; trapped by git add -A on every chore commit"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-03-1320-frameworkcheck-updates-probes-consumer-origin-statusreportgi",
+        "title": "framework:check-updates probes consumer origin (statusreport.git) on vendored installs; never detects framework drift",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1320-frameworkcheck-updates-probes-consumer-origin-statusreportgi.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1320",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1320: framework:check-updates probes consumer origin (statusreport.git) on vendored installs; never detects framework drift"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-03-1323-version-resolver-returns-000-dev-on-vendored-installs-deftco",
+        "title": "Version resolver returns 0.0.0-dev on vendored installs (.deft/core/ without .git): every framework surface reports wrong version",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1323-version-resolver-returns-000-dev-on-vendored-installs-deftco.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1323",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1323: Version resolver returns 0.0.0-dev on vendored installs (.deft/core/ without .git): every framework surface reports wrong version"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-03-1325-version-manifest-moved-from-deftversion-to-deftcoreversion-w",
+        "title": "VERSION manifest moved from .deft/VERSION to .deft/core/VERSION without migration; legacy file persists as stale source-of-truth",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1325-version-manifest-moved-from-deftversion-to-deftcoreversion-w.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1325",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1325: VERSION manifest moved from .deft/VERSION to .deft/core/VERSION without migration; legacy file persists as stale source-of-truth"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-03-1332-v0330-canonical-plain-file-installs-resolve-consumer-repo-ve",
+        "title": "v0.33.0 canonical plain-file installs resolve consumer repo version and false-positive skill redirect stubs",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1332-v0330-canonical-plain-file-installs-resolve-consumer-repo-ve.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1332",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1332: v0.33.0 canonical plain-file installs resolve consumer repo version and false-positive skill redirect stubs"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-06-03-1389-doctor-agents-refresh-plan-interim-stub-emits-spurious-unrea",
         "title": "doctor: _agents_refresh_plan interim stub emits spurious 'unreadable' AGENTS.md-freshness warning on every consumer task doctor run",
         "status": "completed",
@@ -9892,6 +9972,22 @@
             }
           ]
         }
+      },
+      {
+        "id": "2026-06-03-1445-vendored-upgrade-leaves-deftcorebak-ts-backups-in-the-workin",
+        "title": "Vendored --upgrade leaves .deft/core.bak-<ts>/ backups in the working tree: not gitignored, accumulate, escape neutralization (accidental-commit footgun)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1445-vendored-upgrade-leaves-deftcorebak-ts-backups-in-the-workin.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1445",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1445: Vendored --upgrade leaves .deft/core.bak-<ts>/ backups in the working tree: not gitignored, accumulate, escape neutralization (accidental-commit footgun)"
+            }
+          ]
+        }
       }
     ],
     "metadata": {
@@ -9902,6 +9998,7 @@
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'SKILL.md platform entry point is entirely pre-cutover -- references old skill names and deprecated artifacts' shares topics (artifacts)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'Stale cross-references to legacy paths' shares topics (legacy)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'Strengthen spec validation gate: add CI freshness check detecting stale `SPECIFICATION.md` (schema checks landed in PR #130 -- `spec_validate.py` now enforces vBRIEF v0.5 structure, status enum, legacy key detection)' shares topics (legacy)",
+        "Narrative 'LegacyArtifacts' may be stale: completed scope 'VERSION manifest moved from .deft/VERSION to .deft/core/VERSION without migration; legacy file persists as stale source-of-truth' shares topics (legacy)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'docs(readme): add \"Your Artifacts\" section documenting user-generated artifact locations' shares topics (artifacts)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'installer: WriteAgentsMD skips legacy AGENTS.md on canonical install -- leaves install-root drift the doctor flags' shares topics (legacy)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'issue:ingest emits legacy v0.5 scope vBRIEFs and non-canonical references instead of canonical v0.6' shares topics (legacy)",
@@ -9931,6 +10028,7 @@
         "Narrative 'ProjectConfig' may be stale: completed scope 'Story C: Migration script (task migrate:vbrief) -- SPECIFICATION.md/PROJECT.md deprecation redirects, lifecycle folder creation' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'Story N: PROJECT-DEFINITION regeneration tool (task project:render)' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'Write SPECIFICATION.md and proper PROJECT.md for the deft project itself' shares topics (project)",
+        "Narrative 'ProjectConfig' may be stale: completed scope 'bug(scripts/project_render): task project:render leaks vbrief/PROJECT-DEFINITION.vbrief.json.lock; trapped by git add -A on every chore commit' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'deft-setup project name fallback' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'feat(coding): add coding/security.md — baseline security standards for every project' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'feat(consumer-example): deft's triage config + reference doc (#1186)' shares topics (config)",

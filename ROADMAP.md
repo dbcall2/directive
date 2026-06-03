@@ -519,8 +519,14 @@ This matches the canonical `triggers:` set already in `skills/deft-directive-ref
 - **#1433** -- v0.39.2 vendored refresh aborts: extractor treats GitHub tarball pax_global_header as content root; README still says installer clones -- `[completed]`
 - **#1427** -- v0.39.2 doctor manifest tolerant-read (canonical-first _locate_manifest) -- `[completed]`
 - **#1429** -- v0.39.2 Go-installer vendoring + neutralization deposit -- `[completed]`
+- **#1311** -- bug(scripts/project_render): task project:render leaks vbrief/PROJECT-DEFINITION.vbrief.json.lock; trapped by git add -A on every chore commit -- `[completed]`
+- **#1320** -- framework:check-updates probes consumer origin (statusreport.git) on vendored installs; never detects framework drift -- `[completed]`
+- **#1323** -- Version resolver returns 0.0.0-dev on vendored installs (.deft/core/ without .git): every framework surface reports wrong version -- `[completed]`
+- **#1325** -- VERSION manifest moved from .deft/VERSION to .deft/core/VERSION without migration; legacy file persists as stale source-of-truth -- `[completed]`
+- **#1332** -- v0.33.0 canonical plain-file installs resolve consumer repo version and false-positive skill redirect stubs -- `[completed]`
 - **#1389** -- doctor: _agents_refresh_plan interim stub emits spurious 'unreadable' AGENTS.md-freshness warning on every consumer task doctor run -- `[completed]`
 - **#1437** -- v0.39.3 vendored upgrade leaves root artifacts stale: duplicate AGENTS.md managed-section (attributed v3 marker not matched) + bare .deft-version not regenerated -- `[completed]`
 - **#1440** -- deft-core-guard rejects every deft-install --upgrade PR: installer-managed root files (AGENTS.md, .agents/, vbrief scaffolding, ...) counted as 'app' -- `[completed]`
 - **#1441** -- Windows installer binary auto-triggers UAC elevation (install-* filename heuristic + no asInvoker manifest); breaks headless --yes installs/upgrades -- `[completed]`
+- **#1445** -- Vendored --upgrade leaves .deft/core.bak-<ts>/ backups in the working tree: not gitignored, accumulate, escape neutralization (accidental-commit footgun) -- `[completed]`
 
