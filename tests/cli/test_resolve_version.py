@@ -1,14 +1,15 @@
-"""test_resolve_version.py -- Tests for scripts/resolve_version.py (#723, #771).
+"""test_resolve_version.py -- Tests for scripts/resolve_version.py.
 
-``scripts/resolve_version.py`` is an INDEPENDENT Python mirror of the
-resolution priority chain implemented inline in ``Taskfile.yml``
-``vars: VERSION: { sh: ... }``. The Python module is NOT invoked from
-Taskfile.yml -- these tests pin the Python-side contract so callers
-(``scripts/release.py::run_build``, future Python entry-points) cannot
-silently drift from the canonical Taskfile sh: block.
+``scripts/resolve_version.py`` is the Python runtime resolver for callers
+that need the framework version outside the Taskfile build pipeline. It
+mirrors the Taskfile release-build resolver and extends the runtime chain
+with installed version files so git-free payload installs do not inherit the
+consumer repository's Git version state.
 
-Covers the three resolution branches:
+Covers the resolution branches:
 - ``$DEFT_RELEASE_VERSION`` env override wins over git tag.
+- ``VERSION`` manifest and local marker metadata win over git.
+- ``pyproject.toml`` ``[project].version`` is a durable shipped fallback.
 - ``git describe --tags --abbrev=0`` fallback (stripped of leading ``v``).
 - ``0.0.0-dev`` fallback when neither env nor git produce a value.
 - ``main()`` writes the resolved version to stdout WITHOUT a trailing newline.
@@ -86,57 +87,78 @@ class TestFromEnv:
 
 
 class TestFromGit:
-    def test_strips_leading_v(self, monkeypatch):
+    def test_strips_leading_v(self, monkeypatch, tmp_path):
         def fake_run(cmd, **kwargs):
+            if cmd[:3] == ["git", "rev-parse", "--show-toplevel"]:
+                return SimpleNamespace(stdout=f"{tmp_path}\n", stderr="", returncode=0)
             return SimpleNamespace(stdout="v0.20.2\n", stderr="", returncode=0)
 
         monkeypatch.setattr(subprocess, "run", fake_run)
-        assert resolve_version._from_git() == "0.20.2"
+        assert resolve_version._from_git(tmp_path) == "0.20.2"
 
-    def test_returns_unprefixed_tag(self, monkeypatch):
+    def test_returns_unprefixed_tag(self, monkeypatch, tmp_path):
         def fake_run(cmd, **kwargs):
+            if cmd[:3] == ["git", "rev-parse", "--show-toplevel"]:
+                return SimpleNamespace(stdout=f"{tmp_path}\n", stderr="", returncode=0)
             return SimpleNamespace(stdout="0.21.0\n", stderr="", returncode=0)
 
         monkeypatch.setattr(subprocess, "run", fake_run)
-        assert resolve_version._from_git() == "0.21.0"
+        assert resolve_version._from_git(tmp_path) == "0.21.0"
 
-    def test_returns_none_when_git_missing(self, monkeypatch):
+    def test_returns_none_when_git_missing(self, monkeypatch, tmp_path):
         def fake_run(cmd, **kwargs):
             raise FileNotFoundError("git")
 
         monkeypatch.setattr(subprocess, "run", fake_run)
-        assert resolve_version._from_git() is None
+        assert resolve_version._from_git(tmp_path) is None
 
-    def test_returns_none_on_timeout(self, monkeypatch):
+    def test_returns_none_on_timeout(self, monkeypatch, tmp_path):
         def fake_run(cmd, **kwargs):
             raise subprocess.TimeoutExpired(cmd, timeout=10)
 
         monkeypatch.setattr(subprocess, "run", fake_run)
-        assert resolve_version._from_git() is None
+        assert resolve_version._from_git(tmp_path) is None
 
-    def test_returns_none_on_nonzero_exit(self, monkeypatch):
+    def test_returns_none_on_nonzero_exit(self, monkeypatch, tmp_path):
         def fake_run(cmd, **kwargs):
-            return SimpleNamespace(
-                stdout="", stderr="No names found", returncode=128
-            )
+            if cmd[:3] == ["git", "rev-parse", "--show-toplevel"]:
+                return SimpleNamespace(stdout=f"{tmp_path}\n", stderr="", returncode=0)
+            return SimpleNamespace(stdout="", stderr="No names found", returncode=128)
 
         monkeypatch.setattr(subprocess, "run", fake_run)
-        assert resolve_version._from_git() is None
+        assert resolve_version._from_git(tmp_path) is None
 
-    def test_returns_none_on_empty_stdout(self, monkeypatch):
+    def test_returns_none_on_empty_stdout(self, monkeypatch, tmp_path):
         def fake_run(cmd, **kwargs):
+            if cmd[:3] == ["git", "rev-parse", "--show-toplevel"]:
+                return SimpleNamespace(stdout=f"{tmp_path}\n", stderr="", returncode=0)
             return SimpleNamespace(stdout="\n", stderr="", returncode=0)
 
         monkeypatch.setattr(subprocess, "run", fake_run)
-        assert resolve_version._from_git() is None
+        assert resolve_version._from_git(tmp_path) is None
 
-    def test_returns_none_when_only_v(self, monkeypatch):
+    def test_returns_none_when_only_v(self, monkeypatch, tmp_path):
         # Defensive: a tag that is bare "v" should not become an empty version.
         def fake_run(cmd, **kwargs):
+            if cmd[:3] == ["git", "rev-parse", "--show-toplevel"]:
+                return SimpleNamespace(stdout=f"{tmp_path}\n", stderr="", returncode=0)
             return SimpleNamespace(stdout="v\n", stderr="", returncode=0)
 
         monkeypatch.setattr(subprocess, "run", fake_run)
-        assert resolve_version._from_git() is None
+        assert resolve_version._from_git(tmp_path) is None
+
+    def test_returns_none_when_git_root_is_parent_consumer_repo(self, monkeypatch, tmp_path):
+        consumer = tmp_path / "consumer"
+        install_root = consumer / ".deft" / "core"
+        install_root.mkdir(parents=True)
+
+        def fake_run(cmd, **kwargs):
+            if cmd[:3] == ["git", "rev-parse", "--show-toplevel"]:
+                return SimpleNamespace(stdout=f"{consumer}\n", stderr="", returncode=0)
+            raise AssertionError("git describe must not run for parent consumer repo")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        assert resolve_version._from_git(install_root) is None
 
 
 # ---------------------------------------------------------------------------
@@ -154,23 +176,90 @@ class TestResolveVersion:
         monkeypatch.setattr(subprocess, "run", fake_run)
         assert resolve_version.resolve_version() == "0.21.0"
 
-    def test_git_used_when_env_missing(self, monkeypatch):
+    def test_install_manifest_wins_before_git(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("DEFT_RELEASE_VERSION", raising=False)
+        (tmp_path / "VERSION").write_text(
+            "ref: 'v0.39.0'\n" "sha: 'b016dbaa38e1'\n" "tag: 'v0.39.0'\n",
+            encoding="utf-8",
+        )
+
+        def fake_run(*args, **kwargs):  # pragma: no cover - asserted not called
+            raise AssertionError("git must not be invoked when manifest resolves")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        assert resolve_version.resolve_version(tmp_path) == "0.39.0"
+
+    def test_plain_marker_used_after_manifest_missing(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("DEFT_RELEASE_VERSION", raising=False)
+        (tmp_path / ".deft-version").write_text("0.38.0\n", encoding="utf-8")
+
+        def fake_run(*args, **kwargs):  # pragma: no cover - asserted not called
+            raise AssertionError("git must not be invoked when marker resolves")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        assert resolve_version.resolve_version(tmp_path) == "0.38.0"
+
+    def test_pyproject_used_after_corrupt_dev_manifest(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("DEFT_RELEASE_VERSION", raising=False)
+        (tmp_path / "VERSION").write_text("tag: 'v0.0.0-dev'\n", encoding="utf-8")
+        (tmp_path / "pyproject.toml").write_text(
+            "[project]\nname = 'deft-directive'\nversion = \"0.39.0\"\n",
+            encoding="utf-8",
+        )
+
+        def fake_run(*args, **kwargs):  # pragma: no cover - asserted not called
+            raise AssertionError("git must not be invoked when pyproject resolves")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        assert resolve_version.resolve_version(tmp_path) == "0.39.0"
+
+    def test_pyproject_project_header_allows_inline_comment(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("DEFT_RELEASE_VERSION", raising=False)
+        (tmp_path / "VERSION").write_text("tag: 'v0.0.0-dev'\n", encoding="utf-8")
+        (tmp_path / "pyproject.toml").write_text(
+            "[project] # package metadata\nname = 'deft-directive'\nversion = \"0.39.0\"\n",
+            encoding="utf-8",
+        )
+
+        def fake_run(*args, **kwargs):  # pragma: no cover - asserted not called
+            raise AssertionError("git must not be invoked when pyproject resolves")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        assert resolve_version.resolve_version(tmp_path) == "0.39.0"
+
+    def test_pyproject_version_line_allows_inline_comment(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("DEFT_RELEASE_VERSION", raising=False)
+        (tmp_path / "VERSION").write_text("tag: 'v0.0.0-dev'\n", encoding="utf-8")
+        (tmp_path / "pyproject.toml").write_text(
+            "[project]\nname = 'deft-directive'\nversion = \"0.39.0\" # release metadata\n",
+            encoding="utf-8",
+        )
+
+        def fake_run(*args, **kwargs):  # pragma: no cover - asserted not called
+            raise AssertionError("git must not be invoked when pyproject resolves")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        assert resolve_version.resolve_version(tmp_path) == "0.39.0"
+
+    def test_git_used_when_env_missing(self, monkeypatch, tmp_path):
         monkeypatch.delenv("DEFT_RELEASE_VERSION", raising=False)
 
         def fake_run(cmd, **kwargs):
+            if cmd[:3] == ["git", "rev-parse", "--show-toplevel"]:
+                return SimpleNamespace(stdout=f"{tmp_path}\n", stderr="", returncode=0)
             return SimpleNamespace(stdout="v0.20.2\n", stderr="", returncode=0)
 
         monkeypatch.setattr(subprocess, "run", fake_run)
-        assert resolve_version.resolve_version() == "0.20.2"
+        assert resolve_version.resolve_version(tmp_path) == "0.20.2"
 
-    def test_dev_fallback_when_neither_available(self, monkeypatch):
+    def test_dev_fallback_when_neither_available(self, monkeypatch, tmp_path):
         monkeypatch.delenv("DEFT_RELEASE_VERSION", raising=False)
 
         def fake_run(cmd, **kwargs):
             raise FileNotFoundError("git")
 
         monkeypatch.setattr(subprocess, "run", fake_run)
-        assert resolve_version.resolve_version() == resolve_version.DEV_FALLBACK
+        assert resolve_version.resolve_version(tmp_path) == resolve_version.DEV_FALLBACK
         assert resolve_version.DEV_FALLBACK == "0.0.0-dev"
 
 
@@ -180,9 +269,7 @@ class TestResolveVersion:
 
 
 class TestMain:
-    def test_main_writes_resolved_version_without_trailing_newline(
-        self, monkeypatch, capsys
-    ):
+    def test_main_writes_resolved_version_without_trailing_newline(self, monkeypatch, capsys):
         monkeypatch.setenv("DEFT_RELEASE_VERSION", "0.21.0")
         rc = resolve_version.main([])
         assert rc == 0
@@ -196,6 +283,7 @@ class TestMain:
 
     def test_main_default_is_dev_when_nothing_resolves(self, monkeypatch, capsys):
         monkeypatch.delenv("DEFT_RELEASE_VERSION", raising=False)
+        monkeypatch.setattr(resolve_version, "_default_install_root", lambda: Path("/missing"))
 
         def fake_run(cmd, **kwargs):
             raise FileNotFoundError("git")
@@ -322,9 +410,7 @@ class TestToPep440NonPublishable:
     def test_non_publishable_subclasses_value_error(self):
         # Catch-blocks that already trap ``ValueError`` (e.g. argparse
         # error reporting) MUST keep working post-#771.
-        assert issubclass(
-            resolve_version.NonPublishableVersionError, ValueError
-        )
+        assert issubclass(resolve_version.NonPublishableVersionError, ValueError)
 
     def test_non_publishable_message_cites_tag(self):
         # The pipeline embeds the exception message in the operator-readable
@@ -417,8 +503,8 @@ class TestPep440PhaseCExtensionHook:
             "v0.20.0-alpha.1": "0.20.0a1",
         }
         for raw, expected in cases.items():
-            assert resolve_version.to_pep440(raw) == expected, (
-                f"#771 canonical mapping drift: {raw!r} -> {expected!r}"
-            )
+            assert (
+                resolve_version.to_pep440(raw) == expected
+            ), f"canonical mapping drift: {raw!r} -> {expected!r}"
         with pytest.raises(resolve_version.NonPublishableVersionError):
             resolve_version.to_pep440("v0.0.0-test.1")

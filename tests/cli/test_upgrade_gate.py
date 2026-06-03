@@ -170,6 +170,20 @@ class TestVersionMarkerHelpers:
         assert (vbrief_root / ".deft-version").is_file()
         assert deft_run_module._read_version_marker(tmp_path) == deft_run_module.VERSION
 
+    def test_write_marker_returns_false_on_write_error(
+        self, tmp_path, deft_run_module, monkeypatch
+    ):
+        original_write_text = Path.write_text
+
+        def fake_write_text(path, *args, **kwargs):
+            if path.name == ".deft-version":
+                raise OSError("cannot write marker")
+            return original_write_text(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "write_text", fake_write_text)
+        assert deft_run_module._write_version_marker(tmp_path / "vbrief") is False
+        assert not (tmp_path / "vbrief" / ".deft-version").exists()
+
     def test_project_root_marker_is_fallback(self, tmp_path, deft_run_module):
         """If vbrief/.deft-version is missing, project-root .deft-version is used."""
         (tmp_path / ".deft-version").write_text("0.18.5\n", encoding="utf-8")
@@ -412,6 +426,41 @@ class TestCmdUpgrade:
             encoding="utf-8"
         ).strip() == deft_run_module.VERSION
         assert "Updated .deft-version" in result.stdout
+
+    def test_reports_marker_write_error_without_unresolved_version_message(
+        self, run_command, isolated_env, deft_run_module, monkeypatch
+    ):
+        monkeypatch.setattr(deft_run_module, "HAS_RICH", False)
+        monkeypatch.setattr(deft_run_module, "VERSION", "0.39.0")
+        (isolated_env / "vbrief").mkdir(exist_ok=True)
+        original_write_text = Path.write_text
+
+        def fake_write_text(path, *args, **kwargs):
+            if path.name == ".deft-version":
+                raise OSError("cannot write marker")
+            return original_write_text(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "write_text", fake_write_text)
+        result = run_command("cmd_upgrade", [])
+
+        combined = result.stdout + result.stderr
+        assert result.return_code == 1
+        assert "Could not write framework version marker" in combined
+        assert ".deft-version" in combined
+        assert "0.0.0-dev" not in combined
+
+    def test_warns_when_install_manifest_refresh_fails(
+        self, run_command, isolated_env, deft_run_module, monkeypatch
+    ):
+        monkeypatch.setattr(deft_run_module, "HAS_RICH", False)
+        (isolated_env / "vbrief").mkdir(exist_ok=True)
+        (isolated_env / ".deft" / "core").mkdir(parents=True)
+        monkeypatch.setattr(deft_run_module, "_write_install_manifest", lambda *a, **k: None)
+        result = run_command("cmd_upgrade", [])
+        assert result.return_code in (0, None)
+        combined = result.stdout + result.stderr
+        assert "Could not refresh install manifest" in combined
+        assert ".deft/core/VERSION" in combined
 
     def test_warns_on_legacy_artifacts(
         self, run_command, isolated_env, deft_run_module, monkeypatch

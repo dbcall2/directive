@@ -29,13 +29,19 @@ from typing import List, Optional
 # header always prints the correct version with no manual bump step.
 #
 # Resolution priority (first match wins -- mirrors
-# scripts/resolve_version.py and the Taskfile.yml inline `sh:` block):
+# scripts/resolve_version.py):
 #   1. $DEFT_RELEASE_VERSION env var -- set by
 #      scripts/release.py::run_build so the in-flight release version
 #      pins what `run` reports during `task release -- 0.X.Y`.
-#   2. `git describe --tags --abbrev=0` (with leading `v` stripped) --
-#      reflects the latest annotated release tag for ordinary checkouts.
-#   3. `0.0.0-dev` -- fallback for fresh checkouts with no tags or
+#   2. <install-root>/VERSION manifest tag/ref -- canonical for
+#      git-free .deft/core payload installs.
+#   3. <install-root>/.deft-version -- legacy/plain installed marker.
+#   4. <install-root>/pyproject.toml [project].version -- release
+#      metadata shipped with plain-file payloads.
+#   5. `git describe --tags --abbrev=0` (with leading `v` stripped) --
+#      only when <install-root> is itself a Git checkout, so consumer
+#      repo tags are never mistaken for Deft release tags.
+#   6. `0.0.0-dev` -- fallback for fresh checkouts with no tags or
 #      repositories where `git` is unavailable.
 #
 # This logic is intentionally inlined (not a `from scripts.resolve_version
@@ -47,63 +53,139 @@ from typing import List, Optional
 #       you change one, change the other -- regression coverage in
 #       tests/cli/test_run_version.py and tests/cli/test_resolve_version.py
 #       pins both surfaces to the same chain.
-_VERSION_MANIFEST_TAG_RE = re.compile(
-    r"^(?:tag|ref):\s*['\"]?v?([\d.][\w.-]*)['\"]?\s*$",
-    re.MULTILINE,
+_DEV_FALLBACK_VERSION = "0.0.0-dev"
+_VERSION_MANIFEST_LINE_RE = re.compile(
+    r"^\s*(?P<key>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?P<value>.*?)\s*$"
+)
+_PYPROJECT_VERSION_RE = re.compile(
+    r"^\s*version\s*=\s*['\"](?P<value>[^'\"]+)['\"]\s*$"
 )
 
 
-def _version_from_install_manifest(base_dir: Path) -> Optional[str]:
-    """Return the version from ``<base_dir>/VERSION`` manifest, or None (#1323)."""
-    manifest = base_dir / "VERSION"
-    try:
-        if not manifest.is_file():
-            return None
-        text = manifest.read_text(encoding="utf-8")
-    except OSError:
-        return None
-    match = _VERSION_MANIFEST_TAG_RE.search(text)
-    if match is None:
-        return None
-    return match.group(1).strip() or None
+def _normalise_resolved_version(raw: str, *, allow_dev: bool = False) -> Optional[str]:
+    """Return a bare version candidate, or None when the value is unusable.
 
-
-def _version_from_deft_version_file(base_dir: Path) -> Optional[str]:
-    """Return the version from ``<base_dir>/.deft-version``, or None (#1323)."""
-    marker = base_dir / ".deft-version"
-    try:
-        if not marker.is_file():
-            return None
-        version = marker.read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
-    if version.startswith("v"):
-        version = version[1:]
-    return version or None
-
-def _resolve_version() -> str:
-    """Resolve `run`'s VERSION using the documented priority chain.
-
-    Mirrors ``scripts/resolve_version.py::resolve_version()``. Each
-    branch is best-effort: a missing ``git`` binary, a fresh checkout
-    with no tags, or a malformed tag falls through to the next branch
-    rather than raising, so importing ``run`` never fails because of a
-    version-resolution edge case.
+    Durable on-disk metadata must not propagate the dev fallback: once
+    ``0.0.0-dev`` lands in an install manifest or marker it becomes the
+    durable-state corruption this resolver is meant to prevent.
+    The explicit environment override is exempt because the operator or
+    release pipeline deliberately supplied it.
     """
-    env_value = os.environ.get("DEFT_RELEASE_VERSION", "").strip()
-    if env_value:
-        return env_value
-    # Root lookups at the directory containing this script so a vendored
-    # `.deft/core/run` reads `.deft/core/VERSION` rather than consumer repo
-    # metadata.
-    script_dir_path = Path(__file__).parent.absolute()
-    manifest_value = _version_from_install_manifest(script_dir_path)
-    if manifest_value:
-        return manifest_value
-    deft_version_value = _version_from_deft_version_file(script_dir_path)
-    if deft_version_value:
-        return deft_version_value
-    script_dir = str(script_dir_path)
+    candidate = raw.strip().strip("'\"")
+    if candidate.startswith("v"):
+        candidate = candidate[1:]
+    if not candidate:
+        return None
+    if candidate == _DEV_FALLBACK_VERSION and not allow_dev:
+        return None
+    if not allow_dev and not candidate[0].isdigit():
+        return None
+    return candidate
+
+
+def _version_from_install_manifest(install_root: Path) -> Optional[str]:
+    """Read ``<install-root>/VERSION`` tag/ref as installed version."""
+    manifest_path = install_root / "VERSION"
+    if not manifest_path.is_file():
+        return None
+    try:
+        text = manifest_path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+    parsed: dict[str, str] = {}
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        match = _VERSION_MANIFEST_LINE_RE.match(stripped)
+        if match is None:
+            continue
+        parsed[match.group("key").lower()] = match.group("value").strip()
+
+    for key in ("tag", "ref"):
+        raw = parsed.get(key)
+        if raw is None:
+            continue
+        value = _normalise_resolved_version(raw)
+        if value:
+            return value
+    return None
+
+
+def _version_from_plain_marker(install_root: Path) -> Optional[str]:
+    """Read ``<install-root>/.deft-version`` when present."""
+    marker_path = install_root / ".deft-version"
+    if not marker_path.is_file():
+        return None
+    try:
+        return _normalise_resolved_version(marker_path.read_text(encoding="utf-8"))
+    except OSError:
+        return None
+
+
+def _version_from_deft_version_file(install_root: Path) -> Optional[str]:
+    """Compatibility alias for the installed-version marker helper."""
+    return _version_from_plain_marker(install_root)
+
+
+def _version_from_pyproject(install_root: Path) -> Optional[str]:
+    """Read ``[project].version`` from a shipped pyproject.toml."""
+    pyproject_path = install_root / "pyproject.toml"
+    if not pyproject_path.is_file():
+        return None
+    try:
+        text = pyproject_path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+    in_project_section = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        content_line = stripped.split("#", 1)[0].strip()
+        if content_line.startswith("[") and content_line.endswith("]"):
+            in_project_section = content_line == "[project]"
+            continue
+        if not in_project_section:
+            continue
+        match = _PYPROJECT_VERSION_RE.match(content_line)
+        if match is not None:
+            return _normalise_resolved_version(match.group("value"))
+    return None
+
+
+def _git_top_level(install_root: Path) -> Optional[Path]:
+    """Return Git top-level only when git can resolve it from install_root."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+            cwd=str(install_root),
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    if result.returncode != 0:
+        return None
+    top_level = (result.stdout or "").strip()
+    if not top_level:
+        return None
+    return Path(top_level)
+
+
+def _version_from_git(install_root: Path) -> Optional[str]:
+    """Return latest Git tag only for standalone Deft checkouts."""
+    top_level = _git_top_level(install_root)
+    try:
+        if top_level is None or top_level.resolve() != install_root.resolve():
+            return None
+    except OSError:
+        return None
+
     try:
         result = subprocess.run(
             ["git", "describe", "--tags", "--abbrev=0"],
@@ -111,18 +193,56 @@ def _resolve_version() -> str:
             text=True,
             timeout=10,
             check=False,
-            cwd=script_dir,
+            cwd=str(install_root),
         )
     except (subprocess.TimeoutExpired, OSError):
-        # OSError covers FileNotFoundError (subclass) raised when `git`
-        # is not on PATH plus other unexpected I/O failures.
-        return "0.0.0-dev"
+        return None
     if result.returncode != 0:
-        return "0.0.0-dev"
-    tag = (result.stdout or "").strip()
-    if tag.startswith("v"):
-        tag = tag[1:]
-    return tag or "0.0.0-dev"
+        return None
+    return _normalise_resolved_version(result.stdout or "")
+
+
+def _resolve_version(install_root: Optional[Path] = None) -> str:
+    """Resolve `run`'s VERSION using the documented priority chain.
+
+    Mirrors ``scripts/resolve_version.py::resolve_version()``. Each
+    branch is best-effort: unreadable manifest files, a missing ``git``
+    binary, a fresh checkout with no tags, or a malformed tag falls
+    through to the next branch rather than raising, so importing ``run``
+    never fails because of a version-resolution edge case.
+    """
+    env_value = os.environ.get("DEFT_RELEASE_VERSION", "").strip()
+    if env_value:
+        return _normalise_resolved_version(env_value, allow_dev=True) or env_value
+
+    root = Path(install_root) if install_root is not None else Path(__file__).parent.absolute()
+    for resolver in (
+        _version_from_install_manifest,
+        _version_from_deft_version_file,
+        _version_from_pyproject,
+        _version_from_git,
+    ):
+        value = resolver(root)
+        if value:
+            return value
+    return _DEV_FALLBACK_VERSION
+
+
+def _dev_fallback_state_writes_allowed(install_root: Optional[Path] = None) -> bool:
+    """Allow durable ``0.0.0-dev`` writes only from standalone checkouts."""
+    root = Path(install_root) if install_root is not None else Path(__file__).parent.absolute()
+    top_level = _git_top_level(root)
+    try:
+        return top_level is not None and top_level.resolve() == root.resolve()
+    except OSError:
+        return False
+
+
+def _version_safe_for_state_write(version: str, install_root: Optional[Path] = None) -> bool:
+    """Return False when a consumer install would persist the dev fallback."""
+    if version.strip() != _DEV_FALLBACK_VERSION:
+        return True
+    return _dev_fallback_state_writes_allowed(install_root)
 
 
 VERSION = _resolve_version()
@@ -721,13 +841,16 @@ def _read_version_marker(project_root: Path) -> Optional[str]:
     return None
 
 
-def _write_version_marker(vbrief_root: Path) -> None:
+def _write_version_marker(vbrief_root: Path) -> bool:
     """Write VERSION into `vbrief/.deft-version` (best-effort, never raises)."""
+    if not _version_safe_for_state_write(VERSION):
+        return False
     try:
         vbrief_root.mkdir(parents=True, exist_ok=True)
         (vbrief_root / ".deft-version").write_text(VERSION + "\n", encoding="utf-8")
     except OSError:
-        pass
+        return False
+    return True
 
 
 def _detect_pre_cutover_legacy(project_root: Path) -> List[str]:
@@ -2221,6 +2344,8 @@ def _write_install_manifest(
     the two stay in sync on every install.
     """
     effective_tag = tag if tag is not None else VERSION
+    if not _version_safe_for_state_write(effective_tag, install_root):
+        return None
     effective_sha = sha if sha is not None else _resolve_framework_sha(install_root)
     effective_fetched_at = fetched_at if fetched_at is not None else _now_utc_iso()
     effective_project_root = project_root if project_root is not None else install_root.parent
@@ -2503,7 +2628,20 @@ def cmd_upgrade(args: List[str]):
 
     vbrief_dir = project_root / "vbrief"
     target_dir = vbrief_dir if vbrief_dir.is_dir() else project_root
-    _write_version_marker(target_dir)
+    if not _version_safe_for_state_write(VERSION):
+        error(
+            "Refusing to record unresolved framework version 0.0.0-dev. "
+            "Check the installed VERSION manifest (.deft/core/VERSION or deft/VERSION) "
+            "before running upgrade."
+        )
+        return 1
+    if not _write_version_marker(target_dir):
+        error(
+            f"Could not write framework version marker at {target_dir / '.deft-version'}. "
+            "Check filesystem permissions and available disk space "
+            "before running upgrade."
+        )
+        return 1
 
     # #1046 PR-B AC-4: write the canonical YAML provenance manifest at
     # ``<install>/VERSION``. The install root is wherever the framework
@@ -2522,6 +2660,8 @@ def cmd_upgrade(args: List[str]):
                 fetched_by="run-upgrade",
                 project_root=project_root,
             )
+            if written_manifest_path is None:
+                warn(f"Could not refresh install manifest at {install_candidate / 'VERSION'}.")
             break
 
     # #1325: a legacy parent-level `.deft/VERSION` left behind after the

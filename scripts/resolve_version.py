@@ -1,42 +1,46 @@
 #!/usr/bin/env python3
-"""resolve_version.py -- Python mirror of the Taskfile VERSION resolver (#723)
+"""resolve_version.py -- Python runtime VERSION resolver
 plus the canonical semver -> PEP 440 normalization helper (#771).
 
-This script is an INDEPENDENT Python mirror of the version-resolution
-priority chain that the canonical Taskfile-side resolver implements
-inline in ``Taskfile.yml`` ``vars: VERSION: { sh: ... }``. The Taskfile
-inline POSIX ``sh:`` block is the ACTUAL resolver consumed by
+This script is the Python runtime resolver for Deft entry points that
+need a framework version outside the Taskfile build pipeline. It began
+as an independent Python mirror of the Taskfile-side release-build
+resolver. The Python/runtime chain reads durable installed version files
+so git-free payload installs can report the release they actually carry
+even when their parent consumer repository has no Deft tags.
+
+This Python module is NOT invoked from ``Taskfile.yml``. The Taskfile
+inline POSIX ``sh:`` block remains the resolver consumed by
 ``task build`` / ``task release`` (run via go-task's embedded
 mvdan/sh interpreter so it works cross-platform without requiring
-``uv`` / Python at parse time).
+``uv`` / Python at parse time). Python callers should use this module
+instead of reimplementing installed-payload detection.
 
-This Python module is NOT invoked from ``Taskfile.yml``. It exists so
-Python callers (regression tests in ``tests/cli/test_resolve_version.py``,
-``scripts/release.py::run_build``, future scripts that need the
-version at import time, etc.) have a single source of truth for the
-same resolution priority -- avoiding silent drift between the Taskfile
-``sh:`` block and ad-hoc Python re-implementations.
-
-Resolution priority (first match wins -- mirrors the Taskfile sh block):
+Resolution priority (first match wins):
     1. ``$DEFT_RELEASE_VERSION`` -- set by ``scripts/release.py::run_build``
        so the in-flight release version (e.g. ``0.21.0``) becomes the
        build artifact filename during ``task release -- 0.21.0``. The
-       Taskfile literal previously hard-coded ``0.20.0``, which produced
-       ``dist/deft-0.20.0.zip`` during the v0.21.0 cut (#723).
-    2. ``git describe --tags --abbrev=0`` (stripped of leading ``v``) --
-       reflects the latest annotated release tag for standalone
-       ``task build`` invocations on a tagged checkout.
-    3. ``0.0.0-dev`` -- fallback for fresh checkouts with no tags or
+       Taskfile literal previously hard-coded ``0.20.0``, which produced an
+       incorrect artifact filename during the next release.
+    2. ``<install-root>/VERSION`` manifest ``tag`` / ``ref`` -- canonical
+       installed version source for git-free payload installs.
+    3. ``<install-root>/.deft-version`` -- legacy/plain installed marker.
+    4. ``<install-root>/pyproject.toml`` ``[project].version`` -- release
+       metadata shipped with plain-file payloads.
+    5. ``git describe --tags --abbrev=0`` (stripped of leading ``v``) --
+       only when ``<install-root>`` is itself a Git checkout, so consumer
+       repo tags are never mistaken for Deft release tags.
+    6. ``0.0.0-dev`` -- fallback for fresh checkouts with no tags or
        repositories where ``git`` is unavailable.
 
 The script writes the resolved version to stdout WITHOUT a trailing
-newline so its output matches the Taskfile inline ``sh:`` block's
-``printf '%s'`` shape byte-for-byte (no trailing whitespace either
-way). ``stderr`` is intentionally silent on the happy path.
+newline so callers receive the same ``printf '%s'`` shape used by the
+Taskfile inline ``sh:`` block. ``stderr`` is intentionally silent on
+the happy path.
 
-If you change the priority chain here, you MUST also update the inline
-``sh:`` block in ``Taskfile.yml`` (and vice versa) -- the two are kept
-in lockstep by convention, not by code reuse.
+If you change the release-build priority chain here, consider whether
+the inline ``sh:`` block in ``Taskfile.yml`` needs the same change. The
+installed-payload branches are intentionally Python-runtime only.
 
 PEP 440 normalization (#771)
 ----------------------------
@@ -76,22 +80,15 @@ from pathlib import Path
 
 DEV_FALLBACK = "0.0.0-dev"
 ENV_VAR = "DEFT_RELEASE_VERSION"
+_MANIFEST_LINE_RE = re.compile(r"^\s*(?P<key>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?P<value>.*?)\s*$")
+_PYPROJECT_VERSION_RE = re.compile(r"^\s*version\s*=\s*['\"](?P<value>[^'\"]+)['\"]\s*$")
 
-# Framework install root for the vendored-install metadata lookups (#1323).
+# Framework install root for installed version file lookups.
 # This script lives at ``<install>/scripts/resolve_version.py``; its parent's
 # parent is the framework deposit (``<install>``) where the Go installer
 # writes the canonical ``VERSION`` manifest and the bare ``.deft-version``
 # derivative. In framework-self-dev the same path resolves to the repo root.
 _FRAMEWORK_ROOT = Path(__file__).resolve().parent.parent
-
-# Parses the ``tag``/``ref`` field of the ``<install>/VERSION`` YAML manifest.
-# Multiline so a single ``re.search`` finds whichever of the two lines comes
-# first (they carry the same value in a well-formed manifest). Mirrors the
-# inline regex in ``run::_VERSION_MANIFEST_TAG_RE``.
-_MANIFEST_TAG_RE = re.compile(
-    r"^(?:tag|ref):\s*['\"]?v?([\d.][\w.-]*)['\"]?\s*$",
-    re.MULTILINE,
-)
 
 # ---------------------------------------------------------------------------
 # PEP 440 normalization (#771)
@@ -222,53 +219,136 @@ def _from_env() -> str | None:
     return value or None
 
 
-def _from_manifest(base_dir: Path | None = None) -> str | None:
-    """Return the version from ``<base_dir>/VERSION`` manifest, or None (#1323).
+def _normalise_resolved_version(raw: str, *, allow_dev: bool = False) -> str | None:
+    """Return a bare version candidate, or None when the value is unusable."""
+    candidate = raw.strip().strip("'\"")
+    if candidate.startswith("v"):
+        candidate = candidate[1:]
+    if not candidate:
+        return None
+    if candidate == DEV_FALLBACK and not allow_dev:
+        return None
+    if not allow_dev and not candidate[0].isdigit():
+        return None
+    return candidate
 
-    Reads the canonical install manifest's ``tag``/``ref`` field so a vendored
-    ``.deft/core/`` install (no nested ``.git``) resolves its real version
-    rather than ``0.0.0-dev``. ``base_dir`` defaults to the framework root.
-    """
-    base = base_dir if base_dir is not None else _FRAMEWORK_ROOT
-    manifest = base / "VERSION"
+
+def _default_install_root() -> Path:
+    """Return the framework root for this script in source or install layout."""
+    return _FRAMEWORK_ROOT
+
+
+def _from_install_manifest(install_root: Path) -> str | None:
+    """Return ``<install-root>/VERSION`` tag/ref as installed version."""
+    manifest_path = install_root / "VERSION"
+    if not manifest_path.is_file():
+        return None
     try:
-        if not manifest.is_file():
-            return None
-        text = manifest.read_text(encoding="utf-8")
+        text = manifest_path.read_text(encoding="utf-8")
     except OSError:
         return None
-    match = _MANIFEST_TAG_RE.search(text)
-    if match is None:
+
+    parsed: dict[str, str] = {}
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        match = _MANIFEST_LINE_RE.match(stripped)
+        if match is None:
+            continue
+        parsed[match.group("key").lower()] = match.group("value").strip()
+
+    for key in ("tag", "ref"):
+        raw = parsed.get(key)
+        if raw is None:
+            continue
+        value = _normalise_resolved_version(raw)
+        if value:
+            return value
+    return None
+
+
+def _from_manifest(install_root: Path | None = None) -> str | None:
+    """Compatibility alias for the installed manifest resolver."""
+    root = Path(install_root) if install_root is not None else _default_install_root()
+    return _from_install_manifest(root)
+
+
+def _from_plain_marker(install_root: Path) -> str | None:
+    """Return ``<install-root>/.deft-version`` when present."""
+    marker_path = install_root / ".deft-version"
+    if not marker_path.is_file():
         return None
-    return match.group(1).strip() or None
-
-
-def _from_deft_version(base_dir: Path | None = None) -> str | None:
-    """Return the version from ``<base_dir>/.deft-version`` plaintext, or None (#1323).
-
-    Strips a leading ``v`` so the value matches the bare ``X.Y.Z`` shape.
-    ``base_dir`` defaults to the framework root.
-    """
-    base = base_dir if base_dir is not None else _FRAMEWORK_ROOT
-    marker = base / ".deft-version"
     try:
-        if not marker.is_file():
-            return None
-        version = marker.read_text(encoding="utf-8").strip()
+        return _normalise_resolved_version(marker_path.read_text(encoding="utf-8"))
     except OSError:
         return None
-    if version.startswith("v"):
-        version = version[1:]
-    return version or None
 
 
-def _from_git() -> str | None:
-    """Return the latest annotated tag (without leading ``v``) or None.
+def _from_deft_version(install_root: Path | None = None) -> str | None:
+    """Compatibility alias for the installed-version marker helper."""
+    root = Path(install_root) if install_root is not None else _default_install_root()
+    return _from_plain_marker(root)
 
-    Rooted at the framework root so a vendored ``.deft/core/`` install does
-    not pick up the consumer repo's tags (the manifest / ``.deft-version``
-    branches catch that case first; this is the framework-self-dev path).
-    """
+
+def _from_pyproject(install_root: Path) -> str | None:
+    """Return ``[project].version`` from a shipped pyproject.toml."""
+    pyproject_path = install_root / "pyproject.toml"
+    if not pyproject_path.is_file():
+        return None
+    try:
+        text = pyproject_path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+    in_project_section = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        content_line = stripped.split("#", 1)[0].strip()
+        if content_line.startswith("[") and content_line.endswith("]"):
+            in_project_section = content_line == "[project]"
+            continue
+        if not in_project_section:
+            continue
+        match = _PYPROJECT_VERSION_RE.match(content_line)
+        if match is not None:
+            return _normalise_resolved_version(match.group("value"))
+    return None
+
+
+def _git_top_level(install_root: Path) -> Path | None:
+    """Return Git top-level only when git can resolve it from install_root."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+            cwd=str(install_root),
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return None
+    if result.returncode != 0:
+        return None
+    top_level = (result.stdout or "").strip()
+    if not top_level:
+        return None
+    return Path(top_level)
+
+
+def _from_git(install_root: Path | None = None) -> str | None:
+    """Return the latest annotated tag only for standalone checkouts."""
+    root = Path(install_root) if install_root is not None else _default_install_root()
+    top_level = _git_top_level(root)
+    try:
+        if top_level is None or top_level.resolve() != root.resolve():
+            return None
+    except OSError:
+        return None
+
     try:
         result = subprocess.run(
             ["git", "describe", "--tags", "--abbrev=0"],
@@ -276,42 +356,31 @@ def _from_git() -> str | None:
             text=True,
             timeout=10,
             check=False,
-            cwd=str(_FRAMEWORK_ROOT),
+            cwd=str(root),
         )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
         return None
     if result.returncode != 0:
         return None
-    tag = (result.stdout or "").strip()
-    if not tag:
-        return None
-    if tag.startswith("v"):
-        tag = tag[1:]
-    return tag or None
+    return _normalise_resolved_version(result.stdout or "")
 
 
-def resolve_version() -> str:
-    """Resolve the version using the documented priority chain.
-
-    Priority (first match wins -- mirrors ``run::_resolve_version``):
-        1. ``$DEFT_RELEASE_VERSION`` env override.
-        2. ``<install>/VERSION`` manifest ``tag``/``ref`` field (#1323).
-        3. ``<install>/.deft-version`` plaintext (#1323).
-        4. ``git describe --tags --abbrev=0`` rooted at the framework root.
-        5. ``0.0.0-dev`` fallback.
-    """
+def resolve_version(install_root: Path | None = None) -> str:
+    """Resolve the version using the documented priority chain."""
     env_value = _from_env()
     if env_value:
-        return env_value
-    manifest_value = _from_manifest()
-    if manifest_value:
-        return manifest_value
-    deft_version_value = _from_deft_version()
-    if deft_version_value:
-        return deft_version_value
-    git_value = _from_git()
-    if git_value:
-        return git_value
+        return _normalise_resolved_version(env_value, allow_dev=True) or env_value
+
+    root = Path(install_root) if install_root is not None else _default_install_root()
+    for resolver in (
+        _from_manifest,
+        _from_deft_version,
+        _from_pyproject,
+        _from_git,
+    ):
+        value = resolver(root)
+        if value:
+            return value
     return DEV_FALLBACK
 
 
