@@ -218,6 +218,34 @@ diff --git a/app/queue.py b/app/queue.py
     assert [signal.kind for signal in signals] == []
 
 
+def test_workflow_signal_ignores_plain_text_mentions(preflight):
+    diff = """\
+diff --git a/app/worker.py b/app/worker.py
+--- a/app/worker.py
++++ b/app/worker.py
+@@ -0,0 +1,3 @@
++logger.debug("job failed while syncing")
++status_message = "queue stalled"
++# runtime warning copy edit
+"""
+    signals, _ = preflight.scan_diff(diff)
+    assert [signal.kind for signal in signals] == []
+
+
+def test_workflow_signal_detects_stateful_mutations(preflight):
+    diff = """\
+diff --git a/app/worker.py b/app/worker.py
+--- a/app/worker.py
++++ b/app/worker.py
+@@ -0,0 +1,3 @@
++def enqueue_job(job_id):
++    job_queue.append(job_id)
++    worker_state[job_id] = "running"
+"""
+    signals, _ = preflight.scan_diff(diff)
+    assert "workflow_state" in [signal.kind for signal in signals]
+
+
 def test_stateful_diff_without_design_record_fails(preflight):
     diff = """\
 diff --git a/app/routes.py b/app/routes.py

@@ -67,6 +67,32 @@ def _path_name_signal(path: str) -> DetectedSignal | None:
     return None
 
 
+def _looks_like_workflow_state_change(stripped: str) -> bool:
+    term = (
+        r"(workflow|workflows|job|jobs|queue|queues|runtime|orchestration|job_queue|"
+        r"workflow_queue|runtime_state|orchestration_state|worker_state|run_state)"
+    )
+    action = (
+        r"(create|schedule|enqueue|dequeue|start|complete|fail|cancel|retry|update|delete|"
+        r"upsert|persist|save|load|restore|claim|lease|dispatch)"
+    )
+
+    if re.match(r"(#|//|/\*|\*)", stripped):
+        return False
+
+    patterns = (
+        rf"\b(def|function|func)\s+({action}_{term}|{term}_{action})\b",
+        r"\b(class|type)\s+\w*"
+        r"(Workflow|Job|Queue|Runtime|Orchestration|WorkerState|RunState)\w*",
+        rf"\b({term})\.(append|add|put|enqueue|dequeue|submit|dispatch|schedule|"
+        rf"start|complete|fail|cancel|retry|update|delete|save|persist)\s*\(",
+        rf"\b({term})\s*\[[^\]]+\]\s*=",
+        rf"\b({term})\s*=\s*(new\s+Map\(|\{{\}}|\[\])",
+        rf"\b({action}_{term}|{term}_{action})\s*\(",
+    )
+    return any(re.search(pattern, stripped, flags=re.IGNORECASE) for pattern in patterns)
+
+
 def _line_signals(path: str, line_no: int | None, line: str) -> list[DetectedSignal]:
     if _is_low_risk_path(path):
         return []
@@ -161,11 +187,7 @@ def _line_signals(path: str, line_no: int | None, line: str) -> list[DetectedSig
             )
         )
 
-    if re.search(
-        r"\b(workflow|job|queue|runtime|orchestration|worker_state|run_state)\b",
-        stripped,
-        flags=re.IGNORECASE,
-    ):
+    if _looks_like_workflow_state_change(stripped):
         signals.append(
             DetectedSignal(
                 kind="workflow_state",
