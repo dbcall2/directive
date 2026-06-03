@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-06-03T13:21:38Z"
+    "updated": "2026-06-03T14:37:54Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -10001,6 +10001,43 @@
               "uri": "https://github.com/deftai/directive/issues/1450",
               "type": "x-vbrief/github-issue",
               "title": "Issue #1450: Migration leaves *.premigrate.* snapshots untracked at repo root (not gitignored, not allowlisted) -- git add -A + deft-core-guard footgun"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-03-1453-installer-commit-hygiene-warn-prevent-mixing-the-framework-d",
+        "title": "Installer commit-hygiene: warn + prevent mixing the framework deposit with consumer files (scoped staging + dirty-tree advisory + optional local guard hook)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1453-installer-commit-hygiene-warn-prevent-mixing-the-framework-d.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1453",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1453: Installer commit-hygiene: warn + prevent mixing the framework deposit with consumer files (scoped staging + dirty-tree advisory + optional local guard hook)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-03-1454-harden-vendored-version-resolution-guard-git-to-the-payloads",
+        "title": "Harden vendored version resolution: guard git to the payload's own root + never persist 0.0.0-dev (salvaged from #1447, credit @dbcall2)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1454-harden-vendored-version-resolution-guard-git-to-the-payloads.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1454",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1454: Harden vendored version resolution: guard git to the payload's own root + never persist 0.0.0-dev (salvaged from #1447, credit @dbcall2)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1323",
+              "type": "x-vbrief/closes",
+              "title": "Issue #1323"
             }
           ]
         }

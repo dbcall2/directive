@@ -530,4 +530,6 @@ This matches the canonical `triggers:` set already in `skills/deft-directive-ref
 - **#1441** -- Windows installer binary auto-triggers UAC elevation (install-* filename heuristic + no asInvoker manifest); breaks headless --yes installs/upgrades -- `[completed]`
 - **#1445** -- Vendored --upgrade leaves .deft/core.bak-<ts>/ backups in the working tree: not gitignored, accumulate, escape neutralization (accidental-commit footgun) -- `[completed]`
 - **#1450** -- Migration leaves *.premigrate.* snapshots untracked at repo root (not gitignored, not allowlisted) -- git add -A + deft-core-guard footgun -- `[completed]`
+- **#1453** -- Installer commit-hygiene: warn + prevent mixing the framework deposit with consumer files (scoped staging + dirty-tree advisory + optional local guard hook) -- `[completed]`
+- **#1454** -- Harden vendored version resolution: guard git to the payload's own root + never persist 0.0.0-dev (salvaged from #1447, credit @dbcall2) -- `[completed]`
 
