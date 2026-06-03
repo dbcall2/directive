@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-06-03T00:14:18Z"
+    "updated": "2026-06-03T01:11:33Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -9830,6 +9830,22 @@
         }
       },
       {
+        "id": "2026-06-03-1389-doctor-agents-refresh-plan-interim-stub-emits-spurious-unrea",
+        "title": "doctor: _agents_refresh_plan interim stub emits spurious 'unreadable' AGENTS.md-freshness warning on every consumer task doctor run",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1389-doctor-agents-refresh-plan-interim-stub-emits-spurious-unrea.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1389",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1389: doctor: _agents_refresh_plan interim stub emits spurious 'unreadable' AGENTS.md-freshness warning on every consumer task doctor run"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-06-03-1437-v0393-vendored-upgrade-leaves-root-artifacts-stale-duplicate",
         "title": "v0.39.3 vendored upgrade leaves root artifacts stale: duplicate AGENTS.md managed-section (attributed v3 marker not matched) + bare .deft-version not regenerated",
         "status": "completed",
@@ -9841,6 +9857,38 @@
               "uri": "https://github.com/deftai/directive/issues/1437",
               "type": "x-vbrief/github-issue",
               "title": "Issue #1437: v0.39.3 vendored upgrade leaves root artifacts stale: duplicate AGENTS.md managed-section (attributed v3 marker not matched) + bare .deft-version not regenerated"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-03-1440-deft-core-guard-rejects-every-deft-install-upgrade-pr-instal",
+        "title": "deft-core-guard rejects every deft-install --upgrade PR: installer-managed root files (AGENTS.md, .agents/, vbrief scaffolding, ...) counted as 'app'",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1440-deft-core-guard-rejects-every-deft-install-upgrade-pr-instal.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1440",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1440: deft-core-guard rejects every deft-install --upgrade PR: installer-managed root files (AGENTS.md, .agents/, vbrief scaffolding, ...) counted as 'app'"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-03-1441-windows-installer-binary-auto-triggers-uac-elevation-install",
+        "title": "Windows installer binary auto-triggers UAC elevation (install-* filename heuristic + no asInvoker manifest); breaks headless --yes installs/upgrades",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1441-windows-installer-binary-auto-triggers-uac-elevation-install.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1441",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1441: Windows installer binary auto-triggers UAC elevation (install-* filename heuristic + no asInvoker manifest); breaks headless --yes installs/upgrades"
             }
           ]
         }
