@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)",
-    "status": "pending",
+    "status": "running",
     "narratives": {
       "Description": "docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1000",
@@ -37,6 +37,23 @@
         "title": "Issue #1000: docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)"
       }
     ],
-    "updated": "2026-06-02T20:37:37Z"
+    "updated": "2026-06-03T22:33:00Z",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "AGENTS.md",
+          "templates/agents-entry.md"
+        ],
+        "verify_commands": [
+          "task check"
+        ],
+        "conflict_group": "agents-md",
+        "size": "small",
+        "file_scope_confidence": "high"
+      }
+    }
   }
 }

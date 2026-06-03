@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-06-03T22:09:26Z"
+    "updated": "2026-06-03T22:33:01Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -1135,43 +1135,6 @@
         }
       },
       {
-        "id": "2026-06-01-1000-docsagents-wire-refinement-skills-full-trigger-word-set-into",
-        "title": "docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)",
-        "status": "pending",
-        "metadata": {
-          "source_path": "pending/2026-06-01-1000-docsagents-wire-refinement-skills-full-trigger-word-set-into.vbrief.json",
-          "lifecycle_folder": "pending",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1000",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1000: docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-06-03-1485-bugscope-scopeactivatescopecomplete-do-not-update-decomposed",
-        "title": "bug(scope): scope:activate/scope:complete do not update decomposed-parent back-references (D4 linkage breaks)",
-        "status": "pending",
-        "metadata": {
-          "source_path": "pending/2026-06-03-1485-bugscope-scopeactivatescopecomplete-do-not-update-decomposed.vbrief.json",
-          "lifecycle_folder": "pending",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1485",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1485: bug(scope): scope:activate/scope:complete do not update decomposed-parent back-references (D4 linkage breaks)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/1484",
-              "type": "x-vbrief/refs",
-              "title": "Issue #1484"
-            }
-          ]
-        }
-      },
-      {
         "id": "2026-06-03-1487-swarm-deft-directive-swarm-must-complete-the-cohort-vbrief-l",
         "title": "swarm: deft-directive-swarm must complete the cohort vBRIEF lifecycle (active -> completed) on swarm close",
         "status": "pending",
@@ -1188,6 +1151,43 @@
               "uri": "https://github.com/deftai/directive/issues/1485",
               "type": "x-vbrief/blocks",
               "title": "Issue #1485"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1484",
+              "type": "x-vbrief/refs",
+              "title": "Issue #1484"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-01-1000-docsagents-wire-refinement-skills-full-trigger-word-set-into",
+        "title": "docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)",
+        "status": "running",
+        "metadata": {
+          "source_path": "active/2026-06-01-1000-docsagents-wire-refinement-skills-full-trigger-word-set-into.vbrief.json",
+          "lifecycle_folder": "active",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1000",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1000: docs(agents): wire refinement skill's full trigger-word set into AGENTS.md Skill Routing (#995 follow-up)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-03-1485-bugscope-scopeactivatescopecomplete-do-not-update-decomposed",
+        "title": "bug(scope): scope:activate/scope:complete do not update decomposed-parent back-references (D4 linkage breaks)",
+        "status": "running",
+        "metadata": {
+          "source_path": "active/2026-06-03-1485-bugscope-scopeactivatescopecomplete-do-not-update-decomposed.vbrief.json",
+          "lifecycle_folder": "active",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1485",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1485: bug(scope): scope:activate/scope:complete do not update decomposed-parent back-references (D4 linkage breaks)"
             },
             {
               "uri": "https://github.com/deftai/directive/issues/1484",
