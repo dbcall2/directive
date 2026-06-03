@@ -519,4 +519,5 @@ This matches the canonical `triggers:` set already in `skills/deft-directive-ref
 - **#1433** -- v0.39.2 vendored refresh aborts: extractor treats GitHub tarball pax_global_header as content root; README still says installer clones -- `[completed]`
 - **#1427** -- v0.39.2 doctor manifest tolerant-read (canonical-first _locate_manifest) -- `[completed]`
 - **#1429** -- v0.39.2 Go-installer vendoring + neutralization deposit -- `[completed]`
+- **#1437** -- v0.39.3 vendored upgrade leaves root artifacts stale: duplicate AGENTS.md managed-section (attributed v3 marker not matched) + bare .deft-version not regenerated -- `[completed]`
 

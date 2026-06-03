@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-06-02T23:30:18Z"
+    "updated": "2026-06-03T00:14:18Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -9828,6 +9828,22 @@
             }
           ]
         }
+      },
+      {
+        "id": "2026-06-03-1437-v0393-vendored-upgrade-leaves-root-artifacts-stale-duplicate",
+        "title": "v0.39.3 vendored upgrade leaves root artifacts stale: duplicate AGENTS.md managed-section (attributed v3 marker not matched) + bare .deft-version not regenerated",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1437-v0393-vendored-upgrade-leaves-root-artifacts-stale-duplicate.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1437",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1437: v0.39.3 vendored upgrade leaves root artifacts stale: duplicate AGENTS.md managed-section (attributed v3 marker not matched) + bare .deft-version not regenerated"
+            }
+          ]
+        }
       }
     ],
     "metadata": {
@@ -9843,6 +9859,7 @@
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'issue:ingest emits legacy v0.5 scope vBRIEFs and non-canonical references instead of canonical v0.6' shares topics (legacy)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'rollback: empty `vbrief/legacy/` directory left behind after --rollback' shares topics (legacy)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'rollback: orphaned `LEGACY-REPORT.reviewed.md` after Phase 6c rename (companion to #527)' shares topics (legacy)",
+        "Narrative 'LegacyArtifacts' may be stale: completed scope 'v0.39.3 vendored upgrade leaves root artifacts stale: duplicate AGENTS.md managed-section (attributed v3 marker not matched) + bare .deft-version not regenerated' shares topics (artifacts)",
         "Narrative 'OpenQuestions' may be stale: completed scope '#233 (partial) -- More Determinism: tasks/ restructure, toolchain:check, verify:stubs, validate:links, spec:pipeline, changelog:check, change:init, commit:lint, enhanced check -- remaining items (Phase 0 generation, build:verify, change:archive, doctor) still open' shares topics (open)",
         "Narrative 'OpenQuestions' may be stale: completed scope 'Deterministic questions (RC2): confirm step, back nav, escape hatch distinct from Other' shares topics (questions)",
         "Narrative 'OpenQuestions' may be stale: completed scope 'Deterministic questions: instant number acceptance is disorienting' shares topics (questions)",
