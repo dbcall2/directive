@@ -56,6 +56,12 @@ See [../scm/git.md](../scm/git.md) for:
 - ! Changes to public interfaces require explicit versioning or deprecation path
 - ! Document all public API contracts clearly
 
+**System of Record:**
+- ! Before introducing or modifying stateful behavior, classify each state surface and run `task architecture:sor-preflight -- --story-path <path>`
+- ! Durable product state, auth/session state, authorization state, audit events, workflow/job/runtime state, and external integration state MUST declare an approved durable/service-backed owner before implementation
+- ⊗ Store authoritative application records, identity/session truth, permissions, memberships, workflow/job authority, or audit/compliance records in mutable local files, browser storage, or in-memory maps
+- See [../docs/system-of-record-gate.md](../docs/system-of-record-gate.md) for classifications, required design record fields, and `task verify:architecture-sor`
+
 **Immutability:**
 - ~ Prefer immutable data + pure functions
 - ~ When mutation needed, use narrow owned scopes (context managers, RAII)

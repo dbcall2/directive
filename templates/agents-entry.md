@@ -129,6 +129,14 @@ Cross-reference: `.deft/core/docs/analysis/2026-05-26-issue-1353-grok-windows-ca
 - ⊗ Infer implementation intent from lifecycle vocabulary ("do the full PR process", "start the work", "poller agents"), branching language, or workflow shape. Workflow-shape vocabulary is NOT authorization to spawn an implementation agent.
 - ⊗ Treat affirmative continuation phrases (`yes`, `go`, `proceed`, `do it`) as implementation authorization unless the prior turn explicitly proposed implementation. Broad approval is not a substitute for an explicit action-verb directive.
 
+### System-Of-Record Gate
+
+- ! Before any implementation that introduces or modifies durable product/application state, auth/session/permission state, create/select/update/delete behavior, workflow/job/runtime state, audit/history/compliance records, integrations, import/export flows, or stateful API routes, the story MUST include `architecture.systemOfRecord` and the agent MUST run `task architecture:sor-preflight -- --story-path <active-story-path>`.
+- ! The gate asks: "Is this the correct system of record for this kind of state?" A non-zero exit means no code-writing tool call or `start_agent` dispatch may proceed for that stateful work.
+- ! Before PR handoff for persistence-sensitive changes, run `task verify:architecture-sor -- --base-ref <base-ref> [--story-path <active-story-path>]` so the diff scanner catches storage that contradicts the declared system of record. Use the repository's actual base ref.
+- ⊗ Use JSON/YAML/TOML files, browser storage, process-local memory, ad hoc registries, or caches as authoritative storage for durable product records, identity/session truth, permissions/memberships, workflow/job authority, or audit/compliance records.
+- ? Files remain valid for source-controlled canonical artifacts, config templates, generated outputs, guarded dev fixtures, import/export artifacts, invalidated caches, and ephemeral UI state. See `.deft/core/docs/system-of-record-gate.md`.
+
 ### Story Start Gate
 
 - ! Before starting any new implementation story or switching from one story to another, run `git status --short --branch`.
@@ -141,6 +149,8 @@ Cross-reference: `.deft/core/docs/analysis/2026-05-26-issue-1353-grok-windows-ca
 - ! Default to one story per branch/PR. Create a checkpoint commit after each completed story before beginning another story, unless the operator explicitly approved batching.
 - ! After checks pass for the story, complete the lifecycle with `task scope:complete -- <active-story-path>` before final PR handoff.
 - ! Before dispatching an implementation sub-agent, run the deterministic Gate 0 `task verify:story-ready -- --vbrief-path <active-story-path> [--allocation-context <dispatch-envelope-file>]` ahead of `task vbrief:preflight`. It machine-checks a clean working tree (or `--allow-dirty`), the target vBRIEF in `vbrief/active/` with `plan.status == "running"`, and the dispatch envelope's `## Allocation context` consent token; three-state exit (0 ready / 1 not ready / 2 config error). A `swarm-cohort` section is ready only when `allocation_plan_id` AND `batching_rationale` are non-null; an absent section is the solo path. Any non-zero exit aborts dispatch.
+
+**Pre-`start_agent` gate stack (#1149):** Before dispatching an implementation sub-agent via `start_agent`, run the gates in the canonical order: (0) story-start Gate 0 (`task verify:story-ready -- --vbrief-path <active-story-path> [--allocation-context <dispatch-envelope-file>]`) → (0.5) system-of-record gate for stateful work (`task architecture:sor-preflight -- --story-path <active-story-path>`) → (1) vBRIEF implementation-intent gate (`task vbrief:preflight -- <path>`) → (2) `task verify:cache-fresh` → (3) branch-policy gate (`task verify:branch`) → (4) `start_agent`. Any non-zero exit aborts dispatch; do NOT spawn the sub-agent past a failed gate.
 
 ## Commands
 

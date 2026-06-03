@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **System-of-record architecture preflight for stateful implementation** -- `task architecture:sor-preflight -- --story-path <path>` now validates `architecture.systemOfRecord` before agents implement durable or security-sensitive state, while `task verify:architecture-sor -- --base-ref <ref>` scans diffs for storage-boundary drift. The managed AGENTS/build instructions now require the gate for stateful work and document the allowed classifications in `docs/system-of-record-gate.md`.
 
 ### Changed
 

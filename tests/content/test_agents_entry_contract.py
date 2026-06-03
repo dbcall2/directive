@@ -247,6 +247,8 @@ _PROPAGATION_COMMAND_MARKERS: tuple[str, ...] = (
     "triage <N>",
     "task verify:cache-fresh",
     "task verify:branch",
+    "task architecture:sor-preflight",
+    "task verify:architecture-sor",
     # #1378 Story C: deterministic story-start Gate 0 surfaced in both files.
     "task verify:story-ready",
     "task doctor",
