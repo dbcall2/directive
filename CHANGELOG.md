@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
+### Removed
+
+## [0.39.4] - 2026-06-03
+
+> Vendored deft-install --upgrade now leaves a doctor-clean install: the AGENTS.md managed section is rewritten in place (duplicates self-heal) instead of appended, and the bare vbrief/.deft-version is regenerated; adds the first end-to-end installer-upgrade -> doctor smoke test (#1437).
+
+### Added
+
+### Changed
+
+### Fixed
 - **`deft-install --upgrade` no longer leaves a duplicate AGENTS.md managed section (#1437)** -- on a vendored install whose `AGENTS.md` already carried a managed section stamped with provenance attributes (the marker `run agents:refresh` and the relocator write), the upgrade appended a second managed section instead of refreshing the existing one, which left `task doctor` reporting the section as unreadable. The installer now recognises an attributed marker and rewrites it in place, and the rewrite is self-healing: an install already broken with two or more managed sections is collapsed back to exactly one on the next upgrade, with your own prose around the section preserved. Closes #1437.
 - **`deft-install --upgrade` now refreshes `vbrief/.deft-version` so the install stays doctor-clean (#1437)** -- the vendored file-swap upgrade refreshed the framework payload and its version manifest but left the bare `vbrief/.deft-version` marker at its old value, so `task doctor` flagged a version-drift mismatch right after a successful upgrade. The upgrade now regenerates that marker from the manifest as part of the swap, so a fresh `--upgrade` is self-consistent and passes doctor without a manual follow-up step. Closes #1437.
 
@@ -3010,7 +3022,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.39.3...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.39.4...HEAD
+[0.39.4]: https://github.com/deftai/directive/compare/v0.39.3...v0.39.4
 [0.39.3]: https://github.com/deftai/directive/compare/v0.39.2...v0.39.3
 [0.39.2]: https://github.com/deftai/directive/compare/v0.39.1...v0.39.2
 [0.39.1]: https://github.com/deftai/directive/compare/v0.39.0...v0.39.1
