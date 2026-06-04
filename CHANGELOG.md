@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.41.0] - 2026-06-04
+
+> Swarm-cut release: auto cohort vBRIEF completion sweep, decomposed-parent linkage fix, refinement routing wired, and the 1000-line file cap relaxed to a recommendation.
+
+### Added
 - **A finished swarm now cleanly closes out its cohort's vBRIEFs (#1487)** -- when a swarm cohort's PRs merged, the cohort's story vBRIEFs were left stranded in `vbrief/active/` and their decompose-created epic parents lingered in `vbrief/pending/` because nothing swept them on close. A new `task swarm:complete-cohort` sweep (now a REQUIRED Phase 6 step of the swarm skill, covering both the interactive and headless/multi-worker paths) moves each cohort story to `completed/` and completes the epic parents once all their children are done, keeping `task vbrief:validate` green automatically. Closes #1487.
 - **System-of-record architecture preflight is now available as opt-in task targets (#1481)** -- `task architecture:sor-preflight -- --story-path <path>` validates a story's `architecture.systemOfRecord` design record before stateful work begins, and `task verify:architecture-sor -- --base-ref <ref>` scans a diff for storage that contradicts the declared system of record. Both are advisory and opt-in in this release; promoting the gate into the mandatory agent flow and the consumer-facing instructions is deferred to a follow-up RFC. See `docs/system-of-record-gate.md`. Refs #1481.
 - **UPGRADING.md now opens with a big-jump triage entry point for multi-version upgrades (#1115)** -- a consumer jumping several minor versions no longer has to read every section to work out which ones apply. A new top-of-file triage maps version-range buckets to the sections that apply and the order to run them in (oldest applicable first), flags each bucket as auto-handled or manual, and points you at QUICK-START.md and the canonical `deft-install` + `task doctor` finish line. Closes #1115.
@@ -3102,7 +3114,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.40.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.41.0...HEAD
+[0.41.0]: https://github.com/deftai/directive/compare/v0.40.0...v0.41.0
 [0.40.0]: https://github.com/deftai/directive/compare/v0.39.7...v0.40.0
 [0.39.7]: https://github.com/deftai/directive/compare/v0.39.6...v0.39.7
 [0.39.6]: https://github.com/deftai/directive/compare/v0.39.5...v0.39.6
