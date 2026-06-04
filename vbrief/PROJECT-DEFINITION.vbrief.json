@@ -2,7 +2,7 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Project definition -- synthesized gestalt of the project.",
-    "updated": "2026-06-03T23:24:28Z"
+    "updated": "2026-06-04T00:03:01Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -1130,32 +1130,6 @@
               "uri": "https://github.com/deftai/directive/issues/1285",
               "type": "x-vbrief/github-issue",
               "title": "Issue #1285: epic(vbrief,crud): CRUD harness"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-06-03-1487-swarm-deft-directive-swarm-must-complete-the-cohort-vbrief-l",
-        "title": "swarm: deft-directive-swarm must complete the cohort vBRIEF lifecycle (active -> completed) on swarm close",
-        "status": "running",
-        "metadata": {
-          "source_path": "active/2026-06-03-1487-swarm-deft-directive-swarm-must-complete-the-cohort-vbrief-l.vbrief.json",
-          "lifecycle_folder": "active",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/1487",
-              "type": "x-vbrief/github-issue",
-              "title": "Issue #1487: swarm: deft-directive-swarm must complete the cohort vBRIEF lifecycle (active -> completed) on swarm close"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/1485",
-              "type": "x-vbrief/blocks",
-              "title": "Issue #1485"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/1484",
-              "type": "x-vbrief/refs",
-              "title": "Issue #1484"
             }
           ]
         }
@@ -10357,6 +10331,32 @@
               "uri": "https://github.com/deftai/directive/issues/1485",
               "type": "x-vbrief/github-issue",
               "title": "Issue #1485: bug(scope): scope:activate/scope:complete do not update decomposed-parent back-references (D4 linkage breaks)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1484",
+              "type": "x-vbrief/refs",
+              "title": "Issue #1484"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-06-03-1487-swarm-deft-directive-swarm-must-complete-the-cohort-vbrief-l",
+        "title": "swarm: deft-directive-swarm must complete the cohort vBRIEF lifecycle (active -> completed) on swarm close",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-06-03-1487-swarm-deft-directive-swarm-must-complete-the-cohort-vbrief-l.vbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1487",
+              "type": "x-vbrief/github-issue",
+              "title": "Issue #1487: swarm: deft-directive-swarm must complete the cohort vBRIEF lifecycle (active -> completed) on swarm close"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1485",
+              "type": "x-vbrief/blocks",
+              "title": "Issue #1485"
             },
             {
               "uri": "https://github.com/deftai/directive/issues/1484",
