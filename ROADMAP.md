@@ -508,4 +508,7 @@
 - **#1419** -- Integrate gate clearances and capacity blocks into Gate 0 and swarm:launch -- `[completed]`
 - **#1419** -- Surface human-clearance backlog and the earned-autonomy dial -- `[completed]`
 - **#1419** -- Wire plan.metadata.rank into selection ordering and roadmap render -- `[completed]`
+- **#1002** -- fix(triage_bootstrap): cp1252 decode UnicodeDecodeError in subprocess._readerthread on Windows (#798 chain at new surface) -- `[completed]`
+- **#1003** -- fix(scripts/resolve_changelog_unreleased): dedup gap on truncated/issue-numberless entries (#911 follow-up) -- `[completed]`
+- **#1027** -- Coverage threshold blind spot: pygame/tkinter event loops can't run headlessly, dragging overall % below 85% threshold -- `[completed]`
 
