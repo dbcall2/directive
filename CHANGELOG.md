@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.42.0] - 2026-06-05
+
+> Agentic prioritization & coordination model (#1419): capacity buckets, risk-tiered judgment gates, rank-ordered selection, and advisory lifecycle nudges.
+
+### Added
 - **Story-start Gate 0 and `task swarm:launch` now understand judgment-gate clearances, so sensitive work cannot launch without recorded human sign-off (#1419)** -- `task verify:story-ready` and `task swarm:launch` evaluate a story's declared file scope against the risk-tiered judgment gates and read gate clearances from the dispatch envelope's `## Allocation context` (a new `gate_clearances` entry). Both stay advisory by default -- an uncleared active block gate is surfaced but the launch still proceeds; an opt-in enforce posture (`--enforce` / `--enforce-gates`) fails closed when a block gate is uncleared, and block-gated stories ship solo in this release. Allocation approvals and consumed clearances are appended to the durable, committed audit log under `vbrief/.audit/`. A dispatch envelope with no clearances behaves exactly as before. Enforcement + launch-integration delivery slice of the agentic prioritization RFC. Refs #1419.
 - **`task capacity:show` and `task triage:welcome` now surface the human-clearance backlog and an advisory earned-autonomy recommendation (#1419)** -- a pending-human-decisions backlog (derived from a durable audit log) is shown with a Tier-1 nudge when it exceeds the threshold, so `wipCap` can be tuned to real review throughput. A new advisory autonomy dial reads the clearance-override rate (primary) and rework rate (guardrail) over the capacity window and recommends one of three levels (Observe / Escalate / Execute) -- advancing only on a clean, large-enough sample and retreating immediately on a P0 reversal or a high override rate, but never auto-reducing required clearances (a human confirms any flip). Multi-LLM reviewer splits on P0/P1 findings escalate to a human and increment the backlog. Fifth delivery slice of the agentic prioritization RFC. Refs #1419.
 - **New `task verify:judgment-gates` flags risky changes by risk tier before they ship, so secrets, infra, and AGENTS.md / skills edits get human sign-off (#1419)** -- projects can declare risk-tiered gates under `plan.policy.judgmentGates` (auto / review / block tiers), and four default-on universal safety gates (secrets & credentials, production infrastructure, AGENTS.md & skills, installer & bootstrap) flag matching changes out of the box. Mechanical gates fail closed on detection; declared gates fail open until a human records a clearance, and each clearance binds to the exact cleared scope so later scope creep re-triggers the gate. The gate is advisory by default and is never part of `task check`, so a finding cannot fail your build closed; an opt-in enforce posture turns on fail-closed blocking. Third delivery slice of the agentic prioritization RFC. Refs #1419.
@@ -3121,7 +3133,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.41.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.42.0...HEAD
+[0.42.0]: https://github.com/deftai/directive/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/deftai/directive/compare/v0.40.0...v0.41.0
 [0.40.0]: https://github.com/deftai/directive/compare/v0.39.7...v0.40.0
 [0.39.7]: https://github.com/deftai/directive/compare/v0.39.6...v0.39.7

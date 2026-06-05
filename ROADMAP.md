@@ -500,4 +500,12 @@
 - **#1476** -- Exclude upstream-closed issues from triage:queue when cached entries are TTL-fresh -- `[completed]`
 - **#1420** -- Make triage:reject tolerate a missing triage-rejected label -- `[completed]`
 - **#1474** -- Scope consumer deft:check so it does not run framework self-tests -- `[completed]`
+- **#1419** -- RFC: Agentic Prioritization & Coordination Model for Deft Directive -- `[completed]`
+- **#1419** -- Add capacity allocation accounting with buckets, windows, and capacity:show -- `[completed]`
+- **#1419** -- Add continuation precedence and deficit-biased selection to the queue -- `[completed]`
+- **#1419** -- Add epic-staleness and stranded-slice lifecycle nudges with trichotomy -- `[completed]`
+- **#1419** -- Build the risk-tiered judgment-gate engine and verify:judgment-gates -- `[completed]`
+- **#1419** -- Integrate gate clearances and capacity blocks into Gate 0 and swarm:launch -- `[completed]`
+- **#1419** -- Surface human-clearance backlog and the earned-autonomy dial -- `[completed]`
+- **#1419** -- Wire plan.metadata.rank into selection ordering and roadmap render -- `[completed]`
 
