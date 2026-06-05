@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "fix(triage_bootstrap): cp1252 decode UnicodeDecodeError in subprocess._readerthread on Windows (#798 chain at new surface)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "On Windows, scripts/triage_bootstrap.py shells out without passing encoding=\"utf-8\", so subprocess._readerthread decodes stdout via the cp1252 codepage and raises UnicodeDecodeError on multi-byte UTF-8 bytes. This is the #798 chain at the subprocess-read surface, and the fix forces UTF-8 decoding on every subprocess call in the module so non-ASCII output is read cleanly.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1002",
@@ -51,7 +51,7 @@
         "title": "Issue #1002: fix(triage_bootstrap): cp1252 decode UnicodeDecodeError in subprocess._readerthread on Windows (#798 chain at new surface)"
       }
     ],
-    "updated": "2026-06-05T16:04:07Z",
+    "updated": "2026-06-05T17:49:35Z",
     "id": "story-1002-triage-bootstrap-cp1252-decode",
     "metadata": {
       "kind": "story",
@@ -78,7 +78,8 @@
         "size": "small",
         "file_scope_confidence": "medium",
         "model_tier": "standard"
-      }
+      },
+      "completedAt": "2026-06-05T17:49:35Z"
     }
   }
 }

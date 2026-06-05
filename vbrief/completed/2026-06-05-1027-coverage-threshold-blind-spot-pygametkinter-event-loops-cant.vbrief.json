@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "Coverage threshold blind spot: pygame/tkinter event loops can't run headlessly, dragging overall % below 85% threshold",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "The deft 85% coverage threshold assumes logic-heavy code, so a project whose entry point runs a pygame or tkinter event loop cannot execute headlessly and reports an inflated per-session coverage that collapses when the full src/ is measured. The fix teaches the setup skill and the Python language guide to flag display-dependent modules and the headless-test pattern so the blind spot is caught during scaffolding instead of at the check gate.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1027",
@@ -50,7 +50,7 @@
         "title": "Issue #1027: Coverage threshold blind spot: pygame/tkinter event loops can't run headlessly, dragging overall % below 85% threshold"
       }
     ],
-    "updated": "2026-06-05T16:04:08Z",
+    "updated": "2026-06-05T17:49:35Z",
     "id": "story-1027-coverage-headless-docs",
     "metadata": {
       "kind": "story",
@@ -75,7 +75,8 @@
         "size": "small",
         "file_scope_confidence": "high",
         "model_tier": "standard"
-      }
+      },
+      "completedAt": "2026-06-05T17:49:35Z"
     }
   }
 }

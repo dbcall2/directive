@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "fix(scripts/resolve_changelog_unreleased): dedup gap on truncated/issue-numberless entries (#911 follow-up)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "The task changelog:resolve-unreleased helper from #911 dedups entries by their parenthesized (#NNN) issue number, so a truncated orphan header that lacks a closing ** and an issue number has no dedup key and is preserved as a distinct entry. Across the v0.26.2 cohort cascade four sequential rebases compounded this into two duplicate gh_rest.py stubs in the published CHANGELOG, and the fix adds orphan-header detection plus a content-prefix dedup fallback so the stubs collapse.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1003",
@@ -51,7 +51,7 @@
         "title": "Issue #1003: fix(scripts/resolve_changelog_unreleased): dedup gap on truncated/issue-numberless entries (#911 follow-up)"
       }
     ],
-    "updated": "2026-06-05T16:04:08Z",
+    "updated": "2026-06-05T17:49:35Z",
     "id": "story-1003-changelog-unreleased-dedup",
     "metadata": {
       "kind": "story",
@@ -76,7 +76,8 @@
         "size": "small",
         "file_scope_confidence": "high",
         "model_tier": "standard"
-      }
+      },
+      "completedAt": "2026-06-05T17:49:35Z"
     }
   }
 }
