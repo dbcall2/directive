@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "fix(install): strengthen zip-slip barrier at source + sink to clear go/zipslip alert #6 (follow-up to #1525)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "fix(install): strengthen zip-slip barrier at source + sink to clear go/zipslip alert #6 (follow-up to #1525)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1528",
@@ -41,6 +41,9 @@
         "title": "Issue #1525"
       }
     ],
-    "updated": "2026-06-05T22:00:31Z"
+    "updated": "2026-06-05T22:40:18Z",
+    "metadata": {
+      "completedAt": "2026-06-05T22:40:18Z"
+    }
   }
 }
