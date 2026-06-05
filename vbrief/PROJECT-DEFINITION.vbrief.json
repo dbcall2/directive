@@ -10688,7 +10688,8 @@
           "label": "duplicate"
         }
       ],
-      "allowDirectCommitsToMaster": true
+      "allowDirectCommitsToMaster": true,
+      "wipCap": 15
     }
   }
 }
