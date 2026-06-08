@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.43.0] - 2026-06-08
+
+> Linux installer bootstrap and provider-neutral swarm dispatch, with stronger review-cycle diagnostics.
+
+### Added
 - **Content tests pin provider-neutral swarm guidance (#1531d)** -- content tests now fail if the swarm skill or agent preamble regresses to Grok Build-only sub-agent routing or drops backend and role metadata for dispatched workers. Refs #1531.
 - **Swarm operators can persist a coding sub-agent backend in project policy (#1531a)** -- `task policy:subagent-backend` sets the preferred coding sub-agent provider for swarm leaf workers; `task policy:subagent-backends` lists available providers and their role capabilities without spawning a harness; `task policy:show` surfaces the resolved value. Refs #1531.
 - **Headless swarm launch enforces selected sub-agent backend (#1531e)** -- `task swarm:launch` now refuses to emit a manifest when `plan.policy.swarmSubagentBackend` is missing or probe-unavailable, listing detected alternatives and the policy command to choose one; successful launches include audit-visible backend, dispatch provider, and worker-role metadata on each manifest entry without altering the #1378 allocation-context contract. Refs #1531.
@@ -3157,7 +3169,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.42.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.43.0...HEAD
+[0.43.0]: https://github.com/deftai/directive/compare/v0.42.1...v0.43.0
 [0.42.1]: https://github.com/deftai/directive/compare/v0.42.0...v0.42.1
 [0.42.0]: https://github.com/deftai/directive/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/deftai/directive/compare/v0.40.0...v0.41.0
