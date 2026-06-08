@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **GitHub Markdown body posting now has a safe path for backticks and shell metacharacters (#1555)** -- agents can post issue bodies, PR bodies, and issue/PR comments through `task scm:body:*` without embedding Markdown in double-quoted shell commands, preserving literal backticks, dollar signs, quotes, and fenced code blocks. The helper performs live `gh` read-back after mutations so cached `ghx` GETs cannot hide stale body content. Closes #1555. Refs #1554.
 
 ### Removed
 
@@ -40,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Linux `deft-install --yes` now bootstraps required tools or fails loud (#1538)** -- non-interactive Linux installs previously reported missing `uv`, `task`, and `gh` with manual fallback prose while still exiting success, leaving fresh WSL consumers with a doctor-failing tree. The installer now attempts portable user-local bootstrap for those tools and only claims success when they are on PATH; otherwise it exits non-zero with structured JSON guidance. Refs #1538.
 - **Greptile informal clean replies without canonical fields now fail loud with a recovery path (#1543)** -- when Greptile posts a separate "diff is clean" comment but omits `Last reviewed commit:` and `Confidence Score: X/5`, merge gates still block (prose alone is not merge-ready) yet `task pr:merge-ready`, the review-cycle skill, and swarm pollers now classify the `informal-clean missing-canonical-fields` state and route operators to retrigger Greptile, wait for canonical evidence, or document an override instead of silent polling. Closes #1543.
+
 - **`deft-install` archive extraction adopts CodeQL's recognized zip-slip barrier shape (#1525, #1528)** -- the framework tarball extractor was already guarded against path traversal, but not in the form CodeQL's `go/zipslip` model recognizes, so alert #6 stayed open. The extractor now rejects any tar entry whose raw `hdr.Name` contains `..` at the source and validates the exact extraction target against the destination directory before any write (symlink entries still skipped as defense-in-depth), with a regression test. Closes #1528. Refs #1525, code-scanning alert #6.
 
 ### Removed
