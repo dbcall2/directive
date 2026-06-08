@@ -517,6 +517,8 @@
 - **#1531** -- swarm: opt-in tiered / heterogeneous dispatch (strong-model orchestrator + cheap high-context leaf code-runners) -- `[completed]`
 - **#1538** -- Linux installer --yes reports missing core tools instead of bootstrapping them -- `[completed]`
 - **#1543** -- review-cycle: handle Greptile informal clean replies without canonical fields -- `[completed]`
+- **#1554** -- installer: add maintainer mode to avoid consumer file projections in framework repo -- `[completed]`
+- **#1555** -- tooling: make GitHub Markdown body posting safe from shell substitution -- `[completed]`
 - **#1531** -- Add persistent sub-agent backend policy and availability gate -- `[completed]`
 - **#1531** -- Add provider-neutral worker metadata to the agent preamble -- `[completed]`
 - **#1531** -- Document provider-neutral sub-agent routing in the swarm skill -- `[completed]`

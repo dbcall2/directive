@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.44.0] - 2026-06-08
+
+> Maintainer installs are cleaner in framework checkouts, and GitHub body posting is safer for Markdown-heavy agent workflows.
+
+### Added
 - **`deft-install --maintainer` now bootstraps framework checkouts without consumer projections (#1554)** -- maintainers can run the published installer against a `deftai/directive` clone to check core and maintainer tooling while leaving maintainer-owned files like `AGENTS.md`, `.gitignore`, `.gitattributes`, guard workflows, and consumer vBRIEF scaffolding untouched. JSON output now identifies maintainer mode, skipped consumer projections, and maintainer-only tool status for Go, Node, and optional `ghx`; consumer installs still only require `gh`. Closes #1554.
 
 ### Changed
@@ -3172,7 +3184,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.43.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.44.0...HEAD
+[0.44.0]: https://github.com/deftai/directive/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/deftai/directive/compare/v0.42.1...v0.43.0
 [0.42.1]: https://github.com/deftai/directive/compare/v0.42.0...v0.42.1
 [0.42.0]: https://github.com/deftai/directive/compare/v0.41.0...v0.42.0
