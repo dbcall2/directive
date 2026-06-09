@@ -5,6 +5,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = REPO_ROOT / "scripts"
@@ -70,6 +71,7 @@ def test_run_session_start_records_quick_state(tmp_path: Path) -> None:
         "branch_policy",
         "triage_welcome",
     }
+    assert state["quick_steps"]["branch_policy"]["ok"] is True
     assert payload["ready"] is True
 
 
@@ -90,6 +92,48 @@ def test_run_session_start_records_explicit_deferrals(tmp_path: Path) -> None:
     state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
     assert state["quick_steps"]["triage_welcome"]["deferred_reason"] == "offline review only"
     assert state["gated_steps"]["doctor"]["deferred_reason"] == "run at dispatch"
+
+
+def test_run_session_start_records_triage_failure_and_can_defer(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    session_start = _load_module("session_start", SCRIPTS_DIR / "session_start.py")
+    _init_git(tmp_path)
+
+    def fail_triage(*_args, **_kwargs):
+        raise RuntimeError("network down")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "triage_welcome",
+        SimpleNamespace(run_default_mode=fail_triage),
+    )
+
+    code, payload, _lines = session_start.run_session_start(
+        tmp_path,
+        write_history=False,
+    )
+
+    state_path = tmp_path / ".deft" / "ritual-state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert code == 1
+    assert payload["ready"] is False
+    assert state["quick_steps"]["triage_welcome"]["ok"] is False
+    assert "network down" in state["quick_steps"]["triage_welcome"]["message"]
+
+    code, payload, _lines = session_start.run_session_start(
+        tmp_path,
+        deferrals={"triage_welcome": "network unavailable"},
+        write_history=False,
+    )
+
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert code == 0
+    assert payload["ready"] is True
+    assert state["quick_steps"]["triage_welcome"]["deferred_reason"] == (
+        "network unavailable"
+    )
 
 
 def test_parse_deferrals_rejects_unknown_step() -> None:

@@ -234,6 +234,153 @@ def test_deferred_gated_step_satisfies_verifier(tmp_path: Path) -> None:
     assert result.code == 0
 
 
+def test_deferred_quick_step_satisfies_verifier(tmp_path: Path) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    sentinel = _load_module("ritual_sentinel", SCRIPTS_DIR / "ritual_sentinel.py")
+    head = _init_git(tmp_path)
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    _write_state(
+        tmp_path,
+        head=head,
+        started_at=now,
+        quick_steps={
+            "alignment": sentinel.ritual_step(ok=True, ts=now),
+            "branch_policy": sentinel.ritual_step(ok=True, ts=now),
+            "triage_welcome": sentinel.ritual_step(
+                ok=True,
+                ts=now,
+                deferred_reason="network unavailable during startup",
+            ),
+        },
+    )
+
+    result = verifier.verify(
+        tmp_path,
+        tier="quick",
+        now=now + timedelta(minutes=1),
+        bypass=False,
+    )
+
+    assert result.code == 0
+    assert "fresh" in result.message
+
+
+def test_failed_step_without_deferral_fails_closed(tmp_path: Path) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    sentinel = _load_module("ritual_sentinel", SCRIPTS_DIR / "ritual_sentinel.py")
+    head = _init_git(tmp_path)
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    _write_state(
+        tmp_path,
+        head=head,
+        started_at=now,
+        quick_steps={
+            "alignment": sentinel.ritual_step(ok=True, ts=now),
+            "branch_policy": sentinel.ritual_step(ok=True, ts=now),
+            "triage_welcome": sentinel.ritual_step(
+                ok=False,
+                ts=now,
+                exit_code=2,
+                message="network down",
+            ),
+        },
+    )
+
+    result = verifier.verify(
+        tmp_path,
+        tier="quick",
+        now=now + timedelta(minutes=1),
+        bypass=False,
+    )
+
+    assert result.code == 1
+    assert "quick step 'triage_welcome' failed: network down" in result.message
+
+
+def test_state_from_another_worktree_fails_closed(tmp_path: Path) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    sentinel = _load_module("ritual_sentinel", SCRIPTS_DIR / "ritual_sentinel.py")
+    head = _init_git(tmp_path)
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    quick_steps = {
+        name: sentinel.ritual_step(ok=True, ts=now)
+        for name in ("alignment", "branch_policy", "triage_welcome")
+    }
+    payload = sentinel.new_ritual_state_payload(
+        session_id="wrong-worktree",
+        git_head=head,
+        worktree_path=str((tmp_path / "other-worktree").resolve()),
+        started_at=now,
+        quick_steps=quick_steps,
+        gated_steps={},
+    )
+    sentinel.write_ritual_state(tmp_path, payload)
+
+    result = verifier.verify(
+        tmp_path,
+        tier="quick",
+        now=now + timedelta(minutes=1),
+        bypass=False,
+    )
+
+    assert result.code == 1
+    assert "different worktree" in result.message
+
+
+def test_detached_head_uses_commit_hash_not_branch_name(tmp_path: Path) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    head = _init_git(tmp_path)
+    subprocess.run(
+        ["git", "checkout", "--detach", "HEAD"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    detached_head = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        text=True,
+    ).strip()
+    assert detached_head == head
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    _write_state(tmp_path, head=detached_head, started_at=now)
+
+    result = verifier.verify(
+        tmp_path,
+        tier="quick",
+        now=now + timedelta(minutes=1),
+        bypass=False,
+    )
+
+    assert result.code == 0
+
+
+def test_bypass_turns_gated_failure_into_warning_result(tmp_path: Path) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    head = _init_git(tmp_path)
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    _write_state(tmp_path, head=head, started_at=now)
+    commands: list[list[str]] = []
+
+    def runner(command: list[str], cwd: Path) -> tuple[int, str, str]:
+        commands.append(command)
+        return 1, "", "should not run while bypassed"
+
+    result = verifier.verify(
+        tmp_path,
+        tier="gated",
+        now=now + timedelta(minutes=1),
+        runner=runner,
+        bypass=True,
+    )
+
+    assert result.code == 0
+    assert result.bypassed is True
+    assert result.would_fail_code == 1
+    assert "gated step 'doctor' is missing" in result.message
+    assert commands == []
+
+
 def test_bypass_turns_missing_state_into_warning_result(tmp_path: Path) -> None:
     verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
     _init_git(tmp_path)
@@ -243,3 +390,21 @@ def test_bypass_turns_missing_state_into_warning_result(tmp_path: Path) -> None:
     assert result.code == 0
     assert result.bypassed is True
     assert result.would_fail_code == 1
+
+
+def test_cli_bypass_warns_to_stderr_when_failure_is_hidden(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    _init_git(tmp_path)
+    monkeypatch.setenv("DEFT_SESSION_RITUAL_SKIP", "1")
+
+    code = verifier.main(["--project-root", str(tmp_path), "--tier", "quick"])
+    captured = capsys.readouterr()
+
+    assert code == 0
+    assert captured.out == ""
+    assert "WARNING: DEFT_SESSION_RITUAL_SKIP=1 bypassed" in captured.err
+    assert "task session:start" in captured.err

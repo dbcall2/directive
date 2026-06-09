@@ -305,6 +305,29 @@ def test_main_missing_session_ritual_blocks_before_lifecycle(
     assert "Session ritual gate failed" in payload["message"]
 
 
+def test_main_invokes_gated_session_ritual_before_lifecycle(
+    preflight, tmp_path, capsys, monkeypatch
+):
+    """The #1348 gate runs as gated tier at script entry, before #810 checks."""
+    path = _write_vbrief(tmp_path, "pending", status="pending")
+    calls: list[tuple[Path, str]] = []
+
+    def fake_verify(project_root: Path, *, tier: str):
+        calls.append((project_root, tier))
+        return SimpleNamespace(code=0, message="ritual ok")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(preflight, "verify", fake_verify)
+
+    code = preflight.main(["--vbrief-path", str(path), "--json"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert calls == [(tmp_path, "gated")]
+    assert code == 1
+    assert payload["exit_code"] == 1
+    assert "only vbrief/active/ is eligible" in payload["message"]
+
+
 def test_main_ritual_config_error_collapses_to_exit_1(preflight, tmp_path, capsys, monkeypatch):
     """Preflight keeps its ready/not-ready contract when the ritual verifier returns 2."""
     path = _write_vbrief(tmp_path, "active", status="running")
