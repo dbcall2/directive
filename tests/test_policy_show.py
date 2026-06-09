@@ -255,6 +255,19 @@ def test_inspect_session_ritual_staleness_typed_value(policy_module, project_roo
     assert field.source == "typed"
 
 
+def test_inspect_session_ritual_staleness_null_uses_default(
+    policy_module, project_root
+):
+    _write_project_def(project_root, {"policy": {"sessionRitualStalenessHours": None}})
+    field = policy_module.inspect_one_policy(
+        "plan.policy.sessionRitualStalenessHours", project_root
+    )
+    assert field is not None
+    assert field.current == 4
+    assert field.default == 4
+    assert field.source == "default"
+
+
 def test_inspect_session_ritual_staleness_malformed_falls_back(
     policy_module, project_root
 ):

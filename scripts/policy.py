@@ -2525,6 +2525,13 @@ def _inspect_session_ritual_staleness_hours(
     policy_block = _get_policy_block(data)
     if "sessionRitualStalenessHours" in policy_block:
         raw = policy_block["sessionRitualStalenessHours"]
+        if raw is None:
+            return PolicyField(
+                name=FIELD_SESSION_RITUAL_STALENESS_HOURS,
+                current=DEFAULT_SESSION_RITUAL_STALENESS_HOURS,
+                default=DEFAULT_SESSION_RITUAL_STALENESS_HOURS,
+                source="default",
+            )
         if isinstance(raw, int) and not isinstance(raw, bool) and raw > 0:
             current: int = raw
             source = "typed"
