@@ -220,6 +220,15 @@ def verify(
         return VerifyResult(code, message, tier, state_path)
 
     if tier == "gated" and not is_bypassed:
+        precheck_code, precheck_message = _evaluate_loaded_state(
+            project_root,
+            state,
+            tier="quick",
+            now=instant,
+        )
+        if precheck_code != 0:
+            return VerifyResult(precheck_code, precheck_message, tier, state_path)
+
         payload = dict(state.raw)
         gated = payload.setdefault("gated_steps", {})
         run_cmd = runner or _default_runner

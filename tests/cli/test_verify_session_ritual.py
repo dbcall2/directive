@@ -205,6 +205,92 @@ def test_gated_tier_lazily_records_missing_steps(tmp_path: Path) -> None:
     assert state["gated_steps"]["cache_fresh"]["ok"] is True
 
 
+def test_gated_tier_prechecks_changed_head_before_running_steps(tmp_path: Path) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    _init_git(tmp_path)
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    _write_state(tmp_path, head="deadbeef", started_at=now)
+    commands: list[list[str]] = []
+
+    def runner(command: list[str], cwd: Path) -> tuple[int, str, str]:
+        commands.append(command)
+        return 0, "should not run", ""
+
+    result = verifier.verify(
+        tmp_path,
+        tier="gated",
+        now=now + timedelta(minutes=1),
+        runner=runner,
+        bypass=False,
+    )
+
+    assert result.code == 1
+    assert "git HEAD changed" in result.message
+    assert commands == []
+
+
+def test_gated_tier_prechecks_staleness_before_running_steps(tmp_path: Path) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    head = _init_git(tmp_path)
+    _write_project_def(tmp_path, {"sessionRitualStalenessHours": 1})
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    _write_state(tmp_path, head=head, started_at=now)
+    commands: list[list[str]] = []
+
+    def runner(command: list[str], cwd: Path) -> tuple[int, str, str]:
+        commands.append(command)
+        return 0, "should not run", ""
+
+    result = verifier.verify(
+        tmp_path,
+        tier="gated",
+        now=now + timedelta(hours=2),
+        runner=runner,
+        bypass=False,
+    )
+
+    assert result.code == 1
+    assert "older than 1h" in result.message
+    assert commands == []
+
+
+def test_gated_tier_prechecks_worktree_before_running_steps(tmp_path: Path) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    sentinel = _load_module("ritual_sentinel", SCRIPTS_DIR / "ritual_sentinel.py")
+    head = _init_git(tmp_path)
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    quick_steps = {
+        name: sentinel.ritual_step(ok=True, ts=now)
+        for name in ("alignment", "branch_policy", "triage_welcome")
+    }
+    payload = sentinel.new_ritual_state_payload(
+        session_id="wrong-worktree",
+        git_head=head,
+        worktree_path=str((tmp_path / "other-worktree").resolve()),
+        started_at=now,
+        quick_steps=quick_steps,
+        gated_steps={},
+    )
+    sentinel.write_ritual_state(tmp_path, payload)
+    commands: list[list[str]] = []
+
+    def runner(command: list[str], cwd: Path) -> tuple[int, str, str]:
+        commands.append(command)
+        return 0, "should not run", ""
+
+    result = verifier.verify(
+        tmp_path,
+        tier="gated",
+        now=now + timedelta(minutes=1),
+        runner=runner,
+        bypass=False,
+    )
+
+    assert result.code == 1
+    assert "different worktree" in result.message
+    assert commands == []
+
+
 def test_deferred_gated_step_satisfies_verifier(tmp_path: Path) -> None:
     verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
     sentinel = _load_module("ritual_sentinel", SCRIPTS_DIR / "ritual_sentinel.py")
