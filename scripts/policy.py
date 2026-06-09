@@ -407,6 +407,12 @@ def resolve_session_ritual_staleness_hours(
             error=None,
         )
     raw = policy_block["sessionRitualStalenessHours"]
+    if raw is None:
+        return SessionRitualStalenessResult(
+            hours=DEFAULT_SESSION_RITUAL_STALENESS_HOURS,
+            source="default",
+            error=None,
+        )
     errors = validate_session_ritual_staleness_hours(raw)
     if errors:
         return SessionRitualStalenessResult(

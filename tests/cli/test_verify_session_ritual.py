@@ -164,6 +164,24 @@ def test_stale_by_policy_window_fails(tmp_path: Path) -> None:
     assert "older than 1h" in result.message
 
 
+def test_null_policy_staleness_uses_default_window(tmp_path: Path) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    head = _init_git(tmp_path)
+    _write_project_def(tmp_path, {"sessionRitualStalenessHours": None})
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    _write_state(tmp_path, head=head, started_at=now)
+
+    result = verifier.verify(
+        tmp_path,
+        tier="quick",
+        now=now + timedelta(hours=2),
+        bypass=False,
+    )
+
+    assert result.code == 0
+    assert "fresh" in result.message
+
+
 def test_gated_tier_lazily_records_missing_steps(tmp_path: Path) -> None:
     verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
     head = _init_git(tmp_path)

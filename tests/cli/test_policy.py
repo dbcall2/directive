@@ -185,6 +185,16 @@ def test_resolve_session_ritual_staleness_default(policy_module, project_root):
     assert result.error is None
 
 
+def test_resolve_session_ritual_staleness_null_defaults(policy_module, project_root):
+    _write_project_def(project_root, {"policy": {"sessionRitualStalenessHours": None}})
+
+    result = policy_module.resolve_session_ritual_staleness_hours(project_root)
+
+    assert result.hours == policy_module.DEFAULT_SESSION_RITUAL_STALENESS_HOURS == 4
+    assert result.source == "default"
+    assert result.error is None
+
+
 def test_resolve_session_ritual_staleness_typed(policy_module, project_root):
     _write_project_def(project_root, {"policy": {"sessionRitualStalenessHours": 2}})
 
