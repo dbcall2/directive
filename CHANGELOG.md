@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Session-start ritual completion is now machine-verifiable before implementation dispatch (#1348)** -- `task session:start` records quick-tier ritual state in `.deft/ritual-state.json`, while `task verify:session-ritual -- --tier=gated` fails closed when that state is missing, stale, from another worktree, or tied to an older HEAD. The gated verifier lazily records `task doctor` and `task verify:cache-fresh`, honors explicit deferrals, and supports `DEFT_SESSION_RITUAL_SKIP=1` for CI and dispatched headless workers with an audit warning when the bypass hides a failure. Closes #1348.
 
 ### Changed
 

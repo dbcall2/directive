@@ -54,6 +54,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 #: Canonical eligibility folder. A vBRIEF MUST live here for an
 #: implementation agent to spawn; lifecycle moves are gated by
 #: ``task vbrief:activate`` (#810).
@@ -209,6 +211,20 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     path = Path(args.vbrief_path)
+    from verify_session_ritual import verify  # noqa: I001
+
+    ritual = verify(Path.cwd(), tier="gated")
+    if ritual.code != 0:
+        message = (
+            "Session ritual gate failed before #810 lifecycle check: "
+            f"{ritual.message}"
+        )
+        if args.emit_json:
+            print(_emit_json(path, ritual.code, message))
+        else:
+            print(message, file=sys.stderr)
+        return ritual.code
+
     code, message = evaluate(path)
 
     if args.emit_json:

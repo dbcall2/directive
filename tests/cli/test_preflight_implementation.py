@@ -103,16 +103,12 @@ def _write_vbrief(
         ("cancelled", "cancelled", 1, "vBRIEF is in cancelled/"),
     ],
 )
-def test_state_matrix(
-    preflight, tmp_path, folder, status, expected_code, expected_match
-):
+def test_state_matrix(preflight, tmp_path, folder, status, expected_code, expected_match):
     """Every cell of the (folder, status) matrix lands on the expected exit."""
     path = _write_vbrief(tmp_path, folder, status=status)
     code, msg = preflight.evaluate(path)
     assert code == expected_code, msg
-    assert expected_match in msg, (
-        f"Expected '{expected_match}' in message, got: {msg}"
-    )
+    assert expected_match in msg, f"Expected '{expected_match}' in message, got: {msg}"
 
 
 def test_actionable_redirect_on_every_reject(preflight, tmp_path):
@@ -126,9 +122,9 @@ def test_actionable_redirect_on_every_reject(preflight, tmp_path):
         path = _write_vbrief(tmp_path, folder, status=status)
         code, msg = preflight.evaluate(path)
         assert code == 1
-        assert "task vbrief:activate" in msg, (
-            f"Reject for ({folder}, {status}) MUST include `task vbrief:activate` redirect."
-        )
+        assert (
+            "task vbrief:activate" in msg
+        ), f"Reject for ({folder}, {status}) MUST include `task vbrief:activate` redirect."
 
 
 def test_contract_documents_story_start_gate_boundary(preflight):
@@ -166,9 +162,7 @@ def test_directory_path_rejects(preflight, tmp_path):
 
 def test_malformed_json_rejects_without_traceback(preflight, tmp_path):
     """A malformed-JSON vBRIEF MUST NOT raise; exit 1 with a useful message."""
-    path = _write_vbrief(
-        tmp_path, "active", raw_override="{ not json"
-    )
+    path = _write_vbrief(tmp_path, "active", raw_override="{ not json")
     code, msg = preflight.evaluate(path)
     assert code == 1
     assert "is not valid JSON" in msg
@@ -217,7 +211,8 @@ def test_plan_status_non_string_rejects(preflight, tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_main_accept_path_returns_0(preflight, tmp_path, capsys):
+def test_main_accept_path_returns_0(preflight, tmp_path, capsys, monkeypatch):
+    monkeypatch.setenv("DEFT_SESSION_RITUAL_SKIP", "1")
     path = _write_vbrief(tmp_path, "active", status="running")
     code = preflight.main(["--vbrief-path", str(path)])
     out = capsys.readouterr()
@@ -227,7 +222,8 @@ def test_main_accept_path_returns_0(preflight, tmp_path, capsys):
     assert out.err == ""
 
 
-def test_main_reject_path_returns_1_on_stderr(preflight, tmp_path, capsys):
+def test_main_reject_path_returns_1_on_stderr(preflight, tmp_path, capsys, monkeypatch):
+    monkeypatch.setenv("DEFT_SESSION_RITUAL_SKIP", "1")
     path = _write_vbrief(tmp_path, "pending", status="pending")
     code = preflight.main(["--vbrief-path", str(path)])
     out = capsys.readouterr()
@@ -249,7 +245,8 @@ def test_main_missing_required_arg_exits_2(preflight, capsys):
 # ---------------------------------------------------------------------------
 
 
-def test_json_emit_accept_schema(preflight, tmp_path, capsys):
+def test_json_emit_accept_schema(preflight, tmp_path, capsys, monkeypatch):
+    monkeypatch.setenv("DEFT_SESSION_RITUAL_SKIP", "1")
     path = _write_vbrief(tmp_path, "active", status="running")
     code = preflight.main(["--vbrief-path", str(path), "--json"])
     out = capsys.readouterr().out.strip()
@@ -264,7 +261,8 @@ def test_json_emit_accept_schema(preflight, tmp_path, capsys):
     assert "ready for implementation" in payload["message"]
 
 
-def test_json_emit_reject_schema(preflight, tmp_path, capsys):
+def test_json_emit_reject_schema(preflight, tmp_path, capsys, monkeypatch):
+    monkeypatch.setenv("DEFT_SESSION_RITUAL_SKIP", "1")
     path = _write_vbrief(tmp_path, "pending", status="pending")
     code = preflight.main(["--vbrief-path", str(path), "--json"])
     out = capsys.readouterr().out.strip()
@@ -279,13 +277,31 @@ def test_json_emit_reject_schema(preflight, tmp_path, capsys):
     assert "task vbrief:activate" in payload["message"]
 
 
-def test_json_keys_are_stable(preflight, tmp_path, capsys):
+def test_json_keys_are_stable(preflight, tmp_path, capsys, monkeypatch):
     """Schema is exactly ``ready``, ``exit_code``, ``vbrief_path``, ``message``."""
+    monkeypatch.setenv("DEFT_SESSION_RITUAL_SKIP", "1")
     path = _write_vbrief(tmp_path, "active", status="running")
     preflight.main(["--vbrief-path", str(path), "--json"])
     out = capsys.readouterr().out.strip()
     payload = json.loads(out)
     assert set(payload.keys()) == {"ready", "exit_code", "vbrief_path", "message"}
+
+
+def test_main_missing_session_ritual_blocks_before_lifecycle(
+    preflight, tmp_path, capsys, monkeypatch
+):
+    """CLI wiring adds the #1348 ritual gate before the pure #810 evaluator."""
+    monkeypatch.delenv("DEFT_SESSION_RITUAL_SKIP", raising=False)
+    monkeypatch.chdir(tmp_path)
+    path = _write_vbrief(tmp_path, "active", status="running")
+
+    code = preflight.main(["--vbrief-path", str(path), "--json"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert payload["ready"] is False
+    assert payload["exit_code"] == 1
+    assert "Session ritual gate failed" in payload["message"]
 
 
 # ---------------------------------------------------------------------------
@@ -304,9 +320,7 @@ def test_self_test_against_810_vbrief_in_pending_rejects(preflight):
     signal that the gate is wired correctly end-to-end.
     """
     candidates = list(
-        (REPO_ROOT / "vbrief" / "pending").glob(
-            "*-810-implementation-intent-gate-*.vbrief.json"
-        )
+        (REPO_ROOT / "vbrief" / "pending").glob("*-810-implementation-intent-gate-*.vbrief.json")
     )
     if not candidates:
         pytest.skip(
@@ -314,8 +328,6 @@ def test_self_test_against_810_vbrief_in_pending_rejects(preflight):
             "moved to vbrief/active/ post-activation."
         )
     code, msg = preflight.evaluate(candidates[0])
-    assert code == 1, (
-        f"Expected the #810 vBRIEF to fail the gate while in pending/, got: {msg}"
-    )
+    assert code == 1, f"Expected the #810 vBRIEF to fail the gate while in pending/, got: {msg}"
     assert "vBRIEF is in pending/" in msg
     assert "task vbrief:activate" in msg

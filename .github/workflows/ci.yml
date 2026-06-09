@@ -9,6 +9,10 @@ permissions:
   contents: read
 
 env:
+  # #1348: CI is a headless worker context. The session ritual verifier
+  # remains fail-closed for interactive implementation dispatch but CI
+  # bypasses it explicitly so workflow jobs do not need per-clone state.
+  DEFT_SESSION_RITUAL_SKIP: "1"
   # Pinned ghx version (#884). Bump in lockstep with
   # `scripts/setup_ghx.py::GHX_VERSION` so the consent-gated installer
   # and the CI pre-install step never disagree on which release the

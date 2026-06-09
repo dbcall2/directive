@@ -41,17 +41,17 @@ def test_template_exists() -> None:
 def test_template_non_empty(template_text: str) -> None:
     """A future refactor that empties the template (e.g. silent rename) MUST fail CI."""
     assert len(template_text) > 0
-    assert len(template_text.splitlines()) >= 100, (
-        f"template should be >= 100 lines; got {len(template_text.splitlines())}"
-    )
+    assert (
+        len(template_text.splitlines()) >= 100
+    ), f"template should be >= 100 lines; got {len(template_text.splitlines())}"
 
 
 @pytest.mark.parametrize("heading_fragment", REQUIRED_SECTION_HEADINGS)
 def test_template_contains_section(template_text: str, heading_fragment: str) -> None:
     """Each named section heading must appear at least once in the template."""
-    assert heading_fragment in template_text, (
-        f"templates/agent-prompt-preamble.md missing required section: {heading_fragment!r}"
-    )
+    assert (
+        heading_fragment in template_text
+    ), f"templates/agent-prompt-preamble.md missing required section: {heading_fragment!r}"
 
 
 def test_template_references_954(template_text: str) -> None:
@@ -64,6 +64,14 @@ def test_template_cross_references_810_gate(template_text: str) -> None:
     assert "task vbrief:preflight" in template_text
     assert "task vbrief:activate" in template_text
     assert "task scope:promote" in template_text
+
+
+def test_template_documents_session_ritual_headless_bypass(template_text: str) -> None:
+    """Dispatched workers must inherit the #1348 headless bypass contract."""
+    assert "DEFT_SESSION_RITUAL_SKIP=1" in template_text
+    assert "task verify:session-ritual" in template_text
+    assert "verify:session-ritual" in template_text
+    assert "verify:cache-fresh" in template_text
 
 
 def test_template_cross_references_798_encoding_rule(template_text: str) -> None:
@@ -91,9 +99,9 @@ def test_template_lists_forbidden_graphql_surfaces(template_text: str) -> None:
         (r"gh\s+pr\s+update-branch\b", "gh pr update-branch"),
     )
     for pattern, label in forbidden_patterns:
-        assert re.search(pattern, template_text), (
-            f"template must cite forbidden GraphQL surface: {label}"
-        )
+        assert re.search(
+            pattern, template_text
+        ), f"template must cite forbidden GraphQL surface: {label}"
 
 
 def test_template_dispatcher_hygiene_includes_anti_pattern_and_correct(template_text: str) -> None:
@@ -107,9 +115,9 @@ def test_template_dispatcher_hygiene_includes_anti_pattern_and_correct(template_
 def test_template_done_message_protocol_present(template_text: str) -> None:
     """The DONE-message section enumerates the four canonical exit shapes."""
     for exit_marker in ("DONE:", "BLOCKED:", "FAILED:", "STOOD-DOWN:"):
-        assert exit_marker in template_text, (
-            f"DONE-message protocol must include exit marker: {exit_marker}"
-        )
+        assert (
+            exit_marker in template_text
+        ), f"DONE-message protocol must include exit marker: {exit_marker}"
 
 
 def test_template_rate_limit_probe_uses_gh_not_ghx_with_q_flag(template_text: str) -> None:
@@ -124,9 +132,9 @@ def test_template_rate_limit_probe_uses_gh_not_ghx_with_q_flag(template_text: st
     runtime error that bypasses the rate-limit guard. Greptile review on
     PR #966 (P1).
     """
-    assert re.search(r"gh\s+api\s+rate_limit\s+-q\s+'", template_text), (
-        "template Section 7 must use `gh api rate_limit -q '...'` (not `ghx api`)"
-    )
+    assert re.search(
+        r"gh\s+api\s+rate_limit\s+-q\s+'", template_text
+    ), "template Section 7 must use `gh api rate_limit -q '...'` (not `ghx api`)"
     assert not re.search(r"ghx\s+api\s+rate_limit\s+-q\b", template_text), (
         "template MUST NOT use `ghx api rate_limit -q` -- ghx accepts only a "
         "single positional path arg per AGENTS.md ghx surface clarification"

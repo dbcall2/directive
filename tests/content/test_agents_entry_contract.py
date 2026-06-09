@@ -46,28 +46,26 @@ def _read_spec() -> str:
 
 
 def test_template_exists_at_expected_path() -> None:
-    assert _TEMPLATE.is_file(), (
-        f"Expected canonical AGENTS.md template at {_TEMPLATE} (#768)"
-    )
+    assert _TEMPLATE.is_file(), f"Expected canonical AGENTS.md template at {_TEMPLATE} (#768)"
 
 
 def test_template_carries_open_marker() -> None:
-    assert _OPEN_MARKER in _read_template(), (
-        f"`{_TEMPLATE.name}` must include the deft:managed-section open marker (#768)"
-    )
+    assert (
+        _OPEN_MARKER in _read_template()
+    ), f"`{_TEMPLATE.name}` must include the deft:managed-section open marker (#768)"
 
 
 def test_template_carries_close_marker() -> None:
-    assert _CLOSE_MARKER in _read_template(), (
-        f"`{_TEMPLATE.name}` must include the deft:managed-section close marker (#768)"
-    )
+    assert (
+        _CLOSE_MARKER in _read_template()
+    ), f"`{_TEMPLATE.name}` must include the deft:managed-section close marker (#768)"
 
 
 def test_open_marker_precedes_close_marker() -> None:
     text = _read_template()
-    assert text.index(_OPEN_MARKER) < text.index(_CLOSE_MARKER), (
-        "Open marker must appear before close marker (#768)"
-    )
+    assert text.index(_OPEN_MARKER) < text.index(
+        _CLOSE_MARKER
+    ), "Open marker must appear before close marker (#768)"
 
 
 # ---------------------------------------------------------------------------
@@ -76,9 +74,7 @@ def test_open_marker_precedes_close_marker() -> None:
 
 
 def test_placeholder_spec_file_exists() -> None:
-    assert _PLACEHOLDER_SPEC.is_file(), (
-        f"Expected placeholder spec at {_PLACEHOLDER_SPEC} (#768)"
-    )
+    assert _PLACEHOLDER_SPEC.is_file(), f"Expected placeholder spec at {_PLACEHOLDER_SPEC} (#768)"
 
 
 def test_placeholder_spec_documents_known_tokens() -> None:
@@ -91,9 +87,9 @@ def test_placeholder_spec_documents_known_tokens() -> None:
         "FETCHED_AT",
         "FETCHED_BY",
     ):
-        assert f"{{{{{token}}}}}" in spec, (
-            f"Placeholder spec must document token `{{{{{token}}}}}` (#768)"
-        )
+        assert (
+            f"{{{{{token}}}}}" in spec
+        ), f"Placeholder spec must document token `{{{{{token}}}}}` (#768)"
 
 
 def test_template_uses_only_documented_tokens() -> None:
@@ -245,6 +241,8 @@ _PROPAGATION_COMMAND_MARKERS: tuple[str, ...] = (
     "task triage:welcome --onboard",
     "task triage:queue",
     "triage <N>",
+    "task session:start",
+    "task verify:session-ritual",
     "task verify:cache-fresh",
     "task verify:branch",
     # #1378 Story C: deterministic story-start Gate 0 surfaced in both files.
@@ -262,6 +260,7 @@ _PROPAGATION_COMMAND_MARKERS: tuple[str, ...] = (
 _PROPAGATION_POLICY_KEY_MARKERS: tuple[str, ...] = (
     "plan.policy.wipCap",
     "plan.policy.allowDirectCommitsToMaster",
+    "plan.policy.sessionRitualStalenessHours",
 )
 
 _PROPAGATION_HEADER_MARKERS: tuple[str, ...] = (

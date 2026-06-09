@@ -175,6 +175,50 @@ def test_resolve_policy_env_bypass_falsy_does_not_override(
     assert result.source == "typed"
 
 
+def test_resolve_session_ritual_staleness_default(policy_module, project_root):
+    _write_project_def(project_root, {})
+
+    result = policy_module.resolve_session_ritual_staleness_hours(project_root)
+
+    assert result.hours == policy_module.DEFAULT_SESSION_RITUAL_STALENESS_HOURS == 4
+    assert result.source == "default"
+    assert result.error is None
+
+
+def test_resolve_session_ritual_staleness_typed(policy_module, project_root):
+    _write_project_def(project_root, {"policy": {"sessionRitualStalenessHours": 2}})
+
+    result = policy_module.resolve_session_ritual_staleness_hours(project_root)
+
+    assert result.hours == 2
+    assert result.source == "typed"
+    assert result.error is None
+
+
+@pytest.mark.parametrize("raw", [0, -1, True, "4"])
+def test_resolve_session_ritual_staleness_malformed_defaults(
+    policy_module, project_root, raw
+):
+    _write_project_def(project_root, {"policy": {"sessionRitualStalenessHours": raw}})
+
+    result = policy_module.resolve_session_ritual_staleness_hours(project_root)
+
+    assert result.hours == 4
+    assert result.source == "default-on-error"
+    assert result.error
+
+
+def test_validate_session_ritual_staleness_on_plan(policy_module):
+    plan = {"policy": {"sessionRitualStalenessHours": 0}}
+
+    errors = policy_module.validate_session_ritual_staleness_hours_on_plan(
+        plan, "PROJECT-DEFINITION"
+    )
+
+    assert errors
+    assert "#1348" in errors[0]
+
+
 def test_set_policy_writes_typed_flag_and_audit(policy_module, project_root, monkeypatch):
     monkeypatch.delenv(policy_module.ENV_BYPASS, raising=False)
     _write_project_def(project_root, {})

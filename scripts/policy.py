@@ -101,6 +101,18 @@ class WipCapResult:
     error: str | None = None
 
 
+DEFAULT_SESSION_RITUAL_STALENESS_HOURS: int = 4
+
+
+@dataclass(frozen=True)
+class SessionRitualStalenessResult:
+    """Resolved ``plan.policy.sessionRitualStalenessHours`` state (#1348)."""
+
+    hours: int
+    source: str  # one of: 'typed', 'default', 'default-on-error'
+    error: str | None = None
+
+
 def project_definition_path(project_root: Path | None = None) -> Path:
     """Resolve the absolute path to ``vbrief/PROJECT-DEFINITION.vbrief.json``."""
     root = project_root or Path.cwd()
@@ -363,6 +375,80 @@ def validate_wip_cap_on_plan(plan: Any, filepath: Any) -> list[str]:
         return out
     for err in validate_wip_cap(policy["wipCap"]):
         out.append(f"{filepath}: {err} (#1124)")
+    return out
+
+
+def resolve_session_ritual_staleness_hours(
+    project_root: Path | None = None,
+) -> SessionRitualStalenessResult:
+    """Resolve ``plan.policy.sessionRitualStalenessHours`` (#1348)."""
+    data, err = load_project_definition(project_root)
+    if data is None:
+        return SessionRitualStalenessResult(
+            hours=DEFAULT_SESSION_RITUAL_STALENESS_HOURS,
+            source="default",
+            error=err,
+        )
+    plan = data.get("plan") if isinstance(data, dict) else None
+    if not isinstance(plan, dict):
+        return SessionRitualStalenessResult(
+            hours=DEFAULT_SESSION_RITUAL_STALENESS_HOURS,
+            source="default",
+            error="PROJECT-DEFINITION 'plan' is not an object",
+        )
+    policy_block = plan.get("policy")
+    if (
+        not isinstance(policy_block, dict)
+        or "sessionRitualStalenessHours" not in policy_block
+    ):
+        return SessionRitualStalenessResult(
+            hours=DEFAULT_SESSION_RITUAL_STALENESS_HOURS,
+            source="default",
+            error=None,
+        )
+    raw = policy_block["sessionRitualStalenessHours"]
+    errors = validate_session_ritual_staleness_hours(raw)
+    if errors:
+        return SessionRitualStalenessResult(
+            hours=DEFAULT_SESSION_RITUAL_STALENESS_HOURS,
+            source="default-on-error",
+            error=errors[0],
+        )
+    return SessionRitualStalenessResult(hours=raw, source="typed", error=None)
+
+
+def validate_session_ritual_staleness_hours(value: Any) -> list[str]:
+    """Validate ``plan.policy.sessionRitualStalenessHours`` (#1348)."""
+    if value is None:
+        return []
+    if not isinstance(value, int) or isinstance(value, bool):
+        return [
+            "plan.policy.sessionRitualStalenessHours must be an integer; got "
+            f"{type(value).__name__} ({value!r})"
+        ]
+    if value <= 0:
+        return [
+            "plan.policy.sessionRitualStalenessHours must be > 0; "
+            f"got {value}"
+        ]
+    return []
+
+
+def validate_session_ritual_staleness_hours_on_plan(
+    plan: Any,
+    filepath: Any,
+) -> list[str]:
+    """vbrief_validate hook for ``sessionRitualStalenessHours`` (#1348)."""
+    out: list[str] = []
+    if not isinstance(plan, dict):
+        return out
+    policy = plan.get("policy")
+    if not isinstance(policy, dict) or "sessionRitualStalenessHours" not in policy:
+        return out
+    for err in validate_session_ritual_staleness_hours(
+        policy["sessionRitualStalenessHours"]
+    ):
+        out.append(f"{filepath}: {err} (#1348)")
     return out
 
 
@@ -2283,6 +2369,9 @@ def disclosure_line(result: PolicyResult) -> str:
 #: strings ``--field=<name>`` accepts and the keys ``--format=json`` emits.
 FIELD_ALLOW_DIRECT_COMMITS: str = "plan.policy.allowDirectCommitsToMaster"
 FIELD_WIP_CAP: str = "plan.policy.wipCap"
+FIELD_SESSION_RITUAL_STALENESS_HOURS: str = (
+    "plan.policy.sessionRitualStalenessHours"
+)
 FIELD_TRIAGE_SCOPE: str = "plan.policy.triageScope"
 FIELD_TRIAGE_SCOPE_IGNORES: str = "plan.policy.triageScopeIgnores"
 FIELD_TRIAGE_RANKING_LABELS: str = "plan.policy.triageRankingLabels"
@@ -2418,6 +2507,34 @@ def _inspect_wip_cap(data: dict | None, project_root: Path) -> PolicyField:
         name=FIELD_WIP_CAP,
         current=DEFAULT_WIP_CAP,
         default=DEFAULT_WIP_CAP,
+        source="default",
+    )
+
+
+def _inspect_session_ritual_staleness_hours(
+    data: dict | None,
+    project_root: Path,
+) -> PolicyField:
+    """Inspect ``plan.policy.sessionRitualStalenessHours`` (#1348)."""
+    policy_block = _get_policy_block(data)
+    if "sessionRitualStalenessHours" in policy_block:
+        raw = policy_block["sessionRitualStalenessHours"]
+        if isinstance(raw, int) and not isinstance(raw, bool) and raw > 0:
+            current: int = raw
+            source = "typed"
+        else:
+            current = DEFAULT_SESSION_RITUAL_STALENESS_HOURS
+            source = "default-on-error"
+        return PolicyField(
+            name=FIELD_SESSION_RITUAL_STALENESS_HOURS,
+            current=current,
+            default=DEFAULT_SESSION_RITUAL_STALENESS_HOURS,
+            source=source,
+        )
+    return PolicyField(
+        name=FIELD_SESSION_RITUAL_STALENESS_HOURS,
+        current=DEFAULT_SESSION_RITUAL_STALENESS_HOURS,
+        default=DEFAULT_SESSION_RITUAL_STALENESS_HOURS,
         source="default",
     )
 
@@ -2599,6 +2716,7 @@ _REGISTERED_POLICIES: tuple[
 ] = (
     _inspect_allow_direct_commits,
     _inspect_wip_cap,
+    _inspect_session_ritual_staleness_hours,
     _inspect_triage_scope,
     _inspect_triage_scope_ignores,
     _inspect_triage_ranking_labels,

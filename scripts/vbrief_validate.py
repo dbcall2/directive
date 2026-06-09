@@ -408,6 +408,14 @@ def validate_project_definition(filepath: Path, data: dict, vbrief_dir: Path) ->
 
         errors.extend(validate_wip_cap_on_plan(plan, filepath))
 
+    # #1348: typed plan.policy.sessionRitualStalenessHours validation.
+    with contextlib.suppress(Exception):
+        from policy import (  # noqa: I001
+            validate_session_ritual_staleness_hours_on_plan,
+        )
+
+        errors.extend(validate_session_ritual_staleness_hours_on_plan(plan, filepath))
+
     # Check items registry entries reference existing scope vBRIEF files
     items = plan.get("items", [])
     if isinstance(items, list):

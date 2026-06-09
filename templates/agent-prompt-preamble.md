@@ -278,9 +278,11 @@ Every worker MUST send a final status message before exiting its tool loop, rega
 
 Per-step acks during the run are noise. ONE start message, ONE final message; intermediate messages only on `BLOCKED` / `FAILED`. The final message lets the dispatcher distinguish a clean exit from a silent timeout when the lifecycle event arrives.
 
-## 12. `task verify:cache-fresh` gate before `start_agent` (#1127 / D5 of #1119)
+## 12. Session ritual + `task verify:cache-fresh` gates before `start_agent` (#1348 / #1127)
 
-Dispatchers (this orchestrator, swarm Phase 4 dispatch, monitor agents, scheduled / cloud runs) MUST run `task verify:cache-fresh --for-issue <N>` immediately before any `start_agent` invocation that will dispatch an implementation sub-agent for upstream issue N, and MUST refuse dispatch on any non-zero exit. The gate is the second hop of the canonical pre-`start_agent` gate stack documented in `AGENTS.md` (Implementation Intent Gate -> `verify:cache-fresh` -> branch-policy gate -> `start_agent`).
+Dispatchers (this orchestrator, swarm Phase 4 dispatch, monitor agents, scheduled / cloud runs) run in a headless worker context and MUST set `DEFT_SESSION_RITUAL_SKIP=1` for dispatched implementation workers. The interactive parent session remains responsible for `task session:start`; worker processes bypass the local `.deft/ritual-state.json` gate explicitly so they do not need per-clone interactive ritual state. When the bypass would hide a stale/missing ritual state, `task verify:session-ritual` prints a warning to stderr; preserve that warning in the dispatch log.
+
+Dispatchers MUST run `task verify:cache-fresh --for-issue <N>` immediately before any `start_agent` invocation that will dispatch an implementation sub-agent for upstream issue N, and MUST refuse dispatch on any non-zero exit. The cache gate follows the session ritual gate in the canonical pre-`start_agent` gate stack documented in `AGENTS.md` (`verify:session-ritual` -> Story Start Gate -> Implementation Intent Gate -> `verify:cache-fresh` -> branch-policy gate -> `start_agent`).
 
 The gate is detection-bound and has three exit states (mirrors the #747 branch gate):
 

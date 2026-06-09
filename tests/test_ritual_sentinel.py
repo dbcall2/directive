@@ -176,6 +176,80 @@ def test_read_round_trips_write(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# ritual-state (#1348) -- strict fail-closed surface
+# ---------------------------------------------------------------------------
+
+
+def test_ritual_state_and_last_session_share_deft_umbrella() -> None:
+    assert ritual_sentinel.SENTINEL_RELPATH[0] == ".deft"
+    assert ritual_sentinel.RITUAL_STATE_RELPATH[0] == ".deft"
+    gitignore = (Path(__file__).parent.parent / ".gitignore").read_text(encoding="utf-8")
+    assert ".deft/" in gitignore
+
+
+def test_read_ritual_state_missing_returns_error(tmp_path: Path) -> None:
+    state, err = ritual_sentinel.read_ritual_state(tmp_path)
+    assert state is None
+    assert err is not None
+    assert "missing" in err
+
+
+def test_ritual_state_round_trips_strict_payload(tmp_path: Path) -> None:
+    now = datetime(2026, 6, 9, 1, 0, 0, tzinfo=UTC)
+    payload = ritual_sentinel.new_ritual_state_payload(
+        session_id="abc",
+        git_head="deadbeef",
+        worktree_path=str(tmp_path),
+        started_at=now,
+        quick_steps={
+            "alignment": ritual_sentinel.ritual_step(
+                ok=True,
+                ts=now,
+                message="Deft Directive active -- AGENTS.md loaded.",
+            )
+        },
+        gated_steps={
+            "doctor": ritual_sentinel.ritual_step(
+                ok=True,
+                ts=now,
+                deferred_reason="read-only session",
+            )
+        },
+    )
+
+    path = ritual_sentinel.write_ritual_state(tmp_path, payload)
+    state, err = ritual_sentinel.read_ritual_state(tmp_path)
+
+    assert err is None
+    assert state is not None
+    assert path == tmp_path / ".deft" / "ritual-state.json"
+    assert state.session_id == "abc"
+    assert state.git_head == "deadbeef"
+    assert state.started_at == now
+    assert state.quick_steps["alignment"]["ok"] is True
+    assert state.gated_steps["doctor"]["deferred_reason"] == "read-only session"
+
+
+def test_read_ritual_state_rejects_malformed_step(tmp_path: Path) -> None:
+    now = datetime(2026, 6, 9, 1, 0, 0, tzinfo=UTC)
+    payload = ritual_sentinel.new_ritual_state_payload(
+        session_id="abc",
+        git_head="deadbeef",
+        worktree_path=str(tmp_path),
+        started_at=now,
+        quick_steps={"alignment": {"ok": "yes", "ts": "2026-06-09T01:00:00Z"}},
+        gated_steps={},
+    )
+    ritual_sentinel.write_ritual_state(tmp_path, payload)
+
+    state, err = ritual_sentinel.read_ritual_state(tmp_path)
+
+    assert state is None
+    assert err is not None
+    assert "quick_steps.alignment.ok" in err
+
+
+# ---------------------------------------------------------------------------
 # write() -- on-disk shape + atomicity
 # ---------------------------------------------------------------------------
 
@@ -275,9 +349,7 @@ def test_write_atomic_no_partial_on_failure(
     monkeypatch.setattr(ritual_sentinel.os, "replace", real_replace)
 
     # The prior sentinel must still be the canonical content.
-    actual = json.loads(
-        (tmp_path / ".deft" / "last-session.json").read_text(encoding="utf-8")
-    )
+    actual = json.loads((tmp_path / ".deft" / "last-session.json").read_text(encoding="utf-8"))
     assert actual == prior_payload
 
     # No leftover tmp files.
@@ -293,9 +365,7 @@ def test_write_atomic_no_partial_on_failure(
 def test_compute_resume_signal_fresh_clone_returns_none(tmp_path: Path) -> None:
     # No sentinel + no active vBRIEF.
     assert (
-        ritual_sentinel.compute_resume_signal(
-            None, datetime(2026, 5, 22, tzinfo=UTC), tmp_path
-        )
+        ritual_sentinel.compute_resume_signal(None, datetime(2026, 5, 22, tzinfo=UTC), tmp_path)
         is None
     )
 
@@ -346,9 +416,7 @@ def test_compute_resume_signal_promoted_to_completed_silent(tmp_path: Path) -> N
     completed_rel = "vbrief/completed/2026-05-13-foo.vbrief.json"
     completed_dir = tmp_path / "vbrief" / "completed"
     completed_dir.mkdir(parents=True, exist_ok=True)
-    (completed_dir / "2026-05-13-foo.vbrief.json").write_text(
-        "{}", encoding="utf-8"
-    )
+    (completed_dir / "2026-05-13-foo.vbrief.json").write_text("{}", encoding="utf-8")
     last_session = datetime(2026, 5, 22, 10, 0, 0, tzinfo=UTC)
     # The sentinel itself records a "completed/" path which is no longer
     # under the active prefix -- the gating predicate must reject it.
@@ -453,9 +521,7 @@ def test_session_start_hook_no_active_vbrief_returns_two(
 ) -> None:
     # Provide a fake branch detector so the precondition tested is the
     # missing-vBRIEF one (not branch detection).
-    monkeypatch.setattr(
-        _session_start_hook, "_detect_branch", lambda _root: "feat/foo"
-    )
+    monkeypatch.setattr(_session_start_hook, "_detect_branch", lambda _root: "feat/foo")
     rc = _session_start_hook.main(["--write", "--project-root", str(tmp_path)])
     assert rc == 2
     captured = capsys.readouterr()
@@ -508,9 +574,7 @@ def test_read_unicode_decode_error_returns_none(tmp_path: Path) -> None:
     assert ritual_sentinel.read(tmp_path) is None
 
 
-def test_read_is_file_raises_returns_none(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_read_is_file_raises_returns_none(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # When sentinel_file.is_file() raises OSError, read() MUST fail open
     # (return None) rather than propagating the exception.
     sentinel_dir = tmp_path / ".deft"
@@ -531,16 +595,12 @@ def test_session_start_hook_resolve_version_failure_returns_two(
     # with the canonical diagnostic on stderr (parallel coverage to the
     # no-branch and no-active-vBRIEF precondition cases per Greptile).
     _make_active_vbrief(tmp_path)
-    monkeypatch.setattr(
-        _session_start_hook, "_detect_branch", lambda _root: "feat/foo"
-    )
+    monkeypatch.setattr(_session_start_hook, "_detect_branch", lambda _root: "feat/foo")
 
     def boom() -> str:
         raise RuntimeError("simulated resolve_version failure")
 
-    monkeypatch.setattr(
-        _session_start_hook.resolve_version, "resolve_version", boom
-    )
+    monkeypatch.setattr(_session_start_hook.resolve_version, "resolve_version", boom)
     rc = _session_start_hook.main(["--write", "--project-root", str(tmp_path)])
     assert rc == 2
     captured = capsys.readouterr()
@@ -577,12 +637,8 @@ def test_session_start_hook_writes_sentinel(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     vbrief_rel = _make_active_vbrief(tmp_path)
-    monkeypatch.setattr(
-        _session_start_hook, "_detect_branch", lambda _root: "feat/bar"
-    )
-    monkeypatch.setattr(
-        _session_start_hook.resolve_version, "resolve_version", lambda: "0.32.1"
-    )
+    monkeypatch.setattr(_session_start_hook, "_detect_branch", lambda _root: "feat/bar")
+    monkeypatch.setattr(_session_start_hook.resolve_version, "resolve_version", lambda: "0.32.1")
     rc = _session_start_hook.main(["--write", "--project-root", str(tmp_path)])
     captured = capsys.readouterr()
     assert rc == 0, captured.err
