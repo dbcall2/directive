@@ -251,7 +251,7 @@ def _extract_gate_stack_paragraph(agents_md_text: str) -> str:
 
 
 def test_pre_start_agent_gate_stack_canonical_order(agents_md_text: str) -> None:
-    """Gates must be named in canonical order through start_agent."""
+    # Gates must be named in canonical order through start_agent.
     stack = _extract_gate_stack_paragraph(agents_md_text)
     assert stack, (
         "Implementation Intent Gate section must include the pre-`start_agent` "
