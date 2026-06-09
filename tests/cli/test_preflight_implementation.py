@@ -22,6 +22,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -302,6 +303,28 @@ def test_main_missing_session_ritual_blocks_before_lifecycle(
     assert payload["ready"] is False
     assert payload["exit_code"] == 1
     assert "Session ritual gate failed" in payload["message"]
+
+
+def test_main_ritual_config_error_collapses_to_exit_1(preflight, tmp_path, capsys, monkeypatch):
+    """Preflight keeps its ready/not-ready contract when the ritual verifier returns 2."""
+    path = _write_vbrief(tmp_path, "active", status="running")
+    monkeypatch.setattr(
+        preflight,
+        "verify",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            code=2,
+            message="Ritual state file is malformed.",
+        ),
+    )
+
+    code = preflight.main(["--vbrief-path", str(path), "--json"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert payload["ready"] is False
+    assert payload["exit_code"] == 1
+    assert "Session ritual gate failed" in payload["message"]
+    assert "Ritual state file is malformed." in payload["message"]
 
 
 # ---------------------------------------------------------------------------

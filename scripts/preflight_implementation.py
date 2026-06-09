@@ -221,10 +221,10 @@ def main(argv: list[str] | None = None) -> int:
             f"{ritual.message}"
         )
         if args.emit_json:
-            print(_emit_json(path, ritual.code, message))
+            print(_emit_json(path, 1, message))
         else:
             print(message, file=sys.stderr)
-        return ritual.code
+        return 1
 
     code, message = evaluate(path)
 
