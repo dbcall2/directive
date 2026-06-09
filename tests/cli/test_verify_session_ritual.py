@@ -93,7 +93,7 @@ def test_missing_state_fails_closed(tmp_path: Path) -> None:
     verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
     _init_git(tmp_path)
 
-    result = verifier.verify(tmp_path, tier="quick")
+    result = verifier.verify(tmp_path, tier="quick", bypass=False)
 
     assert result.code == 1
     assert "task session:start" in result.message
@@ -106,7 +106,7 @@ def test_corrupt_state_is_config_error(tmp_path: Path) -> None:
     state_path.parent.mkdir()
     state_path.write_text("{not json", encoding="utf-8")
 
-    result = verifier.verify(tmp_path, tier="quick")
+    result = verifier.verify(tmp_path, tier="quick", bypass=False)
 
     assert result.code == 2
     assert "not valid JSON" in result.message
@@ -118,7 +118,12 @@ def test_quick_tier_accepts_fresh_state(tmp_path: Path) -> None:
     now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
     _write_state(tmp_path, head=head, started_at=now)
 
-    result = verifier.verify(tmp_path, tier="quick", now=now + timedelta(minutes=1))
+    result = verifier.verify(
+        tmp_path,
+        tier="quick",
+        now=now + timedelta(minutes=1),
+        bypass=False,
+    )
 
     assert result.code == 0
     assert "fresh" in result.message
@@ -130,7 +135,12 @@ def test_changed_head_stales_state(tmp_path: Path) -> None:
     now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
     _write_state(tmp_path, head="deadbeef", started_at=now)
 
-    result = verifier.verify(tmp_path, tier="quick", now=now + timedelta(minutes=1))
+    result = verifier.verify(
+        tmp_path,
+        tier="quick",
+        now=now + timedelta(minutes=1),
+        bypass=False,
+    )
 
     assert result.code == 1
     assert "git HEAD changed" in result.message
@@ -143,7 +153,12 @@ def test_stale_by_policy_window_fails(tmp_path: Path) -> None:
     now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
     _write_state(tmp_path, head=head, started_at=now)
 
-    result = verifier.verify(tmp_path, tier="quick", now=now + timedelta(hours=2))
+    result = verifier.verify(
+        tmp_path,
+        tier="quick",
+        now=now + timedelta(hours=2),
+        bypass=False,
+    )
 
     assert result.code == 1
     assert "older than 1h" in result.message
@@ -163,6 +178,7 @@ def test_gated_tier_lazily_records_missing_steps(tmp_path: Path) -> None:
         tier="gated",
         now=now + timedelta(minutes=1),
         runner=runner,
+        bypass=False,
     )
 
     assert result.code == 0
@@ -190,7 +206,12 @@ def test_deferred_gated_step_satisfies_verifier(tmp_path: Path) -> None:
         },
     )
 
-    result = verifier.verify(tmp_path, tier="gated", now=now + timedelta(minutes=1))
+    result = verifier.verify(
+        tmp_path,
+        tier="gated",
+        now=now + timedelta(minutes=1),
+        bypass=False,
+    )
 
     assert result.code == 0
 
