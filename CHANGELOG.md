@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+
+### Fixed
+
+### Removed
+
+## [0.45.0] - 2026-06-09
+
+> Cleaner swarm setup and consumer checks, plus lifecycle and triage reliability fixes.
+
+### Added
+
+### Changed
 - **Interactive swarm setup asks for the intended sub-agent backend before launch (#1568)** -- swarm operators now see a numbered Composer/local, Cursor cloud, or Grok Build choice before headless launch planning when no backend policy is set. The prompt separates operator preference from probe availability, so a probe-available cloud backend is not treated as the default. Closes #1568.
 
 - **Issue-creation workflows now nudge agents toward existing labels (#1510)** -- Directive skills that file or surface GitHub issues now recommend checking the repository's label set, choosing suitable existing labels when practical, and explicitly noting when no label is applied. The guidance stays advisory so issue creation is not blocked when no label fits, while still reducing unlabeled triage drift. Closes #1510.
@@ -3191,7 +3203,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.44.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.45.0...HEAD
+[0.45.0]: https://github.com/deftai/directive/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/deftai/directive/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/deftai/directive/compare/v0.42.1...v0.43.0
 [0.42.1]: https://github.com/deftai/directive/compare/v0.42.0...v0.42.1

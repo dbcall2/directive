@@ -524,4 +524,23 @@
 - **#1531** -- Document provider-neutral sub-agent routing in the swarm skill -- `[completed]`
 - **#1531** -- Integrate selected sub-agent backend into headless swarm launch and audit output -- `[completed]`
 - **#1531** -- Pin provider-neutral sub-agent guidance with content tests -- `[completed]`
+- **#1510** -- Recommend adding labels to every issue created (consumer or maintainer) -- `[completed]`
+- **#1518** -- Composer specific lessons learned -- `[completed]`
+- **#1519** -- bug(check): consumer task check runs vendored framework self-tests and fails despite clean doctor -- `[completed]`
+- **#1523** -- bug(docs/templates): AGENTS.md ritual + main.md instruct bare task names that do not resolve under the canonical deft: namespaced include -- `[completed]`
+- **#1524** -- bug(release,triage): lifecycle-sync gate + reconcile treat cancelled/ as drift, not a terminal state -- `[completed]`
+- **#1527** -- scope:complete updates PROJECT-DEFINITION references but leaves registry item status stale -- `[completed]`
+- **#1553** -- release: document default-branch env bypass leak into nested tests -- `[completed]`
+- **#1557** -- swarm: make GitHub credential policy runtime-aware for local agents -- `[completed]`
+- **#1562** -- bug(triage): REST-batched cache bootstrap still spends minutes in default local write delay -- `[completed]`
+- **#1563** -- Deterministic questions break when host UI renders structured prompts alphabetically -- `[completed]`
+- **#1564** -- task check: pyproject version freshness fails on master after v0.43.0 -- `[completed]`
+- **#1568** -- swarm: ask operator for subagent backend during interactive setup -- `[completed]`
+- **#1518** -- Add a discoverable Composer-facing probe skill -- `[completed]`
+- **#1518** -- Add mechanical guardrails against premature probe completion -- `[completed]`
+- **#1557** -- Add read-only runtime capability probe for worker environments -- `[completed]`
+- **#1518** -- Document Composer skill-porting rules for Warp-tuned workflows -- `[completed]`
+- **#1557** -- Document sandbox credential remediation and regression coverage -- `[completed]`
+- **#1557** -- Thread runtime and GitHub auth modes through swarm dispatch contracts -- `[completed]`
+- **#1557** -- Validate GitHub auth mode inside the actual worker environment -- `[completed]`
 
