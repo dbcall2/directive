@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1568"
+    "description": "Scope vBRIEF ingested from GitHub issue #1568",
+    "updated": "2026-06-09T22:09:39Z"
   },
   "plan": {
     "title": "swarm: ask operator for subagent backend during interactive setup",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Interactive swarm setup currently lets backend selection surface as a late headless-launch failure when plan.policy.swarmSubagentBackend is unset. This story makes the swarm skill ask the operator for their intended subagent backend during setup, distinguishing preference from probe availability before launch.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1568",
@@ -90,6 +91,7 @@
         "file_scope_confidence": "medium",
         "model_tier": "medium"
       }
-    }
+    },
+    "updated": "2026-06-09T22:09:39Z"
   }
 }

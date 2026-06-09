@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1519"
+    "description": "Scope vBRIEF ingested from GitHub issue #1519",
+    "updated": "2026-06-09T22:09:39Z"
   },
   "plan": {
     "title": "bug(check): consumer task check runs vendored framework self-tests and fails despite clean doctor",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Consumer task check currently runs framework source-repo self-tests from a vendored .deft/core install and can fail despite a clean doctor. This story scopes the aggregate check so consumer repos get a useful quality gate distinct from framework self-tests.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1519",
@@ -89,6 +90,7 @@
         "file_scope_confidence": "medium",
         "model_tier": "medium"
       }
-    }
+    },
+    "updated": "2026-06-09T22:09:39Z"
   }
 }
