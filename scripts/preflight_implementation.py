@@ -56,6 +56,8 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from verify_session_ritual import verify  # noqa: E402
+
 #: Canonical eligibility folder. A vBRIEF MUST live here for an
 #: implementation agent to spawn; lifecycle moves are gated by
 #: ``task vbrief:activate`` (#810).
@@ -211,7 +213,6 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     path = Path(args.vbrief_path)
-    from verify_session_ritual import verify  # noqa: I001
 
     ritual = verify(Path.cwd(), tier="gated")
     if ritual.code != 0:

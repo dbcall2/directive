@@ -143,7 +143,7 @@ def run_session_start(
     if "branch_policy" not in quick_steps:
         result = resolve_policy(project_root)
         message = disclosure_line(result)
-        ok = result.error is None or "not found" in result.error
+        ok = result.error is None or result.source == "default-fail-closed"
         quick_steps["branch_policy"] = ritual_step(
             ok=ok,
             ts=instant,
@@ -263,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(payload, sort_keys=True))
     else:
         for line in lines:
-            print(line if code == 0 else line, file=sys.stdout if code == 0 else sys.stderr)
+            print(line, file=sys.stdout if code == 0 else sys.stderr)
         if code == 0:
             print(f"[deft] session ritual recorded at {ritual_state_path(project_root)}")
     return code

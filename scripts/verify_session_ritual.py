@@ -205,10 +205,11 @@ def verify(
         )
     instant = now or _utc_now()
     is_bypassed = _truthy(os.environ.get(ENV_SKIP)) if bypass is None else bypass
-    state, err = read_ritual_state(project_root)
     state_path = ritual_state_path(project_root)
+    missing_state_file = not state_path.is_file()
+    state, err = read_ritual_state(project_root)
     if state is None:
-        code = 1 if err and "missing" in err else 2
+        code = 1 if missing_state_file else 2
         message = (
             f"{err}. Run `task session:start` before implementation dispatch."
             if code == 1
