@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
+### Removed
+
+## [0.45.1] - 2026-06-09
+
+> Fixes vendored encoding checks after consumer upgrades.
+
+### Added
+
+### Changed
+
+### Fixed
 - **Vendored encoding checks no longer fail on framework-owned history after upgrade (#1382)** -- consumer installs now omit non-runtime framework history from the packaged payload, and the encoding verifier recognizes its own documented exception files when they live under `.deft/core/`. Consumer-owned mojibake still fails the gate, but packaged Deft artifacts no longer block `task deft:verify:encoding` immediately after upgrade. Closes #1382.
 
 ### Removed
@@ -3204,7 +3216,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.45.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.45.1...HEAD
+[0.45.1]: https://github.com/deftai/directive/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/deftai/directive/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/deftai/directive/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/deftai/directive/compare/v0.42.1...v0.43.0

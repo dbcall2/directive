@@ -524,6 +524,7 @@
 - **#1531** -- Document provider-neutral sub-agent routing in the swarm skill -- `[completed]`
 - **#1531** -- Integrate selected sub-agent backend into headless swarm launch and audit output -- `[completed]`
 - **#1531** -- Pin provider-neutral sub-agent guidance with content tests -- `[completed]`
+- **#1382** -- v0.37.0 released framework tree fails verify:encoding in consumer task check -- `[completed]`
 - **#1510** -- Recommend adding labels to every issue created (consumer or maintainer) -- `[completed]`
 - **#1518** -- Composer specific lessons learned -- `[completed]`
 - **#1519** -- bug(check): consumer task check runs vendored framework self-tests and fails despite clean doctor -- `[completed]`
