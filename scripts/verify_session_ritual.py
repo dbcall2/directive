@@ -278,6 +278,15 @@ def _emit_json(result: VerifyResult) -> str:
     )
 
 
+def _emit_bypass_warning(result: VerifyResult) -> None:
+    if result.bypassed and result.would_fail_code:
+        print(
+            f"[deft] WARNING: {ENV_SKIP}=1 bypassed a session ritual "
+            f"failure ({result.message})",
+            file=sys.stderr,
+        )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="verify_session_ritual.py",
@@ -303,25 +312,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     project_root = Path(args.project_root).resolve()
     result = verify(project_root, tier=args.tier)
+    warning_needed = result.bypassed and result.would_fail_code is not None
     if args.emit_json:
         print(_emit_json(result))
     elif result.code == 0:
-        if result.bypassed and result.would_fail_code:
-            print(
-                f"[deft] WARNING: {ENV_SKIP}=1 bypassed a session ritual "
-                f"failure ({result.message})",
-                file=sys.stderr,
-            )
-        else:
+        if not warning_needed:
             print(result.message)
     else:
         print(result.message, file=sys.stderr)
-    if result.bypassed and result.would_fail_code and args.emit_json:
-        print(
-            f"[deft] WARNING: {ENV_SKIP}=1 bypassed a session ritual "
-            f"failure ({result.message})",
-            file=sys.stderr,
-        )
+    if warning_needed:
+        _emit_bypass_warning(result)
     return result.code
 
 

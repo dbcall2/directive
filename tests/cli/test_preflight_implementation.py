@@ -354,6 +354,40 @@ def test_main_discovers_project_root_from_vbrief_path(preflight, tmp_path, capsy
     assert payload["exit_code"] == 1
 
 
+def test_main_project_root_flag_overrides_discovered_root(preflight, tmp_path, capsys, monkeypatch):
+    """Callers can pass the ritual root explicitly when cwd/path discovery is unsuitable."""
+    path_root = tmp_path / "path-root"
+    explicit_root = tmp_path / "explicit-root"
+    path = _write_vbrief(path_root, "pending", status="pending")
+    (path_root / "vbrief" / "PROJECT-DEFINITION.vbrief.json").write_text(
+        json.dumps({"vBRIEFInfo": {"version": "0.6"}, "plan": {"policy": {}}}),
+        encoding="utf-8",
+    )
+    explicit_root.mkdir()
+    calls: list[tuple[Path, str]] = []
+
+    def fake_verify(project_root: Path, *, tier: str):
+        calls.append((project_root, tier))
+        return SimpleNamespace(code=0, message="ritual ok")
+
+    monkeypatch.setattr(preflight, "verify", fake_verify)
+
+    code = preflight.main(
+        [
+            "--vbrief-path",
+            str(path),
+            "--project-root",
+            str(explicit_root),
+            "--json",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert calls == [(explicit_root, "gated")]
+    assert code == 1
+    assert payload["exit_code"] == 1
+
+
 def test_main_ritual_config_error_collapses_to_exit_1(preflight, tmp_path, capsys, monkeypatch):
     """Preflight keeps its ready/not-ready contract when the ritual verifier returns 2."""
     path = _write_vbrief(tmp_path, "active", status="running")

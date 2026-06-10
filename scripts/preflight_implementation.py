@@ -212,6 +212,14 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to the candidate vBRIEF JSON file.",
     )
     parser.add_argument(
+        "--project-root",
+        default=None,
+        help=(
+            "Project root containing .deft/ritual-state.json. Defaults to "
+            "the owner discovered from --vbrief-path."
+        ),
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         dest="emit_json",
@@ -227,8 +235,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     path = Path(args.vbrief_path)
+    project_root = (
+        Path(args.project_root).resolve(strict=False)
+        if args.project_root is not None
+        else _discover_project_root(path)
+    )
 
-    ritual = verify(_discover_project_root(path), tier="gated")
+    ritual = verify(project_root, tier="gated")
     if ritual.code != 0:
         message = (
             "Session ritual gate failed before #810 lifecycle check: "
