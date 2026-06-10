@@ -128,7 +128,7 @@ def _run_gated_step(
     *,
     runner: Runner,
     now: datetime,
-) -> None:
+) -> str | None:
     command = list(GATED_COMMANDS[step_name])
     code, stdout, stderr = runner(command, project_root)
     message = stdout.strip() or stderr.strip() or f"{' '.join(command)} exited {code}"
@@ -139,7 +139,11 @@ def _run_gated_step(
         message=message,
         command=command,
     )
-    write_ritual_state(project_root, payload)
+    try:
+        write_ritual_state(project_root, payload)
+    except OSError as exc:
+        return f"could not write session ritual state after {step_name}: {exc}"
+    return None
 
 
 def _evaluate_loaded_state(
@@ -238,13 +242,15 @@ def verify(
                 continue
             if _step_passes(step):
                 continue
-            _run_gated_step(
+            write_error = _run_gated_step(
                 project_root,
                 payload,
                 step_name,
                 runner=run_cmd,
                 now=instant,
             )
+            if write_error is not None:
+                return VerifyResult(2, write_error, tier, state_path)
         state, err = read_ritual_state(project_root)
         if state is None:
             code = 2

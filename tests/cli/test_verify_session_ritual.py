@@ -205,6 +205,33 @@ def test_gated_tier_lazily_records_missing_steps(tmp_path: Path) -> None:
     assert state["gated_steps"]["cache_fresh"]["ok"] is True
 
 
+def test_gated_tier_write_failure_returns_config_error(tmp_path: Path, monkeypatch) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    head = _init_git(tmp_path)
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    _write_state(tmp_path, head=head, started_at=now)
+
+    def runner(command: list[str], cwd: Path) -> tuple[int, str, str]:
+        return 0, f"{' '.join(command)} ok", ""
+
+    def fail_write(project_root: Path, payload: dict[str, Any]) -> Path:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(verifier, "write_ritual_state", fail_write)
+
+    result = verifier.verify(
+        tmp_path,
+        tier="gated",
+        now=now + timedelta(minutes=1),
+        runner=runner,
+        bypass=False,
+    )
+
+    assert result.code == 2
+    assert "could not write session ritual state after doctor" in result.message
+    assert "disk full" in result.message
+
+
 def test_gated_tier_prechecks_changed_head_before_running_steps(tmp_path: Path) -> None:
     verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
     _init_git(tmp_path)

@@ -182,6 +182,20 @@ def _emit_json(path: Path, code: int, message: str) -> str:
     return json.dumps(payload, sort_keys=True)
 
 
+def _discover_project_root(vbrief_path: Path) -> Path:
+    """Find the repo root that owns ``vbrief_path`` for the session gate."""
+    try:
+        resolved = vbrief_path.resolve(strict=False)
+    except OSError:
+        resolved = vbrief_path.absolute()
+    for candidate in (resolved.parent, *resolved.parents):
+        if (candidate / ".git").exists() or (
+            candidate / "vbrief" / "PROJECT-DEFINITION.vbrief.json"
+        ).exists():
+            return candidate
+    return Path.cwd()
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="preflight_implementation.py",
@@ -214,7 +228,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     path = Path(args.vbrief_path)
 
-    ritual = verify(Path.cwd(), tier="gated")
+    ritual = verify(_discover_project_root(path), tier="gated")
     if ritual.code != 0:
         message = (
             "Session ritual gate failed before #810 lifecycle check: "

@@ -243,7 +243,7 @@ def _extract_gate_stack_paragraph(agents_md_text: str) -> str:
     # lookahead so the match grabs the entire prose paragraph including all
     # numbered gate references after the `Pre-`start_agent`` token in the heading.
     stack_match = re.search(
-        r"\*\*Pre-`start_agent` gate stack \(#1149/#1348\):\*\*.*?(?=\r?\n\r?\n|^\*\*|^###|^##)",
+        r"\*\*Pre-`start_agent` gate stack \(#1149/#1348\):\*\*.*?(?=\r?\n\r?\n|^#{2,3}\s)",
         intent_gate,
         re.DOTALL | re.MULTILINE,
     )
