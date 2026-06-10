@@ -15,6 +15,19 @@ This contract EXTENDS that surface by promoting `Discuss` to a peer of `Back` (b
 - ⊗ Render a deterministic numbered menu without `Discuss` and `Back` as the final two options.
 - ⊗ Combine `Discuss` and `Other` into one option. They serve different roles -- `Other` widens the question's answer space; `Discuss` exits the question entirely.
 - ⊗ Render `Discuss` or `Back` only in some skills -- the rule is universal across every deterministic-mode skill.
+## Host-UI portability rule (#1563)
+Host-native structured question tools are allowed only when they preserve the deterministic menu the user actually sees. The visible labels and the fallback mapping are the contract; host UI affordances are not.
+- ! Deterministic flows MUST render the canonical numbered menu in plain chat text unless the host-native structured UI is known to visibly preserve the canonical numeric option labels and return numeric selections or exact displayed option text.
+- ! When a host-native structured question tool is used, each option label MUST visibly include the canonical number (for example, `1. Accept`) and the final two visible labels MUST be `N-1. Discuss` and `N. Back`.
+- ! Agents MUST accept fallback chat replies only when they match the displayed number or the exact displayed option text, after trimming surrounding whitespace and ignoring case for text labels.
+- ⊗ Infer deterministic choices from alphabetic host UI affordances, keyboard shortcuts, or semantic guesses unless those letters were actually displayed as part of the canonical menu labels.
+- ⊗ Treat a bare letter such as `d` or `b` as `Defer`, `Discuss`, or `Back` when the rendered deterministic menu was numbered and did not display those letters as choices.
+## Backend-selection prompts (#1568)
+Backend-selection prompts are deterministic questions. They ask for operator preference and MAY show probe availability as context, but availability is not a default or recommendation.
+- ! A backend-selection prompt MUST render visible numbered options for each stable backend choice before `Discuss` and `Back`.
+- ! The backend options MUST appear before the final two entries, with `Discuss` and `Back` remaining the final two numbered options in that order.
+- ! Probe availability MUST be presented as status beside each backend choice, not as the ordering, recommendation, or default.
+- ⊗ Treat `cursor-cloud` as the implicit default merely because it is probe-available.
 ## Discuss-pause semantic (verbatim)
 Documented here as the single normative source so skill prose, tests, and downstream tooling all read the same words.
 - ! When the user selects `Discuss`, the agent MUST pause IMMEDIATELY.

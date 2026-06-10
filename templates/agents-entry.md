@@ -15,7 +15,7 @@ Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
 - ./PROJECT.md exists and is not a deprecation redirect (`<!-- deft:deprecated-redirect -->` or `<!-- Purpose: deprecation redirect -->`).
 - ./vbrief/ exists but any of the five lifecycle subfolders (proposed/, pending/, active/, completed/, cancelled/) is missing
 
-→ On detection: read .deft/core/skills/deft-directive-setup/SKILL.md "Pre-Cutover Detection Guard" section and follow the migration path BEFORE any other action. The Migrating from pre-v0.20 section of the full guidelines has the canonical command, the "task -t ./.deft/core/Taskfile.yml migrate:vbrief" fallback (for when "task migrate:vbrief" is not resolvable from the project root), what migration produces, and the available safety flags.
+→ On detection: read .deft/core/skills/deft-directive-setup/SKILL.md "Pre-Cutover Detection Guard" section and follow the migration path BEFORE any other action. The Migrating from pre-v0.20 section of the full guidelines has the canonical command, the "task -t ./.deft/core/Taskfile.yml migrate:vbrief" fallback (for when "task deft:migrate:vbrief" is not resolvable from the project root), what migration produces, and the available safety flags.
 
 ⊗ Start Phase 1, Phase 2, or a Returning-Sessions workflow while pre-cutover artifacts are present — run migration first.
 
@@ -37,18 +37,18 @@ When all config exists: read the guidelines, your USER.md preferences, and PROJE
 
 ## Session-start ritual (#1149)
 
-! On every interactive session start, run `task session:start` after loading AGENTS.md. This records the quick-tier ritual in `.deft/ritual-state.json`: Deft alignment confirmation, branch-policy disclosure, and `task triage:welcome` one-line state/nudge. The state is worktree- and HEAD-bound, and becomes stale after `plan.policy.sessionRitualStalenessHours` hours (default: 4).
+! On every interactive session start, run `task deft:session:start` after loading AGENTS.md. This records the quick-tier ritual in `.deft/ritual-state.json`: Deft alignment confirmation, branch-policy disclosure, and `task deft:triage:welcome` one-line state/nudge. The state is worktree- and HEAD-bound, and becomes stale after `plan.policy.sessionRitualStalenessHours` hours (default: 4).
 
-! Before any code-writing tool call or `start_agent` implementation dispatch, run `task verify:session-ritual -- --tier=gated`. The gated tier fails closed unless the quick-tier state is fresh, then lazily records `task doctor` and `task verify:cache-fresh` in the same ritual state. The verifier is now step 0 of the pre-`start_agent` gate stack; any non-zero exit aborts dispatch.
+! Before any code-writing tool call or `start_agent` implementation dispatch, run `task deft:verify:session-ritual -- --tier=gated`. The gated tier fails closed unless the quick-tier state is fresh, then lazily records `task deft:doctor` and `task deft:verify:cache-fresh` in the same ritual state. The verifier is now step 0 of the pre-`start_agent` gate stack; any non-zero exit aborts dispatch.
 
-? If a quick or gated step must be intentionally postponed, record the decision with `task session:start -- --defer step=reason` using one of `alignment`, `branch_policy`, `triage_welcome`, `doctor`, or `cache_fresh`. Deferred steps satisfy the verifier but remain auditable in `.deft/ritual-state.json`.
+? If a quick or gated step must be intentionally postponed, record the decision with `task deft:session:start -- --defer step=reason` using one of `alignment`, `branch_policy`, `triage_welcome`, `doctor`, or `cache_fresh`. Deferred steps satisfy the verifier but remain auditable in `.deft/ritual-state.json`.
 
-⊗ Self-report the session-start ritual as complete without a fresh `task session:start` state, or bypass `task verify:session-ritual` before implementation dispatch. Headless workers and CI MAY set `DEFT_SESSION_RITUAL_SKIP=1`; the verifier exits 0 but warns when the bypass hides a failure.
+⊗ Self-report the session-start ritual as complete without a fresh `task deft:session:start` state, or bypass `task deft:verify:session-ritual` before implementation dispatch. Headless workers and CI MAY set `DEFT_SESSION_RITUAL_SKIP=1`; the verifier exits 0 but warns when the bypass hides a failure.
 
-`task doctor` remains the install-integrity + toolchain + AGENTS.md managed-section freshness probe (#1308). When the managed-section is stale, the doctor points the operator at `task agents:refresh` to regenerate AGENTS.md from `templates/agents-entry.md`. The canonical `scripts/doctor.py` (single owner post #1335/#1336) also detects payload staleness from the `<install>/VERSION` manifest and, when behind, emits the canonical headless upgrade command `deft-install --yes --upgrade --repo-root . --json` (#1339 / #1409). The installer itself calls `scripts/doctor.py --session --json` at the end of every run for the unified handoff.
+`task deft:doctor` remains the install-integrity + toolchain + AGENTS.md managed-section freshness probe (#1308). When the managed-section is stale, the doctor points the operator at `task deft:agents:refresh` to regenerate AGENTS.md from `templates/agents-entry.md`. The canonical `scripts/doctor.py` (single owner post #1335/#1336) also detects payload staleness from the `<install>/VERSION` manifest and, when behind, emits the canonical headless upgrade command `deft-install --yes --upgrade --repo-root . --json` (#1339 / #1409). The installer itself calls `scripts/doctor.py --session --json` at the end of every run for the unified handoff.
 
-**Canonical bootstrap / update path (#1339 #1340 #1409 Epic-5/6):** Use the published platform installer binary (from GitHub Releases) as the single deterministic entrypoint. For an existing install, the canonical headless refresh is `deft-install --yes --upgrade --repo-root . --json` (drop `--json` for human-readable output) -- it replaces the payload + manifest + AGENTS.md in one shot. Legacy `task upgrade` / `run upgrade` are metadata-only acknowledgment (they do NOT replace the payload) and `task relocate -- --confirm` is back-compat only; git-clone / submodule / legacy doctor surfaces are de-emphasized in UPGRADING.md / README / skills. Agent example: after running the installer command, start your session; the doctor output (or `task doctor`) tells you the exact state and whether a re-install is needed for freshness.
-`task triage:welcome` emits the triage one-liner and, when state is incomplete, nudges the operator at `task triage:welcome --onboard` (#1143). Default mode is non-interactive; the `--onboard` flag runs the 6-phase interactive ritual.
+**Canonical bootstrap / update path (#1339 #1340 #1409 Epic-5/6):** Use the published platform installer binary (from GitHub Releases) as the single deterministic entrypoint. For an existing install, the canonical headless refresh is `deft-install --yes --upgrade --repo-root . --json` (drop `--json` for human-readable output) -- it replaces the payload + manifest + AGENTS.md in one shot. Legacy `task deft:upgrade` / `run upgrade` are metadata-only acknowledgment (they do NOT replace the payload) and `task deft:relocate -- --confirm` is back-compat only; git-clone / submodule / legacy doctor surfaces are de-emphasized in UPGRADING.md / README / skills. Agent example: after running the installer command, start your session; the doctor output (or `task deft:doctor`) tells you the exact state and whether a re-install is needed for freshness.
+`task deft:triage:welcome` emits the triage one-liner and, when state is incomplete, nudges the operator at `task deft:triage:welcome --onboard` (#1143). Default mode is non-interactive; the `--onboard` flag runs the 6-phase interactive ritual.
 
 ## Resume nudge (conditional, #1269)
 
@@ -58,13 +58,13 @@ Reserved placement for the optional 6th conditional step (resume nudge from the 
 
 ## WIP cap
 
-The `plan.policy.wipCap` field caps the number of in-flight scope vBRIEFs (`vbrief/pending/` + `vbrief/active/`). The framework default is 10 (per umbrella #1119 Current Shape v3). When the cap is reached, `task scope:promote` refuses with a relief hint pointing at `task scope:demote --batch --older-than-days 30` (D1 / #1121). Operators can override the cap from the consumer side via `task triage:welcome --onboard` (the Phase 4 wipCap prompt) or by inspecting / editing the typed field via `task policy:show --field=wipCap`.
+The `plan.policy.wipCap` field caps the number of in-flight scope vBRIEFs (`vbrief/pending/` + `vbrief/active/`). The framework default is 10 (per umbrella #1119 Current Shape v3). When the cap is reached, `task deft:scope:promote` refuses with a relief hint pointing at `task deft:scope:demote --batch --older-than-days 30` (D1 / #1121). Operators can override the cap from the consumer side via `task deft:triage:welcome --onboard` (the Phase 4 wipCap prompt) or by inspecting / editing the typed field via `task deft:policy:show --field=wipCap`.
 
 ## Cache-as-authoritative work selection (#1149)
 
-! When the operator asks "what should I work on next?" / "build a cohort" / "what's the queue?", run `task triage:queue --limit=10` (D11 / #1128) and present the ranked list before suggesting anything else. The agent MUST NOT recommend work from memory or open-GitHub-issue intuition. This is the consumer-side mirror of the maintainer rule of the same name; the triage queue is the source of truth for what to work on next.
+! When the operator asks "what should I work on next?" / "build a cohort" / "what's the queue?", run `task deft:triage:queue --limit=10` (D11 / #1128) and present the ranked list before suggesting anything else. The agent MUST NOT recommend work from memory or open-GitHub-issue intuition. This is the consumer-side mirror of the maintainer rule of the same name; the triage queue is the source of truth for what to work on next.
 
-⊗ Recommend a specific issue or vBRIEF without consulting `task triage:queue` (or showing the operator the result of the consultation).
+⊗ Recommend a specific issue or vBRIEF without consulting `task deft:triage:queue` (or showing the operator the result of the consultation).
 
 ## Skill Routing
 
@@ -86,7 +86,7 @@ When user input matches a trigger keyword, read the corresponding skill (paths a
 - "improve architecture" / "deep modules" / "interface design" / "refactor RFC" -> `.deft/core/skills/deft-directive-gh-arch/SKILL.md`
 - "triage hygiene" / "work the cache" -> `.deft/core/skills/deft-directive-triage/SKILL.md`
 - "what's next" / "queue" / "build a cohort" -> `.deft/core/skills/deft-directive-triage/SKILL.md`
-- "welcome" / "onboard triage" -> invokes `task triage:welcome --onboard` (N3 / #1143)
+- "welcome" / "onboard triage" -> invokes `task deft:triage:welcome --onboard` (N3 / #1143)
 
 The `deft-directive-release` skill is intentionally excluded -- it cuts deft framework releases against a temp clone of `deftai/directive` and is not a consumer-facing surface.
 
@@ -94,9 +94,10 @@ The `deft-directive-release` skill is intentionally excluded -- it cuts deft fra
 
 Three consumer-facing surfaces enforce the branch-policy contract (#746 / #747):
 
-- `task verify:branch` -- pre-commit gate wired into the `task check` aggregate; refuses a commit on the default branch unless `plan.policy.allowDirectCommitsToMaster = true` (typed) or `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1` is set.
-- `.githooks/pre-commit` / `pre-push` -- local hooks installed via `task setup`; verify via `task verify:hooks-installed`.
-- `task policy:show --field=allowDirectCommitsToMaster` -- inspect the resolved policy; `task policy:allow-direct-commits -- --confirm` writes the typed override with an audit row.
+- `task deft:check` -- authoritative consumer pre-commit quality gate. In vendored `.deft/core` installs it runs consumer-safe Deft install/lifecycle gates and does NOT run framework source-repo self-tests. Run `task deft:check:framework-source` only when explicitly validating the vendored framework payload itself (#1519).
+- `task deft:verify:branch` -- branch gate wired into the `task deft:check` aggregate; refuses a commit on the default branch unless `plan.policy.allowDirectCommitsToMaster = true` (typed) or `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1` is set.
+- `.githooks/pre-commit` / `pre-push` -- local hooks installed via `task deft:setup`; verify via `task deft:verify:hooks-installed`.
+- `task deft:policy:show --field=allowDirectCommitsToMaster` -- inspect the resolved policy; `task deft:policy:allow-direct-commits -- --confirm` writes the typed override with an audit row.
 
 ## Branch Policy Disclosure (#746)
 
@@ -107,9 +108,9 @@ When the active project's `vbrief/PROJECT-DEFINITION.vbrief.json` has `plan.poli
 This phrasing comes from `.deft/core/scripts/policy.py::disclosure_line` and stays in lockstep with the typed surface (#746). When the policy is OFF (default; `allowDirectCommitsToMaster=false`), no session-start disclosure is required -- the absence of the disclosure line itself signals the default-enforcing state.
 
 Override paths the user may invoke:
-- `task policy:show` -- inspect resolved policy
-- `task policy:enforce-branches` -- re-enable branch protection
-- `task policy:allow-direct-commits -- --confirm` -- re-confirm opt-out (audited)
+- `task deft:policy:show` -- inspect resolved policy
+- `task deft:policy:enforce-branches` -- re-enable branch protection
+- `task deft:policy:allow-direct-commits -- --confirm` -- re-confirm opt-out (audited)
 - `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1` -- emergency env-var bypass
 
 ⊗ Begin a session that will commit/push without surfacing the policy state when allowDirectCommitsToMaster=true.
@@ -127,12 +128,12 @@ Cross-reference: `.deft/core/docs/analysis/2026-05-26-issue-1353-grok-windows-ca
 
 ### Implementation Intent Gate (#810)
 
-- ! Run `task vbrief:preflight -- <path>` before any code-writing tool call or `start_agent` dispatch -- the gate exits 0 only when the candidate vBRIEF lives in `vbrief/active/` AND `plan.status == "running"`. The Taskfile target resolves the wrapped script via `.deft/core/scripts/_resolve_preflight_path.py` (which probes the canonical, legacy, and in-repo install layouts in priority order) and fails closed with a structured `gate misconfigured` error pointing at `task framework:doctor` if no candidate resolves -- the gate cannot silently fail open on a misconfigured install (#1046 / #1047). The helper names `task vbrief:activate <path>` as its idempotent activation companion; story workflows should use the Story Start Gate below to bridge proposed/pending scope through `task scope:promote` and `task scope:activate` before invoking preflight.
+- ! Run `task deft:vbrief:preflight -- <path>` before any code-writing tool call or `start_agent` dispatch -- the gate exits 0 only when the candidate vBRIEF lives in `vbrief/active/` AND `plan.status == "running"`. The Taskfile target resolves the wrapped script via `.deft/core/scripts/_resolve_preflight_path.py` (which probes the canonical, legacy, and in-repo install layouts in priority order) and fails closed with a structured `gate misconfigured` error pointing at `task deft:framework:doctor` if no candidate resolves -- the gate cannot silently fail open on a misconfigured install (#1046 / #1047). The helper names `task deft:vbrief:activate <path>` as its idempotent activation companion; story workflows should use the Story Start Gate below to bridge proposed/pending scope through `task deft:scope:promote` and `task deft:scope:activate` before invoking preflight.
 - ! Require an explicit action-verb directive (`build`, `implement`, `ship`, `swarm`, `run agents`, `start agent`) from the user before invoking the preflight gate or `start_agent` for implementation. When intent is ambiguous, ask one targeted question instead of inferring.
 - ⊗ Infer implementation intent from lifecycle vocabulary ("do the full PR process", "start the work", "poller agents"), branching language, or workflow shape. Workflow-shape vocabulary is NOT authorization to spawn an implementation agent.
 - ⊗ Treat affirmative continuation phrases (`yes`, `go`, `proceed`, `do it`) as implementation authorization unless the prior turn explicitly proposed implementation. Broad approval is not a substitute for an explicit action-verb directive.
 
-**Pre-`start_agent` gate stack (#1149/#1348):** Before dispatching an implementation sub-agent via `start_agent`, run the gates in the canonical order: (0) session ritual gate (#1348, `task verify:session-ritual -- --tier=gated`) -> (1) story-start Gate 0 (#1378, `task verify:story-ready -- --vbrief-path <active-story-path> [--allocation-context <dispatch-envelope-file>]`) -> (2) vBRIEF implementation-intent gate (#810, `task vbrief:preflight -- <path>`) -> (3) `task verify:cache-fresh` (D5 / #1127) -> (4) branch-policy gate (`task verify:branch` and the `.githooks/pre-commit` / `pre-push` hooks) -> (5) `start_agent`. Any non-zero exit aborts dispatch.
+**Pre-`start_agent` gate stack (#1149/#1348):** Before dispatching an implementation sub-agent via `start_agent`, run the gates in the canonical order: (0) session ritual gate (#1348, `task deft:verify:session-ritual -- --tier=gated`) -> (1) story-start Gate 0 (#1378, `task deft:verify:story-ready -- --vbrief-path <active-story-path> [--allocation-context <dispatch-envelope-file>]`) -> (2) vBRIEF implementation-intent gate (#810, `task deft:vbrief:preflight -- <path>`) -> (3) `task deft:verify:cache-fresh` (D5 / #1127) -> (4) branch-policy gate (`task deft:verify:branch` and the `.githooks/pre-commit` / `pre-push` hooks) -> (5) `start_agent`. Any non-zero exit aborts dispatch.
 
 ### Story Start Gate
 
@@ -141,11 +142,11 @@ Cross-reference: `.deft/core/docs/analysis/2026-05-26-issue-1353-grok-windows-ca
 - ⊗ Begin a new story while unrelated dirty work is present without explicit operator approval.
 - ! Resolve exactly one target story vBRIEF path by default. Batching multiple stories requires explicit operator approval and a short rationale.
 - ! When invoked as part of a swarm cohort dispatch, the approved Phase 5 allocation plan satisfies the "explicit operator approval and a short rationale" requirement above -- the dispatched paths and allocation rationale ARE the consent token. Do NOT re-prompt the parent for batching approval mid-cohort; the all-or-nothing dispatch envelope rule (#954) forbids mid-scope user-approval gates.
-- ! Within a swarm cohort, between stories, the working tree MUST be clean (a checkpoint commit + `task scope:complete` just landed). If `git status --short` shows uncommitted state between stories, checkpoint-commit it and proceed -- do NOT pause to ask the operator. The dirty-tree "ask the operator" branch above applies only at the FIRST story-start of a fresh branch.
-- ! If the target story is in `vbrief/proposed/`, run `task scope:promote -- <path>` first; if it is in `vbrief/pending/`, run `task scope:activate -- <path>`. After activation, run `task vbrief:preflight -- <active-story-path>` before code-writing.
+- ! Within a swarm cohort, between stories, the working tree MUST be clean (a checkpoint commit + `task deft:scope:complete` just landed). If `git status --short` shows uncommitted state between stories, checkpoint-commit it and proceed -- do NOT pause to ask the operator. The dirty-tree "ask the operator" branch above applies only at the FIRST story-start of a fresh branch.
+- ! If the target story is in `vbrief/proposed/`, run `task deft:scope:promote -- <path>` first; if it is in `vbrief/pending/`, run `task deft:scope:activate -- <path>`. After activation, run `task deft:vbrief:preflight -- <active-story-path>` before code-writing.
 - ! Default to one story per branch/PR. Create a checkpoint commit after each completed story before beginning another story, unless the operator explicitly approved batching.
-- ! After checks pass for the story, complete the lifecycle with `task scope:complete -- <active-story-path>` before final PR handoff.
-- ! Before dispatching an implementation sub-agent, run the deterministic Gate 0 `task verify:story-ready -- --vbrief-path <active-story-path> [--allocation-context <dispatch-envelope-file>]` ahead of `task vbrief:preflight`. It machine-checks a clean working tree (or `--allow-dirty`), the target vBRIEF in `vbrief/active/` with `plan.status == "running"`, and the dispatch envelope's `## Allocation context` consent token; three-state exit (0 ready / 1 not ready / 2 config error). A `swarm-cohort` section is ready only when `allocation_plan_id` AND `batching_rationale` are non-null; an absent section is the solo path. Any non-zero exit aborts dispatch.
+- ! After checks pass for the story, complete the lifecycle with `task deft:scope:complete -- <active-story-path>` before final PR handoff.
+- ! Before dispatching an implementation sub-agent, run the deterministic Gate 0 `task deft:verify:story-ready -- --vbrief-path <active-story-path> [--allocation-context <dispatch-envelope-file>]` ahead of `task deft:vbrief:preflight`. It machine-checks a clean working tree (or `--allow-dirty`), the target vBRIEF in `vbrief/active/` with `plan.status == "running"`, and the dispatch envelope's `## Allocation context` consent token; three-state exit (0 ready / 1 not ready / 2 config error). A `swarm-cohort` section is ready only when `allocation_plan_id` AND `batching_rationale` are non-null; an absent section is the solo path. Any non-zero exit aborts dispatch.
 
 ## Commands
 

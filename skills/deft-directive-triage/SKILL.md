@@ -31,7 +31,7 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 ## Deterministic Questions Contract
 
-! Every numbered-menu prompt rendered in this skill (Phase 2 candidate selection, Phase 3 per-item decision walk) ! MUST follow [`../../contracts/deterministic-questions.md`](../../contracts/deterministic-questions.md): the final two numbered options are `Discuss` and `Back`, in that order, and the Discuss-pause semantic from the contract applies verbatim -- on `Discuss` the agent halts the in-progress sequence and resumes only on an explicit user signal.
+! Every numbered-menu prompt rendered in this skill (Phase 2 candidate selection, Phase 3 per-item decision walk) ! MUST follow [`../../contracts/deterministic-questions.md`](../../contracts/deterministic-questions.md): render the canonical numbered menu in chat unless the host UI visibly preserves numeric option labels and returns numeric selections or exact displayed option text. The final two numbered options are `Discuss` and `Back`, in that order, and the Discuss-pause semantic from the contract applies verbatim -- on `Discuss` the agent halts the in-progress sequence and resumes only on an explicit user signal.
 
 ## Phase 0 -- Sync
 
@@ -50,7 +50,9 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 1. ! Run `task triage:classify --list` (D10 / #1129) to render the effective universal + consumer auto-classification rules and the active hold-marker list.
 2. ! Walk recent entries in `vbrief/.eval/candidates.jsonl` for anomalies: classifier disagreements against the operator's prior decisions, repeated `defer` cycles on the same issue, or `needs-ac` records older than the freshness window. Surface anomalies to the operator before Phase 2; do NOT auto-fix.
 3. ~ When the operator wants to widen / narrow the corpus, consult `task triage:scope --list` (D12 / #1131) to see the active `plan.policy.triageScope[]` subscription. Subscription edits belong in PROJECT-DEFINITION.vbrief.json, not in this skill.
-4. ⊗ Re-classify items already terminally decided (accept / reject / mark-duplicate) without explicit operator approval -- the audit log is append-only and supersession runs through Layer 5 (`task triage:reset <N>`), not through silent re-walks.
+4. ~ Issue-label hygiene: labels feed triage queue ranking, issue gauges, hygiene sweeps, and lifecycle reconciliation. When this skill exposes an unlabeled issue or a downstream issue-creation step, recommend choosing one or more suitable labels from the repository's existing label set via `gh label list` or the labels API, or explicitly note that no label was applied. This is a recommendation, not a gate.
+5. ⊗ Re-classify items already terminally decided (accept / reject / mark-duplicate) without explicit operator approval -- the audit log is append-only and supersession runs through Layer 5 (`task triage:reset <N>`), not through silent re-walks.
+6. ⊗ Block issue creation solely because no label was selected, or invent ad hoc labels outside the repository's existing label set.
 
 ## Phase 2 -- Present
 
@@ -79,6 +81,7 @@ What would you like to do with this candidate?
 ```
 
 - ! `--resume-on <event>` on `task triage:defer` (D3 / #1123 -- ships in parallel; reference but do not hard-depend) records a resume condition with the defer entry; the resume condition surfaces in `task triage:queue` once met. When D3 has not landed yet, omit the flag -- the verb stays terminal-shape-compatible.
+- ! Map user replies only to the displayed number (`1`-`7`) or exact displayed option text. ⊗ Do NOT infer from alphabetic host affordances or bare letters such as `d` / `b` unless those letters were visibly rendered as choices.
 - ! On `Discuss`, halt the action sequence immediately, prompt `What would you like to discuss?`, and resume only on an explicit user signal. ⊗ Implicit resumption.
 - ! On `Back`, un-buffer the prior candidate's selection and re-render its action menu -- permitted only before the action has dispatched to a `task triage:*` command. Once dispatched, the audit entry is committed; revisions go through Layer 5 (`task triage:reset`).
 - ~ Bulk patterns: `task triage:bulk-{accept,reject,defer,needs-ac}` (#845 Story 4) for clear label-driven sweeps; bulk results still flow through the audit log so history stays coherent.

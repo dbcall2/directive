@@ -33,7 +33,7 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 ## Deterministic Questions Contract
 
-! Every numbered-menu prompt rendered in this skill (Phase 0 Triage action menu, Phase 2 Evaluate per-item accept/reject, Phase 3 Reconcile flagged-item walk, Phase 4 Promote/Demote lifecycle gates, Phase 5 Prioritize reorder gates) MUST follow [`../../contracts/deterministic-questions.md`](../../contracts/deterministic-questions.md): the final two numbered options MUST be `Discuss` and `Back`, in that order. The Discuss-pause semantic is documented verbatim there -- on `Discuss` selection the agent MUST halt the in-progress sequence immediately, prompt `What would you like to discuss?`, and resume only on an explicit user signal. Implicit resumption is forbidden.
+! Every numbered-menu prompt rendered in this skill (Phase 0 Triage action menu, Phase 2 Evaluate per-item accept/reject, Phase 3 Reconcile flagged-item walk, Phase 4 Promote/Demote lifecycle gates, Phase 5 Prioritize reorder gates) MUST follow [`../../contracts/deterministic-questions.md`](../../contracts/deterministic-questions.md): render the canonical numbered menu in chat unless the host UI visibly preserves numeric option labels and returns numeric selections or exact displayed option text. The final two numbered options MUST be `Discuss` and `Back`, in that order. The Discuss-pause semantic is documented verbatim there -- on `Discuss` selection the agent MUST halt the in-progress sequence immediately, prompt `What would you like to discuss?`, and resume only on an explicit user signal. Implicit resumption is forbidden, and fallback chat replies MUST map only to the displayed number or exact displayed option text.
 
 ## When to Use
 
@@ -311,6 +311,8 @@ The task scans every vBRIEF with a GitHub-backed reference (whether the referenc
 ~ Completion lifecycle can be triggered during refinement or as a standalone action after a PR merge
 
 ! When the refinement session files a new umbrella issue (or surfaces one whose current-shape comment is missing), file the umbrella then file its `## Current shape (as of pass-N)` comment per `## Umbrella current-shape convention` in `AGENTS.md` (#1152) -- the edit-in-place comment is the canonical surface every subsequent design pass updates.
+
+~ Issue-label hygiene for any umbrella or child issue this skill files: before creating issues, inspect the target repo's existing labels with `gh label list` or the labels API; choose one or more suitable existing labels when practical, or explicitly note that no label was applied. This is a recommendation, not a gate -- do not block issue creation solely because no label fits, and do not invent ad hoc labels outside the repo's existing label set.
 
 ! When a refinement pass produces a slicing event (rare but possible -- e.g. a design pass on an existing umbrella files N additional Wave-N child issues), record the cohort in `vbrief/.eval/slices.jsonl` via `scripts/slice_record.py::write_slice(...)` with `actor="skill:refinement"` immediately after the children are filed (#1132 / D13). Same call shape as `skills/deft-directive-gh-slice/SKILL.md` Step 6. The cohort record is what makes `task triage:audit --orphans` able to detect Wave-2+ children whose umbrella closes prematurely; without it the production-side drift this surface guards against re-fires. Skip when the pass produced no new child cohort (e.g. a pure re-prioritization).
 

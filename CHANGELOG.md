@@ -23,6 +23,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [0.45.1] - 2026-06-09
+
+> Fixes vendored encoding checks after consumer upgrades.
+
+### Added
+
+### Changed
+
+### Fixed
+- **Vendored encoding checks no longer fail on framework-owned history after upgrade (#1382)** -- consumer installs now omit non-runtime framework history from the packaged payload, and the encoding verifier recognizes its own documented exception files when they live under `.deft/core/`. Consumer-owned mojibake still fails the gate, but packaged Deft artifacts no longer block `task deft:verify:encoding` immediately after upgrade. Closes #1382.
+
+### Removed
+
+## [0.45.0] - 2026-06-09
+
+> Cleaner swarm setup and consumer checks, plus lifecycle and triage reliability fixes.
+
+### Added
+
+### Changed
+- **Interactive swarm setup asks for the intended sub-agent backend before launch (#1568)** -- swarm operators now see a numbered Composer/local, Cursor cloud, or Grok Build choice before headless launch planning when no backend policy is set. The prompt separates operator preference from probe availability, so a probe-available cloud backend is not treated as the default. Closes #1568.
+
+- **Issue-creation workflows now nudge agents toward existing labels (#1510)** -- Directive skills that file or surface GitHub issues now recommend checking the repository's label set, choosing suitable existing labels when practical, and explicitly noting when no label is applied. The guidance stays advisory so issue creation is not blocked when no label fits, while still reducing unlabeled triage drift. Closes #1510.
+
+### Fixed
+
+- **Consumer `task deft:check` no longer runs framework source self-tests by default (#1519)** -- vendored `.deft/core` installs now route the aggregate check to consumer-safe install and lifecycle gates, while framework source-repo checks remain available behind an explicit self-check target. Closes #1519.
+- **Completed scopes no longer leave PROJECT-DEFINITION registry rows looking proposed (#1527)** -- `task scope:complete` now keeps the matching local project reference and registry item aligned when it moves a scope into `completed/`, and validation catches stale registry status if a referenced scope and its registry row drift apart. Closes #1527.
+- **Deterministic menus now stay portable across host UIs (#1563)** -- numbered decision flows now require visible numeric labels and strict fallback mapping to the displayed number or exact option text, so agents do not reinterpret alphabetic host affordances like `d` or `b` unless those letters were actually shown. Refs #1563.
+
+### Removed
+
 ## [0.44.0] - 2026-06-08
 
 > Maintainer installs are cleaner in framework checkouts, and GitHub body posting is safer for Markdown-heavy agent workflows.
@@ -3185,7 +3217,9 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.44.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.45.1...HEAD
+[0.45.1]: https://github.com/deftai/directive/compare/v0.45.0...v0.45.1
+[0.45.0]: https://github.com/deftai/directive/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/deftai/directive/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/deftai/directive/compare/v0.42.1...v0.43.0
 [0.42.1]: https://github.com/deftai/directive/compare/v0.42.0...v0.42.1

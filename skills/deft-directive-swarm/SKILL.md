@@ -31,7 +31,7 @@ or invoke `task verify:branch`. The swarm skill creates branches per agent so th
 
 ## Deterministic Questions Contract
 
-! Every numbered-menu prompt rendered in this skill (Phase 0 Step 0 queue-driven promote prompts (#1142 / N2), Step 0.5 bridge approval gate, Step 5 final-approval gate, Phase 1 Step 3 file-overlap audit gate, Phase 5->6 ready-to-merge gate) MUST follow [`../../contracts/deterministic-questions.md`](../../contracts/deterministic-questions.md): the final two numbered options MUST be `Discuss` and `Back`, in that order. The Discuss-pause semantic is documented verbatim there -- on `Discuss` selection the agent MUST halt the in-progress sequence immediately, prompt `What would you like to discuss?`, and resume only on an explicit user signal. Implicit resumption is forbidden.
+! Every numbered-menu prompt rendered in this skill (Phase 0 Step 0 queue-driven promote prompts (#1142 / N2), Step 0.5 bridge approval gate, Step 5 final-approval gate, Phase 1 Step 3 file-overlap audit gate, Phase 5->6 ready-to-merge gate) MUST follow [`../../contracts/deterministic-questions.md`](../../contracts/deterministic-questions.md): render the canonical numbered menu in chat unless the host UI visibly preserves numeric option labels and returns numeric selections or exact displayed option text. The final two numbered options MUST be `Discuss` and `Back`, in that order. The Discuss-pause semantic is documented verbatim there -- on `Discuss` selection the agent MUST halt the in-progress sequence immediately, prompt `What would you like to discuss?`, and resume only on an explicit user signal. Implicit resumption is forbidden, and fallback chat replies MUST map only to the displayed number or exact displayed option text.
 
 ## When to Use
 
@@ -135,7 +135,34 @@ Loop body, per candidate (top-of-queue first):
 
 #### Phase 0d -- Cohort dispatch
 
-- ! After the promote-fill loop exits (cap reached, queue empty, or operator `stop`), `vbrief/pending/` now holds the cohort. The existing Step 0.5 (Lifecycle Bridge -- Promote and Activate Proposed Scope vBRIEFs, #1025) below moves the cohort `pending/ -> active/`, and Steps 1-5 (readiness report, blockers, allocation, present, approval) proceed against the activated set. Existing swarm Phase 1+ (Select, Setup, Launch, Monitor, Review, Close) proceeds unchanged.
+- ! After the promote-fill loop exits (cap reached, queue empty, or operator `stop`), `vbrief/pending/` now holds the cohort. On the interactive path, Phase 0e below captures the intended sub-agent backend before Step 0.5 hardens lifecycle state. Then the existing Step 0.5 (Lifecycle Bridge -- Promote and Activate Proposed Scope vBRIEFs, #1025) moves the cohort `pending/ -> active/`, and Steps 1-5 (readiness report, blockers, allocation, present, approval) proceed against the activated set. Existing swarm Phase 1+ (Select, Setup, Launch, Monitor, Review, Close) proceeds unchanged.
+
+#### Phase 0e -- Interactive sub-agent backend selection (#1568)
+
+! On the **interactive** swarm path, before Step 0.5 hardens lifecycle state and before any `task swarm:launch` / headless launch-manifest handoff is attempted, run `task policy:subagent-backends` and inspect `plan.policy.swarmSubagentBackend`.
+
+! If `plan.policy.swarmSubagentBackend` is unset, ask the operator which subagent backend they intend to use. This question captures operator preference; probe availability is supporting evidence only. Display all stable backend choices with their probed status, but do NOT rank the menu by availability and do NOT imply `cursor-cloud` is the default just because it is probe-available.
+
+Render the backend-selection prompt as a deterministic numbered menu in chat (or via a host UI that visibly preserves the same numeric option labels and exact displayed option text) with `Discuss` and `Back` final per [`../../contracts/deterministic-questions.md`](../../contracts/deterministic-questions.md):
+
+1. Local Composer/Cursor subagents (`composer`) -- intended local Composer-class coding agents; probe status: `<available|unavailable|unknown>`.
+2. Cursor cloud agents (`cursor-cloud`) -- intended remote/cloud agents; probe status: `<available|unavailable|unknown>`.
+3. Grok Build subagents (`grok-build`) -- intended `spawn_subagent` workers; probe status: `<available|unavailable|unknown>`.
+4. Discuss
+5. Back
+
+! After the operator selects a backend, ask whether to persist it to project policy with `task policy:subagent-backend -- <id>` or record it as a per-run launch-context choice for this swarm only. Render the persistence/per-run follow-up as a deterministic numbered menu with `Discuss` and `Back` as the final two options:
+
+1. Persist backend to project policy with `task policy:subagent-backend -- <id>` -- use this backend for future swarms.
+2. Record backend as a per-run launch-context choice for this swarm only -- do not change project policy.
+3. Discuss
+4. Back
+
+! If the operator chooses a backend whose probe status is unavailable or unknown, surface the remediation or uncertainty for that backend (for example, switch runtime, enable `spawn_subagent`, inject cloud credentials, or rerun the probe in the target environment) and stop before launch planning unless the operator explicitly records a per-run launch-context choice for a later environment where that backend will be available or verifiable.
+
+⊗ Treat probe availability as operator intent. A single probe-available backend is not a recommendation, default, or consent token; the operator must choose the intended backend in the interactive path when policy is unset.
+
+⊗ Add an interactive prompt to the headless / autonomous `task swarm:launch` path. Autonomous/headless launch remains fail-closed when neither `plan.policy.swarmSubagentBackend` nor an explicit launch-context backend choice is present; `scripts/swarm_launch.py` is the guardrail, not a prompt surface.
 
 #### Manual / GitHub-issue escape hatch
 
@@ -154,7 +181,7 @@ Loop body, per candidate (top-of-queue first):
 
 ! **Scan**: list every `*.vbrief.json` under `vbrief/proposed/` and `vbrief/pending/`. Cross-reference each candidate against the user's stated swarm scope (the issue numbers / vBRIEF filenames the user asked the monitor to swarm on). Candidates outside the stated scope MUST NOT be promoted or activated by this bridge -- they may be in a deliberate refinement queue owned by `skills/deft-directive-refinement/SKILL.md` Phase 4.
 
-! **Present**: render a numbered list of in-scope candidates to the user with their current lifecycle folder (`proposed/` vs `pending/`) and `plan.status`. Render per the host's structured-tool mode (click-commit vs plain-text typed) per `skills/deft-directive-interview/SKILL.md` Rule 2 Always-Structured Rendering. The final two numbered options MUST be `Discuss` and `Back` per [`../../contracts/deterministic-questions.md`](../../contracts/deterministic-questions.md).
+! **Present**: render a numbered list of in-scope candidates to the user with their current lifecycle folder (`proposed/` vs `pending/`) and `plan.status`. Render the canonical numbered menu in chat unless the host UI visibly preserves the same numeric option labels and returns numeric selections or exact displayed option text. The final two numbered options MUST be `Discuss` and `Back` per [`../../contracts/deterministic-questions.md`](../../contracts/deterministic-questions.md).
 
 ! **Approve**: wait for explicit user approval (`yes`, `confirmed`, `approve`) before any lifecycle mutation. Broad affirmative continuation phrases (`proceed`, `do it`, `go ahead`) are NOT authorisation -- the bridge MUST be explicitly confirmed because promoting + activating a scope vBRIEF is a lifecycle commitment that flips `plan.status` to `running` and clears the #810 implementation-intent gate for downstream agent dispatch.
 
