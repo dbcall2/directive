@@ -2,6 +2,15 @@ version: '3'
 
 vars:
   DEFT_ROOT: '{{joinPath .TASKFILE_DIR ".."}}'
+  DEFT_TASK_PREFIX:
+    sh: |
+      task_name='{{.TASK}}'
+      suffix='verify:session-ritual'
+      prefix="${task_name%$suffix}"
+      if [ "$prefix" = "$task_name" ]; then
+        prefix=''
+      fi
+      printf '%s' "$prefix"
 
 tasks:
   stubs:
@@ -89,6 +98,16 @@ tasks:
     # missing cache fails their `task check` loudly.
     cmds:
       - uv --project "{{.DEFT_ROOT}}" run python "{{.DEFT_ROOT}}/scripts/preflight_cache.py" --project-root "{{.USER_WORKING_DIR}}" --allow-missing-bootstrap {{.CLI_ARGS}}
+
+  session-ritual:
+    desc: "Fail-closed session ritual verifier (#1348). Flags: --tier quick|gated / --json. Set DEFT_SESSION_RITUAL_SKIP=1 for headless workers and CI."
+    dir: '{{.USER_WORKING_DIR}}'
+    env:
+      PYTHONUTF8: "1"
+      DEFT_TASK_PREFIX: "{{.DEFT_TASK_PREFIX}}"
+    # No sources/generates: this gate is time-, HEAD-, and worktree-sensitive.
+    cmds:
+      - uv --project "{{.DEFT_ROOT}}" run python "{{.DEFT_ROOT}}/scripts/verify_session_ritual.py" --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}
 
   scm-boundary:
     desc: "Detection-bound gate against raw `gh` / `ghx` subprocess calls outside `scripts/scm.py` (#1145 / N5). Scans verb-layer Python files (`scripts/triage_*.py`, `scripts/scope_*.py`, `scripts/slice_*.py`, `scripts/_triage_*.py`, `scripts/_scope_*.py`, `scripts/resume_conditions.py`, `scripts/issue_ingest.py`) and fails loud when any of them invoke `gh` directly instead of going through `scm.call(source, verb, args)`. Three-state exit (0 clean / 1 violations / 2 config error). Document an exception via `--allow-list <path>` (file with newline-separated glob patterns)."

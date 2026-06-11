@@ -74,6 +74,7 @@ import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 LOG = logging.getLogger(__name__)
 
@@ -83,6 +84,16 @@ SCHEMA_VERSION: int = 1
 #: Filesystem-relative location of the per-clone sentinel. Never
 #: committed -- ``.deft/`` is gitignored.
 SENTINEL_RELPATH: tuple[str, str] = (".deft", "last-session.json")
+
+#: Filesystem-relative location of the fail-closed session ritual state
+#: (#1348). Separate from :data:`SENTINEL_RELPATH` because the existing
+#: last-session sentinel is intentionally fail-open while this verifier
+#: must fail closed.
+RITUAL_STATE_RELPATH: tuple[str, str] = (".deft", "ritual-state.json")
+
+#: Schema version emitted by the ritual-state writer and required by the
+#: strict reader.
+RITUAL_STATE_SCHEMA_VERSION: int = 1
 
 #: Minimum time delta since the recorded ``timestamp`` before the resume
 #: nudge fires. Guards against nagging on terminal-restart within an
@@ -123,8 +134,27 @@ class Sentinel:
     last_branch: str
 
 
+@dataclass(frozen=True)
+class RitualState:
+    """Strictly parsed ``.deft/ritual-state.json`` snapshot (#1348)."""
+
+    schema_version: int
+    session_id: str
+    git_head: str
+    worktree_path: str
+    started_at: datetime
+    quick_steps: dict[str, dict[str, Any]]
+    gated_steps: dict[str, dict[str, Any]]
+    raw: dict[str, Any]
+
+
 def _sentinel_path(project_root: Path) -> Path:
     return project_root.joinpath(*SENTINEL_RELPATH)
+
+
+def ritual_state_path(project_root: Path) -> Path:
+    """Return the absolute ``.deft/ritual-state.json`` path."""
+    return project_root.joinpath(*RITUAL_STATE_RELPATH)
 
 
 def _parse_timestamp(raw: object) -> datetime | None:
@@ -149,6 +179,205 @@ def _parse_timestamp(raw: object) -> datetime | None:
         # be permissive on read to remain fail-open.
         parsed = parsed.replace(tzinfo=UTC)
     return parsed
+
+
+def _timestamp_iso(now: datetime | None = None) -> str:
+    instant = now if now is not None else datetime.now(UTC)
+    instant = instant.replace(tzinfo=UTC) if instant.tzinfo is None else instant.astimezone(UTC)
+    return instant.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def ritual_step(
+    *,
+    ok: bool,
+    ts: datetime | None = None,
+    deferred_reason: str | None = None,
+    exit_code: int | None = None,
+    message: str | None = None,
+    command: list[str] | tuple[str, ...] | None = None,
+) -> dict[str, Any]:
+    """Return a canonical ritual step payload for ``ritual-state.json``."""
+    payload: dict[str, Any] = {
+        "ok": ok,
+        "ts": _timestamp_iso(ts),
+    }
+    if deferred_reason:
+        payload["deferred_reason"] = deferred_reason
+    if exit_code is not None:
+        payload["exit_code"] = exit_code
+    if message:
+        payload["message"] = message
+    if command:
+        payload["command"] = [str(part) for part in command]
+    return payload
+
+
+def new_ritual_state_payload(
+    *,
+    session_id: str,
+    git_head: str,
+    worktree_path: str,
+    started_at: datetime | None = None,
+    quick_steps: dict[str, dict[str, Any]] | None = None,
+    gated_steps: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Build the canonical top-level ritual-state JSON payload."""
+    return {
+        "schemaVersion": RITUAL_STATE_SCHEMA_VERSION,
+        "session_id": session_id,
+        "git_head": git_head,
+        "worktree_path": worktree_path,
+        "started_at": _timestamp_iso(started_at),
+        "quick_steps": quick_steps or {},
+        "gated_steps": gated_steps or {},
+    }
+
+
+def _validate_steps(raw: object, key: str) -> tuple[dict[str, dict[str, Any]] | None, str | None]:
+    if not isinstance(raw, dict):
+        return None, f"{key} must be an object"
+    steps: dict[str, dict[str, Any]] = {}
+    for name, value in raw.items():
+        if not isinstance(name, str) or not name:
+            return None, f"{key} contains a non-string step name"
+        if not isinstance(value, dict):
+            return None, f"{key}.{name} must be an object"
+        ok = value.get("ok")
+        if not isinstance(ok, bool):
+            return None, f"{key}.{name}.ok must be a boolean"
+        if _parse_timestamp(value.get("ts")) is None:
+            return None, f"{key}.{name}.ts must be an ISO-8601 timestamp"
+        deferred = value.get("deferred_reason")
+        if deferred is not None and not isinstance(deferred, str):
+            return None, f"{key}.{name}.deferred_reason must be a string"
+        exit_code = value.get("exit_code")
+        if exit_code is not None and (
+            not isinstance(exit_code, int) or isinstance(exit_code, bool)
+        ):
+            return None, f"{key}.{name}.exit_code must be an integer"
+        message = value.get("message")
+        if message is not None and not isinstance(message, str):
+            return None, f"{key}.{name}.message must be a string"
+        command = value.get("command")
+        if command is not None and (
+            not isinstance(command, list) or not all(isinstance(part, str) for part in command)
+        ):
+            return None, f"{key}.{name}.command must be an array of strings"
+        steps[name] = dict(value)
+    return steps, None
+
+
+def read_ritual_state(project_root: Path) -> tuple[RitualState | None, str | None]:
+    """Strictly read ``.deft/ritual-state.json``.
+
+    Unlike :func:`read`, this is the fail-closed #1348 surface. Missing
+    state, corrupt JSON, schema mismatch, and malformed fields return a
+    diagnostic error string for callers to turn into gate failures.
+    """
+    state_file = ritual_state_path(project_root)
+    try:
+        if not state_file.is_file():
+            return None, f"ritual state missing at {state_file}"
+    except OSError as exc:
+        return None, f"ritual state unreadable at {state_file}: {exc}"
+    try:
+        payload = json.loads(state_file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return None, f"ritual state is not valid JSON: {exc.msg} (line {exc.lineno})"
+    except (OSError, UnicodeDecodeError) as exc:
+        return None, f"ritual state cannot be read: {exc}"
+    if not isinstance(payload, dict):
+        return None, "ritual state top-level value must be an object"
+    if payload.get("schemaVersion") != RITUAL_STATE_SCHEMA_VERSION:
+        return None, (
+            "ritual state schemaVersion mismatch "
+            f"(got {payload.get('schemaVersion')!r}, want {RITUAL_STATE_SCHEMA_VERSION})"
+        )
+    session_id = payload.get("session_id")
+    git_head = payload.get("git_head")
+    worktree_path = payload.get("worktree_path")
+    started_at = _parse_timestamp(payload.get("started_at"))
+    for field_name, value in (
+        ("session_id", session_id),
+        ("git_head", git_head),
+        ("worktree_path", worktree_path),
+    ):
+        if not isinstance(value, str) or not value:
+            return None, f"ritual state {field_name} must be a non-empty string"
+    if started_at is None:
+        return None, "ritual state started_at must be an ISO-8601 timestamp"
+    quick_steps, quick_err = _validate_steps(payload.get("quick_steps"), "quick_steps")
+    if quick_err is not None or quick_steps is None:
+        return None, quick_err or "quick_steps invalid"
+    gated_steps, gated_err = _validate_steps(payload.get("gated_steps"), "gated_steps")
+    if gated_err is not None or gated_steps is None:
+        return None, gated_err or "gated_steps invalid"
+    return (
+        RitualState(
+            schema_version=RITUAL_STATE_SCHEMA_VERSION,
+            session_id=session_id,
+            git_head=git_head,
+            worktree_path=worktree_path,
+            started_at=started_at,
+            quick_steps=quick_steps,
+            gated_steps=gated_steps,
+            raw=dict(payload),
+        ),
+        None,
+    )
+
+
+def write_ritual_state(project_root: Path, payload: dict[str, Any]) -> Path:
+    """Atomically write the strict ``.deft/ritual-state.json`` payload."""
+    state_file = ritual_state_path(project_root)
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    tmp_fd, tmp_name = tempfile.mkstemp(
+        prefix=".ritual-state.",
+        suffix=".json.tmp",
+        dir=str(state_file.parent),
+    )
+    fdopen_succeeded = False
+    try:
+        fh = os.fdopen(tmp_fd, "w", encoding="utf-8", newline="\n")
+        fdopen_succeeded = True
+        try:
+            json.dump(payload, fh, indent=2, sort_keys=True)
+            fh.write("\n")
+            fh.flush()
+            with contextlib.suppress(OSError):
+                os.fsync(fh.fileno())
+        finally:
+            fh.close()
+        os.replace(tmp_name, state_file)
+    except Exception:
+        if not fdopen_succeeded:
+            with contextlib.suppress(OSError):
+                os.close(tmp_fd)
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+        raise
+    return state_file
+
+
+def record_ritual_step(
+    project_root: Path,
+    *,
+    tier: str,
+    step_name: str,
+    step: dict[str, Any],
+) -> Path:
+    """Read-modify-write a single ritual step in the strict state file."""
+    state, err = read_ritual_state(project_root)
+    if state is None:
+        raise ValueError(err or "ritual state missing")
+    if tier not in {"quick", "gated"}:
+        raise ValueError(f"tier must be 'quick' or 'gated', got {tier!r}")
+    payload = dict(state.raw)
+    key = "quick_steps" if tier == "quick" else "gated_steps"
+    steps = dict(payload.get(key, {}))
+    steps[step_name] = step
+    payload[key] = steps
+    return write_ritual_state(project_root, payload)
 
 
 def read(project_root: Path) -> Sentinel | None:
@@ -361,10 +590,19 @@ def _format_elapsed(delta: timedelta) -> str:
 __all__ = [
     "ACTIVE_VBRIEF_PREFIX",
     "MIN_RESUME_AGE",
+    "RITUAL_STATE_RELPATH",
+    "RITUAL_STATE_SCHEMA_VERSION",
     "SCHEMA_VERSION",
     "SENTINEL_RELPATH",
+    "RitualState",
     "Sentinel",
     "compute_resume_signal",
+    "new_ritual_state_payload",
     "read",
+    "read_ritual_state",
+    "record_ritual_step",
+    "ritual_state_path",
+    "ritual_step",
     "write",
+    "write_ritual_state",
 ]

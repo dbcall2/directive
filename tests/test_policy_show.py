@@ -74,7 +74,7 @@ def _write_project_def(project_root: Path, plan: dict[str, Any]) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_inspect_all_policies_returns_eight_fields(policy_module, project_root):
+def test_inspect_all_policies_returns_nine_fields(policy_module, project_root):
     """Every registered field surfaces in the inspector output."""
     _write_project_def(project_root, {})
     fields = policy_module.inspect_all_policies(project_root)
@@ -82,6 +82,7 @@ def test_inspect_all_policies_returns_eight_fields(policy_module, project_root):
     assert names == [
         "plan.policy.allowDirectCommitsToMaster",
         "plan.policy.wipCap",
+        "plan.policy.sessionRitualStalenessHours",
         "plan.policy.triageScope",
         "plan.policy.triageScopeIgnores",
         "plan.policy.triageRankingLabels",
@@ -99,7 +100,7 @@ def test_inspect_all_policies_missing_project_definition_renders_defaults(
     """Missing PROJECT-DEFINITION yields every default-source row."""
     # tmp_path has no vbrief/ subtree.
     fields = policy_module.inspect_all_policies(tmp_path)
-    assert len(fields) == 8
+    assert len(fields) == 9
     assert all(f.source == "default" for f in fields)
 
 
@@ -109,6 +110,7 @@ def test_registered_policy_names_matches_inspectors(policy_module):
     assert names == [
         "plan.policy.allowDirectCommitsToMaster",
         "plan.policy.wipCap",
+        "plan.policy.sessionRitualStalenessHours",
         "plan.policy.triageScope",
         "plan.policy.triageScopeIgnores",
         "plan.policy.triageRankingLabels",
@@ -225,6 +227,57 @@ def test_inspect_wip_cap_malformed_falls_back_to_default(policy_module, project_
     assert field is not None
     assert field.current == 10
     assert field.source == "typed"
+
+
+# ---------------------------------------------------------------------------
+# sessionRitualStalenessHours (#1348) -- default / typed / malformed
+# ---------------------------------------------------------------------------
+
+
+def test_inspect_session_ritual_staleness_default(policy_module, project_root):
+    _write_project_def(project_root, {})
+    field = policy_module.inspect_one_policy(
+        "plan.policy.sessionRitualStalenessHours", project_root
+    )
+    assert field is not None
+    assert field.current == policy_module.DEFAULT_SESSION_RITUAL_STALENESS_HOURS == 4
+    assert field.source == "default"
+
+
+def test_inspect_session_ritual_staleness_typed_value(policy_module, project_root):
+    _write_project_def(project_root, {"policy": {"sessionRitualStalenessHours": 2}})
+    field = policy_module.inspect_one_policy(
+        "plan.policy.sessionRitualStalenessHours", project_root
+    )
+    assert field is not None
+    assert field.current == 2
+    assert field.default == 4
+    assert field.source == "typed"
+
+
+def test_inspect_session_ritual_staleness_null_uses_default(
+    policy_module, project_root
+):
+    _write_project_def(project_root, {"policy": {"sessionRitualStalenessHours": None}})
+    field = policy_module.inspect_one_policy(
+        "plan.policy.sessionRitualStalenessHours", project_root
+    )
+    assert field is not None
+    assert field.current == 4
+    assert field.default == 4
+    assert field.source == "default"
+
+
+def test_inspect_session_ritual_staleness_malformed_falls_back(
+    policy_module, project_root
+):
+    _write_project_def(project_root, {"policy": {"sessionRitualStalenessHours": 0}})
+    field = policy_module.inspect_one_policy(
+        "plan.policy.sessionRitualStalenessHours", project_root
+    )
+    assert field is not None
+    assert field.current == 4
+    assert field.source == "default-on-error"
 
 
 # ---------------------------------------------------------------------------
@@ -375,6 +428,7 @@ def test_cli_text_format_renders_every_field(cli_module, project_root):
     for name in (
         "plan.policy.allowDirectCommitsToMaster",
         "plan.policy.wipCap",
+        "plan.policy.sessionRitualStalenessHours",
         "plan.policy.triageScope",
         "plan.policy.triageScopeIgnores",
         "plan.policy.triageRankingLabels",
@@ -384,7 +438,7 @@ def test_cli_text_format_renders_every_field(cli_module, project_root):
     ):
         assert f"[policy] {name}" in out
     # Default source surfaced for every row.
-    assert out.count("source:  default") == 8
+    assert out.count("source:  default") == 9
 
 
 def test_cli_json_format_schema_stability(cli_module, project_root):
@@ -397,7 +451,7 @@ def test_cli_json_format_schema_stability(cli_module, project_root):
     assert set(envelope.keys()) == {"generated_at", "fields"}
     assert envelope["generated_at"].endswith("Z")
     assert isinstance(envelope["fields"], list)
-    assert len(envelope["fields"]) == 8
+    assert len(envelope["fields"]) == 9
     # Each row carries the contracted four keys in order.
     for row in envelope["fields"]:
         assert list(row.keys()) == ["name", "current", "default", "source"]
@@ -536,8 +590,8 @@ def test_cli_missing_project_definition_exits_zero_with_stderr_note(
 ):
     rc, out, err = _run_cli(cli_module, ["--project-root", str(tmp_path)])
     assert rc == 0
-    # All eight rows still render with default sources.
-    assert out.count("source:  default") == 8
+    # All nine rows still render with default sources.
+    assert out.count("source:  default") == 9
     assert "PROJECT-DEFINITION not found" in err
 
 
@@ -547,11 +601,11 @@ def test_cli_missing_project_definition_exits_zero_with_stderr_note(
 # ---------------------------------------------------------------------------
 
 
-def test_registry_contains_eight_callables_in_order(policy_module):
+def test_registry_contains_nine_callables_in_order(policy_module):
     """Append-only registry; reorder/drop changes user-visible output order."""
     registry = policy_module._REGISTERED_POLICIES
     assert isinstance(registry, tuple)
-    assert len(registry) == 8
+    assert len(registry) == 9
     # Every entry is callable -- the show CLI assumes this.
     assert all(callable(insp) for insp in registry)
 

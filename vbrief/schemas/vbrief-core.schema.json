@@ -378,6 +378,11 @@
         "allowDirectCommitsToMaster": {
           "type": "boolean",
           "description": "When true, the project explicitly opts out of the deft branch-protection policy and allows direct commits to the default branch (master/main). Default: false (enforce feature branches)."
+        },
+        "sessionRitualStalenessHours": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum age, in hours, for .deft/ritual-state.json before the fail-closed session ritual verifier requires task session:start to run again. Default: 4."
         }
       },
       "additionalProperties": true

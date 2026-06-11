@@ -72,7 +72,7 @@ tasks:
       # Step 2 only fires when Step 1 produced a usable absolute path.
       - |
         resolved=$(uv --project "{{.DEFT_ROOT}}" run python "{{.DEFT_ROOT}}/scripts/_resolve_preflight_path.py" --project-root "{{.USER_WORKING_DIR}}") || exit $?
-        uv --project "{{.DEFT_ROOT}}" run python "$resolved" --vbrief-path {{.CLI_ARGS}}
+        uv --project "{{.DEFT_ROOT}}" run python "$resolved" --project-root "{{.USER_WORKING_DIR}}" --vbrief-path {{.CLI_ARGS}}
 
   activate:
     # Implementation-intent activation gate companion (#810). Idempotent:

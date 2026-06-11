@@ -54,6 +54,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from verify_session_ritual import verify  # noqa: E402
+
 #: Canonical eligibility folder. A vBRIEF MUST live here for an
 #: implementation agent to spawn; lifecycle moves are gated by
 #: ``task vbrief:activate`` (#810).
@@ -178,6 +182,20 @@ def _emit_json(path: Path, code: int, message: str) -> str:
     return json.dumps(payload, sort_keys=True)
 
 
+def _discover_project_root(vbrief_path: Path) -> Path:
+    """Find the repo root that owns ``vbrief_path`` for the session gate."""
+    try:
+        resolved = vbrief_path.resolve(strict=False)
+    except OSError:
+        resolved = vbrief_path.absolute()
+    for candidate in (resolved.parent, *resolved.parents):
+        if (candidate / ".git").exists() or (
+            candidate / "vbrief" / "PROJECT-DEFINITION.vbrief.json"
+        ).exists():
+            return candidate
+    return Path.cwd()
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="preflight_implementation.py",
@@ -192,6 +210,14 @@ def _build_parser() -> argparse.ArgumentParser:
         "--vbrief-path",
         required=True,
         help="Path to the candidate vBRIEF JSON file.",
+    )
+    parser.add_argument(
+        "--project-root",
+        default=None,
+        help=(
+            "Project root containing .deft/ritual-state.json. Defaults to "
+            "the owner discovered from --vbrief-path."
+        ),
     )
     parser.add_argument(
         "--json",
@@ -209,6 +235,24 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     path = Path(args.vbrief_path)
+    project_root = (
+        Path(args.project_root).resolve(strict=False)
+        if args.project_root is not None
+        else _discover_project_root(path)
+    )
+
+    ritual = verify(project_root, tier="gated")
+    if ritual.code != 0:
+        message = (
+            "Session ritual gate failed before #810 lifecycle check: "
+            f"{ritual.message}"
+        )
+        if args.emit_json:
+            print(_emit_json(path, 1, message))
+        else:
+            print(message, file=sys.stderr)
+        return 1
+
     code, message = evaluate(path)
 
     if args.emit_json:
