@@ -311,9 +311,17 @@ def test_taskfile_welcome_dispatches_sibling_tasks_with_current_namespace(
     combined = result.stdout + result.stderr
     assert 'Task "triage:' not in combined
     invocations = log_path.read_text(encoding="utf-8").splitlines()
-    assert f"{expected_prefix}triage:bootstrap" in invocations
-    assert f"{expected_prefix}triage:summary" in invocations
-    assert "triage:bootstrap" not in invocations or expected_prefix == ""
+    expected_invocations = {
+        f"{expected_prefix}triage:bootstrap",
+        f"{expected_prefix}triage:summary",
+    }
+    assert expected_invocations <= set(invocations)
+    if expected_prefix:
+        assert "triage:bootstrap" not in invocations
+        assert "triage:summary" not in invocations
+    else:
+        assert "deft:triage:bootstrap" not in invocations
+        assert "deft:triage:summary" not in invocations
 
 
 # ---------------------------------------------------------------------------

@@ -397,19 +397,24 @@ def run_default_mode(
     emit_oneliner(project_root, output_fn=out_fn, write_history=write_history)
     state = triage_welcome.detect_prior_state(project_root)
     label, missing = _classify_onboarding(state)
+    canonical_onboard_command = triage_welcome.format_task_command(
+        ["triage:welcome", "--onboard"]
+    )
     onboard_command = triage_welcome.format_task_command(
         ["triage:welcome", "--onboard"],
         task_prefix=task_prefix,
     )
     if label == "first-time":
-        out_fn(f"[welcome] First-time? Run `{onboard_command}` to set up triage.")
+        out_fn(FIRST_TIME_NUDGE.replace(canonical_onboard_command, onboard_command))
     elif label == "incomplete":
         # Stable, deterministic ordering for the missing-piece list so
         # tests can pin the byte-shape across runs.
         joined = " + ".join(missing)
         out_fn(
-            f"[welcome] Onboarding incomplete: {joined}. Run "
-            f"`{onboard_command}` to resume."
+            INCOMPLETE_NUDGE_TEMPLATE.format(missing=joined).replace(
+                canonical_onboard_command,
+                onboard_command,
+            )
         )
     # ``fully-set-up`` is silent -- the summary line alone is enough.
     outcome.exit_code = 0
