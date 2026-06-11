@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
+import shutil
 import subprocess
 import sys
 from collections.abc import Callable
@@ -536,7 +538,12 @@ def format_task_command(args: list[str], *, task_prefix: str | None = None) -> s
 
 def _run_task(args: list[str], *, cwd: Path, task_prefix: str | None = None) -> int:
     """Run ``task <args...>``. Returns exit code; never raises on non-zero."""
-    cmd = ["task", *task_command_args(args, task_prefix=task_prefix)]
+    task_binary = shutil.which("task") or "task"
+    task_args = task_command_args(args, task_prefix=task_prefix)
+    if os.name == "nt" and Path(task_binary).suffix.lower() in {".bat", ".cmd"}:
+        cmd = ["cmd.exe", "/c", task_binary, *task_args]
+    else:
+        cmd = [task_binary, *task_args]
     try:
         result = subprocess.run(cmd, cwd=str(cwd), check=False)
         return result.returncode

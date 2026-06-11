@@ -172,11 +172,12 @@ def test_run_task_uses_prefixed_argv(tmp_path: Path, monkeypatch: pytest.MonkeyP
     )
 
     assert rc == 0
-    assert captured == {
-        "cmd": ["task", "deft:scope:demote", "--", "--batch"],
-        "cwd": str(tmp_path),
-        "check": False,
-    }
+    cmd = captured["cmd"]
+    assert isinstance(cmd, list)
+    assert cmd[1:] == ["deft:scope:demote", "--", "--batch"]
+    assert Path(cmd[0]).name.lower().startswith("task")
+    assert captured["cwd"] == str(tmp_path)
+    assert captured["check"] is False
 
 
 def test_run_default_mode_uses_prefixed_onboard_nudge(tmp_path: Path) -> None:
@@ -226,8 +227,8 @@ def test_cli_task_prefix_flag_threads_to_run_welcome(
 
 
 def _write_fake_task_binary(bin_dir: Path, log_path: Path) -> Path:
-    task_path = bin_dir / "task"
-    task_path.write_text(
+    task_script = bin_dir / "fake_task.py"
+    task_script.write_text(
         """#!/usr/bin/env python3
 import os
 import sys
@@ -242,6 +243,19 @@ if args and args[0].endswith("triage:bootstrap"):
     candidates.touch()
 raise SystemExit(0)
 """,
+        encoding="utf-8",
+    )
+    task_script.chmod(0o755)
+    if os.name == "nt":
+        task_path = bin_dir / "task.cmd"
+        task_path.write_text(
+            f'@echo off\n"{sys.executable}" "{task_script}" %*\n',
+            encoding="utf-8",
+        )
+        return task_path
+    task_path = bin_dir / "task"
+    task_path.write_text(
+        f'#!/usr/bin/env sh\nexec "{sys.executable}" "{task_script}" "$@"\n',
         encoding="utf-8",
     )
     task_path.chmod(0o755)

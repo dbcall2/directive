@@ -3,12 +3,12 @@
     "version": "0.6",
     "description": "Implementation iteration vBRIEF for #1348 after the original story artifact was found in completed/ while the GitHub issue remained open.",
     "created": "2026-06-09T00:56:40Z",
-    "updated": "2026-06-09T00:56:40Z"
+    "updated": "2026-06-11T16:20:00Z"
   },
   "plan": {
     "id": "1348-session-ritual-verifier-implementation",
     "title": "Implement fail-closed session ritual verifier",
-    "status": "running",
+    "status": "completed",
     "planRef": "#1348",
     "narratives": {
       "Description": "Implement the #1348 two-tier session ritual sentinel and verifier against the current directive master. This iteration exists because the prior #1348 vBRIEF is marked completed even though the GitHub issue remains open and the implementation surfaces are absent.",
@@ -18,35 +18,35 @@
     "items": [
       {
         "title": "Add ritual-state data model and atomic writer",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": ".deft/ritual-state.json has a strict schema, writes atomically, preserves the existing #1269 last-session behavior, and keeps both sentinels under the .deft umbrella."
         }
       },
       {
         "title": "Add session:start and verify:session-ritual tasks",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "task session:start records quick-tier steps and deferrals; task verify:session-ritual fails closed for missing, stale, corrupt, wrong-worktree, or failed state while supporting --tier and --json."
         }
       },
       {
         "title": "Wire gated ritual verification into implementation preflight",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "task vbrief:preflight invokes the gated ritual verifier before the #810 lifecycle check unless DEFT_SESSION_RITUAL_SKIP=1 is set, and JSON callers receive a stable failure payload."
         }
       },
       {
         "title": "Add sessionRitualStalenessHours policy field",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "plan.policy.sessionRitualStalenessHours defaults to 4, rejects malformed values, appears in policy:show, and participates in vBRIEF validation."
         }
       },
       {
         "title": "Update docs, templates, CI, and tests",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "AGENTS.md, templates/agents-entry.md, templates/agent-prompt-preamble.md, CI env, CHANGELOG, and deterministic tests all reflect the new verifier and bypass contract."
         }
@@ -54,6 +54,7 @@
     ],
     "metadata": {
       "kind": "story",
+      "completedAt": "2026-06-11T16:20:00Z",
       "swarm": {
         "readiness": "ready",
         "parallel_safe": false,
@@ -113,6 +114,6 @@
         "title": "Prior #1348 completed artifact with pending implementation items"
       }
     ],
-    "updated": "2026-06-09T00:56:40Z"
+    "updated": "2026-06-11T16:20:00Z"
   }
 }

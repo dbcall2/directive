@@ -107,7 +107,10 @@ def test_run_session_start_records_triage_failure_and_can_defer(
     monkeypatch.setitem(
         sys.modules,
         "triage_welcome",
-        SimpleNamespace(run_default_mode=fail_triage),
+        SimpleNamespace(
+            run_default_mode=fail_triage,
+            task_command_args=lambda args, *, task_prefix=None: args,
+        ),
     )
 
     code, payload, _lines = session_start.run_session_start(
@@ -134,6 +137,47 @@ def test_run_session_start_records_triage_failure_and_can_defer(
     assert state["quick_steps"]["triage_welcome"]["deferred_reason"] == (
         "network unavailable"
     )
+
+
+def test_run_session_start_threads_task_prefix_to_triage_welcome(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    session_start = _load_module("session_start", SCRIPTS_DIR / "session_start.py")
+    _init_git(tmp_path)
+    captured: dict[str, object] = {}
+
+    def fake_task_command_args(args, *, task_prefix=None):
+        captured["command_prefix"] = task_prefix
+        return [f"{task_prefix}{args[0]}", *args[1:]]
+
+    def fake_run_default_mode(*_args, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(exit_code=0)
+
+    monkeypatch.setitem(
+        sys.modules,
+        "triage_welcome",
+        SimpleNamespace(
+            run_default_mode=fake_run_default_mode,
+            task_command_args=fake_task_command_args,
+        ),
+    )
+
+    code, _payload, _lines = session_start.run_session_start(
+        tmp_path,
+        write_history=False,
+        task_prefix="deft:",
+    )
+
+    state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
+    assert code == 0
+    assert captured["task_prefix"] == "deft:"
+    assert captured["command_prefix"] == "deft:"
+    assert state["quick_steps"]["triage_welcome"]["command"] == [
+        "task",
+        "deft:triage:welcome",
+    ]
 
 
 def test_parse_deferrals_rejects_unknown_step() -> None:
