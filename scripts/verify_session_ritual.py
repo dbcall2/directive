@@ -26,11 +26,12 @@ from ritual_sentinel import (  # noqa: E402
 )
 
 ENV_SKIP = "DEFT_SESSION_RITUAL_SKIP"
+TASK_PREFIX_ENV_VAR = "DEFT_TASK_PREFIX"
 QUICK_STEPS: tuple[str, ...] = ("alignment", "branch_policy", "triage_welcome")
 GATED_STEPS: tuple[str, ...] = ("doctor", "cache_fresh")
 GATED_COMMANDS: dict[str, tuple[str, ...]] = {
-    "doctor": ("task", "doctor"),
-    "cache_fresh": ("task", "verify:cache-fresh"),
+    "doctor": ("doctor",),
+    "cache_fresh": ("verify:cache-fresh",),
 }
 
 
@@ -53,6 +54,19 @@ def _utc_now() -> datetime:
 
 def _truthy(raw: str | None) -> bool:
     return (raw or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _task_command_args(args: list[str], *, task_prefix: str | None = None) -> list[str]:
+    """Return task args with the namespace prefix applied to the task name."""
+    if not args:
+        return args
+    prefix = (task_prefix or "").strip()
+    if not prefix:
+        return args
+    if not prefix.endswith(":"):
+        prefix = f"{prefix}:"
+    first, *rest = args
+    return [f"{prefix}{first}", *rest]
 
 
 def _run_git(project_root: Path, args: list[str]) -> tuple[int, str, str]:
@@ -133,7 +147,13 @@ def _run_gated_step(
     runner: Runner,
     now: datetime,
 ) -> str | None:
-    command = list(GATED_COMMANDS[step_name])
+    command = [
+        "task",
+        *_task_command_args(
+            list(GATED_COMMANDS[step_name]),
+            task_prefix=os.environ.get(TASK_PREFIX_ENV_VAR, ""),
+        ),
+    ]
     code, stdout, stderr = runner(command, project_root)
     message = stdout.strip() or stderr.strip() or f"{' '.join(command)} exited {code}"
     payload.setdefault("gated_steps", {})[step_name] = ritual_step(
