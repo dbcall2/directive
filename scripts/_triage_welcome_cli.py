@@ -27,6 +27,10 @@ if TYPE_CHECKING:  # pragma: no cover -- import-time-only typing alias
 # Default-mode (non-onboard) nudge strings (#1309)
 # ---------------------------------------------------------------------------
 
+#: Environment variable used by Taskfile wrappers to tell the Python CLI which
+#: namespace prefix exposes sibling tasks in the caller's project.
+TASK_PREFIX_ENV_VAR: str = "DEFT_TASK_PREFIX"
+
 #: Default-mode nudge string emitted by :func:`run_default_mode` when the
 #: operator has never run ``task triage:welcome --onboard``. Kept as a
 #: module-level constant so tests can pin the exact byte-shape and so
@@ -217,6 +221,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--task-prefix",
+        default=os.environ.get(TASK_PREFIX_ENV_VAR, ""),
+        help=(
+            "Optional Taskfile namespace prefix for sibling task dispatches "
+            "(for example `deft:` in consumer includes). Defaults to "
+            f"${TASK_PREFIX_ENV_VAR}."
+        ),
+    )
+    parser.add_argument(
         "--skip-bootstrap",
         action="store_true",
         help=(
@@ -266,11 +279,13 @@ def run_cli(argv: list[str] | None, tw_module: Any) -> int:
             project_root,
             run_subprocess=not args.no_subprocess,
             skip_bootstrap=args.skip_bootstrap,
+            task_prefix=args.task_prefix,
         )
     else:
         outcome = tw_module.run_default_mode(
             project_root,
             write_history=not args.no_history,
+            task_prefix=args.task_prefix,
         )
     return outcome.exit_code
 
@@ -355,6 +370,7 @@ def run_default_mode(
     *,
     output_fn: Callable[[str], None] | None = None,
     write_history: bool = True,
+    task_prefix: str | None = None,
 ) -> WelcomeOutcome:
     """Non-interactive default mode for ``task triage:welcome`` (#1309).
 
@@ -381,13 +397,25 @@ def run_default_mode(
     emit_oneliner(project_root, output_fn=out_fn, write_history=write_history)
     state = triage_welcome.detect_prior_state(project_root)
     label, missing = _classify_onboarding(state)
+    canonical_onboard_command = triage_welcome.format_task_command(
+        ["triage:welcome", "--onboard"]
+    )
+    onboard_command = triage_welcome.format_task_command(
+        ["triage:welcome", "--onboard"],
+        task_prefix=task_prefix,
+    )
     if label == "first-time":
-        out_fn(FIRST_TIME_NUDGE)
+        out_fn(FIRST_TIME_NUDGE.replace(canonical_onboard_command, onboard_command))
     elif label == "incomplete":
         # Stable, deterministic ordering for the missing-piece list so
         # tests can pin the byte-shape across runs.
         joined = " + ".join(missing)
-        out_fn(INCOMPLETE_NUDGE_TEMPLATE.format(missing=joined))
+        out_fn(
+            INCOMPLETE_NUDGE_TEMPLATE.format(missing=joined).replace(
+                canonical_onboard_command,
+                onboard_command,
+            )
+        )
     # ``fully-set-up`` is silent -- the summary line alone is enough.
     outcome.exit_code = 0
     return outcome
