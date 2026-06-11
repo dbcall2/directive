@@ -205,6 +205,31 @@ def test_gated_tier_lazily_records_missing_steps(tmp_path: Path) -> None:
     assert state["gated_steps"]["cache_fresh"]["ok"] is True
 
 
+def test_subprocess_helpers_capture_text_as_utf8(tmp_path: Path, monkeypatch) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    captured: list[dict[str, object]] = []
+
+    def fake_run(*args, **kwargs):
+        captured.append(kwargs)
+        return subprocess.CompletedProcess(args=args[0], returncode=0, stdout="ok\n", stderr="")
+
+    monkeypatch.setattr(verifier.subprocess, "run", fake_run)
+
+    git_code, git_stdout, git_stderr = verifier._run_git(tmp_path, ["status"])
+    task_code, task_stdout, task_stderr = verifier._default_runner(["task", "doctor"], tmp_path)
+
+    assert git_code == 0
+    assert git_stdout == "ok"
+    assert git_stderr == ""
+    assert task_code == 0
+    assert task_stdout == "ok\n"
+    assert task_stderr == ""
+    assert captured
+    for kwargs in captured:
+        assert kwargs["encoding"] == "utf-8"
+        assert kwargs["errors"] == "replace"
+
+
 def test_gated_tier_write_failure_returns_config_error(tmp_path: Path, monkeypatch) -> None:
     verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
     head = _init_git(tmp_path)

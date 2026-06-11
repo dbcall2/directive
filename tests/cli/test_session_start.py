@@ -109,13 +109,17 @@ def test_run_session_start_records_triage_failure_and_can_defer(
         "triage_welcome",
         SimpleNamespace(
             run_default_mode=fail_triage,
-            task_command_args=lambda args, *, task_prefix=None: args,
+            task_command_args=lambda args, *, task_prefix=None: [
+                f"{task_prefix}{args[0]}",
+                *args[1:],
+            ],
         ),
     )
 
     code, payload, _lines = session_start.run_session_start(
         tmp_path,
         write_history=False,
+        task_prefix="deft:",
     )
 
     state_path = tmp_path / ".deft" / "ritual-state.json"
@@ -123,6 +127,10 @@ def test_run_session_start_records_triage_failure_and_can_defer(
     assert code == 1
     assert payload["ready"] is False
     assert state["quick_steps"]["triage_welcome"]["ok"] is False
+    assert state["quick_steps"]["triage_welcome"]["command"] == [
+        "task",
+        "deft:triage:welcome",
+    ]
     assert "network down" in state["quick_steps"]["triage_welcome"]["message"]
 
     code, payload, _lines = session_start.run_session_start(
@@ -178,6 +186,27 @@ def test_run_session_start_threads_task_prefix_to_triage_welcome(
         "task",
         "deft:triage:welcome",
     ]
+
+
+def test_run_git_captures_text_as_utf8(tmp_path: Path, monkeypatch) -> None:
+    session_start = _load_module("session_start", SCRIPTS_DIR / "session_start.py")
+    captured: dict[str, object] = {}
+
+    def fake_run(*args, **kwargs):
+        captured["kwargs"] = kwargs
+        return subprocess.CompletedProcess(args=args[0], returncode=0, stdout="ok\n", stderr="")
+
+    monkeypatch.setattr(session_start.subprocess, "run", fake_run)
+
+    code, stdout, stderr = session_start._run_git(tmp_path, ["status"])
+
+    kwargs = captured["kwargs"]
+    assert isinstance(kwargs, dict)
+    assert code == 0
+    assert stdout == "ok"
+    assert stderr == ""
+    assert kwargs["encoding"] == "utf-8"
+    assert kwargs["errors"] == "replace"
 
 
 def test_parse_deferrals_rejects_unknown_step() -> None:

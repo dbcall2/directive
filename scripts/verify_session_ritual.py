@@ -62,6 +62,8 @@ def _run_git(project_root: Path, args: list[str]) -> tuple[int, str, str]:
             cwd=str(project_root),
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
     except FileNotFoundError:
@@ -90,6 +92,8 @@ def _default_runner(args: list[str], cwd: Path) -> tuple[int, str, str]:
             cwd=str(cwd),
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             timeout=300,
         )

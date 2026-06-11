@@ -49,6 +49,8 @@ def _run_git(project_root: Path, args: list[str]) -> tuple[int, str, str]:
             cwd=str(project_root),
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
     except FileNotFoundError:
@@ -161,6 +163,10 @@ def run_session_start(
         def _capture(line: str) -> None:
             captured.append(line)
 
+        normalized_task_prefix = (task_prefix or "").strip()
+        if normalized_task_prefix and not normalized_task_prefix.endswith(":"):
+            normalized_task_prefix = f"{normalized_task_prefix}:"
+        triage_command = ["task", f"{normalized_task_prefix}triage:welcome"]
         try:
             import triage_welcome  # noqa: I001
 
@@ -195,7 +201,7 @@ def run_session_start(
                 ts=instant,
                 message=message,
                 exit_code=2,
-                command=["task", "triage:welcome"],
+                command=triage_command,
             )
             lines.append(message)
 
