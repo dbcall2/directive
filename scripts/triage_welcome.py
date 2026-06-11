@@ -513,9 +513,30 @@ def _days_in_pending(path: Path, now: datetime) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _run_task(args: list[str], *, cwd: Path) -> int:
+def normalize_task_prefix(task_prefix: str | None) -> str:
+    """Normalize an optional Taskfile include prefix (``deft`` -> ``deft:``)."""
+    prefix = (task_prefix or "").strip()
+    if prefix and not prefix.endswith(":"):
+        prefix = f"{prefix}:"
+    return prefix
+
+
+def task_command_args(args: list[str], *, task_prefix: str | None = None) -> list[str]:
+    """Return task argv with *task_prefix* applied to the task name only."""
+    if not args:
+        return []
+    prefix = normalize_task_prefix(task_prefix)
+    return [f"{prefix}{args[0]}", *args[1:]]
+
+
+def format_task_command(args: list[str], *, task_prefix: str | None = None) -> str:
+    """Render an operator-facing ``task ...`` command string."""
+    return " ".join(["task", *task_command_args(args, task_prefix=task_prefix)])
+
+
+def _run_task(args: list[str], *, cwd: Path, task_prefix: str | None = None) -> int:
     """Run ``task <args...>``. Returns exit code; never raises on non-zero."""
-    cmd = ["task", *args]
+    cmd = ["task", *task_command_args(args, task_prefix=task_prefix)]
     try:
         result = subprocess.run(cmd, cwd=str(cwd), check=False)
         return result.returncode
@@ -623,6 +644,7 @@ def run_default_mode(
     output_fn: Callable[[str], None] | None = None,
     write_history: bool = True,
     now: datetime | None = None,
+    task_prefix: str | None = None,
 ) -> WelcomeOutcome:
     """Default-mode session-start surface (#1309) + budgeted nudges (#1419 S6).
 
@@ -637,7 +659,10 @@ def run_default_mode(
     """
     out_fn = output_fn or default_output
     outcome = _cli_run_default_mode(
-        project_root, output_fn=out_fn, write_history=write_history
+        project_root,
+        output_fn=out_fn,
+        write_history=write_history,
+        task_prefix=task_prefix,
     )
     for line in session_start_nudge_lines(project_root, now=now):
         out_fn(line)
@@ -661,7 +686,8 @@ __all__ = (
     "pending_decisions_oneliner", "preview_wip_relief",
     "project_definition_path", "prompt_int", "prompt_menu", "prompt_yes_no",
     "record_tech_debt_acceptance", "resolve_epic_thresholds",
-    "run_default_mode", "run_welcome", "session_start_nudge_lines",
+    "format_task_command", "normalize_task_prefix", "run_default_mode",
+    "run_welcome", "session_start_nudge_lines", "task_command_args",
     "write_triage_scope", "write_wip_cap",
 )
 
@@ -707,6 +733,7 @@ def run_welcome(
     output_fn: Callable[[str], None] | None = None,
     run_subprocess: bool = True,
     skip_bootstrap: bool = False,
+    task_prefix: str | None = None,
 ) -> WelcomeOutcome:
     """Execute the 6-phase ritual. Returns a structured outcome.
 
@@ -729,6 +756,15 @@ def run_welcome(
     in_fn = input_fn or default_input
     out_fn = output_fn or default_output
     outcome = WelcomeOutcome()
+    normalized_task_prefix = normalize_task_prefix(task_prefix)
+
+    def _display_task(args: list[str]) -> str:
+        return format_task_command(args, task_prefix=normalized_task_prefix)
+
+    def _run_welcome_task(args: list[str]) -> int:
+        if normalized_task_prefix:
+            return _run_task(args, cwd=project_root, task_prefix=normalized_task_prefix)
+        return _run_task(args, cwd=project_root)
 
     # ``Back`` overrides the "already set, skip" rule for ONE iteration so
     # the operator can re-answer the question they rewound to. Consumed at
@@ -859,7 +895,7 @@ def run_welcome(
                 out_fn(
                     f"[3/6] Bootstrap audit log already present "
                     f"({audit_rel}, {refreshed.cache_entry_count} raw cache "
-                    "entry/entries); skipping `task triage:bootstrap`."
+                    f"entry/entries); skipping `{_display_task(['triage:bootstrap'])}`."
                 )
                 outcome.bootstrap_action = (
                     BOOTSTRAP_ACTION_SKIPPED_ALREADY_BOOTSTRAPPED
@@ -867,16 +903,17 @@ def run_welcome(
                 _record_skipped(3)
             elif skip_bootstrap:
                 out_fn(
-                    "[3/6] `task triage:bootstrap` explicitly declined "
-                    "via --skip-bootstrap."
+                    f"[3/6] `{_display_task(['triage:bootstrap'])}` "
+                    "explicitly declined via --skip-bootstrap."
                 )
                 out_fn(
                     f"  ! {audit_rel} remains absent; downstream verbs "
-                    "(`task triage:queue`, `task verify:cache-fresh`) "
+                    f"(`{_display_task(['triage:queue'])}`, "
+                    f"`{_display_task(['verify:cache-fresh'])}`) "
                     "will refuse to run."
                 )
                 out_fn(
-                    "  ! Run `task triage:bootstrap` separately when "
+                    f"  ! Run `{_display_task(['triage:bootstrap'])}` separately when "
                     "ready to populate the cache."
                 )
                 append_audit_entry(
@@ -895,12 +932,13 @@ def run_welcome(
                 # Test-mode -- loudly surface the cache gap so dispatchers
                 # don't mistake dry-mode for a populated cache (#1244).
                 out_fn(
-                    "[3/6] `task triage:bootstrap` suppressed by "
+                    f"[3/6] `{_display_task(['triage:bootstrap'])}` suppressed by "
                     "--no-subprocess (test-mode)."
                 )
                 out_fn(
                     f"  ! {audit_rel} remains absent; downstream verbs "
-                    "(`task triage:queue`, `task verify:cache-fresh`) "
+                    f"(`{_display_task(['triage:queue'])}`, "
+                    f"`{_display_task(['verify:cache-fresh'])}`) "
                     "will refuse to run until bootstrap is invoked."
                 )
                 outcome.bootstrap_action = BOOTSTRAP_ACTION_SKIPPED_DRY_MODE
@@ -909,11 +947,11 @@ def run_welcome(
                 # Audit log absent, no decline, subprocess enabled.
                 # Bootstrap is idempotent so re-running over a
                 # partially-populated `.deft-cache/` is safe.
-                out_fn("[3/6] Running `task triage:bootstrap`...")
-                rc = _run_task(["triage:bootstrap"], cwd=project_root)
+                out_fn(f"[3/6] Running `{_display_task(['triage:bootstrap'])}`...")
+                rc = _run_welcome_task(["triage:bootstrap"])
                 if rc != 0:
                     out_fn(
-                        f"  ! `task triage:bootstrap` exited {rc}; "
+                        f"  ! `{_display_task(['triage:bootstrap'])}` exited {rc}; "
                         "see stderr above. Setting outcome.exit_code=2 "
                         "so the dispatcher learns the ritual hit a "
                         "downstream failure (re-run welcome after "
@@ -1017,9 +1055,14 @@ def run_welcome(
             )
             preview = preview_wip_relief(project_root)
             outcome.relief_offered = True
-            cmd_str = (
-                f"task scope:demote -- --batch --older-than-days "
-                f"{preview.older_than_days}"
+            cmd_str = _display_task(
+                [
+                    "scope:demote",
+                    "--",
+                    "--batch",
+                    "--older-than-days",
+                    str(preview.older_than_days),
+                ]
             )
             out_fn("  Planned invocation (dry-run preview):")
             out_fn(f"    {cmd_str}")
@@ -1041,7 +1084,7 @@ def run_welcome(
             if confirm and preview.eligible_count > 0:
                 outcome.relief_confirmed = True
                 if run_subprocess:
-                    rc = _run_task(
+                    rc = _run_welcome_task(
                         [
                             "scope:demote",
                             "--",
@@ -1049,18 +1092,18 @@ def run_welcome(
                             "--older-than-days",
                             str(preview.older_than_days),
                         ],
-                        cwd=project_root,
                     )
                     if rc != 0:
                         out_fn(
-                            f"  ! `task scope:demote` exited {rc}. Setting "
+                            f"  ! `{_display_task(['scope:demote'])}` exited {rc}. Setting "
                             "outcome.exit_code=2 so the dispatcher learns "
                             "the relief hop hit a downstream failure."
                         )
                         outcome.exit_code = 2
                 else:
                     out_fn(
-                        "  [dry-mode] scope:demote subprocess suppressed by caller."
+                        f"  [dry-mode] {_display_task(['scope:demote'])} "
+                        "subprocess suppressed by caller."
                     )
             else:
                 out_fn(
@@ -1074,13 +1117,14 @@ def run_welcome(
         if phase == 6:
             out_fn("[6/6] Final state:")
             if run_subprocess:
-                _run_task(["triage:summary"], cwd=project_root)
+                _run_welcome_task(["triage:summary"])
                 # TODO(#1148 / N8): follow-up to add `_run_task(["policy:show",
                 # "--", "--changed-only"])` here once N3's PR has shipped --
                 # the inspector landed via N8 after N3 merged.
             else:
                 out_fn(
-                    "  [dry-mode] triage:summary subprocess suppressed by caller."
+                    f"  [dry-mode] {_display_task(['triage:summary'])} "
+                    "subprocess suppressed by caller."
                 )
             out_fn(
                 f"  Next: {TRIAGE_SKILL_PATH}  "

@@ -840,6 +840,15 @@ tasks:
       - task: triage-welcome:welcome
         vars:
           CLI_ARGS: "{{.CLI_ARGS}}"
+          DEFT_TASK_PREFIX:
+            sh: |
+              task_name='{{.TASK}}'
+              suffix='triage:welcome'
+              prefix="${task_name%$suffix}"
+              if [ "$prefix" = "$task_name" ]; then
+                prefix=''
+              fi
+              printf '%s' "$prefix"
 
   triage:smoketest:
     desc: "Run the N6 (#1146) end-to-end smoketest against the hermetic 20-issue fixture; exits 0 on PASS / 1 on first failure. -- task triage:smoketest [-- --verbose] [--keep-tempdir] [--cache-only]"
