@@ -27,5 +27,6 @@ tasks:
     dir: '{{.USER_WORKING_DIR}}'
     env:
       PYTHONUTF8: "1"
+      DEFT_TASK_PREFIX: '{{.DEFT_TASK_PREFIX | default ""}}'
     cmds:
       - uv --project "{{.DEFT_ROOT}}" run python "{{.DEFT_ROOT}}/scripts/triage_welcome.py" --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}

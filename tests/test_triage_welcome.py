@@ -17,10 +17,14 @@ hops fire. Suites:
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
 import sys
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -126,6 +130,190 @@ class _CapturedOutput:
 
     def joined(self) -> str:
         return "\n".join(self.lines)
+
+
+# ---------------------------------------------------------------------------
+# Task namespace prefix helpers (#1577)
+# ---------------------------------------------------------------------------
+
+
+def test_task_command_args_prefixes_task_name_only() -> None:
+    assert triage_welcome.normalize_task_prefix(None) == ""
+    assert triage_welcome.normalize_task_prefix("") == ""
+    assert triage_welcome.normalize_task_prefix("deft") == "deft:"
+    assert triage_welcome.normalize_task_prefix("deft:") == "deft:"
+    assert triage_welcome.task_command_args(
+        ["scope:demote", "--", "--batch"],
+        task_prefix="deft:",
+    ) == ["deft:scope:demote", "--", "--batch"]
+    assert (
+        triage_welcome.format_task_command(
+            ["triage:welcome", "--onboard"],
+            task_prefix="deft",
+        )
+        == "task deft:triage:welcome --onboard"
+    )
+
+
+def test_run_task_uses_prefixed_argv(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_run(cmd: list[str], *, cwd: str, check: bool) -> SimpleNamespace:
+        captured["cmd"] = cmd
+        captured["cwd"] = cwd
+        captured["check"] = check
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(triage_welcome.subprocess, "run", _fake_run)
+    rc = triage_welcome._run_task(
+        ["scope:demote", "--", "--batch"],
+        cwd=tmp_path,
+        task_prefix="deft:",
+    )
+
+    assert rc == 0
+    assert captured == {
+        "cmd": ["task", "deft:scope:demote", "--", "--batch"],
+        "cwd": str(tmp_path),
+        "check": False,
+    }
+
+
+def test_run_default_mode_uses_prefixed_onboard_nudge(tmp_path: Path) -> None:
+    _seed_oneliner_environment(tmp_path)
+    output = _CapturedOutput()
+    outcome = triage_welcome.run_default_mode(
+        tmp_path,
+        output_fn=output,
+        write_history=False,
+        task_prefix="deft:",
+    )
+
+    assert outcome.exit_code == 0
+    assert "task deft:triage:welcome --onboard" in output.joined()
+
+
+def test_cli_task_prefix_flag_threads_to_run_welcome(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _seed_project_definition(
+        tmp_path,
+        triage_scope=triage_welcome.SUBSCRIPTION_PRESETS["small"],
+        wip_cap=10,
+    )
+    _seed_candidates_log(tmp_path)
+    captured: dict[str, object] = {}
+    real_run = triage_welcome.run_welcome
+
+    def _spy(*args: object, **kwargs: object) -> object:
+        captured.update(kwargs)
+        return real_run(*args, **kwargs)
+
+    monkeypatch.setattr(triage_welcome, "run_welcome", _spy)
+    rc = triage_welcome.main(
+        [
+            "--project-root",
+            str(tmp_path),
+            "--onboard",
+            "--no-subprocess",
+            "--task-prefix",
+            "deft",
+        ]
+    )
+
+    assert rc == 0
+    assert captured.get("task_prefix") == "deft"
+
+
+def _write_fake_task_binary(bin_dir: Path, log_path: Path) -> Path:
+    task_path = bin_dir / "task"
+    task_path.write_text(
+        """#!/usr/bin/env python3
+import os
+import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+with Path(os.environ["FAKE_TASK_LOG"]).open("a", encoding="utf-8") as handle:
+    handle.write(" ".join(args) + "\\n")
+if args and args[0].endswith("triage:bootstrap"):
+    candidates = Path.cwd() / "vbrief" / ".eval" / "candidates.jsonl"
+    candidates.parent.mkdir(parents=True, exist_ok=True)
+    candidates.touch()
+raise SystemExit(0)
+""",
+        encoding="utf-8",
+    )
+    task_path.chmod(0o755)
+    return task_path
+
+
+@pytest.mark.parametrize(
+    ("namespaced_include", "expected_prefix"),
+    [
+        pytest.param(False, "", id="direct-framework-taskfile"),
+        pytest.param(True, "deft:", id="consumer-namespaced-include"),
+    ],
+)
+def test_taskfile_welcome_dispatches_sibling_tasks_with_current_namespace(
+    tmp_path: Path,
+    namespaced_include: bool,
+    expected_prefix: str,
+) -> None:
+    real_task = shutil.which("task")
+    if real_task is None:
+        pytest.skip("go-task is not installed")
+
+    consumer = tmp_path / "consumer"
+    consumer.mkdir()
+    _seed_project_definition(
+        consumer,
+        triage_scope=triage_welcome.SUBSCRIPTION_PRESETS["small"],
+        wip_cap=10,
+    )
+    if namespaced_include:
+        (consumer / "Taskfile.yml").write_text(
+            "version: '3'\n"
+            "includes:\n"
+            "  deft:\n"
+            f"    taskfile: {_REPO_ROOT / 'Taskfile.yml'}\n",
+            encoding="utf-8",
+        )
+        task_args = [real_task, "deft:triage:welcome"]
+    else:
+        task_args = [
+            real_task,
+            "-t",
+            str(_REPO_ROOT / "Taskfile.yml"),
+            "triage:welcome",
+        ]
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    log_path = tmp_path / "fake-task.log"
+    _write_fake_task_binary(fake_bin, log_path)
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["FAKE_TASK_LOG"] = str(log_path)
+    env["UV_FROZEN"] = "1"
+
+    result = subprocess.run(
+        [*task_args, "--", "--onboard"],
+        cwd=consumer,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr
+    combined = result.stdout + result.stderr
+    assert 'Task "triage:' not in combined
+    invocations = log_path.read_text(encoding="utf-8").splitlines()
+    assert f"{expected_prefix}triage:bootstrap" in invocations
+    assert f"{expected_prefix}triage:summary" in invocations
+    assert "triage:bootstrap" not in invocations or expected_prefix == ""
 
 
 # ---------------------------------------------------------------------------

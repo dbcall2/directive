@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **Namespaced consumer triage onboarding now calls the right sibling tasks (#1577)** -- `task deft:triage:welcome -- --onboard` now carries the current Taskfile namespace into the welcome script, so bootstrap, WIP relief, and final summary calls resolve as `deft:*` in consumer includes while the maintainer `task triage:welcome -- --onboard` path remains unchanged. Closes #1577.
 
 ### Removed
 
