@@ -49,6 +49,16 @@
         "uri": "https://github.com/deftai/directive/issues/958",
         "type": "x-vbrief/github-issue",
         "title": "Issue #958: superseded header-first codebase mapping proposal"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1498",
+        "type": "x-vbrief/github-issue",
+        "title": "Issue #1498: RFC: Directive must dogfood vBRIEF-as-source-of-truth -- source code & headers are projections, not stores"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1492",
+        "type": "x-vbrief/github-issue",
+        "title": "Issue #1492: RFC: promote the system-of-record gate from advisory to wired (schema home, gate tier, sentinel integration)"
       }
     ],
     "updated": "2026-06-12T20:09:35Z",

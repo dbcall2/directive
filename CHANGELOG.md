@@ -15,12 +15,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Session-start ritual completion is now machine-verifiable before implementation dispatch (#1348)** -- `task session:start` records quick-tier ritual state in `.deft/ritual-state.json`, while `task verify:session-ritual -- --tier=gated` fails closed when that state is missing, stale, from another worktree, or tied to an older HEAD. The gated verifier lazily records `task doctor` and `task verify:cache-fresh`, honors explicit deferrals, and supports `DEFT_SESSION_RITUAL_SKIP=1` for CI and dispatched headless workers with an audit warning when the bypass hides a failure. Closes #1348.
+- **A single decision record now explains why the vBRIEF is canonical, so the question stops getting re-litigated (#1291)** -- directive now has an accepted ADR for treating vBRIEF as the source of truth for agent-consumed framework content, with rendered docs and code-adjacent orientation treated as projections. The record leads with the user-visible end state, preserves the token-economics rationale from the earlier alignment work, and names the trigger-based path from clarity to future enforcement. Closes #1291.
 - **Codebase MAP planning now has a source-of-truth decision record (#1595)** -- Directive keeps the orientation goal from #958 while documenting that durable codebase structure belongs in vBRIEF-owned metadata, with generated MAPs and optional headers treated as projections. This gives #1498 a concrete first slice without making hand-authored headers authoritative. Refs #1595, #958, #1498.
 
 ### Changed
 
 ### Fixed
+
+### Removed
+
+## [0.46.0] - 2026-06-12
+
+> Smarter startup: missing-tool prompts, stale-branch and stale-installer warnings, a verifiable session-start ritual, and safer issue ingestion.
+
+### Added
+- **Session-start ritual completion is now machine-verifiable before implementation dispatch (#1348)** -- `task session:start` records quick-tier ritual state in `.deft/ritual-state.json`, while `task verify:session-ritual -- --tier=gated` fails closed when that state is missing, stale, from another worktree, or tied to an older HEAD. The gated verifier lazily records `task doctor` and `task verify:cache-fresh`, honors explicit deferrals, and supports `DEFT_SESSION_RITUAL_SKIP=1` for CI and dispatched headless workers with an audit warning when the bypass hides a failure. Closes #1348.
+- **Downloaded installer binaries now warn before using stale releases (#689)** -- `deft-install` checks the latest published release before changing a project, confirms when it is current, and defaults to abort when the local binary is older or cannot verify currency. Offline and CI runs can opt out with `--no-update-check` or `DEFT_NO_UPDATE_CHECK=1`. Closes #689.
+- **Startup now explains missing required tools before operators hit command-not-found failures (#1187)** -- `task verify:tools` checks for Git, Task, uv, Python, and the GitHub CLI, then prints install prompts or manual setup commands with canonical links. The session-start ritual surfaces the same guidance before the first task-backed welcome step, keeping fresh-clone onboarding actionable instead of failing on the first missing executable. Closes #1187.
+- **Session startup now warns when the local default branch is stale (#1596)** -- the ritual compares the repository default branch with its upstream and prints a concise non-blocking warning for behind, ahead, diverged, missing-upstream, or remote-refresh failure states. Cleanly synced branches stay quiet, so operators get stale-base visibility without extra noise. Closes #1596.
+
+### Changed
+
+### Fixed
+- **Greenfield swarm launches now explain how to proceed when full orchestration is unavailable (#1053)** -- the swarm skill now separates project-infrastructure readiness from machine-tool checks, defaults interactive worktrees to ignored `.deft-scratch/worktrees/` paths, and offers an explicitly labeled serial self-execution downgrade when only a generic terminal is available. Manual prompt paste remains available as an opt-in fallback, but the guidance no longer presents serial execution as true parallel swarm orchestration. Refs #1053.
+- **Lifecycle task commands now have a regression smoke for reliable success reporting (#1053)** -- the promote, activate, and implementation-preflight command trio is exercised through the actual Taskfile wrappers against an isolated fixture project, with captured output checked for zero-exit success and false failure markers. This gives Windows PowerShell 5.1 operators a portable guard against the harness treating successful lifecycle transitions as failed work. Refs #1053.
+- **Issue-ingested vBRIEFs now preserve literal backslash escape text and flag real control characters (#1036)** -- GitHub issue bodies that mention paths like `\vbrief/`, `\task`, or JSON-looking escapes now round-trip through the cache and ingest path as literal Markdown, while decoded upstream control characters surface as warnings and encoding-verifier findings before they silently contaminate vBRIEF narratives. Closes #1036.
 - **Namespaced consumer triage onboarding now calls the right sibling tasks (#1577)** -- `task deft:triage:welcome -- --onboard` now carries the current Taskfile namespace into the welcome script, so bootstrap, WIP relief, and final summary calls resolve as `deft:*` in consumer includes while the maintainer `task triage:welcome -- --onboard` path remains unchanged. Closes #1577.
 - **The directive work queue no longer shows already-finished lifecycle cleanup as active work** -- completed branch-policy and triage/session-ritual scopes now have aligned terminal vBRIEF records, the superseded #1348 planning artifact is cancelled, and the project registry points at the canonical completed records. Refs #1348, #1577.
 
@@ -3220,7 +3239,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.45.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.46.0...HEAD
+[0.46.0]: https://github.com/deftai/directive/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/deftai/directive/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/deftai/directive/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/deftai/directive/compare/v0.43.0...v0.44.0

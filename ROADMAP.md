@@ -427,7 +427,6 @@
 - **#1300** -- Directive rule: ALWAYS confirm a cancellation came from the user (not a runtime glitch) before attributing intent -- `[completed]`
 - **#1308** -- feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger) -- `[completed]`
 - **#1309** -- fix(templates,agents-md,tests): propagate welcome / WIP cap / session-start ritual / skill routing from maintainer AGENTS.md into templates/agents-entry.md + propagation-discipline gate -- `[completed]`
-- **#1348** -- Two-tier ritual sentinel + fail-closed verifier for the pre-start_agent gate stack -- `[completed]`
 - **#1349** -- Remove deft-directive-gh-triage skill and reclaim the 'triage' verb for deft-directive-refinement -- `[completed]`
 - **#1342** -- swarm: implement Grok Build / spawn_subagent launch path in Phase 3 (slice 2 of #1342) -- `[completed]`
 - **#1342** -- swarm: add monitoring and takeover support for spawn_subagent agents (slice 3 of #1342) -- `[completed]`
@@ -522,8 +521,10 @@
 - **#1531** -- Add persistent sub-agent backend policy and availability gate -- `[completed]`
 - **#1531** -- Add provider-neutral worker metadata to the agent preamble -- `[completed]`
 - **#1531** -- Document provider-neutral sub-agent routing in the swarm skill -- `[completed]`
+- Enforce Deft local branch policy -- `[completed]`
 - **#1531** -- Integrate selected sub-agent backend into headless swarm launch and audit output -- `[completed]`
 - **#1531** -- Pin provider-neutral sub-agent guidance with content tests -- `[completed]`
+- **#1348** -- Implement fail-closed session ritual verifier -- `[completed]`
 - **#1382** -- v0.37.0 released framework tree fails verify:encoding in consumer task check -- `[completed]`
 - **#1510** -- Recommend adding labels to every issue created (consumer or maintainer) -- `[completed]`
 - **#1518** -- Composer specific lessons learned -- `[completed]`
@@ -544,4 +545,13 @@
 - **#1557** -- Document sandbox credential remediation and regression coverage -- `[completed]`
 - **#1557** -- Thread runtime and GitHub auth modes through swarm dispatch contracts -- `[completed]`
 - **#1557** -- Validate GitHub auth mode inside the actual worker environment -- `[completed]`
+- **#1577** -- triage:welcome uses unprefixed task names and fails in consumer Taskfile namespace -- `[completed]`
+- **#1036** -- Guard issue ingest/cache against escape-sequence and control-character corruption -- `[completed]`
+- **#1187** -- Directive-bound agents should detect missing tooling (task/uv/python/gh) and offer to install on first encounter -- `[completed]`
+- **#1596** -- Startup ritual should warn when the default branch is out of sync with remote -- `[completed]`
+- **#689** -- feat(installer): version-currency self-check at startup -- `[completed]`
+- **#1053** -- Generic-terminal swarm fallback should offer serial self-execution instead of only manual prompt paste -- `[completed]`
+- **#1053** -- Greenfield setup should produce or offer a swarm-ready project bootstrap -- `[completed]`
+- **#1053** -- Interactive swarm worktrees should default to deterministic non-cluttering scratch paths -- `[completed]`
+- **#1053** -- Lifecycle Taskfile commands should preserve reliable success semantics under Windows PowerShell 5.1 -- `[completed]`
 
