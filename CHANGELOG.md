@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **A single decision record now explains why the vBRIEF is canonical, so the question stops getting re-litigated (#1291)** -- directive now has an accepted ADR for treating vBRIEF as the source of truth for agent-consumed framework content, with rendered docs and code-adjacent orientation treated as projections. The record leads with the user-visible end state, preserves the token-economics rationale from the earlier alignment work, and names the trigger-based path from clarity to future enforcement. Closes #1291.
-- **Codebase MAP planning now has a source-of-truth decision record (#1595)** -- Directive keeps the orientation goal from #958 while documenting that durable codebase structure belongs in vBRIEF-owned metadata, with generated MAPs and optional headers treated as projections. This gives #1498 a concrete first slice without making hand-authored headers authoritative. Refs #1595, #958, #1498.
+- **Codebase MAP planning now has a source-of-truth decision record (#1595)** -- Directive keeps the orientation goal from #958 while documenting that durable codebase structure belongs in vBRIEF-owned metadata, with generated MAPs and optional headers treated as projections. This gives #1498 a concrete first slice without making hand-authored headers authoritative. Refs #1595, #958, #1498, #1492.
 
 ### Changed
 
