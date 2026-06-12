@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **A single decision record now explains why the vBRIEF is canonical, so the question stops getting re-litigated (#1291)** -- directive now has an accepted ADR for treating vBRIEF as the source of truth for agent-consumed framework content, with rendered docs and code-adjacent orientation treated as projections. The record leads with the user-visible end state, preserves the token-economics rationale from the earlier alignment work, and names the trigger-based path from clarity to future enforcement. Closes #1291.
 
 ### Changed
 
