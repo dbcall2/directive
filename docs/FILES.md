@@ -72,6 +72,7 @@ deft/
 │   ├── FILES.md           # Directory tree + file index (this file)
 │   ├── RELEASING.md       # Release & testing workflow
 │   ├── BROWNFIELD.md      # Adding Deft to an existing project
+│   ├── codebase-map-source-of-truth.md # Decision: vBRIEF metadata owns codebase structure; MAP/header outputs are projections
 │   ├── ai-coding-trust-paradox.md
 │   ├── claude-code-integration.md
 │   ├── getting-started.md

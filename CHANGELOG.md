@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Session-start ritual completion is now machine-verifiable before implementation dispatch (#1348)** -- `task session:start` records quick-tier ritual state in `.deft/ritual-state.json`, while `task verify:session-ritual -- --tier=gated` fails closed when that state is missing, stale, from another worktree, or tied to an older HEAD. The gated verifier lazily records `task doctor` and `task verify:cache-fresh`, honors explicit deferrals, and supports `DEFT_SESSION_RITUAL_SKIP=1` for CI and dispatched headless workers with an audit warning when the bypass hides a failure. Closes #1348.
+- **Codebase MAP planning now has a source-of-truth decision record (#1595)** -- Directive keeps the orientation goal from #958 while documenting that durable codebase structure belongs in vBRIEF-owned metadata, with generated MAPs and optional headers treated as projections. This gives #1498 a concrete first slice without making hand-authored headers authoritative. Refs #1595, #958, #1498.
 
 ### Changed
 
