@@ -178,8 +178,8 @@ var agentsMDManagedOpenPattern = regexp.MustCompile(`<!-- deft:managed-section v
 
 // canonicalGitignoreLines is the .gitignore baseline the installer deposits.
 // It mirrors scripts/relocate.py::GITIGNORE_LINES (the F2 canonical default
-// from #1015): the runtime cache directory plus the SELECTIVE per-file
-// vbrief/.eval/* entries.
+// from #1015): the runtime cache directory, the SELECTIVE .deft runtime
+// sentinel files, plus the SELECTIVE per-file vbrief/.eval/* entries.
 //
 // #1251 / #1464: the eval state is gitignored via the selective per-file
 // entries (candidates.jsonl / summary-history.jsonl / scope-lifecycle.jsonl /
@@ -191,6 +191,12 @@ var agentsMDManagedOpenPattern = regexp.MustCompile(`<!-- deft:managed-section v
 // bootstrap + relocator rails consume); the parity test
 // TestCanonicalGitignoreEvalEntriesMatchPythonSource pins the two together,
 // and EnsureGitignoreLines HEALS a pre-existing blanket on upgrade.
+//
+// #1609: session-start writes per-clone runtime sentinels under .deft/. The
+// consumer projection tracks .deft/core/ for reproducible installs, so the
+// installer MUST ignore only the sentinel files (.deft/ritual-state.json and
+// .deft/last-session.json) instead of depositing a blanket .deft/ rule that
+// would hide the framework payload.
 //
 // The three leaked-artefact guards below stop a consumer's `git add -A` from
 // trapping installer/render scratch files:
@@ -218,6 +224,10 @@ var agentsMDManagedOpenPattern = regexp.MustCompile(`<!-- deft:managed-section v
 // itself, only the timestamped backup siblings.
 var canonicalGitignoreLines = []string{
 	".deft-cache/",
+	// Selective .deft runtime sentinels -- MUST equal
+	// GITIGNORE_DEFT_RUNTIME_SENTINELS in scripts/_triage_bootstrap_gitignore.py.
+	".deft/ritual-state.json",
+	".deft/last-session.json",
 	// Selective vbrief/.eval/* entries -- MUST equal GITIGNORE_EVAL_ENTRIES in
 	// scripts/_triage_bootstrap_gitignore.py, in the same order (parity test
 	// TestCanonicalGitignoreEvalEntriesMatchPythonSource pins this).
@@ -653,8 +663,9 @@ func WriteAgentsMD(w *Wizard, projectDir string) error {
 // ---------------------------------------------------------------------------
 
 // EnsureGitignoreLines ensures the canonical baseline (the runtime cache dir +
-// the SELECTIVE vbrief/.eval/* entries + the leaked-artefact guards) is present
-// in the consumer's .gitignore, creating the file when absent. It also HEALS a
+// the SELECTIVE .deft runtime sentinels + the SELECTIVE vbrief/.eval/* entries
+// + the leaked-artefact guards) is present in the consumer's .gitignore,
+// creating the file when absent. It also HEALS a
 // pre-existing forbidden blanket `vbrief/.eval/` (or `vbrief/.eval`) line on
 // upgrade (#1464): pre-#1251 rails deposited that blanket, which hides the
 // tracked vbrief/.eval/slices.jsonl + README.md from git; an upgrade now

@@ -82,13 +82,14 @@ LOG = logging.getLogger(__name__)
 SCHEMA_VERSION: int = 1
 
 #: Filesystem-relative location of the per-clone sentinel. Never
-#: committed -- ``.deft/`` is gitignored.
+#: committed -- consumer projections selectively gitignore this file
+#: while preserving the trackable ``.deft/core/`` framework payload.
 SENTINEL_RELPATH: tuple[str, str] = (".deft", "last-session.json")
 
 #: Filesystem-relative location of the fail-closed session ritual state
 #: (#1348). Separate from :data:`SENTINEL_RELPATH` because the existing
 #: last-session sentinel is intentionally fail-open while this verifier
-#: must fail closed.
+#: must fail closed. Also selectively gitignored in consumer projections.
 RITUAL_STATE_RELPATH: tuple[str, str] = (".deft", "ritual-state.json")
 
 #: Schema version emitted by the ritual-state writer and required by the

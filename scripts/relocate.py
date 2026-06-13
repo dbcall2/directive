@@ -9,7 +9,7 @@ D AGENTS.md only) to the canonical v0.27 layout::
         .deft/core/      -- read-only packaged framework assets (per #11)
         .deft-cache/     -- gitignored runtime cache
         AGENTS.md        -- managed-section v2 (#768)
-        .gitignore       -- contains `.deft-cache/` and `vbrief/.eval/`
+        .gitignore       -- contains local Deft runtime entries
 
 State detection (A-G) and customization probing live in
 :mod:`scripts._relocate_states`; snapshot tarball logic lives in
@@ -101,6 +101,7 @@ from _relocate_states import (  # noqa: E402
 from _stdio_utf8 import reconfigure_stdio  # noqa: E402
 from _triage_bootstrap_gitignore import (  # noqa: E402
     FORBIDDEN_BLANKET_EVAL_LINES,
+    GITIGNORE_DEFT_RUNTIME_SENTINELS,
     GITIGNORE_EVAL_ENTRIES,
     strip_gitignore_inline_comment,
 )
@@ -198,8 +199,9 @@ VBRIEF_LIFECYCLE_DIRS: tuple[str, ...] = (
 #:
 #: F2 canonical-default decision (#1015): the canonical relocator default
 #: gitignores ``.deft-cache/`` (runtime cache, snapshot tarballs, audit log
-#: -- mirrors the #845 / #883 hidden-namespace gitignore convention) and the
-#: operator-private ``vbrief/.eval/`` audit-log state. The framework deposit
+#: -- mirrors the #845 / #883 hidden-namespace gitignore convention), the
+#: selective ``.deft`` runtime sentinels written by the session ritual, and
+#: the operator-private ``vbrief/.eval/`` audit-log state. The framework deposit
 #: at ``.deft/core/`` is INTENTIONALLY NOT auto-gitignored: per #11 the
 #: ``.deft/core/`` tree is read-only packaged framework assets that ship
 #: with the consumer's repo for reproducibility. Auto-gitignoring it would
@@ -219,6 +221,7 @@ VBRIEF_LIFECYCLE_DIRS: tuple[str, ...] = (
 #: blanket is healed (stripped) by ``_ensure_gitignore_lines`` on upgrade.
 GITIGNORE_LINES: tuple[str, ...] = (
     ".deft-cache/",
+    *GITIGNORE_DEFT_RUNTIME_SENTINELS,
     *GITIGNORE_EVAL_ENTRIES,
 )
 

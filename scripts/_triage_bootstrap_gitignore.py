@@ -8,13 +8,17 @@
 Extracted from :mod:`triage_bootstrap` under #952 to keep the parent
 module under the 1000-line MUST limit from ``coding/coding.md``. The
 helpers are pure (no module-level state) and operate on the consumer
-project's ``.gitignore``, ``.gitattributes``, and ``vbrief/.eval/``
-scratch directory only; nothing here touches the cache or scope vBRIEF
-state.
+project's ``.gitignore``, ``.gitattributes``, Deft runtime sentinel
+paths, and ``vbrief/.eval/`` scratch directory only; nothing here
+touches the cache or scope vBRIEF state.
 
 Public surface (stable for :mod:`triage_bootstrap` re-exports):
 
 - :data:`GITIGNORE_LINE` -- canonical ``.deft-cache/`` line.
+- :data:`GITIGNORE_DEFT_RUNTIME_SENTINELS` -- canonical selective
+  ``.deft`` runtime sentinel lines (``ritual-state.json`` /
+  ``last-session.json``). Single source of truth mirrored by the
+  installer and imported by the relocator (#1609).
 - :data:`GITIGNORE_EVAL_ENTRIES` -- canonical selective per-file lines
   for the #1144 hybrid policy (``candidates.jsonl`` /
   ``summary-history.jsonl`` / ``scope-lifecycle.jsonl`` /
@@ -66,8 +70,17 @@ def _outcome_cls() -> type:
 
 
 #: Canonical gitignore line. Trailing slash matches the convention in
-#: the existing ``.gitignore`` (e.g. ``dist/``, ``.deft/``).
+#: the existing ``.gitignore`` (e.g. ``dist/``, ``node_modules/``).
 GITIGNORE_LINE: str = ".deft-cache/"
+
+#: Canonical selective gitignore lines for Deft-owned per-clone runtime
+#: sentinels under ``.deft/``. The framework payload at ``.deft/core/``
+#: remains intentionally trackable for reproducible consumer installs, so
+#: these entries MUST stay file-specific and MUST NOT become ``.deft/``.
+GITIGNORE_DEFT_RUNTIME_SENTINELS: tuple[str, ...] = (
+    ".deft/ritual-state.json",
+    ".deft/last-session.json",
+)
 
 #: Canonical selective gitignore lines for the #1144 hybrid policy.
 #: Replaces the pre-#1251 blanket ``vbrief/.eval/`` line. The entries
