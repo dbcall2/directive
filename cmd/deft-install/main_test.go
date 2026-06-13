@@ -1187,7 +1187,7 @@ func TestCanonicalGitignoreRuntimeSentinelsMatchPythonSource(t *testing.T) {
 	}
 	var goEntries []string
 	for _, line := range canonicalGitignoreLines {
-		if strings.HasPrefix(line, ".deft/") && strings.HasSuffix(line, ".json") {
+		if strings.HasPrefix(line, ".deft/") && !strings.HasSuffix(line, "/") && !strings.Contains(line, "*") {
 			goEntries = append(goEntries, line)
 		}
 	}

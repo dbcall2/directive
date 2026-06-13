@@ -14,20 +14,20 @@
     },
     "items": [
       {
-        "title": "Fresh consumer install includes selective ignore coverage for .",
-        "status": "proposed"
+        "title": "Fresh consumer install includes selective ignore coverage for `.deft/ritual-state.json`.",
+        "status": "completed"
       },
       {
         "title": "Upgrade/relocator heals existing consumer repos that lack the ignore entry.",
-        "status": "proposed"
+        "status": "completed"
       },
       {
-        "title": "Consider  in the same fix, since it is also documented as per-clone runtime state.",
-        "status": "proposed"
+        "title": "Consider `.deft/last-session.json` in the same fix, since it is also documented as per-clone runtime state.",
+        "status": "completed"
       },
       {
         "title": "Add/update parity tests so installer, relocator, and any Python source-of-truth for gitignore projection stay aligned.",
-        "status": "proposed"
+        "status": "completed"
       }
     ],
     "tags": [
@@ -42,7 +42,7 @@
         "title": "Issue #1609: installer: ignore .deft ritual runtime sentinels in consumer projects"
       }
     ],
-    "updated": "2026-06-13T13:55:03Z",
+    "updated": "2026-06-13T14:27:36Z",
     "metadata": {
       "completedAt": "2026-06-13T13:55:03Z",
       "capacityBucket": "new-capability"
