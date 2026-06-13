@@ -116,6 +116,7 @@ class VbriefRecord:
     folder: str
     classified: bool  # carried an explicit capacityBucket
     in_window: bool  # completed within the trailing window (backward only)
+    completed_at_present: bool  # a non-empty completedAt string is on disk
     is_rework: bool
     cost: float | None
 
@@ -145,6 +146,7 @@ class CapacityReport:
     window_days: int
     min_sample_size: int
     classified_completions: int
+    unclassified_completions: int
     advisory_mode: bool
     advisory_reasons: list[str] = field(default_factory=list)
     buckets: list[BucketTally] = field(default_factory=list)
@@ -231,8 +233,15 @@ def classify_record(
     weight = _record_weight(kind, plan, metadata, allocation)
 
     in_window = False
+    # Mirror capacity_backfill's ``has_completed_at`` semantics: a non-empty
+    # string counts as present even if it does not parse (backfill preserves it
+    # and never re-stamps, so such an item can never enter the window).
+    raw_completed_at = metadata.get("completedAt")
+    completed_at_present = isinstance(raw_completed_at, str) and bool(
+        raw_completed_at.strip()
+    )
     if folder == BACKWARD_FOLDER:
-        completed_at = _parse_iso(metadata.get("completedAt"))
+        completed_at = _parse_iso(raw_completed_at)
         if completed_at is not None:
             age_days = (now - completed_at).total_seconds() / 86400.0
             in_window = 0 <= age_days <= allocation.window_days
@@ -249,6 +258,7 @@ def classify_record(
         folder=folder,
         classified=classified,
         in_window=in_window,
+        completed_at_present=completed_at_present,
         is_rework=is_rework,
         cost=_coerce_cost(metadata.get("cost")),
     )
@@ -331,6 +341,22 @@ def compute_report(
             tallies[record.bucket] = BucketTally(bucket_id=record.bucket, target=0.0)
 
     classified_completions = 0
+    # Completed vBRIEFs that carry no explicit capacityBucket AND that a backfill
+    # could actually pull into the window-scoped classified set (#1606). An
+    # unclassified completion with an explicit completedAt OUTSIDE the trailing
+    # window is EXCLUDED: backfill would stamp its bucket but leave completedAt
+    # out of window, so classified_completions never rises and advisory mode
+    # would persist silently -- promising such a migration is misleading. An
+    # absent completedAt is included: backfill stamps the git landing time,
+    # which may land in window. A positive count while sample-short means
+    # `task capacity:backfill` can classify history and cross minSampleSize.
+    unclassified_completions = sum(
+        1
+        for record in records
+        if record.folder == BACKWARD_FOLDER
+        and not record.classified
+        and (record.in_window or not record.completed_at_present)
+    )
     cost_eligible = 0  # classified completions in window
     cost_with_actual = 0
     for record in records:
@@ -377,6 +403,15 @@ def compute_report(
             f"only {classified_completions} classified completion(s) in window "
             f"(< minSampleSize={allocation.min_sample_size}) -- deferring to ordering"
         )
+        # Actionable discoverability hint (#1606): when buckets ARE configured
+        # but completed history is unclassified, point the operator at the
+        # one-time backfill that crosses minSampleSize.
+        if allocation.configured and unclassified_completions > 0:
+            advisory_reasons.append(
+                f"{unclassified_completions} completed vBRIEF(s) are unclassified "
+                "-- run `task capacity:backfill --apply` (one-time) to classify "
+                "history and activate capacity accounting"
+            )
     if cost_fallback and cost_reason:
         advisory_reasons.append(cost_reason)
 
@@ -417,6 +452,7 @@ def compute_report(
         window_days=allocation.window_days,
         min_sample_size=allocation.min_sample_size,
         classified_completions=classified_completions,
+        unclassified_completions=unclassified_completions,
         advisory_mode=sample_short or not allocation.configured,
         advisory_reasons=advisory_reasons,
         buckets=ordered,
