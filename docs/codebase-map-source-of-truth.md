@@ -4,7 +4,7 @@ Status: accepted for #1595 PR 1
 
 Date: 2026-06-12
 
-Related: [#958](https://github.com/deftai/directive/issues/958), [#1492](https://github.com/deftai/directive/issues/1492), [#1498](https://github.com/deftai/directive/issues/1498), [#1595](https://github.com/deftai/directive/issues/1595)
+Related: [#958](https://github.com/deftai/directive/issues/958), [#1492](https://github.com/deftai/directive/issues/1492), [#1498](https://github.com/deftai/directive/issues/1498), [#1595](https://github.com/deftai/directive/issues/1595), [#1618](https://github.com/deftai/directive/issues/1618), [#1379](https://github.com/deftai/directive/issues/1379)
 
 ## Decision
 
@@ -84,6 +84,31 @@ compatibility path:
 
 The extension namespace is a fallback, not the preferred long-term home.
 
+### Home is provisional pending the source-of-truth/projection split (#1618)
+
+This section names a JSON *shape* (`plan.architecture.codeStructure`), not a
+commitment to physically embed that shape in the `PROJECT-DEFINITION.vbrief.json`
+monolith. RFC #1618 argues that file is already overloaded (a large, drifting
+`plan.items` registry), and that authored truth should live in small,
+git-tracked, per-concern files while derived facts move to a rebuildable local
+index. Two constraints follow for the PR-2 schema work:
+
+- **Authored `codeStructure` intent** (modules, path ownership, allowed
+  patterns, human overrides) is vBRIEF-owned and git-tracked, but SHOULD be free
+  to live in its own file (e.g. a dedicated `architecture` vBRIEF or per-module
+  files) rather than being welded into the `plan` blob. The final physical home
+  is decided with #1618 / #1379, not frozen here.
+- **Code-derived facts** (file-to-module inference, MAP contents, freshness and
+  drift state) are projections, not authored truth. They belong in the
+  rebuildable index proposed by #1618 and MUST NOT be committed as git-tracked
+  metadata.
+
+`codeStructure` also scales with codebase size, not work-item count:
+`modules[]` / `pathOwnership[]` grow with module count and `filePurposeOverrides[]`
+is potentially O(files). Keep it to human *overrides* of inferred purpose — never
+a full per-file registry — so the authored surface stays small in large
+monorepos.
+
 ## Projection Contract
 
 Generated artifacts must point back to the metadata that produced them.
@@ -126,3 +151,7 @@ constraints:
 The next PR should define the first concrete `codeStructure` schema/profile and
 its validation behavior. It should remain focused on metadata shape and
 round-trip preservation, not extraction or MAP rendering.
+
+It MUST also resolve the physical metadata home in light of #1618 / #1379 (own
+file vs. embedded in `plan`) and keep `filePurposeOverrides[]` an overrides-only
+surface, per the "Home is provisional" note above.
