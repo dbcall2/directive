@@ -979,6 +979,8 @@ func TestEnsureGitignoreLines_CreatesNew(t *testing.T) {
 	// #1464: selective per-file eval entries, NOT the blanket vbrief/.eval/.
 	for _, want := range []string{
 		".deft-cache/",
+		".deft/ritual-state.json",
+		".deft/last-session.json",
 		"vbrief/.eval/candidates.jsonl",
 		"vbrief/.eval/summary-history.jsonl",
 		"vbrief/.eval/scope-lifecycle.jsonl",
@@ -1013,6 +1015,7 @@ func TestEnsureGitignoreLines_AppendsToExisting(t *testing.T) {
 	}
 	for _, want := range []string{
 		"node_modules/", ".env", ".deft-cache/",
+		".deft/ritual-state.json", ".deft/last-session.json",
 		"vbrief/.eval/candidates.jsonl", "vbrief/.eval/doctor-state.json",
 	} {
 		if !strings.Contains(content, want) {
@@ -1068,6 +1071,33 @@ func TestEnsureGitignoreLines_LeakedArtifactGuards(t *testing.T) {
 	for _, want := range []string{"vbrief/*.lock", ".deft/core.bak-*/", ".deft/*.bak-*", "*.premigrate.*"} {
 		if !strings.Contains(content, want) {
 			t.Errorf(".gitignore deposit missing leaked-artefact guard %q", want)
+		}
+	}
+}
+
+// TestEnsureGitignoreLines_DoesNotIgnoreFrameworkPayload asserts the #1609
+// fix stays selective: consumer repos commit .deft/core/ for reproducibility,
+// while only runtime sentinel files under .deft/ are ignored.
+func TestEnsureGitignoreLines_DoesNotIgnoreFrameworkPayload(t *testing.T) {
+	tmp := t.TempDir()
+	w := NewWizard(strings.NewReader(""), &bytes.Buffer{}, false)
+
+	if _, err := EnsureGitignoreLines(w, tmp); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(tmp, ".gitignore"))
+	if err != nil {
+		t.Fatalf("missing .gitignore: %v", err)
+	}
+	content := string(data)
+	for _, forbidden := range []string{".deft/", ".deft", ".deft/core/", ".deft/core"} {
+		if n := countWholeLines(content, forbidden); n != 0 {
+			t.Errorf(".gitignore must not contain blanket/framework payload entry %q", forbidden)
+		}
+	}
+	for _, want := range []string{".deft/ritual-state.json", ".deft/last-session.json"} {
+		if countWholeLines(content, want) != 1 {
+			t.Errorf(".gitignore missing selective runtime sentinel %q", want)
 		}
 	}
 }
@@ -1141,6 +1171,31 @@ func TestEnsureGitignoreLines_HealsBareBlanketOnlyFile(t *testing.T) {
 	}
 }
 
+// TestCanonicalGitignoreRuntimeSentinelsMatchPythonSource pins the Go
+// installer's selective .deft runtime sentinel entries to
+// GITIGNORE_DEFT_RUNTIME_SENTINELS in scripts/_triage_bootstrap_gitignore.py
+// (#1609). If the Python source grows, the installer mirror must follow.
+func TestCanonicalGitignoreRuntimeSentinelsMatchPythonSource(t *testing.T) {
+	pyPath := filepath.Join(repoRootFromDeftInstall(t), "scripts", "_triage_bootstrap_gitignore.py")
+	src, err := os.ReadFile(pyPath)
+	if err != nil {
+		t.Fatalf("could not read %s: %v", pyPath, err)
+	}
+	pyEntries := parsePythonRuntimeSentinelEntries(t, string(src))
+	if len(pyEntries) == 0 {
+		t.Fatal("parsed zero GITIGNORE_DEFT_RUNTIME_SENTINELS from Python source -- parser drift?")
+	}
+	var goEntries []string
+	for _, line := range canonicalGitignoreLines {
+		if strings.HasPrefix(line, ".deft/") && !strings.HasSuffix(line, "/") && !strings.Contains(line, "*") {
+			goEntries = append(goEntries, line)
+		}
+	}
+	if strings.Join(goEntries, "\n") != strings.Join(pyEntries, "\n") {
+		t.Errorf("Go canonicalGitignoreLines .deft runtime subset drifted from Python GITIGNORE_DEFT_RUNTIME_SENTINELS.\n  Go:     %v\n  Python: %v", goEntries, pyEntries)
+	}
+}
+
 // TestCanonicalGitignoreEvalEntriesMatchPythonSource pins the Go installer's
 // selective vbrief/.eval/* entries to GITIGNORE_EVAL_ENTRIES in
 // scripts/_triage_bootstrap_gitignore.py (the single source of truth shared
@@ -1173,10 +1228,21 @@ func TestCanonicalGitignoreEvalEntriesMatchPythonSource(t *testing.T) {
 // typed assignment form so the docstring mention is not matched.
 func parsePythonEvalEntries(t *testing.T, src string) []string {
 	t.Helper()
-	block := regexp.MustCompile(`GITIGNORE_EVAL_ENTRIES:\s*tuple\[str, \.\.\.\]\s*=\s*\(([^)]*)\)`)
+	return parsePythonTupleEntries(t, src, "GITIGNORE_EVAL_ENTRIES")
+}
+
+func parsePythonRuntimeSentinelEntries(t *testing.T, src string) []string {
+	t.Helper()
+	return parsePythonTupleEntries(t, src, "GITIGNORE_DEFT_RUNTIME_SENTINELS")
+}
+
+func parsePythonTupleEntries(t *testing.T, src string, tupleName string) []string {
+	t.Helper()
+	pattern := fmt.Sprintf(`%s:\s*tuple\[str, \.\.\.\]\s*=\s*\(([^)]*)\)`, regexp.QuoteMeta(tupleName))
+	block := regexp.MustCompile(pattern)
 	m := block.FindStringSubmatch(src)
 	if m == nil {
-		t.Fatal("could not locate GITIGNORE_EVAL_ENTRIES tuple in Python source")
+		t.Fatalf("could not locate %s tuple in Python source", tupleName)
 	}
 	quoted := regexp.MustCompile(`"([^"]+)"`)
 	var out []string

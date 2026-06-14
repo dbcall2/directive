@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **Session-start runtime files no longer dirty freshly installed consumer repositories (#1609)** -- the installer and relocator now deposit selective `.gitignore` entries for `.deft/ritual-state.json` and `.deft/last-session.json`, keeping the ritual sentinels local while preserving the tracked `.deft/core/` framework payload. Closes #1609.
 
 ### Removed
 

@@ -295,6 +295,23 @@ def _assert_canonical_end_state(
     assert "<!-- /deft:managed-section -->" in agents, "v2 marker close absent"
     gitignore = (project_root / ".gitignore").read_text(encoding="utf-8")
     assert ".deft-cache/" in gitignore, ".gitignore missing .deft-cache/ entry"
+    assert ".deft/ritual-state.json" in gitignore, (
+        ".gitignore missing selective .deft ritual-state entry"
+    )
+    assert ".deft/last-session.json" in gitignore, (
+        ".gitignore missing selective .deft last-session entry"
+    )
+    active_deft = [
+        line.strip()
+        for line in gitignore.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    assert ".deft/" not in active_deft, (
+        "relocator must not deposit a blanket .deft/ line; .deft/core/ is tracked"
+    )
+    assert ".deft/core/" not in active_deft, (
+        "relocator must not hide the tracked .deft/core/ framework payload"
+    )
     assert "vbrief/.eval/candidates.jsonl" in gitignore, (
         ".gitignore missing selective vbrief/.eval/ entry"
     )
