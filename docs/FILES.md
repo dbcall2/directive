@@ -74,6 +74,7 @@ deft/
 │   ├── BROWNFIELD.md      # Adding Deft to an existing project
 │   ├── ai-coding-trust-paradox.md
 │   ├── claude-code-integration.md
+│   ├── codebase-map-source-of-truth.md # Decision: vBRIEF metadata owns codebase structure; MAP/header outputs are projections
 │   ├── getting-started.md
 │   └── superpowers.md
 │
