@@ -548,10 +548,14 @@
 - **#1577** -- triage:welcome uses unprefixed task names and fails in consumer Taskfile namespace -- `[completed]`
 - **#1036** -- Guard issue ingest/cache against escape-sequence and control-character corruption -- `[completed]`
 - **#1187** -- Directive-bound agents should detect missing tooling (task/uv/python/gh) and offer to install on first encounter -- `[completed]`
+- **#1595** -- docs: record #1595 PR 1 codebase MAP source-of-truth decision -- `[completed]`
 - **#1596** -- Startup ritual should warn when the default branch is out of sync with remote -- `[completed]`
+- **#1606** -- feat(capacity): ship the deferred capacity:backfill tool (#1419 history classifier) -- `[completed]`
 - **#689** -- feat(installer): version-currency self-check at startup -- `[completed]`
 - **#1053** -- Generic-terminal swarm fallback should offer serial self-execution instead of only manual prompt paste -- `[completed]`
 - **#1053** -- Greenfield setup should produce or offer a swarm-ready project bootstrap -- `[completed]`
 - **#1053** -- Interactive swarm worktrees should default to deterministic non-cluttering scratch paths -- `[completed]`
 - **#1053** -- Lifecycle Taskfile commands should preserve reliable success semantics under Windows PowerShell 5.1 -- `[completed]`
+- **#1609** -- installer: ignore .deft ritual runtime sentinels in consumer projects -- `[completed]`
+- **#1621** -- feat(skills,coding): deft-directive-debug — systematic root-cause investigation skill + coding/debugging.md (supersedes #659, #1173) -- `[completed]`
 

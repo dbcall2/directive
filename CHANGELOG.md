@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.47.0] - 2026-06-14
+
+> Adds a systematic debugging capability (standard + skill + ledger gate) and a capacity-backfill tool, plus an installer fix that keeps fresh consumer repos clean.
+
+### Added
 - **Directive now has a systematic, evidence-based debugging capability (#1621)** -- a new `coding/debugging.md` standard (the Iron Law "no fixes without root-cause investigation first", a four-phase loop, a 3-fix architecture gate, and evidence discipline) plus a `deft-directive-debug` skill that turns "why did X break / slow down?" into a sustained investigation MODE with a claim ledger, mandatory falsification, and an answer-embargo until the evidence closes. A `task verify:investigation` gate deterministically validates the investigation ledger before any conclusion. Reachable via the new "debug" / "root cause" / "investigate" routing keywords. Consolidates and supersedes the two previously-stale debug issues (#659, #1173). Closes #1621.
 - **A one-time `task capacity:backfill` now activates capacity accounting from your completed history, and `capacity:show` / session start tell you when to run it (#1606)** -- a new offline-first command classifies past completed work into capacity buckets (inferred from each item's origin-issue labels) and stamps the completion date from git, so the engine crosses its minimum-sample threshold and leaves advisory-only mode. It is dry-run by default, idempotent, and never touches cost. When buckets are configured but history is unclassified, `task capacity:show` and the session-start nudge now point you at the backfill. Closes #1606.
 - **A single decision record now explains why the vBRIEF is canonical, so the question stops getting re-litigated (#1291)** -- directive now has an accepted ADR for treating vBRIEF as the source of truth for agent-consumed framework content, with rendered docs and code-adjacent orientation treated as projections. The record leads with the user-visible end state, preserves the token-economics rationale from the earlier alignment work, and names the trigger-based path from clarity to future enforcement. Closes #1291.
@@ -3242,7 +3254,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.46.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.47.0...HEAD
+[0.47.0]: https://github.com/deftai/directive/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/deftai/directive/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/deftai/directive/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/deftai/directive/compare/v0.44.0...v0.45.0
