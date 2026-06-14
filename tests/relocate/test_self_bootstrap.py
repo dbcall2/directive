@@ -12,8 +12,10 @@ Owned by the v0.27.1 follow-up issue #1015. Covers four behaviour blocks:
   references is present in ``UPGRADING.md`` under the v0.27 migration section.
 
 - **F2 canonical default** -- the canonical ``.gitignore`` baseline is
-  ``.deft-cache/`` + the SELECTIVE ``vbrief/.eval/*`` entries (#1251 / #1464;
-  NOT the blanket ``vbrief/.eval/`` and NOT ``.deft/core/``). A small
+  ``.deft-cache/`` + the SELECTIVE ``.deft`` runtime sentinels (#1609) +
+  the SELECTIVE ``vbrief/.eval/*`` entries (#1251 / #1464; NOT the blanket
+  ``.deft/``, NOT the blanket ``vbrief/.eval/``, and NOT ``.deft/core/``).
+  A small
   parametrised test pins consistency across the relocator implementation,
   the pre-existing state-matrix fixture assertions, and the relocator-side
   test fixture (``test_state_matrix.py::_assert_canonical_end_state``). The
@@ -290,8 +292,10 @@ class TestF1UpgradingNote:
 
 
 class TestF2GitignoreDefault:
-    """The canonical default is ``.deft-cache/`` + the selective eval entries.
+    """The canonical default is cache + selective runtime/eval entries.
 
+    #1609: session ritual state under ``.deft/`` is ignored via exact files,
+    never via a blanket ``.deft/`` line that would hide ``.deft/core/``.
     #1251 / #1464: the eval state is gitignored via the SELECTIVE per-file
     entries (the single source of truth ``GITIGNORE_EVAL_ENTRIES``), NEVER the
     blanket ``vbrief/.eval/`` line which would hide the tracked
@@ -302,10 +306,19 @@ class TestF2GitignoreDefault:
     """
 
     def test_relocator_constant_pins_canonical_default(self, relocate: Any) -> None:
-        # Single source of truth: GITIGNORE_LINES == .deft-cache/ + the
-        # imported GITIGNORE_EVAL_ENTRIES tuple (#1464).
-        expected = (".deft-cache/", *relocate.GITIGNORE_EVAL_ENTRIES)
+        # Single source of truth: GITIGNORE_LINES == .deft-cache/ + imported
+        # runtime sentinel entries (#1609) + imported eval entries (#1464).
+        expected = (
+            ".deft-cache/",
+            *relocate.GITIGNORE_DEFT_RUNTIME_SENTINELS,
+            *relocate.GITIGNORE_EVAL_ENTRIES,
+        )
         assert expected == relocate.GITIGNORE_LINES
+        # The forbidden .deft blanket is absent; the selective entries replace it.
+        assert ".deft/" not in relocate.GITIGNORE_LINES
+        assert ".deft" not in relocate.GITIGNORE_LINES
+        assert ".deft/ritual-state.json" in relocate.GITIGNORE_LINES
+        assert ".deft/last-session.json" in relocate.GITIGNORE_LINES
         # The forbidden blanket is gone; the selective entries replace it.
         assert "vbrief/.eval/" not in relocate.GITIGNORE_LINES
         assert "vbrief/.eval" not in relocate.GITIGNORE_LINES
@@ -313,9 +326,11 @@ class TestF2GitignoreDefault:
         assert "vbrief/.eval/doctor-state.json" in relocate.GITIGNORE_LINES
 
     def test_dot_deft_core_is_intentionally_absent(self, relocate: Any) -> None:
-        # If a future PR adds .deft/core/ to GITIGNORE_LINES it MUST first
+        # If a future PR adds .deft/ or .deft/core/ to GITIGNORE_LINES it MUST first
         # update the F2 decision rationale comment in scripts/relocate.py
         # AND drop this test (which encodes the inverse contract).
+        assert ".deft/" not in relocate.GITIGNORE_LINES
+        assert ".deft" not in relocate.GITIGNORE_LINES
         assert ".deft/core/" not in relocate.GITIGNORE_LINES
         assert ".deft/core" not in relocate.GITIGNORE_LINES
 
@@ -323,6 +338,8 @@ class TestF2GitignoreDefault:
         "expected_line",
         [
             ".deft-cache/",
+            ".deft/ritual-state.json",
+            ".deft/last-session.json",
             "vbrief/.eval/candidates.jsonl",
         ],
     )
@@ -386,6 +403,8 @@ class TestGitignoreHealBlanket:
             if line.strip() and not line.lstrip().startswith("#")
         ]
         assert "vbrief/.eval" not in active
+        assert ".deft/ritual-state.json" in active
+        assert ".deft/last-session.json" in active
         assert "vbrief/.eval/candidates.jsonl" in active
         # Re-run is a clean no-op (blanket already healed, entries present).
         assert relocate._ensure_gitignore_lines(tmp_path) is False
@@ -400,6 +419,8 @@ class TestGitignoreHealBlanket:
         gi = tmp_path / ".gitignore"
         seeded = (
             ".deft-cache/\n"
+            ".deft/ritual-state.json  # local ritual state\n"
+            ".deft/last-session.json\n"
             "vbrief/.eval/candidates.jsonl  # added manually\n"
             "vbrief/.eval/summary-history.jsonl\n"
             "vbrief/.eval/scope-lifecycle.jsonl\n"
@@ -412,6 +433,9 @@ class TestGitignoreHealBlanket:
         assert relocate._ensure_gitignore_lines(tmp_path) is False
         body = gi.read_text(encoding="utf-8")
         assert body == seeded
+        assert body.count(".deft/ritual-state.json") == 1, (
+            "inline-commented canonical sentinel must not be re-deposited (#1609)"
+        )
         assert body.count("vbrief/.eval/candidates.jsonl") == 1, (
             "inline-commented canonical entry must not be re-deposited (#1464)"
         )
