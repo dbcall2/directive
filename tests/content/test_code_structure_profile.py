@@ -31,6 +31,9 @@ def test_schema_required_keys_match_pr2_profile() -> None:
 
 def test_directive_dogfood_code_structure_validates() -> None:
     path = _REPO_ROOT / "vbrief/architecture/code-structure.vbrief.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert "architecture" not in data["plan"]
+    assert csv_validate.DIRECTIVE_HOME.split(".", maxsplit=1)[0] in data
     result = csv_validate.validate_file(path)
     assert result.ok, [finding.message for finding in result.errors]
 

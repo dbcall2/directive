@@ -58,7 +58,18 @@ metadata can evolve without breaking existing projects.
 
 ## Metadata Home
 
-Preferred home, aligned with #1498 and the #1492 schema-home discussion:
+Directive home, aligned with the vBRIEF 0.6 extension namespace rule:
+
+```json
+{
+  "x-directive/architecture": {
+    "codeStructure": {}
+  }
+}
+```
+
+If upstream vBRIEF later accepts architecture metadata in core, the same profile
+can migrate to a core home such as:
 
 ```json
 {
@@ -70,23 +81,12 @@ Preferred home, aligned with #1498 and the #1492 schema-home discussion:
 }
 ```
 
-If upstream vBRIEF does not accept architecture metadata in core immediately,
-Directive may use the reserved consumer extension namespace as a temporary
-compatibility path:
-
-```json
-{
-  "x-directive/architecture": {
-    "codeStructure": {}
-  }
-}
-```
-
-The extension namespace is a fallback, not the preferred long-term home.
+Until then, `x-directive/architecture.codeStructure` is the conformant home for
+Directive-authored metadata.
 
 ### Home is provisional pending the source-of-truth/projection split (#1618)
 
-This section names a JSON *shape* (`plan.architecture.codeStructure`), not a
+This section names a JSON *shape* (`x-directive/architecture.codeStructure`), not a
 commitment to physically embed that shape in the `PROJECT-DEFINITION.vbrief.json`
 monolith. RFC #1618 argues that file is already overloaded (a large, drifting
 `plan.items` registry), and that authored truth should live in small,

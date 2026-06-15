@@ -4,7 +4,7 @@
 The PR2 profile keeps authored codebase-structure intent in a git-tracked
 vBRIEF record while generated maps, indexes, and headers remain projections.
 This validator is intentionally small and deterministic: it validates the
-shape and cross-references of ``plan.architecture.codeStructure`` without
+shape and cross-references of the authored ``codeStructure`` record without
 attempting extraction or MAP generation.
 """
 
@@ -20,8 +20,8 @@ from typing import Any
 
 STABLE_ID_RE = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 CODE_STRUCTURE_VERSION = "0.1"
-PLAN_HOME = "plan.architecture.codeStructure"
 DIRECTIVE_HOME = "x-directive/architecture.codeStructure"
+PLAN_HOME = "plan.architecture.codeStructure"
 
 
 class CodeStructureConfigError(RuntimeError):
@@ -87,7 +87,13 @@ def _safe_relative_path(value: object) -> bool:
 
 
 def extract_code_structure(data: dict[str, Any]) -> ExtractedCodeStructure | None:
-    """Return a codeStructure record from the supported PR2 homes."""
+    """Return a codeStructure record from the canonical or legacy PR2 homes."""
+    extension = data.get("x-directive/architecture")
+    if isinstance(extension, dict):
+        record = extension.get("codeStructure")
+        if isinstance(record, dict):
+            return ExtractedCodeStructure(record=record, home=DIRECTIVE_HOME)
+
     plan = data.get("plan")
     if isinstance(plan, dict):
         architecture = plan.get("architecture")
@@ -95,12 +101,6 @@ def extract_code_structure(data: dict[str, Any]) -> ExtractedCodeStructure | Non
             record = architecture.get("codeStructure")
             if isinstance(record, dict):
                 return ExtractedCodeStructure(record=record, home=PLAN_HOME)
-
-    extension = data.get("x-directive/architecture")
-    if isinstance(extension, dict):
-        record = extension.get("codeStructure")
-        if isinstance(record, dict):
-            return ExtractedCodeStructure(record=record, home=DIRECTIVE_HOME)
 
     return None
 

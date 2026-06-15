@@ -53,7 +53,7 @@ def _record(**overrides: object) -> dict:
             {
                 "path": ".planning/codebase/MAP.md",
                 "kind": "codebase-map",
-                "source": "plan.architecture.codeStructure",
+                "source": csv_validate.DIRECTIVE_HOME,
                 "generated": True,
             }
         ],
@@ -77,8 +77,8 @@ def _vbrief(record: dict) -> dict:
             "title": "Code structure",
             "status": "running",
             "items": [],
-            "architecture": {"codeStructure": record},
         },
+        "x-directive/architecture": {"codeStructure": record},
     }
 
 
@@ -200,7 +200,7 @@ class TestValidateCodeStructure:
                 {
                     "path": "/tmp/MAP.md",
                     "kind": "codebase-map",
-                    "source": "plan.architecture.codeStructure",
+                    "source": csv_validate.DIRECTIVE_HOME,
                     "generated": "yes",
                 }
             ]
@@ -212,21 +212,25 @@ class TestValidateCodeStructure:
 
 
 class TestExtractionAndCli:
-    def test_extracts_from_plan_architecture(self) -> None:
+    def test_extracts_from_directive_namespace(self) -> None:
         extracted = csv_validate.extract_code_structure(_vbrief(_record()))
         assert extracted is not None
-        assert extracted.home == "plan.architecture.codeStructure"
+        assert extracted.home == csv_validate.DIRECTIVE_HOME
         assert extracted.record["version"] == "0.1"
 
-    def test_extracts_from_directive_namespace_fallback(self) -> None:
+    def test_extracts_from_legacy_plan_architecture(self) -> None:
         data = {
             "vBRIEFInfo": {"version": "0.6"},
-            "plan": {"title": "Code structure", "status": "running", "items": []},
-            "x-directive/architecture": {"codeStructure": _record()},
+            "plan": {
+                "title": "Code structure",
+                "status": "running",
+                "items": [],
+                "architecture": {"codeStructure": _record()},
+            },
         }
         extracted = csv_validate.extract_code_structure(data)
         assert extracted is not None
-        assert extracted.home == "x-directive/architecture.codeStructure"
+        assert extracted.home == csv_validate.PLAN_HOME
 
     def test_cli_validates_explicit_path(self, tmp_path: Path) -> None:
         path = tmp_path / "code-structure.vbrief.json"

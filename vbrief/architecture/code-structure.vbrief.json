@@ -6,144 +6,144 @@
   "plan": {
     "title": "Directive codeStructure metadata",
     "status": "running",
-    "items": [],
-    "architecture": {
-      "codeStructure": {
-        "version": "0.1",
-        "modules": [
-          {
-            "id": "framework-content",
-            "name": "Framework Content",
-            "purpose": "Agent-consumed standards, strategies, skills, templates, and documentation.",
-            "pathGlobs": [
-              "AGENTS.md",
-              "main.md",
-              "coding/**/*.md",
-              "contracts/**/*.md",
-              "docs/**/*.md",
-              "interfaces/**/*.md",
-              "languages/**/*.md",
-              "meta/**/*.md",
-              "skills/**/*.md",
-              "strategies/**/*.md",
-              "templates/**/*.md",
-              "tools/**/*.md",
-              "verification/**/*.md"
-            ],
-            "owner": "directive"
-          },
-          {
-            "id": "python-tooling",
-            "name": "Python Tooling",
-            "purpose": "Framework CLI helpers, validators, lifecycle tools, and automation scripts.",
-            "pathGlobs": [
-              "run",
-              "run.py",
-              "scripts/**/*.py"
-            ],
-            "owner": "directive"
-          },
-          {
-            "id": "task-runner",
-            "name": "Task Runner",
-            "purpose": "Taskfile entry points that expose framework commands in source and consumer installs.",
-            "pathGlobs": [
-              "Taskfile.yml",
-              "tasks/**/*.yml"
-            ],
-            "owner": "directive"
-          },
-          {
-            "id": "go-installer",
-            "name": "Go Installer",
-            "purpose": "Standalone installer binary for end-user and maintainer installs.",
-            "pathGlobs": [
-              "cmd/deft-install/**/*.go"
-            ],
-            "owner": "directive"
-          },
-          {
-            "id": "vbrief-metadata",
-            "name": "vBRIEF Metadata",
-            "purpose": "Structured project, scope, schema, lifecycle, and architecture metadata.",
-            "pathGlobs": [
-              "vbrief/**/*.json",
-              "vbrief/**/*.md"
-            ],
-            "owner": "directive"
-          },
-          {
-            "id": "test-suite",
-            "name": "Test Suite",
-            "purpose": "CLI, content, integration, and regression tests for framework behavior.",
-            "pathGlobs": [
-              "tests/**/*.py"
-            ],
-            "owner": "directive"
-          }
-        ],
-        "pathOwnership": [
-          {
-            "pathGlob": "vbrief/architecture/*.vbrief.json",
-            "module": "vbrief-metadata",
-            "owner": "directive",
-            "rationale": "Authored codebase-structure intent is vBRIEF-owned and git-tracked, but kept out of the PROJECT-DEFINITION monolith per #1618."
-          },
-          {
-            "pathGlob": "vbrief/schemas/code-structure.schema.json",
-            "module": "vbrief-metadata",
-            "owner": "directive",
-            "rationale": "The codeStructure profile schema is a vBRIEF metadata contract."
-          }
-        ],
-        "allowedPatterns": [
-          {
-            "id": "profile-before-projection",
-            "module": "vbrief-metadata",
-            "name": "Profile before projection",
-            "description": "Define and validate authored codeStructure metadata before adding extractors, MAP generation, local indexes, or generated headers."
-          },
-          {
-            "id": "stdlib-validator",
-            "module": "python-tooling",
-            "name": "Stdlib validator",
-            "description": "Metadata validators use Python stdlib parsing and explicit checks rather than adding a runtime JSON Schema dependency."
-          }
-        ],
-        "projectionManifest": [
-          {
-            "path": ".planning/codebase/MAP.md",
-            "kind": "codebase-map",
-            "source": "plan.architecture.codeStructure",
-            "generated": false,
-            "task": "task codebase:map",
-            "freshnessTask": "task verify:codebase-map-fresh",
-            "status": "planned"
-          }
-        ],
-        "filePurposeOverrides": [
-          {
-            "path": "scripts/code_structure_validate.py",
-            "module": "python-tooling",
-            "purpose": "Validates authored codeStructure metadata records for #1595 PR2."
-          },
-          {
-            "path": "vbrief/architecture/code-structure.vbrief.json",
-            "module": "vbrief-metadata",
-            "purpose": "Directive's dogfood codeStructure metadata record."
-          }
-        ],
-        "glossaryRefs": [
-          {
-            "term": "projection",
-            "uri": "docs/codebase-map-source-of-truth.md"
-          },
-          {
-            "term": "source of truth",
-            "uri": "docs/codebase-map-source-of-truth.md"
-          }
-        ]
-      }
+    "items": []
+  },
+  "x-directive/architecture": {
+    "codeStructure": {
+      "version": "0.1",
+      "modules": [
+        {
+          "id": "framework-content",
+          "name": "Framework Content",
+          "purpose": "Agent-consumed standards, strategies, skills, templates, and documentation.",
+          "pathGlobs": [
+            "AGENTS.md",
+            "main.md",
+            "coding/**/*.md",
+            "contracts/**/*.md",
+            "docs/**/*.md",
+            "interfaces/**/*.md",
+            "languages/**/*.md",
+            "meta/**/*.md",
+            "skills/**/*.md",
+            "strategies/**/*.md",
+            "templates/**/*.md",
+            "tools/**/*.md",
+            "verification/**/*.md"
+          ],
+          "owner": "directive"
+        },
+        {
+          "id": "python-tooling",
+          "name": "Python Tooling",
+          "purpose": "Framework CLI helpers, validators, lifecycle tools, and automation scripts.",
+          "pathGlobs": [
+            "run",
+            "run.py",
+            "scripts/**/*.py"
+          ],
+          "owner": "directive"
+        },
+        {
+          "id": "task-runner",
+          "name": "Task Runner",
+          "purpose": "Taskfile entry points that expose framework commands in source and consumer installs.",
+          "pathGlobs": [
+            "Taskfile.yml",
+            "tasks/**/*.yml"
+          ],
+          "owner": "directive"
+        },
+        {
+          "id": "go-installer",
+          "name": "Go Installer",
+          "purpose": "Standalone installer binary for end-user and maintainer installs.",
+          "pathGlobs": [
+            "cmd/deft-install/**/*.go"
+          ],
+          "owner": "directive"
+        },
+        {
+          "id": "vbrief-metadata",
+          "name": "vBRIEF Metadata",
+          "purpose": "Structured project, scope, schema, lifecycle, and architecture metadata.",
+          "pathGlobs": [
+            "vbrief/**/*.json",
+            "vbrief/**/*.md"
+          ],
+          "owner": "directive"
+        },
+        {
+          "id": "test-suite",
+          "name": "Test Suite",
+          "purpose": "CLI, content, integration, and regression tests for framework behavior.",
+          "pathGlobs": [
+            "tests/**/*.py"
+          ],
+          "owner": "directive"
+        }
+      ],
+      "pathOwnership": [
+        {
+          "pathGlob": "vbrief/architecture/*.vbrief.json",
+          "module": "vbrief-metadata",
+          "owner": "directive",
+          "rationale": "Authored codebase-structure intent is vBRIEF-owned and git-tracked, but kept out of the PROJECT-DEFINITION monolith per #1618."
+        },
+        {
+          "pathGlob": "vbrief/schemas/code-structure.schema.json",
+          "module": "vbrief-metadata",
+          "owner": "directive",
+          "rationale": "The codeStructure profile schema is a vBRIEF metadata contract."
+        }
+      ],
+      "allowedPatterns": [
+        {
+          "id": "profile-before-projection",
+          "module": "vbrief-metadata",
+          "name": "Profile before projection",
+          "description": "Define and validate authored codeStructure metadata before adding extractors, MAP generation, local indexes, or generated headers."
+        },
+        {
+          "id": "stdlib-validator",
+          "module": "python-tooling",
+          "name": "Stdlib validator",
+          "description": "Metadata validators use Python stdlib parsing and explicit checks rather than adding a runtime JSON Schema dependency."
+        }
+      ],
+      "projectionManifest": [
+        {
+          "path": ".planning/codebase/MAP.md",
+          "kind": "codebase-map",
+          "source": "x-directive/architecture.codeStructure",
+          "generated": false,
+          "task": "task codebase:map",
+          "freshnessTask": "task verify:codebase-map-fresh",
+          "status": "planned"
+        }
+      ],
+      "filePurposeOverrides": [
+        {
+          "path": "scripts/code_structure_validate.py",
+          "module": "python-tooling",
+          "purpose": "Validates authored codeStructure metadata records for #1595 PR2."
+        },
+        {
+          "path": "vbrief/architecture/code-structure.vbrief.json",
+          "module": "vbrief-metadata",
+          "purpose": "Directive's dogfood codeStructure metadata record."
+        }
+      ],
+      "glossaryRefs": [
+        {
+          "term": "projection",
+          "uri": "docs/codebase-map-source-of-truth.md"
+        },
+        {
+          "term": "source of truth",
+          "uri": "docs/codebase-map-source-of-truth.md"
+        }
+      ]
     }
   }
 }

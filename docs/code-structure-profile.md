@@ -26,19 +26,19 @@ The semantic JSON shape is:
 
 ```json
 {
-  "plan": {
-    "architecture": {
-      "codeStructure": {}
-    }
+  "x-directive/architecture": {
+    "codeStructure": {}
   }
 }
 ```
 
 This keeps the authored record vBRIEF-owned and git-tracked while avoiding new
-`vbrief/PROJECT-DEFINITION.vbrief.json` bloat. Embedding the same shape under
-`PROJECT-DEFINITION` remains a compatibility target, but it is not the dogfood
-storage location for this slice. The broader source-of-truth/materialized-view
-split remains coordinated with #1618 and #1379.
+`vbrief/PROJECT-DEFINITION.vbrief.json` bloat and staying conformant with the
+vBRIEF 0.6 extension namespace rule. Legacy `plan.architecture.codeStructure`
+records remain readable by the validator for compatibility, but the Directive
+dogfood record uses `x-directive/architecture.codeStructure`. The broader
+source-of-truth/materialized-view split remains coordinated with #1618 and
+#1379.
 
 ## Shape
 
