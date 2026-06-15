@@ -423,7 +423,16 @@
 - **#1283** -- Pack-aware slice API -- surface, semantics, mechanisms (design RFC) -- `[completed]`
 - **#1284** -- Epic 1 umbrella: vBRIEF-as-canonical for the agentic-consumed surface (approved direction) -- `[completed]`
 - **#1285** -- Epic 2 umbrella: deterministic CRUD harness for vBRIEF JSON (approved, non-gating) -- `[completed]`
+- **#1286** -- Demote vBRIEF-status:blocked items in triage:queue -- `[completed]`
+- **#1287** -- task vbrief:reconcile:graph -- cascade-unblock walker -- `[completed]`
+- **#1288** -- task vbrief:reconcile:labels -- SCM label reconciliation -- `[completed]`
+- **#1289** -- task vbrief:reconcile:umbrellas -- umbrella current-shape auto-update -- `[completed]`
+- **#1290** -- reconcile_issues.py honors stateReason + primary-reference filter (NOT_PLANNED -> cancelled/, Axis B canonical-issue resolution) -- `[completed]`
 - **#1291** -- ADR-001 doc deliverable: vBRIEF-as-canonical (write the doc) -- `[completed]`
+- **#1292** -- Reframe #336: documentation-tier AXIOM application (drop 5 new core content types) -- `[completed]`
+- **#1294** -- lessons-pack-0.1 pilot -- first tier-3 extension pack -- `[completed]`
+- **#1295** -- skills-pack-0.1 -- second tier-3 pack (generalizes the #1294 machinery) -- `[completed]`
+- **#1296** -- rules-pack-0.1 + strategies-pack-0.1 -- `[completed]`
 - **#1300** -- Directive rule: ALWAYS confirm a cancellation came from the user (not a runtime glitch) before attributing intent -- `[completed]`
 - **#1308** -- feat(run,scripts,skills): consolidate doctor (run doctor absorbs framework:doctor install-integrity + AGENTS.md managed-section freshness + 24h/4h throttle + deft-directive-sync trigger) -- `[completed]`
 - **#1309** -- fix(templates,agents-md,tests): propagate welcome / WIP cap / session-start ritual / skill routing from maintainer AGENTS.md into templates/agents-entry.md + propagation-discipline gate -- `[completed]`
@@ -558,4 +567,8 @@
 - **#1053** -- Lifecycle Taskfile commands should preserve reliable success semantics under Windows PowerShell 5.1 -- `[completed]`
 - **#1609** -- installer: ignore .deft ritual runtime sentinels in consumer projects -- `[completed]`
 - **#1621** -- feat(skills,coding): deft-directive-debug — systematic root-cause investigation skill + coding/debugging.md (supersedes #659, #1173) -- `[completed]`
+- **#1274** -- task issue:emit -- vBRIEF -> GitHub issue write path -- `[completed]`
+- **#1274** -- Strategy emit-hints: discoverable issue:emit across vBRIEF-producing strategies -- `[completed]`
+- **#1620** -- vBRIEF 0.6 conformance: Category A migrations + verify:vbrief-conformance gate -- `[completed]`
+- **#1643** -- Pack discovery (--list-packs) + consumer discoverability wiring for packs:slice -- `[completed]`
 

@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.48.0] - 2026-06-15
+
+> Content-pack slices go live in pilot form -- agents pull rules, strategies, skills, and lessons by name as the first projections of the vBRIEF-as-source-of-truth model, plus automatic vBRIEF dependency, label, and umbrella reconciliation.
+
+### Added
 - **Agents can now pull framework rules and strategies by name instead of loading whole docs, completing the four-pack content-pack rollout (#1296)** -- two more content packs join `lessons` and `skills`. `task packs:slice rules by-tier --tier MUST` (or `by-domain --domain testing`) returns the RFC2119-tiered directives parsed from the coding standards, and `task packs:slice strategies list` (or `by-trigger`) returns each development strategy with its title and description; `task packs:slice --list-packs` now lists all four. As 0.1 pilots each pack ships full metadata coverage of its corpus plus one banner-marked, drift-checked projection proof, and the renderer/slice machinery was extended through the shared data-driven registry (not copy-pasted) so the lessons and skills projections stay byte-identical. Full migration of every standards doc is a v0.2 follow-up. Closes #1296. Refs #1284 #748.
 - **Agents can now resolve which skill handles a keyword from structured metadata, and the pack machinery is proven to generalize (#1295)** -- a second content pack, `skills`, captures every skill's routing metadata (name, description, triggers, path, version). `task packs:slice skills by-trigger --trigger <kw>` returns the skill a routing keyword maps to, and `list` returns every skill with its description; `task packs:slice --list-packs` now shows both `lessons` and `skills`. The renderer and slice resolver were generalized (not copy-pasted) to be pack-agnostic, and one small proof skill (`deft-directive-cost`) is now a banner-marked, drift-checked projection of the structured source, with the drift gate in `task check` covering both packs while the lessons projection stays byte-identical. Closes #1295. Refs #1284.
 - **Agents now know the lessons archive exists and can discover it on their own (#1643)** -- the content-pack slice surface is now wired into the guidance an agent actually loads. A new `task packs:slice --list-packs` discovers which packs exist (name, version, one-line description) straight from the on-disk registry, so future packs appear with no code change. The consumer AGENTS.md managed section, `main.md`, and a new "lessons / prior art" skill-routing trigger all point agents at the discovery commands (`--list-packs`, `<pack> --list`) to load just the slice they need instead of the whole file -- and deliberately never hardcode pack or slice names, so later additions need no rewiring. Closes #1643. Refs #1637 #1284.
@@ -3267,7 +3279,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.47.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.48.0...HEAD
+[0.48.0]: https://github.com/deftai/directive/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/deftai/directive/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/deftai/directive/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/deftai/directive/compare/v0.45.0...v0.45.1
