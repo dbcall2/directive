@@ -7,7 +7,6 @@ import argparse
 import contextlib
 import io
 import json
-import os
 import subprocess
 import sys
 import uuid
@@ -386,7 +385,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--task-prefix",
-        default=os.environ.get(TASK_PREFIX_ENV_VAR, ""),
+        default=None,
         help=(
             "Optional Taskfile namespace prefix for operator-facing triage "
             f"commands. Defaults to ${TASK_PREFIX_ENV_VAR}."

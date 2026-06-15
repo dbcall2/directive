@@ -156,6 +156,10 @@ def _strip_inline_comment(line: str) -> str:
         if char in {"'", '"'}:
             quote = None if quote == char else char if quote is None else quote
             continue
-        if char == "#" and quote is None:
+        if (
+            char == "#"
+            and quote is None
+            and (index == 0 or line[index - 1] in {" ", "\t"})
+        ):
             return line[:index]
     return line

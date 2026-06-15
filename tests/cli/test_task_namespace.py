@@ -77,6 +77,27 @@ includes:
     )
 
 
+def test_inline_comment_stripping_preserves_hash_inside_path(tmp_path: Path) -> None:
+    task_namespace = _load_module("task_namespace", SCRIPTS_DIR / "task_namespace.py")
+    project_root = tmp_path / "consumer"
+    framework_root = project_root / "vendor" / "deft#stable"
+    _write_framework(framework_root)
+    project_root.mkdir(exist_ok=True)
+    (project_root / "Taskfile.yml").write_text(
+        """
+version: '3'
+includes:
+  deft: ./vendor/deft#stable # pinned local checkout
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    assert (
+        task_namespace.discover_task_prefix(project_root, framework_root=framework_root)
+        == "deft:"
+    )
+
+
 def test_source_repo_without_outer_include_returns_empty(tmp_path: Path) -> None:
     task_namespace = _load_module("task_namespace", SCRIPTS_DIR / "task_namespace.py")
     framework_root = tmp_path / "directive"

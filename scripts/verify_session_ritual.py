@@ -340,7 +340,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true", dest="emit_json")
     parser.add_argument(
         "--task-prefix",
-        default=os.environ.get(TASK_PREFIX_ENV_VAR, ""),
+        default=None,
         help=(
             "Optional Taskfile namespace prefix for gated task re-entry. "
             f"Defaults to ${TASK_PREFIX_ENV_VAR}, then Taskfile include discovery."
