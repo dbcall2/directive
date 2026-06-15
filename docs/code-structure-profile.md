@@ -35,7 +35,7 @@ The semantic JSON shape is:
 ```
 
 This keeps the authored record vBRIEF-owned and git-tracked while avoiding new
-`PROJECT-DEFINITION.vbrief.json` bloat. Embedding the same shape under
+`vbrief/PROJECT-DEFINITION.vbrief.json` bloat. Embedding the same shape under
 `PROJECT-DEFINITION` remains a compatibility target, but it is not the dogfood
 storage location for this slice. The broader source-of-truth/materialized-view
 split remains coordinated with #1618 and #1379.
