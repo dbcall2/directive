@@ -38,7 +38,8 @@ The values below are what deft itself ships on `vbrief/PROJECT-DEFINITION.vbrief
             "skills",
             "adoption-blocker",
             "blocks-merge",
-            "blocks-release-tag"
+            "blocks-release-tag",
+            "bug"
           ]
         },
         {"rule": "milestone", "is-open": true}
@@ -48,7 +49,8 @@ The values below are what deft itself ships on `vbrief/PROJECT-DEFINITION.vbrief
         "blocks-release-tag",
         "adoption-blocker",
         "breaking-change",
-        "urgent"
+        "urgent",
+        "bug"
       ],
       "triageAutoClassify": [
         {
@@ -91,11 +93,12 @@ Note on the `triageScopeIgnores` shape: D14c / #1182 supports two ignore-entry s
 ## 3. Side-by-side annotation column
 For each non-empty value, this column explains whether it is deft-specific (your repo would substitute its own) or a common convention (works for most repos that follow the umbrella).
 ### triageScope[]
-- `labels.any-of [enhancement, epic, meta, skills, adoption-blocker, blocks-merge, blocks-release-tag]` -- mixed:
+- `labels.any-of [enhancement, epic, meta, skills, adoption-blocker, blocks-merge, blocks-release-tag, bug]` -- mixed:
   - `enhancement`, `epic`, `meta`, `skills` -- common convention. Most GitHub repos using a similar labelling hygiene will recognise these as the high-signal buckets (`enhancement` is a GitHub default, `epic` / `meta` / `skills` are commonly used as cross-cutting tags).
   - `adoption-blocker` -- common convention (mid-tier adoption tracking; substitute with your own onboarding-friction label).
   - `blocks-merge` -- deft-specific. Deft uses this label to gate merges on cohort-level reviews; your repo may not have this concept. If your repo uses a different gating label (`blocking`, `priority:p0`, `release-blocker`, ...) substitute it here.
   - `blocks-release-tag` -- deft-specific. Deft uses this label to surface issues that must clear before a release tag cuts; substitute with your own release-gating label or omit.
+  - `bug` -- common convention. Subscribing to `bug` keeps open defects in the triage cache so they can be ranked; it pairs with the `bug` ranking label below (a ranking label only takes effect on issues that are in scope). `bug` is a GitHub default label; substitute with `defect` / `regression` as your repo uses.
 - `milestone.is-open: true` -- common convention. Once D14b / #1181 landed this rule type subscribes to every currently-open upstream milestone at sync time. Most consumers benefit from this -- if you maintain milestones at all, the currently-open set is naturally your active-work envelope.
 ### triageRankingLabels[]
 Highest-priority first; matched labels rank within their group ahead of unmatched ones, with `updated_at` desc as the tiebreaker.
@@ -104,6 +107,7 @@ Highest-priority first; matched labels rank within their group ahead of unmatche
 - `adoption-blocker` -- common convention.
 - `breaking-change` -- common convention. Works for most repos that follow Conventional Commits or any semantic-versioning discipline; signal is "a release containing this needs operator attention before it ships".
 - `urgent` -- common convention. Many repos use `urgent` / `priority:high` / `p0`; substitute with whichever label your team uses for "drop everything".
+- `bug` -- common convention. Ranked last among the priority labels so the explicit escalation labels above still win, but a `bug`-labelled issue still ranks ahead of the large mass of unlabelled / feature / RFC work. `bug` is a GitHub default label; substitute with `defect` / `regression` / whichever label your team uses for "something is broken".
 ### triageAutoClassify[]
 First-match-wins after the four framework universal rules.
 - `{labels.any-of [status:superseded-pending], action: defer, reason: awaiting umbrella deliverable}` -- deft-specific. Deft uses `status:superseded-pending` for child issues whose work is folded into a larger umbrella deliverable; deferring keeps them out of the active queue without losing the audit trail. If your repo does not have an umbrella-driven planning model, omit this rule or substitute with your own deferred-by-design label.
