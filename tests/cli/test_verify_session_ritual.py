@@ -241,6 +241,52 @@ def test_gated_tier_runs_prefixed_task_commands(
     ]
 
 
+def test_gated_tier_discovers_consumer_task_prefix_without_env(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    head = _init_git(tmp_path)
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    _write_state(tmp_path, head=head, started_at=now)
+    (tmp_path / "Taskfile.yml").write_text(
+        f"""
+version: '3'
+includes:
+  deft:
+    taskfile: "{REPO_ROOT / "Taskfile.yml"}"
+    optional: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+    commands: list[list[str]] = []
+    monkeypatch.delenv("DEFT_TASK_PREFIX", raising=False)
+
+    def runner(command: list[str], cwd: Path) -> tuple[int, str, str]:
+        commands.append(command)
+        return 0, f"{' '.join(command)} ok", ""
+
+    result = verifier.verify(
+        tmp_path,
+        tier="gated",
+        now=now + timedelta(minutes=1),
+        runner=runner,
+        bypass=False,
+    )
+
+    state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
+    assert result.code == 0
+    assert commands == [
+        ["task", "deft:doctor"],
+        ["task", "deft:verify:cache-fresh"],
+    ]
+    assert state["gated_steps"]["doctor"]["command"] == ["task", "deft:doctor"]
+    assert state["gated_steps"]["cache_fresh"]["command"] == [
+        "task",
+        "deft:verify:cache-fresh",
+    ]
+
+
 def test_subprocess_helpers_capture_text_as_utf8(tmp_path: Path, monkeypatch) -> None:
     verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
     captured: list[dict[str, object]] = []

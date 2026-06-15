@@ -186,6 +186,57 @@ def test_run_session_start_threads_task_prefix_to_triage_welcome(
     ]
 
 
+def test_run_session_start_discovers_consumer_task_prefix_without_env(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    session_start = _load_module("session_start", SCRIPTS_DIR / "session_start.py")
+    _init_git(tmp_path)
+    (tmp_path / "Taskfile.yml").write_text(
+        f"""
+version: '3'
+includes:
+  deft:
+    taskfile: "{REPO_ROOT / "Taskfile.yml"}"
+    optional: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+    captured: dict[str, object] = {}
+    monkeypatch.delenv("DEFT_TASK_PREFIX", raising=False)
+
+    def fake_task_command_args(args, *, task_prefix=None):
+        captured["command_prefix"] = task_prefix
+        return [f"{task_prefix}{args[0]}", *args[1:]]
+
+    def fake_run_default_mode(*_args, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(exit_code=0)
+
+    monkeypatch.setitem(
+        sys.modules,
+        "triage_welcome",
+        SimpleNamespace(
+            run_default_mode=fake_run_default_mode,
+            task_command_args=fake_task_command_args,
+        ),
+    )
+
+    code, _payload, _lines = session_start.run_session_start(
+        tmp_path,
+        write_history=False,
+    )
+
+    state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
+    assert code == 0
+    assert captured["task_prefix"] == "deft:"
+    assert captured["command_prefix"] == "deft:"
+    assert state["quick_steps"]["triage_welcome"]["command"] == [
+        "task",
+        "deft:triage:welcome",
+    ]
+
+
 def test_run_git_captures_text_as_utf8(tmp_path: Path, monkeypatch) -> None:
     session_start = _load_module("session_start", SCRIPTS_DIR / "session_start.py")
     captured: dict[str, object] = {}

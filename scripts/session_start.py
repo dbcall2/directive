@@ -26,6 +26,7 @@ from ritual_sentinel import (  # noqa: E402
     ritual_step,
     write_ritual_state,
 )
+from task_namespace import resolve_task_prefix  # noqa: E402
 
 QUICK_STEPS: tuple[str, ...] = ("alignment", "branch_policy", "triage_welcome")
 GATED_STEPS: tuple[str, ...] = ("doctor", "cache_fresh")
@@ -238,6 +239,12 @@ def run_session_start(
     """Run quick-tier steps and write ``.deft/ritual-state.json``."""
     instant = now or _utc_now()
     deferrals = deferrals or {}
+    resolved_task_prefix = resolve_task_prefix(
+        project_root,
+        framework_root=Path(__file__).resolve().parent.parent,
+        explicit=task_prefix,
+        env_var=TASK_PREFIX_ENV_VAR,
+    )
     git_head, git_error = _git_head(project_root)
     if git_head is None:
         payload = {
@@ -289,10 +296,7 @@ def run_session_start(
         def _capture(line: str) -> None:
             captured.append(line)
 
-        normalized_task_prefix = (task_prefix or "").strip()
-        if normalized_task_prefix and not normalized_task_prefix.endswith(":"):
-            normalized_task_prefix = f"{normalized_task_prefix}:"
-        triage_command = ["task", f"{normalized_task_prefix}triage:welcome"]
+        triage_command = ["task", f"{resolved_task_prefix}triage:welcome"]
         try:
             import triage_welcome  # noqa: I001
 
@@ -300,7 +304,7 @@ def run_session_start(
                 "task",
                 *triage_welcome.task_command_args(
                     ["triage:welcome"],
-                    task_prefix=task_prefix,
+                    task_prefix=resolved_task_prefix,
                 ),
             ]
             outcome = triage_welcome.run_default_mode(
@@ -308,7 +312,7 @@ def run_session_start(
                 output_fn=_capture,
                 write_history=write_history,
                 now=instant,
-                task_prefix=task_prefix,
+                task_prefix=resolved_task_prefix,
             )
             ok = outcome.exit_code == 0
             message = "\n".join(captured).strip() or "triage welcome completed"

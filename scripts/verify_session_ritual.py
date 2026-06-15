@@ -24,6 +24,7 @@ from ritual_sentinel import (  # noqa: E402
     ritual_step,
     write_ritual_state,
 )
+from task_namespace import resolve_task_prefix  # noqa: E402
 
 ENV_SKIP = "DEFT_SESSION_RITUAL_SKIP"
 TASK_PREFIX_ENV_VAR = "DEFT_TASK_PREFIX"
@@ -146,12 +147,13 @@ def _run_gated_step(
     *,
     runner: Runner,
     now: datetime,
+    task_prefix: str,
 ) -> str | None:
     command = [
         "task",
         *_task_command_args(
             list(GATED_COMMANDS[step_name]),
-            task_prefix=os.environ.get(TASK_PREFIX_ENV_VAR, ""),
+            task_prefix=task_prefix,
         ),
     ]
     code, stdout, stderr = runner(command, project_root)
@@ -222,6 +224,7 @@ def verify(
     now: datetime | None = None,
     runner: Runner | None = None,
     bypass: bool | None = None,
+    task_prefix: str | None = None,
 ) -> VerifyResult:
     """Verify the session ritual state and optionally run gated steps."""
     if tier not in {"quick", "gated"}:
@@ -260,6 +263,12 @@ def verify(
         payload = dict(state.raw)
         gated = payload.setdefault("gated_steps", {})
         run_cmd = runner or _default_runner
+        resolved_task_prefix = resolve_task_prefix(
+            project_root,
+            framework_root=Path(__file__).resolve().parent.parent,
+            explicit=task_prefix,
+            env_var=TASK_PREFIX_ENV_VAR,
+        )
         for step_name in GATED_STEPS:
             step = gated.get(step_name)
             if isinstance(step, dict) and step.get("deferred_reason"):
@@ -272,6 +281,7 @@ def verify(
                 step_name,
                 runner=run_cmd,
                 now=instant,
+                task_prefix=resolved_task_prefix,
             )
             if write_error is not None:
                 return VerifyResult(2, write_error, tier, state_path)
@@ -328,6 +338,14 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Ritual tier to verify. Gated lazily runs doctor/cache checks.",
     )
     parser.add_argument("--json", action="store_true", dest="emit_json")
+    parser.add_argument(
+        "--task-prefix",
+        default=os.environ.get(TASK_PREFIX_ENV_VAR, ""),
+        help=(
+            "Optional Taskfile namespace prefix for gated task re-entry. "
+            f"Defaults to ${TASK_PREFIX_ENV_VAR}, then Taskfile include discovery."
+        ),
+    )
     return parser
 
 
@@ -335,7 +353,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     project_root = Path(args.project_root).resolve()
-    result = verify(project_root, tier=args.tier)
+    result = verify(project_root, tier=args.tier, task_prefix=args.task_prefix)
     warning_needed = result.bypassed and result.would_fail_code is not None
     if args.emit_json:
         print(_emit_json(result))
