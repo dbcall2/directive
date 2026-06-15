@@ -1,0 +1,15 @@
+version: '3'
+
+vars:
+  DEFT_ROOT: '{{joinPath .TASKFILE_DIR ".."}}'
+
+tasks:
+  validate-structure:
+    desc: "Validate authored codeStructure metadata (#1595 PR2)."
+    dir: '{{.USER_WORKING_DIR}}'
+    env:
+      PYTHONUTF8: "1"
+    # Per conventions/task-caching.md: no sources/generates because this task
+    # forwards user-supplied paths and project-root flags via CLI_ARGS.
+    cmds:
+      - uv --project "{{.DEFT_ROOT}}" run python "{{.DEFT_ROOT}}/scripts/code_structure_validate.py" --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}

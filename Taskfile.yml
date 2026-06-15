@@ -91,6 +91,9 @@ includes:
   architecture:
     taskfile: ./tasks/architecture.yml
     optional: true
+  codebase:
+    taskfile: ./tasks/codebase.yml
+    optional: true
   change:
     taskfile: ./tasks/change.yml
     optional: true
