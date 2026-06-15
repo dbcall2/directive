@@ -11,14 +11,14 @@ _SCRIPTS = _REPO_ROOT / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-import code_structure_validate as csv  # noqa: E402
+import code_structure_validate as csv_validate  # noqa: E402
 
 
 def test_schema_required_keys_match_pr2_profile() -> None:
     schema = json.loads(
         (_REPO_ROOT / "vbrief/schemas/code-structure.schema.json").read_text(encoding="utf-8")
     )
-    assert schema["properties"]["version"]["const"] == csv.CODE_STRUCTURE_VERSION
+    assert schema["properties"]["version"]["const"] == csv_validate.CODE_STRUCTURE_VERSION
     assert schema["required"] == [
         "version",
         "modules",
@@ -31,7 +31,7 @@ def test_schema_required_keys_match_pr2_profile() -> None:
 
 def test_directive_dogfood_code_structure_validates() -> None:
     path = _REPO_ROOT / "vbrief/architecture/code-structure.vbrief.json"
-    result = csv.validate_file(path)
+    result = csv_validate.validate_file(path)
     assert result.ok, [finding.message for finding in result.errors]
 
 

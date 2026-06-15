@@ -6,12 +6,14 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SCRIPTS = _REPO_ROOT / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-import code_structure_validate as csv  # noqa: E402
+import code_structure_validate as csv_validate  # noqa: E402
 
 
 def _record(**overrides: object) -> dict:
@@ -80,13 +82,13 @@ def _vbrief(record: dict) -> dict:
     }
 
 
-def _codes(result: csv.ValidationResult) -> set[str]:
+def _codes(result: csv_validate.ValidationResult) -> set[str]:
     return {finding.code for finding in result.errors}
 
 
 class TestValidateCodeStructure:
     def test_valid_record_passes(self) -> None:
-        result = csv.validate_code_structure(_record(), source="fixture")
+        result = csv_validate.validate_code_structure(_record(), source="fixture")
         assert result.ok, [finding.message for finding in result.errors]
 
     def test_unknown_future_keys_are_tolerated(self) -> None:
@@ -102,7 +104,7 @@ class TestValidateCodeStructure:
                 }
             ],
         )
-        result = csv.validate_code_structure(data, source="fixture")
+        result = csv_validate.validate_code_structure(data, source="fixture")
         assert result.ok
 
     def test_bad_module_id_fails(self) -> None:
@@ -116,7 +118,7 @@ class TestValidateCodeStructure:
                 }
             ]
         )
-        result = csv.validate_code_structure(data, source="fixture")
+        result = csv_validate.validate_code_structure(data, source="fixture")
         assert "CS-MODULE-ID" in _codes(result)
 
     def test_unsafe_glob_fails(self) -> None:
@@ -130,7 +132,7 @@ class TestValidateCodeStructure:
                 }
             ]
         )
-        result = csv.validate_code_structure(data, source="fixture")
+        result = csv_validate.validate_code_structure(data, source="fixture")
         assert "CS-GLOB" in _codes(result)
 
     def test_unknown_module_reference_fails(self) -> None:
@@ -144,7 +146,7 @@ class TestValidateCodeStructure:
                 }
             ]
         )
-        result = csv.validate_code_structure(data, source="fixture")
+        result = csv_validate.validate_code_structure(data, source="fixture")
         assert "CS-MODULE-REF" in _codes(result)
 
     def test_duplicate_module_glob_conflict_fails(self) -> None:
@@ -164,7 +166,7 @@ class TestValidateCodeStructure:
                 },
             ]
         )
-        result = csv.validate_code_structure(data, source="fixture")
+        result = csv_validate.validate_code_structure(data, source="fixture")
         assert "CS-GLOB-CONFLICT" in _codes(result)
 
     def test_duplicate_path_ownership_conflict_fails(self) -> None:
@@ -174,8 +176,23 @@ class TestValidateCodeStructure:
                 {"pathGlob": "scripts/*.py", "module": "tests"},
             ]
         )
-        result = csv.validate_code_structure(data, source="fixture")
+        result = csv_validate.validate_code_structure(data, source="fixture")
         assert "CS-OWNERSHIP-CONFLICT" in _codes(result)
+
+    def test_allowed_pattern_applies_to_requires_safe_paths(self) -> None:
+        data = _record(
+            allowedPatterns=[
+                {
+                    "id": "unsafe-applies-to",
+                    "module": "cli",
+                    "name": "Unsafe appliesTo",
+                    "description": "Exercises path validation for pattern scopes.",
+                    "appliesTo": ["../../../etc/shadow"],
+                }
+            ]
+        )
+        result = csv_validate.validate_code_structure(data, source="fixture")
+        assert "CS-PATH" in _codes(result)
 
     def test_projection_entry_requires_safe_path_and_generated_flag(self) -> None:
         data = _record(
@@ -188,7 +205,7 @@ class TestValidateCodeStructure:
                 }
             ]
         )
-        result = csv.validate_code_structure(data, source="fixture")
+        result = csv_validate.validate_code_structure(data, source="fixture")
         codes = _codes(result)
         assert "CS-PATH" in codes
         assert "CS-PROJECTION" in codes
@@ -196,7 +213,7 @@ class TestValidateCodeStructure:
 
 class TestExtractionAndCli:
     def test_extracts_from_plan_architecture(self) -> None:
-        extracted = csv.extract_code_structure(_vbrief(_record()))
+        extracted = csv_validate.extract_code_structure(_vbrief(_record()))
         assert extracted is not None
         assert extracted.home == "plan.architecture.codeStructure"
         assert extracted.record["version"] == "0.1"
@@ -207,25 +224,43 @@ class TestExtractionAndCli:
             "plan": {"title": "Code structure", "status": "running", "items": []},
             "x-directive/architecture": {"codeStructure": _record()},
         }
-        extracted = csv.extract_code_structure(data)
+        extracted = csv_validate.extract_code_structure(data)
         assert extracted is not None
         assert extracted.home == "x-directive/architecture.codeStructure"
 
     def test_cli_validates_explicit_path(self, tmp_path: Path) -> None:
         path = tmp_path / "code-structure.vbrief.json"
         path.write_text(json.dumps(_vbrief(_record())), encoding="utf-8")
-        assert csv.main(["--path", str(path)]) == 0
+        assert csv_validate.main(["--path", str(path)]) == 0
 
     def test_cli_reports_invalid_path(self, tmp_path: Path) -> None:
         path = tmp_path / "code-structure.vbrief.json"
         bad = _record(modules=[])
         path.write_text(json.dumps(_vbrief(bad)), encoding="utf-8")
-        assert csv.main(["--path", str(path)]) == 1
+        assert csv_validate.main(["--path", str(path)]) == 1
+
+    def test_cli_json_reports_prior_summary_before_config_error(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        good = tmp_path / "good.vbrief.json"
+        bad = tmp_path / "bad.vbrief.json"
+        good.write_text(json.dumps(_vbrief(_record())), encoding="utf-8")
+        bad.write_text("[]", encoding="utf-8")
+
+        exit_code = csv_validate.main(["--json", "--path", str(good), "--path", str(bad)])
+
+        assert exit_code == 2
+        captured = capsys.readouterr()
+        payload = json.loads(captured.out)
+        assert payload["ok"] is False
+        assert [entry["path"] for entry in payload["validated"]] == [str(good), str(bad)]
+        assert payload["validated"][0]["ok"] is True
+        assert payload["validated"][1]["errors"][0]["code"] == "CS-CONFIG"
 
     def test_default_discovery_finds_architecture_vbrief(self, tmp_path: Path) -> None:
         arch = tmp_path / "vbrief" / "architecture"
         arch.mkdir(parents=True)
         path = arch / "code-structure.vbrief.json"
         path.write_text(json.dumps(_vbrief(_record())), encoding="utf-8")
-        found = csv.discover_code_structure_paths(tmp_path)
+        found = csv_validate.discover_code_structure_paths(tmp_path)
         assert found == [path]

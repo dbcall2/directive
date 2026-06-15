@@ -266,6 +266,23 @@ def _validate_allowed_patterns(
         for key in ("name", "description"):
             if not _non_empty_string(entry.get(key)):
                 errors.append(_finding("CS-PATTERN", f"allowed pattern needs {key}", location))
+        applies_to = entry.get("appliesTo")
+        if applies_to is None:
+            continue
+        if not isinstance(applies_to, list):
+            errors.append(
+                _finding("CS-PATTERN", "allowed pattern appliesTo must be an array", location)
+            )
+            continue
+        for path_index, path_value in enumerate(applies_to):
+            if not _safe_relative_path(path_value):
+                errors.append(
+                    _finding(
+                        "CS-PATH",
+                        "allowed pattern appliesTo path must be repository-relative",
+                        f"{location}.appliesTo[{path_index}]",
+                    )
+                )
 
 
 def _validate_projection_manifest(entries: list[Any], errors: list[Finding]) -> None:
@@ -447,6 +464,14 @@ def _result_to_dict(path: Path, result: ValidationResult) -> dict[str, Any]:
     }
 
 
+def _config_error_to_dict(path: Path, error: CodeStructureConfigError) -> dict[str, Any]:
+    return {
+        "path": str(path),
+        "ok": False,
+        "errors": [{"code": "CS-CONFIG", "message": str(error), "location": str(path)}],
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Validate codeStructure metadata.")
@@ -473,10 +498,11 @@ def main(argv: list[str] | None = None) -> int:
         try:
             result = validate_file(path)
         except CodeStructureConfigError as exc:
-            print(f"ERROR: {exc}", file=sys.stderr)
-            return 2
+            summaries.append(_config_error_to_dict(path, exc))
+            exit_code = 2
+            continue
         summaries.append(_result_to_dict(path, result))
-        if not result.ok:
+        if not result.ok and exit_code == 0:
             exit_code = 1
 
     if args.json:
@@ -488,9 +514,12 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"OK: {path}")
                 continue
             for finding in summary["errors"]:
+                prefix = "ERROR" if finding["code"] == "CS-CONFIG" else "FAIL"
+                output = sys.stderr if prefix == "ERROR" else sys.stdout
                 print(
-                    f"FAIL: {path}: {finding['code']}: "
-                    f"{finding['location']}: {finding['message']}"
+                    f"{prefix}: {path}: {finding['code']}: "
+                    f"{finding['location']}: {finding['message']}",
+                    file=output,
                 )
     return exit_code
 
