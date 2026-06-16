@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import os
 import subprocess
@@ -24,15 +26,13 @@ from ritual_sentinel import (  # noqa: E402
     ritual_step,
     write_ritual_state,
 )
-from task_namespace import resolve_task_prefix  # noqa: E402
 
 ENV_SKIP = "DEFT_SESSION_RITUAL_SKIP"
-TASK_PREFIX_ENV_VAR = "DEFT_TASK_PREFIX"
 QUICK_STEPS: tuple[str, ...] = ("alignment", "branch_policy", "triage_welcome")
 GATED_STEPS: tuple[str, ...] = ("doctor", "cache_fresh")
-GATED_COMMANDS: dict[str, tuple[str, ...]] = {
-    "doctor": ("doctor",),
-    "cache_fresh": ("verify:cache-fresh",),
+GATED_ENTRYPOINT_COMMANDS: dict[str, tuple[str, ...]] = {
+    "doctor": ("doctor.cmd_doctor",),
+    "cache_fresh": ("preflight_cache.main", "--allow-missing-bootstrap"),
 }
 
 
@@ -55,19 +55,6 @@ def _utc_now() -> datetime:
 
 def _truthy(raw: str | None) -> bool:
     return (raw or "").strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _task_command_args(args: list[str], *, task_prefix: str | None = None) -> list[str]:
-    """Return task args with the namespace prefix applied to the task name."""
-    if not args:
-        return args
-    prefix = (task_prefix or "").strip()
-    if not prefix:
-        return args
-    if not prefix.endswith(":"):
-        prefix = f"{prefix}:"
-    first, *rest = args
-    return [f"{prefix}{first}", *rest]
 
 
 def _run_git(project_root: Path, args: list[str]) -> tuple[int, str, str]:
@@ -100,23 +87,34 @@ def _worktree_path(project_root: Path) -> str:
     return str(project_root.resolve())
 
 
-def _default_runner(args: list[str], cwd: Path) -> tuple[int, str, str]:
+def _call_main(main_func: Callable[[list[str]], int], argv: list[str]) -> tuple[int, str, str]:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
     try:
-        proc = subprocess.run(
-            args,
-            cwd=str(cwd),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-            timeout=300,
-        )
-    except FileNotFoundError as exc:
-        return 2, "", str(exc)
-    except subprocess.TimeoutExpired as exc:
-        return 1, exc.stdout or "", exc.stderr or "command timed out"
-    return proc.returncode, proc.stdout, proc.stderr
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = main_func(argv)
+    except SystemExit as exc:
+        raw_code = exc.code
+        code = raw_code if isinstance(raw_code, int) else 1
+    except Exception as exc:  # noqa: BLE001 -- ritual state must record failures
+        message = f"{type(exc).__name__}: {exc}"
+        captured_stderr = stderr.getvalue()
+        stderr_value = f"{captured_stderr}\n{message}" if captured_stderr else message
+        return 2, stdout.getvalue(), stderr_value
+    return int(code or 0), stdout.getvalue(), stderr.getvalue()
+
+
+def _default_runner(args: list[str], cwd: Path) -> tuple[int, str, str]:
+    entrypoint, *argv = args
+    if entrypoint == "doctor.cmd_doctor":
+        import doctor  # noqa: PLC0415
+
+        return _call_main(doctor.cmd_doctor, argv)
+    if entrypoint == "preflight_cache.main":
+        import preflight_cache  # noqa: PLC0415
+
+        return _call_main(preflight_cache.main, argv)
+    return 2, "", f"unknown session ritual entrypoint: {entrypoint}"
 
 
 def _step_passes(step: dict[str, Any] | None) -> bool:
@@ -147,17 +145,14 @@ def _run_gated_step(
     *,
     runner: Runner,
     now: datetime,
-    task_prefix: str,
 ) -> str | None:
     command = [
-        "task",
-        *_task_command_args(
-            list(GATED_COMMANDS[step_name]),
-            task_prefix=task_prefix,
-        ),
+        *GATED_ENTRYPOINT_COMMANDS[step_name],
+        "--project-root",
+        str(project_root),
     ]
     code, stdout, stderr = runner(command, project_root)
-    message = stdout.strip() or stderr.strip() or f"{' '.join(command)} exited {code}"
+    message = stdout.strip() or stderr.strip() or f"{command[0]} exited {code}"
     payload.setdefault("gated_steps", {})[step_name] = ritual_step(
         ok=code == 0,
         ts=now,
@@ -224,7 +219,6 @@ def verify(
     now: datetime | None = None,
     runner: Runner | None = None,
     bypass: bool | None = None,
-    task_prefix: str | None = None,
 ) -> VerifyResult:
     """Verify the session ritual state and optionally run gated steps."""
     if tier not in {"quick", "gated"}:
@@ -263,12 +257,6 @@ def verify(
         payload = dict(state.raw)
         gated = payload.setdefault("gated_steps", {})
         run_cmd = runner or _default_runner
-        resolved_task_prefix = resolve_task_prefix(
-            project_root,
-            framework_root=Path(__file__).resolve().parent.parent,
-            explicit=task_prefix,
-            env_var=TASK_PREFIX_ENV_VAR,
-        )
         for step_name in GATED_STEPS:
             step = gated.get(step_name)
             if isinstance(step, dict) and step.get("deferred_reason"):
@@ -281,7 +269,6 @@ def verify(
                 step_name,
                 runner=run_cmd,
                 now=instant,
-                task_prefix=resolved_task_prefix,
             )
             if write_error is not None:
                 return VerifyResult(2, write_error, tier, state_path)
@@ -338,14 +325,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Ritual tier to verify. Gated lazily runs doctor/cache checks.",
     )
     parser.add_argument("--json", action="store_true", dest="emit_json")
-    parser.add_argument(
-        "--task-prefix",
-        default=None,
-        help=(
-            "Optional Taskfile namespace prefix for gated task re-entry. "
-            f"Defaults to ${TASK_PREFIX_ENV_VAR}, then Taskfile include discovery."
-        ),
-    )
     return parser
 
 
@@ -353,7 +332,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     project_root = Path(args.project_root).resolve()
-    result = verify(project_root, tier=args.tier, task_prefix=args.task_prefix)
+    result = verify(project_root, tier=args.tier)
     warning_needed = result.bypassed and result.would_fail_code is not None
     if args.emit_json:
         print(_emit_json(result))

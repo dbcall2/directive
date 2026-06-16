@@ -107,19 +107,12 @@ def test_run_session_start_records_triage_failure_and_can_defer(
     monkeypatch.setitem(
         sys.modules,
         "triage_welcome",
-        SimpleNamespace(
-            run_default_mode=fail_triage,
-            task_command_args=lambda args, *, task_prefix=None: [
-                f"{task_prefix}{args[0]}",
-                *args[1:],
-            ],
-        ),
+        SimpleNamespace(run_default_mode=fail_triage),
     )
 
     code, payload, _lines = session_start.run_session_start(
         tmp_path,
         write_history=False,
-        task_prefix="deft:",
     )
 
     state_path = tmp_path / ".deft" / "ritual-state.json"
@@ -128,8 +121,9 @@ def test_run_session_start_records_triage_failure_and_can_defer(
     assert payload["ready"] is False
     assert state["quick_steps"]["triage_welcome"]["ok"] is False
     assert state["quick_steps"]["triage_welcome"]["command"] == [
-        "task",
-        "deft:triage:welcome",
+        "triage_welcome.run_default_mode",
+        "--project-root",
+        str(tmp_path),
     ]
     assert "network down" in state["quick_steps"]["triage_welcome"]["message"]
 
@@ -145,7 +139,7 @@ def test_run_session_start_records_triage_failure_and_can_defer(
     assert state["quick_steps"]["triage_welcome"]["deferred_reason"] == ("network unavailable")
 
 
-def test_run_session_start_threads_task_prefix_to_triage_welcome(
+def test_run_session_start_calls_triage_welcome_in_process(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -153,40 +147,34 @@ def test_run_session_start_threads_task_prefix_to_triage_welcome(
     _init_git(tmp_path)
     captured: dict[str, object] = {}
 
-    def fake_task_command_args(args, *, task_prefix=None):
-        captured["command_prefix"] = task_prefix
-        return [f"{task_prefix}{args[0]}", *args[1:]]
-
-    def fake_run_default_mode(*_args, **kwargs):
+    def fake_run_default_mode(project_root: Path, **kwargs):
+        captured["project_root"] = project_root
         captured.update(kwargs)
         return SimpleNamespace(exit_code=0)
 
     monkeypatch.setitem(
         sys.modules,
         "triage_welcome",
-        SimpleNamespace(
-            run_default_mode=fake_run_default_mode,
-            task_command_args=fake_task_command_args,
-        ),
+        SimpleNamespace(run_default_mode=fake_run_default_mode),
     )
 
     code, _payload, _lines = session_start.run_session_start(
         tmp_path,
         write_history=False,
-        task_prefix="deft:",
     )
 
     state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
     assert code == 0
-    assert captured["task_prefix"] == "deft:"
-    assert captured["command_prefix"] == "deft:"
+    assert captured["project_root"] == tmp_path
+    assert "task_prefix" not in captured
     assert state["quick_steps"]["triage_welcome"]["command"] == [
-        "task",
-        "deft:triage:welcome",
+        "triage_welcome.run_default_mode",
+        "--project-root",
+        str(tmp_path),
     ]
 
 
-def test_run_session_start_discovers_consumer_task_prefix_without_env(
+def test_run_session_start_ignores_consumer_task_prefix_for_ritual_state(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -203,23 +191,17 @@ includes:
         encoding="utf-8",
     )
     captured: dict[str, object] = {}
-    monkeypatch.delenv("DEFT_TASK_PREFIX", raising=False)
+    monkeypatch.setenv("DEFT_TASK_PREFIX", "deft:")
 
-    def fake_task_command_args(args, *, task_prefix=None):
-        captured["command_prefix"] = task_prefix
-        return [f"{task_prefix}{args[0]}", *args[1:]]
-
-    def fake_run_default_mode(*_args, **kwargs):
+    def fake_run_default_mode(project_root: Path, **kwargs):
+        captured["project_root"] = project_root
         captured.update(kwargs)
         return SimpleNamespace(exit_code=0)
 
     monkeypatch.setitem(
         sys.modules,
         "triage_welcome",
-        SimpleNamespace(
-            run_default_mode=fake_run_default_mode,
-            task_command_args=fake_task_command_args,
-        ),
+        SimpleNamespace(run_default_mode=fake_run_default_mode),
     )
 
     code, _payload, _lines = session_start.run_session_start(
@@ -229,11 +211,12 @@ includes:
 
     state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
     assert code == 0
-    assert captured["task_prefix"] == "deft:"
-    assert captured["command_prefix"] == "deft:"
+    assert captured["project_root"] == tmp_path
+    assert "task_prefix" not in captured
     assert state["quick_steps"]["triage_welcome"]["command"] == [
-        "task",
-        "deft:triage:welcome",
+        "triage_welcome.run_default_mode",
+        "--project-root",
+        str(tmp_path),
     ]
 
 
@@ -412,7 +395,6 @@ def test_run_session_start_orders_branch_and_tool_warnings_before_triage(
                 kwargs["output_fn"]("[triage] welcome"),
                 SimpleNamespace(exit_code=0),
             )[1],
-            task_command_args=lambda args, *, task_prefix=None: args,
         ),
     )
 

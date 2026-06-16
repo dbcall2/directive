@@ -25,11 +25,9 @@ from ritual_sentinel import (  # noqa: E402
     ritual_step,
     write_ritual_state,
 )
-from task_namespace import resolve_task_prefix  # noqa: E402
 
 QUICK_STEPS: tuple[str, ...] = ("alignment", "branch_policy", "triage_welcome")
 GATED_STEPS: tuple[str, ...] = ("doctor", "cache_fresh")
-TASK_PREFIX_ENV_VAR = "DEFT_TASK_PREFIX"
 STEP_ALIASES: dict[str, str] = {
     "branch": "branch_policy",
     "branch-policy": "branch_policy",
@@ -233,17 +231,10 @@ def run_session_start(
     deferrals: dict[str, str] | None = None,
     now: datetime | None = None,
     write_history: bool = True,
-    task_prefix: str | None = None,
 ) -> tuple[int, dict[str, Any], list[str]]:
     """Run quick-tier steps and write ``.deft/ritual-state.json``."""
     instant = now or _utc_now()
     deferrals = deferrals or {}
-    resolved_task_prefix = resolve_task_prefix(
-        project_root,
-        framework_root=Path(__file__).resolve().parent.parent,
-        explicit=task_prefix,
-        env_var=TASK_PREFIX_ENV_VAR,
-    )
     git_head, git_error = _git_head(project_root)
     if git_head is None:
         payload = {
@@ -295,23 +286,19 @@ def run_session_start(
         def _capture(line: str) -> None:
             captured.append(line)
 
-        triage_command = ["task", f"{resolved_task_prefix}triage:welcome"]
+        triage_command = [
+            "triage_welcome.run_default_mode",
+            "--project-root",
+            str(project_root),
+        ]
         try:
             import triage_welcome  # noqa: I001
 
-            triage_command = [
-                "task",
-                *triage_welcome.task_command_args(
-                    ["triage:welcome"],
-                    task_prefix=resolved_task_prefix,
-                ),
-            ]
             outcome = triage_welcome.run_default_mode(
                 project_root,
                 output_fn=_capture,
                 write_history=write_history,
                 now=instant,
-                task_prefix=resolved_task_prefix,
             )
             ok = outcome.exit_code == 0
             message = "\n".join(captured).strip() or "triage welcome completed"
@@ -383,14 +370,6 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not append triage summary history (test/helper mode).",
     )
-    parser.add_argument(
-        "--task-prefix",
-        default=None,
-        help=(
-            "Optional Taskfile namespace prefix for operator-facing triage "
-            f"commands. Defaults to ${TASK_PREFIX_ENV_VAR}."
-        ),
-    )
     return parser
 
 
@@ -409,7 +388,6 @@ def main(argv: list[str] | None = None) -> int:
             project_root,
             deferrals=deferrals,
             write_history=not args.no_history,
-            task_prefix=args.task_prefix,
         )
     stray = sink.getvalue().strip()
     if stray:

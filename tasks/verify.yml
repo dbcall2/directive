@@ -2,15 +2,6 @@ version: '3'
 
 vars:
   DEFT_ROOT: '{{joinPath .TASKFILE_DIR ".."}}'
-  DEFT_TASK_PREFIX:
-    sh: |
-      task_name='{{.TASK}}'
-      suffix='verify:session-ritual'
-      prefix="${task_name%$suffix}"
-      if [ "$prefix" = "$task_name" ]; then
-        prefix=''
-      fi
-      printf '%s' "$prefix"
 
 tasks:
   stubs:
@@ -116,7 +107,6 @@ tasks:
     dir: '{{.USER_WORKING_DIR}}'
     env:
       PYTHONUTF8: "1"
-      DEFT_TASK_PREFIX: "{{.DEFT_TASK_PREFIX}}"
     # No sources/generates: this gate is time-, HEAD-, and worktree-sensitive.
     cmds:
       - uv --project "{{.DEFT_ROOT}}" run python "{{.DEFT_ROOT}}/scripts/verify_session_ritual.py" --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}
