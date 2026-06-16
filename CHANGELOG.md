@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.50.0] - 2026-06-16
+
+> Fixes the session-ritual gate that was breaking deft:-namespaced consumer builds, and adds the new codeStructure metadata profile and validator.
+
+### Added
 - **Codebase structure now has a concrete authored metadata profile and validator (#1595)** -- `task codebase:validate-structure` validates the first `codeStructure` profile for stable module ids, safe globs/paths, module references, ownership conflicts, and invocation-agnostic projection manifest entries. Directive dogfoods the canonical record at `PROJECT-DEFINITION.plan.architecture.codeStructure`, keeping generated MAPs and future headers as projections rather than source-of-truth stores. Refs #1498, #1492, #1659.
 
 ### Changed
@@ -3302,7 +3314,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.49.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.50.0...HEAD
+[0.50.0]: https://github.com/deftai/directive/compare/v0.49.0...v0.50.0
 [0.49.0]: https://github.com/deftai/directive/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/deftai/directive/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/deftai/directive/compare/v0.46.0...v0.47.0
