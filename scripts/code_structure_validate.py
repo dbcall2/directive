@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """code_structure_validate.py -- validate #1595 codeStructure metadata.
 
-The PR2 profile keeps authored codebase-structure intent in a git-tracked
-vBRIEF record while generated maps, indexes, and headers remain projections.
-This validator is intentionally small and deterministic: it validates the
-shape and cross-references of the authored ``codeStructure`` record without
-attempting extraction or MAP generation.
+The PR2 profile keeps authored codebase-structure intent at
+``PROJECT-DEFINITION.plan.architecture.codeStructure`` while generated maps,
+indexes, and headers remain projections. This validator is intentionally small
+and deterministic: it validates the shape and cross-references of the authored
+``codeStructure`` record without attempting extraction or MAP generation.
 """
 
 from __future__ import annotations
@@ -87,13 +87,7 @@ def _safe_relative_path(value: object) -> bool:
 
 
 def extract_code_structure(data: dict[str, Any]) -> ExtractedCodeStructure | None:
-    """Return a codeStructure record from the canonical or legacy PR2 homes."""
-    extension = data.get("x-directive/architecture")
-    if isinstance(extension, dict):
-        record = extension.get("codeStructure")
-        if isinstance(record, dict):
-            return ExtractedCodeStructure(record=record, home=DIRECTIVE_HOME)
-
+    """Return a codeStructure record from the canonical home or consumer fallback."""
     plan = data.get("plan")
     if isinstance(plan, dict):
         architecture = plan.get("architecture")
@@ -101,6 +95,12 @@ def extract_code_structure(data: dict[str, Any]) -> ExtractedCodeStructure | Non
             record = architecture.get("codeStructure")
             if isinstance(record, dict):
                 return ExtractedCodeStructure(record=record, home=PLAN_HOME)
+
+    extension = data.get("x-directive/architecture")
+    if isinstance(extension, dict):
+        record = extension.get("codeStructure")
+        if isinstance(record, dict):
+            return ExtractedCodeStructure(record=record, home=DIRECTIVE_HOME)
 
     return None
 
@@ -313,10 +313,28 @@ def _validate_projection_manifest(entries: list[Any], errors: list[Finding]) -> 
             errors.append(
                 _finding("CS-PROJECTION", "projection source must be non-empty", location)
             )
-        if not isinstance(entry.get("generated"), bool):
+        generated = entry.get("generated")
+        if not isinstance(generated, bool):
             errors.append(
                 _finding("CS-PROJECTION", "projection generated must be boolean", location)
             )
+        elif generated is not True:
+            errors.append(
+                _finding(
+                    "CS-PROJECTION",
+                    "projectionManifest entries must declare generated=true",
+                    location,
+                )
+            )
+        for command_key in ("task", "freshnessTask"):
+            if command_key in entry:
+                errors.append(
+                    _finding(
+                        "CS-PROJECTION-COMMAND",
+                        f"projectionManifest must not store runner-specific {command_key}",
+                        f"{location}.{command_key}",
+                    )
+                )
 
 
 def _validate_file_purpose_overrides(
@@ -437,10 +455,6 @@ def validate_file(path: Path) -> ValidationResult:
 def discover_code_structure_paths(project_root: Path) -> list[Path]:
     """Discover codeStructure-bearing vBRIEFs for a project root."""
     paths: list[Path] = []
-    architecture_dir = project_root / "vbrief" / "architecture"
-    if architecture_dir.is_dir():
-        paths.extend(sorted(architecture_dir.glob("*.vbrief.json")))
-
     project_def = project_root / "vbrief" / "PROJECT-DEFINITION.vbrief.json"
     if project_def.exists():
         try:

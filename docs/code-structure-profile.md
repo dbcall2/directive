@@ -16,33 +16,35 @@ consumer propagation are later slices of #1595.
 
 ## Physical Home
 
-Directive dogfoods the profile in:
+Directive dogfoods the profile only in:
 
 ```text
-vbrief/architecture/code-structure.vbrief.json
+vbrief/PROJECT-DEFINITION.vbrief.json
 ```
 
 The semantic JSON shape is:
 
 ```json
 {
-  "x-directive/architecture": {
-    "codeStructure": {}
+  "plan": {
+    "architecture": {
+      "codeStructure": {}
+    }
   }
 }
 ```
 
-This keeps the authored record vBRIEF-owned and git-tracked while avoiding new
-`vbrief/PROJECT-DEFINITION.vbrief.json` bloat and staying conformant with the
-vBRIEF 0.6 extension namespace rule. Legacy `plan.architecture.codeStructure`
-records remain readable by the validator for compatibility, but the Directive
-dogfood record uses `x-directive/architecture.codeStructure`. The broader
-source-of-truth/materialized-view split remains coordinated with #1618 and
-#1379.
+No standalone canonical `codeStructure` file is allowed. Standalone paths are
+reserved for generated projections that are banner-marked, declared in
+`projectionManifest[]`, and drift-checked or gitignored. The consumer namespace
+fallback, `x-directive/architecture.codeStructure`, remains readable for
+projects that cannot type `plan.architecture` yet, but Directive's own
+canonical record uses `plan.architecture.codeStructure`.
 
 ## Shape
 
-The profile schema lives at `vbrief/schemas/code-structure.schema.json`.
+The profile schema is typed in `vbrief/schemas/vbrief-core.schema.json` under
+`$defs.CodeStructure` and wired through `plan.architecture.codeStructure`.
 
 Required keys:
 
@@ -53,7 +55,8 @@ Required keys:
   module-level globs are insufficient
 - `allowedPatterns[]`: module-scoped implementation patterns or constraints
 - `projectionManifest[]`: generated outputs planned or produced from the
-  metadata
+  metadata; entries store `{ path, kind, generated, source }` and do not store
+  runner-specific command strings
 
 Optional keys:
 

@@ -9,12 +9,12 @@
     "narratives": {
       "Description": "PR 2 for #1595 defines the first concrete codeStructure metadata profile and validation behavior.",
       "Origin": "Derived from https://github.com/deftai/directive/issues/1595 after PR 1 (#1607) landed the source-of-truth decision record.",
-      "Overview": "## Summary\n\nImplement the #1595 PR 2 slice: define a concrete codeStructure shape, validate it deterministically, and dogfood a minimal Directive-owned record.\n\n## Plan Validity Check\n\nThe original #1595 PR 2 plan remains valid, but PR 1's accepted decision record now carries #1618 / #1379 constraints: PR 2 must not grow PROJECT-DEFINITION.vbrief.json into a larger materialized monolith. The physical home for the authored record in this slice is a dedicated git-tracked architecture vBRIEF, using plan.architecture.codeStructure as the semantic JSON shape. Embedding the same shape in PROJECT-DEFINITION remains a compatibility target, not the dogfood storage location for this PR.\n\n## Scope\n\n- Add a codeStructure schema/profile for modules, path ownership, allowed patterns, projection manifest entries, optional file-purpose overrides, and optional glossary references.\n- Add a validator for stable module IDs, safe relative globs/paths, module references, conflicting ownership declarations, projection manifest entries, and unknown-key tolerance.\n- Add a minimal Directive dogfood record under vbrief/architecture/.\n- Add task and tests for valid/invalid records.\n\n## Non-Goals\n\n- No brownfield extractor.\n- No generated MAP projection.\n- No local index or materialized-view implementation.\n- No generated source headers.\n- No consumer AGENTS/template propagation or hard task-check gate.",
+      "Overview": "## Summary\n\nImplement the #1595 PR 2 slice: define a concrete codeStructure shape, validate it deterministically, and dogfood a minimal Directive-owned record.\n\n## Plan Validity Check\n\nThe 2026-06-15 #1595 current-shape override resolved the physical home: canonical codeStructure lives only at PROJECT-DEFINITION.plan.architecture.codeStructure, typed through vbrief/schemas/vbrief-core.schema.json. Standalone paths are reserved for generated projections only, and x-directive/architecture.codeStructure remains a consumer fallback rather than Directive's dogfood home.\n\n## Scope\n\n- Add a codeStructure schema/profile for modules, path ownership, allowed patterns, projection manifest entries, optional file-purpose overrides, and optional glossary references.\n- Add a validator for stable module IDs, safe relative globs/paths, module references, conflicting ownership declarations, projection manifest entries, and unknown-key tolerance.\n- Add a minimal Directive dogfood record at PROJECT-DEFINITION.plan.architecture.codeStructure.\n- Add task and tests for valid/invalid records.\n\n## Non-Goals\n\n- No deterministic extractor or provider handshake.\n- No generated MAP projection.\n- No local index or materialized-view implementation.\n- No generated source headers.\n- No consumer AGENTS/template propagation or hard task-check gate.",
       "Labels": "enhancement, context-engineering, source-of-truth"
     },
     "items": [
       {
-        "title": "PR 2 scope is revalidated against #1618 / #1379 and avoids PROJECT-DEFINITION bloat.",
+        "title": "PR 2 scope is revalidated against the #1595 current-shape override and uses PROJECT-DEFINITION.plan.architecture.codeStructure as the canonical home.",
         "status": "completed"
       },
       {
@@ -26,7 +26,7 @@
         "status": "completed"
       },
       {
-        "title": "Directive dogfoods a minimal git-tracked architecture vBRIEF record.",
+        "title": "Directive dogfoods a minimal PROJECT-DEFINITION codeStructure record.",
         "status": "completed"
       },
       {

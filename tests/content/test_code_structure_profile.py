@@ -16,24 +16,31 @@ import code_structure_validate as csv_validate  # noqa: E402
 
 def test_schema_required_keys_match_pr2_profile() -> None:
     schema = json.loads(
-        (_REPO_ROOT / "vbrief/schemas/code-structure.schema.json").read_text(encoding="utf-8")
+        (_REPO_ROOT / "vbrief/schemas/vbrief-core.schema.json").read_text(encoding="utf-8")
     )
-    assert schema["properties"]["version"]["const"] == csv_validate.CODE_STRUCTURE_VERSION
-    assert schema["required"] == [
+    code_structure_schema = schema["$defs"]["CodeStructure"]
+    assert code_structure_schema["properties"]["version"]["const"] == (
+        csv_validate.CODE_STRUCTURE_VERSION
+    )
+    assert code_structure_schema["required"] == [
         "version",
         "modules",
         "pathOwnership",
         "allowedPatterns",
         "projectionManifest",
     ]
-    assert schema["additionalProperties"] is True
+    assert code_structure_schema["additionalProperties"] is True
+    assert (
+        schema["$defs"]["Architecture"]["properties"]["codeStructure"]["$ref"]
+        == "#/$defs/CodeStructure"
+    )
 
 
 def test_directive_dogfood_code_structure_validates() -> None:
-    path = _REPO_ROOT / "vbrief/architecture/code-structure.vbrief.json"
+    path = _REPO_ROOT / "vbrief/PROJECT-DEFINITION.vbrief.json"
     data = json.loads(path.read_text(encoding="utf-8"))
-    assert "architecture" not in data["plan"]
-    assert csv_validate.DIRECTIVE_HOME.split(".", maxsplit=1)[0] in data
+    assert "codeStructure" in data["plan"]["architecture"]
+    assert csv_validate.DIRECTIVE_HOME.split(".", maxsplit=1)[0] not in data
     result = csv_validate.validate_file(path)
     assert result.ok, [finding.message for finding in result.errors]
 
@@ -49,8 +56,8 @@ def test_codebase_task_is_registered() -> None:
 
 def test_profile_doc_names_physical_home_and_later_slices() -> None:
     doc = (_REPO_ROOT / "docs/code-structure-profile.md").read_text(encoding="utf-8")
-    assert "vbrief/architecture/code-structure.vbrief.json" in doc
     assert "PROJECT-DEFINITION.vbrief.json" in doc
-    assert "bloat" in doc
+    assert "plan.architecture.codeStructure" in doc
+    assert "vbrief-core.schema.json" in doc
+    assert "No standalone canonical" in doc
     assert "Brownfield extraction, MAP generation, generated headers" in doc
-    assert "#1618" in doc

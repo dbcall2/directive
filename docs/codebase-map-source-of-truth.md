@@ -58,18 +58,7 @@ metadata can evolve without breaking existing projects.
 
 ## Metadata Home
 
-Directive home, aligned with the vBRIEF 0.6 extension namespace rule:
-
-```json
-{
-  "x-directive/architecture": {
-    "codeStructure": {}
-  }
-}
-```
-
-If upstream vBRIEF later accepts architecture metadata in core, the same profile
-can migrate to a core home such as:
+Canonical home, aligned with the #1595 current-shape override:
 
 ```json
 {
@@ -81,27 +70,24 @@ can migrate to a core home such as:
 }
 ```
 
-Until then, `x-directive/architecture.codeStructure` is the conformant home for
-Directive-authored metadata.
+Directive types this surface locally in `vbrief/schemas/vbrief-core.schema.json`
+while coordinating the upstream `deftai/vBRIEF` landing as a follow-up.
 
-### Home is provisional pending the source-of-truth/projection split (#1618)
+If a consumer cannot type `plan.architecture` yet, the consumer extension
+namespace remains a fallback:
 
-This section names a JSON *shape* (`x-directive/architecture.codeStructure`), not a
-commitment to physically embed that shape in the `PROJECT-DEFINITION.vbrief.json`
-monolith. RFC #1618 argues that file is already overloaded (a large, drifting
-`plan.items` registry), and that authored truth should live in small,
-git-tracked, per-concern files while derived facts move to a rebuildable local
-index. Two constraints follow for the PR-2 schema work:
+```json
+{
+  "x-directive/architecture": {
+    "codeStructure": {}
+  }
+}
+```
 
-- **Authored `codeStructure` intent** (modules, path ownership, allowed
-  patterns, human overrides) is vBRIEF-owned and git-tracked, but SHOULD be free
-  to live in its own file (e.g. a dedicated `architecture` vBRIEF or per-module
-  files) rather than being welded into the `plan` blob. The final physical home
-  is decided with #1618 / #1379, not frozen here.
-- **Code-derived facts** (file-to-module inference, MAP contents, freshness and
-  drift state) are projections, not authored truth. They belong in the
-  rebuildable index proposed by #1618 and MUST NOT be committed as git-tracked
-  metadata.
+The extension namespace is a fallback, not Directive's dogfood home.
+No standalone canonical `codeStructure` file is allowed. Standalone paths are
+allowed only for generated projections that are banner-marked, declared in
+`projectionManifest[]`, and drift-checked or gitignored.
 
 `codeStructure` also scales with codebase size, not work-item count:
 `modules[]` / `pathOwnership[]` grow with module count and `filePurposeOverrides[]`
@@ -133,9 +119,12 @@ constraints:
 
 1. Record this decision and #958 disposition.
 2. Define and validate the first concrete `codeStructure` shape.
-3. Add a dry-run-first brownfield extractor that proposes metadata changes.
-4. Generate the codebase MAP from metadata and code-derived facts.
-5. Add optional generated headers only if the MAP leaves a concrete gap.
+3. Add a deterministic dependency-free default extractor, provider interface,
+   and discipline gate.
+4. Generate the codebase MAP from metadata plus provider-derived facts, with a
+   freshness check.
+5. Split optional generated headers into a separate follow-up after the MAP
+   machinery exists.
 6. Update skills, docs, and consumer-facing guidance after a dogfood window.
 
 ## Non-Goals
@@ -149,9 +138,6 @@ constraints:
 ## PR 2 Hand-Off
 
 The next PR should define the first concrete `codeStructure` schema/profile and
-its validation behavior. It should remain focused on metadata shape and
-round-trip preservation, not extraction or MAP rendering.
-
-It MUST also resolve the physical metadata home in light of #1618 / #1379 (own
-file vs. embedded in `plan`) and keep `filePurposeOverrides[]` an overrides-only
-surface, per the "Home is provisional" note above.
+its validation behavior at `PROJECT-DEFINITION.plan.architecture.codeStructure`.
+It should remain focused on canonical-intent shape and validation, not
+extraction or MAP rendering.

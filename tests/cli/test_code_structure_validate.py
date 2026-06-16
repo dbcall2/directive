@@ -53,7 +53,7 @@ def _record(**overrides: object) -> dict:
             {
                 "path": ".planning/codebase/MAP.md",
                 "kind": "codebase-map",
-                "source": csv_validate.DIRECTIVE_HOME,
+                "source": csv_validate.PLAN_HOME,
                 "generated": True,
             }
         ],
@@ -71,6 +71,18 @@ def _record(**overrides: object) -> dict:
 
 
 def _vbrief(record: dict) -> dict:
+    return {
+        "vBRIEFInfo": {"version": "0.6"},
+        "plan": {
+            "title": "Code structure",
+            "status": "running",
+            "items": [],
+            "architecture": {"codeStructure": record},
+        },
+    }
+
+
+def _fallback_vbrief(record: dict) -> dict:
     return {
         "vBRIEFInfo": {"version": "0.6"},
         "plan": {
@@ -200,7 +212,7 @@ class TestValidateCodeStructure:
                 {
                     "path": "/tmp/MAP.md",
                     "kind": "codebase-map",
-                    "source": csv_validate.DIRECTIVE_HOME,
+                    "source": csv_validate.PLAN_HOME,
                     "generated": "yes",
                 }
             ]
@@ -210,27 +222,36 @@ class TestValidateCodeStructure:
         assert "CS-PATH" in codes
         assert "CS-PROJECTION" in codes
 
+    def test_projection_entry_rejects_runner_commands_and_requires_generated_true(self) -> None:
+        data = _record(
+            projectionManifest=[
+                {
+                    "path": ".planning/codebase/MAP.md",
+                    "kind": "codebase-map",
+                    "source": csv_validate.PLAN_HOME,
+                    "generated": False,
+                    "task": "task codebase:map",
+                    "freshnessTask": "task verify:codebase-map-fresh",
+                }
+            ]
+        )
+        result = csv_validate.validate_code_structure(data, source="fixture")
+        codes = _codes(result)
+        assert "CS-PROJECTION" in codes
+        assert "CS-PROJECTION-COMMAND" in codes
+
 
 class TestExtractionAndCli:
-    def test_extracts_from_directive_namespace(self) -> None:
+    def test_extracts_from_plan_architecture(self) -> None:
         extracted = csv_validate.extract_code_structure(_vbrief(_record()))
         assert extracted is not None
-        assert extracted.home == csv_validate.DIRECTIVE_HOME
+        assert extracted.home == csv_validate.PLAN_HOME
         assert extracted.record["version"] == "0.1"
 
-    def test_extracts_from_legacy_plan_architecture(self) -> None:
-        data = {
-            "vBRIEFInfo": {"version": "0.6"},
-            "plan": {
-                "title": "Code structure",
-                "status": "running",
-                "items": [],
-                "architecture": {"codeStructure": _record()},
-            },
-        }
-        extracted = csv_validate.extract_code_structure(data)
+    def test_extracts_from_consumer_namespace_fallback(self) -> None:
+        extracted = csv_validate.extract_code_structure(_fallback_vbrief(_record()))
         assert extracted is not None
-        assert extracted.home == csv_validate.PLAN_HOME
+        assert extracted.home == csv_validate.DIRECTIVE_HOME
 
     def test_cli_validates_explicit_path(self, tmp_path: Path) -> None:
         path = tmp_path / "code-structure.vbrief.json"
@@ -261,10 +282,17 @@ class TestExtractionAndCli:
         assert payload["validated"][0]["ok"] is True
         assert payload["validated"][1]["errors"][0]["code"] == "CS-CONFIG"
 
-    def test_default_discovery_finds_architecture_vbrief(self, tmp_path: Path) -> None:
+    def test_default_discovery_finds_project_definition(self, tmp_path: Path) -> None:
+        project_def = tmp_path / "vbrief" / "PROJECT-DEFINITION.vbrief.json"
+        project_def.parent.mkdir(parents=True)
+        project_def.write_text(json.dumps(_vbrief(_record())), encoding="utf-8")
+        found = csv_validate.discover_code_structure_paths(tmp_path)
+        assert found == [project_def]
+
+    def test_default_discovery_ignores_architecture_sibling(self, tmp_path: Path) -> None:
         arch = tmp_path / "vbrief" / "architecture"
         arch.mkdir(parents=True)
         path = arch / "code-structure.vbrief.json"
-        path.write_text(json.dumps(_vbrief(_record())), encoding="utf-8")
+        path.write_text(json.dumps(_fallback_vbrief(_record())), encoding="utf-8")
         found = csv_validate.discover_code_structure_paths(tmp_path)
-        assert found == [path]
+        assert found == []

@@ -274,8 +274,7 @@ deft/
 
 - **vbrief/vbrief.md** — Canonical vBRIEF usage reference (file taxonomy, lifecycle folders, scope vBRIEFs)
 - **vbrief/schemas/** — JSON validation schemas
-- **vbrief/PROJECT-DEFINITION.vbrief.json** — Project identity gestalt
-- **vbrief/architecture/** — Authored architecture metadata profiles such as codeStructure
+- **vbrief/PROJECT-DEFINITION.vbrief.json** — Project identity gestalt and canonical `plan.architecture.codeStructure`
 - **vbrief/{proposed,pending,active,completed,cancelled}/** — Scope vBRIEF lifecycle folders
 
 ## 📜 Contracts

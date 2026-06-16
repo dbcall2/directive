@@ -20,6 +20,137 @@
       "tech stack": "MD Framework for LLMs to use when generating software, using Go, Python, and Shell. Uses [vBRIEF](https://github.com/deftai/vBRIEF) for structured task plans and specifications.",
       "LegacyArtifacts": "### Workflow (from PROJECT.md:17-25)\n\n```bash\ntask check         # Pre-commit gate\ntask test:coverage # Coverage target\ntask build         # Build project\ntask clean         # Clean artifacts\n```\n"
     },
+    "architecture": {
+      "codeStructure": {
+        "version": "0.1",
+        "modules": [
+          {
+            "id": "framework-content",
+            "name": "Framework Content",
+            "purpose": "Agent-consumed standards, strategies, skills, templates, and documentation.",
+            "pathGlobs": [
+              "AGENTS.md",
+              "main.md",
+              "coding/**/*.md",
+              "contracts/**/*.md",
+              "docs/**/*.md",
+              "interfaces/**/*.md",
+              "languages/**/*.md",
+              "meta/**/*.md",
+              "skills/**/*.md",
+              "strategies/**/*.md",
+              "templates/**/*.md",
+              "tools/**/*.md",
+              "verification/**/*.md"
+            ],
+            "owner": "directive"
+          },
+          {
+            "id": "python-tooling",
+            "name": "Python Tooling",
+            "purpose": "Framework CLI helpers, validators, lifecycle tools, and automation scripts.",
+            "pathGlobs": [
+              "run",
+              "run.py",
+              "scripts/**/*.py"
+            ],
+            "owner": "directive"
+          },
+          {
+            "id": "task-runner",
+            "name": "Task Runner",
+            "purpose": "Taskfile entry points that expose framework commands in source and consumer installs.",
+            "pathGlobs": [
+              "Taskfile.yml",
+              "tasks/**/*.yml"
+            ],
+            "owner": "directive"
+          },
+          {
+            "id": "go-installer",
+            "name": "Go Installer",
+            "purpose": "Standalone installer binary for end-user and maintainer installs.",
+            "pathGlobs": [
+              "cmd/deft-install/**/*.go"
+            ],
+            "owner": "directive"
+          },
+          {
+            "id": "vbrief-metadata",
+            "name": "vBRIEF Metadata",
+            "purpose": "Structured project, scope, schema, lifecycle, and architecture metadata.",
+            "pathGlobs": [
+              "vbrief/**/*.json",
+              "vbrief/**/*.md"
+            ],
+            "owner": "directive"
+          },
+          {
+            "id": "test-suite",
+            "name": "Test Suite",
+            "purpose": "CLI, content, integration, and regression tests for framework behavior.",
+            "pathGlobs": [
+              "tests/**/*.py"
+            ],
+            "owner": "directive"
+          }
+        ],
+        "pathOwnership": [
+          {
+            "pathGlob": "vbrief/PROJECT-DEFINITION.vbrief.json",
+            "module": "vbrief-metadata",
+            "owner": "directive",
+            "rationale": "Canonical codeStructure intent lives only at plan.architecture.codeStructure."
+          },
+          {
+            "pathGlob": "vbrief/schemas/vbrief-core.schema.json",
+            "module": "vbrief-metadata",
+            "owner": "directive",
+            "rationale": "The codeStructure type surface is part of the core PROJECT-DEFINITION schema."
+          }
+        ],
+        "allowedPatterns": [
+          {
+            "id": "profile-before-projection",
+            "module": "vbrief-metadata",
+            "name": "Profile before projection",
+            "description": "Define and validate authored codeStructure metadata before adding extractors, MAP generation, local indexes, or generated headers."
+          },
+          {
+            "id": "stdlib-validator",
+            "module": "python-tooling",
+            "name": "Stdlib validator",
+            "description": "Metadata validators use Python stdlib parsing and explicit checks rather than adding a runtime JSON Schema dependency."
+          }
+        ],
+        "projectionManifest": [
+          {
+            "path": ".planning/codebase/MAP.md",
+            "kind": "codebase-map",
+            "source": "plan.architecture.codeStructure",
+            "generated": true,
+            "status": "planned"
+          }
+        ],
+        "filePurposeOverrides": [
+          {
+            "path": "scripts/code_structure_validate.py",
+            "module": "python-tooling",
+            "purpose": "Validates authored codeStructure metadata records for #1595 PR2."
+          }
+        ],
+        "glossaryRefs": [
+          {
+            "term": "projection",
+            "uri": "docs/codebase-map-source-of-truth.md"
+          },
+          {
+            "term": "source of truth",
+            "uri": "docs/codebase-map-source-of-truth.md"
+          }
+        ]
+      }
+    },
     "items": [
       {
         "id": "2026-04-23-100-compliance-evidence-collection-automation-hooks",
