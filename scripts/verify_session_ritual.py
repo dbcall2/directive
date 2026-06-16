@@ -4,10 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import os
 import subprocess
 import sys
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -26,12 +29,16 @@ from ritual_sentinel import (  # noqa: E402
 )
 
 ENV_SKIP = "DEFT_SESSION_RITUAL_SKIP"
-TASK_PREFIX_ENV_VAR = "DEFT_TASK_PREFIX"
+# The legacy subprocess runner capped each gated check via subprocess timeout=300.
+# In-process calls (#1659) must preserve that bound so a hung entrypoint cannot turn
+# the fail-closed step-0 gate into a permanent block (#1655 review).
+ENTRYPOINT_TIMEOUT_SECONDS = 300.0
+ENTRYPOINT_TIMEOUT_EXIT_CODE = 124
 QUICK_STEPS: tuple[str, ...] = ("alignment", "branch_policy", "triage_welcome")
 GATED_STEPS: tuple[str, ...] = ("doctor", "cache_fresh")
-GATED_COMMANDS: dict[str, tuple[str, ...]] = {
-    "doctor": ("doctor",),
-    "cache_fresh": ("verify:cache-fresh",),
+GATED_ENTRYPOINT_COMMANDS: dict[str, tuple[str, ...]] = {
+    "doctor": ("doctor.cmd_doctor",),
+    "cache_fresh": ("preflight_cache.main", "--allow-missing-bootstrap"),
 }
 
 
@@ -54,19 +61,6 @@ def _utc_now() -> datetime:
 
 def _truthy(raw: str | None) -> bool:
     return (raw or "").strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _task_command_args(args: list[str], *, task_prefix: str | None = None) -> list[str]:
-    """Return task args with the namespace prefix applied to the task name."""
-    if not args:
-        return args
-    prefix = (task_prefix or "").strip()
-    if not prefix:
-        return args
-    if not prefix.endswith(":"):
-        prefix = f"{prefix}:"
-    first, *rest = args
-    return [f"{prefix}{first}", *rest]
 
 
 def _run_git(project_root: Path, args: list[str]) -> tuple[int, str, str]:
@@ -99,23 +93,65 @@ def _worktree_path(project_root: Path) -> str:
     return str(project_root.resolve())
 
 
+def _call_main(
+    main_func: Callable[[list[str]], int],
+    argv: list[str],
+    *,
+    timeout: float | None = None,
+) -> tuple[int, str, str]:
+    """Run an in-process entrypoint, bounding it with a timeout.
+
+    The legacy subprocess runner passed ``timeout=300`` so a hung check could not
+    block the step-0 gate indefinitely. In-process calls drop that protection, so
+    the entrypoint runs in a daemon worker thread joined with the same bound; a
+    hang returns a fail-closed timeout result instead of blocking dispatch (#1655).
+    ``timeout`` resolves to ``ENTRYPOINT_TIMEOUT_SECONDS`` at call time when unset.
+    """
+    if timeout is None:
+        timeout = ENTRYPOINT_TIMEOUT_SECONDS
+    result: dict[str, tuple[int, str, str]] = {}
+    real_stdout, real_stderr = sys.stdout, sys.stderr
+
+    def _worker() -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = main_func(argv)
+        except SystemExit as exc:
+            raw_code = exc.code
+            code = raw_code if isinstance(raw_code, int) else (0 if raw_code is None else 1)
+        except Exception as exc:  # noqa: BLE001 -- ritual state must record failures
+            message = f"{type(exc).__name__}: {exc}"
+            captured_stderr = stderr.getvalue()
+            stderr_value = f"{captured_stderr}\n{message}" if captured_stderr else message
+            result["value"] = (2, stdout.getvalue(), stderr_value)
+            return
+        result["value"] = (int(code or 0), stdout.getvalue(), stderr.getvalue())
+
+    worker = threading.Thread(target=_worker, name="deft-ritual-entrypoint", daemon=True)
+    worker.start()
+    worker.join(timeout)
+    if worker.is_alive():
+        # A hung worker may still hold the process-global stdout/stderr redirect;
+        # restore the real streams so the caller's fail-closed message survives.
+        sys.stdout, sys.stderr = real_stdout, real_stderr
+        label = getattr(main_func, "__name__", "entrypoint")
+        return ENTRYPOINT_TIMEOUT_EXIT_CODE, "", f"{label} timed out after {timeout:g}s"
+    return result.get("value", (2, "", "entrypoint produced no result"))
+
+
 def _default_runner(args: list[str], cwd: Path) -> tuple[int, str, str]:
-    try:
-        proc = subprocess.run(
-            args,
-            cwd=str(cwd),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-            timeout=300,
-        )
-    except FileNotFoundError as exc:
-        return 2, "", str(exc)
-    except subprocess.TimeoutExpired as exc:
-        return 1, exc.stdout or "", exc.stderr or "command timed out"
-    return proc.returncode, proc.stdout, proc.stderr
+    entrypoint, *argv = args
+    if entrypoint == "doctor.cmd_doctor":
+        import doctor  # noqa: PLC0415
+
+        return _call_main(doctor.cmd_doctor, argv)
+    if entrypoint == "preflight_cache.main":
+        import preflight_cache  # noqa: PLC0415
+
+        return _call_main(preflight_cache.main, argv)
+    return 2, "", f"unknown session ritual entrypoint: {entrypoint}"
 
 
 def _step_passes(step: dict[str, Any] | None) -> bool:
@@ -148,14 +184,12 @@ def _run_gated_step(
     now: datetime,
 ) -> str | None:
     command = [
-        "task",
-        *_task_command_args(
-            list(GATED_COMMANDS[step_name]),
-            task_prefix=os.environ.get(TASK_PREFIX_ENV_VAR, ""),
-        ),
+        *GATED_ENTRYPOINT_COMMANDS[step_name],
+        "--project-root",
+        str(project_root),
     ]
     code, stdout, stderr = runner(command, project_root)
-    message = stdout.strip() or stderr.strip() or f"{' '.join(command)} exited {code}"
+    message = stdout.strip() or stderr.strip() or f"{command[0]} exited {code}"
     payload.setdefault("gated_steps", {})[step_name] = ritual_step(
         ok=code == 0,
         ts=now,

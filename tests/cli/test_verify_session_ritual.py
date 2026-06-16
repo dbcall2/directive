@@ -4,8 +4,10 @@ import importlib.util
 import json
 import subprocess
 import sys
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -187,9 +189,11 @@ def test_gated_tier_lazily_records_missing_steps(tmp_path: Path) -> None:
     head = _init_git(tmp_path)
     now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
     _write_state(tmp_path, head=head, started_at=now)
+    commands: list[list[str]] = []
 
     def runner(command: list[str], cwd: Path) -> tuple[int, str, str]:
-        return 0, f"{' '.join(command)} ok", ""
+        commands.append(command)
+        return 0, f"{command[0]} ok", ""
 
     result = verifier.verify(
         tmp_path,
@@ -201,11 +205,20 @@ def test_gated_tier_lazily_records_missing_steps(tmp_path: Path) -> None:
 
     assert result.code == 0
     state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
+    assert commands == [
+        ["doctor.cmd_doctor", "--project-root", str(tmp_path)],
+        [
+            "preflight_cache.main",
+            "--allow-missing-bootstrap",
+            "--project-root",
+            str(tmp_path),
+        ],
+    ]
     assert state["gated_steps"]["doctor"]["ok"] is True
     assert state["gated_steps"]["cache_fresh"]["ok"] is True
 
 
-def test_gated_tier_runs_prefixed_task_commands(
+def test_gated_tier_records_in_process_entrypoint_commands(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -218,7 +231,7 @@ def test_gated_tier_runs_prefixed_task_commands(
 
     def runner(command: list[str], cwd: Path) -> tuple[int, str, str]:
         commands.append(command)
-        return 0, f"{' '.join(command)} ok", ""
+        return 0, f"{command[0]} ok", ""
 
     result = verifier.verify(
         tmp_path,
@@ -231,14 +244,53 @@ def test_gated_tier_runs_prefixed_task_commands(
     state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
     assert result.code == 0
     assert commands == [
-        ["task", "deft:doctor"],
-        ["task", "deft:verify:cache-fresh"],
+        ["doctor.cmd_doctor", "--project-root", str(tmp_path)],
+        [
+            "preflight_cache.main",
+            "--allow-missing-bootstrap",
+            "--project-root",
+            str(tmp_path),
+        ],
     ]
-    assert state["gated_steps"]["doctor"]["command"] == ["task", "deft:doctor"]
+    assert state["gated_steps"]["doctor"]["command"] == [
+        "doctor.cmd_doctor",
+        "--project-root",
+        str(tmp_path),
+    ]
     assert state["gated_steps"]["cache_fresh"]["command"] == [
-        "task",
-        "deft:verify:cache-fresh",
+        "preflight_cache.main",
+        "--allow-missing-bootstrap",
+        "--project-root",
+        str(tmp_path),
     ]
+
+
+def test_gated_tier_records_entrypoint_failure(tmp_path: Path) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    head = _init_git(tmp_path)
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    _write_state(tmp_path, head=head, started_at=now)
+
+    def runner(command: list[str], cwd: Path) -> tuple[int, str, str]:
+        if command[0] == "preflight_cache.main":
+            return 1, "", "cache stale"
+        return 0, "doctor ok", ""
+
+    result = verifier.verify(
+        tmp_path,
+        tier="gated",
+        now=now + timedelta(minutes=1),
+        runner=runner,
+        bypass=False,
+    )
+
+    state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
+    assert result.code == 1
+    assert "gated step 'cache_fresh' failed: cache stale" in result.message
+    assert state["gated_steps"]["doctor"]["ok"] is True
+    assert state["gated_steps"]["cache_fresh"]["ok"] is False
+    assert state["gated_steps"]["cache_fresh"]["command"][0] == "preflight_cache.main"
+    assert "--allow-missing-bootstrap" in state["gated_steps"]["cache_fresh"]["command"]
 
 
 def test_subprocess_helpers_capture_text_as_utf8(tmp_path: Path, monkeypatch) -> None:
@@ -252,18 +304,97 @@ def test_subprocess_helpers_capture_text_as_utf8(tmp_path: Path, monkeypatch) ->
     monkeypatch.setattr(verifier.subprocess, "run", fake_run)
 
     git_code, git_stdout, git_stderr = verifier._run_git(tmp_path, ["status"])
-    task_code, task_stdout, task_stderr = verifier._default_runner(["task", "doctor"], tmp_path)
+
+    entrypoint_argv: dict[str, list[str]] = {}
+
+    def fake_cmd_doctor(argv: list[str]) -> int:
+        entrypoint_argv["doctor"] = argv
+        print("doctor ok")
+        print("doctor warning", file=sys.stderr)
+        return 0
+
+    monkeypatch.setitem(sys.modules, "doctor", SimpleNamespace(cmd_doctor=fake_cmd_doctor))
+    task_code, task_stdout, task_stderr = verifier._default_runner(
+        ["doctor.cmd_doctor", "--project-root", str(tmp_path)],
+        tmp_path,
+    )
 
     assert git_code == 0
     assert git_stdout == "ok"
     assert git_stderr == ""
     assert task_code == 0
-    assert task_stdout == "ok\n"
-    assert task_stderr == ""
+    assert task_stdout == "doctor ok\n"
+    assert task_stderr == "doctor warning\n"
+    assert entrypoint_argv["doctor"] == ["--project-root", str(tmp_path)]
     assert captured
     for kwargs in captured:
         assert kwargs["encoding"] == "utf-8"
         assert kwargs["errors"] == "replace"
+
+
+def test_call_main_treats_system_exit_none_as_success() -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+
+    def exit_cleanly(_argv: list[str]) -> int:
+        print("clean exit")
+        raise SystemExit(None)
+
+    code, stdout, stderr = verifier._call_main(exit_cleanly, ["--flag"])
+
+    assert code == 0
+    assert stdout == "clean exit\n"
+    assert stderr == ""
+
+
+def test_call_main_times_out_on_hanging_entrypoint() -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    started = threading.Event()
+    release = threading.Event()
+
+    def hang(_argv: list[str]) -> int:
+        started.set()
+        # Bound the worker's lifetime so a failing assertion never leaks a thread.
+        release.wait(5)
+        return 0
+
+    try:
+        code, stdout, stderr = verifier._call_main(hang, ["--flag"], timeout=0.05)
+        assert started.wait(1)
+        assert code == verifier.ENTRYPOINT_TIMEOUT_EXIT_CODE
+        assert stdout == ""
+        assert "timed out" in stderr
+    finally:
+        release.set()
+
+
+def test_gated_step_records_timeout_as_failure(tmp_path: Path, monkeypatch) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    head = _init_git(tmp_path)
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    _write_state(tmp_path, head=head, started_at=now)
+    monkeypatch.setattr(verifier, "ENTRYPOINT_TIMEOUT_SECONDS", 0.05)
+    release = threading.Event()
+
+    def hang(_argv: list[str]) -> int:
+        release.wait(5)
+        return 0
+
+    monkeypatch.setitem(sys.modules, "doctor", SimpleNamespace(cmd_doctor=hang))
+
+    try:
+        result = verifier.verify(
+            tmp_path,
+            tier="gated",
+            now=now + timedelta(minutes=1),
+            bypass=False,
+        )
+        state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
+        assert result.code == 1
+        assert state["gated_steps"]["doctor"]["ok"] is False
+        assert state["gated_steps"]["doctor"]["exit_code"] == verifier.ENTRYPOINT_TIMEOUT_EXIT_CODE
+        assert "timed out" in state["gated_steps"]["doctor"]["message"]
+    finally:
+        release.set()
 
 
 def test_gated_tier_write_failure_returns_config_error(tmp_path: Path, monkeypatch) -> None:

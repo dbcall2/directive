@@ -7,7 +7,6 @@ import argparse
 import contextlib
 import io
 import json
-import os
 import subprocess
 import sys
 import uuid
@@ -29,7 +28,6 @@ from ritual_sentinel import (  # noqa: E402
 
 QUICK_STEPS: tuple[str, ...] = ("alignment", "branch_policy", "triage_welcome")
 GATED_STEPS: tuple[str, ...] = ("doctor", "cache_fresh")
-TASK_PREFIX_ENV_VAR = "DEFT_TASK_PREFIX"
 STEP_ALIASES: dict[str, str] = {
     "branch": "branch_policy",
     "branch-policy": "branch_policy",
@@ -233,7 +231,6 @@ def run_session_start(
     deferrals: dict[str, str] | None = None,
     now: datetime | None = None,
     write_history: bool = True,
-    task_prefix: str | None = None,
 ) -> tuple[int, dict[str, Any], list[str]]:
     """Run quick-tier steps and write ``.deft/ritual-state.json``."""
     instant = now or _utc_now()
@@ -289,26 +286,19 @@ def run_session_start(
         def _capture(line: str) -> None:
             captured.append(line)
 
-        normalized_task_prefix = (task_prefix or "").strip()
-        if normalized_task_prefix and not normalized_task_prefix.endswith(":"):
-            normalized_task_prefix = f"{normalized_task_prefix}:"
-        triage_command = ["task", f"{normalized_task_prefix}triage:welcome"]
+        triage_command = [
+            "triage_welcome.run_default_mode",
+            "--project-root",
+            str(project_root),
+        ]
         try:
             import triage_welcome  # noqa: I001
 
-            triage_command = [
-                "task",
-                *triage_welcome.task_command_args(
-                    ["triage:welcome"],
-                    task_prefix=task_prefix,
-                ),
-            ]
             outcome = triage_welcome.run_default_mode(
                 project_root,
                 output_fn=_capture,
                 write_history=write_history,
                 now=instant,
-                task_prefix=task_prefix,
             )
             ok = outcome.exit_code == 0
             message = "\n".join(captured).strip() or "triage welcome completed"
@@ -380,14 +370,6 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not append triage summary history (test/helper mode).",
     )
-    parser.add_argument(
-        "--task-prefix",
-        default=os.environ.get(TASK_PREFIX_ENV_VAR, ""),
-        help=(
-            "Optional Taskfile namespace prefix for operator-facing triage "
-            f"commands. Defaults to ${TASK_PREFIX_ENV_VAR}."
-        ),
-    )
     return parser
 
 
@@ -406,7 +388,6 @@ def main(argv: list[str] | None = None) -> int:
             project_root,
             deferrals=deferrals,
             write_history=not args.no_history,
-            task_prefix=args.task_prefix,
         )
     stray = sink.getvalue().strip()
     if stray:

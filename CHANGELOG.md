@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **Consumer session ritual gates no longer depend on task namespace re-entry (#1648)** -- `task deft:verify:session-ritual -- --tier=gated` now records the doctor and cache-fresh checks by invoking their Python entrypoints in-process instead of reconstructing `task <prefix>:...` commands. Cache freshness preserves the framework wrapper's bootstrap allowance, so fresh checkouts keep passing while vendored consumers avoid nested Taskfile namespace failures. Closes #1648. Refs #1659.
+- **The session-ritual gate can no longer hang forever on a stuck check (#1648)** -- converting the gated `doctor` and cache-fresh checks to in-process calls had dropped the 5-minute cap the old subprocess runner enforced, so a check blocked on I/O or a slow resource could freeze the step-0 gate and silently stall agent dispatch. Each in-process check now runs under the same bounded timeout and a hang is recorded as a fail-closed failure, so dispatch aborts cleanly instead of waiting indefinitely. Refs #1655 #1659.
 
 ### Removed
 
