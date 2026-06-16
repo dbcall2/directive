@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1637"
+    "description": "Scope vBRIEF ingested from GitHub issue #1637",
+    "updated": "2026-06-16T13:15:41Z"
   },
   "plan": {
     "title": "feat(packs): packs:slice v2 -- remaining lessons slices + skills/rules/strategies pack surfaces",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "feat(packs): packs:slice v2 -- remaining lessons slices + skills/rules/strategies pack surfaces",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1637",
@@ -108,6 +109,7 @@
         "title": "packs:slice v2 -- new swarm-spec pack surface",
         "TrustLevel": "internal"
       }
-    ]
+    ],
+    "updated": "2026-06-16T13:15:41Z"
   }
 }
