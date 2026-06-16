@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Codebase structure now has a concrete authored metadata profile and validator (#1595)** -- `task codebase:validate-structure` validates the first `codeStructure` profile for stable module ids, safe globs/paths, module references, ownership conflicts, and invocation-agnostic projection manifest entries. Directive dogfoods the canonical record at `PROJECT-DEFINITION.plan.architecture.codeStructure`, keeping generated MAPs and future headers as projections rather than source-of-truth stores. Refs #1498, #1492, #1659.
 
 ### Changed
 

@@ -144,6 +144,14 @@ def test_bare_plan_level_key_exits_1(tmp_path):
     assert any(f.level == "plan" and f.key == "bogusPlanKey" for f in findings)
 
 
+def test_plan_architecture_core_key_allowed(tmp_path):
+    plan = _conformant_plan()
+    plan["architecture"] = {"codeStructure": {"version": "0.1"}}
+    root = _setup_repo(tmp_path, plan)
+    code, findings, _msg = gate.evaluate(root, mode="all")
+    assert code == 0, [f.render() for f in findings]
+
+
 def test_bare_item_level_key_exits_1(tmp_path):
     plan = _conformant_plan()
     plan["items"][0]["description"] = "bare item prose"

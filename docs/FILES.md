@@ -75,6 +75,7 @@ deft/
 │   ├── ai-coding-trust-paradox.md
 │   ├── claude-code-integration.md
 │   ├── codebase-map-source-of-truth.md # Decision: vBRIEF metadata owns codebase structure; MAP/header outputs are projections
+│   ├── code-structure-profile.md # codeStructure metadata profile + validation contract
 │   ├── getting-started.md
 │   └── superpowers.md
 │
@@ -175,6 +176,7 @@ deft/
 ├── vbrief/                # vBRIEF document model
 │   ├── vbrief.md          # Canonical vBRIEF usage reference
 │   ├── PROJECT-DEFINITION.vbrief.json   # Project identity gestalt
+│   ├── architecture/       # Authored architecture metadata profiles
 │   ├── specification.vbrief.json        # Project spec source of truth
 │   ├── proposed/          # Scope vBRIEFs: ideas, not committed to
 │   ├── pending/           # Scope vBRIEFs: accepted backlog
@@ -272,7 +274,7 @@ deft/
 
 - **vbrief/vbrief.md** — Canonical vBRIEF usage reference (file taxonomy, lifecycle folders, scope vBRIEFs)
 - **vbrief/schemas/** — JSON validation schemas
-- **vbrief/PROJECT-DEFINITION.vbrief.json** — Project identity gestalt
+- **vbrief/PROJECT-DEFINITION.vbrief.json** — Project identity gestalt and canonical `plan.architecture.codeStructure`
 - **vbrief/{proposed,pending,active,completed,cancelled}/** — Scope vBRIEF lifecycle folders
 
 ## 📜 Contracts
