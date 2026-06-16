@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.49.0] - 2026-06-16
+
+> Content-pack slices go deeper -- agents pull any skill, strategy, and the AGENTS.md/main.md rule corpus by name -- plus README docs for feature slicing and content packs.
+
+### Added
 - **Agents can now pull any skill's full text from the skills pack, not just the cost proof skill (#1637)** -- `task packs:slice skills` now carries the complete body of every skill, so an agent can retrieve any skill's guidance straight from canonical JSON instead of opening the rendered markdown. Every `skills/*/SKILL.md` is now a banner-marked, drift-checked projection regenerated from the pack source, and the renderer round-trips hand-authored frontmatter (`triggers:`, `metadata:`) losslessly so nothing is dropped when files are regenerated. Refs #1637 #1283.
 - **Two new content packs plus deeper slices across the existing four (#1637)** -- `task packs:slice` now ships a `patterns` pack (architectural patterns from `patterns/`) and a `swarm-spec` pack (the swarm specification), each self-describing via `task packs:slice --list-packs`. The four pilot packs gain deeper named slices: lessons add `by-issue` and an argument-less `anti-patterns`; rules add argument-less `must` and `prohibitions`; skills and strategies add `by-id`. Agents can now pull a precise subset (e.g. only prohibition rules, or lessons for one issue) without reading a whole pack into context. Refs #1637 #1283.
 - **Agents can now pull any strategy's full text from the strategies pack, not just the yolo proof (#1637)** -- `task packs:slice strategies` now carries the complete body of every non-redirect strategy, so an agent can load any strategy's full guidance straight from canonical JSON instead of opening the rendered markdown. Every non-redirect `strategies/*.md` is now a banner-marked, drift-checked projection regenerated from the pack source; pure redirect/superseded pointers (e.g. `brownfield` -> `map`, the superseded `roadmap` strategy) stay metadata-only and are not rendered. Refs #1637 #1283.
@@ -3287,7 +3299,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.48.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.49.0...HEAD
+[0.49.0]: https://github.com/deftai/directive/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/deftai/directive/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/deftai/directive/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/deftai/directive/compare/v0.45.1...v0.46.0

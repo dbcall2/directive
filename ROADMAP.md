@@ -570,5 +570,13 @@
 - **#1274** -- task issue:emit -- vBRIEF -> GitHub issue write path -- `[completed]`
 - **#1274** -- Strategy emit-hints: discoverable issue:emit across vBRIEF-producing strategies -- `[completed]`
 - **#1620** -- vBRIEF 0.6 conformance: Category A migrations + verify:vbrief-conformance gate -- `[completed]`
+- **#1637** -- feat(packs): packs:slice v2 -- remaining lessons slices + skills/rules/strategies pack surfaces -- `[completed]`
 - **#1643** -- Pack discovery (--list-packs) + consumer discoverability wiring for packs:slice -- `[completed]`
+- **#1657** -- Rank bug-labeled issues above feature/RFC work in the triage queue -- `[completed]`
+- **#1637** -- packs:slice v2 -- broaden rules-pack source to AGENTS.md + main.md -- `[completed]`
+- **#1637** -- packs:slice v2 -- capture full body for every skill -- `[completed]`
+- **#1637** -- packs:slice v2 -- capture full body for every strategy -- `[completed]`
+- **#1637** -- packs:slice v2 -- deeper slices across all four packs -- `[completed]`
+- **#1637** -- packs:slice v2 -- new patterns pack surface -- `[completed]`
+- **#1637** -- packs:slice v2 -- new swarm-spec pack surface -- `[completed]`
 
