@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **The session-ritual gate can no longer hang forever on a stuck check (#1648)** -- converting the gated `doctor` and cache-fresh checks to in-process calls had dropped the 5-minute cap the old subprocess runner enforced, so a check blocked on I/O or a slow resource could freeze the step-0 gate and silently stall agent dispatch. Each in-process check now runs under the same bounded timeout and a hang is recorded as a fail-closed failure, so dispatch aborts cleanly instead of waiting indefinitely. Refs #1655 #1659.
 
 ### Removed
 

@@ -4,6 +4,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -343,6 +344,57 @@ def test_call_main_treats_system_exit_none_as_success() -> None:
     assert code == 0
     assert stdout == "clean exit\n"
     assert stderr == ""
+
+
+def test_call_main_times_out_on_hanging_entrypoint() -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    started = threading.Event()
+    release = threading.Event()
+
+    def hang(_argv: list[str]) -> int:
+        started.set()
+        # Bound the worker's lifetime so a failing assertion never leaks a thread.
+        release.wait(5)
+        return 0
+
+    try:
+        code, stdout, stderr = verifier._call_main(hang, ["--flag"], timeout=0.05)
+        assert started.wait(1)
+        assert code == verifier.ENTRYPOINT_TIMEOUT_EXIT_CODE
+        assert stdout == ""
+        assert "timed out" in stderr
+    finally:
+        release.set()
+
+
+def test_gated_step_records_timeout_as_failure(tmp_path: Path, monkeypatch) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+    head = _init_git(tmp_path)
+    now = datetime(2026, 6, 9, 1, 0, tzinfo=UTC)
+    _write_state(tmp_path, head=head, started_at=now)
+    monkeypatch.setattr(verifier, "ENTRYPOINT_TIMEOUT_SECONDS", 0.05)
+    release = threading.Event()
+
+    def hang(_argv: list[str]) -> int:
+        release.wait(5)
+        return 0
+
+    monkeypatch.setitem(sys.modules, "doctor", SimpleNamespace(cmd_doctor=hang))
+
+    try:
+        result = verifier.verify(
+            tmp_path,
+            tier="gated",
+            now=now + timedelta(minutes=1),
+            bypass=False,
+        )
+        state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
+        assert result.code == 1
+        assert state["gated_steps"]["doctor"]["ok"] is False
+        assert state["gated_steps"]["doctor"]["exit_code"] == verifier.ENTRYPOINT_TIMEOUT_EXIT_CODE
+        assert "timed out" in state["gated_steps"]["doctor"]["message"]
+    finally:
+        release.set()
 
 
 def test_gated_tier_write_failure_returns_config_error(tmp_path: Path, monkeypatch) -> None:
