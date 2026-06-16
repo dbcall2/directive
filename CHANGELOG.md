@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Codebase structure now has a concrete authored metadata profile and validator (#1595)** -- `task codebase:validate-structure` validates the first `codeStructure` profile for stable module ids, safe globs/paths, module references, ownership conflicts, and projection manifest entries. Directive dogfoods the record in a dedicated `vbrief/architecture/` file so PR 2 preserves the source-of-truth decision while avoiding new `PROJECT-DEFINITION` bloat from #1618. Refs #1498, #1492, #1618.
 
 ### Changed
+- **Bug-labelled issues now rank ahead of feature and RFC work in the triage queue (#1657)** -- `bug` is now a triage ranking label, appended after the existing escalation labels (`blocks-merge`, `blocks-release-tag`, `adoption-blocker`, `breaking-change`, `urgent`). Explicit release-blockers still win, but an open bug now surfaces above the large mass of unlabelled / feature / RFC items instead of sorting purely by recency. The change is also reflected in the consumer-example default so downstream projects inherit bug-prioritisation as the recommended baseline. Closes #1657. Refs #1128 #1186.
 
 ### Fixed
 
