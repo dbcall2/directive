@@ -95,7 +95,7 @@ def _call_main(main_func: Callable[[list[str]], int], argv: list[str]) -> tuple[
             code = main_func(argv)
     except SystemExit as exc:
         raw_code = exc.code
-        code = raw_code if isinstance(raw_code, int) else 1
+        code = raw_code if isinstance(raw_code, int) else (0 if raw_code is None else 1)
     except Exception as exc:  # noqa: BLE001 -- ritual state must record failures
         message = f"{type(exc).__name__}: {exc}"
         captured_stderr = stderr.getvalue()

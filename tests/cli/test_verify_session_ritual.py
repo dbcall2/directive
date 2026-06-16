@@ -331,6 +331,20 @@ def test_subprocess_helpers_capture_text_as_utf8(tmp_path: Path, monkeypatch) ->
         assert kwargs["errors"] == "replace"
 
 
+def test_call_main_treats_system_exit_none_as_success() -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+
+    def exit_cleanly(_argv: list[str]) -> int:
+        print("clean exit")
+        raise SystemExit(None)
+
+    code, stdout, stderr = verifier._call_main(exit_cleanly, ["--flag"])
+
+    assert code == 0
+    assert stdout == "clean exit\n"
+    assert stderr == ""
+
+
 def test_gated_tier_write_failure_returns_config_error(tmp_path: Path, monkeypatch) -> None:
     verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
     head = _init_git(tmp_path)
