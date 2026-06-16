@@ -160,18 +160,22 @@ def extract_references_from_vbrief(data: dict) -> list[dict]:
         if isinstance(ref, dict):
             refs.append(ref)
 
-    # Item-level references (and nested subItems)
-    def _walk_items(items: list) -> None:
-        for item in items:
+    # Item-level references (and nested subItems). Every container access
+    # uses ``... or []`` rather than ``.get(key, [])``: a key present with an
+    # explicit JSON ``null`` value returns ``None`` from ``.get(key, [])``
+    # (the default only fires for ABSENT keys), and ``for x in None`` raises
+    # ``TypeError`` (#924).
+    def _walk_items(items: list | None) -> None:
+        for item in items or []:
             if not isinstance(item, dict):
                 continue
-            for ref in item.get("references", []):
+            for ref in item.get("references") or []:
                 if isinstance(ref, dict):
                     refs.append(ref)
-            _walk_items(item.get("subItems", []))
-            _walk_items(item.get("items", []))
+            _walk_items(item.get("subItems") or [])
+            _walk_items(item.get("items") or [])
 
-    _walk_items(plan.get("items", []))
+    _walk_items(plan.get("items") or [])
     return refs
 
 
@@ -888,6 +892,40 @@ def _utc_now_iso() -> str:
     return _dt.datetime.now(_dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _propagate_item_status(items: list, item_status: str, stamp: str) -> int:
+    """Flip every item's ``status`` to ``item_status`` and stamp ``completed``.
+
+    Walks ``plan.items[*]`` recursively -- including the nested ``subItems``
+    and ``items`` arrays that ``extract_references_from_vbrief`` traverses --
+    so a vBRIEF with sub-item trees lands fully consistent rather than only
+    flipping the top level. Each touched item gets ``status = item_status``
+    (``"completed"`` or ``"cancelled"``) and an item-level ISO-8601 UTC
+    ``completed`` timestamp mirroring PR #921's hand-applied
+    ``plan.items[*].completed`` pattern. Returns the number of items touched
+    (#924).
+    """
+    touched = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        item["status"] = item_status
+        item["completed"] = stamp
+        touched += 1
+        # ``.get(key) or []`` (not ``.get(key, [])``): a present key with an
+        # explicit JSON ``null`` value returns ``None`` from ``.get(key, [])``
+        # because the default only applies to ABSENT keys. Passing ``None``
+        # into the recursion would raise ``TypeError: 'NoneType' object is
+        # not iterable`` and abort the whole lifecycle-fix batch mid-loop
+        # (#924 defensive hardening).
+        touched += _propagate_item_status(
+            item.get("subItems") or [], item_status, stamp
+        )
+        touched += _propagate_item_status(
+            item.get("items") or [], item_status, stamp
+        )
+    return touched
+
+
 def _destination_folder(state_reason: str | None) -> str:
     """Map a CLOSED issue's ``stateReason`` to a terminal folder (#1290).
 
@@ -1049,9 +1087,10 @@ def apply_lifecycle_fixes(
         # Stamp status + updated. cancelled/ vBRIEFs get
         # plan.status="cancelled"; completed/ get "completed".
         plan = data.setdefault("plan", {})
-        plan["status"] = (
+        terminal_status = (
             "cancelled" if dest_folder == "cancelled" else "completed"
         )
+        plan["status"] = terminal_status
         stamp = _utc_now_iso()
         info = data.setdefault("vBRIEFInfo", {})
         info["updated"] = stamp
@@ -1059,6 +1098,17 @@ def apply_lifecycle_fixes(
         # downstream tooling that prefers the plan-level field stays
         # current. Pre-existing files without the key gain it.
         plan["updated"] = stamp
+        # #924: propagate the terminal status down to every
+        # plan.items[*] (recursively, incl. subItems/items) and stamp an
+        # item-level ISO-8601 UTC ``completed`` timestamp. Without this
+        # the on-disk record is internally inconsistent (plan.status
+        # flipped, items still "proposed"/"pending") and the next
+        # reconcile/refinement pass re-flags the file as drifted.
+        # ``.get("items") or []`` guards against an explicit ``"items": null``
+        # in the on-disk JSON (the ``.get(key, [])`` default only applies to
+        # ABSENT keys, so a present null would otherwise reach the recursion
+        # as ``None`` and abort the batch).
+        _propagate_item_status(plan.get("items") or [], terminal_status, stamp)
 
         # Write back (UTF-8, no BOM, trailing newline; matches the
         # canonical writer style elsewhere in the script).

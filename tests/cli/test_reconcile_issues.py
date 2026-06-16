@@ -8,6 +8,7 @@ Story #322. RFC #309.
 """
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -683,3 +684,202 @@ class TestAxisBPrimaryReferenceFilter:
         assert "[lifecycle-resolve]" in err
         assert "axis=planRef" in err
         assert "anchor=#1284" in err
+
+
+# ---------------------------------------------------------------------------
+# #924 -- apply_lifecycle_fixes propagates items[*].status to terminal state
+# ---------------------------------------------------------------------------
+
+_ISO_UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+
+
+def _write_vbrief_with_items_924(
+    vbrief_dir: Path,
+    folder: str,
+    filename: str,
+    *,
+    ref_issue: int,
+    item_statuses: list[str],
+) -> Path:
+    """Write a synthetic vBRIEF whose plan.items carry non-terminal status.
+
+    Includes a nested ``subItems`` tree on the first item so the #924
+    propagation is exercised recursively, not just at the top level.
+    """
+    folder_path = vbrief_dir / folder
+    folder_path.mkdir(parents=True, exist_ok=True)
+    items: list[dict] = []
+    for idx, status in enumerate(item_statuses):
+        item: dict = {
+            "title": f"Item {idx}",
+            "status": status,
+            "completed": None,
+        }
+        if idx == 0:
+            item["subItems"] = [
+                {"title": "Sub A", "status": "pending", "completed": None}
+            ]
+        items.append(item)
+    data = {
+        "vBRIEFInfo": {"version": "0.6"},
+        "plan": {
+            "title": filename,
+            "status": "running",
+            "items": items,
+            "references": [
+                {
+                    "uri": (
+                        f"https://github.com/deftai/directive/issues/{ref_issue}"
+                    ),
+                    "type": "x-vbrief/github-issue",
+                    "title": f"Issue #{ref_issue}",
+                }
+            ],
+        },
+    }
+    p = folder_path / filename
+    p.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return p
+
+
+class TestApplyItemStatusPropagation:
+    """#924: apply-mode flips plan.items[*].status to the terminal state."""
+
+    def test_completed_destination_propagates_items(self, tmp_path):
+        vbrief_dir = tmp_path / "vbrief"
+        _write_vbrief_with_items_924(
+            vbrief_dir,
+            "active",
+            "completed-prop.vbrief.json",
+            ref_issue=10,
+            item_statuses=["proposed", "pending"],
+        )
+        anchors = scan_lifecycle_anchors(vbrief_dir)
+        # CLOSED + COMPLETED routes to completed/.
+        state_map = {10: IssueState("CLOSED", "COMPLETED")}
+        report = build_lifecycle_report(anchors, state_map, log=False)
+        moved, _skipped, failures = apply_lifecycle_fixes(vbrief_dir, report)
+        assert moved == 1
+        assert failures == []
+        dst = vbrief_dir / "completed" / "completed-prop.vbrief.json"
+        assert dst.is_file()
+        data = json.loads(dst.read_text(encoding="utf-8"))
+        assert data["plan"]["status"] == "completed"
+        items = data["plan"]["items"]
+        assert items, "expected items to be present"
+        for item in items:
+            assert item["status"] == "completed"
+            assert _ISO_UTC_RE.match(item["completed"]), item["completed"]
+        # Nested subItems propagate too.
+        sub = items[0]["subItems"][0]
+        assert sub["status"] == "completed"
+        assert _ISO_UTC_RE.match(sub["completed"]), sub["completed"]
+
+    def test_null_items_does_not_raise(self, tmp_path):
+        # An explicit ``"items": null`` on disk returns None from
+        # ``.get("items", [])`` (the default only applies to ABSENT keys),
+        # which would crash the recursion with TypeError and abort the
+        # whole batch. The ``.get("items") or []`` guard handles it. (#924)
+        vbrief_dir = tmp_path / "vbrief"
+        folder_path = vbrief_dir / "active"
+        folder_path.mkdir(parents=True, exist_ok=True)
+        data = {
+            "vBRIEFInfo": {"version": "0.6"},
+            "plan": {
+                "title": "null-items",
+                "status": "running",
+                "items": None,
+                "references": [
+                    {
+                        "uri": "https://github.com/deftai/directive/issues/12",
+                        "type": "x-vbrief/github-issue",
+                        "title": "Issue #12",
+                    }
+                ],
+            },
+        }
+        src = folder_path / "null-items.vbrief.json"
+        src.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        anchors = scan_lifecycle_anchors(vbrief_dir)
+        state_map = {12: IssueState("CLOSED", "COMPLETED")}
+        report = build_lifecycle_report(anchors, state_map, log=False)
+        # Must not raise TypeError and must still move the vBRIEF.
+        moved, _skipped, failures = apply_lifecycle_fixes(vbrief_dir, report)
+        assert moved == 1
+        assert failures == []
+        dst = vbrief_dir / "completed" / "null-items.vbrief.json"
+        assert dst.is_file()
+        moved_data = json.loads(dst.read_text(encoding="utf-8"))
+        assert moved_data["plan"]["status"] == "completed"
+
+    def test_null_nested_subitems_and_items_does_not_raise(self, tmp_path):
+        # A nested item whose ``subItems`` / ``items`` keys are explicit
+        # JSON null must not crash the recursion either. (#924)
+        vbrief_dir = tmp_path / "vbrief"
+        folder_path = vbrief_dir / "active"
+        folder_path.mkdir(parents=True, exist_ok=True)
+        data = {
+            "vBRIEFInfo": {"version": "0.6"},
+            "plan": {
+                "title": "null-nested",
+                "status": "running",
+                "items": [
+                    {
+                        "title": "Item 0",
+                        "status": "pending",
+                        "completed": None,
+                        "subItems": None,
+                        "items": None,
+                    }
+                ],
+                "references": [
+                    {
+                        "uri": "https://github.com/deftai/directive/issues/13",
+                        "type": "x-vbrief/github-issue",
+                        "title": "Issue #13",
+                    }
+                ],
+            },
+        }
+        src = folder_path / "null-nested.vbrief.json"
+        src.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        anchors = scan_lifecycle_anchors(vbrief_dir)
+        state_map = {13: IssueState("CLOSED", "NOT_PLANNED")}
+        report = build_lifecycle_report(anchors, state_map, log=False)
+        moved, _skipped, failures = apply_lifecycle_fixes(vbrief_dir, report)
+        assert moved == 1
+        assert failures == []
+        dst = vbrief_dir / "cancelled" / "null-nested.vbrief.json"
+        assert dst.is_file()
+        moved_data = json.loads(dst.read_text(encoding="utf-8"))
+        assert moved_data["plan"]["items"][0]["status"] == "cancelled"
+        assert _ISO_UTC_RE.match(moved_data["plan"]["items"][0]["completed"])
+
+    def test_cancelled_destination_propagates_items(self, tmp_path):
+        vbrief_dir = tmp_path / "vbrief"
+        _write_vbrief_with_items_924(
+            vbrief_dir,
+            "active",
+            "cancelled-prop.vbrief.json",
+            ref_issue=11,
+            item_statuses=["proposed", "pending"],
+        )
+        anchors = scan_lifecycle_anchors(vbrief_dir)
+        # CLOSED + NOT_PLANNED routes to cancelled/.
+        state_map = {11: IssueState("CLOSED", "NOT_PLANNED")}
+        report = build_lifecycle_report(anchors, state_map, log=False)
+        moved, _skipped, failures = apply_lifecycle_fixes(vbrief_dir, report)
+        assert moved == 1
+        assert failures == []
+        dst = vbrief_dir / "cancelled" / "cancelled-prop.vbrief.json"
+        assert dst.is_file()
+        data = json.loads(dst.read_text(encoding="utf-8"))
+        assert data["plan"]["status"] == "cancelled"
+        items = data["plan"]["items"]
+        assert items, "expected items to be present"
+        for item in items:
+            assert item["status"] == "cancelled"
+            assert _ISO_UTC_RE.match(item["completed"]), item["completed"]
+        sub = items[0]["subItems"][0]
+        assert sub["status"] == "cancelled"
+        assert _ISO_UTC_RE.match(sub["completed"]), sub["completed"]
