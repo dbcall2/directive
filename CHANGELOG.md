@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **Consumer session ritual gates no longer depend on task namespace re-entry (#1648)** -- `task deft:verify:session-ritual -- --tier=gated` now records the doctor and cache-fresh checks by invoking their Python entrypoints in-process instead of reconstructing `task <prefix>:...` commands. Cache freshness preserves the framework wrapper's bootstrap allowance, so fresh checkouts keep passing while vendored consumers avoid nested Taskfile namespace failures. Closes #1648. Refs #1659.
 - **The session-ritual gate can no longer hang forever on a stuck check (#1648)** -- converting the gated `doctor` and cache-fresh checks to in-process calls had dropped the 5-minute cap the old subprocess runner enforced, so a check blocked on I/O or a slow resource could freeze the step-0 gate and silently stall agent dispatch. Each in-process check now runs under the same bounded timeout and a hang is recorded as a fail-closed failure, so dispatch aborts cleanly instead of waiting indefinitely. Refs #1655 #1659.
 
 ### Removed
@@ -64,7 +65,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The "vBRIEF as source of truth for all docs" issue now matches the current architecture (#1292)** -- issue #336 was reframed from its obsolete "five new core vBRIEF content types" mechanism into a documentation-tier application of the Rule Authority [AXIOM]: framework `.md` files are rendered projections of canonical structured source, implemented via the #714 four-tier model and its tier-3 extension packs (#1294 / #1295 / #1296) under the #1284 epic. Contributors reading #336 after the decomposition no longer chase a dropped mechanism. Closes #1292. Refs #336, #1284.
 
 ### Fixed
-- **Consumer session ritual gates no longer depend on task namespace re-entry (#1648)** -- `task deft:verify:session-ritual -- --tier=gated` now records the doctor and cache-fresh checks by invoking their Python entrypoints in-process instead of reconstructing `task <prefix>:...` commands. Cache freshness preserves the framework wrapper's bootstrap allowance, so fresh checkouts keep passing while vendored consumers avoid nested Taskfile namespace failures. Closes #1648. Refs #1659.
 - **An umbrella issue closed as "not planned" now routes its dependent vBRIEFs to `cancelled/` automatically, and closing an umbrella no longer drags an entire cohort into the wrong terminal state (#1290)** -- `task reconcile:issues -- --apply-lifecycle-fixes` now consults each closed issue's GitHub `stateReason`, so `NOT_PLANNED` / `DUPLICATE` closures land in `cancelled/` while `COMPLETED` stays in `completed/` (removing the manual `scope:cancel` pre-step). It also resolves each vBRIEF's lifecycle from its own `plan.planRef` first, falling back to `references[]` only when planRef is absent, so a cohort member that merely references a closed umbrella is left untouched when its own planRef issue is still open. Closes #1290.
 
 ### Removed
