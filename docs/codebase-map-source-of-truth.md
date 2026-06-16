@@ -135,9 +135,22 @@ constraints:
 - full source-code generation from vBRIEF metadata
 - AST support for every language in the first implementation slice
 
-## PR 2 Hand-Off
+## PR 3 Contract Layer
 
-The next PR should define the first concrete `codeStructure` schema/profile and
-its validation behavior at `PROJECT-DEFINITION.plan.architecture.codeStructure`.
-It should remain focused on canonical-intent shape and validation, not
-extraction or MAP rendering.
+PR 2 defined and dogfooded the first concrete `codeStructure` profile at
+`PROJECT-DEFINITION.plan.architecture.codeStructure`.
+
+PR 3 adds the contract layer needed before MAP rendering: a deterministic
+dependency-free default extractor, a provider artifact handshake, a
+projection-kind registry, and stricter discipline checks that keep derived facts
+out of authored metadata. The provider artifact contract is published as the
+language-neutral JSON Schema `vbrief/schemas/codebase-map.schema.json`. That
+schema is the normative contract, and `scripts/codebase_provider.py` validates
+provider artifacts by interpreting the schema with a dependency-free local
+subset validator rather than maintaining a second hand-written Python contract.
+`tests/fixtures/codebase-map.v1.golden.json` is the canonical example output
+and regression anchor, so out-of-process providers do not have to
+reverse-engineer the Python extractor. This keeps the durable contract on the
+schema side of the #1530 host-language rewrite boundary. This is still pre-MAP:
+`.planning/codebase/MAP.md` generation and freshness checks remain the next
+slice.
