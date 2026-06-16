@@ -77,6 +77,7 @@ PLAN_CORE: frozenset[str] = frozenset(
         "status",
         "items",
         "narratives",
+        "architecture",
         "edges",
         "tags",
         "metadata",
