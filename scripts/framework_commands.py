@@ -104,6 +104,24 @@ COMMANDS: dict[str, CommandSpec] = {
     "triage:summary": _spec(
         "triage:summary", "triage_summary:main", project_root_arg="--project-root"
     ),
+    "triage:queue": _spec(
+        "triage:queue",
+        "triage_queue:main",
+        default_args=("queue",),
+        project_root_arg="--project-root",
+    ),
+    "triage:show": _spec(
+        "triage:show",
+        "triage_queue:main",
+        default_args=("show",),
+        project_root_arg="--project-root",
+    ),
+    "triage:audit": _spec(
+        "triage:audit",
+        "triage_queue:main",
+        default_args=("audit",),
+        project_root_arg="--project-root",
+    ),
     "triage:accept": _spec("triage:accept", "triage_actions:main", default_args=("accept",)),
     "triage:status": _spec("triage:status", "triage_actions:main", default_args=("status",)),
     "triage:scope": _spec("triage:scope", "triage_scope:main"),

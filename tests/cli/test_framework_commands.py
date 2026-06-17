@@ -42,6 +42,9 @@ def test_issue_1659_runtime_commands_are_registered() -> None:
         "doctor",
         "migrate:vbrief",
         "session:start",
+        "triage:audit",
+        "triage:queue",
+        "triage:show",
         "triage:welcome",
         "verify:cache-fresh",
         "verify:no-task-runtime",
@@ -56,6 +59,32 @@ def test_unknown_command_returns_cli_shaped_failure() -> None:
 
     assert result.code == 2
     assert "unknown framework command" in result.stderr
+
+
+def test_triage_queue_dispatches_queue_subcommand(monkeypatch, tmp_path: Path) -> None:
+    captured: dict[str, list[str]] = {}
+
+    def fake_main(argv: list[str]) -> int:
+        captured["argv"] = argv
+        return 0
+
+    monkeypatch.setitem(sys.modules, "triage_queue", SimpleNamespace(main=fake_main))
+
+    result = framework_commands.run_framework_command(
+        "triage:queue",
+        ["--limit", "3"],
+        project_root=tmp_path,
+        capture=True,
+    )
+
+    assert result.code == 0
+    assert captured["argv"] == [
+        "queue",
+        "--project-root",
+        str(tmp_path.resolve()),
+        "--limit",
+        "3",
+    ]
 
 
 def test_migrate_vbrief_runs_preflight_then_migrator(monkeypatch, tmp_path: Path) -> None:
