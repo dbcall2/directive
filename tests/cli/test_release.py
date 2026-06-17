@@ -413,6 +413,37 @@ class TestRunCI:
 
 
 # ---------------------------------------------------------------------------
+# refresh_roadmap
+# ---------------------------------------------------------------------------
+
+
+class TestRefreshRoadmap:
+    def test_refresh_roadmap_ignores_release_process_argv(self, monkeypatch, tmp_path):
+        project = tmp_path / "project"
+        (project / "vbrief" / "pending").mkdir(parents=True)
+        (project / "vbrief" / "completed").mkdir(parents=True)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "release.py",
+                "0.21.0",
+                "--repo",
+                "deftai/directive",
+                "--skip-ci",
+            ],
+        )
+
+        ok, reason = release.refresh_roadmap(project)
+
+        assert ok, reason
+        assert reason == "ROADMAP.md re-rendered"
+        roadmap = project / "ROADMAP.md"
+        assert roadmap.is_file()
+        assert "No pending work items." in roadmap.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
 # Pipeline (run_pipeline / main)
 # ---------------------------------------------------------------------------
 

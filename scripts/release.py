@@ -925,14 +925,13 @@ def refresh_roadmap(project_root: Path) -> tuple[bool, str]:
     """
     import roadmap_render  # noqa: PLC0415
 
-    old_cwd = Path.cwd()
-    try:
-        os.chdir(project_root)
-        code = roadmap_render.main()
-    finally:
-        os.chdir(old_cwd)
-    if code != 0:
-        return False, f"roadmap:render failed (exit {code})"
+    ok, msg = roadmap_render.render_roadmap(
+        str(project_root / "vbrief" / "pending"),
+        str(project_root / "ROADMAP.md"),
+        completed_dir=str(project_root / "vbrief" / "completed"),
+    )
+    if not ok:
+        return False, f"roadmap:render failed: {msg}"
     return True, "ROADMAP.md re-rendered"
 
 
