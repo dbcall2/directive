@@ -104,6 +104,7 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TextIO
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -404,6 +405,29 @@ def _call_release_entrypoint(
             else:
                 os.environ["DEFT_PROJECT_ROOT"] = old_project_root
 
+    @contextlib.contextmanager
+    def _redirect_entrypoint_stdio(stdout: io.StringIO, stderr: io.StringIO):
+        previous_stdout: TextIO | None = None
+        previous_stderr: TextIO | None = None
+        active = False
+        with _ENTRYPOINT_PROCESS_STATE_LOCK:
+            if _ENTRYPOINT_ACTIVE_RESTORE_OWNER is restore_owner:
+                previous_stdout = sys.stdout
+                previous_stderr = sys.stderr
+                sys.stdout, sys.stderr = stdout, stderr
+                active = True
+        try:
+            yield active
+        finally:
+            if active:
+                with _ENTRYPOINT_PROCESS_STATE_LOCK:
+                    if (
+                        _ENTRYPOINT_ACTIVE_RESTORE_OWNER is restore_owner
+                        and previous_stdout is not None
+                        and previous_stderr is not None
+                    ):
+                        sys.stdout, sys.stderr = previous_stdout, previous_stderr
+
     def _timeout_process_state() -> None:
         global _ENTRYPOINT_ACTIVE_RESTORE_OWNER  # noqa: PLW0603
 
@@ -413,15 +437,13 @@ def _call_release_entrypoint(
                 return
             _ENTRYPOINT_ACTIVE_RESTORE_OWNER = None
             # Own cleanup after timeout; the daemon's later finally block must
-            # not restore over any subsequent release entrypoint.
+            # not restore over any subsequent release entrypoint or capture.
+            sys.stdout, sys.stderr = real_stdout, real_stderr
             os.chdir(old_cwd)
             if old_project_root is None:
                 os.environ.pop("DEFT_PROJECT_ROOT", None)
             else:
                 os.environ["DEFT_PROJECT_ROOT"] = old_project_root
-
-    def _restore_stdio() -> None:
-        sys.stdout, sys.stderr = real_stdout, real_stderr
 
     def _worker() -> None:
         stdout = io.StringIO()
@@ -429,7 +451,9 @@ def _call_release_entrypoint(
         try:
             if not _activate_process_state():
                 return
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with _redirect_entrypoint_stdio(stdout, stderr) as stdio_active:
+                if not stdio_active:
+                    return
                 code = entrypoint(argv)
         except SystemExit as exc:
             raw = exc.code
@@ -450,8 +474,8 @@ def _call_release_entrypoint(
     worker.join(timeout)
     if worker.is_alive():
         # A hung worker may still hold process-global stdout/stderr redirects.
-        # Restore real streams and claim root-state cleanup before fail-closed.
-        _restore_stdio()
+        # Claim cleanup before fail-closed; the daemon's later context exit is
+        # owner-aware and will not restore over a subsequent capture.
         _timeout_process_state()
         label = getattr(entrypoint, "__name__", "entrypoint")
         return ENTRYPOINT_TIMEOUT_EXIT_CODE, f"{label} timed out after {timeout:g}s"

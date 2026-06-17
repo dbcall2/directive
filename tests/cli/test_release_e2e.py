@@ -25,6 +25,7 @@ Refs #716, #720, #74.
 from __future__ import annotations
 
 import importlib.util
+import io
 import re
 import shutil
 import subprocess
@@ -487,6 +488,61 @@ class TestDispatchTaskRelease:
             assert release_e2e.os.environ.get("DEFT_PROJECT_ROOT") == str(next_dir)
         finally:
             release.set()
+            release_e2e.os.chdir(old_cwd)
+
+    def test_timed_out_entrypoint_does_not_restore_over_later_stdio_capture(
+        self,
+        monkeypatch,
+        tmp_path,
+    ):
+        monkeypatch.setenv("DEFT_PROJECT_ROOT", "/operator/real/repo")
+        old_cwd = Path.cwd()
+        old_stdout, old_stderr = release_e2e.sys.stdout, release_e2e.sys.stderr
+        clone_dir = tmp_path / "clone"
+        clone_dir.mkdir()
+        started = threading.Event()
+        release = threading.Event()
+
+        def hang(_argv):
+            started.set()
+            release.wait(5)
+            return 0
+
+        try:
+            code, output = release_e2e._call_release_entrypoint(
+                hang,
+                ["0.0.1"],
+                clone_dir=clone_dir,
+                timeout=0.05,
+            )
+            assert started.wait(1)
+            assert code == release_e2e.ENTRYPOINT_TIMEOUT_EXIT_CODE
+            assert "timed out" in output
+
+            next_stdout = io.StringIO()
+            next_stderr = io.StringIO()
+            release_e2e.sys.stdout = next_stdout
+            release_e2e.sys.stderr = next_stderr
+            release.set()
+
+            def worker_alive():
+                return any(
+                    thread.name == "deft-release-entrypoint" and thread.is_alive()
+                    for thread in threading.enumerate()
+                )
+
+            deadline = time.monotonic() + 1
+            while time.monotonic() < deadline:
+                if not worker_alive():
+                    break
+                time.sleep(0.01)
+            assert not worker_alive()
+            assert release_e2e.sys.stdout is next_stdout
+            assert release_e2e.sys.stderr is next_stderr
+        finally:
+            release.set()
+            release_e2e.sys.stdout = old_stdout
+            release_e2e.sys.stderr = old_stderr
             release_e2e.os.chdir(old_cwd)
 
     def test_task_missing_does_not_block_dispatch(self, monkeypatch, tmp_path):
