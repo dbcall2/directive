@@ -20,6 +20,24 @@ Deft Directive is a self-dogfooded framework for AI-assisted software work. It i
 
 `task --list` is the primary command discovery surface. `run`, `run.py`, and `run.bat` still exist for compatibility and selected interactive flows, but they are no longer the central architecture owner.
 
+The original Deft intent still matters: move from one-off, vibe-level agent prompting toward a repeatable practice where standards are modular, context is loaded on demand, work is specified before implementation, tests anchor behavior, and the framework improves from its own lessons.
+
+## System Shape
+
+```mermaid
+flowchart LR
+    A["Agent entry<br/>AGENTS.md, SKILL.md, main.md"] --> B["Guidance layer<br/>skills, standards, strategies, templates"]
+    B --> C["Taskfile command graph<br/>task --list, task check, task verify:*"]
+    C --> D["Automation layer<br/>scripts/*.py, run compatibility, Go installer"]
+    D --> E["Durable state<br/>PROJECT-DEFINITION, specification, scope vBRIEFs"]
+    E --> F["Generated views<br/>SPECIFICATION.md, PRD.md, ROADMAP.md, future MAP.md"]
+    E --> C
+    C --> G["Enforcement surfaces<br/>tests, hooks, CI, release and PR gates"]
+    G --> B
+```
+
+The loop is deliberate. Guidance tells agents how to behave, tasks make that behavior executable, vBRIEF files preserve state, generated views make state readable, and gates feed back into the guidance when the framework learns a better rule.
+
 ## Entry Surfaces
 
 - `AGENTS.md` is the canonical agent entry point in this repository and in installer-wired consumer projects.
@@ -58,6 +76,15 @@ Requirements describe what to build. Rules describe how agents should behave whi
 
 Generated markdown files carry machine-generated banners. Edit the vBRIEF source first, then render.
 
+```mermaid
+flowchart LR
+    S["vbrief/specification.vbrief.json"] -->|"task spec:render"| SM["SPECIFICATION.md"]
+    S -->|"task prd:render"| PRD["PRD.md"]
+    L["Lifecycle scope vBRIEFs"] -->|"task roadmap:render"| RM["ROADMAP.md"]
+    P["PROJECT-DEFINITION<br/>codeStructure"] -->|"planned projection"| MAP[".planning/codebase/MAP.md"]
+    Skills["Skills and standards"] -->|"task packs:render"| Packs["Rendered content packs"]
+```
+
 ## Implemented Modules
 
 | Area | Primary paths | Current responsibility |
@@ -87,6 +114,27 @@ The command graph is broad; use `task --list` for the exact current surface. The
 
 `run` remains useful for compatibility and selected interactive commands such as `.deft/core/run bootstrap`, `.deft/core/run spec`, `.deft/core/run validate`, and `.deft/core/run doctor`. New deterministic automation should usually enter through Taskfile.
 
+## Session Ritual And Gate Stack
+
+Interactive sessions start with a quick ritual and become eligible for implementation only after the gated verifier records the heavier checks. The same state then feeds the story and implementation gates.
+
+```mermaid
+flowchart TD
+    Start["Interactive session starts"] --> Read["Read AGENTS.md, USER.md, PROJECT-DEFINITION"]
+    Read --> Confirm["Confirm Deft alignment and addressing name"]
+    Confirm --> Quick["task session:start<br/>quick tier"]
+    Quick --> State[".deft/ritual-state.json<br/>worktree, HEAD, freshness window"]
+    State --> Intent["Implementation intent or start_agent dispatch?"]
+    Intent --> Gated["task verify:session-ritual -- --tier=gated"]
+    Gated --> Story["task verify:story-ready<br/>active scope and clean/allowed tree"]
+    Story --> Preflight["task vbrief:preflight<br/>active + running"]
+    Preflight --> Cache["task verify:cache-fresh"]
+    Cache --> Branch["task verify:branch"]
+    Branch --> Work["Implement or dispatch agent"]
+```
+
+The ordering is architectural, not ceremony. Each gate can assume the previous one already proved its part of the state: session freshness, scope readiness, implementation intent, cache freshness, and branch policy.
+
 ## Lifecycle State
 
 Work moves through vBRIEF lifecycle folders:
@@ -99,6 +147,17 @@ Work moves through vBRIEF lifecycle folders:
 
 The folder and `plan.status` must agree. The scope tasks update both together. `task verify:story-ready` and `task vbrief:preflight` are the implementation-intent gates for active work.
 
+```mermaid
+flowchart LR
+    Proposed["proposed<br/>candidate"] -->|"task scope:promote"| Pending["pending<br/>accepted backlog"]
+    Pending -->|"task scope:activate"| Active["active<br/>running"]
+    Active -->|"task scope:complete"| Completed["completed<br/>done"]
+    Proposed -->|"task scope:cancel"| Cancelled["cancelled<br/>rejected"]
+    Pending -->|"task scope:cancel"| Cancelled
+    Active -->|"task scope:fail or cancel"| Cancelled
+    Completed -.->|"task scope:restore"| Pending
+```
+
 ## Triage And Cache
 
 Deft's backlog workflow is cache-backed:
@@ -109,6 +168,17 @@ Deft's backlog workflow is cache-backed:
 - `task triage:queue`, `task triage:accept`, `task triage:reject`, `task triage:defer`, and related verbs turn external issues into auditable scope decisions.
 
 Agents should not choose backlog work from memory when the cache workflow applies. They should consult the cache/task surface first.
+
+```mermaid
+flowchart TD
+    GH["External backlog<br/>GitHub issues"] --> Fetch["task triage:bootstrap<br/>task cache:fetch-all"]
+    Fetch --> Cache[".deft-cache/<source>/<key>"]
+    Cache --> Queue["task triage:queue<br/>ranked candidates"]
+    Queue --> Decision{"Operator or agent decision"}
+    Decision -->|"accept"| Scope["task triage:accept<br/>proposed scope vBRIEF"]
+    Decision -->|"reject/defer/needs-ac"| Audit["vbrief/.eval<br/>decision audit"]
+    Scope --> Audit
+```
 
 ## Codebase Architecture Metadata
 

@@ -7,19 +7,21 @@
 
 ## Overview
 
-Deft Directive is a self-dogfooded framework for AI-assisted software work. It combines agent-consumed guidance, deterministic Taskfile automation, vBRIEF lifecycle metadata, Python validation/rendering tools, a Go installer, local triage/cache workflows, content packs, and release/PR gates. The current source tree is Taskfile-first: `task --list` is the primary command contract, while `run`/`run.py`/`run.bat` remain compatibility and interactive helper surfaces. Project identity and architectural intent live in `vbrief/PROJECT-DEFINITION.vbrief.json`; rendered markdown files such as `SPECIFICATION.md`, `PRD.md`, and `ROADMAP.md` are generated views.
+Deft Directive is a self-dogfooded framework for AI-assisted software work. It combines agent-consumed guidance, deterministic Taskfile automation, vBRIEF lifecycle metadata, Python validation/rendering tools, a Go installer, local triage/cache workflows, content packs, and release/PR gates. The current source tree is Taskfile-first: `task --list` is the primary command contract, while `run`/`run.py`/`run.bat` remain compatibility and interactive helper surfaces. Project identity and architectural intent live in `vbrief/PROJECT-DEFINITION.vbrief.json`; rendered markdown files such as `SPECIFICATION.md`, `PRD.md`, and `ROADMAP.md` are generated views. The early Deft intent remains active: turn loose agent prompting into a repeatable practice with modular guidance, lazy loading, specification before implementation, observable tests/gates, and a feedback loop for lessons learned.
 
 ## ProblemStatement
 
-The framework has outgrown its early self-specification. The old project narratives described a four-component, Phase 1-3 system centered on Markdown content, the `run` CLI, the Go installer, and tests. That no longer matches the implemented command surface or operational model. Current contributors need docs that reflect Taskfile-first automation, `.deft/core` installation, vBRIEF lifecycle state, triage/cache/scope workflows, content packs, release/PR automation, and codebase-structure projection contracts.
+The framework has outgrown its early self-specification. The old project narratives described a four-component, Phase 1-3 system centered on Markdown content, the `run` CLI, the Go installer, and tests. That no longer matches the implemented command surface or operational model. Current contributors need docs that reflect Taskfile-first automation, `.deft/core` installation, vBRIEF lifecycle state, triage/cache/scope workflows, content packs, release/PR automation, and codebase-structure projection contracts without flattening the original method-oriented intent behind Deft.
 
 ## Goals
 
 1. Keep vBRIEF sources authoritative and generated markdown clearly derivative.
 2. Present `task` as the primary deterministic command surface and `run` as compatibility/interactive support.
 3. Document the actual implemented modules: framework content, Taskfile tasks, Python tooling, Go installer, vBRIEF metadata, triage/cache/scope, release/PR/swarm automation, content packs, codebase contracts, and tests.
-4. Keep the codebase MAP distinction accurate: provider/extractor/registry contracts exist; `.planning/codebase/MAP.md` generation is still planned.
-5. Remove or label stale Phase 1-3 and v0.5-era narratives so agents do not treat historical text as current authority.
+4. Preserve the early Deft mental model: modular guidance, lazy loading, TDD/SDD, small reversible scopes, and self-improving standards.
+5. Use diagrams where process flow matters, especially session rituals, implementation gates, lifecycle movement, source/projection boundaries, and triage/cache flow.
+6. Keep the codebase MAP distinction accurate: provider/extractor/registry contracts exist; `.planning/codebase/MAP.md` generation is still planned.
+7. Remove or label stale Phase 1-3 and v0.5-era narratives so agents do not treat historical text as current authority.
 
 ## UserStories
 
@@ -33,11 +35,14 @@ The framework has outgrown its early self-specification. The old project narrati
 
 **US-5** -- As a future MAP implementer, I want codebase-structure docs to state which contract pieces are implemented and which projections remain planned.
 
+**US-6** -- As a reader learning Deft, I want diagrams and concept sections that explain the process flow and original intent behind the framework, not just an inventory of implemented files.
+
 ## SuccessMetrics
 
 - Project-definition and specification narratives describe the current architecture rather than the early Phase 1-3 shape.
 - `SPECIFICATION.md` is regenerated from `vbrief/specification.vbrief.json` and opens with current system context.
 - Architecture, concepts, files, commands, README, and codebase docs agree on Taskfile-first operation and vBRIEF source-of-truth boundaries.
+- Architecture/concepts/commands docs include current Mermaid diagrams for rituals, gates, lifecycle, projections, and triage/cache flow.
 - Stale planning docs cannot be mistaken for current architecture guidance.
 - Validation commands for vBRIEF and codeStructure pass after the documentation refresh.
 
