@@ -84,7 +84,7 @@
     },
     {
       "id": "testing-universal-coverage",
-      "text": "Achieve \u226585% coverage (overall + per-module/package/file)",
+      "text": "Achieve ≥85% coverage (overall + per-module/package/file)",
       "owner_file": "coding/testing.md",
       "owner_section": "## Universal Requirements",
       "authority": "MUST",
@@ -132,7 +132,7 @@
     },
     {
       "id": "glossary-ubiquitous-language",
-      "text": "**Ubiquitous language** \u2014 The shared, precisely defined vocabulary",
+      "text": "**Ubiquitous language** — The shared, precisely defined vocabulary",
       "owner_file": "core/glossary.md",
       "owner_section": "## Framework Design Terms",
       "authority": "MUST",
@@ -140,7 +140,7 @@
     },
     {
       "id": "glossary-rule-ownership-principle",
-      "text": "**Rule ownership** \u2014 The principle that each concept in directive has exactly one owning file",
+      "text": "**Rule ownership** — The principle that each concept in directive has exactly one owning file",
       "owner_file": "core/glossary.md",
       "owner_section": "## Framework Design Terms",
       "authority": "MUST",
@@ -148,7 +148,7 @@
     },
     {
       "id": "glossary-work-decomposition-hierarchy",
-      "text": "Release          \u2190 Shippable version (one or more features)",
+      "text": "Release          ← Shippable version (one or more features)",
       "owner_file": "core/glossary.md",
       "owner_section": "## Deft Work Decomposition Hierarchy",
       "authority": "MUST",
@@ -236,11 +236,11 @@
     },
     {
       "id": "change-lifecycle-overview",
-      "text": "Each change is a self-contained unit of work with its own folder in `history/changes/`",
+      "text": "The active implementation is vBRIEF lifecycle first and Taskfile first",
       "owner_file": "commands.md",
       "owner_section": "## Overview",
       "authority": "MUST",
-      "last_verified": "2026-04-28"
+      "last_verified": "2026-06-17"
     },
     {
       "id": "main-rule-authority-axiom",

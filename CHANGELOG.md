@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Codebase structure now has a provider-ready contract layer (#1595)** -- Directive can emit a dependency-free `codebase-map.v1` artifact, validate an external `codebase-provider.v1` response, and fall back to the default extractor when no conformant provider is configured. The codeStructure validator now dogfoods PR3 discipline checks that keep authored metadata free of derived facts while the projection registry keeps canonical entries command-agnostic. Refs #1498 #1530 #1659.
 
 ### Changed
+- **Project architecture docs now match the implemented framework shape** -- `PROJECT-DEFINITION`, the rendered specification, architecture/concepts/file-map docs, command guidance, and codebase planning notes now describe the Taskfile-first, vBRIEF-backed, `.deft/core` installer, triage/cache/scope, packs, release/PR, and codeStructure contract model instead of the older four-component `run`-centric narrative. Refs #1498 #1595 #1659.
 
 ### Fixed
 

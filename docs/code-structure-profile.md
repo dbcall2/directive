@@ -1,6 +1,6 @@
 # CodeStructure Profile
 
-Status: accepted for #1595 PR 2; extended by #1595 PR 3
+Status: accepted for #1595 PR 2; extended by #1595 PR 3; current contract layer implemented
 
 Related: [#1595](https://github.com/deftai/directive/issues/1595), [#1498](https://github.com/deftai/directive/issues/1498), [#1618](https://github.com/deftai/directive/issues/1618), [#1379](https://github.com/deftai/directive/issues/1379)
 
@@ -16,6 +16,29 @@ a dependency-free default extractor, a provider artifact handshake, a
 projection-kind registry, and discipline checks that keep authored
 `codeStructure` focused on canonical intent. MAP rendering, generated headers,
 local indexes, and consumer propagation are still later slices of #1595.
+
+## Current Implementation Status
+
+Implemented:
+
+- `task codebase:validate-structure`
+- `task codebase:extract-default`
+- `task codebase:provider-map`
+- `task codebase:projection-registry`
+- `vbrief/schemas/codebase-map.schema.json`
+- `tests/fixtures/codebase-map.v1.golden.json`
+
+Planned / not yet implemented:
+
+- `.planning/codebase/MAP.md` generation
+- codebase-map freshness checks
+- generated source headers
+- local indexes
+- consumer propagation of generated MAP artifacts
+
+The `projectionManifest[]` entry for `.planning/codebase/MAP.md` is therefore
+an intentional planned projection declaration, not proof that the projection
+exists yet.
 
 ## Physical Home
 
