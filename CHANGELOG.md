@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.51.0] - 2026-06-17
+
+> Onboarding hardening and a bug-pass sweep: the installer now verifies a compatible Python up front, triage ingestion gains label/author filters, review-cycle exit gates fail closed against partial bot reviews, and swarms now commit their own lifecycle close-out.
+
+### Added
 - **Triage ingestion can now be scoped by label and author (#1033, #1055)** -- `task scm:issue:list --rest`, `task cache:fetch-all`, and `task triage:bootstrap` accept `--label NAME[,NAME...]` (repeatable) and `--author LOGIN` so operators can pull just the issues that matter instead of the whole open backlog. The two filters compose with AND semantics (e.g. issues carrying a label AND created by a given person), and `--author` maps to the GitHub REST `creator` field so the reads stay off the GraphQL bucket. Closes #1033. Closes #1055.
 - **Installer now checks for a compatible Python up front (#1668)** -- `deft-install` validates that a Python 3.11+ interpreter is available before finishing, resolving it across `DEFT_PYTHON`, `python`, `python3`, and the Windows `py` launcher instead of assuming `python3` is on PATH. If only an older or missing interpreter is found, you get a clear, actionable message naming the 3.11+ requirement and the `DEFT_PYTHON` override, and the post-install doctor step now degrades gracefully instead of dumping a raw Python traceback. The installed git hooks use the same resolution order and skip the Windows App-Execution-Alias `python3` stub. Closes #1668.
 - **A copy-pasteable install one-liner for "download from GitHub and install here" (#1661)** -- the README install section and QUICK-START now carry a canonical per-platform fetch-and-run one-liner that downloads the correct release binary from `releases/latest/download`, makes it executable, and runs it headless (`--yes --repo-root . --json`). This gives agents asked to install Deft from GitHub a deterministic path so they stop fabricating a non-existent source-checkout `go build` and failing. A content test guards the guidance against regression. Closes #1661.
@@ -3330,7 +3342,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.50.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.51.0...HEAD
+[0.51.0]: https://github.com/deftai/directive/compare/v0.50.0...v0.51.0
 [0.50.0]: https://github.com/deftai/directive/compare/v0.49.0...v0.50.0
 [0.49.0]: https://github.com/deftai/directive/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/deftai/directive/compare/v0.47.0...v0.48.0

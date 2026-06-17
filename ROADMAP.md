@@ -580,6 +580,15 @@
 - **#1637** -- packs:slice v2 -- deeper slices across all four packs -- `[completed]`
 - **#1637** -- packs:slice v2 -- new patterns pack surface -- `[completed]`
 - **#1637** -- packs:slice v2 -- new swarm-spec pack surface -- `[completed]`
+- **#1033** -- triage:bootstrap / cache:fetch-all / scm:issue:list cannot filter ingest by label -- `[completed]`
 - **#1595** -- Align codeStructure PR2 with the #1595 current-shape override -- `[completed]`
 - **#1648** -- fix(ritual): call gated session ritual entrypoints in-process -- `[completed]`
+- **#1668** -- Installer should validate Python 3.11+ and python3 availability before install (Windows) -- `[completed]`
+- **#425** -- ci(release): explicitly flag pre-release tags -- auto-detection not working for -rc.N suffix -- `[completed]`
+- **#670** -- task migrate:vbrief produces non-prettier-clean output, breaks downstream task check -- `[completed]`
+- **#696** -- fix(harness): enforce USER.md content-read on Returning Sessions; alignment confirmation must echo addressing-name -- `[completed]`
+- **#1259** -- Review-cycle skill can exit on partial Greptile review and allow unsafe merge -- `[completed]`
+- **#1316** -- bug(run,scripts/_doctor_state): _render_doctor_status_line over-counts warnings by 1 on dirty throttle-skip when AGENTS.md freshness check emits severity=skip -- `[completed]`
+- **#1319** -- bug(scripts/reconcile_issues): --apply-lifecycle-fixes over-classifies decomposition children whose planRef is OPEN but decomposition_origin parent is CLOSED (v0.33.0 cut misclassified #1283 #1284 #1285 #1291) -- `[completed]`
+- **#1358** -- fix(skills): swarm Phase 6 must commit+push vBRIEF lifecycle moves to master after merge cascade -- `[completed]`
 
