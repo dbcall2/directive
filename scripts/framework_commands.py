@@ -107,6 +107,7 @@ COMMANDS: dict[str, CommandSpec] = {
     "triage:accept": _spec("triage:accept", "triage_actions:main", default_args=("accept",)),
     "triage:status": _spec("triage:status", "triage_actions:main", default_args=("status",)),
     "triage:scope": _spec("triage:scope", "triage_scope:main"),
+    "migrate:vbrief": _spec("migrate:vbrief", "framework_commands:_cmd_migrate_vbrief"),
     "cache:fetch-all": _spec("cache:fetch-all", "cache:main", default_args=("fetch-all",)),
     "capacity:show": _spec(
         "capacity:show", "capacity_show:main", project_root_arg="--project-root"
@@ -320,6 +321,24 @@ def _cmd_core_test(argv: list[str] | None = None) -> int:
         print("no tests/ (vendored consumer) -- skipping")
         return 0
     return subprocess.run([sys.executable, "-m", "pytest", "tests"]).returncode
+
+
+def _cmd_migrate_vbrief(argv: list[str] | None = None) -> int:
+    import migrate_preflight  # noqa: PLC0415
+    import migrate_vbrief  # noqa: PLC0415
+
+    project_root = Path.cwd().resolve()
+    preflight_code = migrate_preflight.main(
+        [
+            "--project-root",
+            str(project_root),
+            "--deft-root",
+            str(FRAMEWORK_ROOT),
+        ]
+    )
+    if preflight_code != 0:
+        return preflight_code
+    return migrate_vbrief.main([str(project_root), *(argv or [])])
 
 
 def _load_callable(entrypoint: str) -> Callable[..., int | None]:
