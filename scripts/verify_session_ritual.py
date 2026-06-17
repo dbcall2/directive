@@ -19,7 +19,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from framework_commands import format_framework_command, run_framework_command  # noqa: E402
+from framework_commands import format_framework_command  # noqa: E402
 from policy import resolve_session_ritual_staleness_hours  # noqa: E402
 from ritual_sentinel import (  # noqa: E402
     RitualState,
@@ -155,8 +155,7 @@ def _default_runner(args: list[str], cwd: Path) -> tuple[int, str, str]:
             preflight_cache.main,
             ["--allow-missing-bootstrap", "--project-root", str(cwd), *argv],
         )
-    result = run_framework_command(command, argv, project_root=cwd, capture=True)
-    return result.code, result.stdout, result.stderr
+    return 2, "", f"unknown session ritual command: {command}"
 
 
 def _step_passes(step: dict[str, Any] | None) -> bool:

@@ -306,6 +306,16 @@ def test_subprocess_helpers_capture_text_as_utf8(tmp_path: Path, monkeypatch) ->
         assert kwargs["errors"] == "replace"
 
 
+def test_default_runner_rejects_unregistered_gated_command(tmp_path: Path) -> None:
+    verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
+
+    code, stdout, stderr = verifier._default_runner(["future:gated"], tmp_path)
+
+    assert code == 2
+    assert stdout == ""
+    assert "unknown session ritual command: future:gated" in stderr
+
+
 def test_call_main_treats_system_exit_none_as_success() -> None:
     verifier = _load_module("verify_session_ritual", SCRIPTS_DIR / "verify_session_ritual.py")
 

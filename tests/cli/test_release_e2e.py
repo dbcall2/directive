@@ -29,6 +29,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -322,10 +323,11 @@ class TestDispatchTaskRelease:
     def test_argv_carries_skip_ci_and_skip_build(self, monkeypatch, tmp_path):
         captured = {}
 
-        def fake_call(entrypoint, argv, *, clone_dir):
+        def fake_call(entrypoint, argv, *, clone_dir, timeout):
             captured["entrypoint"] = entrypoint
             captured["argv"] = list(argv)
             captured["clone_dir"] = clone_dir
+            captured["timeout"] = timeout
             return 0, ""
 
         monkeypatch.setattr(release_e2e, "_call_release_entrypoint", fake_call)
@@ -340,6 +342,7 @@ class TestDispatchTaskRelease:
         assert "0.0.1" in captured["argv"]
         assert "deftai/temp-x" in captured["argv"]
         assert captured["clone_dir"] == tmp_path
+        assert captured["timeout"] == release_e2e.RELEASE_ENTRYPOINT_TIMEOUT_SECONDS
 
     def test_argv_carries_allow_vbrief_drift(self, monkeypatch, tmp_path):
         """Post-#754 harness fix: e2e rehearsal MUST pass --allow-vbrief-drift.
@@ -354,8 +357,9 @@ class TestDispatchTaskRelease:
         """
         captured = {}
 
-        def fake_call(entrypoint, argv, *, clone_dir):
+        def fake_call(entrypoint, argv, *, clone_dir, timeout):
             captured["argv"] = list(argv)
+            captured["timeout"] = timeout
             return 0, ""
 
         monkeypatch.setattr(release_e2e, "_call_release_entrypoint", fake_call)
@@ -363,13 +367,18 @@ class TestDispatchTaskRelease:
             tmp_path, "0.0.1", "deftai/temp-x"
         )
         assert ok is True
+        assert captured["timeout"] == release_e2e.RELEASE_ENTRYPOINT_TIMEOUT_SECONDS
         assert "--allow-vbrief-drift" in captured["argv"], (
             "e2e rehearsal MUST pass --allow-vbrief-drift to skip the "
             "vBRIEF-lifecycle-sync gate against an empty temp repo (#754 "
             "harness fix)"
         )
 
-    def test_call_entrypoint_pins_deft_project_root_to_clone_dir(self, monkeypatch, tmp_path):
+    def test_call_entrypoint_pins_deft_project_root_to_clone_dir(
+        self,
+        monkeypatch,
+        tmp_path,
+    ):
         """#728 cycle 2 P1: entrypoint env MUST pin DEFT_PROJECT_ROOT to
         ``clone_dir``. Without this, an operator with the variable
         exported would have release.py resolve to the real
@@ -399,6 +408,63 @@ class TestDispatchTaskRelease:
         assert captured["env"] != "/operator/real/repo"
         assert captured["cwd"] == clone_dir
         assert release_e2e.os.environ.get("DEFT_PROJECT_ROOT") == "/operator/real/repo"
+
+    def test_call_entrypoint_converts_unexpected_exception_to_failure(
+        self,
+        monkeypatch,
+        tmp_path,
+    ):
+        monkeypatch.setenv("DEFT_PROJECT_ROOT", "/operator/real/repo")
+        old_cwd = Path.cwd()
+        clone_dir = tmp_path / "clone"
+        clone_dir.mkdir()
+
+        def fail(_argv):
+            raise RuntimeError("boom")
+
+        code, output = release_e2e._call_release_entrypoint(
+            fail,
+            ["0.0.1"],
+            clone_dir=clone_dir,
+            timeout=1,
+        )
+
+        assert code == release_e2e.EXIT_VIOLATION
+        assert "RuntimeError: boom" in output
+        assert Path.cwd() == old_cwd
+        assert release_e2e.os.environ.get("DEFT_PROJECT_ROOT") == "/operator/real/repo"
+
+    def test_call_entrypoint_times_out_on_hanging_entrypoint(
+        self,
+        monkeypatch,
+        tmp_path,
+    ):
+        monkeypatch.setenv("DEFT_PROJECT_ROOT", "/operator/real/repo")
+        old_cwd = Path.cwd()
+        clone_dir = tmp_path / "clone"
+        clone_dir.mkdir()
+        started = threading.Event()
+        release = threading.Event()
+
+        def hang(_argv):
+            started.set()
+            release.wait(5)
+            return 0
+
+        try:
+            code, output = release_e2e._call_release_entrypoint(
+                hang,
+                ["0.0.1"],
+                clone_dir=clone_dir,
+                timeout=0.05,
+            )
+            assert started.wait(1)
+            assert code == release_e2e.ENTRYPOINT_TIMEOUT_EXIT_CODE
+            assert "timed out" in output
+            assert Path.cwd() == old_cwd
+            assert release_e2e.os.environ.get("DEFT_PROJECT_ROOT") == "/operator/real/repo"
+        finally:
+            release.set()
 
     def test_task_missing_does_not_block_dispatch(self, monkeypatch, tmp_path):
         monkeypatch.setattr(release_e2e.shutil, "which", lambda _: None)
@@ -523,10 +589,11 @@ class TestDispatchTaskReleaseRollback:
     def test_argv_shape(self, monkeypatch, tmp_path):
         captured = {}
 
-        def fake_call(entrypoint, argv, *, clone_dir):
+        def fake_call(entrypoint, argv, *, clone_dir, timeout):
             captured["entrypoint"] = entrypoint
             captured["argv"] = list(argv)
             captured["clone_dir"] = clone_dir
+            captured["timeout"] = timeout
             return 0, ""
 
         monkeypatch.setattr(release_e2e, "_call_release_entrypoint", fake_call)
@@ -538,6 +605,7 @@ class TestDispatchTaskReleaseRollback:
         assert "0.0.1" in captured["argv"]
         assert "deftai/x" in captured["argv"]
         assert captured["clone_dir"] == tmp_path
+        assert captured["timeout"] == release_e2e.ROLLBACK_ENTRYPOINT_TIMEOUT_SECONDS
 
     def test_call_entrypoint_pins_deft_project_root_to_clone_dir(
         self,

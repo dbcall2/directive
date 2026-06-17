@@ -99,6 +99,7 @@ import shutil  # noqa: F401  -- kept for tests that monkeypatch release_e2e.shut
 import subprocess
 import sys
 import tempfile
+import threading
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -126,6 +127,9 @@ REPO_SLUG_PREFIX = "deftai-release-test-"
 # as a rehearsal artefact -- and ``X.Y.Z`` matches the strict semver
 # regex enforced by ``release._validate_version``.
 REHEARSAL_VERSION = "0.0.1"
+RELEASE_ENTRYPOINT_TIMEOUT_SECONDS = 600.0
+ROLLBACK_ENTRYPOINT_TIMEOUT_SECONDS = 300.0
+ENTRYPOINT_TIMEOUT_EXIT_CODE = 124
 
 
 # ---- Data classes -----------------------------------------------------------
@@ -357,27 +361,61 @@ def _call_release_entrypoint(
     argv: list[str],
     *,
     clone_dir: Path,
+    timeout: float | None = None,
 ) -> tuple[int, str]:
+    """Run a release entrypoint in-process with subprocess-style bounds.
+
+    The original task-backed dispatch capped release at 600s and rollback at
+    300s. In-process calls need the same fail-closed behavior so a hung release
+    command cannot block the e2e rehearsal forever.
+    """
+    if timeout is None:
+        timeout = RELEASE_ENTRYPOINT_TIMEOUT_SECONDS
     old_cwd = Path.cwd()
     old_project_root = os.environ.get("DEFT_PROJECT_ROOT")
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    os.environ["DEFT_PROJECT_ROOT"] = str(clone_dir)
-    try:
-        os.chdir(clone_dir)
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            code = entrypoint(argv)
-    except SystemExit as exc:
-        raw = exc.code
-        code = raw if isinstance(raw, int) else (0 if raw is None else 1)
-    finally:
+    real_stdout, real_stderr = sys.stdout, sys.stderr
+    result: dict[str, tuple[int, str]] = {}
+
+    def _restore_process_state() -> None:
         os.chdir(old_cwd)
         if old_project_root is None:
             os.environ.pop("DEFT_PROJECT_ROOT", None)
         else:
             os.environ["DEFT_PROJECT_ROOT"] = old_project_root
-    output = stderr.getvalue() or stdout.getvalue()
-    return int(code or 0), output
+
+    def _worker() -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        os.environ["DEFT_PROJECT_ROOT"] = str(clone_dir)
+        try:
+            os.chdir(clone_dir)
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = entrypoint(argv)
+        except SystemExit as exc:
+            raw = exc.code
+            code = raw if isinstance(raw, int) else (0 if raw is None else 1)
+        except Exception as exc:  # noqa: BLE001 -- e2e diagnostics must record failures
+            message = f"{type(exc).__name__}: {exc}"
+            captured_stderr = stderr.getvalue()
+            stderr_value = f"{captured_stderr}\n{message}" if captured_stderr else message
+            result["value"] = (EXIT_VIOLATION, stderr_value or stdout.getvalue())
+            return
+        finally:
+            _restore_process_state()
+        output = stderr.getvalue() or stdout.getvalue()
+        result["value"] = (int(code or 0), output)
+
+    worker = threading.Thread(target=_worker, name="deft-release-entrypoint", daemon=True)
+    worker.start()
+    worker.join(timeout)
+    if worker.is_alive():
+        # A hung worker may still hold process-global stdout/stderr redirects.
+        # Restore the real streams and root env before returning fail-closed.
+        sys.stdout, sys.stderr = real_stdout, real_stderr
+        _restore_process_state()
+        label = getattr(entrypoint, "__name__", "entrypoint")
+        return ENTRYPOINT_TIMEOUT_EXIT_CODE, f"{label} timed out after {timeout:g}s"
+    return result.get("value", (EXIT_VIOLATION, "entrypoint produced no result"))
 
 
 def dispatch_task_release(
@@ -429,6 +467,7 @@ def dispatch_task_release(
         release.main,
         argv,
         clone_dir=clone_dir,
+        timeout=RELEASE_ENTRYPOINT_TIMEOUT_SECONDS,
     )
     if code != 0:
         return False, (
@@ -526,6 +565,7 @@ def dispatch_task_release_rollback(
         release_rollback.main,
         argv,
         clone_dir=clone_dir,
+        timeout=ROLLBACK_ENTRYPOINT_TIMEOUT_SECONDS,
     )
     if code != 0:
         return False, (
