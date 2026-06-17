@@ -341,6 +341,7 @@ tasks:
       - verify:pack-drift
       - verify-wip-cap-framework-self-check
       - vbrief:validate
+      - codebase:validate-structure
       - verify-strategy-output
     cmds:
       - echo "All checks passed"

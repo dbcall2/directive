@@ -1,0 +1,86 @@
+{
+  "contractVersion": "codebase-provider.v1",
+  "coupling": [
+    {
+      "confidence": "heuristic",
+      "derivedFrom": "import-line-heuristic",
+      "evidence": [
+        {
+          "import": "lib.util",
+          "line": 1,
+          "path": "app/main.py"
+        }
+      ],
+      "from": "app",
+      "to": "lib"
+    }
+  ],
+  "degraded": [
+    {
+      "code": "AST-FREE-HEURISTICS",
+      "message": "Default extractor uses repository walking and import-line heuristics only; no AST or language parser provider was configured."
+    }
+  ],
+  "entryPoints": [
+    {
+      "confidence": "heuristic",
+      "derivedFrom": "filename-heuristic",
+      "module": "app",
+      "path": "app/main.py"
+    }
+  ],
+  "formatVersion": "codebase-map.v1",
+  "kind": "codebase-map",
+  "languageDistribution": [
+    {
+      "derivedFrom": "extension-heuristic",
+      "files": 2,
+      "language": "Python"
+    }
+  ],
+  "modules": [
+    {
+      "derivedFrom": {
+        "files": "repository-glob-walk",
+        "intent": "codeStructure.modules[]"
+      },
+      "fileCount": 1,
+      "files": [
+        "app/main.py"
+      ],
+      "id": "app",
+      "name": "App",
+      "pathGlobs": [
+        "app/**/*.py"
+      ],
+      "purpose": "Application entry points."
+    },
+    {
+      "derivedFrom": {
+        "files": "repository-glob-walk",
+        "intent": "codeStructure.modules[]"
+      },
+      "fileCount": 1,
+      "files": [
+        "lib/util.py"
+      ],
+      "id": "lib",
+      "name": "Library",
+      "pathGlobs": [
+        "lib/**/*.py"
+      ],
+      "purpose": "Shared helpers."
+    }
+  ],
+  "provider": {
+    "degraded": true,
+    "mode": "default",
+    "name": "directive-default-extractor",
+    "version": "0.1"
+  },
+  "source": {
+    "codeStructureHome": "plan.architecture.codeStructure",
+    "codeStructurePath": "vbrief/PROJECT-DEFINITION.vbrief.json",
+    "projectRoot": "/fixture"
+  }
+}

@@ -1,6 +1,6 @@
 # CodeStructure Profile
 
-Status: accepted for #1595 PR 2
+Status: accepted for #1595 PR 2; extended by #1595 PR 3
 
 Related: [#1595](https://github.com/deftai/directive/issues/1595), [#1498](https://github.com/deftai/directive/issues/1498), [#1618](https://github.com/deftai/directive/issues/1618), [#1379](https://github.com/deftai/directive/issues/1379)
 
@@ -10,9 +10,12 @@ Related: [#1595](https://github.com/deftai/directive/issues/1595), [#1498](https
 maintainers a stable module/path/pattern record without making source comments,
 generated MAPs, or local indexes authoritative.
 
-The PR 2 profile is intentionally limited to metadata shape and validation.
-Brownfield extraction, MAP generation, generated headers, local indexes, and
-consumer propagation are later slices of #1595.
+The PR 2 profile was intentionally limited to metadata shape and validation.
+PR 3 adds the contract layer between authored metadata and later projections:
+a dependency-free default extractor, a provider artifact handshake, a
+projection-kind registry, and discipline checks that keep authored
+`codeStructure` focused on canonical intent. MAP rendering, generated headers,
+local indexes, and consumer propagation are still later slices of #1595.
 
 ## Physical Home
 
@@ -75,5 +78,68 @@ task codebase:validate-structure
 
 The validator checks stable ids, safe repository-relative globs and paths,
 module references, duplicate ownership conflicts, projection manifest entries,
-and unknown-key tolerance. It does not extract metadata from code and does not
-generate projections.
+unknown-key tolerance, and PR 3 source-of-truth discipline. It hard-blocks known
+derived-fact keys such as imports, coupling, file counts, languages, symbols, or
+entry points from authored metadata. It also rejects multiple codeStructure
+homes in one file, rejects codeStructure-bearing vBRIEF siblings during default
+project discovery, verifies existing generated projections carry a generated
+banner/source pointer, and checks glossary URIs when a project root is known.
+
+Boundedness findings such as unusually large `filePurposeOverrides[]` are
+warnings by default. Pass `--strict` through the task when a caller wants those
+warnings to fail:
+
+```bash
+task codebase:validate-structure -- --strict
+```
+
+## Extraction Contract
+
+Run:
+
+```bash
+task codebase:extract-default
+```
+
+The default extractor emits a `codebase-map.v1` JSON artifact to stdout. It
+uses `codeStructure.modules[].pathGlobs` when available and falls back to
+top-level repository directories when no authored metadata exists. Coupling,
+entry points, and language distribution are derived with deterministic
+repository walking and import-line or filename heuristics only; no network,
+model, parser, or AST dependency is used. The artifact carries provenance and
+degraded markers so later MAP rendering can distinguish authored intent from
+heuristic facts.
+
+Run:
+
+```bash
+task codebase:provider-map -- --provider-command "<provider argv>"
+```
+
+External providers may replace the default artifact only when they emit a JSON
+object with `formatVersion: "codebase-map.v1"`,
+`contractVersion: "codebase-provider.v1"`, `kind: "codebase-map"`, provider
+metadata, source metadata, a non-empty `modules[]` array whose entries carry
+`id`, `files`, and `derivedFrom`, and the tier-1 arrays `coupling[]`,
+`entryPoints[]`, `languageDistribution[]`, and `degraded[]`. The
+language-neutral JSON Schema at `vbrief/schemas/codebase-map.schema.json` is
+the normative contract: `scripts/codebase_provider.py` validates provider
+artifacts by interpreting that schema with a dependency-free local subset
+validator, so the contract survives a future host-language rewrite instead of
+living only in Python field checks. `tests/fixtures/codebase-map.v1.golden.json`
+is the canonical example and regression fixture. Missing, failing, or
+mismatched providers fall back to the default extractor instead of failing the
+metadata validation path.
+
+## Projection Registry
+
+`projectionManifest[].kind` remains invocation-agnostic. For the first kind,
+`codebase-map`, Directive owns the format and provider contract in
+`scripts/codebase_projection_registry.py` and exposes it with:
+
+```bash
+task codebase:projection-registry -- --kind codebase-map
+```
+
+The registry stores semantic actions, not literal `task ...` command strings,
+so canonical metadata stays portable across task-runner follow-ups.
