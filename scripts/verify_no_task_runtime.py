@@ -52,12 +52,36 @@ class Visitor(ast.NodeVisitor):
     def __init__(self, path: Path) -> None:
         self.path = path
         self.findings: list[Finding] = []
+        self.subprocess_names = {"subprocess"}
+        self.subprocess_func_names: set[str] = set()
+        self.shutil_names = {"shutil"}
+        self.shutil_which_names: set[str] = set()
+
+    def visit_Import(self, node: ast.Import) -> None:  # noqa: N802
+        for alias in node.names:
+            local_name = alias.asname or alias.name
+            if alias.name == "subprocess":
+                self.subprocess_names.add(local_name)
+            if alias.name == "shutil":
+                self.shutil_names.add(local_name)
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
+        if node.module == "subprocess":
+            for alias in node.names:
+                if alias.name in SUBPROCESS_FUNCS:
+                    self.subprocess_func_names.add(alias.asname or alias.name)
+        if node.module == "shutil":
+            for alias in node.names:
+                if alias.name == "which":
+                    self.shutil_which_names.add(alias.asname or alias.name)
+        self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
         if isinstance(node.func, ast.Attribute):
             if (
                 isinstance(node.func.value, ast.Name)
-                and node.func.value.id == "subprocess"
+                and node.func.value.id in self.subprocess_names
                 and node.func.attr in SUBPROCESS_FUNCS
                 and _literal_first_arg(node) == "task"
             ):
@@ -70,9 +94,32 @@ class Visitor(ast.NodeVisitor):
                 )
             if (
                 node.func.attr == "which"
-                and _is_name_or_attr(node.func.value, "shutil")
+                and (
+                    _is_name_or_attr(node.func.value, "shutil")
+                    or (
+                        isinstance(node.func.value, ast.Name)
+                        and node.func.value.id in self.shutil_names
+                    )
+                )
                 and _literal_first_arg(node) == "task"
             ):
+                self.findings.append(
+                    Finding(
+                        self.path,
+                        node.lineno,
+                        "runtime go-task PATH probe is forbidden",
+                    )
+                )
+        if isinstance(node.func, ast.Name):
+            if node.func.id in self.subprocess_func_names and _literal_first_arg(node) == "task":
+                self.findings.append(
+                    Finding(
+                        self.path,
+                        node.lineno,
+                        "runtime subprocess invocation of go-task is forbidden",
+                    )
+                )
+            if node.func.id in self.shutil_which_names and _literal_first_arg(node) == "task":
                 self.findings.append(
                     Finding(
                         self.path,
