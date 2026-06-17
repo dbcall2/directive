@@ -641,6 +641,46 @@ def template_text() -> str:
     return TEMPLATE_PATH.read_text(encoding="utf-8")
 
 
+def test_template_contains_non_greedy_last_reviewed_sha_regex(
+    template_text: str,
+) -> None:
+    """#1326: the template MUST encode the NON-GREEDY `Last reviewed commit:`
+    SHA regex (`\\[.*?\\]`), and MUST NOT carry the pre-#1326 greedy negated-
+    bracket form (`\\[[^\\]]*\\]`) in its regex lines.
+
+    This is the canonical-regex sync test updated in lockstep with the template
+    edit: a future change that reverts the link-text group to `[^\\]]*` (which
+    breaks on escaped-bracket commit subjects) fails here immediately. The bare
+    token `[^\\]]*` still appears in the template's EXPLANATORY prose (the
+    "NOT a `[^\\]]*` negated-bracket class" rationale), so the negative
+    assertion pins the full greedy REGEX fragment `Last reviewed commit:\\s*
+    \\[[^\\]]*\\]\\(`, not the standalone token.
+    """
+    assert r"Last reviewed commit:\s*\[.*?\]\(" in template_text, (
+        "template missing the non-greedy `Last reviewed commit:` SHA regex "
+        "(`\\[.*?\\]`) -- escaped-bracket commit subjects need the non-greedy "
+        "link-text group (#1326)"
+    )
+    assert r"Last reviewed commit:\s*\[[^\]]*\]\(" not in template_text, (
+        "template still carries the pre-#1326 greedy `[^\\]]*` negated-bracket "
+        "regex fragment -- revert breaks on escaped-bracket link text (#1326)"
+    )
+    assert "#1326" in template_text, (
+        "template must cite the escaped-bracket regex recurrence issue (#1326)"
+    )
+    rendered = template_text.format(
+        pr_number=1326,
+        repo="deftai/directive",
+        poll_interval_seconds=90,
+        poll_cap_minutes=30,
+        parent_agent_id="parent-id",
+    )
+    assert r"Last reviewed commit:\s*\[.*?\]\(" in rendered, (
+        "rendered template missing the non-greedy `Last reviewed commit:` "
+        "SHA regex (#1326)"
+    )
+
+
 def test_template_contains_code_fence_strip(template_text: str) -> None:
     """Template MUST encode the #1004 code-fence strip before detection.
 
@@ -883,8 +923,20 @@ _NAIVE_INLINE_SHA_RE = re.compile(
 )
 # Template-prescribed markdown-link regex (verbatim mirror of the template's
 # `Last reviewed commit:` section). Doubled-brace form not needed here because
-# this is the reference Python module, not the template body.
+# this is the reference Python module, not the template body. The link-text
+# group is the NON-GREEDY `.*?` (NOT a `[^\]]*` negated-bracket class) so a
+# commit subject carrying escaped brackets (e.g. `add \[Unreleased\] entry`)
+# binds to the real `](.../commit/<sha>` boundary instead of stopping at the
+# first escaped `\]` and falling through to last_reviewed_sha=None (#1326).
 _MARKDOWN_LINK_SHA_RE = re.compile(
+    r"Last reviewed commit:\s*\[.*?\]\("
+    r"https?://github\.com/[^/]+/[^/]+/commit/(?P<sha>[0-9a-f]{7,40})"
+)
+
+# Negative-control: the pre-#1326 greedy negated-bracket form. Used by the
+# escaped-bracket regression test to prove the OLD regex would have missed the
+# SHA (returns None) while the new non-greedy form extracts it correctly.
+_GREEDY_NEGATED_BRACKET_SHA_RE = re.compile(
     r"Last reviewed commit:\s*\[[^\]]*\]\("
     r"https?://github\.com/[^/]+/[^/]+/commit/(?P<sha>[0-9a-f]{7,40})"
 )
@@ -902,6 +954,78 @@ def parse_last_reviewed_sha_naive_inline(body: str):
     return m.group(1) if m else None
 
 
+# ---------------------------------------------------------------------------
+# #1326 -- escaped-bracket link-text regression. Greptile commit subjects can
+# carry escaped brackets in the markdown link text (e.g. a CHANGELOG-touching
+# commit titled `docs: add \[Unreleased\] entry`). The pre-#1326 greedy
+# `[^\]]*` negated-bracket class stops at the first escaped `\]`, never reaches
+# the real `](.../commit/<sha>` boundary, and yields last_reviewed_sha=None --
+# a false STALL / TIMEOUT on a clean review. The non-greedy `.*?` form binds to
+# the real boundary. These tests pin both the failure mode (negative control)
+# and the fix.
+# ---------------------------------------------------------------------------
+
+_ESCAPED_BRACKET_SHA = "a1b2c3d4e5f60718293a4b5c6d7e8f9001122334"
+
+BODY_ESCAPED_BRACKET_LINK_TEXT = (
+    "Greptile review of head a1b2c3d\n"
+    "\n"
+    "## Confidence Score: 5/5\n"
+    "\n"
+    "No P0 or P1 issues found. The change looks clean and well-tested.\n"
+    "\n"
+    "Last reviewed commit: [docs: add \\[Unreleased\\] entry]"
+    f"(https://github.com/deftai/directive/commit/{_ESCAPED_BRACKET_SHA})\n"
+)
+
+
+def test_escaped_bracket_link_text_extracts_sha_non_greedy() -> None:
+    """#1326: a `Last reviewed commit:` link whose text contains escaped
+    brackets MUST extract the SHA via the non-greedy `.*?` regex.
+
+    The negative control proves the OLD greedy `[^\\]]*` form misses it.
+    """
+    # Negative control: the pre-#1326 greedy negated-bracket regex stops at the
+    # first escaped `\]` inside the link text and never matches -> None.
+    assert (
+        _GREEDY_NEGATED_BRACKET_SHA_RE.search(BODY_ESCAPED_BRACKET_LINK_TEXT)
+        is None
+    ), (
+        "negative control: the greedy `[^\\]]*` regex must FAIL to extract the "
+        "SHA from escaped-bracket link text (this is the #1326 bug)"
+    )
+    # The shipped non-greedy regex extracts the full 40-hex SHA correctly.
+    assert (
+        parse_last_reviewed_sha_markdown_link(BODY_ESCAPED_BRACKET_LINK_TEXT)
+        == _ESCAPED_BRACKET_SHA
+    ), (
+        "non-greedy `.*?` regex must extract the SHA from a commit subject "
+        "containing escaped brackets (#1326)"
+    )
+
+
+def test_escaped_bracket_link_text_clean_review_exits_clean() -> None:
+    """#1326: the escaped-bracket body is an otherwise-clean review and MUST
+    drive the poll loop to CLEAN, not STALL.
+
+    Pre-#1326 the greedy regex returned None for `last_reviewed_sha`, condition
+    (1) `sha_match` held the gate, and the poller wedged into STALL on a clean
+    review. With the non-greedy fix the SHA matches HEAD and the loop exits
+    CLEAN within one poll.
+    """
+    exit_class, polls_run, holdout, log_lines = simulate_poll_loop(
+        body=BODY_ESCAPED_BRACKET_LINK_TEXT,
+        head_sha=_ESCAPED_BRACKET_SHA,
+        max_polls=5,
+    )
+    assert exit_class == "CLEAN", (
+        f"escaped-bracket clean review must exit CLEAN, got {exit_class!r}; "
+        f"log_lines={log_lines!r}"
+    )
+    assert polls_run == 1
+    assert holdout is None
+
+
 def evaluate_clean_gate(
     *,
     last_reviewed_sha,
@@ -910,14 +1034,22 @@ def evaluate_clean_gate(
     confidence,
     ci_failures: int,
     errored: bool,
+    terminal_check_run: bool = True,
 ):
-    """Reference (5)-condition CLEAN gate evaluator.
+    """Reference (6)-condition CLEAN gate evaluator.
 
     Mirrors the template body's `evaluate_clean_gate` function exactly --
     the order of checks is the operative contract so `clean_gate_holdout`
     names the FIRST failing condition, not a downstream cascade. Returns
     a tuple of ``(is_clean: bool, clean_gate_holdout: Optional[str])`` per
     the template body.
+
+    Condition (6) ``terminal_check_run`` (#1259) fails the gate CLOSED
+    unless the ``Greptile Review`` check-run on the current HEAD is terminal
+    (``status == "completed"`` AND ``conclusion`` in {success, neutral}). It
+    defaults to ``True`` here only so the legacy AC-3/AC-4 callers that
+    predate #1259 keep their pre-existing semantics; the INCOMPLETE_BUT_RATED
+    regression below passes ``terminal_check_run=False`` explicitly.
     """
     if last_reviewed_sha is None or last_reviewed_sha != head_sha:
         return False, "sha_match"
@@ -929,6 +1061,8 @@ def evaluate_clean_gate(
         return False, "ci_failures"
     if errored:
         return False, "errored"
+    if not terminal_check_run:
+        return False, "terminal_check_run"
     return True, None
 
 
@@ -970,6 +1104,7 @@ def simulate_poll_loop(
     ci_failures: int = 0,
     max_polls: int = 5,
     stall_threshold: int = 3,
+    terminal_check_run: bool = True,
 ):
     """Drive a synthetic poll loop over a static rolling-summary body.
 
@@ -998,6 +1133,7 @@ def simulate_poll_loop(
             confidence=confidence,
             ci_failures=ci_failures,
             errored=errored,
+            terminal_check_run=terminal_check_run,
         )
         last_holdout = clean_gate_holdout
         log_lines.append(
@@ -1328,6 +1464,71 @@ def test_ac4_regression_clean_exit_unchanged_on_pre_1039_bodies() -> None:
     assert holdout == "has_blocking"
 
 
+def test_incomplete_but_rated_non_terminal_check_run_does_not_exit_clean() -> None:
+    """#1259 P1 regression: INCOMPLETE_BUT_RATED MUST NOT exit CLEAN.
+
+    The trap the #1259 fix to the poller's `evaluate_clean_gate` closes:
+    the rolling-summary parses fully clean (markdown-link SHA == HEAD,
+    confidence > 3, no P0/P1), CI is green, and the body is not the errored
+    sentinel -- so all FIVE legacy conditions pass -- BUT the `Greptile
+    Review` check-run is still non-terminal (in_progress / cancelled /
+    timed_out). Pre-#1259 the gate returned ``(True, None)`` and the poller
+    exited CLEAN prematurely against an un-landed review. With condition (6)
+    `terminal_check_run=False` the gate fails CLOSED: the loop never exits
+    CLEAN and instead bounds out via the (5) STALL fail-loud exit naming the
+    `terminal_check_run` holdout. `ci_failures` is scoped to `CI / *` checks
+    and canNOT stand in for the Greptile check-run, which is why this is a
+    distinct condition.
+    """
+    # Direct unit assertion on the gate: all five legacy conditions pass but
+    # the Greptile check-run is non-terminal -> holdout names terminal_check_run.
+    is_clean, holdout = evaluate_clean_gate(
+        last_reviewed_sha=_HEAD_SHA,
+        head_sha=_HEAD_SHA,
+        has_blocking=False,
+        confidence=5,
+        ci_failures=0,
+        errored=False,
+        terminal_check_run=False,
+    )
+    assert (is_clean, holdout) == (False, "terminal_check_run"), (
+        "non-terminal Greptile check-run must fail the CLEAN gate closed "
+        "with holdout='terminal_check_run' (#1259)"
+    )
+
+    # End-to-end loop: the SAME body that exits CLEAN within one poll when the
+    # check-run is terminal MUST NOT exit CLEAN when terminal_check_run=False;
+    # it bounds out via STALL with the terminal_check_run holdout.
+    exit_class, polls_run, holdout, log_lines = simulate_poll_loop(
+        body=BODY_AC4_MARKDOWN_LINK_CLEAN,
+        head_sha=_HEAD_SHA,
+        ci_failures=0,
+        max_polls=5,
+        stall_threshold=3,
+        terminal_check_run=False,
+    )
+    assert exit_class != "CLEAN", (
+        "INCOMPLETE_BUT_RATED (non-terminal Greptile check-run) must NOT exit "
+        f"CLEAN, got {exit_class!r}; log_lines={log_lines!r}"
+    )
+    assert exit_class == "STALL", (
+        "INCOMPLETE_BUT_RATED must bound out via the (5) STALL fail-loud exit, "
+        f"got {exit_class!r}; log_lines={log_lines!r}"
+    )
+    assert holdout == "terminal_check_run", (
+        f"STALL holdout must name terminal_check_run, got {holdout!r}"
+    )
+
+    # Sanity: the identical body WITH a terminal check-run still exits CLEAN,
+    # proving terminal_check_run is the sole differentiator.
+    clean_exit, _, clean_holdout, _ = simulate_poll_loop(
+        body=BODY_AC4_MARKDOWN_LINK_CLEAN,
+        head_sha=_HEAD_SHA,
+        terminal_check_run=True,
+    )
+    assert (clean_exit, clean_holdout) == ("CLEAN", None)
+
+
 # ---------------------------------------------------------------------------
 # Synchronization tests -- pin the template encoding so a future edit that
 # drops the (5) STALL block, the clean_gate_holdout surface, or the Tier 1
@@ -1362,6 +1563,56 @@ def test_template_contains_evaluate_clean_gate_function(template_text: str) -> N
         assert holdout_name in template_text, (
             f"template missing canonical holdout name {holdout_name} (#1039)"
         )
+
+
+def test_template_clean_gate_enforces_terminal_check_run(template_text: str) -> None:
+    """#1259 sync: template (1) CLEAN prose + evaluate_clean_gate BOTH enforce
+    the terminal Greptile check-run condition.
+
+    The #1259 fail-closed all-of in `skills/deft-directive-review-cycle/SKILL.md`
+    Step 6 requires a TERMINAL Greptile check-run; this test pins that the
+    swarm-dispatched poller path (the PRIMARY review-cycle path) propagates the
+    same condition into BOTH surfaces the poller copies: the executable
+    `evaluate_clean_gate` snippet AND the human-readable `### (1) CLEAN`
+    ALL-of bullet list. A future edit that drops either surface fails CI.
+    """
+    # 1) The evaluate_clean_gate function snippet enforces the (6)th condition.
+    gate_start = template_text.index("def evaluate_clean_gate(")
+    gate_block = template_text[gate_start : gate_start + 2200]
+    assert "terminal_check_run," in gate_block, (
+        "evaluate_clean_gate must accept a terminal_check_run parameter (#1259)"
+    )
+    assert "if not terminal_check_run:" in gate_block, (
+        "evaluate_clean_gate must fail closed on a non-terminal check-run (#1259)"
+    )
+    assert 'return False, "terminal_check_run"' in gate_block, (
+        "evaluate_clean_gate must name the terminal_check_run holdout (#1259)"
+    )
+    # The call site must thread the derived terminal flag into the gate.
+    assert "terminal_check_run=greptile_terminal" in template_text, (
+        "the evaluate_clean_gate call site must pass terminal_check_run (#1259)"
+    )
+
+    # 2) The (1) CLEAN ALL-of prose enumerates the same terminal condition.
+    # Anchor on the section HEADER (`### (1) CLEAN\n\nALL of:`), not the earlier
+    # backtick-wrapped prose reference to the section.
+    clean_start = template_text.index("### (1) CLEAN\n\nALL of:")
+    clean_block = template_text[clean_start : clean_start + 1600]
+    assert "terminal_check_run" in clean_block, (
+        "`### (1) CLEAN` ALL-of list must enumerate the terminal_check_run "
+        "condition (#1259)"
+    )
+    assert 'status == "completed"' in clean_block, (
+        "`### (1) CLEAN` must require the Greptile check-run status == completed (#1259)"
+    )
+    # The conclusion set is a literal (doubled) brace in the str.format payload.
+    assert "{{success, neutral}}" in clean_block, (
+        "`### (1) CLEAN` must require conclusion in {success, neutral} (#1259)"
+    )
+    assert "INCOMPLETE_BUT_RATED" in clean_block, (
+        "`### (1) CLEAN` must name the INCOMPLETE_BUT_RATED scenario the "
+        "terminal condition closes (#1259)"
+    )
 
 
 def test_template_contains_stall_terminal_exit(template_text: str) -> None:
