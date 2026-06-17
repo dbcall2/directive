@@ -14,7 +14,7 @@ import argparse
 import json
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -22,6 +22,25 @@ STABLE_ID_RE = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 CODE_STRUCTURE_VERSION = "0.1"
 DIRECTIVE_HOME = "x-directive/architecture.codeStructure"
 PLAN_HOME = "plan.architecture.codeStructure"
+PROJECT_DEFINITION_PATH = Path("vbrief/PROJECT-DEFINITION.vbrief.json")
+GENERATED_PROJECTION_MARKERS = ("generated", "do not edit", "source of truth")
+DERIVED_FACT_KEYS = {
+    "callgraph",
+    "classes",
+    "coupling",
+    "dependencies",
+    "dependencygraph",
+    "entrypoints",
+    "exports",
+    "filecount",
+    "files",
+    "functions",
+    "imports",
+    "language",
+    "languages",
+    "loc",
+    "symbols",
+}
 
 
 class CodeStructureConfigError(RuntimeError):
@@ -42,6 +61,7 @@ class ValidationResult:
     """Validation result for one codeStructure record."""
 
     errors: list[Finding]
+    warnings: list[Finding] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -86,23 +106,59 @@ def _safe_relative_path(value: object) -> bool:
     return ".." not in parts
 
 
-def extract_code_structure(data: dict[str, Any]) -> ExtractedCodeStructure | None:
-    """Return a codeStructure record from the canonical home or consumer fallback."""
+def _normal_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", value.lower())
+
+
+def _project_relative(path: Path, project_root: Path) -> str:
+    try:
+        return path.resolve().relative_to(project_root.resolve()).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def extract_code_structure_homes(data: dict[str, Any]) -> list[ExtractedCodeStructure]:
+    """Return every recognized codeStructure home in deterministic priority order."""
+    homes: list[ExtractedCodeStructure] = []
     plan = data.get("plan")
     if isinstance(plan, dict):
         architecture = plan.get("architecture")
         if isinstance(architecture, dict):
             record = architecture.get("codeStructure")
             if isinstance(record, dict):
-                return ExtractedCodeStructure(record=record, home=PLAN_HOME)
+                homes.append(ExtractedCodeStructure(record=record, home=PLAN_HOME))
 
     extension = data.get("x-directive/architecture")
     if isinstance(extension, dict):
         record = extension.get("codeStructure")
         if isinstance(record, dict):
-            return ExtractedCodeStructure(record=record, home=DIRECTIVE_HOME)
+            homes.append(ExtractedCodeStructure(record=record, home=DIRECTIVE_HOME))
+    return homes
 
-    return None
+
+def extract_code_structure(data: dict[str, Any]) -> ExtractedCodeStructure | None:
+    """Return a codeStructure record from the canonical home or consumer fallback."""
+    homes = extract_code_structure_homes(data)
+    return homes[0] if homes else None
+
+
+def _scan_for_derived_fact_keys(value: object, errors: list[Finding], location: str) -> None:
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            key_location = f"{location}.{key}" if location else str(key)
+            if _normal_key(str(key)) in DERIVED_FACT_KEYS:
+                errors.append(
+                    _finding(
+                        "CS-DERIVED-FACT",
+                        f"codeStructure must not author derived fact key {key!r}",
+                        key_location,
+                    )
+                )
+            _scan_for_derived_fact_keys(nested, errors, key_location)
+        return
+    if isinstance(value, list):
+        for index, nested in enumerate(value):
+            _scan_for_derived_fact_keys(nested, errors, f"{location}[{index}]")
 
 
 def _validate_required_arrays(record: dict[str, Any], errors: list[Finding], source: str) -> None:
@@ -285,7 +341,17 @@ def _validate_allowed_patterns(
                 )
 
 
-def _validate_projection_manifest(entries: list[Any], errors: list[Finding]) -> None:
+def _projection_has_generated_banner(path: Path) -> bool:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")[:2048].lower()
+    except OSError:
+        return False
+    return all(marker in text for marker in GENERATED_PROJECTION_MARKERS)
+
+
+def _validate_projection_manifest(
+    entries: list[Any], errors: list[Finding], project_root: Path | None
+) -> None:
     seen_paths: set[str] = set()
     for index, entry in enumerate(entries):
         location = f"projectionManifest[{index}]"
@@ -313,6 +379,14 @@ def _validate_projection_manifest(entries: list[Any], errors: list[Finding]) -> 
             errors.append(
                 _finding("CS-PROJECTION", "projection source must be non-empty", location)
             )
+        elif entry.get("source") not in {PLAN_HOME, DIRECTIVE_HOME}:
+            errors.append(
+                _finding(
+                    "CS-PROJECTION-SOURCE",
+                    f"projection source must be {PLAN_HOME!r} or {DIRECTIVE_HOME!r}",
+                    f"{location}.source",
+                )
+            )
         generated = entry.get("generated")
         if not isinstance(generated, bool):
             errors.append(
@@ -333,6 +407,20 @@ def _validate_projection_manifest(entries: list[Any], errors: list[Finding]) -> 
                         "CS-PROJECTION-COMMAND",
                         f"projectionManifest must not store runner-specific {command_key}",
                         f"{location}.{command_key}",
+                    )
+                )
+        if (
+            project_root is not None
+            and isinstance(path_value, str)
+            and _safe_relative_path(path_value)
+        ):
+            projection_path = project_root / path_value
+            if projection_path.exists() and not _projection_has_generated_banner(projection_path):
+                errors.append(
+                    _finding(
+                        "CS-PROJECTION-BANNER",
+                        "existing projection path must carry a generated banner and source pointer",
+                        f"{location}.path",
                     )
                 )
 
@@ -374,7 +462,9 @@ def _validate_file_purpose_overrides(
             _validate_module_ref(entry.get("module"), module_ids, f"{location}.module", errors)
 
 
-def _validate_glossary_refs(entries: object, errors: list[Finding]) -> None:
+def _validate_glossary_refs(
+    entries: object, errors: list[Finding], project_root: Path | None
+) -> None:
     if entries is None:
         return
     if not isinstance(entries, list):
@@ -387,16 +477,83 @@ def _validate_glossary_refs(entries: object, errors: list[Finding]) -> None:
             continue
         if not _non_empty_string(entry.get("term")):
             errors.append(_finding("CS-GLOSSARY", "glossary ref needs term", location))
-        if "uri" in entry and not _safe_relative_path(entry.get("uri")):
+        uri = entry.get("uri")
+        if "uri" in entry and not _safe_relative_path(uri):
             errors.append(
                 _finding("CS-PATH", "glossary ref uri must be repository-relative", location)
             )
+        elif project_root is not None and isinstance(uri, str):
+            target = project_root / uri
+            if not target.exists():
+                errors.append(
+                    _finding(
+                        "CS-GLOSSARY-URI",
+                        f"glossary ref uri does not exist: {uri!r}",
+                        f"{location}.uri",
+                    )
+                )
 
 
-def validate_code_structure(record: dict[str, Any], source: str = "<memory>") -> ValidationResult:
+def _validate_boundedness(record: dict[str, Any], warnings: list[Finding]) -> None:
+    modules = _as_list(record.get("modules"))
+    overrides = _as_list(record.get("filePurposeOverrides"))
+    if overrides and len(overrides) > max(10, len(modules) * 2):
+        warnings.append(
+            _finding(
+                "CS-BOUNDEDNESS",
+                (
+                    "filePurposeOverrides should stay bounded to human overrides, "
+                    "not become a per-file registry"
+                ),
+                "filePurposeOverrides",
+            )
+        )
+
+    ownership = _as_list(record.get("pathOwnership"))
+    if ownership and len(ownership) > max(12, len(modules) * 3):
+        warnings.append(
+            _finding(
+                "CS-BOUNDEDNESS",
+                (
+                    "pathOwnership is large relative to module count; "
+                    "prefer module globs where possible"
+                ),
+                "pathOwnership",
+            )
+        )
+
+    for index, module in enumerate(modules):
+        if not isinstance(module, dict):
+            continue
+        globs = module.get("pathGlobs")
+        if not isinstance(globs, list) or len(globs) != 1 or not isinstance(globs[0], str):
+            continue
+        glob_value = globs[0]
+        if not _has_glob_magic(glob_value := str(glob_value)):
+            warnings.append(
+                _finding(
+                    "CS-SINGLE-FILE-MODULE",
+                    (
+                        "module has a single non-glob path; ensure this is intentional "
+                        "and not per-file metadata"
+                    ),
+                    f"modules[{index}].pathGlobs[0]",
+                )
+            )
+
+
+def _has_glob_magic(value: str) -> bool:
+    return any(char in value for char in "*?[")
+
+
+def validate_code_structure(
+    record: dict[str, Any], source: str = "<memory>", project_root: Path | None = None
+) -> ValidationResult:
     """Validate one codeStructure record."""
     errors: list[Finding] = []
+    warnings: list[Finding] = []
     _validate_required_arrays(record, errors, source)
+    _scan_for_derived_fact_keys(record, errors, "codeStructure")
 
     glob_owner: dict[str, str] = {}
     module_ids: set[str] = set()
@@ -414,10 +571,11 @@ def validate_code_structure(record: dict[str, Any], source: str = "<memory>") ->
 
     _validate_path_ownership(_as_list(record.get("pathOwnership")), module_ids, errors)
     _validate_allowed_patterns(_as_list(record.get("allowedPatterns")), module_ids, errors)
-    _validate_projection_manifest(_as_list(record.get("projectionManifest")), errors)
+    _validate_projection_manifest(_as_list(record.get("projectionManifest")), errors, project_root)
     _validate_file_purpose_overrides(record.get("filePurposeOverrides"), module_ids, errors)
-    _validate_glossary_refs(record.get("glossaryRefs"), errors)
-    return ValidationResult(errors=errors)
+    _validate_glossary_refs(record.get("glossaryRefs"), errors, project_root)
+    _validate_boundedness(record, warnings)
+    return ValidationResult(errors=errors, warnings=warnings)
 
 
 def load_json_file(path: Path) -> dict[str, Any]:
@@ -435,11 +593,40 @@ def load_json_file(path: Path) -> dict[str, Any]:
     return data
 
 
-def validate_file(path: Path) -> ValidationResult:
+def validate_file(
+    path: Path, *, project_root: Path | None = None, allow_standalone: bool = True
+) -> ValidationResult:
     """Load and validate the codeStructure record in *path*."""
     data = load_json_file(path)
-    extracted = extract_code_structure(data)
-    if extracted is None:
+    homes = extract_code_structure_homes(data)
+    errors: list[Finding] = []
+    if len(homes) > 1:
+        errors.append(
+            _finding(
+                "CS-HOME-CONFLICT",
+                (
+                    "only one codeStructure home is allowed; found "
+                    f"{', '.join(home.home for home in homes)}"
+                ),
+                str(path),
+            )
+        )
+    if project_root is not None and not allow_standalone:
+        rel_path = _project_relative(path, project_root)
+        if rel_path != PROJECT_DEFINITION_PATH.as_posix() and homes:
+            errors.append(
+                _finding(
+                    "CS-HOME",
+                    (
+                        "canonical codeStructure metadata must live in "
+                        "vbrief/PROJECT-DEFINITION.vbrief.json; sibling files "
+                        "must be generated projections"
+                    ),
+                    str(path),
+                )
+            )
+
+    if not homes:
         return ValidationResult(
             errors=[
                 _finding(
@@ -449,22 +636,41 @@ def validate_file(path: Path) -> ValidationResult:
                 )
             ]
         )
-    return validate_code_structure(extracted.record, source=f"{path}:{extracted.home}")
+
+    extracted = homes[0]
+    result = validate_code_structure(
+        extracted.record,
+        source=f"{path}:{extracted.home}",
+        project_root=project_root,
+    )
+    return ValidationResult(errors=errors + result.errors, warnings=result.warnings)
 
 
 def discover_code_structure_paths(project_root: Path) -> list[Path]:
     """Discover codeStructure-bearing vBRIEFs for a project root."""
-    paths: list[Path] = []
+    paths: dict[str, Path] = {}
     project_def = project_root / "vbrief" / "PROJECT-DEFINITION.vbrief.json"
     if project_def.exists():
         try:
             data = load_json_file(project_def)
         except CodeStructureConfigError:
-            paths.append(project_def)
+            paths[project_def.as_posix()] = project_def
         else:
             if extract_code_structure(data) is not None:
-                paths.append(project_def)
-    return paths
+                paths[project_def.as_posix()] = project_def
+
+    vbrief_root = project_root / "vbrief"
+    if vbrief_root.exists():
+        for vbrief_path in sorted(vbrief_root.rglob("*.vbrief.json")):
+            if vbrief_path == project_def:
+                continue
+            try:
+                data = load_json_file(vbrief_path)
+            except CodeStructureConfigError:
+                continue
+            if extract_code_structure(data) is not None:
+                paths[vbrief_path.as_posix()] = vbrief_path
+    return [paths[key] for key in sorted(paths)]
 
 
 def _result_to_dict(path: Path, result: ValidationResult) -> dict[str, Any]:
@@ -475,6 +681,10 @@ def _result_to_dict(path: Path, result: ValidationResult) -> dict[str, Any]:
             {"code": finding.code, "message": finding.message, "location": finding.location}
             for finding in result.errors
         ],
+        "warnings": [
+            {"code": finding.code, "message": finding.message, "location": finding.location}
+            for finding in result.warnings
+        ],
     }
 
 
@@ -483,6 +693,7 @@ def _config_error_to_dict(path: Path, error: CodeStructureConfigError) -> dict[s
         "path": str(path),
         "ok": False,
         "errors": [{"code": "CS-CONFIG", "message": str(error), "location": str(path)}],
+        "warnings": [],
     }
 
 
@@ -492,11 +703,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--project-root", default=".", help="Project root for default discovery.")
     parser.add_argument("--path", action="append", help="Explicit codeStructure vBRIEF path.")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON summary.")
+    parser.add_argument("--strict", action="store_true", help="Treat warnings as failures.")
     args = parser.parse_args(argv)
 
     project_root = Path(args.project_root)
+    explicit_paths = bool(args.path)
     paths = (
-        [Path(p) for p in args.path] if args.path else discover_code_structure_paths(project_root)
+        [Path(p) for p in args.path]
+        if explicit_paths
+        else discover_code_structure_paths(project_root)
     )
 
     if not paths:
@@ -510,13 +725,17 @@ def main(argv: list[str] | None = None) -> int:
     exit_code = 0
     for path in paths:
         try:
-            result = validate_file(path)
+            result = validate_file(
+                path,
+                project_root=None if explicit_paths else project_root,
+                allow_standalone=explicit_paths,
+            )
         except CodeStructureConfigError as exc:
             summaries.append(_config_error_to_dict(path, exc))
             exit_code = 2
             continue
         summaries.append(_result_to_dict(path, result))
-        if not result.ok and exit_code == 0:
+        if exit_code == 0 and (not result.ok or (args.strict and result.warnings)):
             exit_code = 1
 
     if args.json:
@@ -524,9 +743,6 @@ def main(argv: list[str] | None = None) -> int:
     else:
         for summary in summaries:
             path = summary["path"]
-            if summary["ok"]:
-                print(f"OK: {path}")
-                continue
             for finding in summary["errors"]:
                 prefix = "ERROR" if finding["code"] == "CS-CONFIG" else "FAIL"
                 output = sys.stderr if prefix == "ERROR" else sys.stdout
@@ -535,6 +751,13 @@ def main(argv: list[str] | None = None) -> int:
                     f"{finding['location']}: {finding['message']}",
                     file=output,
                 )
+            for finding in summary["warnings"]:
+                print(
+                    f"WARN: {path}: {finding['code']}: "
+                    f"{finding['location']}: {finding['message']}"
+                )
+            if summary["ok"] and (not args.strict or not summary["warnings"]):
+                print(f"OK: {path}")
     return exit_code
 
 

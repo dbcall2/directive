@@ -98,6 +98,10 @@ def _codes(result: csv_validate.ValidationResult) -> set[str]:
     return {finding.code for finding in result.errors}
 
 
+def _warning_codes(result: csv_validate.ValidationResult) -> set[str]:
+    return {finding.code for finding in result.warnings}
+
+
 class TestValidateCodeStructure:
     def test_valid_record_passes(self) -> None:
         result = csv_validate.validate_code_structure(_record(), source="fixture")
@@ -118,6 +122,21 @@ class TestValidateCodeStructure:
         )
         result = csv_validate.validate_code_structure(data, source="fixture")
         assert result.ok
+
+    def test_derived_fact_keys_are_rejected(self) -> None:
+        data = _record(
+            modules=[
+                {
+                    "id": "cli",
+                    "name": "CLI",
+                    "purpose": "Command-line entry points.",
+                    "pathGlobs": ["scripts/*.py"],
+                    "imports": ["tests.helpers"],
+                }
+            ]
+        )
+        result = csv_validate.validate_code_structure(data, source="fixture")
+        assert "CS-DERIVED-FACT" in _codes(result)
 
     def test_bad_module_id_fails(self) -> None:
         data = _record(
@@ -240,6 +259,36 @@ class TestValidateCodeStructure:
         assert "CS-PROJECTION" in codes
         assert "CS-PROJECTION-COMMAND" in codes
 
+    def test_existing_projection_requires_generated_banner(self, tmp_path: Path) -> None:
+        projection = tmp_path / ".planning" / "codebase" / "MAP.md"
+        projection.parent.mkdir(parents=True)
+        projection.write_text("# Hand-authored map\n", encoding="utf-8")
+
+        result = csv_validate.validate_code_structure(
+            _record(glossaryRefs=[]), source="fixture", project_root=tmp_path
+        )
+
+        assert "CS-PROJECTION-BANNER" in _codes(result)
+
+    def test_glossary_ref_uri_must_exist_when_project_root_is_known(self, tmp_path: Path) -> None:
+        result = csv_validate.validate_code_structure(
+            _record(glossaryRefs=[{"term": "missing", "uri": "docs/missing.md"}]),
+            source="fixture",
+            project_root=tmp_path,
+        )
+        assert "CS-GLOSSARY-URI" in _codes(result)
+
+    def test_boundedness_findings_warn_without_failing(self) -> None:
+        overrides = [
+            {"path": f"scripts/file_{index}.py", "purpose": "Fixture override."}
+            for index in range(11)
+        ]
+        result = csv_validate.validate_code_structure(
+            _record(filePurposeOverrides=overrides), source="fixture"
+        )
+        assert result.ok
+        assert "CS-BOUNDEDNESS" in _warning_codes(result)
+
 
 class TestExtractionAndCli:
     def test_extracts_from_plan_architecture(self) -> None:
@@ -252,6 +301,16 @@ class TestExtractionAndCli:
         extracted = csv_validate.extract_code_structure(_fallback_vbrief(_record()))
         assert extracted is not None
         assert extracted.home == csv_validate.DIRECTIVE_HOME
+
+    def test_file_with_both_homes_fails(self, tmp_path: Path) -> None:
+        path = tmp_path / "code-structure.vbrief.json"
+        payload = _vbrief(_record())
+        payload["x-directive/architecture"] = {"codeStructure": _record()}
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+        result = csv_validate.validate_file(path)
+
+        assert "CS-HOME-CONFLICT" in _codes(result)
 
     def test_cli_validates_explicit_path(self, tmp_path: Path) -> None:
         path = tmp_path / "code-structure.vbrief.json"
@@ -289,10 +348,20 @@ class TestExtractionAndCli:
         found = csv_validate.discover_code_structure_paths(tmp_path)
         assert found == [project_def]
 
-    def test_default_discovery_ignores_architecture_sibling(self, tmp_path: Path) -> None:
+    def test_default_discovery_finds_architecture_sibling_for_home_gate(
+        self, tmp_path: Path
+    ) -> None:
         arch = tmp_path / "vbrief" / "architecture"
         arch.mkdir(parents=True)
         path = arch / "code-structure.vbrief.json"
-        path.write_text(json.dumps(_fallback_vbrief(_record())), encoding="utf-8")
+        path.write_text(json.dumps(_fallback_vbrief(_record(glossaryRefs=[]))), encoding="utf-8")
         found = csv_validate.discover_code_structure_paths(tmp_path)
-        assert found == []
+        assert found == [path]
+
+    def test_default_validation_rejects_architecture_sibling(self, tmp_path: Path) -> None:
+        arch = tmp_path / "vbrief" / "architecture"
+        arch.mkdir(parents=True)
+        path = arch / "code-structure.vbrief.json"
+        path.write_text(json.dumps(_fallback_vbrief(_record(glossaryRefs=[]))), encoding="utf-8")
+
+        assert csv_validate.main(["--project-root", str(tmp_path)]) == 1

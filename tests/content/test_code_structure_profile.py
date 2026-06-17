@@ -41,7 +41,9 @@ def test_directive_dogfood_code_structure_validates() -> None:
     data = json.loads(path.read_text(encoding="utf-8"))
     assert "codeStructure" in data["plan"]["architecture"]
     assert csv_validate.DIRECTIVE_HOME.split(".", maxsplit=1)[0] not in data
-    result = csv_validate.validate_file(path)
+    result = csv_validate.validate_file(
+        path, project_root=_REPO_ROOT, allow_standalone=False
+    )
     assert result.ok, [finding.message for finding in result.errors]
 
 
@@ -51,6 +53,9 @@ def test_codebase_task_is_registered() -> None:
     assert "codebase:" in taskfile
     assert "tasks/codebase.yml" in taskfile
     assert "validate-structure:" in codebase_tasks
+    assert "extract-default:" in codebase_tasks
+    assert "provider-map:" in codebase_tasks
+    assert "projection-registry:" in codebase_tasks
     assert "code_structure_validate.py" in codebase_tasks
 
 
@@ -60,4 +65,8 @@ def test_profile_doc_names_physical_home_and_later_slices() -> None:
     assert "plan.architecture.codeStructure" in doc
     assert "vbrief-core.schema.json" in doc
     assert "No standalone canonical" in doc
-    assert "Brownfield extraction, MAP generation, generated headers" in doc
+    assert "vbrief/schemas/codebase-map.schema.json" in doc
+    assert "tests/fixtures/codebase-map.v1.golden.json" in doc
+    assert "normative contract" in doc
+    assert "codebase-provider.v1" in doc
+    assert "MAP rendering, generated headers" in doc
