@@ -1,4 +1,4 @@
-"""Verify required toolchain is installed (go, uv, task, git, gh)."""
+"""Verify required source-repo toolchain is installed (go, uv, git, gh)."""
 
 import subprocess
 import sys
@@ -6,7 +6,6 @@ import sys
 TOOLS = [
     ("go", ["go", "version"]),
     ("uv", ["uv", "--version"]),
-    ("task", ["task", "--version"]),
     ("git", ["git", "--version"]),
     ("gh", ["gh", "--version"]),
 ]

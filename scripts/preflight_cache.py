@@ -3,9 +3,9 @@
 
 Pure stdlib, cross-platform. Invoked from:
 
-- ``task verify:cache-fresh`` (aggregated into ``task check``)
+- ``deft verify:cache-fresh`` (aggregated into ``task check``)
 - Dispatcher pre-``start_agent`` invocations -- the dispatcher MUST run
-  ``task verify:cache-fresh --for-issue <N>`` before any ``start_agent``
+  ``deft verify:cache-fresh --for-issue <N>`` before any ``start_agent``
   and refuse dispatch on any non-zero exit (see
   ``templates/agent-prompt-preamble.md`` § 12).
 
@@ -17,24 +17,24 @@ Exit codes (three-state):
 
 - ``0`` -- cache fresh AND no blocking defer conditions.
 - ``1`` -- cache stale OR blocking conditions found; prints remediation
-  to stderr (names ``task triage:bootstrap`` and ``task cache:fetch-all``
+  to stderr (names ``deft triage:bootstrap`` and ``deft cache:fetch-all``
   per the issue body).
 - ``2`` -- config error: ``.deft-cache/`` missing entirely, or
   ``vbrief/.eval/candidates.jsonl`` missing. The config-error class is
   distinct from "cache stale" so a dispatcher can distinguish a never-
-  -bootstrapped project (operator runs ``task triage:bootstrap``) from
-  a stale-cache project (operator runs ``task cache:fetch-all``).
+  -bootstrapped project (operator runs ``deft triage:bootstrap``) from
+  a stale-cache project (operator runs ``deft cache:fetch-all``).
 
 State machine (#1240):
 
 Three user-visible states the OK message must distinguish post-#1240
-because ``task triage:bootstrap`` now seeds an empty audit log:
+because ``deft triage:bootstrap`` now seeds an empty audit log:
 
 1. **No cache yet** -- ``.deft-cache/<source>/`` absent. This is the
    never-bootstrapped state; the gate exits 2 (or 0 + bootstrap-state
    message when ``--allow-missing-bootstrap`` is passed).
 2. **Cache present + audit log empty** -- consumer just ran
-   ``task triage:bootstrap`` but has not yet executed any triage
+   ``deft triage:bootstrap`` but has not yet executed any triage
    action. The gate exits 0 with a ``fresh bootstrap, no triage
    actions yet`` message. Pre-#1240 this state was unreachable because
    bootstrap left the audit log absent -- the gate fell through to
@@ -51,7 +51,7 @@ The freshness check is scoped to the consumer's
 gated by stale entries the operator has explicitly chosen not to track.
 When ``--for-issue <N>`` is given the gate ALSO verifies the issue is
 in scope; an out-of-scope issue exits 1 with a pointer to
-``task triage:scope``.
+``deft triage:scope``.
 
 Override paths:
 
@@ -497,8 +497,8 @@ def is_fetched_at_stale(
 
 _REMEDIATION_STALE = (
     "  Remediation:\n"
-    "    task triage:bootstrap         # full re-populate, or\n"
-    "    task cache:fetch-all -- --source github-issue --repo <OWNER/NAME>\n"
+    "    deft triage:bootstrap         # full re-populate, or\n"
+    "    deft cache:fetch-all -- --source github-issue --repo <OWNER/NAME>\n"
     "  Override (audited): --allow-stale (or DEFT_CACHE_MAX_AGE_HOURS=<N>)."
 )
 
@@ -524,7 +524,7 @@ def evaluate(
     ``.deft-cache/`` or ``vbrief/.eval/candidates.jsonl`` is missing the
     gate returns exit 0 with a friendly info message instead of exit 2.
     The framework repo's own ``task check`` uses this so a fresh
-    checkout that has not yet run ``task triage:bootstrap`` is not
+    checkout that has not yet run ``deft triage:bootstrap`` is not
     gated by its own cache-freshness verb. Consumers leave the flag
     OFF so the gate fails loudly when their cache is missing.
     """
@@ -542,15 +542,15 @@ def evaluate(
                 (
                     f"✓ deft cache-fresh: .deft-cache/{source}/ absent and "
                     "--allow-missing-bootstrap was passed -- treating as "
-                    "bootstrap state (consumer runs `task triage:bootstrap` "
+                    "bootstrap state (consumer runs `deft triage:bootstrap` "
                     "to opt in)."
                 ),
             )
         msg = (
             f"❌ deft cache-fresh: .deft-cache/{source}/ not present under "
             f"{project_root}. The triage cache has not been populated.\n"
-            "  Recovery: run `task triage:bootstrap` (idempotent installer)\n"
-            "             or `task cache:fetch-all -- --source "
+            "  Recovery: run `deft triage:bootstrap` (idempotent installer)\n"
+            "             or `deft cache:fetch-all -- --source "
             f"{source} --repo OWNER/NAME`."
         )
         return GateResult(2, msg)
@@ -568,9 +568,9 @@ def evaluate(
             )
         msg = (
             f"❌ deft cache-fresh: {candidates} missing.\n"
-            "  Recovery: run `task triage:bootstrap` to backfill the audit\n"
+            "  Recovery: run `deft triage:bootstrap` to backfill the audit\n"
             "             log, or accept at least one candidate via\n"
-            "             `task triage:accept`."
+            "             `deft triage:accept`."
         )
         return GateResult(2, msg)
 
@@ -589,7 +589,7 @@ def evaluate(
         msg = (
             "❌ deft cache-fresh: no cached entries under "
             f".deft-cache/{source}/{resolved_repo}/.\n"
-            "  Recovery: `task cache:fetch-all -- --source "
+            "  Recovery: `deft cache:fetch-all -- --source "
             f"{source} --repo {resolved_repo}`."
         )
         return GateResult(2, msg)
@@ -626,9 +626,9 @@ def evaluate(
                 "plan.policy.triageScope[] subscription, and the audit log "
                 "is empty (no triage decisions yet).\n"
                 "  Recovery: widen the subscription (see "
-                "`task triage:scope --list`), repopulate via "
-                "`task cache:fetch-all`, or accept at least one candidate "
-                "via `task triage:accept` once the cache has matching entries."
+                "`deft triage:scope --list`), repopulate via "
+                "`deft cache:fetch-all`, or accept at least one candidate "
+                "via `deft triage:accept` once the cache has matching entries."
             )
             if allow_stale:
                 # Mirror the Step 5 stale-cache pattern: --allow-stale
@@ -680,7 +680,7 @@ def evaluate(
         msg = (
             "❌ deft cache-fresh: no parseable `fetched_at` in any cached "
             "meta.json. The cache may be corrupted.\n"
-            "  Recovery: `task cache:fetch-all -- --source "
+            "  Recovery: `deft cache:fetch-all -- --source "
             f"{source} --repo {resolved_repo}`."
         )
         return GateResult(2, msg)
@@ -737,7 +737,7 @@ def evaluate(
 
     # #1240: distinguish "fresh bootstrap, no triage actions yet" from
     # "actively triaging". A zero-length audit log indicates the consumer
-    # just ran ``task triage:bootstrap`` (step 5 seeded the empty file)
+    # just ran ``deft triage:bootstrap`` (step 5 seeded the empty file)
     # but has not yet emitted any triage decision; the gate is still
     # clean but the language acknowledges the operator's mental state.
     # #1245: the ``backfill_only_cache`` flag set during Step 4 supplies
@@ -814,18 +814,18 @@ def _gate_for_issue(
                 f"❌ deft cache-fresh: issue #{issue_number} is OUTSIDE the "
                 "active plan.policy.triageScope[] subscription.\n"
                 "  Recovery: widen the subscription (see "
-                "`task triage:scope --list`) or open it via "
-                "`task triage:accept -- --repo OWNER/NAME --issue "
+                "`deft triage:scope --list`) or open it via "
+                "`deft triage:accept -- --repo OWNER/NAME --issue "
                 f"{issue_number}` after confirming the scope rule covers it."
             )
             return GateResult(1, msg)
     elif scope_rules and raw is None:
         # We couldn't read the raw payload but rules are set; refuse so
-        # the operator must `task cache:fetch-all` first.
+        # the operator must `deft cache:fetch-all` first.
         msg = (
             f"❌ deft cache-fresh: issue #{issue_number} is not present in "
             f".deft-cache/{DEFAULT_SOURCE}/{repo}/ (cannot verify subscription).\n"
-            f"  Recovery: `task cache:fetch-all -- --source {DEFAULT_SOURCE} "
+            f"  Recovery: `deft cache:fetch-all -- --source {DEFAULT_SOURCE} "
             f"--repo {repo}` and retry."
         )
         return GateResult(1, msg)
@@ -838,7 +838,7 @@ def _gate_for_issue(
         msg = (
             f"❌ deft cache-fresh: issue #{issue_number} has no triage decision "
             f"in {candidates.relative_to(project_root)}.\n"
-            "  Recovery: `task triage:accept -- --repo "
+            "  Recovery: `deft triage:accept -- --repo "
             f"{repo} --issue {issue_number}` "
             "before dispatching an implementation agent."
         )
@@ -849,8 +849,8 @@ def _gate_for_issue(
         msg = (
             f"❌ deft cache-fresh: issue #{issue_number} latest decision "
             f"is {verdict!r}, not {REQUIRED_DECISION!r} -- dispatch refused.\n"
-            f"  Recovery: re-evaluate via `task triage:status -- --repo {repo} "
-            f"--issue {issue_number}` and run `task triage:accept` once the "
+            f"  Recovery: re-evaluate via `deft triage:status -- --repo {repo} "
+            f"--issue {issue_number}` and run `deft triage:accept` once the "
             "item is ready, or pick a different issue."
         )
         return GateResult(1, msg)

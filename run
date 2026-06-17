@@ -5333,6 +5333,45 @@ def main():
         return 1
 
     args = sys.argv[2:]
+
+    # #1659: package-manager installs cannot assume go-task is on PATH. Route
+    # framework verbs through the shared Python dispatcher before falling back
+    # to the legacy bootstrap command table below. ``check`` is context-aware:
+    # the framework source checkout runs the source aggregate, while vendored
+    # installs run the consumer-safe aggregate.
+    scripts_dir = Path(__file__).resolve().parent / "scripts"
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+    try:
+        from framework_commands import has_command, run_framework_command
+        from _project_context import is_framework_source_context
+
+        framework_root = Path(__file__).resolve().parent
+        project_root = Path.cwd().resolve()
+        if command == "check":
+            target = (
+                "check:framework-source"
+                if is_framework_source_context(framework_root, project_root)
+                else "check:consumer"
+            )
+            result = run_framework_command(
+                target,
+                args,
+                project_root=project_root,
+                framework_root=framework_root,
+            )
+            return result.code
+        if has_command(command):
+            result = run_framework_command(
+                command,
+                args,
+                project_root=project_root,
+                framework_root=framework_root,
+            )
+            return result.code
+    except Exception as exc:
+        error(f"Framework command dispatch failed: {exc}")
+        return 1
     
     commands = {
         'bootstrap': cmd_bootstrap,

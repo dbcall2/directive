@@ -8,8 +8,7 @@ Covers:
   malformed/missing Unreleased rejected.
 - _section_for_version: extracts the body of a versioned heading.
 - _split_body_and_links: splits at the first [X.Y.Z]: or [Unreleased]: line.
-- task_has_target: matches task list output for present/absent targets.
-- run_ci: prefers ci:local; falls back to check; fails when neither exists.
+- run_ci: delegates to the Python ci_local entrypoint without requiring go-task.
 - run_pipeline: dry-run prints plan with no writes; dirty-tree refuses without
   --allow-dirty (exit 1) and accepts with the flag; wrong branch refuses (exit 1);
   --skip-tag suppresses git tag/push; --skip-release suppresses gh release;
@@ -383,102 +382,34 @@ class TestSplitBodyAndLinks:
 
 
 # ---------------------------------------------------------------------------
-# task_has_target / run_ci
+# run_ci
 # ---------------------------------------------------------------------------
 
 
-class TestTaskHasTarget:
-    def test_target_present(self, monkeypatch, tmp_path):
-        listing = (
-            "task: Available tasks for this project:\n"
-            "* ci:local: Run CI locally\n"
-            "* check: Run checks\n"
-        )
-
-        def fake_run(cmd, **kwargs):
-            return SimpleNamespace(stdout=listing, stderr="", returncode=0)
-
-        monkeypatch.setattr(release, "task_binary_available", lambda: True)
-        monkeypatch.setattr(subprocess, "run", fake_run)
-        assert release.task_has_target("ci:local", cwd=tmp_path) is True
-        assert release.task_has_target("check", cwd=tmp_path) is True
-
-    def test_target_absent(self, monkeypatch, tmp_path):
-        listing = (
-            "task: Available tasks for this project:\n* check: Run checks\n"
-        )
-
-        def fake_run(cmd, **kwargs):
-            return SimpleNamespace(stdout=listing, stderr="", returncode=0)
-
-        monkeypatch.setattr(release, "task_binary_available", lambda: True)
-        monkeypatch.setattr(subprocess, "run", fake_run)
-        assert release.task_has_target("ci:local", cwd=tmp_path) is False
-
-    def test_missing_task_binary(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(release, "task_binary_available", lambda: False)
-        assert release.task_has_target("ci:local", cwd=tmp_path) is False
-
-
 class TestRunCI:
-    def test_prefers_ci_local(self, monkeypatch, tmp_path):
-        invoked = {}
+    def test_runs_ci_local_entrypoint(self, monkeypatch, tmp_path):
+        captured = {}
 
-        monkeypatch.setattr(release, "task_binary_available", lambda: True)
+        def fake_main(argv):
+            captured["argv"] = list(argv)
+            return 0
 
-        def fake_has(target, *, cwd):
-            return target == "ci:local"
-
-        monkeypatch.setattr(release, "task_has_target", fake_has)
-
-        def fake_run(cmd, **kwargs):
-            invoked["cmd"] = cmd
-            return SimpleNamespace(returncode=0)
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setitem(sys.modules, "ci_local", SimpleNamespace(main=fake_main))
         ok, reason = release.run_ci(tmp_path)
+
         assert ok is True
-        assert "ci:local" in reason
-        assert invoked["cmd"] == ["task", "ci:local"]
-
-    def test_falls_back_to_check(self, monkeypatch, tmp_path):
-        invoked = {}
-
-        monkeypatch.setattr(release, "task_binary_available", lambda: True)
-
-        def fake_has(target, *, cwd):
-            return target == "check"
-
-        monkeypatch.setattr(release, "task_has_target", fake_has)
-
-        def fake_run(cmd, **kwargs):
-            invoked["cmd"] = cmd
-            return SimpleNamespace(returncode=0)
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
-        ok, reason = release.run_ci(tmp_path)
-        assert ok is True
-        assert "check" in reason
-        assert invoked["cmd"] == ["task", "check"]
-
-    def test_reports_failure_when_neither_exists(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(release, "task_binary_available", lambda: True)
-        monkeypatch.setattr(release, "task_has_target", lambda *_a, **_kw: False)
-        ok, reason = release.run_ci(tmp_path)
-        assert ok is False
-        assert "neither" in reason
+        assert reason == "ran ci:local"
+        assert captured["argv"] == ["--root", str(tmp_path)]
 
     def test_reports_failure_when_ci_returns_nonzero(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(release, "task_binary_available", lambda: True)
-        monkeypatch.setattr(release, "task_has_target", lambda *_a, **_kw: True)
+        def fake_main(argv):
+            return 2
 
-        def fake_run(cmd, **kwargs):
-            return SimpleNamespace(returncode=2)
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setitem(sys.modules, "ci_local", SimpleNamespace(main=fake_main))
         ok, reason = release.run_ci(tmp_path)
+
         assert ok is False
-        assert "exit 2" in reason
+        assert reason == "ci:local failed (exit 2)"
 
 
 # ---------------------------------------------------------------------------
@@ -1707,53 +1638,50 @@ class TestPipelineVerifyGate:
 
 
 class TestRunBuildVersionEnv:
-    """Coverage for #723: run_build MUST pass DEFT_RELEASE_VERSION to task build.
+    """Coverage for #723: run_build MUST pass DEFT_RELEASE_VERSION to build.
 
-    Without env propagation the Taskfile resolver would fall back to the
+    Without env propagation the version resolver would fall back to the
     latest annotated git tag, which lags the in-flight release tag during
-    `task release` (Step 6 builds before Step 8 creates the tag) -- the
+    release (Step 6 builds before Step 8 creates the tag) -- the
     exact root cause of `dist/deft-0.20.0.zip` during the v0.21.0 cut.
     """
 
     def test_run_build_passes_version_via_env(self, monkeypatch, tmp_path):
         captured = {}
 
-        monkeypatch.setattr(release, "task_binary_available", lambda: True)
-        monkeypatch.setattr(release, "task_has_target", lambda *_a, **_kw: True)
+        def fake_run_framework_command(name, **kwargs):
+            captured["name"] = name
+            captured["project_root"] = kwargs.get("project_root")
+            captured["framework_root"] = kwargs.get("framework_root")
+            captured["env"] = dict(release.os.environ)
+            return SimpleNamespace(code=0)
 
-        def fake_run(cmd, **kwargs):
-            captured["cmd"] = list(cmd)
-            captured["env"] = kwargs.get("env")
-            return SimpleNamespace(returncode=0)
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(release, "run_framework_command", fake_run_framework_command)
         ok, reason = release.run_build(tmp_path, "0.21.0")
+
         assert ok is True
-        assert captured["cmd"] == ["task", "build"]
+        assert captured["name"] == "build"
+        assert captured["project_root"] == tmp_path
+        assert captured["framework_root"] == tmp_path
         env = captured["env"]
-        assert env is not None, "run_build must set env= for DEFT_RELEASE_VERSION"
         assert env.get("DEFT_RELEASE_VERSION") == "0.21.0", (
             "#723: run_build MUST propagate DEFT_RELEASE_VERSION to the "
-            f"task build subprocess; observed env: {env!r}"
+            f"framework build dispatcher; observed env: {env!r}"
         )
         assert "DEFT_RELEASE_VERSION=0.21.0" in reason
 
     def test_run_build_omits_env_when_version_none(self, monkeypatch, tmp_path):
         captured = {}
 
-        monkeypatch.setattr(release, "task_binary_available", lambda: True)
-        monkeypatch.setattr(release, "task_has_target", lambda *_a, **_kw: True)
+        def fake_run_framework_command(name, **kwargs):
+            captured["env"] = dict(release.os.environ)
+            return SimpleNamespace(code=0)
 
-        def fake_run(cmd, **kwargs):
-            captured["env"] = kwargs.get("env")
-            return SimpleNamespace(returncode=0)
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(release, "run_framework_command", fake_run_framework_command)
         ok, reason = release.run_build(tmp_path, version=None)
+
         assert ok is True
         env = captured["env"]
-        # When version is None we still pass an env (os.environ.copy) but
-        # MUST NOT inject a stale/empty DEFT_RELEASE_VERSION key.
         assert "DEFT_RELEASE_VERSION" not in env
         assert "DEFT_RELEASE_VERSION" not in reason
 
@@ -1773,37 +1701,34 @@ class TestRunBuildVersionEnv:
         captured = {}
 
         monkeypatch.setenv("DEFT_RELEASE_VERSION", "stale-0.20.0")
-        monkeypatch.setattr(release, "task_binary_available", lambda: True)
-        monkeypatch.setattr(release, "task_has_target", lambda *_a, **_kw: True)
 
-        def fake_run(cmd, **kwargs):
-            captured["env"] = kwargs.get("env")
-            return SimpleNamespace(returncode=0)
+        def fake_run_framework_command(name, **kwargs):
+            captured["env"] = dict(release.os.environ)
+            return SimpleNamespace(code=0)
 
-        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(release, "run_framework_command", fake_run_framework_command)
         ok, reason = release.run_build(tmp_path, version=None)
+
         assert ok is True
         env = captured["env"]
-        assert env is not None, "run_build must set env= for the subprocess"
         assert "DEFT_RELEASE_VERSION" not in env, (
             "#723 follow-up: run_build(version=None) MUST strip any inherited "
-            "DEFT_RELEASE_VERSION from the subprocess env so the Taskfile "
-            "resolver falls back to git describe -- otherwise stale parent-shell "
+            "DEFT_RELEASE_VERSION from the dispatcher env so the version resolver "
+            "falls back to git describe -- otherwise stale parent-shell "
             f"values silently re-leak. observed env value: {env.get('DEFT_RELEASE_VERSION')!r}"
         )
         assert "DEFT_RELEASE_VERSION" not in reason
+        assert release.os.environ.get("DEFT_RELEASE_VERSION") == "stale-0.20.0"
 
-    def test_run_build_skips_when_target_missing(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(release, "task_binary_available", lambda: True)
-        monkeypatch.setattr(release, "task_has_target", lambda *_a, **_kw: False)
+    def test_run_build_reports_dispatch_failure(self, monkeypatch, tmp_path):
+        def fake_run_framework_command(name, **kwargs):
+            return SimpleNamespace(code=4)
 
-        def boom(*_a, **_kw):  # pragma: no cover - asserted not called
-            raise AssertionError("task must not be invoked when target is missing")
-
-        monkeypatch.setattr(subprocess, "run", boom)
+        monkeypatch.setattr(release, "run_framework_command", fake_run_framework_command)
         ok, reason = release.run_build(tmp_path, "0.21.0")
-        assert ok is True
-        assert "not defined; skipping" in reason
+
+        assert ok is False
+        assert reason == "build failed (exit 4)"
 
     def test_pipeline_step6_pins_version_env(
         self, temp_project, monkeypatch, capsys

@@ -12,17 +12,17 @@ catch CI failures before pushing. The workflow defines three jobs:
    traversal, ``scope:promote`` end-to-end, etc.) that only run on a
    Windows host when ``--matrix=windows`` is requested.
 
-In addition, this script exercises the existing local task surface that
-the CI workflow expects to remain green:
+In addition, this script exercises the existing local framework command
+surface that the CI workflow expects to remain green:
 
-- ``task toolchain:check``
-- ``task verify:stubs``
-- ``task verify:links``
-- ``task verify:rule-ownership`` (#705)
-- ``task vbrief:validate``
-- ``task build`` (skipped with ``--skip-build``)
-- ``task build:verify`` (graceful absence -- it's a sibling pending #233
-  item; if the task is missing from ``task --list`` we skip it with an
+- ``deft toolchain:check``
+- ``deft verify:stubs``
+- ``deft verify:links``
+- ``deft verify:rule-ownership`` (#705)
+- ``deft vbrief:validate``
+- ``deft build`` (skipped with ``--skip-build``)
+- ``deft build:verify`` (graceful absence -- it's a sibling pending #233
+  item; if the command is missing from the no-task registry we skip it with an
   informational message rather than failing).
 
 Platform notes
@@ -60,8 +60,7 @@ Exit codes
     0 -- every applicable step succeeded (skipped steps do not count as
          failures)
     1 -- at least one step failed
-    2 -- configuration error (invalid arguments, missing required tool,
-         malformed Taskfile.yml when probing for ``build:verify``)
+    2 -- configuration error (invalid arguments, missing required tool)
 
 Refs #233 (umbrella; this resolves the ``task-ci-local`` plan.item),
 #642 (workflow umbrella), #635 (epic anchor), #633 (pre-PR
@@ -85,6 +84,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _stdio_utf8 import reconfigure_stdio  # noqa: E402
+from framework_commands import has_command, run_framework_command  # noqa: E402
 
 reconfigure_stdio()
 
@@ -199,37 +199,20 @@ def _has_executable(name: str) -> bool:
     return shutil.which(name) is not None
 
 
-def _build_verify_available(root: Path) -> bool:
-    """Return True iff ``task build:verify`` is defined in the project.
+def _framework_command_available(name: str) -> bool:
+    """Return True iff the no-task framework command registry exposes *name*."""
+    return has_command(name)
 
-    Probes ``task --list`` and looks for a ``* build:verify`` line. When
-    ``task`` itself is missing we return ``False`` -- the caller will
-    print an informational skip message instead of failing.
 
-    When ``task --list`` exits non-zero for an unrelated reason (e.g. a
-    malformed ``Taskfile.yml``), we still return ``False`` but emit a
-    warning to stderr so the underlying error is not silently swallowed
-    behind the "build:verify not yet implemented" skip message (Greptile
-    P2 #713).
-    """
-    if not _has_executable("task"):
-        return False
-    rc, stdout, stderr = _run_command(["task", "--list"], cwd=root)
-    if rc != 0:
-        diagnostic = stderr.strip() or stdout.strip() or "(no output)"
-        print(
-            f"warning: `task --list` exited {rc} while probing for "
-            f"`build:verify`; treating as absent. Underlying error: "
-            f"{diagnostic}",
-            file=sys.stderr,
-        )
-        return False
-    for line in stdout.splitlines():
-        stripped = line.strip()
-        # ``task --list`` prints rows like ``* build:verify: <desc>``.
-        if stripped.startswith("* build:verify:") or stripped == "* build:verify":
-            return True
-    return False
+def _run_framework_command(name: str, root: Path) -> tuple[int, str, str]:
+    """Run a framework command in-process."""
+    result = run_framework_command(
+        name,
+        project_root=root,
+        framework_root=root,
+        capture=True,
+    )
+    return result.code, result.stdout, result.stderr
 
 
 # ---- Step constructors ------------------------------------------------------
@@ -316,60 +299,47 @@ def _make_go_steps(root: Path, *, skip_build: bool) -> list[Step]:
     return [test_step, *cross_steps]
 
 
-def _make_task_steps(root: Path, *, skip_build: bool) -> list[Step]:
-    if not _has_executable("task"):
-        return [
-            Step(
-                name="task: toolchain probe",
-                run_fn=lambda _root: (0, "", ""),
-                applies_fn=lambda: False,
-                skip_reason_fn=lambda: (
-                    "task not on PATH; install go-task "
-                    "(https://taskfile.dev/installation/) to run the Taskfile-level "
-                    "verifications."
-                ),
-            )
-        ]
+def _make_framework_steps(root: Path, *, skip_build: bool) -> list[Step]:
     steps: list[Step] = [
         Step(
-            name="task toolchain:check",
-            run_fn=lambda r: _run_command(["task", "toolchain:check"], cwd=r),
+            name="framework toolchain:check",
+            run_fn=lambda r: _run_framework_command("toolchain:check", r),
         ),
         Step(
-            name="task verify:stubs",
-            run_fn=lambda r: _run_command(["task", "verify:stubs"], cwd=r),
+            name="framework verify:stubs",
+            run_fn=lambda r: _run_framework_command("verify:stubs", r),
         ),
         Step(
-            name="task verify:links",
-            run_fn=lambda r: _run_command(["task", "verify:links"], cwd=r),
+            name="framework verify:links",
+            run_fn=lambda r: _run_framework_command("verify:links", r),
         ),
         Step(
-            name="task verify:rule-ownership",
-            run_fn=lambda r: _run_command(["task", "verify:rule-ownership"], cwd=r),
+            name="framework verify:rule-ownership",
+            run_fn=lambda r: _run_framework_command("verify:rule-ownership", r),
         ),
         Step(
-            name="task vbrief:validate",
-            run_fn=lambda r: _run_command(["task", "vbrief:validate"], cwd=r),
+            name="framework vbrief:validate",
+            run_fn=lambda r: _run_framework_command("vbrief:validate", r),
         ),
     ]
     if not skip_build:
         steps.append(
             Step(
-                name="task build",
-                run_fn=lambda r: _run_command(["task", "build"], cwd=r),
+                name="framework build",
+                run_fn=lambda r: _run_framework_command("build", r),
             )
         )
-        # build:verify is a sibling pending #233 plan.item; detect via
-        # `task --list` and skip with an informational message rather
-        # than failing when it isn't yet implemented.
-        build_verify_present = _build_verify_available(root)
+        # build:verify is a sibling pending #233 plan.item; detect via the
+        # no-task registry and skip with an informational message rather than
+        # failing when it isn't yet implemented.
+        build_verify_present = _framework_command_available("build:verify")
         steps.append(
             Step(
-                name="task build:verify",
-                run_fn=lambda r: _run_command(["task", "build:verify"], cwd=r),
+                name="framework build:verify",
+                run_fn=lambda r: _run_framework_command("build:verify", r),
                 applies_fn=lambda: build_verify_present,
                 skip_reason_fn=lambda: (
-                    "`task build:verify` not yet implemented; skipping -- "
+                    "`deft build:verify` not yet implemented; skipping -- "
                     "see #233 pending vBRIEF for the sibling plan.item."
                 ),
             )
@@ -441,7 +411,7 @@ def build_pipeline(
     steps: list[Step] = []
     steps.extend(_make_python_steps(root))
     steps.extend(_make_go_steps(root, skip_build=skip_build))
-    steps.extend(_make_task_steps(root, skip_build=skip_build))
+    steps.extend(_make_framework_steps(root, skip_build=skip_build))
     steps.extend(_make_windows_dispatch_steps(matrix))
     return steps
 

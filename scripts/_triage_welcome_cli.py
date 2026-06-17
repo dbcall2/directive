@@ -32,11 +32,11 @@ if TYPE_CHECKING:  # pragma: no cover -- import-time-only typing alias
 TASK_PREFIX_ENV_VAR: str = "DEFT_TASK_PREFIX"
 
 #: Default-mode nudge string emitted by :func:`run_default_mode` when the
-#: operator has never run ``task triage:welcome --onboard``. Kept as a
+#: operator has never run ``deft triage:welcome --onboard``. Kept as a
 #: module-level constant so tests can pin the exact byte-shape and so
 #: future copy edits land in one place.
 FIRST_TIME_NUDGE: str = (
-    "[welcome] First-time? Run `task triage:welcome --onboard` "
+    "[welcome] First-time? Run `deft triage:welcome --onboard` "
     "to set up triage."
 )
 
@@ -45,7 +45,7 @@ FIRST_TIME_NUDGE: str = (
 #: :func:`_classify_onboarding`).
 INCOMPLETE_NUDGE_TEMPLATE: str = (
     "[welcome] Onboarding incomplete: {missing}. Run "
-    "`task triage:welcome --onboard` to resume."
+    "`deft triage:welcome --onboard` to resume."
 )
 
 
@@ -118,7 +118,7 @@ def prompt_menu(
         if n == discuss_idx:
             output_fn(
                 "  [discuss] Pausing the ritual. Re-run "
-                "`task triage:welcome` after the discussion to resume."
+                "`deft triage:welcome` after the discussion to resume."
             )
             return PromptOutcome(discuss=True)
         if n == back_idx:
@@ -188,7 +188,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="triage_welcome.py",
         description=(
-            "Emit the `task triage:welcome` session-start status surface "
+            "Emit the `deft triage:welcome` session-start status surface "
             "(#1309 default mode -- summary one-liner plus a state-conditional "
             "first-time / incomplete-onboarding nudge), or run the full "
             "6-phase interactive onboarding ritual (#1143) under --onboard. "
@@ -205,7 +205,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "Run the interactive 6-phase onboarding ritual (#1143). "
-            "Without this flag (the default), `task triage:welcome` emits "
+            "Without this flag (the default), `deft triage:welcome` emits "
             "the non-interactive summary one-liner plus a state-conditional "
             "nudge pointing at `--onboard` when state is missing or partial "
             "(#1309)."
@@ -215,8 +215,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-subprocess",
         action="store_true",
         help=(
-            "Skip the `task triage:bootstrap` / `scope:demote` / "
-            "`triage:summary` subprocess hops. Test-mode flag for the "
+            "Skip the `deft triage:bootstrap` / `deft scope:demote` / "
+            "`deft triage:summary` follow-up hops. Test-mode flag for the "
             "--onboard ritual; never set in production runs."
         ),
     )
@@ -233,7 +233,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--skip-bootstrap",
         action="store_true",
         help=(
-            "Explicitly decline the --onboard Phase 3 `task triage:bootstrap` "
+            "Explicitly decline the --onboard Phase 3 `deft triage:bootstrap` "
             "invocation (#1244). The ritual still completes but emits a "
             "visible audit message AND records the decline in "
             "`meta/policy-changes.log`; downstream verbs that depend on "
@@ -309,7 +309,7 @@ def _classify_onboarding(state: PriorState) -> tuple[str, list[str]]:
     - ``"first-time"`` -- NONE of the three signals present: no
       ``vbrief/.eval/candidates.jsonl``, no ``plan.policy.triageScope``,
       no ``plan.policy.wipCap``. The operator has never run
-      ``task triage:welcome --onboard``.
+      ``deft triage:welcome --onboard``.
     - ``"incomplete"`` -- a strict subset (1 or 2) of the three signals
       present; ``missing_pieces`` names the absent piece(s) so the
       operator-facing nudge can be specific.
@@ -337,7 +337,7 @@ def emit_oneliner(
     output_fn: Callable[[str], None] | None = None,
     write_history: bool = True,
 ) -> str:
-    """Emit the ``task triage:summary`` one-liner via internal Python call.
+    """Emit the ``deft triage:summary`` one-liner via internal Python call.
 
     Mirrors the byte-shape produced by
     ``scripts/triage_summary.py::main`` (the headline plus, when
@@ -345,7 +345,7 @@ def emit_oneliner(
     spawning a subprocess. ``write_history`` controls whether the
     rolling ``vbrief/.eval/summary-history.jsonl`` sidecar is appended
     to; default-mode welcome runs DO append so observability stays
-    aligned with direct ``task triage:summary`` invocations.
+    aligned with direct ``deft triage:summary`` invocations.
 
     Returns the rendered line(s) so callers can compose with downstream
     state without re-rendering.
@@ -372,13 +372,13 @@ def run_default_mode(
     write_history: bool = True,
     task_prefix: str | None = None,
 ) -> WelcomeOutcome:
-    """Non-interactive default mode for ``task triage:welcome`` (#1309).
+    """Non-interactive default mode for ``deft triage:welcome`` (#1309).
 
     Subsumes the prior session-start step of running
-    ``task triage:summary`` plus a state-conditional first-time /
+    ``deft triage:summary`` plus a state-conditional first-time /
     incomplete-onboarding nudge so a fresh consumer sees one
     actionable line. The interactive 6-phase ritual now lives behind
-    ``task triage:welcome --onboard`` (see :func:`run_cli`).
+    ``deft triage:welcome --onboard`` (see :func:`run_cli`).
 
     No interactive prompts; the function never reads from stdin and is
     safe to invoke from any non-tty surface (CI, cloud agents, etc.).
@@ -397,10 +397,10 @@ def run_default_mode(
     emit_oneliner(project_root, output_fn=out_fn, write_history=write_history)
     state = triage_welcome.detect_prior_state(project_root)
     label, missing = _classify_onboarding(state)
-    canonical_onboard_command = triage_welcome.format_task_command(
+    canonical_onboard_command = triage_welcome.format_welcome_command(
         ["triage:welcome", "--onboard"]
     )
-    onboard_command = triage_welcome.format_task_command(
+    onboard_command = triage_welcome.format_welcome_command(
         ["triage:welcome", "--onboard"],
         task_prefix=task_prefix,
     )

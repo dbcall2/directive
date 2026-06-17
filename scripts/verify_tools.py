@@ -258,6 +258,7 @@ def verify_required_tools(
     *,
     install: bool = False,
     assume_yes: bool = False,
+    include_task: bool = False,
     platform_id: str | None = None,
     probe: ProbeFn = shutil.which,
     input_fn: InputFn = input,
@@ -269,7 +270,13 @@ def verify_required_tools(
     statuses: list[ToolStatus] = []
     lines: list[str] = []
 
-    for spec in TOOL_SPECS:
+    selected_specs = (
+        TOOL_SPECS
+        if include_task
+        else tuple(spec for spec in TOOL_SPECS if spec.name != "task")
+    )
+
+    for spec in selected_specs:
         found = _installed_command(spec, probe)
         if found:
             statuses.append(
@@ -385,6 +392,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--yes", action="store_true", help="Approve installer prompts.")
     parser.add_argument("--json", action="store_true", dest="emit_json")
     parser.add_argument(
+        "--include-task",
+        action="store_true",
+        help="Also require go-task for Taskfile-source workflows.",
+    )
+    parser.add_argument(
         "--platform",
         choices=("windows", "macos", "linux", "unknown"),
         help="Override platform detection for tests or diagnostics.",
@@ -398,6 +410,7 @@ def main(argv: list[str] | None = None) -> int:
     result = verify_required_tools(
         install=args.install,
         assume_yes=args.yes,
+        include_task=args.include_task,
         platform_id=args.platform,
         output_fn=captured.append,
     )

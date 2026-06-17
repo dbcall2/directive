@@ -90,7 +90,9 @@ helper re-used here), #725 (forward-revert + normal push in rollback),
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as _dt
+import io
 import json
 import os
 import shutil  # noqa: F401  -- kept for tests that monkeypatch release_e2e.shutil.which
@@ -109,6 +111,7 @@ from _stdio_utf8 import reconfigure_stdio  # noqa: E402
 reconfigure_stdio()
 
 import release  # noqa: E402
+import release_rollback  # noqa: E402
 
 EXIT_OK = release.EXIT_OK
 EXIT_VIOLATION = release.EXIT_VIOLATION
@@ -349,14 +352,42 @@ def push_mirror(clone_dir: Path) -> tuple[bool, str]:
     return True, "pushed heads + tags to temp origin"
 
 
+def _call_release_entrypoint(
+    entrypoint: Callable[[list[str] | None], int],
+    argv: list[str],
+    *,
+    clone_dir: Path,
+) -> tuple[int, str]:
+    old_cwd = Path.cwd()
+    old_project_root = os.environ.get("DEFT_PROJECT_ROOT")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    os.environ["DEFT_PROJECT_ROOT"] = str(clone_dir)
+    try:
+        os.chdir(clone_dir)
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = entrypoint(argv)
+    except SystemExit as exc:
+        raw = exc.code
+        code = raw if isinstance(raw, int) else (0 if raw is None else 1)
+    finally:
+        os.chdir(old_cwd)
+        if old_project_root is None:
+            os.environ.pop("DEFT_PROJECT_ROOT", None)
+        else:
+            os.environ["DEFT_PROJECT_ROOT"] = old_project_root
+    output = stderr.getvalue() or stdout.getvalue()
+    return int(code or 0), output
+
+
 def dispatch_task_release(
     clone_dir: Path, version: str, repo: str
 ) -> tuple[bool, str]:
-    """Invoke ``task release`` inside the clone with skip flags and the
+    """Invoke release.py inside the clone with skip flags and the
     vBRIEF-drift override (#720, #728, post-#754 harness fix).
 
     The full dispatched argv is
-    ``task release -- <version> --repo <repo> --skip-ci --skip-build --allow-vbrief-drift``.
+    ``release.py <version> --repo <repo> --skip-ci --skip-build --allow-vbrief-drift``.
 
     Skipping CI + build keeps the rehearsal wall-clock manageable; both
     are covered by the unit-test suite. The 10-step pipeline still
@@ -387,36 +418,24 @@ def dispatch_task_release(
     fully gated. Without this flag, every ``task release:e2e`` invocation
     since #734 landed has failed at the inner Step 3 lifecycle gate.
     """
-    if shutil.which("task") is None:
-        return False, "task binary not found on PATH"
-    cmd = [
-        "task", "release",
-        "--", version,
+    argv = [
+        version,
         "--repo", repo,
         "--skip-ci",
         "--skip-build",
         "--allow-vbrief-drift",
     ]
-    env = os.environ.copy()
-    env["DEFT_PROJECT_ROOT"] = str(clone_dir)
-    try:
-        result = subprocess.run(
-            cmd,
-            cwd=str(clone_dir),
-            capture_output=True,
-            text=True,
-            timeout=600,
-            check=False,
-            env=env,
-        )
-    except FileNotFoundError:
-        return False, "task binary not found on PATH"
-    if result.returncode != 0:
+    code, output = _call_release_entrypoint(
+        release.main,
+        argv,
+        clone_dir=clone_dir,
+    )
+    if code != 0:
         return False, (
-            f"task release failed (exit {result.returncode}): "
-            f"{(result.stderr or result.stdout).strip()}"
+            f"release.py failed (exit {code}): "
+            f"{output.strip()}"
         )
-    return True, f"task release -- {version} --repo {repo} (draft) ran clean"
+    return True, f"release.py {version} --repo {repo} (draft) ran clean"
 
 
 def verify_draft_release(
@@ -489,7 +508,7 @@ def verify_tag(clone_dir: Path, version: str) -> tuple[bool, str]:
 def dispatch_task_release_rollback(
     clone_dir: Path, version: str, repo: str
 ) -> tuple[bool, str]:
-    """Invoke ``task release:rollback -- <version> --repo <repo>`` (#720, #728).
+    """Invoke release_rollback.py ``<version> --repo <repo>`` (#720, #728).
 
     Exercises the rollback path against the temp repo so a regression in
     the state-aware unwind (states 1-3) surfaces in the e2e job rather
@@ -502,33 +521,18 @@ def dispatch_task_release_rollback(
     either a false VIOLATION (release-prep SHA cannot be resolved) or
     -- worse -- mutating the real repo's history.
     """
-    if shutil.which("task") is None:
-        return False, "task binary not found on PATH"
-    cmd = [
-        "task", "release:rollback",
-        "--", version,
-        "--repo", repo,
-    ]
-    env = os.environ.copy()
-    env["DEFT_PROJECT_ROOT"] = str(clone_dir)
-    try:
-        result = subprocess.run(
-            cmd,
-            cwd=str(clone_dir),
-            capture_output=True,
-            text=True,
-            timeout=300,
-            check=False,
-            env=env,
-        )
-    except FileNotFoundError:
-        return False, "task binary not found on PATH"
-    if result.returncode != 0:
+    argv = [version, "--repo", repo]
+    code, output = _call_release_entrypoint(
+        release_rollback.main,
+        argv,
+        clone_dir=clone_dir,
+    )
+    if code != 0:
         return False, (
-            f"task release:rollback failed (exit {result.returncode}): "
-            f"{(result.stderr or result.stdout).strip()}"
+            f"release_rollback.py failed (exit {code}): "
+            f"{output.strip()}"
         )
-    return True, f"task release:rollback -- {version} --repo {repo} ran clean"
+    return True, f"release_rollback.py {version} --repo {repo} ran clean"
 
 
 def run_rehearsal(

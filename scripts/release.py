@@ -84,6 +84,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _stdio_utf8 import reconfigure_stdio  # noqa: E402
+from framework_commands import run_framework_command  # noqa: E402
 from resolve_version import (  # noqa: E402
     NonPublishableVersionError,
     to_pep440,
@@ -697,60 +698,14 @@ def check_tag_available(
 # ---- Step 5 -- CI ----------------------------------------------------------
 
 
-def task_binary_available() -> bool:
-    return shutil.which("task") is not None
-
-
-def task_has_target(target: str, *, cwd: Path) -> bool:
-    """Return True if ``task --list-all`` reports the given target.
-
-    Uses ``--list-all`` (which surfaces tasks regardless of ``desc:`` presence)
-    so a target can be discovered even if it lacks documentation.
-    """
-    if not task_binary_available():
-        return False
-    try:
-        result = subprocess.run(
-            ["task", "--list-all"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            cwd=str(cwd),
-            check=False,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
-    if result.returncode != 0:
-        return False
-    pattern = re.compile(rf"^\*?\s*{re.escape(target)}:", re.MULTILINE)
-    return bool(pattern.search(result.stdout))
-
-
 def run_ci(project_root: Path) -> tuple[bool, str]:
-    """Run ``task ci:local`` if available, else fall back to ``task check``.
+    """Run the local CI entrypoint without requiring go-task (#1659)."""
+    import ci_local  # noqa: PLC0415
 
-    Returns ``(ok, reason)`` -- ``reason`` describes which target ran (or why
-    nothing did, when a fallback is also unavailable).
-    """
-    if not task_binary_available():
-        return False, "task binary not found on PATH"
-    if task_has_target("ci:local", cwd=project_root):
-        target = "ci:local"
-    else:
-        target = "check"
-        if not task_has_target("check", cwd=project_root):
-            return False, "neither task ci:local nor task check is defined"
-    try:
-        result = subprocess.run(
-            ["task", target],
-            cwd=str(project_root),
-            check=False,
-        )
-    except FileNotFoundError:
-        return False, "task binary not found on PATH"
-    if result.returncode != 0:
-        return False, f"task {target} failed (exit {result.returncode})"
-    return True, f"ran task {target}"
+    code = ci_local.main(["--root", str(project_root)])
+    if code != 0:
+        return False, f"ci:local failed (exit {code})"
+    return True, "ran ci:local"
 
 
 # ---- Step 4 -- CHANGELOG promotion -----------------------------------------
@@ -960,7 +915,7 @@ def _prepend_upgrade_banner(notes: str, repo: str, project_root: Path) -> str:
 
 
 def refresh_roadmap(project_root: Path) -> tuple[bool, str]:
-    """Re-render ROADMAP.md via ``task roadmap:render``.
+    """Re-render ROADMAP.md via the Python roadmap renderer.
 
     ``scripts/roadmap_render.py`` already aggregates ``vbrief/pending/``
     (Active) and ``vbrief/completed/`` (Completed) idempotently, so the
@@ -968,20 +923,16 @@ def refresh_roadmap(project_root: Path) -> tuple[bool, str]:
     directly. vBRIEFs that should appear in ``## Completed`` are expected
     to have been moved via ``task scope:complete`` in advance.
     """
-    if not task_binary_available():
-        return False, "task binary not found on PATH"
-    if not task_has_target("roadmap:render", cwd=project_root):
-        return True, "task roadmap:render not defined; skipping"
+    import roadmap_render  # noqa: PLC0415
+
+    old_cwd = Path.cwd()
     try:
-        result = subprocess.run(
-            ["task", "roadmap:render"],
-            cwd=str(project_root),
-            check=False,
-        )
-    except FileNotFoundError:
-        return False, "task binary not found on PATH"
-    if result.returncode != 0:
-        return False, f"task roadmap:render failed (exit {result.returncode})"
+        os.chdir(project_root)
+        code = roadmap_render.main()
+    finally:
+        os.chdir(old_cwd)
+    if code != 0:
+        return False, f"roadmap:render failed (exit {code})"
     return True, "ROADMAP.md re-rendered"
 
 
@@ -989,7 +940,7 @@ def refresh_roadmap(project_root: Path) -> tuple[bool, str]:
 
 
 def run_build(project_root: Path, version: str | None = None) -> tuple[bool, str]:
-    """Run ``task build`` for the release, pinning the artifact version (#723).
+    """Run ``deft build`` for the release, pinning the artifact version (#723).
 
     The Taskfile resolves its ``VERSION`` variable via the inline POSIX
     ``sh:`` block in ``Taskfile.yml`` ``vars: VERSION``, which honors
@@ -1015,31 +966,29 @@ def run_build(project_root: Path, version: str | None = None) -> tuple[bool, str
         - ``version`` falsy / ``None``: subprocess env carries NO
           ``DEFT_RELEASE_VERSION`` (any inherited value is removed).
     """
-    if not task_binary_available():
-        return False, "task binary not found on PATH"
-    if not task_has_target("build", cwd=project_root):
-        return True, "task build not defined; skipping"
-    env = os.environ.copy()
     if version:
-        env["DEFT_RELEASE_VERSION"] = version
+        previous = os.environ.get("DEFT_RELEASE_VERSION")
+        os.environ["DEFT_RELEASE_VERSION"] = version
     else:
-        # Strip any inherited value so version=None means "let the
-        # Taskfile resolver decide" (git tag -> dev fallback) and never
+        previous = os.environ.pop("DEFT_RELEASE_VERSION", None)
+        # Strip any inherited value so version=None means "let the resolver
+        # decide" (git tag -> dev fallback) and never
         # "use whatever leaked from the parent shell" -- see #723.
-        env.pop("DEFT_RELEASE_VERSION", None)
     try:
-        result = subprocess.run(
-            ["task", "build"],
-            cwd=str(project_root),
-            env=env,
-            check=False,
+        result = run_framework_command(
+            "build",
+            project_root=project_root,
+            framework_root=project_root,
         )
-    except FileNotFoundError:
-        return False, "task binary not found on PATH"
-    if result.returncode != 0:
-        return False, f"task build failed (exit {result.returncode})"
+    finally:
+        if previous is None:
+            os.environ.pop("DEFT_RELEASE_VERSION", None)
+        else:
+            os.environ["DEFT_RELEASE_VERSION"] = previous
+    if result.code != 0:
+        return False, f"build failed (exit {result.code})"
     suffix = f" (DEFT_RELEASE_VERSION={version})" if version else ""
-    return True, f"task build ran clean{suffix}"
+    return True, f"build ran clean{suffix}"
 
 
 # ---- Step 5 -- pyproject.toml [project].version sync (#771) ----------------

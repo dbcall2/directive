@@ -235,28 +235,28 @@ def test_managed_section_implementation_intent_gate_uses_required_tokens() -> No
 # ---------------------------------------------------------------------------
 
 _PROPAGATION_COMMAND_MARKERS: tuple[tuple[str, str], ...] = (
-    # Consumer AGENTS.md is generated for the canonical namespaced include,
-    # while the maintainer-side AGENTS.md is read inside this repo where bare
-    # task names resolve. Each pair is (consumer template, maintainer AGENTS).
-    ("task deft:session:start", "task session:start"),
-    ("task deft:verify:session-ritual", "task verify:session-ritual"),
-    ("task deft:verify:tools", "task verify:tools"),
-    ("task deft:triage:welcome --onboard", "task triage:welcome --onboard"),
-    ("task deft:triage:queue", "task triage:queue"),
+    # Consumer AGENTS.md is generated for package-manager installs, while the
+    # maintainer-side AGENTS.md is read inside this source repo where bare task
+    # names still resolve. Each pair is (consumer template, maintainer AGENTS).
+    ("deft session:start", "task session:start"),
+    ("deft verify:session-ritual", "task verify:session-ritual"),
+    ("deft verify:tools", "task verify:tools"),
+    ("deft triage:welcome --onboard", "task triage:welcome --onboard"),
+    ("deft triage:queue", "task triage:queue"),
     ("triage <N>", "triage <N>"),
-    ("task deft:verify:cache-fresh", "task verify:cache-fresh"),
-    ("task deft:verify:branch", "task verify:branch"),
+    ("deft verify:cache-fresh", "task verify:cache-fresh"),
+    ("deft verify:branch", "task verify:branch"),
     # #1378 Story C: deterministic story-start Gate 0 surfaced in both files.
-    ("task deft:verify:story-ready", "task verify:story-ready"),
-    ("task deft:doctor", "task doctor"),
-    ("task deft:agents:refresh", "task agents:refresh"),
+    ("deft verify:story-ready", "task verify:story-ready"),
+    ("deft doctor", "task doctor"),
+    ("deft agents:refresh", "task agents:refresh"),
     # #1643/#1637: content-pack discovery command. The command is namespaced
     # the same way on both surfaces (it lands only in the consumer managed
     # section via the refresh), so both halves of the pair are identical --
     # like the git-status / deft-install markers above.
     (
-        "task deft:packs:slice --list-packs",
-        "task deft:packs:slice --list-packs",
+        "deft packs:slice --list-packs",
+        "deft packs:slice --list-packs",
     ),
     # #1409: canonical headless upgrade command surfaced in both files.
     (
@@ -264,10 +264,10 @@ _PROPAGATION_COMMAND_MARKERS: tuple[tuple[str, str], ...] = (
         "deft-install --yes --upgrade --repo-root . --json",
     ),
     ("git status --short --branch", "git status --short --branch"),
-    ("task deft:scope:promote -- <path>", "task scope:promote -- <path>"),
-    ("task deft:scope:activate -- <path>", "task scope:activate -- <path>"),
+    ("deft scope:promote -- <path>", "task scope:promote -- <path>"),
+    ("deft scope:activate -- <path>", "task scope:activate -- <path>"),
     (
-        "task deft:scope:complete -- <active-story-path>",
+        "deft scope:complete -- <active-story-path>",
         "task scope:complete -- <active-story-path>",
     ),
 )
@@ -385,8 +385,8 @@ def test_consumer_template_does_not_use_unresolved_bare_task_names() -> None:
     template = _read_template()
     leaked = [marker for marker in _CONSUMER_FORBIDDEN_BARE_TASK_MARKERS if marker in template]
     assert not leaked, (
-        "templates/agents-entry.md must use `task deft:<name>` for consumer "
-        f"Directive tasks under the canonical include; found bare marker(s): {leaked}"
+        "templates/agents-entry.md must use `deft <name>` for consumer "
+        f"Directive commands; found bare task marker(s): {leaked}"
     )
 
 
@@ -489,11 +489,11 @@ def test_content_packs_note_references_discovery_commands() -> None:
     """#1643: the managed section names the pack/slice discovery commands."""
     section = _managed_section_text()
     assert "--list-packs" in section, (
-        "managed section MUST reference `task deft:packs:slice --list-packs` "
+        "managed section MUST reference `deft packs:slice --list-packs` "
         "as the pack-discovery command (#1643/#1637)."
     )
     assert "<pack> --list" in section, (
-        "managed section MUST reference `task deft:packs:slice <pack> --list` "
+        "managed section MUST reference `deft packs:slice <pack> --list` "
         "as the slice-discovery command (#1643/#1637)."
     )
 

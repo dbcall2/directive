@@ -7,8 +7,8 @@ Covers (#233 plan.item ``task-ci-local``):
   --fail-fast / --no-fail-fast pair.
 - Host-matrix mapping (linux/macos/windows host -> matrix slice).
 - Step pipeline composition under each matrix and --skip-build.
-- ``task build:verify`` graceful absence: when ``task --list`` does not
-  contain ``build:verify``, the step is emitted with applies()=False
+- ``deft build:verify`` graceful absence: when the no-task command registry
+  does not expose ``build:verify``, the step is emitted with applies()=False
   and a non-empty skip reason; when present, applies()=True.
 - Runner behavior: OK / FAIL / SKIP rows; verbose output mirroring;
   fail-fast aborts subsequent steps; --no-fail-fast lets the pipeline
@@ -188,40 +188,13 @@ class TestHostMatrix:
 
 
 class TestBuildVerifyDetection:
-    def test_returns_false_when_task_missing(self, monkeypatch, tmp_path):
-        _patch_executables(monkeypatch, present=set())
-        assert ci_local._build_verify_available(tmp_path) is False
+    def test_returns_false_when_registry_lacks_build_verify(self, monkeypatch):
+        monkeypatch.setattr(ci_local, "has_command", lambda _name: False)
+        assert ci_local._framework_command_available("build:verify") is False
 
-    def test_returns_false_when_task_list_lacks_build_verify(self, monkeypatch, tmp_path):
-        _patch_executables(monkeypatch, present={"task"})
-        _stub_run(
-            monkeypatch,
-            returncode=0,
-            stdout="* build: Package framework for distribution\n* test: Run tests\n",
-        )
-        assert ci_local._build_verify_available(tmp_path) is False
-
-    def test_returns_true_when_task_list_contains_build_verify(self, monkeypatch, tmp_path):
-        _patch_executables(monkeypatch, present={"task"})
-        _stub_run(
-            monkeypatch,
-            returncode=0,
-            stdout="* build: Package framework\n* build:verify: Verify dist\n",
-        )
-        assert ci_local._build_verify_available(tmp_path) is True
-
-    def test_returns_false_when_task_list_fails(self, monkeypatch, tmp_path, capsys):
-        # Greptile P2 #713: when ``task --list`` fails (e.g. malformed
-        # Taskfile.yml) we must surface a warning so the underlying error
-        # isn't silently swallowed behind "build:verify not yet
-        # implemented".
-        _patch_executables(monkeypatch, present={"task"})
-        _stub_run(monkeypatch, returncode=2, stdout="", stderr="boom")
-        assert ci_local._build_verify_available(tmp_path) is False
-        captured = capsys.readouterr()
-        assert "task --list" in captured.err
-        assert "exited 2" in captured.err
-        assert "boom" in captured.err
+    def test_returns_true_when_registry_contains_build_verify(self, monkeypatch):
+        monkeypatch.setattr(ci_local, "has_command", lambda name: name == "build:verify")
+        assert ci_local._framework_command_available("build:verify") is True
 
 
 # ---------------------------------------------------------------------------
@@ -269,35 +242,32 @@ class TestPipelineComposition:
         assert "go: build darwin/arm64" not in names
         assert "go: build windows/amd64" not in names
 
-    def test_task_steps_when_task_present(self, monkeypatch, tmp_path):
-        _patch_executables(monkeypatch, present={"task"})
-        _stub_run(monkeypatch, returncode=0, stdout="")  # build:verify probe says absent
+    def test_framework_steps_are_present_without_task(self, monkeypatch, tmp_path):
+        _patch_executables(monkeypatch, present=set())
         _force_host(monkeypatch, "Linux")
         steps = ci_local.build_pipeline(tmp_path, matrix="linux", skip_build=False)
         names = [s.name for s in steps]
-        assert "task toolchain:check" in names
-        assert "task verify:stubs" in names
-        assert "task verify:links" in names
-        assert "task verify:rule-ownership" in names
-        assert "task vbrief:validate" in names
-        assert "task build" in names
-        assert "task build:verify" in names
+        assert "framework toolchain:check" in names
+        assert "framework verify:stubs" in names
+        assert "framework verify:links" in names
+        assert "framework verify:rule-ownership" in names
+        assert "framework vbrief:validate" in names
+        assert "framework build" in names
+        assert "framework build:verify" in names
 
     def test_task_build_verify_skipped_when_absent(self, monkeypatch, tmp_path):
-        _patch_executables(monkeypatch, present={"task"})
-        _stub_run(monkeypatch, returncode=0, stdout="* build: foo\n")
+        monkeypatch.setattr(ci_local, "has_command", lambda _name: False)
         _force_host(monkeypatch, "Linux")
         steps = ci_local.build_pipeline(tmp_path, matrix="linux", skip_build=False)
-        bv = next(s for s in steps if s.name == "task build:verify")
+        bv = next(s for s in steps if s.name == "framework build:verify")
         assert bv.applies() is False
         assert "not yet implemented" in bv.skip_reason()
 
     def test_task_build_verify_runs_when_present(self, monkeypatch, tmp_path):
-        _patch_executables(monkeypatch, present={"task"})
-        _stub_run(monkeypatch, returncode=0, stdout="* build:verify: Verify\n")
+        monkeypatch.setattr(ci_local, "has_command", lambda name: name == "build:verify")
         _force_host(monkeypatch, "Linux")
         steps = ci_local.build_pipeline(tmp_path, matrix="linux", skip_build=False)
-        bv = next(s for s in steps if s.name == "task build:verify")
+        bv = next(s for s in steps if s.name == "framework build:verify")
         assert bv.applies() is True
 
     def test_windows_dispatch_skipped_on_linux(self, monkeypatch, tmp_path):
@@ -476,19 +446,15 @@ class TestMain:
         rc = ci_local.main(["--root", str(missing)])
         assert rc == ci_local.EXIT_CONFIG_ERROR
 
-    def test_main_no_applicable_tools_exits_2(self, monkeypatch, tmp_path, capsys):
-        # Greptile P1 #713: with zero tools on PATH every step constructor
-        # emits an applies()=False probe row, so ``build_pipeline`` is
-        # non-empty but every step skips. The runner used to exit 0 in
-        # this shape (every-step-skipped), violating the documented
-        # three-state exit-code contract; the fix is to also exit 2 when
-        # ``not any(s.applies() for s in steps)``. This test exercises the
-        # natural no-tools path rather than monkeypatching build_pipeline.
+    def test_main_framework_step_failure_exits_1_without_task(self, monkeypatch, tmp_path, capsys):
+        # Missing go-task no longer suppresses framework-level checks. A
+        # non-framework temp root still fails as a step failure rather than
+        # the old "no applicable tools" config branch.
         _patch_executables(monkeypatch, present=set())
         rc = ci_local.main(["--root", str(tmp_path), "--matrix", "linux"])
-        assert rc == ci_local.EXIT_CONFIG_ERROR
+        assert rc == ci_local.EXIT_STEP_FAILED
         captured = capsys.readouterr()
-        assert "no CI steps applicable" in captured.err
+        assert "framework verify:rule-ownership" in captured.out
 
     def test_main_empty_pipeline_exits_2(self, monkeypatch, tmp_path, capsys):
         # Defensive coverage of the original ``not steps`` branch in case a
@@ -553,7 +519,7 @@ class TestRoundTrip:
                         seen_steps.append(_n) or (0, f"{_n} ok", "")
                     ),
                 )
-                for name in ("python: ruff lint", "task vbrief:validate")
+                for name in ("python: ruff lint", "framework vbrief:validate")
             ]
 
         monkeypatch.setattr(ci_local, "build_pipeline", fake_pipeline)
@@ -567,7 +533,7 @@ class TestRoundTrip:
             ]
         )
         assert rc == ci_local.EXIT_OK
-        assert seen_steps == ["python: ruff lint", "task vbrief:validate"]
+        assert seen_steps == ["python: ruff lint", "framework vbrief:validate"]
         captured = capsys.readouterr()
         # Aggregate summary lands on stdout.
         assert "ci:local summary" in captured.out

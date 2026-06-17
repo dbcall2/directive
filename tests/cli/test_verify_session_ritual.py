@@ -98,7 +98,7 @@ def test_missing_state_fails_closed(tmp_path: Path) -> None:
     result = verifier.verify(tmp_path, tier="quick", bypass=False)
 
     assert result.code == 1
-    assert "task session:start" in result.message
+    assert "deft session:start" in result.message
 
 
 def test_corrupt_state_is_config_error(tmp_path: Path) -> None:
@@ -205,15 +205,7 @@ def test_gated_tier_lazily_records_missing_steps(tmp_path: Path) -> None:
 
     assert result.code == 0
     state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
-    assert commands == [
-        ["doctor.cmd_doctor", "--project-root", str(tmp_path)],
-        [
-            "preflight_cache.main",
-            "--allow-missing-bootstrap",
-            "--project-root",
-            str(tmp_path),
-        ],
-    ]
+    assert commands == [["doctor"], ["verify:cache-fresh"]]
     assert state["gated_steps"]["doctor"]["ok"] is True
     assert state["gated_steps"]["cache_fresh"]["ok"] is True
 
@@ -243,26 +235,9 @@ def test_gated_tier_records_in_process_entrypoint_commands(
 
     state = json.loads((tmp_path / ".deft" / "ritual-state.json").read_text(encoding="utf-8"))
     assert result.code == 0
-    assert commands == [
-        ["doctor.cmd_doctor", "--project-root", str(tmp_path)],
-        [
-            "preflight_cache.main",
-            "--allow-missing-bootstrap",
-            "--project-root",
-            str(tmp_path),
-        ],
-    ]
-    assert state["gated_steps"]["doctor"]["command"] == [
-        "doctor.cmd_doctor",
-        "--project-root",
-        str(tmp_path),
-    ]
-    assert state["gated_steps"]["cache_fresh"]["command"] == [
-        "preflight_cache.main",
-        "--allow-missing-bootstrap",
-        "--project-root",
-        str(tmp_path),
-    ]
+    assert commands == [["doctor"], ["verify:cache-fresh"]]
+    assert state["gated_steps"]["doctor"]["command"] == ["doctor"]
+    assert state["gated_steps"]["cache_fresh"]["command"] == ["verify:cache-fresh"]
 
 
 def test_gated_tier_records_entrypoint_failure(tmp_path: Path) -> None:
@@ -272,7 +247,7 @@ def test_gated_tier_records_entrypoint_failure(tmp_path: Path) -> None:
     _write_state(tmp_path, head=head, started_at=now)
 
     def runner(command: list[str], cwd: Path) -> tuple[int, str, str]:
-        if command[0] == "preflight_cache.main":
+        if command[0] == "verify:cache-fresh":
             return 1, "", "cache stale"
         return 0, "doctor ok", ""
 
@@ -289,8 +264,7 @@ def test_gated_tier_records_entrypoint_failure(tmp_path: Path) -> None:
     assert "gated step 'cache_fresh' failed: cache stale" in result.message
     assert state["gated_steps"]["doctor"]["ok"] is True
     assert state["gated_steps"]["cache_fresh"]["ok"] is False
-    assert state["gated_steps"]["cache_fresh"]["command"][0] == "preflight_cache.main"
-    assert "--allow-missing-bootstrap" in state["gated_steps"]["cache_fresh"]["command"]
+    assert state["gated_steps"]["cache_fresh"]["command"] == ["verify:cache-fresh"]
 
 
 def test_subprocess_helpers_capture_text_as_utf8(tmp_path: Path, monkeypatch) -> None:
@@ -315,7 +289,7 @@ def test_subprocess_helpers_capture_text_as_utf8(tmp_path: Path, monkeypatch) ->
 
     monkeypatch.setitem(sys.modules, "doctor", SimpleNamespace(cmd_doctor=fake_cmd_doctor))
     task_code, task_stdout, task_stderr = verifier._default_runner(
-        ["doctor.cmd_doctor", "--project-root", str(tmp_path)],
+        ["doctor"],
         tmp_path,
     )
 
@@ -712,4 +686,4 @@ def test_cli_bypass_warns_to_stderr_when_failure_is_hidden(
     assert code == 0
     assert captured.out == ""
     assert "WARNING: DEFT_SESSION_RITUAL_SKIP=1 bypassed" in captured.err
-    assert "task session:start" in captured.err
+    assert "deft session:start" in captured.err

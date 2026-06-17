@@ -17,9 +17,6 @@ hops fire. Suites:
 from __future__ import annotations
 
 import json
-import os
-import shutil
-import subprocess
 import sys
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
@@ -155,16 +152,19 @@ def test_task_command_args_prefixes_task_name_only() -> None:
     )
 
 
-def test_run_task_uses_prefixed_argv(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_task_dispatches_framework_command(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     captured: dict[str, object] = {}
 
-    def _fake_run(cmd: list[str], *, cwd: str, check: bool) -> SimpleNamespace:
-        captured["cmd"] = cmd
-        captured["cwd"] = cwd
-        captured["check"] = check
-        return SimpleNamespace(returncode=0)
+    def _fake_run_framework_command(command, argv, *, project_root):
+        captured["command"] = command
+        captured["argv"] = list(argv)
+        captured["project_root"] = project_root
+        return SimpleNamespace(code=0, stdout="", stderr="")
 
-    monkeypatch.setattr(triage_welcome.subprocess, "run", _fake_run)
+    monkeypatch.setattr(triage_welcome, "run_framework_command", _fake_run_framework_command)
     rc = triage_welcome._run_task(
         ["scope:demote", "--", "--batch"],
         cwd=tmp_path,
@@ -172,12 +172,11 @@ def test_run_task_uses_prefixed_argv(tmp_path: Path, monkeypatch: pytest.MonkeyP
     )
 
     assert rc == 0
-    cmd = captured["cmd"]
-    assert isinstance(cmd, list)
-    assert cmd[1:] == ["deft:scope:demote", "--", "--batch"]
-    assert Path(cmd[0]).name.lower().startswith("task")
-    assert captured["cwd"] == str(tmp_path)
-    assert captured["check"] is False
+    assert captured == {
+        "command": "scope:demote",
+        "argv": ["--", "--batch"],
+        "project_root": tmp_path,
+    }
 
 
 def test_run_default_mode_uses_prefixed_onboard_nudge(tmp_path: Path) -> None:
@@ -226,116 +225,35 @@ def test_cli_task_prefix_flag_threads_to_run_welcome(
     assert captured.get("task_prefix") == "deft"
 
 
-def _write_fake_task_binary(bin_dir: Path, log_path: Path) -> Path:
-    task_script = bin_dir / "fake_task.py"
-    task_script.write_text(
-        """#!/usr/bin/env python3
-import os
-import sys
-from pathlib import Path
-
-args = sys.argv[1:]
-with Path(os.environ["FAKE_TASK_LOG"]).open("a", encoding="utf-8") as handle:
-    handle.write(" ".join(args) + "\\n")
-if args and args[0].endswith("triage:bootstrap"):
-    candidates = Path.cwd() / "vbrief" / ".eval" / "candidates.jsonl"
-    candidates.parent.mkdir(parents=True, exist_ok=True)
-    candidates.touch()
-raise SystemExit(0)
-""",
-        encoding="utf-8",
-    )
-    task_script.chmod(0o755)
-    if os.name == "nt":
-        task_path = bin_dir / "task.cmd"
-        task_path.write_text(
-            f'@echo off\n"{sys.executable}" "{task_script}" %*\n',
-            encoding="utf-8",
-        )
-        return task_path
-    task_path = bin_dir / "task"
-    task_path.write_text(
-        f'#!/usr/bin/env sh\nexec "{sys.executable}" "{task_script}" "$@"\n',
-        encoding="utf-8",
-    )
-    task_path.chmod(0o755)
-    return task_path
-
-
-@pytest.mark.parametrize(
-    ("namespaced_include", "expected_prefix"),
-    [
-        pytest.param(False, "", id="direct-framework-taskfile"),
-        pytest.param(True, "deft:", id="consumer-namespaced-include"),
-    ],
-)
-def test_taskfile_welcome_dispatches_sibling_tasks_with_current_namespace(
+def test_welcome_dispatches_sibling_commands_in_process(
     tmp_path: Path,
-    namespaced_include: bool,
-    expected_prefix: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    real_task = shutil.which("task")
-    if real_task is None:
-        pytest.skip("go-task is not installed")
-
-    consumer = tmp_path / "consumer"
-    consumer.mkdir()
     _seed_project_definition(
-        consumer,
+        tmp_path,
         triage_scope=triage_welcome.SUBSCRIPTION_PRESETS["small"],
         wip_cap=10,
     )
-    if namespaced_include:
-        (consumer / "Taskfile.yml").write_text(
-            "version: '3'\n"
-            "includes:\n"
-            "  deft:\n"
-            f"    taskfile: {_REPO_ROOT / 'Taskfile.yml'}\n",
-            encoding="utf-8",
-        )
-        task_args = [real_task, "deft:triage:welcome"]
-    else:
-        task_args = [
-            real_task,
-            "-t",
-            str(_REPO_ROOT / "Taskfile.yml"),
-            "triage:welcome",
-        ]
+    invocations: list[list[str]] = []
 
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-    log_path = tmp_path / "fake-task.log"
-    _write_fake_task_binary(fake_bin, log_path)
-    env = os.environ.copy()
-    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
-    env["FAKE_TASK_LOG"] = str(log_path)
-    env["UV_FROZEN"] = "1"
+    def _record_run_task(args: list[str], *, cwd: Path) -> int:
+        invocations.append(list(args))
+        if args == ["triage:bootstrap"]:
+            _seed_candidates_log(tmp_path)
+        return 0
 
-    result = subprocess.run(
-        [*task_args, "--", "--onboard"],
-        cwd=consumer,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-        timeout=60,
+    monkeypatch.setattr(triage_welcome, "_run_task", _record_run_task)
+    outcome = triage_welcome.run_welcome(
+        tmp_path,
+        input_fn=_ScriptedInput([]),
+        output_fn=_CapturedOutput(),
+        run_subprocess=True,
+        task_prefix="deft:",
     )
 
-    assert result.returncode == 0, result.stderr
-    combined = result.stdout + result.stderr
-    assert 'Task "triage:' not in combined
-    invocations = log_path.read_text(encoding="utf-8").splitlines()
-    expected_invocations = {
-        f"{expected_prefix}triage:bootstrap",
-        f"{expected_prefix}triage:summary",
-    }
-    assert expected_invocations <= set(invocations)
-    if expected_prefix:
-        assert "triage:bootstrap" not in invocations
-        assert "triage:summary" not in invocations
-    else:
-        assert "deft:triage:bootstrap" not in invocations
-        assert "deft:triage:summary" not in invocations
+    assert outcome.exit_code == 0
+    assert ["triage:bootstrap"] in invocations
+    assert ["triage:summary"] in invocations
 
 
 # ---------------------------------------------------------------------------
@@ -587,7 +505,7 @@ def test_wip_exceeds_cap_offers_relief_dry_run_first(tmp_path: Path) -> None:
     assert outcome.relief_confirmed is False
     # Preview must have been emitted with the dry-run command text.
     joined = output.joined()
-    assert "task scope:demote -- --batch --older-than-days 30" in joined
+    assert "deft scope:demote -- --batch --older-than-days 30" in joined
     assert "2026-03-01-old.vbrief.json" in joined
     assert "Relief declined" in joined
 
@@ -761,7 +679,7 @@ def test_back_at_phase_2_rewinds_to_phase_1_without_recursion(
 def test_phase_3_bootstrap_failure_propagates_exit_code(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """SLizard P1: a non-zero ``task triage:bootstrap`` MUST set exit_code.
+    """SLizard P1: a non-zero ``deft triage:bootstrap`` MUST set exit_code.
 
     Pre-fix the bootstrap failure only warned to stderr and the ritual
     continued with `outcome.exit_code = 0`, making the dispatcher unable
@@ -782,14 +700,14 @@ def test_phase_3_bootstrap_failure_propagates_exit_code(
         run_subprocess=True,  # exercise the subprocess path
     )
     assert outcome.exit_code == 2
-    assert "`task triage:bootstrap` exited 17" in output.joined()
+    assert "`deft triage:bootstrap` exited 17" in output.joined()
     assert outcome.bootstrap_action == triage_welcome.BOOTSTRAP_ACTION_RAN
 
 
 def test_phase_5_scope_demote_failure_propagates_exit_code(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """SLizard P1: a non-zero ``task scope:demote`` MUST set exit_code.
+    """SLizard P1: a non-zero ``deft scope:demote`` MUST set exit_code.
 
     Configure WIP over the cap, confirm relief, and stub `_run_task` to
     return a non-zero code; assert outcome.exit_code == 2.
@@ -817,7 +735,7 @@ def test_phase_5_scope_demote_failure_propagates_exit_code(
     )
     assert outcome.exit_code == 2
     assert outcome.relief_confirmed is True
-    assert "`task scope:demote` exited 7" in output.joined()
+    assert "`deft scope:demote` exited 7" in output.joined()
 
 
 def test_write_triage_scope_propagates_non_import_errors_from_validator(
@@ -970,7 +888,7 @@ def test_skip_bootstrap_emits_visible_audit_message(
     assert "explicitly declined" in joined
     assert "--skip-bootstrap" in joined
     assert "vbrief/.eval/candidates.jsonl" in joined
-    assert "task triage:queue" in joined
+    assert "deft triage:queue" in joined
     # Persistent audit entry written to meta/policy-changes.log.
     audit_log = (tmp_path / triage_welcome.AUDIT_LOG_REL_PATH).read_text(encoding="utf-8")
     assert "action=bootstrap-declined" in audit_log
@@ -1557,7 +1475,7 @@ def test_session_start_nudge_lines_budget_one_with_overflow(tmp_path: Path) -> N
     """The budgeted ranking shows one headline + a +N overflow pointer."""
     _seed_project_definition(tmp_path)
     # One stranded (Tier-1) + one stale (Tier-2): budget 1 shows the stranded
-    # and overflows the stale to `task capacity:show`.
+    # and overflows the stale to `deft capacity:show`.
     _seed_stranded_epic(tmp_path, age_days=60)
     _seed_epic(
         tmp_path,
@@ -1570,7 +1488,7 @@ def test_session_start_nudge_lines_budget_one_with_overflow(tmp_path: Path) -> N
     assert len(lines) == 2
     assert "[TIER-1]" in lines[0]  # Tier-1 stranded ranks first
     assert "+1 more" in lines[1]
-    assert "task capacity:show" in lines[1]
+    assert "deft capacity:show" in lines[1]
 
 
 def test_run_welcome_phase1_emits_lifecycle_nudges(tmp_path: Path) -> None:
