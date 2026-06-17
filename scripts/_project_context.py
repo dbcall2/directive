@@ -171,7 +171,11 @@ def dispatch_task_check(
     framework_root: Path,
     project_root: Path,
     *,
-    runner: Callable[[str, Path, Path], CommandResult] | None = None,
+    runner: Callable[
+        [str, Path, Path],
+        CommandResult | subprocess.CompletedProcess[str],
+    ]
+    | None = None,
 ) -> int:
     """Dispatch ``check`` to the context-appropriate aggregate target."""
     target = (
@@ -187,7 +191,10 @@ def dispatch_task_check(
         )
     )
     result = command_runner(target, project_root, framework_root)
-    return int(result.code)
+    code = getattr(result, "code", None)
+    if code is None:
+        code = result.returncode
+    return int(code)
 
 
 def _build_parser() -> argparse.ArgumentParser:
