@@ -130,6 +130,8 @@ REHEARSAL_VERSION = "0.0.1"
 RELEASE_ENTRYPOINT_TIMEOUT_SECONDS = 600.0
 ROLLBACK_ENTRYPOINT_TIMEOUT_SECONDS = 300.0
 ENTRYPOINT_TIMEOUT_EXIT_CODE = 124
+_ENTRYPOINT_PROCESS_STATE_LOCK = threading.Lock()
+_ENTRYPOINT_ACTIVE_RESTORE_OWNER: object | None = None
 
 
 # ---- Data classes -----------------------------------------------------------
@@ -375,20 +377,58 @@ def _call_release_entrypoint(
     old_project_root = os.environ.get("DEFT_PROJECT_ROOT")
     real_stdout, real_stderr = sys.stdout, sys.stderr
     result: dict[str, tuple[int, str]] = {}
+    restore_owner = object()
+    timed_out = threading.Event()
+
+    def _activate_process_state() -> bool:
+        global _ENTRYPOINT_ACTIVE_RESTORE_OWNER  # noqa: PLW0603
+
+        with _ENTRYPOINT_PROCESS_STATE_LOCK:
+            if timed_out.is_set():
+                return False
+            _ENTRYPOINT_ACTIVE_RESTORE_OWNER = restore_owner
+            os.environ["DEFT_PROJECT_ROOT"] = str(clone_dir)
+            os.chdir(clone_dir)
+            return True
 
     def _restore_process_state() -> None:
-        os.chdir(old_cwd)
-        if old_project_root is None:
-            os.environ.pop("DEFT_PROJECT_ROOT", None)
-        else:
-            os.environ["DEFT_PROJECT_ROOT"] = old_project_root
+        global _ENTRYPOINT_ACTIVE_RESTORE_OWNER  # noqa: PLW0603
+
+        with _ENTRYPOINT_PROCESS_STATE_LOCK:
+            if _ENTRYPOINT_ACTIVE_RESTORE_OWNER is not restore_owner:
+                return
+            _ENTRYPOINT_ACTIVE_RESTORE_OWNER = None
+            os.chdir(old_cwd)
+            if old_project_root is None:
+                os.environ.pop("DEFT_PROJECT_ROOT", None)
+            else:
+                os.environ["DEFT_PROJECT_ROOT"] = old_project_root
+
+    def _timeout_process_state() -> None:
+        global _ENTRYPOINT_ACTIVE_RESTORE_OWNER  # noqa: PLW0603
+
+        with _ENTRYPOINT_PROCESS_STATE_LOCK:
+            timed_out.set()
+            if _ENTRYPOINT_ACTIVE_RESTORE_OWNER is not restore_owner:
+                return
+            _ENTRYPOINT_ACTIVE_RESTORE_OWNER = None
+            # Own cleanup after timeout; the daemon's later finally block must
+            # not restore over any subsequent release entrypoint.
+            os.chdir(old_cwd)
+            if old_project_root is None:
+                os.environ.pop("DEFT_PROJECT_ROOT", None)
+            else:
+                os.environ["DEFT_PROJECT_ROOT"] = old_project_root
+
+    def _restore_stdio() -> None:
+        sys.stdout, sys.stderr = real_stdout, real_stderr
 
     def _worker() -> None:
         stdout = io.StringIO()
         stderr = io.StringIO()
-        os.environ["DEFT_PROJECT_ROOT"] = str(clone_dir)
         try:
-            os.chdir(clone_dir)
+            if not _activate_process_state():
+                return
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 code = entrypoint(argv)
         except SystemExit as exc:
@@ -410,9 +450,9 @@ def _call_release_entrypoint(
     worker.join(timeout)
     if worker.is_alive():
         # A hung worker may still hold process-global stdout/stderr redirects.
-        # Restore the real streams and root env before returning fail-closed.
-        sys.stdout, sys.stderr = real_stdout, real_stderr
-        _restore_process_state()
+        # Restore real streams and claim root-state cleanup before fail-closed.
+        _restore_stdio()
+        _timeout_process_state()
         label = getattr(entrypoint, "__name__", "entrypoint")
         return ENTRYPOINT_TIMEOUT_EXIT_CODE, f"{label} timed out after {timeout:g}s"
     return result.get("value", (EXIT_VIOLATION, "entrypoint produced no result"))

@@ -30,6 +30,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -443,6 +444,8 @@ class TestDispatchTaskRelease:
         old_cwd = Path.cwd()
         clone_dir = tmp_path / "clone"
         clone_dir.mkdir()
+        next_dir = tmp_path / "next"
+        next_dir.mkdir()
         started = threading.Event()
         release = threading.Event()
 
@@ -463,8 +466,28 @@ class TestDispatchTaskRelease:
             assert "timed out" in output
             assert Path.cwd() == old_cwd
             assert release_e2e.os.environ.get("DEFT_PROJECT_ROOT") == "/operator/real/repo"
+
+            release_e2e.os.chdir(next_dir)
+            release_e2e.os.environ["DEFT_PROJECT_ROOT"] = str(next_dir)
+            release.set()
+
+            def worker_alive():
+                return any(
+                    thread.name == "deft-release-entrypoint" and thread.is_alive()
+                    for thread in threading.enumerate()
+                )
+
+            deadline = time.monotonic() + 1
+            while time.monotonic() < deadline:
+                if not worker_alive():
+                    break
+                time.sleep(0.01)
+            assert not worker_alive()
+            assert Path.cwd() == next_dir
+            assert release_e2e.os.environ.get("DEFT_PROJECT_ROOT") == str(next_dir)
         finally:
             release.set()
+            release_e2e.os.chdir(old_cwd)
 
     def test_task_missing_does_not_block_dispatch(self, monkeypatch, tmp_path):
         monkeypatch.setattr(release_e2e.shutil, "which", lambda _: None)
