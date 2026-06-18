@@ -90,7 +90,7 @@ def _relative_file(path: Path, project_root: Path) -> str:
     return _posix(path.relative_to(project_root))
 
 
-def _file_sha256(path: Path) -> str:
+def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -108,7 +108,7 @@ def _source_content_hash(project_root: Path, rel_paths: list[str]) -> dict[str, 
         file_count += 1
         digest.update(rel_path.encode("utf-8"))
         digest.update(b"\0")
-        digest.update(_file_sha256(path).encode("ascii"))
+        digest.update(file_sha256(path).encode("ascii"))
         digest.update(b"\0")
     return {
         "algorithm": "sha256",

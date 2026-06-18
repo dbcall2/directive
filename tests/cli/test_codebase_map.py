@@ -147,6 +147,33 @@ def test_main_refuses_to_clobber_hand_authored_map(tmp_path: Path) -> None:
     assert output.read_text(encoding="utf-8") == "# Hand-authored map\n"
 
 
+def test_main_checks_hand_authored_output_before_provider_selection(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _write_project_definition(tmp_path)
+    _write_code(tmp_path)
+    output = tmp_path / ".planning" / "codebase" / "MAP.md"
+    output.parent.mkdir(parents=True)
+    output.write_text("# Hand-authored map\n", encoding="utf-8")
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("provider selection should not run before output guard")
+
+    monkeypatch.setattr(codebase_map, "select_codebase_map", fail_if_called)
+
+    assert (
+        codebase_map.main(
+            [
+                "--project-root",
+                str(tmp_path),
+                "--generate-with",
+                "fixture-provider --json",
+            ]
+        )
+        == 2
+    )
+
+
 def test_map_uses_policy_provider_artifact_when_fresh(tmp_path: Path) -> None:
     _write_code(tmp_path)
     artifact_path = tmp_path / ".planning" / "codebase" / "provider-map.json"

@@ -21,6 +21,7 @@ from codebase_default_extractor import (
     build_codebase_map,
     config_error_to_dict,
     default_code_structure_path,
+    file_sha256,
 )
 from codebase_projection_registry import CODEBASE_MAP_KIND
 
@@ -328,15 +329,6 @@ def load_provider_artifact_policy(
         expect_provider=expect_provider,
         expect_version=expect_version,
     )
-
-
-def file_sha256(path: Path) -> str:
-    """Return the SHA-256 digest for one file."""
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def artifact_sha256(artifact: dict[str, Any]) -> str:

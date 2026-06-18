@@ -270,6 +270,15 @@ def main(argv: list[str] | None = None) -> int:
     project_root = Path(args.project_root).resolve()
     try:
         output_path = projection_output_path(project_root, args.output)
+        resolved_output = output_path if output_path.is_absolute() else project_root / output_path
+        if not args.stdout and not args.force and not is_deft_generated(resolved_output):
+            print(
+                f"Error: refusing to overwrite non-generated MAP at {resolved_output}. "
+                f"This file lacks the {GENERATED_SENTINEL!r} banner.",
+                file=sys.stderr,
+            )
+            return 2
+
         selection = select_codebase_map(
             project_root,
             args.generate_with,
@@ -280,14 +289,6 @@ def main(argv: list[str] | None = None) -> int:
             print(document, end="")
             return 0
 
-        resolved_output = output_path if output_path.is_absolute() else project_root / output_path
-        if not args.force and not is_deft_generated(resolved_output):
-            print(
-                f"Error: refusing to overwrite non-generated MAP at {resolved_output}. "
-                f"This file lacks the {GENERATED_SENTINEL!r} banner.",
-                file=sys.stderr,
-            )
-            return 2
         resolved_output.parent.mkdir(parents=True, exist_ok=True)
         resolved_output.write_text(document, encoding="utf-8")
     except code_structure_validate.CodeStructureConfigError as exc:

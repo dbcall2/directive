@@ -13,6 +13,7 @@ _SCRIPTS = _REPO_ROOT / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
+import codebase_default_extractor as extractor  # noqa: E402
 import codebase_provider as provider  # noqa: E402
 
 
@@ -76,6 +77,10 @@ def _artifact_with_hash(project_root: Path, rel_path: str = "src/main.py") -> di
 
 def test_validate_provider_artifact_accepts_contract() -> None:
     assert provider.validate_provider_artifact(_valid_artifact()) == []
+
+
+def test_provider_reuses_default_extractor_file_hash_helper() -> None:
+    assert provider.file_sha256 is extractor.file_sha256
 
 
 def test_validate_provider_artifact_reports_contract_mismatch() -> None:
