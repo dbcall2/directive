@@ -11019,7 +11019,7 @@
           }
         ]
       },
-      "allowDirectCommitsToMaster": false
+      "allowDirectCommitsToMaster": true
     },
     "updated": "2026-06-12T20:26:00Z"
   }
