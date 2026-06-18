@@ -197,8 +197,8 @@ class TestExitCodeContract:
         assert result.code == 1
         assert "stale" not in result.message.lower() or "max-age" in result.message
         # Remediation MUST name both bootstrap and fetch-all per issue body.
-        assert "task triage:bootstrap" in result.message
-        assert "task cache:fetch-all" in result.message
+        assert "deft triage:bootstrap" in result.message
+        assert "deft cache:fetch-all" in result.message
         assert "--allow-stale" in result.message
 
     def test_missing_cache_exits_two(self, preflight, tmp_path):
@@ -207,7 +207,7 @@ class TestExitCodeContract:
         result = preflight.evaluate(tmp_path, repo="deftai/directive")
         assert result.code == 2
         assert ".deft-cache/" in result.message
-        assert "task triage:bootstrap" in result.message
+        assert "deft triage:bootstrap" in result.message
 
     def test_missing_candidates_jsonl_exits_two(self, preflight, tmp_path):
         now = datetime(2026, 5, 17, 12, tzinfo=UTC)
@@ -218,7 +218,7 @@ class TestExitCodeContract:
         )
         assert result.code == 2
         assert "candidates.jsonl" in result.message
-        assert "task triage:bootstrap" in result.message
+        assert "deft triage:bootstrap" in result.message
 
     def test_empty_cache_repo_exits_two(self, preflight, tmp_path):
         """Cache root present but repo dir empty -> config error."""
@@ -275,7 +275,7 @@ class TestForIssueDecisionMatrix:
         )
         assert result.code == 1
         assert decision in result.message
-        assert "task triage:status" in result.message
+        assert "deft triage:status" in result.message
 
     def test_missing_decision_blocks(self, preflight, tmp_path):
         now = self._setup(tmp_path, datetime(2026, 5, 17, 12, tzinfo=UTC))
@@ -288,7 +288,7 @@ class TestForIssueDecisionMatrix:
         )
         assert result.code == 1
         assert "no triage decision" in result.message
-        assert "task triage:accept" in result.message
+        assert "deft triage:accept" in result.message
 
     def test_accept_decision_passes(self, preflight, tmp_path):
         now = self._setup(tmp_path, datetime(2026, 5, 17, 12, tzinfo=UTC))
@@ -670,7 +670,7 @@ class TestBackfillOnlyCacheState:
     The pre-#1245 gate iterated ``meta_paths`` from ``.deft-cache/`` and
     refused any state where every cached entry was outside the active
     ``plan.policy.triageScope[]`` subscription -- even when the consumer
-    had just run ``task triage:bootstrap`` and the backfilled ``accept``
+    had just run ``deft triage:bootstrap`` and the backfilled ``accept``
     audit-log rows showed they were actively triaging. The recommended
     recovery ("widen the subscription") was wrong; the actual state was a
     ``backfill-only cache`` (cached open issues simply did not happen to
@@ -782,11 +782,11 @@ class TestBackfillOnlyCacheState:
             tmp_path, repo="deftai/directive", now=now
         )
         assert result.code == 1
-        # Updated remediation now also names task triage:accept and is
+        # Updated remediation now also names deft triage:accept and is
         # explicit about the audit log being empty.
         assert "audit log" in result.message.lower()
-        assert "task triage:scope" in result.message
-        assert "task cache:fetch-all" in result.message
+        assert "deft triage:scope" in result.message
+        assert "deft cache:fetch-all" in result.message
 
     def test_backfill_only_for_issue_in_scope_accept_passes(
         self, preflight, tmp_path,
@@ -873,7 +873,7 @@ class TestBackfillOnlyCacheState:
         )
         assert result.code == 1
         assert "max-age" in result.message or "stale" in result.message.lower()
-        assert "task cache:fetch-all" in result.message
+        assert "deft cache:fetch-all" in result.message
 
     def test_candidates_jsonl_entries_not_evaluated_against_scope(
         self, preflight, tmp_path,
@@ -1046,9 +1046,9 @@ class TestCLI:
 
 class TestThreeStateMessaging:
     """Pin the #1240 state machine: the OK message distinguishes three
-    consumer states so ``task verify:cache-fresh`` no longer claims
+    consumer states so ``deft verify:cache-fresh`` no longer claims
     ``treating as bootstrap state`` after a successful
-    ``task triage:bootstrap``.
+    ``deft triage:bootstrap``.
     """
 
     def test_no_cache_exits_two_or_bootstrap_state_on_override(
@@ -1074,7 +1074,7 @@ class TestThreeStateMessaging:
     ):
         """State 2 (cache + empty audit log): "fresh bootstrap, no triage actions yet".
 
-        Mirrors the post-#1240 ``task triage:bootstrap`` end state where
+        Mirrors the post-#1240 ``deft triage:bootstrap`` end state where
         step 5 has seeded ``vbrief/.eval/candidates.jsonl`` as a zero-length
         file. The gate must exit 0 AND its message must accurately describe
         the state.

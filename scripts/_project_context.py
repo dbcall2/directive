@@ -34,7 +34,10 @@ import argparse
 import os
 import re
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
+
+from framework_commands import CommandResult, run_framework_command
 
 # Sentinel directories that mark a deft project root.
 _PROJECT_ROOT_SENTINELS = ("vbrief", ".git")
@@ -168,19 +171,30 @@ def dispatch_task_check(
     framework_root: Path,
     project_root: Path,
     *,
-    runner=subprocess.run,
+    runner: Callable[
+        [str, Path, Path],
+        CommandResult | subprocess.CompletedProcess[str],
+    ]
+    | None = None,
 ) -> int:
-    """Dispatch ``task check`` to the context-appropriate aggregate target."""
+    """Dispatch ``check`` to the context-appropriate aggregate target."""
     target = (
         "check:framework-source"
         if is_framework_source_context(framework_root, project_root)
         else "check:consumer"
     )
-    result = runner(
-        ["task", "-t", str(framework_root / "Taskfile.yml"), target],
-        cwd=str(project_root),
+    command_runner = runner or (
+        lambda command, root, framework: run_framework_command(
+            command,
+            project_root=root,
+            framework_root=framework,
+        )
     )
-    return int(result.returncode)
+    result = command_runner(target, project_root, framework_root)
+    code = getattr(result, "code", None)
+    if code is None:
+        code = result.returncode
+    return int(code)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -188,7 +202,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dispatch-task-check",
         action="store_true",
-        help="Dispatch the task check aggregate for the current install context.",
+        help="Dispatch the check aggregate for the current install context.",
     )
     parser.add_argument("--framework-root", type=Path)
     parser.add_argument("--project-root", type=Path)

@@ -47,6 +47,7 @@ def test_missing_installable_tool_reports_prompt_manual_url_and_summary() -> Non
     lines: list[str] = []
 
     result = verify_tools.verify_required_tools(
+        include_task=True,
         platform_id="linux",
         probe=_probe_with("git", "uv", "python3", "gh", "apt-get"),
         output_fn=lines.append,
@@ -67,6 +68,7 @@ def test_non_interactive_guidance_omits_yes_no_prompt() -> None:
     lines: list[str] = []
 
     verify_tools.verify_required_tools(
+        include_task=True,
         platform_id="linux",
         probe=_probe_with("git", "uv", "python3", "gh", "apt-get"),
         output_fn=lines.append,
@@ -83,6 +85,7 @@ def test_interactive_guidance_includes_yes_no_prompt() -> None:
     verify_tools.verify_required_tools(
         install=True,
         assume_yes=False,
+        include_task=True,
         platform_id="linux",
         probe=_probe_with("git", "uv", "python3", "gh", "apt-get"),
         input_fn=lambda _prompt: "n",
@@ -108,6 +111,7 @@ def test_approved_install_runs_command_and_rechecks_tool() -> None:
     result = verify_tools.verify_required_tools(
         install=True,
         assume_yes=True,
+        include_task=True,
         platform_id="linux",
         probe=probe,
         run_fn=run,
@@ -126,6 +130,7 @@ def test_declined_install_keeps_manual_fallback_unresolved() -> None:
     result = verify_tools.verify_required_tools(
         install=True,
         assume_yes=False,
+        include_task=True,
         platform_id="linux",
         probe=_probe_with("git", "uv", "python3", "gh", "apt-get"),
         input_fn=lambda _prompt: "n",
@@ -152,6 +157,21 @@ def test_missing_manual_only_tool_skips_install_prompt() -> None:
     assert uv_status.installable is False
     assert any("no safe automated installer" in line for line in lines)
     assert not any("Install it now? (Y/n)" in line for line in lines)
+
+
+def test_missing_task_is_not_required_by_default() -> None:
+    verify_tools = _load_module()
+    lines: list[str] = []
+
+    result = verify_tools.verify_required_tools(
+        platform_id="linux",
+        probe=_probe_with("git", "uv", "python3", "gh", "apt-get"),
+        output_fn=lines.append,
+    )
+
+    assert result.exit_code == 0
+    assert not any(status.name == "task" for status in result.statuses)
+    assert lines == ["[deft tools] Required tools are available."]
 
 
 def test_missing_git_is_foundational_failure_without_auto_install() -> None:

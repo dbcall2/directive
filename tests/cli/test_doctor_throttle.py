@@ -317,7 +317,7 @@ def test_cmd_doctor_dirty_skip_blocks_with_exit_one(
     )
     assert "[doctor]" in result.stdout
     assert "UNRESOLVED" in result.stdout
-    assert "task doctor --full" in result.stdout
+    assert "deft doctor --full" in result.stdout
 
 
 def test_cmd_doctor_full_bypass_runs_checks(
@@ -372,7 +372,7 @@ def test_cmd_doctor_json_dirty_skip_schema(
     assert payload["status"] == "throttle-skipped"
     assert payload["last_error_count"] == 4
     assert payload["last_finding_count"] == 5
-    assert "task doctor --full" in payload["hint"]
+    assert "deft doctor --full" in payload["hint"]
 
 
 def test_cmd_doctor_full_run_persists_state(

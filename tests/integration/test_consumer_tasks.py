@@ -29,6 +29,7 @@ import sys
 import tempfile
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -164,9 +165,9 @@ def test_task_check_dispatches_consumer_safe_gate_for_vendored_install(
     (framework_root / "Taskfile.yml").write_text("version: '3'\n", encoding="utf-8")
     calls: list[dict[str, object]] = []
 
-    def fake_runner(args, cwd=None):
-        calls.append({"args": args, "cwd": cwd})
-        return subprocess.CompletedProcess(args, 0)
+    def fake_runner(command, project_root, framework):
+        calls.append({"command": command, "project_root": project_root, "framework": framework})
+        return SimpleNamespace(code=0)
 
     rc = context.dispatch_task_check(
         framework_root,
@@ -177,13 +178,9 @@ def test_task_check_dispatches_consumer_safe_gate_for_vendored_install(
     assert rc == 0
     assert calls == [
         {
-            "args": [
-                "task",
-                "-t",
-                str(framework_root / "Taskfile.yml"),
-                "check:consumer",
-            ],
-            "cwd": str(consumer_project),
+            "command": "check:consumer",
+            "project_root": consumer_project,
+            "framework": framework_root,
         }
     ]
 
@@ -204,9 +201,9 @@ def test_task_check_dispatches_consumer_safe_gate_for_symlinked_core(
         pytest.skip(f"directory symlinks unavailable on this platform: {exc}")
     calls: list[dict[str, object]] = []
 
-    def fake_runner(args, cwd=None):
-        calls.append({"args": args, "cwd": cwd})
-        return subprocess.CompletedProcess(args, 0)
+    def fake_runner(command, project_root, framework):
+        calls.append({"command": command, "project_root": project_root, "framework": framework})
+        return SimpleNamespace(code=0)
 
     rc = context.dispatch_task_check(
         framework_root,
@@ -217,13 +214,9 @@ def test_task_check_dispatches_consumer_safe_gate_for_symlinked_core(
     assert rc == 0
     assert calls == [
         {
-            "args": [
-                "task",
-                "-t",
-                str(framework_root / "Taskfile.yml"),
-                "check:consumer",
-            ],
-            "cwd": str(consumer_project),
+            "command": "check:consumer",
+            "project_root": consumer_project,
+            "framework": framework_root,
         }
     ]
 
@@ -233,22 +226,18 @@ def test_task_check_dispatches_framework_self_check_in_framework_repo() -> None:
     context = _load_module("project_context_dispatch_source", SCRIPTS_DIR / "_project_context.py")
     calls: list[dict[str, object]] = []
 
-    def fake_runner(args, cwd=None):
-        calls.append({"args": args, "cwd": cwd})
-        return subprocess.CompletedProcess(args, 0)
+    def fake_runner(command, project_root, framework):
+        calls.append({"command": command, "project_root": project_root, "framework": framework})
+        return SimpleNamespace(code=0)
 
     rc = context.dispatch_task_check(REPO_ROOT, REPO_ROOT, runner=fake_runner)
 
     assert rc == 0
     assert calls == [
         {
-            "args": [
-                "task",
-                "-t",
-                str(REPO_ROOT / "Taskfile.yml"),
-                "check:framework-source",
-            ],
-            "cwd": str(REPO_ROOT),
+            "command": "check:framework-source",
+            "project_root": REPO_ROOT,
+            "framework": REPO_ROOT,
         }
     ]
 

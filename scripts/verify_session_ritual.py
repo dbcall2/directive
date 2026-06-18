@@ -19,6 +19,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from framework_commands import format_framework_command  # noqa: E402
 from policy import resolve_session_ritual_staleness_hours  # noqa: E402
 from ritual_sentinel import (  # noqa: E402
     RitualState,
@@ -37,8 +38,8 @@ ENTRYPOINT_TIMEOUT_EXIT_CODE = 124
 QUICK_STEPS: tuple[str, ...] = ("alignment", "branch_policy", "triage_welcome")
 GATED_STEPS: tuple[str, ...] = ("doctor", "cache_fresh")
 GATED_ENTRYPOINT_COMMANDS: dict[str, tuple[str, ...]] = {
-    "doctor": ("doctor.cmd_doctor",),
-    "cache_fresh": ("preflight_cache.main", "--allow-missing-bootstrap"),
+    "doctor": ("doctor",),
+    "cache_fresh": ("verify:cache-fresh",),
 }
 
 
@@ -142,16 +143,19 @@ def _call_main(
 
 
 def _default_runner(args: list[str], cwd: Path) -> tuple[int, str, str]:
-    entrypoint, *argv = args
-    if entrypoint == "doctor.cmd_doctor":
+    command, *argv = args
+    if command == "doctor":
         import doctor  # noqa: PLC0415
 
-        return _call_main(doctor.cmd_doctor, argv)
-    if entrypoint == "preflight_cache.main":
+        return _call_main(doctor.cmd_doctor, ["--project-root", str(cwd), *argv])
+    if command == "verify:cache-fresh":
         import preflight_cache  # noqa: PLC0415
 
-        return _call_main(preflight_cache.main, argv)
-    return 2, "", f"unknown session ritual entrypoint: {entrypoint}"
+        return _call_main(
+            preflight_cache.main,
+            ["--allow-missing-bootstrap", "--project-root", str(cwd), *argv],
+        )
+    return 2, "", f"unknown session ritual command: {command}"
 
 
 def _step_passes(step: dict[str, Any] | None) -> bool:
@@ -166,7 +170,7 @@ def _failed_step_message(tier_name: str, step_name: str, step: object) -> str:
     if step is None:
         return (
             f"session ritual {tier_name} step '{step_name}' is missing. "
-            "Run `task session:start` before implementation dispatch."
+            f"Run `{format_framework_command(['session:start'])}` before implementation dispatch."
         )
     if isinstance(step, dict) and step.get("deferred_reason"):
         return ""
@@ -183,11 +187,7 @@ def _run_gated_step(
     runner: Runner,
     now: datetime,
 ) -> str | None:
-    command = [
-        *GATED_ENTRYPOINT_COMMANDS[step_name],
-        "--project-root",
-        str(project_root),
-    ]
+    command = [*GATED_ENTRYPOINT_COMMANDS[step_name]]
     code, stdout, stderr = runner(command, project_root)
     message = stdout.strip() or stderr.strip() or f"{command[0]} exited {code}"
     payload.setdefault("gated_steps", {})[step_name] = ritual_step(
@@ -219,23 +219,24 @@ def _evaluate_loaded_state(
         return (
             1,
             "session ritual state belongs to a different worktree "
-            f"({state.worktree_path}); run `task session:start` here.",
+            f"({state.worktree_path}); run `{format_framework_command(['session:start'])}` here.",
         )
     if state.git_head != current_head:
         return (
             1,
             "session ritual state is stale because git HEAD changed. "
-            "Run `task session:start` again.",
+            f"Run `{format_framework_command(['session:start'])}` again.",
         )
     staleness = resolve_session_ritual_staleness_hours(project_root)
     if staleness.source == "default-on-error":
         return 2, staleness.error or "session ritual staleness policy is invalid"
     max_age = timedelta(hours=staleness.hours)
     if now - state.started_at > max_age:
+        start_command = format_framework_command(["session:start"])
         return (
             1,
             "session ritual state is stale "
-            f"(older than {staleness.hours}h). Run `task session:start` again.",
+            f"(older than {staleness.hours}h). Run `{start_command}` again.",
         )
     for step_name in QUICK_STEPS:
         step = state.quick_steps.get(step_name)
@@ -272,8 +273,9 @@ def verify(
     state, err = read_ritual_state(project_root)
     if state is None:
         code = 1 if missing_state_file else 2
+        start_command = format_framework_command(["session:start"])
         message = (
-            f"{err}. Run `task session:start` before implementation dispatch."
+            f"{err}. Run `{start_command}` before implementation dispatch."
             if code == 1
             else err or "ritual state invalid"
         )

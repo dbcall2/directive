@@ -13,6 +13,7 @@ Covers:
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -200,3 +201,59 @@ class TestResolveProjectRoot:
         result = pc.resolve_project_root(None, start=start)
         if result is not None:
             assert not str(result).startswith(str(start))
+
+
+# ---------------------------------------------------------------------------
+# dispatch_task_check
+# ---------------------------------------------------------------------------
+
+
+class TestDispatchTaskCheck:
+    def test_selects_framework_source_and_accepts_command_result(self, tmp_path):
+        captured = {}
+
+        def fake_runner(command, project_root, framework_root):
+            captured["command"] = command
+            captured["project_root"] = project_root
+            captured["framework_root"] = framework_root
+            return pc.CommandResult(code=0)
+
+        rc = pc.dispatch_task_check(tmp_path, tmp_path, runner=fake_runner)
+
+        assert rc == 0
+        assert captured == {
+            "command": "check:framework-source",
+            "project_root": tmp_path,
+            "framework_root": tmp_path,
+        }
+
+    def test_accepts_completed_process_runner(self, tmp_path):
+        framework_root = tmp_path / "framework"
+        project_root = tmp_path / "project"
+        framework_root.mkdir()
+        project_root.mkdir()
+        captured = {}
+
+        def fake_runner(command, root, framework):
+            captured["command"] = command
+            captured["project_root"] = root
+            captured["framework_root"] = framework
+            return subprocess.CompletedProcess(
+                args=["deft", command],
+                returncode=7,
+                stdout="",
+                stderr="",
+            )
+
+        rc = pc.dispatch_task_check(
+            framework_root,
+            project_root,
+            runner=fake_runner,
+        )
+
+        assert rc == 7
+        assert captured == {
+            "command": "check:consumer",
+            "project_root": project_root,
+            "framework_root": framework_root,
+        }

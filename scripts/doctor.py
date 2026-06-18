@@ -1215,7 +1215,7 @@ def _agents_refresh_plan(project_root: Path) -> dict:
     unconditionally returned ``{"state": "unreadable"}`` and produced a
     spurious warning on every ``task doctor`` run. Genuinely stale sections
     report ``stale`` (the freshness check then points the operator at
-    ``task agents:refresh``); a genuinely unreadable / template-missing
+    ``deft agents:refresh``); a genuinely unreadable / template-missing
     state still surfaces a warning.
     """
     return _load_agents_md_module()._agents_refresh_plan(project_root)
@@ -1294,7 +1294,7 @@ def _render_doctor_status_line(decision) -> str:
         warn_phrase = f"{warns} warning{'s' if warns != 1 else ''}"
         return (
             f"[doctor] ran {age_h}h ago, {err_phrase} / {warn_phrase} "
-            "-- UNRESOLVED; run `task doctor --full` to re-probe or "
+            "-- UNRESOLVED; run `deft doctor --full` to re-probe or "
             "address findings."
         )
     remaining = decision.next_eligible_at - _now_utc()
@@ -1308,7 +1308,7 @@ def _render_doctor_status_line(decision) -> str:
 def _emit_doctor_throttle_skip(decision, *, json_mode: bool) -> int:
     """Print the throttle-skip surface and return the gated exit code (#1308)."""
     hint = (
-        "run `task doctor --full` to re-probe or address findings"
+        "run `deft doctor --full` to re-probe or address findings"
         if decision.dirty
         else "--full forces"
     )
@@ -1464,7 +1464,7 @@ def _run_agents_md_freshness_check(
     if state in ("stale", "missing", "absent"):
         message = (
             f"AGENTS.md managed section is {state} -- "
-            "run `task agents:refresh` to bring it to the current template."
+            "run `deft agents:refresh` to bring it to the current template."
         )
         emit_warn(message)
         add_finding(
@@ -1472,7 +1472,7 @@ def _run_agents_md_freshness_check(
             message,
             check=check_name,
             status=state,
-            suggestion="task agents:refresh",
+            suggestion="deft agents:refresh",
         )
         return
     message = (
@@ -1869,7 +1869,6 @@ def cmd_doctor(args: list[str]):
         required=True,
         install_url=UV_INSTALL_URL,
     )
-    check_command("task", "task (Taskfile)")
     check_command("git", "git", required=True)
     check_command("python3", "python3")
     check_command("go", "go")
@@ -1896,7 +1895,7 @@ def cmd_doctor(args: list[str]):
     # emits a skip finding with reason "no managed-section markers
     # (likely maintainer repo)" when AGENTS.md carries no v3 markers.
     # Stale templates surface as a warning (zero exit) -- the operator
-    # runs `task agents:refresh` to bring them current.
+    # runs `deft agents:refresh` to bring them current.
     if not json_mode:
         print()
     _emit_info("Checking AGENTS.md managed-section freshness...")
@@ -1970,7 +1969,7 @@ def cmd_doctor(args: list[str]):
     # need (and must not declare) a `deft:` include to itself.
     if not json_mode:
         print()
-    _emit_info("Checking root Taskfile.yml include...")
+    _emit_info("Checking optional root Taskfile.yml include...")
     if _running_inside_deft_repo(project_root):
         _emit_info(
             "Skipping Taskfile include check -- running inside the deft "
@@ -1987,11 +1986,11 @@ def cmd_doctor(args: list[str]):
             include_missing = True
             target = project_root / "Taskfile.yml"
             message = (
-                "Root Taskfile.yml missing -- the `task X` surface "
-                "(task vbrief:preflight / task spec:render / task check) "
-                f"will not resolve until you add one. Paste this into {target}:"
+                "Root Taskfile.yml missing. This is OK for package-manager "
+                "installs that use the `deft X` surface directly. To also "
+                f"enable the optional `task deft:X` surface, paste this into {target}:"
             )
-            _emit_error(message)
+            _emit_info(message)
             if not json_mode:
                 print()
                 print(_TASKFILE_INCLUDE_SNIPPET)
@@ -2042,8 +2041,8 @@ def cmd_doctor(args: list[str]):
                     )
             if include_missing:
                 _add_finding(
-                    "error",
-                    "Root Taskfile.yml missing",
+                    "warning",
+                    "Root Taskfile.yml missing; optional Taskfile include unavailable",
                     check="taskfile-include",
                     file=str(target),
                     suggestion=_TASKFILE_INCLUDE_SNIPPET,
@@ -2051,16 +2050,18 @@ def cmd_doctor(args: list[str]):
         elif include_status == "missing-include":
             message = (
                 "Root Taskfile.yml exists but does not include the deft "
-                "framework. Add this to its `includes:` block (doctor "
-                "NEVER mutates an existing user-owned Taskfile):"
+                "framework. The `deft X` surface still works; add this to "
+                "the Taskfile `includes:` block only if you want the optional "
+                "`task deft:X` surface (doctor NEVER mutates an existing "
+                "user-owned Taskfile):"
             )
-            _emit_error(message)
+            _emit_warn(message)
             if not json_mode:
                 print()
                 print(_format_missing_include_snippet())
             taskfile_path = _resolve_consumer_taskfile(project_root)
             _add_finding(
-                "error",
+                "warning",
                 "Root Taskfile.yml does not include the deft framework",
                 check="taskfile-include",
                 file=str(taskfile_path) if taskfile_path else None,

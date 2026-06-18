@@ -11,9 +11,6 @@ from __future__ import annotations
 
 import contextlib
 import json
-import os
-import shutil
-import subprocess
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -33,6 +30,10 @@ from _lifecycle_hygiene import (  # noqa: E402  (sibling import after sys.path t
 from _project_definition_io import (  # noqa: E402  (after sys.path tweak)
     atomic_write_project_definition,
     project_definition_mutation_lock,
+)
+from framework_commands import (  # noqa: E402
+    format_framework_command,
+    run_framework_command,
 )
 from policy import (  # noqa: E402  (sibling import after sys.path tweak)
     count_pending_decisions,
@@ -536,24 +537,26 @@ def format_task_command(args: list[str], *, task_prefix: str | None = None) -> s
     return " ".join(["task", *task_command_args(args, task_prefix=task_prefix)])
 
 
+def format_welcome_command(args: list[str], *, task_prefix: str | None = None) -> str:
+    """Render the preferred command for welcome guidance (#1659)."""
+    prefix = normalize_task_prefix(task_prefix)
+    if prefix:
+        return format_framework_command(args, surface="task", task_prefix=prefix)
+    return format_framework_command(args, surface="deft")
+
+
 def _run_task(args: list[str], *, cwd: Path, task_prefix: str | None = None) -> int:
-    """Run ``task <args...>``. Returns exit code; never raises on non-zero."""
-    task_binary = shutil.which("task") or "task"
-    task_args = task_command_args(args, task_prefix=task_prefix)
-    if os.name == "nt" and Path(task_binary).suffix.lower() in {".bat", ".cmd"}:
-        cmd = ["cmd.exe", "/c", task_binary, *task_args]
-    else:
-        cmd = [task_binary, *task_args]
-    try:
-        result = subprocess.run(cmd, cwd=str(cwd), check=False)
-        return result.returncode
-    except FileNotFoundError:
-        sys.stderr.write(
-            "  [triage:welcome] WARN: `task` not on PATH -- skipping the "
-            f"subprocess hop ({' '.join(cmd)}). Re-run with the deft "
-            "toolchain available to chain the remaining phases.\n"
-        )
-        return 127
+    """Run a Deft framework verb in-process. Returns exit code; never raises."""
+    _ = task_prefix  # The no-task rail ignores Taskfile namespaces at runtime.
+    if not args:
+        return 2
+    command, *argv = args
+    result = run_framework_command(command, argv, project_root=cwd)
+    if result.stdout:
+        sys.stdout.write(result.stdout)
+    if result.stderr:
+        sys.stderr.write(result.stderr)
+    return result.code
 
 
 # ---------------------------------------------------------------------------
@@ -583,7 +586,7 @@ from _triage_welcome_cli import (  # noqa: E402,F401  (after sys.path tweak; _cl
 # ---------------------------------------------------------------------------
 
 #: Overflow pointer appended when the budget hides additional ranked nudges.
-NUDGE_OVERFLOW_POINTER: str = "`task capacity:show`"
+NUDGE_OVERFLOW_POINTER: str = "`deft capacity:show`"
 
 #: Default session-start nudge budget (RFC #1419 Nudge Budgeting: budget 1).
 DEFAULT_NUDGE_BUDGET: int = 1
@@ -614,7 +617,7 @@ def session_start_nudge_lines(
     Slice-6 lifecycle-hygiene nudges (stranded-slice Tier-1, stale-epic
     Tier-2) into one ranked list -- ``(tier, -magnitude, id)`` -- and returns
     at most *budget* headline lines plus a single ``+N more`` overflow pointer
-    at ``task capacity:show`` when more nudges remain. This is the budgeted
+    at ``deft capacity:show`` when more nudges remain. This is the budgeted
     default-mode surface; the full ranked list lives in ``capacity:show``.
     """
     ranked: list[tuple[int, int, str, str]] = []
@@ -631,7 +634,7 @@ def session_start_nudge_lines(
     # dormancy-days while the backlog's is a decision count, so dormancy-days
     # effectively dominates same-tier ordering. That is acceptable because the
     # budgeted surface only shows the single top headline plus a `+N more`
-    # pointer; the full, separately-grouped list lives in `task capacity:show`.
+    # pointer; the full, separately-grouped list lives in `deft capacity:show`.
     ranked.sort(key=lambda item: (item[0], -item[1], item[2]))
 
     budget = max(0, budget)
@@ -693,7 +696,7 @@ __all__ = (
     "pending_decisions_oneliner", "preview_wip_relief",
     "project_definition_path", "prompt_int", "prompt_menu", "prompt_yes_no",
     "record_tech_debt_acceptance", "resolve_epic_thresholds",
-    "format_task_command", "normalize_task_prefix", "run_default_mode",
+    "format_task_command", "format_welcome_command", "normalize_task_prefix", "run_default_mode",
     "run_welcome", "session_start_nudge_lines", "task_command_args",
     "write_triage_scope", "write_wip_cap",
 )
@@ -717,7 +720,7 @@ class WelcomeOutcome:
     """End-of-run summary for tests / dispatcher consumers.
 
     ``bootstrap_action`` (#1244) surfaces whether Phase 3 invoked
-    ``task triage:bootstrap`` or skipped it (and why). One of the
+    ``deft triage:bootstrap`` or skipped it (and why). One of the
     ``BOOTSTRAP_ACTION_*`` constants above, or ``None`` if the ritual
     exited before Phase 3 (e.g. Discuss / Back at Phase 2).
     """
@@ -753,7 +756,7 @@ def run_welcome(
 
     Phase 3 bootstrap-skip semantics (#1244): the canonical "bootstrap
     already finished" signal is ``vbrief/.eval/candidates.jsonl`` (the
-    audit log seeded by ``task triage:bootstrap`` step 5), NOT the raw
+    audit log seeded by ``deft triage:bootstrap`` step 5), NOT the raw
     ``.deft-cache/`` entry count. When the audit log is absent the
     ritual MUST (a) run bootstrap (the default, idempotent), (b) loudly
     surface dry-mode suppression when ``run_subprocess=False``, or
@@ -766,11 +769,9 @@ def run_welcome(
     normalized_task_prefix = normalize_task_prefix(task_prefix)
 
     def _display_task(args: list[str]) -> str:
-        return format_task_command(args, task_prefix=normalized_task_prefix)
+        return format_welcome_command(args, task_prefix=normalized_task_prefix)
 
     def _run_welcome_task(args: list[str]) -> int:
-        if normalized_task_prefix:
-            return _run_task(args, cwd=project_root, task_prefix=normalized_task_prefix)
         return _run_task(args, cwd=project_root)
 
     # ``Back`` overrides the "already set, skip" rule for ONE iteration so

@@ -7,11 +7,11 @@ Coverage:
   - clone_repo_to_temp: subprocess.run argv + success / failure paths
   - set_origin_to_temp_repo: argv contains 'remote set-url' + temp URL
   - push_mirror: argv carries explicit heads+tags refspecs (no --mirror; #728)
-  - dispatch_task_release: argv carries --skip-ci + --skip-build
+  - dispatch_task_release: release.main argv carries --skip-ci + --skip-build
   - verify_draft_release: success path + isDraft=false refusal +
     tagName mismatch refusal
   - verify_tag: ls-remote presence / absence
-  - dispatch_task_release_rollback: argv shape
+  - dispatch_task_release_rollback: release_rollback.main argv shape
 - run_rehearsal: walks the seven steps in order; short-circuits on first
   failure; passes the configured version through
 - run_e2e: provision -> rehearse -> destroy ordering; cleanup runs even
@@ -25,10 +25,13 @@ Refs #716, #720, #74.
 from __future__ import annotations
 
 import importlib.util
+import io
 import re
 import shutil
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -320,26 +323,28 @@ class TestPushMirror:
 
 class TestDispatchTaskRelease:
     def test_argv_carries_skip_ci_and_skip_build(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(release_e2e.shutil, "which", lambda _: "/usr/bin/task")
         captured = {}
 
-        def fake_run(cmd, **kwargs):
-            captured["cmd"] = cmd
-            captured["env"] = kwargs.get("env")
-            return SimpleNamespace(stdout="", stderr="", returncode=0)
+        def fake_call(entrypoint, argv, *, clone_dir, timeout):
+            captured["entrypoint"] = entrypoint
+            captured["argv"] = list(argv)
+            captured["clone_dir"] = clone_dir
+            captured["timeout"] = timeout
+            return 0, ""
 
-        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(release_e2e, "_call_release_entrypoint", fake_call)
         ok, _ = release_e2e.dispatch_task_release(
             tmp_path, "0.0.1", "deftai/temp-x"
         )
         assert ok is True
         # #720 acceptance: --skip-ci AND --skip-build are passed through.
-        assert "--skip-ci" in captured["cmd"]
-        assert "--skip-build" in captured["cmd"]
-        assert captured["cmd"][0] == "task"
-        assert captured["cmd"][1] == "release"
-        assert "0.0.1" in captured["cmd"]
-        assert "deftai/temp-x" in captured["cmd"]
+        assert captured["entrypoint"] is release_e2e.release.main
+        assert "--skip-ci" in captured["argv"]
+        assert "--skip-build" in captured["argv"]
+        assert "0.0.1" in captured["argv"]
+        assert "deftai/temp-x" in captured["argv"]
+        assert captured["clone_dir"] == tmp_path
+        assert captured["timeout"] == release_e2e.RELEASE_ENTRYPOINT_TIMEOUT_SECONDS
 
     def test_argv_carries_allow_vbrief_drift(self, monkeypatch, tmp_path):
         """Post-#754 harness fix: e2e rehearsal MUST pass --allow-vbrief-drift.
@@ -352,69 +357,214 @@ class TestDispatchTaskRelease:
         cut path against a real repo does NOT pass this flag and remains
         fully gated.
         """
-        monkeypatch.setattr(release_e2e.shutil, "which", lambda _: "/usr/bin/task")
         captured = {}
 
-        def fake_run(cmd, **kwargs):
-            captured["cmd"] = cmd
-            return SimpleNamespace(stdout="", stderr="", returncode=0)
+        def fake_call(entrypoint, argv, *, clone_dir, timeout):
+            captured["argv"] = list(argv)
+            captured["timeout"] = timeout
+            return 0, ""
 
-        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(release_e2e, "_call_release_entrypoint", fake_call)
         ok, _ = release_e2e.dispatch_task_release(
             tmp_path, "0.0.1", "deftai/temp-x"
         )
         assert ok is True
-        assert "--allow-vbrief-drift" in captured["cmd"], (
+        assert captured["timeout"] == release_e2e.RELEASE_ENTRYPOINT_TIMEOUT_SECONDS
+        assert "--allow-vbrief-drift" in captured["argv"], (
             "e2e rehearsal MUST pass --allow-vbrief-drift to skip the "
             "vBRIEF-lifecycle-sync gate against an empty temp repo (#754 "
             "harness fix)"
         )
 
-    def test_pins_deft_project_root_to_clone_dir(self, monkeypatch, tmp_path):
-        """#728 cycle 2 P1: subprocess env MUST pin DEFT_PROJECT_ROOT to
+    def test_call_entrypoint_pins_deft_project_root_to_clone_dir(
+        self,
+        monkeypatch,
+        tmp_path,
+    ):
+        """#728 cycle 2 P1: entrypoint env MUST pin DEFT_PROJECT_ROOT to
         ``clone_dir``. Without this, an operator with the variable
-        exported would have ``task release`` resolve to the real
+        exported would have release.py resolve to the real
         directive repo and push spurious v0.0.1 artefacts to
         ``deftai/directive``."""
-        monkeypatch.setattr(release_e2e.shutil, "which", lambda _: "/usr/bin/task")
         monkeypatch.setenv("DEFT_PROJECT_ROOT", "/operator/real/repo")
         captured = {}
-
-        def fake_run(cmd, **kwargs):
-            captured["env"] = kwargs.get("env")
-            return SimpleNamespace(stdout="", stderr="", returncode=0)
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
         clone_dir = tmp_path / "clone"
-        ok, _ = release_e2e.dispatch_task_release(
-            clone_dir, "0.0.1", "deftai/temp-x"
-        )
-        assert ok is True
-        env = captured["env"]
-        assert env is not None
-        assert env.get("DEFT_PROJECT_ROOT") == str(clone_dir), (
-            "DEFT_PROJECT_ROOT must be pinned to clone_dir, got "
-            f"{env.get('DEFT_PROJECT_ROOT')!r}"
-        )
-        assert env["DEFT_PROJECT_ROOT"] != "/operator/real/repo"
+        clone_dir.mkdir()
 
-    def test_task_missing_returns_false(self, monkeypatch, tmp_path):
+        def fake_entrypoint(argv):
+            captured["argv"] = list(argv)
+            captured["env"] = release_e2e.os.environ.get("DEFT_PROJECT_ROOT")
+            captured["cwd"] = Path.cwd()
+            return 0
+
+        code, _ = release_e2e._call_release_entrypoint(
+            fake_entrypoint,
+            ["0.0.1"],
+            clone_dir=clone_dir,
+        )
+        assert code == 0
+        assert captured["env"] == str(clone_dir), (
+            "DEFT_PROJECT_ROOT must be pinned to clone_dir, got "
+            f"{captured['env']!r}"
+        )
+        assert captured["env"] != "/operator/real/repo"
+        assert captured["cwd"] == clone_dir
+        assert release_e2e.os.environ.get("DEFT_PROJECT_ROOT") == "/operator/real/repo"
+
+    def test_call_entrypoint_converts_unexpected_exception_to_failure(
+        self,
+        monkeypatch,
+        tmp_path,
+    ):
+        monkeypatch.setenv("DEFT_PROJECT_ROOT", "/operator/real/repo")
+        old_cwd = Path.cwd()
+        clone_dir = tmp_path / "clone"
+        clone_dir.mkdir()
+
+        def fail(_argv):
+            raise RuntimeError("boom")
+
+        code, output = release_e2e._call_release_entrypoint(
+            fail,
+            ["0.0.1"],
+            clone_dir=clone_dir,
+            timeout=1,
+        )
+
+        assert code == release_e2e.EXIT_VIOLATION
+        assert "RuntimeError: boom" in output
+        assert Path.cwd() == old_cwd
+        assert release_e2e.os.environ.get("DEFT_PROJECT_ROOT") == "/operator/real/repo"
+
+    def test_call_entrypoint_times_out_on_hanging_entrypoint(
+        self,
+        monkeypatch,
+        tmp_path,
+    ):
+        monkeypatch.setenv("DEFT_PROJECT_ROOT", "/operator/real/repo")
+        old_cwd = Path.cwd()
+        clone_dir = tmp_path / "clone"
+        clone_dir.mkdir()
+        next_dir = tmp_path / "next"
+        next_dir.mkdir()
+        started = threading.Event()
+        release = threading.Event()
+
+        def hang(_argv):
+            started.set()
+            release.wait(5)
+            return 0
+
+        try:
+            code, output = release_e2e._call_release_entrypoint(
+                hang,
+                ["0.0.1"],
+                clone_dir=clone_dir,
+                timeout=0.05,
+            )
+            assert started.wait(1)
+            assert code == release_e2e.ENTRYPOINT_TIMEOUT_EXIT_CODE
+            assert "timed out" in output
+            assert Path.cwd() == old_cwd
+            assert release_e2e.os.environ.get("DEFT_PROJECT_ROOT") == "/operator/real/repo"
+
+            release_e2e.os.chdir(next_dir)
+            release_e2e.os.environ["DEFT_PROJECT_ROOT"] = str(next_dir)
+            release.set()
+
+            def worker_alive():
+                return any(
+                    thread.name == "deft-release-entrypoint" and thread.is_alive()
+                    for thread in threading.enumerate()
+                )
+
+            deadline = time.monotonic() + 1
+            while time.monotonic() < deadline:
+                if not worker_alive():
+                    break
+                time.sleep(0.01)
+            assert not worker_alive()
+            assert Path.cwd() == next_dir
+            assert release_e2e.os.environ.get("DEFT_PROJECT_ROOT") == str(next_dir)
+        finally:
+            release.set()
+            release_e2e.os.chdir(old_cwd)
+
+    def test_timed_out_entrypoint_does_not_restore_over_later_stdio_capture(
+        self,
+        monkeypatch,
+        tmp_path,
+    ):
+        monkeypatch.setenv("DEFT_PROJECT_ROOT", "/operator/real/repo")
+        old_cwd = Path.cwd()
+        old_stdout, old_stderr = release_e2e.sys.stdout, release_e2e.sys.stderr
+        clone_dir = tmp_path / "clone"
+        clone_dir.mkdir()
+        started = threading.Event()
+        release = threading.Event()
+
+        def hang(_argv):
+            started.set()
+            release.wait(5)
+            return 0
+
+        try:
+            code, output = release_e2e._call_release_entrypoint(
+                hang,
+                ["0.0.1"],
+                clone_dir=clone_dir,
+                timeout=0.05,
+            )
+            assert started.wait(1)
+            assert code == release_e2e.ENTRYPOINT_TIMEOUT_EXIT_CODE
+            assert "timed out" in output
+
+            next_stdout = io.StringIO()
+            next_stderr = io.StringIO()
+            release_e2e.sys.stdout = next_stdout
+            release_e2e.sys.stderr = next_stderr
+            release.set()
+
+            def worker_alive():
+                return any(
+                    thread.name == "deft-release-entrypoint" and thread.is_alive()
+                    for thread in threading.enumerate()
+                )
+
+            deadline = time.monotonic() + 1
+            while time.monotonic() < deadline:
+                if not worker_alive():
+                    break
+                time.sleep(0.01)
+            assert not worker_alive()
+            assert release_e2e.sys.stdout is next_stdout
+            assert release_e2e.sys.stderr is next_stderr
+        finally:
+            release.set()
+            release_e2e.sys.stdout = old_stdout
+            release_e2e.sys.stderr = old_stderr
+            release_e2e.os.chdir(old_cwd)
+
+    def test_task_missing_does_not_block_dispatch(self, monkeypatch, tmp_path):
         monkeypatch.setattr(release_e2e.shutil, "which", lambda _: None)
+        monkeypatch.setattr(
+            release_e2e,
+            "_call_release_entrypoint",
+            lambda *args, **kwargs: (0, ""),
+        )
+
         ok, reason = release_e2e.dispatch_task_release(
             tmp_path, "0.0.1", "deftai/x"
         )
-        assert ok is False
-        assert "task binary not found" in reason
+        assert ok is True
+        assert "release.py 0.0.1 --repo deftai/x" in reason
 
     def test_failure_surfaces_stderr(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(release_e2e.shutil, "which", lambda _: "/usr/bin/task")
-
-        def fake_run(cmd, **kwargs):
-            return SimpleNamespace(
-                stdout="", stderr="pipeline step failed", returncode=1
-            )
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(
+            release_e2e,
+            "_call_release_entrypoint",
+            lambda *args, **kwargs: (1, "pipeline step failed"),
+        )
         ok, reason = release_e2e.dispatch_task_release(
             tmp_path, "0.0.1", "deftai/x"
         )
@@ -516,48 +666,56 @@ class TestVerifyTag:
 
 class TestDispatchTaskReleaseRollback:
     def test_argv_shape(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(release_e2e.shutil, "which", lambda _: "/usr/bin/task")
         captured = {}
 
-        def fake_run(cmd, **kwargs):
-            captured["cmd"] = cmd
-            captured["env"] = kwargs.get("env")
-            return SimpleNamespace(stdout="", stderr="", returncode=0)
+        def fake_call(entrypoint, argv, *, clone_dir, timeout):
+            captured["entrypoint"] = entrypoint
+            captured["argv"] = list(argv)
+            captured["clone_dir"] = clone_dir
+            captured["timeout"] = timeout
+            return 0, ""
 
-        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(release_e2e, "_call_release_entrypoint", fake_call)
         ok, _ = release_e2e.dispatch_task_release_rollback(
             tmp_path, "0.0.1", "deftai/x"
         )
         assert ok is True
-        assert captured["cmd"][0] == "task"
-        assert captured["cmd"][1] == "release:rollback"
-        assert "0.0.1" in captured["cmd"]
-        assert "deftai/x" in captured["cmd"]
+        assert captured["entrypoint"] is release_e2e.release_rollback.main
+        assert "0.0.1" in captured["argv"]
+        assert "deftai/x" in captured["argv"]
+        assert captured["clone_dir"] == tmp_path
+        assert captured["timeout"] == release_e2e.ROLLBACK_ENTRYPOINT_TIMEOUT_SECONDS
 
-    def test_pins_deft_project_root_to_clone_dir(self, monkeypatch, tmp_path):
+    def test_call_entrypoint_pins_deft_project_root_to_clone_dir(
+        self,
+        monkeypatch,
+        tmp_path,
+    ):
         """#728 cycle 2 P1: same env-pinning rationale as
         dispatch_task_release. Without DEFT_PROJECT_ROOT pinned to
         clone_dir, an operator with the variable exported would have
-        ``task release:rollback`` resolve to the real directive repo
+        release_rollback.py resolve to the real directive repo
         and either fail with a false VIOLATION or mutate real history."""
-        monkeypatch.setattr(release_e2e.shutil, "which", lambda _: "/usr/bin/task")
         monkeypatch.setenv("DEFT_PROJECT_ROOT", "/operator/real/repo")
         captured = {}
-
-        def fake_run(cmd, **kwargs):
-            captured["env"] = kwargs.get("env")
-            return SimpleNamespace(stdout="", stderr="", returncode=0)
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
         clone_dir = tmp_path / "clone"
-        ok, _ = release_e2e.dispatch_task_release_rollback(
-            clone_dir, "0.0.1", "deftai/x"
+        clone_dir.mkdir()
+
+        def fake_entrypoint(argv):
+            captured["env"] = release_e2e.os.environ.get("DEFT_PROJECT_ROOT")
+            captured["cwd"] = Path.cwd()
+            return 0
+
+        code, _ = release_e2e._call_release_entrypoint(
+            fake_entrypoint,
+            ["0.0.1"],
+            clone_dir=clone_dir,
         )
-        assert ok is True
-        env = captured["env"]
-        assert env is not None
-        assert env.get("DEFT_PROJECT_ROOT") == str(clone_dir)
-        assert env["DEFT_PROJECT_ROOT"] != "/operator/real/repo"
+        assert code == 0
+        assert captured["env"] == str(clone_dir)
+        assert captured["env"] != "/operator/real/repo"
+        assert captured["cwd"] == clone_dir
+        assert release_e2e.os.environ.get("DEFT_PROJECT_ROOT") == "/operator/real/repo"
 
 
 # ---------------------------------------------------------------------------

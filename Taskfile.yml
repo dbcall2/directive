@@ -336,6 +336,7 @@ tasks:
       - verify:vbrief-conformance
       - verify:destructive-gh-verbs
       - verify:scm-boundary
+      - verify:no-task-runtime
       - verify:cache-fresh
       - verify:pack-drift
       - verify-wip-cap-framework-self-check
@@ -402,6 +403,13 @@ tasks:
       - task: packs:verify-drift
         vars:
           CLI_ARGS: "{{.CLI_ARGS}}"
+
+  verify:no-task-runtime:
+    desc: "Fail when runtime Python code hard-depends on go-task (#1659)."
+    env:
+      PYTHONUTF8: "1"
+    cmds:
+      - uv --project "{{.TASKFILE_DIR}}" run python "{{.TASKFILE_DIR}}/scripts/verify_no_task_runtime.py"
 
   # `task check:slow` runs the @pytest.mark.slow lane that the default
   # `task check` skips (#975). The slow lane is dominated by the

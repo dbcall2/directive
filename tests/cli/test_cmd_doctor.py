@@ -749,7 +749,7 @@ def test_freshness_fresh_readable_emits_no_warning(
 def test_freshness_stale_points_at_agents_refresh(
     doctor_module, tmp_path, monkeypatch
 ):
-    """genuinely stale managed section -> warning pointing at `task agents:refresh` (#1389)."""
+    """genuinely stale managed section -> warning pointing at `deft agents:refresh` (#1389)."""
     _patch_shared_template(doctor_module, monkeypatch)
     (tmp_path / "AGENTS.md").write_text(
         "<!-- deft:managed-section v3 -->\nOLD STALE BODY\n<!-- /deft:managed-section -->\n",
@@ -758,9 +758,9 @@ def test_freshness_stale_points_at_agents_refresh(
 
     msgs = _collect_freshness(doctor_module, tmp_path)
 
-    assert any("task agents:refresh" in w for w in msgs["warn"]), (
+    assert any("deft agents:refresh" in w for w in msgs["warn"]), (
         "A stale managed section MUST point the operator at "
-        f"`task agents:refresh`. Warnings: {msgs['warn']}"
+        f"`deft agents:refresh`. Warnings: {msgs['warn']}"
     )
     warning_findings = [f for f in msgs["findings"] if f["severity"] == "warning"]
     assert warning_findings and warning_findings[0].get("status") == "stale", (

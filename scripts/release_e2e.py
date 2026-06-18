@@ -90,17 +90,21 @@ helper re-used here), #725 (forward-revert + normal push in rollback),
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as _dt
+import io
 import json
 import os
 import shutil  # noqa: F401  -- kept for tests that monkeypatch release_e2e.shutil.which
 import subprocess
 import sys
 import tempfile
+import threading
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TextIO
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -109,6 +113,7 @@ from _stdio_utf8 import reconfigure_stdio  # noqa: E402
 reconfigure_stdio()
 
 import release  # noqa: E402
+import release_rollback  # noqa: E402
 
 EXIT_OK = release.EXIT_OK
 EXIT_VIOLATION = release.EXIT_VIOLATION
@@ -123,6 +128,11 @@ REPO_SLUG_PREFIX = "deftai-release-test-"
 # as a rehearsal artefact -- and ``X.Y.Z`` matches the strict semver
 # regex enforced by ``release._validate_version``.
 REHEARSAL_VERSION = "0.0.1"
+RELEASE_ENTRYPOINT_TIMEOUT_SECONDS = 600.0
+ROLLBACK_ENTRYPOINT_TIMEOUT_SECONDS = 300.0
+ENTRYPOINT_TIMEOUT_EXIT_CODE = 124
+_ENTRYPOINT_PROCESS_STATE_LOCK = threading.Lock()
+_ENTRYPOINT_ACTIVE_RESTORE_OWNER: object | None = None
 
 
 # ---- Data classes -----------------------------------------------------------
@@ -349,14 +359,137 @@ def push_mirror(clone_dir: Path) -> tuple[bool, str]:
     return True, "pushed heads + tags to temp origin"
 
 
+def _call_release_entrypoint(
+    entrypoint: Callable[[list[str] | None], int],
+    argv: list[str],
+    *,
+    clone_dir: Path,
+    timeout: float | None = None,
+) -> tuple[int, str]:
+    """Run a release entrypoint in-process with subprocess-style bounds.
+
+    The original task-backed dispatch capped release at 600s and rollback at
+    300s. In-process calls need the same fail-closed behavior so a hung release
+    command cannot block the e2e rehearsal forever.
+    """
+    if timeout is None:
+        timeout = RELEASE_ENTRYPOINT_TIMEOUT_SECONDS
+    old_cwd = Path.cwd()
+    old_project_root = os.environ.get("DEFT_PROJECT_ROOT")
+    real_stdout, real_stderr = sys.stdout, sys.stderr
+    result: dict[str, tuple[int, str]] = {}
+    restore_owner = object()
+    timed_out = threading.Event()
+
+    def _activate_process_state() -> bool:
+        global _ENTRYPOINT_ACTIVE_RESTORE_OWNER  # noqa: PLW0603
+
+        with _ENTRYPOINT_PROCESS_STATE_LOCK:
+            if timed_out.is_set():
+                return False
+            _ENTRYPOINT_ACTIVE_RESTORE_OWNER = restore_owner
+            os.environ["DEFT_PROJECT_ROOT"] = str(clone_dir)
+            os.chdir(clone_dir)
+            return True
+
+    def _restore_process_state() -> None:
+        global _ENTRYPOINT_ACTIVE_RESTORE_OWNER  # noqa: PLW0603
+
+        with _ENTRYPOINT_PROCESS_STATE_LOCK:
+            if _ENTRYPOINT_ACTIVE_RESTORE_OWNER is not restore_owner:
+                return
+            _ENTRYPOINT_ACTIVE_RESTORE_OWNER = None
+            os.chdir(old_cwd)
+            if old_project_root is None:
+                os.environ.pop("DEFT_PROJECT_ROOT", None)
+            else:
+                os.environ["DEFT_PROJECT_ROOT"] = old_project_root
+
+    @contextlib.contextmanager
+    def _redirect_entrypoint_stdio(stdout: io.StringIO, stderr: io.StringIO):
+        previous_stdout: TextIO | None = None
+        previous_stderr: TextIO | None = None
+        active = False
+        with _ENTRYPOINT_PROCESS_STATE_LOCK:
+            if _ENTRYPOINT_ACTIVE_RESTORE_OWNER is restore_owner:
+                previous_stdout = sys.stdout
+                previous_stderr = sys.stderr
+                sys.stdout, sys.stderr = stdout, stderr
+                active = True
+        try:
+            yield active
+        finally:
+            if active:
+                with _ENTRYPOINT_PROCESS_STATE_LOCK:
+                    if (
+                        _ENTRYPOINT_ACTIVE_RESTORE_OWNER is restore_owner
+                        and previous_stdout is not None
+                        and previous_stderr is not None
+                    ):
+                        sys.stdout, sys.stderr = previous_stdout, previous_stderr
+
+    def _timeout_process_state() -> None:
+        global _ENTRYPOINT_ACTIVE_RESTORE_OWNER  # noqa: PLW0603
+
+        with _ENTRYPOINT_PROCESS_STATE_LOCK:
+            timed_out.set()
+            if _ENTRYPOINT_ACTIVE_RESTORE_OWNER is not restore_owner:
+                return
+            _ENTRYPOINT_ACTIVE_RESTORE_OWNER = None
+            # Own cleanup after timeout; the daemon's later finally block must
+            # not restore over any subsequent release entrypoint or capture.
+            sys.stdout, sys.stderr = real_stdout, real_stderr
+            os.chdir(old_cwd)
+            if old_project_root is None:
+                os.environ.pop("DEFT_PROJECT_ROOT", None)
+            else:
+                os.environ["DEFT_PROJECT_ROOT"] = old_project_root
+
+    def _worker() -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        try:
+            if not _activate_process_state():
+                return
+            with _redirect_entrypoint_stdio(stdout, stderr) as stdio_active:
+                if not stdio_active:
+                    return
+                code = entrypoint(argv)
+        except SystemExit as exc:
+            raw = exc.code
+            code = raw if isinstance(raw, int) else (0 if raw is None else 1)
+        except Exception as exc:  # noqa: BLE001 -- e2e diagnostics must record failures
+            message = f"{type(exc).__name__}: {exc}"
+            captured_stderr = stderr.getvalue()
+            stderr_value = f"{captured_stderr}\n{message}" if captured_stderr else message
+            result["value"] = (EXIT_VIOLATION, stderr_value or stdout.getvalue())
+            return
+        finally:
+            _restore_process_state()
+        output = stderr.getvalue() or stdout.getvalue()
+        result["value"] = (int(code or 0), output)
+
+    worker = threading.Thread(target=_worker, name="deft-release-entrypoint", daemon=True)
+    worker.start()
+    worker.join(timeout)
+    if worker.is_alive():
+        # A hung worker may still hold process-global stdout/stderr redirects.
+        # Claim cleanup before fail-closed; the daemon's later context exit is
+        # owner-aware and will not restore over a subsequent capture.
+        _timeout_process_state()
+        label = getattr(entrypoint, "__name__", "entrypoint")
+        return ENTRYPOINT_TIMEOUT_EXIT_CODE, f"{label} timed out after {timeout:g}s"
+    return result.get("value", (EXIT_VIOLATION, "entrypoint produced no result"))
+
+
 def dispatch_task_release(
     clone_dir: Path, version: str, repo: str
 ) -> tuple[bool, str]:
-    """Invoke ``task release`` inside the clone with skip flags and the
+    """Invoke release.py inside the clone with skip flags and the
     vBRIEF-drift override (#720, #728, post-#754 harness fix).
 
     The full dispatched argv is
-    ``task release -- <version> --repo <repo> --skip-ci --skip-build --allow-vbrief-drift``.
+    ``release.py <version> --repo <repo> --skip-ci --skip-build --allow-vbrief-drift``.
 
     Skipping CI + build keeps the rehearsal wall-clock manageable; both
     are covered by the unit-test suite. The 10-step pipeline still
@@ -387,36 +520,25 @@ def dispatch_task_release(
     fully gated. Without this flag, every ``task release:e2e`` invocation
     since #734 landed has failed at the inner Step 3 lifecycle gate.
     """
-    if shutil.which("task") is None:
-        return False, "task binary not found on PATH"
-    cmd = [
-        "task", "release",
-        "--", version,
+    argv = [
+        version,
         "--repo", repo,
         "--skip-ci",
         "--skip-build",
         "--allow-vbrief-drift",
     ]
-    env = os.environ.copy()
-    env["DEFT_PROJECT_ROOT"] = str(clone_dir)
-    try:
-        result = subprocess.run(
-            cmd,
-            cwd=str(clone_dir),
-            capture_output=True,
-            text=True,
-            timeout=600,
-            check=False,
-            env=env,
-        )
-    except FileNotFoundError:
-        return False, "task binary not found on PATH"
-    if result.returncode != 0:
+    code, output = _call_release_entrypoint(
+        release.main,
+        argv,
+        clone_dir=clone_dir,
+        timeout=RELEASE_ENTRYPOINT_TIMEOUT_SECONDS,
+    )
+    if code != 0:
         return False, (
-            f"task release failed (exit {result.returncode}): "
-            f"{(result.stderr or result.stdout).strip()}"
+            f"release.py failed (exit {code}): "
+            f"{output.strip()}"
         )
-    return True, f"task release -- {version} --repo {repo} (draft) ran clean"
+    return True, f"release.py {version} --repo {repo} (draft) ran clean"
 
 
 def verify_draft_release(
@@ -489,7 +611,7 @@ def verify_tag(clone_dir: Path, version: str) -> tuple[bool, str]:
 def dispatch_task_release_rollback(
     clone_dir: Path, version: str, repo: str
 ) -> tuple[bool, str]:
-    """Invoke ``task release:rollback -- <version> --repo <repo>`` (#720, #728).
+    """Invoke release_rollback.py ``<version> --repo <repo>`` (#720, #728).
 
     Exercises the rollback path against the temp repo so a regression in
     the state-aware unwind (states 1-3) surfaces in the e2e job rather
@@ -502,33 +624,19 @@ def dispatch_task_release_rollback(
     either a false VIOLATION (release-prep SHA cannot be resolved) or
     -- worse -- mutating the real repo's history.
     """
-    if shutil.which("task") is None:
-        return False, "task binary not found on PATH"
-    cmd = [
-        "task", "release:rollback",
-        "--", version,
-        "--repo", repo,
-    ]
-    env = os.environ.copy()
-    env["DEFT_PROJECT_ROOT"] = str(clone_dir)
-    try:
-        result = subprocess.run(
-            cmd,
-            cwd=str(clone_dir),
-            capture_output=True,
-            text=True,
-            timeout=300,
-            check=False,
-            env=env,
-        )
-    except FileNotFoundError:
-        return False, "task binary not found on PATH"
-    if result.returncode != 0:
+    argv = [version, "--repo", repo]
+    code, output = _call_release_entrypoint(
+        release_rollback.main,
+        argv,
+        clone_dir=clone_dir,
+        timeout=ROLLBACK_ENTRYPOINT_TIMEOUT_SECONDS,
+    )
+    if code != 0:
         return False, (
-            f"task release:rollback failed (exit {result.returncode}): "
-            f"{(result.stderr or result.stdout).strip()}"
+            f"release_rollback.py failed (exit {code}): "
+            f"{output.strip()}"
         )
-    return True, f"task release:rollback -- {version} --repo {repo} ran clean"
+    return True, f"release_rollback.py {version} --repo {repo} ran clean"
 
 
 def run_rehearsal(
