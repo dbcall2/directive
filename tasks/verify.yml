@@ -102,6 +102,16 @@ tasks:
     cmds:
       - uv --project "{{.DEFT_ROOT}}" run python "{{.DEFT_ROOT}}/scripts/preflight_cache.py" --project-root "{{.USER_WORKING_DIR}}" --allow-missing-bootstrap {{.CLI_ARGS}}
 
+  codebase-map-fresh:
+    desc: "Drift gate for the generated .planning/codebase/MAP.md projection (#1595 PR4)."
+    dir: '{{.USER_WORKING_DIR}}'
+    env:
+      PYTHONUTF8: "1"
+    # Per conventions/task-caching.md: no sources/generates because this gate
+    # forwards output/artifact overrides through CLI_ARGS.
+    cmds:
+      - uv --project "{{.DEFT_ROOT}}" run python "{{.DEFT_ROOT}}/scripts/codebase_map_fresh.py" --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}
+
   session-ritual:
     desc: "Fail-closed session ritual verifier (#1348). Flags: --tier quick|gated / --json. Set DEFT_SESSION_RITUAL_SKIP=1 for headless workers and CI."
     dir: '{{.USER_WORKING_DIR}}'

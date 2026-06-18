@@ -91,10 +91,11 @@ flowchart LR
 - `task codebase:validate-structure` -- validate authored `plan.architecture.codeStructure` metadata.
 - `task codebase:extract-default` -- run the dependency-free default codebase extractor.
 - `task codebase:provider-map` -- validate or consume an external provider artifact.
-- `task codebase:projection-registry -- --kind codebase-map` -- show projection registry metadata for the future codebase map.
+- `task codebase:map` -- generate `.planning/codebase/MAP.md` from the selected codebase-map artifact.
+- `task codebase:projection-registry -- --kind codebase-map` -- show projection registry metadata for the codebase map.
 - `task architecture:*` -- architecture-specific validation and support tasks.
 
-Current status: the validation, extractor, provider, and registry contract layer exists. Generated `.planning/codebase/MAP.md` output and freshness checks remain planned.
+Current status: the validation, extractor, provider, registry, generated MAP, and freshness gate exist. Provider policy is artifact-at-a-path, not command-at-a-policy.
 
 ---
 

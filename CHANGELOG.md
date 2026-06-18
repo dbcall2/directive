@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Codebase MAP generation is live (#1595 PR4)** -- `task codebase:map` now renders `.planning/codebase/MAP.md` from a selected `codebase-map.v1` artifact, and `task verify:codebase-map-fresh` detects projection drift. Provider policy is artifact-at-a-path via `plan.policy.projectionProviders["codebase-map"].artifactPath` with optional provider/version expectations; stale or mismatched provider artifacts fall back to the deterministic default extractor instead of becoming canonical command metadata. Refs #1498 #1530 #1710.
+
 ### Changed
 
 ### Fixed

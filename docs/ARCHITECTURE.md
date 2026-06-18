@@ -30,7 +30,7 @@ flowchart LR
     B --> C["Taskfile command graph<br/>task --list, task check, task verify:*"]
     C --> D["Automation layer<br/>scripts/*.py, run compatibility, Go installer"]
     D --> E["Durable state<br/>PROJECT-DEFINITION, specification, scope vBRIEFs"]
-    E --> F["Generated views<br/>SPECIFICATION.md, PRD.md, ROADMAP.md, future MAP.md"]
+    E --> F["Generated views<br/>SPECIFICATION.md, PRD.md, ROADMAP.md, MAP.md"]
     E --> C
     C --> G["Enforcement surfaces<br/>tests, hooks, CI, release and PR gates"]
     G --> B
@@ -81,7 +81,7 @@ flowchart LR
     S["vbrief/specification.vbrief.json"] -->|"task spec:render"| SM["SPECIFICATION.md"]
     S -->|"task prd:render"| PRD["PRD.md"]
     L["Lifecycle scope vBRIEFs"] -->|"task roadmap:render"| RM["ROADMAP.md"]
-    P["PROJECT-DEFINITION<br/>codeStructure"] -->|"planned projection"| MAP[".planning/codebase/MAP.md"]
+    P["PROJECT-DEFINITION<br/>codeStructure"] -->|"task codebase:map"| MAP[".planning/codebase/MAP.md"]
     Skills["Skills and standards"] -->|"task packs:render"| Packs["Rendered content packs"]
 ```
 
@@ -189,21 +189,21 @@ Implemented today:
 - `task codebase:validate-structure`
 - `task codebase:extract-default`
 - `task codebase:provider-map`
+- `task codebase:map`
 - `task codebase:projection-registry`
+- `task verify:codebase-map-fresh`
 
 Not implemented yet:
 
-- Generated `.planning/codebase/MAP.md`
-- MAP freshness checks
 - Generated source headers
 - Consumer propagation of generated codebase maps
 
-The planned MAP is a projection. It must not become the canonical architecture source.
+The generated MAP is a projection. It must not become the canonical architecture source.
 
 ## Generated And Historical Artifacts
 
 - `SPECIFICATION.md`, `PRD.md`, and `ROADMAP.md` are generated views.
-- `.planning/codebase/MAP.md` is planned but absent until its generator ships.
+- `.planning/codebase/MAP.md` is a generated codebase orientation projection.
 - `.planning/codebase/ARCHITECTURE.md`, `CONVENTIONS.md`, and related files are historical planning notes unless they carry a generated-source banner.
 - `PROJECT.md` is a deprecated redirect; current project identity lives in `vbrief/PROJECT-DEFINITION.vbrief.json`.
 

@@ -20,7 +20,7 @@ The framework has outgrown its early self-specification. The old project narrati
 3. Document the actual implemented modules: framework content, Taskfile tasks, Python tooling, Go installer, vBRIEF metadata, triage/cache/scope, release/PR/swarm automation, content packs, codebase contracts, and tests.
 4. Preserve the early Deft mental model: modular guidance, lazy loading, TDD/SDD, small reversible scopes, and self-improving standards.
 5. Use diagrams where process flow matters, especially session rituals, implementation gates, lifecycle movement, source/projection boundaries, and triage/cache flow.
-6. Keep the codebase MAP distinction accurate: provider/extractor/registry contracts exist; `.planning/codebase/MAP.md` generation is still planned.
+6. Keep the codebase MAP distinction accurate: `.planning/codebase/MAP.md` is generated and freshness-checked, while `plan.architecture.codeStructure` remains canonical.
 7. Remove or label stale Phase 1-3 and v0.5-era narratives so agents do not treat historical text as current authority.
 
 ## UserStories
@@ -33,7 +33,7 @@ The framework has outgrown its early self-specification. The old project narrati
 
 **US-4** -- As a framework user, I want install and upgrade docs to point at `.deft/core` and the canonical installer/doctor handoff instead of legacy clone assumptions.
 
-**US-5** -- As a future MAP implementer, I want codebase-structure docs to state which contract pieces are implemented and which projections remain planned.
+**US-5** -- As a MAP reader, I want codebase-structure docs to explain which facts are canonical, which are provider/default-derived, and how freshness is checked.
 
 **US-6** -- As a reader learning Deft, I want diagrams and concept sections that explain the process flow and original intent behind the framework, not just an inventory of implemented files.
 
@@ -48,7 +48,7 @@ The framework has outgrown its early self-specification. The old project narrati
 
 ## Architecture
 
-The implemented architecture has nine cooperating areas. (1) Framework content: `AGENTS.md`, `main.md`, standards, skills, strategies, templates, docs, conventions, and domain guidance consumed by agents. (2) Task runner: `Taskfile.yml` and `tasks/*.yml` expose the deterministic command surface for checks, rendering, lifecycle, triage, scope, cache, release, PR, swarm, policy, packs, and codebase commands. (3) Python tooling: `scripts/*.py` plus `run`/`run.py` implement validators, renderers, lifecycle movement, issue/cache/triage automation, doctor/session gates, codebase extraction, and compatibility command routing. (4) Go installer: `cmd/deft-install/` installs or upgrades a vendored `.deft/core/` payload, writes manifests, refreshes managed AGENTS sections, wires Taskfile includes, and hands off to the canonical doctor. (5) vBRIEF metadata: `vbrief/` stores project identity, specification source, schemas, lifecycle scope files, policy, and `plan.architecture.codeStructure`. (6) Triage/cache/scope automation: `.deft-cache/`, `vbrief/.eval/`, `task triage:*`, `task cache:*`, and `task scope:*` turn GitHub/backlog state into auditable scope vBRIEFs. (7) Release/PR/swarm automation: `task release:*`, `task pr:*`, `task swarm:*`, and associated skills encode pre-PR, review, merge, and release workflows. (8) Codebase architecture metadata: `codeStructure` is the authored source of truth; `task codebase:validate-structure`, `codebase:extract-default`, `codebase:provider-map`, and `codebase:projection-registry` implement the current contract layer, while `.planning/codebase/MAP.md` remains a planned generated projection. (9) Tests and gates: `tests/`, `.githooks/`, `.github/workflows/`, and `task check` provide regression, content, branch, encoding, vBRIEF, capacity, session, and forward-coverage enforcement.
+The implemented architecture has nine cooperating areas. (1) Framework content: `AGENTS.md`, `main.md`, standards, skills, strategies, templates, docs, conventions, and domain guidance consumed by agents. (2) Task runner: `Taskfile.yml` and `tasks/*.yml` expose the deterministic command surface for checks, rendering, lifecycle, triage, scope, cache, release, PR, swarm, policy, packs, and codebase commands. (3) Python tooling: `scripts/*.py` plus `run`/`run.py` implement validators, renderers, lifecycle movement, issue/cache/triage automation, doctor/session gates, codebase extraction, and compatibility command routing. (4) Go installer: `cmd/deft-install/` installs or upgrades a vendored `.deft/core/` payload, writes manifests, refreshes managed AGENTS sections, wires Taskfile includes, and hands off to the canonical doctor. (5) vBRIEF metadata: `vbrief/` stores project identity, specification source, schemas, lifecycle scope files, policy, and `plan.architecture.codeStructure`. (6) Triage/cache/scope automation: `.deft-cache/`, `vbrief/.eval/`, `task triage:*`, `task cache:*`, and `task scope:*` turn GitHub/backlog state into auditable scope vBRIEFs. (7) Release/PR/swarm automation: `task release:*`, `task pr:*`, `task swarm:*`, and associated skills encode pre-PR, review, merge, and release workflows. (8) Codebase architecture metadata: `codeStructure` is the authored source of truth; `task codebase:validate-structure`, `codebase:extract-default`, `codebase:provider-map`, `codebase:map`, `verify:codebase-map-fresh`, and `codebase:projection-registry` implement the current contract and MAP projection layer. (9) Tests and gates: `tests/`, `.githooks/`, `.github/workflows/`, and `task check` provide regression, content, branch, encoding, vBRIEF, capacity, session, and forward-coverage enforcement.
 
 ## LegacyArtifacts
 
@@ -64,7 +64,7 @@ Historical Phase 1-3 narrative and inline plan.items were removed from the curre
 
 ## OpenQuestions
 
-1. **MAP projection implementation** -- `codebase:validate-structure`, default extraction, provider validation, and projection registry exist; generated `.planning/codebase/MAP.md`, freshness checks, generated source headers, and consumer propagation remain future slices.
+1. **Generated source headers and consumer propagation** -- the MAP generator and freshness gate exist; generated source headers and consumer propagation remain future slices.
 2. **Runtime decoupling** -- `run` remains present for compatibility and interactive workflows. The long-term split between framework guidance, package-manager command routing, and Taskfile runtime is still evolving through scoped work.
 3. **Content-pack UX** -- `packs:*` tasks exist, but the public documentation should continue to expand as the pack format becomes a primary user-facing surface.
 

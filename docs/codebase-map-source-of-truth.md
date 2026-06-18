@@ -1,6 +1,6 @@
 # Codebase MAP Source of Truth
 
-Status: accepted for #1595 PR 1; contract layer implemented through #1595 PR 3
+Status: accepted for #1595 PR 1; MAP projection implemented through #1595 PR 4
 
 Date: 2026-06-12
 
@@ -31,16 +31,17 @@ Shipped:
 - Dependency-free default extractor and `codebase-map.v1` artifact shape.
 - Provider artifact contract and local schema-subset validation.
 - Projection-kind registry for `codebase-map`.
+- Generated `.planning/codebase/MAP.md`.
+- Freshness checks for that generated MAP.
 
 Still planned:
 
-- Generated `.planning/codebase/MAP.md`.
-- Freshness checks for that generated MAP.
 - Generated source headers.
 - Consumer-facing propagation of generated codebase projections.
 
 This means the source-of-truth decision has landed, and the pre-MAP contract
-layer has landed, but generated MAP output has not.
+layer plus generated MAP output have landed. Generated headers and consumer
+propagation remain later slices.
 
 ## Superseded Direction
 
@@ -149,8 +150,7 @@ constraints:
    machinery exists.
 6. Update skills, docs, and consumer-facing guidance after a dogfood window.
 
-Steps 1-3 are complete in the current repository. Steps 4-6 remain future
-work.
+Steps 1-4 are complete in the current repository. Steps 5-6 remain future work.
 
 ## Non-Goals
 
@@ -176,6 +176,47 @@ subset validator rather than maintaining a second hand-written Python contract.
 `tests/fixtures/codebase-map.v1.golden.json` is the canonical example output
 and regression anchor, so out-of-process providers do not have to
 reverse-engineer the Python extractor. This keeps the durable contract on the
-schema side of the #1530 host-language rewrite boundary. This is still pre-MAP:
-`.planning/codebase/MAP.md` generation and freshness checks remain the next
-slice.
+schema side of the #1530 host-language rewrite boundary.
+
+## PR 4 MAP Projection
+
+PR 4 turns the PR 3 artifact contract into the first generated projection:
+`.planning/codebase/MAP.md`. The generator selects a conformant
+`codebase-map.v1` artifact, renders a banner-marked Markdown orientation map,
+and records artifact/source digests so a separate freshness gate can compare
+the projection against current canonical inputs.
+
+Run:
+
+```bash
+task codebase:map
+task verify:codebase-map-fresh
+```
+
+Provider configuration is deliberately artifact-at-a-path. Projects may set:
+
+```json
+{
+  "plan": {
+    "policy": {
+      "projectionProviders": {
+        "codebase-map": {
+          "artifactPath": ".planning/codebase/provider-map.json",
+          "expect": {
+            "provider": "example-provider",
+            "version": "1.0"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Directive reads that artifact when present and treats `expect` as a validation
+assertion. It does not store runner command strings in `projectionManifest[]`
+or policy. Missing, invalid, mismatched, or stale provider artifacts fall back
+to the default extractor. Freshness is no-network and no-model: provider
+freshness signals are accepted when present, otherwise Directive compares
+`source.contentHashes.files[]` against the current working tree. The fallback
+extractor is always regenerated locally and carries a compact source digest.

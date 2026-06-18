@@ -39,6 +39,41 @@ def _valid_artifact() -> dict:
     }
 
 
+def _write_policy_project(project_root: Path, policy: dict) -> None:
+    project_def = project_root / "vbrief" / "PROJECT-DEFINITION.vbrief.json"
+    project_def.parent.mkdir(parents=True)
+    project_def.write_text(
+        json.dumps(
+            {
+                "vBRIEFInfo": {"version": "0.6"},
+                "plan": {
+                    "title": "Fixture",
+                    "status": "running",
+                    "items": [],
+                    "policy": policy,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def _artifact_with_hash(project_root: Path, rel_path: str = "src/main.py") -> dict:
+    source_file = project_root / rel_path
+    source_file.parent.mkdir(parents=True, exist_ok=True)
+    source_file.write_text("print('hello')\n", encoding="utf-8")
+    artifact = _valid_artifact()
+    artifact["provider"] = {"name": "fixture-provider", "version": "1.0"}
+    artifact["source"] = {
+        "projectRoot": str(project_root),
+        "contentHashes": {
+            "algorithm": "sha256",
+            "files": [{"path": rel_path, "sha256": provider.file_sha256(source_file)}],
+        },
+    }
+    return artifact
+
+
 def test_validate_provider_artifact_accepts_contract() -> None:
     assert provider.validate_provider_artifact(_valid_artifact()) == []
 
@@ -201,6 +236,121 @@ def test_select_provider_falls_back_when_provider_command_is_malformed(tmp_path:
     assert selection.used_external_provider is False
     assert selection.fallback_reason is not None
     assert "provider command could not be parsed" in selection.fallback_reason
+
+
+def test_load_provider_artifact_policy_reads_projection_provider_config(tmp_path: Path) -> None:
+    _write_policy_project(
+        tmp_path,
+        {
+            "projectionProviders": {
+                "codebase-map": {
+                    "artifactPath": ".planning/codebase/provider-map.json",
+                    "expect": {"provider": "fixture-provider", "version": "1.0"},
+                }
+            }
+        },
+    )
+
+    policy = provider.load_provider_artifact_policy(tmp_path)
+
+    assert policy.artifact_path == Path(".planning/codebase/provider-map.json")
+    assert policy.expect_provider == "fixture-provider"
+    assert policy.expect_version == "1.0"
+    assert policy.invalid_reason is None
+
+
+def test_select_provider_accepts_policy_artifact_path(tmp_path: Path) -> None:
+    artifact_path = tmp_path / ".planning" / "codebase" / "provider-map.json"
+    artifact_path.parent.mkdir(parents=True)
+    artifact_path.write_text(json.dumps(_artifact_with_hash(tmp_path)), encoding="utf-8")
+    _write_policy_project(
+        tmp_path,
+        {
+            "projectionProviders": {
+                "codebase-map": {
+                    "artifactPath": ".planning/codebase/provider-map.json",
+                    "expect": {"provider": "fixture-provider", "version": "1.0"},
+                }
+            }
+        },
+    )
+
+    selection = provider.select_codebase_map(tmp_path)
+
+    assert selection.used_external_provider is True
+    assert selection.artifact["provider"]["name"] == "fixture-provider"
+
+
+def test_select_provider_falls_back_when_policy_expectation_mismatches(
+    tmp_path: Path,
+) -> None:
+    artifact_path = tmp_path / ".planning" / "codebase" / "provider-map.json"
+    artifact_path.parent.mkdir(parents=True)
+    artifact_path.write_text(json.dumps(_artifact_with_hash(tmp_path)), encoding="utf-8")
+    _write_policy_project(
+        tmp_path,
+        {
+            "projectionProviders": {
+                "codebase-map": {
+                    "artifactPath": ".planning/codebase/provider-map.json",
+                    "expect": {"provider": "other-provider"},
+                }
+            }
+        },
+    )
+
+    selection = provider.select_codebase_map(tmp_path)
+
+    assert selection.used_external_provider is False
+    assert selection.fallback_reason is not None
+    assert "provider artifact expectation mismatch" in selection.fallback_reason
+
+
+def test_select_provider_falls_back_when_policy_artifact_is_stale(tmp_path: Path) -> None:
+    artifact_path = tmp_path / ".planning" / "codebase" / "provider-map.json"
+    artifact_path.parent.mkdir(parents=True)
+    artifact_path.write_text(json.dumps(_artifact_with_hash(tmp_path)), encoding="utf-8")
+    (tmp_path / "src" / "main.py").write_text("print('changed')\n", encoding="utf-8")
+    _write_policy_project(
+        tmp_path,
+        {
+            "projectionProviders": {
+                "codebase-map": {
+                    "artifactPath": ".planning/codebase/provider-map.json",
+                }
+            }
+        },
+    )
+
+    selection = provider.select_codebase_map(tmp_path)
+
+    assert selection.used_external_provider is False
+    assert selection.fallback_reason is not None
+    assert "provider artifact is stale" in selection.fallback_reason
+
+
+def test_select_provider_falls_back_when_policy_artifact_lacks_freshness(
+    tmp_path: Path,
+) -> None:
+    artifact_path = tmp_path / ".planning" / "codebase" / "provider-map.json"
+    artifact_path.parent.mkdir(parents=True)
+    artifact_path.write_text(json.dumps(_valid_artifact()), encoding="utf-8")
+    _write_policy_project(
+        tmp_path,
+        {
+            "projectionProviders": {
+                "codebase-map": {
+                    "artifactPath": ".planning/codebase/provider-map.json",
+                }
+            }
+        },
+    )
+
+    selection = provider.select_codebase_map(tmp_path)
+
+    assert selection.used_external_provider is False
+    assert selection.fallback_reason is not None
+    assert "freshness could not be verified" in selection.fallback_reason
 
 
 def test_provider_main_reports_default_extractor_config_error(

@@ -11,11 +11,13 @@ ask a model to summarize code. Richer providers can replace this artifact via
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import sys
 from collections import Counter, defaultdict
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -86,6 +88,34 @@ def _posix(path: Path) -> str:
 
 def _relative_file(path: Path, project_root: Path) -> str:
     return _posix(path.relative_to(project_root))
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _source_content_hash(project_root: Path, rel_paths: list[str]) -> dict[str, Any]:
+    digest = hashlib.sha256()
+    file_count = 0
+    for rel_path in sorted(set(rel_paths)):
+        path = project_root / rel_path
+        if not path.is_file():
+            continue
+        file_count += 1
+        digest.update(rel_path.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(_file_sha256(path).encode("ascii"))
+        digest.update(b"\0")
+    return {
+        "algorithm": "sha256",
+        "scope": "codeStructure-and-module-files",
+        "value": digest.hexdigest(),
+        "fileCount": file_count,
+    }
 
 
 def default_code_structure_path(project_root: Path, code_structure_path: Path | None) -> Path:
@@ -381,6 +411,10 @@ def build_codebase_map(
     else:
         modules, file_to_module, prefixes_by_module, degraded = _directory_modules(project_root)
 
+    content_hash_paths = list(file_to_module)
+    with suppress(ValueError):
+        content_hash_paths.append(source_path.resolve().relative_to(project_root).as_posix())
+
     degraded.append(
         {
             "code": "AST-FREE-HEURISTICS",
@@ -408,6 +442,7 @@ def build_codebase_map(
             "projectRoot": str(project_root),
             "codeStructurePath": str(source_path),
             "codeStructureHome": source_home,
+            "contentHash": _source_content_hash(project_root, content_hash_paths),
         },
         "modules": modules,
         "coupling": _coupling_edges(project_root, file_to_module, prefixes_by_module),

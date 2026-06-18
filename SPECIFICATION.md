@@ -20,7 +20,7 @@ The framework has outgrown its early self-specification. The old project narrati
 3. Document the actual implemented modules: framework content, Taskfile tasks, Python tooling, Go installer, vBRIEF metadata, triage/cache/scope, release/PR/swarm automation, content packs, codebase contracts, and tests.
 4. Preserve the early Deft mental model: modular guidance, lazy loading, TDD/SDD, small reversible scopes, and self-improving standards.
 5. Use diagrams where process flow matters, especially session rituals, implementation gates, lifecycle movement, source/projection boundaries, and triage/cache flow.
-6. Keep the codebase MAP distinction accurate: provider/extractor/registry contracts exist; `.planning/codebase/MAP.md` generation is still planned.
+6. Keep the codebase MAP distinction accurate: `.planning/codebase/MAP.md` is generated and freshness-checked, while `plan.architecture.codeStructure` remains canonical.
 7. Remove or label stale Phase 1-3 and v0.5-era narratives so agents do not treat historical text as current authority.
 
 ## UserStories
@@ -33,7 +33,7 @@ The framework has outgrown its early self-specification. The old project narrati
 
 **US-4** -- As a framework user, I want install and upgrade docs to point at `.deft/core` and the canonical installer/doctor handoff instead of legacy clone assumptions.
 
-**US-5** -- As a future MAP implementer, I want codebase-structure docs to state which contract pieces are implemented and which projections remain planned.
+**US-5** -- As a MAP reader, I want codebase-structure docs to explain which facts are canonical, which are provider/default-derived, and how freshness is checked.
 
 **US-6** -- As a reader learning Deft, I want diagrams and concept sections that explain the process flow and original intent behind the framework, not just an inventory of implemented files.
 
@@ -48,7 +48,7 @@ The framework has outgrown its early self-specification. The old project narrati
 
 ## Architecture
 
-The implemented architecture has nine cooperating areas. (1) Framework content: `AGENTS.md`, `main.md`, standards, skills, strategies, templates, docs, conventions, and domain guidance consumed by agents. (2) Task runner: `Taskfile.yml` and `tasks/*.yml` expose the deterministic command surface for checks, rendering, lifecycle, triage, scope, cache, release, PR, swarm, policy, packs, and codebase commands. (3) Python tooling: `scripts/*.py` plus `run`/`run.py` implement validators, renderers, lifecycle movement, issue/cache/triage automation, doctor/session gates, codebase extraction, and compatibility command routing. (4) Go installer: `cmd/deft-install/` installs or upgrades a vendored `.deft/core/` payload, writes manifests, refreshes managed AGENTS sections, wires Taskfile includes, and hands off to the canonical doctor. (5) vBRIEF metadata: `vbrief/` stores project identity, specification source, schemas, lifecycle scope files, policy, and `plan.architecture.codeStructure`. (6) Triage/cache/scope automation: `.deft-cache/`, `vbrief/.eval/`, `task triage:*`, `task cache:*`, and `task scope:*` turn GitHub/backlog state into auditable scope vBRIEFs. (7) Release/PR/swarm automation: `task release:*`, `task pr:*`, `task swarm:*`, and associated skills encode pre-PR, review, merge, and release workflows. (8) Codebase architecture metadata: `codeStructure` is the authored source of truth; `task codebase:validate-structure`, `codebase:extract-default`, `codebase:provider-map`, and `codebase:projection-registry` implement the current contract layer, while `.planning/codebase/MAP.md` remains a planned generated projection. (9) Tests and gates: `tests/`, `.githooks/`, `.github/workflows/`, and `task check` provide regression, content, branch, encoding, vBRIEF, capacity, session, and forward-coverage enforcement.
+The implemented architecture has nine cooperating areas. (1) Framework content: `AGENTS.md`, `main.md`, standards, skills, strategies, templates, docs, conventions, and domain guidance consumed by agents. (2) Task runner: `Taskfile.yml` and `tasks/*.yml` expose the deterministic command surface for checks, rendering, lifecycle, triage, scope, cache, release, PR, swarm, policy, packs, and codebase commands. (3) Python tooling: `scripts/*.py` plus `run`/`run.py` implement validators, renderers, lifecycle movement, issue/cache/triage automation, doctor/session gates, codebase extraction, and compatibility command routing. (4) Go installer: `cmd/deft-install/` installs or upgrades a vendored `.deft/core/` payload, writes manifests, refreshes managed AGENTS sections, wires Taskfile includes, and hands off to the canonical doctor. (5) vBRIEF metadata: `vbrief/` stores project identity, specification source, schemas, lifecycle scope files, policy, and `plan.architecture.codeStructure`. (6) Triage/cache/scope automation: `.deft-cache/`, `vbrief/.eval/`, `task triage:*`, `task cache:*`, and `task scope:*` turn GitHub/backlog state into auditable scope vBRIEFs. (7) Release/PR/swarm automation: `task release:*`, `task pr:*`, `task swarm:*`, and associated skills encode pre-PR, review, merge, and release workflows. (8) Codebase architecture metadata: `codeStructure` is the authored source of truth; `task codebase:validate-structure`, `codebase:extract-default`, `codebase:provider-map`, `codebase:map`, `verify:codebase-map-fresh`, and `codebase:projection-registry` implement the current contract and MAP projection layer. (9) Tests and gates: `tests/`, `.githooks/`, `.github/workflows/`, and `task check` provide regression, content, branch, encoding, vBRIEF, capacity, session, and forward-coverage enforcement.
 
 ## LegacyArtifacts
 
@@ -64,7 +64,7 @@ Historical Phase 1-3 narrative and inline plan.items were removed from the curre
 
 ## OpenQuestions
 
-1. **MAP projection implementation** -- `codebase:validate-structure`, default extraction, provider validation, and projection registry exist; generated `.planning/codebase/MAP.md`, freshness checks, generated source headers, and consumer propagation remain future slices.
+1. **Generated source headers and consumer propagation** -- the MAP generator and freshness gate exist; generated source headers and consumer propagation remain future slices.
 2. **Runtime decoupling** -- `run` remains present for compatibility and interactive workflows. The long-term split between framework guidance, package-manager command routing, and Taskfile runtime is still evolving through scoped work.
 3. **Content-pack UX** -- `packs:*` tasks exist, but the public documentation should continue to expand as the pack format becomes a primary user-facing surface.
 
@@ -72,18 +72,17 @@ Historical Phase 1-3 narrative and inline plan.items were removed from the curre
 
 ### Active
 
-### 2026-06-16-1595-pr3-extractor-provider-discipline-gate: Add codebase extractor provider contract and discipline gate  `[running]`
+### 2026-06-18-1595-pr4-codebase-map-projection: Generate codebase MAP projection and freshness check  `[running]`
 
-PR3 for #1595 adds the contract layer between authored codeStructure metadata and the later MAP projection: a deterministic dependency-free default extractor, an out-of-process provider handshake, an architecture-map artifact format, a kind-to-command registry, and the PR3 discipline gate. This preserves the current-shape decision that directive owns contracts and a safe default path, not a heavy in-repo map engine.
+PR4 for #1595 renders a generated codebase MAP from the PR3 codebase-map artifact contract. The codebase:map path consumes a conformant provider artifact at a configured path when present and valid, otherwise degrades to the deterministic default extractor. The companion freshness check validates generated projection drift without making provider invocation part of canonical project data.
 
 **Acceptance**:
 
-- Tier-1 architecture-map artifact format and provider handshake are defined and tested. `[completed]`
-- Default extractor emits a non-empty AST-free structural skeleton with provenance and degraded markers. `[completed]`
-- Provider selection validates conformant artifacts and gracefully falls back to the default extractor. `[completed]`
-- Projection kind registry resolves codebase-map behavior without storing runner commands in canonical data. `[completed]`
-- codeStructure discipline gate enforces canonical/derived boundaries and reports boundedness warnings. `[completed]`
-- Docs, tests, and CHANGELOG describe PR3 without implying MAP rendering has shipped. `[completed]`
+- Generated MAP renderer emits a banner-marked .planning/codebase/MAP.md from a conformant codebase-map.v1 artifact. `[pending]`
+- Provider artifact-at-a-path policy is read as a validation assertion and falls back to the default extractor when absent, invalid, mismatched, or stale. `[pending]`
+- codebase:map and verify:codebase-map-fresh task surfaces are wired without storing command strings in canonical metadata. `[pending]`
+- Freshness checks compare generated projection inputs against canonical/derived provenance and never reverse drift direction. `[pending]`
+- Tests, docs, and CHANGELOG cover PR4 behavior and preserve the no-heavy-engine boundary. `[pending]`
 
 ### Completed
 
@@ -2928,6 +2927,14 @@ ROADMAP Completed section
 
 ROADMAP Completed section
 
+### 2026-04-23-52-install-into-deft-hidden-directory-instead-of-deft: Install into `.deft/` (hidden directory) instead of `deft/`  `[completed]`
+
+ROADMAP active phase
+
+### 2026-04-23-53-deft-install-should-bootstrap-the-current-directory-by: deft-install should bootstrap the current directory by default  `[completed]`
+
+ROADMAP active phase
+
 ### 2026-04-23-54-agents-md-provides-no-actionable-onboarding: AGENTS.md provides no actionable onboarding  `[completed]`
 
 ROADMAP Completed section
@@ -3002,6 +3009,14 @@ ROADMAP Completed section
 
 ROADMAP active phase
 
+### 2026-04-23-77-allow-users-to-change-technical-rating-1-2-3-when: Allow users to change technical rating (1/2/3) when starting a new project  `[completed]`
+
+ROADMAP active phase
+
+### 2026-04-23-78-bootstrap-offer-to-update-user-preferences-when-user-md: Bootstrap: offer to update user preferences when USER.md already exists  `[completed]`
+
+ROADMAP active phase
+
 ### 2026-04-23-79-deft-setup-inference-boundary-guards: deft-setup inference boundary guards  `[completed]`
 
 ROADMAP Completed section
@@ -3018,9 +3033,17 @@ ROADMAP Completed section
 
 ROADMAP Completed section
 
+### 2026-04-23-82-replacement-strategies-need-accept-or-scrap-exit-when: Replacement strategies need accept-or-scrap exit when plan artifacts already exist (design: artifact awareness for chaining gate)  `[completed]`
+
+ROADMAP active phase
+
 ### 2026-04-23-84-phase-1-deft-as-teacher-phase-1-complete-contracts: #84 Phase 1 -- Deft as teacher Phase 1 complete: contracts/hierarchy.md (v0.10.0), adaptive teaching main.md (v0.10.0), State WHY rule interview.md (v0.12.1)  `[completed]`
 
 ROADMAP Completed section
+
+### 2026-04-23-89-deft-identity-and-positioning-resolve-naming-before: Deft identity and positioning: resolve naming before README reframe (blocks #84 Phase 2 README reframe, `meta/philosophy.md`, interview strategy updates)  `[completed]`
+
+ROADMAP active phase
 
 ### 2026-04-23-91-run-bootstrap-goes-in-a-loop: run bootstrap goes in a loop  `[completed]`
 
@@ -16279,6 +16302,17 @@ Without this, the release ceremony's Step 3 (`check_vbrief_lifecycle_sync`) will
   - Acceptance: Given the test suite, when pytest tests/content/test_swarm_skill.py runs, then it asserts the Phase 6 commit+push lifecycle directive and fails before the change.
 - Packs re-rendered + CHANGELOG entry. `[proposed]`
   - Acceptance: Given the diff, when reviewed, then packs are in sync and CHANGELOG.md has an [Unreleased] entry referencing #1358.
+
+### 2026-06-17-1659-decouple-framework-runtime-guidance-from-task-runner: Decouple framework runtime and guidance from the task runner  `[completed]`
+
+Package-manager installs must be able to run Deft through the `deft`/`run` surface without requiring go-task on PATH. Runtime code should call Python entrypoints or the shared framework command dispatcher, while generated guidance should prefer `deft <verb>` and reserve `task deft:<verb>` for Taskfile include users.
+
+**Acceptance**:
+
+- Add shared no-task framework command dispatcher `[completed]`
+- Migrate Class A runtime call sites away from go-task subprocesses `[completed]`
+- Update generated/session guidance to package-first commands `[completed]`
+- Add regression guard for runtime go-task dependencies `[completed]`
 
 ### 2026-06-17-docs-refresh-project-concepts-architecture: docs: refresh project concepts and architecture  `[completed]`
 
