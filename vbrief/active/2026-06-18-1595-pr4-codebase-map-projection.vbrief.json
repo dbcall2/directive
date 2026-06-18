@@ -1,0 +1,118 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6",
+    "description": "Story vBRIEF for #1595 PR4 MAP projection and codebase-map freshness check.",
+    "created": "2026-06-18T17:00:00Z",
+    "updated": "2026-06-18T17:00:00Z"
+  },
+  "plan": {
+    "id": "1595-pr4-codebase-map-projection",
+    "title": "Generate codebase MAP projection and freshness check",
+    "status": "running",
+    "narratives": {
+      "Description": "PR4 for #1595 renders a generated codebase MAP from the PR3 codebase-map artifact contract. The codebase:map path consumes a conformant provider artifact at a configured path when present and valid, otherwise degrades to the deterministic default extractor. The companion freshness check validates generated projection drift without making provider invocation part of canonical project data.",
+      "ImplementationPlan": "1. Add a renderer that converts a validated codebase-map.v1 artifact into a banner-marked .planning/codebase/MAP.md orientation document. 2. Extend provider selection to support durable artifact-at-a-path consumption from plan.policy.projectionProviders[\"codebase-map\"], including expectation validation and default fallback on absence, invalidity, mismatch, or staleness. 3. Add codebase:map and verify:codebase-map-fresh task surfaces that remain invocation-agnostic and do not store task/deft command strings in canonical data. 4. Implement a no-network freshness protocol based on validated artifact provenance and content hashes, with clear fallback behavior. 5. Add focused tests, docs, and CHANGELOG coverage without adding a heavy crawl/summarize engine or consumer propagation.",
+      "UserStory": "As a maintainer, I want a generated MAP projection from vBRIEF-owned codeStructure metadata plus provider/default-derived facts, so agents can orient quickly while vBRIEF remains the canonical source of truth.",
+      "NonGoals": "No heavy in-directive crawl or summarize engine, no model or network dependency, no standardized provider CLI ABI, no optional source-header projection, no consumer AGENTS/template propagation, and no command strings stored in projectionManifest or provider policy."
+    },
+    "items": [
+      {
+        "title": "Generated MAP renderer emits a banner-marked .planning/codebase/MAP.md from a conformant codebase-map.v1 artifact.",
+        "status": "pending"
+      },
+      {
+        "title": "Provider artifact-at-a-path policy is read as a validation assertion and falls back to the default extractor when absent, invalid, mismatched, or stale.",
+        "status": "pending"
+      },
+      {
+        "title": "codebase:map and verify:codebase-map-fresh task surfaces are wired without storing command strings in canonical metadata.",
+        "status": "pending"
+      },
+      {
+        "title": "Freshness checks compare generated projection inputs against canonical/derived provenance and never reverse drift direction.",
+        "status": "pending"
+      },
+      {
+        "title": "Tests, docs, and CHANGELOG cover PR4 behavior and preserve the no-heavy-engine boundary.",
+        "status": "pending"
+      }
+    ],
+    "tags": [
+      "enhancement",
+      "context-engineering",
+      "source-of-truth"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/1595",
+        "type": "x-vbrief/github-issue",
+        "title": "Issue #1595: feat(codebase): generate codebase MAP from vBRIEF-owned codeStructure metadata"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/pull/1680",
+        "type": "x-vbrief/github-pr",
+        "title": "PR #1680: feat(codebase): add provider contract layer"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1710",
+        "type": "x-vbrief/github-issue",
+        "title": "Issue #1710: Engine code-freeze for the Python to TypeScript migration"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1530",
+        "type": "x-vbrief/github-issue",
+        "title": "Issue #1530: RFC: Migrate directive's enforcement engine from Python to TypeScript/Node.js"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "parent_issue": "#1595",
+        "series_pr": "PR4",
+        "freeze_override": "Operator explicitly approved cleanup then proceed during #1710 engine freeze on 2026-06-18."
+      },
+      "swarm": {
+        "readiness": "sequential",
+        "parallel_safe": false,
+        "file_scope": [
+          "scripts/codebase_map.py",
+          "scripts/codebase_map_fresh.py",
+          "scripts/codebase_provider.py",
+          "scripts/codebase_projection_registry.py",
+          "tasks/codebase.yml",
+          "tests/cli/test_codebase_map.py",
+          "tests/cli/test_codebase_map_fresh.py",
+          "tests/cli/test_codebase_provider.py",
+          "docs/codebase-map-source-of-truth.md",
+          "docs/code-structure-profile.md",
+          "vbrief/PROJECT-DEFINITION.vbrief.json",
+          "vbrief/schemas/vbrief-core.schema.json",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "task codebase:validate-structure",
+          "task codebase:map",
+          "task verify:codebase-map-fresh",
+          "uv run pytest tests/cli/test_codebase_map.py tests/cli/test_codebase_map_fresh.py tests/cli/test_codebase_provider.py -q",
+          "task vbrief:validate",
+          "task check"
+        ],
+        "expected_outputs": [
+          "Generated MAP exists as a projection, not canonical metadata",
+          "Provider artifact policy is validation-only and command-free",
+          "Missing or invalid provider artifacts gracefully fall back to the default extractor",
+          "Freshness check detects projection drift without using network or model calls"
+        ],
+        "depends_on": [
+          "2026-06-16-1595-pr3-extractor-provider-discipline-gate"
+        ],
+        "conflict_group": "codebase-map-pr4",
+        "size": "large",
+        "file_scope_confidence": "medium",
+        "model_tier": "advanced"
+      },
+      "capacityBucket": "new-capability"
+    },
+    "updated": "2026-06-18T16:53:21Z"
+  }
+}
