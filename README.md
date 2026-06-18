@@ -246,14 +246,14 @@ Slices are addressed by a **stable, versioned slice name** (e.g. `recent`, `by-t
 
 ## 📚 Learn More
 
-- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** — Layered architecture, rule hierarchy, vBRIEF tooling, mermaid diagrams, `run` vs `task` lifecycle
-- **[docs/CONCEPTS.md](./docs/CONCEPTS.md)** — Spec-Driven Development, Test-Driven Development, Convention-Over-Configuration, Safety/Reversibility, example workflows
-- **[docs/FILES.md](./docs/FILES.md)** — Directory tree and per-area file index
+- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** — Current Taskfile-first architecture, rule authority, vBRIEF state, installer layout, and codeStructure projection boundary
+- **[docs/CONCEPTS.md](./docs/CONCEPTS.md)** — Current operating concepts: vBRIEF source of truth, deterministic gates, cache-backed triage, lifecycle folders, and projections
+- **[docs/FILES.md](./docs/FILES.md)** — Current directory tree, task includes, skills, vBRIEF state, and consumer artifact locations
 - **[docs/RELEASING.md](./docs/RELEASING.md)** — Release & smoke-test workflow
 - **[docs/BROWNFIELD.md](./docs/BROWNFIELD.md)** — Brownfield adoption (pre-v0.20 → vBRIEF migration)
 - **[docs/security.md](./docs/security.md)** — Security posture, audit baseline, cadence, vulnerability-reporting flow
 - **[main.md](./main.md)** — Comprehensive AI guidelines (general behavior layer)
-- **[commands.md](./commands.md)** — Full `run` and `task` command reference
+- **[commands.md](./commands.md)** — Taskfile-first command lifecycle with compatibility `run` surfaces
 - **[glossary.md](./glossary.md)** — Canonical v0.20 vocabulary
 
 ## 🎓 Philosophy

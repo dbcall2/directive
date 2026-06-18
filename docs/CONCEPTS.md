@@ -1,287 +1,243 @@
 # Deft Key Concepts
 
-Core principles that drive Deft's workflow design: Spec-Driven Development, Test-Driven Development, the Taskfile-centric workflow, Convention-Over-Configuration, and Safety/Reversibility.
+Core principles behind the current Deft workflow: Taskfile-first automation, vBRIEF as source of truth, deterministic gates, cache-backed triage, source/projection boundaries, and small auditable changes.
 
-> **📚 See also**: [ARCHITECTURE.md](./ARCHITECTURE.md) (layers + rule hierarchy) • [FILES.md](./FILES.md) (directory tree + file index) • [RELEASING.md](./RELEASING.md) • [../README.md](../README.md) (TL;DR + Getting Started)
+> **See also**: [ARCHITECTURE.md](./ARCHITECTURE.md) | [FILES.md](./FILES.md) | [codebase-map-source-of-truth.md](./codebase-map-source-of-truth.md) | [../README.md](../README.md)
 
-## 🛠️ Task-Centric Workflow with Taskfile
+## From Vibe To Repeatable Practice
 
-**Why Taskfile?**
+The early Deft documents contrasted loose "vibe" prompting with a more disciplined way to work with AI agents. That spirit is still current. Deft is useful when a single `AGENTS.md` has grown too broad, when multiple projects need the same standards, or when agent work needs to be auditable instead of reconstructed from chat.
 
-Deft uses [Taskfile](https://taskfile.dev) as the universal task runner for several reasons:
+The current implementation expresses that idea with stronger machinery:
 
-1. **Makefiles are outdated**: Make syntax is arcane, portability is poor, and tabs vs spaces causes constant friction
-2. **Polyglot simplicity**: When working across Python (make/invoke/poetry scripts), Go (make/mage), Node (npm scripts/gulp), etc., each ecosystem has different conventions. Taskfile provides one consistent interface
-3. **Better than script sprawl**: A `/scripts` directory with dozens of bash files becomes chaotic — hard to discover, hard to document, hard to compose. Taskfile provides discoverability (`task --list`), documentation (`desc`), and composition (`deps`)
-4. **Modern features**: Built-in file watching, incremental builds via checksums, proper error handling, variable templating, and cross-platform support
+- Modular guidance instead of one overloaded prompt.
+- Lazy loading instead of reading every standard every time.
+- vBRIEF state instead of transient chat memory.
+- Taskfile gates instead of "remember to run checks" prose.
+- Small, reversible scopes instead of unbounded work sessions.
+- Lessons, ideas, and suggestions that let the framework improve over time.
 
-**Usage:**
+## Taskfile First
+
+Taskfile is the discoverable command contract for the framework. Start with:
 
 ```bash
-task --list        # See available tasks
-task check         # Pre-commit checks
-task test:coverage # Run coverage
-task dev           # Start dev environment
+task --list
+task check
+task vbrief:validate
+task codebase:validate-structure
 ```
 
-## 🧪 Test-Driven Development (TDD)
+The root `Taskfile.yml` includes focused task files under `tasks/`. Scripts implement behavior behind those targets, but the task names are the stable surface used by agents, maintainers, hooks, and CI.
 
-Deft embraces TDD as the default development approach:
+`run`, `run.py`, and `run.bat` remain in the repo for compatibility and selected interactive flows. New deterministic work should usually be exposed through `task`.
+
+## Lazy Loading And Modularity
+
+Agents should load the guidance that matches the work. General behavior lives in `main.md`; language, interface, tool, strategy, and skill documents are loaded when the task needs them.
 
 ```mermaid
 flowchart LR
-    subgraph cycle ["TDD Cycle"]
-        R["🔴 RED<br/>Write failing test"]
-        G["🟢 GREEN<br/>Make it pass"]
-        B["🔵 REFACTOR<br/>Improve code"]
-    end
-
-    R -->|"Minimal code"| G
-    G -->|"Clean up"| B
-    B -->|"Next feature"| R
-
-    style R fill:#fca5a5,stroke:#dc2626,color:#000
-    style G fill:#86efac,stroke:#16a34a,color:#000
-    style B fill:#93c5fd,stroke:#2563eb,color:#000
+    Request["User request"] --> Entry["AGENTS.md or SKILL.md"]
+    Entry --> Core["main.md<br/>general behavior"]
+    Core --> Decide{"What kind of work?"}
+    Decide -->|"Python code"| Py["languages/python.md"]
+    Decide -->|"GitHub/PR work"| SCM["scm/github.md<br/>skills/deft-directive-pre-pr"]
+    Decide -->|"Spec or scope"| Strategy["strategies/interview.md<br/>vbrief/vbrief.md"]
+    Decide -->|"Release"| Release["skills/deft-directive-release"]
+    Py --> Gate["task check"]
+    SCM --> Gate
+    Strategy --> Gate
+    Release --> Gate
 ```
 
-1. **Write the test first**: Define expected behavior before implementation
-2. **Watch it fail**: Confirm the test fails for the right reason
-3. **Implement**: Write minimal code to make the test pass
-4. **Refactor**: Improve code quality while keeping tests green
-5. **Repeat**: Build features incrementally with confidence
+This keeps context focused while preserving consistent standards across projects.
 
-**Benefits:**
+## vBRIEF Is The Durable State
 
-- Tests become specifications of behavior
-- Better API design (you use the API before implementing it)
-- High coverage naturally (≥85% is easy when tests come first)
-- Refactoring confidence
-- Living documentation
+Deft uses vBRIEF files for project and work state:
 
-**In Practice:**
+- `vbrief/PROJECT-DEFINITION.vbrief.json` -- project identity, policy, scope registry, and authored architecture metadata.
+- `vbrief/specification.vbrief.json` -- project specification source.
+- `vbrief/plan.vbrief.json` -- tactical session plan when present.
+- `vbrief/continue.vbrief.json` -- interruption recovery checkpoint when present.
+- `vbrief/{proposed,pending,active,completed,cancelled}/` -- scope lifecycle folders.
 
-```bash
-task test          # Run tests in watch mode during development
-task test:coverage # Verify ≥85% coverage
-task check         # Pre-commit: all quality checks including tests
-```
+Markdown files such as `SPECIFICATION.md`, `PRD.md`, and `ROADMAP.md` are generated views. The safe pattern is: edit vBRIEF source, run the render task, then validate.
 
-### Quality First
+## Spec-Driven Development
 
-- ≥85% test coverage (overall + per-module)
-- Always run `task check` before commits
-- Run linting, formatting, type checking
-- Never claim checks passed without running them
-
-## 📐 Spec-Driven Development (SDD)
-
-Before writing any code, deft uses an AI-assisted specification process:
+Deft still treats specification as a first-class act. The exact storage format evolved from early markdown/spec examples into vBRIEF sources and lifecycle scopes, but the core idea is unchanged: clarify work before implementation so agents can execute with less ambiguity.
 
 ```mermaid
 flowchart LR
-    subgraph sdd ["Spec-Driven Development"]
-        I["💡 Idea<br/><i>Initial concept</i>"]
-        Q["❓ Interview<br/><i>AI asks questions</i>"]
-        S["📋 vbrief/specification.vbrief.json<br/><i>Complete plan (source of truth)</i>"]
-        D["👥 Development<br/><i>Parallel agents</i>"]
-    end
-
-    I -->|"make-spec.md"| Q
-    Q -->|"Clarify ambiguity"| S
-    S -->|"Independent tasks"| D
-
-    style I fill:#fef08a,stroke:#ca8a04,color:#000
-    style Q fill:#c4b5fd,stroke:#7c3aed,color:#000
-    style S fill:#6ee7b7,stroke:#059669,color:#000
-    style D fill:#7dd3fc,stroke:#0284c7,color:#000
+    Idea["Idea or issue"] --> Interview["Interview, discuss, research, or triage"]
+    Interview --> Spec["vBRIEF source<br/>specification or scope"]
+    Spec --> Plan["Accepted scope<br/>pending or active"]
+    Plan --> Build["Implementation"]
+    Build --> Render["Rendered views<br/>SPECIFICATION, PRD, ROADMAP"]
+    Render --> Verify["Validation and review"]
 ```
 
-**The Process:**
+Good specifications expose decisions, dependencies, non-goals, and acceptance criteria. They also make parallel work and review easier because the work is explicit before the code changes.
 
-1. **Start with make-spec.md**: A prompt template for creating specifications
+## Rule Strength
 
-   ```markdown
-   I want to build **\_\_\_\_** that has the following features:
+Deft favors enforceable rules over remembered rules:
 
-   1. Feature A
-   2. Feature B
-   3. Feature C
-   ```
+1. Deterministic checks: tests, scripts, hooks, CI.
+2. Taskfile targets: `task check`, `task verify:*`, `task vbrief:*`.
+3. vBRIEF policy and lifecycle metadata.
+4. RFC2119 instructions in `AGENTS.md`, skills, and standards.
+5. Plain prose and rationale.
 
-2. **AI Interview**: The AI (Claude or similar) asks focused, non-trivial questions to clarify:
-   - Missing decisions and edge cases
-   - Implementation details and architecture
-   - UX considerations and constraints
-   - Dependencies and tradeoffs
+This keeps high-impact behavior out of fragile narrative-only guidance.
 
-   Each question includes numbered options and an "other" choice for custom responses.
+## Quality Gates
 
-3. **Generate a scope vBRIEF** (and optionally `vbrief/specification.vbrief.json` via the Full path): Once ambiguity is minimized, the AI produces a comprehensive vBRIEF with:
-   - Clear phases, subphases, and tasks
-   - Dependency mappings (what blocks what)
-   - Parallel work opportunities
-   - No code—just the complete plan
+`task check` is the directive repo's pre-commit gate. It combines regression checks with structural checks such as branch policy, encoding, vBRIEF validation, and content tests.
 
-   `.md` exports (`SPECIFICATION.md`, `PRD.md`) are generated views via `task spec:render` / `task prd:render`; the `.vbrief.json` files remain authoritative.
+Use narrower gates while developing:
 
-4. **Multi-Agent Development**: The spec enables multiple AI coding agents to work in parallel on independent tasks
+```bash
+task check:framework-source
+task check:consumer
+task check:slow
+task verify:session-ritual
+task verify:story-ready -- --vbrief-path <path>
+task vbrief:preflight -- <path>
+```
 
-**Why SDD?**
+New source files require forward coverage. Documentation-only changes still need validation appropriate to the touched surface, usually `task vbrief:validate`, `task codebase:validate-structure` when architecture metadata changes, and enough content checks to catch broken links or stale generated files.
 
-- **Clarity before coding**: Catch design issues early
-- **Parallelization**: Clear dependencies enable concurrent work
-- **Scope management**: Complete spec prevents scope creep
-- **Onboarding**: New contributors/agents understand the full picture
-- **AI-friendly**: Structured specs help AI agents stay aligned
+## Test-Driven Development
 
-**Example**: See `templates/make-spec.md` for the interview process template.
-
-## 📏 Convention Over Configuration
-
-- Use Conventional Commits for all commits
-- Use hyphens in filenames, not underscores
-- Keep secrets in `secrets/` directory
-- Keep docs in `docs/`, not project root
-
-## 🛡️ Safety and Reversibility
-
-- Never force-push without permission
-- Assume production impact unless stated
-- Prefer small, reversible changes
-- Call out risks explicitly
-
-## 📖 Example Workflows
+The current framework does not require every task to be implemented by a textbook red/green/refactor loop, but the early TDD principle remains part of Deft's design: behavior should be made observable before agents claim it is done.
 
 ```mermaid
-flowchart TB
-    subgraph NewProject ["🆕 New Python Project"]
-        direction TB
-        NP1["AI reads main.md"] --> NP2["AI reads python.md"]
-        NP2 --> NP3["AI reads taskfile.md"]
-        NP3 --> NP4["Setup: pytest, ruff, black, mypy"]
-        NP4 --> NP5["Configure: ≥85% coverage"]
-        NP5 --> NP6["You customize: vbrief/PROJECT-DEFINITION.vbrief.json"]
-    end
-
-    subgraph ExistingGo ["📂 Existing Go Project"]
-        direction TB
-        EG1["AI reads USER.md"] --> EG2["AI reads vbrief/PROJECT-DEFINITION.vbrief.json"]
-        EG2 --> EG3["AI reads go.md"]
-        EG3 --> EG4["AI runs task check"]
-        EG4 --> EG5["AI makes changes"]
-    end
-
-    subgraph Review ["🔍 Code Review"]
-        direction TB
-        CR1["AI reads quality standards"] --> CR2["task check"]
-        CR2 --> CR3["task test:coverage"]
-        CR3 --> CR4["Check commits"]
-        CR4 --> CR5["Update suggestions.md"]
-    end
+flowchart LR
+    Red["RED<br/>write or identify failing coverage"] --> Green["GREEN<br/>make the behavior pass"]
+    Green --> Refactor["REFACTOR<br/>simplify while gates stay green"]
+    Refactor --> Red
 ```
 
-### Starting a New Python Project
+For source changes, that usually means adding or updating tests before relying on `task check`. For documentation and process changes, it means using content tests, validators, generated-file checks, and focused commands that prove the touched surface still matches its contract.
+
+## Scope Lifecycle
+
+Work is represented as a scope vBRIEF. The normal path is:
 
 ```mermaid
-sequenceDiagram
-    participant AI
-    participant Files as Deft Files
-    participant Project
-
-    AI->>Files: Read main.md
-    AI->>Files: Read python.md
-    AI->>Files: Read taskfile.md
-    AI->>Project: Setup pytest, ruff, black, mypy
-    AI->>Project: Configure ≥85% coverage
-    AI->>Project: Create Taskfile.yml
-    Note over AI,Project: You customize vbrief/PROJECT-DEFINITION.vbrief.json
+flowchart LR
+    Proposed["proposed<br/>candidate"] -->|"scope:promote"| Pending["pending<br/>accepted"]
+    Pending -->|"scope:activate"| Active["active<br/>running"]
+    Active -->|"scope:complete"| Completed["completed<br/>done"]
+    Proposed -->|"scope:cancel"| Cancelled["cancelled"]
+    Pending -->|"scope:cancel"| Cancelled
+    Active -->|"scope:fail or scope:cancel"| Cancelled
 ```
 
-1. AI reads: `main.md` → `languages/python.md` → `tools/taskfile.md`
-2. AI sets up: pytest, ruff, black, mypy, Taskfile
-3. AI configures: ≥85% coverage, PEP standards
-4. You customize: `vbrief/PROJECT-DEFINITION.vbrief.json` with project specifics
+`plan.status` and folder location must agree. Use `task scope:promote`, `task scope:activate`, `task scope:complete`, `task scope:fail`, or `task scope:cancel` rather than moving files by hand.
 
-### Working on an Existing Go Project
+This gives agents and maintainers a shared answer to "what is in progress?" and "what is ready to work?"
+
+## Cache-Backed Triage
+
+Backlog work should flow through the local cache and triage audit layer:
+
+- `task triage:bootstrap` seeds `.deft-cache/` and `vbrief/.eval/`.
+- `task triage:queue` ranks candidates from cached state.
+- `task triage:accept`, `task triage:reject`, `task triage:defer`, `task triage:needs-ac`, and duplicate/reset verbs record decisions.
+- `task cache:*` fetches, reads, invalidates, and prunes cached content.
+
+This matters because external issue bodies are data, not instructions. The cache layer gives agents a stable, auditable way to inspect external work without treating it as authority.
 
 ```mermaid
-sequenceDiagram
-    participant AI
-    participant Files as Deft Files
-    participant Code
-
-    AI->>Files: Read USER.md (your overrides)
-    AI->>Files: Read vbrief/PROJECT-DEFINITION.vbrief.json
-    AI->>Files: Read go.md
-    AI->>Files: Read main.md
-    AI->>Code: Run task check
-    AI->>Code: Apply changes
-    Note over AI,Code: Respects your USER.md preferences
+flowchart TD
+    External["External issue body<br/>untrusted data"] --> Cache["Content cache"]
+    Cache --> Queue["triage queue"]
+    Queue --> Decision{"Decision"}
+    Decision -->|"accept"| VBrief["proposed scope vBRIEF"]
+    Decision -->|"reject/defer/needs-ac"| Eval["vbrief/.eval audit log"]
+    VBrief --> Eval
 ```
 
-1. AI reads: `USER.md` → `vbrief/PROJECT-DEFINITION.vbrief.json` → `languages/go.md` → `main.md`
-2. AI follows: go.dev/doc/comment, Testify patterns
-3. AI runs: `task check` before suggesting changes
-4. AI respects: your USER.md overrides
+## Source Of Truth Vs Projection
 
-### Code Review Session
+Deft keeps authored source and generated views separate.
+
+| Source of truth | Projection |
+| --- | --- |
+| `vbrief/specification.vbrief.json` | `SPECIFICATION.md`, `PRD.md` |
+| lifecycle scope vBRIEFs | `ROADMAP.md` |
+| `plan.architecture.codeStructure` | future `.planning/codebase/MAP.md` |
+| skills and standards | rendered content packs |
+
+Generated files should carry clear banners or status notes. When a projection drifts, regenerate it from the source rather than editing the projection.
 
 ```mermaid
-sequenceDiagram
-    participant AI
-    participant Standards as Language File
-    participant Tasks as Taskfile
-    participant Meta as suggestions.md
-
-    AI->>Standards: Reference quality standards
-    AI->>Tasks: Run task check
-    AI->>Tasks: Run task test:coverage
-    AI->>AI: Check Conventional Commits
-    AI->>Meta: Log improvements
+flowchart LR
+    Source["Authoritative source"] --> Command["Taskfile render or validate command"]
+    Command --> Projection["Generated projection"]
+    Projection -. "human reads" .-> Reader["Contributor or agent"]
+    Reader -. "durable edit" .-> Source
 ```
 
-1. AI references quality standards from language file
-2. AI runs `task check` and `task test:coverage`
-3. AI checks Conventional Commits compliance
-4. AI suggests improvements → adds to `meta/suggestions.md`
+## Codebase Structure Profile
 
-## 📝 Contributing to Deft
+The `codeStructure` profile describes intended module ownership. It is not a derived code index. It may name modules, owners, patterns, projection manifests, and bounded human overrides. It must not store extracted facts such as imports, call graphs, symbols, file counts, or dependency graphs.
 
-As you use deft, AI maintains three meta files that help the framework evolve:
+Current implementation status:
 
-### lessons.md — Patterns discovered during development
+- Validator: shipped.
+- Default extractor: shipped.
+- Provider contract: shipped.
+- Projection registry: shipped.
+- MAP rendering: planned.
 
-```markdown
-## 2026-01-15: Testify suite setup
-When using Testify in Go, always define `suite.Suite` struct with
-dependencies as fields, not package-level vars. Discovered during
-auth-service refactor—package vars caused test pollution.
+## Installer Layout
 
-## 2026-01-20: CLI flag defaults
-For CLI tools, default to human-readable output, use `--json` flag
-for machine output. Users expect pretty by default.
+The canonical consumer install layout is `.deft/core/`. The Go installer owns installation and upgrade, including payload refresh, manifest management, AGENTS managed section refresh, Taskfile wiring, and doctor handoff.
+
+Legacy `deft/` or clone-shaped framework payloads appear in migration and back-compat paths. New docs and examples should prefer `.deft/core/`.
+
+## Content Packs
+
+Content packs under `packs/` package selected guidance into sliceable agent memory. They are rendered and checked through `task packs:*`. They complement, but do not replace, canonical source files.
+
+## Continuous Improvement
+
+Deft's early docs emphasized self-improving guidelines. That remains true, but the current architecture routes improvements through stronger surfaces when possible.
+
+```mermaid
+flowchart TD
+    Work["Daily work"] --> Lesson["Observed pattern or failure"]
+    Lesson --> Record["meta/lessons, ideas, suggestions<br/>or a scope vBRIEF"]
+    Record --> Rule{"Should this become enforceable?"}
+    Rule -->|"yes"| Strong["Task, test, hook, schema, or skill rule"]
+    Rule -->|"not yet"| Prose["Documentation or content-pack guidance"]
+    Strong --> Work
+    Prose --> Work
 ```
 
-### ideas.md — Potential improvements for later
+The important distinction is promotion. A useful observation can start as prose, but recurring or high-impact behavior should move toward tests, tasks, schemas, hooks, or skill rules.
 
-```markdown
-- [ ] Native VS Code extension surfacing scope vBRIEFs and `task` runners
-      directly in the sidebar
-- [ ] Consider `deft/interfaces/grpc.md` for protobuf/gRPC patterns
-- [ ] Explore integration with cursor rules format
-```
+## Practical Workflow
 
-### suggestions.md — Project-specific improvements
+For implementation work:
 
-```markdown
-## auth-service
-- The retry logic in `client.go` should use exponential backoff
-  (currently linear)—see coding.md resilience patterns
+1. Resolve or create a scope vBRIEF.
+2. Promote and activate it.
+3. Run story/session preflight gates.
+4. Implement the smallest coherent change.
+5. Render generated artifacts from sources.
+6. Run focused checks, then `task check`.
+7. Complete the scope and prepare the PR.
 
-## api-gateway
-- Consider splitting routes.go (850 lines) into domain-specific
-  route files per coding.md file size guidelines
-```
+For documentation work:
 
-Review these periodically and promote good ideas to main guidelines.
+1. Identify the authoritative source.
+2. Update source docs or vBRIEF narratives.
+3. Regenerate derived views.
+4. Validate links, vBRIEF shape, and any touched architecture profile.
+5. Keep stale historical notes clearly labeled.

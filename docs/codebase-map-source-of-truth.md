@@ -1,6 +1,6 @@
 # Codebase MAP Source of Truth
 
-Status: accepted for #1595 PR 1
+Status: accepted for #1595 PR 1; contract layer implemented through #1595 PR 3
 
 Date: 2026-06-12
 
@@ -19,6 +19,28 @@ The first implementation tracker for that path is #1595.
 The primary projection is a generated codebase MAP. Optional source file headers
 may be added later only as generated projections from the same metadata, not as
 metadata that agents edit by hand or treat as authoritative.
+
+## Current Implementation Status
+
+Shipped:
+
+- Authored `plan.architecture.codeStructure` metadata in
+  `vbrief/PROJECT-DEFINITION.vbrief.json`.
+- Local schema typing for `codeStructure`.
+- `task codebase:validate-structure`.
+- Dependency-free default extractor and `codebase-map.v1` artifact shape.
+- Provider artifact contract and local schema-subset validation.
+- Projection-kind registry for `codebase-map`.
+
+Still planned:
+
+- Generated `.planning/codebase/MAP.md`.
+- Freshness checks for that generated MAP.
+- Generated source headers.
+- Consumer-facing propagation of generated codebase projections.
+
+This means the source-of-truth decision has landed, and the pre-MAP contract
+layer has landed, but generated MAP output has not.
 
 ## Superseded Direction
 
@@ -126,6 +148,9 @@ constraints:
 5. Split optional generated headers into a separate follow-up after the MAP
    machinery exists.
 6. Update skills, docs, and consumer-facing guidance after a dogfood window.
+
+Steps 1-3 are complete in the current repository. Steps 4-6 remain future
+work.
 
 ## Non-Goals
 

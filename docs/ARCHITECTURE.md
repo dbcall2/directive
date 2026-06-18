@@ -1,185 +1,210 @@
 # Deft Architecture
 
-How Deft layers fit together, how rules cascade, and how project requirements (specs / scope vBRIEFs) are kept distinct from the rule hierarchy.
+How the Deft framework is wired today: authority layers, command surfaces, vBRIEF state, automation modules, generated artifacts, and the boundary between authored source of truth and derived views.
 
-> **📚 See also**: [CONCEPTS.md](./CONCEPTS.md) (key principles) • [FILES.md](./FILES.md) (directory tree + file index) • [RELEASING.md](./RELEASING.md) • [../README.md](../README.md) (TL;DR + Getting Started)
+> **See also**: [CONCEPTS.md](./CONCEPTS.md) (operating principles) | [FILES.md](./FILES.md) (directory map) | [code-structure-profile.md](./code-structure-profile.md) | [codebase-map-source-of-truth.md](./codebase-map-source-of-truth.md) | [../README.md](../README.md)
 
-## 🎯 What is Deft?
+## What Deft Is
 
-Deft is a structured approach to working with AI coding assistants that provides:
+Deft Directive is a self-dogfooded framework for AI-assisted software work. It is not just Markdown guidance and not just a CLI. The implemented system combines:
 
-- **Consistent coding standards** across languages and projects
-- **Reproducible workflows** via task-based automation
-- **Self-improving guidelines** that evolve with your team
-- **Hierarchical rule precedence** from general to project-specific
-- **Lazy loading** — agents only read files relevant to the current task (see [REFERENCES.md](../REFERENCES.md))
+- Agent-consumed rules, skills, standards, strategies, and templates.
+- A Taskfile-first deterministic command graph.
+- Python tooling for validation, rendering, lifecycle movement, cache/triage/scope automation, doctor checks, release support, and codebase extraction contracts.
+- A Go installer that deposits and upgrades the framework payload in `.deft/core/`.
+- vBRIEF files as durable project, specification, lifecycle, policy, and architecture metadata.
+- Local cache/audit surfaces for backlog triage and GitHub issue ingestion.
+- PR, release, swarm, branch-policy, and verification gates.
+- Content packs for sliceable agent memory.
+- Tests, hooks, and CI workflows that enforce the stronger rules.
 
-**Two AI-agent entry surfaces:**
+`task --list` is the primary command discovery surface. `run`, `run.py`, and `run.bat` still exist for compatibility and selected interactive flows, but they are no longer the central architecture owner.
 
-- **`AGENTS.md`** is the canonical entry point inside this repository (and the file the installer wires into your project). It uses repo-relative paths.
-- **`SKILL.md`** is the alternate entry surface for platforms / loaders that prefer the `SKILL.md` convention. Both surfaces ultimately point at `main.md` for general AI behavior.
+The original Deft intent still matters: move from one-off, vibe-level agent prompting toward a repeatable practice where standards are modular, context is loaded on demand, work is specified before implementation, tests anchor behavior, and the framework improves from its own lessons.
 
-If you're on a platform that doesn't yet support `SKILL.md`, just add a line to your `AGENTS.md` that says `See deft/main.md` (the installer does this for you).
+## System Shape
 
-## 🎸 From Vibe to Virtuoso
+```mermaid
+flowchart LR
+    A["Agent entry<br/>AGENTS.md, SKILL.md, main.md"] --> B["Guidance layer<br/>skills, standards, strategies, templates"]
+    B --> C["Taskfile command graph<br/>task --list, task check, task verify:*"]
+    C --> D["Automation layer<br/>scripts/*.py, run compatibility, Go installer"]
+    D --> E["Durable state<br/>PROJECT-DEFINITION, specification, scope vBRIEFs"]
+    E --> F["Generated views<br/>SPECIFICATION.md, PRD.md, ROADMAP.md, future MAP.md"]
+    E --> C
+    C --> G["Enforcement surfaces<br/>tests, hooks, CI, release and PR gates"]
+    G --> B
+```
 
-**AGENTS.md** alone is great for vibe-coding — loose guidance, good enough for quick work:
+The loop is deliberate. Guidance tells agents how to behave, tasks make that behavior executable, vBRIEF files preserve state, generated views make state readable, and gates feed back into the guidance when the framework learns a better rule.
 
-> "Make it clean, I like tests, use TypeScript."
+## Entry Surfaces
 
-**Deft** is for when you want virtuoso results: precise standards, reproducible workflows, and AI that improves over time.
+- `AGENTS.md` is the canonical agent entry point in this repository and in installer-wired consumer projects.
+- `SKILL.md` is the alternate loader convention for platforms that discover skills directly.
+- `main.md` holds general AI behavior and the current rule-authority axiom.
+- `~/.config/deft/USER.md` stores personal preferences, with its Personal section taking precedence for user-defined preferences.
+- `vbrief/PROJECT-DEFINITION.vbrief.json` stores project identity, policy, lifecycle registry, and authored architecture metadata.
 
-| Vibe (AGENTS.md alone) | Virtuoso (Deft) |
-|------------------------|-----------------|
-| All rules in one file | Modular — load only what's relevant |
-| Gets bloated across languages/tools | Scales cleanly (python.md stays focused) |
-| Same context loaded every session | Lazy-loading saves tokens |
-| Preferences mixed with standards | Clear separation (USER.md vs language files) |
-| No evolution mechanism | Meta files capture learnings automatically |
-| Starts fresh each project | Portable across projects |
+Consumer installs point agents at `.deft/core/main.md`. The canonical installer and upgrade path preserve that `.deft/core/` layout; legacy clone layouts are upgrade/migration inputs, not the preferred target state.
 
-**When to use which:**
+## Rule Authority
 
-- Your AGENTS.md is under 200 lines and you work in one language? Vibe is fine.
-- It's growing unwieldy, you're repeating yourself, or you want consistent quality across projects? Deft pays off.
-
-## 📚 The Layers
-
-Deft uses a layered architecture where more specific rules override general ones:
+Rules use the strongest applicable layer:
 
 ```mermaid
 flowchart TD
-    subgraph precedence ["Rule Precedence (top = highest)"]
-        direction TB
-        U["👤 USER.md<br/><i>Personal preferences</i>"]
-        P["📁 vbrief/PROJECT-DEFINITION.vbrief.json<br/><i>Project identity + rules</i>"]
-        L["🐍 languages/python.md / go.md / etc.<br/><i>Language standards</i>"]
-        T["🔧 tools/taskfile.md<br/><i>Tool guidelines</i>"]
-        M["🤖 main.md<br/><i>General AI behavior</i>"]
-    end
-
-    U --> P
-    P --> L
-    L --> T
-    T --> M
-
-    style U fill:#4ade80,stroke:#166534,color:#000
-    style P fill:#60a5fa,stroke:#1e40af,color:#000
-    style L fill:#facc15,stroke:#a16207,color:#000
-    style T fill:#fb923c,stroke:#c2410c,color:#000
-    style M fill:#c084fc,stroke:#7c3aed,color:#000
+    D["Deterministic checks<br/>tests, scripts, hooks, CI"] --> T["Taskfile targets<br/>task check, verify:*, vbrief:*"]
+    T --> V["vBRIEF metadata<br/>project policy, lifecycle state"]
+    V --> R["RFC2119 rules<br/>AGENTS.md, main.md, skills"]
+    R --> P["Plain prose<br/>explanation and rationale"]
 ```
 
-### Rule Hierarchy
+This is the current `main.md` rule-authority axiom: deterministic > Taskfile > vBRIEF > RFC2119 > prose. Prose explains rules but does not outrank executable gates.
 
-Rules cascade with precedence (highest first). This is the **how-the-AI-behaves** ladder:
+Personal preferences from `USER.md` still matter, but when a rule has an executable check, the check is the rule body. For example, branch policy is described in prose, exposed by `task verify:branch`, enforced by hooks, and repeated in CI.
 
-1. **USER.md** (highest) — your personal overrides (`~/.config/deft/USER.md` on Unix/macOS, `%APPDATA%\deft\USER.md` on Windows)
-2. **vbrief/PROJECT-DEFINITION.vbrief.json** — project-specific rules and identity gestalt
-3. **Language files** (`languages/python.md`, `languages/go.md`, ...) — language standards
-4. **Tool files** (`tools/taskfile.md`, ...) — tool guidelines
-5. **main.md** (lowest) — general AI behavior
+## Requirements Are Separate From Rules
 
-### Project Requirements (separate from the rule ladder)
+Requirements describe what to build. Rules describe how agents should behave while doing the work.
 
-Project requirements describe **what to build**, not **how the AI behaves**. They are not part of the rule cascade above:
+- `vbrief/specification.vbrief.json` is the project specification source of truth.
+- `SPECIFICATION.md` is a rendered view generated by `task spec:render`.
+- `PRD.md` is a rendered stakeholder view generated by `task prd:render`.
+- `ROADMAP.md` is a rendered backlog view generated by roadmap tasks.
+- Scope vBRIEFs live in `vbrief/{proposed,pending,active,completed,cancelled}/`.
 
-- **`vbrief/specification.vbrief.json`** — project spec (source of truth) — rendered to `SPECIFICATION.md` via `task spec:render`
-- **Scope vBRIEFs** in `vbrief/{proposed,pending,active,completed,cancelled}/` — individual units of work
-- **`ROADMAP.md`** — rendered backlog view from `vbrief/pending/` and `vbrief/completed/`
+Generated markdown files carry machine-generated banners. Edit the vBRIEF source first, then render.
 
-The rule ladder governs the agent. The requirements / scope ladder governs the work. Keeping them distinct prevents the common error of treating the spec as a behavior override.
+```mermaid
+flowchart LR
+    S["vbrief/specification.vbrief.json"] -->|"task spec:render"| SM["SPECIFICATION.md"]
+    S -->|"task prd:render"| PRD["PRD.md"]
+    L["Lifecycle scope vBRIEFs"] -->|"task roadmap:render"| RM["ROADMAP.md"]
+    P["PROJECT-DEFINITION<br/>codeStructure"] -->|"planned projection"| MAP[".planning/codebase/MAP.md"]
+    Skills["Skills and standards"] -->|"task packs:render"| Packs["Rendered content packs"]
+```
 
-## 🔄 Continuous Improvement
+## Implemented Modules
 
-The deft process evolves over time:
+| Area | Primary paths | Current responsibility |
+| --- | --- | --- |
+| Framework content | `AGENTS.md`, `main.md`, `coding/`, `contracts/`, `conventions/`, `docs/`, `interfaces/`, `languages/`, `meta/`, `patterns/`, `resilience/`, `scm/`, `skills/`, `strategies/`, `swarm/`, `templates/`, `tools/`, `verification/` | Agent guidance, skills, standards, and documentation. |
+| Task runner | `Taskfile.yml`, `tasks/*.yml` | Deterministic command contract and composable command namespaces. |
+| Python tooling | `scripts/*.py`, `run`, `run.py`, `run.bat` | Validators, renderers, lifecycle tools, issue/cache/triage automation, doctor/session gates, codebase provider contracts, and compatibility routing. |
+| Go installer | `cmd/deft-install/`, `go.mod` | Cross-platform installer/upgrade binary, `.deft/core` payload management, AGENTS managed section refresh, Taskfile wiring, and doctor handoff. |
+| vBRIEF metadata | `vbrief/**/*.json`, `vbrief/**/*.md` | Project identity, scope lifecycle, schemas, policy, specification source, and authored `codeStructure`. |
+| Content packs | `packs/` | Curated agent memory packs rendered and checked through `task packs:*`. |
+| CI/release automation | `.github/`, `.githooks/`, `tasks/pr.yml`, `tasks/release.yml`, release scripts | Branch policy, PR readiness, release, publish, rollback, and local hook enforcement. |
+| Tests | `tests/` | CLI, content, contract, lifecycle, and regression coverage. |
+
+## Command Surface
+
+The command graph is broad; use `task --list` for the exact current surface. The important architectural groups are:
+
+- `task check`, `task check:framework-source`, `task check:consumer`, `task check:slow` for quality gates.
+- `task verify:*` for branch, hooks, encoding, vBRIEF conformance, session ritual, story readiness, capacity, cache freshness, and investigation gates.
+- `task vbrief:*`, `task spec:*`, `task project:*`, `task roadmap:*`, and `task prd:*` for source validation and generated views.
+- `task scope:*` and `task scope:undo:*` for lifecycle movement.
+- `task triage:*` and `task cache:*` for cache-backed backlog work.
+- `task codebase:*` for authored `codeStructure` validation, default extraction, provider-map validation, and projection registry lookup.
+- `task packs:*` for content-pack rendering and drift checks.
+- `task pr:*`, `task release:*`, and `task swarm:*` for PR readiness, release operations, and multi-agent orchestration.
+- `task policy:*`, `task capacity:*`, and `task scm:*` for project policy, work allocation, and SCM helpers.
+
+`run` remains useful for compatibility and selected interactive commands such as `.deft/core/run bootstrap`, `.deft/core/run spec`, `.deft/core/run validate`, and `.deft/core/run doctor`. New deterministic automation should usually enter through Taskfile.
+
+## Session Ritual And Gate Stack
+
+Interactive sessions start with a quick ritual and become eligible for implementation only after the gated verifier records the heavier checks. The same state then feeds the story and implementation gates.
 
 ```mermaid
 flowchart TD
-    subgraph evolution ["Continuous Evolution"]
-        DEV["🛠️ Development<br/><i>Daily coding</i>"]
-        LEARN["📚 lessons.md<br/><i>Patterns discovered</i>"]
-        IDEAS["💡 ideas.md<br/><i>Future directions</i>"]
-        SUGGEST["📝 suggestions.md<br/><i>Improvements</i>"]
-        USER["👤 USER.md<br/><i>Preferences</i>"]
-        STANDARDS["📖 Language/Tool files<br/><i>Evolving standards</i>"]
-    end
-
-    DEV -->|"AI discovers"| LEARN
-    DEV -->|"AI notes"| IDEAS
-    DEV -->|"AI suggests"| SUGGEST
-    LEARN -->|"Promote"| STANDARDS
-    IDEAS -->|"Review"| STANDARDS
-    SUGGEST -->|"Accept"| USER
-    STANDARDS -->|"Inform"| DEV
-    USER -->|"Guide"| DEV
-
-    style DEV fill:#f0abfc,stroke:#a855f7,color:#000
-    style LEARN fill:#fde68a,stroke:#d97706,color:#000
-    style IDEAS fill:#a5f3fc,stroke:#06b6d4,color:#000
-    style SUGGEST fill:#fecaca,stroke:#ef4444,color:#000
-    style USER fill:#86efac,stroke:#22c55e,color:#000
-    style STANDARDS fill:#c7d2fe,stroke:#6366f1,color:#000
+    Start["Interactive session starts"] --> Read["Read AGENTS.md, USER.md, PROJECT-DEFINITION"]
+    Read --> Confirm["Confirm Deft alignment and addressing name"]
+    Confirm --> Quick["task session:start<br/>quick tier"]
+    Quick --> State[".deft/ritual-state.json<br/>worktree, HEAD, freshness window"]
+    State --> Intent["Implementation intent or start_agent dispatch?"]
+    Intent --> Gated["task verify:session-ritual -- --tier=gated"]
+    Gated --> Story["task verify:story-ready<br/>active scope and clean/allowed tree"]
+    Story --> Preflight["task vbrief:preflight<br/>active + running"]
+    Preflight --> Cache["task verify:cache-fresh"]
+    Cache --> Branch["task verify:branch"]
+    Branch --> Work["Implement or dispatch agent"]
 ```
 
-- AI updates `meta/lessons.md` when learning better patterns
-- AI notes ideas in `meta/ideas.md` for future consideration
-- AI suggests improvements in `meta/suggestions.md`
-- You update your USER.md (`~/.config/deft/USER.md` on Unix/macOS, `%APPDATA%\deft\USER.md` on Windows) with new preferences
-- You update language/tool files as standards evolve
+The ordering is architectural, not ceremony. Each gate can assume the previous one already proved its part of the state: session freshness, scope readiness, implementation intent, cache freshness, and branch policy.
 
-## 📦 Document Generation & vBRIEF Tooling
+## Lifecycle State
 
-Deft provides deterministic `task` commands for rendering, migrating, and validating documents. They are split here by audience.
+Work moves through vBRIEF lifecycle folders:
 
-### Migration (one-time)
+- `vbrief/proposed/` -- candidate work.
+- `vbrief/pending/` -- accepted backlog.
+- `vbrief/active/` -- running work.
+- `vbrief/completed/` -- completed work.
+- `vbrief/cancelled/` -- rejected or abandoned work.
 
-| Command | Description |
-|---------|-------------|
-| `task migrate:vbrief` | Migrate existing projects to vBRIEF lifecycle folder structure (one-time cutover from pre-v0.20 model) |
+The folder and `plan.status` must agree. The scope tasks update both together. `task verify:story-ready` and `task vbrief:preflight` are the implementation-intent gates for active work.
 
-### Authoring (day-to-day)
-
-| Command | Description | When to use |
-|---------|-------------|-------------|
-| `task spec:render` | Regenerate `SPECIFICATION.md` from `specification.vbrief.json` | After editing the spec vBRIEF |
-| `task prd:render` | Export `plan.narratives` from `specification.vbrief.json` to a read-only `PRD.md` for stakeholder review | On demand for stakeholder PRD-style export |
-| `task roadmap:render` | Regenerate `ROADMAP.md` from `vbrief/pending/` + `vbrief/completed/` | After promoting/demoting scopes |
-| `task project:render` | Regenerate `vbrief/PROJECT-DEFINITION.vbrief.json` items registry | After scope lifecycle changes |
-| `task issue:ingest -- <N>` | Ingest a single GitHub issue as a scope vBRIEF in `vbrief/proposed/` (deduplicates via existing references) | After filing a new issue you plan to work on |
-| `task issue:ingest -- --all [--label L] [--status S] [--dry-run]` | Bulk-ingest open issues into scope vBRIEFs | Post-refactor / post-release cleanup, or when reducing the `reconcile` unlinked backlog |
-
-### CI / pre-commit
-
-| Command | Description |
-|---------|-------------|
-| `task vbrief:validate` | Validate vBRIEF schema, filenames, folder/status consistency (runs as part of `task check`) |
-| `task verify:links` | Validate internal markdown links |
-| `task verify:stubs` | Scan source files for stub patterns |
-| `task verify:rule-ownership` | Verify the Rule Ownership Map is in sync with its owner files |
-
-See [../commands.md](../commands.md) for the full change lifecycle and the [Command Lifecycle: `run` vs `task`](../commands.md#command-lifecycle-run-vs-task) section there for detailed usage.
-
-### Ingesting GitHub issues
-
-Post-v0.20, new GitHub issues become scope vBRIEFs via `task issue:ingest`:
-
-```bash
-# Single issue -- writes vbrief/proposed/YYYY-MM-DD-<N>-<slug>.vbrief.json
-task issue:ingest -- 123
-
-# Bulk ingest all open issues carrying the `bug` label, dry-run first
-task issue:ingest -- --all --label bug --dry-run
-task issue:ingest -- --all --label bug
+```mermaid
+flowchart LR
+    Proposed["proposed<br/>candidate"] -->|"task scope:promote"| Pending["pending<br/>accepted backlog"]
+    Pending -->|"task scope:activate"| Active["active<br/>running"]
+    Active -->|"task scope:complete"| Completed["completed<br/>done"]
+    Proposed -->|"task scope:cancel"| Cancelled["cancelled<br/>rejected"]
+    Pending -->|"task scope:cancel"| Cancelled
+    Active -->|"task scope:fail or cancel"| Cancelled
+    Completed -.->|"task scope:restore"| Pending
 ```
 
-The script deduplicates against existing `references[type=x-vbrief/github-issue]` entries in `vbrief/`, writes to the lifecycle folder selected by `--status proposed|pending|active` (default: `proposed`), and exits with `1` if the issue already has a scope vBRIEF. Use `--dry-run` in bulk mode to preview without writing files.
+## Triage And Cache
 
-## Command Lifecycle: `run` vs `task`
+Deft's backlog workflow is cache-backed:
 
-Deft uses two complementary command surfaces:
+- `.deft-cache/` stores fetched external content.
+- `vbrief/.eval/` stores triage decisions and audit records.
+- `task triage:bootstrap` seeds the local cache and audit layer.
+- `task triage:queue`, `task triage:accept`, `task triage:reject`, `task triage:defer`, and related verbs turn external issues into auditable scope decisions.
 
-- **`run` commands** (`.deft/core/run bootstrap`, `.deft/core/run spec`, `.deft/core/run validate`) handle **interactive creation** — bootstrapping user/project config, conducting spec interviews, validating configuration. These are the entry points for humans starting new work.
-- **`task` commands** (`task spec:render`, `task roadmap:render`, `task migrate:vbrief`, etc.) handle **scripted rendering, migration, and validation** — deterministic operations that transform vBRIEF source files into readable artifacts or enforce structural rules.
+Agents should not choose backlog work from memory when the cache workflow applies. They should consult the cache/task surface first.
 
-This split is intentional: `run` commands are conversational and agent-friendly; `task` commands are deterministic and CI-friendly. For the full document lifecycle, start with `run` to create, then use `task` to render and validate. See [../commands.md](../commands.md) for cross-references.
+```mermaid
+flowchart TD
+    GH["External backlog<br/>GitHub issues"] --> Fetch["task triage:bootstrap<br/>task cache:fetch-all"]
+    Fetch --> Cache[".deft-cache/<source>/<key>"]
+    Cache --> Queue["task triage:queue<br/>ranked candidates"]
+    Queue --> Decision{"Operator or agent decision"}
+    Decision -->|"accept"| Scope["task triage:accept<br/>proposed scope vBRIEF"]
+    Decision -->|"reject/defer/needs-ac"| Audit["vbrief/.eval<br/>decision audit"]
+    Scope --> Audit
+```
+
+## Codebase Architecture Metadata
+
+`vbrief/PROJECT-DEFINITION.vbrief.json` contains `plan.architecture.codeStructure`, the authored codebase-structure profile. That profile is the durable source of truth for intended module boundaries.
+
+Implemented today:
+
+- `task codebase:validate-structure`
+- `task codebase:extract-default`
+- `task codebase:provider-map`
+- `task codebase:projection-registry`
+
+Not implemented yet:
+
+- Generated `.planning/codebase/MAP.md`
+- MAP freshness checks
+- Generated source headers
+- Consumer propagation of generated codebase maps
+
+The planned MAP is a projection. It must not become the canonical architecture source.
+
+## Generated And Historical Artifacts
+
+- `SPECIFICATION.md`, `PRD.md`, and `ROADMAP.md` are generated views.
+- `.planning/codebase/MAP.md` is planned but absent until its generator ships.
+- `.planning/codebase/ARCHITECTURE.md`, `CONVENTIONS.md`, and related files are historical planning notes unless they carry a generated-source banner.
+- `PROJECT.md` is a deprecated redirect; current project identity lives in `vbrief/PROJECT-DEFINITION.vbrief.json`.
+
+When in doubt, prefer the vBRIEF source and the Taskfile gate over a prose file.

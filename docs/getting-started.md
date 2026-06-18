@@ -1,8 +1,8 @@
 # Getting Started with Deft Directive
 
-Deft Directive is a Markdown framework that provides layered behavioral rules, workflow strategies, and quality gates for AI-assisted software development. This guide walks you through installing Deft, configuring your preferences, creating your first project specification, and using strategies to drive implementation.
+Deft Directive is a Taskfile-first framework for AI-assisted software work. It combines agent guidance, deterministic gates, vBRIEF lifecycle metadata, installer/doctor handoff, and cache-backed backlog workflows. This guide walks through installation, preferences, project setup, and the first scope workflow.
 
-> **Note**: Full guide content is deferred until Phases 1-3 of the Deft Directive specification ship. This stub establishes the document structure; sections will be fleshed out as the framework stabilises. See SPECIFICATION.md and ROADMAP.md for current status.
+> **Note**: This guide is an orientation layer. For current architecture details, see [ARCHITECTURE.md](./ARCHITECTURE.md); for command behavior, see [commands.md](../commands.md).
 
 ---
 
