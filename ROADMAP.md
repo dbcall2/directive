@@ -220,6 +220,8 @@
 - **#5** -- SDD should focus on intent first -- `[completed]`
 - **#50** -- Strategies redundant old names -- brownfield.md redirect, default.md deleted -- `[completed]`
 - **#51** -- Project bootstrap: purge stale legacy path references across 42 files; add strategy stubs (rapid.md, enterprise.md); add docs/getting-started.md stub -- `[completed]`
+- **#52** -- Install into `.deft/` (hidden directory) instead of `deft/` -- `[completed]`
+- **#53** -- deft-install should bootstrap the current directory by default -- `[completed]`
 - **#54** -- AGENTS.md provides no actionable onboarding -- `[completed]`
 - **#57** -- GitHub Actions CI workflow -- Python (ruff, mypy, pytest+cov) + Go (test + 3-platform build); pyproject.toml fail_under raised to 85% -- `[completed]`
 - **#58** -- Stale cross-references to legacy paths -- `[completed]`
@@ -236,11 +238,15 @@
 - **#71** -- CHANGELOG catch-up -- `[completed]`
 - **#72** -- vBRIEF files still invalid on master -- five-component generation chain fix (CONVENTIONS.md root cause, validator, renderer, data migration, templates, 7 new tests, minimal CI) -- `[completed]`
 - **#74** -- Automate release process -- `[completed]`
+- **#77** -- Allow users to change technical rating (1/2/3) when starting a new project -- `[completed]`
+- **#78** -- Bootstrap: offer to update user preferences when USER.md already exists -- `[completed]`
 - **#79** -- deft-setup inference boundary guards -- `[completed]`
 - **#8** -- Don't commit until questionnaires finished -- `[completed]`
 - **#80** -- deft-setup project name fallback -- `[completed]`
 - **#81** -- BDD/acceptance-test-first strategy -- strategies/bdd.md with 6-step Given/When/Then workflow and chaining gate integration -- `[completed]`
+- **#82** -- Replacement strategies need accept-or-scrap exit when plan artifacts already exist (design: artifact awareness for chaining gate) -- `[completed]`
 - #84 Phase 1 -- Deft as teacher Phase 1 complete: contracts/hierarchy.md (v0.10.0), adaptive teaching main.md (v0.10.0), State WHY rule interview.md (v0.12.1) -- `[completed]`
+- **#89** -- Deft identity and positioning: resolve naming before README reframe (blocks #84 Phase 2 README reframe, `meta/philosophy.md`, interview strategy updates) -- `[completed]`
 - **#91** -- run bootstrap goes in a loop -- `[completed]`
 - **#92** -- Strategy selection infinite loop when strategies/ empty -- `[completed]`
 - **#94** -- Agent auto-alignment on startup: thin skill pointer + change lifecycle rule -- `[completed]`
@@ -591,4 +597,7 @@
 - **#1316** -- bug(run,scripts/_doctor_state): _render_doctor_status_line over-counts warnings by 1 on dirty throttle-skip when AGENTS.md freshness check emits severity=skip -- `[completed]`
 - **#1319** -- bug(scripts/reconcile_issues): --apply-lifecycle-fixes over-classifies decomposition children whose planRef is OPEN but decomposition_origin parent is CLOSED (v0.33.0 cut misclassified #1283 #1284 #1285 #1291) -- `[completed]`
 - **#1358** -- fix(skills): swarm Phase 6 must commit+push vBRIEF lifecycle moves to master after merge cascade -- `[completed]`
+- **#1659** -- Decouple framework runtime and guidance from the task runner -- `[completed]`
+- docs: refresh project concepts and architecture -- `[completed]`
+- docs: restore diagrams and early intent -- `[completed]`
 

@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.52.0] - 2026-06-18
+
+> Deft commands now run without go-task via a package-first deft <verb> surface, plus a provider-ready codebase-map contract and refreshed architecture docs.
+
+### Added
 - **Codebase structure now has a provider-ready contract layer (#1595)** -- Directive can emit a dependency-free `codebase-map.v1` artifact, validate an external `codebase-provider.v1` response, and fall back to the default extractor when no conformant provider is configured. The codeStructure validator now dogfoods PR3 discipline checks that keep authored metadata free of derived facts while the projection registry keeps canonical entries command-agnostic. Refs #1498 #1530 #1659.
 
 ### Changed
@@ -3345,7 +3357,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.51.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.52.0...HEAD
+[0.52.0]: https://github.com/deftai/directive/compare/v0.51.0...v0.52.0
 [0.51.0]: https://github.com/deftai/directive/compare/v0.50.0...v0.51.0
 [0.50.0]: https://github.com/deftai/directive/compare/v0.49.0...v0.50.0
 [0.49.0]: https://github.com/deftai/directive/compare/v0.48.0...v0.49.0
