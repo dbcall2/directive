@@ -22,6 +22,19 @@ export default defineConfig({
       "@deftai/core/branch": sub("core", "branch"),
       "@deftai/core/wip-cap": sub("core", "wip-cap"),
       "@deftai/core/scm": sub("core", "scm"),
+      "@deftai/core/scope": sub("core", "scope"),
+      "@deftai/core/slice": sub("core", "slice"),
+      "@deftai/core/cache": sub("core", "cache"),
+      "@deftai/core/doctor": sub("core", "doctor"),
+      "@deftai/core/triage": sub("core", "triage"),
+      "@deftai/core/release": sub("core", "release"),
+      "@deftai/core/release-publish": sub("core", "release-publish"),
+      "@deftai/core/release-rollback": sub("core", "release-rollback"),
+      "@deftai/core/release-e2e": sub("core", "release-e2e"),
+      "@deftai/core/pr-merge-readiness": sub("core", "pr-merge-readiness"),
+      "@deftai/core/pr-protected-issues": sub("core", "pr-protected-issues"),
+      "@deftai/core/pr-closing-keywords": sub("core", "pr-closing-keywords"),
+      "@deftai/core/pr-monitor": sub("core", "pr-monitor"),
       "@deftai/core": src("core"),
     },
   },
@@ -62,6 +75,39 @@ export default defineConfig({
         // Python oracle and is validated by the dedicated parity CI job, not
         // the Python-less node-only TS job. Pure helpers stay unit-tested.
         "packages/cli/src/scm-parity.ts",
+        // Same rationale (#1530 Wave 3, #1725): the triage parity runners each
+        // spawn the Python oracle and are validated by the dedicated parity CI
+        // job, not the Python-less node-only TS job. Pure helpers stay
+        // unit-tested in their *-parity.test.ts companions.
+        "packages/cli/src/triage-actions-parity.ts",
+        "packages/cli/src/triage-aux-a-parity.ts",
+        "packages/cli/src/triage-aux-b-parity.ts",
+        "packages/cli/src/triage-bootstrap-parity.ts",
+        "packages/cli/src/triage-classify-parity.ts",
+        "packages/cli/src/triage-queue-parity.ts",
+        "packages/cli/src/triage-scope-parity.ts",
+        "packages/cli/src/triage-summary-parity.ts",
+        // Same rationale (#1530 Wave 3, batch 2): the scope/slice/cache/doctor
+        // parity runners spawn the Python oracle and are validated by the
+        // dedicated parity CI job, not the node-only TS job.
+        "packages/cli/src/scope-lifecycle-parity.ts",
+        "packages/cli/src/slice-parity.ts",
+        "packages/cli/src/cache-parity.ts",
+        "packages/cli/src/doctor-parity.ts",
+        // Same rationale (#1530 Wave 4, #1729): the release parity runners spawn
+        // the Python oracle and are validated by the dedicated parity CI job, not
+        // the Python-less node-only TS job. Pure helpers stay unit-tested.
+        "packages/cli/src/release-parity.ts",
+        "packages/cli/src/release-publish-parity.ts",
+        "packages/cli/src/release-rollback-parity.ts",
+        "packages/cli/src/release-e2e-parity.ts",
+        // Same rationale (#1530 Wave 4b, #1730): the pr-monitor parity runners
+        // spawn the Python oracle and are validated by the dedicated parity CI
+        // job, not the Python-less node-only TS job. Pure helpers stay unit-tested.
+        "packages/cli/src/pr-merge-readiness-parity.ts",
+        "packages/cli/src/pr-protected-issues-parity.ts",
+        "packages/cli/src/pr-closing-keywords-parity.ts",
+        "packages/cli/src/pr-monitor-parity.ts",
       ],
       reporter: ["text", "text-summary"],
       thresholds: {

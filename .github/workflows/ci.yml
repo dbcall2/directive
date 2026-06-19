@@ -207,6 +207,66 @@ jobs:
       - name: Golden-diff parity -- scm boundary (#1724)
         run: node packages/cli/dist/scm-parity.js
 
+      - name: Golden-diff parity -- triage queue (#1725)
+        run: node packages/cli/dist/triage-queue-parity.js
+
+      - name: Golden-diff parity -- triage summary (#1725)
+        run: node packages/cli/dist/triage-summary-parity.js
+
+      - name: Golden-diff parity -- triage classify (#1725)
+        run: node packages/cli/dist/triage-classify-parity.js
+
+      - name: Golden-diff parity -- triage actions (#1725)
+        run: node packages/cli/dist/triage-actions-parity.js
+
+      - name: Golden-diff parity -- triage bootstrap (#1725)
+        run: node packages/cli/dist/triage-bootstrap-parity.js
+
+      - name: Golden-diff parity -- triage scope (#1725)
+        run: node packages/cli/dist/triage-scope-parity.js
+
+      - name: Golden-diff parity -- triage aux verbs A (#1725)
+        run: node packages/cli/dist/triage-aux-a-parity.js
+
+      - name: Golden-diff parity -- triage aux verbs B (#1725)
+        run: node packages/cli/dist/triage-aux-b-parity.js
+
+      - name: Golden-diff parity -- scope lifecycle family (#1726)
+        run: node packages/cli/dist/scope-lifecycle-parity.js
+
+      - name: Golden-diff parity -- slice family (#1727)
+        run: node packages/cli/dist/slice-parity.js
+
+      - name: Golden-diff parity -- unified content cache (#1728)
+        run: node packages/cli/dist/cache-parity.js
+
+      - name: Golden-diff parity -- deft doctor (#1728)
+        run: node packages/cli/dist/doctor-parity.js
+
+      - name: Golden-diff parity -- release pipeline core (#1729)
+        run: node packages/cli/dist/release-parity.js
+
+      - name: Golden-diff parity -- release:publish (#1729)
+        run: node packages/cli/dist/release-publish-parity.js
+
+      - name: Golden-diff parity -- release:rollback (#1729)
+        run: node packages/cli/dist/release-rollback-parity.js
+
+      - name: Golden-diff parity -- release:e2e (#1729)
+        run: node packages/cli/dist/release-e2e-parity.js
+
+      - name: Golden-diff parity -- pr_merge_readiness (#1730)
+        run: node packages/cli/dist/pr-merge-readiness-parity.js
+
+      - name: Golden-diff parity -- pr_check_protected_issues (#1730)
+        run: node packages/cli/dist/pr-protected-issues-parity.js
+
+      - name: Golden-diff parity -- pr_check_closing_keywords (#1730)
+        run: node packages/cli/dist/pr-closing-keywords-parity.js
+
+      - name: Golden-diff parity -- monitor_pr (#1730)
+        run: node packages/cli/dist/pr-monitor-parity.js
+
   go:
     name: Go (test + build)
     runs-on: blacksmith-4vcpu-ubuntu-2404

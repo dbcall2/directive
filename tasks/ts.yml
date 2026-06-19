@@ -81,6 +81,91 @@ tasks:
     cmds:
       - node "{{.DEFT_ROOT}}/packages/cli/dist/scm-parity.js"
 
+  triage-parity:
+    desc: "Golden-diff every ported triage verb vs its Python oracle, cache-off (#1530 Wave 3, #1725)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-queue-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-summary-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-classify-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-actions-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-bootstrap-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-scope-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-aux-a-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-aux-b-parity.js"
+
+  scope-lifecycle-parity:
+    desc: "Golden-diff the ported scope:* lifecycle family vs the Python oracle, cache-off (#1726)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/scope-lifecycle-parity.js"
+
+  slice-parity:
+    desc: "Golden-diff the ported slice:* family vs the Python oracle, cache-off (#1727)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/slice-parity.js"
+
+  cache-parity:
+    desc: "Golden-diff the ported unified content cache vs the Python oracle, cache-off (#1728)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/cache-parity.js"
+
+  doctor-parity:
+    desc: "Golden-diff the ported deft doctor vs the Python oracle, cache-off (#1728)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/doctor-parity.js"
+
+  release-parity:
+    desc: "Golden-diff the ported release.py core vs the Python oracle, cache-off (#1729)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/release-parity.js"
+
+  release-publish-parity:
+    desc: "Golden-diff the ported release_publish.py vs the Python oracle, cache-off (#1729)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/release-publish-parity.js"
+
+  release-rollback-parity:
+    desc: "Golden-diff the ported release_rollback.py vs the Python oracle, cache-off (#1729)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/release-rollback-parity.js"
+
+  release-e2e-parity:
+    desc: "Golden-diff the ported release_e2e.py vs the Python oracle, cache-off (#1729)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/release-e2e-parity.js"
+
+  pr-merge-readiness-parity:
+    desc: "Golden-diff the ported pr_merge_readiness.py vs the Python oracle, cache-off (#1730)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/pr-merge-readiness-parity.js"
+
+  pr-protected-issues-parity:
+    desc: "Golden-diff the ported pr_check_protected_issues.py vs the Python oracle, cache-off (#1730)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/pr-protected-issues-parity.js"
+
+  pr-closing-keywords-parity:
+    desc: "Golden-diff the ported pr_check_closing_keywords.py vs the Python oracle, cache-off (#1730)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/pr-closing-keywords-parity.js"
+
+  pr-monitor-parity:
+    desc: "Golden-diff the ported monitor_pr.py vs the Python oracle, cache-off (#1730)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/pr-monitor-parity.js"
+
   parity-all:
     desc: "Run every TS-port golden-diff parity harness vs the Python oracle (#1530 Wave 2)"
     deps: [build]
@@ -92,3 +177,23 @@ tasks:
       - node "{{.DEFT_ROOT}}/packages/cli/dist/branch-parity.js"
       - node "{{.DEFT_ROOT}}/packages/cli/dist/wip-cap-parity.js"
       - node "{{.DEFT_ROOT}}/packages/cli/dist/scm-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-queue-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-summary-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-classify-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-actions-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-bootstrap-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-scope-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-aux-a-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/triage-aux-b-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/scope-lifecycle-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/slice-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/cache-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/doctor-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/release-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/release-publish-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/release-rollback-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/release-e2e-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/pr-merge-readiness-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/pr-protected-issues-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/pr-closing-keywords-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/pr-monitor-parity.js"

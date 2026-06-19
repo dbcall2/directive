@@ -33,6 +33,58 @@
     "./scm": {
       "types": "./dist/scm/index.d.ts",
       "default": "./dist/scm/index.js"
+    },
+    "./scope": {
+      "types": "./dist/scope/index.d.ts",
+      "default": "./dist/scope/index.js"
+    },
+    "./slice": {
+      "types": "./dist/slice/index.d.ts",
+      "default": "./dist/slice/index.js"
+    },
+    "./cache": {
+      "types": "./dist/cache/index.d.ts",
+      "default": "./dist/cache/index.js"
+    },
+    "./doctor": {
+      "types": "./dist/doctor/index.d.ts",
+      "default": "./dist/doctor/index.js"
+    },
+    "./triage": {
+      "types": "./dist/triage/index.d.ts",
+      "default": "./dist/triage/index.js"
+    },
+    "./release": {
+      "types": "./dist/release/index.d.ts",
+      "default": "./dist/release/index.js"
+    },
+    "./release-publish": {
+      "types": "./dist/release-publish/index.d.ts",
+      "default": "./dist/release-publish/index.js"
+    },
+    "./release-rollback": {
+      "types": "./dist/release-rollback/index.d.ts",
+      "default": "./dist/release-rollback/index.js"
+    },
+    "./release-e2e": {
+      "types": "./dist/release-e2e/index.d.ts",
+      "default": "./dist/release-e2e/index.js"
+    },
+    "./pr-merge-readiness": {
+      "types": "./dist/pr-merge-readiness/index.d.ts",
+      "default": "./dist/pr-merge-readiness/index.js"
+    },
+    "./pr-protected-issues": {
+      "types": "./dist/pr-protected-issues/index.d.ts",
+      "default": "./dist/pr-protected-issues/index.js"
+    },
+    "./pr-closing-keywords": {
+      "types": "./dist/pr-closing-keywords/index.d.ts",
+      "default": "./dist/pr-closing-keywords/index.js"
+    },
+    "./pr-monitor": {
+      "types": "./dist/pr-monitor/index.d.ts",
+      "default": "./dist/pr-monitor/index.js"
     }
   },
   "dependencies": {
