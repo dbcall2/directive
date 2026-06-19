@@ -9,6 +9,26 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./policy": {
+      "types": "./dist/policy/index.d.ts",
+      "default": "./dist/policy/index.js"
+    },
+    "./preflight": {
+      "types": "./dist/preflight/index.d.ts",
+      "default": "./dist/preflight/index.js"
+    },
+    "./story-ready": {
+      "types": "./dist/story-ready/index.d.ts",
+      "default": "./dist/story-ready/index.js"
+    },
+    "./branch": {
+      "types": "./dist/branch/index.d.ts",
+      "default": "./dist/branch/index.js"
+    },
+    "./wip-cap": {
+      "types": "./dist/wip-cap/index.d.ts",
+      "default": "./dist/wip-cap/index.js"
     }
   },
   "dependencies": {
