@@ -38,6 +38,10 @@
       "types": "./dist/scope/index.d.ts",
       "default": "./dist/scope/index.js"
     },
+    "./session": {
+      "types": "./dist/session/index.d.ts",
+      "default": "./dist/session/index.js"
+    },
     "./slice": {
       "types": "./dist/slice/index.d.ts",
       "default": "./dist/slice/index.js"
@@ -89,12 +93,85 @@
     "./pr-wait-mergeable": {
       "types": "./dist/pr-wait-mergeable/index.d.ts",
       "default": "./dist/pr-wait-mergeable/index.js"
+    },
+    "./vbrief-build": {
+      "types": "./dist/vbrief-build/index.d.ts",
+      "default": "./dist/vbrief-build/index.js"
+    },
+    "./vbrief-reconcile": {
+      "types": "./dist/vbrief-reconcile/index.d.ts",
+      "default": "./dist/vbrief-reconcile/index.js"
+    },
+    "./vbrief-validate": {
+      "types": "./dist/vbrief-validate/index.d.ts",
+      "default": "./dist/vbrief-validate/index.js"
+    },
+    "./vbrief-validation": {
+      "types": "./dist/vbrief-validation/index.d.ts",
+      "default": "./dist/vbrief-validation/index.js"
+    },
+    "./vbrief-activate": {
+      "types": "./dist/vbrief-activate/index.d.ts",
+      "default": "./dist/vbrief-activate/index.js"
+    },
+    "./verify-env": {
+      "types": "./dist/verify-env/index.d.ts",
+      "default": "./dist/verify-env/index.js"
+    },
+    "./verify-source": {
+      "types": "./dist/verify-source/index.d.ts",
+      "default": "./dist/verify-source/index.js"
+    },
+    "./validate-content": {
+      "types": "./dist/validate-content/index.d.ts",
+      "default": "./dist/validate-content/index.js"
+    },
+    "./render": {
+      "types": "./dist/render/index.d.ts",
+      "default": "./dist/render/index.js"
+    },
+    "./codebase": {
+      "types": "./dist/codebase/index.d.ts",
+      "default": "./dist/codebase/index.js"
+    },
+    "./capacity": {
+      "types": "./dist/capacity/index.d.ts",
+      "default": "./dist/capacity/index.js"
+    },
+    "./intake": {
+      "types": "./dist/intake/index.d.ts",
+      "default": "./dist/intake/index.js"
+    },
+    "./intake/parity-scenarios": {
+      "types": "./dist/intake/parity-scenarios.d.ts",
+      "default": "./dist/intake/parity-scenarios.js"
+    },
+    "./lifecycle": {
+      "types": "./dist/lifecycle/index.d.ts",
+      "default": "./dist/lifecycle/index.js"
+    },
+    "./packs": {
+      "types": "./dist/packs/index.d.ts",
+      "default": "./dist/packs/index.js"
+    },
+    "./orchestration": {
+      "types": "./dist/orchestration/index.d.ts",
+      "default": "./dist/orchestration/index.js"
+    },
+    "./swarm": {
+      "types": "./dist/swarm/index.d.ts",
+      "default": "./dist/swarm/index.js"
+    },
+    "./platform": {
+      "types": "./dist/platform/index.d.ts",
+      "default": "./dist/platform/index.js"
     }
   },
   "dependencies": {
     "@deftai/types": "workspace:*"
   },
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "test": "pnpm -w exec vitest run --coverage packages/core/src"
   }
 }

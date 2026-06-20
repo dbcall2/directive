@@ -270,6 +270,54 @@ jobs:
       - name: Golden-diff parity -- pr_wait_mergeable (#1730)
         run: node packages/cli/dist/pr-wait-mergeable-parity.js
 
+      - name: Golden-diff parity -- vbrief-build foundation (#1782 s1)
+        run: node packages/cli/dist/vbrief-build-parity.js
+
+      - name: Golden-diff parity -- vbrief-validation primitives (#1782 s2)
+        run: node packages/cli/dist/vbrief-validation-parity.js
+
+      - name: Golden-diff parity -- vbrief-reconcile engine (#1782 s4)
+        run: node packages/cli/dist/vbrief-reconcile-parity.js
+
+      - name: Golden-diff parity -- vbrief-activate verb (#1782 s5)
+        run: node packages/cli/dist/vbrief-activate-parity.js
+
+      - name: Golden-diff parity -- vbrief:validate CLI + conformance (#1782 s3)
+        run: node packages/cli/dist/vbrief-validate-parity.js
+
+      - name: Golden-diff parity -- verify-env gates (#1783 s1)
+        run: node packages/cli/dist/verify-env-parity.js
+
+      - name: Golden-diff parity -- source-tree scanner gates (#1783 s2)
+        run: node packages/cli/dist/verify-source-parity.js
+
+      - name: Golden-diff parity -- content validator gates (#1783 s3)
+        run: node packages/cli/dist/validate-content-parity.js
+
+      - name: Golden-diff parity -- spec/PRD/render family (#1785)
+        run: node packages/cli/dist/render-parity.js
+
+      - name: Golden-diff parity -- codebase mapping + capacity (#1786)
+        run: node packages/cli/dist/codebase-parity.js
+
+      - name: Golden-diff parity -- issue intake + reconcile (#1784)
+        run: node packages/cli/dist/intake-parity.js
+
+      - name: Golden-diff parity -- lifecycle/events/packs (#1787 s2)
+        run: node packages/cli/dist/lifecycle-packs-parity.js
+
+      - name: Golden-diff parity -- session/ritual core (#1787 s1)
+        run: node packages/cli/dist/session-parity.js
+
+      - name: Golden-diff parity -- monitor/investigation gates (#1788 s2)
+        run: node packages/cli/dist/orchestration-parity.js
+
+      - name: Golden-diff parity -- swarm cohort verbs (#1788 s1)
+        run: node packages/cli/dist/swarm-parity.js
+
+      - name: Golden-diff parity -- AGENTS.md/version/platform (#1787 s3)
+        run: node packages/cli/dist/platform-parity.js
+
   go:
     name: Go (test + build)
     runs-on: blacksmith-4vcpu-ubuntu-2404

@@ -182,6 +182,102 @@ tasks:
     cmds:
       - node "{{.DEFT_ROOT}}/packages/cli/dist/pr-wait-mergeable-parity.js"
 
+  vbrief-build-parity:
+    desc: "Golden-diff the ported vBRIEF construction foundation vs the Python oracle, cache-off (#1782 s1)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/vbrief-build-parity.js"
+
+  vbrief-reconcile-parity:
+    desc: "Golden-diff the ported vBRIEF reconciliation engine vs the Python oracle, cache-off (#1782 s4)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/vbrief-reconcile-parity.js"
+
+  vbrief-validation-parity:
+    desc: "Golden-diff the ported vBRIEF validation primitives vs the Python oracle, cache-off (#1782 s2)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/vbrief-validation-parity.js"
+
+  vbrief-validate-parity:
+    desc: "Golden-diff the ported vbrief:validate + verify:vbrief-conformance gates vs the Python oracle, cache-off (#1782 s3)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/vbrief-validate-parity.js"
+
+  vbrief-activate-parity:
+    desc: "Golden-diff the ported vbrief_activate.py lifecycle verb vs the Python oracle, cache-off (#1782 s5)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/vbrief-activate-parity.js"
+
+  verify-env-parity:
+    desc: "Golden-diff the ported verify_tools / verify_hooks_installed / toolchain-check / verify_no_task_runtime gates vs the Python oracle, cache-off (#1783 s1)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/verify-env-parity.js"
+
+  verify-source-parity:
+    desc: "Golden-diff the ported source-tree scanner gates vs the Python oracle, cache-off (#1783 s2)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/verify-source-parity.js"
+
+  validate-content-parity:
+    desc: "Golden-diff the ported content validator gates vs the Python oracle, cache-off (#1783 s3)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/validate-content-parity.js"
+
+  render-parity:
+    desc: "Golden-diff the ported spec/PRD/render family vs the Python oracle, cache-off (#1785)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/render-parity.js"
+
+  codebase-parity:
+    desc: "Golden-diff the ported codebase mapping + capacity modules vs the Python oracle, cache-off (#1786)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/codebase-parity.js"
+
+  intake-parity:
+    desc: "Golden-diff the ported issue intake + reconcile surface vs the Python oracle, cache-off (#1784)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/intake-parity.js"
+
+  lifecycle-packs-parity:
+    desc: "Golden-diff the ported lifecycle hygiene + events + packs surface vs the Python oracle, cache-off (#1787 s2)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/lifecycle-packs-parity.js"
+
+  session-parity:
+    desc: "Golden-diff the ported session/ritual core vs the Python oracle, cache-off (#1787 s1)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/session-parity.js"
+
+  orchestration-parity:
+    desc: "Golden-diff the ported monitor/investigation gate verbs vs the Python oracle, cache-off (#1788 s2)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/orchestration-parity.js"
+
+  swarm-parity:
+    desc: "Golden-diff the ported swarm cohort verbs vs the Python oracle, cache-off (#1788 s1)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/swarm-parity.js"
+
+  platform-parity:
+    desc: "Golden-diff the ported AGENTS.md/version/platform utilities vs the Python oracle, cache-off (#1787 s3)"
+    deps: [build]
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/platform-parity.js"
+
   parity-all:
     desc: "Run every TS-port golden-diff parity harness vs the Python oracle (#1530 Wave 2)"
     deps: [build]
@@ -214,3 +310,19 @@ tasks:
       - node "{{.DEFT_ROOT}}/packages/cli/dist/pr-closing-keywords-parity.js"
       - node "{{.DEFT_ROOT}}/packages/cli/dist/pr-monitor-parity.js"
       - node "{{.DEFT_ROOT}}/packages/cli/dist/pr-wait-mergeable-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/vbrief-build-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/vbrief-reconcile-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/vbrief-validation-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/vbrief-validate-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/vbrief-activate-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/verify-env-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/verify-source-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/validate-content-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/render-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/codebase-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/intake-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/lifecycle-packs-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/session-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/orchestration-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/swarm-parity.js"
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/platform-parity.js"

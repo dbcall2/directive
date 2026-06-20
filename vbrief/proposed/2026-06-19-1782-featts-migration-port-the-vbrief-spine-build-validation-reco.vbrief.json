@@ -37,31 +37,31 @@
         "title": "Issue #1730"
       },
       {
-        "uri": "proposed/2026-06-19-port-the-vbrief-construction-foundation-project-definition-i.vbrief.json",
+        "uri": "completed/2026-06-19-port-the-vbrief-construction-foundation-project-definition-i.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Port the vBRIEF construction foundation (project-definition I/O + build/sources/routing/speckit) to TypeScript",
         "TrustLevel": "internal"
       },
       {
-        "uri": "proposed/2026-06-19-port-the-vbrief-validation-primitives-validation-fidelity-st.vbrief.json",
+        "uri": "completed/2026-06-19-port-the-vbrief-validation-primitives-validation-fidelity-st.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Port the vBRIEF validation primitives (validation / fidelity / story-quality / safety) to TypeScript",
         "TrustLevel": "internal"
       },
       {
-        "uri": "proposed/2026-06-19-port-the-vbrief-reconciliation-engine-reconciliation-reconci.vbrief.json",
+        "uri": "completed/2026-06-19-port-the-vbrief-reconciliation-engine-reconciliation-reconci.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Port the vBRIEF reconciliation engine (reconciliation + reconcile graph/labels/umbrellas) to TypeScript",
         "TrustLevel": "internal"
       },
       {
-        "uri": "proposed/2026-06-19-port-the-vbrief-activate-lifecycle-verb-to-typescript.vbrief.json",
+        "uri": "completed/2026-06-19-port-the-vbrief-activate-lifecycle-verb-to-typescript.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Port the vBRIEF activate lifecycle verb to TypeScript",
         "TrustLevel": "internal"
       },
       {
-        "uri": "proposed/2026-06-19-port-the-vbriefvalidate-cli-verifyvbrief-conformance-gate-to.vbrief.json",
+        "uri": "completed/2026-06-19-port-the-vbriefvalidate-cli-verifyvbrief-conformance-gate-to.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Port the vbrief:validate CLI + verify:vbrief-conformance gate to TypeScript (composer)",
         "TrustLevel": "internal"
