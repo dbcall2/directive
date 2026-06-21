@@ -12,7 +12,7 @@ import {
   defaultCodeStructurePath,
   fileSha256,
 } from "./default-extractor.js";
-import { sortedStringifyPretty, sortKeysDeep } from "./json.js";
+import { ensureAscii, sortedStringifyPretty, sortKeysDeep } from "./json.js";
 import { CODEBASE_MAP_KIND } from "./projection-registry.js";
 
 export { CODEBASE_MAP_KIND };
@@ -396,8 +396,11 @@ export function loadProviderArtifactPolicy(
 }
 
 export function artifactSha256(artifact: Record<string, unknown>): string {
+  // Mirror Python `json.dumps(artifact, sort_keys=True, separators=(",", ":"))`
+  // including its default `ensure_ascii=True`, so the digest is identical across
+  // the Python and TS engines even when the artifact contains non-ASCII content.
   return createHash("sha256")
-    .update(JSON.stringify(sortKeysDeep(artifact)))
+    .update(ensureAscii(JSON.stringify(sortKeysDeep(artifact))))
     .digest("hex");
 }
 

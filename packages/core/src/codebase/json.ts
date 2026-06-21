@@ -14,6 +14,25 @@ export function sortKeysDeep(value: unknown): unknown {
   return out;
 }
 
+/**
+ * Escape every non-ASCII code unit to a `\uXXXX` sequence, mirroring Python's
+ * `json.dumps(..., ensure_ascii=True)` (the default). Iterating by UTF-16 code
+ * unit reproduces Python's surrogate-pair escaping for astral characters, so a
+ * digest taken over this output matches the Python oracle byte-for-byte.
+ */
+export function ensureAscii(text: string): string {
+  let out = "";
+  for (let i = 0; i < text.length; i += 1) {
+    const code = text.charCodeAt(i);
+    if (code > 0x7f) {
+      out += `\\u${code.toString(16).padStart(4, "0")}`;
+    } else {
+      out += text[i];
+    }
+  }
+  return out;
+}
+
 /** JSON.stringify with sorted keys and 2-space indent (mirrors Python sort_keys + indent=2). */
 export function sortedStringifyPretty(value: unknown): string {
   return `${JSON.stringify(sortKeysDeep(value), null, 2)}\n`;

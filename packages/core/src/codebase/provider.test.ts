@@ -3,7 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildCodebaseMap, fileSha256 } from "./default-extractor.js";
+import { ensureAscii } from "./json.js";
 import {
+  artifactSha256,
   loadProviderArtifactPolicy,
   selectCodebaseMap,
   validateProviderArtifact,
@@ -29,6 +31,25 @@ function validArtifact(): Record<string, unknown> {
     degraded: [],
   };
 }
+
+describe("artifactSha256 ensure_ascii parity with Python", () => {
+  it("escapes non-ASCII to \\uXXXX like json.dumps(ensure_ascii=True)", () => {
+    expect(ensureAscii('{"x":"café"}')).toBe('{"x":"caf\\u00e9"}');
+    // astral characters become surrogate pairs, matching CPython's escaping
+    expect(ensureAscii("🚀")).toBe("\\ud83d\\ude80");
+    // ASCII (including DEL 0x7f) is left untouched
+    expect(ensureAscii("a~\u007f")).toBe("a~\u007f");
+  });
+
+  it("matches the Python digest for non-ASCII artifacts", () => {
+    // Golden computed independently from
+    // json.dumps({sorted}, separators=(",",":"), ensure_ascii=True) bytes.
+    const artifact = { name: "café", emoji: "🚀", nested: { ñ: "façade" } };
+    expect(artifactSha256(artifact)).toBe(
+      "2084406b6dbde39c466b1760f9ec3cc3c1c1dd706da698ac7683e52f116f19a6",
+    );
+  });
+});
 
 function writePolicyProject(root: string, policy: Record<string, unknown>): void {
   const vbrief = join(root, "vbrief");

@@ -189,6 +189,45 @@ function writeCodeStructureProject(root: string): void {
   writeFileSync(join(root, "app", "main.py"), "from lib.util import thing\n", { encoding: "utf8" });
 }
 
+function writeCodeStructureProjectNonAscii(root: string): void {
+  const vbrief = join(root, "vbrief");
+  mkdirSync(vbrief, { recursive: true });
+  writeFileSync(
+    join(vbrief, "PROJECT-DEFINITION.vbrief.json"),
+    `${JSON.stringify(
+      {
+        vBRIEFInfo: { version: "0.6" },
+        plan: {
+          title: "Fixture",
+          status: "running",
+          architecture: {
+            codeStructure: {
+              version: "0.1",
+              modules: [
+                {
+                  id: "app",
+                  name: "Café App — naïve façade",
+                  purpose:
+                    "Entrée points with non-ASCII glyphs: \u00e9 \u00f1 \u2014 \ud83d\ude80.",
+                  pathGlobs: ["app/**/*.py"],
+                },
+              ],
+              pathOwnership: [],
+              allowedPatterns: [],
+              projectionManifest: [],
+            },
+          },
+        },
+      },
+      null,
+      2,
+    )}\n`,
+    { encoding: "utf8" },
+  );
+  mkdirSync(join(root, "app"), { recursive: true });
+  writeFileSync(join(root, "app", "main.py"), "from lib.util import thing\n", { encoding: "utf8" });
+}
+
 function writeFreshCodebaseMapProject(root: string): void {
   writeCodeStructureProject(root);
   const result = runCodebaseMapCli(["--project-root", root]);
@@ -225,6 +264,12 @@ export const PARITY_CASES: readonly ParityCase[] = [
     script: "codebase_map",
     argv: ["--stdout"],
     setup: writeCodeStructureProject,
+  },
+  {
+    name: "map-stdout-nonascii",
+    script: "codebase_map",
+    argv: ["--stdout"],
+    setup: writeCodeStructureProjectNonAscii,
   },
   {
     name: "map-fresh-missing",
