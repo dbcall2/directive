@@ -11,10 +11,9 @@ Current references:
 - `docs/codebase-map-source-of-truth.md` for the MAP source-of-truth decision.
 - `vbrief/PROJECT-DEFINITION.vbrief.json` `plan.architecture.codeStructure` for authored codebase-structure metadata.
 
-`.planning/codebase/MAP.md` is declared as a planned generated projection, but
-the MAP generator has not shipped yet. Until a generated MAP exists with a
-machine-generated banner and source pointer, files in `.planning/codebase/`
-should be treated as planning notes rather than authoritative architecture.
+`.planning/codebase/MAP.md` is now a generated projection with a
+machine-generated banner and source pointer. Other files in `.planning/codebase/`
+remain planning notes unless they carry the same generated-source contract.
 
 The old contents of this file described the early four-component project shape
 and legacy `run`/`PROJECT.md`/`deft/` assumptions. Those assumptions no longer

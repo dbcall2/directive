@@ -1,5 +1,14 @@
-import { existsSync, globSync, readdirSync, readFileSync, type Stats, statSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { createHash } from "node:crypto";
+import {
+  existsSync,
+  globSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  type Stats,
+  statSync,
+} from "node:fs";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { extractCodeStructure, loadJsonFile } from "../verify-source/code-structure-validate.js";
 import { sortedStringifyPretty } from "./json.js";
 import {
@@ -66,6 +75,49 @@ function posixPath(path: string): string {
 
 function relativeFile(path: string, projectRoot: string): string {
   return posixPath(relative(projectRoot, path));
+}
+
+export function fileSha256(path: string): string {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function sourceContentHash(projectRoot: string, relPaths: string[]): Record<string, unknown> {
+  const digest = createHash("sha256");
+  let fileCount = 0;
+  for (const relPath of [...new Set(relPaths)].sort()) {
+    const path = join(projectRoot, relPath);
+    if (!existsSync(path)) {
+      continue;
+    }
+    let st: Stats;
+    try {
+      st = statSync(path);
+    } catch {
+      continue;
+    }
+    if (!st.isFile()) {
+      continue;
+    }
+    fileCount += 1;
+    digest.update(Buffer.from(relPath, "utf8"));
+    digest.update(Buffer.from([0]));
+    digest.update(Buffer.from(fileSha256(path), "ascii"));
+    digest.update(Buffer.from([0]));
+  }
+  return {
+    algorithm: "sha256",
+    scope: "codeStructure-and-module-files",
+    value: digest.digest("hex"),
+    fileCount,
+  };
+}
+
+function sourcePathRel(projectRoot: string, sourcePath: string): string | null {
+  const rel = posixPath(relative(projectRoot, resolve(sourcePath)));
+  if (rel === "" || rel.startsWith("../") || rel === ".." || isAbsolute(rel)) {
+    return null;
+  }
+  return rel;
 }
 
 /** Return the authored codeStructure source path used by the default extractor. */
@@ -616,7 +668,7 @@ export function buildCodebaseMap(
   projectRoot: string,
   options: { codeStructurePath?: string; fallbackReason?: string | null } = {},
 ): Record<string, unknown> {
-  const root = resolve(projectRoot);
+  const root = realpathSync(resolve(projectRoot));
   const [codeStructure] = loadAuthoredCodeStructure(root, options.codeStructurePath);
   const sourcePath = defaultCodeStructurePath(root, options.codeStructurePath);
 
@@ -632,6 +684,12 @@ export function buildCodebaseMap(
     );
   } else {
     [modules, fileToModule, prefixesByModule, degraded] = directoryModules(root);
+  }
+
+  const contentHashPaths = [...fileToModule.keys()];
+  const sourceRelPath = sourcePathRel(root, sourcePath);
+  if (sourceRelPath !== null) {
+    contentHashPaths.push(sourceRelPath);
   }
 
   degraded = [
@@ -666,6 +724,7 @@ export function buildCodebaseMap(
       projectRoot: root,
       codeStructurePath: sourcePath,
       codeStructureHome: codeStructure?.home ?? null,
+      contentHash: sourceContentHash(root, contentHashPaths),
     },
     modules,
     coupling: couplingEdges(root, fileToModule, prefixesByModule),

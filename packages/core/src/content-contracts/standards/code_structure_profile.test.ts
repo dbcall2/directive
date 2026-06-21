@@ -62,6 +62,7 @@ describe("test_code_structure_profile.py", () => {
     expect(doc).toContain("tests/fixtures/codebase-map.v1.golden.json");
     expect(doc).toContain("normative contract");
     expect(doc).toContain("codebase-provider.v1");
-    expect(doc).toContain("MAP rendering, generated headers");
+    expect(doc).toContain("PR 4 generates the first MAP");
+    expect(doc).toContain("task verify:codebase-map-fresh");
   });
 });

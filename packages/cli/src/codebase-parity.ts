@@ -10,6 +10,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runCodebaseMapCli } from "@deftai/core/codebase";
 
 export interface CommandCapture {
   readonly exitCode: number;
@@ -84,6 +85,8 @@ const TS_CLI: Record<string, string> = {
   codebase_projection_registry: "codebase-projection-registry.js",
   codebase_default_extractor: "codebase-default-extractor.js",
   codebase_provider: "codebase-provider.js",
+  codebase_map: "codebase-map.js",
+  codebase_map_fresh: "codebase-map-fresh.js",
   capacity_show: "capacity-show.js",
   capacity_backfill: "capacity-backfill.js",
 };
@@ -186,6 +189,53 @@ function writeCodeStructureProject(root: string): void {
   writeFileSync(join(root, "app", "main.py"), "from lib.util import thing\n", { encoding: "utf8" });
 }
 
+function writeCodeStructureProjectNonAscii(root: string): void {
+  const vbrief = join(root, "vbrief");
+  mkdirSync(vbrief, { recursive: true });
+  writeFileSync(
+    join(vbrief, "PROJECT-DEFINITION.vbrief.json"),
+    `${JSON.stringify(
+      {
+        vBRIEFInfo: { version: "0.6" },
+        plan: {
+          title: "Fixture",
+          status: "running",
+          architecture: {
+            codeStructure: {
+              version: "0.1",
+              modules: [
+                {
+                  id: "app",
+                  name: "Café App — naïve façade",
+                  purpose:
+                    "Entrée points with non-ASCII glyphs: \u00e9 \u00f1 \u2014 \ud83d\ude80.",
+                  pathGlobs: ["app/**/*.py"],
+                },
+              ],
+              pathOwnership: [],
+              allowedPatterns: [],
+              projectionManifest: [],
+            },
+          },
+        },
+      },
+      null,
+      2,
+    )}\n`,
+    { encoding: "utf8" },
+  );
+  mkdirSync(join(root, "app"), { recursive: true });
+  writeFileSync(join(root, "app", "main.py"), "from lib.util import thing\n", { encoding: "utf8" });
+}
+
+function writeFreshCodebaseMapProject(root: string): void {
+  writeCodeStructureProject(root);
+  const result = runCodebaseMapCli(["--project-root", root]);
+  if (result.exitCode !== 0) {
+    throw new Error(`failed to write MAP fixture: ${result.stderr || result.stdout}`);
+  }
+}
+
 export const PARITY_CASES: readonly ParityCase[] = [
   {
     name: "projection-registry-list",
@@ -208,6 +258,30 @@ export const PARITY_CASES: readonly ParityCase[] = [
     script: "codebase_provider",
     argv: [],
     setup: writeCodeStructureProject,
+  },
+  {
+    name: "map-stdout",
+    script: "codebase_map",
+    argv: ["--stdout"],
+    setup: writeCodeStructureProject,
+  },
+  {
+    name: "map-stdout-nonascii",
+    script: "codebase_map",
+    argv: ["--stdout"],
+    setup: writeCodeStructureProjectNonAscii,
+  },
+  {
+    name: "map-fresh-missing",
+    script: "codebase_map_fresh",
+    argv: [],
+    setup: writeCodeStructureProject,
+  },
+  {
+    name: "map-fresh-current",
+    script: "codebase_map_fresh",
+    argv: [],
+    setup: writeFreshCodebaseMapProject,
   },
   {
     name: "capacity-show-advisory",

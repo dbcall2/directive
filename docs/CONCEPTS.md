@@ -170,7 +170,7 @@ Deft keeps authored source and generated views separate.
 | --- | --- |
 | `vbrief/specification.vbrief.json` | `SPECIFICATION.md`, `PRD.md` |
 | lifecycle scope vBRIEFs | `ROADMAP.md` |
-| `plan.architecture.codeStructure` | future `.planning/codebase/MAP.md` |
+| `plan.architecture.codeStructure` | `.planning/codebase/MAP.md` |
 | skills and standards | rendered content packs |
 
 Generated files should carry clear banners or status notes. When a projection drifts, regenerate it from the source rather than editing the projection.

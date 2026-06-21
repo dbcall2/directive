@@ -34,12 +34,25 @@ def test_schema_required_keys_match_pr2_profile() -> None:
         schema["$defs"]["Architecture"]["properties"]["codeStructure"]["$ref"]
         == "#/$defs/CodeStructure"
     )
+    assert (
+        schema["$defs"]["Policy"]["properties"]["projectionProviders"]["$ref"]
+        == "#/$defs/ProjectionProviderPolicies"
+    )
+    assert (
+        schema["$defs"]["ProjectionProviderPolicy"]["properties"]["artifactPath"]["$ref"]
+        == "#/$defs/CodeStructureRelativePath"
+    )
 
 
 def test_directive_dogfood_code_structure_validates() -> None:
     path = _REPO_ROOT / "vbrief/PROJECT-DEFINITION.vbrief.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     assert "codeStructure" in data["plan"]["architecture"]
+    module_ids = {
+        module["id"]
+        for module in data["plan"]["architecture"]["codeStructure"]["modules"]
+    }
+    assert "typescript-engine" in module_ids
     assert csv_validate.DIRECTIVE_HOME.split(".", maxsplit=1)[0] not in data
     result = csv_validate.validate_file(
         path, project_root=_REPO_ROOT, allow_standalone=False
@@ -55,9 +68,14 @@ def test_codebase_task_is_registered() -> None:
     assert "validate-structure:" in codebase_tasks
     assert "extract-default:" in codebase_tasks
     assert "provider-map:" in codebase_tasks
+    assert "map:" in codebase_tasks
     assert "projection-registry:" in codebase_tasks
     assert "packages/cli/dist/bin.js" in codebase_tasks
+    assert "codebase-map" in codebase_tasks
     assert "code-structure-validate" in codebase_tasks
+    assert "codebase-map-fresh:" in (
+        _REPO_ROOT / "tasks/verify.yml"
+    ).read_text(encoding="utf-8")
 
 
 def test_profile_doc_names_physical_home_and_later_slices() -> None:
@@ -70,4 +88,5 @@ def test_profile_doc_names_physical_home_and_later_slices() -> None:
     assert "tests/fixtures/codebase-map.v1.golden.json" in doc
     assert "normative contract" in doc
     assert "codebase-provider.v1" in doc
-    assert "MAP rendering, generated headers" in doc
+    assert "PR 4 generates the first MAP" in doc
+    assert "task verify:codebase-map-fresh" in doc

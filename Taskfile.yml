@@ -346,6 +346,7 @@ tasks:
       - verify-wip-cap-framework-self-check
       - vbrief:validate
       - codebase:validate-structure
+      - verify:codebase-map-fresh
       - verify-strategy-output
     cmds:
       - echo "All checks passed"
