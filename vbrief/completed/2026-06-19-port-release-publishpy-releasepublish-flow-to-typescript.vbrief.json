@@ -7,7 +7,7 @@
     "id": "1729-s2-release-publish",
     "title": "Port release_publish.py (release:publish flow) to TypeScript",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1729-featts-migration-port-the-release-pipeline-releasepy-to-ts-w.vbrief.json",
+    "planRef": "completed/2026-06-19-1729-featts-migration-port-the-release-pipeline-releasepy-to-ts-w.vbrief.json",
     "narratives": {
       "Description": "Port scripts/release_publish.py -- the release:publish flow that promotes a drafted release to published, drives the GitHub release create/edit, and applies the publish-time safety checks (#716) -- to TypeScript. It builds on the shared release-core helpers from 1729-s1 and is independently buildable as a self-contained packages/core/src/release-publish module with a golden parity binary.",
       "ImplementationPlan": "1. Create the packages/core/src/release-publish module porting the publish promotion flow and publish-time safety checks over the merged release-core helpers, with vitest unit tests in the module directory.\n2. Add packages/cli/src/release-publish.ts exposing the TS `release:publish` verb behind the CLI seam.\n3. Add packages/cli/src/release-publish-parity.ts that runs the TS path and the Python scripts/release_publish.py oracle and asserts byte-identical output with cache off.",

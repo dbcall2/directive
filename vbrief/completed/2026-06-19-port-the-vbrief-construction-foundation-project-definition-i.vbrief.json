@@ -7,7 +7,7 @@
     "id": "1782-s1-vbrief-build",
     "title": "Port the vBRIEF construction foundation (project-definition I/O + build/sources/routing/speckit) to TypeScript",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1782-featts-migration-port-the-vbrief-spine-build-validation-reco.vbrief.json",
+    "planRef": "completed/2026-06-19-1782-featts-migration-port-the-vbrief-spine-build-validation-reco.vbrief.json",
     "narratives": {
       "Description": "Port the vBRIEF construction foundation -- scripts/_project_definition_io.py, scripts/_vbrief_build.py, scripts/_vbrief_sources.py, scripts/_vbrief_routing.py, and scripts/_vbrief_speckit.py -- to TypeScript with golden parity. This is the highest-fan-in layer the rest of the vBRIEF spine reads through (build constructs vBRIEF records, sources resolves origins, routing places lifecycle folders, speckit assembles narratives, project-definition-io reads/writes PROJECT-DEFINITION). Dispatched first; the validation, reconcile, and activate stories build on its types. Subprocess/gh capture (where present) uses Node execFile with explicit UTF-8 (#1366).",
       "ImplementationPlan": "1. Create packages/core/src/vbrief-build with TS ports of project-definition I/O, the build constructor, source resolution, lifecycle routing, and speckit narrative assembly, with vitest unit tests in the module directory.\n2. Add packages/cli/src/vbrief-build-parity.ts that drives the TS functions and a python -c invocation of the frozen Python helpers over shared fixtures and asserts byte-identical output with cache off (the Python modules are the oracle and are NOT modified).",

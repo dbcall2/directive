@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 3 decomposed from proposed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json"
+    "description": "Story vBRIEF 3 decomposed from completed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json"
   },
   "plan": {
     "id": "1828-s2-flip-verify-preflight-gates",
     "title": "Flip verify/preflight gates to the TS engine (consumer-critical set first)",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json",
+    "planRef": "completed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json",
     "narratives": {
       "Description": "Repoint the consumer-critical verify/preflight gates from `uv run python scripts/*.py` to the deft-ts dispatcher, keeping the Python scripts in-tree as oracle/fallback. Covers verify:branch, verify:encoding, vbrief:validate, story-ready, cache-fresh and the rest of the check:consumer set so consumers run the TS engine for the gates they depend on most.",
       "ImplementationPlan": "1. In tasks/verify.yml and tasks/vbrief.yml, replace the python invocations for the verify/preflight gates with deft-ts verb calls. 2. Keep scripts/*.py in-tree untouched. 3. Confirm each flipped gate's output is byte-identical to the Python oracle via the existing parity harness (cache-off) and that `task check:consumer` plus `task check:framework-source` stay green.",

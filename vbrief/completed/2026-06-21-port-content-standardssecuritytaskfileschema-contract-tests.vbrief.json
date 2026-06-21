@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 2 decomposed from proposed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json"
+    "description": "Story vBRIEF 2 decomposed from completed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json"
   },
   "plan": {
     "id": "1838-s2-content-standards-schema-contracts",
     "title": "Port content standards/security/taskfile/schema contract tests to vitest",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json",
+    "planRef": "completed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json",
     "narratives": {
       "Description": "Port the remaining tests/content artifact tests covering coding standards, security/patterns rules, taskfile structure, and the vBRIEF/strategy/allocation JSON schemas from pytest to vitest. Most are Bucket-A mechanical file-and-assert conversions, while a small Bucket-B minority (for example test_code_structure_profile) import a python module for a constant and must be retargeted at the TS module's exported equivalent instead of translated blindly.",
       "ImplementationPlan": "1. Add vitest specs under packages/core/src/content-contracts/standards/ that read the standards/security/taskfile artifacts and assert the same substrings as the pytest originals. 2. For Bucket-B tests that import a python script constant, retarget the assertion at the TS module export (for example the code-structure schema version) and delete the python-import path. 3. Record the python-file -> ts-spec coverage map and run task ts:check-lane plus task core:test so both suites stay green with coverage held at the floor.",

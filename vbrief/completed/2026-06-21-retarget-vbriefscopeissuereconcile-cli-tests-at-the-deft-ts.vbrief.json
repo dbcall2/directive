@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 3 decomposed from proposed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json"
+    "description": "Story vBRIEF 3 decomposed from completed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json"
   },
   "plan": {
     "id": "1838-s3-cli-lifecycle-tests",
     "title": "Retarget vbrief/scope/issue/reconcile CLI tests at the deft-ts dispatcher",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json",
+    "planRef": "completed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json",
     "narratives": {
       "Description": "Retarget the tests/cli tests for the vbrief, preflight, scope, issue-ingest, and reconcile command surfaces from the python CLI at the deft-ts dispatcher built in Wave 8. Each test is audited against the TS module's existing unit tests first, so redundant cases are recorded as covered and only genuinely missing argument-surface behavior gets a new vitest spec.",
       "ImplementationPlan": "1. For each tests/cli vbrief/scope/issue/reconcile test, audit whether the TS module under packages/core/src already asserts the invariant; if so record the mapping, otherwise add a vitest spec under packages/cli/src/lifecycle-cli that invokes the deft-ts verb and asserts argv handling and exit codes. 2. Mark dedup'd python tests for Wave-9 deletion in the coverage map without deleting them now. 3. Run task ts:check-lane and task core:test so the new specs and the python suite both stay green.",

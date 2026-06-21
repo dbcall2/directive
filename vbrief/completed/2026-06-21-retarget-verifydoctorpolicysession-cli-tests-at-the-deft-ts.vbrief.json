@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 5 decomposed from proposed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json"
+    "description": "Story vBRIEF 5 decomposed from completed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json"
   },
   "plan": {
     "id": "1838-s5-cli-verify-gates-tests",
     "title": "Retarget verify/doctor/policy/session CLI tests at the deft-ts dispatcher",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json",
+    "planRef": "completed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json",
     "narratives": {
       "Description": "Retarget the tests/cli tests for the verify, doctor, policy, validate, session, and ritual gate surfaces from the python CLI at the deft-ts dispatcher. These exercise the consumer-critical gate engine, so each test is audited against the TS module's existing unit tests and only missing behavior becomes a new vitest spec.",
       "ImplementationPlan": "1. For each tests/cli verify/doctor/policy/validate/session/ritual test, audit the packages/core/src module's existing unit coverage; record redundant cases and add a vitest spec under packages/cli/src/gates-cli for missing behavior that invokes the deft-ts verb and asserts argv and exit codes. 2. Record the coverage map and tag dedup'd python tests for Wave-9 deletion. 3. Run task ts:check-lane and task core:test so both suites stay green.",

@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 1 decomposed from proposed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json"
+    "description": "Story vBRIEF 1 decomposed from completed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json"
   },
   "plan": {
     "id": "1838-s1-content-skills-contracts",
     "title": "Port content skills/prompt/AGENTS.md contract tests to vitest",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json",
+    "planRef": "completed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json",
     "narratives": {
       "Description": "Port the tests/content artifact tests covering skills, the agent-prompt preamble, AGENTS.md sections, the interview/speckit/cost phases, and swarm/refinement/triage skill contracts from pytest to vitest. These are Bucket-A mechanical conversions: each test reads a markdown or template artifact and asserts substrings, ordering, or shape, so the TS version reads the same file and asserts the same facts with no behavioral change.",
       "ImplementationPlan": "1. For each in-scope tests/content/test_*skill*/agents_md/preamble/interview/speckit file, add an equivalent vitest spec under packages/core/src/content-contracts/skills/ that reads the same artifact via node fs and asserts the same substrings. 2. Record a coverage map (python file -> ts spec) so the Wave-9 pytest teardown is mechanical. 3. Run task ts:check-lane and task core:test to confirm both the new TS specs and the untouched python suite stay green; assert the new specs hold branch coverage at the floor.",

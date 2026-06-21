@@ -7,7 +7,7 @@
     "id": "1730-s2-pr-protected-issues",
     "title": "Port pr_check_protected_issues.py (Layer-3 protected-issue check) to TypeScript",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1730-featts-migration-port-pr-monitors-cascade-automation-to-ts-w.vbrief.json",
+    "planRef": "completed/2026-06-19-1730-featts-migration-port-pr-monitors-cascade-automation-to-ts-w.vbrief.json",
     "narratives": {
       "Description": "Port scripts/pr_check_protected_issues.py -- the Layer-3 protected-issue inspector (#701) that refuses a cascade when a PR persistently links a protected/umbrella issue via closingIssuesReferences -- to TypeScript over Node execFile UTF-8-safe capture, reusing @deftai/core/scm gh helpers. It is independently buildable as a self-contained packages/core/src/pr-protected-issues module with a golden parity binary.",
       "ImplementationPlan": "1. Create the packages/core/src/pr-protected-issues module porting the protected-issue link inspection and the refuse/allow decision over Node execFile UTF-8-safe capture, reusing @deftai/core/scm, with vitest unit tests in the module directory.\n2. Add packages/cli/src/pr-protected-issues.ts exposing the TS check behind the CLI seam.\n3. Add packages/cli/src/pr-protected-issues-parity.ts that runs the TS path and the Python scripts/pr_check_protected_issues.py oracle and asserts byte-identical output with cache off.",

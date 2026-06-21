@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 5 decomposed from proposed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json"
+    "description": "Story vBRIEF 5 decomposed from completed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json"
   },
   "plan": {
     "id": "1828-s4-flip-scope-vbrief-lifecycle",
     "title": "Flip scope/vbrief lifecycle gates to the TS engine",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json",
+    "planRef": "completed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json",
     "narratives": {
       "Description": "Repoint the scope and vbrief lifecycle gates (scope_lifecycle, vbrief_activate, slice_record_existing, issue_ingest, reconcile_issues, vbrief_reconcile_*) from Python to the deft-ts dispatcher. The python scripts stay in-tree as the parity oracle and field fallback so no lifecycle behavior is removed in this wave.",
       "ImplementationPlan": "1. In tasks/scope.yml, tasks/slice.yml, tasks/issue.yml, and tasks/reconcile.yml, replace each `uv run python scripts/<name>.py` invocation with the corresponding deft-ts verb call, leaving the scripts on disk. 2. Run the existing per-module parity harnesses (task ts:parity-all) cache-off to confirm byte-identical output against the Python oracle. 3. Exercise a promote/activate/complete sequence through the flipped gates and confirm `task check:framework-source` stays green as the verification evidence.",

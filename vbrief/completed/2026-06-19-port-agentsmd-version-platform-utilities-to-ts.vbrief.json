@@ -7,7 +7,7 @@
     "id": "1787-s3-platform-utilities",
     "title": "Port AGENTS.md + version + platform utilities to TS",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1787-featts-migration-port-session-ritual-lifecycle-packs-surface.vbrief.json",
+    "planRef": "completed/2026-06-19-1787-featts-migration-port-session-ritual-lifecycle-packs-surface.vbrief.json",
     "narratives": {
       "Description": "Port the shared platform and text utilities from Python to TypeScript. Covers _agents_md, slug_normalize, resolve_version, resolve_changelog_unreleased, platform_capabilities, and ip_risk so AGENTS.md managed-section handling, slug normalization, version resolution, and changelog union-merge run on the TS engine identically.",
       "ImplementationPlan": "1. Port _agents_md, slug_normalize, resolve_version, resolve_changelog_unreleased, platform_capabilities, and ip_risk into a packages/core/src/platform module, preserving the managed-section sha computation, changelog union-merge dedup-by-issue rule, and ReDoS-safe linear scanners. 2. Add a packages/cli/src/platform-parity.ts harness diffing TS output against the Python oracle cache-off across agents-refresh, slugify, version-resolve, and changelog-resolve fixtures. 3. Wire the module into @deftai/core, tasks/ts.yml, and CI with unit tests for the changelog union-merge and slug edge cases.",

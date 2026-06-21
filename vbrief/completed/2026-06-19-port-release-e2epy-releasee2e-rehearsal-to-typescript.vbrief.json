@@ -7,7 +7,7 @@
     "id": "1729-s4-release-e2e",
     "title": "Port release_e2e.py (release:e2e rehearsal) to TypeScript",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1729-featts-migration-port-the-release-pipeline-releasepy-to-ts-w.vbrief.json",
+    "planRef": "completed/2026-06-19-1729-featts-migration-port-the-release-pipeline-releasepy-to-ts-w.vbrief.json",
     "narratives": {
       "Description": "Port scripts/release_e2e.py -- the release:e2e end-to-end rehearsal that exercises the full release flow against a temp/throwaway target before a real release -- to TypeScript. It builds on the shared release-core helpers from 1729-s1 and is independently buildable as a self-contained packages/core/src/release-e2e module with a golden parity binary.",
       "ImplementationPlan": "1. Create the packages/core/src/release-e2e module porting the end-to-end rehearsal orchestration over the merged release-core helpers, with vitest unit tests in the module directory.\n2. Add packages/cli/src/release-e2e.ts exposing the TS `release:e2e` verb behind the CLI seam.\n3. Add packages/cli/src/release-e2e-parity.ts that runs the TS path and the Python scripts/release_e2e.py oracle and asserts byte-identical output with cache off.",

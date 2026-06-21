@@ -7,7 +7,7 @@
     "id": "1787-s2-lifecycle-events-packs",
     "title": "Port lifecycle hygiene + events + packs to TS",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1787-featts-migration-port-session-ritual-lifecycle-packs-surface.vbrief.json",
+    "planRef": "completed/2026-06-19-1787-featts-migration-port-session-ritual-lifecycle-packs-surface.vbrief.json",
     "narratives": {
       "Description": "Port the lifecycle-hygiene, event-detection, and content-packs surface from Python to TypeScript. Covers _lifecycle_hygiene, _event_detect, _events, pack_render, packs_slice, and quarantine_ext so lifecycle nudges and pack slicing run on the TS engine with identical output.",
       "ImplementationPlan": "1. Port _lifecycle_hygiene, _event_detect, and _events into a packages/core/src/lifecycle module and pack_render, packs_slice, quarantine_ext into a packages/core/src/packs module, preserving slice registry resolution and quarantine extension handling. 2. Add a packages/cli/src/lifecycle-packs-parity.ts harness that diffs TS pack-slice and lifecycle-event output against the Python oracle cache-off across list-packs, slice, and quarantine fixtures. 3. Wire both modules into @deftai/core, tasks/ts.yml, and CI with unit tests for the slice registry and event detection branches.",

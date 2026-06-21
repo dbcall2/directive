@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 1 decomposed from proposed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json"
+    "description": "Story vBRIEF 1 decomposed from completed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json"
   },
   "plan": {
     "id": "1854-s1-bucketA-flip",
     "title": "Flip the 5 Bucket-A entrypoints to their existing TS verbs",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json",
+    "planRef": "completed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json",
     "narratives": {
       "Description": "Five live task entrypoints already have a registered TS dispatcher verb but their Taskfile lines still shell `uv run python scripts/*.py`. This story repoints those lines to `node {{.DEFT_ROOT}}/packages/cli/dist/bin.js <verb>` so they execute TS, with no new TS code required. It is independently buildable because each owned Taskfile is touched by no other Wave 8.6 story, and the verbs (session:start, issue-emit, pr-closing-keywords, swarm-readiness, toolchain:check) are already exposed and parity-proven.",
       "ImplementationPlan": "1. In tasks/session.yml (session_start.py -> session:start), tasks/issue.yml (issue_emit.py -> issue-emit), tasks/pr.yml (pr_check_closing_keywords.py -> pr-closing-keywords), tasks/swarm.yml (swarm_readiness.py -> swarm-readiness), and tasks/toolchain.yml (toolchain-check.py -> toolchain:check), replace each `uv --project ... run python .../scripts/<name>.py <args>` cmd with `node {{.DEFT_ROOT}}/packages/cli/dist/bin.js <verb> <args>`, preserving CLI_ARGS/USER_WORKING_DIR templating and deps. 2. Verify each flip by running `task session:start` and `task swarm:readiness -- --help` against packages/cli/dist/bin.js output and confirming `task ts:parity-all` stays CLEAN. 3. Add a CHANGELOG [Unreleased] entry referencing #1854.",

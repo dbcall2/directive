@@ -7,7 +7,7 @@
     "id": "1730-s4-monitor-pr",
     "title": "Port monitor_pr.py (resilient wait loop) to TypeScript",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1730-featts-migration-port-pr-monitors-cascade-automation-to-ts-w.vbrief.json",
+    "planRef": "completed/2026-06-19-1730-featts-migration-port-pr-monitors-cascade-automation-to-ts-w.vbrief.json",
     "narratives": {
       "Description": "Port scripts/monitor_pr.py -- the resilient wait-until-ready loop (#1368) that polls PR state with bounded retries and survives transient gh failures without going blind -- to TypeScript over Node execFile UTF-8-safe capture, reusing @deftai/core/scm gh helpers. It is independently buildable as a self-contained packages/core/src/pr-monitor module with a golden parity binary.",
       "ImplementationPlan": "1. Create the packages/core/src/pr-monitor module porting the bounded-retry wait loop and the transient-failure resilience over Node execFile UTF-8-safe capture, reusing @deftai/core/scm and an injectable clock, with vitest unit tests in the module directory.\n2. Add packages/cli/src/pr-monitor.ts exposing the TS monitor verb behind the CLI seam.\n3. Add packages/cli/src/pr-monitor-parity.ts that runs the TS path and the Python scripts/monitor_pr.py oracle and asserts byte-identical output with cache off.",

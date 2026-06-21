@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 4 decomposed from proposed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json"
+    "description": "Story vBRIEF 4 decomposed from completed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json"
   },
   "plan": {
     "id": "1854-s4-scope-changelog-arch",
     "title": "Wire/port + flip scope:undo, scope:demote, scope:decompose, changelog:resolve, architecture:sor",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json",
+    "planRef": "completed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json",
     "narratives": {
       "Description": "This story finishes the lower-volume Bucket-B entrypoints that live in their own Taskfiles: scope_undo and scope_demote (core/src/scope/main.ts exists, so wire), resolve_changelog_unreleased (core/src/platform exists, so wire), and the two that need a genuine TS port (scope_decompose and preflight_architecture_sor have no core module). It exclusively owns tasks/scope.yml, tasks/scope-undo.yml, tasks/changelog.yml, and tasks/architecture.yml. It is independently buildable but carries real porting work, so it is the heaviest non-keystone story.",
       "ImplementationPlan": "1. Wire scope-undo, scope-demote, changelog-resolve-unreleased verbs delegating to existing core modules; flip tasks/scope-undo.yml, the scope_demote line in tasks/scope.yml, and tasks/changelog.yml. 2. Port scope_decompose and preflight_architecture_sor to new TS core modules (packages/core/src/scope/decompose.ts, packages/core/src/architecture/sor-preflight.ts) reproducing the Python behavior including historical edge cases, expose as verbs, and flip tasks/scope.yml (decompose line) and tasks/architecture.yml. 3. Add focused vitest unit tests for the two new ports and a CHANGELOG entry; verify the scope-lifecycle-parity harness stays CLEAN.",

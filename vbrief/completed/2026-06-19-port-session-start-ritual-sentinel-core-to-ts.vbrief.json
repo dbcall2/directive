@@ -7,7 +7,7 @@
     "id": "1787-s1-session-ritual-core",
     "title": "Port session-start + ritual-sentinel core to TS",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1787-featts-migration-port-session-ritual-lifecycle-packs-surface.vbrief.json",
+    "planRef": "completed/2026-06-19-1787-featts-migration-port-session-ritual-lifecycle-packs-surface.vbrief.json",
     "narratives": {
       "Description": "Port the session-start ritual engine and its gating sentinel from Python to TypeScript. Covers session_start, _session_start_hook, ritual_sentinel, resume_conditions, and verify_session_ritual so the quick-tier and gated-tier session ritual run on the TS engine with the same staleness, defer, and skip semantics.",
       "ImplementationPlan": "1. Port the session_start, _session_start_hook, ritual_sentinel, resume_conditions, and verify_session_ritual Python modules into a new packages/core/src/session module, preserving the ritual-state JSON shape and tier semantics. 2. Add a packages/cli/src/session-parity.ts harness that diffs the TS ritual output against the frozen Python oracle cache-off and assert byte-identical state across quick/gated/defer/skip fixtures. 3. Wire the session module into @deftai/core, tasks/ts.yml, and CI, and add unit tests covering staleness expiry and defer paths.",

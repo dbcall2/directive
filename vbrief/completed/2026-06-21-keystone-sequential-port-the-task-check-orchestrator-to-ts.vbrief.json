@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 5 decomposed from proposed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json"
+    "description": "Story vBRIEF 5 decomposed from completed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json"
   },
   "plan": {
     "id": "1854-s5-check-orchestrator",
     "title": "Keystone (sequential): port the task check orchestrator to TS",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json",
+    "planRef": "completed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json",
     "narratives": {
       "Description": "The keystone: task check is dispatched by scripts/_project_context.py --dispatch-task-check, which has no TS module. Until it is ported, deleting Python breaks the primary pre-commit gate. This story ports the check orchestrator to a TS module (deft-ts check) and repoints the root Taskfile check target. It must land last because its TS replacement invokes the gate verbs that s1-s4 expose; running it earlier would call verbs that do not yet exist.",
       "ImplementationPlan": "1. Read scripts/_project_context.py to enumerate the exact gate sequence, context-detection (framework vs vendored install), and exit semantics it implements for --dispatch-task-check. 2. Port it to packages/core/src/check/orchestrator.ts plus a `check` dispatcher verb that runs the same ordered gate list through the TS verbs, preserving the framework-source vs consumer split (#1519) and three-state exit. 3. Repoint the Taskfile.yml check target from `uv run python _project_context.py --dispatch-task-check` to `node .../bin.js check`; run the full task check and confirm green parity with the prior Python-dispatched run; add vitest coverage and a CHANGELOG entry.",

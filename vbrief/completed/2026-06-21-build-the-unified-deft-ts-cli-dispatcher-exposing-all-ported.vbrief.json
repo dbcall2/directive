@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 1 decomposed from proposed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json"
+    "description": "Story vBRIEF 1 decomposed from completed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json"
   },
   "plan": {
     "id": "1828-s0-unified-deft-ts-dispatcher",
     "title": "Build the unified deft-ts CLI dispatcher exposing all ported verbs",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json",
+    "planRef": "completed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json",
     "narratives": {
       "Description": "Replace the bin.ts banner stub with a unified `deft-ts <verb> [args]` dispatcher that routes to every ported command module in packages/cli and packages/core. Today only ~13 of 96 command modules are exposed as bins; the live-gate flip stories (s2-s6) cannot route Taskfiles to TS until one stable entrypoint exists. This is a prerequisite that blocks the domain-flip stories.",
       "ImplementationPlan": "1. Replace packages/cli/src/bin.ts with a subcommand dispatcher that maps verb names to the existing command-module main() handlers, forwarding argv and exit codes unchanged. 2. Register the full verb table covering all 96 ported modules; expose `deft-ts --help` listing the verbs. 3. Keep per-command bins working for back-compat. 4. Add unit tests for verb routing, unknown-verb error, and exit-code passthrough; ensure `task ts:build` and `task ts:lint` stay green.",

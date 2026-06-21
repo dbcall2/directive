@@ -7,7 +7,7 @@
     "id": "1730-s3-pr-closing-keywords",
     "title": "Port pr_check_closing_keywords.py (closing-keyword check) to TypeScript",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1730-featts-migration-port-pr-monitors-cascade-automation-to-ts-w.vbrief.json",
+    "planRef": "completed/2026-06-19-1730-featts-migration-port-pr-monitors-cascade-automation-to-ts-w.vbrief.json",
     "narratives": {
       "Description": "Port scripts/pr_check_closing_keywords.py -- the check that inspects a PR body for issue-closing keywords (Closes #N / Fixes #N) and reports which issues it would close -- to TypeScript over Node execFile UTF-8-safe capture, reusing @deftai/core/scm gh helpers. It is independently buildable as a self-contained packages/core/src/pr-closing-keywords module with a golden parity binary.",
       "ImplementationPlan": "1. Create the packages/core/src/pr-closing-keywords module porting the closing-keyword scan and the reported issue list over Node execFile UTF-8-safe capture, reusing @deftai/core/scm, with vitest unit tests in the module directory.\n2. Add packages/cli/src/pr-closing-keywords.ts exposing the TS check behind the CLI seam.\n3. Add packages/cli/src/pr-closing-keywords-parity.ts that runs the TS path and the Python scripts/pr_check_closing_keywords.py oracle and asserts byte-identical output with cache off.",

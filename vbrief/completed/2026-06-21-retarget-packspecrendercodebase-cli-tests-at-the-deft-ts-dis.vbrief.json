@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 6 decomposed from proposed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json"
+    "description": "Story vBRIEF 6 decomposed from completed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json"
   },
   "plan": {
     "id": "1838-s6-cli-render-mapping-tests",
     "title": "Retarget pack/spec/render/codebase CLI tests at the deft-ts dispatcher",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json",
+    "planRef": "completed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json",
     "narratives": {
       "Description": "Retarget the tests/cli tests for the pack, spec, project, roadmap, framework-commands, codebase, and capacity surfaces from the python CLI at the deft-ts dispatcher. Each test is audited against the TS module's existing unit tests, and only genuinely missing render or mapping behavior becomes a new vitest spec.",
       "ImplementationPlan": "1. For each tests/cli pack/spec/project/roadmap/framework/codebase/capacity test, audit the packages/core/src render and mapping modules' existing unit coverage; record redundant cases and add a vitest spec under packages/cli/src/render-cli for missing behavior that invokes the deft-ts verb and asserts argv and rendered output. 2. Record the coverage map and tag dedup'd python tests for Wave-9 deletion. 3. Run task ts:check-lane and task core:test so both suites stay green.",

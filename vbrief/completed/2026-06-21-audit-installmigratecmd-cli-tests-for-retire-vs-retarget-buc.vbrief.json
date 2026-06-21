@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 7 decomposed from proposed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json"
+    "description": "Story vBRIEF 7 decomposed from completed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json"
   },
   "plan": {
     "id": "1838-s7-cli-install-migrate-tail",
     "title": "Audit install/migrate/cmd CLI tests for retire-vs-retarget (Bucket C)",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json",
+    "planRef": "completed/2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to.vbrief.json",
     "narratives": {
       "Description": "Audit the tests/cli tail covering migrate, precutover, cmd-gate, upgrade, run, setup, vendored, and relocate surfaces, which test code in the accepted-non-port set (pre-v0.20 migration tooling, the Go installer deposit, build/packaging). For each file decide retire-with-Wave-9 versus retarget at a TS equivalent, since blindly porting tests for soon-deleted code is wasted work.",
       "ImplementationPlan": "1. For each tests/cli migrate/precutover/cmd/upgrade/run/setup/vendored/relocate test, classify the underlying script as accepted-non-port (retire at Wave 9) or live (retarget) and record a one-line rationale per file in the coverage map. 2. For the live retarget subset, add a vitest spec under packages/cli/src/install-cli invoking the deft-ts verb and asserting exit codes; leave accepted-non-port tests in python tagged for Wave-9 deletion. 3. Run task ts:check-lane and task core:test so both suites stay green.",

@@ -7,7 +7,7 @@
     "id": "1730-s5-pr-wait-mergeable",
     "title": "Port pr_wait_mergeable.py (cascade composer) to TypeScript",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1730-featts-migration-port-pr-monitors-cascade-automation-to-ts-w.vbrief.json",
+    "planRef": "completed/2026-06-19-1730-featts-migration-port-pr-monitors-cascade-automation-to-ts-w.vbrief.json",
     "narratives": {
       "Description": "Port scripts/pr_wait_mergeable.py -- the cascade composer (#1369) that chains the Layer-3 protected-issue check AHEAD of the resilient wait loop and the merge-readiness primitive, then invokes gh pr merge, behind a single three-state exit (0 merged / 1 timeout-or-escalation / 2 config error) -- to TypeScript. It composes the merged @deftai/core pr-merge-readiness, pr-protected-issues, and pr-monitor modules and is dispatched last because it depends on them.",
       "ImplementationPlan": "1. Create the packages/core/src/pr-wait-mergeable module porting the cascade orchestration that runs the protected-issue check first, then the wait loop and readiness primitive, then the merge invocation, composing the merged @deftai/core/pr-merge-readiness / pr-protected-issues / pr-monitor modules, with vitest unit tests in the module directory.\n2. Add packages/cli/src/pr-wait-mergeable.ts exposing the TS cascade verb behind the CLI seam.\n3. Add packages/cli/src/pr-wait-mergeable-parity.ts that runs the TS path and the Python scripts/pr_wait_mergeable.py oracle and asserts byte-identical output with cache off.",

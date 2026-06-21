@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 2 decomposed from proposed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json"
+    "description": "Story vBRIEF 2 decomposed from completed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json"
   },
   "plan": {
     "id": "1854-s2-render-family",
     "title": "Wire + flip the render family (spec:validate, spec:render, prd:render, project:render)",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json",
+    "planRef": "completed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json",
     "narratives": {
       "Description": "The spec/PRD/project render and spec validate gates have parity-proven TS core modules (packages/core/src/render/spec-validate.ts, spec-render.ts, prd-render.ts, project-render.ts) but no dispatcher verb, so tasks/spec.yml, tasks/prd.yml, and tasks/project.yml still shell Python. This story exposes each module as a dispatcher verb and repoints the three owned Taskfiles. It is independently buildable: it owns those three Taskfiles exclusively and adds isolated case blocks to the dispatch switch.",
       "ImplementationPlan": "1. Add `spec-validate`, `spec-render`, `prd-render`, `project-render` cases (plus colon aliases where the task uses them) to packages/cli/src/dispatch.ts, each delegating to the existing core/render module via a thin CLI wrapper under packages/cli/src/render-cli/. 2. Repoint tasks/spec.yml, tasks/prd.yml, tasks/project.yml cmds from `uv run python scripts/{spec_validate,spec_render,prd_render,project_render}.py` to the new `node .../bin.js <verb>` forms, preserving argument order/paths. 3. Run task ts:render-parity to confirm byte-identical output and add a CHANGELOG entry.",

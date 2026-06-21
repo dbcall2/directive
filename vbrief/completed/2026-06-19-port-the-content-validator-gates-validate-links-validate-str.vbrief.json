@@ -7,7 +7,7 @@
     "id": "1783-s3-validate-content",
     "title": "Port the content validator gates (validate-links / validate_strategy_output / verify_capacity) to TypeScript",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1783-featts-migration-port-the-remaining-verifyvalidate-gates-to.vbrief.json",
+    "planRef": "completed/2026-06-19-1783-featts-migration-port-the-remaining-verifyvalidate-gates-to.vbrief.json",
     "narratives": {
       "Description": "Port the three content-validator gates -- scripts/validate-links.py, scripts/validate_strategy_output.py, and scripts/verify_capacity.py -- to TypeScript with cache-off golden parity vs the Python oracle. validate-links checks intra-doc link integrity, validate_strategy_output validates strategy-output structure, and verify_capacity checks the WIP/capacity policy. All are leaf gates with no inter-dependency; three-state exits are preserved. Any regex ported MUST be a linear recognizer to avoid CodeQL js/polynomial-redos while staying byte-identical.",
       "ImplementationPlan": "1. Create packages/core/src/validate-content with TS ports of the three validators, with vitest unit tests covering clean / each-failure-class / config-error per gate.\n2. Add packages/cli/src/validate-content-parity.ts that drives the TS functions and a python -c invocation of the frozen Python gates over shared fixtures and asserts byte-identical output (stdout + exit code) with cache off.\n3. Wire the module into index.ts, package.json subpath exports, vitest.config.ts alias, tasks/ts.yml (validate-content-parity into parity-all), and a CI golden-diff step.",

@@ -7,7 +7,7 @@
     "id": "1729-s3-release-rollback",
     "title": "Port release_rollback.py (release:rollback flow) to TypeScript",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1729-featts-migration-port-the-release-pipeline-releasepy-to-ts-w.vbrief.json",
+    "planRef": "completed/2026-06-19-1729-featts-migration-port-the-release-pipeline-releasepy-to-ts-w.vbrief.json",
     "narratives": {
       "Description": "Port scripts/release_rollback.py -- the release:rollback flow that reverts a published or drafted release, unwinds the tag/release/CHANGELOG promotion, and applies the rollback-time safety guards (#716) -- to TypeScript. It builds on the shared release-core helpers from 1729-s1 and is independently buildable as a self-contained packages/core/src/release-rollback module with a golden parity binary.",
       "ImplementationPlan": "1. Create the packages/core/src/release-rollback module porting the rollback flow, the tag/release/CHANGELOG unwind, and the rollback-time safety guards over the merged release-core helpers, with vitest unit tests in the module directory.\n2. Add packages/cli/src/release-rollback.ts exposing the TS `release:rollback` verb behind the CLI seam.\n3. Add packages/cli/src/release-rollback-parity.ts that runs the TS path and the Python scripts/release_rollback.py oracle and asserts byte-identical output with cache off.",

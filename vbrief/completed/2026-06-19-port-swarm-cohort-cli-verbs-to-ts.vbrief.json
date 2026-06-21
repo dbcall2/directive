@@ -7,7 +7,7 @@
     "id": "1788-s1-swarm-cohort-verbs",
     "title": "Port swarm cohort CLI verbs to TS",
     "status": "completed",
-    "planRef": "proposed/2026-06-19-1788-featts-migration-port-swarm-orchestration-verbs-to-ts-wave-7.vbrief.json",
+    "planRef": "completed/2026-06-19-1788-featts-migration-port-swarm-orchestration-verbs-to-ts-wave-7.vbrief.json",
     "narratives": {
       "Description": "Port the harness-agnostic swarm cohort verbs from Python to TypeScript. Covers swarm_launch, swarm_complete_cohort, swarm_readiness, swarm_verify_review_clean, and swarm_worktrees so cohort launch-manifest emission, worktree-map resolution, and readiness checks run on the TS engine as advisory CLI verbs.",
       "ImplementationPlan": "1. Port swarm_launch, swarm_complete_cohort, swarm_readiness, swarm_verify_review_clean, and swarm_worktrees into a packages/core/src/swarm module, preserving launch-manifest JSON shape, worktree-map collision detection, and review-clean checks as advisory verbs that never own a runtime. 2. Add a packages/cli/src/swarm-parity.ts harness diffing TS verb output against the Python oracle cache-off across launch-manifest, worktree-map, readiness, and review-clean fixtures. 3. Wire the module into @deftai/core, tasks/ts.yml, and CI with unit tests for worktree-map collision and readiness gating branches.",

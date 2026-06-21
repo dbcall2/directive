@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 3 decomposed from proposed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json"
+    "description": "Story vBRIEF 3 decomposed from completed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json"
   },
   "plan": {
     "id": "1854-s3-verify-gates",
     "title": "Wire + flip every remaining Python gate in tasks/verify.yml + the two root-Taskfile gates",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json",
+    "planRef": "completed/2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f.vbrief.json",
     "narratives": {
       "Description": "tasks/verify.yml is the single largest cluster of unflipped live-Python gates (verify-stubs, validate-links, rule-ownership-lint, verify_scm_boundary, verify_capacity, verify_session_ritual, preflight_gh self-test, preflight_cache), and Taskfile.yml carries two more (validate_strategy_output, verify_no_task_runtime). Their TS modules exist under packages/core/src/{verify-source,validate-content,session,verify-env}. This story exposes the missing verbs and flips the gate cmds. It exclusively owns tasks/verify.yml and the two named root-Taskfile gate lines, so it is conflict-isolated from the other stories except the additive dispatch switch.",
       "ImplementationPlan": "1. For each gate lacking a verb (verify-stubs, validate-links, rule-ownership-lint, verify-scm-boundary, verify-capacity, verify-session-ritual, validate-strategy, plus preflight-gh self-test and preflight-cache if a core module exists; otherwise note in the PR which still need a port), add a dispatch.ts case delegating to the existing core module. 2. Repoint the cmds in tasks/verify.yml and the validate_strategy_output / verify_no_task_runtime lines in Taskfile.yml to bin.js verbs. 3. Run task verify:scm-boundary, task verify:encoding, and the relevant parity harnesses (verify-source-parity, validate-content-parity, session-parity, verify-env-parity) to confirm CLEAN, and add a CHANGELOG entry.",

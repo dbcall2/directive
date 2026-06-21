@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 2 decomposed from proposed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json"
+    "description": "Story vBRIEF 2 decomposed from completed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json"
   },
   "plan": {
     "id": "1828-s1-node-runtime-enforcement",
     "title": "Enforce Node as a required consumer runtime in doctor/toolchain",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json",
+    "planRef": "completed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json",
     "narratives": {
       "Description": "Make Node/pnpm a required runtime once live gates are TS-backed. Today consumers require Python (uv) and the TS lane is guarded/optional. Update doctor and toolchain:check to detect a missing Node toolchain and fail with a clear, actionable message rather than a stack trace, and document the new requirement in install/upgrade surfaces. Prerequisite, runnable in parallel with s0.",
       "ImplementationPlan": "1. Extend the TS doctor module (packages/core/src/doctor) to probe for a Node runtime and emit an actionable remediation line when absent. 2. Wire the same probe into toolchain:check guidance. 3. Update install/upgrade docs to state Node is required for TS-backed gates. 4. Add unit tests for the present-Node and absent-Node branches asserting the exit code and the remediation message.",

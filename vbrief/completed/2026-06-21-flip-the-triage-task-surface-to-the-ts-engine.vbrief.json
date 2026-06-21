@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 4 decomposed from proposed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json"
+    "description": "Story vBRIEF 4 decomposed from completed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json"
   },
   "plan": {
     "id": "1828-s3-flip-triage-surface",
     "title": "Flip the triage task surface to the TS engine",
     "status": "completed",
-    "planRef": "proposed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json",
+    "planRef": "completed/2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt.vbrief.json",
     "narratives": {
       "Description": "Repoint the triage_* gates (actions, queue, classify, welcome, scope, scope-drift, reconcile, summary, subscribe, bulk, bootstrap, refresh, smoketest) from Python to the deft-ts dispatcher, keeping Python in-tree as oracle. This is the largest single cluster of live python invocations.",
       "ImplementationPlan": "1. In the tasks/triage-*.yml files, replace python invocations with deft-ts verb calls for each triage gate. 2. Keep scripts/triage_*.py in-tree. 3. Confirm byte-identical output vs the Python oracle via the existing triage parity harnesses cache-off and that the triage smoketest stays green.",
