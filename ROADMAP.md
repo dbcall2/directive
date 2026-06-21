@@ -5,6 +5,159 @@
 
 # Roadmap
 
+## RFC: Migrate directive's enforcement engine from Python to TypeScript/Node.js (Part 1 of 2) (#1530)
+
+# RFC: Migrate directive's enforcement engine from Python to TypeScript/Node.js (Part 1 of 2)
+
+**Status**: Draft for Discussion (rev 3 — tooling sub-decision)
+**Date**: 2026-06-05 (rev 2: 2026-06-17; rev 3: 2026-06-18)
+**Labels**: rfc, design, process, determinism, agent-experience, runtime-portability
+
+> **Split notice (rev 2).** This RFC was originally a single proposal that bundled two separable decisions. It has been split so the language/engine move can proceed without blocking on the runtime question:
+> - **Part 1 — this issue:** migrate the deterministic enforcement/tooling engine from Python to **TypeScript/Node.js** (plain Node, no monorepo orchestrator on day one). **No agent-runtime dependency.** Actionable now.
+> - **Part 2 — #1707:** whether directive should *own* a durable agent runtime for its orchestration layer (RivetOS is the leading candidate). **Deferred** — a separate decision to be made after Part 1 lands.
+>
+> Both parts sit under umbrella epic #1545. The earlier "on the RivetOS agent runtime" framing now lives entirely in Part 2.
+
+> **Tooling note (rev 3).** The earlier "plain Node + Nx" framing is **struck**. Day-one tooling is pnpm workspaces + `tsc -b` + `vitest --changed`; incrementality is provided by the consumer-reachable in-engine content-hash cache (#1713). A monorepo orchestrator is **not** adopted on day one, and if a measured trigger ever forces one it is **Turborepo, never Nx**. See "Tooling sub-decision" below.
+
+> Notation: this RFC uses the deft RFC2119 markers — **!** MUST, **~** SHOULD, **⊗** MUST NOT.
+
+## Context & Problem Statement
+
+Deft Directive is a *layered set of standards files plus deterministic `task` tooling*. It cleanly separates two things:
+
+- **How the AI behaves** — markdown standards (`main.md`, `languages/`, `patterns/`, `skills/`, `templates/`, the `AGENTS.md` managed section). Language-agnostic; **not** the subject of this RFC.
+- **What enforces it** — a deterministic engine written in **Python**: ~128 modules under `scripts/` wired into `task check` and the `verify:*` gate stack, a ~1,300-file `pytest` suite, and `ruff` / `black` / `mypy` gates (`pyproject.toml`, Python ≥ 3.11). The cross-platform installer is a separate **Go** binary (`cmd/deft-install/`), and the CLI/orchestration surface is `run` (shell) + ~43 `tasks/*.yml` Taskfiles.
+
+This works, but carries structural costs that are addressable purely by a language move — independent of any agent-runtime decision:
+
+1. **Two-language engine.** Contributors context-switch between Python (gates/tooling) and Go (installer) plus shell + Taskfile YAML. The standards layer documents TypeScript as a first-class target language, yet the engine that ships it is not written in TypeScript.
+2. **Cross-platform friction lives in Python's host-shell/locale round-trips.** The recurring Windows/PowerShell encoding-corruption class (#798), subprocess-capture decode crashes (#1366), and Grok-Windows capture leakage (#1353) are all artifacts of driving deterministic logic through host shells and Python's locale-codepage defaults.
+3. **CI throughput is hand-built.** Affected-test selection, computation caching, and parallel execution (#1704) are bespoke under the pytest/go-task stack. A TypeScript engine gets the equivalents natively **without a monorepo orchestrator**: `tsc -b` project references (incremental, topological builds), `vitest --changed` (affected unit tests), and an **in-engine content-hash task cache (#1713)** that is consumer-reachable and dogfoods to cover directive's own gate runs.
+
+> Note: a *third* original cost — "no first-class agent runtime" — is **not** in scope here. It is the entire subject of **Part 2 (#1707)** and is the only original driver that argues for adopting a runtime such as RivetOS.
+
+## Goals
+
+- Standardize deft's *implementation* language on **TypeScript** (Node.js), retiring Python as the engine language over time.
+- Resolve the Windows/PowerShell encoding & subprocess-capture failure classes (#798 / #1366 / #1353) **structurally** by moving off host-shell/locale-codepage round-trips (Node `fs` with explicit `utf-8`, `execFile` without a shell).
+- Unlock the #1704 CI-throughput levers natively — via `tsc -b` project references, `vitest --changed`, and the in-engine content-hash cache (#1713) — with **no monorepo orchestrator on day one** (see the tooling sub-decision below).
+- Preserve **100% behavioral parity** of the deterministic gate stack (`verify:*`, branch policy, encoding, WIP cap, triage, capacity/judgment-gates) and the vBRIEF lifecycle before any Python module is deleted.
+- Keep the **markdown standards layer, skills, and the `AGENTS.md` managed-section contract** unchanged in meaning; only their *renderer/validator* changes language.
+- ! Keep the **`task` / CLI surface as a permanent, first-class interface** — the portable, zero-install, debuggable surface that `AGENTS.md` teaches and that external harnesses (Cursor, Warp, Claude, CI) bind to. The language move MUST NOT raise the floor to "a runtime must be installed before the gates run."
+- Maintain a single deterministic install/upgrade entrypoint and CI green throughout (strangler-fig, never a big-bang cutover).
+
+## Non-Goals
+
+- ⊗ Rewriting or re-authoring the markdown standards (`main.md`, `languages/`, `patterns/`, `skills/` prose). They are inputs, not implementation.
+- ⊗ Changing the vBRIEF schema or the five-folder lifecycle model as part of the language move.
+- ⊗ Changing the user-facing command vocabulary (`task ...`, `run ...`, the `/deft:*` slash commands) more than necessary for parity.
+- ⊗ **Adopting an agent runtime (RivetOS or otherwise).** That is Part 2 (#1707), a deferred and independent decision. Part 1 builds on plain Node/TS with **no** runtime dependency.
+- ⊗ **Adopting a monorepo orchestrator (Nx or Turborepo) on day one.** Day-one tooling is pnpm workspaces + `tsc -b` + `vitest --changed`. An orchestrator is added later only on a measured trigger, and if so it is **Turborepo, never Nx** (see the tooling sub-decision below).
+- ⊗ Removing or deprecating the CLI/Taskfile surface (see the permanent-surface goal above).
+
+## Guiding Principles
+
+- **Parity before deletion.** ! No Python module is removed until a TypeScript replacement passes a behavioral parity gate (golden-output diff against the Python implementation). The Python suite is the oracle during migration.
+- **Strangler-fig, not big-bang.** ~ Stand up the TypeScript engine alongside Python; migrate one gate/verb family at a time; keep `task check` green every step.
+- **No runtime dependency in the engine.** ! The deterministic engine is plain Node/TS — pure logic + file I/O + subprocess. It must build and run with nothing more than Node + the package manager. Any agent-runtime integration is layered on top later (Part 2), never underneath.
+- **No build-orchestrator dependency on day one.** ! Day-one tooling is pnpm workspaces + `tsc -b` + `vitest --changed`; the in-engine content-hash cache (#1713) is the consumer-reachable incrementality layer and must exist regardless (a build-time orchestrator cannot reach a consumer's `deft check`). A monorepo orchestrator (Turborepo, never Nx) is a deferred, removable hedge adopted only on a measured trigger.
+- **Deterministic enforcement stays deterministic.** ! Per the Rule Authority [AXIOM], load-bearing rules remain script gates wired into `task check` / hooks — now TypeScript executables with three-state exits, not prose.
+- **vBRIEF-canonical, SCM-agnostic, filesystem-truth, offline.** Unchanged; the new engine reads the same files and runs offline.
+- **Cross-platform by construction.** ! All file and subprocess I/O goes through UTF-8-safe runtime APIs — eliminating the #798/#1366/#1353 root causes rather than documenting around them.
+
+## Current State (what is Python today)
+
+- **Gate/tooling engine:** `scripts/*.py` (~128 modules) — e.g. `verify_encoding.py`, `preflight_branch.py`, `preflight_implementation.py`, `preflight_story_start.py`, `policy.py`, `triage_*.py`, `scope_*.py`, `slice_*.py`, `cache.py`, `doctor.py`, `release*.py`, `pr_*` monitors, `_safe_subprocess.py`.
+- **Orchestration surface:** `run` (shell entrypoint) + `tasks/*.yml` (~43 Taskfiles) exposing `task check`, `task verify:*`, `task triage:*`, `task scope:*`, `task release:*`, `task swarm:*`, `task agents:refresh`, etc.
+- **Quality gates:** `pytest` (~1,300 test files incl. content/contract tests), `ruff`, `black`, `mypy`, coverage ≥ 85% (`pyproject.toml`).
+- **Installer:** Go binary `cmd/deft-install/` (payload + `VERSION` manifest + `AGENTS.md` managed-section refresh).
+- **Standards & data (language-agnostic, unchanged):** `main.md`, `languages/`, `patterns/`, `skills/`, `templates/`, `vbrief/`, `conventions/`, `glossary.md`.
+
+## Proposed Direction
+
+A TypeScript monorepo (**pnpm workspaces**, no orchestrator on day one), mapping deft's clean separation of "what to build" vs "how to enforce" onto layered packages — with **no agent-runtime dependency**:
+
+- **`@deft/types`** (leaf, zero-dep) — vBRIEF model, policy schema, gate result/exit-code contracts, reference types.
+- **`@deft/core`** (domain) — pure logic for gates, selection ordering, capacity/judgment-gate engines, triage classification, lifecycle transitions. **No I/O.**
+- **`@deft/boot` + `@deft/cli`** (application) — compose the gate registry and the `task`/`run` verb surface; the only layer that knows concrete adapters (filesystem, subprocess via `execFile`, SCM behind the existing `scm.py`-equivalent boundary).
+
+### Concept mapping (Python/Go → TypeScript)
+
+- `scripts/verify_*.py` deterministic gates → `@deft/core` gate functions + thin CLI executables (three-state exit preserved).
+- `task check` aggregate → a CLI target running the same gate set (incrementality from the in-engine content-hash cache #1713, not a build orchestrator).
+- `tasks/*.yml` Taskfile verbs → typed CLI commands (or a thin Taskfile that shells into the TS CLI during transition).
+- `run` shell entrypoint → `deft` TS CLI.
+- `scripts/doctor.py` → `deft doctor`.
+- `_safe_subprocess.py` (UTF-8/`errors=replace` capture) → Node `execFile` (no shell) with explicit UTF-8 decoding as the *default*, removing the bug class.
+- `cmd/deft-install` (Go) → evaluate independently (keep Go single-binary installer, or move to TS/Node) — orthogonal to this RFC.
+
+### Tooling sub-decision (rev 3): no orchestrator day-one; Turborepo (never Nx) only on a trigger
+
+The RFC originally reached for Nx, but directive would consume only a thin slice of it (`affected` + caching), and that slice conflicts with the RFC's own "plain Node, zero-install, easy to remove" principles. The decision:
+
+- **Day one: no orchestrator at all.** pnpm workspaces + `tsc -b` project references (incremental, topological builds) + `vitest --changed` (affected unit tests) cover the package count in play natively.
+- **The consumer-reachable cache must exist regardless.** The in-engine content-hash task cache (#1713) is built into `@deft/core`/CLI so it reaches a consumer's `deft check` — something a build-time orchestrator cannot do. Once it exists it dogfoods to cover directive's own gate runs, collapsing an orchestrator's marginal value to remote/cross-machine cache.
+- **If an orchestrator is ever needed, it is Turborepo, never Nx.** Turborepo is an ~8MB removable Rust binary that just orchestrates `package.json` scripts, with an open self-hostable remote-cache spec; Nx is heavier, has executor/generator lock-in, and gates its marquee distributed-execution wins behind proprietary Nx Cloud.
+- **Adopt only on a measured trigger:** (1) cold-CI / cross-machine cache becomes necessary; (2) #1713 slips and CI hurts before it lands (temporary hedge); (3) cross-package parallel scheduling becomes a *measured* bottleneck `tsc -b` + a concurrent script don't cover. If none fire, it is never installed.
+- **The polyglot `affected` argument dissolves:** the Python suite is the parity oracle and runs **wholesale** on every change (not affected-sliced) until deleted, so `affected` only ever applies to the growing TS side.
+
+### Schema work (parity-critical)
+
+When `@deft/core`'s formal schemas are defined (TypeBox / Zod → JSON Schema), they **MUST** honor **deftai/vBRIEF#12**'s `^x-[a-z0-9-]+/` extension namespace and the preserve-verbatim round-trip rule, otherwise the TypeScript engine regresses the exact data-preservation property the Python implementation guarantees today. Treat deftai/vBRIEF#12 as a **required input** to the schema work, not a parallel track.
+
+## Migration approach — 4 parity-bounded iterations
+
+Strangler-fig. The constraint to optimize is **not** "fewest iterations" — it is "the largest batch whose golden-output parity diff a reviewer can still verify, with `task check` green throughout." That lands at roughly **four** iterations; going below three turns iteration 2 into a soft big-bang and re-introduces the silent-regression risk the strangler-fig principle exists to prevent.
+
+1. **Foundation** — pnpm workspaces + `@deft/types` + `@deft/core` skeleton + the golden-output parity harness + CI wiring. No behavior moves → zero parity risk.
+2. **Core logic + leaf gates** — `@deft/core` pure functions + the self-contained deterministic gates (encoding, branch, story-ready, preflight, policy, WIP-cap). Mostly pure logic + file I/O → easiest parity, and where the #798 / #1366 / #1353 Windows failure classes get structurally closed.
+3. **Verb families** — triage / scope / slice / cache / doctor + the `scm.py` boundary.
+4. **Release + monitors + cutover** — release pipeline, `pr_*` monitors, then delete Python and settle the Go-installer question.
+
+Invariants every iteration: the Python suite is the parity oracle and runs **wholesale** (not affected-sliced) until deleted; `task check` stays green at every step; the parity gate runs **cache-off** so a golden diff is never served from cache; no Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path output) and CI usage.
+
+## Acceptance criteria
+
+- The deterministic gate stack runs on TypeScript with three-state exits preserved and golden-output parity vs the Python oracle.
+- `task check` passes fully; the CLI/Taskfile surface is unchanged for users.
+- #798/#1366/#1353 failure classes are structurally closed (no host-shell/locale round-trips in the new engine).
+- vBRIEF schema round-trip (incl. deftai/vBRIEF#12 `x-*/` extensions) is byte-preserving.
+- No agent-runtime dependency is introduced (that is Part 2).
+- No monorepo orchestrator is introduced on day one (no Nx, no Turborepo); incrementality comes from the in-engine content-hash cache (#1713), `tsc -b`, and `vitest --changed`. The parity gate runs cache-off.
+- The `task`/CLI surface remains a first-class, zero-install interface.
+
+## Open questions (Part 1 scope)
+
+1. **CLI permanence** — confirmed as a permanent first-class surface (not a deprecation target). Any programmatic surface is *additive*.
+2. **Programmatic surface** — should the engine ship an **MCP server** over the typed core as the canonical programmatic interface, or library bindings only? (Feeds, but does not block, Part 2.)
+3. **Installer language** — keep the Go single-binary installer, or fold it into the TS/Node toolchain? (Orthogonal; can be decided independently.)
+4. **Cache correctness (orchestrator-independent)** — a mis-declared cache input produces a **stale-green false hit**, the worst failure mode for a load-bearing enforcement engine. The parity gate runs **cache-off** during migration; the in-engine cache (#1713) inputs must be explicitly audited. If/when cold or cross-machine CI forces a remote cache, the trigger adopts **Turborepo's open self-hostable remote-cache spec** — never Nx Cloud.
+
+## References
+
+- Part 2 (deferred runtime decision): #1707
+- Umbrella epic: #1545 (runtime-portable multi-agent orchestration contracts)
+- In-engine incrementality (consumer-reachable content-hash cache; required regardless of orchestrator): #1713
+- CI throughput (orchestrator-independent levers): #1704
+- Schema extension contract (required input): deftai/vBRIEF#12
+- Cross-platform failure classes targeted structurally: #798, #1366, #1353
+- Engine contracts preserved: `AGENTS.md` managed-section + template propagation (#1309), pre-`start_agent` gate stack (#1378), headless swarm launch (#1387), SCM boundary (#1145)
+- Architecture: `docs/ARCHITECTURE.md`, `README.md`, `vbrief/vbrief.md`
+- Precedent RFC style: #1419
+
+
+### Iteration 1 -- Foundation: pnpm workspaces + @deft/types + @deft/core skeleton + golden-output parity harness + CI wiring (no behavior moves, zero parity risk). `[proposed]`
+
+### Iteration 2 -- Core logic + leaf gates: @deft/core pure functions + self-contained gates (encoding, branch, story-ready, preflight, policy, WIP-cap); structurally closes #798/#1366/#1353. `[proposed]`
+
+### Iteration 3 -- Verb families: triage / scope / slice / cache / doctor + the scm.py boundary. `[proposed]`
+
+### Iteration 4 -- Release + monitors + cutover: release pipeline, pr_* monitors, delete Python, settle the Go-installer question. `[proposed]`
+
+---
+
 ## Completed
 
 - **#365** -- bdd strategy: move context and scenarios to vbrief; remove specs/ folder -- `[completed]`
@@ -600,4 +753,87 @@
 - **#1659** -- Decouple framework runtime and guidance from the task runner -- `[completed]`
 - docs: refresh project concepts and architecture -- `[completed]`
 - docs: restore diagrams and early intent -- `[completed]`
+- **#1717** -- feat(ts-migration): TS monorepo scaffold + CI wiring (Wave 1) -- `[completed]`
+- **#1718** -- feat(ts-migration): golden-output parity harness + verify:encoding tracer-bullet port (Wave 1) -- `[completed]`
+- **#1719** -- feat(ts-migration): port verify:branch (branch-policy gate) to TS (Wave 2) -- `[completed]`
+- **#1720** -- feat(ts-migration): port verify:story-ready (story-start Gate 0) to TS (Wave 2) -- `[completed]`
+- **#1721** -- feat(ts-migration): port vBRIEF implementation-intent preflight to TS (Wave 2) -- `[completed]`
+- **#1722** -- feat(ts-migration): port policy surface (show / allow-direct-commits / disclosure) to TS (Wave 2) -- `[completed]`
+- **#1723** -- feat(ts-migration): port verify:wip-cap to TS (Wave 2) -- `[completed]`
+- **#1724** -- feat(ts-migration): port the scm.py SCM boundary to a TS adapter (Wave 3) -- `[completed]`
+- **#1725** -- feat(ts-migration): port the triage:* family to TS (Wave 3) -- `[completed]`
+- **#1726** -- feat(ts-migration): port the scope:* lifecycle family to TS (Wave 3) -- `[completed]`
+- **#1727** -- feat(ts-migration): port the slice:* family to TS (Wave 3) -- `[completed]`
+- **#1728** -- feat(ts-migration): port cache + deft doctor to TS (Wave 3) -- `[completed]`
+- **#1729** -- feat(ts-migration): port the release pipeline (release*.py) to TS (Wave 4) -- `[completed]`
+- **#1730** -- feat(ts-migration): port pr_* monitors + cascade automation to TS (Wave 4) -- `[completed]`
+- **#1782** -- feat(ts-migration): port the vBRIEF spine (build / validation / reconcile / conformance) to TS (Wave 5) -- `[completed]`
+- **#1783** -- feat(ts-migration): port the remaining verify/validate gates to TS (Wave 5) -- `[completed]`
+- **#1784** -- feat(ts-migration): port issue / GitHub intake + reconcile to TS (Wave 6) -- `[completed]`
+- **#1785** -- feat(ts-migration): port the spec / PRD / render family to TS (Wave 6) -- `[completed]`
+- **#1786** -- feat(ts-migration): port codebase mapping + capacity to TS (Wave 6) -- `[completed]`
+- **#1787** -- feat(ts-migration): port session / ritual / lifecycle + packs surface to TS (Wave 7) -- `[completed]`
+- **#1788** -- feat(ts-migration): port swarm + orchestration verbs to TS (Wave 7) -- `[completed]`
+- **#1790** -- fix(ts): wire the TS lane into task check (local-gate \u2194 CI parity, #1530 cutover prerequisite) -- `[completed]`
+- **#1810** -- fix(ts): harden the 12 polynomial-ReDoS regexes in Wave 3-4 TS ports (clear master CodeQL backlog) -- `[completed]`
+- **#1787** -- Port AGENTS.md + version + platform utilities to TS -- `[completed]`
+- **#1728** -- Port deft doctor (doctor.py) to TypeScript -- `[completed]`
+- **#1787** -- Port lifecycle hygiene + events + packs to TS -- `[completed]`
+- **#1730** -- Port monitor_pr.py (resilient wait loop) to TypeScript -- `[completed]`
+- **#1730** -- Port pr_check_closing_keywords.py (closing-keyword check) to TypeScript -- `[completed]`
+- **#1730** -- Port pr_check_protected_issues.py (Layer-3 protected-issue check) to TypeScript -- `[completed]`
+- **#1730** -- Port pr_merge_readiness.py (merge-readiness primitive) to TypeScript -- `[completed]`
+- **#1730** -- Port pr_wait_mergeable.py (cascade composer) to TypeScript -- `[completed]`
+- **#1729** -- Port release_e2e.py (release:e2e rehearsal) to TypeScript -- `[completed]`
+- **#1729** -- Port release_publish.py (release:publish flow) to TypeScript -- `[completed]`
+- **#1729** -- Port release_rollback.py (release:rollback flow) to TypeScript -- `[completed]`
+- **#1787** -- Port session-start + ritual-sentinel core to TS -- `[completed]`
+- **#1788** -- Port subagent monitor + investigation gates to TS -- `[completed]`
+- **#1788** -- Port swarm cohort CLI verbs to TS -- `[completed]`
+- **#1783** -- Port the content validator gates (validate-links / validate_strategy_output / verify_capacity) to TypeScript -- `[completed]`
+- **#1783** -- Port the environment / toolchain verify gates (verify_tools / verify_hooks_installed / toolchain-check / verify_no_task_runtime) to TypeScript -- `[completed]`
+- **#1729** -- Port the release.py core (version bump + CHANGELOG section extraction + GitHub release-body flow) to TypeScript -- `[completed]`
+- **#1724** -- Port the scm.py SCM boundary to a TypeScript adapter -- `[completed]`
+- **#1726** -- Port the scope:* lifecycle family to TypeScript -- `[completed]`
+- **#1727** -- Port the slice:* family (record-existing / list) to TypeScript -- `[completed]`
+- **#1783** -- Port the source-tree scanner gates (verify_scm_boundary / rule_ownership_lint / code_structure_validate / verify-stubs) to TypeScript -- `[completed]`
+- **#1728** -- Port the unified content cache (cache.py) to TypeScript -- `[completed]`
+- **#1782** -- Port the vBRIEF activate lifecycle verb to TypeScript -- `[completed]`
+- **#1782** -- Port the vBRIEF construction foundation (project-definition I/O + build/sources/routing/speckit) to TypeScript -- `[completed]`
+- **#1782** -- Port the vBRIEF reconciliation engine (reconciliation + reconcile graph/labels/umbrellas) to TypeScript -- `[completed]`
+- **#1782** -- Port the vBRIEF validation primitives (validation / fidelity / story-quality / safety) to TypeScript -- `[completed]`
+- **#1782** -- Port the vbrief:validate CLI + verify:vbrief-conformance gate to TypeScript (composer) -- `[completed]`
+- **#1725** -- Port triage aux verbs A (welcome / refresh / reconcile / scope-drift) to TypeScript -- `[completed]`
+- **#1725** -- Port triage aux verbs B (bulk / subscribe / help / smoketest) to TypeScript -- `[completed]`
+- **#1725** -- Port triage:accept / reject / defer actions to TypeScript -- `[completed]`
+- **#1725** -- Port triage:bootstrap to TypeScript -- `[completed]`
+- **#1725** -- Port triage:classify to TypeScript -- `[completed]`
+- **#1725** -- Port triage:queue (ranking + RESUME/ORPHAN/URGENT order) to TypeScript -- `[completed]`
+- **#1725** -- Port triage:scope to TypeScript -- `[completed]`
+- **#1725** -- Port triage:summary (welcome one-liner) to TypeScript -- `[completed]`
+- **#1739** -- swarm: operator-specifiable coding sub-agent model per role via gitignored route file (supersedes #1531/#1735 backend-enum approach) -- `[completed]`
+- **#1828** -- feat(ts-migration): Wave 8 -- flip live gates to the TS engine (Python stays as oracle/fallback, no deletions) -- `[completed]`
+- **#1838** -- feat(ts-migration): Wave 8.5 -- port the maintainer test suites to vitest (content + CLI + integration; additive, no deletions) -- `[completed]`
+- **#1854** -- feat(ts-migration): Wave 8.6 -- finish the partial Python->TS live flip (precondition for #1731 delete) -- `[completed]`
+- **#1864** -- bug(release-e2e): runPromiseSync deadlocks task release:e2e -- Atomics.wait blocks the main event loop that must resolve the worker Promise -- `[completed]`
+- **#1838** -- Audit install/migrate/cmd CLI tests for retire-vs-retarget (Bucket C) -- `[completed]`
+- **#1828** -- Build the unified deft-ts CLI dispatcher exposing all ported verbs -- `[completed]`
+- **#1828** -- Enforce Node as a required consumer runtime in doctor/toolchain -- `[completed]`
+- **#1828** -- Flip pr/swarm/release gates to the TS engine -- `[completed]`
+- **#1828** -- Flip scm/cache/policy and remaining gates to the TS engine -- `[completed]`
+- **#1828** -- Flip scope/vbrief lifecycle gates to the TS engine -- `[completed]`
+- **#1854** -- Flip the 5 Bucket-A entrypoints to their existing TS verbs -- `[completed]`
+- **#1828** -- Flip the triage task surface to the TS engine -- `[completed]`
+- **#1828** -- Flip verify/preflight gates to the TS engine (consumer-critical set first) -- `[completed]`
+- **#1854** -- Keystone (sequential): port the task check orchestrator to TS -- `[completed]`
+- **#1838** -- Port content skills/prompt/AGENTS.md contract tests to vitest -- `[completed]`
+- **#1838** -- Port content standards/security/taskfile/schema contract tests to vitest -- `[completed]`
+- **#1838** -- Retarget cache/scm/triage integration e2e tests at TS entrypoints -- `[completed]`
+- **#1838** -- Retarget pack/spec/render/codebase CLI tests at the deft-ts dispatcher -- `[completed]`
+- **#1838** -- Retarget pr/swarm/release CLI tests at the deft-ts dispatcher -- `[completed]`
+- **#1838** -- Retarget vbrief/scope/issue/reconcile CLI tests at the deft-ts dispatcher -- `[completed]`
+- **#1838** -- Retarget verify/doctor/policy/session CLI tests at the deft-ts dispatcher -- `[completed]`
+- **#1854** -- Wire + flip every remaining Python gate in tasks/verify.yml + the two root-Taskfile gates -- `[completed]`
+- **#1854** -- Wire + flip the render family (spec:validate, spec:render, prd:render, project:render) -- `[completed]`
+- **#1854** -- Wire/port + flip scope:undo, scope:demote, scope:decompose, changelog:resolve, architecture:sor -- `[completed]`
 
