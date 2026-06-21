@@ -30,6 +30,14 @@ tasks:
     cmds:
       - node "{{.DEFT_ROOT}}/packages/cli/dist/bin.js" codebase-provider --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}
 
+  map:
+    desc: "Generate .planning/codebase/MAP.md from the selected codebase-map artifact (#1595 PR4)."
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :ts:build
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/cli/dist/bin.js" codebase-map --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}
+
   projection-registry:
     desc: "Inspect registered codebase projection kinds (#1595 PR3)."
     dir: '{{.USER_WORKING_DIR}}'

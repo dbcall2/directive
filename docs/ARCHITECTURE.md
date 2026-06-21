@@ -10,7 +10,7 @@ Deft Directive is a self-dogfooded framework for AI-assisted software work. It i
 
 - Agent-consumed rules, skills, standards, strategies, and templates.
 - A Taskfile-first deterministic command graph.
-- Python tooling for validation, rendering, lifecycle movement, cache/triage/scope automation, doctor checks, release support, and codebase extraction contracts.
+- Python tooling plus the TypeScript package engine for validation, rendering, lifecycle movement, cache/triage/scope automation, doctor checks, release support, codebase extraction contracts, CLI shims, and parity harnesses.
 - A Go installer that deposits and upgrades the framework payload in `.deft/core/`.
 - vBRIEF files as durable project, specification, lifecycle, policy, and architecture metadata.
 - Local cache/audit surfaces for backlog triage and GitHub issue ingestion.
@@ -28,9 +28,9 @@ The original Deft intent still matters: move from one-off, vibe-level agent prom
 flowchart LR
     A["Agent entry<br/>AGENTS.md, SKILL.md, main.md"] --> B["Guidance layer<br/>skills, standards, strategies, templates"]
     B --> C["Taskfile command graph<br/>task --list, task check, task verify:*"]
-    C --> D["Automation layer<br/>scripts/*.py, run compatibility, Go installer"]
+    C --> D["Automation layer<br/>scripts/*.py, packages/, run compatibility, Go installer"]
     D --> E["Durable state<br/>PROJECT-DEFINITION, specification, scope vBRIEFs"]
-    E --> F["Generated views<br/>SPECIFICATION.md, PRD.md, ROADMAP.md, future MAP.md"]
+    E --> F["Generated views<br/>SPECIFICATION.md, PRD.md, ROADMAP.md, MAP.md"]
     E --> C
     C --> G["Enforcement surfaces<br/>tests, hooks, CI, release and PR gates"]
     G --> B
@@ -81,7 +81,7 @@ flowchart LR
     S["vbrief/specification.vbrief.json"] -->|"task spec:render"| SM["SPECIFICATION.md"]
     S -->|"task prd:render"| PRD["PRD.md"]
     L["Lifecycle scope vBRIEFs"] -->|"task roadmap:render"| RM["ROADMAP.md"]
-    P["PROJECT-DEFINITION<br/>codeStructure"] -->|"planned projection"| MAP[".planning/codebase/MAP.md"]
+    P["PROJECT-DEFINITION<br/>codeStructure"] -->|"task codebase:map"| MAP[".planning/codebase/MAP.md"]
     Skills["Skills and standards"] -->|"task packs:render"| Packs["Rendered content packs"]
 ```
 
@@ -92,6 +92,7 @@ flowchart LR
 | Framework content | `AGENTS.md`, `main.md`, `coding/`, `contracts/`, `conventions/`, `docs/`, `interfaces/`, `languages/`, `meta/`, `patterns/`, `resilience/`, `scm/`, `skills/`, `strategies/`, `swarm/`, `templates/`, `tools/`, `verification/` | Agent guidance, skills, standards, and documentation. |
 | Task runner | `Taskfile.yml`, `tasks/*.yml` | Deterministic command contract and composable command namespaces. |
 | Python tooling | `scripts/*.py`, `run`, `run.py`, `run.bat` | Validators, renderers, lifecycle tools, issue/cache/triage automation, doctor/session gates, codebase provider contracts, and compatibility routing. |
+| TypeScript engine | `packages/`, `package.json`, `pnpm-workspace.yaml`, `tsconfig*.json`, `vitest.config.ts` | Migrated deterministic gates, CLI shims, and Python-oracle parity harnesses for the #1530 engine migration. |
 | Go installer | `cmd/deft-install/`, `go.mod` | Cross-platform installer/upgrade binary, `.deft/core` payload management, AGENTS managed section refresh, Taskfile wiring, and doctor handoff. |
 | vBRIEF metadata | `vbrief/**/*.json`, `vbrief/**/*.md` | Project identity, scope lifecycle, schemas, policy, specification source, and authored `codeStructure`. |
 | Content packs | `packs/` | Curated agent memory packs rendered and checked through `task packs:*`. |
@@ -107,7 +108,7 @@ The command graph is broad; use `task --list` for the exact current surface. The
 - `task vbrief:*`, `task spec:*`, `task project:*`, `task roadmap:*`, and `task prd:*` for source validation and generated views.
 - `task scope:*` and `task scope:undo:*` for lifecycle movement.
 - `task triage:*` and `task cache:*` for cache-backed backlog work.
-- `task codebase:*` for authored `codeStructure` validation, default extraction, provider-map validation, and projection registry lookup.
+- `task codebase:*` for authored `codeStructure` validation, default extraction, provider-map validation, MAP generation, and projection registry lookup.
 - `task packs:*` for content-pack rendering and drift checks.
 - `task pr:*`, `task release:*`, and `task swarm:*` for PR readiness, release operations, and multi-agent orchestration.
 - `task policy:*`, `task capacity:*`, and `task scm:*` for project policy, work allocation, and SCM helpers.
@@ -189,21 +190,21 @@ Implemented today:
 - `task codebase:validate-structure`
 - `task codebase:extract-default`
 - `task codebase:provider-map`
+- `task codebase:map`
 - `task codebase:projection-registry`
+- `task verify:codebase-map-fresh`
 
 Not implemented yet:
 
-- Generated `.planning/codebase/MAP.md`
-- MAP freshness checks
 - Generated source headers
 - Consumer propagation of generated codebase maps
 
-The planned MAP is a projection. It must not become the canonical architecture source.
+The generated MAP is a projection. It must not become the canonical architecture source.
 
 ## Generated And Historical Artifacts
 
 - `SPECIFICATION.md`, `PRD.md`, and `ROADMAP.md` are generated views.
-- `.planning/codebase/MAP.md` is planned but absent until its generator ships.
+- `.planning/codebase/MAP.md` is a generated codebase orientation projection.
 - `.planning/codebase/ARCHITECTURE.md`, `CONVENTIONS.md`, and related files are historical planning notes unless they carry a generated-source banner.
 - `PROJECT.md` is a deprecated redirect; current project identity lives in `vbrief/PROJECT-DEFINITION.vbrief.json`.
 

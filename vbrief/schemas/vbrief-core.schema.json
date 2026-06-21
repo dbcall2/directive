@@ -608,6 +608,54 @@
           "type": "integer",
           "minimum": 1,
           "description": "Maximum age, in hours, for .deft/ritual-state.json before the fail-closed session ritual verifier requires task session:start to run again. Default: 4."
+        },
+        "projectionProviders": {
+          "$ref": "#/$defs/ProjectionProviderPolicies"
+        }
+      },
+      "additionalProperties": true
+    },
+    "ProjectionProviderPolicies": {
+      "type": "object",
+      "description": "Projection provider artifact policies keyed by projection kind. Values point at durable artifacts; runner command strings are not canonical policy.",
+      "additionalProperties": {
+        "$ref": "#/$defs/ProjectionProviderPolicy"
+      }
+    },
+    "ProjectionProviderPolicy": {
+      "type": "object",
+      "required": [
+        "artifactPath"
+      ],
+      "properties": {
+        "artifactPath": {
+          "$ref": "#/$defs/CodeStructureRelativePath",
+          "description": "Repository-relative path to a provider-emitted artifact for this projection kind."
+        },
+        "expect": {
+          "$ref": "#/$defs/ProjectionProviderExpectation"
+        }
+      },
+      "additionalProperties": true
+    },
+    "ProjectionProviderExpectation": {
+      "type": "object",
+      "description": "Optional validation assertion for provider identity and version.",
+      "properties": {
+        "provider": {
+          "type": [
+            "string",
+            "object"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "providerVersion": {
+          "type": "string"
         }
       },
       "additionalProperties": true

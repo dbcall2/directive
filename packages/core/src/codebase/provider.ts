@@ -1,15 +1,18 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { dirname, isAbsolute, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadJsonFile } from "../verify-source/code-structure-validate.js";
 import { CODEBASE_MAP_SCHEMA_PATH } from "./constants.js";
 import {
   buildCodebaseMap,
   CodeStructureConfigError,
   configErrorToDict,
   defaultCodeStructurePath,
+  fileSha256,
 } from "./default-extractor.js";
-import { sortedStringifyPretty } from "./json.js";
+import { sortedStringifyPretty, sortKeysDeep } from "./json.js";
 import { CODEBASE_MAP_KIND } from "./projection-registry.js";
 
 export { CODEBASE_MAP_KIND };
@@ -33,6 +36,13 @@ export interface ProviderSelection {
   readonly artifact: Record<string, unknown>;
   readonly used_external_provider: boolean;
   readonly fallback_reason: string | null;
+}
+
+export interface ProviderArtifactPolicy {
+  readonly artifact_path: string | null;
+  readonly expect_provider: string | null;
+  readonly expect_version: string | null;
+  readonly invalid_reason: string | null;
 }
 
 let cachedSchema: Record<string, unknown> | null = null;
@@ -281,11 +291,317 @@ export function validateProviderArtifact(
   return validateJsonSchemaSubset(artifact, schemaForExpectedKind(expectedKind));
 }
 
+function providerArtifactPolicyEmpty(
+  values: Partial<ProviderArtifactPolicy> = {},
+): ProviderArtifactPolicy {
+  return {
+    artifact_path: values.artifact_path ?? null,
+    expect_provider: values.expect_provider ?? null,
+    expect_version: values.expect_version ?? null,
+    invalid_reason: values.invalid_reason ?? null,
+  };
+}
+
+function isSafeRelativePath(value: unknown): boolean {
+  if (typeof value !== "string") {
+    return false;
+  }
+  const text = value.trim();
+  if (text.length === 0 || text.includes("\\") || text.startsWith("~") || text.startsWith("$")) {
+    return false;
+  }
+  if (posix.isAbsolute(text) || /^[A-Za-z]:/.test(text)) {
+    return false;
+  }
+  return !text.split("/").includes("..");
+}
+
+function projectDefinitionPath(projectRoot: string): string {
+  return join(projectRoot, "vbrief", "PROJECT-DEFINITION.vbrief.json");
+}
+
+function expectValue(expect: unknown, ...keys: string[]): string | null {
+  if (typeof expect !== "object" || expect === null || Array.isArray(expect)) {
+    return null;
+  }
+  let cursor: unknown = expect;
+  for (const key of keys) {
+    if (typeof cursor !== "object" || cursor === null || Array.isArray(cursor)) {
+      return null;
+    }
+    cursor = (cursor as Record<string, unknown>)[key];
+  }
+  if (typeof cursor === "string" && cursor.trim().length > 0) {
+    return cursor.trim();
+  }
+  return null;
+}
+
+export function loadProviderArtifactPolicy(
+  projectRoot: string,
+  kind = CODEBASE_MAP_KIND,
+): ProviderArtifactPolicy {
+  const path = projectDefinitionPath(projectRoot);
+  if (!existsSync(path)) {
+    return providerArtifactPolicyEmpty();
+  }
+
+  const data = loadJsonFile(path);
+  const plan = data.plan;
+  if (typeof plan !== "object" || plan === null || Array.isArray(plan)) {
+    return providerArtifactPolicyEmpty();
+  }
+  const policy = (plan as Record<string, unknown>).policy;
+  if (typeof policy !== "object" || policy === null || Array.isArray(policy)) {
+    return providerArtifactPolicyEmpty();
+  }
+  const providers = (policy as Record<string, unknown>).projectionProviders;
+  if (typeof providers !== "object" || providers === null || Array.isArray(providers)) {
+    return providerArtifactPolicyEmpty();
+  }
+  const config = (providers as Record<string, unknown>)[kind];
+  if (config === undefined || config === null) {
+    return providerArtifactPolicyEmpty();
+  }
+  if (typeof config !== "object" || Array.isArray(config)) {
+    return providerArtifactPolicyEmpty({
+      invalid_reason: `plan.policy.projectionProviders[${JSON.stringify(kind)}] must be an object`,
+    });
+  }
+
+  const artifactPath = (config as Record<string, unknown>).artifactPath;
+  if (!isSafeRelativePath(artifactPath)) {
+    return providerArtifactPolicyEmpty({
+      invalid_reason: `plan.policy.projectionProviders[${JSON.stringify(
+        kind,
+      )}].artifactPath must be repository-relative`,
+    });
+  }
+
+  const expect = (config as Record<string, unknown>).expect;
+  const expectProvider =
+    expectValue(expect, "provider") ??
+    expectValue(expect, "name") ??
+    expectValue(expect, "provider", "name");
+  const expectVersion =
+    expectValue(expect, "version") ??
+    expectValue(expect, "providerVersion") ??
+    expectValue(expect, "provider", "version");
+
+  return providerArtifactPolicyEmpty({
+    artifact_path: String(artifactPath),
+    expect_provider: expectProvider,
+    expect_version: expectVersion,
+  });
+}
+
+export function artifactSha256(artifact: Record<string, unknown>): string {
+  return createHash("sha256")
+    .update(JSON.stringify(sortKeysDeep(artifact)))
+    .digest("hex");
+}
+
+function providerExpectationErrors(
+  artifact: Record<string, unknown>,
+  policy: ProviderArtifactPolicy,
+): string[] {
+  const provider = artifact.provider;
+  if (typeof provider !== "object" || provider === null || Array.isArray(provider)) {
+    return ["provider must be an object"];
+  }
+  const rec = provider as Record<string, unknown>;
+  const errors: string[] = [];
+  if (policy.expect_provider !== null && rec.name !== policy.expect_provider) {
+    errors.push(
+      `provider name mismatch: expected ${JSON.stringify(policy.expect_provider).replace(
+        /"/g,
+        "'",
+      )}, got ${JSON.stringify(rec.name).replace(/"/g, "'")}`,
+    );
+  }
+  if (policy.expect_version !== null && rec.version !== policy.expect_version) {
+    errors.push(
+      `provider version mismatch: expected ${JSON.stringify(policy.expect_version).replace(
+        /"/g,
+        "'",
+      )}, got ${JSON.stringify(rec.version).replace(/"/g, "'")}`,
+    );
+  }
+  return errors;
+}
+
+function freshnessSignal(artifact: Record<string, unknown>): [boolean | null, string | null] {
+  const source = artifact.source;
+  const candidates: unknown[] = [artifact.freshness];
+  if (typeof source === "object" && source !== null && !Array.isArray(source)) {
+    candidates.push((source as Record<string, unknown>).freshness);
+  }
+  for (const candidate of candidates) {
+    if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate)) {
+      continue;
+    }
+    const rec = candidate as Record<string, unknown>;
+    if (typeof rec.fresh === "boolean") {
+      if (rec.fresh) {
+        return [true, null];
+      }
+      return [false, String(rec.reason || "provider freshness signal is stale")];
+    }
+    if (typeof rec.status === "string") {
+      const normalized = rec.status.trim().toLowerCase();
+      if (["fresh", "ok", "current"].includes(normalized)) {
+        return [true, null];
+      }
+      if (["stale", "dirty", "out-of-date", "outdated"].includes(normalized)) {
+        return [false, String(rec.reason || `provider freshness status is '${rec.status}'`)];
+      }
+    }
+  }
+  return [null, null];
+}
+
+function contentHashEntries(artifact: Record<string, unknown>): Record<string, string>[] {
+  const source = artifact.source;
+  if (typeof source !== "object" || source === null || Array.isArray(source)) {
+    return [];
+  }
+  const contentHashes = (source as Record<string, unknown>).contentHashes;
+  const rawEntries =
+    typeof contentHashes === "object" && contentHashes !== null && !Array.isArray(contentHashes)
+      ? (contentHashes as Record<string, unknown>).files
+      : contentHashes;
+
+  const entries: Record<string, string>[] = [];
+  if (typeof rawEntries === "object" && rawEntries !== null && !Array.isArray(rawEntries)) {
+    for (const [path, digest] of Object.entries(rawEntries as Record<string, unknown>)) {
+      if (typeof path === "string" && typeof digest === "string") {
+        entries.push({ path, sha256: digest });
+      }
+    }
+  } else if (Array.isArray(rawEntries)) {
+    for (const item of rawEntries) {
+      if (typeof item !== "object" || item === null || Array.isArray(item)) {
+        continue;
+      }
+      const rec = item as Record<string, unknown>;
+      const path = rec.path;
+      const digest = rec.sha256 ?? rec.value ?? rec.digest;
+      const algorithm = String(rec.algorithm ?? "sha256").toLowerCase();
+      if (typeof path === "string" && typeof digest === "string" && algorithm === "sha256") {
+        entries.push({ path, sha256: digest });
+      }
+    }
+  }
+  return entries;
+}
+
+export function providerArtifactFreshnessErrors(
+  artifact: Record<string, unknown>,
+  projectRoot: string,
+): string[] {
+  const [signaledFresh, reason] = freshnessSignal(artifact);
+  if (signaledFresh === true) {
+    return [];
+  }
+  if (signaledFresh === false) {
+    return [reason ?? "provider freshness signal is stale"];
+  }
+
+  const entries = contentHashEntries(artifact);
+  if (entries.length === 0) {
+    return [
+      "provider artifact freshness could not be verified: " +
+        "missing source.freshness or source.contentHashes.files[]",
+    ];
+  }
+
+  const errors: string[] = [];
+  for (const entry of entries) {
+    const relPath = entry.path ?? "";
+    const expected = entry.sha256 ?? "";
+    if (!isSafeRelativePath(relPath)) {
+      errors.push(`provider artifact content hash path is not repository-relative: '${relPath}'`);
+      continue;
+    }
+    const path = join(projectRoot, relPath);
+    let isFile = false;
+    try {
+      isFile = statSync(path).isFile();
+    } catch {
+      isFile = false;
+    }
+    if (!isFile) {
+      errors.push(`provider artifact source file is missing: ${relPath}`);
+      continue;
+    }
+    const actual = fileSha256(path);
+    if (actual !== expected) {
+      errors.push(
+        `provider artifact source hash mismatch: ${relPath} expected ${expected}, got ${actual}`,
+      );
+    }
+  }
+  return errors;
+}
+
 function fallback(projectRoot: string, reason: string): ProviderSelection {
   return {
     artifact: buildCodebaseMap(projectRoot, { fallbackReason: reason }),
     used_external_provider: false,
     fallback_reason: reason,
+  };
+}
+
+function selectionFromArtifactPath(
+  projectRoot: string,
+  artifactPath: string,
+  policy: ProviderArtifactPolicy,
+): ProviderSelection {
+  const path = isAbsolute(artifactPath) ? artifactPath : join(projectRoot, artifactPath);
+  if (!existsSync(path)) {
+    return fallback(projectRoot, `provider artifact path does not exist: ${artifactPath}`);
+  }
+  let isFile = false;
+  try {
+    isFile = statSync(path).isFile();
+  } catch {
+    isFile = false;
+  }
+  if (!isFile) {
+    return fallback(projectRoot, `provider artifact path is not a file: ${artifactPath}`);
+  }
+
+  let artifact: unknown;
+  try {
+    artifact = JSON.parse(readFileSync(path, { encoding: "utf8" }));
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      return fallback(projectRoot, `provider artifact was not valid JSON: ${err.message}`);
+    }
+    return fallback(projectRoot, `provider artifact could not be read: ${String(err)}`);
+  }
+
+  const errors = validateProviderArtifact(artifact);
+  if (errors.length > 0) {
+    return fallback(projectRoot, `provider artifact contract mismatch: ${errors.join("; ")}`);
+  }
+  const record = artifact as Record<string, unknown>;
+  const expectationErrors = providerExpectationErrors(record, policy);
+  if (expectationErrors.length > 0) {
+    return fallback(
+      projectRoot,
+      `provider artifact expectation mismatch: ${expectationErrors.join("; ")}`,
+    );
+  }
+  const freshnessErrors = providerArtifactFreshnessErrors(record, projectRoot);
+  if (freshnessErrors.length > 0) {
+    return fallback(projectRoot, `provider artifact is stale: ${freshnessErrors.join("; ")}`);
+  }
+
+  return {
+    artifact: record,
+    used_external_provider: true,
+    fallback_reason: null,
   };
 }
 
@@ -358,8 +674,26 @@ function runProviderCommand(
 export function selectCodebaseMap(
   projectRoot: string,
   providerCommand?: string | string[] | null,
+  options: { artifactPath?: string | null } = {},
 ): ProviderSelection {
+  projectRoot = resolve(projectRoot);
+  if (
+    options.artifactPath !== undefined &&
+    options.artifactPath !== null &&
+    options.artifactPath !== ""
+  ) {
+    const policy = providerArtifactPolicyEmpty({ artifact_path: options.artifactPath });
+    return selectionFromArtifactPath(projectRoot, policy.artifact_path as string, policy);
+  }
+
   if (providerCommand === undefined || providerCommand === null || providerCommand === "") {
+    const policy = loadProviderArtifactPolicy(projectRoot);
+    if (policy.invalid_reason !== null) {
+      return fallback(projectRoot, policy.invalid_reason);
+    }
+    if (policy.artifact_path !== null) {
+      return selectionFromArtifactPath(projectRoot, policy.artifact_path, policy);
+    }
     return fallback(projectRoot, "no external codebase-map provider configured");
   }
 
@@ -418,6 +752,7 @@ export interface ProviderCliResult {
 export function runProviderCli(argv: string[]): ProviderCliResult {
   let projectRoot = ".";
   let providerCommand: string | undefined;
+  let artifactPath: string | undefined;
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -434,6 +769,19 @@ export function runProviderCli(argv: string[]): ProviderCliResult {
       i += 1;
     } else if (arg?.startsWith("--project-root=")) {
       projectRoot = arg.slice("--project-root=".length);
+    } else if (arg === "--artifact-path") {
+      const value = argv[i + 1];
+      if (value === undefined) {
+        return {
+          exitCode: 2,
+          stdout: "",
+          stderr: "argument --artifact-path: expected one argument\n",
+        };
+      }
+      artifactPath = value;
+      i += 1;
+    } else if (arg?.startsWith("--artifact-path=")) {
+      artifactPath = arg.slice("--artifact-path=".length);
     } else if (arg === "--provider-command") {
       const value = argv[i + 1];
       if (value === undefined) {
@@ -452,7 +800,7 @@ export function runProviderCli(argv: string[]): ProviderCliResult {
 
   const root = resolve(projectRoot);
   try {
-    const selection = selectCodebaseMap(root, providerCommand);
+    const selection = selectCodebaseMap(root, providerCommand, { artifactPath });
     return {
       exitCode: 0,
       stdout: sortedStringifyPretty(selection.artifact),

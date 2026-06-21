@@ -36,6 +36,8 @@ export const CLI_MODULE_VERBS = [
   "capacity-backfill",
   "capacity-show",
   "codebase-default-extractor",
+  "codebase-map",
+  "codebase-map-fresh",
   "codebase-projection-registry",
   "codebase-provider",
   "doctor",
@@ -126,6 +128,8 @@ export const VERB_ALIASES: Readonly<Record<string, string>> = {
   "verify:tools": "verify-tools",
   "verify:investigation": "verify-investigation",
   "verify:judgment-gates": "verify-judgment-gates",
+  "verify:codebase-map-fresh": "codebase-map-fresh",
+  "codebase:map": "codebase-map",
   "triage:welcome": "triage-welcome",
   "triage:bootstrap": "triage-bootstrap",
   "triage:summary": "triage-summary",
@@ -143,6 +147,8 @@ const WRAPPER_CLI_STEMS = new Set<string>([
   "capacity-backfill",
   "capacity-show",
   "codebase-default-extractor",
+  "codebase-map",
+  "codebase-map-fresh",
   "codebase-projection-registry",
   "codebase-provider",
   "vbrief-activate",
@@ -181,6 +187,14 @@ async function loadWrapperCliHandler(stem: string, io: DispatchIo): Promise<Comm
     case "codebase-default-extractor": {
       const { runDefaultExtractorCli } = await import("@deftai/core/codebase");
       return (argv) => emitCliResult(runDefaultExtractorCli(argv), io);
+    }
+    case "codebase-map": {
+      const { runCodebaseMapCli } = await import("@deftai/core/codebase");
+      return (argv) => emitCliResult(runCodebaseMapCli(argv), io);
+    }
+    case "codebase-map-fresh": {
+      const { runCodebaseMapFreshCli } = await import("@deftai/core/codebase");
+      return (argv) => emitCliResult(runCodebaseMapFreshCli(argv), io);
     }
     case "codebase-projection-registry": {
       const { runProjectionRegistryCli } = await import("@deftai/core/codebase");
