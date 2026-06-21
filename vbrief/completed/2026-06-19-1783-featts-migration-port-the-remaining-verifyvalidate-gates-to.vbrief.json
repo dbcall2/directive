@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1783"
+    "description": "Scope vBRIEF ingested from GitHub issue #1783",
+    "updated": "2026-06-21T23:10:16Z"
   },
   "plan": {
     "title": "feat(ts-migration): port the remaining verify/validate gates to TS (Wave 5)",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "feat(ts-migration): port the remaining verify/validate gates to TS (Wave 5)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1783",
@@ -14,15 +15,18 @@
     "items": [
       {
         "title": "TS ports with cache-off golden parity vs the Python oracle (three-state exits preserved)",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "Wired into , , CI; runnable from the TS engine",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "CHANGELOG entry;  green",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       }
     ],
     "references": [
@@ -57,6 +61,7 @@
     ],
     "metadata": {
       "kind": "epic"
-    }
+    },
+    "updated": "2026-06-21T23:10:16Z"
   }
 }

@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1782"
+    "description": "Scope vBRIEF ingested from GitHub issue #1782",
+    "updated": "2026-06-21T23:10:16Z"
   },
   "plan": {
     "title": "feat(ts-migration): port the vBRIEF spine (build / validation / reconcile / conformance) to TS (Wave 5)",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "feat(ts-migration): port the vBRIEF spine (build / validation / reconcile / conformance) to TS (Wave 5)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1782",
@@ -14,15 +15,18 @@
     "items": [
       {
         "title": "TS ports with cache-off golden parity vs the Python oracle (incl. validation/conformance failure fixtures)",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "Wired into  (export + subpath),  parity targets, CI golden-diff steps",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "CHANGELOG entry;  green",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       }
     ],
     "references": [
@@ -69,6 +73,7 @@
     ],
     "metadata": {
       "kind": "epic"
-    }
+    },
+    "updated": "2026-06-21T23:10:16Z"
   }
 }

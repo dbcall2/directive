@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1828"
+    "description": "Scope vBRIEF ingested from GitHub issue #1828",
+    "updated": "2026-06-21T23:10:16Z"
   },
   "plan": {
     "title": "feat(ts-migration): Wave 8 -- flip live gates to the TS engine (Python stays as oracle/fallback, no deletions)",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "feat(ts-migration): Wave 8 -- flip live gates to the TS engine (Python stays as oracle/fallback, no deletions)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1828",
@@ -15,27 +16,33 @@
     "items": [
       {
         "title": "A unified  dispatcher exists (today  is a banner stub and only ~13 of 96 command modules are exposed as bins)",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "/ enforce Node presence with an actionable error",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "Every live  gate routes to the TS engine;  remain in-tree as oracle/fallback",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "Each flipped gate's  output is byte-identical to the Python original (parity harness green, cache-off)",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "(framework-source + consumer) stays green at every merge",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "After all flips merge, a 2-3 release bake window elapses before #1731 (delete) proceeds",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       }
     ],
     "tags": [
@@ -94,6 +101,7 @@
     ],
     "metadata": {
       "kind": "epic"
-    }
+    },
+    "updated": "2026-06-21T23:10:16Z"
   }
 }

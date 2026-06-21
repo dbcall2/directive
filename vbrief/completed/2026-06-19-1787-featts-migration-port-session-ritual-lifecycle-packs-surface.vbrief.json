@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1787"
+    "description": "Scope vBRIEF ingested from GitHub issue #1787",
+    "updated": "2026-06-21T23:10:16Z"
   },
   "plan": {
     "title": "feat(ts-migration): port session / ritual / lifecycle + packs surface to TS (Wave 7)",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "feat(ts-migration): port session / ritual / lifecycle + packs surface to TS (Wave 7)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1787",
@@ -15,15 +16,18 @@
     "items": [
       {
         "title": "TS ports with cache-off golden parity vs the Python oracle",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "Wired into , , CI",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "CHANGELOG entry;  green",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       }
     ],
     "tags": [
@@ -65,6 +69,7 @@
     ],
     "metadata": {
       "kind": "epic"
-    }
+    },
+    "updated": "2026-06-21T23:10:16Z"
   }
 }

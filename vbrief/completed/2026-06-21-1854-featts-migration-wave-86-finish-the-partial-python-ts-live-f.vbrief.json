@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1854"
+    "description": "Scope vBRIEF ingested from GitHub issue #1854",
+    "updated": "2026-06-21T23:10:16Z"
   },
   "plan": {
     "title": "feat(ts-migration): Wave 8.6 -- finish the partial Python->TS live flip (precondition for #1731 delete)",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "feat(ts-migration): Wave 8.6 -- finish the partial Python->TS live flip (precondition for #1731 delete)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1854",
@@ -15,27 +16,33 @@
     "items": [
       {
         "title": "Every Bucket A entrypoint repointed to its existing TS dispatcher verb; Taskfile lines no longer shell .",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "Every Bucket B1 module exposed as a dispatcher verb and its Taskfile line flipped; parity harness still CLEAN.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "Every Bucket B2 entrypoint audited; ported + wired where no TS module exists; Taskfile line flipped.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "runs end-to-end on the TS dispatcher (no ).",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "returns **only** parity-harness, pytest, and Bucket-C lines.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       },
       {
         "title": "stays CLEAN and  stays green at every merge (strangler-fig; no big-bang).",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-21T23:10:16Z"
       }
     ],
     "tags": [
@@ -80,6 +87,7 @@
     ],
     "metadata": {
       "kind": "epic"
-    }
+    },
+    "updated": "2026-06-21T23:10:16Z"
   }
 }
