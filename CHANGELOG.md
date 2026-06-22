@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
+### Removed
+
+## [0.53.1] - 2026-06-22
+
+> Patch release: gh api --paginate capture sites no longer fail with a blank error on large repos -- release publish/rollback and triage:scope now work on mature repos.
+
+### Added
+
+### Changed
+
+### Fixed
 - **`task release:publish` and `triage:scope` no longer fail with a blank error on large repos (#1867)** -- Several `gh api --paginate` capture sites inherited Node's 1 MB stdout limit, so once a repo's release or label/milestone list grew past ~1 MB the command aborted with an empty error message (this blocked the v0.53.0 publish until a manual workaround). All `gh`/git capture sites now share a single 64 MB ceiling and surface the real failure reason instead of a blank one, so publish, rollback, and `triage:scope --diff-from-upstream` work on mature repos. Refs #1867.
 
 ### Removed
@@ -3452,7 +3464,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.53.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.53.1...HEAD
+[0.53.1]: https://github.com/deftai/directive/compare/v0.53.0...v0.53.1
 [0.53.0]: https://github.com/deftai/directive/compare/v0.52.0...v0.53.0
 [0.52.0]: https://github.com/deftai/directive/compare/v0.51.0...v0.52.0
 [0.51.0]: https://github.com/deftai/directive/compare/v0.50.0...v0.51.0
