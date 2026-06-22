@@ -1,6 +1,6 @@
 # Codebase MAP Source of Truth
 
-Status: accepted for #1595 PR 1; MAP projection implemented through #1595 PR 4; consumer guidance propagated in #1595 PR 6
+Status: accepted for #1595 PR 1; MAP projection implemented through #1595 PR 4; consumer guidance propagated in #1595 PR 6; MAP series complete as scoped
 
 Date: 2026-06-12
 
@@ -14,7 +14,8 @@ structure.
 
 The durable source of truth for module ownership, path ownership, allowed
 patterns, and projection outputs belongs in vBRIEF-owned architecture metadata.
-The first implementation tracker for that path is #1595.
+The first implementation tracker for that path was #1595; PR 1, PR 2, PR 3,
+PR 4, and PR 6 complete the MAP series as scoped.
 
 The primary projection is a generated codebase MAP. Optional source file headers
 may be added later only as generated projections from the same metadata, not as
@@ -36,13 +37,14 @@ Shipped:
 - Consumer-facing guidance in AGENTS.md, the installed AGENTS template, and
   build/sync/pre-pr skills.
 
-Still planned:
+Split follow-up / not in the completed MAP series:
 
 - Generated source headers.
 
-This means the source-of-truth decision has landed, and the pre-MAP contract
-layer plus generated MAP output have landed. Generated headers remain a later
-slice.
+This means the source-of-truth decision, pre-MAP contract layer, generated MAP
+output, freshness gate, and consumer guidance have landed. Generated headers
+remain a split optional projection follow-up. Local indexes/materialized views
+are tracked separately by #1618.
 
 ## Superseded Direction
 
@@ -152,7 +154,8 @@ constraints:
 6. Update skills, docs, and consumer-facing guidance after a dogfood window.
 
 Steps 1-4 are complete in the current repository. PR 6 completes the
-skills/docs/consumer-guidance part of step 6. Step 5 remains future work.
+skills/docs/consumer-guidance part of step 6, so the #1595 MAP series is
+complete as scoped. Step 5 remains split optional follow-up work.
 
 ## Non-Goals
 

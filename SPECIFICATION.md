@@ -64,26 +64,11 @@ Historical Phase 1-3 narrative and inline plan.items were removed from the curre
 
 ## OpenQuestions
 
-1. **Generated source headers and consumer propagation** -- the MAP generator and freshness gate exist; generated source headers and consumer propagation remain future slices.
+1. **Generated source headers** -- the MAP generator, freshness gate, and PR6 consumer guidance are complete. Generated source headers remain a split optional projection follow-up; local indexes and materialized views are tracked separately by #1618.
 2. **Runtime decoupling** -- `run` remains present for compatibility and interactive workflows. The long-term split between framework guidance, package-manager command routing, and Taskfile runtime is still evolving through scoped work.
 3. **Content-pack UX** -- `packs:*` tasks exist, but the public documentation should continue to expand as the pack format becomes a primary user-facing surface.
 
 ## Implementation Plan
-
-### Active
-
-### 2026-06-16-1595-pr3-extractor-provider-discipline-gate: Add codebase extractor provider contract and discipline gate  `[running]`
-
-PR3 for #1595 adds the contract layer between authored codeStructure metadata and the later MAP projection: a deterministic dependency-free default extractor, an out-of-process provider handshake, an architecture-map artifact format, a kind-to-command registry, and the PR3 discipline gate. This preserves the current-shape decision that directive owns contracts and a safe default path, not a heavy in-repo map engine.
-
-**Acceptance**:
-
-- Tier-1 architecture-map artifact format and provider handshake are defined and tested. `[completed]`
-- Default extractor emits a non-empty AST-free structural skeleton with provenance and degraded markers. `[completed]`
-- Provider selection validates conformant artifacts and gracefully falls back to the default extractor. `[completed]`
-- Projection kind registry resolves codebase-map behavior without storing runner commands in canonical data. `[completed]`
-- codeStructure discipline gate enforces canonical/derived boundaries and reports boundedness warnings. `[completed]`
-- Docs, tests, and CHANGELOG describe PR3 without implying MAP rendering has shipped. `[completed]`
 
 ### Completed
 
@@ -2928,6 +2913,14 @@ ROADMAP Completed section
 
 ROADMAP Completed section
 
+### 2026-04-23-52-install-into-deft-hidden-directory-instead-of-deft: Install into `.deft/` (hidden directory) instead of `deft/`  `[completed]`
+
+ROADMAP active phase
+
+### 2026-04-23-53-deft-install-should-bootstrap-the-current-directory-by: deft-install should bootstrap the current directory by default  `[completed]`
+
+ROADMAP active phase
+
 ### 2026-04-23-54-agents-md-provides-no-actionable-onboarding: AGENTS.md provides no actionable onboarding  `[completed]`
 
 ROADMAP Completed section
@@ -3002,6 +2995,14 @@ ROADMAP Completed section
 
 ROADMAP active phase
 
+### 2026-04-23-77-allow-users-to-change-technical-rating-1-2-3-when: Allow users to change technical rating (1/2/3) when starting a new project  `[completed]`
+
+ROADMAP active phase
+
+### 2026-04-23-78-bootstrap-offer-to-update-user-preferences-when-user-md: Bootstrap: offer to update user preferences when USER.md already exists  `[completed]`
+
+ROADMAP active phase
+
 ### 2026-04-23-79-deft-setup-inference-boundary-guards: deft-setup inference boundary guards  `[completed]`
 
 ROADMAP Completed section
@@ -3018,9 +3019,17 @@ ROADMAP Completed section
 
 ROADMAP Completed section
 
+### 2026-04-23-82-replacement-strategies-need-accept-or-scrap-exit-when: Replacement strategies need accept-or-scrap exit when plan artifacts already exist (design: artifact awareness for chaining gate)  `[completed]`
+
+ROADMAP active phase
+
 ### 2026-04-23-84-phase-1-deft-as-teacher-phase-1-complete-contracts: #84 Phase 1 -- Deft as teacher Phase 1 complete: contracts/hierarchy.md (v0.10.0), adaptive teaching main.md (v0.10.0), State WHY rule interview.md (v0.12.1)  `[completed]`
 
 ROADMAP Completed section
+
+### 2026-04-23-89-deft-identity-and-positioning-resolve-naming-before: Deft identity and positioning: resolve naming before README reframe (blocks #84 Phase 2 README reframe, `meta/philosophy.md`, interview strategy updates)  `[completed]`
+
+ROADMAP active phase
 
 ### 2026-04-23-91-run-bootstrap-goes-in-a-loop: run bootstrap goes in a loop  `[completed]`
 
@@ -16280,6 +16289,17 @@ Without this, the release ceremony's Step 3 (`check_vbrief_lifecycle_sync`) will
 - Packs re-rendered + CHANGELOG entry. `[proposed]`
   - Acceptance: Given the diff, when reviewed, then packs are in sync and CHANGELOG.md has an [Unreleased] entry referencing #1358.
 
+### 2026-06-17-1659-decouple-framework-runtime-guidance-from-task-runner: Decouple framework runtime and guidance from the task runner  `[completed]`
+
+Package-manager installs must be able to run Deft through the `deft`/`run` surface without requiring go-task on PATH. Runtime code should call Python entrypoints or the shared framework command dispatcher, while generated guidance should prefer `deft <verb>` and reserve `task deft:<verb>` for Taskfile include users.
+
+**Acceptance**:
+
+- Add shared no-task framework command dispatcher `[completed]`
+- Migrate Class A runtime call sites away from go-task subprocesses `[completed]`
+- Update generated/session guidance to package-first commands `[completed]`
+- Add regression guard for runtime go-task dependencies `[completed]`
+
 ### 2026-06-17-docs-refresh-project-concepts-architecture: docs: refresh project concepts and architecture  `[completed]`
 
 The current project concept and architecture documents still describe an older four-component, run-centric Deft Directive shape. The implementation has evolved into a Taskfile-first framework with Python automation, vBRIEF lifecycle metadata, installer/doctor handoff, triage/cache/scope workflows, content packs, release/PR automation, and codebase-structure projection contracts.
@@ -16310,6 +16330,2103 @@ The architecture documentation refresh accurately describes the implemented Task
 - Restore early Deft intent around TDD, SDD, lazy loading, and self-improvement `[completed]`
 - Refresh vBRIEF narratives and generated exports `[completed]`
 - Validate and push follow-up PR update `[completed]`
+
+### 2026-06-18-1530-rfc-migrate-directives-enforcement-engine-from-python-to-typ: RFC: Migrate directive's enforcement engine from Python to TypeScript/Node.js (Part 1 of 2)  `[completed]`
+
+# RFC: Migrate directive's enforcement engine from Python to TypeScript/Node.js (Part 1 of 2)
+
+**Status**: Draft for Discussion (rev 3 — tooling sub-decision)
+**Date**: 2026-06-05 (rev 2: 2026-06-17; rev 3: 2026-06-18)
+**Labels**: rfc, design, process, determinism, agent-experience, runtime-portability
+
+> **Split notice (rev 2).** This RFC was originally a single proposal that bundled two separable decisions. It has been split so the language/engine move can proceed without blocking on the runtime question:
+> - **Part 1 — this issue:** migrate the deterministic enforcement/tooling engine from Python to **TypeScript/Node.js** (plain Node, no monorepo orchestrator on day one). **No agent-runtime dependency.** Actionable now.
+> - **Part 2 — #1707:** whether directive should *own* a durable agent runtime for its orchestration layer (RivetOS is the leading candidate). **Deferred** — a separate decision to be made after Part 1 lands.
+>
+> Both parts sit under umbrella epic #1545. The earlier "on the RivetOS agent runtime" framing now lives entirely in Part 2.
+
+> **Tooling note (rev 3).** The earlier "plain Node + Nx" framing is **struck**. Day-one tooling is pnpm workspaces + `tsc -b` + `vitest --changed`; incrementality is provided by the consumer-reachable in-engine content-hash cache (#1713). A monorepo orchestrator is **not** adopted on day one, and if a measured trigger ever forces one it is **Turborepo, never Nx**. See "Tooling sub-decision" below.
+
+> Notation: this RFC uses the deft RFC2119 markers — **!** MUST, **~** SHOULD, **⊗** MUST NOT.
+
+## Context & Problem Statement
+
+Deft Directive is a *layered set of standards files plus deterministic `task` tooling*. It cleanly separates two things:
+
+- **How the AI behaves** — markdown standards (`main.md`, `languages/`, `patterns/`, `skills/`, `templates/`, the `AGENTS.md` managed section). Language-agnostic; **not** the subject of this RFC.
+- **What enforces it** — a deterministic engine written in **Python**: ~128 modules under `scripts/` wired into `task check` and the `verify:*` gate stack, a ~1,300-file `pytest` suite, and `ruff` / `black` / `mypy` gates (`pyproject.toml`, Python ≥ 3.11). The cross-platform installer is a separate **Go** binary (`cmd/deft-install/`), and the CLI/orchestration surface is `run` (shell) + ~43 `tasks/*.yml` Taskfiles.
+
+This works, but carries structural costs that are addressable purely by a language move — independent of any agent-runtime decision:
+
+1. **Two-language engine.** Contributors context-switch between Python (gates/tooling) and Go (installer) plus shell + Taskfile YAML. The standards layer documents TypeScript as a first-class target language, yet the engine that ships it is not written in TypeScript.
+2. **Cross-platform friction lives in Python's host-shell/locale round-trips.** The recurring Windows/PowerShell encoding-corruption class (#798), subprocess-capture decode crashes (#1366), and Grok-Windows capture leakage (#1353) are all artifacts of driving deterministic logic through host shells and Python's locale-codepage defaults.
+3. **CI throughput is hand-built.** Affected-test selection, computation caching, and parallel execution (#1704) are bespoke under the pytest/go-task stack. A TypeScript engine gets the equivalents natively **without a monorepo orchestrator**: `tsc -b` project references (incremental, topological builds), `vitest --changed` (affected unit tests), and an **in-engine content-hash task cache (#1713)** that is consumer-reachable and dogfoods to cover directive's own gate runs.
+
+> Note: a *third* original cost — "no first-class agent runtime" — is **not** in scope here. It is the entire subject of **Part 2 (#1707)** and is the only original driver that argues for adopting a runtime such as RivetOS.
+
+## Goals
+
+- Standardize deft's *implementation* language on **TypeScript** (Node.js), retiring Python as the engine language over time.
+- Resolve the Windows/PowerShell encoding & subprocess-capture failure classes (#798 / #1366 / #1353) **structurally** by moving off host-shell/locale-codepage round-trips (Node `fs` with explicit `utf-8`, `execFile` without a shell).
+- Unlock the #1704 CI-throughput levers natively — via `tsc -b` project references, `vitest --changed`, and the in-engine content-hash cache (#1713) — with **no monorepo orchestrator on day one** (see the tooling sub-decision below).
+- Preserve **100% behavioral parity** of the deterministic gate stack (`verify:*`, branch policy, encoding, WIP cap, triage, capacity/judgment-gates) and the vBRIEF lifecycle before any Python module is deleted.
+- Keep the **markdown standards layer, skills, and the `AGENTS.md` managed-section contract** unchanged in meaning; only their *renderer/validator* changes language.
+- ! Keep the **`task` / CLI surface as a permanent, first-class interface** — the portable, zero-install, debuggable surface that `AGENTS.md` teaches and that external harnesses (Cursor, Warp, Claude, CI) bind to. The language move MUST NOT raise the floor to "a runtime must be installed before the gates run."
+- Maintain a single deterministic install/upgrade entrypoint and CI green throughout (strangler-fig, never a big-bang cutover).
+
+## Non-Goals
+
+- ⊗ Rewriting or re-authoring the markdown standards (`main.md`, `languages/`, `patterns/`, `skills/` prose). They are inputs, not implementation.
+- ⊗ Changing the vBRIEF schema or the five-folder lifecycle model as part of the language move.
+- ⊗ Changing the user-facing command vocabulary (`task ...`, `run ...`, the `/deft:*` slash commands) more than necessary for parity.
+- ⊗ **Adopting an agent runtime (RivetOS or otherwise).** That is Part 2 (#1707), a deferred and independent decision. Part 1 builds on plain Node/TS with **no** runtime dependency.
+- ⊗ **Adopting a monorepo orchestrator (Nx or Turborepo) on day one.** Day-one tooling is pnpm workspaces + `tsc -b` + `vitest --changed`. An orchestrator is added later only on a measured trigger, and if so it is **Turborepo, never Nx** (see the tooling sub-decision below).
+- ⊗ Removing or deprecating the CLI/Taskfile surface (see the permanent-surface goal above).
+
+## Guiding Principles
+
+- **Parity before deletion.** ! No Python module is removed until a TypeScript replacement passes a behavioral parity gate (golden-output diff against the Python implementation). The Python suite is the oracle during migration.
+- **Strangler-fig, not big-bang.** ~ Stand up the TypeScript engine alongside Python; migrate one gate/verb family at a time; keep `task check` green every step.
+- **No runtime dependency in the engine.** ! The deterministic engine is plain Node/TS — pure logic + file I/O + subprocess. It must build and run with nothing more than Node + the package manager. Any agent-runtime integration is layered on top later (Part 2), never underneath.
+- **No build-orchestrator dependency on day one.** ! Day-one tooling is pnpm workspaces + `tsc -b` + `vitest --changed`; the in-engine content-hash cache (#1713) is the consumer-reachable incrementality layer and must exist regardless (a build-time orchestrator cannot reach a consumer's `deft check`). A monorepo orchestrator (Turborepo, never Nx) is a deferred, removable hedge adopted only on a measured trigger.
+- **Deterministic enforcement stays deterministic.** ! Per the Rule Authority [AXIOM], load-bearing rules remain script gates wired into `task check` / hooks — now TypeScript executables with three-state exits, not prose.
+- **vBRIEF-canonical, SCM-agnostic, filesystem-truth, offline.** Unchanged; the new engine reads the same files and runs offline.
+- **Cross-platform by construction.** ! All file and subprocess I/O goes through UTF-8-safe runtime APIs — eliminating the #798/#1366/#1353 root causes rather than documenting around them.
+
+## Current State (what is Python today)
+
+- **Gate/tooling engine:** `scripts/*.py` (~128 modules) — e.g. `verify_encoding.py`, `preflight_branch.py`, `preflight_implementation.py`, `preflight_story_start.py`, `policy.py`, `triage_*.py`, `scope_*.py`, `slice_*.py`, `cache.py`, `doctor.py`, `release*.py`, `pr_*` monitors, `_safe_subprocess.py`.
+- **Orchestration surface:** `run` (shell entrypoint) + `tasks/*.yml` (~43 Taskfiles) exposing `task check`, `task verify:*`, `task triage:*`, `task scope:*`, `task release:*`, `task swarm:*`, `task agents:refresh`, etc.
+- **Quality gates:** `pytest` (~1,300 test files incl. content/contract tests), `ruff`, `black`, `mypy`, coverage ≥ 85% (`pyproject.toml`).
+- **Installer:** Go binary `cmd/deft-install/` (payload + `VERSION` manifest + `AGENTS.md` managed-section refresh).
+- **Standards & data (language-agnostic, unchanged):** `main.md`, `languages/`, `patterns/`, `skills/`, `templates/`, `vbrief/`, `conventions/`, `glossary.md`.
+
+## Proposed Direction
+
+A TypeScript monorepo (**pnpm workspaces**, no orchestrator on day one), mapping deft's clean separation of "what to build" vs "how to enforce" onto layered packages — with **no agent-runtime dependency**:
+
+- **`@deft/types`** (leaf, zero-dep) — vBRIEF model, policy schema, gate result/exit-code contracts, reference types.
+- **`@deft/core`** (domain) — pure logic for gates, selection ordering, capacity/judgment-gate engines, triage classification, lifecycle transitions. **No I/O.**
+- **`@deft/boot` + `@deft/cli`** (application) — compose the gate registry and the `task`/`run` verb surface; the only layer that knows concrete adapters (filesystem, subprocess via `execFile`, SCM behind the existing `scm.py`-equivalent boundary).
+
+### Concept mapping (Python/Go → TypeScript)
+
+- `scripts/verify_*.py` deterministic gates → `@deft/core` gate functions + thin CLI executables (three-state exit preserved).
+- `task check` aggregate → a CLI target running the same gate set (incrementality from the in-engine content-hash cache #1713, not a build orchestrator).
+- `tasks/*.yml` Taskfile verbs → typed CLI commands (or a thin Taskfile that shells into the TS CLI during transition).
+- `run` shell entrypoint → `deft` TS CLI.
+- `scripts/doctor.py` → `deft doctor`.
+- `_safe_subprocess.py` (UTF-8/`errors=replace` capture) → Node `execFile` (no shell) with explicit UTF-8 decoding as the *default*, removing the bug class.
+- `cmd/deft-install` (Go) → evaluate independently (keep Go single-binary installer, or move to TS/Node) — orthogonal to this RFC.
+
+### Tooling sub-decision (rev 3): no orchestrator day-one; Turborepo (never Nx) only on a trigger
+
+The RFC originally reached for Nx, but directive would consume only a thin slice of it (`affected` + caching), and that slice conflicts with the RFC's own "plain Node, zero-install, easy to remove" principles. The decision:
+
+- **Day one: no orchestrator at all.** pnpm workspaces + `tsc -b` project references (incremental, topological builds) + `vitest --changed` (affected unit tests) cover the package count in play natively.
+- **The consumer-reachable cache must exist regardless.** The in-engine content-hash task cache (#1713) is built into `@deft/core`/CLI so it reaches a consumer's `deft check` — something a build-time orchestrator cannot do. Once it exists it dogfoods to cover directive's own gate runs, collapsing an orchestrator's marginal value to remote/cross-machine cache.
+- **If an orchestrator is ever needed, it is Turborepo, never Nx.** Turborepo is an ~8MB removable Rust binary that just orchestrates `package.json` scripts, with an open self-hostable remote-cache spec; Nx is heavier, has executor/generator lock-in, and gates its marquee distributed-execution wins behind proprietary Nx Cloud.
+- **Adopt only on a measured trigger:** (1) cold-CI / cross-machine cache becomes necessary; (2) #1713 slips and CI hurts before it lands (temporary hedge); (3) cross-package parallel scheduling becomes a *measured* bottleneck `tsc -b` + a concurrent script don't cover. If none fire, it is never installed.
+- **The polyglot `affected` argument dissolves:** the Python suite is the parity oracle and runs **wholesale** on every change (not affected-sliced) until deleted, so `affected` only ever applies to the growing TS side.
+
+### Schema work (parity-critical)
+
+When `@deft/core`'s formal schemas are defined (TypeBox / Zod → JSON Schema), they **MUST** honor **deftai/vBRIEF#12**'s `^x-[a-z0-9-]+/` extension namespace and the preserve-verbatim round-trip rule, otherwise the TypeScript engine regresses the exact data-preservation property the Python implementation guarantees today. Treat deftai/vBRIEF#12 as a **required input** to the schema work, not a parallel track.
+
+## Migration approach — 4 parity-bounded iterations
+
+Strangler-fig. The constraint to optimize is **not** "fewest iterations" — it is "the largest batch whose golden-output parity diff a reviewer can still verify, with `task check` green throughout." That lands at roughly **four** iterations; going below three turns iteration 2 into a soft big-bang and re-introduces the silent-regression risk the strangler-fig principle exists to prevent.
+
+1. **Foundation** — pnpm workspaces + `@deft/types` + `@deft/core` skeleton + the golden-output parity harness + CI wiring. No behavior moves → zero parity risk.
+2. **Core logic + leaf gates** — `@deft/core` pure functions + the self-contained deterministic gates (encoding, branch, story-ready, preflight, policy, WIP-cap). Mostly pure logic + file I/O → easiest parity, and where the #798 / #1366 / #1353 Windows failure classes get structurally closed.
+3. **Verb families** — triage / scope / slice / cache / doctor + the `scm.py` boundary.
+4. **Release + monitors + cutover** — release pipeline, `pr_*` monitors, then delete Python and settle the Go-installer question.
+
+Invariants every iteration: the Python suite is the parity oracle and runs **wholesale** (not affected-sliced) until deleted; `task check` stays green at every step; the parity gate runs **cache-off** so a golden diff is never served from cache; no Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path output) and CI usage.
+
+## Acceptance criteria
+
+- The deterministic gate stack runs on TypeScript with three-state exits preserved and golden-output parity vs the Python oracle.
+- `task check` passes fully; the CLI/Taskfile surface is unchanged for users.
+- #798/#1366/#1353 failure classes are structurally closed (no host-shell/locale round-trips in the new engine).
+- vBRIEF schema round-trip (incl. deftai/vBRIEF#12 `x-*/` extensions) is byte-preserving.
+- No agent-runtime dependency is introduced (that is Part 2).
+- No monorepo orchestrator is introduced on day one (no Nx, no Turborepo); incrementality comes from the in-engine content-hash cache (#1713), `tsc -b`, and `vitest --changed`. The parity gate runs cache-off.
+- The `task`/CLI surface remains a first-class, zero-install interface.
+
+## Open questions (Part 1 scope)
+
+1. **CLI permanence** — confirmed as a permanent first-class surface (not a deprecation target). Any programmatic surface is *additive*.
+2. **Programmatic surface** — should the engine ship an **MCP server** over the typed core as the canonical programmatic interface, or library bindings only? (Feeds, but does not block, Part 2.)
+3. **Installer language** — keep the Go single-binary installer, or fold it into the TS/Node toolchain? (Orthogonal; can be decided independently.)
+4. **Cache correctness (orchestrator-independent)** — a mis-declared cache input produces a **stale-green false hit**, the worst failure mode for a load-bearing enforcement engine. The parity gate runs **cache-off** during migration; the in-engine cache (#1713) inputs must be explicitly audited. If/when cold or cross-machine CI forces a remote cache, the trigger adopts **Turborepo's open self-hostable remote-cache spec** — never Nx Cloud.
+
+## References
+
+- Part 2 (deferred runtime decision): #1707
+- Umbrella epic: #1545 (runtime-portable multi-agent orchestration contracts)
+- In-engine incrementality (consumer-reachable content-hash cache; required regardless of orchestrator): #1713
+- CI throughput (orchestrator-independent levers): #1704
+- Schema extension contract (required input): deftai/vBRIEF#12
+- Cross-platform failure classes targeted structurally: #798, #1366, #1353
+- Engine contracts preserved: `AGENTS.md` managed-section + template propagation (#1309), pre-`start_agent` gate stack (#1378), headless swarm launch (#1387), SCM boundary (#1145)
+- Architecture: `docs/ARCHITECTURE.md`, `README.md`, `vbrief/vbrief.md`
+- Precedent RFC style: #1419
+
+**Acceptance**:
+
+- Iteration 1 -- Foundation: pnpm workspaces + @deft/types + @deft/core skeleton + golden-output parity harness + CI wiring (no behavior moves, zero parity risk). `[completed]`
+- Iteration 2 -- Core logic + leaf gates: @deft/core pure functions + self-contained gates (encoding, branch, story-ready, preflight, policy, WIP-cap); structurally closes #798/#1366/#1353. `[completed]`
+- Iteration 3 -- Verb families: triage / scope / slice / cache / doctor + the scm.py boundary. `[completed]`
+- Iteration 4 -- Release + monitors + cutover: release pipeline, pr_* monitors, delete Python, settle the Go-installer question. `[completed]`
+
+### 2026-06-18-1717-featts-migration-ts-monorepo-scaffold-ci-wiring-wave-1: feat(ts-migration): TS monorepo scaffold + CI wiring (Wave 1)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Stand up the TypeScript monorepo skeleton alongside the existing Python engine, with **no behavior moved** (zero parity risk). pnpm workspaces; `@deft/types` (leaf, zero-dep), `@deft/core` (domain, no I/O), and `@deft/cli` package skeletons; `tsc -b` project references; a Node CI lane (Vitest + ESLint + `tsc`) running alongside the Python pipeline. No monorepo orchestrator on day one -- incrementality comes from `tsc -b`, `vitest --changed`, and the in-engine content-hash cache tracked at #1713 (cross-reference, not duplicated here).
+
+## Acceptance criteria
+
+- [ ] pnpm workspaces + `@deft/types`/`@deft/core`/`@deft/cli` skeletons build with `tsc -b`
+- [ ] Node CI lane (Vitest/ESLint/tsc) runs green alongside the Python pipeline
+- [ ] No runtime behavior is ported in this slice (skeleton only)
+- [ ] No monorepo orchestrator is introduced (no Nx, no Turborepo)
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+HITL
+
+## Blocked by
+
+None -- can start immediately
+
+**Acceptance**:
+
+- pnpm workspaces + // skeletons build with `[proposed]`
+- Node CI lane (Vitest/ESLint/tsc) runs green alongside the Python pipeline `[proposed]`
+- No runtime behavior is ported in this slice (skeleton only) `[proposed]`
+- No monorepo orchestrator is introduced (no Nx, no Turborepo) `[proposed]`
+- passes `[proposed]`
+
+### 2026-06-18-1718-featts-migration-golden-output-parity-harness-verifyencoding: feat(ts-migration): golden-output parity harness + verify:encoding tracer-bullet port (Wave 1)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Build the golden-output parity harness (feeds identical fixtures to the Python implementation and the TS implementation, diffs structured outputs / exit states / filesystem effects) and use it to port **one real gate end-to-end** as the tracer bullet: `verify:encoding`. The ported gate is invoked through the existing `task` surface, golden-diffed against the Python oracle, and tested on Windows. Proves the entire end-to-end path before any other gate moves.
+
+## Acceptance criteria
+
+- [ ] Golden-output parity harness compares TS vs Python structured output, exit state, and filesystem effects
+- [ ] `verify:encoding` ported to `@deft/core` + a thin CLI executable with the three-state exit preserved
+- [ ] The ported gate is invoked via `task` and golden-diffs clean against the Python oracle (cache-off)
+- [ ] Windows path/encoding edge cases covered
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+AFK
+
+## Blocked by
+
+- Blocked by #1717
+
+**Acceptance**:
+
+- Golden-output parity harness compares TS vs Python structured output, exit state, and filesystem effects `[proposed]`
+- ported to  + a thin CLI executable with the three-state exit preserved `[proposed]`
+- The ported gate is invoked via  and golden-diffs clean against the Python oracle (cache-off) `[proposed]`
+- Windows path/encoding edge cases covered `[proposed]`
+- passes `[proposed]`
+
+### 2026-06-18-1719-featts-migration-port-verifybranch-branch-policy-gate-to-ts: feat(ts-migration): port verify:branch (branch-policy gate) to TS (Wave 2)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Port the branch-policy gate (`scripts/preflight_branch.py`) to `@deftai/core` + a thin CLI executable, preserving the three-state exit and the typed `allowDirectCommitsToMaster` / env-var bypass semantics.
+
+## Acceptance criteria
+
+- [ ] `verify:branch` runs on TS with three-state exit preserved
+- [ ] Golden-output parity vs the Python oracle (cache-off)
+- [ ] Honors `plan.policy.allowDirectCommitsToMaster` (typed) and `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT`
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+AFK
+
+## Blocked by
+
+- Blocked by #1718
+
+**Acceptance**:
+
+- verify:branch on TypeScript preserves the three-state exit `[proposed]`
+  - Acceptance: verify:branch on TypeScript returns exit 0 (feature branch / detached HEAD / opted-out / env-bypass / setup-exemption), returns exit 1 when it blocks a default-branch commit, and returns exit 2 on a config error, matching the Python oracle for every state.
+- Golden-output parity vs the Python oracle (cache-off) `[proposed]`
+  - Acceptance: branch-parity renders byte-identical messages and returns the same exit code as scripts/preflight_branch.py across fixtures covering all three exit states, with cache off.
+- Honors allowDirectCommitsToMaster (typed) and DEFT_ALLOW_DEFAULT_BRANCH_COMMIT `[proposed]`
+  - Acceptance: On the default branch, the typed plan.policy.allowDirectCommitsToMaster opt-out and the DEFT_ALLOW_DEFAULT_BRANCH_COMMIT env-var bypass each returns exit 0 and renders the oracle's disclosure phrasing.
+
+### 2026-06-18-1720-featts-migration-port-verifystory-ready-story-start-gate-0-t: feat(ts-migration): port verify:story-ready (story-start Gate 0) to TS (Wave 2)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Port the story-start Gate 0 (`scripts/preflight_story_start.py`) to TS, preserving the three-state exit and the clean-tree / active-vBRIEF / allocation-context consent-token checks.
+
+## Acceptance criteria
+
+- [ ] `verify:story-ready` runs on TS with three-state exit preserved
+- [ ] Golden-output parity vs the Python oracle (cache-off)
+- [ ] Clean-tree, active-vBRIEF, and `## Allocation context` token checks reproduced
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+AFK
+
+## Blocked by
+
+- Blocked by #1718
+
+**Acceptance**:
+
+- verify:story-ready returns exit 0 for a clean tree with an a `[proposed]`
+  - Acceptance: verify:story-ready returns exit 0 for a clean tree with an active running vBRIEF and a satisfied allocation-context token.
+- verify:story-ready rejects a dirty tree or a non-running vBR `[proposed]`
+  - Acceptance: verify:story-ready rejects a dirty tree or a non-running vBRIEF and emits config-error exit 2 for a malformed allocation-context section.
+- The parity harness emits identical findings and exit codes t `[proposed]`
+  - Acceptance: The parity harness emits identical findings and exit codes to the Python oracle across clean, dirty, solo, and swarm-cohort fixtures with cache off.
+
+### 2026-06-18-1721-featts-migration-port-vbrief-implementation-intent-preflight: feat(ts-migration): port vBRIEF implementation-intent preflight to TS (Wave 2)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Port the vBRIEF implementation-intent gate (`scripts/preflight_implementation.py`) to TS, preserving the exit-0-only-when-active-and-running contract and the install-layout resolution.
+
+## Acceptance criteria
+
+- [ ] `vbrief:preflight` runs on TS with the active+running contract preserved
+- [ ] Golden-output parity vs the Python oracle (cache-off)
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+AFK
+
+## Blocked by
+
+- Blocked by #1718
+
+**Acceptance**:
+
+- vbrief:preflight on TypeScript returns exit 0 only when the  `[proposed]`
+  - Acceptance: vbrief:preflight on TypeScript returns exit 0 only when the vBRIEF is in active/ and plan.status equals running.
+- vbrief:preflight rejects pending, proposed, malformed-JSON,  `[proposed]`
+  - Acceptance: vbrief:preflight rejects pending, proposed, malformed-JSON, and wrong-status vBRIEFs and emits the actionable activate redirect message.
+- The parity harness emits identical findings and exit codes t `[proposed]`
+  - Acceptance: The parity harness emits identical findings and exit codes to the Python oracle across active, pending, and malformed fixtures with cache off.
+
+### 2026-06-18-1722-featts-migration-port-policy-surface-show-allow-direct-commi: feat(ts-migration): port policy surface (show / allow-direct-commits / disclosure) to TS (Wave 2)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Port `scripts/policy.py` (the typed policy resolution, `policy:show`, `policy:allow-direct-commits`, and `disclosure_line`) to TS, preserving the audit-row write and disclosure phrasing.
+
+## Acceptance criteria
+
+- [ ] `policy:show` / `policy:allow-direct-commits` run on TS with identical resolution semantics
+- [ ] `disclosure_line` phrasing is byte-identical
+- [ ] Golden-output parity vs the Python oracle (cache-off)
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+AFK
+
+## Blocked by
+
+- Blocked by #1718
+
+**Acceptance**:
+
+- policy:show on TypeScript returns the same resolved source a `[proposed]`
+  - Acceptance: policy:show on TypeScript returns the same resolved source and field values as the Python oracle for typed, legacy, and default-fail-closed states.
+- disclosure_line renders byte-identical phrasing to scripts/p `[proposed]`
+  - Acceptance: disclosure_line renders byte-identical phrasing to scripts/policy.py for both enabled and disabled branch-policy states.
+- policy:allow-direct-commits records an audit row and persist `[proposed]`
+  - Acceptance: policy:allow-direct-commits records an audit row and persists the typed flag, and the parity harness exits 0 against the Python oracle with cache off.
+
+### 2026-06-18-1723-featts-migration-port-verifywip-cap-to-ts-wave-2: feat(ts-migration): port verify:wip-cap to TS (Wave 2)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Port the WIP-cap gate to TS, preserving the `plan.policy.wipCap` enforcement, the relief hint, and `--allow-over-cap` semantics.
+
+## Acceptance criteria
+
+- [ ] `verify:wip-cap` runs on TS with the cap enforcement preserved
+- [ ] Golden-output parity vs the Python oracle (cache-off)
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+AFK
+
+## Blocked by
+
+- Blocked by #1718
+
+**Acceptance**:
+
+- verify:wip-cap on TypeScript preserves the three-state exit `[proposed]`
+  - Acceptance: verify:wip-cap on TypeScript returns exit 0 within cap, returns exit 1 when it rejects an over-cap state, and returns exit 2 on a malformed PROJECT-DEFINITION, including the --allow-over-cap exit-0 grace path, matching the Python oracle.
+- Golden-output parity vs the Python oracle (cache-off) `[proposed]`
+  - Acceptance: wip-cap-parity renders byte-identical banner and refusal text and returns the same exit code as scripts/preflight_wip_cap.py across fixtures covering all three exit states, with cache off.
+
+### 2026-06-19-1724-featts-migration-port-the-scmpy-scm-boundary-to-a-ts-adapter: feat(ts-migration): port the scm.py SCM boundary to a TS adapter (Wave 3)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Port the `scripts/scm.py` boundary (the `scm.call(source, verb, args)` shim, the ghx->gh preference ladder, the github-issue NotImplementedError for non-GitHub sources) to a TS SCM adapter. Shared dependency for the triage/scope/slice families.
+
+## Acceptance criteria
+
+- [ ] `scm.call`-equivalent TS adapter preserves the ghx->gh ladder and source abstraction
+- [ ] Non-GitHub sources raise the deferred-abstraction error
+- [ ] Golden-output parity vs the Python oracle (cache-off)
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+HITL
+
+## Blocked by
+
+- Blocked by #1718
+
+**Acceptance**:
+
+- -equivalent TS adapter preserves the ghx->gh ladder and source abstraction `[proposed]`
+- Non-GitHub sources raise the deferred-abstraction error `[proposed]`
+- Golden-output parity vs the Python oracle (cache-off) `[proposed]`
+- passes `[proposed]`
+
+### 2026-06-19-1725-featts-migration-port-the-triage-family-to-ts-wave-3: feat(ts-migration): port the triage:* family to TS (Wave 3)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Port the `triage:*` verb family (`scripts/triage_*.py`: summary, queue, classification, bootstrap, accept/reject/defer, scope) to `@deft/core` + CLI, preserving cache semantics and queue ranking order.
+
+## Acceptance criteria
+
+- [ ] `triage:summary` / `triage:queue` and the accept/reject/defer surface run on TS
+- [ ] Queue ranking + `[RESUME]`/`[ORPHAN]`/`[URGENT]` ordering reproduced
+- [ ] Golden-output parity vs the Python oracle (cache-off)
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+AFK
+
+## Blocked by
+
+- Blocked by #1724
+
+**Acceptance**:
+
+- /  and the accept/reject/defer surface run on TS `[proposed]`
+- Queue ranking + // ordering reproduced `[proposed]`
+- Golden-output parity vs the Python oracle (cache-off) `[proposed]`
+- passes `[proposed]`
+
+### 2026-06-19-1726-featts-migration-port-the-scope-lifecycle-family-to-ts-wave: feat(ts-migration): port the scope:* lifecycle family to TS (Wave 3)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Port the `scope:*` lifecycle family (`scripts/scope_lifecycle.py`: promote/activate/complete/cancel/restore/block/unblock/fail/undo) to TS, preserving atomic `plan.status` + `plan.updated` + folder-move semantics and the audit log.
+
+## Acceptance criteria
+
+- [ ] All `scope:*` transitions run on TS with atomic status+timestamp+folder-move semantics
+- [ ] `scope:undo` reversibility preserved (terminal actions refused)
+- [ ] Golden-output parity vs the Python oracle (cache-off)
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+AFK
+
+## Blocked by
+
+- Blocked by #1724
+
+**Acceptance**:
+
+- All  transitions run on TS with atomic status+timestamp+folder-move semantics `[proposed]`
+- reversibility preserved (terminal actions refused) `[proposed]`
+- Golden-output parity vs the Python oracle (cache-off) `[proposed]`
+- passes `[proposed]`
+
+### 2026-06-19-1727-featts-migration-port-the-slice-family-to-ts-wave-3: feat(ts-migration): port the slice:* family to TS (Wave 3)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Port the `slice:*` family (`scripts/slice_record.py`, `slice:record-existing`, `slice:list`) to TS, preserving the `slices.jsonl` cohort-record shape and idempotency.
+
+## Acceptance criteria
+
+- [ ] `slice:record-existing` / `slice:list` run on TS with the cohort-record shape preserved
+- [ ] Idempotent on a matching umbrella+child set
+- [ ] Golden-output parity vs the Python oracle (cache-off)
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+AFK
+
+## Blocked by
+
+- Blocked by #1724
+
+**Acceptance**:
+
+- /  run on TS with the cohort-record shape preserved `[proposed]`
+- Idempotent on a matching umbrella+child set `[proposed]`
+- Golden-output parity vs the Python oracle (cache-off) `[proposed]`
+- passes `[proposed]`
+
+### 2026-06-19-1728-featts-migration-port-cache-deft-doctor-to-ts-wave-3: feat(ts-migration): port cache + deft doctor to TS (Wave 3)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Port `scripts/cache.py` (the unified content cache + quarantine: put/get/invalidate/fetch-all/prune, TTL) and `scripts/doctor.py` (`deft doctor`: install-integrity + toolchain + managed-section freshness + payload staleness) to TS.
+
+## Acceptance criteria
+
+- [ ] `cache:*` verbs run on TS with TTL/quarantine semantics preserved
+- [ ] `deft doctor` reproduces the install-integrity / toolchain / freshness probes
+- [ ] Golden-output parity vs the Python oracle (cache-off)
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+AFK
+
+## Blocked by
+
+- Blocked by #1724
+
+**Acceptance**:
+
+- verbs run on TS with TTL/quarantine semantics preserved `[proposed]`
+- reproduces the install-integrity / toolchain / freshness probes `[proposed]`
+- Golden-output parity vs the Python oracle (cache-off) `[proposed]`
+- passes `[proposed]`
+
+### 2026-06-19-1729-featts-migration-port-the-release-pipeline-releasepy-to-ts-w: feat(ts-migration): port the release pipeline (release*.py) to TS (Wave 4)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Port the release pipeline (`scripts/release*.py` -> `deft release:*`: release / publish / rollback / e2e, CHANGELOG section extraction, GitHub release body flow) to TS.
+
+## Acceptance criteria
+
+- [ ] `release:*` verbs run on TS with the publish/rollback/e2e flow preserved
+- [ ] CHANGELOG `[version]` section extraction + release-body flow reproduced
+- [ ] Golden-output parity vs the Python oracle (cache-off)
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+AFK
+
+## Blocked by
+
+- Blocked by #1725
+- Blocked by #1726
+- Blocked by #1727
+- Blocked by #1728
+
+**Acceptance**:
+
+- verbs run on TS with the publish/rollback/e2e flow preserved `[completed]`
+- CHANGELOG  section extraction + release-body flow reproduced `[completed]`
+- Golden-output parity vs the Python oracle (cache-off) `[completed]`
+- passes `[completed]`
+
+### 2026-06-19-1730-featts-migration-port-pr-monitors-cascade-automation-to-ts-w: feat(ts-migration): port pr_* monitors + cascade automation to TS (Wave 4)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545)
+
+## What to build
+
+Port the `pr_*` monitors and cascade automation (`scripts/monitor_pr.py`, `pr_merge_readiness.py`, `pr_wait_mergeable.py`, `pr_check_protected_issues.py`, `_safe_subprocess.py`) to TS, with Node `execFile` (no shell) UTF-8-safe capture as the default -- structurally closing the #1366 capture-decode class.
+
+## Acceptance criteria
+
+- [ ] `pr:*` cascade/monitor verbs run on TS with the protected-issue pre-check ordering preserved
+- [ ] Subprocess capture is UTF-8-safe by default via `execFile` (no shell)
+- [ ] Golden-output parity vs the Python oracle (cache-off)
+- [ ] `task check` passes
+
+## Standing invariants (all Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) and CI usage.
+- No agent-runtime dependency (that is Part 2, #1707); no monorepo orchestrator on day one (Nx never; Turborepo only on a measured trigger).
+
+## Type
+
+AFK
+
+## Blocked by
+
+- Blocked by #1725
+- Blocked by #1726
+- Blocked by #1727
+- Blocked by #1728
+
+**Acceptance**:
+
+- cascade/monitor verbs run on TS with the protected-issue pre-check ordering preserved `[completed]`
+- Subprocess capture is UTF-8-safe by default via  (no shell) `[completed]`
+- Golden-output parity vs the Python oracle (cache-off) `[completed]`
+- passes `[completed]`
+
+### 2026-06-19-1782-featts-migration-port-the-vbrief-spine-build-validation-reco: feat(ts-migration): port the vBRIEF spine (build / validation / reconcile / conformance) to TS (Wave 5)  `[completed]`
+
+## Parent
+#1530 (Part 1 of 2)
+
+## What to build
+Port directive's vBRIEF core — the highest fan-in surface the rest of the engine reads through — to TypeScript with golden parity: `_vbrief_build`, `_vbrief_validation`, `_vbrief_fidelity`, `_vbrief_routing`, `_vbrief_safety`, `_vbrief_sources`, `_vbrief_story_quality`, `_vbrief_reconciliation`, `_vbrief_speckit`, `vbrief_validate`, `vbrief_activate`, `vbrief_reconcile_graph/labels/umbrellas`, `verify_vbrief_conformance`, `_project_definition_io`.
+
+## Why first
+Issue intake, scope lifecycle, swarm, and several `task check` gates all read/validate vBRIEFs. Porting the spine first de-risks every downstream Bucket-B wave.
+
+## Acceptance criteria
+- [ ] TS ports with cache-off golden parity vs the Python oracle (incl. validation/conformance failure fixtures)
+- [ ] Wired into `@deftai/core` (export + subpath), `tasks/ts.yml` parity targets, CI golden-diff steps
+- [ ] CHANGELOG entry; `task check` green
+
+## Standing invariants (all #1530 Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The golden parity gate runs **cache-off**.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) **and** has CI usage.
+- Subprocess/`gh` capture uses Node `execFile` with explicit UTF-8 (closes the #1366 class structurally; the Python `_safe_subprocess`/`_stdio_utf8` shims are NOT ported — the problem does not exist in Node).
+
+## Full-conversion scope note (#1530)
+Part of the **full** Python→TS conversion. Per operator decision (2026-06-19) the cutover (#1731) deletes nothing until the engine is wholly TS. Accepted non-ports: Python-runtime shims, build/packaging tooling (superseded by the pnpm/tsc build), pre-v0.20 migration tooling (retired with a deprecation notice), and the Go installer (separate keep/fold decision in #1731). Owning an agent runtime is out of scope — net-new future work (#1707), not a conversion.
+
+## Type
+AFK
+
+## Blocked by
+- Blocked by #1730
+
+**Acceptance**:
+
+- TS ports with cache-off golden parity vs the Python oracle (incl. validation/conformance failure fixtures) `[completed]`
+- Wired into  (export + subpath),  parity targets, CI golden-diff steps `[completed]`
+- CHANGELOG entry;  green `[completed]`
+
+### 2026-06-19-1783-featts-migration-port-the-remaining-verifyvalidate-gates-to: feat(ts-migration): port the remaining verify/validate gates to TS (Wave 5)  `[completed]`
+
+## Parent
+#1530 (Part 1 of 2)
+
+## What to build
+Port the `task check` gates still Python-only: `verify-stubs`, `verify_hooks_installed`, `verify_no_task_runtime`, `verify_scm_boundary`, `verify_tools`, `verify_capacity`, `validate-links`, `validate_strategy_output`, `rule_ownership_lint`, `code_structure_validate`, `toolchain-check`.
+
+## Acceptance criteria
+- [ ] TS ports with cache-off golden parity vs the Python oracle (three-state exits preserved)
+- [ ] Wired into `@deftai/core`, `tasks/ts.yml`, CI; runnable from the TS engine
+- [ ] CHANGELOG entry; `task check` green
+
+## Standing invariants (all #1530 Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The golden parity gate runs **cache-off**.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) **and** has CI usage.
+- Subprocess/`gh` capture uses Node `execFile` with explicit UTF-8 (closes the #1366 class structurally; the Python `_safe_subprocess`/`_stdio_utf8` shims are NOT ported — the problem does not exist in Node).
+
+## Full-conversion scope note (#1530)
+Part of the **full** Python→TS conversion. Per operator decision (2026-06-19) the cutover (#1731) deletes nothing until the engine is wholly TS. Accepted non-ports: Python-runtime shims, build/packaging tooling (superseded by the pnpm/tsc build), pre-v0.20 migration tooling (retired with a deprecation notice), and the Go installer (separate keep/fold decision in #1731). Owning an agent runtime is out of scope — net-new future work (#1707), not a conversion.
+
+## Type
+AFK
+
+## Blocked by
+- Blocked by #1730
+
+**Acceptance**:
+
+- TS ports with cache-off golden parity vs the Python oracle (three-state exits preserved) `[completed]`
+- Wired into , , CI; runnable from the TS engine `[completed]`
+- CHANGELOG entry;  green `[completed]`
+
+### 2026-06-19-1784-featts-migration-port-issue-github-intake-reconcile-to-ts-wa: feat(ts-migration): port issue / GitHub intake + reconcile to TS (Wave 6)  `[completed]`
+
+## Parent
+#1530 (Part 1 of 2)
+
+## What to build
+Port the issue-intake and GitHub-reconcile surface: `issue_ingest`, `issue_emit`, `reconcile_issues`, `github_body`, `github_auth_modes`, `gh_rest`, `candidates_log`. Reuse the ported `@deftai/core/scm` adapter for all `gh` access.
+
+## Acceptance criteria
+- [ ] TS ports with cache-off golden parity vs the Python oracle
+- [ ] Wired into `@deftai/core`, `tasks/ts.yml`, CI
+- [ ] CHANGELOG entry; `task check` green
+
+## Standing invariants (all #1530 Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The golden parity gate runs **cache-off**.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) **and** has CI usage.
+- Subprocess/`gh` capture uses Node `execFile` with explicit UTF-8 (closes the #1366 class structurally; the Python `_safe_subprocess`/`_stdio_utf8` shims are NOT ported — the problem does not exist in Node).
+
+## Full-conversion scope note (#1530)
+Part of the **full** Python→TS conversion. Per operator decision (2026-06-19) the cutover (#1731) deletes nothing until the engine is wholly TS. Accepted non-ports: Python-runtime shims, build/packaging tooling (superseded by the pnpm/tsc build), pre-v0.20 migration tooling (retired with a deprecation notice), and the Go installer (separate keep/fold decision in #1731). Owning an agent runtime is out of scope — net-new future work (#1707), not a conversion.
+
+## Type
+AFK
+
+## Blocked by
+- Blocked by #1530 (Wave 5: vBRIEF spine)
+
+**Acceptance**:
+
+- TS ports with cache-off golden parity vs the Python oracle `[proposed]`
+- Wired into , , CI `[proposed]`
+- CHANGELOG entry;  green `[proposed]`
+
+### 2026-06-19-1785-featts-migration-port-the-spec-prd-render-family-to-ts-wave: feat(ts-migration): port the spec / PRD / render family to TS (Wave 6)  `[completed]`
+
+## Parent
+#1530 (Part 1 of 2)
+
+## What to build
+Port the rendering/spec surface: `spec_render`, `spec_validate`, `prd_render`, `project_render`, `roadmap_render`, `framework_commands`.
+
+## Acceptance criteria
+- [ ] TS ports with cache-off golden parity vs the Python oracle (rendered-output byte parity)
+- [ ] Wired into `@deftai/core`, `tasks/ts.yml`, CI
+- [ ] CHANGELOG entry; `task check` green
+
+## Standing invariants (all #1530 Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The golden parity gate runs **cache-off**.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) **and** has CI usage.
+- Subprocess/`gh` capture uses Node `execFile` with explicit UTF-8 (closes the #1366 class structurally; the Python `_safe_subprocess`/`_stdio_utf8` shims are NOT ported — the problem does not exist in Node).
+
+## Full-conversion scope note (#1530)
+Part of the **full** Python→TS conversion. Per operator decision (2026-06-19) the cutover (#1731) deletes nothing until the engine is wholly TS. Accepted non-ports: Python-runtime shims, build/packaging tooling (superseded by the pnpm/tsc build), pre-v0.20 migration tooling (retired with a deprecation notice), and the Go installer (separate keep/fold decision in #1731). Owning an agent runtime is out of scope — net-new future work (#1707), not a conversion.
+
+## Type
+AFK
+
+## Blocked by
+- Blocked by #1530 (Wave 5: vBRIEF spine)
+
+**Acceptance**:
+
+- TS ports with cache-off golden parity vs the Python oracle (rendered-output byte parity) `[proposed]`
+- Wired into , , CI `[proposed]`
+- CHANGELOG entry;  green `[proposed]`
+
+### 2026-06-19-1786-featts-migration-port-codebase-mapping-capacity-to-ts-wave-6: feat(ts-migration): port codebase mapping + capacity to TS (Wave 6)  `[completed]`
+
+## Parent
+#1530 (Part 1 of 2)
+
+## What to build
+Port the codebase-mapping and capacity surface: `codebase_provider`, `codebase_default_extractor`, `codebase_projection_registry`, `capacity_show`, `capacity_backfill`.
+
+## Acceptance criteria
+- [ ] TS ports with cache-off golden parity vs the Python oracle
+- [ ] Wired into `@deftai/core`, `tasks/ts.yml`, CI
+- [ ] CHANGELOG entry; `task check` green
+
+## Standing invariants (all #1530 Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The golden parity gate runs **cache-off**.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) **and** has CI usage.
+- Subprocess/`gh` capture uses Node `execFile` with explicit UTF-8 (closes the #1366 class structurally; the Python `_safe_subprocess`/`_stdio_utf8` shims are NOT ported — the problem does not exist in Node).
+
+## Full-conversion scope note (#1530)
+Part of the **full** Python→TS conversion. Per operator decision (2026-06-19) the cutover (#1731) deletes nothing until the engine is wholly TS. Accepted non-ports: Python-runtime shims, build/packaging tooling (superseded by the pnpm/tsc build), pre-v0.20 migration tooling (retired with a deprecation notice), and the Go installer (separate keep/fold decision in #1731). Owning an agent runtime is out of scope — net-new future work (#1707), not a conversion.
+
+## Type
+AFK
+
+## Blocked by
+- Blocked by #1530 (Wave 5: vBRIEF spine)
+
+**Acceptance**:
+
+- TS ports with cache-off golden parity vs the Python oracle `[proposed]`
+- Wired into , , CI `[proposed]`
+- CHANGELOG entry;  green `[proposed]`
+
+### 2026-06-19-1787-featts-migration-port-session-ritual-lifecycle-packs-surface: feat(ts-migration): port session / ritual / lifecycle + packs surface to TS (Wave 7)  `[completed]`
+
+## Parent
+#1530 (Part 1 of 2)
+
+## What to build
+Port the session/ritual/lifecycle + packs surface: `session_start`, `_session_start_hook`, `ritual_sentinel`, `resume_conditions`, `verify_session_ritual`, `_lifecycle_hygiene`, `_event_detect`, `_events`, `pack_render`, `packs_slice`, `quarantine_ext`, `_agents_md`, `slug_normalize`, `resolve_version`, `resolve_changelog_unreleased`, `platform_capabilities`, `ip_risk`.
+
+## Acceptance criteria
+- [ ] TS ports with cache-off golden parity vs the Python oracle
+- [ ] Wired into `@deftai/core`, `tasks/ts.yml`, CI
+- [ ] CHANGELOG entry; `task check` green
+
+## Standing invariants (all #1530 Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The golden parity gate runs **cache-off**.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) **and** has CI usage.
+- Subprocess/`gh` capture uses Node `execFile` with explicit UTF-8 (closes the #1366 class structurally; the Python `_safe_subprocess`/`_stdio_utf8` shims are NOT ported — the problem does not exist in Node).
+
+## Full-conversion scope note (#1530)
+Part of the **full** Python→TS conversion. Per operator decision (2026-06-19) the cutover (#1731) deletes nothing until the engine is wholly TS. Accepted non-ports: Python-runtime shims, build/packaging tooling (superseded by the pnpm/tsc build), pre-v0.20 migration tooling (retired with a deprecation notice), and the Go installer (separate keep/fold decision in #1731). Owning an agent runtime is out of scope — net-new future work (#1707), not a conversion.
+
+## Type
+AFK
+
+## Blocked by
+- Blocked by #1530 (Wave 6)
+
+**Acceptance**:
+
+- TS ports with cache-off golden parity vs the Python oracle `[completed]`
+- Wired into , , CI `[completed]`
+- CHANGELOG entry;  green `[completed]`
+
+### 2026-06-19-1788-featts-migration-port-swarm-orchestration-verbs-to-ts-wave-7: feat(ts-migration): port swarm + orchestration verbs to TS (Wave 7)  `[completed]`
+
+## Parent
+#1530 (Part 1 of 2)
+
+## What to build
+Port the swarm/orchestration **CLI verbs** (harness-agnostic; this is NOT runtime ownership): `swarm_launch`, `swarm_complete_cohort`, `swarm_readiness`, `swarm_verify_review_clean`, `swarm_worktrees`, `subagent_monitor`, `probe_session`, `verify_investigation`, `verify_judgment_gates`.
+
+## Scope boundary
+These stay advisory CLI verbs invoked by the external host harness. Owning an agent loop / refuse-to-dispatch enforcement is explicitly **out of scope** — that is the net-new #1707 question, not a conversion. Porting these verbs to typed `@deftai/core` surfaces *feeds* a future #1707 decision (something typed to wrap) without adopting a runtime.
+
+## Acceptance criteria
+- [ ] TS ports with cache-off golden parity vs the Python oracle
+- [ ] Wired into `@deftai/core`, `tasks/ts.yml`, CI
+- [ ] CHANGELOG entry; `task check` green
+
+## Standing invariants (all #1530 Part-1 children)
+- The Python suite is the **parity oracle** and runs **wholesale** (not affected-sliced) until deleted.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The golden parity gate runs **cache-off**.
+- No Python module is deleted until its TS replacement covers historical bug fixtures (not just happy-path) **and** has CI usage.
+- Subprocess/`gh` capture uses Node `execFile` with explicit UTF-8 (closes the #1366 class structurally; the Python `_safe_subprocess`/`_stdio_utf8` shims are NOT ported — the problem does not exist in Node).
+
+## Full-conversion scope note (#1530)
+Part of the **full** Python→TS conversion. Per operator decision (2026-06-19) the cutover (#1731) deletes nothing until the engine is wholly TS. Accepted non-ports: Python-runtime shims, build/packaging tooling (superseded by the pnpm/tsc build), pre-v0.20 migration tooling (retired with a deprecation notice), and the Go installer (separate keep/fold decision in #1731). Owning an agent runtime is out of scope — net-new future work (#1707), not a conversion.
+
+## Type
+AFK
+
+## Blocked by
+- Blocked by #1530 (Wave 6)
+
+**Acceptance**:
+
+- TS ports with cache-off golden parity vs the Python oracle `[completed]`
+- Wired into , , CI `[completed]`
+- CHANGELOG entry;  green `[completed]`
+
+### 2026-06-19-1790-fixts-wire-the-ts-lane-into-task-check-local-gate-u2194-ci-p: fix(ts): wire the TS lane into task check (local-gate \u2194 CI parity, #1530 cutover prerequisite)  `[completed]`
+
+## Parent
+#1530 (Part 1 of 2)
+
+## Problem
+`task check` (`check:framework-source`) runs only the **Python** suite + gates locally; the TypeScript engine (build + biome lint + vitest) runs **only in the CI "TypeScript (build + lint + test)" job**. So a contributor's local `task check` can pass green while a TS lint/format/test failure reddens CI after push (this bit PR #1780 — the composer worker's local `task check` was green but CI biome failed on unformatted files). As Bucket-B ports (Waves 5–7) land, this gap widens, and after cutover (#1731) there is no Python suite left to be the local gate — so closing this is a cutover prerequisite.
+
+## What to build
+Add a **Node-toolchain-aware** TS lane to `task check`:
+- A guarded `ts:check-lane` that runs `pnpm run lint` + `build` + `test` when a Node/pnpm toolchain is present, and **skips with a clear notice (exit 0)** when it is absent — mirroring the existing `core:test` / `core:lint` vendored-consumer guards (#1474). This preserves the documented invariant that `check:framework-source` must not hard-require Node in Node-less environments.
+- Wire `ts:check-lane` into `check:framework-source`.
+- Update the now-stale top-of-`tasks/ts.yml` comment that says the TS lane is intentionally unwired.
+
+## Acceptance criteria
+- [ ] `task check` runs the TS lane (lint+build+test) when pnpm is on PATH
+- [ ] `task check` skips the TS lane with a notice (exit 0) when pnpm is absent
+- [ ] Guard logic has unit-test coverage
+- [ ] A TS lint/format failure now fails `task check` locally (the PR #1780 class is caught pre-push)
+
+## Type
+AFK
+
+**Acceptance**:
+
+- runs the TS lane (lint+build+test) when pnpm is on PATH `[proposed]`
+- skips the TS lane with a notice (exit 0) when pnpm is absent `[proposed]`
+- Guard logic has unit-test coverage `[proposed]`
+- A TS lint/format failure now fails  locally (the PR #1780 class is caught pre-push) `[proposed]`
+
+### 2026-06-19-1810-fixts-harden-the-12-polynomial-redos-regexes-in-wave-3-4-ts: fix(ts): harden the 12 polynomial-ReDoS regexes in Wave 3-4 TS ports (clear master CodeQL backlog)  `[completed]`
+
+## Parent
+#1530 (Part 1 of 2) — engine TS migration
+
+## Problem
+master currently has **13 open CodeQL alerts** (12 high-severity `js/polynomial-redos` across 9 files + 1 URL-sanitization). These were introduced by the Wave 3-4 TS ports and slipped past CodeQL because the wave PRs were `--admin`-merged. The default branch is effectively red on CodeQL, and CodeQL now mis-attributes these pre-existing alerts to every NEW PR via its diff baseline (e.g. it blocked the Wave 6 spec-render PR #1807 on `doctor/json.ts:4`, a file that PR never touched).
+
+## Affected files (open js/polynomial-redos)
+- `packages/core/src/cache/scanner.ts` (3)
+- `packages/core/src/scope/demote.ts` (2)
+- `packages/core/src/doctor/json.ts` (1)
+- `packages/core/src/doctor/checks.ts` (1)
+- `packages/core/src/doctor/manifest.ts` (1)
+- `packages/core/src/pr-merge-readiness/parse.ts` (1)
+- `packages/core/src/scm/py-format.ts` (1)
+- `packages/core/src/slice/json.ts` (1)
+- `packages/core/src/slice/project-context.ts` (1)
+- (+ 1 `js/incomplete-url-substring-sanitization` in `triage/queue/repo.ts`)
+
+## What to build
+Rewrite each flagged regex as a parity-preserving **linear scanner** (no polynomial backtracking), keeping behavior byte-identical. Each affected module already has a golden-diff parity harness from its original wave — every one must stay CLEAN, cache-off.
+
+## Acceptance criteria
+- [ ] All 12 `js/polynomial-redos` alerts cleared (CodeQL green on the branch)
+- [ ] Every affected module's existing parity harness stays CLEAN (`task ts:parity-all` exit 0)
+- [ ] `task check` green; CHANGELOG entry
+- [ ] No behavior change (linear rewrites only)
+
+## Type
+AFK
+
+Refs #1530
+
+**Acceptance**:
+
+- All 12  alerts cleared (CodeQL green on the branch) `[proposed]`
+- Every affected module's existing parity harness stays CLEAN ( exit 0) `[proposed]`
+- green; CHANGELOG entry `[proposed]`
+- No behavior change (linear rewrites only) `[proposed]`
+
+### 2026-06-19-port-agentsmd-version-platform-utilities-to-ts: Port AGENTS.md + version + platform utilities to TS  `[completed]`
+
+Port the shared platform and text utilities from Python to TypeScript. Covers _agents_md, slug_normalize, resolve_version, resolve_changelog_unreleased, platform_capabilities, and ip_risk so AGENTS.md managed-section handling, slug normalization, version resolution, and changelog union-merge run on the TS engine identically.
+
+**Acceptance**:
+
+- Given a changelog with conflicting Unreleased entries, when the TS resolver runs, then it union-merges and returns the same body as the Python oracle. `[pending]`
+- Given an AGENTS.md managed section, when the TS agents-md renderer runs, then it computes the same section sha and emits identical content cache-off. `[pending]`
+- Given a raw title string, when the TS slug normalizer runs, then it returns the same slug as the Python module across unicode fixtures. `[pending]`
+
+### 2026-06-19-port-deft-doctor-doctorpy-to-typescript: Port deft doctor (doctor.py) to TypeScript  `[completed]`
+
+Port scripts/doctor.py (deft doctor: install-integrity, toolchain probe, AGENTS.md managed-section freshness, and payload-staleness detection from the VERSION manifest) to a TypeScript doctor module under packages/core. This story depends on the cache port because the doctor cache-fresh probe reads the cache module; it is independently buildable thereafter as a self-contained module with a golden parity binary.
+
+**Acceptance**:
+
+- healthy install probes `[pending]`
+  - Acceptance: Running deft doctor on a healthy install returns exit 0 and emits the install-integrity, toolchain, and freshness probe results.
+- stale managed section detected `[pending]`
+  - Acceptance: Running deft doctor against a stale AGENTS.md managed section shows the staleness and redirects the operator to agents:refresh.
+- behind payload emits upgrade command `[pending]`
+  - Acceptance: Running deft doctor against a behind payload manifest emits the canonical headless deft-install upgrade command.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the doctor parity binary returns exit 0 and renders byte-identical output to the Python doctor.py oracle with cache off.
+
+### 2026-06-19-port-lifecycle-hygiene-events-packs-to-ts: Port lifecycle hygiene + events + packs to TS  `[completed]`
+
+Port the lifecycle-hygiene, event-detection, and content-packs surface from Python to TypeScript. Covers _lifecycle_hygiene, _event_detect, _events, pack_render, packs_slice, and quarantine_ext so lifecycle nudges and pack slicing run on the TS engine with identical output.
+
+**Acceptance**:
+
+- Given a packs registry, when the TS packs-slice list runs, then it returns the same pack and slice listing as the Python oracle cache-off. `[pending]`
+- Given a slice request with filters, when the TS pack_render runs, then it emits the same sliced content as Python byte-for-byte. `[pending]`
+- Given a worktree with lifecycle events, when the TS event detector runs, then it records the same hygiene nudges as the Python module. `[pending]`
+
+### 2026-06-19-port-monitor-prpy-resilient-wait-loop-to-typescript: Port monitor_pr.py (resilient wait loop) to TypeScript  `[completed]`
+
+Port scripts/monitor_pr.py -- the resilient wait-until-ready loop (#1368) that polls PR state with bounded retries and survives transient gh failures without going blind -- to TypeScript over Node execFile UTF-8-safe capture, reusing @deftai/core/scm gh helpers. It is independently buildable as a self-contained packages/core/src/pr-monitor module with a golden parity binary.
+
+**Acceptance**:
+
+- bounded-retry wait loop preserved `[pending]`
+  - Acceptance: Running the TS monitor wait loop against a fixture that becomes ready after transient failures returns the same ready result the Python monitor_pr.py module returns.
+- transient-failure resilience preserved `[pending]`
+  - Acceptance: Running the TS monitor against a fixture emitting transient gh errors returns the same retry-then-resolve outcome the Python module produces, with no decode crash.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the pr-monitor-parity binary returns exit 0 and renders byte-identical output to the Python scripts/monitor_pr.py oracle with cache off.
+
+### 2026-06-19-port-pr-check-closing-keywordspy-closing-keyword-check-to-ty: Port pr_check_closing_keywords.py (closing-keyword check) to TypeScript  `[completed]`
+
+Port scripts/pr_check_closing_keywords.py -- the check that inspects a PR body for issue-closing keywords (Closes #N / Fixes #N) and reports which issues it would close -- to TypeScript over Node execFile UTF-8-safe capture, reusing @deftai/core/scm gh helpers. It is independently buildable as a self-contained packages/core/src/pr-closing-keywords module with a golden parity binary.
+
+**Acceptance**:
+
+- closing-keyword detection preserved `[pending]`
+  - Acceptance: Running the TS closing-keyword check against a PR body with Closes/Fixes keywords returns the same set of referenced issue numbers the Python pr_check_closing_keywords.py module returns.
+- no-keyword PR preserved `[pending]`
+  - Acceptance: Running the TS check against a PR body with no closing keywords returns the same empty result the Python module returns.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the pr-closing-keywords-parity binary returns exit 0 and renders byte-identical output to the Python scripts/pr_check_closing_keywords.py oracle with cache off.
+
+### 2026-06-19-port-pr-check-protected-issuespy-layer-3-protected-issue-che: Port pr_check_protected_issues.py (Layer-3 protected-issue check) to TypeScript  `[completed]`
+
+Port scripts/pr_check_protected_issues.py -- the Layer-3 protected-issue inspector (#701) that refuses a cascade when a PR persistently links a protected/umbrella issue via closingIssuesReferences -- to TypeScript over Node execFile UTF-8-safe capture, reusing @deftai/core/scm gh helpers. It is independently buildable as a self-contained packages/core/src/pr-protected-issues module with a golden parity binary.
+
+**Acceptance**:
+
+- protected-issue refusal preserved `[pending]`
+  - Acceptance: Running the TS protected-issue check against a PR that links a protected issue returns the same refuse decision the Python pr_check_protected_issues.py module returns.
+- clean PR allowed `[pending]`
+  - Acceptance: Running the TS protected-issue check against a PR with no protected-issue links returns the same allow decision the Python module returns.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the pr-protected-issues-parity binary returns exit 0 and renders byte-identical output to the Python scripts/pr_check_protected_issues.py oracle with cache off.
+
+### 2026-06-19-port-pr-merge-readinesspy-merge-readiness-primitive-to-types: Port pr_merge_readiness.py (merge-readiness primitive) to TypeScript  `[completed]`
+
+Port scripts/pr_merge_readiness.py -- the merge-readiness primitive that parses Greptile findings, computes the confidence verdict, applies the layered fallbacks (#1368), and returns the three-state readiness result -- to TypeScript. Subprocess capture uses Node execFile (no shell) with explicit UTF-8 decoding, structurally closing the #1366 capture-decode class. It reuses the @deftai/core/scm gh helpers and is the foundation the pr_wait_mergeable cascade composer builds on; dispatched first.
+
+**Acceptance**:
+
+- readiness verdict + layered fallbacks preserved `[pending]`
+  - Acceptance: Running the TS merge-readiness check returns the same three-state verdict and findings counts the Python pr_merge_readiness.py module produces for the same PR fixture.
+- UTF-8-safe capture by default `[pending]`
+  - Acceptance: Running the readiness check against a fixture whose gh output carries non-ASCII bytes returns the parsed verdict and emits no decode error, because capture uses execFile with explicit UTF-8.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the pr-merge-readiness-parity binary returns exit 0 and renders byte-identical output to the Python scripts/pr_merge_readiness.py oracle with cache off.
+
+### 2026-06-19-port-pr-wait-mergeablepy-cascade-composer-to-typescript: Port pr_wait_mergeable.py (cascade composer) to TypeScript  `[completed]`
+
+Port scripts/pr_wait_mergeable.py -- the cascade composer (#1369) that chains the Layer-3 protected-issue check AHEAD of the resilient wait loop and the merge-readiness primitive, then invokes gh pr merge, behind a single three-state exit (0 merged / 1 timeout-or-escalation / 2 config error) -- to TypeScript. It composes the merged @deftai/core pr-merge-readiness, pr-protected-issues, and pr-monitor modules and is dispatched last because it depends on them.
+
+**Acceptance**:
+
+- protected-issue-first ordering preserved `[pending]`
+  - Acceptance: Running the TS cascade against a PR linking a protected issue returns the same escalation exit the Python pr_wait_mergeable.py module returns, before any merge is attempted.
+- three-state cascade exit preserved `[pending]`
+  - Acceptance: Running the TS cascade returns exit 0 on merged, 1 on timeout-or-escalation, and 2 on config error, matching the Python module across the same fixtures.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the pr-wait-mergeable-parity binary returns exit 0 and renders byte-identical output to the Python scripts/pr_wait_mergeable.py oracle with cache off.
+
+### 2026-06-19-port-release-e2epy-releasee2e-rehearsal-to-typescript: Port release_e2e.py (release:e2e rehearsal) to TypeScript  `[completed]`
+
+Port scripts/release_e2e.py -- the release:e2e end-to-end rehearsal that exercises the full release flow against a temp/throwaway target before a real release -- to TypeScript. It builds on the shared release-core helpers from 1729-s1 and is independently buildable as a self-contained packages/core/src/release-e2e module with a golden parity binary.
+
+**Acceptance**:
+
+- e2e rehearsal orchestration preserved `[pending]`
+  - Acceptance: Running the TS release:e2e rehearsal returns the same end-to-end result against the throwaway target that the Python release_e2e.py module produces.
+- rehearsal pass/fail reporting preserved `[pending]`
+  - Acceptance: Running release:e2e reports rehearsal pass/fail with the same exit code and summary the Python module emits.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the release-e2e-parity binary returns exit 0 and renders byte-identical output to the Python scripts/release_e2e.py oracle with cache off.
+
+### 2026-06-19-port-release-publishpy-releasepublish-flow-to-typescript: Port release_publish.py (release:publish flow) to TypeScript  `[completed]`
+
+Port scripts/release_publish.py -- the release:publish flow that promotes a drafted release to published, drives the GitHub release create/edit, and applies the publish-time safety checks (#716) -- to TypeScript. It builds on the shared release-core helpers from 1729-s1 and is independently buildable as a self-contained packages/core/src/release-publish module with a golden parity binary.
+
+**Acceptance**:
+
+- publish promotion flow preserved `[pending]`
+  - Acceptance: Running the TS release:publish flow updates the GitHub release from draft to published using the same transition the Python release_publish.py module performs.
+- publish-time safety checks preserved `[pending]`
+  - Acceptance: Running release:publish against a release that fails a publish-time safety check is refused with the same guard message the Python module emits.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the release-publish-parity binary returns exit 0 and renders byte-identical output to the Python scripts/release_publish.py oracle with cache off.
+
+### 2026-06-19-port-release-rollbackpy-releaserollback-flow-to-typescript: Port release_rollback.py (release:rollback flow) to TypeScript  `[completed]`
+
+Port scripts/release_rollback.py -- the release:rollback flow that reverts a published or drafted release, unwinds the tag/release/CHANGELOG promotion, and applies the rollback-time safety guards (#716) -- to TypeScript. It builds on the shared release-core helpers from 1729-s1 and is independently buildable as a self-contained packages/core/src/release-rollback module with a golden parity binary.
+
+**Acceptance**:
+
+- rollback unwind sequence preserved `[pending]`
+  - Acceptance: Running the TS release:rollback flow deletes the tag and release and reverts the CHANGELOG promotion in the same sequence the Python release_rollback.py module performs.
+- rollback-time safety guards preserved `[pending]`
+  - Acceptance: Running release:rollback against a state that fails a rollback-time safety guard is refused with the same guard message the Python module emits.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the release-rollback-parity binary returns exit 0 and renders byte-identical output to the Python scripts/release_rollback.py oracle with cache off.
+
+### 2026-06-19-port-session-start-ritual-sentinel-core-to-ts: Port session-start + ritual-sentinel core to TS  `[completed]`
+
+Port the session-start ritual engine and its gating sentinel from Python to TypeScript. Covers session_start, _session_start_hook, ritual_sentinel, resume_conditions, and verify_session_ritual so the quick-tier and gated-tier session ritual run on the TS engine with the same staleness, defer, and skip semantics.
+
+**Acceptance**:
+
+- Given a fresh worktree, when the TS session-start ritual runs, then it records ritual state that matches the Python oracle byte-for-byte cache-off. `[pending]`
+- Given a stale ritual state past the staleness window, when the gated verifier runs, then it fails closed and emits the same diagnostic as Python. `[pending]`
+- Given a deferred ritual step, when verify-session-ritual runs, then it returns the same three-state exit code as the Python module. `[pending]`
+
+### 2026-06-19-port-subagent-monitor-investigation-gates-to-ts: Port subagent monitor + investigation gates to TS  `[completed]`
+
+Port the monitor and investigation-gate verbs from Python to TypeScript. Covers subagent_monitor, probe_session, verify_investigation, and verify_judgment_gates so monitor polling, probe-session state, and the investigation close gates run on the TS engine as advisory CLI verbs.
+
+**Acceptance**:
+
+- Given a running cohort, when the TS subagent-monitor verb runs, then it reports the same monitor state as the Python oracle cache-off. `[pending]`
+- Given an investigation with an open claim ledger, when the TS verify-investigation gate runs, then it blocks with the same exit code as Python. `[pending]`
+- Given a probe session, when the TS probe verb runs, then it records the same completion-criteria state as the Python module. `[pending]`
+
+### 2026-06-19-port-swarm-cohort-cli-verbs-to-ts: Port swarm cohort CLI verbs to TS  `[completed]`
+
+Port the harness-agnostic swarm cohort verbs from Python to TypeScript. Covers swarm_launch, swarm_complete_cohort, swarm_readiness, swarm_verify_review_clean, and swarm_worktrees so cohort launch-manifest emission, worktree-map resolution, and readiness checks run on the TS engine as advisory CLI verbs.
+
+**Acceptance**:
+
+- Given a pre-approved cohort, when the TS swarm-launch verb runs, then it emits a launch manifest that matches the Python oracle byte-for-byte cache-off. `[pending]`
+- Given a worktree map with a same-path collision, when the TS resolver runs, then it rejects with the same error as the Python module. `[pending]`
+- Given an active cohort, when the TS readiness verb runs, then it returns the same three-state exit and allocatable list as Python. `[pending]`
+
+### 2026-06-19-port-the-content-validator-gates-validate-links-validate-str: Port the content validator gates (validate-links / validate_strategy_output / verify_capacity) to TypeScript  `[completed]`
+
+Port the three content-validator gates -- scripts/validate-links.py, scripts/validate_strategy_output.py, and scripts/verify_capacity.py -- to TypeScript with cache-off golden parity vs the Python oracle. validate-links checks intra-doc link integrity, validate_strategy_output validates strategy-output structure, and verify_capacity checks the WIP/capacity policy. All are leaf gates with no inter-dependency; three-state exits are preserved. Any regex ported MUST be a linear recognizer to avoid CodeQL js/polynomial-redos while staying byte-identical.
+
+**Acceptance**:
+
+- validator verdicts + exit codes preserved `[pending]`
+  - Acceptance: Running the TS validate-content gates returns the same three-state exit code and the same diagnostic messages the Python validate-links / validate_strategy_output / verify_capacity modules produce for the clean, each-failure-class, and config-error fixtures.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the validate-content-parity binary returns exit 0 and renders byte-identical output to the Python content-validator oracle with cache off.
+
+### 2026-06-19-port-the-environment-toolchain-verify-gates-verify-tools-ver: Port the environment / toolchain verify gates (verify_tools / verify_hooks_installed / toolchain-check / verify_no_task_runtime) to TypeScript  `[completed]`
+
+Port the four environment/toolchain probe gates -- scripts/verify_tools.py, scripts/verify_hooks_installed.py, scripts/toolchain-check.py, and scripts/verify_no_task_runtime.py -- to TypeScript with cache-off golden parity vs the Python oracle. These are leaf gates with no inter-dependency: verify_tools checks required CLIs are on PATH, verify_hooks_installed checks git core.hooksPath wiring, toolchain-check verifies the maintainer toolchain, and verify_no_task_runtime forbids a stray task-runtime import. Three-state exits (0 clean / 1 finding / 2 config error) are preserved exactly. Subprocess/gh capture (where present) uses Node execFile with explicit UTF-8 (#1366); the Python _safe_subprocess shim is NOT ported.
+
+**Acceptance**:
+
+- verify verdicts + exit codes preserved `[pending]`
+  - Acceptance: Running the TS verify-env gates returns the same three-state exit code and the same diagnostic messages the Python verify_tools / verify_hooks_installed / toolchain-check / verify_no_task_runtime modules produce for the clean, finding, and config-error fixtures.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the verify-env-parity binary returns exit 0 and renders byte-identical output to the Python environment/toolchain-gate oracle with cache off.
+
+### 2026-06-19-port-the-releasepy-core-version-bump-changelog-section-extra: Port the release.py core (version bump + CHANGELOG section extraction + GitHub release-body flow) to TypeScript  `[completed]`
+
+Port scripts/release.py -- the release-pipeline core that the publish, rollback, and e2e flows all build on -- to TypeScript. This covers version resolution/bump, the CHANGELOG [version] section extraction (_section_for_version, including the 125,000-char GitHub release-body ceiling guard from #1242), the ROADMAP/CHANGELOG promotion flow, and the top-level `release` verb. It is dispatched first as the foundation because publish/rollback/e2e import these shared helpers; it is independently buildable as a self-contained packages/core/src/release module with a golden parity binary.
+
+**Acceptance**:
+
+- version resolution + bump preserved `[pending]`
+  - Acceptance: Running the TS release core returns the same bumped version value that the Python release.py module produces for the same inputs.
+- CHANGELOG section extraction + release-body guard preserved `[pending]`
+  - Acceptance: Extracting the CHANGELOG [version] section returns the same text the Python module returns, and a section exceeding the 125,000-char GitHub release-body ceiling is rejected with the same error.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the release-parity binary returns exit 0 and renders byte-identical output to the Python scripts/release.py oracle with cache off.
+
+### 2026-06-19-port-the-scmpy-scm-boundary-to-a-typescript-adapter: Port the scm.py SCM boundary to a TypeScript adapter  `[completed]`
+
+Port the scripts/scm.py boundary (the scm.call(source, verb, args) shim, the ghx->gh preference ladder in resolve_binary, and the github-issue NotImplementedError for non-GitHub sources) to a TypeScript SCM adapter under packages/core. This is the shared foundation that the Wave-3 triage, scope, and slice families call to reach GitHub, so it is built and merged first; it is independently buildable because the adapter is a self-contained module with a golden parity binary and no dependency on any other Wave-3 port.
+
+**Acceptance**:
+
+- ghx->gh ladder preserved `[pending]`
+  - Acceptance: The TS adapter returns ghx as the binary when ghx is on PATH and falls back to gh when it is absent, preserving the documented preference ladder.
+- non-GitHub source rejected `[pending]`
+  - Acceptance: Calling the adapter with a non github-issue source rejects the request and emits the deferred-abstraction NotImplementedError-equivalent error rather than shelling out.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the scm parity binary returns exit 0 and renders byte-identical output to the Python scm.py oracle across the fixture corpus with cache off.
+
+### 2026-06-19-port-the-scope-lifecycle-family-to-typescript: Port the scope:* lifecycle family to TypeScript  `[completed]`
+
+Port the scripts/scope_lifecycle.py family (promote, activate, complete, cancel, restore, block, unblock, fail, demote, and undo) to TypeScript, preserving the atomic plan.status plus plan.updated plus folder-move semantics and the audit log. This is kept as one story rather than split because every transition shares the same atomic write engine and audit path, so splitting it across parallel workers would force overlapping edits to the same module; it remains independently buildable as a single self-contained scope module with a golden parity binary.
+
+**Acceptance**:
+
+- atomic transition semantics preserved `[pending]`
+  - Acceptance: Running a scope transition such as promote, activate, or complete updates plan.status and plan.updated and moves the vBRIEF to the matching lifecycle folder atomically.
+- undo reversibility preserved `[pending]`
+  - Acceptance: Running scope undo after a non-terminal transition restores the prior status and folder, while undo after a terminal action is rejected.
+- audit log entries recorded `[pending]`
+  - Acceptance: Each transition records an audit-log entry that matches the field shape the Python scope_lifecycle.py module writes.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the scope-lifecycle parity binary returns exit 0 and renders byte-identical output to the Python scope_lifecycle.py oracle with cache off.
+
+### 2026-06-19-port-the-slice-family-record-existing-list-to-typescript: Port the slice:* family (record-existing / list) to TypeScript  `[completed]`
+
+Port the scripts/slice_record.py family (slice:record-existing and slice:list) to TypeScript, preserving the slices.jsonl cohort-record shape and the record-existing idempotency contract. This story is independently buildable because the slice module is self-contained, reads and writes only the cohort-record file, and ships a golden parity binary against the Python oracle.
+
+**Acceptance**:
+
+- slice:list reproduces cohort shape `[pending]`
+  - Acceptance: Running slice:list on the TS port returns the recorded cohort entries in the same slices.jsonl shape the Python module produces.
+- record-existing is idempotent `[pending]`
+  - Acceptance: Running slice:record-existing twice on a matching umbrella and child set persists exactly one cohort record, preserving idempotency.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the slice parity binary returns exit 0 and renders byte-identical output to the Python slice_record.py oracle with cache off.
+
+### 2026-06-19-port-the-source-tree-scanner-gates-verify-scm-boundary-rule: Port the source-tree scanner gates (verify_scm_boundary / rule_ownership_lint / code_structure_validate / verify-stubs) to TypeScript  `[completed]`
+
+Port the four source-scanning gates -- scripts/verify_scm_boundary.py, scripts/rule_ownership_lint.py, scripts/code_structure_validate.py, and scripts/verify-stubs.py -- to TypeScript with cache-off golden parity vs the Python oracle. These scan tracked source for policy violations: scm_boundary forbids raw gh outside scm.py, rule_ownership_lint checks rule-section ownership, code_structure_validate enforces module-structure rules, and verify-stubs forbids stray stub markers. All are leaf gates with no inter-dependency; three-state exits are preserved. File-walk/glob behavior must match the Python ordering so diagnostics render in the same sequence. Any regex ported MUST be a linear recognizer (no polynomial backtracking) to avoid CodeQL js/polynomial-redos while staying byte-identical.
+
+**Acceptance**:
+
+- scanner findings + ordering + exit codes preserved `[pending]`
+  - Acceptance: Running the TS verify-source gates returns the same three-state exit code and the same ordered findings the Python verify_scm_boundary / rule_ownership_lint / code_structure_validate / verify-stubs modules produce for the clean and each-violation-class fixtures.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the verify-source-parity binary returns exit 0 and renders byte-identical output to the Python source-scanner oracle with cache off.
+
+### 2026-06-19-port-the-unified-content-cache-cachepy-to-typescript: Port the unified content cache (cache.py) to TypeScript  `[completed]`
+
+Port scripts/cache.py (the unified content cache and quarantine: put, get, invalidate, fetch-all, prune, plus TTL handling) to a TypeScript cache module under packages/core. This story is independently buildable because the cache module is self-contained, owns its on-disk cache directory, and ships a golden parity binary against the Python oracle; it is sequenced before the doctor port because the deft doctor cache-fresh probe reads the cache.
+
+**Acceptance**:
+
+- put/get honor TTL `[pending]`
+  - Acceptance: Running cache put then get returns the stored entry until its TTL expires, after which get returns a miss.
+- invalidate and prune behavior `[pending]`
+  - Acceptance: Running cache invalidate deletes the targeted entry and running prune removes every entry past its TTL.
+- quarantine preserved `[pending]`
+  - Acceptance: An undecodable or corrupt payload persists to the quarantine path rather than being served, matching the Python cache quarantine behavior.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the cache parity binary returns exit 0 and renders byte-identical output to the Python cache.py oracle with cache off.
+
+### 2026-06-19-port-the-vbrief-activate-lifecycle-verb-to-typescript: Port the vBRIEF activate lifecycle verb to TypeScript  `[completed]`
+
+Port scripts/vbrief_activate.py -- the lifecycle verb that moves a vBRIEF from pending to active and sets plan.status to running -- to TypeScript with golden parity. Reuses the vbrief-build foundation types (#1782-s1).
+
+**Acceptance**:
+
+- activate transition preserved `[pending]`
+  - Acceptance: Running the TS activate verb on a pending vBRIEF fixture updates its lifecycle folder to active and persists plan.status as running, matching what the Python vbrief_activate.py module produces.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the vbrief-activate-parity binary returns exit 0 and renders byte-identical output to the Python scripts/vbrief_activate.py oracle with cache off.
+
+### 2026-06-19-port-the-vbrief-construction-foundation-project-definition-i: Port the vBRIEF construction foundation (project-definition I/O + build/sources/routing/speckit) to TypeScript  `[completed]`
+
+Port the vBRIEF construction foundation -- scripts/_project_definition_io.py, scripts/_vbrief_build.py, scripts/_vbrief_sources.py, scripts/_vbrief_routing.py, and scripts/_vbrief_speckit.py -- to TypeScript with golden parity. This is the highest-fan-in layer the rest of the vBRIEF spine reads through (build constructs vBRIEF records, sources resolves origins, routing places lifecycle folders, speckit assembles narratives, project-definition-io reads/writes PROJECT-DEFINITION). Dispatched first; the validation, reconcile, and activate stories build on its types. Subprocess/gh capture (where present) uses Node execFile with explicit UTF-8 (#1366).
+
+**Acceptance**:
+
+- construction + routing output preserved `[pending]`
+  - Acceptance: Running the TS vbrief-build foundation returns the same constructed vBRIEF record, resolved sources, and lifecycle-folder routing that the Python _vbrief_build/_vbrief_sources/_vbrief_routing modules produce for the same inputs.
+- project-definition I/O round-trip preserved `[pending]`
+  - Acceptance: Reading and writing a PROJECT-DEFINITION fixture through the TS project-definition I/O returns the same parsed structure and serialized bytes the Python _project_definition_io module produces.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the vbrief-build-parity binary returns exit 0 and renders byte-identical output to the Python construction-foundation oracle with cache off.
+
+### 2026-06-19-port-the-vbrief-reconciliation-engine-reconciliation-reconci: Port the vBRIEF reconciliation engine (reconciliation + reconcile graph/labels/umbrellas) to TypeScript  `[completed]`
+
+Port the vBRIEF reconciliation engine -- scripts/_vbrief_reconciliation.py, scripts/vbrief_reconcile_graph.py, scripts/vbrief_reconcile_labels.py, and scripts/vbrief_reconcile_umbrellas.py -- to TypeScript with golden parity. These reconcile vBRIEF state against GitHub (dependency graph, labels, umbrella current-shape). reconcile_labels depends on reconcile_graph; both are ported in this story so the file scope stays disjoint. gh capture uses Node execFile with explicit UTF-8 (#1366), reusing @deftai/core/scm.
+
+**Acceptance**:
+
+- reconciliation output preserved `[pending]`
+  - Acceptance: Running the TS reconciliation engine returns the same graph/label/umbrella reconcile actions the Python _vbrief_reconciliation/vbrief_reconcile_graph/labels/umbrellas modules produce for the same fixture.
+- UTF-8-safe gh capture by default `[pending]`
+  - Acceptance: Running reconcile against a fixture whose gh output carries non-ASCII bytes returns the reconcile actions and emits no decode error, because capture uses execFile with explicit UTF-8.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the vbrief-reconcile-parity binary returns exit 0 and renders byte-identical output to the Python reconciliation oracle with cache off.
+
+### 2026-06-19-port-the-vbrief-validation-primitives-validation-fidelity-st: Port the vBRIEF validation primitives (validation / fidelity / story-quality / safety) to TypeScript  `[completed]`
+
+Port the vBRIEF validation primitives -- scripts/_vbrief_validation.py, scripts/_vbrief_fidelity.py, scripts/_vbrief_story_quality.py, and scripts/_vbrief_safety.py -- to TypeScript with golden parity. These are the rule checks the vbrief:validate CLI composes. NOTE: _vbrief_fidelity imports _vbrief_legacy (which is in the retire bucket, NOT ported wholesale); this story absorbs ONLY the specific legacy helper(s) fidelity consumes, ported into the vbrief-validation module, and does not port the rest of _vbrief_legacy. Reuses the vbrief-build foundation types (#1782-s1).
+
+**Acceptance**:
+
+- validation verdicts + messages preserved `[pending]`
+  - Acceptance: Running the TS validation primitives returns the same pass/fail verdicts and diagnostic messages the Python _vbrief_validation/_vbrief_story_quality/_vbrief_safety modules produce for valid and each invalid fixture.
+- fidelity check preserved without porting legacy wholesale `[pending]`
+  - Acceptance: Running the TS fidelity check returns the same result the Python _vbrief_fidelity module produces, with only the consumed _vbrief_legacy helper absorbed into the TS module (the rest of _vbrief_legacy stays unported).
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the vbrief-validation-parity binary returns exit 0 and renders byte-identical output to the Python validation-primitives oracle with cache off.
+
+### 2026-06-19-port-the-vbriefvalidate-cli-verifyvbrief-conformance-gate-to: Port the vbrief:validate CLI + verify:vbrief-conformance gate to TypeScript (composer)  `[completed]`
+
+Port scripts/vbrief_validate.py (the full vBRIEF validator CLI) and scripts/verify_vbrief_conformance.py (the bare-key conformance gate, #1620) to TypeScript with golden parity. This is the composer: it orchestrates the vbrief-build foundation (#1782-s1) and the validation primitives (#1782-s2), so it is dispatched after both land. It is the gate task check runs as vbrief:validate. gh/subprocess capture uses Node execFile with explicit UTF-8 (#1366).
+
+**Acceptance**:
+
+- validate report preserved over the full tree `[pending]`
+  - Acceptance: Running the TS vbrief:validate over the repository vbrief/ tree returns the same scope-count, PROJECT-DEFINITION verdict, and per-file diagnostics the Python vbrief_validate.py module produces.
+- conformance gate verdict preserved `[pending]`
+  - Acceptance: Running the TS verify:vbrief-conformance gate returns the same three-state exit and bare-key findings the Python verify_vbrief_conformance.py module produces for the same fixtures.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the vbrief-validate-parity binary returns exit 0 and renders byte-identical output to the Python vbrief_validate.py + verify_vbrief_conformance.py oracle with cache off.
+
+### 2026-06-19-port-triage-aux-verbs-a-welcome-refresh-reconcile-scope-drif: Port triage aux verbs A (welcome / refresh / reconcile / scope-drift) to TypeScript  `[completed]`
+
+Port the first aux cluster of the triage family (scripts/triage_welcome.py, triage_refresh.py, triage_reconcile.py, and triage_scope_drift.py) to TypeScript, preserving the welcome surface wording, the cache refresh path, the origin reconciliation, and the scope-drift detection. This story is independently buildable because each verb gets its own packages/core/src/triage subdirectory with no overlap with the other triage stories, and it ships a golden parity binary against the Python oracles.
+
+**Acceptance**:
+
+- welcome and refresh reproduced `[pending]`
+  - Acceptance: Running triage:welcome and triage:refresh on the TS port renders the same surface wording and refreshes the cache the same way the Python modules do.
+- reconcile and scope-drift reproduced `[pending]`
+  - Acceptance: Running triage:reconcile and triage:scope-drift on the TS port returns the same stale origins and scope drift the Python modules report.
+- golden parity vs Python oracles `[pending]`
+  - Acceptance: Running the triage-aux-a parity binary returns exit 0 and renders byte-identical output to the four Python oracles with cache off.
+
+### 2026-06-19-port-triage-aux-verbs-b-bulk-subscribe-help-smoketest-to-typ: Port triage aux verbs B (bulk / subscribe / help / smoketest) to TypeScript  `[completed]`
+
+Port the second aux cluster of the triage family (scripts/triage_bulk.py, triage_subscribe.py, triage_help.py, and triage_smoketest.py) to TypeScript, preserving the bulk action surface, the subscription handling, the help text, and the smoketest self-check. This story is independently buildable because each verb gets its own packages/core/src/triage subdirectory with no overlap with the other triage stories, and it ships a golden parity binary against the Python oracles.
+
+**Acceptance**:
+
+- bulk and subscribe reproduced `[pending]`
+  - Acceptance: Running triage:bulk and triage:subscribe on the TS port updates candidate state for bulk actions and subscriptions identically to the Python modules.
+- help and smoketest reproduced `[pending]`
+  - Acceptance: Running triage:help renders the same help text and triage:smoketest returns the same pass or fail verdict the Python modules produce.
+- golden parity vs Python oracles `[pending]`
+  - Acceptance: Running the triage-aux-b parity binary returns exit 0 and renders byte-identical output to the four Python oracles with cache off.
+
+### 2026-06-19-port-triageaccept-reject-defer-actions-to-typescript: Port triage:accept / reject / defer actions to TypeScript  `[completed]`
+
+Port scripts/triage_actions.py to a TypeScript triage actions module, preserving the accept, reject, and defer transitions and the cache mutations they apply to candidate state. This story is independently buildable in its own packages/core/src/triage/actions subdirectory and ships a golden parity binary against the Python oracle.
+
+**Acceptance**:
+
+- accept/reject/defer transitions run `[pending]`
+  - Acceptance: Running triage:accept, triage:reject, or triage:defer on the TS port updates the candidate state in the cache the same way the Python module does.
+- defer records reason and window `[pending]`
+  - Acceptance: Running triage:defer persists the defer reason and suppression window on the candidate, matching the Python module's recorded fields.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the triage-actions parity binary returns exit 0 and renders byte-identical output to the Python triage_actions.py oracle with cache off.
+
+### 2026-06-19-port-triagebootstrap-to-typescript: Port triage:bootstrap to TypeScript  `[completed]`
+
+Port scripts/triage_bootstrap.py to a TypeScript triage bootstrap module, preserving the candidate-corpus bootstrap that seeds the triage cache and the watchdog timing safeguards it applies. This story is independently buildable in its own packages/core/src/triage/bootstrap subdirectory and ships a golden parity binary against the Python oracle.
+
+**Acceptance**:
+
+- cache seeded identically `[pending]`
+  - Acceptance: Running triage:bootstrap on the TS port creates a triage cache whose candidate corpus matches the corpus the Python module seeds.
+- watchdog guards preserved `[pending]`
+  - Acceptance: The TS bootstrap fails closed on the same watchdog timeout conditions the Python module enforces rather than seeding a partial cache.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the triage-bootstrap parity binary returns exit 0 and renders byte-identical output to the Python triage_bootstrap.py oracle with cache off.
+
+### 2026-06-19-port-triageclassify-to-typescript: Port triage:classify to TypeScript  `[completed]`
+
+Port scripts/triage_classify.py to a TypeScript triage classify module, preserving the candidate classification logic (resume, orphan, urgent, and label-derived buckets) that feeds the queue ranking. This story is independently buildable in its own packages/core/src/triage/classify subdirectory and ships a golden parity binary against the Python oracle.
+
+**Acceptance**:
+
+- classification buckets reproduced `[pending]`
+  - Acceptance: Running triage:classify on the TS port returns the same classification bucket for each candidate that the Python module assigns.
+- label-derived rules preserved `[pending]`
+  - Acceptance: The TS classifier validates label-derived classifications identically to the Python module across the fixture corpus.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the triage-classify parity binary returns exit 0 and renders byte-identical output to the Python triage_classify.py oracle with cache off.
+
+### 2026-06-19-port-triagequeue-ranking-resumeorphanurgent-order-to-typescr: Port triage:queue (ranking + RESUME/ORPHAN/URGENT order) to TypeScript  `[completed]`
+
+Port scripts/triage_queue.py to a TypeScript triage queue module, preserving the candidate ranking order and the [RESUME], [ORPHAN], and [URGENT] classification tags exactly. This is the highest-risk triage slice because the ranking order is observable in operator output, so it ships a golden parity binary; it is independently buildable in its own packages/core/src/triage/queue subdirectory.
+
+**Acceptance**:
+
+- ranking order preserved `[pending]`
+  - Acceptance: Running triage:queue on the TS port returns candidates in the same ranked order the Python module produces for an identical cache.
+- classification tags reproduced `[pending]`
+  - Acceptance: The TS queue renders the [RESUME], [ORPHAN], and [URGENT] tags on the same candidates the Python module tags.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the triage-queue parity binary returns exit 0 and renders byte-identical output to the Python triage_queue.py oracle with cache off.
+
+### 2026-06-19-port-triagescope-to-typescript: Port triage:scope to TypeScript  `[completed]`
+
+Port scripts/triage_scope.py to a TypeScript triage scope module, preserving the triageScope configuration resolution and the scope-membership decisions that gate which candidates appear in the queue. This story is independently buildable in its own packages/core/src/triage/scope subdirectory and ships a golden parity binary against the Python oracle.
+
+**Acceptance**:
+
+- scope membership reproduced `[pending]`
+  - Acceptance: Running triage:scope on the TS port returns the same in-scope and out-of-scope decision per candidate that the Python module returns.
+- configured vs default scope distinguished `[pending]`
+  - Acceptance: The TS scope module emits the configured-versus-not-configured wording for triageScope exactly as the Python module distinguishes them.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the triage-scope parity binary returns exit 0 and renders byte-identical output to the Python triage_scope.py oracle with cache off.
+
+### 2026-06-19-port-triagesummary-welcome-one-liner-to-typescript: Port triage:summary (welcome one-liner) to TypeScript  `[completed]`
+
+Port scripts/triage_summary.py to a TypeScript triage summary module, preserving the triage-cache one-line headline and the in-flight count plus scope-gap wording the welcome surface emits. This story is independently buildable in its own packages/core/src/triage/summary subdirectory and ships a golden parity binary against the Python oracle.
+
+**Acceptance**:
+
+- headline wording reproduced `[pending]`
+  - Acceptance: Running triage:summary on the TS port renders the same one-line headline text the Python module emits for an identical cache.
+- in-flight count is filesystem-truth `[pending]`
+  - Acceptance: The TS summary returns the in-flight count from a live count of running active vBRIEFs, matching the Python filesystem-truth count.
+- golden parity vs Python oracle `[pending]`
+  - Acceptance: Running the triage-summary parity binary returns exit 0 and renders byte-identical output to the Python triage_summary.py oracle with cache off.
+
+### 2026-06-21-1739-swarm-operator-specifiable-coding-sub-agent-model-per-role-v: swarm: operator-specifiable coding sub-agent model per role via gitignored route file (supersedes #1531/#1735 backend-enum approach)  `[completed]`
+
+## Summary
+
+Let the operator **specify which coding sub-agent (model) runs each swarm worker role**, and have the dispatch path actually honor it. The selection lives in a **per-project, per-machine, gitignored route file** that is filled in on first use (or fails loud), so e.g. leaf implementation can be pinned to `composer-2.5-fast` on the Cursor path and verified in the run.
+
+This **supersedes the `#1531` / `#1735` backend-enum approach**, which records operator intent but never threads it into the actual spawn call.
+
+## Why #1531 / #1735 missed
+
+#1531 shipped a provider-neutral *vocabulary* (dispatch provider / worker role / selected backend) and a coarse policy enum `plan.policy.swarmSubagentBackend ∈ {composer, grok-build, cursor-cloud}`, plus availability probes, audit metadata, role boundaries, and content tests. But:
+
+1. **Wrong granularity.** Of the three concerns the framework named, the one that is the actual lever — the **model** — is the only one with no first-class value field. `dispatch_provider` names the surface, `worker_role` names the permission, and "model selection" resolves to either `selected_backend` (a coarse enum) or `routing_policy` (a pointer to a file deft does not own). Nothing ever carries a concrete model id like `composer-2.5-fast`.
+2. **It stops one layer short of the call.** `scripts/swarm_launch.py` reads the backend, maps it to a dispatch provider, and stamps it into the launch manifest as **audit metadata** — but the manifest is "PREP ONLY"; the spawn is agent-driven. Nothing connects the manifest field to the parameters of the real dispatch call.
+3. **PR #1735 is the proof.** It sets `swarmSubagentBackend=composer` (3 lines). On the Cursor path nothing consumes it; on the headless path the `composer` backend probes **unavailable** (`CURSOR_COMPOSER` env signal), so `enforce_subagent_backend_policy` **fails the launch closed**. Net: the string either does nothing or blocks — it never causes Composer to run.
+
+### The asymmetry that breaks a single enum
+
+The model lever is **provider-typed**:
+
+- **Cursor** (live in the IDE runtime): the sub-agent dispatch primitive (Task tool) takes an explicit `model` argument; `composer-2.5-fast` is a valid, validated slug. Model is a **dispatch-time parameter** — deft can and should pass it. There is no routing file.
+- **Grok Build**: the model is **harness-bound** (the harness routing file maps task → model); deft cannot pass a slug and cannot verify it.
+
+A single `swarmSubagentBackend` enum flattens two controls that behave differently per provider. The correct shape expresses **intent + a per-provider route**, validated late at dispatch by the runtime that actually knows its capability list.
+
+## Design (locked decisions)
+
+**Route file**
+- Location: `.deft/routing.local.json`, **gitignored**, **per-project per-machine** — never committed, so two maintainers on the same repo can choose different agents.
+- Maintainer repo: already covered by the blanket `.deft/` ignore. Consumer repo: installer/template MUST add a targeted ignore (`.deft/routing.local.json` or `.deft/*.local.json`) that excludes local-state files while keeping `.deft/core/` tracked.
+- **Worktree resolution**: the resolver MUST read the file from the **main worktree root** (resolved via `git rev-parse --git-common-dir` → parent), NOT the current worktree CWD. Gitignored/untracked files are not copied into `git worktree add` directories, and the swarm dispatches leaf coders from worktrees — so all worktrees in a cohort must share the one local file. (Deliberately the opposite of `.deft/ritual-state.json`, which is correctly worktree- and HEAD-bound.)
+
+**Shape**: map keyed by `(dispatch_provider, worker_role)` → a **decision object**, reusing the existing fixed `SWARM_WORKER_ROLES` vocabulary (`leaf-implementation`, `orchestrator`, `review-monitor`, `merge-release`). No separate tier vocabulary to start. No vendor names leak into keys.
+
+```json
+{
+  "cursor": {
+    "leaf-implementation": { "model": "composer-2.5-fast", "mode": "pinned", "decidedAt": "..." },
+    "review-monitor":      { "model": null, "mode": "harness-default", "decidedAt": "..." }
+  }
+}
+```
+
+**Tri-state (explicit-null is a decision, NOT absence)**
+
+| State | Meaning | Entry | Behavior |
+|---|---|---|---|
+| Pinned | run this model | key present, `model: "<slug>"` | dispatch with slug |
+| Explicit default | "I decided: let the harness pick" | key present, `model: null`, `mode: harness-default` | dispatch with runtime default, **no prompt** |
+| Undecided | nobody chose yet | key **absent** | fail loud → prompt (interactive) / block (headless) |
+
+- ⊗ **"Decided?" MUST be tested by key presence, never by value truthiness.** A naive `if not config.get(role): prompt()` treats an explicit-null default as missing and re-nags every session — must be `if role not in config`. This is the load-bearing rule.
+
+**Resolver algorithm**
+1. Detect active `dispatch_provider` (existing platform descriptor, Phase 3).
+2. Look up `(provider, role)` in the route file.
+3. Hit (pinned) → validate slug against the runtime's **live** capability list → dispatch.
+4. Hit (harness-default) → dispatch with runtime default, no prompt.
+5. Miss, or the pinned value is not dispatchable in this runtime → interactive: present live options (incl. an explicit "use harness default" option), user picks, **write the decision back**; headless: fail loud.
+6. Always **echo resolved model + resolution source** in the §2.6 dispatch envelope and the DONE message (e.g. `… (role leaf-implementation, model composer-2.5-fast, resolved-via cursor-route)` vs `… (model <runtime default>, source harness-default explicit)`), so a postmortem distinguishes a deliberate default from an accidental fallthrough.
+
+**Harness-bound providers (e.g. Grok)**: the only recordable decision is `harness-default` (deft can't pin or verify a slug); the entry stores null + `mode: harness-default` (optionally a routing-file handle for audit). deft does not pretend to control the model; the gate is satisfied because a decision exists.
+
+**Gating (fail loud, scoped to dispatch)**
+- **Session start**: *surface* unset routing as a disclosure line (no block) so it is visible early.
+- **Pre-dispatch**: a hard `verify:routing` gate in the pre-`start_agent` / `task swarm:launch` gate stack, with the standard headless escape so CI (which does not dispatch swarms) is not broken.
+
+**Retire / repurpose**
+- Retire `plan.policy.swarmSubagentBackend` enum and the `CURSOR_COMPOSER`-style availability probe (provider-mismatched: on Cursor "availability" is just "is the slug in the live allow-list?").
+- Repurpose `selected_backend` in the §2.6 envelope as the **resolved model** (+ source). Keep `worker_role` and the role boundaries unchanged.
+- PR #1735 should be closed as the wrong approach (cleanup).
+
+**Role boundaries (unchanged, #1531)**: cheaper leaf agents are for `leaf-implementation` only; orchestration, review-cycle decisions, conflict-resolution rebase, merge cascade, and release gates stay on strong/review-capable agents regardless of route.
+
+## Consumer / maintainer parity
+- Identical mechanism in both; only command prefix (`task` vs `task deft:`) and ignore-handling differ.
+- The resolver ships in the vendored payload (`.deft/core/`) and resolves the path identically whether deft is the repo root (maintainer) or vendored (consumer). A `DEFT_ROUTING_PATH` env override keeps both testable.
+- **Template propagation (#1309)**: the new session-start disclosure + pre-dispatch gate are consumer-relevant rules → mirror into `templates/agents-entry.md`, run `task agents:refresh`, and extend the `tests/content/test_agents_entry_contract.py` marker list in the same PR.
+
+## Out of scope (deferred)
+- **No "default all" shortcut** at this time. Decisions are strictly **per-role**; every role is an explicit individual decision (more auditable). Revisit a provider-level "default everything" convenience only if per-role prompting proves noisy.
+- Separate capability/cost **tier vocabulary** (`cheap-coder` etc.) — deferred; reuse roles directly until role→model duplication is painful.
+
+## Open questions
+1. Audit detail for harness-bound providers: store the routing-file *handle* in the entry, or just `mode: harness-default` with no handle?
+2. Exact `verify:routing` placement in the gate-stack ordering relative to `verify:cache-fresh` and the branch gate.
+
+## References
+- `#1531` (backend-enum approach, closed), PR `#1735` (the no-op/block proof, open)
+- `skills/deft-directive-swarm/SKILL.md` (Phase 3 Step 1b / Step 2a / 2d, Phase 0e #1568)
+- `templates/agent-prompt-preamble.md` §2.6 (provider-neutral worker metadata), §11 (DONE echo)
+- `scripts/swarm_launch.py` (`_DISPATCH_PROVIDER_BY_BACKEND`, `enforce_subagent_backend_policy`), `scripts/policy.py` (`KNOWN_SUBAGENT_BACKEND_IDS`, `SWARM_WORKER_ROLES`)
+- `docs/the-harness-is-everything.md` (orchestrator → commodity-coder layering)
+
+_Filed from a design discussion; to be iterated._
+
+### 2026-06-21-1828-featts-migration-wave-8-flip-live-gates-to-the-ts-engine-pyt: feat(ts-migration): Wave 8 -- flip live gates to the TS engine (Python stays as oracle/fallback, no deletions)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2). Precedes the delete/cutover #1731 (this wave is added as a blocker of #1731).
+
+## Why this wave exists
+
+All Python->TS ports (Waves 1-7) are complete and parity-proven, but the **live execution path is still Python**: the Taskfiles invoke `scripts/*.py` at ~160 sites across 104 distinct scripts (e.g. `verify:branch` still runs `uv run python scripts/preflight_branch.py`). The TS engine runs in **shadow** -- built and byte-identical via the golden-diff harnesses, but not yet wired into what `task`/`deft` actually executes.
+
+#1731 (delete) assumes this flip has happened ("CI usage") but never scoped it as its own bake-able step. Wave 8 is that missing middle step: **repoint the live gates to the TS engine while keeping Python in-tree as oracle + fallback, then bake for 2-3 releases before any deletion.** This avoids a big-bang flip+delete that would remove the parity oracle and the field fallback in a single motion while TS branch coverage sits right at the 85% floor.
+
+## What to build
+
+Flip every live gate/verb from `uv run python scripts/X.py` to the ported TS engine, additively and domain-by-domain, with the golden-diff parity harness as the equivalence gate. No Python is deleted in this wave.
+
+## Decision recorded (operator, 2026-06-20)
+
+**Node/pnpm becomes a required consumer runtime.** Today consumers require Python (`uv`) and the TS lane is guarded/optional (`ts:check-lane` skips when Node is absent). After this wave the live gates are TS-backed, so Node is mandatory. `doctor`/`toolchain:check` must fail with a clear, actionable message when Node is absent (not a stack trace).
+
+## Acceptance criteria
+
+- [ ] A unified `deft-ts <verb> [args]` dispatcher exists (today `bin.ts` is a banner stub and only ~13 of 96 command modules are exposed as bins)
+- [ ] `doctor`/`toolchain:check` enforce Node presence with an actionable error
+- [ ] Every live `task` gate routes to the TS engine; `scripts/*.py` remain in-tree as oracle/fallback
+- [ ] Each flipped gate's `task <gate>` output is byte-identical to the Python original (parity harness green, cache-off)
+- [ ] `task check` (framework-source + consumer) stays green at every merge
+- [ ] After all flips merge, a 2-3 release bake window elapses before #1731 (delete) proceeds
+
+## Proposed stories (decomposed separately)
+
+- **8.0** Unified `deft-ts` dispatcher + expose all 96 verbs (prerequisite, blocks the rest)
+- **8.1** Consumer Node-runtime enforcement in `doctor`/`toolchain:check` + install/upgrade docs (prerequisite, parallel with 8.0)
+- **8.2** Flip verify/preflight gates (the consumer-critical `check:consumer` set first)
+- **8.3** Flip triage surface (`triage_*` -- largest cluster)
+- **8.4** Flip scope/vbrief lifecycle (`scope_lifecycle`, `vbrief_*`, `slice_*`, `issue_ingest`, `reconcile_*`)
+- **8.5** Flip pr/swarm/release (`pr_*`, `swarm_*`, `release*`, `resolve_*`)
+- **8.6** Flip scm/cache/policy/misc (`scm`, `cache`, `policy_set`, `pack_render`, `roadmap_render`, `github_body`)
+
+## Standing invariants (inherited from #1731)
+
+- The Python suite remains the **parity oracle** and runs wholesale until deleted (Wave 9 / #1731).
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- The parity gate runs **cache-off** so a golden diff is never served from cache.
+
+## Type
+
+feat (umbrella)
+
+**Acceptance**:
+
+- A unified  dispatcher exists (today  is a banner stub and only ~13 of 96 command modules are exposed as bins) `[completed]`
+- / enforce Node presence with an actionable error `[completed]`
+- Every live  gate routes to the TS engine;  remain in-tree as oracle/fallback `[completed]`
+- Each flipped gate's  output is byte-identical to the Python original (parity harness green, cache-off) `[completed]`
+- (framework-source + consumer) stays green at every merge `[completed]`
+- After all flips merge, a 2-3 release bake window elapses before #1731 (delete) proceeds `[completed]`
+
+### 2026-06-21-1838-featts-migration-wave-85-port-the-maintainer-test-suites-to: feat(ts-migration): Wave 8.5 -- port the maintainer test suites to vitest (content + CLI + integration; additive, no deletions)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2). Sits between Wave 8 (flip, #1828 ✅) and Wave 9 (delete, #1731). Added as a blocker of #1731.
+
+## Why this wave exists
+
+Wave 8 (#1828) flipped the live `task` gate **execution** to the TS engine, but the **maintainer test suites are still Python-only**: `tests/content/` (78 files), `tests/cli/` (150 files), and `tests/integration/` (6 files) — ~234 files / ~8,700 assertions. "Full conversion" (the operator decision of 2026-06-19) explicitly includes these tests, but they were originally folded into Wave 9 (#1731) as items 9.3/9.4 and chained to the destructive delete + bake window.
+
+That coupling was wrong: **porting tests does not require deleting Python.** vitest tests are purely additive — they coexist with pytest indefinitely. Only the *deletion* of `scripts/*.py` + retiring the parity oracles needs the 2-3 release bake. So this wave pulls the entire test-conversion body out of #1731 and stands it up independently, unblocking the bulk of the "full conversion" now while the genuinely irreversible delete stays correctly gated on #1731.
+
+## What to build
+
+Port / retarget every maintainer Python test to vitest, **additively** — the Python pytest suite stays green and in-tree throughout (nothing is deleted in this wave; the pytest teardown is Wave 9 / #1731). Three buckets:
+
+- **Bucket A — content artifact tests** (`tests/content/`, mostly): read `.md`/`.json`/template artifacts and assert substrings/ordering/shape. Mechanical pytest→vitest (`fs.readFileSync` + `expect().toContain()`). No Python dependency.
+- **Bucket B — source-coupled tests** (a minority of `tests/content/` + most of `tests/cli/`): tests that `import` a Python module or exercise the Python CLI argument surface. **Retarget** at the TS module / the `deft-ts` dispatcher (built in Wave 8 s0). Audit against the TS port's existing unit tests first: if the invariant is already covered, record the mapping and mark the pytest for Wave-9 deletion (do NOT delete now); only write a new TS test where coverage is genuinely missing. Not blind 1:1 translation.
+- **Bucket C — accepted-non-port residue**: CLI tests for code that is an accepted non-port (pre-v0.20 `migrate_*`/`precutover`/`_vbrief_legacy`, Go installer deposit, build/packaging tooling). Do NOT port these — audit and tag them "stays Python until Wave 9 deletes the underlying code," with a one-line rationale per file.
+
+## Acceptance criteria
+
+- [ ] Every in-scope Python test is either (a) ported to an equivalent vitest test, (b) confirmed redundant against an existing TS unit test (mapping recorded, pytest tagged for Wave-9 deletion), or (c) tagged Bucket-C accepted-non-port with rationale.
+- [ ] The Python pytest suite stays green at every merge (additive — no Python test deleted in this wave).
+- [ ] `task ts:check-lane` stays green; global vitest branch coverage stays at/above the 85% floor (new tests must not drag coverage down).
+- [ ] `task check` (framework-source + consumer) stays green at every merge.
+- [ ] A per-story coverage map (Python test → TS test / existing-coverage / non-port) is recorded so Wave 9's pytest teardown is mechanical.
+
+## Proposed stories (decomposed separately)
+
+- **8.5.1** content: skills / prompt-preamble / AGENTS.md / interview / speckit contracts (~40 files, Bucket A)
+- **8.5.2** content: standards / security / patterns + taskfile / structure / schema / vBRIEF / strategy contracts (~38 files, Bucket A + a few Bucket B like `test_code_structure_profile`)
+- **8.5.3** CLI: vbrief / preflight / scope / issue / reconcile lifecycle (~35 files, Bucket B retarget+dedup)
+- **8.5.4** CLI: pr / swarm / release / subagent / probe / resolve (~28 files, Bucket B)
+- **8.5.5** CLI: verify / doctor / policy / validate / session / ritual gates (~22 files, Bucket B)
+- **8.5.6** CLI: pack / spec / project / roadmap / framework / codebase / capacity render+mapping (~24 files, Bucket B)
+- **8.5.7** CLI: migrate / cmd / upgrade / run / setup / install tail (~25 files — Bucket C audit: retire-vs-retarget per file)
+- **8.5.8** integration: cache / scm / triage / consumer-tasks e2e (~6 files, retarget at TS entrypoints)
+
+## Standing invariants
+
+- **Additive only** — Python pytest stays the live maintainer suite and runs wholesale until deleted in Wave 9 (#1731). No Python test is removed in this wave.
+- `task check` stays green at every step (strangler-fig; no big-bang).
+- New TS tests must hold vitest branch coverage at/above the 85% floor.
+
+## Type
+
+feat (umbrella)
+
+**Acceptance**:
+
+- Every in-scope Python test is either (a) ported to an equivalent vitest test, (b) confirmed redundant against an existing TS unit test (mapping recorded, pytest tagged for Wave-9 deletion), or (c) tagged Bucket-C accepted-non-port with rationale. `[completed]`
+- The Python pytest suite stays green at every merge (additive — no Python test deleted in this wave). `[completed]`
+- stays green; global vitest branch coverage stays at/above the 85% floor (new tests must not drag coverage down). `[completed]`
+- (framework-source + consumer) stays green at every merge. `[completed]`
+- A per-story coverage map (Python test → TS test / existing-coverage / non-port) is recorded so Wave 9's pytest teardown is mechanical. `[completed]`
+
+### 2026-06-21-1854-featts-migration-wave-86-finish-the-partial-python-ts-live-f: feat(ts-migration): Wave 8.6 -- finish the partial Python->TS live flip (precondition for #1731 delete)  `[completed]`
+
+## Parent
+
+#1530 (Part 1 of 2; umbrella epic #1545). Sibling/predecessor of the #1731 delete-core.
+
+## Why this exists (the finding)
+
+Wave 8 (#1828) was scoped as "repoint the live gates to TS, keep Python as oracle/fallback." In practice the flip was **partial**: it covered the high-traffic consumer gate surface (most `verify:*`, `scope:*` promote/activate/lifecycle, `triage:*`, `pr:*`, `scm`, `cache`, `policy`, `packs`, `codebase`, `vbrief:*`, `roadmap`, `issue:ingest`) but left **~29 live Python entrypoints** still wired into the `task` surface.
+
+Most consequentially, **`task check` itself is still dispatched by Python** (`scripts/_project_context.py --dispatch-task-check`), and several gates it runs (`verify:scm-boundary`, `verify:session-ritual`, `verify:capacity`, `validate-links`, `verify-stubs`, `rule-ownership`, `validate-strategy`) plus `session:start`, `spec:*`, `prd:render`, `project:render`, `scope:undo/demote/decompose`, `changelog`, `architecture:*` still execute `uv run python scripts/*.py`.
+
+**Consequence:** the #1731 delete-core precondition ("remove *now-unreferenced* `scripts/*.py`") is not met. Deleting Python today would red `task check` and the listed verbs. This wave finishes the flip so #1731 becomes the mechanical, safe delete it is described as.
+
+Bake status at discovery (on `feat/1731-wave9-python-delete`): `ts:parity-all` 44/44 CLEAN (cache-off), pytest 8771 passed, live gate stack green. The TS modules already exist and are parity-proven for most of the remainder — the gap is **CLI exposure + Taskfile repoint**, not new ports.
+
+## What to build
+
+Finish the Python→TS live flip so that **zero `uv run python scripts/*.py` entrypoints remain on the live `task` surface** (parity harnesses, pytest, and accepted-non-ports excepted — those are handled by #1731). After this wave, `task check` runs entirely on the TS dispatcher.
+
+## Classification of the ~29 live entrypoints
+
+**Bucket A — flip-only (TS verb already exists, just repoint the Taskfile line):**
+`session:start` (session:start), `issue:emit` (issue-emit), `pr:check-closing-keywords` (pr-closing-keywords), `swarm:readiness` (swarm-readiness), `toolchain:check` (toolchain:check), `verify:no-task-runtime` (verify-no-task-runtime).
+
+**Bucket B1 — wire+flip (parity-proven TS core module exists; add a dispatcher verb, then repoint):**
+`spec:validate` / `spec:render` (core/render/spec-*.ts), `prd:render` (core/render/prd-render.ts), `project:render` (core/render/project-render.ts), `verify:scm-boundary` (core/verify-source/python-call-scan.ts), `verify:capacity` (core/validate-content/verify-capacity.ts), `verify:session-ritual` (core/session, session-parity), `validate-strategy` (core/validate-content/validate-strategy-output.ts), `validate-links` (core/validate-content/validate-links.ts), `verify-stubs` (core/verify-source), `rule-ownership-lint` (core/verify-source).
+
+**Bucket B2 — audit-then-port (only surfaced in coverage-maps; confirm whether a TS module exists, port if not):**
+`preflight:cache`, `preflight:gh --self-test`, `preflight:architecture-sor`, `scope:undo`, `scope:demote`, `scope:decompose`, `changelog:resolve-unreleased`.
+
+**Keystone — the `task check` orchestrator:**
+`scripts/_project_context.py --dispatch-task-check` has no TS module. Needs a genuine TS port (`deft-ts check` / a dispatch module) so `task check` no longer shells Python. This is the highest-risk, must-land-last item.
+
+**Bucket C — accepted non-ports (disposition decision, NOT a 1:1 port; owned/closed-out by #1731's teardown):**
+`build_dist`, `ci_local`, `setup_ghx` (build/packaging), `migrate_vbrief` + `migrate_preflight`, `relocate` + `_relocate_*` (pre-v0.20 / back-compat), `ts_check_lane` (TS-lane runner). Out of scope here except to confirm none block the delete.
+
+## Acceptance criteria
+
+- [ ] Every Bucket A entrypoint repointed to its existing TS dispatcher verb; Taskfile lines no longer shell `uv run python`.
+- [ ] Every Bucket B1 module exposed as a dispatcher verb and its Taskfile line flipped; parity harness still CLEAN.
+- [ ] Every Bucket B2 entrypoint audited; ported + wired where no TS module exists; Taskfile line flipped.
+- [ ] `task check` runs end-to-end on the TS dispatcher (no `_project_context.py --dispatch-task-check`).
+- [ ] `grep -rE 'uv .*run python .*scripts/' Taskfile.yml tasks/*.yml` returns **only** parity-harness, pytest, and Bucket-C lines.
+- [ ] `ts:parity-all` stays CLEAN and `task check` stays green at every merge (strangler-fig; no big-bang).
+
+## Standing invariants (inherited from #1731 / #1530 Part 1)
+
+- The Python suite remains the parity oracle and runs wholesale until #1731 deletes it.
+- `task check` stays green at every step.
+- The parity gate runs cache-off.
+- No Python module is deleted in this wave — this wave only flips live execution to TS. Deletion is #1731.
+- Go installer untouched (its fate is owned by #1669 Wave 0).
+
+## Type
+
+feat
+
+**Acceptance**:
+
+- Every Bucket A entrypoint repointed to its existing TS dispatcher verb; Taskfile lines no longer shell . `[completed]`
+- Every Bucket B1 module exposed as a dispatcher verb and its Taskfile line flipped; parity harness still CLEAN. `[completed]`
+- Every Bucket B2 entrypoint audited; ported + wired where no TS module exists; Taskfile line flipped. `[completed]`
+- runs end-to-end on the TS dispatcher (no ). `[completed]`
+- returns **only** parity-harness, pytest, and Bucket-C lines. `[completed]`
+- stays CLEAN and  stays green at every merge (strangler-fig; no big-bang). `[completed]`
+
+### 2026-06-21-1864-bugrelease-e2e-runpromisesync-deadlocks-task-releasee2e-atom: bug(release-e2e): runPromiseSync deadlocks task release:e2e -- Atomics.wait blocks the main event loop that must resolve the worker Promise  `[completed]`
+
+## Symptom
+
+`task release:e2e` hangs indefinitely. Observed during the v0.53.0 release rehearsal (2026-06-21): the harness provisioned the temp repo, cloned, `set-origin`, `push-mirror` (all OK), the worker even created the draft `v0.0.1` on the temp repo -- then the **main thread deadlocked** in `futex_wait_queue` for 20+ min, blowing past the 600s release / 300s rollback internal timeouts, and never reached the `try/finally` teardown (temp repo was left undeleted). Process state: `Sl`, `wchan=futex_wait_queue`, no active `gh`/`git`/`pnpm` subprocess.
+
+## Root cause
+
+`packages/core/src/release-e2e/entrypoint.ts::runPromiseSync` (lines ~137-163) blocks the **main thread** with `Atomics.wait(ia, 0, 0)` while waiting on the Promise returned by `runEntrypointWorker`. But that Promise only ever settles via **main-thread event-loop callbacks**:
+
+- `worker.on("message", ...)`
+- `worker.on("error", ...)`
+- the `setTimeout(..., timeoutMs)` timeout timer
+
+`Atomics.wait` blocks the main event loop, so none of those callbacks can run -- including the timeout timer -- and the `promise.then` handler that calls `Atomics.store`/`Atomics.notify` is a microtask that also cannot run. The notify therefore never fires, and `Atomics.wait` blocks forever. The timeout cannot save it because the timer lives on the same blocked event loop.
+
+The worker thread itself runs `cmdRelease` fine (hence the draft got created); only the main thread's synchronous wait is wedged.
+
+Call chain: `runRehearsal` (sync) -> `dispatchTaskRelease` (sync) -> `callReleaseEntrypoint` -> `callReleaseEntrypointWorkerBacked` -> `runPromiseSync(runEntrypointWorker(...))`.
+
+Why tests didn't catch it: the unit tests exercise `callReleaseEntrypointTimed` (the **async** `await` path) and/or mock the worker, so they never hit the sync `runPromiseSync` deadlock that the real e2e dispatch uses.
+
+## Fix direction
+
+Resolve the worker result without depending on the blocked main event loop. Canonical Node pattern for synchronous worker handoff:
+
+- Share a `SharedArrayBuffer` Int32 signal with the worker; have the **worker thread** call `Atomics.store(signal,0,1); Atomics.notify(signal,0)` after posting its result. The cross-thread notify wakes the main `Atomics.wait(signal, 0, 0, timeoutMs)` (and the SAB-level `timeoutMs` gives a working timeout).
+- Pass results structured via a `MessageChannel` and read synchronously with `receiveMessageOnPort(port)` after the wait returns `"ok"`.
+- On `Atomics.wait(...) === "timed-out"`, `worker.terminate()` and return `ENTRYPOINT_TIMEOUT_EXIT_CODE`.
+
+(Alternative: make the whole `runRehearsal` -> dispatch chain `async` and use the already-correct `callReleaseEntrypointTimed`; larger blast radius up to the e2e main.)
+
+Add a test that drives the **sync** `callReleaseEntrypoint` worker-backed path end-to-end with a fast real worker to prove (a) it returns the result without hanging and (b) the timeout path returns `124` instead of deadlocking.
+
+## Provenance
+
+Introduced by the TypeScript port of the release pipeline (#1729, Wave-4a of #1530). The Python oracle used real subprocesses with OS-level timeouts; the TS port substituted an in-process worker + `Atomics.wait` and introduced the event-loop-blocking deadlock.
+
+Refs #1729 #1530
+
+### 2026-06-21-1867-bugsubprocess-capture-gh-api-paginate-sites-lack-maxbuffer-1: bug(subprocess-capture): gh api --paginate sites lack maxBuffer; >1MB responses fail (release publish/rollback + consumer triage:scope)  `[completed]`
+
+## Symptom
+`task release:publish -- 0.53.0` (and `release:rollback`) fail immediately at the release-lookup step with an **empty** error:
+
+```
+[publish] View v0.53.0 on deftai/directive... FAIL (gh api repos/deftai/directive/releases?per_page=100 failed: )
+```
+
+Running the same `gh api --paginate repos/deftai/directive/releases?per_page=100` manually works and exits 0.
+
+## Root cause (a bug *class*, not a single site)
+Several subprocess-capture sites invoke `gh api --paginate ...` (or otherwise capture a potentially large response) via `spawnSync` **without an explicit `maxBuffer`**, so they inherit Node's 1 MB default. When the response exceeds 1 MB, `spawnSync` returns `error = ENOBUFS`, `status = null`, truncated `stdout`, and **empty `stderr`** — surfacing as a failure with no detail.
+
+For `deftai/directive` the `--paginate` releases response is ~1.46 MB (96+ releases), so publish/rollback fail. `--paginate` concatenates *all* pages into one response, so the size grows unbounded with total release count (~68+ releases crosses 1 MB at deft's ~15 KB/release).
+
+## Affected sites
+- **`packages/core/src/release/spawn.ts::spawnText`** — backs `release:publish` / `release:rollback` (`release-publish/gh-api.ts` uses `gh api --paginate`). Affects **any** project (incl. consumers) running `task release` once its repo has enough releases.
+- **`packages/core/src/triage/scope/mutations.ts::fetchNamesViaGh`** — `gh api --paginate` for `task triage:scope -- --diff-from-upstream`. **Consumer-facing**: breaks immediately against a large upstream repo, independent of release count.
+- **`packages/core/src/scm/gh-rest.ts::runGhApi`** — central REST shim; no `maxBuffer`. Lower risk (list helpers paginate in JS, one bounded page per call) but worth hardening defensively as the highest-leverage chokepoint.
+
+## Already safe (no change needed)
+PR cascade (`pr-merge-readiness`, `pr-protected-issues`, `pr-closing-keywords`, `pr-wait-mergeable`), `swarm/subprocess.ts`, and `triage/bootstrap/index.ts` already set `maxBuffer: 10 MB` (learned in the #1366 cycle).
+
+## Fix
+- Introduce a shared `GH_MAX_BUFFER` constant (align with the existing 10 MB, or bump to 64 MB) and apply it at the three unguarded sites above.
+- Surface `result.error.message` on overflow so the failure is never an empty error again.
+- Add regression tests: (a) maxBuffer is applied, (b) the empty-stderr / `result.error` mapping yields a non-empty message.
+
+Refs #1729 #1530 #1366.
+
+### 2026-06-21-audit-installmigratecmd-cli-tests-for-retire-vs-retarget-buc: Audit install/migrate/cmd CLI tests for retire-vs-retarget (Bucket C)  `[completed]`
+
+Audit the tests/cli tail covering migrate, precutover, cmd-gate, upgrade, run, setup, vendored, and relocate surfaces, which test code in the accepted-non-port set (pre-v0.20 migration tooling, the Go installer deposit, build/packaging). For each file decide retire-with-Wave-9 versus retarget at a TS equivalent, since blindly porting tests for soon-deleted code is wasted work.
+
+**Acceptance**:
+
+- Given each install/migrate tail test, when audited, then the coverage map records a retire-at-Wave-9 or retarget classification with a one-line rationale. `[pending]`
+- Given a live-code retarget spec, when task ts:check-lane runs, then it invokes the deft-ts verb and asserts the same exit code as the python original. `[pending]`
+- Given the additive change, when task core:test runs, then the python CLI tests still pass unchanged in-tree. `[pending]`
+
+### 2026-06-21-build-the-unified-deft-ts-cli-dispatcher-exposing-all-ported: Build the unified deft-ts CLI dispatcher exposing all ported verbs  `[completed]`
+
+Replace the bin.ts banner stub with a unified `deft-ts <verb> [args]` dispatcher that routes to every ported command module in packages/cli and packages/core. Today only ~13 of 96 command modules are exposed as bins; the live-gate flip stories (s2-s6) cannot route Taskfiles to TS until one stable entrypoint exists. This is a prerequisite that blocks the domain-flip stories.
+
+**Acceptance**:
+
+- Given a known verb name and args, when `deft-ts <verb> [args]` runs, then it routes to that command module and exits with the same code the module's main() returns. `[pending]`
+- Given an unknown verb, when `deft-ts <verb>` runs, then it prints an error naming the verb and exits non-zero. `[pending]`
+- Given `deft-ts --help`, when it runs, then it prints the full list of registered verbs. `[pending]`
+
+### 2026-06-21-enforce-node-as-a-required-consumer-runtime-in-doctortoolcha: Enforce Node as a required consumer runtime in doctor/toolchain  `[completed]`
+
+Make Node/pnpm a required runtime once live gates are TS-backed. Today consumers require Python (uv) and the TS lane is guarded/optional. Update doctor and toolchain:check to detect a missing Node toolchain and fail with a clear, actionable message rather than a stack trace, and document the new requirement in install/upgrade surfaces. Prerequisite, runnable in parallel with s0.
+
+**Acceptance**:
+
+- Given a host without a Node runtime, when doctor runs, then it reports the missing-Node condition with an actionable remediation line and exits non-zero. `[pending]`
+- Given a host with a Node runtime, when doctor runs, then the Node check passes and does not change unrelated doctor output. `[pending]`
+- Given the install/upgrade docs, when read, then they state that Node is a required runtime for TS-backed gates. `[pending]`
+
+### 2026-06-21-flip-prswarmrelease-gates-to-the-ts-engine: Flip pr/swarm/release gates to the TS engine  `[completed]`
+
+Repoint the pr_*, swarm_*, release*, and resolve_* gates from Python to the deft-ts dispatcher, keeping Python in-tree as oracle. Covers pr_wait_mergeable, pr_merge_readiness, pr_check_protected_issues, swarm_launch, swarm_complete_cohort, swarm_verify_review_clean, release/release_publish/release_rollback/release_e2e, resolve_version, resolve_changelog_unreleased.
+
+**Acceptance**:
+
+- Given the flipped pr/swarm/release gates, when each task runs, then its output is byte-identical to the Python oracle cache-off. `[pending]`
+- Given a protected-issue check, when run through the TS engine, then it returns the same escalation exit as the Python path. `[pending]`
+- Given the flip, when the python pr/swarm/release scripts are inspected, then they remain present in-tree as oracle. `[pending]`
+
+### 2026-06-21-flip-scmcachepolicy-and-remaining-gates-to-the-ts-engine: Flip scm/cache/policy and remaining gates to the TS engine  `[completed]`
+
+Repoint the remaining live gates (scm, cache, policy_set, pack_render, roadmap_render, github_body, validate_strategy_output, codebase/capacity validators) from Python to the deft-ts dispatcher, keeping Python in-tree as oracle. This story closes out the long tail so no live `task` gate still invokes Python.
+
+**Acceptance**:
+
+- Given the flipped scm/cache/policy/misc gates, when each task runs, then its output is byte-identical to the Python oracle cache-off. `[pending]`
+- Given the completed flip, when the Taskfiles are scanned, then no live (non-parity-oracle) gate invokes `uv run python`. `[pending]`
+- Given the flip, when the remaining python scripts are inspected, then they remain present in-tree as oracle. `[pending]`
+
+### 2026-06-21-flip-scopevbrief-lifecycle-gates-to-the-ts-engine: Flip scope/vbrief lifecycle gates to the TS engine  `[completed]`
+
+Repoint the scope and vbrief lifecycle gates (scope_lifecycle, vbrief_activate, slice_record_existing, issue_ingest, reconcile_issues, vbrief_reconcile_*) from Python to the deft-ts dispatcher. The python scripts stay in-tree as the parity oracle and field fallback so no lifecycle behavior is removed in this wave.
+
+**Acceptance**:
+
+- Given the flipped lifecycle gates, when each scope/vbrief lifecycle task runs, then its output is byte-identical to the Python oracle cache-off. `[pending]`
+- Given a scope promote/activate/complete sequence, when run through the TS engine, then the vBRIEF lands in the same lifecycle folder as the Python path. `[pending]`
+- Given the flip, when the python lifecycle scripts are inspected, then they remain present in-tree as oracle. `[pending]`
+
+### 2026-06-21-flip-the-5-bucket-a-entrypoints-to-their-existing-ts-verbs: Flip the 5 Bucket-A entrypoints to their existing TS verbs  `[completed]`
+
+Five live task entrypoints already have a registered TS dispatcher verb but their Taskfile lines still shell `uv run python scripts/*.py`. This story repoints those lines to `node {{.DEFT_ROOT}}/packages/cli/dist/bin.js <verb>` so they execute TS, with no new TS code required. It is independently buildable because each owned Taskfile is touched by no other Wave 8.6 story, and the verbs (session:start, issue-emit, pr-closing-keywords, swarm-readiness, toolchain:check) are already exposed and parity-proven.
+
+**Acceptance**:
+
+- Given `task session:start`, when it runs, then it invokes `node .../dist/bin.js session:start` (no `uv run python session_start.py`) and records the ritual state identically. `[pending]`
+- Given `task issue:emit`, `task pr:check-closing-keywords`, `task swarm:readiness`, and `task toolchain:check`, when each runs, then it invokes the corresponding bin.js verb and produces output matching the prior Python behavior. `[pending]`
+- Given `grep -rE 'uv .*run python .*scripts/(session_start|issue_emit|pr_check_closing_keywords|swarm_readiness|toolchain-check)\.py' tasks/`, when run, then it returns no matches. `[pending]`
+
+### 2026-06-21-flip-the-triage-task-surface-to-the-ts-engine: Flip the triage task surface to the TS engine  `[completed]`
+
+Repoint the triage_* gates (actions, queue, classify, welcome, scope, scope-drift, reconcile, summary, subscribe, bulk, bootstrap, refresh, smoketest) from Python to the deft-ts dispatcher, keeping Python in-tree as oracle. This is the largest single cluster of live python invocations.
+
+**Acceptance**:
+
+- Given the flipped triage gates, when each `task triage:*` runs, then its output is byte-identical to the Python oracle cache-off. `[pending]`
+- Given the flip, when `task triage:smoketest` runs, then it passes routing through the TS engine. `[pending]`
+- Given the flip, when scripts/triage_*.py are inspected, then they remain present in-tree as oracle. `[pending]`
+
+### 2026-06-21-flip-verifypreflight-gates-to-the-ts-engine-consumer-critica: Flip verify/preflight gates to the TS engine (consumer-critical set first)  `[completed]`
+
+Repoint the consumer-critical verify/preflight gates from `uv run python scripts/*.py` to the deft-ts dispatcher, keeping the Python scripts in-tree as oracle/fallback. Covers verify:branch, verify:encoding, vbrief:validate, story-ready, cache-fresh and the rest of the check:consumer set so consumers run the TS engine for the gates they depend on most.
+
+**Acceptance**:
+
+- Given the flipped verify/preflight gates, when each `task verify:*` / preflight gate runs, then its output is byte-identical to the Python oracle cache-off. `[pending]`
+- Given the flip, when `task check:consumer` runs, then it passes routing through the TS engine. `[pending]`
+- Given the flip, when the Python scripts are inspected, then they remain present in-tree as oracle/fallback. `[pending]`
+
+### 2026-06-21-keystone-sequential-port-the-task-check-orchestrator-to-ts: Keystone (sequential): port the task check orchestrator to TS  `[completed]`
+
+The keystone: task check is dispatched by scripts/_project_context.py --dispatch-task-check, which has no TS module. Until it is ported, deleting Python breaks the primary pre-commit gate. This story ports the check orchestrator to a TS module (deft-ts check) and repoints the root Taskfile check target. It must land last because its TS replacement invokes the gate verbs that s1-s4 expose; running it earlier would call verbs that do not yet exist.
+
+**Acceptance**:
+
+- Given `task check` on a feature branch, when it runs, then it invokes `node .../bin.js check` (no _project_context.py --dispatch-task-check) and exercises the same ordered gate set with identical pass/fail outcomes. `[pending]`
+- Given the framework-source vs vendored-consumer contexts (#1519), when task check runs in each, then it selects the correct gate set as the Python orchestrator did. `[pending]`
+- Given `grep -rE 'uv .*run python .*_project_context.py' Taskfile.yml`, when run, then it returns no live --dispatch-task-check match. `[pending]`
+
+### 2026-06-21-port-content-skillspromptagentsmd-contract-tests-to-vitest: Port content skills/prompt/AGENTS.md contract tests to vitest  `[completed]`
+
+Port the tests/content artifact tests covering skills, the agent-prompt preamble, AGENTS.md sections, the interview/speckit/cost phases, and swarm/refinement/triage skill contracts from pytest to vitest. These are Bucket-A mechanical conversions: each test reads a markdown or template artifact and asserts substrings, ordering, or shape, so the TS version reads the same file and asserts the same facts with no behavioral change.
+
+**Acceptance**:
+
+- Given the ported skills/AGENTS.md content specs, when task ts:check-lane runs, then the new vitest specs pass and assert the same artifact substrings as their pytest originals. `[pending]`
+- Given the additive port, when task core:test runs, then the original python content tests still pass unchanged in-tree. `[pending]`
+- Given the coverage map, when it is inspected, then every in-scope python file maps to a ts spec or a recorded existing-coverage entry. `[pending]`
+
+### 2026-06-21-port-content-standardssecuritytaskfileschema-contract-tests: Port content standards/security/taskfile/schema contract tests to vitest  `[completed]`
+
+Port the remaining tests/content artifact tests covering coding standards, security/patterns rules, taskfile structure, and the vBRIEF/strategy/allocation JSON schemas from pytest to vitest. Most are Bucket-A mechanical file-and-assert conversions, while a small Bucket-B minority (for example test_code_structure_profile) import a python module for a constant and must be retargeted at the TS module's exported equivalent instead of translated blindly.
+
+**Acceptance**:
+
+- Given the ported standards/schema specs, when task ts:check-lane runs, then the new vitest specs pass and assert the same artifact facts as their pytest originals. `[pending]`
+- Given a Bucket-B source-coupled test, when it is ported, then it asserts against the TS module export rather than importing a python script. `[pending]`
+- Given the additive port, when task core:test runs, then the original python content tests still pass unchanged in-tree. `[pending]`
+
+### 2026-06-21-retarget-cachescmtriage-integration-e2e-tests-at-ts-entrypoi: Retarget cache/scm/triage integration e2e tests at TS entrypoints  `[completed]`
+
+Retarget the tests/integration end-to-end suites (cache, cache-quarantine, scm-smoke, triage-smoke, triage-bootstrap-at-scale, consumer-tasks) from the python entrypoints at the deft-ts dispatcher and TS modules. These are flow-level tests, so each is rebuilt to drive the live TS surface while asserting the same end-state as the python original.
+
+**Acceptance**:
+
+- Given a retargeted integration spec, when task ts:check-lane runs, then it drives the deft-ts surface end-to-end and asserts the same final state as the python flow. `[pending]`
+- Given the at-scale suite, when ported, then its timing assertions use injected clocks rather than real sleeps to stay fast. `[pending]`
+- Given the additive change, when task core:test runs, then the python integration tests still pass unchanged in-tree. `[pending]`
+
+### 2026-06-21-retarget-packspecrendercodebase-cli-tests-at-the-deft-ts-dis: Retarget pack/spec/render/codebase CLI tests at the deft-ts dispatcher  `[completed]`
+
+Retarget the tests/cli tests for the pack, spec, project, roadmap, framework-commands, codebase, and capacity surfaces from the python CLI at the deft-ts dispatcher. Each test is audited against the TS module's existing unit tests, and only genuinely missing render or mapping behavior becomes a new vitest spec.
+
+**Acceptance**:
+
+- Given a retargeted render/mapping CLI spec, when task ts:check-lane runs, then it invokes the deft-ts verb and asserts the same rendered output as the python original. `[pending]`
+- Given a redundant python CLI test, when audited, then the coverage map records the existing TS unit test that covers the invariant. `[pending]`
+- Given the additive change, when task core:test runs, then the python CLI tests still pass unchanged in-tree. `[pending]`
+
+### 2026-06-21-retarget-prswarmrelease-cli-tests-at-the-deft-ts-dispatcher: Retarget pr/swarm/release CLI tests at the deft-ts dispatcher  `[completed]`
+
+Retarget the tests/cli tests for the pr, swarm, release, subagent-monitor, probe, and resolve command surfaces from the python CLI at the deft-ts dispatcher. The release and pr clusters are the largest here, so each test is audited against the TS module's existing unit tests and only missing argument-surface behavior becomes a new vitest spec.
+
+**Acceptance**:
+
+- Given a retargeted pr/swarm/release CLI spec, when task ts:check-lane runs, then it invokes the deft-ts verb and asserts the same argv handling and exit code as the python original. `[pending]`
+- Given a redundant python CLI test, when audited, then the coverage map records the existing TS unit test that covers the invariant. `[pending]`
+- Given the additive change, when task core:test runs, then the python CLI tests still pass unchanged in-tree. `[pending]`
+
+### 2026-06-21-retarget-vbriefscopeissuereconcile-cli-tests-at-the-deft-ts: Retarget vbrief/scope/issue/reconcile CLI tests at the deft-ts dispatcher  `[completed]`
+
+Retarget the tests/cli tests for the vbrief, preflight, scope, issue-ingest, and reconcile command surfaces from the python CLI at the deft-ts dispatcher built in Wave 8. Each test is audited against the TS module's existing unit tests first, so redundant cases are recorded as covered and only genuinely missing argument-surface behavior gets a new vitest spec.
+
+**Acceptance**:
+
+- Given a retargeted lifecycle CLI spec, when task ts:check-lane runs, then it invokes the deft-ts verb and asserts the same argv handling and exit code as the python original. `[pending]`
+- Given a redundant python CLI test, when audited, then the coverage map records the existing TS unit test that already covers the invariant. `[pending]`
+- Given the additive change, when task core:test runs, then the python CLI tests still pass unchanged in-tree. `[pending]`
+
+### 2026-06-21-retarget-verifydoctorpolicysession-cli-tests-at-the-deft-ts: Retarget verify/doctor/policy/session CLI tests at the deft-ts dispatcher  `[completed]`
+
+Retarget the tests/cli tests for the verify, doctor, policy, validate, session, and ritual gate surfaces from the python CLI at the deft-ts dispatcher. These exercise the consumer-critical gate engine, so each test is audited against the TS module's existing unit tests and only missing behavior becomes a new vitest spec.
+
+**Acceptance**:
+
+- Given a retargeted verify/doctor/policy CLI spec, when task ts:check-lane runs, then it invokes the deft-ts verb and asserts the same argv handling and exit code as the python original. `[pending]`
+- Given a redundant python CLI test, when audited, then the coverage map records the existing TS unit test that covers the invariant. `[pending]`
+- Given the additive change, when task core:test runs, then the python CLI tests still pass unchanged in-tree. `[pending]`
+
+### 2026-06-21-wire-flip-every-remaining-python-gate-in-tasksverifyyml-the: Wire + flip every remaining Python gate in tasks/verify.yml + the two root-Taskfile gates  `[completed]`
+
+tasks/verify.yml is the single largest cluster of unflipped live-Python gates (verify-stubs, validate-links, rule-ownership-lint, verify_scm_boundary, verify_capacity, verify_session_ritual, preflight_gh self-test, preflight_cache), and Taskfile.yml carries two more (validate_strategy_output, verify_no_task_runtime). Their TS modules exist under packages/core/src/{verify-source,validate-content,session,verify-env}. This story exposes the missing verbs and flips the gate cmds. It exclusively owns tasks/verify.yml and the two named root-Taskfile gate lines, so it is conflict-isolated from the other stories except the additive dispatch switch.
+
+**Acceptance**:
+
+- Given `task verify:scm-boundary`, `task verify:capacity`, `task verify:session-ritual`, `task verify-stubs`, `task validate:links`, and `task rule:ownership-lint`, when each runs, then it invokes a bin.js verb and not `uv run python`. `[pending]`
+- Given the parity harnesses verify-source-parity, validate-content-parity, session-parity, and verify-env-parity, when task ts:parity-all runs, then all remain CLEAN. `[pending]`
+- Given `grep -rE 'uv .*run python' tasks/verify.yml`, when run, then it returns no matches. `[pending]`
+
+### 2026-06-21-wire-flip-the-render-family-specvalidate-specrender-prdrende: Wire + flip the render family (spec:validate, spec:render, prd:render, project:render)  `[completed]`
+
+The spec/PRD/project render and spec validate gates have parity-proven TS core modules (packages/core/src/render/spec-validate.ts, spec-render.ts, prd-render.ts, project-render.ts) but no dispatcher verb, so tasks/spec.yml, tasks/prd.yml, and tasks/project.yml still shell Python. This story exposes each module as a dispatcher verb and repoints the three owned Taskfiles. It is independently buildable: it owns those three Taskfiles exclusively and adds isolated case blocks to the dispatch switch.
+
+**Acceptance**:
+
+- Given the dispatcher, when `node .../bin.js spec-render <spec> <out>` runs, then it produces a SPECIFICATION.md byte-identical to the Python spec_render.py output (asserted by ts:render-parity remaining CLEAN). `[pending]`
+- Given `task spec:validate`, `task prd:render`, and `task project:render`, when each runs, then it invokes the new bin.js verb and not `uv run python`. `[pending]`
+- Given `grep -rE 'uv .*run python .*scripts/(spec_validate|spec_render|prd_render|project_render)\.py' tasks/`, when run, then it returns no matches. `[pending]`
+
+### 2026-06-21-wireport-flip-scopeundo-scopedemote-scopedecompose-changelog: Wire/port + flip scope:undo, scope:demote, scope:decompose, changelog:resolve, architecture:sor  `[completed]`
+
+This story finishes the lower-volume Bucket-B entrypoints that live in their own Taskfiles: scope_undo and scope_demote (core/src/scope/main.ts exists, so wire), resolve_changelog_unreleased (core/src/platform exists, so wire), and the two that need a genuine TS port (scope_decompose and preflight_architecture_sor have no core module). It exclusively owns tasks/scope.yml, tasks/scope-undo.yml, tasks/changelog.yml, and tasks/architecture.yml. It is independently buildable but carries real porting work, so it is the heaviest non-keystone story.
+
+**Acceptance**:
+
+- Given `task scope:undo`, `task scope:demote`, and `task scope:decompose`, when each runs, then it invokes a bin.js verb and not `uv run python`. `[pending]`
+- Given the newly ported scope-decompose and architecture-sor TS modules, when their vitest suites run, then they pass including non-happy-path fixtures mirrored from the Python tests. `[pending]`
+- Given `task changelog:resolve-unreleased` and `task architecture:preflight-sor`, when each runs, then it invokes a bin.js verb; and `grep -rE 'uv .*run python' tasks/scope.yml tasks/scope-undo.yml tasks/changelog.yml tasks/architecture.yml` returns no matches. `[pending]`
+
+### 2026-06-22-1595-closeout-reconciliation: docs: reconcile codebase MAP rollout closeout  `[completed]`
+
+#1871 merged the PR6 consumer and agent guidance propagation for #1595. The project source still describes consumer propagation as future work, and the related trackers still need an explicit closeout boundary so #1498 can continue with brownfield/spec work without reopening the completed MAP series.
+
+**Scope Acceptance**:
+
+- #1595 is represented as complete through PR1, PR2, PR3, PR4, and PR6. PROJECT-DEFINITION, specification source, and any generated projections no longer say consumer propagation is pending. Docs preserve the source-of-truth boundary: codeStructure remains canonical in PROJECT-DEFINITION, MAP is generated, generated headers are split follow-up work, local indexes/materialized views are tracked by #1618, brownfield/spec reconstruction stays with #1589, glossary/comment convention stays with #931, and #1498 remains the umbrella. Tracker comments or PR body identify #1595 and #958 closeout disposition.
+
+**Acceptance**:
+
+- Create and activate a closeout story vBRIEF for #1595/#958 reconciliation `[completed]`
+- Update stale PROJECT-DEFINITION/specification source text and rendered projections `[completed]`
+- Clarify documentation boundaries for generated headers, local indexes, brownfield extraction, and glossary work `[completed]`
+- Post tracker closeout comments and prepare PR closeout keywords for #1595 and #958 `[completed]`
+- Run focused validation and complete the story lifecycle `[completed]`
+
+### 2026-06-22-1595-pr6-codebase-map-propagation: docs: propagate codebase MAP projection guidance after #1595 PR4  `[completed]`
+
+PR4 for #1595 shipped generated `.planning/codebase/MAP.md` plus `task codebase:map` and `task verify:codebase-map-fresh`. The remaining PR6 work is to update agent-facing and consumer-facing guidance so agents know how to use the MAP projection for orientation while preserving the vBRIEF source-of-truth boundary.
+
+**Scope Acceptance**:
+
+- Relevant skills and docs mention the live MAP projection only where it improves orientation. Guidance states that `vbrief/PROJECT-DEFINITION.vbrief.json` `plan.architecture.codeStructure` remains canonical and `.planning/codebase/MAP.md` is a generated projection. Consumer-facing template guidance is updated only if the instruction is useful outside the directive repo, and AGENTS.md/template propagation discipline is followed. No consumer hard-block is introduced. Generated source headers remain a split follow-up, and brownfield/spec extraction is explicitly coordinated with #1589 rather than folded into this PR6 slice.
+
+**Acceptance**:
+
+- Reconcile #1498/#1595/#958 status now that #1839 has merged `[completed]`
+- Update relevant agent-facing guidance to use the generated MAP for codebase orientation `[completed]`
+- Mirror any consumer-relevant guidance into templates/agents-entry.md and refresh AGENTS.md if needed `[completed]`
+- Keep generated headers and brownfield extraction explicitly out of this PR6 scope `[completed]`
+- Run focused content, vBRIEF, codeStructure, and MAP freshness validation `[completed]`
+
+### 2026-06-22-1821-content-manifest-v1-shippability-classification: Content-manifest v1 + verify:content-manifest gate -- Wave-1 shippability classification  `[completed]`
+
+Re-scoped from a Wave-2 installer denylist patch into the Wave-1 shippability audit for #1669. Classify EVERY top-level repository entry (every directory and file) into one of four buckets -- content (ships to consumers), engine (executable enforcement code), harness (repo-dev tooling that supports the engine), repo-dev (maintainer-only artifacts that never ship) -- in a structured data file conventions/content-manifest.json. Pair it with a deterministic gate (verify:content-manifest) that fails CI when a top-level entry is unclassified, when a classified entry no longer exists, or when a bucket value is invalid. This converts the brittle installer denylist into an allowlist-by-classification and is the prerequisite audit that #1875 (the content/ move) consumes.
+
+**Acceptance**:
+
+- Author conventions/content-manifest.json classifying every top-level entry `[pending]`
+  - Acceptance: Every top-level git-tracked entry (dir or file) appears exactly once with a valid bucket (content|engine|harness|repo-dev) and a note; straddle entries carry a straddle policy note.
+- Implement evaluateContentManifest gate (TS core) with three-state exit `[pending]`
+  - Acceptance: packages/core/src/content-manifest/ exports evaluateContentManifest(); exits 0 clean / 1 drift / 2 config error; drift detects unclassified entries, missing paths, invalid buckets, duplicates.
+- Add CLI wrapper + dispatch registration + Taskfile target `[pending]`
+  - Acceptance: node packages/cli/dist/bin.js verify-content-manifest works; verify:content-manifest alias resolves; tasks/verify.yml target exists and is wired into check:framework-source.
+- Tests (vitest) covering all states + real-tree self-test `[pending]`
+  - Acceptance: Unit tests cover clean/drift/config-error and straddle handling; a self-test asserts the committed manifest is clean against the real top-level tree; task check passes.
+
+### 2026-06-22-1878-prune-vendored-ts-tests: Prune vendored TypeScript test files from the consumer .deft/core deposit  `[completed]`
+
+v0.53.x vendors the new TypeScript engine under .deft/core/packages/{cli,core}/ INCLUDING *.test.ts files. A consumer whose own test runner is vitest discovers ~84 vendored framework test files (default include glob) and fails CI: the tests import the @deftai/core workspace package which does not resolve in the consumer's context (ERR_MODULE_NOT_FOUND), plus 2 parity assertion failures. The installer-shipped deft-core-guard workflow (no-mixed-core-and-app, #1430) refuses a consumer-side vitest.config.ts exclude in the same PR as the framework deposit, forcing a confusing two-PR dance. This is an adoption/upgrade blocker hit by deftai/cartograph (tracked downstream as deftai/cartograph#69). The framework's own Python self-test suite is already pruned from the deposit (#1474, .deft/core/tests); the new TS test files are not. This story extends that prune to the vitest-discoverable test files under .deft/core/packages/. It is a near-term deposit-hygiene hotfix (target v0.53.2); the durable structural fix (manifest-driven deposit + de-vendored engine from npm) is owned by #1669 Wave 1/2 and is explicitly NOT a dependency of this hotfix.
+
+**Acceptance**:
+
+- deposit.go: pruneVendoredTSTests removes vitest-discoverable test files under .deft/core/packages/ `[completed]`
+  - Acceptance: depositNeutralization prunes every *.test.* / *.spec.* file under .deft/core/packages/ on fresh + upgrade + re-vendor; absent dir is a no-op; non-test .ts sources survive; best-effort (warning, non-fatal).
+- build_dist.py: exclude packages test files from the dist artifact `[completed]`
+  - Acceptance: The produced dist artifact contains zero packages/**/*.test.* files; non-test engine sources are retained.
+- Regression tests (Go deposit_test + build_dist test) `[completed]`
+  - Acceptance: Go test asserts seeded packages test file removed + non-test sibling kept; build_dist test asserts the test glob is excluded; task check passes.
+- CHANGELOG [Unreleased] + UPGRADING.md consumer note `[completed]`
+  - Acceptance: CHANGELOG entry describes the user-visible upgrade fix with #1878 ref; UPGRADING.md documents the interim manual exclude for consumers mid-upgrade.
+
+### 2026-06-22-1880-orchestration-dispatch-doctrine: Orchestrator sub-agent dispatch doctrine — worker-owns-lifecycle + background dispatch + routing decision  `[completed]`
+
+Encode three orchestrator dispatch rules surfaced by the 2026-06-22 #1878 session (Gaps C and D): (1) implementation workers scoped to drive-to merge-ready own PR + review cycle as one unit of work; (2) long-running workers dispatch independently/in the background (Cursor Task background path); (3) deliberate per-worker_role model routing before any dispatch (doctrine only — deterministic verify:routing enforcement is #1877). Docs/skills/templates only; no gate code in this slice.
+
+**Acceptance**:
+
+- Encode doctrine in agent-prompt-preamble.md §9 `[completed]`
+  - Acceptance: Three rules appear as !/⊗ directives in/near §9 Sub-agent spawn rules; unit-of-work boundary (drive-to merge-ready vs stop-at pr-open) is explicit.
+- Update pack source + render swarm and review-cycle skills `[completed]`
+  - Acceptance: skills-pack-0.1.json updated; task packs:render regenerates SKILL.md files with worker-owns-lifecycle (swarm Phase 5→6) and background-dispatch generalization (review-cycle Approach 1).
+- Extend AGENTS.md #954 + CHANGELOG entry `[completed]`
+  - Acceptance: AGENTS.md Multi-agent orchestration discipline carries the three rules; CHANGELOG [Unreleased] entry references #1880 and notes #1877 gate split.
+- Gates, PR, review cycle to merge-ready `[completed]`
+  - Acceptance: task check passes; pre-PR loop clean; PR opened on fix/1880-orchestration-dispatch-doctrine; Greptile merge-ready (confidence >3, zero P0/P1, SHA match); NOT merged.
 
 ### 2026-05-21-1286-triage-queue-blocked-filter: Demote vBRIEF-status:blocked items in triage:queue  `[completed]`
 
