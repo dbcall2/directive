@@ -685,4 +685,7 @@
 - **#1854** -- Wire + flip every remaining Python gate in tasks/verify.yml + the two root-Taskfile gates -- `[completed]`
 - **#1854** -- Wire + flip the render family (spec:validate, spec:render, prd:render, project:render) -- `[completed]`
 - **#1854** -- Wire/port + flip scope:undo, scope:demote, scope:decompose, changelog:resolve, architecture:sor -- `[completed]`
+- **#1821** -- Content-manifest v1 + verify:content-manifest gate -- Wave-1 shippability classification -- `[completed]`
+- **#1878** -- Prune vendored TypeScript test files from the consumer .deft/core deposit -- `[completed]`
+- **#1880** -- Orchestrator sub-agent dispatch doctrine — worker-owns-lifecycle + background dispatch + routing decision -- `[completed]`
 
