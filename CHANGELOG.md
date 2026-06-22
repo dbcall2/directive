@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.53.2] - 2026-06-22
+
+> Hotfix: consumer vitest CI no longer fails on vendored framework tests (#1878), plus orchestrator dispatch doctrine for sub-agent lifecycle, background launch, and model routing (#1880).
+
+### Added
+
 - New `task verify:content-manifest` gate classifies every git-tracked top-level repository entry into one of four buckets (content, engine, harness, repo-dev) via `conventions/content-manifest.json`, and fails CI when a top-level entry is unclassified, a classified path goes stale, a bucket is invalid, or a path is duplicated. This is the Wave-1 shippability audit that turns the brittle installer denylist into an allowlist-by-classification, giving the engine/content split an authoritative source of truth. Refs #1821, #1669.
 
 ### Changed
@@ -3468,7 +3480,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.53.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.53.2...HEAD
+[0.53.2]: https://github.com/deftai/directive/compare/v0.53.1...v0.53.2
 [0.53.1]: https://github.com/deftai/directive/compare/v0.53.0...v0.53.1
 [0.53.0]: https://github.com/deftai/directive/compare/v0.52.0...v0.53.0
 [0.52.0]: https://github.com/deftai/directive/compare/v0.51.0...v0.52.0
