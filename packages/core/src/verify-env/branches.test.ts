@@ -285,7 +285,7 @@ describe("toolchain-check branches", () => {
     expect(result.lines.some((line) => line.includes("FAILED (exit 2)"))).toBe(true);
   });
 
-  it("exercises the default runner path", () => {
+  it("exercises runToolchainCheck with defaultCommandRunner and a single tool", () => {
     const result = runToolchainCheck(defaultCommandRunner, [
       { name: "node", command: [process.execPath, "--version"] },
     ]);

@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Codebase MAP guidance now propagates to agent-facing surfaces (#1595 PR6)** -- AGENTS.md, the installed AGENTS template, and the build/sync/pre-pr skill flow now tell agents to use `.planning/codebase/MAP.md` as generated orientation, refresh it with `task codebase:map` / `task verify:codebase-map-fresh` when relevant, and keep `plan.architecture.codeStructure` or provider artifacts authoritative. Stale or absent MAPs stay advisory for unrelated implementation work. Refs #1498 #1595 #1839.
+- **Codebase MAP guidance now propagates to agent-facing surfaces (#1595 PR6)** -- Agents now use the generated codebase MAP as orientation before broad codebase scanning while durable codebase-structure metadata remains authoritative. Refs #1498 #1595 #1839.
 
 ### Changed
 
