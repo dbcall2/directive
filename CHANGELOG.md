@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Codebase MAP guidance now propagates to agent-facing surfaces (#1595 PR6)** -- Agents now use the generated codebase MAP as orientation before broad codebase scanning while durable codebase-structure metadata remains authoritative. Refs #1498 #1595 #1839.
 
 ### Changed
 

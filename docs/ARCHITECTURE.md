@@ -193,11 +193,13 @@ Implemented today:
 - `task codebase:map`
 - `task codebase:projection-registry`
 - `task verify:codebase-map-fresh`
+- Consumer-facing MAP guidance in `AGENTS.md`, `templates/agents-entry.md`,
+  and the build/sync/pre-pr skills.
 
 Not implemented yet:
 
 - Generated source headers
-- Consumer propagation of generated codebase maps
+- Local indexes or mandatory consumer hard-gates for MAP consumption
 
 The generated MAP is a projection. It must not become the canonical architecture source.
 

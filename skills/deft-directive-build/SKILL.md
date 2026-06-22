@@ -146,13 +146,17 @@ signal.
 - ! Read in order, lazy load:
   1. `./vbrief/active/` -- scope vBRIEFs for work items to build (required)
   2. `./vbrief/PROJECT-DEFINITION.vbrief.json` -- project identity, tech stack, architecture
-  3. USER.md at the platform-appropriate path (see Platform Detection) -- Personal section is highest precedence; Defaults are fallback
-  4. `deft/main.md` -- framework guidelines
-  5. `deft/coding/coding.md` -- coding standards
-  6. `deft/coding/testing.md` -- testing requirements
-  7. `deft/coding/toolchain.md` -- toolchain validation rules
-  8. `deft/languages/{language}.md` -- only for languages this project uses
+  3. `./.planning/codebase/MAP.md` -- generated codebase orientation projection, if present (advisory)
+  4. USER.md at the platform-appropriate path (see Platform Detection) -- Personal section is highest precedence; Defaults are fallback
+  5. `deft/main.md` -- framework guidelines
+  6. `deft/coding/coding.md` -- coding standards
+  7. `deft/coding/testing.md` -- testing requirements
+  8. `deft/coding/toolchain.md` -- toolchain validation rules
+  9. `deft/languages/{language}.md` -- only for languages this project uses
+- ~ If the MAP is absent or may be stale and the current scope needs broad codebase orientation, run `task codebase:map` and `task verify:codebase-map-fresh` when those commands resolve. Treat absence/staleness as advisory unless the task edits `plan.architecture.codeStructure`, a configured provider artifact, or the generated MAP itself.
+- ! Treat `plan.architecture.codeStructure` and selected provider artifacts as authoritative. The MAP is a generated projection.
 - ⊗ Read all language/interface/tool files upfront
+- ⊗ Hand-edit `.planning/codebase/MAP.md` or block unrelated implementation solely because the MAP is stale or absent
 
 ## Rule Precedence
 
@@ -187,6 +191,7 @@ All vBRIEFs (including those read from `vbrief/active/` and any new vBRIEFs this
 
 - ! Read story vBRIEFs from `vbrief/active/` and `PROJECT-DEFINITION.vbrief.json`
 - ! Identify phases, dependencies, starting point from scope vBRIEF acceptance criteria
+- ~ Use `.planning/codebase/MAP.md`, when present, to orient broad codebase scanning. If the MAP conflicts with current code or canonical metadata, surface the drift and trust `plan.architecture.codeStructure` / provider artifacts plus the working tree over generated prose.
 - ! When scanning the existing codebase during scope understanding, MUST surface any contradicting patterns (two error-handling shapes, two state-management approaches, two naming conventions, etc.) before implementation begins -- apply `coding/hygiene.md` `## Surface Conflicts: Pick One, Explain, Flag the Other (#1005)` and choose ONE pattern (more recent OR more tested), explain the choice in the scope summary, and flag the other for cleanup
 - ⊗ Begin implementation against an averaged blend of two contradicting patterns -- "average code that satisfies both rules is the worst code" (#1005)
 - ! Present brief summary to user:
