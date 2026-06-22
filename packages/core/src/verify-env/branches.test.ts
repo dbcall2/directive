@@ -286,12 +286,14 @@ describe("toolchain-check branches", () => {
   });
 
   it("exercises the default runner path", () => {
-    const result = runToolchainCheck();
+    const result = runToolchainCheck(defaultCommandRunner, [
+      { name: "node", command: [process.execPath, "--version"] },
+    ]);
     expect(result.lines.length).toBeGreaterThan(1);
   });
 
   it("covers defaultCommandRunner failure branch", () => {
-    const result = defaultCommandRunner(["/bin/false"], 1000);
+    const result = defaultCommandRunner([process.execPath, "-e", "process.exit(1)"], 1000);
     expect("returncode" in result && result.returncode).toBe(1);
   });
 
