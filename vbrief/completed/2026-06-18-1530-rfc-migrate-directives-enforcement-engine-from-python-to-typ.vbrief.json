@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF ingested from GitHub issue #1530",
-    "updated": "2026-06-18T17:41:20Z"
+    "updated": "2026-06-22T00:25:01Z"
   },
   "plan": {
     "title": "RFC: Migrate directive's enforcement engine from Python to TypeScript/Node.js (Part 1 of 2)",
-    "status": "pending",
+    "status": "completed",
     "narratives": {
       "Description": "RFC: Migrate directive's enforcement engine from Python to TypeScript/Node.js (Part 1 of 2)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1530",
@@ -16,19 +16,23 @@
     "items": [
       {
         "title": "Iteration 1 -- Foundation: pnpm workspaces + @deft/types + @deft/core skeleton + golden-output parity harness + CI wiring (no behavior moves, zero parity risk).",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-22T00:25:01Z"
       },
       {
         "title": "Iteration 2 -- Core logic + leaf gates: @deft/core pure functions + self-contained gates (encoding, branch, story-ready, preflight, policy, WIP-cap); structurally closes #798/#1366/#1353.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-22T00:25:01Z"
       },
       {
         "title": "Iteration 3 -- Verb families: triage / scope / slice / cache / doctor + the scm.py boundary.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-22T00:25:01Z"
       },
       {
         "title": "Iteration 4 -- Release + monitors + cutover: release pipeline, pr_* monitors, delete Python, settle the Go-installer question.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-06-22T00:25:01Z"
       }
     ],
     "tags": [
@@ -47,6 +51,6 @@
         "title": "Issue #1530: RFC: Migrate directive's enforcement engine from Python to TypeScript/Node.js (Part 1 of 2)"
       }
     ],
-    "updated": "2026-06-18T17:15:05Z"
+    "updated": "2026-06-22T00:25:01Z"
   }
 }
