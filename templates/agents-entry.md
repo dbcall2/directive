@@ -93,6 +93,15 @@ Deft ships versioned content packs (e.g. lessons learned from prior work) under 
 
 ! Before improvising on a problem, discover packs with `deft packs:slice --list-packs`, then load the relevant slice. This wiring references the discovery commands on purpose -- it never enumerates pack or slice names, so new packs/slices need no change here.
 
+## Codebase MAP Projection (#1595 / #1498)
+
+`vbrief/PROJECT-DEFINITION.vbrief.json` `plan.architecture.codeStructure` is the durable codebase-structure source. `.planning/codebase/MAP.md` is a generated orientation projection from that metadata plus provider/code-derived facts.
+
+- ~ If `.planning/codebase/MAP.md` exists, read it as orientation before broad codebase scanning.
+- ~ If it is absent or may be stale, run `deft codebase:map` and `deft verify:codebase-map-fresh` when those commands resolve; treat the result as advisory unless the current task edits `plan.architecture.codeStructure`, a configured provider artifact, or the generated MAP itself.
+- ! When the MAP is wrong, update `plan.architecture.codeStructure` or the selected provider artifact, then regenerate the MAP.
+- ⊗ Treat a stale or absent MAP as an unrelated implementation blocker, hand-edit `.planning/codebase/MAP.md`, or make the generated projection more authoritative than the vBRIEF metadata.
+
 ## Skill Routing
 
 When user input matches a trigger keyword, read the corresponding skill (paths are relative to the consumer's project root and resolve under `.deft/core/skills/`):

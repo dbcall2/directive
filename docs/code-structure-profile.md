@@ -1,6 +1,6 @@
 # CodeStructure Profile
 
-Status: accepted for #1595 PR 2; extended by #1595 PR 3 and PR 4; MAP projection implemented
+Status: accepted for #1595 PR 2; extended by #1595 PR 3 and PR 4; MAP projection implemented; PR 6 guidance propagated
 
 Related: [#1595](https://github.com/deftai/directive/issues/1595), [#1498](https://github.com/deftai/directive/issues/1498), [#1618](https://github.com/deftai/directive/issues/1618), [#1379](https://github.com/deftai/directive/issues/1379)
 
@@ -15,8 +15,9 @@ PR 3 added the contract layer between authored metadata and projections:
 a dependency-free default extractor, a provider artifact handshake, a
 projection-kind registry, and discipline checks that keep authored
 `codeStructure` focused on canonical intent. PR 4 generates the first MAP
-projection and verifies its freshness. Generated headers, local indexes, and
-consumer propagation are still later slices of #1595.
+projection and verifies its freshness. PR 6 propagates guidance that treats the
+MAP as optional orientation, not authority. Generated headers and local indexes
+are still later slices of #1595.
 
 ## Current Implementation Status
 
@@ -31,12 +32,12 @@ Implemented:
 - `vbrief/schemas/codebase-map.schema.json`
 - `tests/fixtures/codebase-map.v1.golden.json`
 - `.planning/codebase/MAP.md`
+- AGENTS/template/skill guidance that reads generated MAPs as orientation only
 
 Planned / not yet implemented:
 
 - generated source headers
 - local indexes
-- consumer propagation of generated MAP artifacts
 
 The `projectionManifest[]` entry for `.planning/codebase/MAP.md` is now backed
 by a generated file and the freshness gate. It remains a projection: update

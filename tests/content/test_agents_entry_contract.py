@@ -245,6 +245,8 @@ _PROPAGATION_COMMAND_MARKERS: tuple[tuple[str, str], ...] = (
     ("deft triage:queue", "task triage:queue"),
     ("triage <N>", "triage <N>"),
     ("deft verify:cache-fresh", "task verify:cache-fresh"),
+    ("deft codebase:map", "task codebase:map"),
+    ("deft verify:codebase-map-fresh", "task verify:codebase-map-fresh"),
     ("deft verify:branch", "task verify:branch"),
     # #1378 Story C: deterministic story-start Gate 0 surfaced in both files.
     ("deft verify:story-ready", "task verify:story-ready"),
@@ -281,6 +283,8 @@ _CONSUMER_FORBIDDEN_BARE_TASK_MARKERS: tuple[str, ...] = (
     "task triage:welcome",
     "task triage:queue",
     "task verify:cache-fresh",
+    "task codebase:map",
+    "task verify:codebase-map-fresh",
     "task verify:branch",
     "task verify:story-ready",
     "task policy:show",
@@ -309,6 +313,7 @@ _PROPAGATION_HEADER_MARKERS: tuple[str, ...] = (
     "## Cache-as-authoritative work selection (#1149)",
     "## Skill Routing",
     "## WIP cap",
+    "## Codebase MAP Projection (#1595 / #1498)",
     "### Story Start Gate",
     # #1353: new ## PowerShell section in agents-entry.md (per #1309)
     "## PowerShell",

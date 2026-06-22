@@ -1,6 +1,6 @@
 # Codebase MAP Source of Truth
 
-Status: accepted for #1595 PR 1; MAP projection implemented through #1595 PR 4
+Status: accepted for #1595 PR 1; MAP projection implemented through #1595 PR 4; consumer guidance propagated in #1595 PR 6
 
 Date: 2026-06-12
 
@@ -33,15 +33,16 @@ Shipped:
 - Projection-kind registry for `codebase-map`.
 - Generated `.planning/codebase/MAP.md`.
 - Freshness checks for that generated MAP.
+- Consumer-facing guidance in AGENTS.md, the installed AGENTS template, and
+  build/sync/pre-pr skills.
 
 Still planned:
 
 - Generated source headers.
-- Consumer-facing propagation of generated codebase projections.
 
 This means the source-of-truth decision has landed, and the pre-MAP contract
-layer plus generated MAP output have landed. Generated headers and consumer
-propagation remain later slices.
+layer plus generated MAP output have landed. Generated headers remain a later
+slice.
 
 ## Superseded Direction
 
@@ -150,7 +151,8 @@ constraints:
    machinery exists.
 6. Update skills, docs, and consumer-facing guidance after a dogfood window.
 
-Steps 1-4 are complete in the current repository. Steps 5-6 remain future work.
+Steps 1-4 are complete in the current repository. PR 6 completes the
+skills/docs/consumer-guidance part of step 6. Step 5 remains future work.
 
 ## Non-Goals
 
@@ -220,3 +222,13 @@ to the default extractor. Freshness is no-network and no-model: provider
 freshness signals are accepted when present, otherwise Directive compares
 `source.contentHashes.files[]` against the current working tree. The fallback
 extractor is always regenerated locally and carries a compact source digest.
+
+## PR 6 Guidance Propagation
+
+PR 6 propagates the MAP projection contract to agent-facing guidance. Agents may
+read `.planning/codebase/MAP.md` as an orientation aid and may refresh it with
+`task codebase:map` plus `task verify:codebase-map-fresh`, but the MAP remains a
+projection. A stale or absent MAP is not a default blocker for unrelated
+implementation work. When the MAP is wrong, the fix is to update
+`plan.architecture.codeStructure` or the selected provider artifact, then
+regenerate the projection.

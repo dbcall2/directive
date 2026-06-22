@@ -211,7 +211,14 @@ After structure validation, sync framework-level assets.
 2. ~ Report any new sections or rules added upstream that are missing locally
 3. ~ Do NOT auto-overwrite -- present differences and let the user decide
 
-### 6b: List new skills
+### 6b: Check codebase MAP freshness
+
+~ If `./.planning/codebase/MAP.md` exists, or `PROJECT-DEFINITION.vbrief.json` declares a `projectionManifest[]` entry with `kind: "codebase-map"`, run `task verify:codebase-map-fresh` when the command resolves. If it reports drift, recommend `task codebase:map` and note that the generated MAP is advisory unless the operator asked to refresh projections.
+
+- ! Keep `plan.architecture.codeStructure` and configured provider artifacts authoritative; the MAP is a generated projection.
+- ⊗ Auto-edit canonical vBRIEF metadata to make the MAP fresh during sync -- report drift and let the operator choose a follow-up.
+
+### 6c: List new skills
 
 ! Compare the `skills/` directory before and after the update:
 
@@ -219,14 +226,14 @@ After structure validation, sync framework-level assets.
 2. ~ For each new skill, read its frontmatter `description` field and present a one-liner
 3. ~ Mention if any existing skills were updated (changed files)
 
-## Phase 6c -- Legacy Artifact Review (post-migration, one-time)
+## Phase 6d -- Legacy Artifact Review (post-migration, one-time)
 
 ! If `vbrief/migration/LEGACY-REPORT.md` exists (and has NOT been renamed to `LEGACY-REPORT.reviewed.md`), walk the operator through each captured legacy section and record their disposition inline in the same file. This phase surfaces the non-canonical content that `task migrate:vbrief` preserved via the `LegacyArtifacts` narrative mechanism (#505).
 
 ### Detection
 
 1. ! Check for `vbrief/migration/LEGACY-REPORT.md` in the project root.
-2. ! If the file is absent or `LEGACY-REPORT.reviewed.md` exists (reviewed form), skip Phase 6c silently and proceed to Phase 7.
+2. ! If the file is absent or `LEGACY-REPORT.reviewed.md` exists (reviewed form), skip Phase 6d silently and proceed to Phase 7.
 3. ! If `LEGACY-REPORT.md` is present and has NOT been renamed, begin the review loop below.
 
 ### Review loop
@@ -261,7 +268,8 @@ After structure validation, sync framework-level assets.
 6. **Origin freshness**: N stale / N externally-closed / N current (with details)
 7. **Document Model**: pre-v0.20 (legacy) / v0.20+ (vBRIEF-centric) OK / v0.20+ with warnings (see Pre-Cutover Detection Guard)
 8. **AGENTS.md status**: current / has upstream changes / needs review
-9. **New skills**: list any newly added skills with descriptions
+9. **Codebase MAP status**: current / stale / absent / not configured (advisory)
+10. **New skills**: list any newly added skills with descriptions
 
 ! Ask the user: "Shall I commit the submodule update?" -- do NOT auto-commit.
 
