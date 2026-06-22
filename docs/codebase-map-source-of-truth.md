@@ -155,7 +155,9 @@ constraints:
 
 Steps 1-4 are complete in the current repository. PR 6 completes the
 skills/docs/consumer-guidance part of step 6, so the #1595 MAP series is
-complete as scoped. Step 5 remains split optional follow-up work.
+complete as scoped. Step 5 remains split optional follow-up work; PR 5 was not
+issued because the generated-header projection was deferred rather than used to
+block PR 6 guidance propagation.
 
 ## Non-Goals
 

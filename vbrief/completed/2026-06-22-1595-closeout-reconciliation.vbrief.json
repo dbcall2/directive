@@ -3,7 +3,7 @@
     "version": "0.6",
     "description": "Story vBRIEF for #1595 closeout and tracker reconciliation after #1871 merged.",
     "created": "2026-06-22T19:18:30Z",
-    "updated": "2026-06-22T19:24:49Z"
+    "updated": "2026-06-22T19:36:00Z"
   },
   "plan": {
     "id": "1595-closeout-reconciliation",
@@ -98,12 +98,15 @@
         "readiness": "sequential",
         "parallel_safe": false,
         "file_scope": [
+          ".planning/codebase/MAP.md",
+          "PRD.md",
           "vbrief/PROJECT-DEFINITION.vbrief.json",
           "vbrief/specification.vbrief.json",
           "SPECIFICATION.md",
           "docs/code-structure-profile.md",
           "docs/codebase-map-source-of-truth.md",
-          "CHANGELOG.md"
+          "CHANGELOG.md",
+          "vbrief/completed/2026-06-22-1595-closeout-reconciliation.vbrief.json"
         ],
         "verify_commands": [
           "task vbrief:validate",
@@ -123,6 +126,6 @@
       },
       "completedAt": "2026-06-22T19:25:01Z"
     },
-    "updated": "2026-06-22T19:25:01Z"
+    "updated": "2026-06-22T19:36:00Z"
   }
 }
