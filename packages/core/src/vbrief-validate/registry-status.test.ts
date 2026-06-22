@@ -34,7 +34,7 @@ describe("registryMetadataReferencesFromScope", () => {
 });
 
 describe("registryStatusScopeUris", () => {
-  it("uses source_path and explicit item refs, not metadata scope links", () => {
+  it("uses source_path, not item, metadata, or plan scope links", () => {
     const item = {
       id: "umbrella",
       title: "Umbrella epic",
@@ -52,26 +52,24 @@ describe("registryStatusScopeUris", () => {
           },
         ],
       },
+      references: [
+        {
+          type: "x-vbrief/plan",
+          uri: "completed/2026-06-16-story-b.vbrief.json",
+        },
+      ],
     };
-    expect(registryStatusScopeUris(item, { references: [] })).toEqual([
-      "cancelled/2026-06-16-umbrella.vbrief.json",
-    ]);
-  });
-
-  it("includes plan-level refs matched by title", () => {
-    const item = { title: "Feature X", status: "running" };
     const plan = {
       references: [
         {
           type: "x-vbrief/plan",
-          uri: "active/2026-01-01-feature-x.vbrief.json",
-          title: "Feature X",
+          uri: "completed/2026-06-16-story-c.vbrief.json",
+          title: "Umbrella epic",
         },
       ],
     };
-    expect(registryStatusScopeUris(item, plan)).toEqual([
-      "active/2026-01-01-feature-x.vbrief.json",
-    ]);
+    expect(plan.references).toHaveLength(1);
+    expect(registryStatusScopeUris(item)).toEqual(["cancelled/2026-06-16-umbrella.vbrief.json"]);
   });
 });
 

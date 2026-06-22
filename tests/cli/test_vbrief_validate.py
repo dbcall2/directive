@@ -441,8 +441,8 @@ class TestProjectDefinitionValidation:
         result = run_validator(vbrief_dir)
         assert result.returncode == 0
 
-    def test_registry_status_must_match_referenced_completed_scope(self, tmp_path):
-        """A completed reference with a proposed registry row is an error (#1527)."""
+    def test_registry_status_allows_referenced_completed_child_scope(self, tmp_path):
+        """A completed child reference can differ from its parent registry row."""
         vbrief_dir = tmp_path / "vbrief"
         make_lifecycle_dirs(vbrief_dir)
         write_vbrief(
@@ -456,18 +456,58 @@ class TestProjectDefinitionValidation:
                 "Overview": "A project",
                 "Tech Stack": "Python",
             },
-            references=[
-                {
-                    "uri": "completed/2026-04-13-feature-x.vbrief.json",
-                    "type": "x-vbrief/plan",
-                    "title": "Feature X",
-                }
-            ],
             items=[
                 {
                     "id": "feature-x",
                     "title": "Feature X",
                     "status": "proposed",
+                    "metadata": {
+                        "references": [
+                            {
+                                "uri": "completed/2026-04-13-feature-x.vbrief.json",
+                                "type": "x-vbrief/plan",
+                            }
+                        ]
+                    },
+                }
+            ],
+        )
+        write_vbrief(vbrief_dir / "PROJECT-DEFINITION.vbrief.json", doc)
+
+        result = run_validator(vbrief_dir)
+
+        assert result.returncode == 0
+        assert "registry-status" not in result.stdout
+
+    def test_registry_status_must_match_source_path_scope(self, tmp_path):
+        """A registry row still must match the status of its source_path scope."""
+        vbrief_dir = tmp_path / "vbrief"
+        make_lifecycle_dirs(vbrief_dir)
+        write_vbrief(
+            vbrief_dir / "completed" / "2026-04-13-feature-x.vbrief.json",
+            minimal_vbrief(title="Feature X", status="completed"),
+        )
+        doc = minimal_vbrief(
+            title="My Project",
+            status="running",
+            narratives={
+                "Overview": "A project",
+                "Tech Stack": "Python",
+            },
+            items=[
+                {
+                    "id": "feature-x",
+                    "title": "Feature X",
+                    "status": "cancelled",
+                    "metadata": {
+                        "source_path": "completed/2026-04-13-feature-x.vbrief.json",
+                        "references": [
+                            {
+                                "uri": "completed/2026-04-13-feature-x.vbrief.json",
+                                "type": "x-vbrief/plan",
+                            }
+                        ],
+                    },
                 }
             ],
         )

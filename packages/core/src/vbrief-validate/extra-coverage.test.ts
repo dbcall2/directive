@@ -783,6 +783,123 @@ describe("vbrief-validate extra coverage", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  it("allows terminal project items to reference terminal child scopes", () => {
+    const root = mkdtempSync(join(tmpdir(), "vb-pd-terminal-"));
+    const vbrief = join(root, "vbrief");
+    writeScope(vbrief, "completed", "2026-01-01-done-child.vbrief.json", {
+      vBRIEFInfo: { version: "0.6" },
+      plan: { title: "Done Child", status: "completed", items: [] },
+    });
+    writeScope(vbrief, "completed", "2026-01-01-failed-child.vbrief.json", {
+      vBRIEFInfo: { version: "0.6" },
+      plan: { title: "Failed Child", status: "failed", items: [] },
+    });
+    const errors = validateProjectDefinition(
+      "vbrief/PROJECT-DEFINITION.vbrief.json",
+      {
+        vBRIEFInfo: { version: "0.6" },
+        plan: {
+          title: "PD",
+          status: "running",
+          narratives: { Overview: "O", TechStack: "T" },
+          references: [
+            {
+              type: "x-vbrief/plan",
+              uri: "completed/2026-01-01-done-child.vbrief.json",
+              title: "Terminal Epic",
+            },
+          ],
+          items: [
+            {
+              title: "Terminal Epic",
+              status: "cancelled",
+              metadata: {
+                references: [
+                  {
+                    type: "x-vbrief/plan",
+                    uri: "completed/2026-01-01-failed-child.vbrief.json",
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      vbrief,
+    );
+    expect(errors.filter((e) => e.includes("registry-status"))).toEqual([]);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("allows non-terminal project items to reference completed child scopes", () => {
+    const root = mkdtempSync(join(tmpdir(), "vb-pd-nonterminal-"));
+    const vbrief = join(root, "vbrief");
+    writeScope(vbrief, "completed", "2026-01-01-child.vbrief.json", {
+      vBRIEFInfo: { version: "0.6" },
+      plan: { title: "Child", status: "completed", items: [] },
+    });
+    const errors = validateProjectDefinition(
+      "vbrief/PROJECT-DEFINITION.vbrief.json",
+      {
+        vBRIEFInfo: { version: "0.6" },
+        plan: {
+          title: "PD",
+          status: "running",
+          narratives: { Overview: "O", TechStack: "T" },
+          items: [
+            {
+              title: "Proposed Parent",
+              status: "proposed",
+              metadata: {
+                references: [
+                  { type: "x-vbrief/plan", uri: "completed/2026-01-01-child.vbrief.json" },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      vbrief,
+    );
+    expect(errors.filter((e) => e.includes("registry-status"))).toEqual([]);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("keeps project source_path status checks exact for terminal scopes", () => {
+    const root = mkdtempSync(join(tmpdir(), "vb-pd-source-exact-"));
+    const vbrief = join(root, "vbrief");
+    writeScope(vbrief, "completed", "2026-01-01-source.vbrief.json", {
+      vBRIEFInfo: { version: "0.6" },
+      plan: { title: "Source", status: "completed", items: [] },
+    });
+    const errors = validateProjectDefinition(
+      "vbrief/PROJECT-DEFINITION.vbrief.json",
+      {
+        vBRIEFInfo: { version: "0.6" },
+        plan: {
+          title: "PD",
+          status: "running",
+          narratives: { Overview: "O", TechStack: "T" },
+          items: [
+            {
+              title: "Source",
+              status: "cancelled",
+              metadata: {
+                source_path: "completed/2026-01-01-source.vbrief.json",
+                references: [
+                  { type: "x-vbrief/plan", uri: "completed/2026-01-01-source.vbrief.json" },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      vbrief,
+    );
+    expect(errors.some((e) => e.includes("registry-status"))).toBe(true);
+    rmSync(root, { recursive: true, force: true });
+  });
+
   it("covers epic forward link missing parent reference listing", () => {
     const vbrief = "/tmp/epic4";
     const parent = join(vbrief, "proposed/p.vbrief.json");

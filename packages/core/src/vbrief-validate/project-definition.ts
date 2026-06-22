@@ -6,10 +6,23 @@ import { formatRegistryStatusMismatch, registryStatusScopeUris } from "./registr
 import type { JsonObject } from "./schema.js";
 import { validateProjectDefNarratives } from "./schema.js";
 
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readJsonObject(path: string): JsonObject | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
+  return isJsonObject(parsed) ? parsed : null;
+}
+
 function validateProjectRegistryScopeStatus(
   item: JsonObject,
   itemIndex: number,
-  plan: JsonObject,
   filepath: string,
   vbriefDir: string,
 ): string[] {
@@ -20,7 +33,7 @@ function validateProjectRegistryScopeStatus(
   }
 
   const resolvedRoot = resolve(vbriefDir);
-  for (const uri of registryStatusScopeUris(item, plan)) {
+  for (const uri of registryStatusScopeUris(item)) {
     if (uri.startsWith("http://") || uri.startsWith("https://") || uri.startsWith("#")) {
       continue;
     }
@@ -31,17 +44,15 @@ function validateProjectRegistryScopeStatus(
     if (!isRelativeTo(scopePath, resolvedRoot) || !existsSync(scopePath)) {
       continue;
     }
-    let scopeData: JsonObject;
-    try {
-      scopeData = JSON.parse(readFileSync(scopePath, "utf8")) as JsonObject;
-    } catch {
+    const parsedScope = readJsonObject(scopePath);
+    if (parsedScope === null) {
       continue;
     }
-    const scopePlan = scopeData.plan;
-    if (typeof scopePlan !== "object" || scopePlan === null || Array.isArray(scopePlan)) {
+    const scopePlan = parsedScope.plan;
+    if (!isJsonObject(scopePlan)) {
       continue;
     }
-    const scopeStatus = (scopePlan as JsonObject).status;
+    const scopeStatus = scopePlan.status;
     if (typeof scopeStatus === "string" && scopeStatus !== itemStatus) {
       errors.push(formatRegistryStatusMismatch(filepath, itemIndex, itemStatus, uri, scopeStatus));
     }
@@ -59,10 +70,10 @@ export function validateProjectDefinition(
   const resolvedRoot = resolve(vbriefDir);
 
   const plan = data.plan;
-  if (typeof plan !== "object" || plan === null || Array.isArray(plan)) {
+  if (!isJsonObject(plan)) {
     return errors;
   }
-  const planObj = plan as JsonObject;
+  const planObj = plan;
 
   errors.push(...validateProjectDefNarratives(filepath, planObj));
   errors.push(...runProjectDefinitionHooks(planObj, filepath));
@@ -71,20 +82,19 @@ export function validateProjectDefinition(
   if (Array.isArray(items)) {
     for (let i = 0; i < items.length; i += 1) {
       const item = items[i];
-      if (typeof item !== "object" || item === null || Array.isArray(item)) {
+      if (!isJsonObject(item)) {
         continue;
       }
-      const itemObj = item as JsonObject;
-      errors.push(...validateProjectRegistryScopeStatus(itemObj, i, planObj, filepath, vbriefDir));
+      const itemObj = item;
+      errors.push(...validateProjectRegistryScopeStatus(itemObj, i, filepath, vbriefDir));
 
       const rawRefs = itemObj.references;
       const refs: unknown[] = Array.isArray(rawRefs) ? rawRefs : [];
       for (const ref of refs) {
-        if (typeof ref !== "object" || ref === null || Array.isArray(ref)) {
+        if (!isJsonObject(ref)) {
           continue;
         }
-        const refObj = ref as JsonObject;
-        const uriRaw = refObj.uri;
+        const uriRaw = ref.uri;
         const uri = typeof uriRaw === "string" ? uriRaw : "";
         if (uri && uri.startsWith("file://")) {
           const refPath = uri.replace("file://", "");
