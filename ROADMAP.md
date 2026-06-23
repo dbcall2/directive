@@ -692,4 +692,12 @@
 - **#1880** -- Orchestrator sub-agent dispatch doctrine — worker-owns-lifecycle + background dispatch + routing decision -- `[completed]`
 - **#1884** -- bug(verify-session-ritual): gated tier fails with 'unknown session ritual command: doctor' -- `[completed]`
 - **#1894** -- refactor(packs): pack-render.ts duplicates contentRoot instead of importing canonical content-root module -- `[completed]`
+- **#1910** -- Teach the release skill about npm -- `[completed]`
+- **#11** -- Add the npm publish workflow with provenance -- `[completed]`
+- **#11** -- Document the Deft-company / Directive-product model and npm install paths -- `[completed]`
+- **#11** -- Implement the directive verb router and top-level UX verbs -- `[completed]`
+- **#11** -- Make directive init/update a front-end to the deft-install binary -- `[completed]`
+- **#11** -- Migrate product slash commands to /deft:directive:* with aliases -- `[completed]`
+- **#11** -- Product-scope the npm packages and wire the directive/deft bins -- `[completed]`
+- **#11** -- Publish content as @deftai/directive-content and resolve it from the package -- `[completed]`
 

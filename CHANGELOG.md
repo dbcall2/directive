@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.55.0] - 2026-06-23
+
+> Directive is now installable from npm: this release publishes @deftai/directive* with supply-chain provenance and a unified directive CLI.
+
 ### Changed
 - **Leaner, cleaner npm packages ahead of first publish (#11, #1669)** — The published `@deftai/directive*` packages now ship only runtime JavaScript and type declarations: TypeScript build-cache files and source maps are excluded (cutting `@deftai/directive-core` roughly in half), and the framework's own internal migration records (legacy report, reconciliation report, safety manifest) no longer ship inside `@deftai/directive-content` — they are repo-only maintainer artifacts and now live at the maintainer root. Consumers get smaller installs with no behavior change. Refs #11 #1669.
 
@@ -3508,7 +3520,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.54.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.55.0...HEAD
+[0.55.0]: https://github.com/deftai/directive/compare/v0.54.0...v0.55.0
 [0.54.0]: https://github.com/deftai/directive/compare/v0.53.2...v0.54.0
 [0.53.2]: https://github.com/deftai/directive/compare/v0.53.1...v0.53.2
 [0.53.1]: https://github.com/deftai/directive/compare/v0.53.0...v0.53.1
