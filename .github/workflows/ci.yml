@@ -390,8 +390,21 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Enable corepack (pnpm)
-        run: corepack enable
+      # #1922: `corepack prepare --activate` (run from the repo root, so it
+      # reads `packageManager` from package.json) makes the pinned pnpm version
+      # the corepack default. The downstream `scope:_ensure-ts` step runs
+      # `pnpm --dir <repo> run build` from the consumer-fixture CWD
+      # (D:\a\_temp\consumer), which has no `packageManager` pin -- without an
+      # activated default, corepack falls back to a newer bundled patch (e.g.
+      # 11.9.0) and pnpm hard-fails ("pnpm does not switch versions when running
+      # under corepack") because it differs from the repo's pin. Activating the
+      # pinned version first keeps the corepack-provided binary in lockstep with
+      # the pin regardless of the invocation CWD. No version is hardcoded, so the
+      # workflow tracks the package.json pin automatically.
+      - name: Enable corepack and activate pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare --activate
 
       - name: Install Node dependencies (pnpm)
         run: pnpm install --frozen-lockfile
