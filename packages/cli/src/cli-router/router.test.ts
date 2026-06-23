@@ -87,9 +87,11 @@ describe("routeArgv", () => {
     expect(routeArgv(["-h"]).argv).toEqual(["-h"]);
   });
 
-  it("stubs init and update until S4", () => {
-    expect(routeArgv(["init"]).kind).toBe("stub");
-    expect(routeArgv(["update"]).kind).toBe("stub");
+  it("routes init and update to dispatch handlers", () => {
+    expect(routeArgv(["init"]).kind).toBe("dispatch");
+    expect(routeArgv(["init"]).argv).toEqual(["init"]);
+    expect(routeArgv(["update"]).kind).toBe("dispatch");
+    expect(routeArgv(["update"]).argv).toEqual(["update"]);
   });
 
   it("registers every curated top-level UX verb", () => {
@@ -139,16 +141,26 @@ describe("routeAndDispatch", () => {
     expect(out.join("")).toContain("@deftai/directive");
   });
 
-  it("returns exit code 2 for stubbed init", async () => {
-    const err: string[] = [];
-    const code = await routeAndDispatch(["init"], {
-      writeOut: () => {},
-      writeErr: (text) => {
-        err.push(text);
-      },
-    });
-    expect(code).toBe(2);
-    expect(err.join("")).toContain("deft-install");
+  it("returns exit code 2 when bundled deft-install is missing", async () => {
+    const previous = process.env.DEFT_INSTALL_BINARY;
+    delete process.env.DEFT_INSTALL_BINARY;
+    try {
+      const err: string[] = [];
+      const code = await routeAndDispatch(["init"], {
+        writeOut: () => {},
+        writeErr: (text) => {
+          err.push(text);
+        },
+      });
+      expect(code).toBe(2);
+      expect(err.join("")).toContain("bundled deft-install binary not found");
+    } finally {
+      if (previous === undefined) {
+        delete process.env.DEFT_INSTALL_BINARY;
+      } else {
+        process.env.DEFT_INSTALL_BINARY = previous;
+      }
+    }
   });
 
   it("routes verify branch to the same handler as verify:branch", async () => {
