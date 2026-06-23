@@ -693,6 +693,10 @@
 - **#1884** -- bug(verify-session-ritual): gated tier fails with 'unknown session ritual command: doctor' -- `[completed]`
 - **#1894** -- refactor(packs): pack-render.ts duplicates contentRoot instead of importing canonical content-root module -- `[completed]`
 - **#1910** -- Teach the release skill about npm -- `[completed]`
+- **#1916** -- npm publish workflow uses self-hosted (Blacksmith) runner — incompatible with --provenance -- `[completed]`
+- **#1919** -- Migrate npm publishing to OIDC trusted publishing and retire NPM_TOKEN -- `[completed]`
+- **#1922** -- CI: Windows task-dispatch job fails on corepack pnpm version drift (11.8.0 vs 11.9.0) -- `[completed]`
+- **#1923** -- CI: TS global branch-coverage sits at the 85% threshold boundary (84.99%) and fails intermittently -- `[completed]`
 - **#11** -- Add the npm publish workflow with provenance -- `[completed]`
 - **#11** -- Document the Deft-company / Directive-product model and npm install paths -- `[completed]`
 - **#11** -- Implement the directive verb router and top-level UX verbs -- `[completed]`

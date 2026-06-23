@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+
+### Fixed
+
+### Removed
+
+## [0.55.1] - 2026-06-23
+
+> Hardens npm publishing: provenance fixed on a GitHub-hosted runner, auth moved to keyless OIDC trusted publishing, plus CI green again on Windows and TS coverage.
+
+### Added
+
+### Changed
 - **npm publishing now uses OIDC trusted publishing instead of a stored token (#1919, #1909)** — The publish workflow authenticates to npm via GitHub's short-lived OIDC identity rather than a long-lived `NPM_TOKEN` secret, so there is no standing credential to leak or rotate. Requires a one-time per-package trusted-publisher configuration on npmjs.com. Refs #1919 #1909.
 
 ### Fixed
@@ -3523,7 +3535,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.55.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.55.1...HEAD
+[0.55.1]: https://github.com/deftai/directive/compare/v0.55.0...v0.55.1
 [0.55.0]: https://github.com/deftai/directive/compare/v0.54.0...v0.55.0
 [0.54.0]: https://github.com/deftai/directive/compare/v0.53.2...v0.54.0
 [0.53.2]: https://github.com/deftai/directive/compare/v0.53.1...v0.53.2
