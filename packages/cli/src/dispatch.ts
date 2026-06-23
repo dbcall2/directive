@@ -1,10 +1,11 @@
 /**
- * Unified `deft-ts <verb> [args]` dispatcher (#1828 s0).
+ * Unified `directive <verb> [args]` dispatcher (#1828 s0).
  * Routes to ported command modules in packages/cli and packages/core.
  */
 
 import { execFileSync } from "node:child_process";
 import { join, resolve } from "node:path";
+import { engineInfo } from "@deftai/directive-core";
 
 export type CommandHandler = (argv: string[]) => number | Promise<number>;
 
@@ -227,51 +228,51 @@ function resolveHandler(mod: Record<string, unknown>): CommandHandler | null {
 async function loadWrapperCliHandler(stem: string, io: DispatchIo): Promise<CommandHandler> {
   switch (stem) {
     case "capacity-backfill": {
-      const { runCapacityBackfillCli } = await import("@deftai/core/capacity");
+      const { runCapacityBackfillCli } = await import("@deftai/directive-core/capacity");
       return async (argv) => emitCliResult(await runCapacityBackfillCli(argv), io);
     }
     case "capacity-show": {
-      const { runCapacityShowCli } = await import("@deftai/core/capacity");
+      const { runCapacityShowCli } = await import("@deftai/directive-core/capacity");
       return (argv) => emitCliResult(runCapacityShowCli(argv), io);
     }
     case "codebase-default-extractor": {
-      const { runDefaultExtractorCli } = await import("@deftai/core/codebase");
+      const { runDefaultExtractorCli } = await import("@deftai/directive-core/codebase");
       return (argv) => emitCliResult(runDefaultExtractorCli(argv), io);
     }
     case "codebase-map": {
-      const { runCodebaseMapCli } = await import("@deftai/core/codebase");
+      const { runCodebaseMapCli } = await import("@deftai/directive-core/codebase");
       return (argv) => emitCliResult(runCodebaseMapCli(argv), io);
     }
     case "codebase-map-fresh": {
-      const { runCodebaseMapFreshCli } = await import("@deftai/core/codebase");
+      const { runCodebaseMapFreshCli } = await import("@deftai/directive-core/codebase");
       return (argv) => emitCliResult(runCodebaseMapFreshCli(argv), io);
     }
     case "codebase-projection-registry": {
-      const { runProjectionRegistryCli } = await import("@deftai/core/codebase");
+      const { runProjectionRegistryCli } = await import("@deftai/directive-core/codebase");
       return (argv) => emitCliResult(runProjectionRegistryCli(argv), io);
     }
     case "codebase-provider": {
-      const { runProviderCli } = await import("@deftai/core/codebase");
+      const { runProviderCli } = await import("@deftai/directive-core/codebase");
       return (argv) => emitCliResult(runProviderCli(argv), io);
     }
     case "vbrief-activate": {
-      const { run } = await import("@deftai/core/vbrief-activate");
+      const { run } = await import("@deftai/directive-core/vbrief-activate");
       return run;
     }
     case "vbrief-build": {
-      const { cmdVbriefBuild } = await import("@deftai/core/vbrief-build");
+      const { cmdVbriefBuild } = await import("@deftai/directive-core/vbrief-build");
       return cmdVbriefBuild;
     }
     case "vbrief-reconcile": {
-      const { cmdVbriefReconcile } = await import("@deftai/core/vbrief-reconcile");
+      const { cmdVbriefReconcile } = await import("@deftai/directive-core/vbrief-reconcile");
       return cmdVbriefReconcile;
     }
     case "vbrief-validate": {
-      const { cmdVbriefValidate } = await import("@deftai/core/vbrief-validate");
+      const { cmdVbriefValidate } = await import("@deftai/directive-core/vbrief-validate");
       return cmdVbriefValidate;
     }
     case "vbrief-validation": {
-      const { cmdVbriefValidation } = await import("@deftai/core/vbrief-validation");
+      const { cmdVbriefValidation } = await import("@deftai/directive-core/vbrief-validation");
       return cmdVbriefValidation;
     }
     default:
@@ -419,7 +420,7 @@ async function loadCoreModuleHandler(verb: string, io: DispatchIo): Promise<Comm
       return worktreesMain;
     }
     case "framework-commands": {
-      const { frameworkCommandsMain } = await import("@deftai/core/render");
+      const { frameworkCommandsMain } = await import("@deftai/directive-core/render");
       return (argv) => frameworkCommandsMain(argv);
     }
     case "pack-render": {
@@ -451,7 +452,7 @@ async function loadCoreModuleHandler(verb: string, io: DispatchIo): Promise<Comm
       return (argv) => runProjectRenderCli(argv);
     }
     case "code-structure-validate": {
-      const { evaluateCodeStructure } = await import("@deftai/core/verify-source");
+      const { evaluateCodeStructure } = await import("@deftai/directive-core/verify-source");
       return (argv) => {
         const parsed = parseCodeStructureArgs(argv);
         if (parsed.error !== undefined) {
@@ -554,7 +555,7 @@ export function registeredVerbs(): readonly string[] {
 
 /** Print dispatcher help listing every registered verb. */
 export function printHelp(io: DispatchIo = defaultIo()): void {
-  io.writeOut("Usage: deft-ts <verb> [args...]\n\nRegistered verbs:\n");
+  io.writeOut("Usage: directive <verb> [args...]\n\nRegistered verbs:\n");
   for (const name of registeredVerbs()) {
     io.writeOut(`  ${name}\n`);
   }
@@ -565,8 +566,20 @@ async function invokeHandler(handler: CommandHandler, argv: string[]): Promise<n
   return typeof code === "number" ? code : 0;
 }
 
+const CLI_PACKAGE = "@deftai/directive" as const;
+
+function versionBanner(): string {
+  const info = engineInfo();
+  return `${CLI_PACKAGE} (engine: ${info.name}@${info.version})\n`;
+}
+
 /** Dispatch argv to a registered verb; returns the handler exit code. */
 export async function dispatch(argv: string[], io: DispatchIo = defaultIo()): Promise<number> {
+  if (argv[0] === "--version" || argv[0] === "-V") {
+    io.writeOut(versionBanner());
+    return 0;
+  }
+
   if (argv.length === 0 || argv[0] === "--help" || argv[0] === "-h" || argv[0] === "help") {
     printHelp(io);
     return 0;
@@ -575,7 +588,7 @@ export async function dispatch(argv: string[], io: DispatchIo = defaultIo()): Pr
   const [verb, ...rest] = argv;
   const canonical = resolveCanonicalVerb(verb ?? "");
   if (canonical === null) {
-    io.writeErr(`deft-ts: unknown verb '${verb}'\n`);
+    io.writeErr(`directive: unknown verb '${verb}'\n`);
     return 1;
   }
 
@@ -588,7 +601,7 @@ export async function dispatch(argv: string[], io: DispatchIo = defaultIo()): Pr
     return await invokeHandler(handler, handlerArgv);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    io.writeErr(`deft-ts: ${message}\n`);
+    io.writeErr(`directive: ${message}\n`);
     return 2;
   }
 }

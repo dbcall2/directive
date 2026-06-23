@@ -43,7 +43,7 @@ describe("printHelp", () => {
       writeErr: () => {},
     });
     const body = lines.join("");
-    expect(body).toContain("Usage: deft-ts <verb> [args...]");
+    expect(body).toContain("Usage: directive <verb> [args...]");
     expect(body).toContain("Registered verbs:");
     for (const verb of registeredVerbs()) {
       expect(body).toContain(`  ${verb}\n`);
@@ -52,6 +52,143 @@ describe("printHelp", () => {
 });
 
 describe("dispatch", () => {
+  it("returns 0 for --version and prints the engine banner", async () => {
+    const out: string[] = [];
+    const code = await dispatch(["--version"], {
+      writeOut: (text) => {
+        out.push(text);
+      },
+      writeErr: () => {},
+    });
+    expect(code).toBe(0);
+    expect(out.join("")).toBe("@deftai/directive (engine: @deftai/directive-core@0.0.0)\n");
+  });
+
+  it("returns 0 for -V and prints the engine banner", async () => {
+    const out: string[] = [];
+    const code = await dispatch(["-V"], {
+      writeOut: (text) => {
+        out.push(text);
+      },
+      writeErr: () => {},
+    });
+    expect(code).toBe(0);
+    expect(out.join("")).toBe("@deftai/directive (engine: @deftai/directive-core@0.0.0)\n");
+  });
+
+  it("returns 0 for empty argv and prints help", async () => {
+    const out: string[] = [];
+    const code = await dispatch([], {
+      writeOut: (text) => {
+        out.push(text);
+      },
+      writeErr: () => {},
+    });
+    expect(code).toBe(0);
+    expect(out.join("")).toContain("Usage: directive");
+  });
+
+  it("returns 0 for -h and prints help", async () => {
+    const out: string[] = [];
+    const code = await dispatch(["-h"], {
+      writeOut: (text) => {
+        out.push(text);
+      },
+      writeErr: () => {},
+    });
+    expect(code).toBe(0);
+    expect(out.join("")).toContain("verify-encoding");
+  });
+
+  it("returns 0 for help and prints help", async () => {
+    const out: string[] = [];
+    const code = await dispatch(["help"], {
+      writeOut: (text) => {
+        out.push(text);
+      },
+      writeErr: () => {},
+    });
+    expect(code).toBe(0);
+    expect(out.join("")).toContain("verify-encoding");
+  });
+
+  it("coerces non-number handler return to exit code 0", async () => {
+    vi.doMock("./verify-encoding.js", () => ({
+      run: () => "not-a-number",
+    }));
+    resetHandlerCacheForTests();
+
+    const code = await dispatch(["verify-encoding"], {
+      writeOut: () => {},
+      writeErr: () => {},
+    });
+    expect(code).toBe(0);
+  });
+
+  it("coerces async void handler return to exit code 0", async () => {
+    vi.doMock("./verify-encoding.js", () => ({
+      run: async () => undefined,
+    }));
+    resetHandlerCacheForTests();
+
+    const code = await dispatch(["verify-encoding"], {
+      writeOut: () => {},
+      writeErr: () => {},
+    });
+    expect(code).toBe(0);
+  });
+
+  it("coerces a void handler return to exit code 0", async () => {
+    vi.doMock("./verify-encoding.js", () => ({
+      run: () => undefined,
+    }));
+    resetHandlerCacheForTests();
+
+    const code = await dispatch(["verify-encoding"], {
+      writeOut: () => {},
+      writeErr: () => {},
+    });
+    expect(code).toBe(0);
+  });
+
+  it("returns exit code 2 when a handler throws", async () => {
+    vi.doMock("./verify-encoding.js", () => ({
+      run: () => {
+        throw new Error("boom");
+      },
+    }));
+    resetHandlerCacheForTests();
+
+    const err: string[] = [];
+    const code = await dispatch(["verify-encoding"], {
+      writeOut: () => {},
+      writeErr: (text) => {
+        err.push(text);
+      },
+    });
+    expect(code).toBe(2);
+    expect(err.join("")).toBe("directive: boom\n");
+  });
+
+  it("stringifies non-Error handler throws", async () => {
+    vi.doMock("./verify-encoding.js", () => ({
+      run: () => {
+        throw "plain";
+      },
+    }));
+    resetHandlerCacheForTests();
+
+    const err: string[] = [];
+    const code = await dispatch(["verify-encoding"], {
+      writeOut: () => {},
+      writeErr: (text) => {
+        err.push(text);
+      },
+    });
+    expect(code).toBe(2);
+    expect(err.join("")).toBe("directive: plain\n");
+  });
+
   it("returns 0 for --help and prints the verb list", async () => {
     const out: string[] = [];
     const code = await dispatch(["--help"], {
@@ -73,7 +210,7 @@ describe("dispatch", () => {
       },
     });
     expect(code).toBe(1);
-    expect(err.join("")).toBe("deft-ts: unknown verb 'not-a-real-verb'\n");
+    expect(err.join("")).toBe("directive: unknown verb 'not-a-real-verb'\n");
   });
 
   it("routes a known verb through its handler and propagates the exit code", async () => {
@@ -111,7 +248,7 @@ describe("dispatch", () => {
       stdout: "ok\n",
       stderr: "",
     }));
-    vi.doMock("@deftai/core/capacity", () => ({ runCapacityShowCli }));
+    vi.doMock("@deftai/directive-core/capacity", () => ({ runCapacityShowCli }));
     resetHandlerCacheForTests();
 
     const out: string[] = [];
@@ -143,5 +280,11 @@ describe("dispatch", () => {
     expect(resolveCanonicalVerb("nope")).toBeNull();
     expect(resolveCanonicalVerb("verify-encoding")).toBe("verify-encoding");
     expect(resolveCanonicalVerb("scm")).toBe("scm");
+  });
+
+  it("resolves every task-style alias in VERB_ALIASES", () => {
+    for (const [alias, canonical] of Object.entries(VERB_ALIASES)) {
+      expect(resolveCanonicalVerb(alias)).toBe(canonical);
+    }
   });
 });
