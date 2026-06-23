@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.54.0] - 2026-06-23
+
+> Content-root milestone: every shippable framework asset now lives under a single content/ root, plus a session-ritual gating fix and packaging cleanup -- the clean pre-Wave-2 baseline.
+
+### Added
 - **Codebase MAP guidance now propagates to agent-facing surfaces (#1595 PR6)** -- Agents now use the generated codebase MAP as orientation before broad codebase scanning while durable codebase-structure metadata remains authoritative. Refs #1498 #1595 #1839.
 
 ### Changed
@@ -3484,7 +3496,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.53.2...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.54.0...HEAD
+[0.54.0]: https://github.com/deftai/directive/compare/v0.53.2...v0.54.0
 [0.53.2]: https://github.com/deftai/directive/compare/v0.53.1...v0.53.2
 [0.53.1]: https://github.com/deftai/directive/compare/v0.53.0...v0.53.1
 [0.53.0]: https://github.com/deftai/directive/compare/v0.52.0...v0.53.0

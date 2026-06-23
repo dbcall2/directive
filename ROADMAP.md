@@ -685,7 +685,11 @@
 - **#1854** -- Wire + flip every remaining Python gate in tasks/verify.yml + the two root-Taskfile gates -- `[completed]`
 - **#1854** -- Wire + flip the render family (spec:validate, spec:render, prd:render, project:render) -- `[completed]`
 - **#1854** -- Wire/port + flip scope:undo, scope:demote, scope:decompose, changelog:resolve, architecture:sor -- `[completed]`
+- **#1595** -- docs: propagate codebase MAP projection guidance after #1595 PR4 -- `[completed]`
 - **#1821** -- Content-manifest v1 + verify:content-manifest gate -- Wave-1 shippability classification -- `[completed]`
+- **#1875** -- Execute the content/ move — manifest-driven relocation + source-side cross-reference rewrite -- `[completed]`
 - **#1878** -- Prune vendored TypeScript test files from the consumer .deft/core deposit -- `[completed]`
 - **#1880** -- Orchestrator sub-agent dispatch doctrine — worker-owns-lifecycle + background dispatch + routing decision -- `[completed]`
+- **#1884** -- bug(verify-session-ritual): gated tier fails with 'unknown session ritual command: doctor' -- `[completed]`
+- **#1894** -- refactor(packs): pack-render.ts duplicates contentRoot instead of importing canonical content-root module -- `[completed]`
 
