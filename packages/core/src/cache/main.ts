@@ -124,7 +124,7 @@ function cmdGet(args: string[]): number {
     return 0;
   } catch (err) {
     if (err instanceof CacheNotFoundError) {
-      process.stderr.write(`cache:get miss: ${JSON.stringify(err.message)}\n`);
+      process.stderr.write(`cache:get miss: ${err.message}\n`);
       return 1;
     }
     throw err;
@@ -167,7 +167,7 @@ function cmdFetchAll(args: string[]): number {
   let limit = 1000;
   const labels: string[] = [];
   let author: string | undefined;
-  let refreshClosed = false;
+  let skipRefreshClosed = false;
 
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
@@ -198,8 +198,8 @@ function cmdFetchAll(args: string[]): number {
     } else if (arg === "--author") {
       author = args[i + 1];
       i += 1;
-    } else if (arg === "--refresh-closed") {
-      refreshClosed = true;
+    } else if (arg === "--no-refresh-closed") {
+      skipRefreshClosed = true;
     }
   }
 
@@ -221,7 +221,7 @@ function cmdFetchAll(args: string[]): number {
   });
   process.stdout.write(`${report.toJson()}\n`);
   let rc = report.issuesFailed === 0 ? 0 : 1;
-  if (refreshClosed) {
+  if (!skipRefreshClosed) {
     const refresh = cacheRefreshClosed({
       source,
       repo,

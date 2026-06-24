@@ -49,7 +49,21 @@ export function normalizeOutput(text: string): string {
     .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/g, "<TS>")
     .replace(/Using CPython[^\n]*\n/g, "")
     .replace(/Creating virtual environment[^\n]*\n/g, "")
-    .replace(/Installed \d+ packages[^\n]*\n/g, "");
+    .replace(/Installed \d+ packages[^\n]*\n/g, "")
+    .replace(/Downloading[^\n]*\n/g, "")
+    .replace(/Built[^\n]*\n/g, "")
+    .replace(
+      /triage_actions: needs-ac comment not posted[^\n]*/g,
+      "triage_actions: needs-ac comment not posted <GH-FAIL>",
+    );
+}
+
+/** Keep only operator-facing triage stderr; drop uv/tooling noise from Python spawns. */
+export function normalizeStderr(text: string): string {
+  return normalizeOutput(text)
+    .split("\n")
+    .filter((line) => line.length === 0 || line.startsWith("triage_actions:"))
+    .join("\n");
 }
 
 interface Capture {
@@ -64,7 +78,13 @@ function runCapture(
   cwd: string,
   env: Record<string, string | undefined> = {},
 ): Capture {
-  const merged = { ...process.env, ...env };
+  const merged: Record<string, string | undefined> = {
+    ...process.env,
+    ...env,
+    GITHUB_TOKEN: "",
+    GH_TOKEN: "",
+    GH_ENTERPRISE_TOKEN: "",
+  };
   for (const key of Object.keys(merged)) {
     if (merged[key] === undefined) delete merged[key];
   }
@@ -109,6 +129,9 @@ function pythonWrapperScript(deftRoot: string, fixtureRoot: string): string {
     "import triage_actions",
     "triage_actions.candidates_log = cl",
     "triage_actions.cache = cache_mod",
+    "def _parity_gh(args):",
+    "    raise triage_actions.UpstreamCloseError('gh disabled for parity')",
+    "triage_actions._run_gh = _parity_gh",
     "raise SystemExit(triage_actions.main(sys.argv[1:]))",
   ].join("\n");
 }
@@ -122,7 +145,7 @@ function runPythonTriageAction(
     "uv",
     ["run", "python", "-c", pythonWrapperScript(deftRoot, fixtureRoot), ...argv],
     deftRoot,
-    { TRIAGE_PARITY_FIXTURE: fixtureRoot },
+    { TRIAGE_PARITY_FIXTURE: fixtureRoot, DEFT_TRIAGE_ACTIONS_PARITY: "1" },
   );
   return { exitCode: cap.status, stdout: cap.stdout, stderr: cap.stderr };
 }
@@ -141,6 +164,7 @@ function runTsTriageAction(
       fixtureRoot,
     ],
     deftRoot,
+    { DEFT_TRIAGE_ACTIONS_PARITY: "1" },
   );
   return { exitCode: cap.status, stdout: cap.stdout, stderr: cap.stderr };
 }
@@ -149,8 +173,8 @@ function runTsTriageAction(
 export function diffCase(python: CommandCapture, ts: CommandCapture, caseName: string): ParityDiff {
   const pyOut = normalizeOutput(python.stdout);
   const tsOut = normalizeOutput(ts.stdout);
-  const pyErr = normalizeOutput(python.stderr);
-  const tsErr = normalizeOutput(ts.stderr);
+  const pyErr = normalizeStderr(python.stderr);
+  const tsErr = normalizeStderr(ts.stderr);
   return {
     caseName,
     exitMismatch: python.exitCode !== ts.exitCode,
