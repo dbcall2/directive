@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 4 decomposed from proposed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json"
+    "description": "Story vBRIEF 4 decomposed from completed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json"
   },
   "plan": {
     "id": "11-s4-init-update-frontend",
     "title": "Make directive init/update a front-end to the deft-install binary",
     "status": "completed",
-    "planRef": "proposed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json",
+    "planRef": "completed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json",
     "narratives": {
       "Description": "Implement the #1670 Decision-3 transition contract: `directive init` and `directive update` delegate to the bundled deft-install Go binary (deft-install --yes --upgrade --repo-root . --json) rather than reimplementing bootstrap. This keeps a single bootstrap implementation during the staged Go-retire window; the CLI absorbs the logic only at Wave 5. Builds on the S3 router.",
       "ImplementationPlan": "1. Add packages/cli/src/init-cli init/update command handlers that locate the bundled deft-install binary and shell out with the canonical flags, surfacing its JSON result.\n2. Route the handlers through the safe-subprocess capture contract (utf-8/errors=replace) and map deft-install exit codes to the directive CLI exit contract.\n3. Verify with vitest tests that stub the binary invocation (asserting the canonical argv + JSON passthrough) plus a smoke test against a temp repo fixture.",

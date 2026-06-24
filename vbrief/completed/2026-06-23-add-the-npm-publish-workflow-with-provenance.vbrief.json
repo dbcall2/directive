@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 6 decomposed from proposed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json"
+    "description": "Story vBRIEF 6 decomposed from completed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json"
   },
   "plan": {
     "id": "11-s6-npm-publish-workflow",
     "title": "Add the npm publish workflow with provenance",
     "status": "completed",
-    "planRef": "proposed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json",
+    "planRef": "completed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json",
     "narratives": {
       "Description": "Establish npm as the canonical v1 distribution channel (#1670 Decision-4): a GitHub Actions workflow that publishes @deftai/directive, @deftai/directive-core, @deftai/directive-types, and @deftai/directive-content to npm with provenance on a version tag. pip is explicitly out of scope for v1 (deferred; #1084 stays parked). Builds on the final package names from S1.",
       "ImplementationPlan": "1. Add .github/workflows/npm-publish.yml triggered on v* tags that builds the workspace and runs `npm publish --provenance --access public` for each @deftai/directive* package in dependency order.\n2. Add `publishConfig.access=public` + the `repository`/`provenance`-relevant fields to each published package.json and ensure files allowlists are correct.\n3. Verify with `npm publish --dry-run` per package (run in CI or locally with --dry-run) confirming the tarball contents and that provenance flags are accepted.",

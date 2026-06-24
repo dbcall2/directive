@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 1 decomposed from proposed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json"
+    "description": "Story vBRIEF 1 decomposed from completed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json"
   },
   "plan": {
     "id": "11-s1-package-rename",
     "title": "Product-scope the npm packages and wire the directive/deft bins",
     "status": "completed",
-    "planRef": "proposed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json",
+    "planRef": "completed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json",
     "narratives": {
       "Description": "Rename the three published workspace packages from function-named to product-scoped per the #1670 identity model: @deftai/cli -> @deftai/directive, @deftai/core -> @deftai/directive-core, @deftai/types -> @deftai/directive-types. Rewrite every internal import specifier (~65 .ts files reference @deftai/core|types|cli) and the workspace/tsconfig project references so the build stays green. Expose a single user-facing bin named `directive` from @deftai/directive with `deft` retained as an alias (npm multi-bin). This is the foundational story the rest of Wave 2 builds on: it touches the shared import surface and every package.json, so it lands first and alone.",
       "ImplementationPlan": "1. Rename the `name` field in packages/{cli,core,types}/package.json to the @deftai/directive* scheme and update the root pnpm-workspace + tsconfig project references and any `paths` aliases.\n2. Mechanically rewrite the import specifiers across the ~65 .ts files (@deftai/core -> @deftai/directive-core, @deftai/types -> @deftai/directive-types, @deftai/cli -> @deftai/directive) and replace the cli `bin` map with `directive` canonical + `deft` alias both pointing at dist/bin.js.\n3. Verify with a clean `pnpm -w install && pnpm -w run build` (tsc -b green), confirm `node packages/cli/dist/bin.js --version` resolves, and assert zero residual `@deftai/(core|types|cli)` specifiers remain in packages/**.",

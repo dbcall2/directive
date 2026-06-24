@@ -1,13 +1,13 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Story vBRIEF 7 decomposed from proposed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json"
+    "description": "Story vBRIEF 7 decomposed from completed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json"
   },
   "plan": {
     "id": "11-s7-identity-docs",
     "title": "Document the Deft-company / Directive-product model and npm install paths",
     "status": "completed",
-    "planRef": "proposed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json",
+    "planRef": "completed/2026-04-23-11-npm-pip-cli-distribution-npm-i-g-deftai-directive-pipx.vbrief.json",
     "narratives": {
       "Description": "Resolve the #423 tail: add the user-visible 'Deft is the company, Directive is the product' note and reframe the primary install paths around npm (`npm i -g @deftai/directive`; `directive` command with `deft` alias). The Go installer stays documented as the bootstrap path during the staged-retire window. This is the docs surface for the Wave-2 distribution change; the full #761 README/UPGRADING reframe remains Wave 4.",
       "ImplementationPlan": "1. Add a concise identity-model note (Deft = company/org/scope/.deft footprint; Directive = product/bin) to README.md and the getting-started content.\n2. Add the npm install/quickstart paths (`npm i -g @deftai/directive`, `npx @deftai/directive ...`, `directive`/`deft`) alongside the existing installer path, marked as the emerging canonical channel.\n3. Verify with `node packages/cli/dist/bin.js verify links` (no broken links) and a docs read-through confirming the identity note + install paths are present.",
