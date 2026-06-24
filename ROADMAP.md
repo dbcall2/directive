@@ -89,6 +89,7 @@
 - **#106** -- Add toolchain/environment validation gate (coding/toolchain.md, deft-build Step 2, strategies/interview.md Acceptance Gate, meta/lessons.md incident entry) -- `[completed]`
 - **#107** -- Remove language defaults from USER.md -- `[completed]`
 - **#108** -- Ask deployment platform before language -- `[completed]`
+- **#11** -- NPM + PIP CLI distribution (`npm i -g @deftai/directive`, `pipx install deft-cli`) -- `[completed]`
 - **#115** -- Strengthen spec validation gate: add CI freshness check detecting stale `SPECIFICATION.md` (schema checks landed in PR #130 -- `spec_validate.py` now enforces vBRIEF v0.5 structure, status enum, legacy key detection) -- `[completed]`
 - **#116** -- Installer now creates all 6 skill thin pointers (deft-review-cycle, deft-roadmap-refresh, deft-swarm were missing) -- consistent ./deft/ paths, 3 new path consistency tests -- `[completed]`
 - **#117** -- Interview command loops in CLI -- `cmd_project` no longer re-runs questionnaire after `cmd_install` chains through `cmd_spec` -- `[completed]`
@@ -292,6 +293,7 @@
 - **#747** -- feat(scripts,tasks,hooks): detection-bound branch gate — verify:branch + git hooks reading PROJECT-DEFINITION policy field -- `[completed]`
 - **#754** -- fix(scripts/reconcile_issues.py, scripts/release.py): vBRIEF-lifecycle-sync gate false-positives on repos with >200 open issues -- `[completed]`
 - **#756** -- fix(scripts/reconcile_issues.py): apply_lifecycle_fixes does not dedupe vBRIEFs that reference multiple closed issues (spurious file-missing failures, misleading exit 1) -- `[completed]`
+- **#761** -- docs: reframe install paths around webinstaller + npm/pip; demote Go binary to legacy -- `[completed]`
 - **#764** -- fix(scripts/reconcile_issues.py): bump ISSUE_FETCH_LIMIT 200 -> 1000 to clear truncation warning on 232-issue corpus -- `[completed]`
 - **#767** -- feat(framework,skills): add Discuss + Back as canonical numbered options in all deterministic-mode questions -- `[completed]`
 - **#768** -- Universal upgrade gate: stale-AGENTS.md consumers silently follow obsolete instructions -- `[completed]`
@@ -692,11 +694,15 @@
 - **#1880** -- Orchestrator sub-agent dispatch doctrine — worker-owns-lifecycle + background dispatch + routing decision -- `[completed]`
 - **#1884** -- bug(verify-session-ritual): gated tier fails with 'unknown session ritual command: doctor' -- `[completed]`
 - **#1894** -- refactor(packs): pack-render.ts duplicates contentRoot instead of importing canonical content-root module -- `[completed]`
+- **#1891** -- swarmSubagentBackend left live + un-flagged after #1739 supersession — half-migrated surfaces steer agents into the dead enum -- `[completed]`
 - **#1910** -- Teach the release skill about npm -- `[completed]`
 - **#1916** -- npm publish workflow uses self-hosted (Blacksmith) runner — incompatible with --provenance -- `[completed]`
+- **#1918** -- directive version reports hardcoded engine version 0.0.0 -- `[completed]`
 - **#1919** -- Migrate npm publishing to OIDC trusted publishing and retire NPM_TOKEN -- `[completed]`
 - **#1922** -- CI: Windows task-dispatch job fails on corepack pnpm version drift (11.8.0 vs 11.9.0) -- `[completed]`
 - **#1923** -- CI: TS global branch-coverage sits at the 85% threshold boundary (84.99%) and fails intermittently -- `[completed]`
+- **#1925** -- release:e2e npm dry-run false-fails after first real publish (dummy 0.0.1 < published version) -- `[completed]`
+- **#1932** -- Generated .planning/codebase/MAP.md digest causes guaranteed merge conflicts across concurrent branches -- `[completed]`
 - **#11** -- Add the npm publish workflow with provenance -- `[completed]`
 - **#11** -- Document the Deft-company / Directive-product model and npm install paths -- `[completed]`
 - **#11** -- Implement the directive verb router and top-level UX verbs -- `[completed]`
@@ -704,4 +710,5 @@
 - **#11** -- Migrate product slash commands to /deft:directive:* with aliases -- `[completed]`
 - **#11** -- Product-scope the npm packages and wire the directive/deft bins -- `[completed]`
 - **#11** -- Publish content as @deftai/directive-content and resolve it from the package -- `[completed]`
+- **#761** -- Sync skill canonical-path blurb still Go-installer-canonical (post-#761 leftover) -- `[completed]`
 

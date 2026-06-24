@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+
+### Fixed
+
+### Removed
+
+## [0.55.2] - 2026-06-24
+
+> Install and update docs now lead with npm, `directive version` reports the real engine version, and release-rehearsal + codebase-MAP merge conflicts are fixed.
+
+### Added
+
+### Changed
 - **Install and upgrade docs now lead with npm (#761)** — README Getting Started, UPGRADING, RELEASING, QUICK-START, and AGENTS.md now treat `npm i -g @deftai/directive` as the canonical install/upgrade path; the frozen Go installer is documented only as a legacy no-Node bootstrap bridge. Removes pip, webinstaller, and stale "not yet published" hedging. Closes #761.
 
 - **Sync skill now points to npm for updates (post-#761 cleanup)** — the `deft-directive-sync` skill's "Canonical bootstrap / update path" note still told operators to update via the Go installer (`deft-install --yes --upgrade`), contradicting the #761 npm cutover. It now leads with `npm i -g @deftai/directive@latest`, keeps the frozen Go installer as the no-Node bridge, and flags the in-skill submodule sync as the legacy flow. Refs #761 #1912.
@@ -3545,7 +3557,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.55.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.55.2...HEAD
+[0.55.2]: https://github.com/deftai/directive/compare/v0.55.1...v0.55.2
 [0.55.1]: https://github.com/deftai/directive/compare/v0.55.0...v0.55.1
 [0.55.0]: https://github.com/deftai/directive/compare/v0.54.0...v0.55.0
 [0.54.0]: https://github.com/deftai/directive/compare/v0.53.2...v0.54.0
