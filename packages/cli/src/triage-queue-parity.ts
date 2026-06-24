@@ -68,7 +68,9 @@ const DEFAULT_REPO = "owner/repo";
 
 /** Strip volatile absolute paths before compare. */
 export function normalizeOutput(text: string): string {
-  return text.replace(/project_root=[^\s)]+/g, "project_root=<ROOT>");
+  return text
+    .replace(/^WARN [^\n]*\n/gm, "")
+    .replace(/project_root=[^\s)]+/g, "project_root=<ROOT>");
 }
 
 interface Capture {

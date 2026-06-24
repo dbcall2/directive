@@ -358,8 +358,13 @@ function normalizeProjectBytes(bytes: Buffer): Buffer {
   return Buffer.from(text, "utf8");
 }
 
-function normalizeMessage(text: string): string {
-  return text.replace(/\/tmp\/deft-render-parity-(py|ts)-[^/\s]+/g, "<TMP>");
+export function normalizeMessage(text: string): string {
+  return text
+    .replace(
+      /(?:\/private)?\/var\/folders\/[^\s"')]+\/deft-render-parity-(py|ts)-[^/\s"')]+/g,
+      "<TMP>",
+    )
+    .replace(/\/tmp\/deft-render-parity-(py|ts)-[^/\s"')]+/g, "<TMP>");
 }
 
 export function diffCase(

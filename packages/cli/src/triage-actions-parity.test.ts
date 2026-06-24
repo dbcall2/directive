@@ -13,6 +13,16 @@ describe("normalizeOutput", () => {
     const raw = "defer #7 (deftai/directive) -> c3f3a68e-016b-43aa-a0be-e585bc440165\n";
     expect(normalizeOutput(raw)).toBe("defer #7 (deftai/directive) -> <UUID>\n");
   });
+
+  it("normalizes isolated fixture roots in cache miss messages", () => {
+    const raw =
+      "expected meta.json at /tmp/deft-triage-actions-parity-ab12cd/.deft-cache/github-issue/o/r/1/meta.json\n" +
+      "expected meta.json at /var/folders/0z/example/T/deft-triage-actions-parity-xy34zz/.deft-cache/github-issue/o/r/1/meta.json\n";
+    expect(normalizeOutput(raw)).toBe(
+      "expected meta.json at <FIXTURE>/.deft-cache/github-issue/o/r/1/meta.json\n" +
+        "expected meta.json at <FIXTURE>/.deft-cache/github-issue/o/r/1/meta.json\n",
+    );
+  });
 });
 
 describe("diffCase", () => {

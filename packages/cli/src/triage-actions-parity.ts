@@ -43,6 +43,10 @@ export interface ParityResult {
 export function normalizeOutput(text: string): string {
   return text
     .replace(
+      /(?:\/private)?\/(?:tmp|var\/folders\/[^\s"']+\/T)\/deft-triage-actions-parity-[^/\s"']+/g,
+      "<FIXTURE>",
+    )
+    .replace(
       /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g,
       "<UUID>",
     )

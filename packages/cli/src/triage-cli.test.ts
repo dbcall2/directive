@@ -9,7 +9,6 @@ import {
   PARITY_CASES,
   renderReport,
   resolveDeftRoot,
-  runParity,
 } from "./triage-aux-a-parity.js";
 import { parseArgs as parseReconcile, run as runReconcile } from "./triage-reconcile.js";
 import { parseArgs as parseRefresh, run as runRefresh } from "./triage-refresh.js";
@@ -166,10 +165,10 @@ describe("triage-aux-a parity helpers", () => {
     expect(diff.exitMismatch).toBe(true);
   });
 
-  it("runParity matches python oracle", () => {
-    const result = runParity();
-    expect(result.ok).toBe(true);
-    expect(renderReport(result)).toContain("CLEAN");
+  it("defines aux-A cases for the dedicated parity lane", () => {
+    expect(PARITY_CASES.length).toBe(6);
+    expect(PARITY_CASES.map((c) => c.name)).toContain("welcome-default-empty");
+    expect(renderReport({ ok: true, diffs: [] })).toContain("CLEAN");
   });
 
   it("diffCase detects stdout and stderr mismatch", () => {

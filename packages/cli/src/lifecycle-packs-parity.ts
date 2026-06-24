@@ -225,7 +225,7 @@ export const PARITY_CASES: readonly ParityCase[] = [
       const script = `import sys
 from pathlib import Path
 root = Path(${JSON.stringify(deftRoot)})
-repo = Path(${JSON.stringify(repo)})
+repo = Path(${JSON.stringify(repo)}).resolve()
 sys.path.insert(0, str(root / "scripts"))
 import packs_slice
 packs_slice.REPO_ROOT = repo
@@ -254,7 +254,7 @@ raise SystemExit(0)`;
       const script = `import sys
 from pathlib import Path
 root = Path(${JSON.stringify(deftRoot)})
-repo = Path(${JSON.stringify(repo)})
+repo = Path(${JSON.stringify(repo)}).resolve()
 sys.path.insert(0, str(root / "scripts"))
 import packs_slice
 packs_slice.REPO_ROOT = repo

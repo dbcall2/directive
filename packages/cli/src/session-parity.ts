@@ -5,7 +5,7 @@
  * shared fixtures (cache-off) and diffs JSON stdout + exit codes.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -97,12 +97,13 @@ function writeFreshState(
   gated: Record<string, Record<string, unknown>> = {},
 ): void {
   const now = new Date(startedAt);
+  const worktree = realpathSync(fixture.root);
   writeRitualState(
     fixture.root,
     newRitualStatePayload({
       sessionId: "parity-session",
       gitHead: fixture.head,
-      worktreePath: resolve(fixture.root),
+      worktreePath: worktree,
       startedAt: now,
       quickSteps: {
         alignment: ritualStep({ ok: true, ts: now }),
@@ -157,7 +158,7 @@ function runTsVerify(fixture: Fixture, scenario: ParityCase): Capture {
     tier: scenario.tier,
     now: new Date(scenario.nowIso),
     bypass: scenario.bypass,
-    runGit: fakeGitRunner(fixture.head, resolve(fixture.root)),
+    runGit: fakeGitRunner(fixture.head, realpathSync(fixture.root)),
     runner: scenario.runner,
   });
   return {
@@ -213,12 +214,13 @@ export const PARITY_CASES: readonly ParityCase[] = [
     setup() {
       const fixture = initGitRepo();
       const now = new Date(FIXED_NOW);
+      const worktree = realpathSync(fixture.root);
       writeRitualState(
         fixture.root,
         newRitualStatePayload({
           sessionId: "parity-session",
           gitHead: fixture.head,
-          worktreePath: resolve(fixture.root),
+          worktreePath: worktree,
           startedAt: now,
           quickSteps: {
             alignment: ritualStep({ ok: true, ts: now }),

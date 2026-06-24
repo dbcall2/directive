@@ -303,12 +303,22 @@ export const PARITY_CASES: readonly ParityCase[] = [
   },
 ];
 
+export function normalizeOutput(text: string): string {
+  return text
+    .replace(/(?:\/private)?\/var\/folders\/[^\s"')]+\/deft-codebase-parity-[^\s"')]+/g, "<TMP>")
+    .replace(/\/tmp\/deft-codebase-parity-[^\s"')]+/g, "<TMP>");
+}
+
 export function diffCase(python: CommandCapture, ts: CommandCapture, caseName: string): ParityDiff {
+  const pythonStdout = normalizeOutput(python.stdout);
+  const pythonStderr = normalizeOutput(python.stderr);
+  const tsStdout = normalizeOutput(ts.stdout);
+  const tsStderr = normalizeOutput(ts.stderr);
   return {
     caseName,
     exitMismatch: python.exitCode !== ts.exitCode,
-    stdoutMismatch: python.stdout !== ts.stdout,
-    stderrMismatch: python.stderr !== ts.stderr,
+    stdoutMismatch: pythonStdout !== tsStdout,
+    stderrMismatch: pythonStderr !== tsStderr,
     pythonExit: python.exitCode,
     tsExit: ts.exitCode,
   };

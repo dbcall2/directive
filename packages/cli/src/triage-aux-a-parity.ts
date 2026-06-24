@@ -53,7 +53,12 @@ export function normalizeOutput(text: string): string {
   return text
     .replace(/project_root=[^\s)"]+/g, "project_root=<ROOT>")
     .replace(/"project_root": "[^"]+"/g, '"project_root": "<ROOT>"')
-    .replace(/\/tmp\/[^\s"']+/g, "<TMP>");
+    .replace(/\/tmp\/[^\s"']+/g, "<TMP>")
+    .replace(/(?:\/private)?\/var\/folders\/[^\s"']+/g, "<TMP>")
+    .replace(/^WARN [^\n]*\n/gm, "")
+    .replace(/Using CPython[^\n]*\n/g, "")
+    .replace(/Creating virtual environment[^\n]*\n/g, "")
+    .replace(/Installed \d+ packages[^\n]*\n/g, "");
 }
 
 interface Capture {
@@ -92,8 +97,8 @@ function runPython(
   argv: readonly string[],
 ): CommandCapture {
   const cap = runCapture(
-    "python3",
-    [join(deftRoot, "scripts", script), ...argv, "--project-root", repo],
+    "uv",
+    ["run", "python", join(deftRoot, "scripts", script), ...argv, "--project-root", repo],
     deftRoot,
   );
   return { exitCode: cap.status, stdout: cap.stdout, stderr: cap.stderr };

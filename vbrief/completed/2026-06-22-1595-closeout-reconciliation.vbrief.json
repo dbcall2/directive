@@ -3,7 +3,7 @@
     "version": "0.6",
     "description": "Story vBRIEF for #1595 closeout and tracker reconciliation after #1871 merged.",
     "created": "2026-06-22T19:18:30Z",
-    "updated": "2026-06-22T19:36:00Z"
+    "updated": "2026-06-24T17:58:00Z"
   },
   "plan": {
     "id": "1595-closeout-reconciliation",
@@ -105,6 +105,28 @@
           "SPECIFICATION.md",
           "docs/code-structure-profile.md",
           "docs/codebase-map-source-of-truth.md",
+          "packages/cli/src/codebase-parity.ts",
+          "packages/cli/src/codebase-parity.test.ts",
+          "packages/cli/src/lifecycle-packs-parity.ts",
+          "packages/cli/src/render-parity.ts",
+          "packages/cli/src/render-parity.test.ts",
+          "packages/cli/src/release-parity.ts",
+          "packages/cli/src/release-parity.test.ts",
+          "packages/cli/src/session-parity.ts",
+          "packages/cli/src/session-parity.test.ts",
+          "packages/cli/src/triage-cli.test.ts",
+          "packages/cli/src/swarm-parity.ts",
+          "packages/cli/src/swarm-parity.test.ts",
+          "packages/cli/src/vbrief-reconcile-parity.ts",
+          "packages/cli/src/vbrief-reconcile-parity.test.ts",
+          "packages/cli/src/triage-actions-parity.ts",
+          "packages/cli/src/triage-actions-parity.test.ts",
+          "packages/cli/src/triage-aux-a-parity.ts",
+          "packages/cli/src/triage-aux-a-parity.test.ts",
+          "packages/cli/src/triage-queue-parity.ts",
+          "packages/cli/src/triage-queue.test.ts",
+          "packages/core/src/triage/actions/index.ts",
+          "packages/core/src/triage/actions/index.test.ts",
           "CHANGELOG.md",
           "vbrief/completed/2026-06-22-1595-closeout-reconciliation.vbrief.json"
         ],
@@ -112,6 +134,12 @@
           "task vbrief:validate",
           "task codebase:validate-structure",
           "task verify:codebase-map-fresh",
+          "task ts:triage-parity",
+          "task ts:parity-all",
+          "corepack pnpm exec biome check .",
+          "corepack pnpm exec vitest run packages/cli/src/session-parity.test.ts packages/cli/src/triage-cli.test.ts",
+          "corepack pnpm exec vitest run packages/cli/src/codebase-parity.test.ts packages/cli/src/lifecycle-packs-parity.test.ts packages/cli/src/render-parity.test.ts packages/cli/src/release-parity.test.ts packages/cli/src/session-parity.test.ts packages/cli/src/swarm-parity.test.ts packages/cli/src/vbrief-reconcile-parity.test.ts packages/cli/src/triage-actions-parity.test.ts packages/cli/src/triage-aux-a-parity.test.ts packages/cli/src/triage-queue.test.ts",
+          "corepack pnpm exec vitest run packages/core/src/triage/actions/index.test.ts",
           "git diff --check"
         ],
         "expected_outputs": [
@@ -126,6 +154,6 @@
       },
       "completedAt": "2026-06-22T19:25:01Z"
     },
-    "updated": "2026-06-22T19:36:00Z"
+    "updated": "2026-06-24T17:58:00Z"
   }
 }
