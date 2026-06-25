@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.57.0] - 2026-06-25
+
+> Post-freeze npm alignment: doctor, docs, and the release flow now treat npm as the canonical upgrade path, plus a new doc-to-CLI parity gate that blocks documented-verb drift.
+
+### Added
 - **Doc and release rehearsals now catch npm CLI drift before publish** — a new check compares every `directive` / `deft` command cited in UPGRADING.md and the AGENTS.md managed section against the live CLI router so documented verbs cannot outpace registration, and the release end-to-end rehearsal packs all four npm packages, installs them into a clean layout, and runs `directive doctor` to fail on module-not-found import bugs like the #1993 regression. Closes #1996.
 
 ### Changed
@@ -3633,7 +3645,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.56.2...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.57.0...HEAD
+[0.57.0]: https://github.com/deftai/directive/compare/v0.56.2...v0.57.0
 [0.56.2]: https://github.com/deftai/directive/compare/v0.56.1...v0.56.2
 [0.56.1]: https://github.com/deftai/directive/compare/v0.56.0...v0.56.1
 [0.56.0]: https://github.com/deftai/directive/compare/v0.55.2...v0.56.0

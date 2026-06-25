@@ -734,6 +734,13 @@
 - **#1985** -- Exclude __pycache__/*.pyc from @deftai/directive-content prepack -- `[completed]`
 - **#1987** -- Freeze gate should skip Go build gracefully (green) instead of hard-failing release.yml post-freeze -- `[completed]`
 - **#1989** -- Bump esbuild to >=0.28.1 in framework pnpm-lock (low-sev dev advisory) -- `[completed]`
+- **#1996** -- Add doc<->CLI parity gate (UPGRADING npm verbs subset of registered verbs) + install+run smoke in release-e2e -- `[completed]`
+- **#1997** -- Post-freeze doctor: surface npm-migration signpost on a normal run + npm payload-staleness command + Python doctor legacy-layout parity -- `[completed]`
+- **#1998** -- Vendored `run update` stub dead-ends post-freeze — redirect to the canonical npm path (template fix) -- `[completed]`
+- **#2002** -- Release skill: drop Phase 5 human publish gate — npm is already irrevocable at tag push -- `[completed]`
+- **#2003** -- doctor payload-staleness command diverges from AGENTS.md / managed-section docs -- `[completed]`
+- **#2004** -- doctor payload-staleness silently green when ls-remote unavailable (false 'System check passed!') -- `[completed]`
+- **#2010** -- release:e2e install+run smoke false-positive: doctor --help exits 1 in bare consumer layout (#1996 follow-up) -- `[completed]`
 - **#1972** -- Add npm-handoff messaging to the Go installer success path -- `[completed]`
 - **#1972** -- Assert the installer VERSION is migrate-acceptable in the legacy-bridge e2e leg -- `[completed]`
 - **#1972** -- Reconcile verify:go-freeze version source to a release-tag check -- `[completed]`
