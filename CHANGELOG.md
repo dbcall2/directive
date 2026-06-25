@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
+### Removed
+
+## [0.56.2] - 2026-06-25
+
+> Repairs the npm-distributed CLI so every command runs on a fresh install, and unsticks the local cache-fresh gate that wedged on closed issues.
+
+### Added
+
+### Changed
+
+### Fixed
 - **The `npx @deftai/directive` CLI works again for every command** — on a fresh npm install most verbs (`doctor`, `cache`, `triage`, `release`, `pr`) crashed with a "Cannot find module `@deftai/core`" error because the CLI loaded its sibling engine by a workspace-relative path that only resolves inside the source monorepo. The CLI now imports the engine by its published package name, so the npm-native path the freeze steers consumers toward actually runs. A new check fails the build if a workspace-relative cross-package import is ever reintroduced. Refs #1993.
 - **The local `cache-fresh` check no longer gets permanently stuck on closed issues** — the pre-flight freshness gate aged out cached entries for closed issues, but its own recovery command (`cache:fetch-all --force`) only refreshes open issues, so the hint was a dead end and the gated session-ritual stack stayed blocked. The gate now judges freshness over open issues only (closed issues are terminal), so it agrees with what the recovery command can actually refresh. Closes #1991.
 
@@ -3611,7 +3623,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.56.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.56.2...HEAD
+[0.56.2]: https://github.com/deftai/directive/compare/v0.56.1...v0.56.2
 [0.56.1]: https://github.com/deftai/directive/compare/v0.56.0...v0.56.1
 [0.56.0]: https://github.com/deftai/directive/compare/v0.55.2...v0.56.0
 [0.55.2]: https://github.com/deftai/directive/compare/v0.55.1...v0.55.2
