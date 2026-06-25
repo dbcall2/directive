@@ -60,6 +60,7 @@ export function normalizeOutput(text: string): string {
   return text
     .replace(/--project-root [^\s]+/g, "--project-root <ROOT>")
     .replace(/--repo-root [^\s]+/g, "--repo-root <ROOT>")
+    .replace(/(?:\/private)?\/var\/folders\/[^\s"')]+\/swarm-[^\s"')]+/g, "<TMP>")
     .replace(/\/tmp\/[^\s]+/g, "<TMP>")
     .replace(/\/home\/[^\s]+/g, "<PATH>")
     .trim()

@@ -272,6 +272,12 @@ function resolveDeftRoot(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 }
 
+export function normalizeOutput(text: string): string {
+  return text
+    .replace(/(?:\/private)?\/var\/folders\/[^\s"')]+\/deft-vbrief-reconcile-[^\s"')]+/g, "<TMP>")
+    .replace(/\/tmp\/deft-vbrief-reconcile-[^\s"')]+/g, "<TMP>");
+}
+
 function installPythonDriver(): { driverPath: string; cleanup: () => void } {
   const dir = mkdtempSync(join(tmpdir(), "deft-vbrief-reconcile-driver-"));
   const driverPath = join(dir, "vbrief_reconcile_parity_driver.py");
@@ -634,14 +640,19 @@ export function runParity(): ParityResult {
         ran = runLabelsUmbrellasParity(deftRoot, name, env);
       }
 
+      const pythonStdout = normalizeOutput(ran.python.stdout);
+      const pythonStderr = normalizeOutput(ran.python.stderr);
+      const tsStdout = normalizeOutput(ran.ts.stdout);
+      const tsStderr = normalizeOutput(ran.ts.stderr);
+
       scenarios.push({
         name,
         pythonExit: ran.python.exitCode,
         tsExit: ran.ts.exitCode,
         exitMismatch: ran.python.exitCode !== ran.ts.exitCode,
-        outputMismatch: ran.python.stdout !== ran.ts.stdout || ran.python.stderr !== ran.ts.stderr,
-        pythonOutput: ran.python.stdout || ran.python.stderr,
-        tsOutput: ran.ts.stdout || ran.ts.stderr,
+        outputMismatch: pythonStdout !== tsStdout || pythonStderr !== tsStderr,
+        pythonOutput: pythonStdout || pythonStderr,
+        tsOutput: tsStdout || tsStderr,
       });
     }
   } finally {

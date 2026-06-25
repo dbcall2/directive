@@ -64,7 +64,7 @@ Historical Phase 1-3 narrative and inline plan.items were removed from the curre
 
 ## OpenQuestions
 
-1. **Generated source headers and consumer propagation** -- the MAP generator and freshness gate exist; generated source headers and consumer propagation remain future slices.
+1. **Generated source headers** -- the MAP generator, freshness gate, and PR6 consumer guidance are complete. Generated source headers remain a split optional projection follow-up; local indexes and materialized views are tracked separately by #1618.
 2. **Runtime decoupling** -- `run` remains present for compatibility and interactive workflows. The long-term split between framework guidance, package-manager command routing, and Taskfile runtime is still evolving through scoped work.
 3. **Content-pack UX** -- `packs:*` tasks exist, but the public documentation should continue to expand as the pack format becomes a primary user-facing surface.
 

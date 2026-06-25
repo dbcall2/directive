@@ -1,4 +1,3 @@
-import { scopeIdsForRefUri } from "./paths.js";
 import type { JsonObject } from "./schema.js";
 
 export const REGISTRY_SCOPE_LINK_TYPE = "x-vbrief/plan";
@@ -35,21 +34,11 @@ export function registryMetadataReferencesFromScope(references: unknown): unknow
   return references.filter((ref) => !isScopeLinkRef(ref));
 }
 
-function pushPlanScopeLink(uris: string[], ref: unknown): void {
-  if (!isScopeLinkRef(ref)) {
-    return;
-  }
-  const uri = ref.uri;
-  if (typeof uri === "string" && uri.length > 0) {
-    uris.push(uri);
-  }
-}
-
 /**
- * Local scope URIs whose ``plan.status`` must agree with the registry item
- * status (D3). Shared by render output expectations and the validator.
+ * Local source URI whose ``plan.status`` must agree with the registry item
+ * status (D3). Child plan links can move through the lifecycle independently.
  */
-export function registryStatusScopeUris(item: JsonObject, plan: JsonObject): string[] {
+export function registryStatusScopeUris(item: JsonObject): string[] {
   const uris: string[] = [];
 
   const metadata = item.metadata;
@@ -58,33 +47,6 @@ export function registryStatusScopeUris(item: JsonObject, plan: JsonObject): str
     const sourcePath = meta.source_path;
     if (typeof sourcePath === "string" && sourcePath.length > 0) {
       uris.push(sourcePath);
-    }
-  }
-
-  const itemRefs = item.references;
-  if (Array.isArray(itemRefs)) {
-    for (const ref of itemRefs) {
-      pushPlanScopeLink(uris, ref);
-    }
-  }
-
-  const itemId = item.id;
-  const itemTitle = item.title;
-  const planRefs = plan.references;
-  if (Array.isArray(planRefs)) {
-    for (const ref of planRefs) {
-      if (!isScopeLinkRef(ref)) {
-        continue;
-      }
-      const uri = ref.uri;
-      if (typeof uri !== "string" || uri.length === 0) {
-        continue;
-      }
-      const titleMatches = typeof itemTitle === "string" && ref.title === itemTitle;
-      const idMatches = typeof itemId === "string" && scopeIdsForRefUri(uri).has(itemId);
-      if (titleMatches || idMatches) {
-        uris.push(uri);
-      }
     }
   }
 

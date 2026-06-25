@@ -128,72 +128,21 @@ def _normalize_narrative_key(key: str) -> str:
     return re.sub(r"[\s_\-]+", "", low)
 
 
-def _scope_ids_for_ref_uri(uri: str) -> set[str]:
-    """Return possible PROJECT-DEFINITION registry IDs for a local scope URI."""
-    rel = uri[len("file://") :] if uri.startswith("file://") else uri
-    name = Path(rel).name
-    full_id = name[: -len(".vbrief.json")] if name.endswith(".vbrief.json") else Path(name).stem
-    ids = {full_id}
-    parts = full_id.split("-", 3)
-    if (
-        len(parts) == 4
-        and len(parts[0]) == 4
-        and len(parts[1]) == 2
-        and len(parts[2]) == 2
-        and all(part.isdigit() for part in parts[:3])
-    ):
-        ids.add(parts[3])
-    return ids
-
-
-def _item_local_scope_uris(item: dict, plan: dict) -> list[str]:
-    """Collect local scope URIs that identify a PROJECT-DEFINITION registry item."""
-    uris: list[str] = []
-
+def _item_source_path_uris(item: dict) -> list[str]:
+    """Collect source URIs that identify a PROJECT-DEFINITION registry item."""
+    # Registry status tracks the item's own source vBRIEF; child plan references
+    # are allowed to move through the lifecycle independently.
     metadata = item.get("metadata")
     if isinstance(metadata, dict):
         source_path = metadata.get("source_path")
         if isinstance(source_path, str) and source_path:
-            uris.append(source_path)
-        metadata_refs = metadata.get("references")
-        if isinstance(metadata_refs, list):
-            for ref in metadata_refs:
-                if isinstance(ref, dict) and ref.get("type") == "x-vbrief/plan":
-                    uri = ref.get("uri")
-                    if isinstance(uri, str) and uri:
-                        uris.append(uri)
-
-    refs = item.get("references")
-    if isinstance(refs, list):
-        for ref in refs:
-            if isinstance(ref, dict) and ref.get("type") == "x-vbrief/plan":
-                uri = ref.get("uri")
-                if isinstance(uri, str) and uri:
-                    uris.append(uri)
-
-    item_id = item.get("id")
-    item_title = item.get("title")
-    plan_refs = plan.get("references")
-    if isinstance(plan_refs, list):
-        for ref in plan_refs:
-            if not isinstance(ref, dict) or ref.get("type") != "x-vbrief/plan":
-                continue
-            uri = ref.get("uri")
-            if not isinstance(uri, str) or not uri:
-                continue
-            title_matches = isinstance(item_title, str) and ref.get("title") == item_title
-            id_matches = isinstance(item_id, str) and item_id in _scope_ids_for_ref_uri(uri)
-            if title_matches or id_matches:
-                uris.append(uri)
-
-    # Preserve first-seen order while avoiding duplicate diagnostics.
-    return list(dict.fromkeys(uris))
+            return [source_path]
+    return []
 
 
 def _validate_project_registry_scope_status(
     item: dict,
     item_index: int,
-    plan: dict,
     filepath: Path,
     vbrief_dir: Path,
 ) -> list[str]:
@@ -204,7 +153,7 @@ def _validate_project_registry_scope_status(
         return errors
 
     resolved_root = vbrief_dir.resolve()
-    for uri in _item_local_scope_uris(item, plan):
+    for uri in _item_source_path_uris(item):
         if uri.startswith(("http://", "https://", "#")):
             continue
         scope_path = _resolve_ref_path(uri, vbrief_dir)
@@ -524,7 +473,7 @@ def validate_project_definition(filepath: Path, data: dict, vbrief_dir: Path) ->
             if not isinstance(item, dict):
                 continue
             errors.extend(
-                _validate_project_registry_scope_status(item, i, plan, filepath, vbrief_dir)
+                _validate_project_registry_scope_status(item, i, filepath, vbrief_dir)
             )
             refs = item.get("references", [])
             if not isinstance(refs, list):

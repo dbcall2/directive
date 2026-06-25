@@ -483,7 +483,7 @@ describe("markDuplicate", () => {
     const root = makeRepo();
     const deps = fakeDeps(root);
     expect(() => markDuplicate(5, "deftai/directive", 6, deps, { projectRoot: root })).toThrow(
-      /not found in cache/,
+      /not found in cache.*"cache miss for source='github-issue' key='deftai\/directive\/6'/,
     );
   });
 

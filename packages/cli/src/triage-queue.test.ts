@@ -130,6 +130,12 @@ describe("triage-queue-parity helpers", () => {
     expect(normalizeOutput("project_root=/tmp/foo")).toBe("project_root=<ROOT>");
   });
 
+  it("normalizeOutput strips uv warning noise", () => {
+    expect(normalizeOutput("WARN Server returned unusable 304 for: https://example.test\nok")).toBe(
+      "ok",
+    );
+  });
+
   it("diffCase detects stdout and exit mismatches", () => {
     const clean = diffCase(
       { exitCode: 0, stdout: "ok\n", stderr: "" },

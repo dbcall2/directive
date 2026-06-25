@@ -82,7 +82,7 @@ function defaultScmRunner(): ScmRunner {
     call(source, verb, args, options = {}) {
       try {
         const result = call(source, verb, args, {
-          check: options.check ?? false,
+          check: false,
           captureOutput: true,
         });
         if ((options.check ?? false) && result.returncode !== 0) {
