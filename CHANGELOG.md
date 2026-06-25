@@ -15,10 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Doc and release rehearsals now catch npm CLI drift before publish** — a new check compares every `directive` / `deft` command cited in UPGRADING.md and the AGENTS.md managed section against the live CLI router so documented verbs cannot outpace registration, and the release end-to-end rehearsal packs all four npm packages, installs them into a clean layout, and runs `directive doctor` to fail on module-not-found import bugs like the #1993 regression. Closes #1996.
 
 ### Changed
 
+- Release skill now treats tag push as the irrevocable npm gate and reframes Phase 5 as optional GitHub draft QA rather than a publish-authority gate; the happy path auto-publishes the GitHub release after draft assets verify. Closes #2002.
+
 ### Fixed
+
+- **Vendored `run update` now points at npm instead of dead-ending** — the compatibility `run update` stub no longer tells operators to manually replace the deft directory; it signposts `npm i -g @deftai/directive@latest` and `npx @deftai/directive update` so future deposits steer consumers to the post-freeze upgrade path. Closes #1998.
+- **Doctor now recommends npm upgrades and surfaces layout advisories on throttled runs** — payload-staleness emits `npm i -g @deftai/directive@latest` (matching AGENTS.md), falls back to the npm registry when GitHub `ls-remote` is unreachable, and warns when payload currency is UNVERIFIED instead of silently passing; legacy-layout and canonical-vendored npm-migration signposts run on normal throttled doctor runs and in the Python doctor. Closes #1997, #2003, #2004.
+- **Release rehearsal no longer false-fails on a healthy install** — the install+run smoke now uses `directive --version` as its exit-0 liveness check and gates `directive doctor` only on module-not-found, so a benign non-zero doctor verdict in a bare consumer layout stops blocking `task release:e2e`. Closes #2010.
 
 ### Removed
 
