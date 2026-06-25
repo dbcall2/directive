@@ -711,4 +711,27 @@
 - **#11** -- Product-scope the npm packages and wire the directive/deft bins -- `[completed]`
 - **#11** -- Publish content as @deftai/directive-content and resolve it from the package -- `[completed]`
 - **#761** -- Sync skill canonical-path blurb still Go-installer-canonical (post-#761 leftover) -- `[completed]`
+- **#1696** -- fix(render): project:render must emit registry items that pass vbrief:validate for mixed-status decompose groups -- `[completed]`
+- **#1697** -- fix(render): make roadmap:render -> roadmap:check idempotent (check diffs against the same bytes render emits) -- `[completed]`
+- **#1698** -- fix(triage): one shared decision-reader so summary, history, status, and reset agree on backfilled accepts -- `[completed]`
+- **#1886** -- fix(triage,cache): make the triage cache faithful to upstream state (reconcile-default + self-healing ritual + drift-aware freshness gate) -- `[completed]`
+- **#1912** -- feat(#1912 E): pinned legacy->bridge->npm-hybrid e2e leg (reads Tier-0 SoT, pending-pin until frozen) -- `[completed]`
+- **#1912** -- feat(#1912 G): Tier-0 lastGoInstaller SoT (null-until-frozen) + Tier-1 freeze gate + cross-surface drift gate -- `[completed]`
+- **#1912** -- feat(#1912 P): npm CLI legacy-layout refuse-preflight (two-step) + signpost-only stable-URL surfaces -- `[completed]`
+- **#1941** -- feat(cli): directive migrate (stage-2 canonical-vendored -> npm-hybrid) -- thin provenance verb -- `[completed]`
+- **#1942** -- feat(cli): TS-native directive init/update deposit (absorb healthy-path bootstrap) + gitignore .deft/core -- `[completed]`
+- **#1945** -- fix(triage,ts): port the missing triage-actions verbs to TS (needs-ac/mark-duplicate/status/reset/history) -- `[completed]`
+- **#1949** -- fix(cache): make cache:fetch-all actually satisfy the freshness gate (force + drift-aware refresh) -- `[completed]`
+- **#1953** -- fix(cache): branch-aware verify:cache-fresh recovery hint (Option 3 of threshold reconciliation) -- `[completed]`
+- **#1912** -- docs: reframe Go installer across consumer docs (Node always required) + project-directory note -- `[completed]`
+- **#1942** -- S1: content dependency + TS resolve-and-copy deposit primitive -- `[completed]`
+- **#1942** -- S2: directive init TS-native greenfield deposit -- `[completed]`
+- **#1942** -- S3: directive update TS-native healthy-path refresh -- `[completed]`
+- **#1942** -- S4: gitignore .deft/core greenfield write + reconstitution -- `[completed]`
+- **#1942** -- S5: docs flip + greenfield/upgrade e2e legs -- `[completed]`
+- **#1967** -- Bundle .githooks/ + consumer Taskfile into @deftai/directive-content (npm-only deposit parity) -- `[completed]`
+- **#1985** -- Exclude __pycache__/*.pyc from @deftai/directive-content prepack -- `[completed]`
+- **#1972** -- Add npm-handoff messaging to the Go installer success path -- `[completed]`
+- **#1972** -- Assert the installer VERSION is migrate-acceptable in the legacy-bridge e2e leg -- `[completed]`
+- **#1972** -- Reconcile verify:go-freeze version source to a release-tag check -- `[completed]`
 

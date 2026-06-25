@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.56.0] - 2026-06-25
+
+> npm-native distribution: directive init/update/migrate now deposit and stamp installs from the npm content package without the Go binary, plus freeze-prep gates for the legacy Go installer bridge.
+
+### Added
 - **Pure-npm installs now get working branch-policy git hooks and a usable framework Taskfile** — the published `@deftai/directive-content` package now bundles the `.githooks/` pre-commit/pre-push hooks, the framework `Taskfile.yml`, and the task fragments and helper scripts those depend on. A `directive init` with no Go installer now wires the hooks (instead of silently logging "absent — skipping") and the `./.deft/core/Taskfile.yml` include resolves cleanly, closing the npm-vs-Go deposit gap that previously left npm-only projects without branch-policy enforcement. Closes #1967.
 - **The frozen Go installer now hands you off to npm on success** — after a completed install or upgrade, the installer prints a short line on stderr telling you that future Deft upgrades come from the npm package and to run `npx @deftai/directive init`. The line is shown only on a successful run; an errored install stays quiet so the guidance never masks a failure. Refs #1972.
 - **The legacy-bridge release rehearsal now proves the installer VERSION is migration-ready, not just present** — the `task release:e2e --legacy-bridge` leg now asserts the canonical-vendored `.deft/core/VERSION` carries the full installer field shape and is accepted by `directive migrate` before the npm-managed stamp, failing the leg with a clear handshake-mismatch reason if any installer field drifts. The check runs even while the bridge tag is unfrozen, so the freeze-time handoff cannot silently break. Refs #1972.
@@ -3579,7 +3591,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.55.2...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.56.0...HEAD
+[0.56.0]: https://github.com/deftai/directive/compare/v0.55.2...v0.56.0
 [0.55.2]: https://github.com/deftai/directive/compare/v0.55.1...v0.55.2
 [0.55.1]: https://github.com/deftai/directive/compare/v0.55.0...v0.55.1
 [0.55.0]: https://github.com/deftai/directive/compare/v0.54.0...v0.55.0
