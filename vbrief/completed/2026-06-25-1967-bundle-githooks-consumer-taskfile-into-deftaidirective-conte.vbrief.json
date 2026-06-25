@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "Bundle .githooks/ + consumer Taskfile into @deftai/directive-content (npm-only deposit parity)",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "Bundle .githooks/ + consumer Taskfile into @deftai/directive-content (npm-only deposit parity)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1967",
@@ -23,6 +23,11 @@
         "type": "x-vbrief/refs",
         "title": "Issue #1942"
       }
-    ]
+    ],
+    "updated": "2026-06-25T14:10:42Z",
+    "metadata": {
+      "completedAt": "2026-06-25T14:10:42Z",
+      "capacityBucket": "new-capability"
+    }
   }
 }
