@@ -1,10 +1,13 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { defaultWhich, spawnText } from "../release/spawn.js";
 import {
+  MODULE_NOT_FOUND_MARKERS,
   NPM_BUILD_TIMEOUT_SECONDS,
   NPM_E2E_REHEARSAL_TAG,
+  NPM_INSTALL_RUN_TIMEOUT_SECONDS,
   NPM_INSTALL_TIMEOUT_SECONDS,
+  NPM_PACK_TIMEOUT_SECONDS,
   NPM_PUBLISH_DRYRUN_TIMEOUT_SECONDS,
   NPM_PUBLISH_PACKAGES,
 } from "./constants.js";
@@ -191,5 +194,171 @@ export function rehearseNpmPublish(
     true,
     "npm publish --dry-run clean for 4 packages " +
       `(types -> core -> content -> cli) at v${version}`,
+  ];
+}
+
+function moduleResolutionFailure(output: string): string | null {
+  for (const marker of MODULE_NOT_FOUND_MARKERS) {
+    if (output.includes(marker)) return marker;
+  }
+  return null;
+}
+
+/**
+ * Publish-layout install+run smoke (#1996, #2010): pack the four
+ * @deftai/directive* packages, install the tarballs into a clean flat
+ * node_modules, then run `directive --version` (exit-0 liveness) and
+ * `directive doctor` (deep-import coverage) so import-resolution bugs like
+ * #1993 sub-problem 1 surface before a real npm publish. The smoke gates on
+ * module-not-found markers, NOT on the doctor's pass/fail verdict -- a full
+ * doctor check exits non-zero in a bare consumer layout, which is benign
+ * (#2010).
+ */
+export function rehearseNpmInstallAndRun(
+  cloneDir: string,
+  version: string,
+  seams: E2ESeams = {},
+  options: { skipWorkspacePrep?: boolean } = {},
+): [boolean, string] {
+  const which = resolveWhich(seams);
+  const npmPath = which("npm");
+  if (npmPath === null) {
+    return [true, "SKIP (npm not on PATH; Node-less operator)"];
+  }
+
+  const pnpmCmd = resolvePnpm(seams);
+  if (pnpmCmd === null) {
+    return [
+      false,
+      "npm present but neither pnpm nor corepack is on PATH -- " +
+        "cannot build the workspace for install+run smoke",
+    ];
+  }
+
+  const env: NodeJS.ProcessEnv = { ...process.env, DEFT_PROJECT_ROOT: cloneDir };
+  let ok = true;
+  let reason = "";
+
+  if (!options.skipWorkspacePrep) {
+    let [ok, reason] = runNpmStep(
+      [...pnpmCmd, "install", "--frozen-lockfile"],
+      cloneDir,
+      env,
+      "pnpm install",
+      NPM_INSTALL_TIMEOUT_SECONDS,
+      seams,
+    );
+    if (!ok) return [false, reason];
+    [ok, reason] = runNpmStep(
+      [...pnpmCmd, "-w", "run", "build"],
+      cloneDir,
+      env,
+      "pnpm build",
+      NPM_BUILD_TIMEOUT_SECONDS,
+      seams,
+    );
+    if (!ok) return [false, reason];
+    [ok, reason] = alignNpmPackageVersions(cloneDir, version);
+    if (!ok) return [false, reason];
+  }
+
+  const packDir = join(cloneDir, ".deft-e2e-packs");
+  mkdirSync(packDir, { recursive: true });
+  const tgzPaths: string[] = [];
+  for (const pkg of NPM_PUBLISH_PACKAGES) {
+    const pkgDir = join(cloneDir, "packages", pkg);
+    [ok, reason] = runNpmStep(
+      [npmPath, "pack", "--pack-destination", packDir],
+      pkgDir,
+      env,
+      `npm pack packages/${pkg}`,
+      NPM_PACK_TIMEOUT_SECONDS,
+      seams,
+    );
+    if (!ok) return [false, reason];
+    const manifest = JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8")) as {
+      name?: string;
+      version?: string;
+    } | null;
+    if (
+      manifest === null ||
+      typeof manifest.name !== "string" ||
+      typeof manifest.version !== "string"
+    ) {
+      return [false, `version-align FAIL: invalid manifest in packages/${pkg}`];
+    }
+    const scoped = manifest.name.replaceAll("@", "").replaceAll("/", "-");
+    tgzPaths.push(join(packDir, `${scoped}-${manifest.version}.tgz`));
+  }
+
+  const consumerDir = join(cloneDir, ".deft-e2e-consumer");
+  mkdirSync(consumerDir, { recursive: true });
+  writeFileSync(
+    join(consumerDir, "package.json"),
+    `${JSON.stringify({ name: "deft-e2e-consumer", private: true, version: "0.0.0" }, null, 2)}\n`,
+    "utf8",
+  );
+
+  const installArgs = [npmPath, "install", ...tgzPaths];
+  [ok, reason] = runNpmStep(
+    installArgs,
+    consumerDir,
+    env,
+    "npm install packed tarballs",
+    NPM_INSTALL_RUN_TIMEOUT_SECONDS,
+    seams,
+  );
+  if (!ok) return [false, reason];
+
+  const spawn = seams.spawnText ?? spawnText;
+  const cliBin = join(consumerDir, "node_modules", "@deftai", "directive", "dist", "bin.js");
+
+  // Liveness probe (#2010): `--version` loads the cli + core engine via
+  // engineInfo(), exercising the cross-package import path that #1993 broke,
+  // and reliably exits 0 on a healthy install. This is the clean exit-0 gate;
+  // gating the smoke on the doctor's exit code instead is a false positive
+  // because a full doctor check exits non-zero in a bare consumer layout.
+  const versionRun = spawn(process.execPath, [cliBin, "--version"], {
+    cwd: consumerDir,
+    env,
+    timeoutMs: NPM_INSTALL_RUN_TIMEOUT_SECONDS * 1000,
+  });
+  const versionOut = `${versionRun.stdout ?? ""}\n${versionRun.stderr ?? ""}`;
+  let resolutionHit = moduleResolutionFailure(versionOut);
+  if (resolutionHit !== null) {
+    return [
+      false,
+      `install+run smoke: module resolution error on --version (${resolutionHit}): ${versionOut.trim().slice(-800)}`,
+    ];
+  }
+  if (versionRun.status !== 0) {
+    return [
+      false,
+      `install+run smoke: directive --version exited ${versionRun.status}: ${versionOut.trim().slice(-500)}`,
+    ];
+  }
+
+  // Deep-import probe (#2010): run the doctor verb to exercise the deeper
+  // cross-package import graph that #1993 sub-problem 1 broke. The doctor
+  // legitimately exits non-zero in a bare consumer layout (e.g. no root
+  // Taskfile.yml), so gate ONLY on the module-not-found markers, NOT on the
+  // doctor's pass/fail verdict.
+  const doctorRun = spawn(process.execPath, [cliBin, "doctor"], {
+    cwd: consumerDir,
+    env,
+    timeoutMs: NPM_INSTALL_RUN_TIMEOUT_SECONDS * 1000,
+  });
+  const doctorOut = `${doctorRun.stdout ?? ""}\n${doctorRun.stderr ?? ""}`;
+  resolutionHit = moduleResolutionFailure(doctorOut);
+  if (resolutionHit !== null) {
+    return [
+      false,
+      `install+run smoke: module resolution error on doctor (${resolutionHit}): ${doctorOut.trim().slice(-800)}`,
+    ];
+  }
+
+  return [
+    true,
+    `packed + installed 4 packages at v${version}; ran directive --version (exit 0) + doctor without module-not-found`,
   ];
 }
