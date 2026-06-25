@@ -7,7 +7,7 @@
     "id": "s2-directive-init-ts-native",
     "title": "S2: directive init TS-native greenfield deposit",
     "status": "completed",
-    "planRef": "proposed/2026-06-24-1942-ts-native-init-update-deposit.vbrief.json",
+    "planRef": "completed/2026-06-24-1942-ts-native-init-update-deposit.vbrief.json",
     "narratives": {
       "Description": "directive init today spawnSyncs the bundled Go deft-install, which downloads and vendors .deft/core. This story rewrites init to orchestrate a fully TS-native greenfield deposit using the S1 primitive: copy the content tree into .deft/core, render the AGENTS.md managed-section (reusing the existing TS agents-md logic), scaffold vbrief/ (schemas + lifecycle dirs), deposit .agents/skills pointers + .githooks + the #1430 neutralization, and wire the Taskfile include. The friendly wizard UX is preserved and no Go binary is invoked on the happy path.",
       "ImplementationPlan": "- Replace the runDeftInstall delegation in packages/cli/src/init-cli/init.ts with a call into a new packages/core/src/init-deposit/init-deposit.ts orchestrator that composes the S1 copy primitive with AGENTS.md render (packages/core/src/platform/agents-md.ts), vbrief scaffold, skills/githooks/neutralization, and Taskfile wiring.\n- Port the idempotency + wizard-output behavior from cmd/deft-install setup.go (WriteAgentsMD, WriteConsumerVbrief, EnsureTaskfile, WriteAgentsSkills) into TS, keeping the existing wizard UX text.\n- Add unit tests asserting a complete greenfield deposit (.deft/core populated, AGENTS.md managed-section present, vbrief lifecycle dirs created) with no Go binary spawn.",

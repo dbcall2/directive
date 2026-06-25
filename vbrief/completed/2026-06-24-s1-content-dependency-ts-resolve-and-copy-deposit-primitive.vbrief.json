@@ -7,7 +7,7 @@
     "id": "s1-content-deposit-primitive",
     "title": "S1: content dependency + TS resolve-and-copy deposit primitive",
     "status": "completed",
-    "planRef": "proposed/2026-06-24-1942-ts-native-init-update-deposit.vbrief.json",
+    "planRef": "completed/2026-06-24-1942-ts-native-init-update-deposit.vbrief.json",
     "narratives": {
       "Description": "directive init/update currently obtain framework content only via the Go binary's GitHub-tarball download, and @deftai/directive depends solely on @deftai/directive-core. This story adds @deftai/directive-content as a dependency of the engine package and builds a pure TS deposit primitive that resolves the installed content package via Node module resolution and recursively copies its tree into a target directory with file-mode preservation. It is the foundation every later init/update story builds on, and is independently buildable and testable in isolation from the CLI verbs.",
       "ImplementationPlan": "- Add @deftai/directive-content (workspace:*) to packages/cli/package.json dependencies alongside @deftai/directive-core.\n- Implement packages/core/src/deposit/resolve-content.ts using import.meta.resolve('@deftai/directive-content') with a graceful error when the package is unresolvable, and packages/core/src/deposit/copy-tree.ts that recursively copies a source tree preserving the executable bit (mirroring cmd/deft-install copyFile/copyDir #1477).\n- Unit-test resolution success/failure and a copy round-trip (including mode preservation and nested dirs) in colocated *.test.ts files.",
