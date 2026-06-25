@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1942 (Wave 5 keystone)"
+    "description": "Scope vBRIEF ingested from GitHub issue #1942 (Wave 5 keystone)",
+    "updated": "2026-06-25T15:14:44Z"
   },
   "plan": {
     "title": "feat(cli): TS-native directive init/update deposit (absorb healthy-path bootstrap) + gitignore .deft/core",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "directive init / directive update today spawnSync the bundled Go deft-install binary, which downloads a tarball and vendors .deft/core. The #1933 decree (Go stops fetching the payload and never first-starts) and the #1912 freeze will break both the greenfield deposit (init) and the healthy-path upgrade (update) the moment they apply. This epic moves the deposit into the TS CLI: init/update resolve the locally-installed @deftai/directive-content package and copy its tree into .deft/core (no network), render the AGENTS.md managed-section, scaffold vbrief/, install githooks + the #1430 neutralization, and write the canonical .gitignore. It is the HARD prerequisite that must land before the Go neuter.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1942",
@@ -17,38 +18,43 @@
     "items": [
       {
         "title": "S1: content dependency + TS resolve-and-copy deposit primitive",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "@deftai/directive-content is a dependency of @deftai/directive; a TS deposit primitive resolves and recursively copies the content tree with mode preservation."
-        }
+        },
+        "completed": "2026-06-25T15:14:44Z"
       },
       {
         "title": "S2: directive init TS-native greenfield deposit",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "directive init deposits a complete .deft/core + AGENTS.md + vbrief scaffold + skills/githooks/neutralization from the content package with no Go binary involved."
-        }
+        },
+        "completed": "2026-06-25T15:14:44Z"
       },
       {
         "title": "S3: directive update TS-native healthy-path refresh",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "directive update refreshes .deft/core idempotently from pinned content, re-renders the managed-section, and respects core-guard separation."
-        }
+        },
+        "completed": "2026-06-25T15:14:44Z"
       },
       {
         "title": "S4: gitignore .deft/core greenfield write + reconstitution",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "greenfield init writes .deft/core to .gitignore and the deposit is fully reconstitutable; no existing tracked deposit is un-committed (deferred to #1941)."
-        }
+        },
+        "completed": "2026-06-25T15:14:44Z"
       },
       {
         "title": "S5: docs flip + greenfield/upgrade e2e legs",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "stale committed-payload statements are flipped and the pinned e2e covers the greenfield and upgrade deposit journeys."
-        }
+        },
+        "completed": "2026-06-25T15:14:44Z"
       }
     ],
     "tags": [
@@ -118,6 +124,7 @@
     "metadata": {
       "kind": "epic",
       "capacityBucket": "new-capability"
-    }
+    },
+    "updated": "2026-06-25T15:14:44Z"
   }
 }
