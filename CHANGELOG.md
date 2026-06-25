@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+
+### Fixed
+
+### Removed
+
+## [0.56.1] - 2026-06-25
+
+> First post-freeze release: future Deft upgrades ship via npm (the Go installer is frozen at v0.56.0), plus a freeze-gate green-skip fix and an esbuild security bump.
+
+### Added
+
+### Changed
 - **The Go installer is now frozen at v0.56.0 — future Deft upgrades come from npm** — the legacy stage-1 bridge is pinned to its final published Go-installer release (`v0.56.0`). From here, the release pipeline's freeze gate enforces the line: tags at or below v0.56.0 still build Go binaries, anything above skips the Go build cleanly (per #1987) and ships via npm only. Existing legacy on-disk layouts are still migrated by the frozen v0.56.0 installer, which then hands off to `npx @deftai/directive` for all subsequent updates. Closes #1912. Refs #1972.
 
 ### Fixed
@@ -3597,7 +3609,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.56.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.56.1...HEAD
+[0.56.1]: https://github.com/deftai/directive/compare/v0.56.0...v0.56.1
 [0.56.0]: https://github.com/deftai/directive/compare/v0.55.2...v0.56.0
 [0.55.2]: https://github.com/deftai/directive/compare/v0.55.1...v0.55.2
 [0.55.1]: https://github.com/deftai/directive/compare/v0.55.0...v0.55.1

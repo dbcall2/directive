@@ -729,8 +729,11 @@
 - **#1942** -- S3: directive update TS-native healthy-path refresh -- `[completed]`
 - **#1942** -- S4: gitignore .deft/core greenfield write + reconstitution -- `[completed]`
 - **#1942** -- S5: docs flip + greenfield/upgrade e2e legs -- `[completed]`
+- **#1912** -- Freeze the Go installer at v0.56.0 (pin LAST_GO_INSTALLER) -- `[completed]`
 - **#1967** -- Bundle .githooks/ + consumer Taskfile into @deftai/directive-content (npm-only deposit parity) -- `[completed]`
 - **#1985** -- Exclude __pycache__/*.pyc from @deftai/directive-content prepack -- `[completed]`
+- **#1987** -- Freeze gate should skip Go build gracefully (green) instead of hard-failing release.yml post-freeze -- `[completed]`
+- **#1989** -- Bump esbuild to >=0.28.1 in framework pnpm-lock (low-sev dev advisory) -- `[completed]`
 - **#1972** -- Add npm-handoff messaging to the Go installer success path -- `[completed]`
 - **#1972** -- Assert the installer VERSION is migrate-acceptable in the legacy-bridge e2e leg -- `[completed]`
 - **#1972** -- Reconcile verify:go-freeze version source to a release-tag check -- `[completed]`
