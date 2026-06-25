@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Release skill now treats tag push as the irrevocable npm gate and reframes Phase 5 as optional GitHub draft QA rather than a publish-authority gate; the happy path auto-publishes the GitHub release after draft assets verify. Closes #2002.
+
 ### Fixed
 
 - **Vendored `run update` now points at npm instead of dead-ending** — the compatibility `run update` stub no longer tells operators to manually replace the deft directory; it signposts `npm i -g @deftai/directive@latest` and `npx @deftai/directive update` so future deposits steer consumers to the post-freeze upgrade path. Closes #1998.
