@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **`deft update` / `deft init` no longer abort with `refresh_deposit_failed` on canonical-vendored installs** — the content-package resolver now locates `@deftai/directive-content` through its `package.json` subpath instead of its bare specifier. The content package ships no entry point, so the old bare-specifier resolve threw and stopped the deposit; resolving the always-present `package.json` restores the npm refresh path. Closes #2023.
 
 ### Removed
 
