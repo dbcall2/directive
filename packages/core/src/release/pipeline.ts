@@ -20,14 +20,9 @@ import {
   releaseCommitSubject,
 } from "./git.js";
 import { resolveScriptsDir, todayIso } from "./paths.js";
+import { runReleaseCheck } from "./preflight.js";
 import { pyprojectPathFor, syncPyprojectForRelease } from "./pyproject-sync.js";
-import {
-  checkVbriefLifecycleSync,
-  refreshRoadmap,
-  runBuild,
-  runCi,
-  runUvLock,
-} from "./python-bridge.js";
+import { checkVbriefLifecycleSync, refreshRoadmap, runBuild, runUvLock } from "./python-steps.js";
 import type { ReleaseConfig, ReleaseSeams } from "./types.js";
 import { isPrereleaseTag } from "./version.js";
 
@@ -45,7 +40,7 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
   const writeFile = seams.writeFile ?? ((p: string, c: string) => writeFileSync(p, c, "utf8"));
   const fileExists = seams.fileExists ?? ((p: string) => existsSync(p));
 
-  const runCiFn = seams.runCi ?? ((root: string) => runCi(root, scriptsDir, seams));
+  const runCiFn = seams.runCi ?? ((root: string) => runReleaseCheck(root));
   const refreshRoadmapFn =
     seams.refreshRoadmap ?? ((root: string) => refreshRoadmap(root, scriptsDir, seams));
   const checkVbriefFn =
@@ -131,12 +126,12 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
     }
   }
 
-  // Step 5: CI.
-  label = "Pre-flight CI (task ci:local | fallback task check)";
+  // Step 5: CI (native TypeScript `task check` pre-flight, #2022 Phase 1).
+  label = "Pre-flight CI (native TypeScript task check)";
   if (config.skipCi) {
     emit(5, label, "SKIP (--skip-ci)");
   } else if (config.dryRun) {
-    emit(5, label, "DRYRUN (would run task ci:local with task check fallback)");
+    emit(5, label, "DRYRUN (would run native TypeScript task check)");
   } else {
     const [ok, reason] = runCiFn(projectRoot);
     if (ok) {

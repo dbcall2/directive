@@ -17,10 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- **The release pre-flight now runs the native TypeScript `task check` instead of the Python `ci_local.py` bridge** — Step 5 of the maintainer release flow dispatches the context-aware TypeScript check orchestrator directly, so cutting a release no longer depends on the `ci_local.py` python-bridge shim. Refs #2022.
 
 ### Fixed
 
 ### Removed
+- **Removed the `python-bridge.ts` release shim** — the release pipeline's `ci_local.py` Step-5 bridge is gone; the remaining Python-backed release steps moved to a clearly scoped module pending their own conversions. No user-facing command change. Refs #2022.
 
 ## [0.58.0] - 2026-06-26
 

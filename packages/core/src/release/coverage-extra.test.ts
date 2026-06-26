@@ -6,7 +6,7 @@ import { parseReleaseFlags } from "./flags.js";
 import { checkGitClean, commitReleaseArtifacts } from "./git.js";
 import { runPipeline } from "./pipeline.js";
 import { syncPyprojectForRelease } from "./pyproject-sync.js";
-import { runUvLock } from "./python-bridge.js";
+import { runUvLock } from "./python-steps.js";
 import { defaultWhich, spawnText } from "./spawn.js";
 import type { ReleaseConfig, ReleaseSeams } from "./types.js";
 import { isPublishable } from "./version.js";
