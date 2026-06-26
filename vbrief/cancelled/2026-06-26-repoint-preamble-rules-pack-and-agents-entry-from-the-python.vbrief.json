@@ -6,8 +6,8 @@
   "plan": {
     "id": "preamble-pack-migration",
     "title": "Repoint preamble, rules pack, and agents-entry from the Python gate to the Go gate",
-    "status": "running",
-    "planRef": "proposed/2026-06-26-2001-wave-5-python-purge-readiness-gate-before-1860.vbrief.json",
+    "status": "cancelled",
+    "planRef": "cancelled/2026-06-26-2001-wave-5-python-purge-readiness-gate-before-1860.vbrief.json",
     "narratives": {
       "Description": "The DEFT-PREAMBLE in main.md, the main-001 rule in the rules pack, and content/templates/agents-entry.md all currently mandate the Python `run gate` invocation. This story repoints every load-bearing gate citation at the Go gate and scrubs setup/sync skills and CONTRIBUTING for stale `run` operator paths that already have a replacement.",
       "ImplementationPlan": "- Edit the main.md DEFT-PREAMBLE source and the main-001 rule in the rules-pack config so they invoke the Go gate instead of `python3 .deft/core/run gate`.\n- Refresh content/templates/agents-entry.md and run `task agents:refresh` so the consumer AGENTS.md is regenerated, then verify with an encoding test that no mojibake was introduced.\n- Grep the setup/sync skill files and CONTRIBUTING for stale `run` citations and redirect each one that has a replacement.",
@@ -89,6 +89,6 @@
         "TrustLevel": "external"
       }
     ],
-    "updated": "2026-06-26T01:15:43Z"
+    "updated": "2026-06-26T17:22:51Z"
   }
 }

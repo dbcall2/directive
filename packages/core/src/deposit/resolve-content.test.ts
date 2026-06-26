@@ -44,6 +44,29 @@ describe("resolveInstalledContentRoot", () => {
     expect(root).toBe(pkgDir);
   });
 
+  it("resolves via the package.json subpath when the package ships no entry point (#2023)", async () => {
+    const project = freshRoot();
+    const pkgDir = installContentPackage(project);
+
+    // The content package ships no main, exports, or index.js, so a bare-specifier
+    // resolve throws (the #2023 abort). The package.json subpath always resolves.
+    const resolveSpecifier = async (specifier: string): Promise<string> => {
+      if (specifier === CONTENT_PACKAGE_NAME) {
+        throw new Error(
+          `Cannot find module '${CONTENT_PACKAGE_NAME}'. ` +
+            "The package has no main, exports, or index.js entry point.",
+        );
+      }
+      if (specifier === `${CONTENT_PACKAGE_NAME}/package.json`) {
+        return join(pkgDir, "package.json");
+      }
+      throw new Error(`unexpected specifier: ${specifier}`);
+    };
+
+    const root = await resolveInstalledContentRoot(resolveSpecifier);
+    expect(root).toBe(pkgDir);
+  });
+
   it("finds the package root when resolution lands on an nested entry file", async () => {
     const project = freshRoot();
     const pkgDir = installContentPackage(project);

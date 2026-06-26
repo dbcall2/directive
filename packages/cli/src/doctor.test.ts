@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@deftai/directive-core/dist/doctor/main.js", () => ({
   cmdDoctor: vi.fn(() => 0),
@@ -7,9 +10,153 @@ vi.mock("@deftai/directive-core/dist/doctor/main.js", () => ({
 import { cmdDoctor } from "@deftai/directive-core/dist/doctor/main.js";
 import { run } from "./doctor.js";
 
+const LIFECYCLE_FOLDERS = ["proposed", "pending", "active", "completed", "cancelled"] as const;
+
+function makeLifecycleDirs(
+  projectRoot: string,
+  folders: readonly string[] = LIFECYCLE_FOLDERS,
+): void {
+  for (const folder of folders) {
+    mkdirSync(join(projectRoot, "vbrief", folder), { recursive: true });
+  }
+}
+
+const createdRoots: string[] = [];
+
+function makeRoot(prefix: string): string {
+  const root = mkdtempSync(join(tmpdir(), prefix));
+  createdRoots.push(root);
+  return root;
+}
+
+function captureStdout(fn: () => void): string {
+  let captured = "";
+  const spy = vi
+    .spyOn(process.stdout, "write")
+    .mockImplementation((chunk: string | Uint8Array): boolean => {
+      captured += typeof chunk === "string" ? chunk : chunk.toString();
+      return true;
+    });
+  try {
+    fn();
+  } finally {
+    spy.mockRestore();
+  }
+  return captured;
+}
+
+afterEach(() => {
+  vi.clearAllMocks();
+  while (createdRoots.length > 0) {
+    const root = createdRoots.pop();
+    if (root) {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
 describe("doctor CLI", () => {
   it("delegates argv to cmdDoctor", () => {
-    expect(run(["--full", "--json"])).toBe(0);
+    captureStdout(() => {
+      expect(run(["--full", "--json"])).toBe(0);
+    });
     expect(cmdDoctor).toHaveBeenCalledWith(["--full", "--json"]);
+  });
+
+  it("suppresses the precutover line under --json so JSON output stays valid", () => {
+    const root = makeRoot("doctor-json-");
+    makeLifecycleDirs(root);
+    const out = captureStdout(() => {
+      expect(run(["--json", "--project-root", root])).toBe(0);
+    });
+    expect(out).toBe("");
+    expect(cmdDoctor).toHaveBeenCalledWith(["--json", "--project-root", root]);
+  });
+
+  it("suppresses the precutover line for an invalid invocation (unknown flag)", () => {
+    const out = captureStdout(() => {
+      run(["--not-a-real-flag"]);
+    });
+    expect(out).toBe("");
+    expect(cmdDoctor).toHaveBeenCalledWith(["--not-a-real-flag"]);
+  });
+
+  it("suppresses the precutover line for --help", () => {
+    const out = captureStdout(() => {
+      run(["--help"]);
+    });
+    expect(out).toBe("");
+    expect(cmdDoctor).toHaveBeenCalledWith(["--help"]);
+  });
+
+  it("flags the migration-needed state for a pre-cutover project fixture", () => {
+    const root = makeRoot("doctor-precut-");
+    makeLifecycleDirs(root);
+    writeFileSync(
+      join(root, "SPECIFICATION.md"),
+      "# Project Specification\n\nHand-authored legacy spec.\n",
+      "utf8",
+    );
+    const out = captureStdout(() => {
+      run(["--project-root", root]);
+    });
+    expect(out).toContain("Pre-cutover: migration needed");
+    expect(out).toContain("SPECIFICATION.md");
+    expect(out).toContain("deft migrate:vbrief");
+  });
+
+  it("reports a clean non-pre-cutover state for a current-layout project fixture", () => {
+    const root = makeRoot("doctor-current-");
+    makeLifecycleDirs(root);
+    const out = captureStdout(() => {
+      run(["--project-root", root]);
+    });
+    expect(out).toContain("Pre-cutover: none");
+    expect(out).toContain("current vBRIEF document model");
+    expect(out).not.toContain("migration needed");
+  });
+
+  it("flags a pre-cutover PROJECT.md and missing lifecycle folders", () => {
+    const root = makeRoot("doctor-project-md-");
+    // Only a subset of lifecycle folders -> missing-folder reason fires.
+    makeLifecycleDirs(root, ["proposed", "active"]);
+    writeFileSync(join(root, "PROJECT.md"), "# Project\n\nLegacy project doc.\n", "utf8");
+    const out = captureStdout(() => {
+      run([`--project-root=${root}`]);
+    });
+    expect(out).toContain("Pre-cutover: migration needed");
+    expect(out).toContain("PROJECT.md");
+    expect(out).toContain("missing lifecycle folder");
+  });
+
+  it("treats deprecation-redirect root docs as already migrated", () => {
+    const root = makeRoot("doctor-redirect-");
+    makeLifecycleDirs(root);
+    const redirect = "<!-- deft:deprecated-redirect -->\n# Deprecated\n";
+    writeFileSync(join(root, "SPECIFICATION.md"), redirect, "utf8");
+    writeFileSync(join(root, "PROJECT.md"), redirect, "utf8");
+    const out = captureStdout(() => {
+      run(["--project-root", root]);
+    });
+    expect(out).toContain("Pre-cutover: none");
+  });
+
+  it("treats a current generated SPECIFICATION export as already migrated", () => {
+    const root = makeRoot("doctor-generated-");
+    makeLifecycleDirs(root);
+    writeFileSync(
+      join(root, "vbrief", "specification.vbrief.json"),
+      JSON.stringify({ vBRIEFInfo: { version: "0.6" }, plan: { title: "Spec", items: [] } }),
+      "utf8",
+    );
+    writeFileSync(
+      join(root, "SPECIFICATION.md"),
+      "<!-- Purpose: rendered specification -->\n<!-- Source of truth: vbrief/specification.vbrief.json -->\n# Spec\n",
+      "utf8",
+    );
+    const out = captureStdout(() => {
+      run(["--project-root", root]);
+    });
+    expect(out).toContain("Pre-cutover: none");
   });
 });

@@ -427,10 +427,11 @@ def test_command_surface_discovery_finds_canonical_anchors(
     assert "upgrade" in taskfile_targets, taskfile_targets
     assert "install:upgrade" in taskfile_targets, taskfile_targets
     assert "framework:doctor" in taskfile_targets, taskfile_targets
-    # `relocate:relocate` is the doubled-namespace form (include `relocate:`
-    # + inner task `relocate:`); no root-level `relocate` alias exists
-    # today so the canonical target is the doubled form.
-    assert "relocate:relocate" in taskfile_targets, taskfile_targets
+    # NOTE (#2022 Python-purge): the `relocate:` include was dropped from the
+    # consumer task surface, so `relocate:relocate` is no longer a Taskfile
+    # target. The doctor's install-path-consistency repair (b) now cites the
+    # npm CLI project deposit `npx @deftai/directive update` instead (see the
+    # install-path-consistency tests below).
     assert "agents:refresh" in run_subcommands, run_subcommands
     assert "upgrade" in run_subcommands, run_subcommands
 
@@ -546,8 +547,9 @@ def test_dual_recommendation_checks_carry_both_structured_fields(
     the same dual surface as humans. The three dual-recommendation
     checks are: ``quick-start-resolves`` (agents:refresh OR task
     upgrade), ``skill-paths-resolve`` (same pair), and
-    ``install-path-consistency`` (agents:refresh OR task
-    relocate:relocate). Each MUST carry BOTH ``suggested_fix`` AND
+    ``install-path-consistency`` (agents:refresh OR the npm CLI project
+    deposit ``npx @deftai/directive update``, #2022). Each MUST
+    carry BOTH ``suggested_fix`` AND
     ``suggested_fix_alt`` -- a future regression that drops one breaks
     the API contract documented in the PR description.
     """
@@ -658,11 +660,12 @@ def test_install_path_consistency_fail_recommends_both_repair_paths(fd, tmp_path
     The vBRIEF specifies that ``_check_install_path_consistency`` FAIL
     prose MUST name BOTH legitimate repair paths explicitly:
     (a) ``agents:refresh`` (rewrite AGENTS.md to match on-disk framework),
-    (b) ``task relocate:relocate -- --confirm`` (move framework to AGENTS.md's path).
-    The doubled-namespace form is the actual go-task target name -- the
-    include namespace ``relocate:`` and the inner task ``relocate:`` carry
-    the same key in ``tasks/relocate.yml`` and no root-level alias is
-    wired in ``Taskfile.yml``.
+    (b) ``npx @deftai/directive update`` ((re)deposit the framework at
+    AGENTS.md's path via the npm CLI project deposit). Repair (b) was
+    repointed from the now-dropped ``task relocate:relocate -- --confirm``
+    when the relocate task was removed from the consumer surface (#2022
+    Python-purge); the npm CLI deposit is the canonical (re)install per
+    #1912.
     """
     project_root = _drift_state_quick_start_missing(tmp_path)
     result = fd.run_checks(project_root)
@@ -671,4 +674,4 @@ def test_install_path_consistency_fail_recommends_both_repair_paths(fd, tmp_path
     )
     assert ipc["status"] == "fail"
     assert "agents:refresh" in ipc["detail"], ipc["detail"]
-    assert "task relocate:relocate" in ipc["detail"], ipc["detail"]
+    assert "npx @deftai/directive update" in ipc["detail"], ipc["detail"]

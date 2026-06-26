@@ -268,15 +268,15 @@ includes:
   changelog:
     taskfile: ./tasks/changelog.yml
     optional: true
-  # Wipe-and-reinstall relocator (#992 PR2). Exposes `task relocate` --
-  # forwards user-facing flags (`--confirm` / `--dry-run` / `--force` /
-  # `--rollback` / `--no-snapshot` / `--json` / `--quiet`) via
-  # {{.CLI_ARGS}}; per `conventions/task-caching.md` no `sources:` /
-  # `generates:` so the recovery flags reach the script (#574). The
-  # include is `optional: true` for rolling-merge tolerance.
-  relocate:
-    taskfile: ./tasks/relocate.yml
-    optional: true
+  # NOTE (#2022 Python-purge): the `relocate:` include was DROPPED from the
+  # consumer task surface. The relocate task shelled into scripts/relocate.py
+  # via `uv run python` -- the sole remaining consumer-exposed Python coupling
+  # on the deft task surface. It is intentionally NOT wired here anymore. The
+  # canonical consumer (re)install / relocate path is the npm installer
+  # (`npm i -g @deftai/directive@latest`; see UPGRADING.md / #1912, where
+  # relocate is a back-compat / legacy bridge only). tasks/relocate.yml is
+  # retained (un-wired) and the helper scripts/relocate.py stays for #1860
+  # (big-bang Python delete) to remove.
   # N7 (#1147): slice:* fragment exposing `task slice:record-existing`
   # (retrofit slices.jsonl for hand-filed cohorts) + `task slice:list`
   # (read surface). Include key `slice-record` (not `slice`) so the

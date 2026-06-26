@@ -6,8 +6,8 @@
   "plan": {
     "id": "migrate-vbrief-decision",
     "title": "Decide and execute migrate:vbrief -- TS port or pre-v0.20 cutoff",
-    "status": "pending",
-    "planRef": "proposed/2026-06-26-2001-wave-5-python-purge-readiness-gate-before-1860.vbrief.json",
+    "status": "cancelled",
+    "planRef": "cancelled/2026-06-26-2001-wave-5-python-purge-readiness-gate-before-1860.vbrief.json",
     "narratives": {
       "Description": "The migrate:vbrief verb still dispatches to scripts/migrate_vbrief.py, which blocks the Python purge. This story resolves the open decision: either port the migrator to TypeScript behind the directive CLI, or document a hard pre-v0.20 legacy cutoff and remove the verb from the consumer surface.",
       "ImplementationPlan": "- Evaluate the two options against pre-v0.20 consumer impact and record the decision, identifying whether the TS module or the cutoff doc is the resulting source change.\n- If porting, implement the TS migrate module and a fixture migration test; if cutting, remove the verb from tasks/migrate.yml and the consumer task surface and document the cutoff.\n- Verify with `task check` that no remaining code path shells out to the migrate_vbrief.py script.",
@@ -74,6 +74,7 @@
         "title": "Issue #2001: Wave 5: Python purge readiness (gate before #1860)",
         "TrustLevel": "external"
       }
-    ]
+    ],
+    "updated": "2026-06-26T17:22:52Z"
   }
 }

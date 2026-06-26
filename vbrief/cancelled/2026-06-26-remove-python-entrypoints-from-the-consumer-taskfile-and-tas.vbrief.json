@@ -6,8 +6,8 @@
   "plan": {
     "id": "consumer-task-surface-audit",
     "title": "Remove Python entrypoints from the consumer Taskfile and tasks surface",
-    "status": "pending",
-    "planRef": "proposed/2026-06-26-2001-wave-5-python-purge-readiness-gate-before-1860.vbrief.json",
+    "status": "cancelled",
+    "planRef": "cancelled/2026-06-26-2001-wave-5-python-purge-readiness-gate-before-1860.vbrief.json",
     "narratives": {
       "Description": "The consumer task surface must invoke only the directive CLI, but several tasks still shell out to python3, uv run, or scripts/*.py. This story audits the Taskfile and tasks files and removes or relocates every Python entrypoint on the consumer deposit path, separating maintainer-only Python tasks behind the contributor path.",
       "ImplementationPlan": "- Scan Taskfile.yml and the tasks config files for python3, uv run, and scripts/ entrypoints and catalogue each consumer-path offender.\n- Rewrite each consumer task to invoke the directive CLI, and move any maintainer-only Python task behind the #1813 contributor path or remove it.\n- Verify with a grep test and `task check` that zero Python entrypoints remain on the consumer surface.",
@@ -78,6 +78,7 @@
         "title": "Issue #2001: Wave 5: Python purge readiness (gate before #1860)",
         "TrustLevel": "external"
       }
-    ]
+    ],
+    "updated": "2026-06-26T17:22:53Z"
   }
 }

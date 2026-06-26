@@ -1,31 +1,8 @@
 import { describe, expect, it } from "vitest";
-import {
-  checkVbriefLifecycleSync,
-  refreshRoadmap,
-  runBuild,
-  runCi,
-  runUvLock,
-} from "./python-bridge.js";
+import { checkVbriefLifecycleSync, refreshRoadmap, runBuild, runUvLock } from "./python-steps.js";
 import type { ReleaseSeams } from "./types.js";
 
-describe("python-bridge with mocked spawn", () => {
-  it("runCi succeeds on exit 0", () => {
-    const seams: ReleaseSeams = {
-      spawnText: () => ({ status: 0, stdout: "", stderr: "" }),
-    };
-    const [ok, msg] = runCi("/proj", "/scripts", seams);
-    expect(ok).toBe(true);
-    expect(msg).toBe("ran ci:local");
-  });
-
-  it("runCi fails on non-zero", () => {
-    const seams: ReleaseSeams = {
-      spawnText: () => ({ status: 1, stdout: "", stderr: "fail" }),
-    };
-    const [ok] = runCi("/proj", "/scripts", seams);
-    expect(ok).toBe(false);
-  });
-
+describe("python-steps with mocked spawn", () => {
   it("refreshRoadmap succeeds", () => {
     const seams: ReleaseSeams = {
       spawnText: () => ({ status: 0, stdout: "", stderr: "" }),

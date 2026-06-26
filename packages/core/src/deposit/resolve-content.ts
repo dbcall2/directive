@@ -63,13 +63,19 @@ export function contentPackageRootFromResolvedEntry(resolvedEntry: string): stri
 /**
  * Resolve the installed {@link CONTENT_PACKAGE_NAME} package root via Node module
  * resolution (`import.meta.resolve`).
+ *
+ * Resolves the package's `package.json` subpath rather than its bare specifier:
+ * the content package ships no entry point (no `main`, `exports`, or `index.js`),
+ * so a bare-specifier resolve throws. The `package.json` subpath always resolves,
+ * and {@link contentPackageRootFromResolvedEntry} walks up from it to the package
+ * root. Refs #2023.
  */
 export async function resolveInstalledContentRoot(
   resolveSpecifier: ResolveSpecifier = defaultResolveSpecifier,
 ): Promise<string> {
   let resolvedEntry: string;
   try {
-    resolvedEntry = await resolveSpecifier(CONTENT_PACKAGE_NAME);
+    resolvedEntry = await resolveSpecifier(`${CONTENT_PACKAGE_NAME}/package.json`);
   } catch (cause) {
     const detail = cause instanceof Error ? cause.message : String(cause);
     throw new ContentPackageNotFoundError(
