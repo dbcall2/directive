@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
-- **`deft doctor`'s install-path repair now points at the npm installer** — the `install-path-consistency` check previously recommended the now-removed `task relocate:relocate -- --confirm`; it now recommends `npm i -g @deftai/directive@latest` as the canonical reinstall path. Refs #2022, #1912.
+- **`deft doctor`'s install-path repair now points at the npm CLI** — the `install-path-consistency` check previously recommended the now-removed `task relocate:relocate -- --confirm`; it now recommends `npx @deftai/directive update`, which (re)deposits the project framework directory. Refs #2022, #1912.
 
 ### Fixed
 
