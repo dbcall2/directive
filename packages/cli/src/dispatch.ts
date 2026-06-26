@@ -3,10 +3,24 @@
  * Routes to ported command modules in packages/cli and packages/core.
  */
 
-import { execFileSync } from "node:child_process";
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { engineInfo } from "@deftai/directive-core";
+import {
+  appendAuditLog,
+  disclosureLine,
+  projectDefinitionPath,
+  resolvePolicy,
+  resolveWipCap,
+  setPolicy,
+} from "@deftai/directive-core/policy";
+import {
+  KNOWN_SUBAGENT_BACKEND_IDS,
+  probeSubagentBackends,
+  resolveSwarmSubagentBackend,
+  type SubagentBackendDescriptor,
+} from "@deftai/directive-core/swarm";
 
 export type CommandHandler = (argv: string[]) => number | Promise<number>;
 
@@ -1178,26 +1192,477 @@ function runPackMigrateSwarmSpec(argv: string[], io: DispatchIo): number {
   return 0;
 }
 
-function loadPythonScriptHandler(scriptName: string): CommandHandler {
-  return (argv) => {
-    const deftRoot = resolveDeftRoot();
-    try {
-      execFileSync(
-        "uv",
-        ["--project", deftRoot, "run", "python", join(deftRoot, "scripts", scriptName), ...argv],
-        {
-          cwd: deftRoot,
-          encoding: "utf8",
-          env: { ...process.env, PYTHONUTF8: "1", DEFT_CACHE_DISABLE: "1" },
-          stdio: "inherit",
-        },
-      );
-      return 0;
-    } catch (err) {
-      const e = err as { status?: number };
-      return typeof e.status === "number" ? e.status : 1;
-    }
+// ===========================================================================
+// Native policy-set handler (#2022 Phase 1).
+//
+// Port of scripts/policy_set.py to native TypeScript so the typed-policy write
+// path (enforce-branches / allow-direct-commits / wip-cap / subagent-backend)
+// and the subagent-backends probe surface no longer shell into bundled Python.
+// Behaviour parity with the Python script is preserved: the audit row appended
+// to meta/policy-changes.log, the json.dumps(..., indent=2, ensure_ascii=False)
+// + "\n" serialization, the disclosure text, and the exit codes
+// (0 success / 1 refusal / 2 config-or-parse error).
+// ===========================================================================
+
+const POLICY_CAPABILITY_COST_DISCLOSURE =
+  "\u26a0 Capability-cost disclosure -- enabling direct commits to the default " +
+  "branch turns OFF the deft branch-protection policy.\n" +
+  "  \u2022 Pre-commit + pre-push hooks will no longer block default-branch " +
+  "commits.\n" +
+  "  \u2022 verify:branch will pass on the default branch.\n" +
+  "  \u2022 The CI sanity check (head_ref != base_ref) is still independent and " +
+  "will continue to flag master->master PRs.\n" +
+  "  \u2022 This change is reversible: run `task policy:enforce-branches` to " +
+  "re-enable the gate.\n" +
+  "  \u2022 The change is recorded to meta/policy-changes.log for auditability.";
+
+const POLICY_WIP_CAP_DISCLOSURE =
+  "\u26a0 Capability-cost disclosure -- changing plan.policy.wipCap " +
+  "alters the refusal threshold on task scope:promote (#1124 / D4 of #1119).\n" +
+  "  \u2022 Raising the cap lets more vBRIEFs sit in pending/+active/ " +
+  "before promotion is refused.\n" +
+  "  \u2022 Lowering the cap may put the project over cap immediately; " +
+  "use `task scope:demote` / `task scope:demote --batch --older-than-days 30` " +
+  "to drain.\n" +
+  "  \u2022 cap=0 freezes promotion entirely (useful for code-freeze " +
+  "windows; restore by setting a positive value).\n" +
+  "  \u2022 This change is reversible and recorded to " +
+  "meta/policy-changes.log for auditability.";
+
+type PolicySetCmd =
+  | "enforce-branches"
+  | "allow-direct-commits"
+  | "wip-cap"
+  | "subagent-backend"
+  | "subagent-backends";
+
+const POLICY_SET_COMMANDS: readonly PolicySetCmd[] = [
+  "enforce-branches",
+  "allow-direct-commits",
+  "wip-cap",
+  "subagent-backend",
+  "subagent-backends",
+] as const;
+
+/** Flags each subcommand accepts (mirrors the policy_set.py argparse subparsers). */
+const POLICY_SET_ALLOWED_FLAGS: Readonly<Record<PolicySetCmd, ReadonlySet<string>>> = {
+  "enforce-branches": new Set(["--actor", "--note", "--project-root"]),
+  "allow-direct-commits": new Set(["--confirm", "--actor", "--note", "--project-root"]),
+  "wip-cap": new Set(["--set", "--confirm", "--actor", "--note", "--project-root"]),
+  "subagent-backend": new Set(["--set", "--actor", "--note", "--project-root"]),
+  "subagent-backends": new Set(["--format", "--project-root"]),
+};
+
+interface PolicySetArgs {
+  cmd: PolicySetCmd;
+  confirm: boolean;
+  actor: string;
+  note: string;
+  projectRoot: string;
+  cap?: number;
+  backendId?: string;
+  format: "text" | "json";
+  error?: string;
+}
+
+/** Custom error so write helpers can distinguish a missing file from a config fault. */
+class PolicySetError extends Error {
+  readonly kind: "not-found" | "config";
+  constructor(message: string, kind: "not-found" | "config") {
+    super(message);
+    this.name = "PolicySetError";
+    this.kind = kind;
+  }
+}
+
+/** Python repr() for the audit-trail `previous=` field (None / 'str' / int / bool). */
+function pyRepr(value: unknown): string {
+  if (value === undefined || value === null) return "None";
+  if (typeof value === "string") return `'${value}'`;
+  if (typeof value === "boolean") return value ? "True" : "False";
+  return String(value);
+}
+
+/** Strip newlines so an audit note stays a single log line (mirrors policy_set.py). */
+function sanitizeNote(note: string): string {
+  return note.replace(/\n/g, " ").replace(/\r/g, " ");
+}
+
+function defaultPolicySetActor(cmd: PolicySetCmd): string {
+  switch (cmd) {
+    case "enforce-branches":
+      return "task policy:enforce-branches";
+    case "allow-direct-commits":
+      return "task policy:allow-direct-commits";
+    case "wip-cap":
+      return "task policy:wip-cap";
+    case "subagent-backend":
+      return "task policy:subagent-backend";
+    case "subagent-backends":
+      return "task policy:subagent-backends";
+  }
+}
+
+/** Mirror Python `Path(...).expanduser()` for a leading `~` / `~/` segment. */
+function expandUser(p: string): string {
+  if (p === "~") return homedir();
+  if (p.startsWith("~/") || p.startsWith("~\\")) {
+    return join(homedir(), p.slice(2));
+  }
+  return p;
+}
+
+function policySetError(message: string): PolicySetArgs {
+  return {
+    cmd: "enforce-branches",
+    confirm: false,
+    actor: "",
+    note: "",
+    projectRoot: ".",
+    format: "text",
+    error: message,
   };
+}
+
+/** Parse `policy-set <cmd> [flags]` (mirrors the policy_set.py argparse surface). */
+function parsePolicySetArgs(argv: readonly string[]): PolicySetArgs {
+  const cmd = argv[0];
+  if (cmd === undefined) {
+    return policySetError("the following arguments are required: cmd");
+  }
+  if (!(POLICY_SET_COMMANDS as readonly string[]).includes(cmd)) {
+    return policySetError(`argument cmd: invalid choice: '${cmd}'`);
+  }
+  const command = cmd as PolicySetCmd;
+  const allowed = POLICY_SET_ALLOWED_FLAGS[command];
+  const args: PolicySetArgs = {
+    cmd: command,
+    confirm: false,
+    actor: defaultPolicySetActor(command),
+    note: "",
+    projectRoot: ".",
+    format: "text",
+  };
+
+  const rest = argv.slice(1);
+  for (let i = 0; i < rest.length; i += 1) {
+    const token = rest[i];
+    if (token === undefined) continue;
+    let flag = token;
+    let inlineValue: string | undefined;
+    if (token.startsWith("--") && token.includes("=")) {
+      const eq = token.indexOf("=");
+      flag = token.slice(0, eq);
+      inlineValue = token.slice(eq + 1);
+    }
+    if (!allowed.has(flag)) {
+      return policySetError(`unrecognized arguments: ${token}`);
+    }
+    const takeValue = (): string | undefined => {
+      if (inlineValue !== undefined) return inlineValue;
+      i += 1;
+      return rest[i];
+    };
+
+    if (flag === "--confirm") {
+      args.confirm = true;
+      continue;
+    }
+    const value = takeValue();
+    if (value === undefined) {
+      return policySetError(`argument ${flag}: expected one argument`);
+    }
+    if (flag === "--actor") {
+      args.actor = value;
+    } else if (flag === "--note") {
+      args.note = value;
+    } else if (flag === "--project-root") {
+      args.projectRoot = expandUser(value);
+    } else if (flag === "--format") {
+      if (value !== "text" && value !== "json") {
+        return policySetError(`argument --format: invalid choice: '${value}'`);
+      }
+      args.format = value;
+    } else if (flag === "--set") {
+      if (command === "wip-cap") {
+        // Python int() strips surrounding whitespace, so "--set ' 5'" parsed
+        // cleanly; trim before the integer check to preserve that contract.
+        const capText = value.trim();
+        if (!/^[+-]?\d+$/.test(capText)) {
+          return policySetError(`argument --set: invalid int value: '${value}'`);
+        }
+        args.cap = Number.parseInt(capText, 10);
+      } else {
+        // subagent-backend --set <choice>
+        if (!KNOWN_SUBAGENT_BACKEND_IDS.has(value)) {
+          const choices = [...KNOWN_SUBAGENT_BACKEND_IDS].sort().join(", ");
+          return policySetError(
+            `argument --set: invalid choice: '${value}' (choose from ${choices})`,
+          );
+        }
+        args.backendId = value;
+      }
+    }
+  }
+
+  if (command === "wip-cap" && args.cap === undefined) {
+    return policySetError("the following arguments are required: --set");
+  }
+  if (command === "subagent-backend" && args.backendId === undefined) {
+    return policySetError("the following arguments are required: --set");
+  }
+  return args;
+}
+
+interface PdWriteContext {
+  path: string;
+  data: Record<string, unknown>;
+  policyBlock: Record<string, unknown>;
+}
+
+/** Load PROJECT-DEFINITION for an in-place typed-field write (mirrors the .setdefault chain). */
+function loadProjectDefinitionForWrite(projectRoot: string): PdWriteContext {
+  const path = projectDefinitionPath(projectRoot);
+  if (!existsSync(path)) {
+    throw new PolicySetError(`PROJECT-DEFINITION not found at ${path}`, "not-found");
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(path, "utf8"));
+  } catch (err) {
+    throw new PolicySetError(
+      `PROJECT-DEFINITION at ${path} is not valid JSON: ${String(err)}`,
+      "config",
+    );
+  }
+  // JSON.parse can yield a non-object top level (null / array / scalar) without
+  // throwing; reject it before the .plan/.policy property chain dereferences it.
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new PolicySetError(`PROJECT-DEFINITION at ${path} is not a JSON object`, "config");
+  }
+  const data = parsed as Record<string, unknown>;
+  let plan = data.plan;
+  if (plan === undefined) {
+    plan = {};
+    data.plan = plan;
+  }
+  if (typeof plan !== "object" || plan === null || Array.isArray(plan)) {
+    throw new PolicySetError("PROJECT-DEFINITION 'plan' is not an object", "config");
+  }
+  const planObj = plan as Record<string, unknown>;
+  let policy = planObj.policy;
+  if (policy === undefined) {
+    policy = {};
+    planObj.policy = policy;
+  }
+  if (typeof policy !== "object" || policy === null || Array.isArray(policy)) {
+    throw new PolicySetError("plan.policy is not an object", "config");
+  }
+  return { path, data, policyBlock: policy as Record<string, unknown> };
+}
+
+/** Write plan.policy.wipCap in place + append the audit row (mirrors set_wip_cap). */
+function writeWipCap(
+  projectRoot: string,
+  cap: number,
+  actor: string,
+  note: string,
+): { changed: boolean; auditEntry: string } {
+  const { path, data, policyBlock } = loadProjectDefinitionForWrite(projectRoot);
+  const previous = policyBlock.wipCap;
+  policyBlock.wipCap = cap;
+  writeFileSync(path, `${JSON.stringify(data, null, 2)}\n`, "utf8");
+  const changed = previous !== cap;
+  const parts = [`actor=${actor}`, `wipCap=${cap}`, `previous=${pyRepr(previous)}`];
+  if (note) parts.push(`note=${sanitizeNote(note)}`);
+  const auditEntry = parts.join(" ");
+  appendAuditLog(projectRoot, auditEntry);
+  return { changed, auditEntry };
+}
+
+/** Write plan.policy.swarmSubagentBackend in place + append the audit row. */
+function writeSubagentBackend(
+  projectRoot: string,
+  backendId: string,
+  actor: string,
+  note: string,
+): { changed: boolean; auditEntry: string } {
+  const { path, data, policyBlock } = loadProjectDefinitionForWrite(projectRoot);
+  const previous = policyBlock.swarmSubagentBackend;
+  policyBlock.swarmSubagentBackend = backendId;
+  writeFileSync(path, `${JSON.stringify(data, null, 2)}\n`, "utf8");
+  const changed = previous !== backendId;
+  const parts = [
+    `actor=${actor}`,
+    `swarmSubagentBackend=${backendId}`,
+    `previous=${pyRepr(previous)}`,
+  ];
+  if (note) parts.push(`note=${sanitizeNote(note)}`);
+  const auditEntry = parts.join(" ");
+  appendAuditLog(projectRoot, auditEntry);
+  return { changed, auditEntry };
+}
+
+/** Serialise the probe output for `subagent-backends --format json`. */
+function subagentBackendsToJson(backends: readonly SubagentBackendDescriptor[]): string {
+  const payload = {
+    backends: backends.map((entry) => ({
+      id: entry.backend_id,
+      display_name: entry.display_name,
+      roles: [...entry.roles],
+      available: entry.available,
+    })),
+  };
+  return JSON.stringify(payload, null, 2);
+}
+
+/** Map a write-path error to its fail-closed message + exit code (mirrors the except blocks). */
+function reportPolicyWriteError(err: unknown, io: DispatchIo): number {
+  const message = err instanceof Error ? err.message : String(err);
+  if (err instanceof PolicySetError && err.kind === "not-found") {
+    io.writeErr(`\u274c ${message}\n`);
+    io.writeErr(
+      "  Recovery: run `task setup` to generate vbrief/PROJECT-DEFINITION.vbrief.json.\n",
+    );
+    return 2;
+  }
+  io.writeErr(`\u274c Config error: ${message}\n`);
+  return 2;
+}
+
+function applyBranchPolicy(args: PolicySetArgs, io: DispatchIo): number {
+  let target: boolean;
+  if (args.cmd === "enforce-branches") {
+    target = false;
+  } else {
+    if (!args.confirm) {
+      io.writeOut(`${POLICY_CAPABILITY_COST_DISCLOSURE}\n`);
+      io.writeOut("\n");
+      io.writeOut(
+        "Re-run with --confirm to apply: task policy:allow-direct-commits -- --confirm\n",
+      );
+      return 1;
+    }
+    target = true;
+  }
+
+  let result: { changed: boolean; auditEntry: string };
+  try {
+    result = setPolicy(args.projectRoot, {
+      allowDirectCommits: target,
+      actor: args.actor,
+      note: args.note,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("PROJECT-DEFINITION not found")) {
+      io.writeErr(`\u274c ${message}\n`);
+      io.writeErr(
+        "  Recovery: run `task setup` to generate vbrief/PROJECT-DEFINITION.vbrief.json.\n",
+      );
+      return 2;
+    }
+    io.writeErr(`\u274c Config error: ${message}\n`);
+    return 2;
+  }
+
+  const state = target ? "OFF" : "ON";
+  io.writeOut(
+    `\u2713 plan.policy.allowDirectCommitsToMaster=${target ? "true" : "false"} ` +
+      `(branch-protection ${state}).\n`,
+  );
+  if (result.changed) {
+    io.writeOut(`  audit: meta/policy-changes.log :: ${result.auditEntry}\n`);
+  } else {
+    io.writeOut("  no-op: value already matched (audit entry still appended for trail).\n");
+  }
+  io.writeOut(`${disclosureLine(resolvePolicy(args.projectRoot))}\n`);
+  return 0;
+}
+
+function applyWipCap(args: PolicySetArgs, io: DispatchIo): number {
+  const cap = args.cap ?? 0;
+  if (cap < 0) {
+    io.writeErr(`\u274c --set must be >= 0; got ${cap}.\n`);
+    return 1;
+  }
+  if (!args.confirm) {
+    io.writeOut(`${POLICY_WIP_CAP_DISCLOSURE}\n`);
+    io.writeOut("\n");
+    io.writeOut(`Re-run with --confirm to apply: task policy:wip-cap -- --set ${cap} --confirm\n`);
+    return 1;
+  }
+  let res: { changed: boolean; auditEntry: string };
+  try {
+    res = writeWipCap(args.projectRoot, cap, args.actor, args.note);
+  } catch (err) {
+    return reportPolicyWriteError(err, io);
+  }
+  io.writeOut(`\u2713 plan.policy.wipCap=${cap}.\n`);
+  if (res.changed) {
+    io.writeOut(`  audit: meta/policy-changes.log :: ${res.auditEntry}\n`);
+  } else {
+    io.writeOut("  no-op: value already matched (audit entry still appended for trail).\n");
+  }
+  const result = resolveWipCap(args.projectRoot);
+  io.writeOut(`[deft policy] plan.policy.wipCap=${result.cap} (source: ${result.source}).\n`);
+  return 0;
+}
+
+function applySubagentBackend(args: PolicySetArgs, io: DispatchIo): number {
+  const backendId = args.backendId ?? "";
+  let res: { changed: boolean; auditEntry: string };
+  try {
+    res = writeSubagentBackend(args.projectRoot, backendId, args.actor, args.note);
+  } catch (err) {
+    return reportPolicyWriteError(err, io);
+  }
+  io.writeOut(`\u2713 plan.policy.swarmSubagentBackend=${backendId}.\n`);
+  if (res.changed) {
+    io.writeOut(`  audit: meta/policy-changes.log :: ${res.auditEntry}\n`);
+  } else {
+    io.writeOut("  no-op: value already matched (audit entry still appended for trail).\n");
+  }
+  const result = resolveSwarmSubagentBackend(args.projectRoot);
+  io.writeOut(
+    `[deft policy] plan.policy.swarmSubagentBackend=${pyRepr(result.backend_id)} ` +
+      `(source: ${result.source}).\n`,
+  );
+  return 0;
+}
+
+function applySubagentBackends(args: PolicySetArgs, io: DispatchIo): number {
+  const entries = probeSubagentBackends();
+  if (args.format === "json") {
+    io.writeOut(`${subagentBackendsToJson(entries)}\n`);
+    return 0;
+  }
+  for (const entry of entries) {
+    const roles = entry.roles.join(", ");
+    const avail = entry.available ? "available" : "unavailable";
+    io.writeOut(`${entry.backend_id}\t${entry.display_name}\troles=[${roles}]\t${avail}\n`);
+  }
+  return 0;
+}
+
+/** Native `policy-set` dispatcher (replaces the policy_set.py shell-out, #2022 Phase 1). */
+export function runPolicySet(argv: string[], io: DispatchIo): number {
+  const args = parsePolicySetArgs(argv);
+  if (args.error !== undefined) {
+    io.writeErr(`policy-set: ${args.error}\n`);
+    return 2;
+  }
+  switch (args.cmd) {
+    case "enforce-branches":
+    case "allow-direct-commits":
+      return applyBranchPolicy(args, io);
+    case "wip-cap":
+      return applyWipCap(args, io);
+    case "subagent-backend":
+      return applySubagentBackend(args, io);
+    case "subagent-backends":
+      return applySubagentBackends(args, io);
+  }
 }
 
 async function loadCoreModuleHandler(verb: string, io: DispatchIo): Promise<CommandHandler> {
@@ -1327,7 +1792,7 @@ async function loadCoreModuleHandler(verb: string, io: DispatchIo): Promise<Comm
     case "pack-migrate-swarm-spec":
       return (argv) => runPackMigrateSwarmSpec(argv, io);
     case "policy-set":
-      return loadPythonScriptHandler("policy_set.py");
+      return (argv) => runPolicySet(argv, io);
     case "scope-undo": {
       const { undoMain } = await import("@deftai/directive-core/dist/scope/main.js");
       return undoMain;

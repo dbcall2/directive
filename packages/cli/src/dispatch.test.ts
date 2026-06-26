@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { engineInfo } from "@deftai/directive-core";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CLI_MODULE_VERBS,
   CORE_MODULE_VERBS,
@@ -687,5 +687,314 @@ describe("native pack-migrate handlers (#2022)", () => {
     const byId = bodyById(readFileSync(out, "utf8"), "strategies");
     expect(byId.a).not.toBeNull();
     expect(byId.b).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Native policy-set handler (#2022 Phase 1).
+//
+// Verifies the typed-policy write path (formerly scripts/policy_set.py shelled
+// in via loadPythonScriptHandler) now routes to a native TypeScript handler:
+// the typed field updates and an audit row is appended to
+// meta/policy-changes.log, with output parity preserved.
+// ---------------------------------------------------------------------------
+
+describe("native policy-set handler (#2022)", () => {
+  let root: string;
+
+  function projectDefPath(): string {
+    return join(root, "vbrief", "PROJECT-DEFINITION.vbrief.json");
+  }
+
+  function auditLogPath(): string {
+    return join(root, "meta", "policy-changes.log");
+  }
+
+  function readPolicyBlock(): Record<string, unknown> {
+    const parsed: unknown = JSON.parse(readFileSync(projectDefPath(), "utf8"));
+    if (typeof parsed !== "object" || parsed === null) {
+      throw new Error("PROJECT-DEFINITION did not parse to an object");
+    }
+    const plan = (parsed as Record<string, unknown>).plan as Record<string, unknown> | undefined;
+    return (plan?.policy ?? {}) as Record<string, unknown>;
+  }
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), "deft-policy-set-"));
+    mkdirSync(join(root, "vbrief"), { recursive: true });
+    const payload = {
+      vBRIEFInfo: { version: "0.6" },
+      plan: { title: "T", status: "running", items: [] },
+    };
+    writeFileSync(projectDefPath(), JSON.stringify(payload), "utf8");
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  async function runPolicy(argv: string[]): Promise<{ code: number; out: string; err: string }> {
+    const out: string[] = [];
+    const err: string[] = [];
+    const code = await dispatch(["policy-set", ...argv], {
+      writeOut: (t) => out.push(t),
+      writeErr: (t) => err.push(t),
+    });
+    return { code, out: out.join(""), err: err.join("") };
+  }
+
+  // a1: policy-set is a registered core (TypeScript) verb that routes to a
+  // native handler -- the removed loadPythonScriptHandler route used
+  // stdio:"inherit" and would never populate io.writeOut.
+  it("registers policy-set as a native core handler", () => {
+    expect(CORE_MODULE_VERBS).toContain("policy-set");
+    expect(resolveCanonicalVerb("policy-set")).toBe("policy-set");
+  });
+
+  it("routes subagent-backends through the native handler (output via DispatchIo)", async () => {
+    const result = await runPolicy(["subagent-backends", "--project-root", root]);
+    expect(result.code).toBe(0);
+    expect(result.out).toContain("composer");
+    expect(result.out).toContain("grok-build");
+    expect(result.out).toContain("cursor-cloud");
+    expect(result.out).toContain("leaf-implementation");
+    expect(result.err).toBe("");
+  });
+
+  // a2 + a3: a typed field write updates the field AND appends an audit row.
+  it("wip-cap writes the typed field and appends an audit row", async () => {
+    const result = await runPolicy(["wip-cap", "--set", "5", "--confirm", "--project-root", root]);
+    expect(result.code).toBe(0);
+    expect(result.out).toBe(
+      "\u2713 plan.policy.wipCap=5.\n" +
+        "  audit: meta/policy-changes.log :: actor=task policy:wip-cap wipCap=5 previous=None\n" +
+        "[deft policy] plan.policy.wipCap=5 (source: typed).\n",
+    );
+    expect(readPolicyBlock().wipCap).toBe(5);
+    expect(existsSync(auditLogPath())).toBe(true);
+    expect(readFileSync(auditLogPath(), "utf8")).toContain("wipCap=5 previous=None");
+  });
+
+  it("wip-cap honors --actor / --note in the audit row", async () => {
+    const result = await runPolicy([
+      "wip-cap",
+      "--set",
+      "3",
+      "--confirm",
+      "--actor",
+      "tester",
+      "--note",
+      "freeze window",
+      "--project-root",
+      root,
+    ]);
+    expect(result.code).toBe(0);
+    const log = readFileSync(auditLogPath(), "utf8");
+    expect(log).toContain("actor=tester wipCap=3 previous=None note=freeze window");
+  });
+
+  it("wip-cap without --confirm refuses with the capability-cost disclosure", async () => {
+    const result = await runPolicy(["wip-cap", "--set", "5", "--project-root", root]);
+    expect(result.code).toBe(1);
+    expect(result.out).toContain("Capability-cost disclosure");
+    expect(result.out).toContain("Re-run with --confirm to apply: task policy:wip-cap -- --set 5");
+    // No write happened.
+    expect("wipCap" in readPolicyBlock()).toBe(false);
+    expect(existsSync(auditLogPath())).toBe(false);
+  });
+
+  it("wip-cap rejects a negative cap on stderr", async () => {
+    const result = await runPolicy(["wip-cap", "--set", "-1", "--confirm", "--project-root", root]);
+    expect(result.code).toBe(1);
+    expect(result.err).toContain("--set must be >= 0; got -1.");
+  });
+
+  it("wip-cap accepts a whitespace-padded value (Python int() parity)", async () => {
+    const result = await runPolicy([
+      "wip-cap",
+      "--set",
+      " 7 ",
+      "--confirm",
+      "--project-root",
+      root,
+    ]);
+    expect(result.code).toBe(0);
+    expect(readPolicyBlock().wipCap).toBe(7);
+  });
+
+  it("subagent-backend writes the typed field and appends an audit row", async () => {
+    const result = await runPolicy([
+      "subagent-backend",
+      "--set",
+      "composer",
+      "--project-root",
+      root,
+    ]);
+    expect(result.code).toBe(0);
+    expect(result.out).toBe(
+      "\u2713 plan.policy.swarmSubagentBackend=composer.\n" +
+        "  audit: meta/policy-changes.log :: actor=task policy:subagent-backend " +
+        "swarmSubagentBackend=composer previous=None\n" +
+        "[deft policy] plan.policy.swarmSubagentBackend='composer' (source: typed).\n",
+    );
+    expect(readPolicyBlock().swarmSubagentBackend).toBe("composer");
+    expect(readFileSync(auditLogPath(), "utf8")).toContain("swarmSubagentBackend=composer");
+  });
+
+  it("subagent-backend rerun updates the stored value (changed audit row)", async () => {
+    await runPolicy(["subagent-backend", "--set", "grok-build", "--project-root", root]);
+    // dispatch caches the handler (bound to the first call's DispatchIo); reset so
+    // the second invocation writes to a fresh capture buffer.
+    resetHandlerCacheForTests();
+    const result = await runPolicy([
+      "subagent-backend",
+      "--set",
+      "composer",
+      "--project-root",
+      root,
+    ]);
+    expect(result.code).toBe(0);
+    expect(readPolicyBlock().swarmSubagentBackend).toBe("composer");
+    expect(result.out).toContain("swarmSubagentBackend=composer previous='grok-build'");
+  });
+
+  it("enforce-branches writes the typed flag false and audits", async () => {
+    const result = await runPolicy([
+      "enforce-branches",
+      "--actor",
+      "tester",
+      "--project-root",
+      root,
+    ]);
+    expect(result.code).toBe(0);
+    expect(result.out).toContain("branch-protection ON");
+    expect(readPolicyBlock().allowDirectCommitsToMaster).toBe(false);
+    expect(readFileSync(auditLogPath(), "utf8")).toContain("allowDirectCommitsToMaster=false");
+  });
+
+  it("allow-direct-commits with --confirm writes true and audits the note", async () => {
+    const result = await runPolicy([
+      "allow-direct-commits",
+      "--confirm",
+      "--note",
+      "solo project",
+      "--project-root",
+      root,
+    ]);
+    expect(result.code).toBe(0);
+    expect(result.out).toContain("branch-protection OFF");
+    expect(readPolicyBlock().allowDirectCommitsToMaster).toBe(true);
+    expect(readFileSync(auditLogPath(), "utf8")).toContain("note=solo project");
+  });
+
+  it("allow-direct-commits without --confirm refuses", async () => {
+    const result = await runPolicy(["allow-direct-commits", "--project-root", root]);
+    expect(result.code).toBe(1);
+    expect(result.out).toContain("Capability-cost disclosure");
+    expect(result.out).toContain("--confirm");
+    expect("allowDirectCommitsToMaster" in readPolicyBlock()).toBe(false);
+  });
+
+  it("subagent-backends --format json emits the catalog envelope", async () => {
+    const result = await runPolicy([
+      "subagent-backends",
+      "--format",
+      "json",
+      "--project-root",
+      root,
+    ]);
+    expect(result.code).toBe(0);
+    const parsed: unknown = JSON.parse(result.out);
+    if (typeof parsed !== "object" || parsed === null) {
+      throw new Error("subagent-backends --format json did not emit an object");
+    }
+    const payload = parsed as { backends: Array<Record<string, unknown>> };
+    expect(payload.backends).toHaveLength(3);
+    expect(payload.backends.every((row) => "id" in row && "roles" in row)).toBe(true);
+    expect(payload.backends.map((row) => row.id).sort()).toEqual([
+      "composer",
+      "cursor-cloud",
+      "grok-build",
+    ]);
+  });
+
+  it("reports a missing PROJECT-DEFINITION as a config error with recovery", async () => {
+    const empty = mkdtempSync(join(tmpdir(), "deft-policy-set-empty-"));
+    try {
+      const result = await runPolicy(["enforce-branches", "--project-root", empty]);
+      expect(result.code).toBe(2);
+      expect(result.err).toContain("not found");
+      expect(result.err).toContain("task setup");
+    } finally {
+      rmSync(empty, { recursive: true, force: true });
+    }
+  });
+
+  it("reports a missing PROJECT-DEFINITION on the wip-cap write path", async () => {
+    const empty = mkdtempSync(join(tmpdir(), "deft-policy-set-empty-"));
+    try {
+      const result = await runPolicy([
+        "wip-cap",
+        "--set",
+        "2",
+        "--confirm",
+        "--project-root",
+        empty,
+      ]);
+      expect(result.code).toBe(2);
+      expect(result.err).toContain("not found");
+      expect(result.err).toContain("task setup");
+    } finally {
+      rmSync(empty, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a missing subcommand with exit code 2", async () => {
+    const result = await runPolicy([]);
+    expect(result.code).toBe(2);
+    expect(result.err).toContain("required: cmd");
+  });
+
+  it("rejects an unknown subcommand with exit code 2", async () => {
+    const result = await runPolicy(["bogus", "--project-root", root]);
+    expect(result.code).toBe(2);
+    expect(result.err).toContain("invalid choice: 'bogus'");
+  });
+
+  it("rejects an unrecognized flag with exit code 2", async () => {
+    const result = await runPolicy(["wip-cap", "--nope", "x", "--project-root", root]);
+    expect(result.code).toBe(2);
+    expect(result.err).toContain("unrecognized arguments");
+  });
+
+  it("rejects a non-integer wip-cap value with exit code 2", async () => {
+    const result = await runPolicy([
+      "wip-cap",
+      "--set",
+      "abc",
+      "--confirm",
+      "--project-root",
+      root,
+    ]);
+    expect(result.code).toBe(2);
+    expect(result.err).toContain("invalid int value: 'abc'");
+  });
+
+  it("rejects an invalid subagent backend choice with exit code 2", async () => {
+    const result = await runPolicy(["subagent-backend", "--set", "bogus", "--project-root", root]);
+    expect(result.code).toBe(2);
+    expect(result.err).toContain("invalid choice: 'bogus'");
+  });
+
+  it("rejects a flag missing its value with exit code 2", async () => {
+    const result = await runPolicy(["wip-cap", "--set"]);
+    expect(result.code).toBe(2);
+    expect(result.err).toContain("expected one argument");
+  });
+
+  it("requires --set for wip-cap with exit code 2", async () => {
+    const result = await runPolicy(["wip-cap", "--confirm", "--project-root", root]);
+    expect(result.code).toBe(2);
+    expect(result.err).toContain("required: --set");
   });
 });

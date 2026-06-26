@@ -102,7 +102,7 @@
         "TrustLevel": "internal"
       },
       {
-        "uri": "active/2026-06-26-convert-the-policy-set-write-path-to-native-typescript-phase.vbrief.json",
+        "uri": "completed/2026-06-26-convert-the-policy-set-write-path-to-native-typescript-phase.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Convert the policy-set write path to native TypeScript (Phase 1)",
         "TrustLevel": "internal"

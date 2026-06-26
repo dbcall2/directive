@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **`deft pack-migrate` now runs without Python installed** — the five pack-migrate verbs (skills, rules, strategies, patterns, swarm-spec) are now served by native TypeScript handlers instead of shelling out to bundled Python scripts, so pack rendering works on a machine that has no Python. Output is byte-for-byte identical to the previous Python contract. Refs #2022.
+- **Editing a typed policy field no longer needs Python** — the `policy-set` write path (`task policy:wip-cap`, `task policy:enforce-branches` / `allow-direct-commits`, and the `subagent-backend(s)` surfaces) is now a native TypeScript handler instead of shelling into a bundled Python script, so changing a policy and recording its `meta/policy-changes.log` audit row works on a machine with no Python. Output and the audit trail are byte-for-byte identical to the previous Python contract. Refs #2022.
 
 ### Fixed
 
