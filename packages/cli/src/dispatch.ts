@@ -4,6 +4,7 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { engineInfo } from "@deftai/directive-core";
 import {
@@ -1302,6 +1303,15 @@ function defaultPolicySetActor(cmd: PolicySetCmd): string {
   }
 }
 
+/** Mirror Python `Path(...).expanduser()` for a leading `~` / `~/` segment. */
+function expandUser(p: string): string {
+  if (p === "~") return homedir();
+  if (p.startsWith("~/") || p.startsWith("~\\")) {
+    return join(homedir(), p.slice(2));
+  }
+  return p;
+}
+
 function policySetError(message: string): PolicySetArgs {
   return {
     cmd: "enforce-branches",
@@ -1367,7 +1377,7 @@ function parsePolicySetArgs(argv: readonly string[]): PolicySetArgs {
     } else if (flag === "--note") {
       args.note = value;
     } else if (flag === "--project-root") {
-      args.projectRoot = value;
+      args.projectRoot = expandUser(value);
     } else if (flag === "--format") {
       if (value !== "text" && value !== "json") {
         return policySetError(`argument --format: invalid choice: '${value}'`);
@@ -1375,10 +1385,13 @@ function parsePolicySetArgs(argv: readonly string[]): PolicySetArgs {
       args.format = value;
     } else if (flag === "--set") {
       if (command === "wip-cap") {
-        if (!/^[+-]?\d+$/.test(value)) {
+        // Python int() strips surrounding whitespace, so "--set ' 5'" parsed
+        // cleanly; trim before the integer check to preserve that contract.
+        const capText = value.trim();
+        if (!/^[+-]?\d+$/.test(capText)) {
           return policySetError(`argument --set: invalid int value: '${value}'`);
         }
-        args.cap = Number.parseInt(value, 10);
+        args.cap = Number.parseInt(capText, 10);
       } else {
         // subagent-backend --set <choice>
         if (!KNOWN_SUBAGENT_BACKEND_IDS.has(value)) {
@@ -1413,15 +1426,21 @@ function loadProjectDefinitionForWrite(projectRoot: string): PdWriteContext {
   if (!existsSync(path)) {
     throw new PolicySetError(`PROJECT-DEFINITION not found at ${path}`, "not-found");
   }
-  let data: Record<string, unknown>;
+  let parsed: unknown;
   try {
-    data = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+    parsed = JSON.parse(readFileSync(path, "utf8"));
   } catch (err) {
     throw new PolicySetError(
       `PROJECT-DEFINITION at ${path} is not valid JSON: ${String(err)}`,
       "config",
     );
   }
+  // JSON.parse can yield a non-object top level (null / array / scalar) without
+  // throwing; reject it before the .plan/.policy property chain dereferences it.
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new PolicySetError(`PROJECT-DEFINITION at ${path} is not a JSON object`, "config");
+  }
+  const data = parsed as Record<string, unknown>;
   let plan = data.plan;
   if (plan === undefined) {
     plan = {};

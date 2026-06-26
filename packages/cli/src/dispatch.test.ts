@@ -711,9 +711,12 @@ describe("native policy-set handler (#2022)", () => {
   }
 
   function readPolicyBlock(): Record<string, unknown> {
-    const parsed = JSON.parse(readFileSync(projectDefPath(), "utf8")) as Record<string, unknown>;
-    const plan = parsed.plan as Record<string, unknown>;
-    return (plan.policy ?? {}) as Record<string, unknown>;
+    const parsed: unknown = JSON.parse(readFileSync(projectDefPath(), "utf8"));
+    if (typeof parsed !== "object" || parsed === null) {
+      throw new Error("PROJECT-DEFINITION did not parse to an object");
+    }
+    const plan = (parsed as Record<string, unknown>).plan as Record<string, unknown> | undefined;
+    return (plan?.policy ?? {}) as Record<string, unknown>;
   }
 
   beforeEach(() => {
@@ -806,6 +809,19 @@ describe("native policy-set handler (#2022)", () => {
     expect(result.err).toContain("--set must be >= 0; got -1.");
   });
 
+  it("wip-cap accepts a whitespace-padded value (Python int() parity)", async () => {
+    const result = await runPolicy([
+      "wip-cap",
+      "--set",
+      " 7 ",
+      "--confirm",
+      "--project-root",
+      root,
+    ]);
+    expect(result.code).toBe(0);
+    expect(readPolicyBlock().wipCap).toBe(7);
+  });
+
   it("subagent-backend writes the typed field and appends an audit row", async () => {
     const result = await runPolicy([
       "subagent-backend",
@@ -888,7 +904,11 @@ describe("native policy-set handler (#2022)", () => {
       root,
     ]);
     expect(result.code).toBe(0);
-    const payload = JSON.parse(result.out) as { backends: Array<Record<string, unknown>> };
+    const parsed: unknown = JSON.parse(result.out);
+    if (typeof parsed !== "object" || parsed === null) {
+      throw new Error("subagent-backends --format json did not emit an object");
+    }
+    const payload = parsed as { backends: Array<Record<string, unknown>> };
     expect(payload.backends).toHaveLength(3);
     expect(payload.backends.every((row) => "id" in row && "roles" in row)).toBe(true);
     expect(payload.backends.map((row) => row.id).sort()).toEqual([
