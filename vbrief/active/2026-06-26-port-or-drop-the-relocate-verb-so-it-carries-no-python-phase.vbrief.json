@@ -10,7 +10,7 @@
     "planRef": "proposed/2026-06-26-2022-python-purge-readiness-execution-tracker-supersedes-2001.vbrief.json",
     "narratives": {
       "Description": "Decision: DROP, not port. The relocate task shells into scripts/relocate.py via uv but is not a deft or directive dispatch verb, and its own tasks/relocate.yml header documents that the canonical consumer relocate path is the external webinstaller running the relocator from a freshly fetched framework copy, not the bundled deposit. Combined with #1912 marking relocate as back-compat only, the bundled relocate task is the sole remaining consumer Python coupling, so this story removes that task from the consumer-exposed surface rather than reimplementing a legacy wipe-and-reinstall path in TypeScript.",
-      "ImplementationPlan": "- Remove the relocate task config from the consumer-exposed Taskfile include (the relocate entry in Taskfile.yml and the uv python dispatch in tasks/relocate.yml) so no consumer task shells into scripts/relocate.py, confining any remaining relocate helper to the maintainer-only contributor path.\n- Update the tasks/relocate.yml header and any operator citation to point at the webinstaller as the canonical relocate path, then run task verify:no-task-runtime as evidence that no relocate Python entrypoint remains on the consumer surface.",
+      "ImplementationPlan": "- Remove the relocate task config from the consumer-exposed Taskfile include (the relocate entry in Taskfile.yml and the uv python dispatch in tasks/relocate.yml) so no consumer task shells into scripts/relocate.py, confining any remaining relocate helper to the maintainer-only contributor path.\n- Update the tasks/relocate.yml header and any operator citation to point at the webinstaller as the canonical relocate path, then run task verify:no-task-runtime as evidence that no relocate Python entrypoint remains on the consumer surface.\n- Repoint the doctor install-path-consistency repair in packages/core/src/doctor/checks.ts away from the dropped `task relocate:relocate -- --confirm` citation to the canonical relocate path (webinstaller / UPGRADING.md drift-repair walkthrough), and update the stale anchors in tests/cli/test_framework_doctor_prose.py so task check stays green after the drop.",
       "UserStory": "As a consumer on the npm path, I want the relocate task dropped from the consumer surface, so that no consumer task shells into relocate's legacy Python.",
       "Traces": "deftai/directive#2022 Phase 1"
     },
@@ -47,7 +47,9 @@
         "parallel_safe": true,
         "file_scope": [
           "Taskfile.yml",
-          "tasks/relocate.yml"
+          "tasks/relocate.yml",
+          "packages/core/src/doctor/checks.ts",
+          "tests/cli/test_framework_doctor_prose.py"
         ],
         "verify_commands": [
           "task verify:no-task-runtime"
