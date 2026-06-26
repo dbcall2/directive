@@ -6,7 +6,7 @@
   "plan": {
     "id": "py-purge-gate-mandate-cleanup",
     "title": "Remove the deft-install gate mandate from the preamble surfaces (Phase 0)",
-    "status": "running",
+    "status": "completed",
     "planRef": "proposed/2026-06-26-2022-python-purge-readiness-execution-tracker-supersedes-2001.vbrief.json",
     "narratives": {
       "Description": "The DEFT-PREAMBLE in main.md line 2, the main-001 rule in the rules pack, content/templates/agent-prompt-preamble.md, the setup/sync skills, and CONTRIBUTING all currently mandate running the frozen gate before any other instruction. Under the settled deprecate-by-disuse decision (#1933 Option 1) that mandate is dropped and replaced with a cold-start fallback that points the operator at UPGRADING.md when deft or directive will not run.",
@@ -76,7 +76,9 @@
         "size": "M",
         "file_scope_confidence": "high",
         "model_tier": "medium"
-      }
+      },
+      "completedAt": "2026-06-26T18:27:23Z",
+      "capacityBucket": "new-capability"
     },
     "references": [
       {
@@ -86,6 +88,6 @@
         "TrustLevel": "external"
       }
     ],
-    "updated": "2026-06-26T18:08:54Z"
+    "updated": "2026-06-26T18:27:23Z"
   }
 }

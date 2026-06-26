@@ -44,13 +44,14 @@ _PREAMBLE_MARKER = "<!-- DEFT-PREAMBLE-V1 -->"
 # v0.20 redirect contract continues to resolve. The per-file expectation
 # helpers below mirror the `_expected_gate_instruction` pattern so the two
 # split axes (gate-command path, UPGRADING.md path) stay aligned.
-# #2001 / #1933 (Option 3): the canonical carriers (`main.md`, `SKILL.md`) were
-# repointed off the Python `python3 .deft/core/run gate` shim to the
-# node-independent Go gate in the frozen installer binary (`deft-install gate`).
-# The two legacy v0.19 -> v0.20 redirect stubs keep the pre-flip
-# `python3 deft/run gate` form so stale `AGENTS.md` references still resolve
-# through the deprecation-redirect contract (#411).
-_GATE_INSTRUCTION_CANONICAL = "deft-install gate"
+# #2022 / #1933 (Option 1, deprecate-by-disuse): the canonical carriers
+# (`main.md`, `SKILL.md`) no longer mandate running the frozen `deft-install
+# gate` health probe before any other instruction. The DEFT-PREAMBLE now
+# carries a cold-start fallback -- if `deft`/`directive` will not run, recover
+# via `.deft/core/UPGRADING.md`. The two legacy v0.19 -> v0.20 redirect stubs
+# keep the pre-flip `python3 deft/run gate` form so stale `AGENTS.md`
+# references still resolve through the deprecation-redirect contract (#411).
+_GATE_INSTRUCTION_CANONICAL = "Cold-start check"
 _GATE_INSTRUCTION_LEGACY = "python3 deft/run gate"
 _UPGRADING_REFERENCE_CANONICAL = ".deft/core/UPGRADING.md"
 _UPGRADING_REFERENCE_LEGACY = "deft/UPGRADING.md"
@@ -110,11 +111,12 @@ def test_preamble_marker_at_line_one(rel_path: str) -> None:
 
 @pytest.mark.parametrize("rel_path", _REQUIRED_FILES)
 def test_preamble_includes_gate_instruction(rel_path: str) -> None:
-    """The preamble body MUST instruct the agent to run the gate command.
+    """The preamble body MUST carry its cold-start fallback / recovery cue.
 
-    Canonical carriers (`main.md`, `SKILL.md`) MUST use the v0.27
-    `.deft/core/run` form; legacy redirect stubs MUST retain the pre-v0.27
-    `deft/run` form per the #411 redirect contract.
+    Canonical carriers (`main.md`, `SKILL.md`) carry the `Cold-start check`
+    fallback (#2022 / #1933 Option 1 -- the frozen `deft-install gate`
+    mandate is dropped); legacy redirect stubs MUST retain the pre-v0.27
+    `python3 deft/run gate` form per the #411 redirect contract.
     """
     full = _REPO_ROOT / rel_path
     text = full.read_text(encoding="utf-8")

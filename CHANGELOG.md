@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- **Agents no longer run a frozen install gate before reading the guidelines** — the DEFT-PREAMBLE in `main.md`, the root `SKILL.md`, and the `main-001` rule drop the `deft-install gate` mandate (deprecate-by-disuse) in favor of a cold-start fallback: if `deft` or `directive` will not run, read `.deft/core/UPGRADING.md` and follow the matching recovery section. The consumer AGENTS.md no longer lists the legacy Python `run` CLI as a load-bearing operator path. Refs #2022, #1933.
 
 ### Fixed
 

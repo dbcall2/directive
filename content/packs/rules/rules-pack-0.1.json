@@ -4031,7 +4031,7 @@
       "id": "main-001",
       "tier": "MUST",
       "domain": "main",
-      "text": "Before any other instruction in this file or in the consumer AGENTS.md, run `deft-install gate` (the node-independent read-only health gate in the frozen installer binary; #1933 Option 3).",
+      "text": "Cold-start check: deft runs from the npm-installed engine (`npm i -g @deftai/directive`). If neither `deft` nor `directive` will run on this machine, do not proceed with the instructions below -- recover first (#1933 Option 1, deprecate-by-disuse).",
       "path": "main.md",
       "body": null
     },
@@ -4039,7 +4039,7 @@
       "id": "main-002",
       "tier": "MUST",
       "domain": "main",
-      "text": "If exit code is 0, continue.",
+      "text": "To recover: read `.deft/core/UPGRADING.md`, find the section whose \"Applies when\" clause matches your symptom, and follow that section verbatim before any other instruction in this file or in the consumer AGENTS.md.",
       "path": "main.md",
       "body": null
     },
@@ -4047,7 +4047,7 @@
       "id": "main-003",
       "tier": "MUST",
       "domain": "main",
-      "text": "Otherwise: read `.deft/core/UPGRADING.md`, find the section whose \"Applies when\" clause matches the state vector printed by the gate, and follow that section verbatim. Respect any \"Restart required\" directive -- if present, stop and tell the user to start a fresh session after cleanup commands complete.",
+      "text": "Respect any \"Restart required\" directive -- if present, stop and tell the user to start a fresh session after cleanup commands complete. Otherwise continue.",
       "path": "main.md",
       "body": null
     },
