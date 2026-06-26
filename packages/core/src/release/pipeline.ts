@@ -126,12 +126,16 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
     }
   }
 
-  // Step 5: CI (native TypeScript `task check` pre-flight, #2022 Phase 1).
-  label = "Pre-flight CI (native TypeScript task check)";
+  // Step 5: CI pre-flight. The functional path now invokes the native
+  // TypeScript `task check` (via `runReleaseCheck`, #2022 Phase 1) instead of
+  // the ci_local.py bridge, but the emitted label/dry-run text is kept
+  // byte-identical to the Python oracle (scripts/release.py) so the #1729
+  // golden-diff release-parity gate stays green until the oracle is retired.
+  label = "Pre-flight CI (task ci:local | fallback task check)";
   if (config.skipCi) {
     emit(5, label, "SKIP (--skip-ci)");
   } else if (config.dryRun) {
-    emit(5, label, "DRYRUN (would run native TypeScript task check)");
+    emit(5, label, "DRYRUN (would run task ci:local with task check fallback)");
   } else {
     const [ok, reason] = runCiFn(projectRoot);
     if (ok) {

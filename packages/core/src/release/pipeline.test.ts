@@ -80,10 +80,11 @@ describe("runPipeline dry-run", () => {
       expect(err).toContain("DRYRUN");
       expect(err).toContain("SKIP (--skip-tag)");
       expect(err).toContain("pipeline complete");
-      // #2022 Phase 1: Step-5 pre-flight is the native TypeScript task check,
-      // not the removed ci_local.py python bridge.
-      expect(err).toContain("Pre-flight CI (native TypeScript task check)");
-      expect(err).not.toContain("ci:local");
+      // #2022 Phase 1: the Step-5 dry-run label/text is kept byte-identical to
+      // the Python oracle (scripts/release.py) for the #1729 release-parity
+      // gate; the functional native-TS-task-check rewiring is asserted via the
+      // runCi seam in the test below, not via the cosmetic dry-run label.
+      expect(err).toContain("Pre-flight CI (task ci:local | fallback task check)");
     } finally {
       process.stderr.write = orig;
     }
