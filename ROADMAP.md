@@ -5,46 +5,6 @@
 
 # Roadmap
 
-## Decide and execute migrate:vbrief -- TS port or pre-v0.20 cutoff (#2001)
-
-### migrate-vbrief-decision-a1: Given the TS-port path, when chosen, then `task migrate:vbrief` runs with no Python and a fixture migration test validates the output. `[pending]`
-
-### migrate-vbrief-decision-a2: Given the cutoff path, when chosen instead, then the consumer task surface no longer shows migrate:vbrief and the docs show a hard pre-v0.20 cutoff. `[pending]`
-
-### migrate-vbrief-decision-a3: Given either resolution, when `task check` runs, then it exits zero and no code path invokes `scripts/migrate_vbrief.py`. `[pending]`
-
----
-
-## Decide bootstrap UX -- implement `directive bootstrap` or declare skill-only setup canonical (#2001)
-
-### bootstrap-policy-decision-a1: Given the CLI path, when an operator runs `directive bootstrap`, then it scaffolds setup and the operator docs show it as canonical. `[pending]`
-
-### bootstrap-policy-decision-a2: Given the skill-only path instead, when chosen, then operator docs remove CLI bootstrap and redirect to the deft-directive-setup skill. `[pending]`
-
-### bootstrap-policy-decision-a3: Given either resolution, when operator docs are scanned, then no run bootstrap path remains without a documented replacement. `[pending]`
-
----
-
-## Drop Python from the @deftai/directive-content prepack and prove a Python-free greenfield install (#2001)
-
-### npm-deposit-python-free-a1: Given the content prepack, when `@deftai/directive-content` is packed, then the tarball shows no scripts/ tree and no .py file. `[pending]`
-
-### npm-deposit-python-free-a2: Given a Python-free machine, when `directive init` runs, then the deposit shows no repo-root run shim and no .py file. `[pending]`
-
-### npm-deposit-python-free-a3: Given a greenfield install on a Python-free machine, when `task check` runs, then it exits zero. `[pending]`
-
----
-
-## Remove Python entrypoints from the consumer Taskfile and tasks surface (#2001)
-
-### consumer-task-surface-audit-a1: Given the consumer task surface, when Taskfile.yml and the tasks files are scanned, then no python3, uv run, or scripts/ entrypoint remains on the consumer deposit path. `[pending]`
-
-### consumer-task-surface-audit-a2: Given a maintainer-only Python task, when the audit runs, then it is moved behind the contributor path or removed. `[pending]`
-
-### consumer-task-surface-audit-a3: Given the audited surface, when `task check` runs, then it exits zero with the directive CLI as the only invoked engine. `[pending]`
-
----
-
 ## Completed
 
 - **#365** -- bdd strategy: move context and scenarios to vbrief; remove specs/ folder -- `[completed]`
@@ -787,4 +747,11 @@
 - **#1972** -- Assert the installer VERSION is migrate-acceptable in the legacy-bridge e2e leg -- `[completed]`
 - **#1972** -- Reconcile verify:go-freeze version source to a release-tag check -- `[completed]`
 - **#2015** -- deft-install gate: `current` resolves from frozen binary (v-prefixed), not installed payload — healthy installs report NEEDS-UPGRADE -- `[completed]`
+- **#2023** -- Fix deft update/init refresh_deposit_failed by resolving the content package via its package.json subpath -- `[completed]`
+- **#2022** -- Convert the five pack-migrate dispatch routes to native TypeScript (Phase 1) -- `[completed]`
+- **#2022** -- Convert the policy-set write path to native TypeScript (Phase 1) -- `[completed]`
+- **#2022** -- Extend deft doctor with a precutover status line (Phase 0) -- `[completed]`
+- **#2022** -- Drop the relocate task from the consumer surface so it carries no Python (Phase 1) -- `[completed]`
+- **#2022** -- Promote TypeScript task check as the release pre-flight and drop the Python bridge (Phase 1) -- `[completed]`
+- **#2022** -- Remove the deft-install gate mandate from the preamble surfaces (Phase 0) -- `[completed]`
 
