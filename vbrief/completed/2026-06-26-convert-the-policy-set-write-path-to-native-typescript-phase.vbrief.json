@@ -6,7 +6,7 @@
   "plan": {
     "id": "py-purge-policy-set-ts",
     "title": "Convert the policy-set write path to native TypeScript (Phase 1)",
-    "status": "running",
+    "status": "completed",
     "planRef": "proposed/2026-06-26-2022-python-purge-readiness-execution-tracker-supersedes-2001.vbrief.json",
     "narratives": {
       "Description": "The policy-set write path is still served by a loadPythonScriptHandler route in packages/cli/src/dispatch.ts (~line 501) that shells into scripts/policy_set.py, while the policy read path is already native TypeScript. This story ports the policy write path to TypeScript so editing a typed policy field no longer requires Python.",
@@ -61,7 +61,9 @@
         "size": "M",
         "file_scope_confidence": "medium",
         "model_tier": "high"
-      }
+      },
+      "completedAt": "2026-06-26T19:27:20Z",
+      "capacityBucket": "new-capability"
     },
     "references": [
       {
@@ -71,6 +73,6 @@
         "TrustLevel": "external"
       }
     ],
-    "updated": "2026-06-26T18:08:57Z"
+    "updated": "2026-06-26T19:27:20Z"
   }
 }
