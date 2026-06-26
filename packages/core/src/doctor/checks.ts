@@ -305,7 +305,7 @@ export function checkInstallPathConsistency(
     return {
       name: "install-path-consistency",
       status: "fail",
-      detail: `Install root is recorded as '${effectiveInstallRoot}' (source: ${source}) but ${claimedDir} is not a directory. Pick one of two repair paths: (a) run \`.deft/core/run agents:refresh\` (Unix) / \`.deft\\core\\run agents:refresh\` (Windows) to rewrite AGENTS.md to match the on-disk framework -- pick this if the framework on disk is correct; OR (b) run \`task relocate:relocate -- --confirm\` to move the framework to the path AGENTS.md / the manifest claims -- pick this if AGENTS.md is correct. The YAML manifest (if present) is authoritative for the install-layout contract. See UPGRADING.md for the canonical drift-repair walkthrough.`,
+      detail: `Install root is recorded as '${effectiveInstallRoot}' (source: ${source}) but ${claimedDir} is not a directory. Pick one of two repair paths: (a) run \`.deft/core/run agents:refresh\` (Unix) / \`.deft\\core\\run agents:refresh\` (Windows) to rewrite AGENTS.md to match the on-disk framework -- pick this if the framework on disk is correct; OR (b) run \`npm i -g @deftai/directive@latest\` to reinstall the framework at the path AGENTS.md / the manifest claims (the canonical npm install path, #1912) -- pick this if AGENTS.md is correct. The YAML manifest (if present) is authoritative for the install-layout contract. See UPGRADING.md for the canonical drift-repair walkthrough.`,
       data: {
         claimed_install_root: installRoot,
         effective_install_root: effectiveInstallRoot,
@@ -314,7 +314,7 @@ export function checkInstallPathConsistency(
         claimed_dir_exists: false,
         fallback_info_note: fallbackInfoNote || null,
         suggested_fix: ".deft/core/run agents:refresh",
-        suggested_fix_alt: "task relocate:relocate -- --confirm",
+        suggested_fix_alt: "npm i -g @deftai/directive@latest",
       },
     };
   }

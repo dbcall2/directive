@@ -17,10 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- **`deft doctor`'s install-path repair now points at the npm installer** — the `install-path-consistency` check previously recommended the now-removed `task relocate:relocate -- --confirm`; it now recommends `npm i -g @deftai/directive@latest` as the canonical reinstall path. Refs #2022, #1912.
 
 ### Fixed
 
 ### Removed
+- **The `relocate` task is gone from the deft task surface** — `task relocate` (which shelled into a bundled Python relocator) has been removed; it was the last consumer task that ran Python. To move or reinstall the framework, use the canonical npm install path (`npm i -g @deftai/directive@latest`); see UPGRADING.md. Refs #2022.
 
 ## [0.58.0] - 2026-06-26
 
