@@ -73,6 +73,22 @@ describe("doctor CLI", () => {
     expect(cmdDoctor).toHaveBeenCalledWith(["--json", "--project-root", root]);
   });
 
+  it("suppresses the precutover line for an invalid invocation (unknown flag)", () => {
+    const out = captureStdout(() => {
+      run(["--not-a-real-flag"]);
+    });
+    expect(out).toBe("");
+    expect(cmdDoctor).toHaveBeenCalledWith(["--not-a-real-flag"]);
+  });
+
+  it("suppresses the precutover line for --help", () => {
+    const out = captureStdout(() => {
+      run(["--help"]);
+    });
+    expect(out).toBe("");
+    expect(cmdDoctor).toHaveBeenCalledWith(["--help"]);
+  });
+
   it("flags the migration-needed state for a pre-cutover project fixture", () => {
     const root = makeRoot("doctor-precut-");
     makeLifecycleDirs(root);

@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **`deft doctor` now shows a pre-cutover status line** — running the doctor prints a short line telling you whether the project still carries pre-v0.20 document-model artifacts that need migration (flagging the offending files and pointing at `deft migrate:vbrief`), or confirms it is on the current vBRIEF document model. This surfaces migration state in the TypeScript engine without depending on the Python migrator. Refs #2022.
+- **`deft doctor` now shows a pre-cutover status line** — running the doctor tells operators whether a project still needs the pre-v0.20 document-model migration or is already on the current vBRIEF model. Refs #2022.
 
 ### Changed
 

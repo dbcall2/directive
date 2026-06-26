@@ -114,5 +114,7 @@ export function renderPrecutoverLine(projectRoot: string): string {
   if (!preCutover) {
     return "Pre-cutover: none -- project is on the current vBRIEF document model.";
   }
-  return `Pre-cutover: migration needed -- ${reasons.join("; ")}. Run \`deft migrate:vbrief\` to migrate.`;
+  // Collapse any embedded newlines so the status line stays a single line (CWE-116).
+  const summary = reasons.join("; ").replace(/\r?\n/g, " ");
+  return `Pre-cutover: migration needed -- ${summary}. Run \`deft migrate:vbrief\` to migrate.`;
 }
