@@ -6,7 +6,7 @@
   "plan": {
     "id": "py-purge-ci-local-ts",
     "title": "Promote TypeScript task check as the release pre-flight and drop the Python bridge (Phase 1)",
-    "status": "running",
+    "status": "completed",
     "planRef": "proposed/2026-06-26-2022-python-purge-readiness-execution-tracker-supersedes-2001.vbrief.json",
     "narratives": {
       "Description": "The maintainer release pre-flight still runs scripts/ci_local.py through the packages/core/src/release/python-bridge.ts shim. This story promotes the TypeScript task check to the primary release Step-5 pre-flight and removes the Python bridge so the release flow carries no Python pre-flight dependency.",
@@ -61,7 +61,9 @@
         "size": "M",
         "file_scope_confidence": "medium",
         "model_tier": "high"
-      }
+      },
+      "completedAt": "2026-06-26T18:32:01Z",
+      "capacityBucket": "new-capability"
     },
     "references": [
       {
@@ -71,6 +73,6 @@
         "TrustLevel": "external"
       }
     ],
-    "updated": "2026-06-26T18:08:55Z"
+    "updated": "2026-06-26T18:32:01Z"
   }
 }

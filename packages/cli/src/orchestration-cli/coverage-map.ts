@@ -132,7 +132,7 @@ export const ORCHESTRATION_CLI_COVERAGE_MAP: readonly CoverageEntry[] = [
   {
     pythonTest: "test_release_subprocess_path.py",
     kind: "existing-coverage",
-    tsTarget: "packages/core/src/release/python-bridge.test.ts",
+    tsTarget: "packages/core/src/release/python-steps.test.ts",
   },
   {
     pythonTest: "test_release_summary.py",

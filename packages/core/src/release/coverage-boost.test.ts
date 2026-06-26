@@ -10,7 +10,7 @@ import {
 } from "./git.js";
 import { runPipeline } from "./pipeline.js";
 import { syncPyprojectForRelease } from "./pyproject-sync.js";
-import { runUvLock } from "./python-bridge.js";
+import { runUvLock } from "./python-steps.js";
 import type { ReleaseConfig, ReleaseSeams } from "./types.js";
 
 describe("git helpers", () => {

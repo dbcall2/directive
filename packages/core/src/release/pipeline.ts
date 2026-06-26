@@ -20,14 +20,9 @@ import {
   releaseCommitSubject,
 } from "./git.js";
 import { resolveScriptsDir, todayIso } from "./paths.js";
+import { runReleaseCheck } from "./preflight.js";
 import { pyprojectPathFor, syncPyprojectForRelease } from "./pyproject-sync.js";
-import {
-  checkVbriefLifecycleSync,
-  refreshRoadmap,
-  runBuild,
-  runCi,
-  runUvLock,
-} from "./python-bridge.js";
+import { checkVbriefLifecycleSync, refreshRoadmap, runBuild, runUvLock } from "./python-steps.js";
 import type { ReleaseConfig, ReleaseSeams } from "./types.js";
 import { isPrereleaseTag } from "./version.js";
 
@@ -45,7 +40,7 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
   const writeFile = seams.writeFile ?? ((p: string, c: string) => writeFileSync(p, c, "utf8"));
   const fileExists = seams.fileExists ?? ((p: string) => existsSync(p));
 
-  const runCiFn = seams.runCi ?? ((root: string) => runCi(root, scriptsDir, seams));
+  const runCiFn = seams.runCi ?? ((root: string) => runReleaseCheck(root));
   const refreshRoadmapFn =
     seams.refreshRoadmap ?? ((root: string) => refreshRoadmap(root, scriptsDir, seams));
   const checkVbriefFn =
@@ -131,7 +126,11 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
     }
   }
 
-  // Step 5: CI.
+  // Step 5: CI pre-flight. The functional path now invokes the native
+  // TypeScript `task check` (via `runReleaseCheck`, #2022 Phase 1) instead of
+  // the ci_local.py bridge, but the emitted label/dry-run text is kept
+  // byte-identical to the Python oracle (scripts/release.py) so the #1729
+  // golden-diff release-parity gate stays green until the oracle is retired.
   label = "Pre-flight CI (task ci:local | fallback task check)";
   if (config.skipCi) {
     emit(5, label, "SKIP (--skip-ci)");

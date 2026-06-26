@@ -1,3 +1,15 @@
+/**
+ * python-steps.ts -- Residual Python-backed release pipeline steps.
+ *
+ * #2022 Phase 1 removed the `ci_local.py` Step-5 pre-flight bridge (now native
+ * TypeScript via release/preflight.ts), retiring the former `python-bridge.ts`
+ * module. These remaining steps still shell into bundled Python and stay here
+ * until their own purge phases land:
+ *   - refreshRoadmap (Step 7)            -> scripts/roadmap_render.py
+ *   - checkVbriefLifecycleSync (Step 3)  -> scripts/reconcile_issues.py
+ *   - runBuild (Step 8)                  -> scripts/build_dist.py (Bucket B, deleted by #1860)
+ *   - runUvLock (Step 6)                 -> `uv lock`
+ */
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { defaultWhich, spawnText } from "./spawn.js";
@@ -16,24 +28,6 @@ function runUvPython(
     env: { ...env, PYTHONUTF8: "1" },
     timeoutMs: 300_000,
   });
-}
-
-export function runCi(
-  projectRoot: string,
-  scriptsDir: string,
-  seams: ReleaseSeams = {},
-): [boolean, string] {
-  const code = [
-    "import sys",
-    `sys.path.insert(0, ${JSON.stringify(scriptsDir)})`,
-    "import ci_local",
-    `sys.exit(ci_local.main(['--root', ${JSON.stringify(projectRoot)}]))`,
-  ].join("\n");
-  const result = runUvPython(scriptsDir, code, scriptsDir, process.env, seams);
-  if (result.status !== 0) {
-    return [false, `ci:local failed (exit ${result.status})`];
-  }
-  return [true, "ran ci:local"];
 }
 
 export function refreshRoadmap(

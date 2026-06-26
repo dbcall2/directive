@@ -120,7 +120,7 @@
         "TrustLevel": "internal"
       },
       {
-        "uri": "active/2026-06-26-promote-typescript-task-check-as-the-release-pre-flight-and.vbrief.json",
+        "uri": "completed/2026-06-26-promote-typescript-task-check-as-the-release-pre-flight-and.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Promote TypeScript task check as the release pre-flight and drop the Python bridge (Phase 1)",
         "TrustLevel": "internal"

@@ -80,6 +80,47 @@ describe("runPipeline dry-run", () => {
       expect(err).toContain("DRYRUN");
       expect(err).toContain("SKIP (--skip-tag)");
       expect(err).toContain("pipeline complete");
+      // #2022 Phase 1: the Step-5 dry-run label/text is kept byte-identical to
+      // the Python oracle (scripts/release.py) for the #1729 release-parity
+      // gate; the functional native-TS-task-check rewiring is asserted via the
+      // runCi seam in the test below, not via the cosmetic dry-run label.
+      expect(err).toContain("Pre-flight CI (task ci:local | fallback task check)");
+    } finally {
+      process.stderr.write = orig;
+    }
+  });
+
+  it("Step-5 invokes the native TypeScript task check seam (not ci_local.py)", () => {
+    const orig = process.stderr.write.bind(process.stderr);
+    process.stderr.write = (() => true) as typeof process.stderr.write;
+    let runCiInvoked = false;
+    const config: ReleaseConfig = {
+      ...baseConfig,
+      dryRun: false,
+      skipCi: false,
+      skipBuild: true,
+      allowVbriefDrift: true,
+    };
+    const seams: ReleaseSeams = {
+      todayIso: () => "2026-04-28",
+      spawnText: (_c, a) => {
+        if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
+        if (a.includes("branch")) return { status: 0, stdout: "master\n", stderr: "" };
+        return { status: 0, stdout: "", stderr: "" };
+      },
+      checkTagAvailable: () => [true, "ok"],
+      runCi: () => {
+        runCiInvoked = true;
+        return [true, "ran native TypeScript task check"];
+      },
+      fileExists: (p) => p.endsWith("CHANGELOG.md"),
+      readFile: () => `## [Unreleased]\n\n### Added\n`,
+      writeFile: () => undefined,
+      refreshRoadmap: () => [true, "ok"],
+    };
+    try {
+      expect(runPipeline(config, seams)).toBe(0);
+      expect(runCiInvoked).toBe(true);
     } finally {
       process.stderr.write = orig;
     }
