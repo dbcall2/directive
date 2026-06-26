@@ -6,7 +6,7 @@
   "plan": {
     "id": "py-purge-relocate-ts-or-drop",
     "title": "Drop the relocate task from the consumer surface so it carries no Python (Phase 1)",
-    "status": "running",
+    "status": "completed",
     "planRef": "proposed/2026-06-26-2022-python-purge-readiness-execution-tracker-supersedes-2001.vbrief.json",
     "narratives": {
       "Description": "Decision: DROP, not port. The relocate task shells into scripts/relocate.py via uv but is not a deft or directive dispatch verb, and its own tasks/relocate.yml header documents that the canonical consumer relocate path is the external webinstaller running the relocator from a freshly fetched framework copy, not the bundled deposit. Combined with #1912 marking relocate as back-compat only, the bundled relocate task is the sole remaining consumer Python coupling, so this story removes that task from the consumer-exposed surface rather than reimplementing a legacy wipe-and-reinstall path in TypeScript.",
@@ -63,7 +63,9 @@
         "size": "S",
         "file_scope_confidence": "high",
         "model_tier": "medium"
-      }
+      },
+      "completedAt": "2026-06-26T18:42:34Z",
+      "capacityBucket": "new-capability"
     },
     "references": [
       {
@@ -73,6 +75,6 @@
         "TrustLevel": "external"
       }
     ],
-    "updated": "2026-06-26T18:08:56Z"
+    "updated": "2026-06-26T18:42:34Z"
   }
 }

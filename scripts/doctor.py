@@ -734,8 +734,9 @@ def _check_install_path_consistency(project_root: Path, install_root: str | None
                 "`.deft\\core\\run agents:refresh` (Windows) to rewrite "
                 "AGENTS.md to match the on-disk framework -- pick this if "
                 "the framework on disk is correct; OR "
-                "(b) run `task relocate:relocate -- --confirm` to move the "
-                "framework to the path AGENTS.md / the manifest claims -- "
+                "(b) run `npx @deftai/directive update` to (re)deposit the "
+                "framework at the path AGENTS.md / the manifest claims (the "
+                "npm CLI project deposit, #1912) -- "
                 "pick this if AGENTS.md is correct. The YAML manifest (if "
                 "present) is authoritative for the install-layout contract. "
                 "See UPGRADING.md for the canonical drift-repair walkthrough."
@@ -748,7 +749,7 @@ def _check_install_path_consistency(project_root: Path, install_root: str | None
                 "claimed_dir_exists": False,
                 "fallback_info_note": fallback_info_note or None,
                 "suggested_fix": ".deft/core/run agents:refresh",
-                "suggested_fix_alt": "task relocate:relocate -- --confirm",
+                "suggested_fix_alt": "npx @deftai/directive update",
             },
         )
     # Note: this check intentionally does NOT verify the YAML manifest

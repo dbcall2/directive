@@ -22,12 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editing a typed policy field no longer needs Python** — the `policy-set` write path (`task policy:wip-cap`, `task policy:enforce-branches` / `allow-direct-commits`, and the `subagent-backend(s)` surfaces) is now a native TypeScript handler instead of shelling into a bundled Python script, so changing a policy and recording its `meta/policy-changes.log` audit row works on a machine with no Python. Output and the audit trail are byte-for-byte identical to the previous Python contract. Refs #2022.
 - **The release pre-flight now runs the native TypeScript `task check` instead of the Python `ci_local.py` bridge** — Step 5 of the maintainer release flow dispatches the context-aware TypeScript check orchestrator directly, so cutting a release no longer depends on the `ci_local.py` python-bridge shim. Refs #2022.
 - **Agents no longer run a frozen install gate before reading the guidelines** — the preamble now uses a cold-start UPGRADING.md fallback when `deft` or `directive` will not run, and consumer guidance no longer presents the legacy Python `run` CLI as a load-bearing operator path. Refs #2022, #1933.
+- **`deft doctor`'s install-path repair now points at the npm CLI** — the `install-path-consistency` check previously recommended the now-removed `task relocate:relocate -- --confirm`; it now recommends `npx @deftai/directive update`, which (re)deposits the project framework directory. Refs #2022, #1912.
 
 ### Fixed
 - **`deft update` / `deft init` no longer abort with `refresh_deposit_failed` on canonical-vendored installs** — the content-package resolver now locates `@deftai/directive-content` through its `package.json` subpath instead of its bare specifier. The content package ships no entry point, so the old bare-specifier resolve threw and stopped the deposit; resolving the always-present `package.json` restores the npm refresh path. Closes #2023.
 
 ### Removed
 - **Removed the `python-bridge.ts` release shim** — the release pipeline's `ci_local.py` Step-5 bridge is gone; the remaining Python-backed release steps moved to a clearly scoped module pending their own conversions. No user-facing command change. Refs #2022.
+- **The `relocate` task is gone from the deft task surface** — `task relocate` (which shelled into a bundled Python relocator) has been removed; it was the last consumer task that ran Python. To move or reinstall the framework, use the canonical npm install path (`npm i -g @deftai/directive@latest`); see UPGRADING.md. Refs #2022.
 
 ## [0.58.0] - 2026-06-26
 
