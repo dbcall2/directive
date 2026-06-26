@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editing a typed policy field no longer needs Python** — the `policy-set` write path (`task policy:wip-cap`, `task policy:enforce-branches` / `allow-direct-commits`, and the `subagent-backend(s)` surfaces) is now a native TypeScript handler instead of shelling into a bundled Python script, so changing a policy and recording its `meta/policy-changes.log` audit row works on a machine with no Python. Output and the audit trail are byte-for-byte identical to the previous Python contract. Refs #2022.
 
 ### Fixed
+- **`deft update` / `deft init` no longer abort with `refresh_deposit_failed` on canonical-vendored installs** — the content-package resolver now locates `@deftai/directive-content` through its `package.json` subpath instead of its bare specifier. The content package ships no entry point, so the old bare-specifier resolve threw and stopped the deposit; resolving the always-present `package.json` restores the npm refresh path. Closes #2023.
 
 ### Removed
 
