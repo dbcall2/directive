@@ -111,7 +111,12 @@ export function normaliseStdout(text: string): string {
       (line) =>
         !line.startsWith("Using CPython") &&
         !line.startsWith("Creating virtual environment") &&
-        !line.startsWith("Installed "),
+        !line.startsWith("Installed ") &&
+        // #2022: the TS doctor emits a pre-cutover status line that the Python
+        // oracle (scripts/doctor.py) never had ("without a Python port"). Filter
+        // it so this intentional TS-only addition does not register as parity
+        // divergence. Removed when scripts/doctor.py is purged with the gate.
+        !line.startsWith("Pre-cutover:"),
     )
     .join("\n");
 }
