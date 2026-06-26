@@ -329,7 +329,7 @@ Install-generated AGENTS.md uses deft/-prefixed paths.
 
 When the template is updated, run `task agents:refresh` to regenerate consumer-installed AGENTS.md from `content/templates/agents-entry.md` (see `## Template propagation discipline (#1309)` above).
 
-<!-- deft:managed-section v3 sha=ef1e19b74541 refreshed=2026-06-26T18:24:58Z session=495b9ee51ce9 -->
+<!-- deft:managed-section v3 sha=bf54983c4214 refreshed=2026-06-26T18:34:25Z session=f95c7684574f -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
@@ -537,5 +537,5 @@ Directive product commands use the `/deft:directive:*` namespace (#418 / #1670).
 
 **CLI compatibility:**
 
-The legacy Python `.deft/core/run` CLI is deprecated and is no longer a load-bearing operator path (#1933 Option 1, deprecate-by-disuse). Use the agent-driven setup skill for first-time setup; if `deft` or `directive` will not run, read `.deft/core/UPGRADING.md`.
+The legacy Python `.deft/core/run` CLI is deprecated and is no longer a load-bearing operator path (#1933 Option 1, deprecate-by-disuse). Use the agent-driven setup skill for first-time setup and project/spec generation; if `deft` or `directive` will not run, read `.deft/core/UPGRADING.md`.
 <!-- /deft:managed-section -->

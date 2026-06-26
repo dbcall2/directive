@@ -206,5 +206,5 @@ Directive product commands use the `/deft:directive:*` namespace (#418 / #1670).
 
 **CLI compatibility:**
 
-The legacy Python `.deft/core/run` CLI is deprecated and is no longer a load-bearing operator path (#1933 Option 1, deprecate-by-disuse). Use the agent-driven setup skill for first-time setup; if `deft` or `directive` will not run, read `.deft/core/UPGRADING.md`.
+The legacy Python `.deft/core/run` CLI is deprecated and is no longer a load-bearing operator path (#1933 Option 1, deprecate-by-disuse). Use the agent-driven setup skill for first-time setup and project/spec generation; if `deft` or `directive` will not run, read `.deft/core/UPGRADING.md`.
 <!-- /deft:managed-section -->
