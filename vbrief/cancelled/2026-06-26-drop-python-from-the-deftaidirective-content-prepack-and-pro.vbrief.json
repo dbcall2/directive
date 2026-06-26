@@ -6,8 +6,8 @@
   "plan": {
     "id": "npm-deposit-python-free",
     "title": "Drop Python from the @deftai/directive-content prepack and prove a Python-free greenfield install",
-    "status": "pending",
-    "planRef": "proposed/2026-06-26-2001-wave-5-python-purge-readiness-gate-before-1860.vbrief.json",
+    "status": "cancelled",
+    "planRef": "cancelled/2026-06-26-2001-wave-5-python-purge-readiness-gate-before-1860.vbrief.json",
     "narratives": {
       "Description": "The npm content deposit still bundles the scripts/ tree, so installs carry Python even on the TS-native path. This story removes the Python-only tree from the @deftai/directive-content prepack and proves a greenfield directive init plus task check succeeds on a machine with no Python installed.",
       "ImplementationPlan": "- Update the packages/content prepack config so the packed tarball excludes the scripts/ tree and any other Python-only source.\n- Extend the content-prepack test to assert the deposit contains no .py file and no repo-root run shim.\n- Run a greenfield smoke that executes directive init then task check and verify it exits zero with no Python present.",
@@ -77,6 +77,7 @@
         "title": "Issue #2001: Wave 5: Python purge readiness (gate before #1860)",
         "TrustLevel": "external"
       }
-    ]
+    ],
+    "updated": "2026-06-26T17:22:53Z"
   }
 }

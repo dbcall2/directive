@@ -6,8 +6,8 @@
   "plan": {
     "id": "bootstrap-policy-decision",
     "title": "Decide bootstrap UX -- implement `directive bootstrap` or declare skill-only setup canonical",
-    "status": "pending",
-    "planRef": "proposed/2026-06-26-2001-wave-5-python-purge-readiness-gate-before-1860.vbrief.json",
+    "status": "cancelled",
+    "planRef": "cancelled/2026-06-26-2001-wave-5-python-purge-readiness-gate-before-1860.vbrief.json",
     "narratives": {
       "Description": "The bootstrap UX still points operators at the Python run bootstrap/project/spec shims, which are being removed. This story resolves the open decision: either implement the deferred `directive bootstrap` CLI verb for terminal operators, or declare the deft-directive-setup skill the canonical path and remove CLI bootstrap from operator docs.",
       "ImplementationPlan": "- Decide between the CLI verb and skill-only setup and record the rationale, identifying whether the dispatch source or the setup skill file is the resulting change.\n- If implementing, add the directive bootstrap handler in the CLI dispatch module with a test; if skill-only, update the setup skill file and operator docs to redirect.\n- Verify by scanning operator docs that no run bootstrap path remains without a documented replacement.",
@@ -74,6 +74,7 @@
         "title": "Issue #2001: Wave 5: Python purge readiness (gate before #1860)",
         "TrustLevel": "external"
       }
-    ]
+    ],
+    "updated": "2026-06-26T17:22:54Z"
   }
 }

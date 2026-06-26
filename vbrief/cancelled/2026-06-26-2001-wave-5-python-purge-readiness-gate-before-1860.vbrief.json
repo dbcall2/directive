@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "Wave 5: Python purge readiness (gate before #1860)",
-    "status": "proposed",
+    "status": "cancelled",
     "narratives": {
       "Description": "Wave 5: Python purge readiness (gate before #1860)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2001",
@@ -84,37 +84,37 @@
         "title": "Issue #2001: Wave 5: Python purge readiness (gate before #1860)"
       },
       {
-        "uri": "active/2026-06-26-add-a-read-only-gate-subcommand-to-the-frozen-go-binary-deft.vbrief.json",
+        "uri": "cancelled/2026-06-26-add-a-read-only-gate-subcommand-to-the-frozen-go-binary-deft.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Add a read-only `gate` subcommand to the frozen Go binary (deft-install) per #1933 Option 3",
         "TrustLevel": "internal"
       },
       {
-        "uri": "active/2026-06-26-repoint-preamble-rules-pack-and-agents-entry-from-the-python.vbrief.json",
+        "uri": "cancelled/2026-06-26-repoint-preamble-rules-pack-and-agents-entry-from-the-python.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Repoint preamble, rules pack, and agents-entry from the Python gate to the Go gate",
         "TrustLevel": "internal"
       },
       {
-        "uri": "pending/2026-06-26-decide-and-execute-migratevbrief-ts-port-or-pre-v020-cutoff.vbrief.json",
+        "uri": "cancelled/2026-06-26-decide-and-execute-migratevbrief-ts-port-or-pre-v020-cutoff.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Decide and execute migrate:vbrief -- TS port or pre-v0.20 cutoff",
         "TrustLevel": "internal"
       },
       {
-        "uri": "pending/2026-06-26-drop-python-from-the-deftaidirective-content-prepack-and-pro.vbrief.json",
+        "uri": "cancelled/2026-06-26-drop-python-from-the-deftaidirective-content-prepack-and-pro.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Drop Python from the @deftai/directive-content prepack and prove a Python-free greenfield install",
         "TrustLevel": "internal"
       },
       {
-        "uri": "pending/2026-06-26-remove-python-entrypoints-from-the-consumer-taskfile-and-tas.vbrief.json",
+        "uri": "cancelled/2026-06-26-remove-python-entrypoints-from-the-consumer-taskfile-and-tas.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Remove Python entrypoints from the consumer Taskfile and tasks surface",
         "TrustLevel": "internal"
       },
       {
-        "uri": "pending/2026-06-26-decide-bootstrap-ux-implement-directive-bootstrap-or-declare.vbrief.json",
+        "uri": "cancelled/2026-06-26-decide-bootstrap-ux-implement-directive-bootstrap-or-declare.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Decide bootstrap UX -- implement `directive bootstrap` or declare skill-only setup canonical",
         "TrustLevel": "internal"
@@ -122,6 +122,7 @@
     ],
     "metadata": {
       "kind": "epic"
-    }
+    },
+    "updated": "2026-06-26T17:22:55Z"
   }
 }

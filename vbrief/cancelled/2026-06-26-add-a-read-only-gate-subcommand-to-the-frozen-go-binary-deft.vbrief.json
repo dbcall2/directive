@@ -6,8 +6,8 @@
   "plan": {
     "id": "go-gate-shipped",
     "title": "Add a read-only `gate` subcommand to the frozen Go binary (deft-install) per #1933 Option 3",
-    "status": "running",
-    "planRef": "proposed/2026-06-26-2001-wave-5-python-purge-readiness-gate-before-1860.vbrief.json",
+    "status": "cancelled",
+    "planRef": "cancelled/2026-06-26-2001-wave-5-python-purge-readiness-gate-before-1860.vbrief.json",
     "narratives": {
       "Description": "#1933 locked Option 3 on 2026-06-24: the frozen Go binary (deft-install) gains a node-independent read-only health-gate role alongside its existing reshaper role, so consumers run a prebuilt static binary needing no Python and no Go toolchain. This story carves the read-only state-vector probe (`OK v<current>` / `NEEDS-UPGRADE recorded=… current=… precutover=… agents-md=…`, exit 0 healthy / 1 needs-upgrade) into the Go binary, because the bootstrap paradox forbids a Node-engine CLI verb from probing the very engine that may be missing or broken.",
       "ImplementationPlan": "- Add a `gate` subcommand to the deft-install Go source (a new gate file under cmd/deft-install) that reads the VERSION marker, detects pre-cutover layout, and classifies the AGENTS.md managed-section without writing anything.\n- Cover the state-vector output and exit codes (0 healthy, 1 needs-upgrade) with a Go test that asserts each documented vector string.\n- Hand off a maintainer-only refreeze: rebuild the static deft-install binary and re-pin the frozen release so the gate ships on the consumer path; the Go build toolchain stays maintainer-only.",
@@ -86,6 +86,6 @@
         "TrustLevel": "external"
       }
     ],
-    "updated": "2026-06-26T01:04:16Z"
+    "updated": "2026-06-26T17:22:50Z"
   }
 }
