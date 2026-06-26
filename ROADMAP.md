@@ -5,6 +5,46 @@
 
 # Roadmap
 
+## Decide and execute migrate:vbrief -- TS port or pre-v0.20 cutoff (#2001)
+
+### migrate-vbrief-decision-a1: Given the TS-port path, when chosen, then `task migrate:vbrief` runs with no Python and a fixture migration test validates the output. `[pending]`
+
+### migrate-vbrief-decision-a2: Given the cutoff path, when chosen instead, then the consumer task surface no longer shows migrate:vbrief and the docs show a hard pre-v0.20 cutoff. `[pending]`
+
+### migrate-vbrief-decision-a3: Given either resolution, when `task check` runs, then it exits zero and no code path invokes `scripts/migrate_vbrief.py`. `[pending]`
+
+---
+
+## Decide bootstrap UX -- implement `directive bootstrap` or declare skill-only setup canonical (#2001)
+
+### bootstrap-policy-decision-a1: Given the CLI path, when an operator runs `directive bootstrap`, then it scaffolds setup and the operator docs show it as canonical. `[pending]`
+
+### bootstrap-policy-decision-a2: Given the skill-only path instead, when chosen, then operator docs remove CLI bootstrap and redirect to the deft-directive-setup skill. `[pending]`
+
+### bootstrap-policy-decision-a3: Given either resolution, when operator docs are scanned, then no run bootstrap path remains without a documented replacement. `[pending]`
+
+---
+
+## Drop Python from the @deftai/directive-content prepack and prove a Python-free greenfield install (#2001)
+
+### npm-deposit-python-free-a1: Given the content prepack, when `@deftai/directive-content` is packed, then the tarball shows no scripts/ tree and no .py file. `[pending]`
+
+### npm-deposit-python-free-a2: Given a Python-free machine, when `directive init` runs, then the deposit shows no repo-root run shim and no .py file. `[pending]`
+
+### npm-deposit-python-free-a3: Given a greenfield install on a Python-free machine, when `task check` runs, then it exits zero. `[pending]`
+
+---
+
+## Remove Python entrypoints from the consumer Taskfile and tasks surface (#2001)
+
+### consumer-task-surface-audit-a1: Given the consumer task surface, when Taskfile.yml and the tasks files are scanned, then no python3, uv run, or scripts/ entrypoint remains on the consumer deposit path. `[pending]`
+
+### consumer-task-surface-audit-a2: Given a maintainer-only Python task, when the audit runs, then it is moved behind the contributor path or removed. `[pending]`
+
+### consumer-task-surface-audit-a3: Given the audited surface, when `task check` runs, then it exits zero with the directive CLI as the only invoked engine. `[pending]`
+
+---
+
 ## Completed
 
 - **#365** -- bdd strategy: move context and scenarios to vbrief; remove specs/ folder -- `[completed]`
@@ -687,12 +727,14 @@
 - **#1854** -- Wire + flip every remaining Python gate in tasks/verify.yml + the two root-Taskfile gates -- `[completed]`
 - **#1854** -- Wire + flip the render family (spec:validate, spec:render, prd:render, project:render) -- `[completed]`
 - **#1854** -- Wire/port + flip scope:undo, scope:demote, scope:decompose, changelog:resolve, architecture:sor -- `[completed]`
+- **#1595** -- docs: reconcile codebase MAP rollout closeout -- `[completed]`
 - **#1595** -- docs: propagate codebase MAP projection guidance after #1595 PR4 -- `[completed]`
 - **#1821** -- Content-manifest v1 + verify:content-manifest gate -- Wave-1 shippability classification -- `[completed]`
 - **#1875** -- Execute the content/ move — manifest-driven relocation + source-side cross-reference rewrite -- `[completed]`
 - **#1878** -- Prune vendored TypeScript test files from the consumer .deft/core deposit -- `[completed]`
 - **#1880** -- Orchestrator sub-agent dispatch doctrine — worker-owns-lifecycle + background dispatch + routing decision -- `[completed]`
 - **#1884** -- bug(verify-session-ritual): gated tier fails with 'unknown session ritual command: doctor' -- `[completed]`
+- **#1889** -- fix(vbrief): allow terminal epic child links to validate -- `[completed]`
 - **#1894** -- refactor(packs): pack-render.ts duplicates contentRoot instead of importing canonical content-root module -- `[completed]`
 - **#1891** -- swarmSubagentBackend left live + un-flagged after #1739 supersession — half-migrated surfaces steer agents into the dead enum -- `[completed]`
 - **#1910** -- Teach the release skill about npm -- `[completed]`
@@ -744,4 +786,5 @@
 - **#1972** -- Add npm-handoff messaging to the Go installer success path -- `[completed]`
 - **#1972** -- Assert the installer VERSION is migrate-acceptable in the legacy-bridge e2e leg -- `[completed]`
 - **#1972** -- Reconcile verify:go-freeze version source to a release-tag check -- `[completed]`
+- **#2015** -- deft-install gate: `current` resolves from frozen binary (v-prefixed), not installed payload — healthy installs report NEEDS-UPGRADE -- `[completed]`
 

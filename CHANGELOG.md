@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.58.0] - 2026-06-26
+
+> The frozen installer gains a node-independent deft-install gate health probe (replacing the Python gate), now correctly reporting healthy installs.
+
+### Added
 - **The frozen installer binary can now self-check an install without Node** — `deft-install gate` is a new read-only health probe that prints a one-line state vector (`OK v<version>`, or `NEEDS-UPGRADE` with the recorded/current version, pre-cutover files, and AGENTS.md freshness) and exits 0 (healthy) or 1 (needs upgrade). Because it ships in the frozen Go binary it runs even when the Node engine is missing or broken — the node-independent replacement for the old Python gate. Refs #2001, #1933.
 - **Maintainers now have a runbook for rebuilding the frozen Go installer at release time** — `docs/RELEASING.md` gains a "Frozen Go-installer bridge" section that names where the freeze line lives (the `LAST_GO_INSTALLER` constant in `sot.ts`), explains how the CI freeze gate decides whether to build the Go binaries, and gives the exact before/after-release steps to roll the freeze forward and re-pin. The release skill's pre-flight now points operators to it. Refs #2001, #1912.
 
@@ -3649,7 +3661,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.57.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.58.0...HEAD
+[0.58.0]: https://github.com/deftai/directive/compare/v0.57.0...v0.58.0
 [0.57.0]: https://github.com/deftai/directive/compare/v0.56.2...v0.57.0
 [0.56.2]: https://github.com/deftai/directive/compare/v0.56.1...v0.56.2
 [0.56.1]: https://github.com/deftai/directive/compare/v0.56.0...v0.56.1
