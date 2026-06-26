@@ -84,7 +84,7 @@
         "title": "Issue #2022: Python purge readiness — execution tracker (supersedes #2001)"
       },
       {
-        "uri": "active/2026-06-26-remove-the-deft-install-gate-mandate-from-the-preamble-surfa.vbrief.json",
+        "uri": "completed/2026-06-26-remove-the-deft-install-gate-mandate-from-the-preamble-surfa.vbrief.json",
         "type": "x-vbrief/plan",
         "title": "Remove the deft-install gate mandate from the preamble surfaces (Phase 0)",
         "TrustLevel": "internal"
