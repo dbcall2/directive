@@ -5,9 +5,19 @@ vars:
 
 tasks:
   check:
-    desc: Verify required toolchain is installed (go, uv, git, gh, node, pnpm)
-    deps: [":ts:build"]
-    env:
-      PYTHONUTF8: "1"
+    desc: Verify required maintainer toolchain is installed (go, uv, git, gh, node, pnpm)
+    deps:
+      - task: :engine:_ts-build
     cmds:
-      - node "{{.DEFT_ROOT}}/packages/cli/dist/bin.js" toolchain:check
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'toolchain-check'
+
+  check-consumer:
+    desc: Verify required consumer toolchain is installed (git, gh, node, pnpm, task) without Python/go/uv (#2022 Phase 3).
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'toolchain-check --consumer'
