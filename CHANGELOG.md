@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.61.0] - 2026-06-28
+
+> Greenfield specs export from PROJECT-DEFINITION via project:export-spec (with a migration-fidelity guard), and consumer git hooks now run Python-free on the deft CLI.
+
+### Added
+
 - **Greenfield projects can export SPECIFICATION.md from PROJECT-DEFINITION** — `task project:export-spec` renders stakeholder-facing spec exports without creating `specification.vbrief.json`, filters config narratives, and includes proposed scopes only for `--audience=internal`. A migration-fidelity gate blocks silent spec deletion when premigrate snapshots still hold unmigrated product narratives. Refs #2013, #1502, #2005.
 
 ### Changed
@@ -3711,7 +3723,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.60.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.61.0...HEAD
+[0.61.0]: https://github.com/deftai/directive/compare/v0.60.0...v0.61.0
 [0.60.0]: https://github.com/deftai/directive/compare/v0.59.0...v0.60.0
 [0.59.0]: https://github.com/deftai/directive/compare/v0.58.0...v0.59.0
 [0.58.0]: https://github.com/deftai/directive/compare/v0.57.0...v0.58.0

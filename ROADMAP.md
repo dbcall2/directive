@@ -759,6 +759,8 @@
 - **#2022** -- Promote TypeScript task check as the release pre-flight and drop the Python bridge (Phase 1) -- `[completed]`
 - **#2022** -- Remove the deft-install gate mandate from the preamble surfaces (Phase 0) -- `[completed]`
 - Ship the Directive lifecycle conceptual diagram to consumer installs -- `[completed]`
+- **#2013** -- #2013 Wave 1 — PROJECT-DEFINITION export + migration fidelity gate -- `[completed]`
+- **#2050** -- docs(skills): Wave 1 operator surfaces — project:export-spec + deft update hook refresh (#2013 follow-up) -- `[completed]`
 - **#640** -- Add acknowledgement/clear path for PROJECT-DEFINITION staleness flags -- `[completed]`
 - **#1814** -- Fix pre-push branch gate false positives when HEAD is default branch -- `[completed]`
 - **#2022** -- Move maintainer-only Python tasks behind check:framework-source -- `[completed]`
