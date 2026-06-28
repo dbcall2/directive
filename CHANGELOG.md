@@ -20,18 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Post-upgrade doctor no longer fails on stale skill paths or doc-only redirect mentions** — `deft agents:refresh` now writes runtime skill routes under `.deft/core/.agents/skills/` instead of legacy stub paths, adds missing decompose/probe runtime pointers, and `deft doctor` skill-paths-resolve ignores deprecation sentinels that appear only in skill documentation prose. Closes #1404, #1408.
-- **npm upgrade path surfaces `deft migrate` before doctor warns** — UPGRADING.md, README, and release upgrade banners now document the full npm path (`npm i -g`, `deft update`, `deft migrate`, `deft doctor`) with a disambiguation table vs `migrate:vbrief`; `directive init` / `directive update` and session start emit a one-line migrate nudge when `managed_by: npm` is absent. Closes #2059, #2012, #1995. Refs #2057.
- 4b2cffd2 (fix: surface deft migrate on npm upgrade path (#2059))
-- `task migrate:vbrief` now stamps `vbrief/.deft-version` from the installed framework VERSION manifest so greenfield and post-cutover projects no longer report `recorded=unknown` until a separate upgrade step runs. Closes #1157.
-- `task migrate:vbrief` now writes tracked `.gitkeep` sentinels in each lifecycle folder and records them in the safety manifest so empty `vbrief/{proposed,pending,active,completed,cancelled}/` directories survive clone and worktree checkout. Closes #1159.
- ff6d5872 (fix: migrate:vbrief stamps version marker and lifecycle gitkeep)
- 4a110a80 (fix: migrate:vbrief stamps version marker and lifecycle gitkeep)
-
 ### Removed
 
+## [0.61.2] - 2026-06-28
 
-> Consumer npm upgrades now complete in one consistent path: version markers and managed_by provenance stay in sync, and task upgrade works on vendored installs.
+> Consumer npm upgrades run one reliable path; post-upgrade doctor and migrate:vbrief fixes preserve markers, folders, and skill routes.
 
 ### Added
 
@@ -39,7 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Post-upgrade doctor no longer fails on stale skill paths or doc-only redirect mentions** — `deft agents:refresh` now writes runtime skill routes under `.deft/core/.agents/skills/` instead of legacy stub paths, adds missing decompose/probe runtime pointers, and `deft doctor` skill-paths-resolve ignores deprecation sentinels that appear only in skill documentation prose. Closes #1404, #1408.
+- **npm upgrade path surfaces `deft migrate` before doctor warns** — UPGRADING.md, README, and release upgrade banners now document the full npm path (`npm i -g`, `deft update`, `deft migrate`, `deft doctor`) with a disambiguation table vs `migrate:vbrief`; `directive init` / `directive update` and session start emit a one-line migrate nudge when `managed_by: npm` is absent. Closes #2059, #2012, #1995. Refs #2057.
 - **npm consumer upgrades complete in one consistent path** — On a vendored `.deft/core/` install, `directive update` now also syncs the bare `.deft-version` marker and keeps the `managed_by: npm` provenance stamp, so `deft doctor` no longer reports version drift or re-nudges a migrate step after each upgrade. `deft install-upgrade` resolves the real version from the project's install manifest (instead of misreporting `0.0.0-dev`) when run from a global npm install, and `task upgrade` now works on vendored installs instead of failing on a missing build script. Closes #2053, #2054, #2055, #2056. Refs #2057.
+- `task migrate:vbrief` now stamps `vbrief/.deft-version` from the installed framework VERSION manifest so greenfield and post-cutover projects no longer report `recorded=unknown` until a separate upgrade step runs. Closes #1157.
+- `task migrate:vbrief` now writes tracked `.gitkeep` sentinels in each lifecycle folder and records them in the safety manifest so empty `vbrief/{proposed,pending,active,completed,cancelled}/` directories survive clone and worktree checkout. Closes #1159.
 
 ### Removed
 
@@ -3744,7 +3741,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.61.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.61.2...HEAD
+[0.61.2]: https://github.com/deftai/directive/compare/v0.61.1...v0.61.2
 [0.61.1]: https://github.com/deftai/directive/compare/v0.61.0...v0.61.1
 [0.61.0]: https://github.com/deftai/directive/compare/v0.60.0...v0.61.0
 [0.60.0]: https://github.com/deftai/directive/compare/v0.59.0...v0.60.0

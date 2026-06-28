@@ -762,6 +762,9 @@
 - **#2013** -- #2013 Wave 1 — PROJECT-DEFINITION export + migration fidelity gate -- `[completed]`
 - **#2050** -- docs(skills): Wave 1 operator surfaces — project:export-spec + deft update hook refresh (#2013 follow-up) -- `[completed]`
 - **#640** -- Add acknowledgement/clear path for PROJECT-DEFINITION staleness flags -- `[completed]`
+- **#1404** -- doctor and agents:refresh: fix legacy skill paths and false-positive checks -- `[completed]`
+- **#1157** -- migrate:vbrief: stamp .deft-version and track lifecycle folders in git -- `[completed]`
+- **#2059** -- npm upgrade happy path: surface deft migrate in docs and CLI output -- `[completed]`
 - **#1814** -- Fix pre-push branch gate false positives when HEAD is default branch -- `[completed]`
 - **#2022** -- Move maintainer-only Python tasks behind check:framework-source -- `[completed]`
 - **#2022** -- Replace inline uv run python -c helpers in consumer task files -- `[completed]`
