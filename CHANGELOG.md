@@ -20,6 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+### Removed
+
+## [0.61.1] - 2026-06-28
+
+> Consumer npm upgrades now complete in one consistent path: version markers and managed_by provenance stay in sync, and task upgrade works on vendored installs.
+
+### Added
+
+### Changed
+
+### Fixed
+
 - **npm consumer upgrades complete in one consistent path** — On a vendored `.deft/core/` install, `directive update` now also syncs the bare `.deft-version` marker and keeps the `managed_by: npm` provenance stamp, so `deft doctor` no longer reports version drift or re-nudges a migrate step after each upgrade. `deft install-upgrade` resolves the real version from the project's install manifest (instead of misreporting `0.0.0-dev`) when run from a global npm install, and `task upgrade` now works on vendored installs instead of failing on a missing build script. Closes #2053, #2054, #2055, #2056. Refs #2057.
 
 ### Removed
@@ -3725,7 +3737,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.61.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.61.1...HEAD
+[0.61.1]: https://github.com/deftai/directive/compare/v0.61.0...v0.61.1
 [0.61.0]: https://github.com/deftai/directive/compare/v0.60.0...v0.61.0
 [0.60.0]: https://github.com/deftai/directive/compare/v0.59.0...v0.60.0
 [0.59.0]: https://github.com/deftai/directive/compare/v0.58.0...v0.59.0
