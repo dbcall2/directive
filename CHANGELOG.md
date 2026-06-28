@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.60.0] - 2026-06-28
+
+> npm installs run without Python: bootstrap launcher, Python-free deposit, native consumer tasks, and pre-push/session fixes (#2022 Phases 1–4).
+
+### Added
 - **Terminal operators get a canonical setup launcher** — `directive bootstrap` deposits `.deft/core/` when absent, carries phase intent and a deliberate re-entry signal, and hands off to the deft-directive-setup skill; operator docs now point here instead of legacy `run bootstrap` / `run project` / `run spec`. Refs #2022 Phase 4.
 - **Supported ghx install verb** — `directive setup:ghx` (and `task setup:ghx`) is now a native TypeScript command with consent-gated install (default deny); `task setup` nudges when `gh` is present but ghx is missing. Refs #2022.
 - **PROJECT-DEFINITION staleness flags can be cleared after review** — `task project:ack-staleness` records a completed-scope watermark on `plan.metadata.staleness_review` so `task project:render` stops repeating the same narrative warnings until new completed work arrives. Distinct from `task reconcile:issues` (scope origin freshness). Closes #640.
@@ -3692,7 +3704,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.59.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.60.0...HEAD
+[0.60.0]: https://github.com/deftai/directive/compare/v0.59.0...v0.60.0
 [0.59.0]: https://github.com/deftai/directive/compare/v0.58.0...v0.59.0
 [0.58.0]: https://github.com/deftai/directive/compare/v0.57.0...v0.58.0
 [0.57.0]: https://github.com/deftai/directive/compare/v0.56.2...v0.57.0

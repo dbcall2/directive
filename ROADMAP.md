@@ -595,6 +595,7 @@
 - **#425** -- ci(release): explicitly flag pre-release tags -- auto-detection not working for -rc.N suffix -- `[completed]`
 - **#670** -- task migrate:vbrief produces non-prettier-clean output, breaks downstream task check -- `[completed]`
 - **#696** -- fix(harness): enforce USER.md content-read on Returning Sessions; alignment confirmation must echo addressing-name -- `[completed]`
+- docs(readme): document feature slicing and complete the gh-dependent skill list -- `[completed]`
 - **#1259** -- Review-cycle skill can exit on partial Greptile review and allow unsafe merge -- `[completed]`
 - **#1316** -- bug(run,scripts/_doctor_state): _render_doctor_status_line over-counts warnings by 1 on dirty throttle-skip when AGENTS.md freshness check emits severity=skip -- `[completed]`
 - **#1319** -- bug(scripts/reconcile_issues): --apply-lifecycle-fixes over-classifies decomposition children whose planRef is OPEN but decomposition_origin parent is CLOSED (v0.33.0 cut misclassified #1283 #1284 #1285 #1291) -- `[completed]`
@@ -751,7 +752,17 @@
 - **#2022** -- Convert the five pack-migrate dispatch routes to native TypeScript (Phase 1) -- `[completed]`
 - **#2022** -- Convert the policy-set write path to native TypeScript (Phase 1) -- `[completed]`
 - **#2022** -- Extend deft doctor with a precutover status line (Phase 0) -- `[completed]`
+- **#2022** -- Implement the directive bootstrap launcher and repoint operator docs (Phase 4) -- `[completed]`
+- **#2022** -- Make the npm deposit Python-free and prove it with a greenfield smoke (Phase 3) -- `[completed]`
 - **#2022** -- Drop the relocate task from the consumer surface so it carries no Python (Phase 1) -- `[completed]`
+- **#2022** -- Port setup:ghx to a native TypeScript verb and mark ghx a supported consumer capability (Phase 1) -- `[completed]`
 - **#2022** -- Promote TypeScript task check as the release pre-flight and drop the Python bridge (Phase 1) -- `[completed]`
 - **#2022** -- Remove the deft-install gate mandate from the preamble surfaces (Phase 0) -- `[completed]`
+- Ship the Directive lifecycle conceptual diagram to consumer installs -- `[completed]`
+- **#640** -- Add acknowledgement/clear path for PROJECT-DEFINITION staleness flags -- `[completed]`
+- **#1814** -- Fix pre-push branch gate false positives when HEAD is default branch -- `[completed]`
+- **#2022** -- Move maintainer-only Python tasks behind check:framework-source -- `[completed]`
+- **#2022** -- Replace inline uv run python -c helpers in consumer task files -- `[completed]`
+- **#2022** -- Rewire migrate and install task entrypoints off Python on the consumer path -- `[completed]`
+- **#2032** -- Route directive session:start through native TS runSessionStart on npm installs -- `[completed]`
 
