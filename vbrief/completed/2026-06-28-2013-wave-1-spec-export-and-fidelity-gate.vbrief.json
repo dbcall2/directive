@@ -9,7 +9,7 @@
   "plan": {
     "id": "story-2013-wave-1-export-fidelity",
     "title": "#2013 Wave 1 — PROJECT-DEFINITION export + migration fidelity gate",
-    "status": "running",
+    "status": "completed",
     "planRef": "proposed/2026-06-28-2013-spec-authority-wave-0-context.vbrief.json",
     "narratives": {
       "Description": "Implements locked Wave 0 decisions: two-path spec authority, three-class banner/predicate, project:export-spec with audience-split proposed scopes, config-narrative filtering, and #2005 migration-fidelity gate blocking silent specification.vbrief.json deletion.",
@@ -91,7 +91,9 @@
         "depends_on": [],
         "conflict_group": "2013-wave-1",
         "size": "L"
-      }
+      },
+      "completedAt": "2026-06-28T20:23:09Z",
+      "capacityBucket": "new-capability"
     },
     "references": [
       {
@@ -111,6 +113,6 @@
         "id": "#2049"
       }
     ],
-    "updated": "2026-06-28T20:45:00Z"
+    "updated": "2026-06-28T20:23:09Z"
   }
 }
