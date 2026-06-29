@@ -1,10 +1,16 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { extractAuthor, extractMilestone } from "../scope-drift/cache-walker.js";
 import {
   CACHE_DIR_NAME,
   CACHE_SOURCE_GITHUB_ISSUE,
   DEFAULT_SLICES_LOG_REL_PATH,
 } from "./constants.js";
+import {
+  hasActiveScopeIgnores,
+  isRawIssueScopeIgnored,
+  resolveScopeIgnores,
+} from "./scope-ignores-filter.js";
 import { blockedByIssueNumber, rankByIssueNumber } from "./scope-walk.js";
 import type { CachedIssue } from "./types.js";
 
@@ -141,6 +147,8 @@ export function loadCachedIssues(
 
   const rankMap = rankByIssueNumber(root);
   const blockedSet = blockedByIssueNumber(root);
+  const scopeIgnores = resolveScopeIgnores(root);
+  const filterScopeIgnores = hasActiveScopeIgnores(scopeIgnores);
   const issues: CachedIssue[] = [];
 
   for (const entryName of readdirSync(base)) {
@@ -177,12 +185,17 @@ export function loadCachedIssues(
     if (state !== "open" && !options.includeClosed) {
       continue;
     }
+    if (filterScopeIgnores && isRawIssueScopeIgnored(payload, scopeIgnores)) {
+      continue;
+    }
 
     issues.push({
       number: n,
       title: typeof payload.title === "string" ? payload.title : "",
       state,
       labels: parseLabels(payload.labels),
+      author: extractAuthor(payload),
+      milestone: extractMilestone(payload),
       updatedAt: typeof payload.updated_at === "string" ? payload.updated_at : "",
       createdAt: typeof payload.created_at === "string" ? payload.created_at : "",
       metadataRank: rankMap.get(n) ?? null,
