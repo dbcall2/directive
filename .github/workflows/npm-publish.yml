@@ -90,18 +90,53 @@ jobs:
           "
 
       # Dependency order: types -> core -> content -> cli
+      # Idempotent re-publish (#1916): if a prior tag run partially succeeded (e.g.
+      # OIDC flake on the final package), workflow_dispatch / --failed rerun must
+      # not fail on E409 for packages already at this version.
       - name: Publish @deftai/directive-types
         working-directory: packages/types
-        run: npm publish --provenance --access public
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          npm publish --provenance --access public || {
+            npm view "${PKG}@${VER}" version >/dev/null
+            echo "Already published ${PKG}@${VER}, continuing"
+          }
 
       - name: Publish @deftai/directive-core
         working-directory: packages/core
-        run: npm publish --provenance --access public
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          npm publish --provenance --access public || {
+            npm view "${PKG}@${VER}" version >/dev/null
+            echo "Already published ${PKG}@${VER}, continuing"
+          }
 
       - name: Publish @deftai/directive-content
         working-directory: packages/content
-        run: npm publish --provenance --access public
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          npm publish --provenance --access public || {
+            npm view "${PKG}@${VER}" version >/dev/null
+            echo "Already published ${PKG}@${VER}, continuing"
+          }
 
       - name: Publish @deftai/directive
         working-directory: packages/cli
-        run: npm publish --provenance --access public
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          npm publish --provenance --access public || {
+            npm view "${PKG}@${VER}" version >/dev/null
+            echo "Already published ${PKG}@${VER}, continuing"
+          }
