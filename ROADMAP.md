@@ -748,6 +748,7 @@
 - **#1972** -- Assert the installer VERSION is migrate-acceptable in the legacy-bridge e2e leg -- `[completed]`
 - **#1972** -- Reconcile verify:go-freeze version source to a release-tag check -- `[completed]`
 - **#2015** -- deft-install gate: `current` resolves from frozen binary (v-prefixed), not installed payload — healthy installs report NEEDS-UPGRADE -- `[completed]`
+- **#2022** -- Python purge readiness — execution tracker (supersedes #2001) -- `[completed]`
 - **#2023** -- Fix deft update/init refresh_deposit_failed by resolving the content package via its package.json subpath -- `[completed]`
 - **#2022** -- Convert the five pack-migrate dispatch routes to native TypeScript (Phase 1) -- `[completed]`
 - **#2022** -- Convert the policy-set write path to native TypeScript (Phase 1) -- `[completed]`
@@ -758,15 +759,21 @@
 - **#2022** -- Port setup:ghx to a native TypeScript verb and mark ghx a supported consumer capability (Phase 1) -- `[completed]`
 - **#2022** -- Promote TypeScript task check as the release pre-flight and drop the Python bridge (Phase 1) -- `[completed]`
 - **#2022** -- Remove the deft-install gate mandate from the preamble surfaces (Phase 0) -- `[completed]`
+- **#2022** -- Rewire the consumer task surface to deft verbs with zero Python entrypoints (Phase 2) -- `[completed]`
 - Ship the Directive lifecycle conceptual diagram to consumer installs -- `[completed]`
+- **#2013** -- #2013 Wave 0 — spec-authority model locked decisions -- `[completed]`
 - **#2013** -- #2013 Wave 1 — PROJECT-DEFINITION export + migration fidelity gate -- `[completed]`
 - **#2050** -- docs(skills): Wave 1 operator surfaces — project:export-spec + deft update hook refresh (#2013 follow-up) -- `[completed]`
+- **#2066** -- Deterministic umbrella:current-shape render (#2066) -- `[completed]`
+- **#2066** -- docs(agents): umbrella status claim-cites-state-surface (#2066) -- `[completed]`
+- **#2068** -- Decide and execute migrate:vbrief -- TS port or pre-v0.20 cutoff (retires #1860 carve-out) -- `[completed]`
 - **#640** -- Add acknowledgement/clear path for PROJECT-DEFINITION staleness flags -- `[completed]`
 - **#1404** -- doctor and agents:refresh: fix legacy skill paths and false-positive checks -- `[completed]`
 - **#1157** -- migrate:vbrief: stamp .deft-version and track lifecycle folders in git -- `[completed]`
 - **#2059** -- npm upgrade happy path: surface deft migrate in docs and CLI output -- `[completed]`
 - **#1814** -- Fix pre-push branch gate false positives when HEAD is default branch -- `[completed]`
 - **#2022** -- Move maintainer-only Python tasks behind check:framework-source -- `[completed]`
+- **#2069** -- Port framework:check-updates to the TypeScript engine -- `[completed]`
 - **#2022** -- Replace inline uv run python -c helpers in consumer task files -- `[completed]`
 - **#2022** -- Rewire migrate and install task entrypoints off Python on the consumer path -- `[completed]`
 - **#2032** -- Route directive session:start through native TS runSessionStart on npm installs -- `[completed]`

@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.62.0] - 2026-06-29
+
+> Umbrella current-shape verb, migrate freeze carve-out, TS framework updates probe, and hooks fix — checkpoint before #1860 Bucket B purge.
+
+### Added
+
 - **`task umbrella:current-shape <N>` yields live umbrella state without reading the issue body** — the native deft-ts verb fetches the canonical `## Current shape (as of pass-N)` comment via REST, supports `--json` section validation and `--strict`, and exits non-zero when no current-shape comment exists (no body fallback). Closes #2066.
 
 - Agents must read an umbrella's current-shape comment (not the stale issue body) before stating status — codified in the orchestrator preamble, AGENTS.md, consumer agents-entry, and triage/refinement skills (claim-cites-state-surface). Refs #2066.
@@ -3752,7 +3764,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.61.2...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.62.0...HEAD
+[0.62.0]: https://github.com/deftai/directive/compare/v0.61.2...v0.62.0
 [0.61.2]: https://github.com/deftai/directive/compare/v0.61.1...v0.61.2
 [0.61.1]: https://github.com/deftai/directive/compare/v0.61.0...v0.61.1
 [0.61.0]: https://github.com/deftai/directive/compare/v0.60.0...v0.61.0
