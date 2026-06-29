@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Release dist packaging works under archiver v8** — the TypeScript release build (`build-dist`) was still calling archiver's removed v7 factory API, so `task release` failed at the packaging step with `TypeError: archiver is not a function`; it now uses archiver v8's per-format classes, creates the output directory if missing, and is covered by a real archive-build test so the calling convention can't silently regress. Refs #1860.
+
 - **Test branch-coverage gate restored to 85% (#2083 follow-up)** — adds targeted branch tests for the content-pack slice helpers and CLI paths, lifting measured branch coverage back over 85%, and restores the vitest `branches` threshold to 85 after the temporary relief from the #1860 Python removal and #2083 parity-harness teardown. Refs #2083, #1860.
 
 ### Fixed

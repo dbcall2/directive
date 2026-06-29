@@ -1,8 +1,9 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  buildArchive,
   DEFAULT_EXCLUDES,
   iterSourceFiles,
   main,
@@ -74,5 +75,40 @@ describe("build-dist helpers", () => {
     expect(await main([])).toBe(2);
     expect(await main(["--help"])).toBe(2);
     expect(await main(["--version", "1.0.0", "--root", "/nonexistent-root-xyz"])).toBe(2);
+  });
+
+  // Regression guard for the archiver v8 class-API migration: archiver v8 dropped the
+  // v7 `archiver(format, opts)` factory, which silently broke the release build until a
+  // production cut hit `TypeError: archiver is not a function`. These tests actually
+  // produce an archive so the calling convention can never regress uncaught again.
+  function fixtureProject(): string {
+    const root = mkdtempSync(join(tmpdir(), "deft-build-dist-archive-"));
+    mkdirSync(join(root, "content"), { recursive: true });
+    writeFileSync(join(root, "README.md"), "# fixture\n");
+    writeFileSync(join(root, "content", "doc.md"), "hello\n");
+    return root;
+  }
+
+  it("buildArchive produces a non-empty tar.gz", async () => {
+    const root = fixtureProject();
+    const out = await buildArchive(root, "9.9.9", "tar");
+    expect(out).toBe(outputPath(root, "9.9.9", "tar"));
+    expect(statSync(out).size).toBeGreaterThan(0);
+  });
+
+  it("buildArchive produces a non-empty zip and overwrites an existing artifact", async () => {
+    const root = fixtureProject();
+    const first = await buildArchive(root, "9.9.9", "zip");
+    expect(statSync(first).size).toBeGreaterThan(0);
+    // Second run exercises the existing-output unlink branch.
+    const second = await buildArchive(root, "9.9.9", "zip");
+    expect(second).toBe(first);
+    expect(statSync(second).size).toBeGreaterThan(0);
+  });
+
+  it("main builds an archive end-to-end and returns 0", async () => {
+    const root = fixtureProject();
+    expect(await main(["--version", "9.9.9", "--format", "zip", "--root", root])).toBe(0);
+    expect(statSync(outputPath(root, "9.9.9", "zip")).size).toBeGreaterThan(0);
   });
 });

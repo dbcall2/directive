@@ -1,19 +1,31 @@
-import { createWriteStream, existsSync, readdirSync, statSync, unlinkSync } from "node:fs";
+import {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  statSync,
+  unlinkSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { platform } from "node:os";
-import { join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 
 type ArchiverInstance = {
   pipe: (dest: ReturnType<typeof createWriteStream>) => void;
   file: (path: string, opts: { name: string }) => void;
-  finalize: () => void;
+  finalize: () => void | Promise<void>;
   on: (event: "error", handler: (err: Error) => void) => void;
 };
 
-const archiver = createRequire(import.meta.url)("archiver") as (
-  format: string,
-  options?: object,
-) => ArchiverInstance;
+// archiver v8 dropped the v7 `archiver(format, options)` factory in favour of
+// per-format classes (`new ZipArchive(opts)` / `new TarArchive(opts)`). Require
+// the CJS module via createRequire so the built ESM dist resolves it correctly.
+type ArchiverModule = {
+  ZipArchive: new (options?: object) => ArchiverInstance;
+  TarArchive: new (options?: object) => ArchiverInstance;
+};
+
+const { ZipArchive, TarArchive } = createRequire(import.meta.url)("archiver") as ArchiverModule;
 
 export const DEFAULT_EXCLUDES = new Set([
   ".git",
@@ -123,6 +135,7 @@ export async function buildArchive(
 ): Promise<string> {
   const excludes = new Set([...DEFAULT_EXCLUDES, ...extraExcludes]);
   const output = outputPath(root, version, fmt);
+  mkdirSync(dirname(output), { recursive: true });
   if (existsSync(output)) {
     unlinkSync(output);
   }
@@ -130,11 +143,12 @@ export async function buildArchive(
 
   await new Promise<void>((resolvePromise, reject) => {
     const out = createWriteStream(output);
-    const archive = archiver(fmt === "zip" ? "zip" : "tar", {
-      gzip: fmt === "tar",
-      gzipOptions: { level: 9 },
-    });
+    const archive =
+      fmt === "zip"
+        ? new ZipArchive({ zlib: { level: 9 } })
+        : new TarArchive({ gzip: true, gzipOptions: { level: 9 } });
     out.on("close", () => resolvePromise());
+    out.on("error", (err: Error) => reject(err));
     archive.on("error", (err: Error) => reject(err));
     archive.pipe(out);
     for (const { absPath, archiveRel } of entries) {
