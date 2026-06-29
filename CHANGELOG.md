@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Agents must read an umbrella's current-shape comment (not the stale issue body) before stating status — codified in the orchestrator preamble, AGENTS.md, consumer agents-entry, and triage/refinement skills (claim-cites-state-surface). Refs #2066.
+
 ### Changed
 
 - **`task framework:check-updates` runs without Python or the legacy `run` shim** — the read-only upstream version probe (#801) now dispatches through the TypeScript engine (`deft framework:check-updates`), preserving `--force`, `--json`, `DEFT_NO_NETWORK`, and `DEFT_REMOTE_PROBE_TIMEOUT` so npm-only consumer installs can check for framework updates before #1860 deletes the Python `run` CLI. Refs #2069.
