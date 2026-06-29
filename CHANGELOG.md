@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.64.0] - 2026-06-29
+### Added
+
 - Cursor is now a first-class Tier-1 runtime in the swarm and review-cycle monitoring matrices: an agent running in Cursor is detected via its `Task` tool and dispatches a backgrounded sub-agent poller (keeping the chat pane interactive) instead of silently degrading to a blocking poll loop. A new framework-source gate (`task verify:cursor-tier1`) keeps the Cursor → Tier-1 mapping from regressing in the skill docs. Closes #1877.
 
 ### Changed
@@ -3788,7 +3797,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.63.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.64.0...HEAD
+[0.64.0]: https://github.com/deftai/directive/compare/v0.63.0...v0.64.0
 [0.63.0]: https://github.com/deftai/directive/compare/v0.62.0...v0.63.0
 [0.62.0]: https://github.com/deftai/directive/compare/v0.61.2...v0.62.0
 [0.61.2]: https://github.com/deftai/directive/compare/v0.61.1...v0.61.2

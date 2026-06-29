@@ -777,6 +777,7 @@
 - **#2022** -- Replace inline uv run python -c helpers in consumer task files -- `[completed]`
 - **#2022** -- Rewire migrate and install task entrypoints off Python on the consumer path -- `[completed]`
 - **#2032** -- Route directive session:start through native TS runSessionStart on npm installs -- `[completed]`
+- **#1877** -- platform: add Cursor as a Tier-1 descriptor in the swarm + review-cycle monitoring matrices (residual) -- `[completed]`
 - **#1860** -- Fix release dist build under archiver v8 (factory API removed) -- `[completed]`
 - **#2083** -- Tear down orphaned TS-vs-Python parity harnesses (#2083) -- `[completed]`
 - **#2083** -- Restore vitest branch-coverage threshold to 85 (post-#2083 follow-up) -- `[completed]`
