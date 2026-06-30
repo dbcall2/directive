@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **xBRIEF v0.8 schema adoption (#2107).** The directive validator now accepts xBRIEF v0.8 documents alongside legacy v0.6 artifacts. New optional structural fields in v0.8 are validated when present; existing v0.6 files continue to pass unchanged. Refs #2034. Closes #2107.
+
 ### Fixed
 
 ### Removed
