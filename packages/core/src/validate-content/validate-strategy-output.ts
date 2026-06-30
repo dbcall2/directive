@@ -1,5 +1,10 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import {
+  hasArtifactSuffix,
+  resolveLifecycleLayout,
+  resolveProjectDefinitionPath,
+} from "../layout/resolve.js";
 import { checkSpecMigrationFidelity } from "../spec-authority/migration-fidelity.js";
 import { isFullSpecState } from "../spec-authority/resolver.js";
 import { isDatePrefixedVbriefFilename } from "./filename.js";
@@ -32,7 +37,10 @@ function isDeftFrameworkRoot(projectRoot: string): boolean {
 export function validateStrategyOutput(projectRoot: string, strict = false): string[] {
   const root = resolve(projectRoot);
   const errors: string[] = [];
-  const vbriefDir = join(root, "vbrief");
+  // Layout-aware (#2109 part 2a): resolve the lifecycle dir/suffix dynamically;
+  // identical to vbrief/ on today's tree.
+  const layout = resolveLifecycleLayout(root);
+  const vbriefDir = layout.root;
 
   if (!existsSync(vbriefDir)) {
     if (strict) {
@@ -44,16 +52,21 @@ export function validateStrategyOutput(projectRoot: string, strict = false): str
     return errors;
   }
 
-  const projDef = join(vbriefDir, "PROJECT-DEFINITION.vbrief.json");
+  const projDef = resolveProjectDefinitionPath(root);
   if (!existsSync(projDef)) {
     errors.push(
-      "Missing vbrief/PROJECT-DEFINITION.vbrief.json. " +
+      `Missing ${layout.artifactDir}/PROJECT-DEFINITION${layout.artifactSuffix}. ` +
         "All v0.20-conformant strategy output must include a complete project definition " +
         "(see v0-20-contract.md and task project:render).",
     );
   }
 
-  const specLegacy = join(vbriefDir, "specification.vbrief.json");
+  // The legacy-spec guard intentionally stays pinned to the literal legacy
+  // path (#2109 part 2a): its job is to detect a stranded pre-v0.20
+  // vbrief/specification.vbrief.json, which is a legacy artifact regardless of
+  // the active layout -- routing it through the resolver would make it
+  // self-cancelling once an xbrief tree is live.
+  const specLegacy = join(root, "vbrief", "specification.vbrief.json");
   if (existsSync(specLegacy) && !isDeftFrameworkRoot(root) && !isFullSpecState(root)) {
     errors.push(
       "Legacy artifact vbrief/specification.vbrief.json present. " +
@@ -67,7 +80,7 @@ export function validateStrategyOutput(projectRoot: string, strict = false): str
     const dpath = join(vbriefDir, dname);
     if (!existsSync(dpath) || !statSync(dpath).isDirectory()) continue;
     for (const name of readdirSync(dpath).sort()) {
-      if (!name.endsWith(".vbrief.json")) continue;
+      if (!hasArtifactSuffix(name)) continue;
       if (!isDatePrefixedVbriefFilename(name)) {
         errors.push(
           `Non-conformant filename in vbrief/${dname}/: ${name}. ` +
