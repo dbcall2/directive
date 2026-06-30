@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.65.0] - 2026-06-30
+
+> Publishes the v0.6 contract layer on npm plus triage, reconcile, hooks, and cache-fresh fixes across CLI and CI.
+
+### Added
+
 - **Public contract layer on npm (#1799).** `@deftai/directive-types` now exports the v0.6 vBRIEF document model, policy types, reference shapes, gate exit codes, and a published `vbrief-core-0.6.schema.json` subpath so downstream TS and non-TS consumers stop hand-mirroring the canonical contract. Adds `verify:contract-drift` to keep the npm schema copy and TS constants aligned with `content/vbrief/schemas/vbrief-core.schema.json`. Closes #1799.
 
 ### Changed
@@ -3823,7 +3835,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.64.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.65.0...HEAD
+[0.65.0]: https://github.com/deftai/directive/compare/v0.64.0...v0.65.0
 [0.64.0]: https://github.com/deftai/directive/compare/v0.63.0...v0.64.0
 [0.63.0]: https://github.com/deftai/directive/compare/v0.62.0...v0.63.0
 [0.62.0]: https://github.com/deftai/directive/compare/v0.61.2...v0.62.0

@@ -777,9 +777,20 @@
 - **#2022** -- Replace inline uv run python -c helpers in consumer task files -- `[completed]`
 - **#2022** -- Rewire migrate and install task entrypoints off Python on the consumer path -- `[completed]`
 - **#2032** -- Route directive session:start through native TS runSessionStart on npm installs -- `[completed]`
+- **#1279** -- D2 suppression hash includes #1270 discrepancy-line fields -- `[completed]`
+- **#1328** -- CI ghx installer SHA256 mismatch handler must exit non-zero -- `[completed]`
+- **#1656** -- Content-standards tests must skip .deft-scratch swarm worktrees -- `[completed]`
+- **#1714** -- issue:ingest must not silently replay stale cached issue bodies -- `[completed]`
+- **#1799** -- Implement Open-Q2: publish canonical contract layer -- `[completed]`
+- **#1800** -- triage:queue honors plan.policy.triageScopeIgnores -- `[completed]`
 - **#1877** -- platform: add Cursor as a Tier-1 descriptor in the swarm + review-cycle monitoring matrices (residual) -- `[completed]`
+- **#1887** -- verify:cache-fresh --for-issue reads issue_number from audit log -- `[completed]`
+- **#2067** -- Git hooks resolve local deft CLI when not on PATH -- `[completed]`
 - **#1860** -- Fix release dist build under archiver v8 (factory API removed) -- `[completed]`
 - **#2083** -- Tear down orphaned TS-vs-Python parity harnesses (#2083) -- `[completed]`
 - **#2083** -- Restore vitest branch-coverage threshold to 85 (post-#2083 follow-up) -- `[completed]`
 - **#1860** -- TS migration Wave 9: full Python removal (#1860 Bucket B delete) -- `[completed]`
+- **#1667** -- reconcile:issues lifecycle fix rewrites child planRefs when parent moves -- `[completed]`
+- **#1705** -- Triage summary counts exclude closed upstream issues -- `[completed]`
+- **#1888** -- Wire task triage:* colon verbs to triage-actions subcommands -- `[completed]`
 
