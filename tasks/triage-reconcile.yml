@@ -23,7 +23,9 @@ tasks:
   reconcile:
     desc: "Self-heal the triage audit log (#1468): backfill missing `accept` decisions for proposed/pending/active vBRIEFs carrying an x-vbrief/github-issue reference, without a cache re-fetch. Idempotent. -- task triage:reconcile [-- --repo OWNER/NAME] [--dry-run] [--json]"
     internal: true
-    deps: [":ts:build"]
+    deps: [":engine:_ts-build"]
     dir: '{{.USER_WORKING_DIR}}'
     cmds:
-      - node "{{.DEFT_ROOT}}/packages/cli/dist/bin.js" triage-reconcile --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'triage-reconcile --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'

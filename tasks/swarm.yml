@@ -7,12 +7,14 @@ tasks:
   readiness:
     desc: "Report whether story vBRIEFs are ready for concurrent swarm allocation"
     dir: '{{.USER_WORKING_DIR}}'
-    deps: [":ts:build"]
+    deps: [":engine:_ts-build"]
     env:
       PYTHONUTF8: "1"
     cmds:
       # Keep CLI_ARGS bare; go-task shell-escapes pass-through args and quoting breaks globs/multi-arg calls.
-      - node "{{.DEFT_ROOT}}/packages/cli/dist/bin.js" swarm-readiness {{.CLI_ARGS}} --project-root "{{.USER_WORKING_DIR}}"
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'swarm-readiness {{.CLI_ARGS}} --project-root "{{.USER_WORKING_DIR}}"'
 
   # swarm:launch -- deterministic headless launch engine (#1387). Turns an
   # operator-supplied, pre-approved cohort into a ready-to-spawn launch
@@ -29,10 +31,12 @@ tasks:
   # Companion test:   tests/cli/test_swarm_launch.py
   launch:
     desc: "Resolve a pre-approved cohort, enforce the #810 + swarm:readiness gates and sub-agent backend policy per story, and emit the launch-manifest JSON (#1387, #1531e)"
-    deps: [":ts:build"]
+    deps: [":engine:_ts-build"]
     dir: '{{.USER_WORKING_DIR}}'
     cmds:
-      - node "{{.DEFT_ROOT}}/packages/cli/dist/bin.js" swarm-launch {{.CLI_ARGS}} --project-root "{{.USER_WORKING_DIR}}"
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'swarm-launch {{.CLI_ARGS}} --project-root "{{.USER_WORKING_DIR}}"'
 
   # swarm:routing-set -- record an operator coding sub-agent model decision
   # (#1739) into the gitignored, per-machine .deft/routing.local.json keyed by
@@ -41,10 +45,12 @@ tasks:
   # (resolved_model / model_source) so dispatch can actually honor it.
   routing-set:
     desc: "Record an operator coding sub-agent model decision (#1739): --role <role> (--model <slug> | --harness-default) [--provider <p>]. Writes the gitignored, per-machine .deft/routing.local.json."
-    deps: [":ts:build"]
+    deps: [":engine:_ts-build"]
     dir: '{{.USER_WORKING_DIR}}'
     cmds:
-      - node "{{.DEFT_ROOT}}/packages/cli/dist/bin.js" swarm-routing-set {{.CLI_ARGS}} --project-root "{{.USER_WORKING_DIR}}"
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'swarm-routing-set {{.CLI_ARGS}} --project-root "{{.USER_WORKING_DIR}}"'
 
   # swarm:verify-review-clean -- cohort-level CLEAN verification gate (#1364).
   # Mandate the monitor invokes this after Phase 6 pollers report and BEFORE
@@ -59,10 +65,12 @@ tasks:
   # Skill citation:   skills/deft-directive-swarm/SKILL.md Phase 5 Exit Condition + Phase 5 -> 6 gate
   verify-review-clean:
     desc: "Verify EVERY PR in a swarm cohort is CLEAN on current HEAD (confidence > 3, no P0/P1, not errored) before raising the Phase 5 -> 6 merge gate (#1364)"
-    deps: [":ts:build"]
+    deps: [":engine:_ts-build"]
     dir: '{{.USER_WORKING_DIR}}'
     cmds:
-      - node "{{.DEFT_ROOT}}/packages/cli/dist/bin.js" swarm-verify-review-clean {{.CLI_ARGS}}
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'swarm-verify-review-clean {{.CLI_ARGS}}'
 
   # swarm:complete-cohort -- deterministic cohort completion sweep (#1487).
   # The REQUIRED Phase 6 step that moves a finished cohort's story vBRIEFs
@@ -79,7 +87,9 @@ tasks:
   # Skill citation:   skills/deft-directive-swarm/SKILL.md Phase 6 cohort completion sweep
   complete-cohort:
     desc: "Sweep a finished swarm cohort's stories active/ -> completed/ and complete their epic parents, keeping vbrief:validate green (#1487)"
-    deps: [":ts:build"]
+    deps: [":engine:_ts-build"]
     dir: '{{.USER_WORKING_DIR}}'
     cmds:
-      - node "{{.DEFT_ROOT}}/packages/cli/dist/bin.js" swarm-complete-cohort {{.CLI_ARGS}} --project-root "{{.USER_WORKING_DIR}}"
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'swarm-complete-cohort {{.CLI_ARGS}} --project-root "{{.USER_WORKING_DIR}}"'
