@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -67,7 +68,8 @@ describe("coverage boost branches", () => {
   });
 
   it("run exits two when commits file read fails", () => {
-    expect(run(["--commits-file", join(tmpdir(), "missing.txt")])).toBe(2);
+    const missing = join(tmpdir(), `deft-pr-closing-keywords-missing-${randomUUID()}.txt`);
+    expect(run(["--commits-file", missing])).toBe(2);
   });
 
   it("run exits two when commits fetch fails in pr mode", () => {
