@@ -8,7 +8,7 @@
   "plan": {
     "id": "2128-canonicalize-emit-tokens",
     "title": "Canonicalize emit-site reference tokens to x-xbrief/ and dual-namespace reader matchers",
-    "status": "running",
+    "status": "completed",
     "planRef": "https://github.com/deftai/directive/issues/2128",
     "narratives": {
       "Description": "After the vbrief->xbrief flip (#2109), the engine still mints legacy reference tokens at its emit sites, so a freshly ingested or built artifact committed under xbrief/ trips the new verify:xbrief-drift pre-commit gate. This story flips the canonical emit constants to x-xbrief/ and makes the remaining single-namespace reader matchers dual-namespace so migrated x-xbrief/ refs are no longer silently skipped, while keeping legacy reference tokens read-accepted for consumer back-compat.",
@@ -78,7 +78,8 @@
         "size": "medium",
         "file_scope_confidence": "medium",
         "model_tier": "medium"
-      }
+      },
+      "completedAt": "2026-07-01T19:12:58Z"
     },
     "references": [
       {
@@ -92,6 +93,6 @@
         "title": "Issue #2109: maintainer xbrief rename"
       }
     ],
-    "updated": "2026-07-01T14:30:00Z"
+    "updated": "2026-07-01T19:12:58Z"
   }
 }
