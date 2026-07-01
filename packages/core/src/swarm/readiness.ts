@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
+import { referenceTypeMatches } from "@deftai/directive-types";
 import {
   ARTIFACT_SUFFIXES,
   hasArtifactSuffix,
@@ -162,7 +163,7 @@ function hasChildPlanRefs(plan: Record<string, unknown>): boolean {
       typeof ref === "object" &&
       ref !== null &&
       !Array.isArray(ref) &&
-      (ref as Record<string, unknown>).type === "x-vbrief/plan",
+      referenceTypeMatches(String((ref as Record<string, unknown>).type ?? ""), "plan"),
   );
 }
 
@@ -237,7 +238,7 @@ function hasTraces(plan: Record<string, unknown>, swarm: Record<string, unknown>
         typeof ref === "object" &&
         ref !== null &&
         !Array.isArray(ref) &&
-        (ref as Record<string, unknown>).type === "x-vbrief/spec-section"
+        referenceTypeMatches(String((ref as Record<string, unknown>).type ?? ""), "spec-section")
       ) {
         return true;
       }
