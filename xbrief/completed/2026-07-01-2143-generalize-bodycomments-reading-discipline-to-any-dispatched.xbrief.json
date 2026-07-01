@@ -1,0 +1,91 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6",
+    "description": "Story vBRIEF for #2143 — generalize body→comments reading discipline + machine gate",
+    "created": "2026-07-01T20:07:41Z",
+    "updated": "2026-07-01T20:15:00Z"
+  },
+  "plan": {
+    "id": "2143-issue-comments-reading",
+    "title": "Generalize body→comments reading discipline to any dispatched issue + machine-checkable gate",
+    "status": "completed",
+    "narratives": {
+      "Description": "Dispatch envelopes are built from issue bodies by habit, so corrective maintainer comments are invisible unless `/comments` is fetched. The umbrella current-shape convention (#1152) encodes the fix for umbrellas only; this story generalizes it and makes it machine-checkable at ingest or dispatch time.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2143",
+      "Overview": "## Problem\n\nWhen ingesting a GitHub issue to build a worker dispatch envelope, the reading discipline for \"what does this issue actually ask for?\" is body-only by habit. A corrective maintainer comment that supersedes the original write-up is therefore invisible unless `/comments` is explicitly fetched.\n\n## Proposed fix\n\n1. Generalize the reading rule from umbrellas to any issue being ingested or dispatched.\n2. Make it machine-checkable: issue-ingest fetches `/comments` by default OR a dispatch preflight gate refuses body-only envelopes when comments exist.\n3. Mirror into orchestrator preamble and intake skills.\n\nRefs #1152, #2066, #2126, #2034.",
+      "ImplementationPlan": "1. Extend `packages/core/src/intake/issue-ingest.ts` to fetch `/comments` via scm shim and fold thread into ingested overview. 2. Mirror body→comments rule into `content/templates/agent-prompt-preamble.md` and `content/templates/agents-entry.md`. 3. Add fixture test in `packages/core/src/intake/intake-coverage-boost.test.ts` asserting comment supersession over body-only fetch.",
+      "UserStory": "As a swarm orchestrator, I want issue ingest and dispatch gates to surface comment-thread corrections by default, so that workers never implement a body-suggested fix that a maintainer comment already invalidated.",
+      "Traces": "#2143, #1152, #2066, #2126, #2034"
+    },
+    "items": [
+      {
+        "id": "2143-a1",
+        "title": "Issue ingest surfaces comment thread by default",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given an issue with N>0 comments, when issue-ingest runs, then the ingested overview includes comment-thread context (not body-only)."
+        }
+      },
+      {
+        "id": "2143-a2",
+        "title": "Body-vs-comment supersession cannot silently ship wrong fix",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given a fixture where the body suggests fix X and a comment corrects to fix Y, when ingest or the gate runs, then fix Y is what reaches the worker artifact."
+        }
+      },
+      {
+        "id": "2143-a3",
+        "title": "Reading discipline mirrored into preamble and AGENTS",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given the orchestrator preamble and AGENTS.md, when read, then the body→comments discipline applies to general issues (not only umbrellas)."
+        }
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "parent_issue": null,
+        "child_issue": "#2143"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/intake/issue-ingest.ts",
+          "packages/core/src/intake/intake-coverage-boost.test.ts",
+          "packages/core/src/intake/issue-ingest-cli.ts",
+          "content/templates/agent-prompt-preamble.md",
+          "AGENTS.md",
+          "content/templates/agents-entry.md"
+        ],
+        "verify_commands": [
+          "pnpm -C packages/core vitest run src/intake/intake-coverage-boost.test.ts"
+        ],
+        "expected_outputs": [
+          "Comment-aware issue ingest; generalized reading rule in preamble/AGENTS; regression test"
+        ],
+        "depends_on": [],
+        "conflict_group": "2143-comments",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "medium"
+      },
+      "completedAt": "2026-07-01T20:34:08Z"
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2143",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2143: Generalize body→comments reading discipline to any dispatched issue + machine-checkable gate"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1152",
+        "type": "x-xbrief/refs",
+        "title": "Issue #1152"
+      }
+    ],
+    "updated": "2026-07-01T20:34:08Z"
+  }
+}

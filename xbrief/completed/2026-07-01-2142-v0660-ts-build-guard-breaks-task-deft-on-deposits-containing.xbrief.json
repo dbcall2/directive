@@ -1,0 +1,103 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6",
+    "description": "Story vBRIEF for #2142 — harden :engine:_ts-build guard for stray packages/ deposits",
+    "created": "2026-07-01T20:07:41Z",
+    "updated": "2026-07-01T20:15:00Z"
+  },
+  "plan": {
+    "id": "2142-ts-build-guard",
+    "title": "v0.66.0 `_ts-build` guard breaks `task deft:*` on deposits containing a stray `packages/` tree (#2126 regression for git-vendored-payload repos)",
+    "status": "completed",
+    "narratives": {
+      "Description": "The v0.66.0 `:engine:_ts-build` guard switched from dist-presence to source-presence, so git-vendored-payload repos with a stray `packages/` tree under `.deft/core` hit `pnpm run build` at a deposit root that has no `build` script. Global `deft` still works; only the Task wrapper breaks.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2142",
+      "Overview": "> Consolidated issue superseding #2141. Root cause is fully traced; #2141 contains the investigation trail (including an initial misdiagnosis that blamed `deft update`, since retracted).\n\n## Summary\n\nOn v0.66.0, the entire `task deft:*` surface (including `task check`) fails with `[ERR_PNPM_NO_SCRIPT] Missing script: build` on any consumer whose `.deft/core` contains a `packages/` source tree. The engine itself is fine — global `deft` works against the same project — so this is purely the `task` wrapper via the `#2126` `:engine:_ts-build` guard.\n\nThe published npm content package is **not** at fault (it ships 0 `packages/` files), and `deft update` is **not** at fault (a clean-room `deft update` deposits 0 `packages/` files). The regression is in the v0.66.0 `#2126` fix's guard heuristic, which fires on deposits that carry a stray `packages/`.\n\n## Recommended fix (safe, auto-heals, no file deletion)\n\nHarden the `_ts-build` guard to require the **buildability precondition**, not just source presence — build only if `packages/cli/package.json` exists AND the deposit root actually has a `build` script.\n\nComplementary (secondary):\n- `deft doctor` advisory that flags a consumer `.deft/core` containing `packages/`.\n\nRefs #2126. Supersedes #2141.",
+      "ImplementationPlan": "1. Edit `tasks/engine.yml` `:engine:_ts-build` script guard to require root `build` script via node check before `pnpm run build`. 2. Extend `packages/cli/src/doctor.ts` to assert advisory when consumer `.deft/core/packages/` exists. 3. Add fixture test in `packages/cli/src/doctor.test.ts` and extend `packages/core/src/content-contracts/standards/taskfile_engine_dispatch.test.ts` to verify guard behavior.",
+      "UserStory": "As a directive consumer on a git-vendored-payload repo, I want `task deft:*` to no-op the build step when my deposit has stray source but no root build script, so that I can run framework gates via global `deft` without `[ERR_PNPM_NO_SCRIPT] Missing script: build`.",
+      "Traces": "#2142, #2126, #2141",
+      "Labels": "adoption-blocker, installer"
+    },
+    "items": [
+      {
+        "id": "2142-a1",
+        "title": "`_ts-build` no-ops on stray packages/ deposit without root build script",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given a consumer deposit with `packages/cli/package.json` but no root `build` script, when `:engine:_ts-build` runs, then it no-ops and `task deft:check:consumer` passes using global `deft`."
+        }
+      },
+      {
+        "id": "2142-a2",
+        "title": "`_ts-build` still builds framework source checkout",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given a real framework source checkout with root `build` script and no prebuilt dist, when `:engine:_ts-build` runs, then `pnpm run build` executes successfully."
+        }
+      },
+      {
+        "id": "2142-a3",
+        "title": "`deft doctor` flags stray packages/ in consumer deposit",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given a consumer `.deft/core` containing `packages/`, when `deft doctor` runs, then it emits an advisory flagging the stray source tree."
+        }
+      },
+      {
+        "id": "2142-a4",
+        "title": "Regression test for stray packages deposit shape",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given the stray-`packages/`-without-root-build fixture, when the regression test runs, then it asserts no-op build behavior and passing consumer check path."
+        }
+      }
+    ],
+    "tags": [
+      "adoption-blocker",
+      "installer"
+    ],
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "parent_issue": null,
+        "child_issue": "#2142"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "tasks/engine.yml",
+          "packages/cli/src/doctor.ts",
+          "packages/cli/src/doctor.test.ts",
+          "packages/cli/src/gates-cli/doctor-cli.test.ts"
+        ],
+        "verify_commands": [
+          "pnpm -C packages/cli vitest run src/doctor.test.ts",
+          "pnpm -C packages/core vitest run src/content-contracts/standards/taskfile_engine_dispatch.test.ts"
+        ],
+        "expected_outputs": [
+          "Hardened _ts-build guard; doctor advisory for stray packages/; regression tests"
+        ],
+        "depends_on": [],
+        "conflict_group": "2142-ts-build",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "medium"
+      },
+      "completedAt": "2026-07-01T20:34:08Z"
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2142",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2142: v0.66.0 `_ts-build` guard breaks `task deft:*` on deposits containing a stray `packages/` tree (#2126 regression for git-vendored-payload repos)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2126",
+        "type": "x-xbrief/refs",
+        "title": "Issue #2126"
+      }
+    ],
+    "updated": "2026-07-01T20:34:08Z"
+  }
+}
