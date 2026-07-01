@@ -806,4 +806,6 @@
 - **#2134** -- Fix Go installer test and next-steps for xbrief layout (fixes master CI red) -- `[completed]`
 - **#2135** -- Restore branch coverage above 85% threshold -- `[completed]`
 - **#2139** -- Route remaining task fragments through xbrief layout resolver -- `[completed]`
+- **#2142** -- v0.66.0 `_ts-build` guard breaks `task deft:*` on deposits containing a stray `packages/` tree (#2126 regression for git-vendored-payload repos) -- `[completed]`
+- **#2143** -- Generalize body→comments reading discipline to any dispatched issue + machine-checkable gate -- `[completed]`
 

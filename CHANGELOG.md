@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.66.1] - 2026-07-01
+
+> Patch release fixing task deft:* on git-vendored deposits and making issue ingest comment-aware by default.
+
+### Added
+
 - Issue ingest now fetches GitHub issue comments by default and folds the thread into the ingested overview, so corrective maintainer comments reach workers instead of a body-only snapshot. Closes #2143.
 
 ### Changed
@@ -3885,7 +3897,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.66.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.66.1...HEAD
+[0.66.1]: https://github.com/deftai/directive/compare/v0.66.0...v0.66.1
 [0.66.0]: https://github.com/deftai/directive/compare/v0.65.0...v0.66.0
 [0.65.0]: https://github.com/deftai/directive/compare/v0.64.0...v0.65.0
 [0.64.0]: https://github.com/deftai/directive/compare/v0.63.0...v0.64.0
