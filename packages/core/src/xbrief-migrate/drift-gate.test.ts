@@ -93,6 +93,11 @@ describe("evaluateXbriefDrift", () => {
     writeTracked(root, "content/vbrief/conformance/valid/x.vbrief.json", CANONICAL_ARTIFACT);
     writeTracked(
       root,
+      ".deft/core/vbrief/conformance/valid/extension-at-root.vbrief.json",
+      CANONICAL_ARTIFACT,
+    );
+    writeTracked(
+      root,
       "docs/reference/forensic-research/templates/x.vbrief.json",
       CANONICAL_ARTIFACT,
     );
@@ -101,6 +106,14 @@ describe("evaluateXbriefDrift", () => {
     const result = evaluateXbriefDrift(root);
     expect(result.code).toBe(0);
     expect(result.findings).toHaveLength(0);
+  });
+
+  it("still trips on legacy artifacts misplaced under .deft/core outside vbrief/", () => {
+    root = initRepo();
+    writeTracked(root, ".deft/core/xbrief/legacy.vbrief.json", CANONICAL_ARTIFACT);
+    const result = evaluateXbriefDrift(root);
+    expect(result.code).toBe(1);
+    expect(result.findings[0]?.path).toBe(".deft/core/xbrief/legacy.vbrief.json");
   });
 
   it("does NOT trip on TS source shims that intentionally mention legacy tokens", () => {
