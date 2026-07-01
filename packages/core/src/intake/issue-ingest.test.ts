@@ -7,9 +7,11 @@ import { FixedClock } from "../cache/test-helpers.js";
 import type { CompletedProcess } from "../scm/call.js";
 import {
   buildIssueVbrief,
+  enrichIssueWithComments,
   extractCrossRefs,
   extractPlanItems,
   fetchIssue,
+  ISSUE_COMMENT_THREAD_KEY,
   ingestOne,
   provenanceIssueNumber,
 } from "./issue-ingest.js";
@@ -129,8 +131,11 @@ describe("fetchIssue", () => {
         { cacheRoot, clock, fetchedAt: clock.now() },
       );
 
-      const scmCall = vi.fn(() =>
-        completed(
+      const scmCall = vi.fn((_source: string, _verb: string, args: readonly string[]) => {
+        if (args[0]?.endsWith("/comments")) {
+          return completed("[]", "", 0);
+        }
+        return completed(
           JSON.stringify({
             number: 1714,
             title: "Live rewritten title",
@@ -140,13 +145,13 @@ describe("fetchIssue", () => {
           }),
           "",
           0,
-        ),
-      );
+        );
+      });
 
       const issue = fetchIssue("o/r", 1714, { cacheRoot, scmCall });
       expect(issue?.title).toBe("Live rewritten title");
       expect(issue?.body).toBe("Live rewritten body");
-      expect(scmCall).toHaveBeenCalledTimes(1);
+      expect(scmCall).toHaveBeenCalledTimes(2);
     } finally {
       rmSync(cacheRoot, { recursive: true, force: true });
     }
@@ -167,12 +172,55 @@ describe("fetchIssue", () => {
         { cacheRoot },
       );
 
-      const scmCall = vi.fn(() => completed("", "network error", 1));
+      const scmCall = vi.fn((_source: string, _verb: string, args: readonly string[]) => {
+        if (args[0]?.endsWith("/comments")) {
+          return completed("[]", "", 0);
+        }
+        return completed("", "network error", 1);
+      });
       const issue = fetchIssue("o/r", 99, { cacheRoot, scmCall });
       expect(issue?.title).toBe("Cached fallback title");
-      expect(scmCall).toHaveBeenCalledTimes(1);
+      expect(scmCall).toHaveBeenCalledTimes(2);
     } finally {
       rmSync(cacheRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("marks empty comment threads fetched so ingestOne does not re-fetch", () => {
+    const scmCall = vi.fn((_source: string, _verb: string, args: readonly string[]) => {
+      if (args[0]?.endsWith("/comments")) {
+        return completed("[]", "", 0);
+      }
+      return completed(
+        JSON.stringify({
+          number: 7,
+          title: "No comments",
+          body: "Body only",
+          html_url: "https://github.com/o/r/issues/7",
+        }),
+        "",
+        0,
+      );
+    });
+    const issue = fetchIssue("o/r", 7, { scmCall });
+    expect(issue?.[ISSUE_COMMENT_THREAD_KEY]).toEqual([]);
+    const dir = mkdtempSync(join(tmpdir(), "deft-ingest-nodup-"));
+    try {
+      ingestOne(issue as Record<string, unknown>, {
+        vbriefDir: dir,
+        status: "proposed",
+        repoUrl: "https://github.com/o/r",
+        dryRun: true,
+        scmCall,
+      });
+      expect(scmCall).toHaveBeenCalledTimes(2);
+      expect(
+        enrichIssueWithComments(issue as Record<string, unknown>, "https://github.com/o/r", {
+          scmCall,
+        }),
+      ).toBe(issue);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });
