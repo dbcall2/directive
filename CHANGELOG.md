@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.66.0] - 2026-07-01
+
+> Lifecycle tree moves from vbrief/ to xbrief/ on the v0.8 schema, with automatic migration for legacy trees, plus a fix for the v0.65.0 consumer task-check breakage.
+
 ### Fixed
 
 - **`task reconcile:issues`, `task issue:ingest`, `task project:render`, and `task roadmap:render` now resolve the lifecycle directory through the layout resolver (#2139).** After the `vbrief/`→`xbrief/` rename (#2109), these four task fragments hardcoded the legacy `vbrief/` directory path. On migrated `xbrief/` trees that path no longer exists, breaking all four verbs and the release pipeline's roadmap render step. The task fragments now pass `--project-root`, and the CLI verbs resolve to `xbrief/` on migrated trees (falling back to `vbrief/` for unmigrated trees), consistent with the #2132 spec/prd fix. Closes #2139.
@@ -3869,7 +3881,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.65.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.66.0...HEAD
+[0.66.0]: https://github.com/deftai/directive/compare/v0.65.0...v0.66.0
 [0.65.0]: https://github.com/deftai/directive/compare/v0.64.0...v0.65.0
 [0.64.0]: https://github.com/deftai/directive/compare/v0.63.0...v0.64.0
 [0.63.0]: https://github.com/deftai/directive/compare/v0.62.0...v0.63.0

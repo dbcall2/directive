@@ -798,8 +798,12 @@
 - **#2108** -- TS-native semantic transforms and legacy-layout detector -- `[completed]`
 - **#2109** -- Maintainer-repo mechanical vbrief->xbrief rename plus drift gate -- `[completed]`
 - **#2110** -- Consumer migration surface: migrate:xbrief verb, update trigger, doctor signpost -- `[completed]`
+- **#2111** -- Align docs, skills, and templates to xbrief naming and commands -- `[completed]`
 - **#715** -- Extension round-trip conformance fixtures and validator preservation -- `[completed]`
 - **#2126** -- Vendored task dispatch: route straggler _ts-build + direct node calls through :engine:* (fix #2126) -- `[completed]`
+- **#2128** -- Canonicalize emit-site reference tokens to x-xbrief/ and dual-namespace reader matchers -- `[completed]`
+- **#2132** -- Fix spec/prd render tasks to resolve xbrief layout (#2132) -- `[completed]`
 - **#2134** -- Fix Go installer test and next-steps for xbrief layout (fixes master CI red) -- `[completed]`
 - **#2135** -- Restore branch coverage above 85% threshold -- `[completed]`
+- **#2139** -- Route remaining task fragments through xbrief layout resolver -- `[completed]`
 
