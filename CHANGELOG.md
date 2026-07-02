@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.67.0] - 2026-07-02
+
+> Leaner, self-guarding AGENTS.md plus an offline-by-default doctor, Cursor as a Tier-1 dispatch provider, and safer lint / ghx-install / review-merge gates.
+
 ### Fixed
 
 - **Lint checks no longer flip a pull request from passing to failing on unrelated code (#2190).** `biome check .` (the `pnpm run lint` step) was observed reporting the same pre-existing warnings as build-breaking errors on one CI run and as harmless warnings on the next, with no code change in between — an unrelated pull request could suddenly fail its required check. The two rules involved (`noUnusedVariables`, `noNonNullAssertion`) now have their severity explicitly pinned to warning-level in `biome.json` instead of inheriting from a preset default, and the Biome tool version itself is pinned exactly, closing the flip-to-error risk regardless of root cause. Closes #2190. Refs #1882, #2186.
@@ -3949,7 +3961,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.66.2...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.67.0...HEAD
+[0.67.0]: https://github.com/deftai/directive/compare/v0.66.2...v0.67.0
 [0.66.2]: https://github.com/deftai/directive/compare/v0.66.1...v0.66.2
 [0.66.1]: https://github.com/deftai/directive/compare/v0.66.0...v0.66.1
 [0.66.0]: https://github.com/deftai/directive/compare/v0.65.0...v0.66.0

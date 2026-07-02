@@ -808,4 +808,26 @@
 - **#2139** -- Route remaining task fragments through xbrief layout resolver -- `[completed]`
 - **#2142** -- v0.66.0 `_ts-build` guard breaks `task deft:*` on deposits containing a stray `packages/` tree (#2126 regression for git-vendored-payload repos) -- `[completed]`
 - **#2143** -- Generalize body→comments reading discipline to any dispatched issue + machine-checkable gate -- `[completed]`
+- **#645** -- Encode and enforce an AGENTS.md line-budget ceiling with a deterministic gate -- `[completed]`
+- **#838** -- Unify skill routing and doc routing into a single REFERENCES.md Level-0 index -- `[completed]`
+- **#1877** -- Cursor Tier-1 descriptor + single-dispatch routing enforcement + cursor provider resolution -- `[completed]`
+- **#2065** -- Retire the rot-prone unmanaged AGENTS.md header pattern (Option A) + document canonical orientation sources -- `[completed]`
+- **#2149** -- Make issue-ingest and project-render honor migrated xbrief-only layout -- `[completed]`
+- **#2152** -- parseRouting no longer depends on the removed AGENTS.md '## Skill Routing' heading -- `[completed]`
+- **#2154** -- migrate:xbrief mechanically patches stale vbrief/ path literals in the AGENTS.md unmanaged header -- `[completed]`
+- **#2155** -- Advisory consumer AGENTS.md legibility signal (unmanaged-focused, non-failing) -- `[completed]`
+- **#2156** -- Collapse AGENTS.md rationale/recurrence narrative to rule+pointer; de-dup managed/maintainer overlap -- `[completed]`
+- **#2157** -- Lazy-load platform/tool/runtime-conditional PowerShell rules out of the always-loaded surface -- `[completed]`
+- **#2158** -- AGENTS.md quick-wins batch: Commands drift + personal-rule leak + reserved placeholders + inlined field-list -- `[completed]`
+- **#2166** -- test: remove real subprocess/network calls from mocked unit tests (flaky 5s timeouts) -- `[completed]`
+- **#2169** -- harden(pr:merge-ready): gate on CI check-run conclusions -- `[completed]`
+- **#2178** -- Download-verify-execute the ghx installer instead of piping remote scripts into a shell -- `[completed]`
+- **#2182** -- Make package-manager network access explicit and security-scoped -- `[completed]`
+- **#2183** -- refactor(agents-md): de-duplicate maintainer half + reduce managed-section template -- `[completed]`
+- **#2189** -- Gate merge-readiness on the SLizard structured review verdict (mirror the Greptile + CI gates) -- `[completed]`
+- **#2190** -- Make biome lint severity deterministic and config-owned (noUnusedVariables / noNonNullAssertion) -- `[completed]`
+- **#2192** -- Trim AGENTS.md template duplicate story and preflight mechanism prose -- `[completed]`
+- **#644** -- Audit surrounding-docs footprint + encode the reference-chain discovery principle in REFERENCES.md -- `[completed]`
+- **#646** -- Consumer-facing agent-docs guidance: structure pattern (#646) + doc-sprawl health check (#647) -- `[completed]`
+- Remediate 3 open CodeQL code-scanning alerts (#50 / #51 / #52) -- `[completed]`
 
