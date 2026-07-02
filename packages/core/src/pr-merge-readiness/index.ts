@@ -1,3 +1,4 @@
+export { buildCiSummaryLine, evaluateCiGate } from "./ci-gate.js";
 export { computeGateResult } from "./compute.js";
 export * from "./constants.js";
 export { evaluateGates, isMergeReady } from "./evaluate.js";
