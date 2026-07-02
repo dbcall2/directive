@@ -16782,10 +16782,10 @@
       },
       "allowDirectCommitsToMaster": false,
       "agentsMdBudget": {
-        "managedMaxLines": 207,
-        "unmanagedMaxLines": 314
+        "managedMaxLines": 203,
+        "unmanagedMaxLines": 273
       }
     },
-    "updated": "2026-06-12T20:26:00Z"
+    "updated": "2026-07-02T14:32:31Z"
   }
 }
