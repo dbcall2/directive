@@ -271,7 +271,7 @@ Install-generated AGENTS.md uses deft/-prefixed paths.
 
 When the template is updated, run `task agents:refresh` to regenerate consumer-installed AGENTS.md from `content/templates/agents-entry.md` (see `## Template propagation discipline (#1309)` above).
 
-<!-- deft:managed-section v3 sha=329dd36e440e refreshed=2026-07-02T14:21:36Z session=de789b5cd64d -->
+<!-- deft:managed-section v3 sha=3b70cfb9f138 refreshed=2026-07-02T14:55:21Z session=3d2396135a7c -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
@@ -349,6 +349,10 @@ The `plan.policy.wipCap` field caps the number of in-flight scope xBRIEFs (`xbri
 ## xBRIEF layout (#2034 / #2110)
 
 Projects on the legacy `vbrief/` tree are still read-accepted; run `deft migrate:xbrief` to convert safely to `xbrief/` with semantic v0.6→v0.8 transforms. Legacy `x-vbrief/` reference tokens remain read-accepted until you migrate.
+
+## Unmanaged project header (#2065)
+
+! Do NOT treat the unmanaged AGENTS.md header as the work queue; ⊗ Do NOT add `Status`, `Next:`, or `Known Issues` blocks — they rot silently. See UPGRADING.md § AGENTS.md: managed vs unmanaged header for the Session orientation pointer and rationale.
 
 ## Cache-as-authoritative work selection (#1149)
 

@@ -63,6 +63,10 @@ describe("init-deposit scaffold", () => {
       join(process.cwd(), "content/templates/agents-entry.md"),
       join(deftDir, "templates/agents-entry.md"),
     );
+    copyFileSync(
+      join(process.cwd(), "content/templates/agents-consumer-header.md"),
+      join(deftDir, "templates/agents-consumer-header.md"),
+    );
     mkdirSync(join(deftDir, "vbrief", "schemas"), { recursive: true });
     writeFileSync(join(deftDir, "vbrief", "schemas", "example.schema.json"), "{}\n", "utf8");
     writeFileSync(join(deftDir, "vbrief", "vbrief.md"), "# vbrief\n", "utf8");
@@ -91,6 +95,9 @@ describe("init-deposit scaffold", () => {
     const agents = readFileSync(join(project, "AGENTS.md"), "utf8");
     expect(agents).toContain("<!-- deft:managed-section");
     expect(agents).toContain(AGENTS_MANAGED_CLOSE);
+    expect(agents).toContain("## Session orientation");
+    expect(agents).not.toContain("## Status");
+    expect(agents).not.toContain("## Known Issues");
   });
 
   it("deposits vbrief lifecycle dirs and schemas", async () => {

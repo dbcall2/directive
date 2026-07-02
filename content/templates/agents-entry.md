@@ -77,6 +77,10 @@ The `plan.policy.wipCap` field caps the number of in-flight scope xBRIEFs (`xbri
 
 Projects on the legacy `vbrief/` tree are still read-accepted; run `deft migrate:xbrief` to convert safely to `xbrief/` with semantic v0.6→v0.8 transforms. Legacy `x-vbrief/` reference tokens remain read-accepted until you migrate.
 
+## Unmanaged project header (#2065)
+
+! Do NOT treat the unmanaged AGENTS.md header as the work queue; ⊗ Do NOT add `Status`, `Next:`, or `Known Issues` blocks — they rot silently. See UPGRADING.md § AGENTS.md: managed vs unmanaged header for the Session orientation pointer and rationale.
+
 ## Cache-as-authoritative work selection (#1149)
 
 ! When the operator asks "what should I work on next?" / "build a cohort" / "what's the queue?", run `deft triage:queue --limit=10` (D11 / #1128) and present the ranked list before suggesting anything else. The agent MUST NOT recommend work from memory or open-GitHub-issue intuition. This is the consumer-side mirror of the maintainer rule of the same name; the triage queue is the source of truth for what to work on next.
