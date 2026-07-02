@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -18,6 +18,19 @@ import {
 
 function completed(stdout: string, stderr: string, returncode: number): CompletedProcess {
   return { stdout, stderr, returncode };
+}
+
+/**
+ * Read + parse a JSON file, asserting the top-level payload is an object.
+ * `JSON.parse` can return top-level `null` (and non-objects) without throwing,
+ * so guard before property access rather than blindly casting.
+ */
+function readJsonObject(filePath: string): Record<string, unknown> {
+  const parsed: unknown = JSON.parse(readFileSync(filePath, "utf8"));
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`expected top-level JSON object at ${filePath}`);
+  }
+  return parsed as Record<string, unknown>;
 }
 
 describe("buildIssueVbrief", () => {
@@ -40,6 +53,142 @@ describe("buildIssueVbrief", () => {
       { title: "Spec updated", status: "completed" },
     ]);
     expect((plan.narratives as Record<string, string>).Overview).toContain("Acceptance Criteria");
+  });
+});
+
+describe("issue-ingest layout-aware emission parity", () => {
+  it("keeps legacy vbrief output for legacy layout projects", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-ingest-legacy-layout-"));
+    const vbriefDir = join(root, "vbrief");
+    mkdirSync(vbriefDir, { recursive: true });
+    try {
+      const [result, path] = ingestOne(
+        {
+          number: 601,
+          title: "Legacy layout issue",
+          html_url: "https://github.com/o/r/issues/601",
+          body: "Legacy body",
+          labels: [],
+        },
+        {
+          vbriefDir,
+          status: "proposed",
+          repoUrl: "https://github.com/o/r",
+          cwd: root,
+          scmCall: () => completed("[]", "", 0),
+        },
+      );
+      expect(result).toBe("created");
+      expect(path).toMatch(/\.vbrief\.json$/);
+      const parsed = readJsonObject(path as string);
+      expect(parsed.vBRIEFInfo).toEqual(
+        expect.objectContaining({
+          version: "0.6",
+        }),
+      );
+      expect(parsed.xBRIEFInfo).toBeUndefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("emits xbrief output for migrated xbrief-only projects", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-ingest-migrated-layout-"));
+    const xbriefDir = join(root, "xbrief");
+    mkdirSync(xbriefDir, { recursive: true });
+    writeFileSync(
+      join(xbriefDir, "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify(
+        {
+          xBRIEFInfo: {
+            version: "0.8",
+          },
+          plan: {
+            title: "PROJECT-DEFINITION",
+            status: "running",
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    try {
+      const [result, path] = ingestOne(
+        {
+          number: 602,
+          title: "Migrated layout issue",
+          html_url: "https://github.com/o/r/issues/602",
+          body: "Migrated body",
+          labels: [],
+        },
+        {
+          vbriefDir: xbriefDir,
+          status: "proposed",
+          repoUrl: "https://github.com/o/r",
+          cwd: root,
+          scmCall: () => completed("[]", "", 0),
+        },
+      );
+      expect(result).toBe("created");
+      expect(path).toMatch(/\.xbrief\.json$/);
+      const parsed = readJsonObject(path as string);
+      expect(parsed.xBRIEFInfo).toEqual(
+        expect.objectContaining({
+          version: "0.8",
+        }),
+      );
+      expect(parsed.vBRIEFInfo).toBeUndefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("still emits xbrief output when a completed artifact carries legacy vBRIEFInfo (#2149)", () => {
+    // Regression for the self-defeating detection bug: a historical vBRIEF-serialized
+    // artifact inside a migrated xbrief/ tree (e.g. a completed story lifecycle file) must
+    // NOT force legacy emission. The decision is structural (which tree we write into), not
+    // a content scan of the tree.
+    const root = mkdtempSync(join(tmpdir(), "deft-ingest-legacy-content-in-xbrief-"));
+    const xbriefDir = join(root, "xbrief");
+    const completedDir = join(xbriefDir, "completed");
+    mkdirSync(completedDir, { recursive: true });
+    writeFileSync(
+      join(xbriefDir, "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify({ xBRIEFInfo: { version: "0.8" }, plan: { title: "PROJECT-DEFINITION" } }),
+      "utf8",
+    );
+    // A completed story artifact still serialized with a legacy vBRIEFInfo envelope.
+    writeFileSync(
+      join(completedDir, "2026-07-02-legacy-completed.xbrief.json"),
+      JSON.stringify({ vBRIEFInfo: { version: "0.6" }, plan: { title: "Old story" } }),
+      "utf8",
+    );
+    try {
+      const [result, path] = ingestOne(
+        {
+          number: 603,
+          title: "Migrated project with legacy content",
+          html_url: "https://github.com/o/r/issues/603",
+          body: "Migrated body",
+          labels: [],
+        },
+        {
+          vbriefDir: xbriefDir,
+          status: "proposed",
+          repoUrl: "https://github.com/o/r",
+          cwd: root,
+          scmCall: () => completed("[]", "", 0),
+        },
+      );
+      expect(result).toBe("created");
+      expect(path).toMatch(/\.xbrief\.json$/);
+      const parsed = readJsonObject(path as string);
+      expect(parsed.xBRIEFInfo).toEqual(expect.objectContaining({ version: "0.8" }));
+      expect(parsed.vBRIEFInfo).toBeUndefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 
