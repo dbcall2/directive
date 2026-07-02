@@ -81,3 +81,4 @@
 2026-07-01T23:50:27Z actor=task policy:allow-direct-commits allowDirectCommitsToMaster=true previous=False
 2026-07-01T23:50:28Z actor=task policy:enforce-branches allowDirectCommitsToMaster=false previous=True
 2026-07-02T19:56:51Z actor=task policy:allow-direct-commits allowDirectCommitsToMaster=true previous=False
+2026-07-02T20:09:29Z actor=task policy:enforce-branches allowDirectCommitsToMaster=false previous=True
