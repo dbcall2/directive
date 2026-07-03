@@ -858,4 +858,5 @@
 - **#2248** -- bug(hooks): .githooks run_deft prefers a stale global deft over the fresh local CLI in a framework-source checkout (new verbs block commits) -- `[completed]`
 - **#2256** -- bug(test): pyproject_version_freshness test flakes on a live git ls-remote (5s vitest timeout in CI) -- `[completed]`
 - **#2260** -- bug(cascade): pr:wait-mergeable-and-merge polls without merging a GitHub-mergeable PR (verdict gate diverges from mergeStateStatus; no heartbeat) -- `[completed]`
+- **#2277** -- deft-core-guard allowlist omits xbrief/ paths -- blocks framework-deposit PRs on migrated projects -- `[completed]`
 

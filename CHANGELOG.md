@@ -20,6 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+### Removed
+
+## [0.68.1] - 2026-07-03
+
+> Patch: migrated xbrief/ projects can run routine framework upgrades without deft-core-guard falsely blocking the deposit PR.
+
+### Added
+
+### Changed
+
+### Fixed
+
 - **Migrated `xbrief/` projects can now run routine framework upgrades without the deft-core-guard falsely blocking the deposit PR (#2277).** The installer-managed allowlist only listed the legacy `vbrief/` paths, so after the `vbrief/`->`xbrief/` migration the framework-managed `xbrief/.deft-version` marker was treated as an app file and every `deft update` deposit PR tripped the `no-mixed-core-and-app` guard. The allowlist (which drives both the deposited guard workflow and the staging classifier) now mirrors the `xbrief/` version marker, `xbrief.md`, `schemas/`, `migration/`, and lifecycle `.gitkeep` paths, while keeping the `vbrief/` entries for not-yet-migrated consumers. Closes #2277. Refs #2034, #2110, #1576.
 
 ### Removed
@@ -4008,7 +4020,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.68.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.68.1...HEAD
+[0.68.1]: https://github.com/deftai/directive/compare/v0.68.0...v0.68.1
 [0.68.0]: https://github.com/deftai/directive/compare/v0.67.0...v0.68.0
 [0.67.0]: https://github.com/deftai/directive/compare/v0.66.2...v0.67.0
 [0.66.2]: https://github.com/deftai/directive/compare/v0.66.1...v0.66.2
