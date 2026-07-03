@@ -827,7 +827,35 @@
 - **#2189** -- Gate merge-readiness on the SLizard structured review verdict (mirror the Greptile + CI gates) -- `[completed]`
 - **#2190** -- Make biome lint severity deterministic and config-owned (noUnusedVariables / noNonNullAssertion) -- `[completed]`
 - **#2192** -- Trim AGENTS.md template duplicate story and preflight mechanism prose -- `[completed]`
+- **#2207** -- fix(triage): triage:queue misses audit log and ranking labels after xbrief migration (#2109 gap) -- `[completed]`
+- **#2209** -- flaky(ci): verify-env/branches.test.ts toolchain-check times out at 5s in CI (real subprocess spawn) -- `[completed]`
+- **#2210** -- bug(triage): scope-drift/add-ignore.ts writes triageScopeIgnores to vbrief/ path on migrated trees -- `[completed]`
+- **#2211** -- bug(triage): scope/resolve.ts loads triageScope from hardcoded vbrief/ path on migrated trees -- `[completed]`
+- **#2212** -- bug(scope): capacity-stamp.ts reads capacityAllocation from hardcoded vbrief/ path on migrated trees -- `[completed]`
+- **#2213** -- bug(scope): project-definition-sync.ts skips PROJECT-DEFINITION sync (hardcoded vbrief/ path) on migrated trees -- `[completed]`
+- **#2219** -- flaky(ci): verify-env-cli.test.ts 'toolchain-check runs without config error' times out at 5s (real subprocess) — #2209 follow-up -- `[completed]`
+- **#2220** -- bug(check): `task check` diverges from CI TS lane (`pnpm run lint`) — biome format violations pass locally, fail CI -- `[completed]`
 - **#644** -- Audit surrounding-docs footprint + encode the reference-chain discovery principle in REFERENCES.md -- `[completed]`
 - **#646** -- Consumer-facing agent-docs guidance: structure pattern (#646) + doc-sprawl health check (#647) -- `[completed]`
 - Remediate 3 open CodeQL code-scanning alerts (#50 / #51 / #52) -- `[completed]`
+- **#1056** -- feat(tasks): task pr:watch -- deterministic PR-verdict polling surface -- `[completed]`
+- **#1102** -- fix(skills): pre-filing master-diff check -- run git ls-tree origin/master before filing an issue that proposes adding a file -- `[completed]`
+- **#1260** -- bug(triage,policy): adopt PROJECT-DEFINITION mutation lock across all RMW mutators -- `[completed]`
+- **#1310** -- Forward-coverage gate: migrate the prose 'new source files MUST include tests' rule to deterministic enforcement (verify:forward-coverage) -- `[completed]`
+- **#1329** -- agents:refresh managed-section `session=` write has a concurrent-write race (TS: platform/agents-md.ts + agents-refresh.ts) -- `[completed]`
+- **#1576** -- installer: Taskfile.yml include is modified but not staged or guard-allowlisted during upgrade -- `[completed]`
+- **#1926** -- Path-based planRef dangles when reconcile:issues moves a closed parent vBRIEF across lifecycle folders -- `[completed]`
+- **#2064** -- consolidate: redirect deft install-upgrade to directive update (Option A) -- `[completed]`
+- **#2115** -- bug(doctor): payload-staleness recommendation omits required `deft update` for vendored consumers (incomplete follow-on to #1997) -- `[completed]`
+- **#2181** -- Stop session-start/runtime commands from invoking pnpm builds or package-manager retry loops -- `[completed]`
+- **#2205** -- deft doctor pre-cutover detector false-positives on xbrief-migrated projects (hardcodes vbrief/ paths) -- `[completed]`
+- **#2225** -- enh(swarm): auto-sweep cohort briefs active/ -> completed/ after PRs merge (eliminate stop-at:pr-open lifecycle-sweep tax) -- `[completed]`
+- **#2230** -- bug(swarm): finalize-cohort scrapes PR body regex for closing issues -- matches descriptive 'closed #N' (should use GitHub structured closing references) -- `[completed]`
+- **#2237** -- bug(capacity): completion stamps defaultBucket instead of label-matched capacityBucket -- `[completed]`
+- **#2238** -- bug(triage): queue lists recently-closed issues as [untriaged] until cache refresh -- `[completed]`
+- **#2246** -- bug(capacity): label-aware completion stamping misses freshly-filed issues absent from the on-disk label cache -- `[completed]`
+- **#2247** -- bug(swarm): finalize-cohort aborts the whole sweep on a closing ref to an already-completed/absent issue (no active brief) -- `[completed]`
+- **#2248** -- bug(hooks): .githooks run_deft prefers a stale global deft over the fresh local CLI in a framework-source checkout (new verbs block commits) -- `[completed]`
+- **#2256** -- bug(test): pyproject_version_freshness test flakes on a live git ls-remote (5s vitest timeout in CI) -- `[completed]`
+- **#2260** -- bug(cascade): pr:wait-mergeable-and-merge polls without merging a GitHub-mergeable PR (verdict gate diverges from mergeStateStatus; no heartbeat) -- `[completed]`
 

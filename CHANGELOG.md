@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.68.0] - 2026-07-03
+
+> Reliability & workflow-automation cycle: repairs the xbrief-migration triage regressions, hardens the swarm merge cascade, and adds pr:watch + forward-coverage safety gates.
+
+### Added
+
 - **New `task pr:watch -- <N>` blocks until a PR review reaches a terminal verdict, so an agent that promises to poll a review cannot silently forget (#1056).** The command polls a PR's Greptile/SLizard review to one of three exit states — `0` CLEAN, `1` NEW_P0_P1 (new blocking findings), or `2` for any ERRORED / STALL / TIMEOUT / config fault — with `--one-shot` for a single probe and `--json`, `--max-wait-minutes`, `--poll-seconds`, `--repo`, and `--project-root` flags. It reuses the existing verdict detector and gates the verdict to the current PR HEAD, so a stale review posted before your latest push is never mistaken for the current one. Closes #1056. Refs #954, #1039, #1369.
 - **New `task verify:forward-coverage` gate fails a commit or PR that adds a source file without a test in the same diff (#1310).** The long-standing "new source files MUST ship with tests" rule was prose-only; it is now enforced deterministically, mirroring `verify:encoding` and `verify:branch`. Any newly added `*.py`/`*.go`/`*.ts`/`*.tsx` source file (tests and `*.d.ts` excluded) must land with a matching test file in the same change, or the gate fails. It runs in the `task check` aggregate and the pre-commit hook, with an `--allow-list <path>` escape hatch for generated code and shims. Closes #1310. Refs #798, #747.
 - **`task swarm:finalize-cohort` auto-sweeps merged cohort briefs to `completed/` without a hand-authored lifecycle PR (#2225).** After a `stop-at: pr-open` swarm's PRs merge, the new surface resolves each merged story from its `Closes #N` link (or an explicit `--stories` list), runs the same deterministic `completeCohort(...)` sweep as `task swarm:complete-cohort`, and lands the `active/` -> `completed/` moves on a feature branch with an auto-opened PR — so WIP resets without the extra ceremony PR every cycle. `task swarm:complete-cohort` remains the idempotent manual primitive. Closes #2225. Refs #1880, #1487, #1369.
@@ -3994,7 +4006,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.67.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.68.0...HEAD
+[0.68.0]: https://github.com/deftai/directive/compare/v0.67.0...v0.68.0
 [0.67.0]: https://github.com/deftai/directive/compare/v0.66.2...v0.67.0
 [0.66.2]: https://github.com/deftai/directive/compare/v0.66.1...v0.66.2
 [0.66.1]: https://github.com/deftai/directive/compare/v0.66.0...v0.66.1
