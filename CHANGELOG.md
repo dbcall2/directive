@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **TS-native `directive init` / `directive update` now stage the project-root `Taskfile.yml` deft include as installer-managed (#1576).** When the installer appends or repairs the `includes.deft` block in a consumer root Taskfile, that path is added to scoped staging and reported in `--json` `staged_paths`, and the deposited `deft-core-guard` allowlist exempts it alongside `.deft/core/**` so upgrade PRs do not look like mixed framework+app commits. The frozen Go installer is unchanged (#1912); this fix lands on the TS update path (#1933). Closes #1576. Refs #1453, #1912, #1933.
+
 ### Fixed
 
 - **`task swarm:finalize-cohort` resolves cohort stories from GitHub's structured closing links, not PR-body regex (#2230).** The finalize step used to regex-scan PR bodies for `close*` / `fix*` / `resolve*` tokens, so descriptive prose like "closed #1997" could sweep an unrelated active brief. It now reads each PR's `closingIssuesReferences` — the same durable linkage GitHub uses for auto-close and the #701 protected-issue check — so only real closing links drive the lifecycle sweep. Closes #2230. Refs #2225, #2228, #701.

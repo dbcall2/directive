@@ -21,12 +21,11 @@ import { dirname, join, relative } from "node:path";
 import { copyTree } from "../deposit/copy-tree.js";
 import { resolveLifecycleRoot } from "../layout/resolve.js";
 import { agentsRefreshPlan } from "../platform/agents-md.js";
+import { CANONICAL_INSTALL_ROOT, type InitDepositIo } from "./constants.js";
+import { installerManagedGuardEre } from "./hygiene.js";
 
-export interface InitDepositIo {
-  printf: (text: string) => void;
-}
-
-export const CANONICAL_INSTALL_ROOT = ".deft/core";
+export type { InitDepositIo };
+export { CANONICAL_INSTALL_ROOT };
 export const CORE_GLOB = ".deft/core/**";
 
 const CODEQL_CONFIG_REL = ".github/codeql/codeql-config.yml";
@@ -554,31 +553,6 @@ export function writeConsumerGitHooks(
   }
 
   return filesDeposited || configWired;
-}
-
-function escapeEre(value: string): string {
-  return value.replace(/[.^$*+?()[\]{}|\\]/g, "\\$&");
-}
-
-function installerManagedGuardEre(): string {
-  const matchers: Array<{ exact?: string; prefix?: string }> = [
-    { exact: "AGENTS.md" },
-    { prefix: ".agents/" },
-    { prefix: ".githooks/" },
-    { exact: ".gitattributes" },
-    { exact: ".gitignore" },
-    { exact: "greptile.json" },
-    { exact: CODEQL_CONFIG_REL },
-    { exact: CORE_GUARD_WORKFLOW_REL },
-    { exact: "vbrief/.deft-version" },
-    { exact: "vbrief/vbrief.md" },
-    { prefix: "vbrief/schemas/" },
-    { prefix: "vbrief/migration/" },
-    ...VBRIEF_LIFECYCLE_DIRS.map((sub) => ({ exact: `vbrief/${sub}/.gitkeep` })),
-  ];
-  return matchers
-    .map((m) => (m.exact ? `^${escapeEre(m.exact)}$` : `^${escapeEre(m.prefix ?? "")}`))
-    .join("|");
 }
 
 function githubActionsExpr(expression: string): string {
