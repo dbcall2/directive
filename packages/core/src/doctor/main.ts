@@ -2,6 +2,14 @@ import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { evaluate as evaluateAgentsMdAdvisory } from "../agents-md-advisory/evaluate.js";
 import { contentRoot } from "../content-root.js";
+import {
+  checkLocalEngineIntegrity,
+  classify,
+  evaluateSkew,
+  type ResolutionFacts,
+  reconcileVersions,
+  plan as resolvePlan,
+} from "../resolution/index.js";
 import { agentsRefreshPlan, hasV3ManagedMarker } from "./agents-md.js";
 import { runChecks } from "./checks.js";
 import {
@@ -35,10 +43,13 @@ import { runLocalSignpostChecks } from "./signpost-checks.js";
 import {
   classifyTaskfileInclude,
   formatMissingIncludeSnippet,
+  includesBlockHasDeftTaskfile,
   resolveConsumerTaskfile,
 } from "./taskfile.js";
-import type { DoctorSeams, Finding } from "./types.js";
+import type { DoctorSeams, Finding, ResolutionSummary } from "./types.js";
 import { defaultWhich } from "./which.js";
+
+const DEFAULT_RESOLUTION_PLATFORMS = ["linux", "darwin", "win32"] as const;
 
 export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): number {
   const flags = parseDoctorFlags(args);
@@ -257,6 +268,15 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
   sink.info("Checking optional root Taskfile.yml include...");
   runTaskfileIncludeCheck(projectRoot, fixMode, jsonMode, sink, addFinding, seams);
 
+  let resolution: ResolutionSummary | null = null;
+  if (!runningInsideDeftRepo(projectRoot, seams)) {
+    if (!jsonMode) {
+      sink.blank();
+      sink.info("Resolution -- operating mode + single next action (from shared plan())...");
+    }
+    resolution = runResolutionDecision(projectRoot, jsonMode, sink, addFinding, seams);
+  }
+
   const errorCount = findings.filter((f) => f.severity === "error").length;
   const warningCount = findings.filter((f) => f.severity === "warning").length;
   const exitCode = errorCount > 0 ? 1 : 0;
@@ -276,6 +296,22 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
       findings,
       summary: { errors: errorCount, warnings: warningCount },
       project_root: projectRoot,
+      ...(resolution
+        ? {
+            resolution: {
+              mode: resolution.mode,
+              operating_mode: resolution.operatingMode,
+              reconciliation: resolution.reconciliation,
+              platform_skew: resolution.platformSkew,
+              platform_skew_detected: resolution.platformSkewDetected,
+              action_required: resolution.actionRequired,
+              next_command: resolution.nextCommand,
+              root_cause: resolution.rootCause,
+              remediation: resolution.remediation,
+              warnings: resolution.warnings,
+            },
+          }
+        : {}),
     };
     process.stdout.write(`${pythonJsonDump(payload)}\n`);
     return exitCode;
@@ -595,4 +631,270 @@ function runTaskfileIncludeCheck(
     check: "taskfile-include",
     file: taskfilePath,
   });
+}
+
+/**
+ * Never emit a bare `task ...` remediation in a project without Taskfile wiring
+ * (#2267). The `directive` surface always works; `task deft:X` is optional and
+ * only present when the consumer wired the include. `plan()` already emits the
+ * `directive` / `npx` / `npm` surface, so this guard is a defensive invariant:
+ * any `task`-prefixed command is rewritten to the `directive` surface unless the
+ * project actually has the include.
+ */
+/**
+ * Detect Taskfile wiring through the injected seam (#2267). Mirrors
+ * `classifyTaskfileInclude` but routes the filesystem read through
+ * `seams.readText` so the resolution decision stays deterministic + injectable
+ * in tests -- unlike a direct `classifyTaskfileInclude(projectRoot)` call, which
+ * bypasses every other seam-flowed probe in `runResolutionDecision`.
+ */
+export function resolveTaskfileWiring(projectRoot: string, seams: DoctorSeams): boolean {
+  const readText =
+    seams.readText ??
+    ((path: string): string | null => {
+      try {
+        return readFileSync(path, "utf8");
+      } catch {
+        return null;
+      }
+    });
+  for (const name of ["Taskfile.yml", "Taskfile.yaml"]) {
+    const text = readText(join(projectRoot, name));
+    if (text !== null) {
+      return includesBlockHasDeftTaskfile(text.replace(/^\uFEFF/, ""));
+    }
+  }
+  return false;
+}
+
+export function enforceDirectiveSurface(
+  command: string | null,
+  hasTaskfileWiring: boolean,
+): string | null {
+  if (command === null) {
+    return null;
+  }
+  if (!hasTaskfileWiring && /^\s*task\s+/.test(command)) {
+    return command.replace(/^\s*task\s+/, "directive ");
+  }
+  return command;
+}
+
+/** Human-facing operating mode derived from the orthogonal fact-set. */
+export function resolveOperatingMode(facts: ResolutionFacts): string {
+  if (facts.preCutoverArtifacts) {
+    return "pre-cutover (pre-v0.20 document model -- migrate first)";
+  }
+  if (!facts.hasDeftCore) {
+    if (facts.hasManagedSection) {
+      return "hybrid (managed AGENTS.md present; .deft/core/ payload not reconstituted)";
+    }
+    return facts.hasAppCode || facts.hasGit
+      ? "brownfield (existing project, no Deft deposit)"
+      : "greenfield (no Deft deposit)";
+  }
+  return facts.hasManagedSection
+    ? "hybrid (vendored .deft/core/ + managed AGENTS.md)"
+    : "vendored (.deft/core/ deposit, no managed AGENTS.md section)";
+}
+
+/**
+ * Single engine/pin/VERSION reconciliation line. `reconcileVersions` flags
+ * content-behind/ahead and engine-behind; engine-ahead skew is folded in here so
+ * the line is the one version-state summary the operator reads.
+ */
+export function resolveReconciliationLine(facts: ResolutionFacts): string {
+  const engine = facts.engineVersion ?? "unreachable";
+  const content = facts.deftCorePayloadVersion ?? "none";
+  const pin = facts.pinVersion ?? "none";
+  const recon = reconcileVersions({
+    pinVersion: facts.pinVersion,
+    engineVersion: facts.engineVersion,
+    contentVersion: facts.deftCorePayloadVersion,
+    managedSectionSha: facts.managedSectionSha,
+  });
+  const notes: string[] = [...recon.mismatches];
+  if (facts.engineVersion !== null && facts.pinVersion !== null) {
+    const skew = evaluateSkew(facts.engineVersion, facts.pinVersion, {});
+    if (skew.band === "within-window" || skew.band === "beyond-window") {
+      notes.push(skew.message ?? `engine ${facts.engineVersion} ahead of pin ${facts.pinVersion}`);
+    }
+  }
+  // Without a committed pin there is nothing to reconcile against, so never
+  // claim "aligned" — that would contradict a Next command that tells the
+  // operator to init / commit a pin (Greptile #2283 display-accuracy).
+  let rawVerdict: string;
+  if (facts.pinVersion === null) {
+    rawVerdict =
+      facts.engineVersion === null && facts.deftCorePayloadVersion === null
+        ? "nothing to reconcile yet (no engine, pin, or deposited content)"
+        : "no committed package.json pin to reconcile against";
+  } else {
+    rawVerdict = notes.length === 0 ? "current (engine/pin/content aligned)" : notes.join("; ");
+  }
+  // Sanitize newlines so a data-derived version/mismatch string can't break out
+  // of the rendered bullet (CWE-116).
+  const verdict = rawVerdict.replace(/\r?\n/g, " ");
+  return `engine ${engine}, content ${content}, pin ${pin} -- ${verdict}`;
+}
+
+/**
+ * Probe `.deft/.cli/<platform>` across platforms and report presence + skew. A
+ * partial install, or a mix of present + absent platforms, is engine skew: a
+ * gate can pass on one platform and fail on another. Read-only.
+ */
+export function resolvePlatformSkew(
+  projectRoot: string,
+  seams: DoctorSeams,
+): { line: string; skewDetected: boolean; findings: Finding[] } {
+  const platforms = seams.resolutionPlatforms ?? DEFAULT_RESOLUTION_PLATFORMS;
+  const isFile = seams.isFile ?? ((p: string) => existsSync(p));
+  const isDir =
+    seams.isDir ??
+    ((p: string) => {
+      try {
+        return statSync(p).isDirectory();
+      } catch {
+        return false;
+      }
+    });
+  const states: string[] = [];
+  let anyPresent = false;
+  let anyAbsent = false;
+  let anyPartial = false;
+  for (const platform of platforms) {
+    const result = checkLocalEngineIntegrity(projectRoot, { platform, isFile, isDir });
+    if (result.usable) {
+      states.push(`${platform} intact`);
+      anyPresent = true;
+    } else if (result.partial) {
+      states.push(`${platform} partial (missing ${result.missingMarkers.join(", ")})`);
+      anyPresent = true;
+      anyPartial = true;
+    } else {
+      states.push(`${platform} absent`);
+      anyAbsent = true;
+    }
+  }
+  const skewDetected = anyPartial || (anyPresent && anyAbsent);
+  const findings: Finding[] = [];
+  if (!anyPresent) {
+    return {
+      line: "no sandbox-local engines (.deft/.cli/<platform> absent on all probed platforms)",
+      skewDetected: false,
+      findings,
+    };
+  }
+  let line = `.deft/.cli -> ${states.join("; ")}`;
+  if (skewDetected) {
+    line += " -- cross-platform engine skew detected";
+    findings.push({
+      severity: "warning",
+      message: `Cross-platform .deft/.cli engine skew: ${states.join("; ")}. A partial or platform-divergent local engine can make gates pass on one platform and fail on another; reconcile with a clean per-platform install.`,
+      check: "resolution:platform-skew",
+      status: "skew",
+      platforms: [...platforms],
+    });
+  }
+  return { line, skewDetected, findings };
+}
+
+/**
+ * The single read-only decision surface (#2267). Reuses the shared keystone
+ * `classify()` + `plan()` (the ONE classifier) to emit the operating mode, the
+ * engine/pin/VERSION reconciliation, cross-platform skew, and exactly ONE
+ * primary `Next command:` with a root-cause + remediation rationale. Secondary
+ * migration advice (`plan()` warnings) is suppressed until the primary blocker
+ * clears. Mutates nothing.
+ */
+export function runResolutionDecision(
+  projectRoot: string,
+  jsonMode: boolean,
+  sink: ReturnType<typeof createPlainSink>,
+  addFinding: (f: Finding) => void,
+  seams: DoctorSeams,
+): ResolutionSummary {
+  const facts = classify(projectRoot, {
+    ...(seams.isFile ? { isFile: seams.isFile } : {}),
+    ...(seams.isDir ? { isDir: seams.isDir } : {}),
+    ...(seams.readText ? { readText: seams.readText } : {}),
+    ...(seams.engineProbe ? { engineProbe: seams.engineProbe } : {}),
+  });
+  const plan = resolvePlan(facts, {}, { platform: process.platform, interactive: false });
+  const operatingMode = resolveOperatingMode(facts);
+  const reconciliation = resolveReconciliationLine(facts);
+  const skew = resolvePlatformSkew(projectRoot, seams);
+  const hasTaskfileWiring = resolveTaskfileWiring(projectRoot, seams);
+  const nextCommand = enforceDirectiveSurface(plan.nextAction.command, hasTaskfileWiring);
+  const actionRequired = plan.mode !== "proceed";
+  // Sanitize newlines on data-derived strings before they land in a rendered
+  // bullet (CWE-116); root cause / remediation can carry version substrings.
+  const rootCauseLine = plan.nextAction.rootCause.replace(/\r?\n/g, " ");
+  const remediationLine = plan.nextAction.remediation.replace(/\r?\n/g, " ");
+
+  if (!jsonMode) {
+    sink.raw(`Operating mode: ${operatingMode}`);
+    sink.raw(`Version reconciliation: ${reconciliation}`);
+    sink.raw(`Cross-platform engine: ${skew.line}`);
+    if (actionRequired) {
+      sink.blank();
+      sink.warn(
+        "Primary next action (resolve this first; secondary migration advice is deferred until it clears):",
+      );
+      sink.raw(`  Root cause: ${rootCauseLine}`);
+      sink.raw(
+        nextCommand
+          ? `Next command: ${nextCommand}`
+          : "Next command: (manual -- no single command)",
+      );
+      sink.raw(`  Does / why safe: ${remediationLine}`);
+    } else {
+      // Derive the proceed line from plan() so it never over-claims "aligned"
+      // in the no-pin case (Greptile #2283).
+      sink.success(`Resolution: proceed -- ${rootCauseLine}.`);
+      // Only once the primary blocker has cleared do we surface the ordered
+      // secondary notes (legacy vbrief migrate, no-pin advisory, ...).
+      for (const warning of plan.warnings) {
+        sink.info(`note: ${warning.replace(/\r?\n/g, " ")}`);
+      }
+    }
+  }
+
+  for (const finding of skew.findings) {
+    addFinding(finding);
+  }
+
+  if (actionRequired) {
+    addFinding({
+      severity: "warning",
+      message: `Next command: ${nextCommand ?? "(manual)"} -- ${rootCauseLine}`,
+      check: "resolution",
+      status: plan.mode,
+      mode: plan.mode,
+      next_command: nextCommand,
+      root_cause: rootCauseLine,
+      remediation: remediationLine,
+      operating_mode: operatingMode,
+    });
+  } else {
+    addFinding({
+      severity: "skip",
+      message: "resolution: proceed -- no primary action required",
+      check: "resolution",
+      status: "proceed",
+    });
+  }
+
+  return {
+    operatingMode,
+    reconciliation,
+    platformSkew: skew.line,
+    platformSkewDetected: skew.skewDetected,
+    mode: plan.mode,
+    actionRequired,
+    nextCommand,
+    rootCause: plan.nextAction.rootCause,
+    remediation: plan.nextAction.remediation,
+    warnings: plan.warnings,
+  };
 }
