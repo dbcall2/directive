@@ -858,5 +858,17 @@
 - **#2248** -- bug(hooks): .githooks run_deft prefers a stale global deft over the fresh local CLI in a framework-source checkout (new verbs block commits) -- `[completed]`
 - **#2256** -- bug(test): pyproject_version_freshness test flakes on a live git ls-remote (5s vitest timeout in CI) -- `[completed]`
 - **#2260** -- bug(cascade): pr:wait-mergeable-and-merge polls without merging a GitHub-mergeable PR (verdict gate diverges from mergeStateStatus; no heartbeat) -- `[completed]`
+- **#2264** -- Resolution spine: fact-set classifier + plan() contract + global-first ladder + pin (keystone) -- `[completed]`
+- **#2265** -- directive init: universal adoption dispatcher -- `[completed]`
+- **#2266** -- directive update: refresh-only + self-heal -- `[completed]`
+- **#2267** -- directive doctor: read-only, one next action with root-cause + remediation rationale -- `[completed]`
+- **#2268** -- directive init --headless: manifest emit for no-shell consumer products -- `[completed]`
+- **#2269** -- migrate --untrack-core: own the vendored->hybrid .deft/core un-commit -- `[completed]`
+- **#2270** -- migrate:xbrief: clean up ambiguous empty vbrief/xbrief roots -- `[completed]`
+- **#2271** -- USER.md / user-config resolution in mismatched + headless envs -- `[completed]`
+- **#2272** -- Cold-clone reconstitution: end-to-end acceptance test -- `[completed]`
+- **#2273** -- Cold-start bootstrap block in README + AGENTS managed section -- `[completed]`
+- **#2274** -- Rewrite README + top-level docs around init/update/doctor -- `[completed]`
 - **#2277** -- deft-core-guard allowlist omits xbrief/ paths -- blocks framework-deposit PRs on migrated projects -- `[completed]`
+- **#2197** -- First-class pnpm support for the install/upgrade path -- `[completed]`
 
