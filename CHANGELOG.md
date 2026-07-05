@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.70.0] - 2026-07-05
+
+> Adoption polish + app-sec hardening: smoother triage onboarding, one-command subscription presets, higher default WIP cap, and four Medium security findings closed.
+
+### Added
+
 - **`triage:welcome`'s onboarding flags are now discoverable in `--help` (#2302).** Running `deft triage:welcome --help` (or `task triage:welcome -- --help`) now lists `--onboard`, `--preset small|mid|mega`, and `--wip-cap N` with descriptions and an onboarding example, so the non-interactive onboarding surface shipped for #2295 is visible from the CLI instead of only in source. Refs #2302, #2295.
 - **`triage:scope --set-preset small|mid|mega` sets your whole triage subscription in one command (#2301).** Instead of adding labels and milestones one at a time, you can now apply a named subscription preset — the same `small` / `mid` / `mega` presets the onboarding flow offers — directly from `triage:scope`. It writes through the shared preset writer (so the namespaced `x-directive/policy` key, audit trail, and lock all behave identically to onboarding) and is mutually exclusive with the other mutation flags. Closes #2301. Refs #2295.
 
@@ -4064,7 +4076,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.69.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.70.0...HEAD
+[0.70.0]: https://github.com/deftai/directive/compare/v0.69.0...v0.70.0
 [0.69.0]: https://github.com/deftai/directive/compare/v0.68.1...v0.69.0
 [0.68.1]: https://github.com/deftai/directive/compare/v0.68.0...v0.68.1
 [0.68.0]: https://github.com/deftai/directive/compare/v0.67.0...v0.68.0
