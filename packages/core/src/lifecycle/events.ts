@@ -3,6 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { contentRoot } from "../content-root.js";
+import { ATTRIBUTION_REQUIRED_PAYLOAD } from "../events/attribution-constants.js";
 
 /** Default event log location (project-local). */
 export const DEFAULT_EVENT_LOG = join(".deft-cache", "events.jsonl");
@@ -10,6 +11,7 @@ export const DEFAULT_EVENT_LOG = join(".deft-cache", "events.jsonl");
 const BEHAVIORAL_CATEGORY = "behavioral";
 
 const REQUIRED_BEHAVIORAL_PAYLOAD: Readonly<Record<string, readonly string[]>> = {
+  ...ATTRIBUTION_REQUIRED_PAYLOAD,
   "session:interrupted": ["session_id", "reason"],
   "session:resumed": ["session_id", "interrupted_id"],
   "plan:approved": ["plan_ref", "approver"],
