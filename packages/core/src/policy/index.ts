@@ -1,5 +1,10 @@
 import { readPlanPolicy } from "./plan-extensions.js";
 import { coerceLegacyNarrative, LEGACY_NARRATIVE_KEY, loadProjectDefinition } from "./resolve.js";
+import {
+  FIELD_VALUE_FEEDBACK,
+  FIELD_VALUE_FEEDBACK_CLI_ALIAS,
+  inspectValueFeedback,
+} from "./value-feedback.js";
 import { DEFAULT_WIP_CAP } from "./wip.js";
 
 export * from "./agents-md-advisory.js";
@@ -9,6 +14,7 @@ export * from "./decisions.js";
 export * from "./disclosure.js";
 export * from "./plan-extensions.js";
 export * from "./resolve.js";
+export * from "./value-feedback.js";
 export * from "./wip.js";
 
 export const FIELD_ALLOW_DIRECT_COMMITS = "plan.policy.allowDirectCommitsToMaster";
@@ -242,6 +248,16 @@ function inspectSwarmSubagentBackend(data: Record<string, unknown> | null): Poli
 
 type Inspector = (data: Record<string, unknown> | null) => PolicyField;
 
+function inspectValueFeedbackField(data: Record<string, unknown> | null): PolicyField {
+  const field = inspectValueFeedback(data);
+  return {
+    name: field.name,
+    current: field.current,
+    default: field.default,
+    source: field.source,
+  };
+}
+
 const REGISTERED_POLICIES: readonly Inspector[] = [
   inspectAllowDirectCommits,
   inspectWipCap,
@@ -273,6 +289,7 @@ const REGISTERED_POLICIES: readonly Inspector[] = [
       emptyIsTyped: true,
     }),
   inspectSwarmSubagentBackend,
+  inspectValueFeedbackField,
 ];
 
 /** Walk registered inspectors and return one row per field (#1148). */
@@ -281,10 +298,11 @@ export function inspectAllPolicies(projectRoot: string): PolicyField[] {
   return REGISTERED_POLICIES.map((inspect) => inspect(data));
 }
 
-/** Look up a single registered field by canonical dotted-path name. */
+/** Look up a single registered field by canonical dotted-path name (or CLI alias). */
 export function inspectOnePolicy(name: string, projectRoot: string): PolicyField | null {
+  const normalized = name === FIELD_VALUE_FEEDBACK_CLI_ALIAS ? FIELD_VALUE_FEEDBACK : name;
   for (const field of inspectAllPolicies(projectRoot)) {
-    if (field.name === name) return field;
+    if (field.name === normalized) return field;
   }
   return null;
 }
