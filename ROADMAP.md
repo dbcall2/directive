@@ -5,106 +5,6 @@
 
 # Roadmap
 
-## Reclaim the .eval namespace for version-eval results (#1703, #1703)
-
-### 1703-eval-namespace-cleanup-a1: Resolver points to new path `[pending]`
-
-### 1703-eval-namespace-cleanup-a2: Existing cache migrated `[pending]`
-
-### 1703-eval-namespace-cleanup-a3: Namespace de-conflicted `[pending]`
-
----
-
-## Tier 0 static self-consistency aggregation (eval:health) (#1703, #1703)
-
-### 1703-tier0-health-a1: Versioned health score `[pending]`
-
-### 1703-tier0-health-a2: Contradictory-gate detector `[pending]`
-
-### 1703-tier0-health-a3: Trended over time `[pending]`
-
----
-
-## Tier 1 instrumented CRUD chokepoint telemetry (#1703, #1703)
-
-### 1703-tier1-crud-telemetry-a1: Per-operation metrics tagged by version `[pending]`
-
-### 1703-tier1-crud-telemetry-a2: Field-invention detection `[pending]`
-
-### 1703-tier1-crud-telemetry-a3: Byte-diff minimality `[pending]`
-
----
-
-## Tier 2 synthetic golden-task champion-challenger eval (#1703, #1703)
-
-### 1703-tier2-golden-eval-a1: Corpus run per model and seed `[pending]`
-
-### 1703-tier2-golden-eval-a2: Version-diff report `[pending]`
-
-### 1703-tier2-golden-eval-a3: Rotating holdout guard `[pending]`
-
----
-
-## Capability adoption registry with applicability heuristics (#1709, #1709)
-
-### 1709-adoption-registry-a1: Capability catalog with heuristics `[pending]`
-
-### 1709-adoption-registry-a2: Applicable-but-unused detection `[pending]`
-
-### 1709-adoption-registry-a3: Conservative false-positive guard `[pending]`
-
----
-
-## Attribution ledger for the four value signal classes (#1709, #1709)
-
-### 1709-attribution-ledger-a1: Four signal classes recorded `[pending]`
-
-### 1709-attribution-ledger-a2: Gated on the policy flag `[pending]`
-
-### 1709-attribution-ledger-a3: Initial sources wired `[pending]`
-
----
-
-## Budgeted awareness readbacks (session line + value:show) (#1709, #1709)
-
-### 1709-awareness-readbacks-a1: Budgeted session line `[pending]`
-
-### 1709-awareness-readbacks-a2: Pull-based value:show `[pending]`
-
-### 1709-awareness-readbacks-a3: Silence when empty `[pending]`
-
----
-
-## Gap escalation to upstream feedback (feedback:file + skill) (#1709, #1709)
-
-### 1709-gap-escalation-a1: Confirmation-gated filing `[pending]`
-
-### 1709-gap-escalation-a2: Consumer-only guard `[pending]`
-
-### 1709-gap-escalation-a3: Duplicate detection `[pending]`
-
----
-
-## Institutionalization and propagation of value-feedback rules (#1709, #1709)
-
-### 1709-institutionalization-a1: Contract-locked markers `[pending]`
-
-### 1709-institutionalization-a2: Consumer projection inherits rules `[pending]`
-
-### 1709-institutionalization-a3: Debounce reconciled `[pending]`
-
----
-
-## Opt-in typed policy gate for value feedback (default OFF) (#1709, #1709)
-
-### 1709-optin-gate-a1: Master flag gates all downstream code paths `[pending]`
-
-### 1709-optin-gate-a2: Capability-cost disclosure on enable `[pending]`
-
-### 1709-optin-gate-a3: Policy reader surface `[pending]`
-
----
-
 ## Completed
 
 - **#365** -- bdd strategy: move context and scenarios to vbrief; remove specs/ folder -- `[completed]`
@@ -971,6 +871,16 @@
 - **#2274** -- Rewrite README + top-level docs around init/update/doctor -- `[completed]`
 - **#2277** -- deft-core-guard allowlist omits xbrief/ paths -- blocks framework-deposit PRs on migrated projects -- `[completed]`
 - **#2197** -- First-class pnpm support for the install/upgrade path -- `[completed]`
+- **#1703** -- Reclaim the .eval namespace for version-eval results -- `[completed]`
+- **#1703** -- Tier 0 static self-consistency aggregation (eval:health) -- `[completed]`
+- **#1703** -- Tier 1 instrumented CRUD chokepoint telemetry -- `[completed]`
+- **#1703** -- Tier 2 synthetic golden-task champion-challenger eval -- `[completed]`
+- **#1709** -- Capability adoption registry with applicability heuristics -- `[completed]`
+- **#1709** -- Attribution ledger for the four value signal classes -- `[completed]`
+- **#1709** -- Budgeted awareness readbacks (session line + value:show) -- `[completed]`
+- **#1709** -- Gap escalation to upstream feedback (feedback:file + skill) -- `[completed]`
+- **#1709** -- Institutionalization and propagation of value-feedback rules -- `[completed]`
+- **#1709** -- Opt-in typed policy gate for value feedback (default OFF) -- `[completed]`
 - **#2294** -- Doctor-harden version reporting when VERSION manifest tag/ref is empty -- `[completed]`
 - **#2295** -- Implement triage:welcome --onboard in the TS CLI (kill the dead-end nudge loop) -- `[completed]`
 - **#2297** -- Durable, self-documenting frozen pre-v0.20 migration path (cheap-durable variant) -- `[completed]`
@@ -979,5 +889,8 @@
 - **#2302** -- triage:welcome papercuts -- layout-aware not-found warnings, cache passthrough guard, help text -- `[completed]`
 - **#2308** -- orchestrator reaches for Cursor bugbot/security-review subagents instead of deft-directive-review-cycle (review-surface precedence) -- `[completed]`
 - **#2319** -- Raise framework default WIP cap from 10 to 20 -- `[completed]`
+- **#2337** -- Add Taskfile aliases for policy:enable-value-feedback, value:show, triage:metrics -- `[completed]`
+- **#2338** -- #2338: Fix stale triage:metrics help text -- `[completed]`
+- **#2339** -- Wire adoption/bypass/friction attribution detectors (#2339) -- `[completed]`
 - **#2279** -- Security omnibus: close four Medium findings from the 2026-07-03 app-sec review -- `[completed]`
 

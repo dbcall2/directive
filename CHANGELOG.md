@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.71.0] - 2026-07-06
+
+> Opt-in value-feedback attribution and a three-tier framework-eval surface land for maintainers, alongside triage-cache relocation and value-feedback command/alias fixes.
+
+### Added
+
 - **Eval framework discoverability (#1703).** Agents now learn the tiered eval surface from AGENTS.md: Tier 0 `task eval:health`, automatic Tier 1 CRUD telemetry, and Tier 2 `eval:run` / `eval:report`. Session start emits a budgeted `[eval]` advisory when health degrades or a contradictory gate fires, and `task triage:help` documents all three eval verbs. Closes #2336.
 
 ### Fixed
@@ -4099,7 +4111,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.70.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.71.0...HEAD
+[0.71.0]: https://github.com/deftai/directive/compare/v0.70.0...v0.71.0
 [0.70.0]: https://github.com/deftai/directive/compare/v0.69.0...v0.70.0
 [0.69.0]: https://github.com/deftai/directive/compare/v0.68.1...v0.69.0
 [0.68.1]: https://github.com/deftai/directive/compare/v0.68.0...v0.68.1
