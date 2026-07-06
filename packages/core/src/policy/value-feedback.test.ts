@@ -114,6 +114,51 @@ describe("resolveValueFeedback defaults", () => {
   });
 });
 
+describe("resolveValueFeedback trusted-org auto-enable (#2376)", () => {
+  it("auto-enables local emit + sessionLine for a deftai origin when the flag is absent", () => {
+    const root = makeRepo({ policy: { wipCap: 10 } });
+    const resolved = resolveValueFeedback(root, {
+      autoEnable: { repoResolver: () => "deftai/statusreport" },
+    });
+    expect(resolved.source).toBe("org-auto");
+    expect(resolved.enabled).toBe(true);
+    expect(resolved.emitEvents).toBe(true);
+    expect(resolved.sessionLine).toBe(true);
+    expect(resolved.upstreamPrompt).toBe(false);
+  });
+
+  it("stays OFF for a non-trusted org", () => {
+    const root = makeRepo({ policy: { wipCap: 10 } });
+    const resolved = resolveValueFeedback(root, {
+      autoEnable: { repoResolver: () => "someone-else/proj" },
+    });
+    expect(resolved.source).toBe("default");
+    expect(resolved.enabled).toBe(false);
+    expect(resolved.emitEvents).toBe(false);
+  });
+
+  it("stays OFF (fail-safe) when no origin remote resolves", () => {
+    const root = makeRepo({ policy: { wipCap: 10 } });
+    const resolved = resolveValueFeedback(root, {
+      autoEnable: { repoResolver: () => null },
+    });
+    expect(resolved.source).toBe("default");
+    expect(resolved.enabled).toBe(false);
+  });
+
+  it("an explicit typed enabled:false wins over trusted-org auto-enable", () => {
+    const root = makeRepo({
+      policy: { valueFeedback: { enabled: false, emitEvents: true } },
+    });
+    const resolved = resolveValueFeedback(root, {
+      autoEnable: { repoResolver: () => "deftai/directive" },
+    });
+    expect(resolved.source).toBe("typed");
+    expect(resolved.enabled).toBe(false);
+    expect(resolved.emitEvents).toBe(false);
+  });
+});
+
 describe("isValueFeedbackPathAllowed master gate", () => {
   it("rejects every path when enabled is false", () => {
     const policy = resolveValueFeedback(makeRepo());
@@ -242,5 +287,44 @@ describe("policy:show --field=valueFeedback reader", () => {
       upstreamPrompt: false,
     });
     expect(field.source).toBe("default");
+  });
+
+  it("inspectValueFeedback mirrors org-auto so policy:show never lies for deftai repos (#2377)", () => {
+    const data = { plan: { title: "T", status: "running", items: [], policy: { wipCap: 10 } } };
+    const field = inspectValueFeedback(data, "/some/root", {
+      autoEnable: { repoResolver: () => "deftai/statusreport" },
+    });
+    expect(field.source).toBe("org-auto");
+    expect(field.current).toEqual({
+      enabled: true,
+      emitEvents: true,
+      sessionLine: true,
+      upstreamPrompt: false,
+    });
+  });
+
+  it("inspectValueFeedback stays default for a non-trusted org with no explicit block (#2377)", () => {
+    const data = { plan: { title: "T", status: "running", items: [], policy: { wipCap: 10 } } };
+    const field = inspectValueFeedback(data, "/some/root", {
+      autoEnable: { repoResolver: () => "someone-else/proj" },
+    });
+    expect(field.source).toBe("default");
+    expect(field.current.enabled).toBe(false);
+  });
+
+  it("inspectValueFeedback: explicit typed enabled:false wins over org-auto (#2377)", () => {
+    const data = {
+      plan: {
+        title: "T",
+        status: "running",
+        items: [],
+        policy: { valueFeedback: { enabled: false } },
+      },
+    };
+    const field = inspectValueFeedback(data, "/some/root", {
+      autoEnable: { repoResolver: () => "deftai/directive" },
+    });
+    expect(field.source).toBe("typed");
+    expect(field.current.enabled).toBe(false);
   });
 });

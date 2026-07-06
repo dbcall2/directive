@@ -6,6 +6,7 @@ import {
   type ValueFeedbackResolved,
 } from "../policy/value-feedback.js";
 import { ATTRIBUTION_EVENT_NAMES, type AttributionEventName } from "./attribution-constants.js";
+import { buildAttributionEnrichment } from "./attribution-enrichment.js";
 
 export {
   ALL_ATTRIBUTION_EVENT_NAMES,
@@ -55,11 +56,15 @@ export function emitAttributionSignal(
     }
     const signalClass = signalClassForEvent(name);
     const logPath = resolveLedgerLogPath(options.projectRoot, options.logPath);
+    const enrichment = buildAttributionEnrichment(options.projectRoot);
+    // Authoritative fields (signal_class + provenance enrichment) are spread LAST
+    // so a caller payload can never silently shadow them (#2377 review).
     return emit(
       name,
       {
-        signal_class: signalClass,
         ...payload,
+        signal_class: signalClass,
+        ...enrichment,
       },
       { logPath },
     );

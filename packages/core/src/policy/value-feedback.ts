@@ -5,6 +5,7 @@ import {
 } from "../vbrief-build/project-definition-io.js";
 import { migrateLegacyPolicyKey, PLAN_POLICY_KEY, readPlanPolicy } from "./plan-extensions.js";
 import { appendAuditLog, loadProjectDefinition, projectDefinitionPath } from "./resolve.js";
+import { isTrustedOrgAutoEnable, type OrgAutoEnableOptions } from "./value-feedback-autoenable.js";
 
 /** Canonical registered policy field name (matches other FIELD_* dotted paths). */
 export const FIELD_VALUE_FEEDBACK = "plan.policy.valueFeedback";
@@ -30,7 +31,7 @@ export interface ValueFeedbackConfig {
   readonly upstreamPrompt: boolean;
 }
 
-export type ValueFeedbackSource = "typed" | "default" | "default-on-error";
+export type ValueFeedbackSource = "typed" | "org-auto" | "default" | "default-on-error";
 
 export interface ValueFeedbackResolved extends ValueFeedbackConfig {
   readonly source: ValueFeedbackSource;
@@ -60,6 +61,21 @@ function defaultResolved(
     upstreamPrompt: false,
     source,
     error,
+  };
+}
+
+/**
+ * Trusted-org auto-enable resolution (#2376): LOCAL emit + session readback ON,
+ * network/upstream OFF. Applies only when the typed flag is absent.
+ */
+function orgAutoResolved(): ValueFeedbackResolved {
+  return {
+    enabled: true,
+    emitEvents: VALUE_FEEDBACK_SUBFLAG_DEFAULTS_WHEN_ENABLED.emitEvents,
+    sessionLine: VALUE_FEEDBACK_SUBFLAG_DEFAULTS_WHEN_ENABLED.sessionLine,
+    upstreamPrompt: false,
+    source: "org-auto",
+    error: null,
   };
 }
 
@@ -126,8 +142,24 @@ function resolveFromPolicyBlock(raw: unknown): ValueFeedbackResolved {
   };
 }
 
-/** Resolve `plan.policy.valueFeedback` from PROJECT-DEFINITION (#1709). */
-export function resolveValueFeedback(projectRoot: string): ValueFeedbackResolved {
+export interface ResolveValueFeedbackOptions {
+  /** Test seam for origin-org auto-enable resolution (#2376). */
+  readonly autoEnable?: OrgAutoEnableOptions;
+}
+
+/**
+ * Resolve `plan.policy.valueFeedback` from PROJECT-DEFINITION (#1709).
+ *
+ * Precedence (#2376): an explicit typed `valueFeedback` block always wins
+ * (including `enabled: false`). Only when the typed flag is ABSENT does the
+ * trusted-org auto-enable layer apply -- for company-owned (deftai) repos it
+ * turns LOCAL emit + session readback ON while leaving network/upstream OFF.
+ * Any other repo (or no origin remote) stays OFF.
+ */
+export function resolveValueFeedback(
+  projectRoot: string,
+  options: ResolveValueFeedbackOptions = {},
+): ValueFeedbackResolved {
   const [data, err] = loadProjectDefinition(projectRoot);
   if (data === null) {
     return defaultResolved("default-on-error", err);
@@ -139,6 +171,9 @@ export function resolveValueFeedback(projectRoot: string): ValueFeedbackResolved
     Array.isArray(policyBlock) ||
     !("valueFeedback" in (policyBlock as Record<string, unknown>))
   ) {
+    if (isTrustedOrgAutoEnable(projectRoot, options.autoEnable)) {
+      return orgAutoResolved();
+    }
     return defaultResolved("default");
   }
   return resolveFromPolicyBlock((policyBlock as Record<string, unknown>).valueFeedback);
@@ -184,49 +219,7 @@ export interface ValueFeedbackPolicyField {
   readonly source: string;
 }
 
-function defaultInspectorConfig(): ValueFeedbackConfig {
-  const defaults = defaultResolved("default");
-  return {
-    enabled: defaults.enabled,
-    emitEvents: defaults.emitEvents,
-    sessionLine: defaults.sessionLine,
-    upstreamPrompt: defaults.upstreamPrompt,
-  };
-}
-
-function buildDefaultInspectorField(): ValueFeedbackPolicyField {
-  return {
-    name: FIELD_VALUE_FEEDBACK,
-    current: defaultInspectorConfig(),
-    default: {
-      enabled: DEFAULT_VALUE_FEEDBACK_ENABLED,
-      emitEvents: false,
-      sessionLine: false,
-      upstreamPrompt: false,
-    },
-    source: "default",
-  };
-}
-
-/** Inspector row for `policy:show --field=valueFeedback`. */
-export function inspectValueFeedback(
-  data: Record<string, unknown> | null,
-): ValueFeedbackPolicyField {
-  if (data === null) {
-    return buildDefaultInspectorField();
-  }
-
-  const policyBlock = readPlanPolicy(data.plan);
-  if (
-    typeof policyBlock !== "object" ||
-    policyBlock === null ||
-    Array.isArray(policyBlock) ||
-    !("valueFeedback" in (policyBlock as Record<string, unknown>))
-  ) {
-    return buildDefaultInspectorField();
-  }
-
-  const resolved = resolveFromPolicyBlock((policyBlock as Record<string, unknown>).valueFeedback);
+function fieldFromResolved(resolved: ValueFeedbackResolved): ValueFeedbackPolicyField {
   return {
     name: FIELD_VALUE_FEEDBACK,
     current: {
@@ -243,6 +236,46 @@ export function inspectValueFeedback(
     },
     source: resolved.source,
   };
+}
+
+export interface InspectValueFeedbackOptions {
+  /** Test seam for origin-org auto-enable resolution (#2376). */
+  readonly autoEnable?: OrgAutoEnableOptions;
+}
+
+/**
+ * Inspector row for `policy:show --field=valueFeedback`.
+ *
+ * When `projectRoot` is supplied this MUST mirror {@link resolveValueFeedback}'s
+ * precedence exactly (#2377 review): with no explicit typed block, a trusted-org
+ * checkout resolves to `org-auto`/ON so `policy:show` never reports OFF while the
+ * ledger is actively collecting. Omitting `projectRoot` keeps the legacy
+ * data-only behavior for callers that only need the field name/shape.
+ */
+export function inspectValueFeedback(
+  data: Record<string, unknown> | null,
+  projectRoot?: string,
+  options: InspectValueFeedbackOptions = {},
+): ValueFeedbackPolicyField {
+  if (data === null) {
+    return fieldFromResolved(defaultResolved("default"));
+  }
+
+  const policyBlock = readPlanPolicy(data.plan);
+  if (
+    typeof policyBlock !== "object" ||
+    policyBlock === null ||
+    Array.isArray(policyBlock) ||
+    !("valueFeedback" in (policyBlock as Record<string, unknown>))
+  ) {
+    if (projectRoot !== undefined && isTrustedOrgAutoEnable(projectRoot, options.autoEnable)) {
+      return fieldFromResolved(orgAutoResolved());
+    }
+    return fieldFromResolved(defaultResolved("default"));
+  }
+
+  const resolved = resolveFromPolicyBlock((policyBlock as Record<string, unknown>).valueFeedback);
+  return fieldFromResolved(resolved);
 }
 
 export interface EnableValueFeedbackOptions {
