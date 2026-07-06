@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.71.1] - 2026-07-06
+
+> Every structured agent question now offers a Discuss/Back escape, alongside triage-cache path cleanups and a batch of reconcile, ingest, and changelog-check correctness fixes.
+
+### Added
+
 - Every structured or numbered agent question now carries an always-loaded Discuss/Back escape: AGENTS.md and the consumer template state the runtime obligation, the orchestrator preamble adds a pre-prompt self-check, and contract tests verify propagation. Closes #1470. Refs #767.
 
 ### Changed
@@ -4123,7 +4135,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.71.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.71.1...HEAD
+[0.71.1]: https://github.com/deftai/directive/compare/v0.71.0...v0.71.1
 [0.71.0]: https://github.com/deftai/directive/compare/v0.70.0...v0.71.0
 [0.70.0]: https://github.com/deftai/directive/compare/v0.69.0...v0.70.0
 [0.69.0]: https://github.com/deftai/directive/compare/v0.68.1...v0.69.0

@@ -893,4 +893,8 @@
 - **#2338** -- #2338: Fix stale triage:metrics help text -- `[completed]`
 - **#2339** -- Wire adoption/bypass/friction attribution detectors (#2339) -- `[completed]`
 - **#2279** -- Security omnibus: close four Medium findings from the 2026-07-03 app-sec review -- `[completed]`
+- **#1470** -- discussion: ALL deterministic questioning MUST carry a stop-and-discuss (Discuss + Back) escape -- enforce #767 contract on the agent-runtime surface -- `[completed]`
+- **#2344** -- Stray operator-private artifacts + gitignore gap in reclaimed .eval/ namespace (#1703) -- `[completed]`
+- **#2349** -- docs: v0.71.0 triage-cache relocation (.eval/ -> .triage-cache/) undocumented in UPGRADING.md + stale .eval/ paths across docs (#1703) -- `[completed]`
+- **#2350** -- bug(triage): deft triage:accept broken — delegates to removed legacy Python issue_ingest (ModuleNotFoundError), blocks verify:cache-fresh dispatch gate -- `[completed]`
 
