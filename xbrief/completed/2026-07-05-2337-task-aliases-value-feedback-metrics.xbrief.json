@@ -6,7 +6,7 @@
   "plan": {
     "id": "2337-task-aliases",
     "title": "Add Taskfile aliases for policy:enable-value-feedback, value:show, triage:metrics",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Several documented value-feedback commands exist on the deft CLI but lack tasks/*.yml wrappers, so `task policy:enable-value-feedback`, `task value:show`, and `task triage:metrics` fail with task not found. Add the missing Taskfile entries forwarding {{.CLI_ARGS}} to the engine and a contract test guarding the value/metrics surface.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2337",
@@ -18,18 +18,20 @@
       {
         "id": "2337-a1-aliases",
         "title": "Taskfile aliases resolve for all three commands",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "`task policy:enable-value-feedback`, `task value:show`, and `task triage:metrics` are listed by go-task and forward CLI_ARGS to the engine."
-        }
+        },
+        "completed": "2026-07-06T00:55:56Z"
       },
       {
         "id": "2337-a2-contract",
         "title": "Contract test guards value/metrics task surface",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "A deterministic test fails when any documented value-feedback `task` name from AGENTS.md / templates is missing from the Taskfile surface."
-        }
+        },
+        "completed": "2026-07-06T00:55:56Z"
       }
     ],
     "references": [
@@ -43,6 +45,9 @@
       "kind": "story",
       "capacityBucket": "agentic-debt"
     },
-    "updated": "2026-07-05T23:13:28Z"
+    "updated": "2026-07-06T00:55:56Z"
+  },
+  "vBRIEFInfo": {
+    "updated": "2026-07-06T00:55:56Z"
   }
 }

@@ -3,12 +3,12 @@
     "version": "0.6",
     "description": "Wire adoption/bypass/friction attribution detectors (#2339) — production emitters gated on valueFeedback.emitEvents.",
     "created": "2026-07-05T23:15:00Z",
-    "updated": "2026-07-05T23:15:00Z"
+    "updated": "2026-07-06T00:55:56Z"
   },
   "plan": {
     "id": "2339-wire-attribution-detectors",
     "title": "Wire adoption/bypass/friction attribution detectors (#2339)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Problem": "The #1709 attribution ledger defines four signal classes but only value-class emitters are wired in branch and wip-cap gates. Adoption, bypass, and friction classes exist as API only.",
       "Overview": "Wire production detectors for bypass (gate overrides), adoption (registry at session boundary), and friction (contradictory gates), all gated on plan.policy.valueFeedback.emitEvents.",
@@ -19,17 +19,20 @@
       {
         "id": "bypass-detectors",
         "title": "Emit bypass:off-flow on env-bypass and --allow-over-cap paths",
-        "status": "pending"
+        "status": "completed",
+        "completed": "2026-07-06T00:55:56Z"
       },
       {
         "id": "adoption-detector",
         "title": "Invoke adoption registry at session readback boundary",
-        "status": "pending"
+        "status": "completed",
+        "completed": "2026-07-06T00:55:56Z"
       },
       {
         "id": "friction-detector",
         "title": "Emit friction:directive-gap from contradictory-gate detection",
-        "status": "pending"
+        "status": "completed",
+        "completed": "2026-07-06T00:55:56Z"
       }
     ],
     "metadata": {
@@ -50,6 +53,6 @@
         "title": "Issue #2339: Wire adoption/bypass/friction attribution detectors"
       }
     ],
-    "updated": "2026-07-05T23:15:11Z"
+    "updated": "2026-07-06T00:55:56Z"
   }
 }
