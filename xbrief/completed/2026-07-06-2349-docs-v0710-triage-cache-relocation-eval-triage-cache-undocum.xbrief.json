@@ -1,11 +1,12 @@
 {
   "xBRIEFInfo": {
     "version": "0.8",
-    "description": "Scope xBRIEF ingested from GitHub issue #2349"
+    "description": "Scope xBRIEF ingested from GitHub issue #2349",
+    "updated": "2026-07-06T15:52:38Z"
   },
   "plan": {
     "title": "docs: v0.71.0 triage-cache relocation (.eval/ -> .triage-cache/) undocumented in UPGRADING.md + stale .eval/ paths across docs (#1703)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "docs: v0.71.0 triage-cache relocation (.eval/ -> .triage-cache/) undocumented in UPGRADING.md + stale .eval/ paths across docs (#1703)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2349",
@@ -29,6 +30,6 @@
         "title": "Issue #1703"
       }
     ],
-    "updated": "2026-07-06T13:36:23Z"
+    "updated": "2026-07-06T15:52:38Z"
   }
 }

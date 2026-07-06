@@ -1,11 +1,12 @@
 {
   "xBRIEFInfo": {
     "version": "0.8",
-    "description": "Scope xBRIEF ingested from GitHub issue #2350"
+    "description": "Scope xBRIEF ingested from GitHub issue #2350",
+    "updated": "2026-07-06T15:52:38Z"
   },
   "plan": {
     "title": "bug(triage): deft triage:accept broken — delegates to removed legacy Python issue_ingest (ModuleNotFoundError), blocks verify:cache-fresh dispatch gate",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "bug(triage): deft triage:accept broken — delegates to removed legacy Python issue_ingest (ModuleNotFoundError), blocks verify:cache-fresh dispatch gate",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2350",
@@ -26,6 +27,6 @@
         "title": "Issue #2350: bug(triage): deft triage:accept broken — delegates to removed legacy Python issue_ingest (ModuleNotFoundError), blocks verify:cache-fresh dispatch gate"
       }
     ],
-    "updated": "2026-07-06T13:00:18Z"
+    "updated": "2026-07-06T15:52:38Z"
   }
 }

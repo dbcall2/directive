@@ -1,11 +1,12 @@
 {
   "xBRIEFInfo": {
     "version": "0.8",
-    "description": "Scope xBRIEF ingested from GitHub issue #1470"
+    "description": "Scope xBRIEF ingested from GitHub issue #1470",
+    "updated": "2026-07-06T15:52:38Z"
   },
   "plan": {
     "title": "discussion: ALL deterministic questioning MUST carry a stop-and-discuss (Discuss + Back) escape -- enforce #767 contract on the agent-runtime surface",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "discussion: ALL deterministic questioning MUST carry a stop-and-discuss (Discuss + Back) escape -- enforce #767 contract on the agent-runtime surface",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1470",
@@ -15,19 +16,23 @@
     "items": [
       {
         "title": "The \"every deterministic question carries Discuss + Back\" invariant is stated for the agent-runtime surface in an always-loaded location (AGENTS.md managed section + template mirror).",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-07-06T15:52:38Z"
       },
       {
         "title": "`contracts/deterministic-questions.md` scope text explicitly names agent-initiated `ask_user_question` prompts.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-07-06T15:52:38Z"
       },
       {
         "title": "There is a named enforcement or self-check mechanism for the runtime surface (not only the prose-scanning test).",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-07-06T15:52:38Z"
       },
       {
         "title": "The #212-style reproduction no longer occurs: an orchestrator walking decisions presents `Discuss` and `Back` on every structured prompt.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-07-06T15:52:38Z"
       }
     ],
     "tags": [
@@ -44,6 +49,6 @@
         "title": "Issue #1470: discussion: ALL deterministic questioning MUST carry a stop-and-discuss (Discuss + Back) escape -- enforce #767 contract on the agent-runtime surface"
       }
     ],
-    "updated": "2026-07-06T13:36:28Z"
+    "updated": "2026-07-06T15:52:38Z"
   }
 }
