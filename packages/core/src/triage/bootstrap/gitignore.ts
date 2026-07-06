@@ -176,6 +176,13 @@ operators should know:
 - \`scripts/candidates_log.py\` -- the writer for \`candidates.jsonl\`.
 `;
 
+/** Layout-aware triage-cache README body for the active lifecycle tree (#2344 / #2349). */
+export function generateTriageCacheReadmeBody(projectRoot: string): string {
+  const layout = resolveLifecycleLayout(projectRoot);
+  const triagePrefix = `${layout.artifactDir}/${TRIAGE_CACHE_DIR_NAME}`;
+  return EVAL_README_BODY.replaceAll("vbrief/.triage-cache", triagePrefix);
+}
+
 function stepOutcome(
   name: string,
   ok: boolean,
@@ -444,7 +451,15 @@ function ensureGitattributesMergeUnion(
   });
 }
 
-function ensureEvalReadme(readmePath: string, readmeRel: string, stepName: string): StepOutcome {
+interface EnsureEvalReadmeOptions {
+  readonly projectRoot: string;
+  readonly readmePath: string;
+  readonly readmeRel: string;
+  readonly stepName: string;
+}
+
+function ensureEvalReadme(options: EnsureEvalReadmeOptions): StepOutcome {
+  const { projectRoot, readmePath, readmeRel, stepName } = options;
   try {
     readFileSync(readmePath, { encoding: "utf8" });
     return stepOutcome(stepName, true, `${readmeRel} already present (no-op)`, {
@@ -457,7 +472,7 @@ function ensureEvalReadme(readmePath: string, readmeRel: string, stepName: strin
 
   try {
     mkdirSync(dirname(readmePath), { recursive: true });
-    writeFileSync(readmePath, EVAL_README_BODY, { encoding: "utf8" });
+    writeFileSync(readmePath, generateTriageCacheReadmeBody(projectRoot), { encoding: "utf8" });
   } catch (exc) {
     return stepOutcome(
       stepName,
@@ -500,7 +515,7 @@ export function stepEnsureGitignoreEvalEntries(projectRoot: string): StepOutcome
   }
   Object.assign(details, gaResult.details);
 
-  const rdResult = ensureEvalReadme(readmePath, readmeRel, stepName);
+  const rdResult = ensureEvalReadme({ projectRoot, readmePath, readmeRel, stepName });
   if (!rdResult.ok) {
     Object.assign(details, rdResult.details);
     return stepOutcome(stepName, false, rdResult.message, details, rdResult.error ?? null);
