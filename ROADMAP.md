@@ -897,4 +897,5 @@
 - **#2344** -- Stray operator-private artifacts + gitignore gap in reclaimed .eval/ namespace (#1703) -- `[completed]`
 - **#2349** -- docs: v0.71.0 triage-cache relocation (.eval/ -> .triage-cache/) undocumented in UPGRADING.md + stale .eval/ paths across docs (#1703) -- `[completed]`
 - **#2350** -- bug(triage): deft triage:accept broken — delegates to removed legacy Python issue_ingest (ModuleNotFoundError), blocks verify:cache-fresh dispatch gate -- `[completed]`
+- **#2376** -- feat(value-feedback): enrich attribution events + trusted-org auto-enable of local collection (Refs #1709) -- `[completed]`
 

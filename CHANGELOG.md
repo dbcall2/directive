@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.72.0] - 2026-07-06
+
+> deftai-org repos auto-enable local no-egress value-feedback collection; every attribution event now carries repo, directive version, install id, and schema version.
+
+### Added
+
 - **Company-owned repos auto-enable local value feedback.** Repositories whose GitHub origin belongs to a trusted org (built-in `deftai`, extendable via `DEFT_VALUE_AUTOENABLE_ORGS`) now switch on local, no-egress value-feedback collection automatically -- org membership is the consent, while network/upstream escalation stays opt-in. Every attribution event is now stamped with its repo, the directive version, a stable per-checkout install id, and a schema version so the local ledgers can be aggregated later without re-deriving provenance. Refs #1709, #2376.
 
 ### Changed
@@ -4137,7 +4149,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.71.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.72.0...HEAD
+[0.72.0]: https://github.com/deftai/directive/compare/v0.71.1...v0.72.0
 [0.71.1]: https://github.com/deftai/directive/compare/v0.71.0...v0.71.1
 [0.71.0]: https://github.com/deftai/directive/compare/v0.70.0...v0.71.0
 [0.70.0]: https://github.com/deftai/directive/compare/v0.69.0...v0.70.0
