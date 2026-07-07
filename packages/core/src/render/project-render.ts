@@ -418,29 +418,44 @@ export function acknowledgeProjectDefinitionStaleness(
   });
 }
 
+const USAGE = "Usage: project-render [--help] [--acknowledge-staleness] [--project-root <dir>]\n";
+
 /** CLI entry (mirrors ``scripts/project_render.main``). */
 export function main(argv: readonly string[]): number {
-  const acknowledge = argv[0] === "--acknowledge-staleness";
-  const rest = acknowledge ? argv.slice(1) : argv;
+  // Handle --help / -h before any other parsing so the flag is never treated
+  // as a positional output path and no stray ./--help/ directory is created
+  // (#2236).
+  if (argv.includes("--help") || argv.includes("-h")) {
+    process.stdout.write(USAGE);
+    return 0;
+  }
 
+  // Parse all flags in a single positional-independent pass so that
+  // --acknowledge-staleness is recognised at any position (not only argv[0]).
+  let acknowledge = false;
   let projectRoot: string | undefined;
   const positional: string[] = [];
-  for (let i = 0; i < rest.length; i += 1) {
-    const arg = rest[i] as string;
-    if (arg === "--project-root") {
-      projectRoot = rest[i + 1] as string | undefined;
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i] as string;
+    if (arg === "--acknowledge-staleness") {
+      acknowledge = true;
+    } else if (arg === "--project-root") {
+      projectRoot = argv[i + 1] as string | undefined;
       i += 1;
     } else if (arg.startsWith("--project-root=")) {
       projectRoot = arg.slice("--project-root=".length);
+    } else if (arg.startsWith("-")) {
+      // Reject unknown flags rather than consuming them as positional output
+      // paths (would otherwise create stray directories like ./--help/).
+      process.stderr.write(`Unknown flag: ${arg}\n${USAGE}`);
+      return 2;
     } else {
       positional.push(arg);
     }
   }
 
   if (positional.length > 1) {
-    process.stderr.write(
-      "Usage: project-render [--acknowledge-staleness] [--project-root <dir>] [vbrief_dir]\n",
-    );
+    process.stderr.write(USAGE);
     return 2;
   }
 
