@@ -22,8 +22,8 @@ describe("swarm coverage boost", () => {
 
   it("covers resolve cohort paths and empty sweep", () => {
     const project = mkdtempSync(join(tmpdir(), "sw-cov-"));
-    mkdirSync(join(project, "vbrief", "active"), { recursive: true });
-    const story = join(project, "vbrief", "active", "x.vbrief.json");
+    mkdirSync(join(project, "xbrief", "active"), { recursive: true });
+    const story = join(project, "xbrief", "active", "x.xbrief.json");
     writeFileSync(story, JSON.stringify({ plan: { status: "running", items: [] } }), "utf8");
     const { paths } = resolveCohortPaths([story], [], project);
     expect(paths.length).toBe(1);
@@ -34,7 +34,7 @@ describe("swarm coverage boost", () => {
 
   it("covers launch gate seams and resolve errors", () => {
     const project = mkdtempSync(join(tmpdir(), "sw-lch-"));
-    mkdirSync(join(project, "vbrief", "active"), { recursive: true });
+    mkdirSync(join(project, "xbrief", "active"), { recursive: true });
     const { errors } = resolveStories(project, ["missing-id"]);
     expect(errors.length).toBe(1);
     const [runtimeMode, authMode] = defaultRuntimeAuthProbe();
@@ -73,14 +73,32 @@ describe("swarm coverage boost", () => {
 
   it("covers expandReadinessPaths default glob", () => {
     const project = mkdtempSync(join(tmpdir(), "sw-exp-"));
-    mkdirSync(join(project, "vbrief", "active"), { recursive: true });
+    mkdirSync(join(project, "xbrief", "active"), { recursive: true });
     writeFileSync(
-      join(project, "vbrief", "active", "z.vbrief.json"),
+      join(project, "xbrief", "active", "z.xbrief.json"),
       JSON.stringify({ plan: { id: "z", status: "running", items: [] } }),
       "utf8",
     );
     const paths = expandReadinessPaths(project, []);
-    expect(paths.some((p) => p.endsWith("z.vbrief.json"))).toBe(true);
+    expect(paths.some((p) => p.endsWith("z.xbrief.json"))).toBe(true);
+    rmSync(project, { recursive: true, force: true });
+  });
+
+  it("expandReadinessPaths returns empty list when no xbrief/ or vbrief/ present", () => {
+    // Covers the catch-block `return []` branch in expandPaths (#2112).
+    const project = mkdtempSync(join(tmpdir(), "sw-empty-"));
+    const paths = expandReadinessPaths(project, []);
+    expect(paths).toEqual([]);
+    rmSync(project, { recursive: true, force: true });
+  });
+
+  it("expandReadinessPaths handles xbrief/ dir with no artifacts yet", () => {
+    // Covers the catch-block `existsSync(xbriefDir)` truthy branch in expandPaths (#2112).
+    const project = mkdtempSync(join(tmpdir(), "sw-emptybrief-"));
+    mkdirSync(join(project, "xbrief", "active"), { recursive: true });
+    // No .xbrief.json files → resolveLifecycleLayout throws, but xbrief/ dir exists
+    const paths = expandReadinessPaths(project, []);
+    expect(paths).toEqual([]);
     rmSync(project, { recursive: true, force: true });
   });
 
@@ -101,7 +119,8 @@ describe("swarm coverage boost", () => {
 
   it("covers completeCohort json empty path", () => {
     const project = mkdtempSync(join(tmpdir(), "sw-cc-"));
-    mkdirSync(join(project, "vbrief"), { recursive: true });
+    mkdirSync(join(project, "xbrief"), { recursive: true });
+    writeFileSync(join(project, "xbrief", "seed.xbrief.json"), "{}", { encoding: "utf8" });
     const result = completeCohort({ projectRoot: project, stories: [], emitJson: true });
     expect(result.exitCode).toBe(2);
     rmSync(project, { recursive: true, force: true });
@@ -112,7 +131,7 @@ describe("swarm coverage boost", () => {
       token: "1",
       story_id: "s",
       path: "/x",
-      relpath: "vbrief/active/x.vbrief.json",
+      relpath: "xbrief/active/x.xbrief.json",
     };
     const fail = enforceGates(
       [story],

@@ -25,12 +25,12 @@ import {
 import { countVbriefWip, DEFAULT_WIP_CAP, resolveWipCap } from "./wip.js";
 
 function writeProjectDef(root: string, plan: Record<string, unknown>): void {
-  const dir = join(root, "vbrief");
+  const dir = join(root, "xbrief");
   mkdirSync(dir, { recursive: true });
   writeFileSync(
-    join(dir, "PROJECT-DEFINITION.vbrief.json"),
+    join(dir, "PROJECT-DEFINITION.xbrief.json"),
     JSON.stringify({
-      vBRIEFInfo: { version: "0.6" },
+      xBRIEFInfo: { version: "0.8" },
       plan: { title: "T", status: "running", items: [], ...plan },
     }),
     { encoding: "utf8" },
@@ -47,7 +47,8 @@ describe("resolvePolicy", () => {
   function root(): string {
     const r = mkdtempSync(join(tmpdir(), "deft-policy-resolve-"));
     roots.push(r);
-    mkdirSync(join(r, "vbrief"), { recursive: true });
+    mkdirSync(join(r, "xbrief"), { recursive: true });
+    writeFileSync(join(r, "xbrief", "seed.xbrief.json"), "{}", { encoding: "utf8" });
     return r;
   }
 
@@ -130,7 +131,7 @@ describe("resolvePolicy", () => {
   it("rejects non-object plan", () => {
     const r = root();
     writeFileSync(
-      join(r, "vbrief", "PROJECT-DEFINITION.vbrief.json"),
+      join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
       JSON.stringify({ plan: [] }),
       { encoding: "utf8" },
     );
@@ -146,7 +147,7 @@ describe("resolvePolicy", () => {
 
   it("surfaces JSON parse errors", () => {
     const r = root();
-    writeFileSync(join(r, "vbrief", "PROJECT-DEFINITION.vbrief.json"), "not-json", {
+    writeFileSync(join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"), "not-json", {
       encoding: "utf8",
     });
     expect(resolvePolicy(r).error).toContain("not valid JSON");
@@ -240,9 +241,9 @@ describe("setPolicy", () => {
   it("throws when setPolicy plan is not object", () => {
     const r = mkdtempSync(join(tmpdir(), "deft-policy-badplan-"));
     roots.push(r);
-    mkdirSync(join(r, "vbrief"), { recursive: true });
+    mkdirSync(join(r, "xbrief"), { recursive: true });
     writeFileSync(
-      join(r, "vbrief", "PROJECT-DEFINITION.vbrief.json"),
+      join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
       JSON.stringify({ plan: [] }),
       { encoding: "utf8" },
     );
@@ -252,9 +253,9 @@ describe("setPolicy", () => {
   it("throws when plan.policy is not object", () => {
     const r = mkdtempSync(join(tmpdir(), "deft-policy-badpolicy-"));
     roots.push(r);
-    mkdirSync(join(r, "vbrief"), { recursive: true });
+    mkdirSync(join(r, "xbrief"), { recursive: true });
     writeFileSync(
-      join(r, "vbrief", "PROJECT-DEFINITION.vbrief.json"),
+      join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
       JSON.stringify({ plan: { policy: [] } }),
       { encoding: "utf8" },
     );
@@ -266,8 +267,8 @@ describe("setPolicy", () => {
   it("creates plan object when absent on set", () => {
     const r = mkdtempSync(join(tmpdir(), "deft-policy-no-plan-"));
     roots.push(r);
-    mkdirSync(join(r, "vbrief"), { recursive: true });
-    writeFileSync(join(r, "vbrief", "PROJECT-DEFINITION.vbrief.json"), "{}", {
+    mkdirSync(join(r, "xbrief"), { recursive: true });
+    writeFileSync(join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"), "{}", {
       encoding: "utf8",
     });
     setPolicy(r, { allowDirectCommits: false, actor: "t" });
@@ -286,7 +287,8 @@ describe("wip cap", () => {
     expect(DEFAULT_WIP_CAP).toBe(20);
     const r = mkdtempSync(join(tmpdir(), "deft-wip-"));
     roots.push(r);
-    mkdirSync(join(r, "vbrief"), { recursive: true });
+    mkdirSync(join(r, "xbrief"), { recursive: true });
+    writeFileSync(join(r, "xbrief", "seed.xbrief.json"), "{}", { encoding: "utf8" });
     expect(resolveWipCap(r).cap).toBe(DEFAULT_WIP_CAP);
     expect(resolveWipCap(r).source).toBe("default");
   });
@@ -294,11 +296,11 @@ describe("wip cap", () => {
   it("counts vbrief files in pending and active", () => {
     const r = mkdtempSync(join(tmpdir(), "deft-wip-count-"));
     roots.push(r);
-    mkdirSync(join(r, "vbrief", "pending"), { recursive: true });
-    mkdirSync(join(r, "vbrief", "active"), { recursive: true });
-    writeFileSync(join(r, "vbrief", "pending", "a.vbrief.json"), "{}");
-    writeFileSync(join(r, "vbrief", "active", "b.vbrief.json"), "{}");
-    writeFileSync(join(r, "vbrief", "active", "readme.txt"), "x");
+    mkdirSync(join(r, "xbrief", "pending"), { recursive: true });
+    mkdirSync(join(r, "xbrief", "active"), { recursive: true });
+    writeFileSync(join(r, "xbrief", "pending", "a.xbrief.json"), "{}");
+    writeFileSync(join(r, "xbrief", "active", "b.xbrief.json"), "{}");
+    writeFileSync(join(r, "xbrief", "active", "readme.txt"), "x");
     expect(countVbriefWip(r)).toBe(2);
   });
 
@@ -312,9 +314,9 @@ describe("wip cap", () => {
   it("defaults when plan is not an object", () => {
     const r = mkdtempSync(join(tmpdir(), "deft-wip-plan-bad-"));
     roots.push(r);
-    mkdirSync(join(r, "vbrief"), { recursive: true });
+    mkdirSync(join(r, "xbrief"), { recursive: true });
     writeFileSync(
-      join(r, "vbrief", "PROJECT-DEFINITION.vbrief.json"),
+      join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
       JSON.stringify({ plan: "nope" }),
       { encoding: "utf8" },
     );
@@ -340,11 +342,38 @@ describe("wip cap", () => {
     expect(countVbriefWip(r)).toBe(0);
   });
 
+  it("throws for legacy-only vbrief/ project (#2112)", () => {
+    // Exercises the re-throw branch in countVbriefWip catch block: vbrief/ exists, no xbrief/.
+    const r = mkdtempSync(join(tmpdir(), "deft-wip-legacy-"));
+    roots.push(r);
+    mkdirSync(join(r, "vbrief", "pending"), { recursive: true });
+    expect(() => countVbriefWip(r)).toThrow("Run `deft migrate:xbrief`");
+  });
+
+  it("returns 0 when xbrief/ exists but has no .xbrief.json artifacts", () => {
+    // Exercises the short-circuit branch in countVbriefWip catch block: xbrief/ dir exists
+    // (resolveLifecycleRoot throws) but no vbrief/ -- result is 0, not a throw.
+    const r = mkdtempSync(join(tmpdir(), "deft-wip-empty-xbrief-"));
+    roots.push(r);
+    mkdirSync(join(r, "xbrief", "active"), { recursive: true });
+    expect(countVbriefWip(r)).toBe(0);
+  });
+
   it("rejects boolean wipCap values", () => {
     const r = mkdtempSync(join(tmpdir(), "deft-wip-bool-"));
     roots.push(r);
     writeProjectDef(r, { policy: { wipCap: true as unknown as number } });
     expect(resolveWipCap(r).source).toBe("default-on-error");
+  });
+
+  it("rejects object wipCap values and reports the python 'dict' type name", () => {
+    // Covers the pythonTypeName `typeof value === "object"` branch.
+    const r = mkdtempSync(join(tmpdir(), "deft-wip-obj-"));
+    roots.push(r);
+    writeProjectDef(r, { policy: { wipCap: {} as unknown as number } });
+    const result = resolveWipCap(r);
+    expect(result.source).toBe("default-on-error");
+    expect(result.error).toContain("dict");
   });
 });
 
