@@ -1,0 +1,86 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2206"
+  },
+  "plan": {
+    "title": "directive update must maintain Deft .gitignore coverage and doctor must flag missing entries",
+    "status": "completed",
+    "narratives": {
+      "Description": "directive update must maintain Deft .gitignore coverage and doctor must flag missing entries",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2206",
+      "Overview": "## Summary\n\n`directive update` can create or refresh the per-project `.deft/core` payload without adding the expected Deft `.gitignore` entries. On a brownfield project, this leaves the entire framework deposit and local Deft state visible to `git add`, creating a large accidental-commit exposure during first adoption.\n\n## Evidence\n\nIn a brownfield app after `npm i -g @deftai/directive` followed by `directive update`:\n\n- `.deft/core/**` was created/refreshed and appeared as untracked Git content.\n- `xbrief/.eval/doctor-state.json` and `.deft/xbrief-migrate-backup-*` also appeared as untracked content.\n- `.gitignore` contained no Deft entries.\n- `directive doctor` did not warn that required Deft ignore coverage was missing.\n\nThe current init path has `.gitignore` upkeep, but the update/upgrade path appears to bypass it. For a first-time brownfield user who discovers and runs `directive update`, the result is a repo ready to accidentally commit framework payload and local operational state.\n\n## Proposed behavior\n\nTreat Deft `.gitignore` coverage as a shared adoption invariant, not just an init side effect.\n\n- `directive update` / upgrade refresh paths should ensure the canonical Deft ignore entries when they create or refresh `.deft/core`, unless the project is intentionally in a tracked-deposit mode.\n- `directive doctor` should check Deft `.gitignore` coverage and emit a clear repair action when expected entries are missing.\n- The repair should be idempotent and avoid blanket ignores that hide intentional project artifacts.\n\nExpected entries should cover at least the framework deposit, local runtime state, migration backups, and generated eval state, for example `.deft/core/`, `.deft-cache/`, selected `.deft/*.json` local state, `.deft/*backup*/` patterns, and current `xbrief/.eval/*` generated files.\n\n## Acceptance criteria\n\n- A brownfield project that runs `directive update` as its first Deft command does not leave `.deft/core/**` exposed as untracked committable content.\n- `directive update` either repairs missing Deft `.gitignore` entries or refuses with a clear command to run the repair/init path.\n- `directive doctor` reports missing Deft `.gitignore` coverage with one actionable fix.\n- The canonical ignore baseline is updated for xBRIEF-era paths, not only legacy `vbrief/.eval/*` paths.\n- Tests cover first-run brownfield update, idempotent re-run, tracked-deposit opt-out/compatibility, and doctor detection.\n\n## Related\n\nRelated but not duplicate: #2123 covers already-tracked migrated deposits and the vendored-to-hybrid uncommit decision. This issue covers missing ignore maintenance when update creates or refreshes an untracked deposit during adoption.\n\nRelated adoption UX: #2198, #2199, #2200.\n\n",
+      "Labels": "bug, adoption-blocker, doctor, vendored-deposit, area:installer",
+      "ImplementationPlan": "Update/refresh path: packages/core/src/init-deposit/refresh.ts; canonical ignore baseline: packages/core/src/init-deposit/gitignore.ts; doctor: packages/cli/src/doctor.ts + packages/core/src/doctor/checks.ts. 1. Have the update/refresh path ensure the canonical Deft .gitignore entries whenever it creates/refreshes .deft/core (idempotent upsert; do NOT blanket-ignore; skip when the project is intentionally tracked-deposit). 2. Add a doctor check that flags missing Deft .gitignore coverage with one actionable repair command. 3. Update the canonical ignore baseline for xBRIEF-era paths (.deft/core/, .deft-cache/, .deft/*backup*/, xbrief/.eval/* generated, xbrief/.triage-cache/* operator-private) -- not only legacy vbrief/.eval/*. 4. Tests: first-run brownfield update, idempotent re-run, tracked-deposit opt-out, doctor detection.",
+      "Traces": "#2206, #2109"
+    },
+    "items": [
+      {
+        "title": "A brownfield project that runs `directive update` as its first Deft command does not leave `.deft/core/**` exposed as untracked committable content.",
+        "status": "proposed"
+      },
+      {
+        "title": "`directive update` either repairs missing Deft `.gitignore` entries or refuses with a clear command to run the repair/init path.",
+        "status": "proposed"
+      },
+      {
+        "title": "`directive doctor` reports missing Deft `.gitignore` coverage with one actionable fix.",
+        "status": "proposed"
+      },
+      {
+        "title": "The canonical ignore baseline is updated for xBRIEF-era paths, not only legacy `vbrief/.eval/*` paths.",
+        "status": "proposed"
+      },
+      {
+        "title": "Tests cover first-run brownfield update, idempotent re-run, tracked-deposit opt-out/compatibility, and doctor detection.",
+        "status": "proposed"
+      }
+    ],
+    "tags": [
+      "bug",
+      "adoption-blocker",
+      "doctor",
+      "vendored-deposit",
+      "area:installer"
+    ],
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "child_issue": "#2206",
+        "related": "#2148, #2347, #2123"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/init-deposit/refresh.ts",
+          "packages/core/src/init-deposit/gitignore.ts",
+          "packages/core/src/init-deposit/hygiene.ts",
+          "packages/cli/src/doctor.ts",
+          "packages/core/src/doctor/checks.ts"
+        ],
+        "verify_commands": [
+          "pnpm -C packages/core vitest run src/init-deposit src/doctor",
+          "task check"
+        ],
+        "expected_outputs": [
+          "update maintains canonical Deft .gitignore coverage (xBRIEF-era paths); doctor flags missing coverage with an actionable fix"
+        ],
+        "depends_on": [],
+        "conflict_group": "update-deposit",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "high",
+        "notes": "Leads the update-deposit group; shares init-deposit/refresh.ts + hygiene.ts with #2148 and #2347. One worker should own all three sequentially (#2206 -> #2148 -> #2347)."
+      }
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2206",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2206: directive update must maintain Deft .gitignore coverage and doctor must flag missing entries"
+      }
+    ],
+    "updated": "2026-07-07T13:42:16Z"
+  }
+}

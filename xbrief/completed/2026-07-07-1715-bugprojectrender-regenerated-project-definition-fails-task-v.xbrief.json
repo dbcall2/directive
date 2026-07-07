@@ -1,0 +1,75 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #1715"
+  },
+  "plan": {
+    "title": "bug(project:render): regenerated PROJECT-DEFINITION fails task vbrief:validate (D3 registry-status) + large reordering churn vs committed file",
+    "status": "completed",
+    "narratives": {
+      "Description": "bug(project:render): regenerated PROJECT-DEFINITION fails task vbrief:validate (D3 registry-status) + large reordering churn vs committed file",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/1715",
+      "Overview": "## Summary\n\n`task project:render` (`scripts/project_render.py`) regenerates `vbrief/PROJECT-DEFINITION.vbrief.json` from the lifecycle folders, but the freshly-rendered file **fails `task vbrief:validate`** with D3 registry-status errors. So the canonical render produces output the canonical validator rejects -- render and validate disagree on the same source state.\n\nIt also rewrites the `items[]` registry with **large reordering churn** vs the committed file (dozens of items move/regroup), so the committed PROJECT-DEFINITION is already out of sync with what render deterministically produces.\n\n## Reproduction (observed 2026-06-18)\n\nDuring an unrelated refinement of #1530 (no edits to any 2026-06-12 scope):\n\n1. `task vbrief:validate` on the committed tree -> `OK: 644 scope vBRIEF(s), PROJECT-DEFINITION`.\n2. `task project:render` -> `PROJECT-DEFINITION.vbrief.json updated (644 scope items)` + `80 staleness flag(s)`.\n3. `task vbrief:validate` on the rendered tree -> **FAIL: 4 error(s)**:\n\n```\nFAIL: .../PROJECT-DEFINITION.vbrief.json: items[42] status is 'proposed' but referenced scope\n  'completed/2026-06-12-generic-terminal-swarm-fallback-should-offer-serial-self-exe.vbrief.json'\n  has plan.status 'completed' (D3 registry-status)\n... (same for greenfield-setup, lifecycle-taskfile-commands, interactive-swarm-worktrees -- all 2026-06-12 completed scopes)\n```\n\n`git checkout -- vbrief/PROJECT-DEFINITION.vbrief.json ROADMAP.md` restores the passing state.\n\n## Why this matters\n\n- **Render -> validate is not consistent.** A standard refinement Phase 4 step (`task project:render`) turns a green tree red. Any agent following the refinement skill hits this and either commits a validate-failing registry or has to revert the render.\n- **`items[42]` is a grouped registry entry marked `proposed` while all four referenced children are `completed`.** The render derives/keeps a `proposed` umbrella status that the D3 registry-status rule (`scripts/vbrief_validate.py`) rejects. Either render must reconcile the grouped item's status to its children, or the D3 rule must accept the grouping semantics -- they currently contradict.\n- The `80 staleness flag(s)` warning + the broad reordering churn suggest the committed PROJECT-DEFINITION has drifted from render output independently of this incident.\n\n## Likely root cause (to confirm)\n\n`project_render.py` aggregates lifecycle folders into `plan.items[]` but does not roll a grouped/umbrella item's `status` up from its children (or the committed file was hand-edited and never re-rendered). The D3 registry-status check then flags the parent `proposed` vs child `completed` mismatch.\n\n## Acceptance criteria\n\n- `task project:render` immediately followed by `task vbrief:validate` passes on a clean tree (render output is validator-clean by construction).\n- Grouped/umbrella registry items either have their `status` reconciled to their children by the renderer, or the D3 rule explicitly accepts the grouping semantics -- documented either way.\n- A regression test: render-then-validate round-trip on a fixture with a grouped item whose children are completed.\n\n## References\n\n- `scripts/project_render.py` (renderer)\n- `scripts/vbrief_validate.py` (D3 registry-status rule)\n- Surfaced incidentally during #1530 refinement; not caused by it.",
+      "Labels": "bug, source-of-truth, tooling",
+      "ImplementationPlan": "NOTE: issue body cites the purged scripts/project_render.py / scripts/vbrief_validate.py -- re-scope to the TS renderer packages/core/src/render/project-render.ts and the validator in packages/core/src/vbrief-validate/. Much of this may be resolved by #2236 (make render xbrief-aware); build AFTER #2236 on the same tree. 1. Ensure render output is validator-clean by construction: reconcile a grouped/umbrella item's status from its children during render (parent 'proposed' vs children 'completed' is the D3 registry-status failure), OR document that D3 accepts the grouping semantics. 2. Stabilize items[] ordering so render does not churn the committed registry. 3. Regression test: render-then-validate round-trip on a fixture with a grouped item whose children are completed.",
+      "Traces": "#1715, #2236, #2112"
+    },
+    "items": [
+      {
+        "title": "`task project:render` immediately followed by `task vbrief:validate` passes on a clean tree (render output is validator-clean by construction).",
+        "status": "proposed"
+      },
+      {
+        "title": "Grouped/umbrella registry items either have their `status` reconciled to their children by the renderer, or the D3 rule explicitly accepts the grouping semantics -- documented either way.",
+        "status": "proposed"
+      },
+      {
+        "title": "A regression test: render-then-validate round-trip on a fixture with a grouped item whose children are completed.",
+        "status": "proposed"
+      }
+    ],
+    "tags": [
+      "bug",
+      "source-of-truth",
+      "tooling"
+    ],
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "child_issue": "#1715",
+        "related": "#2236, #2112"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/render/project-render.ts",
+          "packages/core/src/render/project-render.test.ts"
+        ],
+        "verify_commands": [
+          "pnpm -C packages/core vitest run src/render/project-render.test.ts",
+          "task check"
+        ],
+        "expected_outputs": [
+          "render-then-validate round-trip is clean; grouped-item status reconciled to children; no items[] reorder churn"
+        ],
+        "depends_on": [
+          "2236-projectrender-is-not-xbrief-aware-writes-empty-legacy-vbrief"
+        ],
+        "conflict_group": "render",
+        "size": "small",
+        "file_scope_confidence": "low",
+        "model_tier": "medium",
+        "notes": "Shares project-render.ts with #2236; likely partially subsumed by it. Same conflict_group 'render'; sequence after #2236. Re-scope off the cited purged Python before building."
+      }
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/1715",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #1715: bug(project:render): regenerated PROJECT-DEFINITION fails task vbrief:validate (D3 registry-status) + large reordering churn vs committed file"
+      }
+    ],
+    "updated": "2026-07-07T13:42:16Z"
+  }
+}

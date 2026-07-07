@@ -1,0 +1,65 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2347"
+  },
+  "plan": {
+    "title": "bug(update): deft update never prunes stray .deft/core/packages/ — deposit-hygiene advisory persists across upgrades",
+    "status": "completed",
+    "narratives": {
+      "Description": "bug(update): deft update never prunes stray .deft/core/packages/ — deposit-hygiene advisory persists across upgrades",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2347",
+      "Overview": "## Summary\r\n\r\n`deft update` refreshes the vendored payload via an **additive file-swap** that never prunes paths absent from the new payload. As a result, a stray `.deft/core/packages/` tree survives every upgrade, and `deft doctor` keeps emitting the deposit-hygiene advisory indefinitely.\r\n\r\n## Repro\r\n\r\n- Consumer repo with git-vendored `.deft/core` that contains `.deft/core/packages/` (framework source, not shipped by `@deftai/directive-content`).\r\n- `npm i -g @deftai/directive@latest` (0.70.0 -> 0.71.0), then `deft update`.\r\n\r\n## Observed (after upgrade to v0.71.0)\r\n\r\n`deft doctor`:\r\n\r\n> Deposit hygiene: advisory -- .deft/core/packages/ is present (git-vendored framework source, not shipped by npm @deftai/directive-content). Upgrade directive to pick up task guard fixes; consider removing the stray tree from version control.\r\n\r\n`Test-Path .deft/core/packages` -> `True` (still present post-upgrade).\r\n\r\n## Expected\r\n\r\nEither `deft update` prunes framework paths not present in the deposited payload (with the usual own-branch/PR deposit hygiene), or the advisory offers a deterministic remediation command (e.g. `deft deposit:prune`) rather than a manual \"consider removing the stray tree\" note that recurs on every upgrade.\r\n\r\n## Context / related\r\n\r\n- Guard fixes #2141 / #2142 / #2126 (all CLOSED) stopped the stray `packages/` tree from *breaking* `task deft:*`, but the tree itself is never removed — the advisory is now permanent.\r\n- Vendored->hybrid un-commit is tracked separately in #2123 / #1941 / #1942; this issue is narrower: the additive-only nature of `deft update` means no upgrade will ever clear the advisory.\r\n\r\nEnvironment: Windows 10, PowerShell 5.1, `@deftai/directive-core@0.71.0` (vendored, file-swap strategy).\r\n\n",
+      "Labels": "bug",
+      "ImplementationPlan": "Update strategy: packages/core/src/init-deposit/refresh.ts (additive file-swap) + init-deposit/hygiene.ts (doctor deposit-hygiene advisory). Either (a) make the refresh path prune framework paths absent from the deposited @deftai/directive-content payload (notably a stray git-vendored .deft/core/packages/), with the usual own-branch/PR deposit hygiene, or (b) offer a deterministic remediation command (e.g. deft deposit:prune) that the advisory points at -- replacing the recurring manual 'consider removing the stray tree' note. Tests: upgrade over a tree carrying .deft/core/packages/ clears the advisory (prune) or the advisory names a working remediation command.",
+      "Traces": "#2347, #2206"
+    },
+    "items": [],
+    "tags": [
+      "bug"
+    ],
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "child_issue": "#2347",
+        "related": "#2206, #2148, #2123"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/init-deposit/refresh.ts",
+          "packages/core/src/init-deposit/hygiene.ts"
+        ],
+        "verify_commands": [
+          "pnpm -C packages/core vitest run src/init-deposit",
+          "task check"
+        ],
+        "expected_outputs": [
+          "update either prunes the stray .deft/core/packages/ tree or the deposit-hygiene advisory names a deterministic remediation command"
+        ],
+        "depends_on": [
+          "2206-directive-update-must-maintain-deft-gitignore-coverage-and-d"
+        ],
+        "conflict_group": "update-deposit",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium",
+        "notes": "Same conflict_group 'update-deposit' as #2206/#2148 (shared refresh.ts + hygiene.ts). Sequence after #2206."
+      }
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2347",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2347: bug(update): deft update never prunes stray .deft/core/packages/ — deposit-hygiene advisory persists across upgrades"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2141",
+        "type": "x-xbrief/closes",
+        "title": "Issue #2141"
+      }
+    ],
+    "updated": "2026-07-07T13:42:18Z"
+  }
+}

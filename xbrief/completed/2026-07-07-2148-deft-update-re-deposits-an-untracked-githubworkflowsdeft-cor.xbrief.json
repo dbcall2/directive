@@ -1,0 +1,62 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2148"
+  },
+  "plan": {
+    "title": "`deft update` re-deposits an untracked .github/workflows/deft-core-guard.yml after de-vendoring",
+    "status": "completed",
+    "narratives": {
+      "Description": "`deft update` re-deposits an untracked .github/workflows/deft-core-guard.yml after de-vendoring",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2148",
+      "Overview": "## Summary\n\nAfter migrating a project to the npm-managed model and **de-vendoring** `.deft/core/` (removing it from git and gitignoring it, per `UPGRADING.md`), every `deft update` re-creates `.github/workflows/deft-core-guard.yml` on disk as an **untracked** file. Since that workflow's sole purpose is to guard against committing `.deft/core/**` alongside app changes, it's obsolete once `.deft/core/` is gitignored — yet it keeps coming back and shows up as untracked noise in `git status` (and risks being accidentally re-committed via `git add -A`).\n\n## Environment\n\n- Deft engine/payload: **v0.66.1** (also observed on v0.65.0)\n- Install: npm-managed, CLI at `~/.deft-cli` (`managed_by: 'npm'`)\n- Consumer project: `.deft/core/` gitignored and untracked (de-vendored)\n\n## Steps to reproduce\n\n1. Start from a project that had a committed (vendored) `.deft/core/` and the `deft-core-guard.yml` workflow.\n2. Migrate to npm-managed and de-vendor: `git rm -r --cached .deft/core/`, add `.deft/core/` to `.gitignore`, and `git rm .github/workflows/deft-core-guard.yml`. Commit.\n3. Run `deft update`.\n4. `git status` → `.github/workflows/deft-core-guard.yml` reappears as `??` (untracked).\n\nEach subsequent `deft update` re-deposits it, so it must be manually deleted every time.\n\n## Expected\n\nWhen `.deft/core/` is gitignored / not tracked (the recommended npm-managed layout), `deft update` should **not** re-deposit `deft-core-guard.yml` — the guard is meaningless when there's no committed `.deft/core/**` to guard. Ideally:\n\n- Skip depositing the guard workflow when the deposit is gitignored / not git-tracked, **or**\n- Detect that the consumer intentionally removed it and don't recreate it, **or**\n- At minimum, document how to opt out of the guard deposit.\n\n## Actual\n\n`deft update` unconditionally re-lays down `.github/workflows/deft-core-guard.yml`, forcing a manual `rm` after every update to keep the working tree clean.\n\n## Notes\n\nRelated: the `deft-core-guard` workflow is arguably fully obsolete under the npm-published model (v0.55.1+), since the vendored payload is no longer supposed to be committed. If that's the intent, the deposit could be dropped entirely.",
+      "Labels": "bug, installer, vendored-deposit",
+      "ImplementationPlan": "Deposit/refresh path: packages/core/src/init-deposit/refresh.ts (+ init-deposit/hygiene.ts). When .deft/core/ is gitignored / not git-tracked (the npm-managed layout), the refresh path must NOT re-deposit .github/workflows/deft-core-guard.yml -- the guard is meaningless with no committed .deft/core/** to guard. Gate the guard-workflow deposit on the deposit being git-tracked, and do not recreate it once the consumer has removed it. Tests: de-vendored (gitignored) tree -> update does not re-create the guard workflow; tracked-deposit tree -> guard still deposited.",
+      "Traces": "#2148, #2206"
+    },
+    "items": [],
+    "tags": [
+      "bug",
+      "installer",
+      "vendored-deposit"
+    ],
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "child_issue": "#2148",
+        "related": "#2206, #2347"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/init-deposit/refresh.ts",
+          "packages/core/src/init-deposit/hygiene.ts"
+        ],
+        "verify_commands": [
+          "pnpm -C packages/core vitest run src/init-deposit",
+          "task check"
+        ],
+        "expected_outputs": [
+          "update does not re-deposit deft-core-guard.yml on a gitignored/de-vendored .deft/core tree"
+        ],
+        "depends_on": [
+          "2206-directive-update-must-maintain-deft-gitignore-coverage-and-d"
+        ],
+        "conflict_group": "update-deposit",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium",
+        "notes": "Same conflict_group 'update-deposit' as #2206/#2347 (shared refresh.ts + hygiene.ts). Sequence after #2206."
+      }
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2148",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2148: `deft update` re-deposits an untracked .github/workflows/deft-core-guard.yml after de-vendoring"
+      }
+    ],
+    "updated": "2026-07-07T13:42:17Z"
+  }
+}

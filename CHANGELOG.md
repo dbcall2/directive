@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.73.0] - 2026-07-07
+
+> Completes the xBRIEF cutover: the legacy vbrief/ read path is removed (run deft migrate:xbrief), alongside project:render xbrief-awareness, directive update .gitignore/deposit hygiene, and greenfield onboarding fixes.
+
+### Added
+
 - `directive doctor` now checks that the consumer `.gitignore` carries the canonical Deft entries (`.deft-cache/`, `.deft/.cli/`, triage-cache, backup patterns, and xBRIEF-era eval paths). Missing coverage is flagged as an advisory finding with `directive update` as the one-step fix. Closes #2206.
 
 ### Changed
@@ -4163,7 +4175,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.72.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.73.0...HEAD
+[0.73.0]: https://github.com/deftai/directive/compare/v0.72.0...v0.73.0
 [0.72.0]: https://github.com/deftai/directive/compare/v0.71.1...v0.72.0
 [0.71.1]: https://github.com/deftai/directive/compare/v0.71.0...v0.71.1
 [0.71.0]: https://github.com/deftai/directive/compare/v0.70.0...v0.71.0

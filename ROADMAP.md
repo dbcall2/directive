@@ -799,6 +799,7 @@
 - **#2109** -- Maintainer-repo mechanical vbrief->xbrief rename plus drift gate -- `[completed]`
 - **#2110** -- Consumer migration surface: migrate:xbrief verb, update trigger, doctor signpost -- `[completed]`
 - **#2111** -- Align docs, skills, and templates to xbrief naming and commands -- `[completed]`
+- **#2112** -- Remove the legacy vbrief read path after the back-compat window -- `[completed]`
 - **#715** -- Extension round-trip conformance fixtures and validator preservation -- `[completed]`
 - **#2126** -- Vendored task dispatch: route straggler _ts-build + direct node calls through :engine:* (fix #2126) -- `[completed]`
 - **#2128** -- Canonicalize emit-site reference tokens to x-xbrief/ and dual-namespace reader matchers -- `[completed]`
@@ -898,4 +899,12 @@
 - **#2349** -- docs: v0.71.0 triage-cache relocation (.eval/ -> .triage-cache/) undocumented in UPGRADING.md + stale .eval/ paths across docs (#1703) -- `[completed]`
 - **#2350** -- bug(triage): deft triage:accept broken — delegates to removed legacy Python issue_ingest (ModuleNotFoundError), blocks verify:cache-fresh dispatch gate -- `[completed]`
 - **#2376** -- feat(value-feedback): enrich attribution events + trusted-org auto-enable of local collection (Refs #1709) -- `[completed]`
+- **#1715** -- bug(project:render): regenerated PROJECT-DEFINITION fails task vbrief:validate (D3 registry-status) + large reordering churn vs committed file -- `[completed]`
+- **#2033** -- Greenfield onboarding does not auto-start setup phases when USER.md already exists -- `[completed]`
+- **#2148** -- `deft update` re-deposits an untracked .github/workflows/deft-core-guard.yml after de-vendoring -- `[completed]`
+- **#2206** -- directive update must maintain Deft .gitignore coverage and doctor must flag missing entries -- `[completed]`
+- **#2236** -- project:render is not xbrief-aware — writes empty legacy vbrief/PROJECT-DEFINITION.vbrief.json (0 items) on xbrief projects -- `[completed]`
+- **#2310** -- chore(docs,skills): stale scripts/*.py references after py-purge (#2022) -- registry-data.ts banner + AGENTS.md/preamble/review-cycle cite deleted Python -- `[completed]`
+- **#2347** -- bug(update): deft update never prunes stray .deft/core/packages/ — deposit-hygiene advisory persists across upgrades -- `[completed]`
+- **#2378** -- Normalize triage:summary history-path docs off the legacy vbrief/.eval/ prefix -- `[completed]`
 

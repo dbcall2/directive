@@ -1,0 +1,61 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2236"
+  },
+  "plan": {
+    "title": "project:render is not xbrief-aware — writes empty legacy vbrief/PROJECT-DEFINITION.vbrief.json (0 items) on xbrief projects",
+    "status": "completed",
+    "narratives": {
+      "Description": "project:render is not xbrief-aware — writes empty legacy vbrief/PROJECT-DEFINITION.vbrief.json (0 items) on xbrief projects",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2236",
+      "Overview": "## Summary\n\nOn a project that has been migrated to the **xbrief** lifecycle layout, `deft project:render` does not refresh `xbrief/PROJECT-DEFINITION.xbrief.json`. Instead it writes a brand-new **legacy** `vbrief/PROJECT-DEFINITION.vbrief.json` containing **0 scope items**, ignoring the existing `xbrief/` scopes entirely. It also appears to ignore CLI flags (see \"Secondary bug\" below).\n\n## Environment\n\n- `deft --version`: `@deftai/directive (engine: @deftai/directive-core@0.66.2)`\n- Deposit `.deft/core/VERSION`:\n  - `tag: 'v0.66.2'`, `sha: 'content-package'`, `install_root: '.deft/core'`, `managed_by: 'npm'`\n- Install shape: npm-managed vendored deposit at `.deft/core` (migrated from a former git-submodule install)\n- Layout: **xbrief** (project was migrated `vbrief/` → `xbrief/`; `deft doctor` reports \"xBrief migration: none — project is on the xbrief layout\")\n- OS: macOS\n\n## Steps to reproduce\n\n1. Have a project on the xbrief layout with a populated `xbrief/PROJECT-DEFINITION.xbrief.json` and multiple scopes under `xbrief/{proposed,pending,active,completed}/`.\n2. Confirm health: `deft doctor` → clean, xbrief layout current.\n3. Run `deft project:render`.\n\n## Expected\n\n`xbrief/PROJECT-DEFINITION.xbrief.json` is re-rendered from the current `xbrief/` scopes (registry items reflecting the on-disk lifecycle folders).\n\n## Actual\n\n```\n✓ PROJECT-DEFINITION.vbrief.json created (0 scope items)\n```\n\n- A new **`vbrief/`** directory is created at the project root (legacy path), containing `vbrief/PROJECT-DEFINITION.vbrief.json` with `\"items\": []` and empty narratives.\n- The existing `xbrief/PROJECT-DEFINITION.xbrief.json` is left untouched (so no data loss, but the command is a no-op for xbrief projects and litters the tree with a bogus legacy file).\n- Because it scans the (non-existent) `vbrief/` scope folders, it always reports **0 scope items**.\n\n## Secondary bug — flags treated as path args\n\n`deft project:render --help` does not print help; it re-runs the render and interprets `--help` as an output location, creating a stray **`./--help/`** directory containing `--help/PROJECT-DEFINITION.vbrief.json`.\n\n## Impact\n\nOn xbrief-migrated projects there is no working way to refresh the project-definition registry via the CLI. `PROJECT-DEFINITION` staleness (e.g. completed scopes not reflected in registry item statuses) cannot be reconciled with `project:render`, and each invocation writes a misleading empty legacy `vbrief/` artifact.\n\n## Suggested fix\n\n- Make `project:render` (and likely the sibling `roadmap:render` / `spec:render`) resolve the brief lifecycle directory (`xbrief/` when present, falling back to `vbrief/`), write to `PROJECT-DEFINITION.xbrief.json`, and scan `xbrief/<lifecycle>/` for items.\n- Add proper `--help`/flag parsing so unknown flags are not consumed as positional path arguments.",
+      "Labels": "bug",
+      "ImplementationPlan": "Renderer: packages/core/src/render/project-render.ts; CLI entry: packages/cli/src/render-cli/project-render-cli.ts. 1. Make project:render layout-aware via resolveLifecycleRoot/resolveLifecycleLayout (packages/core/src/layout/resolve.ts) so on a migrated tree it reads xbrief/<lifecycle>/ scopes and writes xbrief/PROJECT-DEFINITION.xbrief.json instead of minting a fresh legacy vbrief/PROJECT-DEFINITION.vbrief.json with 0 items. Apply the same layout-aware root to the sibling roadmap:render / spec:render if they share the defect. 2. Fix flag parsing in project-render-cli.ts so unknown flags (e.g. --help) print help and are NOT consumed as positional output paths (no stray ./--help/ dir). 3. Extend project-render.test.ts: xbrief tree renders xbrief/PROJECT-DEFINITION.xbrief.json from on-disk scopes; no vbrief/ dir is created; --help prints help without rendering. Post-#2112 the renderer targets xbrief-only (legacy fallback removed).",
+      "Traces": "#2236, #2112, #2109"
+    },
+    "items": [],
+    "tags": [
+      "bug"
+    ],
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "child_issue": "#2236",
+        "related": "#2112, #1715, #2109"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/render/project-render.ts",
+          "packages/core/src/render/project-render.test.ts",
+          "packages/cli/src/render-cli/project-render-cli.ts"
+        ],
+        "verify_commands": [
+          "pnpm -C packages/core vitest run src/render/project-render.test.ts",
+          "task check"
+        ],
+        "expected_outputs": [
+          "project:render on an xbrief tree refreshes xbrief/PROJECT-DEFINITION.xbrief.json from on-disk scopes; no legacy vbrief/ file created; unknown flags no longer consumed as output paths"
+        ],
+        "depends_on": [
+          "2112-remove-vbrief-readpath"
+        ],
+        "conflict_group": "render",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "high",
+        "notes": "Shares packages/core/src/render/project-render.ts with #1715 -- same conflict_group 'render'; one worker should own #2236 then #1715."
+      }
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2236",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2236: project:render is not xbrief-aware — writes empty legacy vbrief/PROJECT-DEFINITION.vbrief.json (0 items) on xbrief projects"
+      }
+    ],
+    "updated": "2026-07-07T13:42:15Z"
+  }
+}
