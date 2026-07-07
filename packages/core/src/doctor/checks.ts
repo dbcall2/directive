@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { CANONICAL_GITIGNORE_BASELINE } from "../init-deposit/gitignore.js";
 import {
   detectLegacyLayout,
   type LegacyDetectSeams,
@@ -12,6 +13,7 @@ import {
 } from "../init-deposit/migrate.js";
 import { resolveLifecycleRoot } from "../layout/resolve.js";
 import { findSkillPathsInText } from "../text/redos-safe.js";
+import { stripGitignoreInlineComment } from "../triage/bootstrap/gitignore.js";
 import {
   CANONICAL_UPGRADE_COMMAND,
   GO_BRIDGE_RELEASES_URL,
@@ -506,8 +508,87 @@ export function checkManifestVersionReportable(
   };
 }
 
+/**
+ * Collect the normalised (inline-comment-stripped) gitignore patterns from a
+ * `.gitignore` file text. Uses the shared `stripGitignoreInlineComment` helper
+ * so coverage checks stay consistent with `ensureInitGitignoreLines`.
+ */
+function collectGitignorePresent(text: string): Set<string> {
+  const present = new Set<string>();
+  for (const raw of text.split("\n")) {
+    const line = stripGitignoreInlineComment(raw);
+    if (line) present.add(line);
+  }
+  return present;
+}
+
+function gitignoreLineIsCovered(present: ReadonlySet<string>, line: string): boolean {
+  return present.has(line);
+}
+
+/**
+ * #2206: check that the consumer `.gitignore` carries the canonical Deft baseline
+ * entries. Advisory (exit-exempt) because missing entries are an adoption risk, not
+ * a broken install.
+ *
+ * Skips when `.gitignore` is absent (greenfield project that has not yet run
+ * `directive init` or `directive update`).
+ */
+export function checkGitignoreCoverage(projectRoot: string, seams: CheckSeams = {}): CheckResult {
+  const gitignorePath = join(projectRoot, ".gitignore");
+  const text = readText(gitignorePath, seams);
+
+  if (text === null) {
+    return {
+      name: "gitignore-coverage",
+      status: "skip",
+      detail: ".gitignore not found; run `directive init` or `directive update` to create it.",
+      data: { gitignore_path: gitignorePath, missing: [] },
+    };
+  }
+
+  const present = collectGitignorePresent(text);
+  const missing: string[] = [];
+  for (const line of CANONICAL_GITIGNORE_BASELINE) {
+    if (!gitignoreLineIsCovered(present, line)) {
+      missing.push(line);
+    }
+  }
+  // Check .deft/core/ separately — only required for hybrid/greenfield installs.
+  // We conservatively omit it from the missing list here (tracked-deposit projects
+  // legitimately omit it). The update path handles this correctly per layout.
+
+  if (missing.length === 0) {
+    return {
+      name: "gitignore-coverage",
+      status: "pass",
+      detail: "All canonical Deft .gitignore entries are present.",
+      data: { gitignore_path: gitignorePath, missing: [] },
+    };
+  }
+
+  return {
+    name: "gitignore-coverage",
+    status: "fail",
+    detail:
+      `Deft .gitignore coverage incomplete: ${missing.length} canonical entr${missing.length === 1 ? "y" : "ies"} ` +
+      `missing (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? ", …" : ""}). ` +
+      "Run `directive update` to add the missing entries (idempotent, safe on re-run). " +
+      `Full missing list: ${JSON.stringify(missing)}.`,
+    data: {
+      gitignore_path: gitignorePath,
+      missing,
+      suggested_fix: "directive update",
+    },
+  };
+}
+
 export function deriveExitCode(checks: readonly CheckResult[], errors: readonly string[]): number {
-  const exitExempt = new Set(["canonical-vendored-npm-signpost", "manifest-version-reportable"]);
+  const exitExempt = new Set([
+    "canonical-vendored-npm-signpost",
+    "manifest-version-reportable",
+    "gitignore-coverage",
+  ]);
   if (errors.length > 0 || checks.some((c) => c.status === "error")) {
     return 2;
   }
@@ -551,6 +632,7 @@ export function runChecksImpl(
     checks.push(checkManifestVersionReportable(projectRoot, null, seams));
     checks.push(checkLegacyLayout(projectRoot, seams));
     checks.push(checkCanonicalVendoredNpmSignpost(projectRoot, seams));
+    checks.push(checkGitignoreCoverage(projectRoot, seams));
     return {
       projectRoot,
       installRoot: null,
@@ -566,6 +648,7 @@ export function runChecksImpl(
   checks.push(checkInstallPathConsistency(projectRoot, installRoot, seams));
   checks.push(checkLegacyLayout(projectRoot, seams));
   checks.push(checkCanonicalVendoredNpmSignpost(projectRoot, seams));
+  checks.push(checkGitignoreCoverage(projectRoot, seams));
   return {
     projectRoot,
     installRoot,
