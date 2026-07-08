@@ -1,0 +1,34 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2371"
+  },
+  "plan": {
+    "title": "gate(agents-md): invert agents-entry propagation contract from full-text-mirror to pointer-sufficient",
+    "status": "completed",
+    "narratives": {
+      "Description": "gate(agents-md): invert agents-entry propagation contract from full-text-mirror to pointer-sufficient",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2371",
+      "Overview": "Parent epic: #2369 · Predecessor context: #1882\n\n## What\n\nInvert the propagation contract `agents_entry_contract.test.ts` (#2111) from \"rule text MUST be present in both files\" to \"a pointer is sufficient; the rule body lives in a skill/pack.\"\n\n## Why\n\nThis contract currently forces full-text mirroring of ~10 rule blocks (value-feedback, eval, deterministic-questions, review-surface, session-ritual, WIP, etc.) into the always-on surface. #1882 trimmed *rationale* but left the *rules* full-text and mirrored — which is precisely why the diet plateaued. No relocation of rule bulk (parent epic #2369, Wave 2) is possible while the contract mandates the bulk stay in the always-on file.\n\n## Scope\n\n- Change the marker-list semantics: enforce that a **pointer** to each relocated rule's canonical home is present, rather than the rule's full text.\n- Preserve the deterministic guarantee — a relocated rule must still be reachable and its pointer verified.\n- **Three distinct relocation targets (per parent DD-1/DD-2), each a different pointer shape the contract must recognize:**\n  - **pointer-to-skill** — workflow procedures relocated to a skill; the pointer resolves to a SKILL.md whose frontmatter carries the routing metadata.\n  - **pointer-to-gate** — cross-cutting guardrails whose enforcement is a deterministic `task verify:*` gate; the always-on surface keeps only a terse one-line imperative + the gate reference.\n  - **pointer-to-doc** — reference/rationale and *contextual* guardrails relocated to the lazy doc tree (main.md/docs/packs), reachable behind a runtime-detect pointer (precedent #2157).\n- The contract must verify the *right* pointer shape per relocated item, and must NOT require the rule body itself in the always-on file for any of the three.\n\n## Acceptance\n\n- Contract enforces pointer-presence (skill / gate / doc), not full-text mirroring, and validates the pointer shape per relocated item.\n- Universal guardrails may retain a one-line always-on imperative (DD-2); the contract permits this without demanding the full rule body.\n- `task check` green.\n\nWave 1 — prerequisite for all relocation slices.\n\n\n",
+      "Labels": "context-engineering, determinism, agent-experience"
+    },
+    "items": [],
+    "tags": [
+      "context-engineering",
+      "determinism",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2371",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2371: gate(agents-md): invert agents-entry propagation contract from full-text-mirror to pointer-sufficient"
+      }
+    ],
+    "updated": "2026-07-08T09:14:07Z",
+    "metadata": {
+      "completedAt": "2026-07-08T09:14:07Z",
+      "capacityBucket": "agentic-debt"
+    }
+  }
+}

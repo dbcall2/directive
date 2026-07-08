@@ -144,65 +144,104 @@ const UNMANAGED_HEADER_MARKERS = [
   "Session orientation",
 ] as const;
 
-// #2308: the review-surface precedence rule (deft-directive-review-cycle wins
-// over host-provided review tooling; host reviewers are advisory-only inputs)
-// MUST be mirrored across the maintainer AGENTS.md and the consumer template.
-const REVIEW_SURFACE_PRECEDENCE_MARKERS = [
-  "## Review-surface precedence (#2308)",
-  "deft-directive-review-cycle",
-  "bugbot",
-  "security-review",
-  "review-bugbot",
-  "review-security",
-  "or any future host equivalent",
-  "advisory",
-  "harness-aware-reviewer path",
-  "wrong-review-surface class",
-] as const;
+type PointerRequirement =
+  | {
+      kind: "doc";
+      consumerMarker: string;
+      maintainerMarker: string;
+      targetPath: string;
+      targetMarkers: readonly string[];
+    }
+  | {
+      kind: "gate";
+      consumerCommand: string;
+      maintainerCommand: string;
+    }
+  | {
+      kind: "skill";
+      skillId: string;
+      skillPath: string;
+      consumerMarkers?: readonly string[];
+      maintainerMarkers?: readonly string[];
+      frontmatterMarkers?: readonly string[];
+    };
 
-// #1709: value-feedback opt-in, attributed readbacks, and confirmation-gated gap
-// escalation MUST be mirrored across maintainer AGENTS.md and the consumer template.
-const VALUE_FEEDBACK_MARKERS = [
-  "## Value feedback and attribution (#1709)",
-  "plan.policy.valueFeedback.enabled",
-  "attributed-only",
-  "4-hour window",
-  "deft-directive-feedback",
-  "Refs #1709",
-  "DEFT_VALUE_SELF_DOGFOOD",
-  "without operator confirmation",
-  "Trusted-org local auto-enable (#2376)",
-  "DEFT_VALUE_AUTOENABLE_ORGS",
-  "source=org-auto",
-] as const;
+type PointerContract = {
+  id: string;
+  heading: string;
+  requirements: readonly PointerRequirement[];
+};
 
-// #1703: tiered eval framework discoverability MUST mirror across maintainer
-// AGENTS.md and the consumer template (#2336 / #1309).
-const EVAL_FRAMEWORK_MARKERS = [
-  "## Eval and framework health (#1703)",
-  "eval:health",
-  "eval:run",
-  "eval:report",
-  "crud-metrics.jsonl",
-  "health-history.jsonl",
-  "contradictory gate",
-  "4-hour debounce",
-  "Tier 1",
-  "Tier 2",
-] as const;
-
-// #1470: Discuss/Back runtime obligation MUST mirror across maintainer AGENTS.md,
-// consumer template, contract scope text, and orchestrator preamble self-check.
-const DETERMINISTIC_QUESTIONS_RUNTIME_MARKERS = [
-  "## Deterministic questions runtime obligation (#1470)",
-  "agent-initiated",
-  "ask_user_question",
-  "Discuss",
-  "Back",
-  "final two options",
-  "Discuss-pause semantic",
-  "contracts/deterministic-questions.md",
-  "NOT substitutes for `Discuss`",
+// #2371: bulky rule propagation is pointer-sufficient. These entries no longer
+// assert that every rule-body marker is mirrored into AGENTS.md and the consumer
+// template; they assert that each relocated rule has a typed, resolvable pointer.
+const POINTER_SUFFICIENT_RULE_CONTRACTS: readonly PointerContract[] = [
+  {
+    id: "review-surface-precedence",
+    heading: "## Review-surface precedence (#2308)",
+    requirements: [
+      {
+        kind: "skill",
+        skillId: "deft-directive-review-cycle",
+        skillPath: "skills/deft-directive-review-cycle/SKILL.md",
+      },
+    ],
+  },
+  {
+    id: "value-feedback",
+    heading: "## Value feedback and attribution (#1709)",
+    requirements: [
+      {
+        kind: "gate",
+        consumerCommand: "deft policy:show --field=valueFeedback",
+        maintainerCommand: "task policy:show --field=valueFeedback",
+      },
+      {
+        kind: "gate",
+        consumerCommand: "deft feedback:file",
+        maintainerCommand: "task feedback:file",
+      },
+      {
+        kind: "skill",
+        skillId: "deft-directive-feedback",
+        skillPath: "skills/deft-directive-feedback/SKILL.md",
+      },
+    ],
+  },
+  {
+    id: "eval-framework-health",
+    heading: "## Eval and framework health (#1703)",
+    requirements: [
+      {
+        kind: "gate",
+        consumerCommand: "deft eval:health",
+        maintainerCommand: "task eval:health",
+      },
+      {
+        kind: "gate",
+        consumerCommand: "deft eval:run",
+        maintainerCommand: "task eval:run",
+      },
+      {
+        kind: "gate",
+        consumerCommand: "deft eval:report",
+        maintainerCommand: "task eval:report",
+      },
+    ],
+  },
+  {
+    id: "deterministic-questions",
+    heading: "## Deterministic questions runtime obligation (#1470)",
+    requirements: [
+      {
+        kind: "doc",
+        consumerMarker: ".deft/core/content/contracts/deterministic-questions.md",
+        maintainerMarker: "content/contracts/deterministic-questions.md",
+        targetPath: "contracts/deterministic-questions.md",
+        targetMarkers: ["Discuss", "Back", "Discuss-pause semantic"],
+      },
+    ],
+  },
 ] as const;
 
 function normalizeWhitespace(text: string): string {
@@ -223,6 +262,53 @@ function managedSection(text: string): string {
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
   return text.slice(start, end + CLOSE_MARKER.length);
+}
+
+function sectionForHeading(text: string, heading: string): string {
+  const start = text.indexOf(heading);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const rest = text.slice(start);
+  const nextHeading = rest.slice(heading.length).search(/\n## /);
+  return nextHeading === -1 ? rest : rest.slice(0, heading.length + nextHeading);
+}
+
+function skillFrontmatter(text: string): string {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  expect(match).not.toBeNull();
+  return match?.[1] ?? "";
+}
+
+function expectPointerRequirement(
+  requirement: PointerRequirement,
+  consumerSection: string,
+  maintainerSection: string,
+): void {
+  if (requirement.kind === "doc") {
+    expect(missingMarkers(consumerSection, [requirement.consumerMarker])).toEqual([]);
+    expect(missingMarkers(maintainerSection, [requirement.maintainerMarker])).toEqual([]);
+    expect(missingMarkers(readRepoFile(requirement.targetPath), requirement.targetMarkers)).toEqual(
+      [],
+    );
+    return;
+  }
+  if (requirement.kind === "gate") {
+    expect(missingMarkers(consumerSection, [requirement.consumerCommand])).toEqual([]);
+    expect(missingMarkers(maintainerSection, [requirement.maintainerCommand])).toEqual([]);
+    return;
+  }
+  const consumerMarkers = requirement.consumerMarkers ?? [requirement.skillId];
+  const maintainerMarkers = requirement.maintainerMarkers ?? [requirement.skillId];
+  expect(missingMarkers(consumerSection, consumerMarkers)).toEqual([]);
+  expect(missingMarkers(maintainerSection, maintainerMarkers)).toEqual([]);
+
+  const frontmatter = skillFrontmatter(readRepoFile(requirement.skillPath));
+  expect(
+    missingMarkers(frontmatter, [
+      `name: ${requirement.skillId}`,
+      "description:",
+      ...(requirement.frontmatterMarkers ?? []),
+    ]),
+  ).toEqual([]);
 }
 
 describe("test_agents_entry_contract", () => {
@@ -299,24 +385,17 @@ describe("test_agents_entry_contract", () => {
     expect(missingMarkers(agents, UNMANAGED_HEADER_MARKERS)).toEqual([]);
   });
 
-  it("propagation_review_surface_precedence_markers_present_in_both_files", () => {
-    expect(missingMarkers(template, REVIEW_SURFACE_PRECEDENCE_MARKERS)).toEqual([]);
-    expect(missingMarkers(agents, REVIEW_SURFACE_PRECEDENCE_MARKERS)).toEqual([]);
-  });
-
-  it("propagation_value_feedback_markers_present_in_both_files", () => {
-    expect(missingMarkers(template, VALUE_FEEDBACK_MARKERS)).toEqual([]);
-    expect(missingMarkers(agents, VALUE_FEEDBACK_MARKERS)).toEqual([]);
-  });
-
-  it("propagation_eval_framework_markers_present_in_both_files", () => {
-    expect(missingMarkers(template, EVAL_FRAMEWORK_MARKERS)).toEqual([]);
-    expect(missingMarkers(agents, EVAL_FRAMEWORK_MARKERS)).toEqual([]);
-  });
-
-  it("propagation_deterministic_questions_runtime_markers_present_in_both_files", () => {
-    expect(missingMarkers(template, DETERMINISTIC_QUESTIONS_RUNTIME_MARKERS)).toEqual([]);
-    expect(missingMarkers(agents, DETERMINISTIC_QUESTIONS_RUNTIME_MARKERS)).toEqual([]);
+  it("propagation_contract_accepts_resolvable_rule_pointers", () => {
+    const kinds = new Set<PointerRequirement["kind"]>();
+    for (const contract of POINTER_SUFFICIENT_RULE_CONTRACTS) {
+      const consumerSection = sectionForHeading(template, contract.heading);
+      const maintainerSection = sectionForHeading(agents, contract.heading);
+      for (const requirement of contract.requirements) {
+        kinds.add(requirement.kind);
+        expectPointerRequirement(requirement, consumerSection, maintainerSection);
+      }
+    }
+    expect(kinds).toEqual(new Set(["doc", "gate", "skill"]));
   });
 
   it("value_readback_suppression_window_is_four_hours", () => {

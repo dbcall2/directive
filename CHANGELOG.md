@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The AGENTS.md propagation contract now accepts verified skill, gate, or doc pointers for bulky rule blocks instead of requiring full rule prose mirrored in the consumer template. This keeps deterministic reachability while unblocking the thin always-on surface planned by the AGENTS.md policy relocation epic. Closes #2371. Refs #2369.
+
 ### Fixed
 
 ### Removed
