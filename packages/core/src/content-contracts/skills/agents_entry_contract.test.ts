@@ -103,8 +103,9 @@ const PROPAGATION_ACTION_VERBS = [
   "start agent",
 ] as const;
 
-// #838: skill routing moved from the AGENTS.md `## Skill Routing` table to the
-// REFERENCES.md Skills Index. AGENTS.md keeps only a `## Skills` pointer.
+// #838/#2369: skill routing moved from the AGENTS.md `## Skill Routing` table to the
+// REFERENCES.md Skills Index. Native skill frontmatter is the first-choice routing
+// surface; AGENTS.md keeps only a thin `## Skills` pointer.
 const SKILLS_POINTER_MARKERS = [
   "## Skills",
   "Native skill frontmatter",

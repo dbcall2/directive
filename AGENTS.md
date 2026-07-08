@@ -268,7 +268,7 @@ Install-generated AGENTS.md uses deft/-prefixed paths.
 
 When the template is updated, run `task agents:refresh` to regenerate consumer-installed AGENTS.md from `content/templates/agents-entry.md` (see `## Template propagation discipline (#1309)` above).
 
-<!-- deft:managed-section v3 sha=070e860f91b7 refreshed=2026-07-08T08:31:27Z session=523751e74552 -->
+<!-- deft:managed-section v3 sha=5361e57f8405 refreshed=2026-07-08T08:44:31Z session=39d33a51a86a -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
@@ -409,7 +409,7 @@ Deft ships versioned content packs (e.g. lessons learned from prior work) under 
 
 ## Skills
 
-Native skill frontmatter is the routing surface on skill-aware harnesses. AGENTS.md does not enumerate skill routes; for AGENTS-only harnesses, use the **Skills Index** in `.deft/core/REFERENCES.md` as the fallback pointer, then read only the matching `SKILL.md`. Before improvising a multi-step workflow, scan the skills catalog first -- skills are versioned and tested.
+Native skill frontmatter is the routing surface on skill-aware harnesses. AGENTS.md does not enumerate skill routes; for AGENTS-only harnesses, use the **Skills Index** in `.deft/core/REFERENCES.md` as the fallback pointer, then read only the matching `SKILL.md`. Before improvising a multi-step workflow, scan the skills catalog first — skills are versioned and tested.
 
 ## Review-surface precedence (#2308)
 

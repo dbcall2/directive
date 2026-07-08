@@ -139,7 +139,7 @@ Deft ships versioned content packs (e.g. lessons learned from prior work) under 
 
 ## Skills
 
-Native skill frontmatter is the routing surface on skill-aware harnesses. AGENTS.md does not enumerate skill routes; for AGENTS-only harnesses, use the **Skills Index** in `.deft/core/REFERENCES.md` as the fallback pointer, then read only the matching `SKILL.md`. Before improvising a multi-step workflow, scan the skills catalog first -- skills are versioned and tested.
+Native skill frontmatter is the routing surface on skill-aware harnesses. AGENTS.md does not enumerate skill routes; for AGENTS-only harnesses, use the **Skills Index** in `.deft/core/REFERENCES.md` as the fallback pointer, then read only the matching `SKILL.md`. Before improvising a multi-step workflow, scan the skills catalog first — skills are versioned and tested.
 
 ## Review-surface precedence (#2308)
 
