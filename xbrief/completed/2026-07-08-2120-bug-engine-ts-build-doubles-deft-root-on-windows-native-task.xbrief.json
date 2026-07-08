@@ -15,19 +15,19 @@
     "items": [
       {
         "title": "`task deft:verify:cache-fresh` exits 0 on Windows native PowerShell for a v0.65.0 npm consumer deposit with global `deft` installed",
-        "status": "proposed"
+        "status": "completed"
       },
       {
         "title": "No doubled `DEFT_ROOT` path in go-task `dir` resolution",
-        "status": "proposed"
+        "status": "completed"
       },
       {
         "title": "`deft preflight-cache` and `task deft:verify:cache-fresh` remain behaviorally equivalent on Windows native",
-        "status": "proposed"
+        "status": "completed"
       },
       {
         "title": "Regression test or documented smoke for Windows-native consumer Taskfile includes",
-        "status": "proposed"
+        "status": "completed"
       }
     ],
     "tags": [

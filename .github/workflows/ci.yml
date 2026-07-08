@@ -273,6 +273,9 @@ jobs:
           $workspaceSh = $env:GITHUB_WORKSPACE.Replace('\', '/')
           $shBody = "#!/usr/bin/env sh`nnode `"$workspaceSh/packages/cli/dist/bin.js`" `"`$@`"`n"
           [System.IO.File]::WriteAllText($shShim, $shBody, (New-Object System.Text.UTF8Encoding $false))
+          if (Get-Command bash -ErrorAction SilentlyContinue) {
+            bash -lc "chmod +x '$($shShim.Replace('\', '/'))'"
+          }
 
           $env:PATH = "$shimDir;$env:PATH"
 
