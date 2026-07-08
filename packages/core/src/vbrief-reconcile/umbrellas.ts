@@ -25,7 +25,8 @@ const LAST_UPDATED_RE = /^Last updated:\s*(\S.*|)$/m;
 const LAST_PASS_TYPE_RE = /^Last pass type:\s*(\S.*|)$/m;
 const HISTORY_TOKEN_RE = /^\s*pass-(\d+):\s*(\d+)\s*$/;
 const CHECKBOX_LINE_RE = /^(\s*[-*]\s+\[)([ xX])(\]\s+.*)$/;
-const ISSUE_MENTION_RE = /(?:#|\/issues\/)(\d+)\b/;
+const ISSUE_MENTION_RE =
+  /(?:(?:https?:\/\/github\.com\/)?([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\/issues\/|\/issues\/|#)(\d+)\b/g;
 
 const READING_ORDER =
   "1. Read the umbrella issue body.\n" +
@@ -410,6 +411,10 @@ function childIssueRepo(child: Child, fallbackRepo: string): string {
   return child.issue_repo ?? fallbackRepo;
 }
 
+function childIssueKey(repo: string, issueNumber: number): string {
+  return `${repo}:${issueNumber}`;
+}
+
 function childOpenClosedState(
   child: Child,
   fallbackRepo: string,
@@ -428,9 +433,25 @@ function childOpenClosedState(
   return (OPEN_FOLDERS as readonly string[]).includes(child.folder) ? "open" : "closed";
 }
 
+function findChecklistIssueState(
+  text: string,
+  fallbackRepo: string,
+  childIssueStates: ReadonlyMap<string, ChildOpenClosedState>,
+): ChildOpenClosedState | undefined {
+  for (const match of text.matchAll(ISSUE_MENTION_RE)) {
+    const rawNumber = match[2];
+    if (rawNumber === undefined) continue;
+    const repo = match[1] ?? fallbackRepo;
+    const state = childIssueStates.get(childIssueKey(repo, Number(rawNumber)));
+    if (state !== undefined) return state;
+  }
+  return undefined;
+}
+
 function reconcileChecklistBody(
   body: string,
-  childIssueStates: ReadonlyMap<number, ChildOpenClosedState>,
+  repo: string,
+  childIssueStates: ReadonlyMap<string, ChildOpenClosedState>,
 ): { readonly changed: boolean; readonly body: string } {
   let changed = false;
   const lines = body.split("\n").map((rawLine) => {
@@ -438,10 +459,7 @@ function reconcileChecklistBody(
     const line = cr ? rawLine.slice(0, -1) : rawLine;
     const checkbox = CHECKBOX_LINE_RE.exec(line);
     if (!checkbox?.[1] || !checkbox[2] || !checkbox[3]) return rawLine;
-    const issue = ISSUE_MENTION_RE.exec(checkbox[3]);
-    const rawNumber = issue?.[1];
-    if (rawNumber === undefined) return rawLine;
-    const state = childIssueStates.get(Number(rawNumber));
+    const state = findChecklistIssueState(checkbox[3], repo, childIssueStates);
     if (state === undefined) return rawLine;
     const desiredMark = state === "closed" ? "x" : " ";
     if (checkbox[2] === desiredMark) return rawLine;
@@ -456,7 +474,7 @@ function reconcileUmbrellaIssueChecklist(options: {
   issueNumber: number;
   client: UmbrellaClient;
   dryRun: boolean;
-  childIssueStates: ReadonlyMap<number, ChildOpenClosedState>;
+  childIssueStates: ReadonlyMap<string, ChildOpenClosedState>;
   issueCache: Map<string, { readonly state: string; readonly body: string } | null>;
 }): { readonly action: "edited" | "unchanged" | "skipped"; readonly body: string | null } {
   if (
@@ -473,7 +491,7 @@ function reconcileUmbrellaIssueChecklist(options: {
     options.issueCache,
   );
   if (issue === null) return { action: "skipped", body: null };
-  const next = reconcileChecklistBody(issue.body, options.childIssueStates);
+  const next = reconcileChecklistBody(issue.body, options.repo, options.childIssueStates);
   if (!next.changed) return { action: "unchanged", body: issue.body };
   if (!options.dryRun) options.client.editIssueBody(options.repo, options.issueNumber, next.body);
   return { action: "edited", body: next.body };
@@ -483,16 +501,19 @@ function planShape(
   epicData: Record<string, unknown>,
   index: Record<string, Child>,
   options: { repo: string; client: UmbrellaClient },
-): [Child[], Child[], string[][], Map<number, ChildOpenClosedState>] {
+): [Child[], Child[], string[][], Map<string, ChildOpenClosedState>] {
   const children = computeChildren(epicData, index);
   const issueCache = new Map<string, { readonly state: string; readonly body: string } | null>();
-  const childIssueStates = new Map<number, ChildOpenClosedState>();
+  const childIssueStates = new Map<string, ChildOpenClosedState>();
   const openChildren: Child[] = [];
   const closedChildren: Child[] = [];
   for (const child of children) {
     const state = childOpenClosedState(child, options.repo, options.client, issueCache);
     if (child.issue_number !== undefined && child.issue_number !== null) {
-      childIssueStates.set(child.issue_number, state);
+      childIssueStates.set(
+        childIssueKey(childIssueRepo(child, options.repo), child.issue_number),
+        state,
+      );
     }
     if (state === "closed") closedChildren.push(child);
     else openChildren.push(child);
@@ -716,16 +737,17 @@ export function reconcileUmbrellas(
 export function renderUmbrellasReport(outcome: ReconcileUmbrellasOutcome): string {
   const lines: string[] = ["vBRIEF reconcile umbrellas", ""];
   const suffix = outcome.dry_run ? " (dry-run)" : "";
+  const inline = (value: string | number): string => String(value).replace(/[\r\n]+/g, " ");
 
   lines.push(`Changed${suffix}:`);
   if (outcome.changed.length > 0) {
     for (const c of outcome.changed) {
       const checklist =
         c.checklist_action !== undefined && c.checklist_action !== "skipped"
-          ? `, checklist ${c.checklist_action}`
+          ? `, checklist ${inline(c.checklist_action)}`
           : "";
       lines.push(
-        `- #${c.issue_number} (${c.repo}) [${c.story_id}]: ${c.action}${checklist} -> pass-${c.pass_n}`,
+        `- #${inline(c.issue_number)} (${inline(c.repo)}) [${inline(c.story_id)}]: ${inline(c.action)}${checklist} -> pass-${inline(c.pass_n)}`,
       );
     }
   } else {
@@ -738,9 +760,11 @@ export function renderUmbrellasReport(outcome: ReconcileUmbrellasOutcome): strin
     for (const c of outcome.unchanged) {
       const checklist =
         c.checklist_action !== undefined && c.checklist_action !== "skipped"
-          ? `, checklist ${c.checklist_action}`
+          ? `, checklist ${inline(c.checklist_action)}`
           : "";
-      lines.push(`- #${c.issue_number} (${c.repo}) [${c.story_id}]: pass-${c.pass_n}${checklist}`);
+      lines.push(
+        `- #${inline(c.issue_number)} (${inline(c.repo)}) [${inline(c.story_id)}]: pass-${inline(c.pass_n)}${checklist}`,
+      );
     }
   } else {
     lines.push("- none");
@@ -749,13 +773,14 @@ export function renderUmbrellasReport(outcome: ReconcileUmbrellasOutcome): strin
   if (outcome.skipped_no_ref.length > 0) {
     lines.push("");
     lines.push("Skipped (no github-issue reference / repo):");
-    for (const sid of outcome.skipped_no_ref) lines.push(`- ${sid}`);
+    for (const sid of outcome.skipped_no_ref) lines.push(`- ${inline(sid)}`);
   }
 
   if (outcome.errors.length > 0) {
     lines.push("");
     lines.push("Errors:");
-    for (const err of outcome.errors) lines.push(`- ${err.story_id}: ${err.message}`);
+    for (const err of outcome.errors)
+      lines.push(`- ${inline(err.story_id)}: ${inline(err.message)}`);
   }
 
   return lines.join("\n");

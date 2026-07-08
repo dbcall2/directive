@@ -185,8 +185,8 @@ describe("renderUmbrellasReport", () => {
     const report = renderUmbrellasReport({
       changed: [
         {
-          story_id: "epic-a",
-          repo: "deftai/directive",
+          story_id: "epic-a\nescaped",
+          repo: "deftai/directive\r\nextra",
           issue_number: 10,
           action: "edited",
           checklist_action: "unchanged",
@@ -220,7 +220,9 @@ describe("renderUmbrellasReport", () => {
     });
 
     expect(report).toContain("Changed (dry-run):");
-    expect(report).toContain("#10 (deftai/directive) [epic-a]: edited, checklist unchanged");
+    expect(report).toContain(
+      "#10 (deftai/directive extra) [epic-a escaped]: edited, checklist unchanged",
+    );
     expect(report).toContain("#11 (deftai/directive) [epic-b]: created -> pass-1");
     expect(report).toContain("#12 (deftai/directive) [epic-c]: pass-3, checklist edited");
   });
@@ -319,6 +321,77 @@ describe("reconcileUmbrellas", () => {
     expect(secondOutcome.changed[0]?.action).toBe("unchanged");
     expect(secondOutcome.changed[0]?.checklist_action).toBe("edited");
     expect(secondOutcome.unchanged).toEqual([]);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("uses repo-qualified checklist state and skips stale first refs", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-umbrella-checklist-refs-"));
+    const active = join(root, "xbrief", "active");
+    mkdirSync(active, { recursive: true });
+    writeFileSync(
+      join(active, "local-child.xbrief.json"),
+      `${JSON.stringify({
+        plan: {
+          id: "local-child",
+          title: "Local child",
+          metadata: { kind: "story", swarm: { depends_on: [] } },
+          references: [
+            { type: "x-vbrief/github-issue", uri: "https://github.com/deftai/directive/issues/42" },
+          ],
+        },
+      })}\n`,
+    );
+    writeFileSync(
+      join(active, "other-child.xbrief.json"),
+      `${JSON.stringify({
+        plan: {
+          id: "other-child",
+          title: "Other child",
+          metadata: { kind: "story", swarm: { depends_on: [] } },
+          references: [
+            { type: "x-vbrief/github-issue", uri: "https://github.com/deftai/other/issues/42" },
+          ],
+        },
+      })}\n`,
+    );
+    writeFileSync(
+      join(active, "epic.xbrief.json"),
+      `${JSON.stringify({
+        plan: {
+          id: "epic-cross-repo",
+          metadata: { kind: "epic", swarm: { depends_on: [] } },
+          references: [
+            {
+              type: "x-vbrief/github-issue",
+              uri: "https://github.com/deftai/directive/issues/300",
+            },
+            { type: "x-vbrief/github-issue", uri: "https://github.com/deftai/directive/issues/42" },
+            { type: "x-vbrief/github-issue", uri: "https://github.com/deftai/other/issues/42" },
+          ],
+        },
+      })}\n`,
+    );
+    const client = new FakeUmbrellaClient();
+    client.issues.set("deftai/directive:300", {
+      state: "open",
+      body:
+        "- [ ] https://github.com/deftai/other/issues/42 other closed child\n" +
+        "- [x] stale #999, tracked as #42 local open child\n",
+    });
+    client.issues.set("deftai/directive:42", { state: "open", body: "" });
+    client.issues.set("deftai/other:42", { state: "closed", body: "" });
+
+    const [code, outcome] = reconcileUmbrellas(root, {
+      client,
+      now: "2026-06-14T20:00:00Z",
+    });
+
+    expect(code).toBe(0);
+    expect(outcome.changed[0]?.checklist_action).toBe("edited");
+    expect(client.issues.get("deftai/directive:300")?.body).toBe(
+      "- [x] https://github.com/deftai/other/issues/42 other closed child\n" +
+        "- [ ] stale #999, tracked as #42 local open child\n",
+    );
     rmSync(root, { recursive: true, force: true });
   });
 

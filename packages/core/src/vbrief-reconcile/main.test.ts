@@ -365,6 +365,28 @@ describe("umbrellas SCM client", () => {
     expect(callSpy.mock.calls[1]?.[2]).toContain("repos/deftai/directive/issues/1");
   });
 
+  it("throws when editing an issue body fails", () => {
+    vi.spyOn(scm, "call").mockReturnValue({
+      args: [],
+      returncode: 1,
+      stdout: "",
+      stderr: "boom",
+    });
+    expect(() => new ScmUmbrellaClient().editIssueBody("deftai/directive", 1, "body")).toThrow(
+      UmbrellaScmError,
+    );
+  });
+
+  it("fetchIssue tolerates unexpected and partial issue payloads", () => {
+    vi.spyOn(scm, "call")
+      .mockReturnValueOnce({ args: [], returncode: 0, stdout: "[]", stderr: "" })
+      .mockReturnValueOnce({ args: [], returncode: 0, stdout: JSON.stringify({}), stderr: "" });
+
+    const client = new ScmUmbrellaClient();
+    expect(client.fetchIssue("deftai/directive", 1)).toBeNull();
+    expect(client.fetchIssue("deftai/directive", 2)).toEqual({ state: "open", body: "" });
+  });
+
   it("fetch edit create via scm", () => {
     vi.spyOn(scm, "call")
       .mockReturnValueOnce({ args: [], returncode: 0, stdout: "[]", stderr: "" })
@@ -379,6 +401,16 @@ describe("umbrellas SCM client", () => {
     expect(client.createComment("deftai/directive", 1, "body")).toBe(42);
     vi.spyOn(scm, "call").mockReturnValue({ args: [], returncode: 0, stdout: "", stderr: "" });
     client.editComment("deftai/directive", 1, "new");
+  });
+
+  it("fetchComments and createComment tolerate unexpected json shapes", () => {
+    vi.spyOn(scm, "call")
+      .mockReturnValueOnce({ args: [], returncode: 0, stdout: "{}", stderr: "" })
+      .mockReturnValueOnce({ args: [], returncode: 0, stdout: "not-json", stderr: "" });
+
+    const client = new ScmUmbrellaClient();
+    expect(client.fetchComments("deftai/directive", 1)).toEqual([]);
+    expect(client.createComment("deftai/directive", 1, "body")).toBeNull();
   });
 
   it("umbrella edit when body changes", () => {
