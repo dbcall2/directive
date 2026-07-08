@@ -4,27 +4,49 @@ import { readRepoFile } from "./helpers.js";
 const researchText = readRepoFile("strategies/research.md");
 const setupText = readRepoFile("skills/deft-directive-setup/SKILL.md");
 
-function sectionBetween(text: string, startNeedle: string, endNeedle: string): string {
+function sectionBetween(
+  text: string,
+  startNeedle: string,
+  endNeedle: string,
+  sourceLabel: string,
+): string {
   const start = text.indexOf(startNeedle);
-  expect(start).not.toBe(-1);
+  if (start === -1) {
+    throw new Error(`Missing ${JSON.stringify(startNeedle)} in ${sourceLabel}.`);
+  }
   const end = text.indexOf(endNeedle, start + startNeedle.length);
-  expect(end).not.toBe(-1);
-  expect(end).toBeGreaterThan(start);
+  if (end === -1) {
+    throw new Error(
+      `Missing ${JSON.stringify(endNeedle)} after ${JSON.stringify(startNeedle)} in ${sourceLabel}.`,
+    );
+  }
   return text.slice(start, end);
 }
 
 describe("research strategy lifecycle (#1273)", () => {
-  const scopeGate = sectionBetween(researchText, "## Scope Confirmation Gate (#1273)", "## Output");
+  const scopeGate = sectionBetween(
+    researchText,
+    "## Scope Confirmation Gate (#1273)",
+    "## Output",
+    "strategies/research.md",
+  );
   const researchChaining = sectionBetween(
     researchText,
     "## Then: Chaining Gate",
     "! **Standalone context:**",
+    "strategies/research.md",
   );
-  const setupDispatch = sectionBetween(setupText, "**Dispatch:**", "---");
+  const setupDispatch = sectionBetween(
+    setupText,
+    "**Dispatch:**",
+    "---",
+    "skills/deft-directive-setup/SKILL.md",
+  );
   const setupSpecStructure = sectionBetween(
     setupText,
     "**Spec Structure (both paths):**",
     "### Lifecycle Bridge to Downstream Skills",
+    "skills/deft-directive-setup/SKILL.md",
   );
 
   it("requires a blocking scope-confirmation prompt before autonomous research", () => {
