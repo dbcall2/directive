@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Windows-native consumer projects now have CI coverage for the namespaced cache-fresh session-start gate. The smoke runs `task deft:verify:cache-fresh` against an npm-style `.deft/core` deposit without framework source packages and compares it with direct `deft preflight-cache`, preventing the `_ts-build` path-doubling regression from returning. Closes #2120.
+
 ### Removed
 
 ## [0.73.0] - 2026-07-07

@@ -238,6 +238,70 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build TypeScript CLI for Windows task smokes
+        run: pnpm run build
+
+      - name: task deft:verify:cache-fresh consumer deposit smoke (#2120)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
+            $PSNativeCommandUseErrorActionPreference = $false
+          }
+
+          $fixture = Join-Path $env:RUNNER_TEMP "cache-fresh-consumer"
+          Remove-Item -Recurse -Force $fixture -ErrorAction SilentlyContinue
+          $core = Join-Path $fixture ".deft\core"
+          $shimDir = Join-Path $fixture "bin"
+          New-Item -ItemType Directory -Path $core, $shimDir -Force | Out-Null
+
+          # Simulate an npm-deposited .deft/core: content package task surfaces
+          # are present, but framework source packages/cli is intentionally absent.
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE "Taskfile.yml") -Destination (Join-Path $core "Taskfile.yml")
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE "tasks") -Destination (Join-Path $core "tasks") -Recurse
+          if (Test-Path (Join-Path $core "packages")) {
+            throw "consumer fixture unexpectedly contains .deft/core/packages"
+          }
+
+          $rootTaskfile = "version: '3'`nincludes:`n  deft:`n    taskfile: ./.deft/core/Taskfile.yml`n    optional: true`n"
+          [System.IO.File]::WriteAllText((Join-Path $fixture "Taskfile.yml"), $rootTaskfile, [System.Text.Encoding]::ASCII)
+
+          $shim = "@echo off`r`nnode `"$env:GITHUB_WORKSPACE\packages\cli\dist\bin.js`" %*`r`n"
+          [System.IO.File]::WriteAllText((Join-Path $shimDir "deft.cmd"), $shim, [System.Text.Encoding]::ASCII)
+          $env:PATH = "$shimDir;$env:PATH"
+
+          Push-Location $fixture
+          try {
+            git init -q
+            git config core.autocrlf true
+            git -c user.name=ci -c user.email=ci@example.com add -A
+            git -c user.name=ci -c user.email=ci@example.com commit -q -m baseline
+
+            $taskOutput = task deft:verify:cache-fresh 2>&1 | Out-String
+            $taskExit = $LASTEXITCODE
+            Write-Host $taskOutput
+            if ($taskExit -ne 0) {
+              throw "task deft:verify:cache-fresh exited $taskExit"
+            }
+            if ($taskOutput -match "engine:_ts-build|pnpm run build") {
+              throw "task deft:verify:cache-fresh unexpectedly invoked the build path"
+            }
+
+            $directOutput = deft preflight-cache --project-root . --allow-missing-bootstrap 2>&1 | Out-String
+            $directExit = $LASTEXITCODE
+            Write-Host $directOutput
+            if ($directExit -ne 0) {
+              throw "deft preflight-cache exited $directExit"
+            }
+
+            $status = git status --short
+            if ($status) {
+              throw "consumer fixture should remain clean after cache-fresh smoke:`n$status"
+            }
+          } finally {
+            Pop-Location
+          }
+
       - name: Stage pre-cutover fixture as consumer project
         shell: pwsh
         run: |

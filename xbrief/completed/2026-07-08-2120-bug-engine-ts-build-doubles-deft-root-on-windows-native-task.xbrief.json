@@ -1,0 +1,52 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2120"
+  },
+  "plan": {
+    "title": "bug: engine:_ts-build doubles DEFT_ROOT on Windows native — task deft:verify:cache-fresh fails",
+    "status": "completed",
+    "narratives": {
+      "Description": "bug: engine:_ts-build doubles DEFT_ROOT on Windows native — task deft:verify:cache-fresh fails",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2120",
+      "Overview": "## Summary\r\n\r\nOn **Windows native** (PowerShell / go-task, not WSL), `task deft:verify:cache-fresh` fails before the gate runs because the `engine:_ts-build` dependency doubles `DEFT_ROOT` into an invalid path. The same consumer project works under WSL and the underlying gate works via the global npm CLI (`deft preflight-cache`).\r\n\r\nThis breaks the AGENTS.md session-start ritual step 5 (`task verify:cache-fresh` / `task deft:verify:cache-fresh`) for Windows-native operators who have not previously exercised directive on that host.\r\n\r\nRelated but distinct from #2118 (CRLF phantom dirty tree after `deft update` on an already-current deposit).\r\n\r\n## Environment\r\n\r\n- **Consumer repo:** `deftai/statusreport` (master, directive v0.65.0 npm deposit)\r\n- **OS:** Windows 10/11 native — PowerShell, **not WSL**\r\n- **task:** go-task (Taskfile v3 include: `task deft:verify:cache-fresh`)\r\n- **Global CLI:** `@deftai/directive@0.65.0` installed via `npm i -g @deftai/directive@latest`\r\n- **First exercise on this host:** operator previously used directive only under WSL; first native-Windows run surfaced this\r\n\r\n## Repro\r\n\r\n```powershell\r\ncd C:\\Repos\\Deft\\statusreport   # clean master, v0.65.0 deposit\r\nnpm i -g @deftai/directive@latest\r\ntask deft:verify:cache-fresh\r\n```\r\n\r\n## Expected\r\n\r\nGate runs (or exits with a cache-freshness result). On a project with no triage bootstrap yet, `--allow-missing-bootstrap` should treat missing cache as fresh — same as direct CLI:\r\n\r\n```powershell\r\ndeft preflight-cache --project-root . --allow-missing-bootstrap\r\n# ✓ deft cache-fresh: no cache found (bootstrap state) -- treating as fresh.\r\n```\r\n\r\n## Actual\r\n\r\n```\r\ntask: [deft:engine:_ts-build] set -eu\r\nif [ -f packages/cli/dist/bin.js ]; then\r\n  pnpm run build\r\nfi\r\n\r\ntask: Failed to run task \"deft:verify:cache-fresh\":\r\n  task: Failed to run task \"deft:engine:_ts-build\":\r\n  could not stat: CreateFile C:\\Repos\\Deft\\statusreport\\.deft\\core\\C:\\Repos\\Deft\\statusreport\\.deft\\core:\r\n  The filename, directory name, or volume label syntax is incorrect.\r\n```\r\n\r\n`DEFT_ROOT` is concatenated twice when go-task resolves `dir: '{{.DEFT_ROOT}}'` for the included `engine:_ts-build` task on Windows native.\r\n\r\n## Scope\r\n\r\n`verify:cache-fresh` declares:\r\n\r\n```yaml\r\ndeps:\r\n  - task: :engine:_ts-build\r\n```\r\n\r\n`tasks/engine.yml`:\r\n\r\n```yaml\r\n_ts-build:\r\n  dir: '{{.DEFT_ROOT}}'\r\n```\r\n\r\nOther `engine:invoke` gates that **omit** the `_ts-build` dep work on the same host — e.g. `task deft:doctor` succeeds and falls through to global `deft doctor`.\r\n\r\nAny task depending on `:engine:_ts-build` via the cross-include `:engine:` prefix is likely affected on Windows native; `verify:cache-fresh` is the session-start / pre-`start_agent` gate called out in AGENTS.md.\r\n\r\n## Workarounds\r\n\r\n1. Use the global CLI directly: `deft preflight-cache --project-root . --allow-missing-bootstrap`\r\n2. Run directive workflows under WSL (where this path doubling was not observed)\r\n3. Session-start step 5 can be skipped only when operator accepts bypassing the gate (not ideal for agent dispatch)\r\n\r\n## Proposed fix directions\r\n\r\n1. Fix `engine:_ts-build` `dir` resolution on Windows when invoked as `:engine:_ts-build` from an included namespace (go-task path join / `DEFT_ROOT` expansion).\r\n2. Or remove `_ts-build` as a hard dep for npm consumer deposits where `packages/cli/dist/bin.js` is intentionally absent — `_ts-build` is already a no-op when bin.js missing; the dep should not block `engine:invoke` fallback to global `deft`.\r\n3. Add a Windows-native CI or smoke step that runs `task deft:verify:cache-fresh` on a consumer fixture (parity with WSL/Linux coverage).\r\n\r\n## Acceptance criteria\r\n\r\n- [ ] `task deft:verify:cache-fresh` exits 0 on Windows native PowerShell for a v0.65.0 npm consumer deposit with global `deft` installed\r\n- [ ] No doubled `DEFT_ROOT` path in go-task `dir` resolution\r\n- [ ] `deft preflight-cache` and `task deft:verify:cache-fresh` remain behaviorally equivalent on Windows native\r\n- [ ] Regression test or documented smoke for Windows-native consumer Taskfile includes\r\n\r\n## Related\r\n\r\n- #2118 — Windows CRLF phantom dirty tree after no-op `deft update` (separate issue)\r\n- #2022 Phase 3 — Python-free npm deposit; `engine:invoke` + global `deft` fallback\r\n- AGENTS.md session-start ritual step 5 (`task verify:cache-fresh`)\r\n\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @MScottAdams (2026-06-30T16:21:02Z)\n\nCross-linked from #2118 (CRLF / no-op deft update noise on Windows native). Same statusreport session; separate root cause and fix.",
+      "Labels": "bug, adoption-blocker, installer, agent-experience"
+    },
+    "items": [
+      {
+        "title": "`task deft:verify:cache-fresh` exits 0 on Windows native PowerShell for a v0.65.0 npm consumer deposit with global `deft` installed",
+        "status": "completed"
+      },
+      {
+        "title": "No doubled `DEFT_ROOT` path in go-task `dir` resolution",
+        "status": "completed"
+      },
+      {
+        "title": "`deft preflight-cache` and `task deft:verify:cache-fresh` remain behaviorally equivalent on Windows native",
+        "status": "completed"
+      },
+      {
+        "title": "Regression test or documented smoke for Windows-native consumer Taskfile includes",
+        "status": "completed"
+      }
+    ],
+    "tags": [
+      "bug",
+      "adoption-blocker",
+      "installer",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2120",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2120: bug: engine:_ts-build doubles DEFT_ROOT on Windows native — task deft:verify:cache-fresh fails"
+      }
+    ],
+    "updated": "2026-07-08T05:29:42Z",
+    "metadata": {
+      "completedAt": "2026-07-08T05:29:42Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}
