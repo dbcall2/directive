@@ -249,6 +249,45 @@ jobs:
             $PSNativeCommandUseErrorActionPreference = $false
           }
 
+          function Invoke-NativeChecked {
+            param(
+              [string] $Label,
+              [scriptblock] $Command
+            )
+
+            $previousErrorActionPreference = $ErrorActionPreference
+            try {
+              $ErrorActionPreference = "Continue"
+              & $Command
+              $exitCode = $LASTEXITCODE
+              if ($exitCode -ne 0) {
+                throw "$Label exited $exitCode"
+              }
+            } finally {
+              $ErrorActionPreference = $previousErrorActionPreference
+            }
+          }
+
+          function Invoke-NativeCaptured {
+            param(
+              [scriptblock] $Command
+            )
+
+            $previousErrorActionPreference = $ErrorActionPreference
+            try {
+              $ErrorActionPreference = "Continue"
+              $output = & $Command 2>&1 | Out-String
+              $exitCode = $LASTEXITCODE
+            } finally {
+              $ErrorActionPreference = $previousErrorActionPreference
+            }
+
+            [pscustomobject]@{
+              ExitCode = $exitCode
+              Output = $output
+            }
+          }
+
           $fixture = Join-Path $env:RUNNER_TEMP "cache-fresh-consumer"
           Remove-Item -Recurse -Force $fixture -ErrorAction SilentlyContinue
           $core = Join-Path $fixture ".deft\core"
@@ -272,29 +311,31 @@ jobs:
 
           Push-Location $fixture
           try {
-            git init -q
-            git config core.autocrlf true
-            git -c user.name=ci -c user.email=ci@example.com add -A
-            git -c user.name=ci -c user.email=ci@example.com commit -q -m baseline
+            Invoke-NativeChecked "git init" { git init -q }
+            Invoke-NativeChecked "git config core.autocrlf" { git config core.autocrlf true }
+            Invoke-NativeChecked "git add baseline" { git -c user.name=ci -c user.email=ci@example.com add -A }
+            Invoke-NativeChecked "git commit baseline" { git -c user.name=ci -c user.email=ci@example.com commit -q -m baseline }
 
-            $taskOutput = task deft:verify:cache-fresh 2>&1 | Out-String
-            $taskExit = $LASTEXITCODE
-            Write-Host $taskOutput
-            if ($taskExit -ne 0) {
-              throw "task deft:verify:cache-fresh exited $taskExit"
+            $taskResult = Invoke-NativeCaptured { task deft:verify:cache-fresh }
+            Write-Host $taskResult.Output
+            if ($taskResult.ExitCode -ne 0) {
+              throw "task deft:verify:cache-fresh exited $($taskResult.ExitCode)"
             }
-            if ($taskOutput -match "engine:_ts-build|pnpm run build") {
+            if ($taskResult.Output -match "engine:_ts-build|pnpm run build") {
               throw "task deft:verify:cache-fresh unexpectedly invoked the build path"
             }
 
-            $directOutput = deft preflight-cache --project-root . --allow-missing-bootstrap 2>&1 | Out-String
-            $directExit = $LASTEXITCODE
-            Write-Host $directOutput
-            if ($directExit -ne 0) {
-              throw "deft preflight-cache exited $directExit"
+            $directResult = Invoke-NativeCaptured { deft preflight-cache --project-root . --allow-missing-bootstrap }
+            Write-Host $directResult.Output
+            if ($directResult.ExitCode -ne 0) {
+              throw "deft preflight-cache exited $($directResult.ExitCode)"
             }
 
-            $status = git status --short
+            $statusResult = Invoke-NativeCaptured { git status --short }
+            if ($statusResult.ExitCode -ne 0) {
+              throw "git status exited $($statusResult.ExitCode)`n$($statusResult.Output)"
+            }
+            $status = $statusResult.Output
             if ($status) {
               throw "consumer fixture should remain clean after cache-fresh smoke:`n$status"
             }
