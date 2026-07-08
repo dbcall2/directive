@@ -5,6 +5,7 @@ type JsonObject = Record<string, unknown>;
 
 export interface RenderPrdOptions {
   readonly force?: boolean;
+  readonly includeLegacyArtifacts?: boolean;
 }
 
 function isDeftGenerated(path: string): boolean {
@@ -25,6 +26,7 @@ export function renderPrd(
   options: RenderPrdOptions = {},
 ): void {
   const force = options.force ?? false;
+  const includeLegacyArtifacts = options.includeLegacyArtifacts ?? false;
   if (!existsSync(specPath)) {
     process.stderr.write(`Error: specification file not found: ${specPath}\n`);
     process.exit(1);
@@ -64,6 +66,7 @@ export function renderPrd(
   }
   for (const key of Object.keys(narratives).sort()) {
     if (!renderedKeys.has(key)) {
+      if (key === "LegacyArtifacts" && !includeLegacyArtifacts) continue;
       lines.push(`## ${key}\n`);
       lines.push(`${String(narratives[key])}\n`);
     }
@@ -74,7 +77,7 @@ export function renderPrd(
       "(e.g. `xbrief/specification.xbrief.json`) via `task prd:render`. Do not edit directly.*\n",
   );
 
-  writeFileSync(outputPath, lines.join("\n"), "utf8");
+  writeFileSync(outputPath, lines.join("\n").replace(/[ \t]+$/gm, ""), "utf8");
   process.stdout.write(`PRD.md written to ${outputPath}\n`);
 }
 
@@ -82,22 +85,35 @@ export interface PrdCliArgs {
   readonly spec?: string;
   readonly output?: string;
   readonly force?: boolean;
+  readonly includeLegacyArtifacts?: boolean;
 }
 
 /** CLI entry (mirrors ``scripts/prd_render.main``). */
 export function main(args: PrdCliArgs = {}): void {
   renderPrd(args.spec ?? "vbrief/specification.vbrief.json", args.output ?? "PRD.md", {
     force: args.force ?? false,
+    includeLegacyArtifacts: args.includeLegacyArtifacts ?? false,
   });
 }
 
 export function parsePrdArgv(argv: readonly string[]): PrdCliArgs {
-  const out: { spec?: string; output?: string; force?: boolean } = {};
+  const out: {
+    spec?: string;
+    output?: string;
+    force?: boolean;
+    includeLegacyArtifacts?: boolean;
+  } = {};
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i] ?? "";
     if (arg === "--force") out.force = true;
     else if (arg === "--spec") out.spec = argv[++i];
     else if (arg === "--output") out.output = argv[++i];
+    else if (arg === "--include-legacy-artifacts") out.includeLegacyArtifacts = true;
+    else if (arg.startsWith("--include-legacy-artifacts=")) {
+      const value = arg.split("=", 2)[1]?.toLowerCase() ?? "";
+      out.includeLegacyArtifacts =
+        value === "on" || value === "true" || value === "1" || value === "yes";
+    }
   }
   return out;
 }

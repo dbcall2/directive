@@ -31,6 +31,7 @@ export type RenderSpecResult = readonly [boolean, string];
 
 export interface RenderSpecOptions {
   readonly includeScopes?: boolean;
+  readonly includeLegacyArtifacts?: boolean;
 }
 
 /** Render specification JSON to markdown (mirrors ``scripts/spec_render.render_spec``). */
@@ -39,7 +40,8 @@ export function renderSpec(
   outPath: string,
   options: RenderSpecOptions = {},
 ): RenderSpecResult {
-  const includeScopes = options.includeScopes ?? true;
+  const includeScopes = options.includeScopes ?? false;
+  const includeLegacyArtifacts = options.includeLegacyArtifacts ?? false;
   const [ok, msg] = validateSpec(specPath);
   if (!ok) return [false, msg];
 
@@ -93,6 +95,7 @@ export function renderSpec(
   }
   for (const key of Object.keys(narratives).sort()) {
     if (renderedKeys.has(key) || !narratives[key]) continue;
+    if (key === "LegacyArtifacts" && !includeLegacyArtifacts) continue;
     lines.push(`## ${key}\n`);
     lines.push(`${String(narratives[key])}\n`);
   }
@@ -144,15 +147,17 @@ export function renderSpec(
     if (scopeLines.length > 0) lines.push(...scopeLines);
   }
 
-  writeFileSync(outPath, lines.join("\n"), "utf8");
+  writeFileSync(outPath, lines.join("\n").replace(/[ \t]+$/gm, ""), "utf8");
   return [true, `✓ Rendered to ${outPath}`];
 }
 
-export function parseIncludeScopesFlag(argv: readonly string[]): {
+export function parseSpecRenderFlags(argv: readonly string[]): {
   includeScopes: boolean;
+  includeLegacyArtifacts: boolean;
   remaining: string[];
 } {
-  let includeScopes = true;
+  let includeScopes = false;
+  let includeLegacyArtifacts = false;
   const remaining: string[] = [];
   for (const arg of argv) {
     if (arg === "--include-scopes") {
@@ -164,17 +169,29 @@ export function parseIncludeScopesFlag(argv: readonly string[]): {
       includeScopes = value === "on" || value === "true" || value === "1" || value === "yes";
       continue;
     }
+    if (arg === "--include-legacy-artifacts") {
+      includeLegacyArtifacts = true;
+      continue;
+    }
+    if (arg.startsWith("--include-legacy-artifacts=")) {
+      const value = arg.split("=", 2)[1]?.toLowerCase() ?? "";
+      includeLegacyArtifacts =
+        value === "on" || value === "true" || value === "1" || value === "yes";
+      continue;
+    }
     remaining.push(arg);
   }
-  return { includeScopes, remaining };
+  return { includeScopes, includeLegacyArtifacts, remaining };
 }
+
+export const parseIncludeScopesFlag = parseSpecRenderFlags;
 
 /** CLI entry (mirrors ``scripts/spec_render.main``). */
 export function main(argv: readonly string[]): number {
-  const { includeScopes, remaining } = parseIncludeScopesFlag(argv);
+  const { includeScopes, includeLegacyArtifacts, remaining } = parseSpecRenderFlags(argv);
   if (remaining.length === 0) {
     process.stderr.write(
-      "Usage: spec_render.py <spec_file> [out_file] [--include-scopes=on|off]\n",
+      "Usage: spec-render <spec_file> [out_file] [--include-scopes=on|off] [--include-legacy-artifacts=on|off]\n",
     );
     return 2;
   }
@@ -183,7 +200,7 @@ export function main(argv: readonly string[]): number {
     remaining.length >= 2
       ? (remaining[1] ?? "")
       : join(resolve(dirname(specPath)), "..", "SPECIFICATION.md");
-  const [ok, message] = renderSpec(specPath, outPath, { includeScopes });
+  const [ok, message] = renderSpec(specPath, outPath, { includeScopes, includeLegacyArtifacts });
   process.stdout.write(`${message}\n`);
   return ok ? 0 : 1;
 }

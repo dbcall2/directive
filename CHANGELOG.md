@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `task spec:render` now produces a compact `SPECIFICATION.md` by default: completed lifecycle history and `LegacyArtifacts` stay out unless explicitly requested, while `--include-scopes=on` and `--include-legacy-artifacts=on` preserve the full export path. `task prd:render` gets the same default-off legacy appendix behavior, and both renderers strip trailing whitespace. Closes #1566.
+
 ### Removed
 
 ## [0.73.0] - 2026-07-07
