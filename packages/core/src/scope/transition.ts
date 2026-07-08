@@ -18,6 +18,7 @@ import {
   updateDecomposedParentBackReferences,
 } from "./decomposed-refs.js";
 import { syncProjectDefinitionAfterScopeMove } from "./project-definition-sync.js";
+import { scopeCompleteUmbrellaWarnings } from "./umbrella-warning.js";
 import { formatVbriefJson, utcNowIso } from "./vbrief-json.js";
 import type { WipCapCheck } from "./wip-cap-check.js";
 
@@ -139,9 +140,20 @@ export function runTransition(
     updateDecomposedChildBackReferences(data, resolvedPath, destPath, vbriefRoot);
     syncProjectDefinitionAfterScopeMove(data, resolvedPath, destPath, vbriefRoot, targetStatus);
     const actionLabel = MOVE_LABELS[act] ?? act.charAt(0).toUpperCase() + act.slice(1);
+    const warnings =
+      act === "complete"
+        ? scopeCompleteUmbrellaWarnings({
+            projectRoot,
+            vbriefRoot,
+            oldPath: resolvedPath,
+            newPath: destPath,
+            scopeData: data,
+          })
+        : [];
+    const warningText = warnings.length > 0 ? `\n${warnings.join("\n")}` : "";
     return {
       ok: true,
-      message: `${actionLabel} ${basename}: ${currentFolder}/ -> ${targetFolder}/ (status: ${targetStatus})`,
+      message: `${actionLabel} ${basename}: ${currentFolder}/ -> ${targetFolder}/ (status: ${targetStatus})${warningText}`,
     };
   }
 

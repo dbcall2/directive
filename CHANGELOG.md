@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `task scope:complete` now warns when a completed scope is still referenced by an open umbrella or tracker issue in the local xBRIEF/cache state, pointing maintainers at `task vbrief:reconcile:umbrellas` instead of silently leaving stale current-shape/checklist state behind. Closes #2322.
+
 ### Removed
 
 ## [0.73.0] - 2026-07-07

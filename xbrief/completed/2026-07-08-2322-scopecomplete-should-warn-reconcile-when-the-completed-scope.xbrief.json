@@ -1,0 +1,40 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2322"
+  },
+  "plan": {
+    "title": "scope:complete should warn + reconcile when the completed scope is referenced by an OPEN umbrella",
+    "status": "completed",
+    "narratives": {
+      "Description": "scope:complete should warn + reconcile when the completed scope is referenced by an OPEN umbrella",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2322",
+      "Overview": "## Problem\n\nWhen `task scope:complete -- <path>` moves a scope xBRIEF `active/ -> completed/`, it fires no signal even when that scope is referenced by an **open umbrella / tracker issue**. The umbrella's `## Current shape` comment and body checklist keep showing the scope as in-flight, and nothing triggers a reconcile.\n\nThis is the uncovered angle between the two existing open items:\n- #370 (Epic tier RFC) covers the *epic <-> decomposed-child* relationship and auto-completion.\n- #1649 covers *umbrella current-shape / checkbox sync* for epics whose children are decomposed plan-refs.\n\nNeither covers a scope reaching `completed/` while an **open umbrella references it loosely** (working-set / meta tracker, or via legacy github-issue refs rather than `x-xbrief/plan`).\n\n## Concrete recurrence\n\nJust observed on PR #2320: `task scope:complete` on `2026-07-05-security-triage-deposit-ingest-umbrella-omnibus.xbrief.json` moved it to `completed/` while umbrella #1119 stayed OPEN (correctly -- it's a meta working-set tracker). But:\n- nothing warned that a still-open umbrella references the shipped scope, and\n- nothing offered / triggered `task vbrief:reconcile:umbrellas`.\n\nThis is the folder-vs-forge-state \"secondary smell\" from #1649, but at the **scope** (non-epic-child) level, so #1649's fix scope wouldn't catch it.\n\n## Proposed behavior\n\nOn `scope:complete`, after the folder move:\n\n1. **Detect** any open umbrella/tracker issue that references the completed scope -- via `plan.references[]` back-links, `planRef`, or a scan of open umbrellas whose current-shape/body lists the scope's issue number. Resolve BOTH canonical plan refs and legacy github-issue refs (the #1649 Defect 2 blind spot).\n2. **Warn** (non-blocking) naming the umbrella(s), e.g. `scope completed but referenced by OPEN umbrella #1119 -- run task vbrief:reconcile:umbrellas`.\n3. Optionally **auto-trigger** `reconcile:umbrellas` for the affected umbrella(s) (gated behind a flag / consent), closing the loop #1649 Defect \"no automation trigger\" leaves open.\n\n## Scope / relationship\n\n- Depends conceptually on #1649 Defects 2 + 3 (github-issue ref resolution + forge-state-aware open/closed) for the detection to be accurate.\n- Complementary to #370 auto-completion (that proposes completing the *epic*; this warns when a *scope* completes under an open *umbrella*).\n\nRefs #1649, #370, #1152, #1119.",
+      "Labels": "triage, source-of-truth, tooling, urgent"
+    },
+    "items": [],
+    "tags": [
+      "triage",
+      "source-of-truth",
+      "tooling",
+      "urgent"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2322",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2322: scope:complete should warn + reconcile when the completed scope is referenced by an OPEN umbrella"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1649",
+        "type": "x-xbrief/refs",
+        "title": "Issue #1649"
+      }
+    ],
+    "updated": "2026-07-08T10:40:57Z",
+    "metadata": {
+      "completedAt": "2026-07-08T10:40:57Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}
