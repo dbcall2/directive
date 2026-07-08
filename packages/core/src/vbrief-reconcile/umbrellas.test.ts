@@ -11,6 +11,7 @@ import {
   parseCurrentShape,
   reconcileUmbrellas,
   renderBody,
+  renderUmbrellasReport,
 } from "./umbrellas.js";
 
 class FakeUmbrellaClient implements UmbrellaClient {
@@ -179,7 +180,63 @@ describe("renderBody", () => {
   });
 });
 
+describe("renderUmbrellasReport", () => {
+  it("prints checklist actions for changed and unchanged umbrellas", () => {
+    const report = renderUmbrellasReport({
+      changed: [
+        {
+          story_id: "epic-a",
+          repo: "deftai/directive",
+          issue_number: 10,
+          action: "edited",
+          checklist_action: "unchanged",
+          pass_n: 2,
+          body: "body",
+        },
+        {
+          story_id: "epic-b",
+          repo: "deftai/directive",
+          issue_number: 11,
+          action: "created",
+          checklist_action: "skipped",
+          pass_n: 1,
+          body: "body",
+        },
+      ],
+      unchanged: [
+        {
+          story_id: "epic-c",
+          repo: "deftai/directive",
+          issue_number: 12,
+          action: "unchanged",
+          checklist_action: "edited",
+          pass_n: 3,
+          body: "body",
+        },
+      ],
+      skipped_no_ref: [],
+      errors: [],
+      dry_run: true,
+    });
+
+    expect(report).toContain("Changed (dry-run):");
+    expect(report).toContain("#10 (deftai/directive) [epic-a]: edited, checklist unchanged");
+    expect(report).toContain("#11 (deftai/directive) [epic-b]: created -> pass-1");
+    expect(report).toContain("#12 (deftai/directive) [epic-c]: pass-3, checklist edited");
+  });
+});
+
 describe("reconcileUmbrellas", () => {
+  it("returns config error when no xbrief layout exists", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-umbrella-missing-layout-"));
+    const [code, outcome] = reconcileUmbrellas(root, { dryRun: true });
+
+    expect(code).toBe(2);
+    expect(outcome.dry_run).toBe(true);
+    expect(outcome.changed).toEqual([]);
+    rmSync(root, { recursive: true, force: true });
+  });
+
   it("resolves github-issue children, uses forge state, and edits checklist markers", () => {
     const root = mkdtempSync(join(tmpdir(), "deft-umbrella-issue-refs-"));
     const active = join(root, "xbrief", "active");
@@ -319,6 +376,54 @@ describe("reconcileUmbrellas", () => {
     });
     expect(code).toBe(0);
     expect(outcome.changed[0]?.action).toBe("created");
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("does not write checklist edits during dry-run", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-umbrella-dry-run-"));
+    const active = join(root, "xbrief", "active");
+    mkdirSync(active, { recursive: true });
+    writeFileSync(
+      join(active, "child.xbrief.json"),
+      `${JSON.stringify({
+        plan: {
+          id: "dry-child",
+          metadata: { kind: "story", swarm: { depends_on: [] } },
+          references: [
+            { type: "x-vbrief/github-issue", uri: "https://github.com/deftai/directive/issues/20" },
+          ],
+        },
+      })}\n`,
+    );
+    writeFileSync(
+      join(active, "epic.xbrief.json"),
+      `${JSON.stringify({
+        plan: {
+          id: "dry-epic",
+          metadata: { kind: "epic", swarm: { depends_on: [] } },
+          references: [
+            {
+              type: "x-vbrief/github-issue",
+              uri: "https://github.com/deftai/directive/issues/200",
+            },
+            { type: "x-vbrief/github-issue", uri: "https://github.com/deftai/directive/issues/20" },
+          ],
+        },
+      })}\n`,
+    );
+    const client = new FakeUmbrellaClient();
+    client.issues.set("deftai/directive:200", { state: "open", body: "- [ ] #20\n" });
+    client.issues.set("deftai/directive:20", { state: "closed", body: "" });
+
+    const [code, outcome] = reconcileUmbrellas(root, {
+      client,
+      dryRun: true,
+      now: "2026-06-14T20:00:00Z",
+    });
+
+    expect(code).toBe(0);
+    expect(outcome.changed[0]?.checklist_action).toBe("edited");
+    expect(client.issues.get("deftai/directive:200")?.body).toBe("- [ ] #20\n");
     rmSync(root, { recursive: true, force: true });
   });
 });
