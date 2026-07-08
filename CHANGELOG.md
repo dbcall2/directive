@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Research setup now pauses for scope confirmation before autonomous investigation, returns to a blocking chaining gate before spec/scope generation, and requires dependency metadata when Phase 3 emits multiple scopes, preventing research output from becoming unordered implementation work. Closes #1273.
+
 ### Removed
 
 ## [0.73.0] - 2026-07-07

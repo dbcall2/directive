@@ -508,13 +508,16 @@ omit = [
 - **anything else** (discuss, yolo, speckit, research, brownfield, map, etc.) →
   1. ! Read `deft/strategies/{strategy-name}.md` **right now, in this same turn**
   2. ! Begin the strategy's workflow immediately — ask its first question
-  3. ! **STOP reading this section** — do NOT use the interview process below
+  3. ! For `research`, the first question is the strategy's Scope Confirmation Gate (#1273); ask it and wait before any autonomous research begins.
+  4. ! For `research`, after the research artifact is written, surface the strategy's Then: Chaining Gate and wait for a user selection; do NOT create scope xBRIEFs from research output unless the user later chooses a spec-generating path.
+  5. ! **STOP reading this section** — do NOT use the interview process below
 
 - ⊗ Default to interview without reading PROJECT-DEFINITION.xbrief.json
 - ⊗ Continue reading below when PROJECT-DEFINITION.xbrief.json specifies a non-interview strategy
 - ⊗ Assume interview because the sections below describe the interview process
 - ⊗ Fabricate justification for using interview when the user chose a different strategy
 - ⊗ Announce the strategy choice and then stop — you must immediately read the file and start
+- ⊗ Let the `research` strategy fall through to the interview output path, or create scope xBRIEFs before the research chaining-gate selection.
 
 ---
 
@@ -612,8 +615,10 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 **Spec Structure (both paths):**
 - ! Overview, Architecture
 - ! Implementation Plan: scope xBRIEFs in `xbrief/proposed/` with phases and dependencies
-- ! Explicit dependency mapping between scopes (via xBRIEF `edges` or `references`)
+- ! Explicit dependency mapping between scopes (via `plan.metadata.dependencies`, xBRIEF `edges`, or `references`)
+- ! When multiple scopes are produced in one Phase 3 pass, encode machine-readable dependency ordering before finishing the write: use an empty dependency list for independent scopes and non-empty dependencies for sequential/blocked scopes.
 - ~ Scopes designed for parallel work by multiple agents
+- ⊗ Deposit multiple generated scope xBRIEFs with no dependency metadata and rely on filenames or human prose for ordering.
 - ! Testing Strategy and Deployment captured in narratives
 - ⊗ Write code — specification only
 

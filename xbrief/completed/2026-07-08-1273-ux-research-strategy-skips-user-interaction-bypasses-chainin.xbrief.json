@@ -1,0 +1,62 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #1273"
+  },
+  "plan": {
+    "title": "UX: research strategy skips user interaction, bypasses chaining gate, and produces unordered scope vBRIEFs without dependency encoding",
+    "status": "completed",
+    "narratives": {
+      "Description": "UX: research strategy skips user interaction, bypasses chaining gate, and produces unordered scope vBRIEFs without dependency encoding",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/1273",
+      "Overview": "## Problem\n\n**What happens (actual behavior):**\n\nWhen a user selects the `research` strategy during deft-directive-setup Phase 3, the following unexpected behaviors occur:\n\n1. **No user interaction during research** — The research strategy runs entirely autonomously with no opportunity for the user to guide scope, flag sensitive areas, or provide sample data/artifacts for analysis. The user is a passive observer.\n2. **No chaining gate after research** — After research completes, the agent immediately generated scope vBRIEFs (scaffolding, reader, converter-linker, writer-cli) without returning to the chaining gate. The user expected to select a follow-on strategy (e.g. `interview` or `speckit`) to collaboratively turn research findings into requirements.\n3. **Confusing dual-tracking of research completion** — `vbrief/plan.vbrief.json` records research as `completed` (strategy ran to completion), but `vbrief/proposed/YYYY-MM-DD-...-research.vbrief.json` sits in `proposed/` with status `proposed`. Users interpret both as lifecycle state — the mismatch is confusing and unexplained.\n4. **Scope vBRIEFs generated with no explicit dependency ordering** — Four scope vBRIEFs were deposited in `vbrief/proposed/` with no `edges` or dependency fields populated. The agent later admitted it guessed the implementation order from the filenames rather than reading any structured metadata. This makes parallel/sequential scheduling ambiguous.\n\n**What should happen (expected behavior):**\n\n1. Research strategy should include at least one structured interaction point — e.g. \"What areas should I focus on?\" and/or \"Do you have sample data or artifacts I can analyze?\" — before running autonomously.\n2. After research completes, the chaining gate (per `strategies/interview.md`) should be presented so the user can select a follow-on strategy (interview, speckit, discuss, etc.) to build requirements from the findings. Research findings should feed those strategies; the agent should not auto-generate scope vBRIEFs directly from research.\n3. The distinction between `plan.vbrief.json` strategy tracking and the scope vBRIEF lifecycle should be surfaced to the user at handoff, OR the research vBRIEF should be auto-promoted to `vbrief/completed/` at the end of the strategy since it is a planning artifact with no implementation lifecycle.\n4. Scope vBRIEFs generated after spec interviews should have `edges` or equivalent dependency fields populated so the implementation order is machine-readable, not inferred from slugs.\n\n**How to reproduce:**\n\n1. Start a new deft project with no `vbrief/PROJECT-DEFINITION.vbrief.json`\n2. Run deft-directive-setup Phase 2, select strategy = `research`\n3. Proceed to Phase 3\n4. Observe: research runs with no user interaction, then scope vBRIEFs are immediately generated without a chaining gate prompt\n\n## Root Cause Analysis\n\n- **Research strategy interaction gap**: `strategies/research.md` workflow Step 1 (Scope) has no deterministic question step — it assumes the agent can infer scope from the project description alone. There is no mechanism to collect user-provided artifacts, sample data, or sensitivity flags before running.\n- **Chaining gate bypass**: `deft-directive-setup` Phase 3 dispatches to the strategy file but the strategy's \"Then: Chaining Gate\" section was not surfaced before spec/scope generation proceeded. The setup skill's Phase 3 → spec generation flow may short-circuit the strategy's own chaining gate.\n- **Dual tracking confusion**: `plan.vbrief.json` uses the word `completedStrategies` while the research vBRIEF uses the vBRIEF lifecycle status `proposed`. These are orthogonal concepts but use overlapping vocabulary with no explanation at handoff.\n- **Missing dependency encoding**: The scope vBRIEF generation step in the setup skill (or the strategy) does not populate `edges` fields. No guard enforces or recommends dependency encoding before depositing into `proposed/`.\n\n## TDD Fix Plan\n\n1. **RED**: Write a test that verifies `strategies/research.md` workflow contains at least one mandatory user-facing question step before autonomous research begins (e.g. scope confirmation, artifact upload prompt).\n   **GREEN**: Add a \"Step 0: Scope confirmation\" to `strategies/research.md` with a deterministic question asking the user to confirm/refine scope and optionally provide sample data or artifacts.\n\n2. **RED**: Write a test that verifies the chaining gate is always surfaced after research completes and before any scope vBRIEFs are written.\n   **GREEN**: Add an explicit guard in `deft-directive-setup` Phase 3 (and `strategies/research.md` Chaining Gate section) that requires a user selection from the chaining gate before any scope vBRIEF generation proceeds.\n\n3. **RED**: Write a test that verifies the research vBRIEF status is set to `completed` (or the file is moved to `vbrief/completed/`) at the end of the research strategy, OR that the setup skill surfaces the tracking distinction to the user at handoff.\n   **GREEN**: At research strategy completion, either auto-advance the research vBRIEF to `completed/` (it has no implementation lifecycle) or emit a clear message explaining the two-tier tracking model.\n\n4. **RED**: Write a test that verifies scope vBRIEFs generated by spec strategies include populated `edges` or a `dependencies` narrative when multiple scopes are produced together.\n   **GREEN**: Add a post-generation step that prompts the agent to encode dependencies between generated scope vBRIEFs before writing them to `proposed/`.\n\n**REFACTOR**: Consider renaming `completedStrategies` in `plan.vbrief.json` to `strategyLog` or `executedStrategies` to avoid collision with the vBRIEF lifecycle vocabulary (`completed/` folder).\n\n## Acceptance Criteria\n\n- [ ] Research strategy solicits scope confirmation and optional artifact input before running\n- [ ] Chaining gate is always surfaced after research, before any scope vBRIEF generation\n- [ ] Research vBRIEF tracking vs. lifecycle state mismatch is resolved or clearly explained at handoff\n- [ ] Generated scope vBRIEFs include machine-readable dependency ordering\n- [ ] All RED tests are now GREEN\n- [ ] Existing tests still pass\n- [ ] `task check` passes\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @MScottAdams (2026-05-21T16:30:22Z)\n\nCross-link: #1283 (pack-slicing RFC, kind=research vBRIEF) will dogfood the lifecycle pattern you documented here. The dual-tracking footgun applies; resolution there benefits #1283 directly.\r\n\r\nCompanion: #1290 (`reconcile_issues.py` honors stateReason) closes the loop deterministically for any umbrella closed as `not planned` -- this is the missing piece your AC #3 implies.\r\n\r\nFiled as part of the #742 decomposition (2026-05-21).",
+      "Labels": "bug, research-strategy"
+    },
+    "items": [
+      {
+        "title": "Research strategy solicits scope confirmation and optional artifact input before running",
+        "status": "proposed"
+      },
+      {
+        "title": "Chaining gate is always surfaced after research, before any scope vBRIEF generation",
+        "status": "proposed"
+      },
+      {
+        "title": "Research vBRIEF tracking vs. lifecycle state mismatch is resolved or clearly explained at handoff",
+        "status": "proposed"
+      },
+      {
+        "title": "Generated scope vBRIEFs include machine-readable dependency ordering",
+        "status": "proposed"
+      },
+      {
+        "title": "All RED tests are now GREEN",
+        "status": "proposed"
+      },
+      {
+        "title": "Existing tests still pass",
+        "status": "proposed"
+      },
+      {
+        "title": "`task check` passes",
+        "status": "proposed"
+      }
+    ],
+    "tags": [
+      "bug",
+      "research-strategy"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/1273",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #1273: UX: research strategy skips user interaction, bypasses chaining gate, and produces unordered scope vBRIEFs without dependency encoding"
+      }
+    ],
+    "updated": "2026-07-08T09:05:48Z",
+    "metadata": {
+      "completedAt": "2026-07-08T09:05:48Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}
