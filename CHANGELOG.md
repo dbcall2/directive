@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **QUICK-START now defaults straight into consumer setup detection.** The manual-clone and stale-AGENTS entry flow no longer asks every user whether they are using Directive or working on the framework before setup begins. Contributor guidance remains available as a non-blocking pointer to `AGENTS.md`, `CONTRIBUTING.md`, and maintainer installer mode. Closes #1813.
+
 ### Fixed
 
 - **Merge-readiness no longer clears stale Greptile P0/P1 blockers when GitHub reports clean.** Stale verdicts that carried real P0/P1, errored, or low-confidence findings now stay hard blocks instead of being softened by the GitHub mergeability override, and Dependabot PRs with Greptile excluded-author skip comments are treated as pass rather than parse failures. Closes #2382. Closes #2375.
