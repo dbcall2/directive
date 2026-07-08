@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Release Step 5 pre-flight now inherits the pipeline's self-auth bypass on master.** `task release` Step 5 runs `task check` with the same branch-bypass flags as git-mutation steps plus a Step-5-only `DEFT_RELEASE_PREFLIGHT` env for stale-cache tolerance, so `verify:branch` and aged triage cache no longer block an authorized release on the default branch while normal operator commits stay gated. Closes #2386.
 - **Windows-native `engine:_ts-build` now detects Corepack without Unix `sh`.** Package-manager probes use a cross-platform `shell:true` `--version` check so `corepack.cmd` is visible when bare `pnpm` and `sh` are absent from PATH, while preserving the #2411 Corepack step order and #2181 no-auto-build session path. Closes #2415. Refs #2410, #2411.
+- **Completed scopes now warn when open umbrellas still reference them.** `task scope:complete` points maintainers at `task vbrief:reconcile:umbrellas` when a shipped scope remains linked from an open tracker, while suppressing cached closed trackers so current-shape comments do not silently drift. Closes #2322. Refs #1119, #1152.
 
 ### Removed
 
