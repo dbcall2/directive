@@ -686,8 +686,9 @@ function stripLeadingBanner(body: string): string {
 const FRONTMATTER_RE = /^---\n([\s\S]*?\n)---\n?([\s\S]*)$/;
 
 function splitFrontmatter(text: string): [string | null, string] {
-  if (!text.startsWith("---\n")) return [null, text];
-  const match = FRONTMATTER_RE.exec(text);
+  const normalized = text.replace(/\r\n?/g, "\n");
+  if (!normalized.startsWith("---\n")) return [null, text];
+  const match = FRONTMATTER_RE.exec(normalized);
   if (!match) return [null, text];
   return [match[1] ?? "", match[2] ?? ""];
 }

@@ -131,6 +131,24 @@ Run \`directive commands\` (or \`directive --commands\`) for the exhaustive regi
     expect(body).not.toContain("framework-commands");
   });
 
+  it("keeps curated task-style help commands routed to registered handlers (#2172)", () => {
+    const registered = new Set(registeredVerbs());
+    for (const command of [
+      "session:start",
+      "verify:cache-fresh",
+      "triage:welcome",
+      "triage:queue",
+      "scope:promote",
+      "scope:activate",
+      "project:render",
+      "spec:render",
+    ]) {
+      const routed = routeArgv([command]);
+      expect(routed.kind, command).toBe("dispatch");
+      expect(registered.has(routed.argv[0] ?? ""), command).toBe(true);
+    }
+  });
+
   it("prints the exhaustive registered list only on the explicit command surface (#2172)", () => {
     const body = render((io) => printRegisteredCommands(io));
     expect(body).toContain("Registered commands and aliases:");
@@ -515,7 +533,7 @@ describe("dispatch", () => {
     const routed = routeArgv(["policy:show", "--field", "valueFeedback"]);
     expect(routed).toEqual({
       kind: "dispatch",
-      argv: ["policy:show", "--field", "valueFeedback"],
+      argv: ["policy", "show", "--field", "valueFeedback"],
     });
   });
 });
@@ -979,6 +997,37 @@ describe("native pack-migrate handlers (#2022)", () => {
     const parsed = readSkillsPack(readFileSync(out, "utf8"));
     const delta = parsed.skills.find((skill) => skill.id === "delta");
     expect(delta?.triggers).toEqual(["what's next, please", "plain"]);
+  });
+
+  it("recognizes CRLF skill frontmatter from Windows checkouts", async () => {
+    const base = join(root, "crlf");
+    writeFixture(
+      "crlf/content/skills/epsilon/SKILL.md",
+      "---\r\nname: epsilon\r\ndescription: Epsilon with CRLF frontmatter.\r\ntriggers:\r\n  - epsilon\r\n---\r\n\r\n# Epsilon\r\n\r\nBody.\r\n",
+    );
+    writeFixture(
+      "crlf/REFERENCES.md",
+      "# Refs\r\n\r\n## Skills Index\r\n\r\n| Skill | Description | Triggers |\r\n|---|---|---|\r\n\r\n## Next\r\n\r\nDone.\r\n",
+    );
+    const out = join(base, "out.json");
+    const result = await runVerb([
+      "pack-migrate-skills",
+      "--skills-dir",
+      join(base, "content/skills"),
+      "--references-md",
+      join(base, "REFERENCES.md"),
+      "--out",
+      out,
+    ]);
+    expect(result.code).toBe(0);
+    const parsed = readSkillsPack(readFileSync(out, "utf8"));
+    expect(parsed.skills).toHaveLength(1);
+    expect(parsed.skills[0]).toMatchObject({
+      id: "epsilon",
+      description: "Epsilon with CRLF frontmatter.",
+      triggers: ["epsilon"],
+      body: "# Epsilon\n\nBody.\n",
+    });
   });
 
   // #2152 regression guard: building the skills pack from the *real* shipped
