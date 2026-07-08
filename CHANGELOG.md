@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`directive update` is idempotent on current Windows npm deposits.** Current installs now keep the vendored framework payload LF-pinned, skip payload copy and timestamp rewrites when the deposited content version is already current, and collapse CRLF-only `.deft/core` churn into a short line-ending hint instead of a long dirty-file list. The Windows CI smoke now covers `core.autocrlf=true` init/update/update plus `task deft:verify:cache-fresh` and `preflight-cache`. Closes #2118.
 - **Windows-native cache-fresh now has consumer-smoke coverage (#2120).** CI now stages a temp consumer repo with a deposited `.deft/core`, shims the built `deft` CLI, and verifies both direct `deft preflight-cache --allow-missing-bootstrap` and included `task deft:verify:cache-fresh` succeed without reaching a build path. Closes #2120.
+- **`task check` now reaches the Biome lane on native Windows CRLF checkouts.** The repo Biome formatter uses platform-native line endings, and the TypeScript lane now starts Windows `pnpm.cmd` shims through the shell instead of misreporting them as signal-killed. Closes #2389.
 
 ### Removed
 
