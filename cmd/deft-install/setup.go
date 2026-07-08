@@ -1043,6 +1043,13 @@ var goosForCoreTools = func() string { return runtime.GOOS }
 // missing required tools. Tests replace it to avoid real network/package work.
 var bootstrapLinuxCoreToolsFunc = bootstrapLinuxCoreTools
 
+// taskHelpProbeFunc fingerprints the resolved `task` binary. Tests replace it
+// so PATH-only probes can stay deterministic without executing fake paths.
+var taskHelpProbeFunc = func(path string) (string, error) {
+	out, err := exec.Command(path, "--help").CombinedOutput()
+	return string(out), err
+}
+
 // ErrCoreToolsBootstrap is returned when Linux --yes bootstrap cannot satisfy
 // doctor-required tools (uv, task, gh) without claiming install success.
 type ErrCoreToolsBootstrap struct {
@@ -1097,12 +1104,19 @@ func probeCoreToolsMissing() []string {
 	for name, alts := range coreToolCandidates {
 		found := false
 		for _, a := range alts {
-			if _, err := lookPathFunc(a); err == nil {
-				found = true
-				break
-			} else if !errors.Is(err, exec.ErrNotFound) {
-				log.Printf("warning: LookPath %q: %v", a, err)
+			path, err := lookPathFunc(a)
+			if err != nil {
+				if !errors.Is(err, exec.ErrNotFound) {
+					log.Printf("warning: LookPath %q: %v", a, err)
+				}
+				continue
 			}
+			if name == "task" && !isGoTaskBinary(path) {
+				log.Printf("warning: task binary %q does not look like the Taskfile runner; install go-task from taskfile.dev instead of Ubuntu taskwarrior", path)
+				continue
+			}
+			found = true
+			break
 		}
 		if !found {
 			missing = append(missing, name)
@@ -1110,6 +1124,17 @@ func probeCoreToolsMissing() []string {
 	}
 	sort.Strings(missing)
 	return missing
+}
+
+func isGoTaskBinary(path string) bool {
+	help, err := taskHelpProbeFunc(path)
+	if err != nil && strings.TrimSpace(help) == "" {
+		log.Printf("warning: could not fingerprint task binary %q: %v", path, err)
+		// If fingerprinting itself fails, avoid blocking an otherwise valid go-task install.
+		return true
+	}
+	lowerHelp := strings.ToLower(help)
+	return strings.Contains(lowerHelp, "taskfile") || strings.Contains(lowerHelp, "--taskfile")
 }
 
 // missingLinuxBootstrapRequired filters missing to the doctor-required subset
@@ -1133,7 +1158,7 @@ func printCoreToolsFallbacks(w *Wizard, missing []string) {
 	w.printf("  Fallbacks (run manually or via platform package manager):\n")
 	w.printf("    Windows: winget install --id <ID> or scripts/setup_windows.ps1\n")
 	w.printf("    macOS:   brew install go-task uv python gh\n")
-	w.printf("    Linux:   apt/brew equivalent for task uv python3 gh\n")
+	w.printf("    Linux:   install go-task from https://taskfile.dev/installation/ (not Ubuntu taskwarrior), plus uv python3 gh\n")
 	w.printf("  See docs/getting-started.md and QUICK-START.md for details.\n")
 }
 
@@ -1350,6 +1375,11 @@ type maintainerToolStatus struct {
 	Purpose  string `json:"purpose"`
 }
 
+const (
+	maintainerToolsBlockCode    = "maintainer_required_tools_missing"
+	maintainerToolsBlockMessage = "required maintainer tools are missing"
+)
+
 var maintainerToolDefinitions = []maintainerToolStatus{
 	{Name: "go", Binary: "go", Required: true, Purpose: "build and test cmd/deft-install"},
 	{Name: "node", Binary: "node", Required: true, Purpose: "maintainer-side documentation and release tooling"},
@@ -1377,8 +1407,63 @@ func EnsureMaintainerTools(w *Wizard) []maintainerToolStatus {
 	}
 	w.printf("Maintainer tools missing or optional: %s\n", strings.Join(missing, ", "))
 	w.printf("  Required for framework development: go, node.\n")
+	requiredMissing := missingRequiredMaintainerTools(statuses)
+	if len(requiredMissing) > 0 {
+		w.printf("  Install required maintainer tools before running task setup or task check:\n")
+		for _, name := range requiredMissing {
+			w.printf("    %s: %s\n", name, maintainerToolInstallInstruction(name))
+		}
+	}
 	w.printf("  Optional acceleration: ghx (install with `task setup:ghx`; consumers only need gh).\n")
 	return statuses
+}
+
+func missingRequiredMaintainerTools(statuses []maintainerToolStatus) []string {
+	missing := make([]string, 0, len(statuses))
+	for _, status := range statuses {
+		if status.Required && !status.Present {
+			missing = append(missing, status.Name)
+		}
+	}
+	return missing
+}
+
+func maintainerToolInstallInstruction(name string) string {
+	switch name {
+	case "go":
+		return "install Go 1.22+ from https://go.dev/doc/install or your OS package manager"
+	case "node":
+		return "install Node.js 22+ from https://nodejs.org/ or your OS package manager"
+	default:
+		return "install this required tool on PATH"
+	}
+}
+
+func maintainerToolsBlockResult(projectDir string, missing []string, statuses []maintainerToolStatus) map[string]any {
+	missingOut := missing
+	if missingOut == nil {
+		missingOut = []string{}
+	}
+	statusesOut := statuses
+	if statusesOut == nil {
+		statusesOut = []maintainerToolStatus{}
+	}
+	remediation := make([]string, 0, len(missingOut))
+	for _, name := range missingOut {
+		remediation = append(remediation, fmt.Sprintf("%s: %s", name, maintainerToolInstallInstruction(name)))
+	}
+	return map[string]any{
+		"success":          false,
+		"error":            maintainerToolsBlockMessage,
+		"error_code":       maintainerToolsBlockCode,
+		"project_dir":      projectDir,
+		"missing_tools":    missingOut,
+		"maintainer_mode":  true,
+		"maintainer_tools": statusesOut,
+		"why":              fmt.Sprintf("%s: %s", maintainerToolsBlockMessage, strings.Join(missingOut, ", ")),
+		"remediation":      remediation,
+		"warnings":         []string{},
+	}
 }
 
 func skippedConsumerProjectionNames() []string {

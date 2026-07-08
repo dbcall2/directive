@@ -154,7 +154,9 @@ deft-install --yes --upgrade --maintainer --repo-root /path/to/directive --json
 
 This mode checks maintainer tooling without projecting consumer-managed files
 such as `AGENTS.md`, `.gitignore`, `.gitattributes`, guard workflows, or
-consumer `vbrief/` scaffolding into the framework repository. See
+consumer `vbrief/` scaffolding into the framework repository. Required
+maintainer tools are Go and Node; `task` must be the Taskfile runner from
+taskfile.dev, not Ubuntu's Taskwarrior package. See
 [`CONTRIBUTING.md`](./CONTRIBUTING.md) for maintainer setup details.
 
 ### 2. Set Up Your Preferences

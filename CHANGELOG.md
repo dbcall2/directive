@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Maintainer installer mode now fails loud when required developer tools are missing.** `deft-install --maintainer --yes --json` no longer reports success with missing Go or Node; it exits non-zero with structured remediation while keeping optional `ghx` non-blocking. The core-tool probe also treats an obvious Ubuntu Taskwarrior `task` binary as missing so Linux bootstrap installs the Taskfile runner instead. Closes #1616.
+
 ### Removed
 
 ## [0.73.0] - 2026-07-07

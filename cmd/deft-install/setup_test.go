@@ -1233,6 +1233,29 @@ func TestEnsureMaintainerTools_ReportsSeparateMaintainerOnlyStatuses(t *testing.
 	}
 }
 
+func TestEnsureMaintainerTools_PrintsRequiredInstallInstructions(t *testing.T) {
+	origLookPath := lookPathFunc
+	defer func() { lookPathFunc = origLookPath }()
+
+	lookPathFunc = func(name string) (string, error) {
+		if name == "ghx" {
+			return "/usr/bin/ghx", nil
+		}
+		return "", exec.ErrNotFound
+	}
+
+	var out bytes.Buffer
+	statuses := EnsureMaintainerTools(NewWizardWithLayout(strings.NewReader(""), &out, false, false))
+	if got := missingRequiredMaintainerTools(statuses); strings.Join(got, ",") != "go,node" {
+		t.Fatalf("missing required tools = %v, want [go node]", got)
+	}
+	for _, want := range []string{"go: install Go 1.22+", "node: install Node.js 22+", "task setup or task check"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("required maintainer guidance missing %q; got:\n%s", want, out.String())
+		}
+	}
+}
+
 func TestMaintainerCheckoutDetection(t *testing.T) {
 	tmp := t.TempDir()
 	for _, rel := range []string{
@@ -1269,14 +1292,28 @@ func withLinuxCoreToolSeams(t *testing.T, lookPath func(string) (string, error),
 	origGOOS := goosForCoreTools
 	origLook := lookPathFunc
 	origBootstrap := bootstrapLinuxCoreToolsFunc
+	origTaskHelp := taskHelpProbeFunc
+	origPath := os.Getenv("PATH")
 	goosForCoreTools = func() string { return "linux" }
 	lookPathFunc = lookPath
 	bootstrapLinuxCoreToolsFunc = bootstrap
-	return func() {
+	taskHelpProbeFunc = func(string) (string, error) {
+		return "Usage: task [flags...] [task...]\nChoose which Taskfile to run. Defaults to Taskfile.yml.\n", nil
+	}
+	restored := false
+	restore := func() {
+		if restored {
+			return
+		}
+		restored = true
 		goosForCoreTools = origGOOS
 		lookPathFunc = origLook
 		bootstrapLinuxCoreToolsFunc = origBootstrap
+		taskHelpProbeFunc = origTaskHelp
+		_ = os.Setenv("PATH", origPath)
 	}
+	t.Cleanup(restore)
+	return restore
 }
 
 // TestEnsureCoreTools_LinuxBootstrapSuccess verifies Linux --yes bootstrap
@@ -1391,6 +1428,7 @@ func TestEnsureCoreTools_LinuxBootstrapStillMissingAfterInstall(t *testing.T) {
 func TestEnsureCoreTools_NonLinuxNonInteractiveKeepsFallback(t *testing.T) {
 	origGOOS := goosForCoreTools
 	origLook := lookPathFunc
+	origTaskHelp := taskHelpProbeFunc
 	goosForCoreTools = func() string { return "windows" }
 	lookPathFunc = func(file string) (string, error) {
 		if file == "uv" {
@@ -1398,9 +1436,13 @@ func TestEnsureCoreTools_NonLinuxNonInteractiveKeepsFallback(t *testing.T) {
 		}
 		return "/bin/" + file, nil
 	}
+	taskHelpProbeFunc = func(string) (string, error) {
+		return "Usage: task [flags...] [task...]\nChoose which Taskfile to run. Defaults to Taskfile.yml.\n", nil
+	}
 	defer func() {
 		goosForCoreTools = origGOOS
 		lookPathFunc = origLook
+		taskHelpProbeFunc = origTaskHelp
 	}()
 
 	var out bytes.Buffer
@@ -1413,6 +1455,35 @@ func TestEnsureCoreTools_NonLinuxNonInteractiveKeepsFallback(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "Fallbacks") {
 		t.Errorf("expected fallback guidance on non-Linux host; got:\n%s", out.String())
+	}
+}
+
+func TestProbeCoreToolsMissing_TreatsTaskwarriorAsMissing(t *testing.T) {
+	origLook := lookPathFunc
+	origTaskHelp := taskHelpProbeFunc
+	defer func() {
+		lookPathFunc = origLook
+		taskHelpProbeFunc = origTaskHelp
+	}()
+
+	lookPathFunc = func(file string) (string, error) {
+		return "/usr/bin/" + file, nil
+	}
+	taskHelpProbeFunc = func(string) (string, error) {
+		return "Usage: task [options] [<filter>]\nTaskwarrior command line task list manager\n", nil
+	}
+
+	missing := probeCoreToolsMissing()
+	if len(missing) != 1 || missing[0] != "task" {
+		t.Fatalf("missing core tools = %v, want [task]", missing)
+	}
+}
+
+func TestPrintCoreToolsFallbacks_WarnsAgainstTaskwarrior(t *testing.T) {
+	var out bytes.Buffer
+	printCoreToolsFallbacks(NewWizardWithLayout(strings.NewReader(""), &out, false, false), []string{"task"})
+	if !strings.Contains(out.String(), "not Ubuntu taskwarrior") {
+		t.Fatalf("fallback guidance should warn against Taskwarrior; got:\n%s", out.String())
 	}
 }
 
@@ -1441,6 +1512,35 @@ func TestCoreToolsBootstrapBlockResult_JSONShape(t *testing.T) {
 	rem, ok := obj["remediation"].([]string)
 	if !ok || len(rem) == 0 {
 		t.Fatalf("remediation must be a non-empty []string, got %T %v", obj["remediation"], obj["remediation"])
+	}
+	if _, err := json.Marshal(obj); err != nil {
+		t.Fatalf("block result is not JSON-marshalable: %v", err)
+	}
+}
+
+func TestMaintainerToolsBlockResult_JSONShape(t *testing.T) {
+	statuses := []maintainerToolStatus{
+		{Name: "go", Binary: "go", Present: false, Required: true, Purpose: "build"},
+		{Name: "node", Binary: "node", Present: false, Required: true, Purpose: "release"},
+		{Name: "ghx", Binary: "ghx", Present: false, Required: false, Purpose: "cache"},
+	}
+	obj := maintainerToolsBlockResult("/repo/directive", []string{"go", "node"}, statuses)
+	if obj["success"] != false {
+		t.Errorf("success = %v, want false", obj["success"])
+	}
+	if obj["error_code"] != maintainerToolsBlockCode {
+		t.Errorf("error_code = %v, want %q", obj["error_code"], maintainerToolsBlockCode)
+	}
+	if obj["maintainer_mode"] != true {
+		t.Errorf("maintainer_mode = %v, want true", obj["maintainer_mode"])
+	}
+	gotMissing, ok := obj["missing_tools"].([]string)
+	if !ok || strings.Join(gotMissing, ",") != "go,node" {
+		t.Fatalf("missing_tools = %#v, want [go node]", obj["missing_tools"])
+	}
+	rem, ok := obj["remediation"].([]string)
+	if !ok || len(rem) != 2 || !strings.Contains(rem[0], "go.dev") || !strings.Contains(rem[1], "nodejs.org") {
+		t.Fatalf("remediation = %#v, want Go and Node install instructions", obj["remediation"])
 	}
 	if _, err := json.Marshal(obj); err != nil {
 		t.Fatalf("block result is not JSON-marshalable: %v", err)

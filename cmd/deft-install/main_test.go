@@ -1697,10 +1697,103 @@ func TestInstallSummary_JSONObjectIncludesMaintainerMode(t *testing.T) {
 	}
 }
 
-func TestInstallMaintainerMode_JSONStdoutIsSingleObject(t *testing.T) {
+func TestInstallMaintainerMode_JSONBlocksWhenRequiredToolsMissing(t *testing.T) {
 	origLookPath := lookPathFunc
-	defer func() { lookPathFunc = origLookPath }()
-	lookPathFunc = func(name string) (string, error) { return "", exec.ErrNotFound }
+	origTaskHelp := taskHelpProbeFunc
+	defer func() {
+		lookPathFunc = origLookPath
+		taskHelpProbeFunc = origTaskHelp
+	}()
+	lookPathFunc = func(name string) (string, error) {
+		switch name {
+		case "task", "uv", "python", "python3", "gh":
+			return "/usr/bin/" + name, nil
+		default:
+			return "", exec.ErrNotFound
+		}
+	}
+	taskHelpProbeFunc = func(string) (string, error) {
+		return "Usage: task [flags...] [task...]\nChoose which Taskfile to run. Defaults to Taskfile.yml.\n", nil
+	}
+
+	proj := t.TempDir()
+	for _, rel := range []string{
+		"main.md",
+		"cmd/deft-install/main.go",
+		"templates/agent-prompt-preamble.md",
+		"scripts/setup_ghx.py",
+	} {
+		path := filepath.Join(proj, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("fixture\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("DEFT_USER_PATH", filepath.Join(t.TempDir(), "cfg"))
+
+	oldStdout := os.Stdout
+	r, wPipe, perr := os.Pipe()
+	if perr != nil {
+		t.Fatalf("os.Pipe: %v", perr)
+	}
+	os.Stdout = wPipe
+	code := installMaintainerMode(
+		NewWizardWithLayout(strings.NewReader(""), os.Stdout, false, false),
+		&WizardResult{ProjectDir: proj, DeftDir: filepath.Join(proj, ".deft", "core"), Update: true},
+		true,
+		true,
+		true,
+		false,
+	)
+	_ = wPipe.Close()
+	os.Stdout = oldStdout
+	stdout, _ := io.ReadAll(r)
+
+	if code != 1 {
+		t.Fatalf("installMaintainerMode returned %d, want 1", code)
+	}
+	var obj map[string]any
+	if err := json.Unmarshal(stdout, &obj); err != nil {
+		t.Fatalf("maintainer --json stdout must be a single JSON object: %v\nstdout=%q", err, stdout)
+	}
+	if obj["success"] != false {
+		t.Errorf("success = %v, want false", obj["success"])
+	}
+	if obj["error_code"] != maintainerToolsBlockCode {
+		t.Errorf("error_code = %v, want %q", obj["error_code"], maintainerToolsBlockCode)
+	}
+	if obj["maintainer_mode"] != true {
+		t.Errorf("maintainer_mode = %v, want true", obj["maintainer_mode"])
+	}
+	if _, ok := obj["maintainer_tools"].([]any); !ok {
+		t.Errorf("maintainer_tools must marshal as an array, got %#v", obj["maintainer_tools"])
+	}
+	missing, ok := obj["missing_tools"].([]any)
+	if !ok || len(missing) != 2 || missing[0] != "go" || missing[1] != "node" {
+		t.Errorf("missing_tools = %#v, want [go node]", obj["missing_tools"])
+	}
+}
+
+func TestInstallMaintainerMode_JSONAllowsOptionalGhxMissing(t *testing.T) {
+	origLookPath := lookPathFunc
+	origTaskHelp := taskHelpProbeFunc
+	defer func() {
+		lookPathFunc = origLookPath
+		taskHelpProbeFunc = origTaskHelp
+	}()
+	lookPathFunc = func(name string) (string, error) {
+		switch name {
+		case "go", "node", "task", "uv", "python", "gh":
+			return "/usr/bin/" + name, nil
+		default:
+			return "", exec.ErrNotFound
+		}
+	}
+	taskHelpProbeFunc = func(string) (string, error) {
+		return "Usage: task [flags...] [task...]\nChoose which Taskfile to run. Defaults to Taskfile.yml.\n", nil
+	}
 
 	proj := t.TempDir()
 	for _, rel := range []string{
@@ -1744,11 +1837,11 @@ func TestInstallMaintainerMode_JSONStdoutIsSingleObject(t *testing.T) {
 	if err := json.Unmarshal(stdout, &obj); err != nil {
 		t.Fatalf("maintainer --json stdout must be a single JSON object: %v\nstdout=%q", err, stdout)
 	}
+	if obj["success"] != true {
+		t.Errorf("success = %v, want true", obj["success"])
+	}
 	if obj["maintainer_mode"] != true {
 		t.Errorf("maintainer_mode = %v, want true", obj["maintainer_mode"])
-	}
-	if _, ok := obj["maintainer_tools"].([]any); !ok {
-		t.Errorf("maintainer_tools must marshal as an array, got %#v", obj["maintainer_tools"])
 	}
 }
 

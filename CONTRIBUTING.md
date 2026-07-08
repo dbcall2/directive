@@ -91,10 +91,15 @@ deft-install --yes --upgrade --maintainer --repo-root /path/to/directive --json
 ```
 
 Maintainer mode validates that `--repo-root` is a `deftai/directive` checkout,
-reports core setup status, and skips consumer projections such as `AGENTS.md`,
-`.gitignore`, `.gitattributes`, guard workflows, consumer `vbrief/` scaffolding,
-and root Taskfile wiring. That keeps the maintainer-owned repository files from
-being rewritten by the consumer installer path.
+reports core setup status, and fails if required maintainer tools (`go`, `node`)
+are missing. It also skips consumer projections such as `AGENTS.md`, `.gitignore`,
+`.gitattributes`, guard workflows, consumer `vbrief/` scaffolding, and root
+Taskfile wiring. That keeps the maintainer-owned repository files from being
+rewritten by the consumer installer path.
+
+On Linux, `task` must be the Taskfile runner from taskfile.dev. Do not install
+Ubuntu's `taskwarrior` package when the shell suggests it for a missing `task`
+command.
 
 `ghx` is maintainer and swarm tooling: it speeds up repeated read-only GitHub API
 calls and helps protect shared rate limits. Consumer projects require `gh` for

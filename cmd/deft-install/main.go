@@ -625,10 +625,30 @@ func installMaintainerMode(w *Wizard, result *WizardResult, nonInteractive, upgr
 	if nonInteractive {
 		missingTools, toolsErr = EnsureCoreTools(msgWriter, nonInteractive)
 		if toolsErr != nil {
-			fmt.Fprintf(os.Stderr, "Warning: tool probe: %v\n", toolsErr)
+			fmt.Fprintf(os.Stderr, "Error: %v\n", toolsErr)
+			if jsonOut {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				if encErr := enc.Encode(coreToolsBootstrapBlockResult(missingTools, toolsErr)); encErr != nil {
+					fmt.Fprintf(os.Stderr, "Warning: JSON encode failed: %v\n", encErr)
+				}
+			}
+			return 1
 		}
 	}
 	maintainerTools := EnsureMaintainerTools(msgWriter)
+	requiredMaintainerToolsMissing := missingRequiredMaintainerTools(maintainerTools)
+	if len(requiredMaintainerToolsMissing) > 0 {
+		fmt.Fprintf(os.Stderr, "Error: %s: %s\n", maintainerToolsBlockMessage, strings.Join(requiredMaintainerToolsMissing, ", "))
+		if jsonOut {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			if encErr := enc.Encode(maintainerToolsBlockResult(result.ProjectDir, requiredMaintainerToolsMissing, maintainerTools)); encErr != nil {
+				fmt.Fprintf(os.Stderr, "Warning: JSON encode failed: %v\n", encErr)
+			}
+		}
+		return 1
+	}
 
 	configDir, err := CreateUserConfigDir(msgWriter)
 	if err != nil {

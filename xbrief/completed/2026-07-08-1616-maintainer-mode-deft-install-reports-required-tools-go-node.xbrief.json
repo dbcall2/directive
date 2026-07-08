@@ -1,0 +1,33 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #1616"
+  },
+  "plan": {
+    "title": "maintainer-mode deft-install reports required tools (go, node) missing but never installs them",
+    "status": "completed",
+    "narratives": {
+      "Description": "maintainer-mode deft-install reports required tools (go, node) missing but never installs them",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/1616",
+      "Overview": "## Summary\r\n\r\nIn maintainer mode, `deft-install` **bootstraps and installs missing core tools** (e.g. `uv`) but for **maintainer tools it only reports them as missing** and never installs them — even with `--yes`. As a result `go` and `node` (both `required: true`) are left uninstalled, so subsequent maintainer steps (`task setup`, `task check`, building/testing `cmd/deft-install`) cannot run. Despite this, the command still reports `success: true`.\r\n\r\n## Environment\r\n\r\n- `deft-install`: v0.46.0 (reported \"Running latest\")\r\n- OS: Linux (WSL2) — `msadams@DESKTOP-NLCQ5NK`\r\n- repo-root: `/home/msadams/repos/deft/directive`\r\n\r\n## Command\r\n\r\n```\r\ndeft-install --yes --upgrade --maintainer --repo-root /home/msadams/repos/deft/directive --json\r\n```\r\n\r\n## Actual behavior\r\n\r\nCore tools **were** auto-installed during bootstrap:\r\n\r\n```\r\nBootstrapping required core tools for Linux --yes: uv\r\n  Installing uv via Astral install script...\r\n  ...\r\neverything's installed!\r\nCore tools present after Linux bootstrap: task, uv, python, gh.\r\n```\r\n\r\nBut required maintainer tools were only **reported**, not installed:\r\n\r\n```\r\nMaintainer tools missing or optional: go, node, ghx\r\n  Required for framework development: go, node.\r\n  Optional acceleration: ghx (install with `task setup:ghx`; consumers only need gh).\r\n```\r\n\r\nThe JSON confirms `go` and `node` are `present: false, required: true`, yet `missing_tools: []` and `success: true`:\r\n\r\n```json\r\n\"maintainer_tools\": [\r\n  { \"name\": \"go\",   \"binary\": \"go\",   \"present\": false, \"required\": true,  \"purpose\": \"build and test cmd/deft-install\" },\r\n  { \"name\": \"node\", \"binary\": \"node\", \"present\": false, \"required\": true,  \"purpose\": \"maintainer-side documentation and release tooling\" },\r\n  { \"name\": \"ghx\",  \"binary\": \"ghx\",  \"present\": false, \"required\": false, \"purpose\": \"optional cached GitHub CLI proxy ...\" }\r\n],\r\n\"missing_tools\": [],\r\n\"success\": true\r\n```\r\n\r\nConfirmed missing immediately afterward:\r\n\r\n```\r\n$ go\r\nCommand 'go' not found, but can be installed with:\r\nsudo apt install golang-go\r\n```\r\n\r\n## Expected behavior\r\n\r\nWith `--maintainer --yes`, required maintainer tools (`go`, `node`) should be installed automatically the same way core tools are during bootstrap. If auto-install is intentionally out of scope, the command should at minimum:\r\n\r\n- exit non-zero (not report `success: true`) when required maintainer tools are missing, and\r\n- print explicit install instructions for each required tool (as it already does for the optional `ghx` via `task setup:ghx`).\r\n\r\n## Impact\r\n\r\n- `success: true` is misleading when required maintainer tooling is absent.\r\n- The printed \"Next steps\" (`task setup`, `task check`) will fail without `go`/`node`.\r\n- Inconsistent UX: core tools auto-install, required maintainer tools do not.\r\n\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @MScottAdams (2026-06-14T16:37:39Z)\n\n### Related gap: Ubuntu/`apt` suggests the wrong `task` (Taskwarrior), not the runner directive needs\r\n\r\nSame root cause as the `go`/`node` gap above — leaving required tools for the user to install by hand leads them to the **wrong package** on Debian/Ubuntu.\r\n\r\nWhen the go-task runner (`task`, from taskfile.dev) is missing, the shell \"command not found\" handler and `apt` suggest:\r\n\r\n```\r\n$ task\r\nCommand 'task' not found, but can be installed with:\r\nsudo apt install taskwarrior\r\n```\r\n\r\nInstalling that gives **Taskwarrior** — a CLI to-do/time tracker that also ships a `task` binary — **not** the Taskfile runner directive depends on. A user who follows the suggestion ends up with the wrong `task` on `PATH`, and `task --list` / `task setup` / `task check` will fail or behave nonsensically.\r\n\r\n### Expected\r\n\r\nThe installer should install the **correct** task runner (go-task) directly rather than deferring to `apt`. For example, the official install script:\r\n\r\n```\r\nsh -c \"$(curl --location https://taskfile.dev/install.sh)\" -- -d -b ~/.local/bin\r\n```\r\n\r\n(or the appropriate per-distro method), the same way `uv` is already bootstrapped via the Astral script.\r\n\r\n### Nice to have\r\n\r\nDetect when the resolved `task` is actually Taskwarrior (e.g. `task --version` does not match go-task's output) and warn/replace it, so an already-misinstalled environment is surfaced instead of silently using the wrong binary.",
+      "Labels": "bug, installer"
+    },
+    "items": [],
+    "tags": [
+      "bug",
+      "installer"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/1616",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #1616: maintainer-mode deft-install reports required tools (go, node) missing but never installs them"
+      }
+    ],
+    "updated": "2026-07-08T10:03:10Z",
+    "metadata": {
+      "completedAt": "2026-07-08T10:03:10Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}
