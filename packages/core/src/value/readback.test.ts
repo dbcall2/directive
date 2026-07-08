@@ -286,7 +286,13 @@ describe("value:show trend readout", () => {
   it("supports json output", () => {
     const root = makeRepo({
       valueFeedback: { enabled: true },
-      events: [{ event: "value:gate-catch", payload: { source: "s", detail: "d" } }],
+      events: [
+        {
+          event: "value:gate-catch",
+          payload: { source: "s", detail: "d" },
+          detected_at: new Date().toISOString(),
+        },
+      ],
     });
     const result = runValueShow({ projectRoot: root, format: "json" });
     expect(result.text.trim().startsWith("{")).toBe(true);
