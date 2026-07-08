@@ -105,6 +105,11 @@ describe("run", () => {
     expect(silentRun(["--project-root", root, "--enforce-target"])).toBe(1);
   });
 
+  it("returns 2 under --enforce-target when no absolute target is configured", () => {
+    const root = buildRepo({ plan, agents: agentsWith(10, 5) });
+    expect(silentRun(["--project-root", root, "--enforce-target"])).toBe(2);
+  });
+
   it("returns 2 for a malformed budget field", () => {
     const root = buildRepo({
       plan: { policy: { agentsMdBudget: { managedMaxLines: "bad", unmanagedMaxLines: 10 } } },

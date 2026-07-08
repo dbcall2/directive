@@ -128,9 +128,26 @@ describe("countRegions", () => {
 describe("always-on byte counting", () => {
   it("extracts yaml frontmatter even when a preamble precedes it", () => {
     const frontmatter = extractYamlFrontmatter(
-      ["<!-- preamble -->", "---", "name: deft", "description: test", "---", "# Body"].join("\n"),
+      [
+        "<!-- DEFT-PREAMBLE-V1 -->",
+        "<!--",
+        "! Cold-start check.",
+        "-->",
+        "---",
+        "name: deft",
+        "description: test",
+        "---",
+        "# Body",
+      ].join("\n"),
     );
     expect(frontmatter).toBe(["---", "name: deft", "description: test", "---"].join("\n"));
+  });
+
+  it("does not treat body horizontal rules as yaml frontmatter", () => {
+    const frontmatter = extractYamlFrontmatter(
+      ["# Body", "", "---", "not: frontmatter", "---"].join("\n"),
+    );
+    expect(frontmatter).toBeNull();
   });
 
   it("counts root and content skill frontmatter when configured", () => {
@@ -235,6 +252,14 @@ describe("evaluate", () => {
     expect(result.code).toBe(1);
     expect(result.stream).toBe("stderr");
     expect(result.message).toContain("exceeds its absolute target");
+  });
+
+  it("returns config error when --enforce-target is requested without a target", () => {
+    const root = makeRepo({ plan: budgetPlan, agents: agentsWith(10, 5) });
+    const result = evaluate(root, { enforceTarget: true });
+    expect(result.code).toBe(2);
+    expect(result.stream).toBe("stderr");
+    expect(result.message).toContain("absoluteTarget is not configured");
   });
 
   it("returns exit 1 when the managed region grows past its ratchet", () => {

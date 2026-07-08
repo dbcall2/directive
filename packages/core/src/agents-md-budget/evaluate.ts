@@ -154,10 +154,37 @@ function skillFilePaths(projectRoot: string): string[] {
 
 export function extractYamlFrontmatter(text: string): string | null {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
-  const open = lines.findIndex((line) => line.trim() === "---");
+  let open = -1;
+  let inHtmlComment = false;
+  for (const [index, line] of lines.entries()) {
+    const trimmed = line.trim();
+    if (inHtmlComment) {
+      if (trimmed.endsWith("-->")) {
+        inHtmlComment = false;
+      }
+      continue;
+    }
+    if (trimmed === "---") {
+      open = index;
+      break;
+    }
+    if (trimmed === "") {
+      continue;
+    }
+    if (trimmed.startsWith("<!--")) {
+      if (!trimmed.endsWith("-->")) {
+        inHtmlComment = true;
+      }
+      continue;
+    }
+    if (trimmed !== "") {
+      return null;
+    }
+  }
   if (open === -1) {
     return null;
   }
+
   const close = lines.findIndex((line, index) => index > open && line.trim() === "---");
   if (close === -1) {
     return null;
@@ -291,6 +318,15 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
   const counts = regionResult.counts;
 
   if (budgetResult.source === "unset") {
+    if (enforceTarget) {
+      return {
+        code: 2,
+        message:
+          "❌ verify:agents-md-budget: --enforce-target was requested, but " +
+          "plan.policy.agentsMdBudget.absoluteTarget is not configured.",
+        stream: "stderr",
+      };
+    }
     if (quiet) {
       return { code: 0, message: "", stream: "none" };
     }
@@ -319,6 +355,15 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
   const overManaged = counts.managed > budget.managedMaxLines;
   const overUnmanaged = counts.unmanaged > budget.unmanagedMaxLines;
   const absoluteTarget = budget.absoluteTarget;
+  if (enforceTarget && absoluteTarget === null) {
+    return {
+      code: 2,
+      message:
+        "❌ verify:agents-md-budget: --enforce-target was requested, but " +
+        "plan.policy.agentsMdBudget.absoluteTarget is not configured.",
+      stream: "stderr",
+    };
+  }
   const alwaysOnCounts =
     absoluteTarget === null ? null : countAlwaysOnBytes(root, text, absoluteTarget);
   const overAbsoluteTarget =

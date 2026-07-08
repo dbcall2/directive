@@ -144,19 +144,16 @@ describe("resolveAgentsMdBudget", () => {
   });
 
   it("resolves the optional absolute target and defaults skill frontmatter inclusion on", () => {
-    const result = resolveAgentsMdBudget(
-      makeRepo(
-        withPlan({
-          policy: {
-            agentsMdBudget: {
-              managedMaxLines: 223,
-              unmanagedMaxLines: 347,
-              absoluteTarget: { maxBytes: 8192, approxTokens: 2000 },
-            },
-          },
-        }),
-      ),
-    );
+    const projectDefinition = withPlan({
+      policy: {
+        agentsMdBudget: {
+          managedMaxLines: 223,
+          unmanagedMaxLines: 347,
+          absoluteTarget: { maxBytes: 8192, approxTokens: 2000 },
+        },
+      },
+    });
+    const result = resolveAgentsMdBudget(makeRepo(projectDefinition));
     expect(result.source).toBe("typed");
     expect(result.budget).toEqual({
       managedMaxLines: 223,
@@ -170,19 +167,16 @@ describe("resolveAgentsMdBudget", () => {
   });
 
   it("allows the absolute target to exclude skill frontmatter explicitly", () => {
-    const result = resolveAgentsMdBudget(
-      makeRepo(
-        withPlan({
-          policy: {
-            agentsMdBudget: {
-              managedMaxLines: 1,
-              unmanagedMaxLines: 2,
-              absoluteTarget: { maxBytes: 3, includeSkillFrontmatter: false },
-            },
-          },
-        }),
-      ),
-    );
+    const projectDefinition = withPlan({
+      policy: {
+        agentsMdBudget: {
+          managedMaxLines: 1,
+          unmanagedMaxLines: 2,
+          absoluteTarget: { maxBytes: 3, includeSkillFrontmatter: false },
+        },
+      },
+    });
+    const result = resolveAgentsMdBudget(makeRepo(projectDefinition));
     expect(result.source).toBe("typed");
     expect(result.budget?.absoluteTarget).toEqual({
       maxBytes: 3,
@@ -192,19 +186,16 @@ describe("resolveAgentsMdBudget", () => {
   });
 
   it("returns default-on-error when the absolute target is malformed", () => {
-    const result = resolveAgentsMdBudget(
-      makeRepo(
-        withPlan({
-          policy: {
-            agentsMdBudget: {
-              managedMaxLines: 1,
-              unmanagedMaxLines: 2,
-              absoluteTarget: { maxBytes: "8192" },
-            },
-          },
-        }),
-      ),
-    );
+    const projectDefinition = withPlan({
+      policy: {
+        agentsMdBudget: {
+          managedMaxLines: 1,
+          unmanagedMaxLines: 2,
+          absoluteTarget: { maxBytes: "8192" },
+        },
+      },
+    });
+    const result = resolveAgentsMdBudget(makeRepo(projectDefinition));
     expect(result.source).toBe("default-on-error");
     expect(result.error).toContain("absoluteTarget.maxBytes must be a non-negative integer");
   });
@@ -213,7 +204,12 @@ describe("resolveAgentsMdBudget", () => {
     const result = resolveAgentsMdBudget(
       makeRepo(
         withPlan({
-          "x-directive/policy": { agentsMdBudget: { managedMaxLines: 1, unmanagedMaxLines: 2 } },
+          "x-directive/policy": {
+            agentsMdBudget: {
+              managedMaxLines: 1,
+              unmanagedMaxLines: 2,
+            },
+          },
         }),
       ),
     );
