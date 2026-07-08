@@ -213,6 +213,20 @@ const POINTER_SUFFICIENT_RULE_CONTRACTS: readonly PointerContract[] = [
     heading: "## Eval and framework health (#1703)",
     requirements: [
       {
+        kind: "doc",
+        consumerMarker: "AGENTS.md and `deft triage:help` are canonical",
+        maintainerMarker: "AGENTS.md and `task triage:help` are canonical",
+        targetPath: "templates/agents-entry.md",
+        targetMarkers: [
+          "crud-metrics.jsonl",
+          "health-history.jsonl",
+          "contradictory gate",
+          "4-hour debounce",
+          "Tier 1",
+          "Tier 2",
+        ],
+      },
+      {
         kind: "gate",
         consumerCommand: "deft eval:health",
         maintainerCommand: "task eval:health",
@@ -266,7 +280,7 @@ function managedSection(text: string): string {
 
 function sectionForHeading(text: string, heading: string): string {
   const start = text.indexOf(heading);
-  expect(start).toBeGreaterThanOrEqual(0);
+  expect(start, `heading not found: ${heading}`).toBeGreaterThanOrEqual(0);
   const rest = text.slice(start);
   const nextHeading = rest.slice(heading.length).search(/\n## /);
   return nextHeading === -1 ? rest : rest.slice(0, heading.length + nextHeading);
@@ -385,14 +399,21 @@ describe("test_agents_entry_contract", () => {
     expect(missingMarkers(agents, UNMANAGED_HEADER_MARKERS)).toEqual([]);
   });
 
-  it("propagation_contract_accepts_resolvable_rule_pointers", () => {
+  it.each(
+    POINTER_SUFFICIENT_RULE_CONTRACTS.map((contract) => [contract.id, contract] as const),
+  )("propagation pointer contract resolves %s", (_id, contract) => {
+    const consumerSection = sectionForHeading(template, contract.heading);
+    const maintainerSection = sectionForHeading(agents, contract.heading);
+    for (const requirement of contract.requirements) {
+      expectPointerRequirement(requirement, consumerSection, maintainerSection);
+    }
+  });
+
+  it("propagation_pointer_contracts_cover_all_pointer_kinds", () => {
     const kinds = new Set<PointerRequirement["kind"]>();
     for (const contract of POINTER_SUFFICIENT_RULE_CONTRACTS) {
-      const consumerSection = sectionForHeading(template, contract.heading);
-      const maintainerSection = sectionForHeading(agents, contract.heading);
       for (const requirement of contract.requirements) {
         kinds.add(requirement.kind);
-        expectPointerRequirement(requirement, consumerSection, maintainerSection);
       }
     }
     expect(kinds).toEqual(new Set(["doc", "gate", "skill"]));
