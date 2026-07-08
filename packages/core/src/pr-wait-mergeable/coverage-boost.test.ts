@@ -100,6 +100,7 @@ describe("coverage boost", () => {
         "",
       ],
       mergeFn: () => [0, "line1\nline2", ""],
+      postMergeFn: () => [0, "", ""],
     });
     const out = String(stdout.mock.calls.map((c) => c[0]).join(""));
     expect(out).toContain("merge stdout:");

@@ -346,6 +346,25 @@ describe("labels SCM client", () => {
 });
 
 describe("umbrellas SCM client", () => {
+  it("fetches and edits issue bodies via scm", () => {
+    const callSpy = vi
+      .spyOn(scm, "call")
+      .mockReturnValueOnce({
+        args: [],
+        returncode: 0,
+        stdout: JSON.stringify({ state: "closed", body: "- [ ] #1" }),
+        stderr: "",
+      })
+      .mockReturnValueOnce({ args: [], returncode: 0, stdout: "", stderr: "" });
+    const client = new ScmUmbrellaClient();
+    expect(client.fetchIssue("deftai/directive", 1)).toEqual({
+      state: "closed",
+      body: "- [ ] #1",
+    });
+    client.editIssueBody("deftai/directive", 1, "- [x] #1");
+    expect(callSpy.mock.calls[1]?.[2]).toContain("repos/deftai/directive/issues/1");
+  });
+
   it("fetch edit create via scm", () => {
     vi.spyOn(scm, "call")
       .mockReturnValueOnce({ args: [], returncode: 0, stdout: "[]", stderr: "" })

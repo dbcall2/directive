@@ -91,6 +91,8 @@ export interface Child {
   readonly kind: string;
   readonly folder: string;
   readonly depends_on: string[];
+  readonly issue_repo?: string | null;
+  readonly issue_number?: number | null;
 }
 
 export interface UmbrellaChange {
@@ -98,6 +100,7 @@ export interface UmbrellaChange {
   readonly repo: string;
   readonly issue_number: number;
   readonly action: "created" | "edited" | "unchanged";
+  readonly checklist_action?: "edited" | "unchanged" | "skipped";
   readonly pass_n: number;
   readonly body: string;
 }
@@ -116,10 +119,15 @@ export interface LabelClient {
 }
 
 export interface UmbrellaClient {
+  fetchIssue?(
+    repo: string,
+    issueNumber: number,
+  ): { readonly state: string; readonly body: string } | null;
   fetchComments(
     repo: string,
     issueNumber: number,
   ): ReadonlyArray<{ readonly id: number; readonly body: string }>;
+  editIssueBody?(repo: string, issueNumber: number, body: string): void;
   editComment(repo: string, commentId: number, body: string): void;
   createComment(repo: string, issueNumber: number, body: string): number | null;
 }

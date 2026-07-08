@@ -4,7 +4,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Child, UmbrellaClient } from "./types.js";
 import {
+  buildChildIndex,
   classifyPassType,
+  computeChildren,
   computeWaves,
   parseCurrentShape,
   reconcileUmbrellas,
@@ -13,10 +15,25 @@ import {
 
 class FakeUmbrellaClient implements UmbrellaClient {
   comments = new Map<string, Array<{ id: number; body: string }>>();
+  issues = new Map<string, { state: string; body: string }>();
   private nextId = 1000;
 
+  private key(repo: string, issueNumber: number): string {
+    return `${repo}:${issueNumber}`;
+  }
+
+  fetchIssue(repo: string, issueNumber: number): { state: string; body: string } | null {
+    return this.issues.get(this.key(repo, issueNumber)) ?? null;
+  }
+
   fetchComments(repo: string, issueNumber: number): Array<{ id: number; body: string }> {
-    return [...(this.comments.get(`${repo}:${issueNumber}`) ?? [])];
+    return [...(this.comments.get(this.key(repo, issueNumber)) ?? [])];
+  }
+
+  editIssueBody(repo: string, issueNumber: number, body: string): void {
+    const key = this.key(repo, issueNumber);
+    const issue = this.issues.get(key) ?? { state: "open", body: "" };
+    this.issues.set(key, { ...issue, body });
   }
 
   editComment(_repo: string, commentId: number, body: string): void {
@@ -28,7 +45,7 @@ class FakeUmbrellaClient implements UmbrellaClient {
   }
 
   createComment(repo: string, issueNumber: number, body: string): number {
-    const key = `${repo}:${issueNumber}`;
+    const key = this.key(repo, issueNumber);
     const id = this.nextId++;
     const bucket = this.comments.get(key) ?? [];
     bucket.push({ id, body });
@@ -163,6 +180,114 @@ describe("renderBody", () => {
 });
 
 describe("reconcileUmbrellas", () => {
+  it("resolves github-issue children, uses forge state, and edits checklist markers", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-umbrella-issue-refs-"));
+    const active = join(root, "xbrief", "active");
+    const completed = join(root, "xbrief", "completed");
+    mkdirSync(active, { recursive: true });
+    mkdirSync(completed, { recursive: true });
+    writeFileSync(
+      join(active, "closed-by-issue.xbrief.json"),
+      `${JSON.stringify({
+        plan: {
+          id: "closed-by-issue",
+          title: "Closed by issue",
+          metadata: { kind: "story", swarm: { depends_on: [] } },
+          references: [
+            { type: "x-vbrief/github-issue", uri: "https://github.com/deftai/directive/issues/10" },
+          ],
+        },
+      })}\n`,
+    );
+    writeFileSync(
+      join(completed, "open-by-issue.xbrief.json"),
+      `${JSON.stringify({
+        plan: {
+          id: "open-by-issue",
+          title: "Open by issue",
+          metadata: { kind: "story", swarm: { depends_on: [] } },
+          references: [
+            { type: "x-vbrief/github-issue", uri: "https://github.com/deftai/directive/issues/11" },
+          ],
+        },
+      })}\n`,
+    );
+    writeFileSync(
+      join(active, "epic.xbrief.json"),
+      `${JSON.stringify({
+        plan: {
+          id: "epic-issue-refs",
+          metadata: { kind: "epic", swarm: { depends_on: [] } },
+          references: [
+            {
+              type: "x-vbrief/github-issue",
+              uri: "https://github.com/deftai/directive/issues/100",
+            },
+            { type: "x-vbrief/github-issue", uri: "https://github.com/deftai/directive/issues/10" },
+            { type: "x-vbrief/github-issue", uri: "https://github.com/deftai/directive/issues/11" },
+          ],
+        },
+      })}\n`,
+    );
+    const client = new FakeUmbrellaClient();
+    client.issues.set("deftai/directive:100", {
+      state: "open",
+      body: "- [ ] #10 closed child\n- [x] #11 reopened child\n- [ ] #999 external child\n",
+    });
+    client.issues.set("deftai/directive:10", { state: "closed", body: "" });
+    client.issues.set("deftai/directive:11", { state: "open", body: "" });
+
+    const [code, outcome] = reconcileUmbrellas(root, {
+      client,
+      now: "2026-06-14T20:00:00Z",
+    });
+
+    expect(code).toBe(0);
+    expect(outcome.changed[0]?.action).toBe("created");
+    expect(outcome.changed[0]?.checklist_action).toBe("edited");
+    expect(outcome.changed[0]?.body).toContain("Child count: 2 (1/1)");
+    expect(outcome.changed[0]?.body).toContain("- open-by-issue: Open by issue (story)");
+    expect(outcome.changed[0]?.body).toContain("- closed-by-issue: Closed by issue (active)");
+    expect(client.issues.get("deftai/directive:100")?.body).toBe(
+      "- [x] #10 closed child\n- [ ] #11 reopened child\n- [ ] #999 external child\n",
+    );
+    client.issues.set("deftai/directive:100", {
+      state: "open",
+      body: "- [ ] #10 closed child\n- [ ] #11 reopened child\n",
+    });
+    const [, secondOutcome] = reconcileUmbrellas(root, {
+      client,
+      now: "2026-06-14T20:00:00Z",
+    });
+    expect(secondOutcome.changed[0]?.action).toBe("unchanged");
+    expect(secondOutcome.changed[0]?.checklist_action).toBe("edited");
+    expect(secondOutcome.unchanged).toEqual([]);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("resolves contains edges as umbrella children", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-umbrella-edges-"));
+    const active = join(root, "xbrief", "active");
+    mkdirSync(active, { recursive: true });
+    writeFileSync(
+      join(active, "edge-child.xbrief.json"),
+      `${JSON.stringify({ plan: { id: "edge-child", metadata: { kind: "story", swarm: { depends_on: [] } } } })}\n`,
+    );
+    const index = buildChildIndex(join(root, "xbrief"));
+    const children = computeChildren(
+      {
+        plan: {
+          id: "edge-epic",
+          edges: [{ from: "edge-epic", to: "edge-child", type: "contains" }],
+          references: [],
+        },
+      },
+      index,
+    );
+    expect(children.map((c) => c.story_id)).toEqual(["edge-child"]);
+    rmSync(root, { recursive: true, force: true });
+  });
+
   it("creates current-shape comment", () => {
     const root = mkdtempSync(join(tmpdir(), "deft-umbrella-"));
     const active = join(root, "xbrief", "active");

@@ -1,7 +1,9 @@
 import { parseProtected } from "../pr-protected-issues/parse.js";
+import { reconcileUmbrellas, renderUmbrellasReport } from "../vbrief-reconcile/umbrellas.js";
 import { waitMergeableAndMerge } from "./cascade.js";
 import { EXIT_CONFIG_ERROR, EXIT_MERGED, EXIT_TIMEOUT_OR_ESCALATION } from "./constants.js";
 import { toResultDict } from "./result.js";
+import type { SubprocessTriple } from "./types.js";
 
 /** Match Python json.dumps(..., indent=2) default ensure_ascii=True. */
 function pythonJsonDumps(value: unknown): string {
@@ -168,6 +170,16 @@ export interface RunWaitMergeableOptions {
   readonly protectedFn?: Parameters<typeof waitMergeableAndMerge>[2]["protectedFn"];
   readonly monitorFn?: Parameters<typeof waitMergeableAndMerge>[2]["monitorFn"];
   readonly mergeFn?: Parameters<typeof waitMergeableAndMerge>[2]["mergeFn"];
+  readonly postMergeFn?: (repo: string) => SubprocessTriple;
+}
+
+export function runPostMergeUmbrellaReconcile(repo: string): SubprocessTriple {
+  try {
+    const [code, outcome] = reconcileUmbrellas(process.cwd(), { repo });
+    return [code, `${renderUmbrellasReport(outcome)}\n`, ""];
+  } catch (exc) {
+    return [1, "", exc instanceof Error ? exc.message : String(exc)];
+  }
 }
 
 export function runWaitMergeable(
@@ -202,6 +214,16 @@ export function runWaitMergeable(
     monitorFn: options.monitorFn,
     mergeFn: options.mergeFn,
   });
+
+  if (result.exitCode === EXIT_MERGED) {
+    const postMergeFn = options.postMergeFn ?? runPostMergeUmbrellaReconcile;
+    const [reconcileCode, reconcileStdout, reconcileStderr] = postMergeFn(repo);
+    process.stderr.write(
+      `[pr_wait_mergeable] post-merge umbrella reconcile exit=${reconcileCode}\n`,
+    );
+    if (reconcileStdout.trim().length > 0) process.stderr.write(reconcileStdout);
+    if (reconcileStderr.trim().length > 0) process.stderr.write(`${reconcileStderr.trim()}\n`);
+  }
 
   const summaryLabel = summaryLabelForExit(result.exitCode);
   process.stderr.write(

@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `task vbrief:reconcile:umbrellas` now keeps umbrella issue checklists and current-shape comments aligned with child issue state. The reconciler resolves children linked by plan refs, contains edges, or GitHub issue refs; it uses forge open/closed state when available, and the cascade merge helper runs the reconcile pass after a successful merge. Closes #1649.
+
 ### Removed
 
 ## [0.73.0] - 2026-07-07

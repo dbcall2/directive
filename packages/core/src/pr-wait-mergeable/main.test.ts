@@ -86,6 +86,7 @@ describe("runWaitMergeable", () => {
   it("emits json envelope on clean then merged", () => {
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const postMergeFn = vi.fn(() => [0, "umbrella reconcile ok\n", ""] as const);
 
     const code = runWaitMergeable(
       ["1370", "--repo", "deftai/directive", "--cap-minutes", "5", "--json"],
@@ -93,10 +94,12 @@ describe("runWaitMergeable", () => {
         protectedFn: makeProtectedFn(0),
         monitorFn: makeMonitorFn(0, cleanMonitorPayload(1370)),
         mergeFn: makeMergeFn(0, "merged: squash"),
+        postMergeFn,
       },
     );
 
     expect(code).toBe(EXIT_MERGED);
+    expect(postMergeFn).toHaveBeenCalledWith("deftai/directive");
     const out = String(stdout.mock.calls[0]?.[0] ?? "");
     const payload = JSON.parse(out) as Record<string, unknown>;
     expect(payload.pr_number).toBe(1370);

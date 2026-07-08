@@ -3,7 +3,7 @@ import { basename, join, resolve } from "node:path";
 import { referenceTypeMatches } from "@deftai/directive-types";
 import { hasArtifactSuffix, resolveLifecycleRoot, stripArtifactSuffix } from "../layout/resolve.js";
 import { call } from "../scm/call.js";
-import { extractIssueRef } from "../triage/reconcile/parse-uri.js";
+import { extractIssueRef, parseGithubIssueUri } from "../triage/reconcile/parse-uri.js";
 import type { Child, ReconcileUmbrellasOutcome, UmbrellaChange, UmbrellaClient } from "./types.js";
 
 export const OPEN_FOLDERS = ["proposed", "pending", "active"] as const;
@@ -24,6 +24,8 @@ const HISTORY_RE = /^Child-count history:\s*(\S.*|)$/m;
 const LAST_UPDATED_RE = /^Last updated:\s*(\S.*|)$/m;
 const LAST_PASS_TYPE_RE = /^Last pass type:\s*(\S.*|)$/m;
 const HISTORY_TOKEN_RE = /^\s*pass-(\d+):\s*(\d+)\s*$/;
+const CHECKBOX_LINE_RE = /^(\s*[-*]\s+\[)([ xX])(\]\s+.*)$/;
+const ISSUE_MENTION_RE = /(?:#|\/issues\/)(\d+)\b/;
 
 const READING_ORDER =
   "1. Read the umbrella issue body.\n" +
@@ -42,6 +44,26 @@ function readJson(path: string): Record<string, unknown> | null {
       : null;
   } catch {
     return null;
+  }
+}
+
+function storyKey(storyId: string): string {
+  return `story:${storyId}`;
+}
+
+function issueKey(repo: string | null, issueNumber: number): string {
+  return repo === null ? `issue:${issueNumber}` : `issue:${repo}:${issueNumber}`;
+}
+
+function addChild(index: Record<string, Child>, key: string, child: Child): void {
+  if (index[key] === undefined) index[key] = child;
+}
+
+function addIssueKeys(index: Record<string, Child>, child: Child): void {
+  if (child.issue_number === undefined || child.issue_number === null) return;
+  addChild(index, issueKey(child.issue_repo ?? null, child.issue_number), child);
+  if (child.issue_repo !== undefined && child.issue_repo !== null) {
+    addChild(index, issueKey(null, child.issue_number), child);
   }
 }
 
@@ -64,12 +86,15 @@ export function childFromData(
       : {};
   const rawDeps = swarm.depends_on;
   const dependsOn = Array.isArray(rawDeps) ? rawDeps.map((d) => String(d)) : [];
+  const [issueRepo, issueNumber] = extractIssueRef(data);
   return {
     story_id: String(plan.id ?? fallbackId),
     title: String(plan.title ?? plan.id ?? fallbackId),
     kind: String(metadata.kind ?? "story"),
     folder,
     depends_on: dependsOn,
+    issue_repo: issueRepo,
+    issue_number: issueNumber,
   };
 }
 
@@ -86,7 +111,10 @@ export function buildChildIndex(vbriefDir: string): Record<string, Child> {
       const data = readJson(path);
       if (!data) continue;
       const fallbackId = stripArtifactSuffix(file);
-      index[file] = childFromData(data, folder, fallbackId);
+      const child = childFromData(data, folder, fallbackId);
+      addChild(index, file, child);
+      addChild(index, storyKey(child.story_id), child);
+      addIssueKeys(index, child);
     }
   }
   return index;
@@ -103,16 +131,39 @@ export function computeChildren(
   const refs = plan.references;
   const children: Child[] = [];
   const seen = new Set<string>();
+  const epicStoryId = String(plan.id ?? "");
+
+  const addResolvedChild = (child: Child | undefined): void => {
+    if (!child || child.story_id === epicStoryId || seen.has(child.story_id)) return;
+    seen.add(child.story_id);
+    children.push(child);
+  };
+
+  const edges = plan.edges;
+  if (Array.isArray(edges)) {
+    for (const edge of edges) {
+      if (typeof edge !== "object" || edge === null || Array.isArray(edge)) continue;
+      const rec = edge as Record<string, unknown>;
+      if (String(rec.type ?? "") !== "contains") continue;
+      if (rec.from !== undefined && String(rec.from) !== epicStoryId) continue;
+      addResolvedChild(index[storyKey(String(rec.to ?? ""))]);
+    }
+  }
+
   if (!Array.isArray(refs)) return children;
   for (const ref of refs) {
     if (typeof ref !== "object" || ref === null || Array.isArray(ref)) continue;
     const rec = ref as Record<string, unknown>;
-    if (!referenceTypeMatches(String(rec.type ?? ""), "plan")) continue;
-    const name = basename(String(rec.uri ?? ""));
-    const child = index[name];
-    if (!child || seen.has(child.story_id)) continue;
-    seen.add(child.story_id);
-    children.push(child);
+    const refType = String(rec.type ?? "");
+    if (referenceTypeMatches(refType, "plan")) {
+      addResolvedChild(index[basename(String(rec.uri ?? ""))]);
+      continue;
+    }
+    if (referenceTypeMatches(refType, "github-issue")) {
+      const [repo, number] = parseGithubIssueUri(rec.uri);
+      if (number === null) continue;
+      addResolvedChild(index[issueKey(repo, number)] ?? index[issueKey(null, number)]);
+    }
   }
   return children;
 }
@@ -235,6 +286,29 @@ function hasCurrentShape(body: string): boolean {
 }
 
 export class ScmUmbrellaClient implements UmbrellaClient {
+  fetchIssue(repo: string, issueNumber: number): { state: string; body: string } | null {
+    const proc = call(SCM_SOURCE, "api", [`repos/${repo}/issues/${issueNumber}`]);
+    if (proc.returncode !== 0) {
+      throw new UmbrellaScmError(
+        `fetch issue #${issueNumber} (${repo}) failed: ${(proc.stderr || "").trim()}`,
+      );
+    }
+    let data: unknown;
+    try {
+      data = JSON.parse(proc.stdout || "{}");
+    } catch (exc) {
+      throw new UmbrellaScmError(
+        `fetch issue #${issueNumber} (${repo}) returned non-JSON: ${String(exc)}`,
+      );
+    }
+    if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
+    const rec = data as Record<string, unknown>;
+    return {
+      state: typeof rec.state === "string" ? rec.state.toLowerCase() : "open",
+      body: typeof rec.body === "string" ? rec.body : "",
+    };
+  }
+
   fetchComments(repo: string, issueNumber: number): Array<{ id: number; body: string }> {
     const proc = call(SCM_SOURCE, "api", [
       `repos/${repo}/issues/${issueNumber}/comments?per_page=100`,
@@ -267,6 +341,20 @@ export class ScmUmbrellaClient implements UmbrellaClient {
       }
     }
     return comments;
+  }
+
+  editIssueBody(repo: string, issueNumber: number, body: string): void {
+    const proc = call(
+      SCM_SOURCE,
+      "api",
+      ["-X", "PATCH", `repos/${repo}/issues/${issueNumber}`, "--input", "-"],
+      { input: JSON.stringify({ body }) },
+    );
+    if (proc.returncode !== 0) {
+      throw new UmbrellaScmError(
+        `edit issue #${issueNumber} (${repo}) body failed: ${(proc.stderr || "").trim()}`,
+      );
+    }
   }
 
   editComment(repo: string, commentId: number, body: string): void {
@@ -304,19 +392,115 @@ export class ScmUmbrellaClient implements UmbrellaClient {
   }
 }
 
+type ChildOpenClosedState = "open" | "closed";
+
+function fetchIssueCached(
+  client: UmbrellaClient,
+  repo: string,
+  issueNumber: number,
+  cache: Map<string, { readonly state: string; readonly body: string } | null>,
+): { readonly state: string; readonly body: string } | null {
+  if (client.fetchIssue === undefined) return null;
+  const key = `${repo}:${issueNumber}`;
+  if (!cache.has(key)) cache.set(key, client.fetchIssue(repo, issueNumber));
+  return cache.get(key) ?? null;
+}
+
+function childIssueRepo(child: Child, fallbackRepo: string): string {
+  return child.issue_repo ?? fallbackRepo;
+}
+
+function childOpenClosedState(
+  child: Child,
+  fallbackRepo: string,
+  client: UmbrellaClient,
+  issueCache: Map<string, { readonly state: string; readonly body: string } | null>,
+): ChildOpenClosedState {
+  if (child.issue_number !== undefined && child.issue_number !== null) {
+    const issue = fetchIssueCached(
+      client,
+      childIssueRepo(child, fallbackRepo),
+      child.issue_number,
+      issueCache,
+    );
+    if (issue !== null) return issue.state.toLowerCase() === "closed" ? "closed" : "open";
+  }
+  return (OPEN_FOLDERS as readonly string[]).includes(child.folder) ? "open" : "closed";
+}
+
+function reconcileChecklistBody(
+  body: string,
+  childIssueStates: ReadonlyMap<number, ChildOpenClosedState>,
+): { readonly changed: boolean; readonly body: string } {
+  let changed = false;
+  const lines = body.split("\n").map((rawLine) => {
+    const cr = rawLine.endsWith("\r") ? "\r" : "";
+    const line = cr ? rawLine.slice(0, -1) : rawLine;
+    const checkbox = CHECKBOX_LINE_RE.exec(line);
+    if (!checkbox?.[1] || !checkbox[2] || !checkbox[3]) return rawLine;
+    const issue = ISSUE_MENTION_RE.exec(checkbox[3]);
+    const rawNumber = issue?.[1];
+    if (rawNumber === undefined) return rawLine;
+    const state = childIssueStates.get(Number(rawNumber));
+    if (state === undefined) return rawLine;
+    const desiredMark = state === "closed" ? "x" : " ";
+    if (checkbox[2] === desiredMark) return rawLine;
+    changed = true;
+    return `${checkbox[1]}${desiredMark}${checkbox[3]}${cr}`;
+  });
+  return { changed, body: lines.join("\n") };
+}
+
+function reconcileUmbrellaIssueChecklist(options: {
+  repo: string;
+  issueNumber: number;
+  client: UmbrellaClient;
+  dryRun: boolean;
+  childIssueStates: ReadonlyMap<number, ChildOpenClosedState>;
+  issueCache: Map<string, { readonly state: string; readonly body: string } | null>;
+}): { readonly action: "edited" | "unchanged" | "skipped"; readonly body: string | null } {
+  if (
+    options.client.fetchIssue === undefined ||
+    options.client.editIssueBody === undefined ||
+    options.childIssueStates.size === 0
+  ) {
+    return { action: "skipped", body: null };
+  }
+  const issue = fetchIssueCached(
+    options.client,
+    options.repo,
+    options.issueNumber,
+    options.issueCache,
+  );
+  if (issue === null) return { action: "skipped", body: null };
+  const next = reconcileChecklistBody(issue.body, options.childIssueStates);
+  if (!next.changed) return { action: "unchanged", body: issue.body };
+  if (!options.dryRun) options.client.editIssueBody(options.repo, options.issueNumber, next.body);
+  return { action: "edited", body: next.body };
+}
+
 function planShape(
   epicData: Record<string, unknown>,
   index: Record<string, Child>,
-): [Child[], Child[], string[][]] {
+  options: { repo: string; client: UmbrellaClient },
+): [Child[], Child[], string[][], Map<number, ChildOpenClosedState>] {
   const children = computeChildren(epicData, index);
-  const openChildren = children
-    .filter((c) => (OPEN_FOLDERS as readonly string[]).includes(c.folder))
-    .sort((a, b) => a.story_id.localeCompare(b.story_id));
-  const closedChildren = children
-    .filter((c) => !(OPEN_FOLDERS as readonly string[]).includes(c.folder))
-    .sort((a, b) => a.story_id.localeCompare(b.story_id));
+  const issueCache = new Map<string, { readonly state: string; readonly body: string } | null>();
+  const childIssueStates = new Map<number, ChildOpenClosedState>();
+  const openChildren: Child[] = [];
+  const closedChildren: Child[] = [];
+  for (const child of children) {
+    const state = childOpenClosedState(child, options.repo, options.client, issueCache);
+    if (child.issue_number !== undefined && child.issue_number !== null) {
+      childIssueStates.set(child.issue_number, state);
+    }
+    if (state === "closed") closedChildren.push(child);
+    else openChildren.push(child);
+  }
+  openChildren.sort((a, b) => a.story_id.localeCompare(b.story_id));
+  closedChildren.sort((a, b) => a.story_id.localeCompare(b.story_id));
   const waves = computeWaves(children);
-  return [openChildren, closedChildren, waves];
+  return [openChildren, closedChildren, waves, childIssueStates];
 }
 
 function reconcileOneEpic(
@@ -331,8 +515,19 @@ function reconcileOneEpic(
     now: string;
   },
 ): UmbrellaChange {
-  const [openChildren, closedChildren, waves] = planShape(epicData, index);
+  const [openChildren, closedChildren, waves, childIssueStates] = planShape(epicData, index, {
+    repo: options.repo,
+    client: options.client,
+  });
   const total = openChildren.length + closedChildren.length;
+  const checklist = reconcileUmbrellaIssueChecklist({
+    repo: options.repo,
+    issueNumber: options.number,
+    client: options.client,
+    dryRun: options.dryRun,
+    childIssueStates,
+    issueCache: new Map<string, { readonly state: string; readonly body: string } | null>(),
+  });
 
   const comments = options.client.fetchComments(options.repo, options.number);
   const existing = comments.find((c) => hasCurrentShape(c.body));
@@ -353,6 +548,7 @@ function reconcileOneEpic(
       repo: options.repo,
       issue_number: options.number,
       action: "created",
+      checklist_action: checklist.action,
       pass_n: 1,
       body,
     };
@@ -379,6 +575,7 @@ function reconcileOneEpic(
       repo: options.repo,
       issue_number: options.number,
       action: "unchanged",
+      checklist_action: checklist.action,
       pass_n: prevPass,
       body: candidate,
     };
@@ -400,6 +597,7 @@ function reconcileOneEpic(
     repo: options.repo,
     issue_number: options.number,
     action: "edited",
+    checklist_action: checklist.action,
     pass_n: passN,
     body,
   };
@@ -501,8 +699,11 @@ export function reconcileUmbrellas(
           dryRun: options.dryRun ?? false,
           now,
         });
-        if (change.action === "unchanged") outcome.unchanged.push(change);
-        else outcome.changed.push(change);
+        if (change.action === "unchanged" && change.checklist_action !== "edited") {
+          outcome.unchanged.push(change);
+        } else {
+          outcome.changed.push(change);
+        }
       } catch (exc) {
         outcome.errors.push({ story_id: storyId, message: String(exc) });
       }
@@ -519,8 +720,12 @@ export function renderUmbrellasReport(outcome: ReconcileUmbrellasOutcome): strin
   lines.push(`Changed${suffix}:`);
   if (outcome.changed.length > 0) {
     for (const c of outcome.changed) {
+      const checklist =
+        c.checklist_action !== undefined && c.checklist_action !== "skipped"
+          ? `, checklist ${c.checklist_action}`
+          : "";
       lines.push(
-        `- #${c.issue_number} (${c.repo}) [${c.story_id}]: ${c.action} -> pass-${c.pass_n}`,
+        `- #${c.issue_number} (${c.repo}) [${c.story_id}]: ${c.action}${checklist} -> pass-${c.pass_n}`,
       );
     }
   } else {
@@ -531,7 +736,11 @@ export function renderUmbrellasReport(outcome: ReconcileUmbrellasOutcome): strin
   lines.push("Unchanged:");
   if (outcome.unchanged.length > 0) {
     for (const c of outcome.unchanged) {
-      lines.push(`- #${c.issue_number} (${c.repo}) [${c.story_id}]: pass-${c.pass_n}`);
+      const checklist =
+        c.checklist_action !== undefined && c.checklist_action !== "skipped"
+          ? `, checklist ${c.checklist_action}`
+          : "";
+      lines.push(`- #${c.issue_number} (${c.repo}) [${c.story_id}]: pass-${c.pass_n}${checklist}`);
     }
   } else {
     lines.push("- none");
@@ -560,6 +769,7 @@ export function umbrellasOutcomeToJson(
     repo: c.repo,
     issue_number: c.issue_number,
     action: c.action,
+    checklist_action: c.checklist_action,
     pass_n: c.pass_n,
   });
   return {
