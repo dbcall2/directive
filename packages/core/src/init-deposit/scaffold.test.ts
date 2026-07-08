@@ -160,7 +160,9 @@ describe("init-deposit scaffold", () => {
 
     await depositNeutralization(project, io);
 
-    expect(readFileSync(join(project, ".gitattributes"), "utf8")).toContain(".deft/core/**");
+    expect(readFileSync(join(project, ".gitattributes"), "utf8")).toContain(
+      ".deft/core/** text eol=lf",
+    );
     expect(readFileSync(join(project, "greptile.json"), "utf8")).toContain(".deft/core/**");
     expect(readFileSync(join(project, ".github/codeql/codeql-config.yml"), "utf8")).toContain(
       "paths-ignore",
@@ -228,6 +230,22 @@ describe("init-deposit scaffold", () => {
         fetchedBy: "test",
       }),
     ).toContain("tag: 'v0.53.0'");
+  });
+
+  it("repairs old .gitattributes entries with the LF pin", () => {
+    const project = freshRoot("scaffold-gitattributes-lf-");
+    const { io } = captureIo();
+    writeFileSync(
+      join(project, ".gitattributes"),
+      ".deft/core/** linguist-generated=true\n.deft/core/** linguist-vendored=true\n",
+      "utf8",
+    );
+
+    expect(ensureGitattributes(project, io)).toBe(true);
+    const attrs = readFileSync(join(project, ".gitattributes"), "utf8");
+    expect(attrs).toContain(".deft/core/** text eol=lf");
+    expect(attrs.match(/linguist-generated=true/g) ?? []).toHaveLength(1);
+    expect(attrs.match(/linguist-vendored=true/g) ?? []).toHaveLength(1);
   });
 
   it("prunes framework self-tests and vendored TS test files", async () => {

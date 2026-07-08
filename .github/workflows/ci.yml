@@ -340,3 +340,65 @@ jobs:
             throw "framework:doctor output contains the Microsoft Store app-execution-alias stub marker -- the #1059 wrapper regression has re-fired"
           }
           Write-Host "framework:doctor smoke OK (#1059) -- exit=$exit, no Store-stub marker in output"
+
+      - name: deft update stays clean with core.autocrlf=true (#2118)
+        shell: pwsh
+        run: |
+          pnpm --dir $env:GITHUB_WORKSPACE run build
+          $contentPackage = Join-Path $env:GITHUB_WORKSPACE 'packages\content'
+          pnpm --dir $contentPackage run prepack
+          $cli = Join-Path $env:GITHUB_WORKSPACE 'packages\cli\dist\bin.js'
+          if (-not (Test-Path $cli)) {
+            throw "missing built CLI at $cli"
+          }
+          $smokeRoot = Join-Path $env:RUNNER_TEMP ("deft-update-autocrlf-" + [System.Guid]::NewGuid().ToString('N'))
+          $shimDir = Join-Path $smokeRoot 'shim'
+          New-Item -ItemType Directory -Path $shimDir -Force | Out-Null
+          [System.IO.File]::WriteAllText(
+            (Join-Path $shimDir 'deft.cmd'),
+            "@echo off`r`nnode `"$cli`" %*`r`n",
+            (New-Object System.Text.UTF8Encoding $false)
+          )
+          [System.IO.File]::WriteAllText(
+            (Join-Path $shimDir 'deft'),
+            "#!/bin/sh`nnode `"$cli`" " + '"$@"' + "`n",
+            (New-Object System.Text.UTF8Encoding $false)
+          )
+          $env:PATH = "$shimDir;$env:PATH"
+          $consumer = Join-Path $smokeRoot 'consumer'
+          New-Item -ItemType Directory -Path $consumer -Force | Out-Null
+          Push-Location $consumer
+          try {
+            git init -q
+            git config core.autocrlf true
+            git config user.name ci
+            git config user.email ci@example.com
+
+            node $cli init --yes --repo-root $consumer
+            if ($LASTEXITCODE -ne 0) { throw "directive init exited $LASTEXITCODE" }
+
+            git add -A
+            git commit --no-verify -q -m baseline
+            if ($LASTEXITCODE -ne 0) { throw "baseline commit exited $LASTEXITCODE" }
+
+            node $cli update --yes --repo-root $consumer
+            if ($LASTEXITCODE -ne 0) { throw "first directive update exited $LASTEXITCODE" }
+            node $cli update --yes --repo-root $consumer
+            if ($LASTEXITCODE -ne 0) { throw "second directive update exited $LASTEXITCODE" }
+
+            task deft:verify:cache-fresh
+            if ($LASTEXITCODE -ne 0) { throw "task deft:verify:cache-fresh exited $LASTEXITCODE" }
+
+            node $cli preflight-cache --project-root $consumer --allow-missing-bootstrap
+            if ($LASTEXITCODE -ne 0) { throw "preflight-cache exited $LASTEXITCODE" }
+
+            $status = git status --porcelain
+            if ($status) {
+              Write-Host "--- dirty status after idempotent update ---"
+              Write-Host $status
+              throw "directive update left a dirty tree under core.autocrlf=true"
+            }
+          } finally {
+            Pop-Location
+            pnpm --dir $contentPackage run postpack
+          }

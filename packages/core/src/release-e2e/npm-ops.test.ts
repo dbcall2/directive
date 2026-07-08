@@ -159,17 +159,36 @@ describe("deposit journey e2e legs (#1942 S5)", () => {
       ...seams,
       gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
     });
+    const initVersion = readFileSync(join(project, ".deft/core", "VERSION"), "utf8");
+    const copyContent = vi.fn(async () => {
+      throw new Error("copyContent must not run for an already-current update");
+    });
+    const updateSeams = {
+      ...seams,
+      copyContent,
+      nowIso: () => "2026-06-25T12:00:00Z",
+      gitSemanticDiffNames: () => [],
+    };
 
     io.printf.mockClear();
-    await runRefreshDeposit(args, io, seams);
+    const first = await runRefreshDeposit(args, io, updateSeams);
     const firstAgents = readFileSync(join(project, "AGENTS.md"), "utf8");
+    const firstVersion = readFileSync(join(project, ".deft/core", "VERSION"), "utf8");
 
     io.printf.mockClear();
-    const second = await runRefreshDeposit(args, io, seams);
+    const second = await runRefreshDeposit(args, io, updateSeams);
     const secondAgents = readFileSync(join(project, "AGENTS.md"), "utf8");
+    const secondVersion = readFileSync(join(project, ".deft/core", "VERSION"), "utf8");
 
     expect(secondAgents).toBe(firstAgents);
+    expect(firstVersion).toBe(initVersion);
+    expect(secondVersion).toBe(initVersion);
+    expect(first.alreadyCurrent).toBe(true);
+    expect(first.strategy).toBe("no-op");
     expect(second.agentsMdUpdated).toBe(false);
+    expect(second.alreadyCurrent).toBe(true);
+    expect(second.strategy).toBe("no-op");
+    expect(copyContent).not.toHaveBeenCalled();
     expect(existsSync(join(project, ".deft/core", "main.md"))).toBe(true);
   });
 });

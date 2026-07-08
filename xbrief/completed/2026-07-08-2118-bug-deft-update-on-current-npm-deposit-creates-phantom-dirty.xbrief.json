@@ -1,0 +1,56 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2118"
+  },
+  "plan": {
+    "title": "bug: deft update on current npm deposit creates phantom dirty tree on Windows and over-reports changes",
+    "status": "completed",
+    "narratives": {
+      "Description": "bug: deft update on current npm deposit creates phantom dirty tree on Windows and over-reports changes",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2118",
+      "Overview": "## Summary\r\n\r\nRunning `deft update` on a consumer project that is **already on the latest npm release** (`@deftai/directive@0.65.0`) produces a misleading operator/agent experience on Windows:\r\n\r\n1. ~280 files under `.deft/core/` appear modified in `git status` even though content is unchanged.\r\n2. The installer prints a long list of paths as \"uncommitted changes\" and implies a framework deposit commit is needed.\r\n3. The only real diff (ignoring line endings) is a `fetched_at` timestamp bump in `.deft/core/VERSION`.\r\n\r\nThis caused a maintainer to investigate whether a commit was required after syncing master and running the canonical npm upgrade path — it was not.\r\n\r\n## Environment\r\n\r\n- **Consumer repo:** `deftai/statusreport` (master at `6173aad`, already on directive v0.65.0 via PR #83)\r\n- **OS:** Windows 10, PowerShell\r\n- **Git:** `core.autocrlf=true`\r\n- **Node:** v22.14.0\r\n- **Global CLI:** `@deftai/directive@0.65.0` (installed via `npm i -g @deftai/directive@latest`)\r\n- **Deposit:** `.deft/core/VERSION` shows `managed_by: npm`, `ref: v0.65.0`\r\n\r\n## Repro\r\n\r\n```powershell\r\ngit checkout master\r\ngit pull origin master   # already at v0.65.0\r\nnpm i -g @deftai/directive@latest\r\ndeft update\r\ngit status --short       # ~280 modified files under .deft/core/\r\ngit diff --ignore-cr-at-eol --stat   # only .deft/core/VERSION (fetched_at line)\r\n```\r\n\r\n## Expected\r\n\r\nWhen `previous_version === content_version` and payload content is unchanged:\r\n\r\n- Clear message: **already current — no repository commit required**\r\n- Do **not** list every touched path as uncommitted framework deposit changes\r\n- Working tree should remain clean (or guidance should explain line-ending-only phantom diffs immediately)\r\n\r\n## Actual\r\n\r\n`deft update` output (abridged):\r\n\r\n```\r\n✓ Deft framework payload refreshed.\r\n  Content      : v0.65.0\r\n  previous_version: 0.65.0\r\n```\r\n\r\nPlus a long \"AGENTS.md refresh side effects\" / uncommitted-changes list (~280 paths).\r\n\r\n`git diff --ignore-cr-at-eol` shows **one** real change:\r\n\r\n```diff\r\n--- a/.deft/core/VERSION\r\n+++ b/.deft/core/VERSION\r\n-fetched_at: '2026-06-30T14:53:46Z'\r\n+fetched_at: '2026-06-30T15:57:01Z'\r\n```\r\n\r\nAll other \"modified\" files are CRLF/LF phantom diffs from `core.autocrlf=true` interacting with LF npm deposit writes.\r\n\r\n## Root causes (proposed)\r\n\r\n1. **Missing `eol=lf` projection for `.deft/core/**`**\r\n   - Consumer `.gitattributes` has `linguist-generated` / `linguist-vendored` but not `text eol=lf`.\r\n   - `deft update` reports \".gitattributes already marks .deft/core/** … — skipping\" and does not add the LF pin.\r\n   - Same pattern already exists in statusreport for `frontend/src/generated/*.ts text eol=lf` to stabilize CI diffs across autocrlf settings.\r\n\r\n2. **No no-op refresh detection**\r\n   - File-swap runs even when tarball content matches on-disk deposit.\r\n   - `fetched_at` is rewritten anyway, creating a tempting-but-meaningless commit.\r\n\r\n3. **Over-aggressive post-update reporting**\r\n   - Installer lists all touched paths as deposit-side uncommitted changes without distinguishing semantic diffs from line-ending noise.\r\n\r\n## Proposed fixes\r\n\r\n### P1 — `.gitattributes` projection\r\n\r\nExtend consumer `.gitattributes` projection to add (when missing):\r\n\r\n```gitattributes\r\n.deft/core/** text eol=lf\r\n```\r\n\r\nIdempotent; mirrors frontend codegen stability pattern.\r\n\r\n### P1 — No-op update path\r\n\r\nWhen content hash / version unchanged:\r\n\r\n- Skip file-swap (or skip reporting touched paths)\r\n- Print explicit \"already current\" exit summary\r\n- Do not rewrite `VERSION.fetched_at` unless content actually changed\r\n\r\n### P2 — Windows post-update hint\r\n\r\nIf deposit version unchanged and git working tree dirty, suggest:\r\n\r\n```powershell\r\ngit diff --ignore-cr-at-eol --stat\r\ngit checkout -- .deft/core/   # when only CRLF phantom diffs\r\n```\r\n\r\n### P2 — Sync / UPGRADING guidance\r\n\r\nDocument that re-running `deft update` on current master often produces **no commit-worthy changes**; version bump commits happen only when `ref`/`tag` in `VERSION` changes.\r\n\r\n## Acceptance criteria\r\n\r\n- [ ] Repro above on Windows + `core.autocrlf=true` leaves clean `git status` after `deft update` when already on latest release\r\n- [ ] `deft update` on unchanged deposit prints \"already current\" (no false deposit-commit nudge)\r\n- [ ] Fresh `deft update` on a project without eol pin adds `.deft/core/** text eol=lf` to `.gitattributes`\r\n- [ ] `VERSION.fetched_at` not bumped on idempotent refresh\r\n- [ ] Test or fixture covering no-op update path (consumer install smoke)\r\n\r\n## Related\r\n\r\n- #2120 — Windows native `engine:_ts-build` doubles `DEFT_ROOT`; `task deft:verify:cache-fresh` fails (separate bug, same session, first native-Windows run vs WSL)\r\n\r\n## Labels rationale\r\n\r\nBug: incorrect/misleading behavior after canonical upgrade path. Also affects agent-experience and adoption (operators/agents infer a commit is needed when it is not).\r\n\n",
+      "Labels": "bug, adoption-blocker, installer, agent-experience"
+    },
+    "items": [
+      {
+        "title": "Repro above on Windows + `core.autocrlf=true` leaves clean `git status` after `deft update` when already on latest release",
+        "status": "proposed"
+      },
+      {
+        "title": "`deft update` on unchanged deposit prints \"already current\" (no false deposit-commit nudge)",
+        "status": "proposed"
+      },
+      {
+        "title": "Fresh `deft update` on a project without eol pin adds `.deft/core/** text eol=lf` to `.gitattributes`",
+        "status": "proposed"
+      },
+      {
+        "title": "`VERSION.fetched_at` not bumped on idempotent refresh",
+        "status": "proposed"
+      },
+      {
+        "title": "Test or fixture covering no-op update path (consumer install smoke)",
+        "status": "proposed"
+      }
+    ],
+    "tags": [
+      "bug",
+      "adoption-blocker",
+      "installer",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2118",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2118: bug: deft update on current npm deposit creates phantom dirty tree on Windows and over-reports changes"
+      }
+    ],
+    "updated": "2026-07-08T06:22:18Z",
+    "metadata": {
+      "completedAt": "2026-07-08T06:22:18Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}

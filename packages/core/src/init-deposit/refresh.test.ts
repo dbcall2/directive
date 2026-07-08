@@ -81,27 +81,68 @@ describe("buildVersionSkewNotice", () => {
 describe("frameworkRefreshSideEffects", () => {
   it("classifies core and installer-managed paths", () => {
     const porcelain = [" M .deft/core/VERSION", " M AGENTS.md", " M src/app.ts"].join("\n");
-    expect(frameworkRefreshSideEffects("/proj", () => porcelain).sort()).toEqual(
-      [".deft/core/VERSION", "AGENTS.md"].sort(),
-    );
+    expect(
+      frameworkRefreshSideEffects(
+        "/proj",
+        () => porcelain,
+        () => null,
+      ).files.sort(),
+    ).toEqual([".deft/core/VERSION", "AGENTS.md"].sort());
   });
 
   it("strips git-quoted porcelain paths", () => {
     const porcelain = ' M ".deft/core/VERSION"';
-    expect(frameworkRefreshSideEffects("/proj", () => porcelain)).toEqual([".deft/core/VERSION"]);
+    expect(
+      frameworkRefreshSideEffects(
+        "/proj",
+        () => porcelain,
+        () => null,
+      ).files,
+    ).toEqual([".deft/core/VERSION"]);
   });
 
   it("returns empty outside git", () => {
-    expect(frameworkRefreshSideEffects("/proj", () => null)).toEqual([]);
+    expect(frameworkRefreshSideEffects("/proj", () => null)).toEqual({
+      files: [],
+      crlfOnlyCoreFiles: [],
+    });
+  });
+
+  it("suppresses core paths when only CRLF/LF noise remains", () => {
+    const porcelain = [" M .deft/core/VERSION", " M AGENTS.md"].join("\n");
+    expect(
+      frameworkRefreshSideEffects(
+        "/proj",
+        () => porcelain,
+        () => [],
+      ),
+    ).toEqual({
+      files: ["AGENTS.md"],
+      crlfOnlyCoreFiles: [".deft/core/VERSION"],
+    });
   });
 });
 
 describe("printRefreshSideEffects", () => {
   it("emits the #1671 disclosure block", () => {
     const lines: string[] = [];
-    printRefreshSideEffects({ printf: (text) => lines.push(text) }, [".deft/core/VERSION"]);
+    printRefreshSideEffects(
+      { printf: (text) => lines.push(text) },
+      { files: [".deft/core/VERSION"], crlfOnlyCoreFiles: [] },
+    );
     expect(lines.join("")).toContain("AGENTS.md refresh side effects (#1671)");
     expect(lines.join("")).toContain(".deft/core/VERSION");
+  });
+
+  it("prints only the Windows hint for CRLF-only core noise", () => {
+    const lines: string[] = [];
+    printRefreshSideEffects(
+      { printf: (text) => lines.push(text) },
+      { files: [], crlfOnlyCoreFiles: [".deft/core/VERSION"] },
+    );
+    const out = lines.join("");
+    expect(out).toContain("Windows line-ending note (#2118)");
+    expect(out).not.toContain("framework deposit commit");
   });
 });
 
@@ -195,14 +236,36 @@ describe("runRefreshDeposit", () => {
     };
     await runRefreshDeposit(args, io, seams);
     const firstAgents = readFileSync(join(project, "AGENTS.md"), "utf8");
+    const firstVersion = readFileSync(join(project, ".deft", "core", "VERSION"), "utf8");
 
     io.printf.mockClear();
-    const second = await runRefreshDeposit(args, io, seams);
+    const copyContent = vi.fn(async () => {
+      throw new Error("copyContent must not run for an already-current refresh");
+    });
+    const nowIso = vi.fn(() => "2026-06-25T12:00:00Z");
+    const second = await runRefreshDeposit(args, io, {
+      ...seams,
+      copyContent,
+      nowIso,
+      gitPorcelain: () => " M .deft/core/VERSION\n",
+      gitSemanticDiffNames: () => [],
+    });
     const secondAgents = readFileSync(join(project, "AGENTS.md"), "utf8");
+    const secondVersion = readFileSync(join(project, ".deft", "core", "VERSION"), "utf8");
 
     expect(secondAgents).toBe(firstAgents);
+    expect(secondVersion).toBe(firstVersion);
     expect(second.agentsMdUpdated).toBe(false);
-    expect(io.printf.mock.calls.flat().join("")).toContain("already advertises install root");
+    expect(second.alreadyCurrent).toBe(true);
+    expect(second.strategy).toBe("no-op");
+    expect(second.stagedPaths).toEqual([]);
+    expect(copyContent).not.toHaveBeenCalled();
+    expect(nowIso).not.toHaveBeenCalled();
+    const out = io.printf.mock.calls.flat().join("");
+    expect(out).toContain("Framework payload already current");
+    expect(out).toContain("Windows line-ending note (#2118)");
+    expect(out).not.toContain("Commit hygiene");
+    expect(out).not.toContain("framework deposit commit");
   });
 
   it("discloses core side-effects when AGENTS.md is already current", async () => {
@@ -388,6 +451,8 @@ describe("runRefreshDeposit", () => {
         contentVersion: "0.61.0",
         engineVersion: "0.61.0",
         previousDepositVersion: "0.60.0",
+        alreadyCurrent: false,
+        strategy: "file-swap",
         agentsMdUpdated: true,
         versionSkewNotice: null,
         legacyLayout: false,
@@ -416,6 +481,8 @@ describe("runRefreshDeposit", () => {
         contentVersion: "0.61.0",
         engineVersion: "0.61.0",
         previousDepositVersion: "0.60.0",
+        alreadyCurrent: false,
+        strategy: "file-swap",
         agentsMdUpdated: true,
         versionSkewNotice: null,
         legacyLayout: false,
@@ -683,11 +750,16 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     opts: { contentVersion: string; pinVersion: string; sha?: string },
   ): void {
     const deftDir = join(project, ".deft", "core");
-    mkdirSync(deftDir, { recursive: true });
+    mkdirSync(join(deftDir, "templates"), { recursive: true });
     writeFileSync(
       join(deftDir, "VERSION"),
       `tag: 'v${opts.contentVersion}'\nsha: abc\ninstall_root: '.deft/core'\n`,
       "utf8",
+    );
+    writeFileSync(join(deftDir, "main.md"), "# Deft\n", "utf8");
+    copyFileSync(
+      join(process.cwd(), "content/templates/agents-entry.md"),
+      join(deftDir, "templates/agents-entry.md"),
     );
     writeFileSync(
       join(project, "AGENTS.md"),
@@ -805,8 +877,12 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     const project = freshRoot("update-current-");
     const contentRoot = installFakeContentPackage(project, "0.53.0");
     writeInitializedProject(project, { contentVersion: "0.53.0", pinVersion: "0.53.0" });
+    const copyContent = vi.fn(async () => {
+      throw new Error("copyContent must not run for a current update");
+    });
     const seams = {
       resolveContentRoot: async () => contentRoot,
+      copyContent,
       readEngineVersion: () => "0.53.0",
       nowIso: () => "2026-07-03T12:00:00Z",
       gitPorcelain: () => null,
@@ -831,8 +907,13 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
 
     const first = await run();
     expect(first.update_state).toBe("current");
+    expect(first.already_current).toBe(true);
+    expect(first.strategy).toBe("no-op");
     const second = await run();
     expect(second.update_state).toBe("current");
+    expect(second.already_current).toBe(true);
+    expect(second.strategy).toBe("no-op");
+    expect(copyContent).not.toHaveBeenCalled();
   });
 
   it("reports updated and re-stamps VERSION when content is behind the pin (a2)", async () => {

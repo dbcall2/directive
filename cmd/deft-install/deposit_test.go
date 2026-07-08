@@ -83,6 +83,35 @@ func TestEnsureGitattributes_Idempotent(t *testing.T) {
 	if got := strings.Count(string(data), "linguist-vendored=true"); got != 1 {
 		t.Errorf("expected exactly one linguist-vendored line, got %d", got)
 	}
+	if got := strings.Count(string(data), "text eol=lf"); got != 1 {
+		t.Errorf("expected exactly one LF pin line, got %d", got)
+	}
+}
+
+func TestEnsureGitattributes_RepairsMissingLfPin(t *testing.T) {
+	tmp := t.TempDir()
+	pre := coreGlob + " linguist-generated=true\n" + coreGlob + " linguist-vendored=true\n"
+	if err := os.WriteFile(filepath.Join(tmp, ".gitattributes"), []byte(pre), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	changed, err := EnsureGitattributes(newDepositWizard(), tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !changed {
+		t.Error("expected changed=true when LF pin is missing")
+	}
+	data, _ := os.ReadFile(filepath.Join(tmp, ".gitattributes"))
+	content := string(data)
+	if !strings.Contains(content, coreGlob+" text eol=lf") {
+		t.Fatalf(".gitattributes missing LF pin after repair:\n%s", content)
+	}
+	if got := strings.Count(content, "linguist-generated=true"); got != 1 {
+		t.Errorf("expected exactly one linguist-generated line, got %d", got)
+	}
+	if got := strings.Count(content, "linguist-vendored=true"); got != 1 {
+		t.Errorf("expected exactly one linguist-vendored line, got %d", got)
+	}
 }
 
 // ---------------------------------------------------------------------------

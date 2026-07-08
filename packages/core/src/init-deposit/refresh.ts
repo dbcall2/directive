@@ -8,6 +8,7 @@
  * Refs #1942, #1430, #1671.
  */
 
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { platform as osPlatform } from "node:os";
 import { join, resolve } from "node:path";
@@ -71,12 +72,16 @@ export interface RefreshDepositResult {
   readonly contentVersion: string;
   readonly engineVersion: string;
   readonly previousDepositVersion: string | null;
+  readonly alreadyCurrent: boolean;
+  readonly strategy: RefreshDepositStrategy;
   readonly agentsMdUpdated: boolean;
   readonly versionSkewNotice: string | null;
   readonly legacyLayout: boolean;
   readonly taskfileWired: boolean;
   readonly stagedPaths: string[];
 }
+
+export type RefreshDepositStrategy = "file-swap" | "no-op";
 
 export interface RefreshDepositSeams {
   resolveContentRoot?: () => Promise<string>;
@@ -85,6 +90,7 @@ export interface RefreshDepositSeams {
   readEngineVersion?: () => string;
   nowIso?: () => string;
   gitPorcelain?: (projectRoot: string) => string | null;
+  gitSemanticDiffNames?: GitSemanticDiffNames;
   detectLegacy?: (projectDir: string) => LegacyLayoutDetection;
   /**
    * #2266: `git ls-files` probe threaded into the non-destructive `.gitignore`
@@ -325,57 +331,151 @@ function unquoteGitPath(path: string): string {
   return path;
 }
 
-function porcelainStatusPaths(porcelain: string): string[] {
-  const paths: string[] = [];
+interface PorcelainStatusEntry {
+  readonly status: string;
+  readonly path: string;
+}
+
+function porcelainStatusEntries(porcelain: string): PorcelainStatusEntry[] {
+  const entries: PorcelainStatusEntry[] = [];
   for (const line of porcelain.split("\n")) {
     if (line.length < 4) continue;
+    const status = line.slice(0, 2);
     let rest = line.slice(3);
     const arrow = rest.indexOf(" -> ");
     if (arrow >= 0) rest = rest.slice(arrow + 4);
     const trimmed = unquoteGitPath(rest.trim());
     if (!trimmed) continue;
-    paths.push(trimmed.replace(/\\/g, "/"));
+    entries.push({ status, path: trimmed.replace(/\\/g, "/") });
   }
-  return paths;
+  return entries;
 }
 
-function classifyChangedPaths(changed: readonly string[]): {
-  core: string[];
-  installerManaged: string[];
+function classifyChangedEntries(changed: readonly PorcelainStatusEntry[]): {
+  core: PorcelainStatusEntry[];
+  installerManaged: PorcelainStatusEntry[];
 } {
-  const core: string[] = [];
-  const installerManaged: string[] = [];
-  for (const path of changed) {
+  const core: PorcelainStatusEntry[] = [];
+  const installerManaged: PorcelainStatusEntry[] = [];
+  for (const entry of changed) {
+    const { path } = entry;
     if (!path) continue;
     if (path.startsWith(".deft/core/") || path === ".deft/core") {
-      core.push(path);
+      core.push(entry);
     } else if (isInstallerManagedPath(path)) {
-      installerManaged.push(path);
+      installerManaged.push(entry);
     }
   }
   return { core, installerManaged };
+}
+
+function isCrlfNoiseCandidate(status: string): boolean {
+  return status.includes("M") && /^[ M]+$/.test(status);
+}
+
+function normalizeGitNameList(output: string): string[] {
+  return output
+    .split("\n")
+    .map((line) => line.trim().replace(/\\/g, "/"))
+    .filter(Boolean);
+}
+
+export type GitSemanticDiffNames = (
+  projectRoot: string,
+  paths: readonly string[],
+) => readonly string[] | null;
+
+function gitSemanticDiffNames(projectRoot: string, paths: readonly string[]): string[] | null {
+  if (paths.length === 0) return [];
+  try {
+    const args = ["diff", "--ignore-cr-at-eol", "--name-only", "--", ...paths];
+    const worktree = execFileSync("git", args, {
+      cwd: projectRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const cached = execFileSync(
+      "git",
+      ["diff", "--cached", "--ignore-cr-at-eol", "--name-only", "--", ...paths],
+      {
+        cwd: projectRoot,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    return [...new Set([...normalizeGitNameList(worktree), ...normalizeGitNameList(cached)])];
+  } catch {
+    return null;
+  }
+}
+
+export interface RefreshSideEffects {
+  readonly files: string[];
+  readonly crlfOnlyCoreFiles: string[];
 }
 
 /** Framework-managed uncommitted paths after refresh (#1671). */
 export function frameworkRefreshSideEffects(
   projectDir: string,
   readPorcelain: (root: string) => string | null = gitPorcelain,
-): string[] {
+  readSemanticDiffNames: GitSemanticDiffNames = gitSemanticDiffNames,
+): RefreshSideEffects {
   const porcelain = readPorcelain(projectDir);
-  if (porcelain === null) return [];
-  const changed = porcelainStatusPaths(porcelain);
-  const { core, installerManaged } = classifyChangedPaths(changed);
-  const files = [...core, ...installerManaged].sort();
-  return files.length > 0 ? files : [];
+  if (porcelain === null) return { files: [], crlfOnlyCoreFiles: [] };
+  const changed = porcelainStatusEntries(porcelain);
+  const { core, installerManaged } = classifyChangedEntries(changed);
+  const semanticCoreNames =
+    core.length > 0
+      ? readSemanticDiffNames(
+          projectDir,
+          core.map((entry) => entry.path),
+        )
+      : [];
+  const semanticCoreSet =
+    semanticCoreNames === null ? null : new Set(semanticCoreNames.map((name) => name));
+
+  const coreFiles: string[] = [];
+  const crlfOnlyCoreFiles: string[] = [];
+  for (const entry of core) {
+    if (
+      semanticCoreSet !== null &&
+      isCrlfNoiseCandidate(entry.status) &&
+      !semanticCoreSet.has(entry.path)
+    ) {
+      crlfOnlyCoreFiles.push(entry.path);
+      continue;
+    }
+    coreFiles.push(entry.path);
+  }
+
+  const files = [...coreFiles, ...installerManaged.map((entry) => entry.path)].sort();
+  return { files, crlfOnlyCoreFiles: crlfOnlyCoreFiles.sort() };
 }
 
-export function printRefreshSideEffects(io: InitDepositIo, files: readonly string[]): void {
-  if (files.length === 0) return;
+export function printRefreshSideEffects(
+  io: InitDepositIo,
+  effects: RefreshSideEffects,
+  options: { readonly payloadSwapped?: boolean } = {},
+): void {
+  if (effects.crlfOnlyCoreFiles.length > 0) {
+    io.printf(
+      "\nWindows line-ending note (#2118): suppressed .deft/core CRLF/LF-only noise; " +
+        "ensure .gitattributes contains `.deft/core/** text eol=lf`.\n",
+    );
+  }
+  if (effects.files.length === 0) return;
+  if (options.payloadSwapped === false) {
+    io.printf("\nFramework-managed files still have semantic uncommitted changes:\n");
+    for (const file of effects.files) {
+      io.printf(`  ${file}\n`);
+    }
+    return;
+  }
   io.printf("\nAGENTS.md refresh side effects (#1671): the refresh and framework payload swap\n");
   io.printf("left these framework files with uncommitted changes -- they belong in the\n");
   io.printf("framework deposit commit (the installer stages them before printing the\n");
   io.printf("`git add` list below, so there are no post-stage stragglers):\n");
-  for (const file of files) {
+  for (const file of effects.files) {
     io.printf(`  ${file}\n`);
   }
 }
@@ -430,7 +530,8 @@ export function buildUpdateSummaryJson(
     user_config_dir: "",
     skills_created: false,
     payload_layout: "vendored",
-    strategy: "file-swap",
+    strategy: result.strategy,
+    already_current: result.alreadyCurrent,
     dirty_tree: false,
     dirty_files: [],
     staged_paths: result.stagedPaths,
@@ -447,9 +548,14 @@ export function printUpdateComplete(
   io: InitDepositIo,
   updateState?: UpdateState,
 ): void {
-  io.printf("\n✓ Deft framework payload refreshed.\n\n");
+  io.printf(
+    result.alreadyCurrent
+      ? "\nOK Deft framework payload already current.\n\n"
+      : "\nOK Deft framework payload refreshed.\n\n",
+  );
   io.printf(`  Location     : ${result.deftDir}\n`);
   io.printf(`  Content      : v${normalizeVersion(result.contentVersion)}\n`);
+  io.printf(`  Strategy     : ${result.strategy}\n`);
   if (updateState) {
     io.printf(`  State        : ${updateState}\n`);
   }
@@ -497,35 +603,45 @@ export async function runRefreshDeposit(
     contentVersion,
     previousDepositVersion,
   );
+  const alreadyCurrent =
+    previousDepositVersion !== null &&
+    normalizeVersion(previousDepositVersion) === normalizeVersion(contentVersion);
+  const strategy: RefreshDepositStrategy = alreadyCurrent ? "no-op" : "file-swap";
 
-  await copyContent(contentRoot, deftDir);
-  await prunePythonArtifactsFromDeposit(deftDir, projectDir, io);
-  // #2347: prune framework-source paths that the content package does not ship.
-  // The additive file-swap never removes them, causing the deposit-hygiene
-  // advisory to persist across every upgrade until manually cleaned.
-  await pruneStrayDepositPaths(deftDir, contentRoot, io);
+  if (alreadyCurrent) {
+    io.printf("[deft update] Framework payload already current; skipping payload copy.\n");
+    migrateLegacyInstallManifest(projectDir, join(deftDir, "VERSION"));
+  } else {
+    await copyContent(contentRoot, deftDir);
+    await prunePythonArtifactsFromDeposit(deftDir, projectDir, io);
+    // #2347: prune framework-source paths that the content package does not ship.
+    // The additive file-swap never removes them, causing the deposit-hygiene
+    // advisory to persist across every upgrade until manually cleaned.
+    await pruneStrayDepositPaths(deftDir, contentRoot, io);
 
-  const nowIso = seams.nowIso ?? (() => new Date().toISOString().replace(/\.\d{3}Z$/, "Z"));
-  const manifestFields: InstallManifestFields = {
-    ref: contentVersion.startsWith("v") ? contentVersion : `v${contentVersion}`,
-    sha: "content-package",
-    tag: contentVersion.startsWith("v") ? contentVersion : `v${contentVersion}`,
-    installRoot: CANONICAL_INSTALL_ROOT,
-    fetchedAt: nowIso(),
-    fetchedBy: "directive-update",
-    ...(previousManagedBy ? { managedBy: previousManagedBy } : {}),
-  };
-  const writtenManifestPath = writeInstallManifest(projectDir, deftDir, manifestFields);
+    const nowIso = seams.nowIso ?? (() => new Date().toISOString().replace(/\.\d{3}Z$/, "Z"));
+    const manifestFields: InstallManifestFields = {
+      ref: contentVersion.startsWith("v") ? contentVersion : `v${contentVersion}`,
+      sha: "content-package",
+      tag: contentVersion.startsWith("v") ? contentVersion : `v${contentVersion}`,
+      installRoot: CANONICAL_INSTALL_ROOT,
+      fetchedAt: nowIso(),
+      fetchedBy: "directive-update",
+      ...(previousManagedBy ? { managedBy: previousManagedBy } : {}),
+    };
+    const writtenManifestPath = writeInstallManifest(projectDir, deftDir, manifestFields);
 
-  // #2064: retire a stale legacy .deft/VERSION now that the canonical
-  // .deft/core/VERSION has been rewritten (folded in from install-upgrade so no
-  // manifest behavior is lost by the redirect). Best-effort; never fatal.
-  migrateLegacyInstallManifest(projectDir, writtenManifestPath);
+    // #2064: retire a stale legacy .deft/VERSION now that the canonical
+    // .deft/core/VERSION has been rewritten (folded in from install-upgrade so no
+    // manifest behavior is lost by the redirect). Best-effort; never fatal.
+    migrateLegacyInstallManifest(projectDir, writtenManifestPath);
 
-  // #2055: regenerate the bare .deft-version derivative so it agrees with the
-  // freshly written manifest tag (otherwise doctor's manifest-agreement check
-  // fails and the operator must hand-edit the marker).
-  syncBareVersionMarker(projectDir, contentVersion);
+    // #2055: regenerate the bare .deft-version derivative so it agrees with the
+    // freshly written manifest tag (otherwise doctor's manifest-agreement check
+    // fails and the operator must hand-edit the marker). No-op refreshes skip
+    // this projection because the manifest tag was not rewritten (#2118).
+    syncBareVersionMarker(projectDir, contentVersion);
+  }
 
   const agentsMdUpdated = writeAgentsMd(projectDir, deftDir, io);
 
@@ -550,13 +666,29 @@ export async function runRefreshDeposit(
     taskfileWired = ensureTaskfile(projectDir, io);
   }
 
-  const { stagePaths, staged, stagedPaths } = depositStagePaths(projectDir, {
-    includeTaskfile: taskfileWired,
-  });
-  printCommitGuidance(io, stagePaths, staged);
-
   const readPorcelain = seams.gitPorcelain ?? gitPorcelain;
-  printRefreshSideEffects(io, frameworkRefreshSideEffects(projectDir, readPorcelain));
+  const effects = frameworkRefreshSideEffects(
+    projectDir,
+    readPorcelain,
+    seams.gitSemanticDiffNames ?? gitSemanticDiffNames,
+  );
+
+  let stagedPaths: string[] = [];
+  if (!alreadyCurrent || effects.files.length > 0) {
+    const stagedResult = depositStagePaths(projectDir, {
+      includeTaskfile: taskfileWired,
+      includeCore: !alreadyCurrent,
+    });
+    stagedPaths = stagedResult.stagedPaths;
+    if (!alreadyCurrent) {
+      printCommitGuidance(io, stagedResult.stagePaths, stagedResult.staged);
+    } else if (stagedResult.stagedPaths.length > 0) {
+      io.printf("\nUpdated installer-managed projections for the current framework deposit:\n");
+      io.printf(`  git add ${stagedResult.stagedPaths.join(" ")}\n`);
+    }
+  }
+
+  printRefreshSideEffects(io, effects, { payloadSwapped: !alreadyCurrent });
 
   if (versionSkewNotice) {
     io.printf(`${versionSkewNotice}\n`);
@@ -568,6 +700,8 @@ export async function runRefreshDeposit(
     contentVersion,
     engineVersion,
     previousDepositVersion,
+    alreadyCurrent,
+    strategy,
     agentsMdUpdated,
     versionSkewNotice,
     legacyLayout: false,
@@ -733,7 +867,9 @@ export async function runRefreshDepositCli(options: RunRefreshDepositCliOptions)
 
   try {
     const result = await runRefreshDeposit(options, io, options.seams);
-    const state = classification?.state;
+    const state: UpdateState | undefined = result.alreadyCurrent
+      ? "current"
+      : classification?.state;
     if (options.jsonOut) {
       options.writeOut(
         `${JSON.stringify(buildUpdateSummaryJson(result, options, state), null, 2)}\n`,

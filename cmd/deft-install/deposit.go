@@ -18,10 +18,12 @@ import (
 // it as such.
 const coreGlob = ".deft/core/**"
 
-// coreGitattributesLines mark the vendored payload as generated AND vendored so
-// GitHub's linguist excludes it from language statistics and collapses it in
-// diffs. Mirrors the line-based, idempotent contract of EnsureGitignoreLines.
+// coreGitattributesLines pin the vendored payload to LF and mark it generated
+// AND vendored so Git does not rewrite it and GitHub's linguist excludes it
+// from language statistics. Mirrors the line-based, idempotent contract of
+// EnsureGitignoreLines.
 var coreGitattributesLines = []string{
+	coreGlob + " text eol=lf",
 	coreGlob + " linguist-generated=true",
 	coreGlob + " linguist-vendored=true",
 }
@@ -383,10 +385,10 @@ func pruneVendoredTSTests(w *Wizard, projectDir string) (int, error) {
 	return removed, nil
 }
 
-// EnsureGitattributes appends the linguist generated/vendored markers for
-// .deft/core/** to the consumer's .gitattributes if any line is missing. The
-// file is created when absent; pre-existing lines are preserved byte-for-byte.
-// Mirrors EnsureGitignoreLines (#1430). Returns true if the file was modified.
+// EnsureGitattributes appends the LF/generated/vendored markers for .deft/core/**
+// to the consumer's .gitattributes if any line is missing. The file is created
+// when absent; pre-existing lines are preserved byte-for-byte. Mirrors
+// EnsureGitignoreLines (#1430, #2118). Returns true if the file was modified.
 func EnsureGitattributes(w *Wizard, projectDir string) (bool, error) {
 	path := filepath.Join(projectDir, ".gitattributes")
 	data, err := os.ReadFile(path)
@@ -412,7 +414,7 @@ func EnsureGitattributes(w *Wizard, projectDir string) (bool, error) {
 		}
 	}
 	if len(additions) == 0 {
-		w.printf(".gitattributes already marks %s as generated/vendored — skipping.\n", coreGlob)
+		w.printf(".gitattributes already marks %s as LF-pinned/generated/vendored — skipping.\n", coreGlob)
 		return false, nil
 	}
 
@@ -425,8 +427,8 @@ func EnsureGitattributes(w *Wizard, projectDir string) (bool, error) {
 		body.WriteString("\n")
 	}
 	body.WriteString("# Deft framework: the vendored payload is packaged framework code, not\n")
-	body.WriteString("# consumer source. Mark it generated + vendored so language stats and\n")
-	body.WriteString("# diffs treat .deft/core/** as machine-managed (#1430).\n")
+	body.WriteString("# consumer source. Pin LF endings and mark it generated + vendored so\n")
+	body.WriteString("# Git does not rewrite it and diffs treat .deft/core/** as machine-managed (#1430, #2118).\n")
 	for _, add := range additions {
 		body.WriteString(add)
 		body.WriteString("\n")
@@ -435,7 +437,7 @@ func EnsureGitattributes(w *Wizard, projectDir string) (bool, error) {
 	if err := os.WriteFile(path, []byte(body.String()), 0o644); err != nil {
 		return false, fmt.Errorf("could not write .gitattributes: %w", err)
 	}
-	w.printf(".gitattributes updated with linguist markers: %s\n", strings.Join(additions, ", "))
+	w.printf(".gitattributes updated with Deft core markers: %s\n", strings.Join(additions, ", "))
 	return true, nil
 }
 
