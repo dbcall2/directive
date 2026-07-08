@@ -82,27 +82,25 @@ describe("frameworkRefreshSideEffects", () => {
   it("classifies core and installer-managed paths", () => {
     const porcelain = [" M .deft/core/VERSION", " M AGENTS.md", " M src/app.ts"].join("\n");
     expect(
-      frameworkRefreshSideEffects(
-        "/proj",
-        () => porcelain,
-        () => null,
-      ).files.sort(),
+      frameworkRefreshSideEffects("/proj", {
+        readPorcelain: () => porcelain,
+        readSemanticDiffNames: () => null,
+      }).files.sort(),
     ).toEqual([".deft/core/VERSION", "AGENTS.md"].sort());
   });
 
   it("strips git-quoted porcelain paths", () => {
     const porcelain = ' M ".deft/core/VERSION"';
     expect(
-      frameworkRefreshSideEffects(
-        "/proj",
-        () => porcelain,
-        () => null,
-      ).files,
+      frameworkRefreshSideEffects("/proj", {
+        readPorcelain: () => porcelain,
+        readSemanticDiffNames: () => null,
+      }).files,
     ).toEqual([".deft/core/VERSION"]);
   });
 
   it("returns empty outside git", () => {
-    expect(frameworkRefreshSideEffects("/proj", () => null)).toEqual({
+    expect(frameworkRefreshSideEffects("/proj", { readPorcelain: () => null })).toEqual({
       files: [],
       crlfOnlyCoreFiles: [],
     });
@@ -111,11 +109,10 @@ describe("frameworkRefreshSideEffects", () => {
   it("suppresses core paths when only CRLF/LF noise remains", () => {
     const porcelain = [" M .deft/core/VERSION", " M AGENTS.md"].join("\n");
     expect(
-      frameworkRefreshSideEffects(
-        "/proj",
-        () => porcelain,
-        () => [],
-      ),
+      frameworkRefreshSideEffects("/proj", {
+        readPorcelain: () => porcelain,
+        readSemanticDiffNames: () => [],
+      }),
     ).toEqual({
       files: ["AGENTS.md"],
       crlfOnlyCoreFiles: [".deft/core/VERSION"],

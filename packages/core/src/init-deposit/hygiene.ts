@@ -307,6 +307,7 @@ export function depositStagePaths(
 } {
   const deftDir = join(projectDir, CANONICAL_INSTALL_ROOT);
   const stagePaths = frameworkStagePaths(projectDir, deftDir, {
+    includeCore: options.includeCore,
     includeTaskfile: options.includeTaskfile ?? false,
   });
   const { staged } = stageFrameworkPaths(projectDir, stagePaths, options);

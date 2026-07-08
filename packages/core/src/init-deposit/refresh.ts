@@ -385,6 +385,11 @@ export type GitSemanticDiffNames = (
   paths: readonly string[],
 ) => readonly string[] | null;
 
+export interface FrameworkRefreshSideEffectsOptions {
+  readonly readPorcelain?: (root: string) => string | null;
+  readonly readSemanticDiffNames?: GitSemanticDiffNames;
+}
+
 function gitSemanticDiffNames(projectRoot: string, paths: readonly string[]): string[] | null {
   if (paths.length === 0) return [];
   try {
@@ -412,14 +417,16 @@ function gitSemanticDiffNames(projectRoot: string, paths: readonly string[]): st
 export interface RefreshSideEffects {
   readonly files: string[];
   readonly crlfOnlyCoreFiles: string[];
+  readonly payloadSwapped?: boolean;
 }
 
 /** Framework-managed uncommitted paths after refresh (#1671). */
 export function frameworkRefreshSideEffects(
   projectDir: string,
-  readPorcelain: (root: string) => string | null = gitPorcelain,
-  readSemanticDiffNames: GitSemanticDiffNames = gitSemanticDiffNames,
+  options?: FrameworkRefreshSideEffectsOptions,
 ): RefreshSideEffects {
+  const readPorcelain = options?.readPorcelain ?? gitPorcelain;
+  const readSemanticDiffNames = options?.readSemanticDiffNames ?? gitSemanticDiffNames;
   const porcelain = readPorcelain(projectDir);
   if (porcelain === null) return { files: [], crlfOnlyCoreFiles: [] };
   const changed = porcelainStatusEntries(porcelain);
@@ -431,8 +438,7 @@ export function frameworkRefreshSideEffects(
           core.map((entry) => entry.path),
         )
       : [];
-  const semanticCoreSet =
-    semanticCoreNames === null ? null : new Set(semanticCoreNames.map((name) => name));
+  const semanticCoreSet = semanticCoreNames === null ? null : new Set(semanticCoreNames);
 
   const coreFiles: string[] = [];
   const crlfOnlyCoreFiles: string[] = [];
@@ -452,11 +458,7 @@ export function frameworkRefreshSideEffects(
   return { files, crlfOnlyCoreFiles: crlfOnlyCoreFiles.sort() };
 }
 
-export function printRefreshSideEffects(
-  io: InitDepositIo,
-  effects: RefreshSideEffects,
-  options: { readonly payloadSwapped?: boolean } = {},
-): void {
+export function printRefreshSideEffects(io: InitDepositIo, effects: RefreshSideEffects): void {
   if (effects.crlfOnlyCoreFiles.length > 0) {
     io.printf(
       "\nWindows line-ending note (#2118): suppressed .deft/core CRLF/LF-only noise; " +
@@ -464,7 +466,7 @@ export function printRefreshSideEffects(
     );
   }
   if (effects.files.length === 0) return;
-  if (options.payloadSwapped === false) {
+  if (effects.payloadSwapped === false) {
     io.printf("\nFramework-managed files still have semantic uncommitted changes:\n");
     for (const file of effects.files) {
       io.printf(`  ${file}\n`);
@@ -667,11 +669,10 @@ export async function runRefreshDeposit(
   }
 
   const readPorcelain = seams.gitPorcelain ?? gitPorcelain;
-  const effects = frameworkRefreshSideEffects(
-    projectDir,
+  const effects = frameworkRefreshSideEffects(projectDir, {
     readPorcelain,
-    seams.gitSemanticDiffNames ?? gitSemanticDiffNames,
-  );
+    readSemanticDiffNames: seams.gitSemanticDiffNames ?? gitSemanticDiffNames,
+  });
 
   let stagedPaths: string[] = [];
   if (!alreadyCurrent || effects.files.length > 0) {
@@ -688,7 +689,7 @@ export async function runRefreshDeposit(
     }
   }
 
-  printRefreshSideEffects(io, effects, { payloadSwapped: !alreadyCurrent });
+  printRefreshSideEffects(io, { ...effects, payloadSwapped: !alreadyCurrent });
 
   if (versionSkewNotice) {
     io.printf(`${versionSkewNotice}\n`);

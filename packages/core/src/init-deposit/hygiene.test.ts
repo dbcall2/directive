@@ -172,6 +172,31 @@ describe("scoped staging", () => {
     expect(stagedPaths).not.toContain(".deft/core");
   });
 
+  it("honors includeCore=false while staging repaired projections (#2118)", () => {
+    const project = freshRoot("hygiene-no-core-stage-");
+
+    mkdirSync(join(project, ".deft", "core"), { recursive: true });
+    writeFileSync(join(project, ".deft", "core", "main.md"), "# Deft\n", "utf8");
+    writeFileSync(join(project, "AGENTS.md"), "# Agent\n", "utf8");
+    initGitRepo(project);
+
+    writeFileSync(join(project, ".deft", "core", "main.md"), "# Deft\r\n", "utf8");
+    writeFileSync(join(project, "AGENTS.md"), "# Agent\n\nupdated\n", "utf8");
+
+    const { stagePaths, stagedPaths } = depositStagePaths(project, { includeCore: false });
+
+    expect(stagePaths).not.toContain(".deft/core");
+    expect(stagedPaths).toContain("AGENTS.md");
+    expect(stagedPaths).not.toContain(".deft/core");
+
+    const cached = execFileSync("git", ["diff", "--cached", "--name-only"], {
+      cwd: project,
+      encoding: "utf8",
+    });
+    expect(cached).toContain("AGENTS.md");
+    expect(cached).not.toContain(".deft/core/main.md");
+  });
+
   it("does not stage Taskfile.yml when the include was not wired this run (#1576)", async () => {
     const project = freshRoot("hygiene-unwired-taskfile-");
 
