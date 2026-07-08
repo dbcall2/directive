@@ -1,8 +1,8 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { countRegions, evaluate } from "./evaluate.js";
+import { countAlwaysOnBytes, countRegions, evaluate, extractYamlFrontmatter } from "./evaluate.js";
 
 const temps: string[] = [];
 afterAll(() => {
@@ -52,6 +52,12 @@ function makeRepo(options: { plan?: Record<string, unknown>; agents?: string }):
     writeFileSync(join(root, "AGENTS.md"), options.agents, "utf8");
   }
   return root;
+}
+
+function writeSkill(root: string, relPath: string, text: string): void {
+  const path = join(root, relPath);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, text, "utf8");
 }
 
 describe("countRegions", () => {
@@ -119,6 +125,54 @@ describe("countRegions", () => {
   });
 });
 
+describe("always-on byte counting", () => {
+  it("extracts yaml frontmatter even when a preamble precedes it", () => {
+    const frontmatter = extractYamlFrontmatter(
+      ["<!-- preamble -->", "---", "name: deft", "description: test", "---", "# Body"].join("\n"),
+    );
+    expect(frontmatter).toBe(["---", "name: deft", "description: test", "---"].join("\n"));
+  });
+
+  it("counts root and content skill frontmatter when configured", () => {
+    const root = makeRepo({ agents: "AGENTS" });
+    writeSkill(
+      root,
+      "SKILL.md",
+      ["<!-- preamble -->", "---", "name: root", "description: root skill", "---", "# Body"].join(
+        "\n",
+      ),
+    );
+    writeSkill(
+      root,
+      join("content", "skills", "deft-test", "SKILL.md"),
+      ["---", "name: child", "description: child skill", "---", "# Body"].join("\n"),
+    );
+
+    const counts = countAlwaysOnBytes(root, "AGENTS", {
+      maxBytes: 9999,
+      approxTokens: null,
+      includeSkillFrontmatter: true,
+    });
+    expect(counts.agentsBytes).toBe(Buffer.byteLength("AGENTS", "utf8"));
+    expect(counts.skillFrontmatterFiles).toBe(2);
+    expect(counts.skillFrontmatterBytes).toBeGreaterThan(0);
+    expect(counts.bytes).toBe(counts.agentsBytes + counts.skillFrontmatterBytes);
+  });
+
+  it("can exclude skill frontmatter for compatibility fixtures", () => {
+    const root = makeRepo({ agents: "AGENTS" });
+    writeSkill(root, "SKILL.md", ["---", "name: root", "description: root", "---"].join("\n"));
+    const counts = countAlwaysOnBytes(root, "AGENTS", {
+      maxBytes: 9999,
+      approxTokens: null,
+      includeSkillFrontmatter: false,
+    });
+    expect(counts.skillFrontmatterFiles).toBe(0);
+    expect(counts.skillFrontmatterBytes).toBe(0);
+    expect(counts.bytes).toBe(Buffer.byteLength("AGENTS", "utf8"));
+  });
+});
+
 describe("evaluate", () => {
   const budgetPlan = { policy: { agentsMdBudget: { managedMaxLines: 5, unmanagedMaxLines: 10 } } };
 
@@ -128,6 +182,59 @@ describe("evaluate", () => {
     expect(result.code).toBe(0);
     expect(result.stream).toBe("stdout");
     expect(result.message).toContain("managed 5/5, unmanaged 10/10");
+  });
+
+  it("reports the absolute target when the always-on surface is within it", () => {
+    const plan = {
+      policy: {
+        agentsMdBudget: {
+          managedMaxLines: 5,
+          unmanagedMaxLines: 10,
+          absoluteTarget: { maxBytes: 9999, approxTokens: 2000, includeSkillFrontmatter: false },
+        },
+      },
+    };
+    const root = makeRepo({ plan, agents: agentsWith(10, 5) });
+    const result = evaluate(root);
+    expect(result.code).toBe(0);
+    expect(result.stream).toBe("stdout");
+    expect(result.message).toContain("within absolute target");
+    expect(result.message).toContain("skill frontmatter excluded");
+  });
+
+  it("keeps the default mode non-failing when only the absolute target is over", () => {
+    const plan = {
+      policy: {
+        agentsMdBudget: {
+          managedMaxLines: 5,
+          unmanagedMaxLines: 10,
+          absoluteTarget: { maxBytes: 1, approxTokens: 1, includeSkillFrontmatter: false },
+        },
+      },
+    };
+    const root = makeRepo({ plan, agents: agentsWith(10, 5) });
+    const result = evaluate(root);
+    expect(result.code).toBe(0);
+    expect(result.stream).toBe("stderr");
+    expect(result.message).toContain("absolute target not yet met");
+    expect(result.message).toContain("--enforce-target");
+  });
+
+  it("fails when the absolute target is over and --enforce-target is requested", () => {
+    const plan = {
+      policy: {
+        agentsMdBudget: {
+          managedMaxLines: 5,
+          unmanagedMaxLines: 10,
+          absoluteTarget: { maxBytes: 1, includeSkillFrontmatter: false },
+        },
+      },
+    };
+    const root = makeRepo({ plan, agents: agentsWith(10, 5) });
+    const result = evaluate(root, { enforceTarget: true });
+    expect(result.code).toBe(1);
+    expect(result.stream).toBe("stderr");
+    expect(result.message).toContain("exceeds its absolute target");
   });
 
   it("returns exit 1 when the managed region grows past its ratchet", () => {

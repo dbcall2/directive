@@ -57,13 +57,14 @@ function silentRun(argv: string[]): number {
 
 describe("parseArgs", () => {
   it("parses defaults", () => {
-    expect(parseArgs([])).toMatchObject({ projectRoot: ".", quiet: false });
+    expect(parseArgs([])).toMatchObject({ projectRoot: ".", quiet: false, enforceTarget: false });
   });
 
   it("parses flags and = form", () => {
-    expect(parseArgs(["--project-root", "/root", "--quiet"])).toMatchObject({
+    expect(parseArgs(["--project-root", "/root", "--quiet", "--enforce-target"])).toMatchObject({
       projectRoot: "/root",
       quiet: true,
+      enforceTarget: true,
     });
     expect(parseArgs(["--project-root=/tmp/x"]).projectRoot).toBe("/tmp/x");
   });
@@ -85,6 +86,23 @@ describe("run", () => {
   it("returns 1 when a region grows past its ratchet", () => {
     const root = buildRepo({ plan, agents: agentsWith(20, 5) });
     expect(silentRun(["--project-root", root])).toBe(1);
+  });
+
+  it("returns 1 under --enforce-target when only the absolute target is over", () => {
+    const root = buildRepo({
+      plan: {
+        policy: {
+          agentsMdBudget: {
+            managedMaxLines: 5,
+            unmanagedMaxLines: 10,
+            absoluteTarget: { maxBytes: 1, includeSkillFrontmatter: false },
+          },
+        },
+      },
+      agents: agentsWith(10, 5),
+    });
+    expect(silentRun(["--project-root", root])).toBe(0);
+    expect(silentRun(["--project-root", root, "--enforce-target"])).toBe(1);
   });
 
   it("returns 2 for a malformed budget field", () => {

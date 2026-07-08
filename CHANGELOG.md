@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **AGENTS.md budget now has an explicit always-on target (#2372).** The existing per-region line ratchet remains the hard anti-growth gate, and `verify:agents-md-budget` now also measures the configured absolute target for AGENTS.md plus injected skill frontmatter. Maintainers can pass `--enforce-target` when the 8192-byte / roughly 2000-token north-star should fail as a release gate. Closes #2372.
+
 ### Fixed
 
 ### Removed

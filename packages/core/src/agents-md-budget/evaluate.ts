@@ -1,7 +1,7 @@
-import { existsSync, readFileSync } from "node:fs";
+import { type Dirent, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
-import { resolveAgentsMdBudget } from "../policy/agents-md-budget.js";
+import { type AgentsMdAbsoluteTarget, resolveAgentsMdBudget } from "../policy/agents-md-budget.js";
 
 export type OutputStream = "stdout" | "stderr" | "none";
 
@@ -14,6 +14,7 @@ export interface EvaluateResult {
 
 export interface EvaluateOptions {
   readonly quiet?: boolean;
+  readonly enforceTarget?: boolean;
 }
 
 /** Per-region line counts of an AGENTS.md file. */
@@ -21,6 +22,14 @@ export interface RegionCounts {
   readonly total: number;
   readonly managed: number;
   readonly unmanaged: number;
+}
+
+export interface AlwaysOnCounts {
+  readonly bytes: number;
+  readonly approxTokens: number;
+  readonly agentsBytes: number;
+  readonly skillFrontmatterBytes: number;
+  readonly skillFrontmatterFiles: number;
 }
 
 const OPEN_MARKER_PREFIX = "<!-- deft:managed-section";
@@ -100,17 +109,147 @@ function formatRefusal(
   );
 }
 
+function utf8Bytes(text: string): number {
+  return Buffer.byteLength(text, "utf8");
+}
+
+function approxTokensForBytes(bytes: number): number {
+  return Math.ceil(bytes / 4.096);
+}
+
+function walkSkillFiles(dir: string, out: string[]): void {
+  if (!existsSync(dir)) {
+    return;
+  }
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walkSkillFiles(path, out);
+    } else if (entry.isFile() && entry.name === "SKILL.md") {
+      out.push(path);
+    }
+  }
+}
+
+function skillFilePaths(projectRoot: string): string[] {
+  const paths: string[] = [];
+  const rootSkill = join(projectRoot, "SKILL.md");
+  try {
+    if (existsSync(rootSkill) && statSync(rootSkill).isFile()) {
+      paths.push(rootSkill);
+    }
+  } catch {
+    // Optional skill metadata must not make the primary AGENTS.md gate flaky.
+  }
+  walkSkillFiles(join(projectRoot, "content", "skills"), paths);
+  return paths.sort();
+}
+
+export function extractYamlFrontmatter(text: string): string | null {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const open = lines.findIndex((line) => line.trim() === "---");
+  if (open === -1) {
+    return null;
+  }
+  const close = lines.findIndex((line, index) => index > open && line.trim() === "---");
+  if (close === -1) {
+    return null;
+  }
+  return lines.slice(open, close + 1).join("\n");
+}
+
+export function countAlwaysOnBytes(
+  projectRoot: string,
+  agentsText: string,
+  target: AgentsMdAbsoluteTarget,
+): AlwaysOnCounts {
+  const agentsBytes = utf8Bytes(agentsText);
+  let skillFrontmatterBytes = 0;
+  let skillFrontmatterFiles = 0;
+
+  if (target.includeSkillFrontmatter) {
+    for (const path of skillFilePaths(projectRoot)) {
+      let skillText: string;
+      try {
+        skillText = readFileSync(path, { encoding: "utf8" });
+      } catch {
+        continue;
+      }
+      const frontmatter = extractYamlFrontmatter(skillText);
+      if (frontmatter === null) {
+        continue;
+      }
+      skillFrontmatterBytes += utf8Bytes(frontmatter);
+      skillFrontmatterFiles += 1;
+    }
+  }
+
+  const bytes = agentsBytes + skillFrontmatterBytes;
+  return {
+    bytes,
+    approxTokens: approxTokensForBytes(bytes),
+    agentsBytes,
+    skillFrontmatterBytes,
+    skillFrontmatterFiles,
+  };
+}
+
+function formatTarget(counts: AlwaysOnCounts, target: AgentsMdAbsoluteTarget): string {
+  const tokenPart =
+    target.approxTokens === null
+      ? `~${counts.approxTokens} tok`
+      : `~${counts.approxTokens}/${target.approxTokens} tok`;
+  const skillPart = target.includeSkillFrontmatter
+    ? `; skill frontmatter ${counts.skillFrontmatterBytes} bytes from ${counts.skillFrontmatterFiles} file(s)`
+    : "; skill frontmatter excluded";
+  return (
+    `always-on ${counts.bytes}/${target.maxBytes} bytes (${tokenPart}; ` +
+    `AGENTS.md ${counts.agentsBytes} bytes${skillPart})`
+  );
+}
+
+function formatTargetRefusal(
+  counts: AlwaysOnCounts,
+  target: AgentsMdAbsoluteTarget,
+  projectRoot: string,
+): string {
+  return (
+    `ERROR verify:agents-md-budget: always-on surface exceeds its absolute target ` +
+    `(project_root=${projectRoot}).\n` +
+    `   ${formatTarget(counts, target)} (OVER by ${counts.bytes - target.maxBytes} bytes)\n` +
+    "   Keep the line ratchet as the anti-inflation floor, then relocate rule\n" +
+    "   bulk into lazy docs, packs, deterministic gates, or invoked skills so\n" +
+    "   AGENTS.md plus injected skill frontmatter fit the configured target. (#2372)"
+  );
+}
+
+function formatTargetAdvisory(counts: AlwaysOnCounts, target: AgentsMdAbsoluteTarget): string {
+  return (
+    `WARN verify:agents-md-budget: absolute target not yet met: ` +
+    `${formatTarget(counts, target)} (OVER by ${counts.bytes - target.maxBytes} bytes). ` +
+    "Default mode preserves the hard ratchet gate; pass --enforce-target when this " +
+    "target becomes a release gate. (#2372)"
+  );
+}
+
 /**
- * Pure evaluator for the AGENTS.md line-budget ratchet gate (#645).
+ * Pure evaluator for the layered AGENTS.md budget gate (#645 / #2372).
  *
- * Counts the managed section and the unmanaged region separately (the #1309
- * propagation duplicates content across the marker) and fails when either
- * region exceeds its typed per-region budget. Ships green because the budget is
- * seeded at current size; growth past the ratchet fails.
+ * The per-region line ratchet fails on growth. The optional absolute target
+ * reports AGENTS.md plus injected skill frontmatter by default and fails only
+ * when callers request target enforcement.
  */
 export function evaluate(projectRoot: string, options: EvaluateOptions = {}): EvaluateResult {
   const root = resolve(projectRoot);
   const quiet = options.quiet ?? false;
+  const enforceTarget = options.enforceTarget ?? false;
 
   const budgetResult = resolveAgentsMdBudget(root);
   if (budgetResult.source === "default-on-error") {
@@ -179,16 +318,44 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
   const budget = budgetResult.budget;
   const overManaged = counts.managed > budget.managedMaxLines;
   const overUnmanaged = counts.unmanaged > budget.unmanagedMaxLines;
+  const absoluteTarget = budget.absoluteTarget;
+  const alwaysOnCounts =
+    absoluteTarget === null ? null : countAlwaysOnBytes(root, text, absoluteTarget);
+  const overAbsoluteTarget =
+    alwaysOnCounts !== null &&
+    absoluteTarget !== null &&
+    alwaysOnCounts.bytes > absoluteTarget.maxBytes;
 
   if (!overManaged && !overUnmanaged) {
+    if (enforceTarget && overAbsoluteTarget && alwaysOnCounts !== null && absoluteTarget !== null) {
+      return {
+        code: 1,
+        message: formatTargetRefusal(alwaysOnCounts, absoluteTarget, root),
+        stream: "stderr",
+      };
+    }
     if (quiet) {
       return { code: 0, message: "", stream: "none" };
     }
+    if (overAbsoluteTarget && alwaysOnCounts !== null && absoluteTarget !== null) {
+      return {
+        code: 0,
+        message:
+          `OK verify:agents-md-budget: managed ${counts.managed}/${budget.managedMaxLines}, ` +
+          `unmanaged ${counts.unmanaged}/${budget.unmanagedMaxLines} lines (within ratchet).\n` +
+          formatTargetAdvisory(alwaysOnCounts, absoluteTarget),
+        stream: "stderr",
+      };
+    }
+    const targetText =
+      alwaysOnCounts !== null && absoluteTarget !== null
+        ? `; ${formatTarget(alwaysOnCounts, absoluteTarget)} (within absolute target)`
+        : "";
     return {
       code: 0,
       message:
         `✓ verify:agents-md-budget: managed ${counts.managed}/${budget.managedMaxLines}, ` +
-        `unmanaged ${counts.unmanaged}/${budget.unmanagedMaxLines} lines (within ratchet).`,
+        `unmanaged ${counts.unmanaged}/${budget.unmanagedMaxLines} lines (within ratchet)${targetText}.`,
       stream: "stdout",
     };
   }

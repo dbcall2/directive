@@ -1,0 +1,30 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2372"
+  },
+  "plan": {
+    "title": "design(agents-md): decide context-budget instrument — relative ratchet vs absolute target (recommend ≤8 KB / ~2k tok)",
+    "status": "running",
+    "narratives": {
+      "Description": "design(agents-md): decide context-budget instrument — relative ratchet vs absolute target (recommend ≤8 KB / ~2k tok)",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2372",
+      "Overview": "Parent epic: #2369 · Predecessor context: #1882\n\n## Decision\n\nDecide the context-budget instrument for the always-on surface:\n\n- **Relative ratchet** — the current `verify:agents-md-budget` design (#645): per-region line counts seeded at current size, forbids increase. Deliberately chose *not* to encode an absolute ceiling.\n- **Absolute target** — a fixed north-star ceiling on the always-on surface.\n\n## Recommendation (potential target, not committed)\n\nAdd an absolute north-star of **≤8 KB / ~2k tok** layered *below* the existing ratchet: the ratchet remains the anti-inflation floor, and the absolute target becomes the release-gate goal the relocation work (parent epic #2369) drives toward. Left open for decision — this revisits a settled #645 design choice, so it should be an explicit call, not an assumption.\n\n## Acceptance\n\n- Instrument decided (relative-only, absolute-only, or layered).\n- If an absolute target is adopted, it is wired as a gate with a documented ceiling + remediation, consistent with the existing `verify:agents-md-budget` surface.\n\nWave 1 — unblocks the relocation target.\n\n",
+      "Labels": "design, context-engineering, determinism"
+    },
+    "items": [],
+    "tags": [
+      "design",
+      "context-engineering",
+      "determinism"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2372",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2372: design(agents-md): decide context-budget instrument — relative ratchet vs absolute target (recommend ≤8 KB / ~2k tok)"
+      }
+    ],
+    "updated": "2026-07-08T09:37:32Z"
+  }
+}

@@ -2,19 +2,31 @@ import { readPlanPolicy } from "./plan-extensions.js";
 import { loadProjectDefinition } from "./resolve.js";
 
 /**
- * Per-region line-budget ratchet for AGENTS.md (#645).
+ * Layered AGENTS.md budget policy (#645 / #2372).
  *
- * The budget is seeded at the CURRENT per-region line counts and forbids
- * INCREASE, rather than encoding a static absolute ceiling. This decouples the
- * gate from the reduction work (#1882): the file is by definition within its
- * own seeded baseline, so the gate ships green, while any growth past the
- * ratchet fails. Lowering a budget (a reduction PR) is always allowed; raising
- * it is an explicit, reviewed diff to this typed field -- that diff IS the
- * "was this growth deliberate?" checkpoint.
+ * The per-region line counts are the hard ratchet seeded at current size: any
+ * growth past those values fails, reductions are always allowed, and increases
+ * are reviewed diffs. The optional absolute target is a deterministic
+ * north-star for the always-on context surface, enforceable by callers that pass
+ * the release-gate flag.
  */
 export interface AgentsMdBudget {
   readonly managedMaxLines: number;
   readonly unmanagedMaxLines: number;
+  readonly absoluteTarget: AgentsMdAbsoluteTarget | null;
+}
+
+/**
+ * Absolute always-on context target layered below the ratchet (#2372).
+ *
+ * `maxBytes` is the enforceable ceiling when callers pass the `--enforce-target`
+ * flag. `approxTokens` is display-only: bytes are the deterministic unit, while
+ * tokens vary by model/tokenizer.
+ */
+export interface AgentsMdAbsoluteTarget {
+  readonly maxBytes: number;
+  readonly approxTokens: number | null;
+  readonly includeSkillFrontmatter: boolean;
 }
 
 export type AgentsMdBudgetSource = "typed" | "unset" | "default-on-error";
@@ -43,7 +55,7 @@ function pythonRepr(value: unknown): string {
   return String(value);
 }
 
-function readRegion(
+function readNonNegativeInteger(
   block: Record<string, unknown>,
   key: string,
 ): { value: number | null; error: string | null } {
@@ -58,6 +70,94 @@ function readRegion(
     };
   }
   return { value: raw, error: null };
+}
+
+function readOptionalNonNegativeInteger(
+  block: Record<string, unknown>,
+  key: string,
+  path: string,
+): { value: number | null; error: string | null } {
+  if (!(key in block)) {
+    return { value: null, error: null };
+  }
+  const raw = block[key];
+  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0) {
+    return {
+      value: null,
+      error: `${path}.${key} must be a non-negative integer; got ${pythonTypeName(raw)} (${pythonRepr(raw)})`,
+    };
+  }
+  return { value: raw, error: null };
+}
+
+function readOptionalBoolean(
+  block: Record<string, unknown>,
+  key: string,
+  path: string,
+  defaultValue: boolean,
+): { value: boolean; error: string | null } {
+  if (!(key in block)) {
+    return { value: defaultValue, error: null };
+  }
+  const raw = block[key];
+  if (typeof raw !== "boolean") {
+    return {
+      value: defaultValue,
+      error: `${path}.${key} must be a bool; got ${pythonTypeName(raw)} (${pythonRepr(raw)})`,
+    };
+  }
+  return { value: raw, error: null };
+}
+
+function readAbsoluteTarget(block: Record<string, unknown>): {
+  value: AgentsMdAbsoluteTarget | null;
+  error: string | null;
+} {
+  const path = "plan.policy.agentsMdBudget.absoluteTarget";
+  if (!("absoluteTarget" in block)) {
+    return { value: null, error: null };
+  }
+
+  const raw = block.absoluteTarget;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return {
+      value: null,
+      error: `${path} must be an object with maxBytes; got ${pythonTypeName(raw)}`,
+    };
+  }
+
+  const targetBlock = raw as Record<string, unknown>;
+  const maxBytes = readOptionalNonNegativeInteger(targetBlock, "maxBytes", path);
+  if (maxBytes.error !== null) {
+    return { value: null, error: maxBytes.error };
+  }
+  if (maxBytes.value === null) {
+    return { value: null, error: `${path}.maxBytes is required` };
+  }
+
+  const approxTokens = readOptionalNonNegativeInteger(targetBlock, "approxTokens", path);
+  if (approxTokens.error !== null) {
+    return { value: null, error: approxTokens.error };
+  }
+
+  const includeSkillFrontmatter = readOptionalBoolean(
+    targetBlock,
+    "includeSkillFrontmatter",
+    path,
+    true,
+  );
+  if (includeSkillFrontmatter.error !== null) {
+    return { value: null, error: includeSkillFrontmatter.error };
+  }
+
+  return {
+    value: {
+      maxBytes: maxBytes.value,
+      approxTokens: approxTokens.value,
+      includeSkillFrontmatter: includeSkillFrontmatter.value,
+    },
+    error: null,
+  };
 }
 
 /** Resolve plan.policy.agentsMdBudget from PROJECT-DEFINITION (#645). */
@@ -96,19 +196,24 @@ export function resolveAgentsMdBudget(projectRoot: string): AgentsMdBudgetResult
   }
 
   const block = rawBudget as Record<string, unknown>;
-  const managed = readRegion(block, "managedMaxLines");
+  const managed = readNonNegativeInteger(block, "managedMaxLines");
   if (managed.error !== null) {
     return { budget: null, source: "default-on-error", error: managed.error };
   }
-  const unmanaged = readRegion(block, "unmanagedMaxLines");
+  const unmanaged = readNonNegativeInteger(block, "unmanagedMaxLines");
   if (unmanaged.error !== null) {
     return { budget: null, source: "default-on-error", error: unmanaged.error };
+  }
+  const absoluteTarget = readAbsoluteTarget(block);
+  if (absoluteTarget.error !== null) {
+    return { budget: null, source: "default-on-error", error: absoluteTarget.error };
   }
 
   return {
     budget: {
       managedMaxLines: managed.value as number,
       unmanagedMaxLines: unmanaged.value as number,
+      absoluteTarget: absoluteTarget.value,
     },
     source: "typed",
     error: null,

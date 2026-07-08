@@ -133,9 +133,10 @@ task check    # runs: validate + lint + test
 
 ### AGENTS.md line budget (#645)
 
-`task verify:agents-md-budget` (wired into `task check:framework-source`) is a **ratchet** that keeps AGENTS.md a map, not a manual (#1882). It counts the managed section and the unmanaged region separately and fails when either grows past `plan.policy.agentsMdBudget.{managedMaxLines,unmanagedMaxLines}` in `PROJECT-DEFINITION`. The budget is seeded at the current per-region size, so the gate ships green; only *growth* fails.
+`task verify:agents-md-budget` (wired into `task check:framework-source`) is a **layered** budget gate that keeps AGENTS.md a map, not a manual (#1882/#2372). The hard ratchet counts the managed section and the unmanaged region separately and fails when either grows past `plan.policy.agentsMdBudget.{managedMaxLines,unmanagedMaxLines}` in `PROJECT-DEFINITION`. The optional absolute target (`plan.policy.agentsMdBudget.absoluteTarget`) measures AGENTS.md bytes plus injected skill frontmatter by default; run `task verify:agents-md-budget -- --enforce-target` when the absolute target should fail as a release gate.
 
 - ! When you need to add content, push the detail into a reference doc (`main.md` section, a content pack, or `docs/`) and leave a pointer from AGENTS.md — do not expand AGENTS.md itself. See `REFERENCES.md` § "AGENTS.md is a map, not a manual".
+- ! The absolute north-star for the always-on surface is 8192 bytes / roughly 2000 tokens. Relocation work should move rule bulk into lazy docs, packs, deterministic gates, or invoked skills until AGENTS.md plus skill frontmatter fits that ceiling.
 - ! When you *reduce* AGENTS.md, lower the matching `managedMaxLines` / `unmanagedMaxLines` in the same PR so the ratchet tightens toward the ~150-line ceiling.
 - ? If growth is genuinely warranted (e.g. a new #1309-propagated consumer rule), raising the budget is an explicit, reviewed diff to the typed field — that diff is the "was this growth deliberate?" checkpoint.
 

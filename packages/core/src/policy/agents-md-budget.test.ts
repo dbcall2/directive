@@ -136,7 +136,77 @@ describe("resolveAgentsMdBudget", () => {
     );
     expect(result.source).toBe("typed");
     expect(result.error).toBeNull();
-    expect(result.budget).toEqual({ managedMaxLines: 223, unmanagedMaxLines: 347 });
+    expect(result.budget).toEqual({
+      managedMaxLines: 223,
+      unmanagedMaxLines: 347,
+      absoluteTarget: null,
+    });
+  });
+
+  it("resolves the optional absolute target and defaults skill frontmatter inclusion on", () => {
+    const result = resolveAgentsMdBudget(
+      makeRepo(
+        withPlan({
+          policy: {
+            agentsMdBudget: {
+              managedMaxLines: 223,
+              unmanagedMaxLines: 347,
+              absoluteTarget: { maxBytes: 8192, approxTokens: 2000 },
+            },
+          },
+        }),
+      ),
+    );
+    expect(result.source).toBe("typed");
+    expect(result.budget).toEqual({
+      managedMaxLines: 223,
+      unmanagedMaxLines: 347,
+      absoluteTarget: {
+        maxBytes: 8192,
+        approxTokens: 2000,
+        includeSkillFrontmatter: true,
+      },
+    });
+  });
+
+  it("allows the absolute target to exclude skill frontmatter explicitly", () => {
+    const result = resolveAgentsMdBudget(
+      makeRepo(
+        withPlan({
+          policy: {
+            agentsMdBudget: {
+              managedMaxLines: 1,
+              unmanagedMaxLines: 2,
+              absoluteTarget: { maxBytes: 3, includeSkillFrontmatter: false },
+            },
+          },
+        }),
+      ),
+    );
+    expect(result.source).toBe("typed");
+    expect(result.budget?.absoluteTarget).toEqual({
+      maxBytes: 3,
+      approxTokens: null,
+      includeSkillFrontmatter: false,
+    });
+  });
+
+  it("returns default-on-error when the absolute target is malformed", () => {
+    const result = resolveAgentsMdBudget(
+      makeRepo(
+        withPlan({
+          policy: {
+            agentsMdBudget: {
+              managedMaxLines: 1,
+              unmanagedMaxLines: 2,
+              absoluteTarget: { maxBytes: "8192" },
+            },
+          },
+        }),
+      ),
+    );
+    expect(result.source).toBe("default-on-error");
+    expect(result.error).toContain("absoluteTarget.maxBytes must be a non-negative integer");
   });
 
   it("reads the namespaced x-directive/policy block", () => {
@@ -148,6 +218,10 @@ describe("resolveAgentsMdBudget", () => {
       ),
     );
     expect(result.source).toBe("typed");
-    expect(result.budget).toEqual({ managedMaxLines: 1, unmanagedMaxLines: 2 });
+    expect(result.budget).toEqual({
+      managedMaxLines: 1,
+      unmanagedMaxLines: 2,
+      absoluteTarget: null,
+    });
   });
 });

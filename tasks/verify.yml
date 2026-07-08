@@ -384,7 +384,7 @@ tasks:
           ENGINE_CMD: 'verify:wip-cap --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
 
   agents-md-budget:
-    desc: "Ratchet gate for AGENTS.md per-region line budgets (#645). Counts the managed section and the unmanaged region separately (the #1309 propagation duplicates content across the marker) and fails when either region grows past plan.policy.agentsMdBudget. Seeded at current size, so it ships green; growth past the ratchet fails. Lowering a budget (a reduction PR) is always allowed; raising it is a reviewed diff to the typed field. Three-state exit (0 within / 1 over / 2 config error)."
+    desc: "Layered AGENTS.md budget gate (#645/#2372). Fails when managed/unmanaged line counts grow past plan.policy.agentsMdBudget.{managedMaxLines,unmanagedMaxLines}; also reports optional plan.policy.agentsMdBudget.absoluteTarget.{maxBytes,approxTokens,includeSkillFrontmatter}. Pass --enforce-target to fail when AGENTS.md plus injected skill frontmatter exceeds the absolute target. Three-state exit (0 within / 1 over enforced budget / 2 config error)."
     dir: '{{.USER_WORKING_DIR}}'
     deps:
       - task: :engine:_ts-build

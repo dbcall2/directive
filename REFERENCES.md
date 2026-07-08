@@ -22,7 +22,7 @@
 AGENTS.md is the always-loaded front door. Empirical study (`content/docs/good-agents-md.md`) found agent-quality gains from AGENTS.md **reverse** once the file grows past ~100–150 lines: context is scarce, "everything important" becomes non-guidance, and stale rules accumulate.
 
 - **Default when adding content**: push the detail into a reference doc (`main.md` section, a content pack, or `docs/`) and leave a *pointer* from AGENTS.md — do **not** expand AGENTS.md itself.
-- **Enforced by a ratchet (maintainer repo only)**: `task verify:agents-md-budget` (wired into `check:framework-source`) fails when the managed section or the unmanaged region grows past `plan.policy.agentsMdBudget` in `PROJECT-DEFINITION`. The budget is seeded at the current per-region size, so *growth* fails while *reductions* are always allowed.
+- **Enforced by a layered budget (maintainer repo only)**: `task verify:agents-md-budget` (wired into `check:framework-source`) fails when the managed section or the unmanaged region grows past `plan.policy.agentsMdBudget` in `PROJECT-DEFINITION`. The optional `absoluteTarget` measures AGENTS.md plus injected skill frontmatter against the 8192-byte / roughly 2000-token north-star; pass `--enforce-target` when that target should fail as a release gate.
 - **Lowering the budget is free; raising it is a reviewed diff.** Each reduction should tighten the matching `managedMaxLines` / `unmanagedMaxLines` line so the ratchet only ever ratchets down toward the ceiling.
 
 ### Consumer projects: an *advisory* signal, never a failing gate (#2155)

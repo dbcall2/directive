@@ -41,4 +41,4 @@ These are the specific blocks the study measured *hurting* agent quality — tre
 
 ## Relationship to directive's own dogfooding
 
-Directive holds its own AGENTS.md to this bar via the `verify:agents-md-budget` ratchet (#645) and the consumer-side advisory signal (`agentsMdAdvisory`, #2155). The doc-sprawl awareness step in the `deft-directive-sync` skill (#647) surfaces reachable-doc-volume drift before it silently degrades agent quality. This doc is the "how to structure it well" companion to those "keep it from bloating" guards.
+Directive holds its own AGENTS.md to this bar via the layered `verify:agents-md-budget` gate (#645/#2372) and the consumer-side advisory signal (`agentsMdAdvisory`, #2155). The doc-sprawl awareness step in the `deft-directive-sync` skill (#647) surfaces reachable-doc-volume drift before it silently degrades agent quality. This doc is the "how to structure it well" companion to those "keep it from bloating" guards.

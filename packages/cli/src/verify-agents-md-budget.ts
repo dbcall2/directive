@@ -6,6 +6,7 @@ import { evaluate } from "@deftai/directive-core/agents-md-budget";
 interface ParsedArgs {
   projectRoot: string;
   quiet: boolean;
+  enforceTarget: boolean;
   error?: string;
 }
 
@@ -14,11 +15,14 @@ export function parseArgs(argv: string[]): ParsedArgs {
   const parsed: ParsedArgs = {
     projectRoot: ".",
     quiet: false,
+    enforceTarget: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--quiet") {
       parsed.quiet = true;
+    } else if (arg === "--enforce-target") {
+      parsed.enforceTarget = true;
     } else if (arg === "--project-root") {
       const value = argv[i + 1];
       if (value === undefined) {
@@ -44,7 +48,10 @@ export function run(argv: string[]): number {
   }
 
   const projectRoot = resolve(args.projectRoot);
-  const result = evaluate(projectRoot, { quiet: args.quiet });
+  const result = evaluate(projectRoot, {
+    quiet: args.quiet,
+    enforceTarget: args.enforceTarget,
+  });
 
   if (result.message.length > 0) {
     if (result.stream === "stdout") {
