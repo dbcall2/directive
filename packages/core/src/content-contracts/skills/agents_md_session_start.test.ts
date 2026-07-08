@@ -4,6 +4,8 @@ import { readRepoFile } from "./helpers.js";
 /** Port of tests/content/test_agents_md_session_start.py (#1838 #1530) */
 
 const agentsMdText = readRepoFile("AGENTS.md");
+const OPEN_MARKER_RE = /<!-- deft:managed-section v3\b[^>]*-->/;
+const CLOSE_MARKER = "<!-- /deft:managed-section -->";
 
 function extractSection(text: string, headingPattern: string): string {
   const headingRe = new RegExp(`^##\\s+${headingPattern}`, "m");
@@ -17,6 +19,15 @@ function extractSection(text: string, headingPattern: string): string {
   return nextHeading === -1
     ? text.slice(start)
     : text.slice(start, start + match[0].length + nextHeading);
+}
+
+function extractManagedSection(text: string): string {
+  const match = OPEN_MARKER_RE.exec(text);
+  const end = text.indexOf(CLOSE_MARKER);
+  if (!match || match.index === undefined || end <= match.index) {
+    return "";
+  }
+  return text.slice(match.index, end + CLOSE_MARKER.length);
 }
 
 function extractGateStackParagraph(agentsMd: string): string {
@@ -90,17 +101,17 @@ describe("test_agents_md_session_start", () => {
     expect(/^\u2297\s+Recommend/m.test(section)).toBe(true);
   });
 
-  // #838: the `## Skill Routing` keyword->path table moved to the REFERENCES.md
-  // Skills Index. AGENTS.md keeps only a `## Skills` pointer + the behavioral
-  // "Before Improvising" gate. The welcome/onboard-triage invocation is asserted
-  // via the propagation command markers in agents_entry_contract.test.ts.
+  // #838/#2369: the `## Skill Routing` keyword->path table moved out of AGENTS.md.
+  // Native skill frontmatter owns discovery on skill-aware harnesses; the
+  // REFERENCES.md Skills Index remains the fallback for AGENTS-only harnesses.
   it("skill_routing_table_replaced_with_pointer", () => {
     expect(agentsMdText).not.toContain("## Skill Routing");
-    const skills = extractSection(agentsMdText, "Skills");
+    const skills = extractSection(extractManagedSection(agentsMdText), "Skills");
     expect(skills).toBeTruthy();
+    expect(skills).toContain("Native skill frontmatter");
     expect(skills).toContain("Skills Index");
     expect(skills).toContain("REFERENCES.md");
-    expect(skills).toContain("task triage:welcome --onboard");
+    expect(skills).not.toContain("task triage:welcome --onboard");
   });
 
   it("pre_start_agent_gate_stack_paragraph_present", () => {

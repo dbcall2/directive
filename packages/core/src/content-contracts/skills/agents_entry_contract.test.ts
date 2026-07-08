@@ -105,7 +105,12 @@ const PROPAGATION_ACTION_VERBS = [
 
 // #838: skill routing moved from the AGENTS.md `## Skill Routing` table to the
 // REFERENCES.md Skills Index. AGENTS.md keeps only a `## Skills` pointer.
-const SKILLS_POINTER_MARKERS = ["## Skills", "Skills Index", "REFERENCES.md"] as const;
+const SKILLS_POINTER_MARKERS = [
+  "## Skills",
+  "Native skill frontmatter",
+  "Skills Index",
+  "REFERENCES.md",
+] as const;
 
 // Every non-deprecated skill catalogued under content/skills/ that the
 // REFERENCES.md Skills Index MUST list (name + description + triggers).

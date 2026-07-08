@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **AGENTS.md skill routing is now a thin pointer surface.** The managed Skills section now treats native skill frontmatter as the routing surface and keeps only a fallback pointer to the REFERENCES.md Skills Index for AGENTS-only harnesses; the architecture note records the approved #2369 boundary for moving policy bulk out of always-on context. Refs #2369.
+
 ### Fixed
 
 ### Removed

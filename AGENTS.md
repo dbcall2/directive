@@ -268,7 +268,7 @@ Install-generated AGENTS.md uses deft/-prefixed paths.
 
 When the template is updated, run `task agents:refresh` to regenerate consumer-installed AGENTS.md from `content/templates/agents-entry.md` (see `## Template propagation discipline (#1309)` above).
 
-<!-- deft:managed-section v3 sha=977563e97ddc refreshed=2026-07-07T14:02:20Z session=8d3ecca17184 -->
+<!-- deft:managed-section v3 sha=070e860f91b7 refreshed=2026-07-08T08:31:27Z session=523751e74552 -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
@@ -409,7 +409,7 @@ Deft ships versioned content packs (e.g. lessons learned from prior work) under 
 
 ## Skills
 
-Skill routing (which skill answers which trigger) is not a table in this policy section. To pick a skill, scan the **Skills Index** (Level-0) in `.deft/core/REFERENCES.md` — it lists every skill under `.deft/core/.agents/skills/` with a one-sentence description and trigger keywords, unified with the framework doc routing so you consult one place to decide what to load. Read a `SKILL.md` (Level-1) only when the index indicates a match. Before improvising a multi-step workflow, scan the skills catalog first — skills are versioned and tested. The `welcome` / `onboard triage` trigger invokes `deft triage:welcome --onboard` (N3 / #1143); for `lessons` / `prior art`, discover packs with `deft packs:slice --list-packs` then load the relevant slice (see Content packs above).
+Native skill frontmatter is the routing surface on skill-aware harnesses. AGENTS.md does not enumerate skill routes; for AGENTS-only harnesses, use the **Skills Index** in `.deft/core/REFERENCES.md` as the fallback pointer, then read only the matching `SKILL.md`. Before improvising a multi-step workflow, scan the skills catalog first -- skills are versioned and tested.
 
 ## Review-surface precedence (#2308)
 

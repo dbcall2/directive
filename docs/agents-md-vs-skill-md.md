@@ -11,7 +11,8 @@ Directive runs both mechanisms in parallel:
 
 - **AGENTS.md** (user's project root) — always loaded at session start on any
   platform that supports agent instructions. Contains: first-session bootstrap
-  detection, always-on process rules, skill routing table, alignment confirmation.
+  detection, always-on process rules, alignment confirmation, and a thin pointer
+  to skill discovery. It does not enumerate skill routes.
 - **SKILL.md** (directive root) — entry point on skill-aware platforms (Claude Code,
   Warp, clawd.bot) with `user-invocable: false`, so it auto-loads rather than
   requiring explicit invocation.
@@ -102,6 +103,37 @@ or explicitly invoked via slash commands. These are the candidates for migration
 
 ---
 
+## Approved #2369 Boundary
+
+Issue #2369 ratifies the post-#1882 product boundary:
+
+- **P1: Thin always-on / thick on-demand.** AGENTS.md is a map of pointers; policy
+  bulk belongs in skills, deterministic gates, packs, or lazy docs.
+- **P2: Explicit tiering.** Daily core stays always-on as short imperatives;
+  standard and advanced workflows move to on-demand surfaces; deferred content is
+  docs-only or paused.
+- **P3: Context budget is a release gate.** Budgeting must count the bytes injected
+  by native skill frontmatter as well as AGENTS.md itself.
+
+The approved design decisions refine the routing:
+
+- **DD-1: Content-type keyed hybrid.** Workflow procedures go to skills; guardrails
+  go to deterministic `task` gates plus terse always-on imperatives; reference and
+  rationale go to the lazy doc tree.
+- **DD-2: Trigger-frequency tiering.** Universal guardrails keep one always-on
+  line and a gate pointer. Contextual guardrails move behind runtime-detected lazy
+  doc pointers. Reference is always lazy.
+- **DD-3: Skill frontmatter counts.** Moving content to skills is not a budget win
+  when a harness injects every skill's frontmatter into every session; measurement
+  must include that injected catalog.
+
+Practical consequence: native skill frontmatter is the first-choice skill routing
+surface. AGENTS.md keeps only the behavioral nudge to scan skills before
+improvising and a fallback pointer to the REFERENCES.md Skills Index for
+AGENTS-only harnesses.
+
+---
+
 ## Concrete Recommendations
 
 ### Keep in AGENTS.md / main.md (unconditional rules)
@@ -114,7 +146,8 @@ non-skill platforms.
 - Branch rule: `⊗` direct commits to default branch
 - `/deft:change` gate (must fire unconditionally on 3+ file changes)
 - vBRIEF file placement rules (where vBRIEF files must live)
-- Skill routing table (thin keyword → skill mappings)
+- Skill discovery nudge: native skill frontmatter first, REFERENCES.md Skills Index
+  fallback for AGENTS-only harnesses
 - Continuous improvement (`lessons.md`, `ideas.md`)
 
 ---
