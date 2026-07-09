@@ -49,6 +49,7 @@ function makeDeftHooks(root: string, rel = ".githooks"): string {
   const prePush = join(hooks, "pre-push");
   writeFileSync(preCommit, DEFT_PRE_COMMIT, "utf8");
   writeFileSync(prePush, DEFT_PRE_PUSH, "utf8");
+  writeFileSync(join(hooks, "_deft-run.sh"), 'run_deft() { deft "$@"; }\n', "utf8");
   chmodSync(preCommit, 0o755);
   chmodSync(prePush, 0o755);
   return hooks;
@@ -152,10 +153,12 @@ describe("evaluate", () => {
     mkdirSync(hooks, { recursive: true });
     writeFileSync(join(hooks, "pre-commit"), DEFT_PRE_COMMIT, "utf8");
     writeFileSync(join(hooks, "pre-push"), DEFT_PRE_PUSH, "utf8");
+    writeFileSync(join(hooks, "_deft-run.sh"), 'run_deft() { deft "$@"; }\n', "utf8");
     chmodSync(join(hooks, "pre-commit"), 0o644);
     chmodSync(join(hooks, "pre-push"), 0o644);
     const result = evaluate(root, {
       platform: "linux",
+      hookExecutable: () => false,
       gitConfigReader: () => ({ hooksPath: ".githooks", error: null }),
     });
     expect(result.code).toBe(1);
@@ -257,6 +260,21 @@ describe("evaluate", () => {
     expect(result.message).toContain("pre-push must not invoke verify:branch");
   });
 
+  it("fails when the shared hook helper is missing", () => {
+    const root = makeRepo();
+    const hooks = join(root, ".githooks");
+    mkdirSync(hooks, { recursive: true });
+    writeFileSync(join(hooks, "pre-commit"), DEFT_PRE_COMMIT, "utf8");
+    writeFileSync(join(hooks, "pre-push"), DEFT_PRE_PUSH, "utf8");
+    chmodSync(join(hooks, "pre-commit"), 0o755);
+    chmodSync(join(hooks, "pre-push"), 0o755);
+    const result = evaluate(root, {
+      gitConfigReader: () => ({ hooksPath: ".githooks", error: null }),
+    });
+    expect(result.code).toBe(1);
+    expect(result.message).toContain("_deft-run.sh");
+  });
+
   it("greenfield smoke: passes with no scripts/ on PATH (Python-free deposit)", () => {
     const root = makeRepo();
     makeDeftHooks(root);
@@ -285,6 +303,11 @@ describe("evaluate", () => {
     writeFileSync(
       join(hooks, "pre-push"),
       readFileSync(join(REPO_ROOT, ".githooks/pre-push"), "utf8"),
+      "utf8",
+    );
+    writeFileSync(
+      join(hooks, "_deft-run.sh"),
+      readFileSync(join(REPO_ROOT, ".githooks/_deft-run.sh"), "utf8"),
       "utf8",
     );
     chmodSync(join(hooks, "pre-commit"), 0o755);

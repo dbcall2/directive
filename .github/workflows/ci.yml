@@ -439,6 +439,10 @@ jobs:
             "#!/bin/sh`nnode `"$cli`" " + '"$@"' + "`n",
             (New-Object System.Text.UTF8Encoding $false)
           )
+          if (Get-Command bash -ErrorAction SilentlyContinue) {
+            $shShim = Join-Path $shimDir 'deft'
+            bash -lc "chmod +x '$($shShim.Replace('\', '/'))'"
+          }
           $env:PATH = "$shimDir;$env:PATH"
           $consumer = Join-Path $smokeRoot 'consumer'
           New-Item -ItemType Directory -Path $consumer -Force | Out-Null
@@ -448,12 +452,14 @@ jobs:
             git config core.autocrlf true
             git config user.name ci
             git config user.email ci@example.com
+            git switch -c smoke-baseline
+            if ($LASTEXITCODE -ne 0) { throw "git switch smoke-baseline exited $LASTEXITCODE" }
 
             node $cli init --yes --repo-root $consumer
             if ($LASTEXITCODE -ne 0) { throw "directive init exited $LASTEXITCODE" }
 
             git add -A
-            git commit --no-verify -q -m baseline
+            git commit -q -m baseline
             if ($LASTEXITCODE -ne 0) { throw "baseline commit exited $LASTEXITCODE" }
 
             node $cli update --yes --repo-root $consumer

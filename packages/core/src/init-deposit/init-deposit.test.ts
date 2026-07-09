@@ -125,6 +125,11 @@ describe("runInitDeposit", () => {
       "utf8",
     );
     chmodSync(join(pkgDir, ".githooks", "pre-push"), 0o755);
+    writeFileSync(
+      join(pkgDir, ".githooks", "_deft-run.sh"),
+      readFileSync(join(process.cwd(), ".githooks/_deft-run.sh"), "utf8"),
+      "utf8",
+    );
     writeFileSync(join(pkgDir, "Taskfile.yml"), "version: '3'\n", "utf8");
     return pkgDir;
   }
@@ -156,6 +161,9 @@ describe("runInitDeposit", () => {
     expect(existsSync(join(project, ".githooks", "pre-commit"))).toBe(true);
     expect(readFileSync(join(project, ".githooks", "pre-commit"), "utf8")).toContain(
       "deft verify:branch",
+    );
+    expect(readFileSync(join(project, ".githooks", "_deft-run.sh"), "utf8")).toContain(
+      "run_deft()",
     );
     expect(readFileSync(join(project, "Taskfile.yml"), "utf8")).toContain(
       "./.deft/core/Taskfile.yml",
