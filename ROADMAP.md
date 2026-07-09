@@ -907,4 +907,10 @@
 - **#2310** -- chore(docs,skills): stale scripts/*.py references after py-purge (#2022) -- registry-data.ts banner + AGENTS.md/preamble/review-cycle cite deleted Python -- `[completed]`
 - **#2347** -- bug(update): deft update never prunes stray .deft/core/packages/ — deposit-hygiene advisory persists across upgrades -- `[completed]`
 - **#2378** -- Normalize triage:summary history-path docs off the legacy vbrief/.eval/ prefix -- `[completed]`
+- **#2118** -- bug: deft update on current npm deposit creates phantom dirty tree on Windows and over-reports changes -- `[completed]`
+- **#2120** -- bug: engine:_ts-build doubles DEFT_ROOT on Windows native — task deft:verify:cache-fresh fails -- `[completed]`
+- **#2389** -- bug: task check Biome lane fails on native Windows CRLF checkout -- `[completed]`
+- Block descendant symlink escapes during TypeScript deposit copy -- `[completed]`
+- **#2367** -- Consumer deft binary rejects colon-namespaced policy verbs that AGENTS.md tells consumers to run -- `[completed]`
+- **#2409** -- engine:invoke falls back to global deft for runtime verbs; _ts-build resolves pnpm via Corepack -- `[completed]`
 

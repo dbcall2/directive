@@ -20,6 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+### Removed
+
+## [0.73.1] - 2026-07-09
+
+> Adoption and install fixes since v0.73.0: unbuilt-source session verbs fall back to global deft, Corepack-backed pnpm builds, consumer policy:* colon aliases, plus Windows deposit/Biome/AGENTS.md polish.
+
+### Added
+
+### Changed
+
+### Fixed
+
 - **Session/runtime tasks on unbuilt source checkouts now fall back to global deft.** When `packages/cli/dist/bin.js` is missing but a working global `deft`/`directive` is on PATH, ritual verbs (`session:start`, `verify:session-ritual`, `verify:tools`, `triage:summary`, `triage:welcome`, `verify:cache-fresh`) invoke the global CLI with a one-line version-skew warning instead of failing closed; build-gated verbs still require `task build`. Optional `DEFT_USE_GLOBAL_CLI=1` forces global for any verb. Closes #2409. Refs #2181.
 - **Framework source builds resolve pnpm via Corepack when bare pnpm is absent.** `engine:_ts-build` and `tasks/ts.yml` now invoke the pinned `packageManager` through Corepack (or honor `DEFT_PACKAGE_MANAGER=npm`) with actionable remediation when neither path works. Closes #2410. Refs #2197.
 - **Consumer `deft` now accepts documented `policy:*` colon verbs.** Colon forms such as `deft policy:show` and `deft policy:enable-value-feedback` resolve like their space-separated equivalents, and policy disclosure/remediation output now prints `deft policy:…` instead of maintainer-only `task policy:…` strings. Closes #2367.
@@ -4186,7 +4198,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.73.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.73.1...HEAD
+[0.73.1]: https://github.com/deftai/directive/compare/v0.73.0...v0.73.1
 [0.73.0]: https://github.com/deftai/directive/compare/v0.72.0...v0.73.0
 [0.72.0]: https://github.com/deftai/directive/compare/v0.71.1...v0.72.0
 [0.71.1]: https://github.com/deftai/directive/compare/v0.71.0...v0.71.1
