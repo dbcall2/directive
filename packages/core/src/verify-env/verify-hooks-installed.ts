@@ -226,49 +226,41 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
     }
   }
 
+  const contentIssues: string[] = [];
+  const missingSupport = REQUIRED_HOOK_SUPPORT_FILES.filter((h) => !isFile(join(hooksDir, h)));
+  if (missingSupport.length > 0) {
+    contentIssues.push(
+      `${hooksDir} is missing ${missingSupport.join(
+        ", ",
+      )} helper(s); pre-commit/pre-push source them at runtime`,
+    );
+  }
+
   const preCommitIssue = validateHookContent(
     "pre-commit",
     readHookContent(join(hooksDir, "pre-commit")),
     PRE_COMMIT_DEFT_COMMANDS,
   );
   if (preCommitIssue) {
-    return {
-      code: 1,
-      message:
-        `❌ deft hooks wired but NON-FUNCTIONAL: ${preCommitIssue} (#2049).\n` +
-        "  Recovery: re-run the deft installer / `task setup` to refresh .githooks/.",
-      stream: "stderr",
-    };
+    contentIssues.push(`${preCommitIssue} (#2049)`);
   }
 
   const prePushContent = readHookContent(join(hooksDir, "pre-push"));
   const prePushIssue = validateHookContent("pre-push", prePushContent, PRE_PUSH_DEFT_COMMANDS);
   if (prePushIssue) {
-    return {
-      code: 1,
-      message:
-        `❌ deft hooks wired but NON-FUNCTIONAL: ${prePushIssue} (#2049).\n` +
-        "  Recovery: re-run the deft installer / `task setup` to refresh .githooks/.",
-      stream: "stderr",
-    };
+    contentIssues.push(`${prePushIssue} (#2049)`);
   }
   if (prePushContent && prePushInvokesVerifyBranch(prePushContent)) {
-    return {
-      code: 1,
-      message:
-        "❌ deft hooks wired but NON-FUNCTIONAL: pre-push must not invoke verify:branch (#1814).\n" +
-        "  Recovery: re-run the deft installer / `task setup` to refresh .githooks/.",
-      stream: "stderr",
-    };
+    contentIssues.push("pre-push must not invoke verify:branch (#1814)");
   }
 
-  const missingSupport = REQUIRED_HOOK_SUPPORT_FILES.filter((h) => !isFile(join(hooksDir, h)));
-  if (missingSupport.length > 0) {
+  if (contentIssues.length > 0) {
     return {
       code: 1,
       message:
-        `❌ deft hooks wired but NON-FUNCTIONAL: ${hooksDir} is missing ` +
-        `${missingSupport.join(", ")} helper(s); pre-commit/pre-push source them at runtime.\n` +
+        "❌ deft hooks wired but NON-FUNCTIONAL:\n" +
+        contentIssues.map((issue) => `  - ${issue}`).join("\n") +
+        "\n" +
         "  Recovery: re-run the deft installer / `task setup` to refresh .githooks/.",
       stream: "stderr",
     };

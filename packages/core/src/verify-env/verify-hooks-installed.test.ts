@@ -270,9 +270,27 @@ describe("evaluate", () => {
     chmodSync(join(hooks, "pre-push"), 0o755);
     const result = evaluate(root, {
       gitConfigReader: () => ({ hooksPath: ".githooks", error: null }),
+      platform: "linux",
+      hookExecutable: () => true,
     });
     expect(result.code).toBe(1);
     expect(result.message).toContain("_deft-run.sh");
+  });
+
+  it("reports a missing shared hook helper before stale hook content", () => {
+    const root = makeRepo();
+    const hooks = join(root, ".githooks");
+    mkdirSync(hooks, { recursive: true });
+    writeFileSync(join(hooks, "pre-commit"), LEGACY_PYTHON_PRE_COMMIT, "utf8");
+    writeFileSync(join(hooks, "pre-push"), DEFT_PRE_PUSH, "utf8");
+    const result = evaluate(root, {
+      gitConfigReader: () => ({ hooksPath: ".githooks", error: null }),
+      platform: "linux",
+      hookExecutable: () => true,
+    });
+    expect(result.code).toBe(1);
+    expect(result.message).toContain("_deft-run.sh");
+    expect(result.message).toContain("Python scripts");
   });
 
   it("greenfield smoke: passes with no scripts/ on PATH (Python-free deposit)", () => {
