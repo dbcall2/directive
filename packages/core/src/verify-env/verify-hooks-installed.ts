@@ -259,7 +259,7 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
       code: 1,
       message:
         "❌ deft hooks wired but NON-FUNCTIONAL:\n" +
-        contentIssues.map((issue) => `  - ${issue}`).join("\n") +
+        contentIssues.map((issue) => `  - ${issue.replace(/\r?\n/g, " ")}`).join("\n") +
         "\n" +
         "  Recovery: re-run the deft installer / `task setup` to refresh .githooks/.",
       stream: "stderr",
