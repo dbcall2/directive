@@ -1,0 +1,118 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Combined scope for #2409 (engine:invoke global fallback) + #2410 (Corepack-backed _ts-build pnpm)"
+  },
+  "plan": {
+    "title": "engine:invoke falls back to global deft for runtime verbs; _ts-build resolves pnpm via Corepack",
+    "status": "completed",
+    "narratives": {
+      "Description": "engine:invoke currently fail-closes when packages/cli/dist/bin.js is missing on a buildable source tree, even if a working global deft is on PATH. Separately, engine:_ts-build and tasks/ts.yml hardcode bare pnpm, so machines with Node/Corepack but no pnpm on PATH fail with exit 127. This story fixes both in tasks/engine.yml (and ts.yml): allowlist runtime/session verbs for global fallback with a skew warning, and resolve the pinned packageManager via Corepack without reintroducing auto-build on session verbs (#2181).",
+      "Origin": "Combined from https://github.com/deftai/directive/issues/2409 and https://github.com/deftai/directive/issues/2410",
+      "Overview": "## Summary\n\nTwo related adoption-blockers in `tasks/engine.yml` on unbuilt framework source checkouts:\n\n1. **#2409** — `engine:invoke` fail-closes when `packages/cli/dist/bin.js` is missing on a buildable source tree, even when a working global `deft` is on PATH. Session/runtime verbs (`session:start`, `verify:session-ritual`, `verify:tools`, `triage:summary`, `triage:welcome`, `verify:cache-fresh`) should prefer local dist, then fall back to global with a skew warning — without reintroducing auto-`pnpm build` (#2181).\n2. **#2410** — `engine:_ts-build` (and `tasks/ts.yml`) hardcode bare `pnpm`. Machines with Node/Corepack but no `pnpm` on PATH fail with exit 127. Resolve the pinned manager via Corepack (`package.json#packageManager`); optional `DEFT_PACKAGE_MANAGER=npm`; actionable remediation when neither works.\n\n## Acceptance\n\n- Unbuilt source + global `deft` → `task session:start` (and other #2181 runtime verbs) succeed without pnpm/build\n- Build-gated verbs may still fail-closed or require `task build`\n- Unbuilt source + Corepack, no bare pnpm → `task build` / `_ts-build` works via Corepack pin\n- Clear error when neither pnpm nor Corepack can satisfy the pin\n- Contract/tests cover both paths; #2181 no-auto-build invariant preserved\n\nRefs #2181, #2142, #2120 (closed).",
+      "Labels": "bug, adoption-blocker",
+      "ImplementationPlan": "1. tasks/engine.yml `invoke`: when dist missing on buildable source, if `command -v deft` (or directive) succeeds, invoke global with a one-line skew warning (global version vs package.json pin) for an allowlist of runtime/session verbs; keep fail-closed for build-gated verbs; optional DEFT_USE_GLOBAL_CLI=1 force. Do NOT call pnpm/build. 2. tasks/engine.yml `_ts-build` + tasks/ts.yml: when bare pnpm missing, invoke via Corepack using package.json packageManager pin (e.g. corepack pnpm@<pin> --dir … run build); honor DEFT_PACKAGE_MANAGER=npm as explicit secondary; fail with remediation naming Corepack/packageManager. 3. Align doctor/toolchain messaging. 4. Tests/contracts: unbuilt+global runtime success; bare-pnpm-missing+Corepack-present build success; #2181 no-auto-build on session:start.",
+      "Traces": "#2409, #2410, #2181",
+      "UserStory": "As a maintainer on an unbuilt framework source checkout, I want session/runtime tasks to use a global deft when dist is missing and builds to resolve pnpm via Corepack, so that adoption is not blocked by a missing local build or bare pnpm on PATH."
+    },
+    "items": [
+      {
+        "id": "AC1",
+        "title": "Runtime verbs fall back to global deft without building",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given an unbuilt source checkout with global deft on PATH, when `task session:start` (or another #2181 runtime/session verb) runs, then it exits 0 without invoking pnpm/npm/build and may print a skew warning."
+        }
+      },
+      {
+        "id": "AC2",
+        "title": "Missing dist and no global still fail-closes",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given an unbuilt source checkout with no global deft, when a runtime verb is invoked, then engine:invoke fail-closes with actionable install/build remediation."
+        }
+      },
+      {
+        "id": "AC3",
+        "title": "Corepack-backed _ts-build without bare pnpm",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given Node+Corepack and no pnpm on PATH, when `task build` / `_ts-build` runs, then it succeeds via the package.json packageManager pin (or DEFT_PACKAGE_MANAGER=npm when explicitly set)."
+        }
+      },
+      {
+        "id": "AC4",
+        "title": "Actionable error when neither pnpm nor Corepack works",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given neither bare pnpm nor Corepack can satisfy the pin, when build runs, then the error names Corepack/packageManager remediation clearly."
+        }
+      },
+      {
+        "id": "AC5",
+        "title": "Contracts preserve #2181 no-auto-build",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given the content-contract tests for runtime session and engine dispatch, when they run, then they cover global-fallback and Corepack paths and still assert session:start does not auto-build."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "adoption-blocker",
+      "engine",
+      "taskfile"
+    ],
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "child_issue": "#2409",
+        "related": "#2410, #2181, #2142, #2120"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "tasks/engine.yml",
+          "tasks/ts.yml",
+          "packages/core/src/content-contracts/standards/taskfile_runtime_session.test.ts",
+          "packages/core/src/content-contracts/standards/taskfile_engine_dispatch.test.ts"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/content-contracts/standards/taskfile_runtime_session.test.ts packages/core/src/content-contracts/standards/taskfile_engine_dispatch.test.ts",
+          "task check"
+        ],
+        "expected_outputs": [
+          "engine:invoke global fallback for runtime verbs; Corepack-backed _ts-build; CHANGELOG; Closes #2409 #2410"
+        ],
+        "depends_on": [],
+        "conflict_group": "engine-dispatch",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "high",
+        "notes": "Combined #2409+#2410 into one story (shared engine.yml). Parallel-safe vs #2367 (policy-verbs)."
+      },
+      "completedAt": "2026-07-09T17:41:34Z",
+      "capacityBucket": "technical-debt"
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2409",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2409: engine:invoke fail-closes session/runtime tasks on unbuilt source"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2410",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2410: engine:_ts-build hardcodes bare pnpm"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2181",
+        "type": "x-xbrief/refs",
+        "title": "Issue #2181"
+      }
+    ],
+    "updated": "2026-07-09T17:41:34Z",
+    "id": "2409-2410-engine-invoke-global-fallback-and-corepack-pnpm"
+  }
+}

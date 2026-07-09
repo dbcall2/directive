@@ -1,0 +1,107 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2367"
+  },
+  "plan": {
+    "title": "Consumer deft binary rejects colon-namespaced policy verbs that AGENTS.md tells consumers to run",
+    "status": "completed",
+    "narratives": {
+      "Description": "Consumer `deft` rejects colon-namespaced policy verbs such as `policy:show` that AGENTS.md documents as runnable commands. Disclosures often print `task policy:…`, which widens the mismatch. This story registers policy:* colon aliases in packages/cli/src/dispatch.ts (mirroring triage:*) and aligns disclosure strings so documented forms match the binary.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2367",
+      "Overview": "## Summary\n\nConsumer `deft` rejects colon-namespaced policy verbs (`policy:show`, etc.) that AGENTS.md documents, while disclosures print `task policy:…`. Register `policy:*` colon aliases in dispatch.ts (same pattern as triage:*) and align disclosure strings.\n\n## Acceptance\n\n- `deft policy:show` (and documented policy:* forms) resolve like `deft policy show`\n- Disclosure/remediation strings match what the binary accepts\n- Tests cover the alias path\n- Closes #2367",
+      "Labels": "triage, tooling",
+      "ImplementationPlan": "1. packages/cli/src/dispatch.ts: register colon aliases for policy:* verbs (policy:show, policy:allow-direct-commits, policy:enforce-branches, policy:enable-value-feedback, and any other policy subcommands documented in AGENTS.md) mirroring TRIAGE_ACTION_ALIAS_SUBCOMMANDS injection pattern — map policy:show → argv ['policy','show',…] so consumer `deft policy:show` works. 2. Update policy disclosure / remediation strings that print `task policy:…` to be binary-aware (deft vs task) or dual-form so AGENTS.md examples match what the binary accepts. 3. Tests covering deft policy:show (and at least one other policy:* alias) exit path. 4. CHANGELOG + Closes #2367. Prefer aliases over rewriting AGENTS.md away from colon forms (issue allows either; aliases match existing triage pattern and keep docs stable).",
+      "UserStory": "As an operator following AGENTS.md, I want `deft policy:show` and other documented policy:* colon forms to work on the consumer binary, so that documented commands match what the CLI accepts.",
+      "Traces": "#2367"
+    },
+    "items": [
+      {
+        "id": "AC1",
+        "title": "policy:show colon alias resolves",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given a built consumer deft binary, when `deft policy:show` is invoked, then it resolves like `deft policy show` and does not reject the colon form as an unknown verb."
+        }
+      },
+      {
+        "id": "AC2",
+        "title": "Other documented policy:* aliases work",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given documented policy:* forms (allow-direct-commits, enforce-branches, enable-value-feedback), when invoked with colon syntax, then they map to the policy module subcommands."
+        }
+      },
+      {
+        "id": "AC3",
+        "title": "Disclosures match binary-accepted forms",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given policy disclosure/remediation strings, when printed, then they use forms the binary accepts (deft and/or dual deft/task), not task-only colon forms that confuse consumers."
+        }
+      },
+      {
+        "id": "AC4",
+        "title": "Tests cover alias path",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given dispatch tests, when they run, then they cover at least `policy:show` and one other policy:* alias exit path."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "cli",
+      "policy",
+      "adoption"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2367",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2367: Consumer deft binary rejects colon-namespaced policy verbs that AGENTS.md tells consumers to run"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2337",
+        "type": "x-xbrief/closes",
+        "title": "Issue #2337"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1709",
+        "type": "x-xbrief/refs",
+        "title": "Issue #1709"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "child_issue": "#2367"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/cli/src/dispatch.ts",
+          "packages/cli/src/dispatch.test.ts"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/cli/src/dispatch.test.ts",
+          "task check"
+        ],
+        "expected_outputs": [
+          "policy:* colon aliases + binary-aware disclosures; CHANGELOG; Closes #2367"
+        ],
+        "depends_on": [],
+        "conflict_group": "policy-verbs",
+        "size": "small",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "notes": "Parallel-safe vs engine-dispatch (#2409+#2410). Prefer aliases over AGENTS.md rewrite."
+      },
+      "completedAt": "2026-07-09T17:41:35Z",
+      "capacityBucket": "technical-debt"
+    },
+    "updated": "2026-07-09T17:41:35Z",
+    "id": "2367-consumer-deft-binary-rejects-colon-namespaced-policy-verbs"
+  }
+}
