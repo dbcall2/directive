@@ -1,6 +1,8 @@
 import type { PolicyResult } from "./resolve.js";
 import { ENV_BYPASS } from "./resolve.js";
 
+export { policyColonInvocation, policySetInvocation } from "./policy-invocation.js";
+
 /** One-liner disclosure phrasing for AGENTS.md / setup interview echo. */
 export function disclosureLine(result: PolicyResult): string {
   if (result.allowDirectCommits) {
