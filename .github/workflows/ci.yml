@@ -238,6 +238,81 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: task deft:verify:cache-fresh consumer smoke (#2120)
+        shell: pwsh
+        run: |
+          pnpm run build
+          if ($LASTEXITCODE -ne 0) {
+            throw "pnpm run build exited $LASTEXITCODE"
+          }
+
+          $consumer = Join-Path $env:RUNNER_TEMP 'cache-fresh-consumer'
+          $core = Join-Path $consumer '.deft\core'
+          $shimDir = Join-Path $env:RUNNER_TEMP 'deft-cli-shim'
+          New-Item -ItemType Directory -Path $core -Force | Out-Null
+          New-Item -ItemType Directory -Path $shimDir -Force | Out-Null
+
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'Taskfile.yml') (Join-Path $core 'Taskfile.yml')
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'tasks') (Join-Path $core 'tasks') -Recurse
+
+          $consumerTaskfile = @(
+            "version: '3'",
+            "",
+            "includes:",
+            "  deft:",
+            "    taskfile: ./.deft/core/Taskfile.yml",
+            "    optional: true"
+          ) -join [Environment]::NewLine
+          [System.IO.File]::WriteAllText((Join-Path $consumer 'Taskfile.yml'), $consumerTaskfile, (New-Object System.Text.UTF8Encoding $false))
+
+          $cmdShim = Join-Path $shimDir 'deft.cmd'
+          $cmdBody = "@echo off`r`nnode `"$env:GITHUB_WORKSPACE\packages\cli\dist\bin.js`" %*`r`n"
+          [System.IO.File]::WriteAllText($cmdShim, $cmdBody, (New-Object System.Text.UTF8Encoding $false))
+
+          $shShim = Join-Path $shimDir 'deft'
+          $workspaceSh = $env:GITHUB_WORKSPACE.Replace('\', '/')
+          $shBody = "#!/usr/bin/env sh`nnode `"$workspaceSh/packages/cli/dist/bin.js`" `"`$@`"`n"
+          [System.IO.File]::WriteAllText($shShim, $shBody, (New-Object System.Text.UTF8Encoding $false))
+          if (Get-Command bash -ErrorAction SilentlyContinue) {
+            bash -lc "chmod +x '$($shShim.Replace('\', '/'))'"
+          }
+
+          $env:PATH = "$shimDir;$env:PATH"
+
+          Push-Location $consumer
+          try {
+            git init -q
+            git config core.autocrlf true
+            git -c user.name=ci -c user.email=ci@example.com add -A
+            git -c user.name=ci -c user.email=ci@example.com commit -q -m seed
+
+            $directOutput = deft preflight-cache --project-root . --allow-missing-bootstrap 2>&1 | Out-String
+            Write-Host "--- direct deft preflight-cache ---"
+            Write-Host $directOutput
+            if ($LASTEXITCODE -ne 0) {
+              throw "deft preflight-cache exited $LASTEXITCODE"
+            }
+
+            $taskOutput = task deft:verify:cache-fresh -- --allow-missing-bootstrap 2>&1 | Out-String
+            Write-Host "--- task deft:verify:cache-fresh ---"
+            Write-Host $taskOutput
+            if ($LASTEXITCODE -ne 0) {
+              throw "task deft:verify:cache-fresh exited $LASTEXITCODE"
+            }
+            if ($taskOutput -match 'engine:_ts-build|pnpm\s+.*run build') {
+              throw "task deft:verify:cache-fresh reached a build path on a consumer deposit (#2120)"
+            }
+
+            $dirtyStatus = git status --short
+            if ($dirtyStatus) {
+              Write-Host "--- dirty status after cache-fresh smoke ---"
+              Write-Host ($dirtyStatus | Out-String)
+              throw "cache-fresh smoke left the consumer fixture dirty (#2120)"
+            }
+          } finally {
+            Pop-Location
+          }
+
       - name: Stage pre-cutover fixture as consumer project
         shell: pwsh
         run: |
