@@ -36,6 +36,7 @@ const VENDORED_TS_PACKAGES_REL = ".deft/core/packages";
 const VENDORED_TS_TEST_RE = /\.(test|spec)\.(c|m)?[jt]sx?$/i;
 
 const CORE_GITATTRIBUTES_LINES = [
+  `${CORE_GLOB} text eol=lf`,
   `${CORE_GLOB} linguist-generated=true`,
   `${CORE_GLOB} linguist-vendored=true`,
 ];
@@ -685,7 +686,9 @@ export function ensureGitattributes(projectDir: string, io: InitDepositIo): bool
   const present = new Set(existing.split("\n").map((line) => line.trim()));
   const additions = CORE_GITATTRIBUTES_LINES.filter((line) => !present.has(line));
   if (additions.length === 0) {
-    io.printf(`.gitattributes already marks ${CORE_GLOB} as generated/vendored — skipping.\n`);
+    io.printf(
+      `.gitattributes already marks ${CORE_GLOB} as LF-pinned/generated/vendored — skipping.\n`,
+    );
     return false;
   }
   let body = existing;
@@ -693,13 +696,13 @@ export function ensureGitattributes(projectDir: string, io: InitDepositIo): bool
   if (body && !body.endsWith("\n\n")) body += "\n";
   body +=
     "# Deft framework: the vendored payload is packaged framework code, not\n" +
-    "# consumer source. Mark it generated + vendored so language stats and\n" +
-    "# diffs treat .deft/core/** as machine-managed (#1430).\n";
+    "# consumer source. Pin LF endings and mark it generated + vendored so\n" +
+    "# Git does not rewrite it and diffs treat .deft/core/** as machine-managed (#1430, #2118).\n";
   for (const add of additions) {
     body += `${add}\n`;
   }
   writeFileSync(path, body, "utf8");
-  io.printf(`.gitattributes updated with linguist markers: ${additions.join(", ")}\n`);
+  io.printf(`.gitattributes updated with Deft core markers: ${additions.join(", ")}\n`);
   return true;
 }
 

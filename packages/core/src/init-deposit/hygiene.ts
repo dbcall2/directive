@@ -86,6 +86,12 @@ export function isInstallerManagedPath(path: string): boolean {
 
 export interface FrameworkStagePathsOptions {
   /**
+   * Include the vendored `.deft/core` payload in the stage set. Defaults to
+   * `true` for init and real payload swaps. No-op updates set this to `false`
+   * so CRLF-only core noise cannot be staged while safe projections are repaired.
+   */
+  readonly includeCore?: boolean;
+  /**
    * Include the project-root ``Taskfile.yml`` in the stage set. Defaults to
    * ``false``: unlike the other allowlisted paths, ``Taskfile.yml`` is a
    * consumer-owned file that merely *contains* an installer-managed include
@@ -112,7 +118,12 @@ export function frameworkStagePaths(
   };
 
   const relDeft = relative(projectDir, deftDir);
-  if (relDeft && !relDeft.startsWith("..") && !relDeft.startsWith("/")) {
+  if (
+    options.includeCore !== false &&
+    relDeft &&
+    !relDeft.startsWith("..") &&
+    !relDeft.startsWith("/")
+  ) {
     add(relDeft);
   }
 
@@ -296,6 +307,7 @@ export function depositStagePaths(
 } {
   const deftDir = join(projectDir, CANONICAL_INSTALL_ROOT);
   const stagePaths = frameworkStagePaths(projectDir, deftDir, {
+    includeCore: options.includeCore,
     includeTaskfile: options.includeTaskfile ?? false,
   });
   const { staged } = stageFrameworkPaths(projectDir, stagePaths, options);

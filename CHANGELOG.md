@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`directive update` is idempotent on current Windows npm deposits.** Current installs now keep the vendored framework payload LF-pinned, skip payload copy and timestamp rewrites when the deposited content version is already current, and collapse CRLF-only `.deft/core` churn into a short line-ending hint instead of a long dirty-file list. The Windows CI smoke now covers `core.autocrlf=true` init/update/update plus `task deft:verify:cache-fresh` and `preflight-cache`. Closes #2118.
+
 ### Removed
 
 ## [0.73.0] - 2026-07-07
