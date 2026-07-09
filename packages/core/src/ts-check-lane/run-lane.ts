@@ -19,7 +19,7 @@
 
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { posix, win32 } from "node:path";
 
 /**
  * Run order is deliberate: lint (cheapest, catches the biome class first),
@@ -39,6 +39,8 @@ export const SKIP_NOTICE =
 /** Result of a single lane command invocation. Mirrors a subset of SpawnSyncReturns. */
 export interface RunnerResult {
   readonly status: number | null;
+  readonly signal?: NodeJS.Signals | null;
+  readonly error?: Error;
 }
 
 export type LaneRunner = (argv: readonly string[], cwd: string) => RunnerResult;
@@ -52,11 +54,24 @@ export interface RunTsLaneOptions {
   readonly out?: (message: string) => void;
 }
 
-/** Default runner: a non-shell, inherited-stdio pnpm invocation. */
+/** Windows command shims (.cmd/.bat) need a shell; native executables do not. */
+export function shouldUseShellForCommand(
+  command: string,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  return platform === "win32" && /\.(?:cmd|bat)$/i.test(command);
+}
+
+/** Default runner: an inherited-stdio pnpm invocation. */
 function defaultRunner(argv: readonly string[], cwd: string): RunnerResult {
   const [command, ...rest] = argv;
-  const result = spawnSync(command ?? "", rest, { cwd, stdio: "inherit" });
-  return { status: result.status };
+  const commandPath = command ?? "";
+  const result = spawnSync(commandPath, rest, {
+    cwd,
+    stdio: "inherit",
+    shell: shouldUseShellForCommand(commandPath),
+  });
+  return { error: result.error, signal: result.signal, status: result.status };
 }
 
 export interface ResolvePnpmOptions {
@@ -79,10 +94,11 @@ export function resolvePnpm(options: ResolvePnpmOptions = {}): string | null {
   const isWindows = platform === "win32";
   const exts = isWindows ? (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";") : [""];
   const sep = isWindows ? ";" : ":";
+  const joinPath = isWindows ? win32.join : posix.join;
   for (const dir of pathValue.split(sep)) {
     if (dir === "") continue;
     for (const ext of exts) {
-      const candidate = join(dir, `pnpm${ext}`);
+      const candidate = joinPath(dir, `pnpm${ext}`);
       if (exists(candidate)) {
         return candidate;
       }
@@ -117,8 +133,14 @@ export function runTsLane(projectRoot: string, options: RunTsLaneOptions): numbe
     // failure -- this mirrors the Python oracle, whose returncode is negative
     // (non-zero) for a signal-killed process.
     if (code === null) {
+      if (result.error) {
+        out(
+          `[ts:check-lane] \`pnpm ${command.join(" ")}\` failed to start: ${result.error.message}`,
+        );
+        return 1;
+      }
       out(
-        `[ts:check-lane] \`pnpm ${command.join(" ")}\` was killed by a signal before exit -- treating as failure.`,
+        `[ts:check-lane] \`pnpm ${command.join(" ")}\` was killed by ${result.signal ?? "a signal"} before exit -- treating as failure.`,
       );
       return 1;
     }

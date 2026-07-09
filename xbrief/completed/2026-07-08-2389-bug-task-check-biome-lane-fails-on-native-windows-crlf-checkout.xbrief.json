@@ -1,0 +1,47 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2389"
+  },
+  "plan": {
+    "title": "bug: task check Biome lane fails on native Windows CRLF checkout",
+    "status": "completed",
+    "narratives": {
+      "Description": "bug: task check Biome lane fails on native Windows CRLF checkout",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2389",
+      "Overview": "On a native Windows checkout with core.autocrlf=true, task check fails in ts:check-lane because biome check sees CRLF-normalized working-tree files and reports repo-wide line-ending formatter errors. The wrapper can also misreport Windows pnpm command-shim spawn failures as signal-killed lint runs. Keep the fix limited to Biome line-ending policy and Windows command-shim spawning so the TypeScript lane reaches lint/build without formatting churn.",
+      "Labels": "bug, windows, biome"
+    },
+    "items": [
+      {
+        "title": "Biome line-ending policy accepts platform-native CRLF working trees on Windows",
+        "status": "completed"
+      },
+      {
+        "title": "Native Windows checkout can run the Biome lane without repo-wide CRLF formatter errors",
+        "status": "completed"
+      },
+      {
+        "title": "TypeScript check lane starts Windows pnpm command shims without false signal-kill reports",
+        "status": "completed"
+      }
+    ],
+    "tags": [
+      "bug",
+      "windows",
+      "biome"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2389",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2389: bug: task check Biome lane fails on native Windows CRLF checkout"
+      }
+    ],
+    "updated": "2026-07-08T12:46:30Z",
+    "metadata": {
+      "completedAt": "2026-07-08T12:46:30Z",
+      "capacityBucket": "new-capability"
+    }
+  }
+}

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { LANE_COMMANDS, resolvePnpm, runTsLane, SKIP_NOTICE } from "./run-lane.js";
+import {
+  LANE_COMMANDS,
+  resolvePnpm,
+  runTsLane,
+  SKIP_NOTICE,
+  shouldUseShellForCommand,
+} from "./run-lane.js";
 
 /** Records invocations and returns a scripted exit code per call. */
 class Runner {
@@ -66,11 +72,34 @@ describe("runTsLane", () => {
     const messages: string[] = [];
     const rc = runTsLane("/repo", {
       pnpm: "pnpm",
-      runner: () => ({ status: null }),
+      runner: () => ({ signal: "SIGTERM", status: null }),
       out: (m) => messages.push(m),
     });
     expect(rc).toBe(1);
-    expect(messages.some((m) => m.includes("killed by a signal"))).toBe(true);
+    expect(messages.some((m) => m.includes("killed by SIGTERM"))).toBe(true);
+  });
+
+  it("reports subprocess start errors separately from signal kills", () => {
+    const messages: string[] = [];
+    const rc = runTsLane("/repo", {
+      pnpm: "pnpm",
+      runner: () => ({ error: new Error("spawn EINVAL"), status: null }),
+      out: (m) => messages.push(m),
+    });
+    expect(rc).toBe(1);
+    expect(messages.some((m) => m.includes("failed to start: spawn EINVAL"))).toBe(true);
+  });
+});
+
+describe("shouldUseShellForCommand", () => {
+  it("uses a shell for Windows command shims", () => {
+    expect(shouldUseShellForCommand("C:\\bin\\pnpm.CMD", "win32")).toBe(true);
+    expect(shouldUseShellForCommand("C:\\bin\\pnpm.bat", "win32")).toBe(true);
+  });
+
+  it("does not use a shell for native executables or non-Windows platforms", () => {
+    expect(shouldUseShellForCommand("C:\\bin\\pnpm.EXE", "win32")).toBe(false);
+    expect(shouldUseShellForCommand("/usr/bin/pnpm", "linux")).toBe(false);
   });
 });
 

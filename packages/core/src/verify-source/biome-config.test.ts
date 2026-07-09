@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -122,5 +122,13 @@ describe("evaluateBiomeConfigGuard", () => {
   it("validates the repo's own biome.json declares explicit severities", () => {
     const result = evaluateBiomeConfigGuard(join(import.meta.dirname, "..", "..", "..", ".."));
     expect(result.code).toBe(0);
+  });
+
+  it("keeps the repo biome formatter line ending platform-native for Windows checkouts", () => {
+    const root = join(import.meta.dirname, "..", "..", "..", "..");
+    const config = JSON.parse(readFileSync(join(root, "biome.json"), "utf8")) as {
+      formatter?: { lineEnding?: unknown };
+    };
+    expect(config.formatter?.lineEnding).toBe("auto");
   });
 });
