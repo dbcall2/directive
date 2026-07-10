@@ -32,6 +32,7 @@ import {
   reconcileUmbrellas,
   renderUmbrellasReport,
   ScmUmbrellaClient,
+  UmbrellaScmError,
 } from "./umbrellas.js";
 
 describe("coverage branches round 2", () => {
@@ -408,14 +409,16 @@ describe("coverage branches round 2", () => {
     ).toEqual(new Set(["status:blocked", "rfc"]));
   });
 
-  it("scm umbrella client createComment bad json returns null", () => {
-    vi.spyOn(scm, "call").mockReturnValue({
+  it("scm umbrella client createComment bad json throws", () => {
+    vi.spyOn(scm, "call").mockReturnValueOnce({
       args: [],
       returncode: 0,
       stdout: "not-json",
       stderr: "",
     });
-    expect(new ScmUmbrellaClient().createComment("deftai/directive", 1, "body")).toBeNull();
+    expect(() => new ScmUmbrellaClient().createComment("deftai/directive", 1, "body")).toThrow(
+      UmbrellaScmError,
+    );
   });
 
   it("umbrellas skips non-object plan and metadata", () => {
