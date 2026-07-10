@@ -1,0 +1,80 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2374"
+  },
+  "plan": {
+    "title": "triage-cache README deposits directive-internal docs (dead scripts/candidates_log.py pointer + internal decision IDs) as a tracked file in every consumer",
+    "status": "completed",
+    "narratives": {
+      "Description": "triage-cache README deposits directive-internal docs (dead scripts/candidates_log.py pointer + internal decision IDs) as a tracked file in every consumer. This story closes the linked GitHub issue with a scoped fix, tests, and a CHANGELOG entry. File scope and verify commands are recorded under plan.metadata.swarm for concurrent allocation.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2374",
+      "Overview": "## Summary\n\nThe `#1144` hybrid-tracking policy deposits a **tracked** `<lifecycle-root>/.triage-cache/README.md` into every consumer repo. That README is not consumer-specific documentation — it is directive's **own** internal governance doc, string-repathed and written verbatim into the consumer. It embeds directive-internal decision IDs as if they were the consumer's, and its \"See also\" points at a `scripts/candidates_log.py` file that exists in **neither** the consumer nor current directive.\n\nNet effect: a dir literally named `.triage-cache/` ships a committed file full of foreign provenance and a dead pointer into consumer repos.\n\nObserved in a real TypeScript consumer (`deftai/cartograph`) after a `v0.68.0 -> v0.71.1` upgrade + session-start triage resolve.\n\n## This is live, not a v0.71.0 migration leftover\n\nThe README write happens on two current code paths, both rendering the same template:\n\n1. **Bootstrap (always-on):** `stepEnsureGitignoreEvalEntries` is wired unconditionally as step 4 of triage bootstrap (`packages/core/src/triage/bootstrap/index.ts:705`). It calls `ensureEvalReadme`, which writes the README whenever absent (`packages/core/src/triage/bootstrap/gitignore.ts:475`) — no gate on a legacy `.eval/` tree, so fresh greenfield consumers get it too.\n2. **Migration:** `migrateLegacyTriageCacheFromEval` regenerates it when relocating off `.eval/` (`packages/core/src/triage/cache-path.ts:82`).\n\nBoth funnel through `generateTriageCacheReadmeBody` (`bootstrap/gitignore.ts:180`), which renders the hardcoded `EVAL_README_BODY` constant (`bootstrap/gitignore.ts:105-177`) via a single `.replaceAll(\"vbrief/.triage-cache\", <layout-prefix>)`. The only per-consumer tailoring is that path substitution.\n\n## Evidence it is directive's own doc, not the consumer's\n\n- Hardcodes directive-internal decision IDs as if they were the consumer's: `#1144`, `D13/#1132`, `D1/#1121`, `#1180`, `#1308/#1464`, `#1119 R4`, `#1183 M1-M4`.\n- \"See also\" points at **`scripts/candidates_log.py`** — absent in the TS consumer (cartograph), and no longer present at that path in directive itself (now TS). Dead pointer everywhere.\n- The README documents a `.gitattributes ... merge=union` rule for `<root>/.triage-cache/*.jsonl` that the consumer does not have; separately the consumer's `.gitattributes` still carried a stale pre-rename `vbrief/.eval/*.jsonl merge=union` line.\n\n## Proposed fix\n\nStop tracking anything under a directory named `.triage-cache/`:\n\n- Relocate the genuinely team-shared artifacts (`slices.jsonl`, `subscription-history.jsonl`) to a non-\"cache\" home if they must be committed.\n- Drop the committed README (or reduce it to a tiny, consumer-neutral stub with no directive-internal IDs and no `scripts/candidates_log.py` pointer).\n- Blanket-ignore the dir with a `.gitkeep`, so a dir named \"cache\" behaves like a cache.\n\nAt minimum, the template must not reference `scripts/candidates_log.py` (dead) and should not present directive-internal decision IDs as consumer documentation.\n\n## Related\n\n- #1144 (hybrid tracking policy — origin of the tracked README/slices decision)\n- #1703 (`.eval/` -> `.triage-cache/` relocation)\n- #2344 (stray operator-private artifacts + gitignore gap in reclaimed `.eval/`)\n- #2348 (`deft update` omits `xbrief/.triage-cache/*` gitignore entries)\n- #2349 (relocation undocumented; stale-`renameSync` README body — now regenerated, but the regenerated body is exactly the foreign-content problem above)",
+      "UserStory": "As a consumer, I want the deposited triage-cache README to be consumer-facing, so that directive-internal scripts and decision IDs are not tracked in my repo.",
+      "ImplementationPlan": "1. Replace or rewrite the deposited xbrief/.triage-cache/README.md template to consumer-safe content. 2. Remove dead scripts/candidates_log.py pointers and internal decision IDs. 3. Update deposit/bootstrap writers + tests. CHANGELOG Closes #2374."
+    },
+    "items": [
+      {
+        "title": "When triage bootstrap deposits the triage-cache README, the file contains no directive-int",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "When triage bootstrap deposits the triage-cache README, the file contains no directive-internal script paths or decision IDs."
+        }
+      },
+      {
+        "title": "When a consumer reads the README, it explains the tracked cache files in consumer terms.",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "When a consumer reads the README, it explains the tracked cache files in consumer terms."
+        }
+      },
+      {
+        "title": "Given bootstrap fixtures, vitest validates the deposited README content is consumer-safe.",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given bootstrap fixtures, vitest validates the deposited README content is consumer-safe."
+        }
+      }
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2374",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2374: triage-cache README deposits directive-internal docs (dead scripts/candidates_log.py pointer + internal decision IDs) as a tracked file in every consumer"
+      }
+    ],
+    "updated": "2026-07-10T02:15:14Z",
+    "id": "2374-triage-cache-readme-consumer",
+    "metadata": {
+      "kind": "story",
+      "id": "2374-triage-cache-readme-consumer",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/triage/bootstrap/types.ts",
+          "packages/core/src/triage/bootstrap/gitignore.test.ts",
+          "packages/core/src/triage/bootstrap/index.test.ts",
+          "packages/core/src/triage/bootstrap/index.ts",
+          "packages/core/src/triage/bootstrap/gitignore.ts",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm -C packages/core exec vitest run src/triage",
+          "rg -n 'candidates_log|decision' packages/core/src/triage --glob '*README*' || true"
+        ],
+        "expected_outputs": [
+          "Closes #2374 with tests green"
+        ],
+        "depends_on": [],
+        "conflict_group": "triage-cache-readme",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium",
+        "missing_traces_justification": "Issue-ingested story; acceptance traces deferred to implementation commits that Closes the GitHub issue."
+      },
+      "completedAt": "2026-07-10T02:15:14Z",
+      "capacityBucket": "new-capability"
+    }
+  }
+}

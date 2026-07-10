@@ -1,0 +1,90 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2368"
+  },
+  "plan": {
+    "title": "deft doctor recommends deft migrate:xbrief for a stale schema deposit but the command exits 2 on already-migrated projects (dead-end advisory)",
+    "status": "completed",
+    "narratives": {
+      "Description": "deft doctor recommends deft migrate:xbrief for a stale schema deposit but the command exits 2 on already-migrated projects (dead-end advisory). This story closes the linked GitHub issue with a scoped fix, tests, and a CHANGELOG entry. File scope and verify commands are recorded under plan.metadata.swarm for concurrent allocation.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2368",
+      "Overview": "## Problem\r\n\r\nOn a project that is **already fully on the `xbrief/` layout**, `deft doctor` emits a persistent \"legacy vbrief layout\" advisory and recommends `deft migrate:xbrief` — but that command **cannot run**, so the advisory is unclearable via the documented remediation.\r\n\r\n### Observed (engine `@deftai/directive-core@0.71.1`)\r\n\r\n`deft doctor`:\r\n\r\n```\r\nxBrief migration: legacy vbrief layout detected -- legacy info root key in\r\n  <project>/xbrief/schemas/vbrief-core.schema.json. Run `deft migrate:xbrief`\r\n  (or `task migrate:xbrief`) to convert vbrief/ to xbrief/ safely.\r\n```\r\n\r\n`deft migrate:xbrief`:\r\n\r\n```\r\nmigrate:xbrief: Legacy markers detected but 'vbrief/' directory is missing.\r\n(exit 2)\r\n```\r\n\r\nThe project has **no `vbrief/` directory** — all five lifecycle folders live under `xbrief/`, and `PROJECT-DEFINITION.xbrief.json` is on `xBRIEFInfo` v0.8. The only \"legacy marker\" is a single stale **deposited schema file** — `xbrief/schemas/vbrief-core.schema.json` — that still carries the v0.6 `vBRIEFInfo` root key. The framework payload already ships the replacement (`vbrief/schemas/xbrief-core-0.8.schema.json`), but:\r\n\r\n1. `deft update` (0.71.0 → 0.71.1) did **not** refresh the stale `xbrief/schemas/` deposit.\r\n2. `deft doctor` points at `deft migrate:xbrief` as the fix, but that verb **structurally refuses** when there is no `vbrief/` directory to convert.\r\n\r\nNet: the operator is in a dead-end loop — doctor nags on every run, and the one command it names exits 2.\r\n\r\n## Impact\r\n\r\n- Every `deft doctor` run on an already-migrated project shows a false-ish \"legacy layout\" warning that cannot be cleared through supported commands.\r\n- The manual workaround (delete the stale `vbrief-core.schema.json`, copy in `xbrief-core-0.8.schema.json` from the payload) requires reaching into deft-managed deposit content by hand, which is exactly what the framework is supposed to own.\r\n\r\n## Repro\r\n\r\n1. Take a project fully on the `xbrief/` layout whose `xbrief/schemas/` still contains a v0.6 `vbrief-core.schema.json` deposited by an older install.\r\n2. `deft doctor` → \"legacy vbrief layout detected ... Run `deft migrate:xbrief`\".\r\n3. `deft migrate:xbrief` → exit 2, \"Legacy markers detected but 'vbrief/' directory is missing.\"\r\n\r\n## Proposed\r\n\r\nPick one (or combine):\r\n\r\n- **Make `deft update` re-pin `xbrief/schemas/`** — swap a deposited v0.6 `vbrief-core.schema.json` for the current `xbrief-core-0.8.schema.json` as part of the payload refresh (this is deposit content the installer already owns).\r\n- **Teach `deft migrate:xbrief` to handle the no-`vbrief/`-dir case** — when the only legacy marker is a stale deposited schema file (not a `vbrief/` tree), migrate the schema deposit in place instead of exiting 2.\r\n- **Fix the doctor advisory to name a runnable remediation** — if migrate can't apply, doctor should not recommend it; point at the schema-re-pin path (or `deft update` once it handles the deposit) instead of a command that exits 2.\r\n\r\n## Environment\r\n\r\n- Engine: `@deftai/directive-core@0.71.1`\r\n- Layout: fully `xbrief/` (no `vbrief/` dir), `PROJECT-DEFINITION.xbrief.json` on `xBRIEFInfo` v0.8\r\n- OS: Windows / PowerShell 5.1\r\n\r\nRefs #2034, #2110\r\n\n",
+      "Labels": "triage, tooling",
+      "UserStory": "As an operator on an already-migrated xbrief project, I want doctor to stop recommending migrate:xbrief that exits 2, so that the advisory is clearable.",
+      "ImplementationPlan": "1. Fix packages/core/src/doctor advisory detection so already-migrated xbrief/ layouts do not recommend migrate:xbrief. 2. Align migrate CLI messaging for current layouts in packages/core. 3. Add doctor unit tests under packages/core/src/doctor. 4. Verify with pnpm -C packages/core exec vitest run src/doctor; CHANGELOG Closes #2368."
+    },
+    "items": [
+      {
+        "title": "When a project is already on xbrief/, doctor does not recommend deft migrate:xbrief as the",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "When a project is already on xbrief/, doctor does not recommend deft migrate:xbrief as the remediation."
+        }
+      },
+      {
+        "title": "When migrate:xbrief is invoked on an already-migrated project, messaging explains the no-o",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "When migrate:xbrief is invoked on an already-migrated project, messaging explains the no-op without a dead-end advisory loop."
+        }
+      },
+      {
+        "title": "Given doctor fixtures, vitest validates the advisory is absent for current xbrief layouts.",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given doctor fixtures, vitest validates the advisory is absent for current xbrief layouts."
+        }
+      }
+    ],
+    "tags": [
+      "triage",
+      "tooling"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2368",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2368: deft doctor recommends deft migrate:xbrief for a stale schema deposit but the command exits 2 on already-migrated projects (dead-end advisory)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2034",
+        "type": "x-xbrief/refs",
+        "title": "Issue #2034"
+      }
+    ],
+    "updated": "2026-07-10T02:15:18Z",
+    "id": "2368-doctor-migrate-xbrief-advisory",
+    "metadata": {
+      "kind": "story",
+      "id": "2368-doctor-migrate-xbrief-advisory",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/doctor/types.ts",
+          "packages/core/src/doctor/flags.ts",
+          "packages/core/src/doctor/agents-md.ts",
+          "packages/core/src/doctor/checks.ts",
+          "packages/core/src/doctor/checks.test.ts",
+          "packages/core/src/doctor/index.test.ts",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm -C packages/core exec vitest run src/doctor"
+        ],
+        "expected_outputs": [
+          "Closes #2368 with tests green"
+        ],
+        "depends_on": [],
+        "conflict_group": "doctor-migrate",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium",
+        "missing_traces_justification": "Issue-ingested story; acceptance traces deferred to implementation commits that Closes the GitHub issue."
+      },
+      "completedAt": "2026-07-10T02:15:18Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}

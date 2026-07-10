@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "scope:complete should warn + reconcile when the completed scope is referenced by an OPEN umbrella",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "scope:complete should warn + reconcile when the completed scope is referenced by an OPEN umbrella. This story closes the linked GitHub issue with a scoped fix, tests, and a CHANGELOG entry. File scope and verify commands are recorded under plan.metadata.swarm for concurrent allocation.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2322",
@@ -55,7 +55,7 @@
         "title": "Issue #1649"
       }
     ],
-    "updated": "2026-07-10T01:02:28Z",
+    "updated": "2026-07-10T02:15:23Z",
     "id": "2322-2324-scope-complete-umbrella-reconcile",
     "metadata": {
       "kind": "story",
@@ -86,7 +86,9 @@
         "file_scope_confidence": "medium",
         "model_tier": "medium",
         "missing_traces_justification": "Issue-ingested story; acceptance traces deferred to implementation commits that Closes the GitHub issue."
-      }
+      },
+      "completedAt": "2026-07-10T02:15:23Z",
+      "capacityBucket": "technical-debt"
     }
   }
 }

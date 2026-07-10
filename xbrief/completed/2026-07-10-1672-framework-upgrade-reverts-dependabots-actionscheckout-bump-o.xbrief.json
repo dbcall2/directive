@@ -1,0 +1,91 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #1672"
+  },
+  "plan": {
+    "title": "Framework upgrade reverts Dependabot's actions/checkout bump on deposited deft-core-guard.yml (churn loop)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Framework upgrade reverts Dependabot's actions/checkout bump on deposited deft-core-guard.yml (churn loop). This story closes the linked GitHub issue with a scoped fix, tests, and a CHANGELOG entry. File scope and verify commands are recorded under plan.metadata.swarm for concurrent allocation.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/1672",
+      "Overview": "## Summary\n\nEvery framework upgrade silently **reverts a merged Dependabot bump** on the deposited `deft-core-guard.yml` workflow, because two directive-owned mechanisms fight each other:\n\n1. `cmd/deft-install/deposit.go` hardcodes `actions/checkout@v4` and **overwrites** the consumer's `deft-core-guard.yml` wholesale on every upgrade.\n2. The deposited `dependabot.yml` enables the `github-actions` ecosystem, so Dependabot scans the consumer's `.github/workflows/**` — including the deposited guard — and bumps `actions/checkout`.\n\nResult: an infinite ping-pong. Dependabot bumps `@v4 → @v6`; the next `deft-install --upgrade` reverts it to `@v4`; next week Dependabot bumps it again; the next upgrade reverts it again.\n\n## Evidence (observed on a real consumer: deftai/cartograph)\n\n`git log` for `.github/workflows/deft-core-guard.yml` in cartograph:\n\n```\n3c0a161 chore(deft): update framework payload to v0.50.0 (#56)   <- reverted @v6 -> @v4\n61092d5 chore(deps): bump actions/checkout from 4 to 6 (#41)     <- dependabot[bot], merged\nc4185d5 chore(deft): update framework payload (#39)\n```\n\n- #41 was authored by `dependabot[bot]` (`chore(deps): bump actions/checkout from 4 to 6`) and merged.\n- #56 (the v0.50.0 upgrade) overwrote the file and reset it to `@v4`. Greptile flagged the apparent \"downgrade\" on that PR, which is what surfaced this.\n\nIn the directive source, `cmd/deft-install/deposit.go:212` has shipped `actions/checkout@v4` since the file was first created (`d7c6c14`, #1429/#1430) — it was never `@v6` upstream, confirming the `@v6` originated from the consumer-side Dependabot bump, not a directive change.\n\n## Why it's a bug (not just cosmetic)\n\n- **Reverts a legitimate, merged supply-chain update.** The deposited guard is permanently pinned to a stale `actions/checkout@v4` that can never stay bumped in any consumer.\n- **Recurs forever.** Directive actively fights its own deposited Dependabot config on every upgrade.\n- **Inconsistent with directive's own policy.** Directive's own workflows pin checkout to a SHA per #1072:\n  ```\n  .github/workflows/ci.yml:36:      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3\n  .github/workflows/release.yml:40: - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3\n  ```\n  i.e. directive itself runs v6.0.3 (SHA-pinned), but deposits a stale plain `@v4` tag to consumers — a weaker and staler standard than it holds itself to, and a direct contradiction of the #1072 SHA-pinning hardening.\n\n## Proposed fix (combination recommended)\n\n1. **Refresh + SHA-pin the deposited action** in `deposit.go` to match directive's own #1072 policy: `actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3` instead of the plain `@v4` tag.\n2. **Stop the churn structurally** — the deposited `deft-core-guard.yml` is a machine-managed file with a single owner (the installer), so it should not also be a Dependabot target. Add a Dependabot `ignore` for the guard workflow's actions in the deposited `dependabot.yml` (e.g. ignore `actions/checkout` for the guard, or scope the `github-actions` ecosystem to exclude installer-managed workflows). Otherwise even a SHA-pin will keep getting bumped by Dependabot and reverted by the next upgrade.\n3. (Optional) Have `deft-install` detect when the only delta on the deposited guard is a consumer/Dependabot action-version bump and treat the consumer copy as authoritative rather than blindly overwriting — but (1)+(2) resolve the loop more simply.\n\n## Cross-reference\n\nSurfaced during the v0.49.0 -> v0.50.0 consumer upgrade on deftai/cartograph (PR #56). Related installer-UX guidance gap filed separately as #1671.\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @MScottAdams (2026-07-10T00:37:19Z)\n\n## Recommended disposition (2026-07-09)\n\n**Keep open — retarget to the TypeScript deposit path. Do not fix in Go.**\n\nThe original write-up blames `cmd/deft-install/deposit.go` hardcoding `actions/checkout@v4`. That Go path is frozen (#1912). The **live** churn loop still exists on npm:\n\n- `packages/core/src/init-deposit/scaffold.ts` → `coreGuardWorkflowContent()` still embeds `actions/checkout@v4` and refreshes `.github/workflows/deft-core-guard.yml` on init/update (vendored / tracked `.deft/core` layouts per #2148).\n- Consumer Dependabot (github-actions ecosystem) can still bump that deposited workflow; the next `directive update` can still overwrite it back to `@v4`.\n\nSo #1672 is **not moot** — only the implementation surface moved from Go → TS.\n\n### Suggested fix options (pick one primary; combine if needed)\n\n1. **Stop overwriting consumer action pins (preferred minimal)**  \n   On refresh, if `deft-core-guard.yml` already exists and only the `actions/checkout@…` pin differs, **preserve** the consumer’s pin (or any non-allowlist drift that is not the guard script body). Refresh allowlist / run-script content without clobbering the `uses:` line.\n\n2. **Pin by commit SHA in the deposited template**  \n   Deposit `actions/checkout@<full-sha>` (with a comment naming the tag) instead of a moving major tag. Dependabot still may open bumps, but the intent is “framework-owned pin,” and SHA pins are the usual hardening pattern. Pair with docs that Dependabot PRs on this file are expected to be closed or absorbed only via framework upgrade.\n\n3. **Exclude the guard workflow from Dependabot**  \n   If we deposit / maintain `.github/dependabot.yml`, add an `ignore` (or path exclude) for `.github/workflows/deft-core-guard.yml` / `actions/checkout` on that file so Dependabot stops opening the ping-pong PRs. Only works where Dependabot config is under our control.\n\n4. **Stop depositing `deft-core-guard.yml` on npm-gitignored layouts (already partially done)**  \n   #2148 already skips the guard when `.deft/core` is not tracked. Confirm cartograph-class **vendored** consumers are the only remaining churn class; document that gitignored npm deposits should not see this loop.\n\n5. **Make the guard template a “managed block” with a stable exterior**  \n   Wrap only the allowlist / script in managed markers; leave `uses: actions/checkout@…` outside the managed region so upgrades never rewrite the pin.\n\n### Acceptance sketch\n\n- [ ] Repro on a fixture: Dependabot-style bump of checkout in `deft-core-guard.yml`, then `directive update` — pin is **not** silently reverted (or Dependabot never proposes the bump).\n- [ ] Tests under `packages/core/src/init-deposit/` cover refresh preservation / SHA pin / dependabot ignore (whichever option lands).\n- [ ] CHANGELOG notes the consumer-visible end of the upgrade↔Dependabot ping-pong.\n- [ ] Go `cmd/deft-install/deposit.go` left unchanged (frozen bridge).\n\nRefs #1912, #2148, #1478, `packages/core/src/init-deposit/scaffold.ts` (`coreGuardWorkflowContent`).\n\n### Comment by @MScottAdams (2026-07-10T00:47:58Z)\n\n## Locked decision (2026-07-09)\n\n**Ship options 1 + 2 together** — that pair is the accepted fix for this issue. Other options from the prior comment are optional extras, not required to close.\n\n### In scope (Closes #1672)\n\n1. **Preserve consumer `actions/checkout@…` pin on refresh**  \n   When `directive update` / init-deposit refreshes `.github/workflows/deft-core-guard.yml`, do not clobber an existing consumer pin if only the `uses:` line differs. Refresh allowlist / guard script body without reverting Dependabot (or manual) bumps.\n\n2. **Pin by commit SHA in the deposited template**  \n   New deposits of `coreGuardWorkflowContent()` use `actions/checkout@<full-sha>` (with a comment naming the tag), not a floating `@v4` major tag. Lives in `packages/core/src/init-deposit/scaffold.ts` (TS path only).\n\n### Out of scope for this issue\n\n- Go `cmd/deft-install/deposit.go` — frozen bridge (#1912); leave unchanged.\n- Options 3–5 (Dependabot ignore, docs-only #2148 clarification, managed-block exterior) — nice-to-haves; **not** required to close once 1+2 land with tests + CHANGELOG.\n\n### Acceptance (updated)\n\n- [ ] Fixture: existing guard with bumped checkout pin → `directive update` preserves the pin while refreshing managed guard content.\n- [ ] New deposit template uses a commit-SHA pin for `actions/checkout` (documented tag in a comment).\n- [ ] Tests under `packages/core/src/init-deposit/`.\n- [ ] CHANGELOG `[Unreleased]` — Closes #1672.",
+      "Labels": "bug, dependencies, installer, github-actions, vendored-deposit",
+      "UserStory": "As a consumer with Dependabot, I want directive update to preserve my actions/checkout pin on deft-core-guard.yml, so that framework upgrades stop reverting Dependabot bumps.",
+      "ImplementationPlan": "1. In packages/core/src/init-deposit/scaffold.ts coreGuardWorkflowContent(), deposit actions/checkout@FULL_SHA with a comment naming the tag (option 2). 2. On refresh of existing deft-core-guard.yml, preserve an existing uses: actions/checkout@… pin when refreshing allowlist/script body (option 1). 3. Add packages/core/src/init-deposit tests for preserve-on-refresh and SHA template. 4. Verify with pnpm -C packages/core exec vitest run src/init-deposit; CHANGELOG Closes #1672. Do not edit cmd/deft-install."
+    },
+    "items": [
+      {
+        "title": "When an existing deft-core-guard.yml has a bumped actions/checkout pin, directive update p",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "When an existing deft-core-guard.yml has a bumped actions/checkout pin, directive update preserves that pin and returns success."
+        }
+      },
+      {
+        "title": "When depositing a new deft-core-guard.yml, the template uses a commit-SHA pin for actions/",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "When depositing a new deft-core-guard.yml, the template uses a commit-SHA pin for actions/checkout and documents the tag in a comment."
+        }
+      },
+      {
+        "title": "Given init-deposit fixtures, vitest validates both preserve-on-refresh and SHA-template be",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given init-deposit fixtures, vitest validates both preserve-on-refresh and SHA-template behaviors."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "dependencies",
+      "installer",
+      "github-actions",
+      "vendored-deposit"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/1672",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #1672: Framework upgrade reverts Dependabot's actions/checkout bump on deposited deft-core-guard.yml (churn loop)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1912",
+        "type": "x-xbrief/refs",
+        "title": "Issue #1912"
+      }
+    ],
+    "updated": "2026-07-10T02:15:17Z",
+    "id": "1672-preserve-checkout-pin-sha",
+    "metadata": {
+      "kind": "story",
+      "id": "1672-preserve-checkout-pin-sha",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/init-deposit/scaffold.ts",
+          "packages/core/src/init-deposit/scaffold.test.ts",
+          "packages/core/src/init-deposit/refresh.ts",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm -C packages/core exec vitest run src/init-deposit/scaffold.test.ts",
+          "rg -n 'actions/checkout@' packages/core/src/init-deposit/scaffold.ts"
+        ],
+        "expected_outputs": [
+          "Closes #1672 with tests green"
+        ],
+        "depends_on": [],
+        "conflict_group": "init-deposit-core-guard",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium",
+        "missing_traces_justification": "Issue-ingested story; acceptance traces deferred to implementation commits that Closes the GitHub issue."
+      },
+      "completedAt": "2026-07-10T02:15:17Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}

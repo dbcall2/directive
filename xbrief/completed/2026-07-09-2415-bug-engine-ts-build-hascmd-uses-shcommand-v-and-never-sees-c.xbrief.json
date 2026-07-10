@@ -1,11 +1,12 @@
 {
   "xBRIEFInfo": {
     "version": "0.8",
-    "description": "Scope xBRIEF ingested from GitHub issue #2415"
+    "description": "Scope xBRIEF ingested from GitHub issue #2415",
+    "updated": "2026-07-10T02:27:27Z"
   },
   "plan": {
     "title": "bug: engine:_ts-build hasCmd uses sh/command -v and never sees Corepack on Windows native",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "engine:_ts-build and pm-run detect tools with sh -c 'command -v', which always fails on Windows native when sh is missing from PATH. Corepack.cmd is present but never selected, so builds fail-close claiming Corepack is missing. Replace hasCmd with a cross-platform probe that uses shell:true --version (resolves .cmd/.exe), preserve #2411 step order (pnpm → corepack@pin → corepack → fail), and keep #2181 no-auto-build on session verbs.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2415",
@@ -18,42 +19,47 @@
       {
         "id": "AC1",
         "title": "Windows without sh still selects Corepack",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given Windows native PATH with corepack.cmd present, no bare pnpm, and no sh, when engine:_ts-build / pm-run runs, then Corepack steps are queued instead of exit 127 claiming neither pnpm nor corepack."
-        }
+        },
+        "completed": "2026-07-10T02:27:27Z"
       },
       {
         "id": "AC2",
         "title": "hasCmd true when PowerShell Get-Command would succeed",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given corepack is resolvable as a .cmd shim, when hasCmd('corepack') runs, then it returns true without requiring Unix sh."
-        }
+        },
+        "completed": "2026-07-10T02:27:27Z"
       },
       {
         "id": "AC3",
         "title": "False remediation not printed when Corepack present",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given Corepack is available, when the resolver runs, then it does not print the enable-Corepack remediation as if Corepack were missing."
-        }
+        },
+        "completed": "2026-07-10T02:27:27Z"
       },
       {
         "id": "AC4",
         "title": "Linux/macOS and #2411/#2181 preserved",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given Linux/macOS with bare pnpm or Corepack, when build runs, then the #2411 step order still applies; session/runtime verbs still do not auto-build (#2181)."
-        }
+        },
+        "completed": "2026-07-10T02:27:27Z"
       },
       {
         "id": "AC5",
         "title": "Regression contract for Windows-shaped detection",
-        "status": "proposed",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given content-contract tests, when they run, then they assert hasCmd does not rely solely on sh/command -v and covers the cross-platform probe."
-        }
+        },
+        "completed": "2026-07-10T02:27:27Z"
       }
     ],
     "tags": [
@@ -87,6 +93,6 @@
         "related": "#2410, #2411, #2181"
       }
     },
-    "updated": "2026-07-09T18:27:26Z"
+    "updated": "2026-07-10T02:27:27Z"
   }
 }
