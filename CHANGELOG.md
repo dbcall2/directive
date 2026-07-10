@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.74.0] - 2026-07-10
+
+> Operator-friction polish: consumer-first onboarding, clearer CLI help, safer deposits/hooks/projections, and doctor/merge-readiness fixes — plus a public SECURITY.md.
+
+### Added
+
 - **Responsible disclosure policy for security reports.** A root `SECURITY.md` directs reporters away from public GitHub issues and documents private reporting via GitHub Private Vulnerability Reporting (preferred) and `security@deftai.dev`, plus supported versions, scope, response expectations, and safe-harbor language. Closes #2405.
 
 ### Changed
@@ -4218,7 +4230,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.73.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.74.0...HEAD
+[0.74.0]: https://github.com/deftai/directive/compare/v0.73.1...v0.74.0
 [0.73.1]: https://github.com/deftai/directive/compare/v0.73.0...v0.73.1
 [0.73.0]: https://github.com/deftai/directive/compare/v0.72.0...v0.73.0
 [0.72.0]: https://github.com/deftai/directive/compare/v0.71.1...v0.72.0

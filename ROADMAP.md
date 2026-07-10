@@ -913,4 +913,12 @@
 - Block descendant symlink escapes during TypeScript deposit copy -- `[completed]`
 - **#2367** -- Consumer deft binary rejects colon-namespaced policy verbs that AGENTS.md tells consumers to run -- `[completed]`
 - **#2409** -- engine:invoke falls back to global deft for runtime verbs; _ts-build resolves pnpm via Corepack -- `[completed]`
+- **#2415** -- bug: engine:_ts-build hasCmd uses sh/command -v and never sees Corepack on Windows native -- `[completed]`
+- **#1672** -- Framework upgrade reverts Dependabot's actions/checkout bump on deposited deft-core-guard.yml (churn loop) -- `[completed]`
+- **#1813** -- Separate contributor onboarding from the general user flow (don't gate everyone on a "are you working on deft itself?" question) -- `[completed]`
+- **#2172** -- Improve top-level directive help output and command discovery -- `[completed]`
+- **#2322** -- scope:complete should warn + reconcile when the completed scope is referenced by an OPEN umbrella -- `[completed]`
+- **#2324** -- vbrief:reconcile:umbrellas fails to create current-shape comment — GitHub 422 'links/0/schema nil is not an object' -- `[completed]`
+- **#2368** -- deft doctor recommends deft migrate:xbrief for a stale schema deposit but the command exits 2 on already-migrated projects (dead-end advisory) -- `[completed]`
+- **#2374** -- triage-cache README deposits directive-internal docs (dead scripts/candidates_log.py pointer + internal decision IDs) as a tracked file in every consumer -- `[completed]`
 
