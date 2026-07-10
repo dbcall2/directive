@@ -14,6 +14,8 @@ import {
 import { resolveLifecycleRoot } from "../layout/resolve.js";
 import { findSkillPathsInText } from "../text/redos-safe.js";
 import { stripGitignoreInlineComment } from "../triage/bootstrap/gitignore.js";
+import { LEGACY_INFO_ROOT_KEY, MIGRATED_ARTIFACT_DIR } from "../xbrief-migrate/constants.js";
+import { detectXbriefConvergence, type XbriefConvergenceState } from "../xbrief-migrate/detect.js";
 import {
   CANONICAL_UPGRADE_COMMAND,
   GO_BRIDGE_RELEASES_URL,
@@ -526,6 +528,84 @@ function gitignoreLineIsCovered(present: ReadonlySet<string>, line: string): boo
   return present.has(line);
 }
 
+/** Relative path to the deposited v0.6 schema file superseded by xbrief-core-0.8.schema.json. */
+export const STALE_VBRIEF_CORE_SCHEMA_REL = join(
+  MIGRATED_ARTIFACT_DIR,
+  "schemas",
+  "vbrief-core.schema.json",
+);
+
+const MIGRATED_XBRIEF_LAYOUT_STATES = new Set<XbriefConvergenceState>([
+  "xbrief-only",
+  "xbrief-marker",
+]);
+
+/**
+ * #2368: on an already-migrated xbrief/ layout, a stale deposited
+ * `xbrief/schemas/vbrief-core.schema.json` (vBRIEFInfo v0.6) must NOT route
+ * operators to `migrate:xbrief` — that verb requires a vbrief/ tree. Point at
+ * `directive update` instead. Advisory only (exit-exempt).
+ */
+export function checkStaleXbriefSchemaDeposit(
+  projectRoot: string,
+  seams: CheckSeams = {},
+): CheckResult {
+  const checkName = "stale-xbrief-schema-deposit";
+  const convergence = detectXbriefConvergence(projectRoot);
+  if (!MIGRATED_XBRIEF_LAYOUT_STATES.has(convergence.state)) {
+    return {
+      name: checkName,
+      status: "skip",
+      detail:
+        "Project is not on a fully migrated xbrief/ layout; stale schema deposit check does not apply.",
+      data: { convergence_state: convergence.state },
+    };
+  }
+
+  const schemaPath = join(projectRoot, STALE_VBRIEF_CORE_SCHEMA_REL);
+  const isFile = seams.isFile ?? ((p) => readText(p, seams) !== null);
+  if (!isFile(schemaPath)) {
+    return {
+      name: checkName,
+      status: "skip",
+      detail: `No deposited schema at ${STALE_VBRIEF_CORE_SCHEMA_REL}.`,
+      data: { schema_path: schemaPath },
+    };
+  }
+
+  const text = readText(schemaPath, seams);
+  if (text === null) {
+    return {
+      name: checkName,
+      status: "skip",
+      detail: `Deposited schema at ${STALE_VBRIEF_CORE_SCHEMA_REL} is unreadable.`,
+      data: { schema_path: schemaPath },
+    };
+  }
+
+  if (!text.includes(`"${LEGACY_INFO_ROOT_KEY}"`)) {
+    return {
+      name: checkName,
+      status: "pass",
+      detail: `Deposited schema at ${STALE_VBRIEF_CORE_SCHEMA_REL} is current (no ${LEGACY_INFO_ROOT_KEY} root key).`,
+      data: { schema_path: schemaPath },
+    };
+  }
+
+  return {
+    name: checkName,
+    status: "fail",
+    detail:
+      `Stale deposited schema at ${STALE_VBRIEF_CORE_SCHEMA_REL} still carries the legacy ${LEGACY_INFO_ROOT_KEY} root key on an already-migrated xbrief/ layout. ` +
+      "Run `directive update` to refresh deposited schema files — not `deft migrate:xbrief` (no vbrief/ tree remains to convert).",
+    data: {
+      schema_path: schemaPath,
+      convergence_state: convergence.state,
+      suggested_fix: "directive update",
+    },
+  };
+}
+
 /**
  * #2206: check that the consumer `.gitignore` carries the canonical Deft baseline
  * entries. Advisory (exit-exempt) because missing entries are an adoption risk, not
@@ -588,6 +668,7 @@ export function deriveExitCode(checks: readonly CheckResult[], errors: readonly 
     "canonical-vendored-npm-signpost",
     "manifest-version-reportable",
     "gitignore-coverage",
+    "stale-xbrief-schema-deposit",
   ]);
   if (errors.length > 0 || checks.some((c) => c.status === "error")) {
     return 2;
@@ -632,6 +713,7 @@ export function runChecksImpl(
     checks.push(checkManifestVersionReportable(projectRoot, null, seams));
     checks.push(checkLegacyLayout(projectRoot, seams));
     checks.push(checkCanonicalVendoredNpmSignpost(projectRoot, seams));
+    checks.push(checkStaleXbriefSchemaDeposit(projectRoot, seams));
     checks.push(checkGitignoreCoverage(projectRoot, seams));
     return {
       projectRoot,
@@ -648,6 +730,7 @@ export function runChecksImpl(
   checks.push(checkInstallPathConsistency(projectRoot, installRoot, seams));
   checks.push(checkLegacyLayout(projectRoot, seams));
   checks.push(checkCanonicalVendoredNpmSignpost(projectRoot, seams));
+  checks.push(checkStaleXbriefSchemaDeposit(projectRoot, seams));
   checks.push(checkGitignoreCoverage(projectRoot, seams));
   return {
     projectRoot,

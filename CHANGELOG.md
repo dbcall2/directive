@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Doctor and migrate:xbrief no longer dead-end on already-migrated xbrief projects with a stale deposited schema.** When `xbrief/` is canonical but `xbrief/schemas/vbrief-core.schema.json` still carries v0.6 markers, doctor advises `directive update` instead of `migrate:xbrief`, and migrate:xbrief exits cleanly with the same guidance rather than exit 2. Closes #2368.
+
 - **Deposited triage-cache README is now consumer-facing.** Bootstrap and migration no longer write directive-internal decision IDs or dead `scripts/candidates_log.py` pointers into `<lifecycle-root>/.triage-cache/README.md`; the file explains tracked vs gitignored cache files in plain project terms. Closes #2374.
 - **Framework update no longer reverts Dependabot checkout bumps on deposited deft-core-guard.yml.** New deposits SHA-pin `actions/checkout` (matching directive's own workflow hardening), and refresh preserves an existing consumer pin while updating the managed guard script body — ending the upgrade↔Dependabot ping-pong loop. Closes #1672.
 
