@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Structured top-level `directive --help` for faster command discovery.** Running `directive` or `directive --help` now shows a curated page with version, usage, common options, and grouped everyday commands instead of dumping every registered verb; run `directive commands` for the full list. Closes #2172.
+
 ### Fixed
 
 - **Deposited triage-cache README is now consumer-facing.** Bootstrap and migration no longer write directive-internal decision IDs or dead `scripts/candidates_log.py` pointers into `<lifecycle-root>/.triage-cache/README.md`; the file explains tracked vs gitignored cache files in plain project terms. Closes #2374.
