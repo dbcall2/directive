@@ -636,6 +636,84 @@ function githubActionsExpr(expression: string): string {
   return ["$", "{{ ", expression, " }}"].join("");
 }
 
+/** Commit SHA for `actions/checkout` deposited in deft-core-guard.yml (#1672 / #1072). */
+export const CORE_GUARD_CHECKOUT_SHA = "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0";
+/** Tag comment paired with {@link CORE_GUARD_CHECKOUT_SHA}. */
+export const CORE_GUARD_CHECKOUT_TAG = "v7.0.0";
+
+const CHECKOUT_USES_PREFIX = "- uses: actions/checkout@";
+
+/**
+ * Extract the `uses: actions/checkout@…` step line from a guard workflow, if present.
+ * Uses linear string scanning (no regex) to avoid CodeQL js/polynomial-redos (#1672).
+ */
+export function extractCoreGuardCheckoutUsesLine(content: string): string | null {
+  for (const line of content.split("\n")) {
+    const trimmed = line.trimStart();
+    if (!trimmed.startsWith(CHECKOUT_USES_PREFIX)) continue;
+    // YAML step lines are indented; a bare top-level match is not a step.
+    if (trimmed.length === line.length) continue;
+    return line;
+  }
+  return null;
+}
+
+/** Ref after `actions/checkout@` (tag, SHA, or major), stopping at whitespace. */
+function checkoutActionRef(usesLine: string): string | null {
+  const idx = usesLine.indexOf(CHECKOUT_USES_PREFIX);
+  if (idx < 0) return null;
+  const after = usesLine.slice(idx + CHECKOUT_USES_PREFIX.length);
+  let end = after.length;
+  for (let i = 0; i < after.length; i += 1) {
+    const c = after[i];
+    if (c === " " || c === "\t" || c === "\r") {
+      end = i;
+      break;
+    }
+  }
+  const ref = after.slice(0, end);
+  return ref.length > 0 ? ref : null;
+}
+
+/**
+ * Whether refresh should keep the existing checkout pin instead of the template pin.
+ * Legacy framework-deposited `@v4` tags migrate forward; consumer/Dependabot bumps do not.
+ */
+export function shouldPreserveCoreGuardCheckoutPin(
+  existingUsesLine: string,
+  desiredUsesLine: string,
+): boolean {
+  if (existingUsesLine === desiredUsesLine) return false;
+  const existingRef = checkoutActionRef(existingUsesLine);
+  if (!existingRef) return false;
+  // Stale framework-deposited floating major tag — migrate to SHA template (#1672).
+  return existingRef !== "v4";
+}
+
+/** Canonical SHA-pinned checkout step for the deposited deft-core-guard workflow. */
+export function coreGuardCheckoutUsesLine(
+  sha: string = CORE_GUARD_CHECKOUT_SHA,
+  tag: string = CORE_GUARD_CHECKOUT_TAG,
+): string {
+  return `      - uses: actions/checkout@${sha} # ${tag}`;
+}
+
+/**
+ * On refresh, preserve an existing consumer `actions/checkout@…` pin while updating
+ * the managed guard script / allowlist body (#1672 option 1).
+ */
+export function mergeCoreGuardWorkflowRefresh(existing: string, desired: string): string {
+  const existingCheckout = extractCoreGuardCheckoutUsesLine(existing);
+  if (!existingCheckout) return desired;
+  const desiredCheckout = extractCoreGuardCheckoutUsesLine(desired);
+  if (!desiredCheckout || !shouldPreserveCoreGuardCheckoutPin(existingCheckout, desiredCheckout)) {
+    return desired;
+  }
+  const idx = desired.indexOf(desiredCheckout);
+  if (idx < 0) return desired;
+  return desired.slice(0, idx) + existingCheckout + desired.slice(idx + desiredCheckout.length);
+}
+
 function coreGuardWorkflowContent(): string {
   const baseSha = githubActionsExpr("github.event.pull_request.base.sha");
   const headSha = githubActionsExpr("github.event.pull_request.head.sha");
@@ -654,7 +732,7 @@ function coreGuardWorkflowContent(): string {
     "  no-mixed-core-and-app:\n" +
     "    runs-on: ubuntu-latest\n" +
     "    steps:\n" +
-    "      - uses: actions/checkout@v4\n" +
+    `${coreGuardCheckoutUsesLine()}\n` +
     "        with:\n" +
     "          fetch-depth: 0\n" +
     "      - name: Refuse PRs that mix .deft/core/** with non-framework paths\n" +
@@ -822,15 +900,16 @@ export function ensureCoreGuardWorkflow(projectDir: string, io: InitDepositIo): 
   const desired = coreGuardWorkflowContent();
   if (existsSync(path)) {
     const existing = readFileSync(path, "utf8");
-    if (existing === desired) {
-      io.printf(`${CORE_GUARD_WORKFLOW_REL} already current — skipping.\n`);
-      return false;
-    }
     if (!existing.includes("name: deft-core-guard")) {
       io.printf(`${CORE_GUARD_WORKFLOW_REL} present but not deft-managed — leaving unchanged.\n`);
       return false;
     }
-    writeFileSync(path, desired, "utf8");
+    const refreshed = mergeCoreGuardWorkflowRefresh(existing, desired);
+    if (existing === refreshed) {
+      io.printf(`${CORE_GUARD_WORKFLOW_REL} already current — skipping.\n`);
+      return false;
+    }
+    writeFileSync(path, refreshed, "utf8");
     io.printf(`${CORE_GUARD_WORKFLOW_REL} refreshed: deft-core-guard allowlist updated (#1478).\n`);
     return true;
   }

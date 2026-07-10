@@ -15,6 +15,7 @@ import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
 import {
   buildInstallManifestText,
   CANONICAL_TASKFILE_INCLUDE,
+  coreGuardCheckoutUsesLine,
   depositNeutralization,
   ensureCodeqlPathsIgnore,
   ensureCoreGuardWorkflow,
@@ -22,9 +23,12 @@ import {
   ensureGreptileIgnore,
   ensurePackageJsonPin,
   ensureTaskfile,
+  extractCoreGuardCheckoutUsesLine,
+  mergeCoreGuardWorkflowRefresh,
   PIN_DEPENDENCY_NAME,
   pruneFrameworkSelfTests,
   pruneVendoredTsTests,
+  shouldPreserveCoreGuardCheckoutPin,
   writeAgentsMd,
   writeAgentsSkills,
   writeConsumerGitHooks,
@@ -167,7 +171,8 @@ describe("init-deposit scaffold", () => {
     expect(readFileSync(join(project, ".github/codeql/codeql-config.yml"), "utf8")).toContain(
       "paths-ignore",
     );
-    expect(existsSync(join(project, ".github/workflows/deft-core-guard.yml"))).toBe(true);
+    const guard = readFileSync(join(project, ".github/workflows/deft-core-guard.yml"), "utf8");
+    expect(extractCoreGuardCheckoutUsesLine(guard)).toBe(coreGuardCheckoutUsesLine());
   });
 
   it("skips AGENTS.md rewrite when the managed section is already current", () => {
@@ -354,6 +359,88 @@ describe("init-deposit scaffold", () => {
     expect(readFileSync(join(project, ".github/workflows/deft-core-guard.yml"), "utf8")).toContain(
       "custom-guard",
     );
+  });
+
+  describe("deft-core-guard checkout pin (#1672)", () => {
+    it("deposits a commit-SHA checkout pin on greenfield guard creation", () => {
+      const project = freshRoot("scaffold-guard-sha-");
+      const { io } = captureIo();
+      expect(ensureCoreGuardWorkflow(project, io)).toBe(true);
+      const guard = readFileSync(join(project, ".github/workflows/deft-core-guard.yml"), "utf8");
+      expect(guard).toContain(coreGuardCheckoutUsesLine());
+      expect(extractCoreGuardCheckoutUsesLine(guard)).toBe(coreGuardCheckoutUsesLine());
+    });
+
+    it("preserves a Dependabot-bumped checkout pin on refresh", () => {
+      const project = freshRoot("scaffold-guard-preserve-");
+      mkdirSync(join(project, ".github/workflows"), { recursive: true });
+      const bumped =
+        "name: deft-core-guard\n\non:\n  pull_request:\n\njobs:\n" +
+        "  no-mixed-core-and-app:\n    runs-on: ubuntu-latest\n    steps:\n" +
+        "      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3\n" +
+        "        with:\n          fetch-depth: 0\n" +
+        "      - name: Refuse PRs that mix .deft/core/** with non-framework paths\n" +
+        "        run: echo stale-body\n";
+      writeFileSync(join(project, ".github/workflows/deft-core-guard.yml"), bumped, "utf8");
+      const { io } = captureIo();
+      expect(ensureCoreGuardWorkflow(project, io)).toBe(true);
+      const guard = readFileSync(join(project, ".github/workflows/deft-core-guard.yml"), "utf8");
+      expect(extractCoreGuardCheckoutUsesLine(guard)).toBe(
+        "      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3",
+      );
+      expect(guard).toContain("deft-core guard (#1430)");
+      expect(guard).not.toContain("echo stale-body");
+    });
+
+    it("migrates a legacy framework @v4 pin to the SHA template on refresh", () => {
+      const project = freshRoot("scaffold-guard-migrate-v4-");
+      mkdirSync(join(project, ".github/workflows"), { recursive: true });
+      const legacy =
+        "name: deft-core-guard\n\non:\n  pull_request:\n\njobs:\n" +
+        "  no-mixed-core-and-app:\n    runs-on: ubuntu-latest\n    steps:\n" +
+        "      - uses: actions/checkout@v4\n" +
+        "        with:\n          fetch-depth: 0\n" +
+        "      - name: Refuse PRs that mix .deft/core/** with non-framework paths\n" +
+        "        run: echo stale-body\n";
+      writeFileSync(join(project, ".github/workflows/deft-core-guard.yml"), legacy, "utf8");
+      const { io } = captureIo();
+      expect(ensureCoreGuardWorkflow(project, io)).toBe(true);
+      const guard = readFileSync(join(project, ".github/workflows/deft-core-guard.yml"), "utf8");
+      expect(extractCoreGuardCheckoutUsesLine(guard)).toBe(coreGuardCheckoutUsesLine());
+      expect(guard).not.toContain("actions/checkout@v4");
+    });
+
+    it("mergeCoreGuardWorkflowRefresh keeps the existing pin when only checkout differs", () => {
+      const existing =
+        "steps:\n" +
+        "      - uses: actions/checkout@v6\n" +
+        "        with:\n          fetch-depth: 0\n" +
+        "      - name: step\n        run: old\n";
+      const desired =
+        "steps:\n" +
+        `${coreGuardCheckoutUsesLine()}\n` +
+        "        with:\n          fetch-depth: 0\n" +
+        "      - name: step\n        run: new\n";
+      const merged = mergeCoreGuardWorkflowRefresh(existing, desired);
+      expect(extractCoreGuardCheckoutUsesLine(merged)).toBe("      - uses: actions/checkout@v6");
+      expect(merged).toContain("run: new");
+    });
+
+    it("shouldPreserveCoreGuardCheckoutPin rejects legacy @v4 but accepts consumer bumps", () => {
+      const desired = coreGuardCheckoutUsesLine();
+      expect(shouldPreserveCoreGuardCheckoutPin("      - uses: actions/checkout@v4", desired)).toBe(
+        false,
+      );
+      expect(
+        shouldPreserveCoreGuardCheckoutPin(
+          "      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3",
+          desired,
+        ),
+      ).toBe(true);
+      expect(shouldPreserveCoreGuardCheckoutPin("      - uses: actions/checkout@v6", desired)).toBe(
+        true,
+      );
+    });
   });
 
   it("updates an existing CodeQL config paths-ignore block", () => {
