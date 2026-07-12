@@ -539,7 +539,9 @@ export function ensureTaskfile(projectDir: string, io: InitDepositIo): boolean {
 }
 
 const HOOK_FILENAMES = ["pre-commit", "pre-push"] as const;
+const HOOK_SUPPORT_FILENAMES = ["_deft-run.sh"] as const;
 const HOOK_FILE_MODE = 0o755;
+const HOOK_SUPPORT_FILE_MODE = 0o644;
 
 export interface GitHooksSeams {
   getHooksPath?: (projectDir: string) => string | null;
@@ -562,17 +564,19 @@ export function writeConsumerGitHooks(
   mkdirSync(dstDir, { recursive: true });
 
   let filesDeposited = false;
-  for (const name of HOOK_FILENAMES) {
+  for (const name of [...HOOK_FILENAMES, ...HOOK_SUPPORT_FILENAMES]) {
     const src = join(srcDir, name);
     if (!existsSync(src)) continue;
     const data = readFileSync(src);
     const dst = join(dstDir, name);
     const existing = existsSync(dst) ? readFileSync(dst) : null;
+    const isHookScript = HOOK_FILENAMES.includes(name as (typeof HOOK_FILENAMES)[number]);
     if (!existing?.equals(data)) {
-      writeFileSync(dst, data, { mode: HOOK_FILE_MODE });
+      const mode = isHookScript ? HOOK_FILE_MODE : HOOK_SUPPORT_FILE_MODE;
+      writeFileSync(dst, data, { mode });
       filesDeposited = true;
     }
-    if (platform() !== "win32") {
+    if (platform() !== "win32" && isHookScript) {
       try {
         const mode = statSync(dst).mode & 0o777;
         if ((mode & 0o111) === 0) {

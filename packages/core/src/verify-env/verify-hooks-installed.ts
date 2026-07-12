@@ -11,6 +11,7 @@ export interface EvaluateResult {
 }
 
 export const REQUIRED_HOOKS = ["pre-commit", "pre-push"] as const;
+export const REQUIRED_HOOK_SUPPORT_FILES = ["_deft-run.sh"] as const;
 
 /** Substrings each hook must contain when it dispatches through the deft CLI (#2049). */
 export const PRE_COMMIT_DEFT_COMMANDS = ["verify:branch", "verify:encoding"] as const;
@@ -33,6 +34,7 @@ export type GitConfigReader = (projectRoot: string) => {
 export interface EvaluateOptions {
   readonly gitConfigReader?: GitConfigReader;
   readonly platform?: NodeJS.Platform;
+  readonly hookExecutable?: (hookPath: string) => boolean;
 }
 
 function defaultGitConfigReader(projectRoot: string): {
@@ -82,7 +84,7 @@ function isPosix(platform: NodeJS.Platform): boolean {
   return platform !== "win32";
 }
 
-function hookExecutable(hookPath: string): boolean {
+function defaultHookExecutable(hookPath: string): boolean {
   try {
     accessSync(hookPath, constants.X_OK);
     return true;
@@ -150,6 +152,7 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
   const root = resolve(projectRoot);
   const gitReader = options.gitConfigReader ?? defaultGitConfigReader;
   const platform = options.platform ?? process.platform;
+  const hookExecutable = options.hookExecutable ?? defaultHookExecutable;
 
   if (!isDirectory(root)) {
     return {
@@ -223,37 +226,41 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
     }
   }
 
+  const contentIssues: string[] = [];
+  const missingSupport = REQUIRED_HOOK_SUPPORT_FILES.filter((h) => !isFile(join(hooksDir, h)));
+  if (missingSupport.length > 0) {
+    contentIssues.push(
+      `${hooksDir} is missing ${missingSupport.join(
+        ", ",
+      )} helper(s); pre-commit/pre-push source them at runtime`,
+    );
+  }
+
   const preCommitIssue = validateHookContent(
     "pre-commit",
     readHookContent(join(hooksDir, "pre-commit")),
     PRE_COMMIT_DEFT_COMMANDS,
   );
   if (preCommitIssue) {
-    return {
-      code: 1,
-      message:
-        `❌ deft hooks wired but NON-FUNCTIONAL: ${preCommitIssue} (#2049).\n` +
-        "  Recovery: re-run the deft installer / `task setup` to refresh .githooks/.",
-      stream: "stderr",
-    };
+    contentIssues.push(`${preCommitIssue} (#2049)`);
   }
 
   const prePushContent = readHookContent(join(hooksDir, "pre-push"));
   const prePushIssue = validateHookContent("pre-push", prePushContent, PRE_PUSH_DEFT_COMMANDS);
   if (prePushIssue) {
-    return {
-      code: 1,
-      message:
-        `❌ deft hooks wired but NON-FUNCTIONAL: ${prePushIssue} (#2049).\n` +
-        "  Recovery: re-run the deft installer / `task setup` to refresh .githooks/.",
-      stream: "stderr",
-    };
+    contentIssues.push(`${prePushIssue} (#2049)`);
   }
   if (prePushContent && prePushInvokesVerifyBranch(prePushContent)) {
+    contentIssues.push("pre-push must not invoke verify:branch (#1814)");
+  }
+
+  if (contentIssues.length > 0) {
     return {
       code: 1,
       message:
-        "❌ deft hooks wired but NON-FUNCTIONAL: pre-push must not invoke verify:branch (#1814).\n" +
+        "❌ deft hooks wired but NON-FUNCTIONAL:\n" +
+        contentIssues.map((issue) => `  - ${issue.replace(/\r?\n/g, " ")}`).join("\n") +
+        "\n" +
         "  Recovery: re-run the deft installer / `task setup` to refresh .githooks/.",
       stream: "stderr",
     };
@@ -263,7 +270,9 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
     code: 0,
     message:
       `✓ deft hooks installed and functional: core.hooksPath=${hooksPath}, ` +
-      `hooks ${REQUIRED_HOOKS.join(", ")} present and dispatch via deft CLI (#2049).`,
+      `hooks ${REQUIRED_HOOKS.join(", ")} plus ${REQUIRED_HOOK_SUPPORT_FILES.join(
+        ", ",
+      )} present and dispatch via deft CLI (#2049).`,
     stream: "stdout",
   };
 }

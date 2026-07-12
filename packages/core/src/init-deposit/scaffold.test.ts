@@ -89,6 +89,11 @@ describe("init-deposit scaffold", () => {
       "utf8",
     );
     chmodSync(join(deftDir, ".githooks", "pre-push"), 0o755);
+    writeFileSync(
+      join(deftDir, ".githooks", "_deft-run.sh"),
+      readFileSync(join(process.cwd(), ".githooks/_deft-run.sh"), "utf8"),
+      "utf8",
+    );
   }
 
   it("writes AGENTS.md managed section on greenfield", () => {
@@ -155,6 +160,9 @@ describe("init-deposit scaffold", () => {
     ).toBe(true);
     expect(readFileSync(join(project, ".githooks", "pre-commit"), "utf8")).toContain(
       "deft verify:branch",
+    );
+    expect(readFileSync(join(project, ".githooks", "_deft-run.sh"), "utf8")).toContain(
+      "run_deft()",
     );
   });
 

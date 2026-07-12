@@ -49,6 +49,7 @@ function installFakeContentPackage(projectRoot: string, version = "0.53.0"): str
   chmodSync(join(pkgDir, ".githooks", "pre-commit"), 0o755);
   writeFileSync(join(pkgDir, ".githooks", "pre-push"), "#!/bin/sh\nexit 0\n", "utf8");
   chmodSync(join(pkgDir, ".githooks", "pre-push"), 0o755);
+  writeFileSync(join(pkgDir, ".githooks", "_deft-run.sh"), 'run_deft() { deft "$@"; }\n', "utf8");
   writeFileSync(join(pkgDir, "Taskfile.yml"), "version: '3'\n", "utf8");
   writeFileSync(join(pkgDir, "tasks", "swarm.yml"), "version: '3'\n", "utf8");
   return pkgDir;
@@ -127,11 +128,13 @@ describe("deposit journey e2e legs (#1942 S5)", () => {
     // resolvable Taskfile (with its tasks/ fragments + helper scripts), not a
     // graceful "absent — skipping" deposit.
     expect(existsSync(join(result.deftDir, ".githooks", "pre-commit"))).toBe(true);
+    expect(existsSync(join(result.deftDir, ".githooks", "_deft-run.sh"))).toBe(true);
     expect(existsSync(join(result.deftDir, "Taskfile.yml"))).toBe(true);
     expect(existsSync(join(result.deftDir, "tasks", "swarm.yml"))).toBe(true);
     expect(existsSync(join(result.deftDir, "scripts"))).toBe(false);
     // ...and `directive init` wires the hooks to the consumer root + include.
     expect(existsSync(join(project, ".githooks", "pre-commit"))).toBe(true);
+    expect(existsSync(join(project, ".githooks", "_deft-run.sh"))).toBe(true);
     expect(readFileSync(join(project, "Taskfile.yml"), "utf8")).toContain(
       "./.deft/core/Taskfile.yml",
     );

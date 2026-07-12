@@ -159,6 +159,7 @@ deft preflight-gh --pre-push-stdin
       writeFileSync(hook, body, "utf8");
       chmodSync(hook, mode);
     }
+    writeFileSync(join(hooksDir, "_deft-run.sh"), 'run_deft() { deft "$@"; }\n', "utf8");
   }
 
   it("covers missing hooks dir and hook files", () => {
@@ -182,6 +183,7 @@ deft preflight-gh --pre-push-stdin
     writeDeftHooks(hooks, 0o644);
     const result = evaluate(root, {
       platform: "linux",
+      hookExecutable: () => false,
       gitConfigReader: () => ({ hooksPath: ".githooks", error: null }),
     });
     expect(result.code).toBe(1);
@@ -292,7 +294,7 @@ describe("verify-no-task-runtime branches", () => {
     writeFileSync(join(root, "run"), "#", "utf8");
     writeFileSync(join(root, "scripts", "a.py"), "#", "utf8");
     writeFileSync(join(root, "scripts", "verify_no_task_runtime.py"), "#", "utf8");
-    const files = defaultPythonFiles(root);
+    const files = defaultPythonFiles(root).map((file) => file.replace(/\\/g, "/"));
     expect(files.some((f) => f.endsWith("/run"))).toBe(true);
     expect(files.some((f) => f.endsWith("/a.py"))).toBe(true);
     expect(files.some((f) => f.endsWith("/verify_no_task_runtime.py"))).toBe(false);

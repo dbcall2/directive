@@ -58,6 +58,7 @@ function buildFakeRepo(options: { withScripts?: boolean } = {}): { root: string;
   mkdirSync(join(root, ".githooks"), { recursive: true });
   writeFileSync(join(root, ".githooks", "pre-commit"), "#!/bin/sh\nexit 0\n", "utf8");
   writeFileSync(join(root, ".githooks", "pre-push"), "#!/bin/sh\nexit 0\n", "utf8");
+  writeFileSync(join(root, ".githooks", "_deft-run.sh"), 'run_deft() { deft "$@"; }\n', "utf8");
   writeFileSync(join(root, "Taskfile.yml"), "version: '3'\n", "utf8");
   mkdirSync(join(root, "tasks"), { recursive: true });
   writeFileSync(join(root, "tasks", "swarm.yml"), "version: '3'\n", "utf8");
@@ -121,6 +122,7 @@ describe("@deftai/directive-content prepack (#1967 / #2022 Phase 3)", () => {
     runPrepack(pkgDir);
     expect(existsSync(join(pkgDir, ".githooks", "pre-commit"))).toBe(true);
     expect(existsSync(join(pkgDir, ".githooks", "pre-push"))).toBe(true);
+    expect(existsSync(join(pkgDir, ".githooks", "_deft-run.sh"))).toBe(true);
     expect(existsSync(join(pkgDir, "Taskfile.yml"))).toBe(true);
     expect(existsSync(join(pkgDir, "tasks", "swarm.yml"))).toBe(true);
   });
@@ -139,6 +141,7 @@ describe("@deftai/directive-content prepack (#1967 / #2022 Phase 3)", () => {
     runPrepack(pkgDir);
     expect(existsSync(join(pkgDir, "scripts"))).toBe(false);
     expect(existsSync(join(pkgDir, ".githooks", "pre-commit"))).toBe(true);
+    expect(existsSync(join(pkgDir, ".githooks", "_deft-run.sh"))).toBe(true);
     expect(existsSync(join(pkgDir, "Taskfile.yml"))).toBe(true);
   });
 });
