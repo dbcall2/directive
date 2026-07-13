@@ -1,5 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import {
+  getOpenPackageDefaultInstallTier,
+  resolveOpenPackageTierSkills,
+} from "../packaging/openpackage-tiers.js";
 import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
 import {
   type AgentsMdBudget,
@@ -189,12 +193,25 @@ function resolveHarnessProfile(budget: AgentsMdBudget | null, projectRoot: strin
   return "none";
 }
 
-function resolveSkillFrontmatterTier(budget: AgentsMdBudget | null): SkillFrontmatterTier {
+function resolveBootstrapSkillTier(
+  budget: AgentsMdBudget | null,
+  projectRoot: string,
+): SkillFrontmatterTier {
   const env = process.env.DEFT_AGENTS_MD_BUDGET_SKILL_TIER?.trim();
   if (env === "daily-core" || env === "all" || env === "none") {
     return env;
   }
-  return budget?.skillFrontmatterTier ?? "all";
+  if (budget?.skillFrontmatterTier !== undefined) {
+    return budget.skillFrontmatterTier;
+  }
+  try {
+    if (getOpenPackageDefaultInstallTier(projectRoot) === "daily-core") {
+      return "daily-core";
+    }
+  } catch {
+    // No OpenPackage manifest at this project root — fall through.
+  }
+  return "all";
 }
 
 /** Measure managed + DD-3 skill frontmatter + bootstrap hooks. */
@@ -208,11 +225,18 @@ export function measureBootstrapSurface(
     return managedResult;
   }
   const harnessProfile = resolveHarnessProfile(budget, projectRoot);
-  const tier = resolveSkillFrontmatterTier(budget);
+  const tier = resolveBootstrapSkillTier(budget, projectRoot);
+  let dailyCoreSkills: readonly string[] | undefined;
+  try {
+    dailyCoreSkills = resolveOpenPackageTierSkills(projectRoot, "daily-core");
+  } catch {
+    // Maintainer trees without packaging/openpackage fall back to hardcoded daily-core.
+  }
   const skillFrontmatter = measureSkillFrontmatter(projectRoot, {
     harnessProfile,
     tier,
     bytesPerToken: ABSOLUTE_BYTES_PER_TOKEN_ESTIMATE,
+    dailyCoreSkills,
   });
   const totalBytes = managedResult.bytes + skillFrontmatter.bytes + BOOTSTRAP_HOOK_BYTES;
   return {
