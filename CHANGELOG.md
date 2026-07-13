@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Windows-native maintainers can run the test suite without WSL.** Path helpers and content-contract readers now honor win32 path and CRLF semantics, with LF checkout hardening and a short CONTRIBUTING setup note. Closes #2467.
+- **`toolchain:check` finds npm-global `pnpm` on Windows.** The probe uses a shell spawn on win32 so `pnpm.cmd` PATHEXT resolution works (same class of fix as Corepack detection). Refs #2467.
+- **`engine:pm-run` no longer doubles the repo path on Windows.** It runs from `USER_WORKING_DIR` and passes absolute `DEFT_ROOT` into the node helper — matching the #2126 `_ts-build` pattern so `task build` / `task check` work on native Windows. Refs #2467.
 
 ### Added
 

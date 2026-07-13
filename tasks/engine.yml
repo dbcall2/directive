@@ -13,7 +13,10 @@ tasks:
   pm-run:
     internal: true
     desc: "Run a package.json script via pnpm (bare or Corepack pin) or explicit DEFT_PACKAGE_MANAGER=npm (#2410)."
-    dir: '{{.DEFT_ROOT}}'
+    # Run from USER_WORKING_DIR, NOT an absolute DEFT_ROOT `dir:` — Windows go-task
+    # doubles absolute dirs onto the invocation cwd (`C:\repo\C:\repo`, #2126 / #2467).
+    # The node script still receives absolute DEFT_ROOT as argv and uses it as cwd.
+    dir: '{{.USER_WORKING_DIR}}'
     cmds:
       - |
         set -eu

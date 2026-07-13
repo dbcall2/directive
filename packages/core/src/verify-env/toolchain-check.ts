@@ -47,12 +47,18 @@ export function defaultCommandRunner(
 ):
   | { returncode: number; stdout: string; stderr: string }
   | { error: "not-found" | "exception"; message: string } {
-  try {
-    const stdout = childProcess.execFileSync(command[0] ?? "", command.slice(1), {
+  const bin = command[0] ?? "";
+  const args = command.slice(1);
+  const trySpawn = (shell: boolean) =>
+    childProcess.execFileSync(bin, args, {
       encoding: "utf8",
       timeout: timeoutMs,
       stdio: ["ignore", "pipe", "pipe"],
+      shell,
     });
+  try {
+    // win32: npm global shims are `.cmd` and need shell/PATHEXT (#2467 / #2415).
+    const stdout = trySpawn(process.platform === "win32");
     return { returncode: 0, stdout: typeof stdout === "string" ? stdout : "", stderr: "" };
   } catch (err: unknown) {
     const e = err as {
@@ -62,6 +68,14 @@ export function defaultCommandRunner(
       stderr?: string;
       message?: string;
     };
+    if (e.code === "ENOENT" && process.platform === "win32") {
+      try {
+        const stdout = trySpawn(true);
+        return { returncode: 0, stdout: typeof stdout === "string" ? stdout : "", stderr: "" };
+      } catch {
+        return { error: "not-found", message: "" };
+      }
+    }
     if (e.code === "ENOENT") {
       return { error: "not-found", message: "" };
     }
