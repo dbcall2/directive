@@ -57,8 +57,7 @@ export function defaultCommandRunner(
       shell,
     });
   try {
-    // win32: npm global shims are `.cmd` and need shell/PATHEXT (#2467 / #2415).
-    const stdout = trySpawn(process.platform === "win32");
+    const stdout = trySpawn(false);
     return { returncode: 0, stdout: typeof stdout === "string" ? stdout : "", stderr: "" };
   } catch (err: unknown) {
     const e = err as {
@@ -68,11 +67,13 @@ export function defaultCommandRunner(
       stderr?: string;
       message?: string;
     };
+    // win32: npm global shims are `.cmd` and need shell/PATHEXT (#2467 / #2415).
     if (e.code === "ENOENT" && process.platform === "win32") {
       try {
         const stdout = trySpawn(true);
         return { returncode: 0, stdout: typeof stdout === "string" ? stdout : "", stderr: "" };
       } catch {
+        // Shell still failed — binary is absent (cmd.exe often exits 1, not ENOENT).
         return { error: "not-found", message: "" };
       }
     }
