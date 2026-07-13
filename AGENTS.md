@@ -5,17 +5,9 @@ Full guidelines: main.md
 
 ## First Session (deft development)
 
-**Headless bypass**: If you have been dispatched with a specific task (e.g. cloud agent, CI agent, scheduled run), skip the onboarding checks below and proceed directly to your task. The onboarding flow is for interactive sessions only.
+**Headless bypass**: If dispatched with a specific task (cloud agent, CI agent, scheduled run), skip onboarding and proceed directly.
 
-! Check what exists before doing anything else -- do NOT respond to any user request until the correct phase fires:
-
-**USER.md missing** (~/.config/deft/USER.md or %APPDATA%\deft\USER.md):
-! Read content/skills/deft-directive-setup/SKILL.md and immediately start Phase 1 (user preferences). Do not wait for a user prompt.
-
-**USER.md exists, `xbrief/PROJECT-DEFINITION.xbrief.json` missing**:
-! Read content/skills/deft-directive-setup/SKILL.md and immediately start Phase 2 (project definition). This branch MUST fire even when USER.md already exists from a prior install or another project -- a pre-existing USER.md is not a reason to skip Phase 2 on a greenfield project.
-
-⊗ Respond to any user query (greet, answer questions, take requests) before the correct phase has completed -- first-session phase routing is mandatory, not advisory.
+! Phase routing: same rules as the managed `## First Session` below; in this repo read `content/skills/deft-directive-setup/SKILL.md` (not `.deft/core/.agents/skills/`). ⊗ Respond to user queries before the correct phase fires.
 
 ## Returning Sessions
 
@@ -25,68 +17,61 @@ Same rules as the managed `## Returning Sessions` below; in this repo `~` runs `
 
 ### Deft Alignment Confirmation
 
-Same rules as the managed `### Deft Alignment Confirmation` below: at session start, after reading USER.md content, confirm to the user that Deft Directive is active and echo the USER.md addressing-name (the name slot makes the read unfakeable); re-confirm on a context-window shift or an "are you using Deft?" prompt. ⊗ Never begin an interactive session without confirming Deft alignment, and ⊗ never confirm alignment without first actually reading USER.md content.
+Same rules as the managed `### Deft Alignment Confirmation` below: at session start, after reading USER.md content, confirm to the user that Deft Directive is active and echo the USER.md addressing-name; re-confirm on a context-window shift. ⊗ Never begin an interactive session without confirming Deft alignment, and ⊗ never confirm alignment without first actually reading USER.md content.
 
 ## Session-start ritual (#1149)
 
-Same rules as the managed `## Session-start ritual` below; in this repo substitute `task` for `deft` (`task session:start`, `task verify:session-ritual -- --tier=gated`, `task verify:tools`, `task doctor`, `task verify:cache-fresh`).
+Same as managed `## Session-start ritual` below; substitute `task` for `deft` (`task session:start`, `task verify:session-ritual -- --tier=gated`, `task verify:tools`, `task doctor`, `task verify:cache-fresh`, `task agents:refresh`, `npm i -g @deftai/directive@latest`).
 
 ## Session routing (#2176)
 
-Same rules as the managed `## Session routing (#2176)` below: default to read-only posture for Q&A, Plan Mode, and ticket-shaping; defer mutable `task session:start` until mutation intent. Explicit read-only CLI: `task session:start -- --read-only`.
+Same as managed `## Session routing (#2176)` below; substitute `task` for `deft`.
 
 ## Template propagation discipline (#1309)
 
-! When a maintainer-side rule lands in this `AGENTS.md` that is consumer-relevant (welcome / WIP cap / triage / install integrity / branch policy / encoding gates / canonical commands / skill routing), the same PR MUST update `content/templates/agents-entry.md` to mirror it, then run `task agents:refresh` so consumer-side AGENTS.md inherits the change. The deterministic gate `tests/content/test_agents_entry_contract.py` enforces this with a whitespace-normalized substring containment check over a curated marker list (commands, policy keys, distinctive headers, action-verb directive list); adding a new consumer-relevant rule means extending that marker list in the same PR.
+! Consumer-relevant maintainer rules MUST mirror into `content/templates/agents-entry.md` and run `task agents:refresh` — gated by `agents_entry_contract` marker list (#1309).
 
-⊗ Land a consumer-relevant rule on `AGENTS.md` without mirroring it into `content/templates/agents-entry.md` -- the consumer AGENTS.md is rendered from the template, not from the maintainer file, so an un-propagated rule is invisible to every consumer.
+⊗ Land consumer-relevant rules on this file without agents-entry propagation.
 
 ## WIP cap
 
-Same rules as the managed section below; in this repo substitute `task` for `deft` (`task scope:promote`, `task scope:demote --batch --older-than-days 30`, `task triage:welcome --onboard`, `task policy:show --field=wipCap`, `verify:wip-cap` via `task check --allow-over-cap`).
+Same as managed below; substitute `task` for `deft` (`task scope:promote`, `task scope:demote --batch --older-than-days 30`, `task triage:welcome --onboard`, `task policy:show --field=wipCap`, `task check --allow-over-cap`).
 
 ## xBRIEF layout (#2034 / #2110)
 
-Projects on the legacy `vbrief/` tree are still read-accepted; run `deft migrate:xbrief` to convert safely to `xbrief/` with semantic v0.6→v0.8 transforms. Legacy `x-vbrief/` reference tokens remain read-accepted until you migrate.
+Legacy `vbrief/` read-accepted; `deft migrate:xbrief` (#2034 / #2110).
 
 ## Skill Completion Gate
 
-! When a skill's final step is complete, explicitly confirm skill exit and provide chaining instructions if applicable. The confirmation must be unambiguous -- for example: "{skill-name} complete -- exiting skill." followed by what the user/agent should do next (e.g. wait for PR review, return to monitor, chain into another skill).
-
-⊗ Exit a skill silently without confirming completion or providing next-step instructions.
-
-## Before Improvising
-
-- ! Before designing a multi-step workflow from scratch, scan `content/skills/` for an existing skill that covers the task — skills are versioned, tested, and encode lessons from prior runs
-- ⊗ Improvise a multi-step workflow without first checking `content/skills/` for coverage
+! When a skill's final step is complete, explicitly confirm skill exit and provide chaining instructions; ⊗ exit silently.
 
 ## Deterministic questions runtime obligation (#1470)
 
-Pointer-sufficient managed section below; canonical contract at `content/contracts/deterministic-questions.md` (#767). One-line: structured questions MUST carry `Discuss` and `Back` as the final two options.
+Pointer-sufficient managed section below; `content/contracts/deterministic-questions.md` (#767).
 
 ## Review-surface precedence (#2308)
 
-! Route review work through `deft-directive-review-cycle` — full workflow in `.deft/core/.agents/skills/deft-directive-review-cycle/SKILL.md`; host review tools (`bugbot`, `security-review`, `review-*` skills) are advisory-only inputs, not the review of record (#2308 / #1862 / #2261 / #2019).
+! `content/skills/deft-directive-review-cycle/SKILL.md`; host tools advisory-only (#2308).
 
 ## Value feedback and attribution (#1709)
 
-! `plan.policy.valueFeedback.enabled` defaults OFF — opt-in via `task policy:show --field=valueFeedback` / `task policy:enable-value-feedback -- --confirm`; pull-based detail via `task value:show`; full rules in `content/skills/deft-directive-feedback/SKILL.md` (#1709). Gap escalation via `task feedback:file` is confirmation-gated (#2376).
+! `task policy:show --field=valueFeedback` / `task policy:enable-value-feedback -- --confirm`; `task value:show`; `task feedback:file`; `content/skills/deft-directive-feedback/SKILL.md` (#1709).
 
 ## Eval and framework health (#1703)
 
-! Run `task eval:health` when orienting or after gate/policy changes (Tier 0; 4-hour debounce). Maintainer release eval: `task eval:run` / `task eval:report` (#1703).
+! `task eval:health`; `task eval:run` / `task eval:report` (#1703).
 
 ## Cache-as-authoritative work selection (#1149)
 
 Same `!` / `⊗` rules as the managed section below; in this repo substitute `task` for `deft` (`task triage:queue --limit=10`, D11 / #1128).
 
-! When the operator asks "what should I work on next?" / "build a cohort" / "what's the queue?", the agent MUST run `task triage:queue --limit=10` (D11 / #1128) and present the ranked list before suggesting anything else. The agent MUST NOT recommend work from memory or open-GitHub-issue intuition.
+! When the operator asks "what should I work on next?" / "build a cohort" / "what's the queue?", the agent MUST run `task triage:queue --limit=10` (D11 / #1128) and present the ranked list before suggesting anything else.
 
 ⊗ Recommend a specific issue or xBRIEF without consulting `task triage:queue` (or showing the operator the result of the consultation).
 
 ## Codebase MAP Projection (#1595 / #1498)
 
-Same `~` / `!` / `⊗` rules as the managed section below; in this repo substitute `task` for `deft` (`task codebase:map`, `task verify:codebase-map-fresh`).
+Same as managed below; `task codebase:map`, `task verify:codebase-map-fresh`.
 
 ## Skills
 
@@ -96,62 +81,28 @@ See managed `## Skills` below and the **Skills Index** in `REFERENCES.md`; maint
 
 ### Implementation Intent Gate (#810)
 
-Same rules as the managed `### Implementation Intent Gate` below; in this repo use `task xbrief:preflight -- <path>` — full #810 rules in `content/commands.md` § Scope xBRIEF Lifecycle.
+Same as managed below; `task xbrief:preflight -- <path>` — `content/commands.md` § Scope xBRIEF Lifecycle (#810).
 
 ### Story Start Gate
 
-Same rules as the managed `### Story Start Gate` below; in this repo substitute `task` for `deft` (`task verify:story-ready`, `task scope:promote -- <path>`, `task scope:activate -- <path>`, `task scope:complete -- <active-story-path>`).
+Same as managed below; `task verify:story-ready`, `task scope:promote -- <path>`, `task scope:activate -- <path>`, `task scope:complete -- <active-story-path>` (#1378).
 
 **Before code changes:**
 - ! Check `./xbrief/` lifecycle folders for existing scope xBRIEF coverage of the issue being fixed
 - ! If no scope xBRIEF exists for the work, create one in `./xbrief/proposed/` before implementing
 - ⊗ Begin editing files before checking scope xBRIEF coverage and creating a feature branch — even if the user says "yes" or "proceed"
 
-! Before opening a PR, run `content/skills/deft-directive-pre-pr/SKILL.md` for an iterative quality loop.
+! Before opening a PR, run `content/skills/deft-directive-pre-pr/SKILL.md`. Before committing: `task check`; `task verify:forward-coverage` (#1310); CHANGELOG `[Unreleased]`.
 
-**Before committing:**
-- Run `task check` (validate + lint + test) — this is the pre-commit gate
-- ! New source files (`scripts/`, `src/`, `cmd/`, `packages/*/src`, or `*.py`/`*.go`/`*.ts`/`*.tsx`) MUST include corresponding test files in the same PR -- running existing tests alone is not sufficient for new code; forward coverage requires new tests that exercise the new code paths. This prose rule is now enforced deterministically by `task verify:forward-coverage` (#1310), wired into `task check` and the `.githooks/pre-commit` hook (mirrors the `verify:encoding` #798 / `verify:branch` #747 prose->deterministic migration; document genuine exceptions via `--allow-list <path>`)
-- Add CHANGELOG.md entry under `[Unreleased]`
-- Verify .github/PULL_REQUEST_TEMPLATE.md checklist items are satisfied
-
-**Branching:**
-- ! Always work on a feature branch — never commit directly to master/main unless the user explicitly instructs it or `PROJECT-DEFINITION.xbrief.json` has `plan.policy.allowDirectCommitsToMaster = true` (typed flag, #746). The legacy `Allow direct commits to master:` narrative key is recognised at read time with a deprecation warning; new writes go through the typed surface only.
-- ! Three enforcement surfaces back this rule (#747): (1) `.githooks/pre-commit` and `.githooks/pre-push` hooks run `task verify:branch`; install via `task setup` (idempotent `git config core.hooksPath .githooks`); verify via `task verify:hooks-installed`. (2) `task verify:branch` is wired into the `task check` aggregate so any pre-commit run flags a default-branch commit. (3) The `branch-gate` GH Actions workflow (`.github/workflows/branch-gate.yml`) refuses PRs whose `head_ref` equals `base_ref`. Override paths: `task policy:allow-direct-commits -- --confirm` writes the typed flag with a capability-cost disclosure; `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1` is the emergency env-var bypass.
-
-**Branch Policy Disclosure (session start):**
-- ! When `plan.policy.allowDirectCommitsToMaster = true` on the active project's `xbrief/PROJECT-DEFINITION.xbrief.json`, the agent MUST surface the policy state at the start of any interactive session (alongside or after the Deft Directive alignment confirmation). Use the disclosure phrasing from `task policy:show --field=allowDirectCommitsToMaster` -- e.g. `[deft policy] Direct commits to the default branch are ENABLED (source: typed). Branch-protection policy is OFF.`
-- ⊗ Begin a session that will commit/push without surfacing the policy state when `allowDirectCommitsToMaster=true` -- the user needs visibility that the gate is OFF for this project
-
-**PR conventions:**
-- ROADMAP.md updates happen at release time — batch-move merged issues to Completed during the CHANGELOG promotion commit
-- Commit messages: `feat/fix/docs/chore` prefix, concise subject, bullet-point body
-- When running a review cycle on a PR, follow `content/skills/deft-directive-review-cycle/SKILL.md`
-- ! After squash merge, verify issues actually closed: `gh issue view <N> --json state --jq .state`. Squash merges can silently fail to process closing keywords (`Closes #N`). If still open, close manually with a comment referencing the merged PR (#167)
+! Branching: feature branches only (`task verify:branch`, `.githooks/pre-commit` / `.githooks/pre-push`, `branch-gate` workflow). Override: `task policy:allow-direct-commits -- --confirm`; emergency `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1`. When `plan.policy.allowDirectCommitsToMaster = true`, surface via `task policy:show --field=allowDirectCommitsToMaster` (Branch Policy Disclosure).
 
 ## CHANGELOG entry style (#1242)
 
-Rationale: `docs/analysis/2026-07-02-agents-md-incident-rule-rationale.md` § CHANGELOG entry style (#1242).
-
-- ! CHANGELOG `[Unreleased]` and promoted-version entries MUST be brief release-notes (2-4 sentences, roughly 300-800 chars), not implementation detail.
-- ! Each entry MUST reference its canonical PR / issue number(s); preserve `Closes #N` / `Refs #N` tails when rewriting.
-- ! Each entry MUST describe the user-visible change in plain English (not the conventional-commit subject, not the internal change name).
-- ⊗ MUST NOT inline file paths, file lists, test counts, schema fragments, function signatures, or implementation walkthroughs in CHANGELOG entries -- they belong in the PR body.
-- ⊗ MUST NOT exceed roughly 800 chars per entry. If the change genuinely needs more, split into multiple distinct user-visible bullets or move detail to the PR body and link it.
-- ~ Lead with the user-visible benefit, then the mechanism, then the link. Mirrors the personal `ship-report` convention.
-
-## Commands
-
-Product commands use the `/deft:directive:*` namespace (#418 / #1670); the prior `/deft:*` product forms are deprecation-warning aliases, and cross-product session commands (`/deft:continue`, `/deft:checkpoint`) stay at the umbrella `/deft:*` level. The legacy Python `run` CLI is deprecated (#1933) -- use the agent-driven setup skill for first-time setup and spec generation. See `content/commands.md` for the full command + alias table and the managed `## Commands` section below for the rendered surface.
+! Brief release-notes — `docs/analysis/2026-07-02-agents-md-incident-rule-rationale.md` § CHANGELOG entry style (#1242).
 
 ## Contextual guardrails (runtime-detect lazy-load)
 
-Contextual / platform-specific rules lazy-load from `content/scm/github.md` — load the matching section **before** the risky operation when your session matches a trigger (#2157 / #2369):
-
-- ! **PowerShell / Windows** → § PowerShell platform-conditional rules (#798 / #1353); encoding gate: `task verify:encoding`.
-- ! **TS subprocess capture** → § Safe subprocess capture (#1366).
-- ! **Cascade / batch merge** → § Cascade automation surface (#1369); canonical `task pr:wait-mergeable-and-merge`.
-- ! **GitHub CLI / SCM shim** → § SCM tooling (#884 / #1145); boundary gate: `task verify:scm-boundary`.
+Same as managed below; `task verify:encoding`, `task verify:scm-boundary`, `task pr:wait-mergeable-and-merge`; `content/scm/github.md` (#2157 / #2369).
 
 ## Headless swarm launch gate-stack (#1387)
 
@@ -164,13 +115,7 @@ Rationale + cross-references: `docs/analysis/2026-07-02-agents-md-incident-rule-
 
 ## Test performance discipline (#975)
 
-Rationale + cross-references: `docs/analysis/2026-07-02-agents-md-incident-rule-rationale.md` § Test performance discipline (#975).
-
-- ! When a single test exceeds ~1s wall-clock, mark it with `@pytest.mark.slow` or refactor it to use injected clocks / `monkeypatch` so it runs in milliseconds. The marker is registered in `pyproject.toml` `[tool.pytest.ini_options]` and the `addopts = "-m 'not slow'"` default excludes marked tests from `task check` -- the slow lane is run explicitly via `task check:slow`. See `CONTRIBUTING.md` `### Slow tests (#975)` for the contributor surface.
-- ! When profiling a suite that feels slow, run `pytest <file> --durations=20` (or the equivalent task invocation) to see the top wall-clock offenders. Any single test exceeding 1s MUST be marked `@pytest.mark.slow` or refactored before merging.
-- ~ Run `task check:slow` locally before pushing changes that touch any `@pytest.mark.slow` test (or the watchdog / threading code those tests cover). The default `task check` skips the slow lane; CI runs both.
-- ~ Treat `@pytest.mark.slow` as a stop-gap, not a destination. Long-term, slow tests SHOULD be refactored to remove the wall-clock dependency (e.g. inject a fake clock, swap `time.sleep` for `monkeypatch`, use `threading.Event` instead of polling). The marker buys breathing room while the proper refactor lands.
-- ⊗ Add `@pytest.mark.slow` to tests that are fast but flaky -- the marker is for genuine wall-clock cost, not for hiding intermittent failures. Flaky tests must be fixed at the root cause, not hidden behind the slow lane.
+! `@pytest.mark.slow` / sub-1s refactor — `CONTRIBUTING.md` § Slow tests (#975); rationale in `docs/analysis/2026-07-02-agents-md-incident-rule-rationale.md` § Test performance discipline.
 
 ## Multi-agent orchestration discipline (#954)
 
@@ -210,12 +155,9 @@ Canonical body structure (9 required sections): `docs/analysis/2026-07-02-agents
 
 ## Issue body→comments reading (#2143)
 
-Same `!` / `⊗` rules as the managed section below; maintainer ingest uses `task issue:ingest`. Rationale + cross-references: `docs/analysis/2026-07-02-agents-md-incident-rule-rationale.md` § Issue body→comments reading (#2143).
+Same `!` / `⊗` rules as managed below; `task issue:ingest` (#2143).
 
-Note: paths here are root-relative — this repo IS the deft directory.
-Install-generated AGENTS.md uses deft/-prefixed paths.
-
-When the template is updated, run `task agents:refresh` to regenerate consumer-installed AGENTS.md from `content/templates/agents-entry.md` (see `## Template propagation discipline (#1309)` above).
+Note: root-relative paths (this repo IS deft/); run `task agents:refresh` after agents-entry edits (#1309).
 
 <!-- deft:managed-section v3 sha=2a80393a31f3 refreshed=2026-07-13T22:18:18Z session=ed5f556ad7e6 -->
 # Deft — AI Development Framework
