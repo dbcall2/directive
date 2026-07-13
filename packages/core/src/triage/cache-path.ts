@@ -7,6 +7,7 @@
 
 import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { assertProjectionContained } from "../fs/projection-containment.js";
 import {
   MIGRATED_ARTIFACT_DIR,
   resolveEvalDir,
@@ -43,8 +44,8 @@ export interface TriageCacheMigrationResult {
   readonly removedLegacyFiles: readonly string[];
 }
 
-/** Absolute path to the layout-aware `.triage-cache/` directory. */
-export function resolveTriageCacheDir(projectRoot: string): string {
+/** Compute the layout-aware `.triage-cache/` directory without containment checks. */
+function triageCacheDirPath(projectRoot: string): string {
   let layoutRoot: string;
   try {
     layoutRoot = resolveLifecycleRoot(projectRoot);
@@ -52,6 +53,19 @@ export function resolveTriageCacheDir(projectRoot: string): string {
     layoutRoot = join(projectRoot, MIGRATED_ARTIFACT_DIR); // No xbrief/ layout; use canonical path.
   }
   return join(layoutRoot, TRIAGE_CACHE_DIR_NAME);
+}
+
+/** Refuse symlink-escaping xbrief/.triage-cache before mkdir/read/write (#2446). */
+function assertWritableTriageCachePath(projectRoot: string, ...segments: string[]): void {
+  const base = triageCacheDirPath(projectRoot);
+  const target = segments.length > 0 ? join(base, ...segments) : base;
+  assertProjectionContained(projectRoot, target);
+}
+
+/** Absolute path to the layout-aware `.triage-cache/` directory. */
+export function resolveTriageCacheDir(projectRoot: string): string {
+  assertWritableTriageCachePath(projectRoot);
+  return triageCacheDirPath(projectRoot);
 }
 
 /** POSIX-style path relative to project root (e.g. `xbrief/.triage-cache/foo`). */
@@ -141,8 +155,9 @@ export function migrateLegacyTriageCacheFromEval(projectRoot: string): TriageCac
 
 /** Resolve a path under `.triage-cache/`, migrating legacy `.eval/` files first. */
 export function resolveTriageCachePath(projectRoot: string, ...segments: string[]): string {
+  assertWritableTriageCachePath(projectRoot, ...segments);
   migrateLegacyTriageCacheFromEval(projectRoot);
-  return join(resolveTriageCacheDir(projectRoot), ...segments);
+  return join(triageCacheDirPath(projectRoot), ...segments);
 }
 
 /** Display helper: project-root-relative POSIX path for logs and gitignore copy. */
