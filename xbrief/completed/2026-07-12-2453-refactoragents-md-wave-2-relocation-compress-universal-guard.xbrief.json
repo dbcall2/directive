@@ -8,7 +8,7 @@
   "plan": {
     "id": "2453-relocate-universal-guardrails",
     "title": "refactor(agents-md): Wave 2 relocation — compress universal guardrails to one-line + gate pointers",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Universal always-on guardrails still carry paragraph bulk in AGENTS.md and agents-entry despite #2371 pointer-sufficient contract. This story compresses branch policy, implementation-intent, deterministic-questions, session ritual, WIP, story-start stack, review-surface, value-feedback, and eval/framework-health to one-line imperatives plus gate/skill/doc pointers per DD-1/DD-2.",
       "ImplementationPlan": "1) Inventory universal guardrail sections in AGENTS.md and content/templates/agents-entry.md. 2) Compress each to one-line imperative + pointer-to-gate/skill/doc; move bulk into canonical homes under content/skills, content/docs, or gate help text. 3) Keep agents_entry_contract pointer-sufficient tests green; add fixtures if needed. 4) Run task verify:eval-health-relocation / task check paths that fire the #2373 gate. 5) Verify: pnpm exec vitest run packages/core/src/content-contracts/skills/agents_entry_contract.test.ts and task eval:health. 6) CHANGELOG entry. Stay out of contextual PowerShell/SCM bulk owned by #2454.",
@@ -72,7 +72,9 @@
       "x-tracking": {
         "parent_epic": "#2369",
         "origin_issue": "#2453"
-      }
+      },
+      "completedAt": "2026-07-12T23:41:37Z",
+      "capacityBucket": "agentic-debt"
     },
     "references": [
       {
@@ -81,6 +83,6 @@
         "title": "Issue #2453"
       }
     ],
-    "updated": "2026-07-12T23:03:51.565Z"
+    "updated": "2026-07-12T23:41:37Z"
   }
 }

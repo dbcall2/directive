@@ -1,0 +1,86 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "gate(agents-md): invert agents-entry propagation contract to pointer-sufficient",
+    "created": "2026-07-12T22:06:33.361Z",
+    "updated": "2026-07-12T22:06:33.361Z"
+  },
+  "plan": {
+    "id": "2371-pointer-sufficient-contract",
+    "title": "gate(agents-md): invert agents-entry propagation contract to pointer-sufficient",
+    "status": "completed",
+    "narratives": {
+      "Description": "The agents_entry_contract currently requires full-text rule mirrors in content/templates/agents-entry.md and AGENTS.md. This story changes that contract so a pointer to a skill, gate, or lazy doc is sufficient, which is the Wave 1 unblocker for epic #2369 relocation.",
+      "ImplementationPlan": "1) Edit packages/core/src/content-contracts/skills/agents_entry_contract.test.ts to replace full-text PROPAGATION_* marker requirements with pointer-sufficient checks for skill/gate/doc shapes. 2) Update content/templates/agents-entry.md (and refresh AGENTS.md managed section if required) so universal rules can be one-line + pointer. 3) Add regression fixtures proving full rule bodies are not required when pointers resolve. 4) Verify: pnpm exec vitest run packages/core/src/content-contracts/skills/agents_entry_contract.test.ts. 5) CHANGELOG entry under Fixed/Changed for pointer-sufficient propagation.",
+      "UserStory": "As a framework maintainer, I want the agents-entry propagation contract to accept pointer-sufficient rule homes, so that Wave 2 can relocate rule bulk without the always-on file forcing full-text mirrors.",
+      "Origin": "Enriched for swarm launch from GitHub issue #2371 under epic #2369"
+    },
+    "items": [
+      {
+        "id": "2371-pointer-sufficient-contract-a1",
+        "title": "Change contract markers to pointer-sufficient semantics",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given a relocated rule with only a pointer in agents-entry/AGENTS.md, when the contract runs, then it passes for the correct pointer shape.",
+          "Traces": "FR-1"
+        }
+      },
+      {
+        "id": "2371-pointer-sufficient-contract-a2",
+        "title": "Cover skill/gate/doc pointer shapes",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given fixtures for pointer-to-skill, pointer-to-gate, and pointer-to-doc, when tests run, then each shape is validated and full-text is not required.",
+          "Traces": "FR-1"
+        }
+      },
+      {
+        "id": "2371-pointer-sufficient-contract-a3",
+        "title": "Keep task check green",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given the updated contract, when the relevant vitest/content contract suite runs, then it exits 0.",
+          "Traces": "FR-1"
+        }
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/content-contracts/skills/agents_entry_contract.test.ts",
+          "content/templates/agents-entry.md",
+          "AGENTS.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/content-contracts/skills/agents_entry_contract.test.ts"
+        ],
+        "expected_outputs": [
+          "pointer-sufficient contract tests green",
+          "PR merged for #2371"
+        ],
+        "depends_on": [],
+        "conflict_group": "agents-entry-contract",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "medium"
+      },
+      "x-tracking": {
+        "parent_epic": "#2369",
+        "origin_issue": "#2371"
+      },
+      "completedAt": "2026-07-12T22:31:09Z",
+      "capacityBucket": "agentic-debt"
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2371",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2371"
+      }
+    ],
+    "updated": "2026-07-12T22:31:09Z"
+  }
+}

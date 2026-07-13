@@ -8,7 +8,7 @@
   "plan": {
     "id": "2454-relocate-contextual-guardrails",
     "title": "refactor(agents-md): Wave 2 relocation — move contextual guardrails behind runtime-detect lazy pointers",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Contextual guardrails (PowerShell encoding, SCM-boundary, safe-subprocess, cascade automation, platform-conditional rules) should not occupy always-on paragraph bulk. Per DD-2 and #2157 precedent, move them behind runtime-detect lazy doc pointers.",
       "ImplementationPlan": "1) Inventory contextual/platform-conditional blocks remaining in AGENTS.md and content/templates/agents-entry.md after #2453 (PowerShell encoding, SCM-boundary, safe-subprocess, cascade automation, other runtime-detect rules). 2) Move rule bodies into content/scm/github.md and sibling lazy docs; leave one-line runtime-detect pointers in always-on surfaces. 3) Keep agents_entry_contract pointer-sufficient tests green; add fixtures if needed. 4) Pass task verify:eval-health-relocation and task eval:health (baseline 85). 5) Verify: pnpm exec vitest run packages/core/src/content-contracts/skills/agents_entry_contract.test.ts. 6) CHANGELOG [Unreleased]. Do not rework universal one-liners already relocated by #2453.",
@@ -72,7 +72,9 @@
       "x-tracking": {
         "parent_epic": "#2369",
         "origin_issue": "#2454"
-      }
+      },
+      "completedAt": "2026-07-12T23:51:05Z",
+      "capacityBucket": "agentic-debt"
     },
     "references": [
       {
@@ -81,6 +83,6 @@
         "title": "Issue #2454"
       }
     ],
-    "updated": "2026-07-12T23:42:41.315Z"
+    "updated": "2026-07-12T23:51:05Z"
   }
 }

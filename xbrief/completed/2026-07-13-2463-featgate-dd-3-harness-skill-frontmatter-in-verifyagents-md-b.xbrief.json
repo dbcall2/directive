@@ -8,7 +8,7 @@
   "plan": {
     "id": "2463-dd3-budget-meter",
     "title": "feat(gate): DD-3 harness skill frontmatter in verify:agents-md-budget",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Extend verify:agents-md-budget so gate output itemizes managed AGENTS.md bytes plus harness-injected skill frontmatter (Cursor agent_skill shape) and bootstrap-hook bytes (0 until #2438). Support tier-aware caps for daily-core versus all skills, keep task check green at the seeded absoluteMaxBytes ratchet, and document remediation when the combined always-on surface exceeds the 8192 B north-star.",
       "UserStory": "As a framework maintainer, I want verify:agents-md-budget to count DD-3 skill frontmatter bytes, so that always-on bootstrap cost is visible and ratchetable against the north-star.",
@@ -101,8 +101,10 @@
         ],
         "depends_on": [],
         "conflict_group": "agents-md-budget-2463"
-      }
+      },
+      "completedAt": "2026-07-13T01:51:19Z",
+      "capacityBucket": "agentic-debt"
     },
-    "updated": "2026-07-13T01:07:42.365Z"
+    "updated": "2026-07-13T01:51:19Z"
   }
 }

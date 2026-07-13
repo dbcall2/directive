@@ -8,7 +8,7 @@
   "plan": {
     "id": "2462-openpackage-tiered-manifest",
     "title": "feat(packaging): OpenPackage distribution manifest for deft-directive tiered skills",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Add an OpenPackage package (openpackage.yml + skills tree) that tier-delivers deft-directive consumer skills as daily-core, standard, and advanced for Cursor, Codex CLI, and OpenCode. Keep distribution-layer (A) only with no runtime skill router, document install beside npm @deftai/directive, and keep AGENTS.md pointer-thin without skill enumeration.",
       "UserStory": "As a framework maintainer, I want an OpenPackage tiered skill manifest for deft-directive, so that consumers can install daily-core skills without paying always-on frontmatter for deferred workflows.",
@@ -99,8 +99,10 @@
         ],
         "depends_on": [],
         "conflict_group": "openpackage-2462"
-      }
+      },
+      "completedAt": "2026-07-13T01:51:17Z",
+      "capacityBucket": "new-capability"
     },
-    "updated": "2026-07-13T01:07:42.365Z"
+    "updated": "2026-07-13T01:51:17Z"
   }
 }

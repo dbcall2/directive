@@ -8,7 +8,7 @@
   "plan": {
     "id": "2452-promote-absolute-budget",
     "title": "gate(agents-md): promote absolute always-on budget from advisory to fail-closed",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Wave 2 relocation landed but the managed section is still ~16.6 KB vs the <=8 KB / ~2k tok north-star. This story promotes the absolute meter from advisory (#2450) to fail-closed without breaking master: seed an absolute byte ratchet at the current measured size (anti-growth), keep the <=8192 north-star documented, and provide a clear remediation path for further thinning. Relative #645 line ratchet stays fail-closed.",
       "ImplementationPlan": "1) Extend packages/core agents-md-budget evaluate path / packages/cli/src/verify-agents-md-budget.ts so absolute over-budget can fail-closed. 2) Add plan.policy field (or reuse agentsMdBudget) for absoluteMaxBytes seeded at current managed UTF-8 size (~17029) so task check stays green, while documenting northStarBytes=8192. 3) Growth above seeded absolute max fails closed; report distance-to-north-star in output. 4) Optional release-gate mode that fails on north-star unless DEFT_ALLOW_ABSOLUTE_BUDGET_WAIVER=1 (time-boxed waiver documented in CHANGELOG/UPGRADING). 5) Tests in packages/core agents-md-budget evaluate tests. 6) Verify: pnpm exec vitest run packages/core/**/agents-md-budget* and task verify:agents-md-budget exits 0 on master. 7) CHANGELOG. DD-3 frontmatter: stub note that meter still excludes harness skill frontmatter.",
@@ -71,7 +71,9 @@
       "x-tracking": {
         "parent_epic": "#2369",
         "origin_issue": "#2452"
-      }
+      },
+      "completedAt": "2026-07-13T00:58:37Z",
+      "capacityBucket": "agentic-debt"
     },
     "references": [
       {
@@ -80,6 +82,6 @@
         "title": "Issue #2452"
       }
     ],
-    "updated": "2026-07-12T23:51:52.401Z"
+    "updated": "2026-07-13T00:58:37Z"
   }
 }

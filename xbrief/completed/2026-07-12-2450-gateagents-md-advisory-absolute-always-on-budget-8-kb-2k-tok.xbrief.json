@@ -1,0 +1,86 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "gate(agents-md): advisory absolute always-on budget (<=8 KB / ~2k tok)",
+    "created": "2026-07-12T22:06:33.361Z",
+    "updated": "2026-07-12T22:06:33.361Z"
+  },
+  "plan": {
+    "id": "2450-advisory-absolute-budget",
+    "title": "gate(agents-md): advisory absolute always-on budget (<=8 KB / ~2k tok)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Wire the absolute half of the layered budget instrument locked on #2372 as advisory/report-only. Keep the relative line-count ratchet fail-closed. Do not fail-close the absolute ceiling in this story.",
+      "ImplementationPlan": "1) Inspect packages/core/src/policy/agents-md-budget.ts and packages/cli/src/verify-agents-md-budget.ts for the relative line-count ratchet. 2) Add an absolute managed-section byte/token measurement (target <=8192 bytes / ~2000 tok) that emits advisory output without changing the fail-closed relative ratchet exit. 3) Extend packages/core/src/policy/agents-md-budget.test.ts with over-budget advisory and under-budget quiet cases using fixtures. 4) Verify with: pnpm exec vitest run packages/core/src/policy/agents-md-budget.test.ts and a manual task verify:agents-md-budget run showing advisory text. 5) CHANGELOG [Unreleased] note for layered advisory absolute budget; DD-3 frontmatter noted as deferred to #2452/#2370.",
+      "UserStory": "As a framework maintainer, I want an advisory absolute always-on budget meter, so that Wave 2 relocation has a measurable north-star without blocking Wave 1 merges.",
+      "Origin": "Enriched for swarm launch from GitHub issue #2450 under epic #2369"
+    },
+    "items": [
+      {
+        "id": "2450-advisory-absolute-budget-a1",
+        "title": "Measure managed-section vs absolute ceiling",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given the current managed section (~29KB), when the advisory meter runs, then it reports over-budget without failing task check by default.",
+          "Traces": "FR-1"
+        }
+      },
+      {
+        "id": "2450-advisory-absolute-budget-a2",
+        "title": "Preserve relative ratchet",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given plan.policy.agentsMdBudget line caps, when verify:agents-md-budget runs in fail-closed mode, then growth still fails as today.",
+          "Traces": "FR-1"
+        }
+      },
+      {
+        "id": "2450-advisory-absolute-budget-a3",
+        "title": "Document layered posture",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given CHANGELOG/docs touch, when read, then advisory-now vs promote-later (#2452) is explicit.",
+          "Traces": "FR-1"
+        }
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/policy/agents-md-budget.ts",
+          "packages/cli/src/verify-agents-md-budget.ts",
+          "packages/core/src/policy/agents-md-budget.test.ts"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/policy/agents-md-budget.test.ts"
+        ],
+        "expected_outputs": [
+          "advisory absolute meter wired",
+          "PR merged for #2450"
+        ],
+        "depends_on": [],
+        "conflict_group": "agents-md-budget",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium"
+      },
+      "x-tracking": {
+        "parent_epic": "#2369",
+        "origin_issue": "#2450"
+      },
+      "completedAt": "2026-07-12T22:27:10Z",
+      "capacityBucket": "agentic-debt"
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2450",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2450"
+      }
+    ],
+    "updated": "2026-07-12T22:27:10Z"
+  }
+}
