@@ -6,6 +6,10 @@ import { runInitDeposit } from "../init-deposit/init-deposit.js";
 import { runRefreshDeposit } from "../init-deposit/refresh.js";
 import { assertDepositContained, DepositContainmentError } from "./contain.js";
 
+// Symlinks require elevated privileges on Windows (SeCreateSymbolicLink); skip there.
+const itSymlink = it.skipIf(process.platform === "win32");
+const describeSymlink = describe.skipIf(process.platform === "win32");
+
 const temps: string[] = [];
 afterEach(() => {
   for (const t of temps.splice(0)) rmSync(t, { recursive: true, force: true });
@@ -59,21 +63,21 @@ describe("assertDepositContained (#2305)", () => {
     ).not.toThrow();
   });
 
-  it("throws when .deft is a symlink escaping the tree", () => {
+  itSymlink("throws when .deft is a symlink escaping the tree", () => {
     const { projectDir } = escapingSymlinkProject(".deft");
     expect(() => assertDepositContained(projectDir, join(projectDir, ".deft", "core"))).toThrow(
       DepositContainmentError,
     );
   });
 
-  it("throws when .deft/core is a symlink escaping the tree", () => {
+  itSymlink("throws when .deft/core is a symlink escaping the tree", () => {
     const { projectDir } = escapingSymlinkProject(".deft/core");
     expect(() => assertDepositContained(projectDir, join(projectDir, ".deft", "core"))).toThrow(
       /symlink escaping the project tree/,
     );
   });
 
-  it("throws when .deft is a broken/dangling symlink on the deposit path", () => {
+  itSymlink("throws when .deft is a broken/dangling symlink on the deposit path", () => {
     const projectDir = freshDir("deft-contain-dangling-");
     // Point .deft at a target that does not exist -> realpath fails.
     symlinkSync(join(projectDir, "nonexistent-target"), join(projectDir, ".deft"), "dir");
@@ -82,7 +86,7 @@ describe("assertDepositContained (#2305)", () => {
     );
   });
 
-  it("allows a .deft symlink that stays within the project tree", () => {
+  itSymlink("allows a .deft symlink that stays within the project tree", () => {
     const projectDir = freshDir("deft-contain-intree-");
     const inTree = join(projectDir, "actual-deft");
     mkdirSync(inTree, { recursive: true });
@@ -120,24 +124,24 @@ const runners: Record<"init" | "update", DepositRunner> = {
     ),
 };
 
-describe.each([
-  "init",
-  "update",
-] as const)("deposit refuses a symlink-escaping boundary (%s, #2305)", (verb) => {
-  it("throws and copies nothing when .deft escapes the tree", async () => {
-    const { projectDir } = escapingSymlinkProject(".deft");
-    const copyContent = vi.fn(async () => {});
-    await expect(runners[verb](projectDir, copyContent)).rejects.toThrow(DepositContainmentError);
-    expect(copyContent).not.toHaveBeenCalled();
-  });
-
-  it("throws and copies nothing when .deft/core escapes the tree", async () => {
-    const { projectDir, escapeTarget } = escapingSymlinkProject(".deft/core");
-    const copyContent = vi.fn(async () => {
-      // If the guard failed, the deposit would write through the symlink.
-      writeFileSync(join(escapeTarget, "SHOULD-NOT-EXIST"), "x", "utf8");
+describeSymlink.each(["init", "update"] as const)(
+  "deposit refuses a symlink-escaping boundary (%s, #2305)",
+  (verb) => {
+    it("throws and copies nothing when .deft escapes the tree", async () => {
+      const { projectDir } = escapingSymlinkProject(".deft");
+      const copyContent = vi.fn(async () => {});
+      await expect(runners[verb](projectDir, copyContent)).rejects.toThrow(DepositContainmentError);
+      expect(copyContent).not.toHaveBeenCalled();
     });
-    await expect(runners[verb](projectDir, copyContent)).rejects.toThrow(DepositContainmentError);
-    expect(copyContent).not.toHaveBeenCalled();
-  });
-});
+
+    it("throws and copies nothing when .deft/core escapes the tree", async () => {
+      const { projectDir, escapeTarget } = escapingSymlinkProject(".deft/core");
+      const copyContent = vi.fn(async () => {
+        // If the guard failed, the deposit would write through the symlink.
+        writeFileSync(join(escapeTarget, "SHOULD-NOT-EXIST"), "x", "utf8");
+      });
+      await expect(runners[verb](projectDir, copyContent)).rejects.toThrow(DepositContainmentError);
+      expect(copyContent).not.toHaveBeenCalled();
+    });
+  },
+);

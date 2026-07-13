@@ -11,6 +11,9 @@ import {
 } from "./constants.js";
 import { detectLegacyVbriefLayout, detectXbriefConvergence } from "./detect.js";
 
+// Symlinks require elevated privileges on Windows (SeCreateSymbolicLink); skip there.
+const itSymlink = it.skipIf(process.platform === "win32");
+
 function writeXbriefStory(root: string): void {
   mkdirSync(join(root, MIGRATED_ARTIFACT_DIR, "active"), { recursive: true });
   writeFileSync(
@@ -169,15 +172,18 @@ describe("detectXbriefConvergence (#2270)", () => {
     expect(detectXbriefConvergence(root).state).toBe("legacy-only");
   });
 
-  it("does not treat a vbrief/ holding only a symlink as empty (never wipes symlinked content)", () => {
-    writeXbriefStory(root);
-    const target = join(root, "target.txt");
-    writeFileSync(target, "real content\n", "utf8");
-    mkdirSync(join(root, LEGACY_ARTIFACT_DIR), { recursive: true });
-    symlinkSync(target, join(root, LEGACY_ARTIFACT_DIR, "link.txt"));
-    // A symlink is real content, so the tree is not the empty-vbrief cleanup case.
-    expect(detectXbriefConvergence(root).state).not.toBe("empty-vbrief");
-  });
+  itSymlink(
+    "does not treat a vbrief/ holding only a symlink as empty (never wipes symlinked content)",
+    () => {
+      writeXbriefStory(root);
+      const target = join(root, "target.txt");
+      writeFileSync(target, "real content\n", "utf8");
+      mkdirSync(join(root, LEGACY_ARTIFACT_DIR), { recursive: true });
+      symlinkSync(target, join(root, LEGACY_ARTIFACT_DIR, "link.txt"));
+      // A symlink is real content, so the tree is not the empty-vbrief cleanup case.
+      expect(detectXbriefConvergence(root).state).not.toBe("empty-vbrief");
+    },
+  );
 
   it("classifies content in both roots (no marker) as dual-populated", () => {
     writeXbriefStory(root);

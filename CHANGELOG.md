@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Windows-native maintainers can run the test suite without WSL.** Path helpers and content-contract readers now honor win32 path and CRLF semantics, with LF checkout hardening and a short CONTRIBUTING setup note. Closes #2467.
+
 ### Added
 
 - **OpenPackage tiered skill package for cross-harness install.** Ships a tiered OpenPackage skill manifest (daily-core / standard / advanced) for Cursor, Codex CLI, and OpenCode via `opkg install`, documented alongside the npm engine — distribution-layer only, no runtime skill router. Closes #2462. Refs #2369.
