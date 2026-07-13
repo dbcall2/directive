@@ -921,4 +921,16 @@
 - **#2324** -- vbrief:reconcile:umbrellas fails to create current-shape comment — GitHub 422 'links/0/schema nil is not an object' -- `[completed]`
 - **#2368** -- deft doctor recommends deft migrate:xbrief for a stale schema deposit but the command exits 2 on already-migrated projects (dead-end advisory) -- `[completed]`
 - **#2374** -- triage-cache README deposits directive-internal docs (dead scripts/candidates_log.py pointer + internal decision IDs) as a tracked file in every consumer -- `[completed]`
+- fix(triage): omit/sanitize quarantined cache titles in triage:queue -- `[completed]`
+- **#2371** -- gate(agents-md): invert agents-entry propagation contract to pointer-sufficient -- `[completed]`
+- **#2373** -- gate(agents-md): eval-health regression gate on rule-relocation PRs -- `[completed]`
+- Fail closed on all-invisible-unicode triage queue titles -- `[completed]`
+- **#2450** -- gate(agents-md): advisory absolute always-on budget (<=8 KB / ~2k tok) -- `[completed]`
+- **#2451** -- chore(skills): delete deprecated deft-* skill redirect stubs -- `[completed]`
+- **#2452** -- gate(agents-md): promote absolute always-on budget from advisory to fail-closed -- `[completed]`
+- **#2453** -- refactor(agents-md): Wave 2 relocation — compress universal guardrails to one-line + gate pointers -- `[completed]`
+- **#2454** -- refactor(agents-md): Wave 2 relocation — move contextual guardrails behind runtime-detect lazy pointers -- `[completed]`
+- **#2462** -- feat(packaging): OpenPackage distribution manifest for deft-directive tiered skills -- `[completed]`
+- **#2463** -- feat(gate): DD-3 harness skill frontmatter in verify:agents-md-budget -- `[completed]`
+- fix(windows): native path portability for task check / release preflight -- `[completed]`
 

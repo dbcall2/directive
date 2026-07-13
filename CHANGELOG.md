@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.75.0] - 2026-07-13
+
+> Wave 2 AGENTS.md slim-down phase 1 — more relocation still ahead — plus OpenPackage skill packaging and fail-closed always-on budget gates.
+
 ### Fixed
 
 - **Windows-native maintainers can run the test suite without WSL.** Path helpers and content-contract readers now honor win32 path and CRLF semantics, with LF checkout hardening and a short CONTRIBUTING setup note. Closes #2467.
@@ -4260,7 +4272,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.74.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.75.0...HEAD
+[0.75.0]: https://github.com/deftai/directive/compare/v0.74.0...v0.75.0
 [0.74.0]: https://github.com/deftai/directive/compare/v0.73.1...v0.74.0
 [0.73.1]: https://github.com/deftai/directive/compare/v0.73.0...v0.73.1
 [0.73.0]: https://github.com/deftai/directive/compare/v0.72.0...v0.73.0
