@@ -1,3 +1,4 @@
+import { VBRIEF_VERSION } from "@deftai/directive-types";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_STATUS_FOR_FOLDER,
@@ -8,8 +9,12 @@ import {
 import { defaultStatusForFolder, folderForStatus } from "./routing.js";
 
 describe("constants coverage", () => {
+  it("keeps EMITTED_VBRIEF_VERSION aligned with VBRIEF_VERSION (#2318)", () => {
+    expect(EMITTED_VBRIEF_VERSION).toBe(VBRIEF_VERSION);
+    expect(EMITTED_VBRIEF_VERSION).toBe("0.8");
+  });
+
   it("exports lifecycle tables", () => {
-    expect(EMITTED_VBRIEF_VERSION).toBe("0.6");
     expect(FOLDER_TO_STATUSES.active).toContain("running");
     expect(STATUS_TO_FOLDER.running).toBe("active");
     expect(DEFAULT_STATUS_FOR_FOLDER.active).toBe("running");
