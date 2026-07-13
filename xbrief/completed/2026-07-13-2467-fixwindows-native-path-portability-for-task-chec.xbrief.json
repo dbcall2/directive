@@ -8,7 +8,7 @@
   "plan": {
     "id": "2467-windows-path-portability",
     "title": "fix(windows): native path portability for task check / release preflight",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "Make pnpm run test and task check pass on Windows-native Node by fixing POSIX-only path assumptions in tests and a few production helpers, plus LF/.gitattributes and CONTRIBUTING hardening so pack-drift and maintainer setup do not false-fail.",
       "UserStory": "As a maintainer on Windows-native Node, I want task check to pass so I can cut releases without switching to WSL.",
@@ -35,6 +35,13 @@
         }
       }
     ],
-    "references": ["#2467"]
+    "references": [
+      "#2467"
+    ],
+    "updated": "2026-07-13T04:42:40Z",
+    "metadata": {
+      "completedAt": "2026-07-13T04:42:40Z",
+      "capacityBucket": "new-capability"
+    }
   }
 }
