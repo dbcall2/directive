@@ -100,6 +100,9 @@ export default defineConfig({
   },
   test: {
     include: ["packages/*/src/**/*.test.ts"],
+    // Windows git fixture suites (session:start) exceed the 5s default under
+    // full-suite parallelism; Linux CI stays on the default. Refs #2467.
+    testTimeout: process.platform === "win32" ? 20_000 : 5_000,
     coverage: {
       provider: "v8",
       include: ["packages/*/src/**/*.ts"],
