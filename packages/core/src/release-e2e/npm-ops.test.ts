@@ -16,6 +16,7 @@ import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
 import { runInitDeposit } from "../init-deposit/init-deposit.js";
 import { runRefreshDeposit } from "../init-deposit/refresh.js";
 import type { SpawnResult } from "../release/types.js";
+import * as commandSpawn from "../verify-env/command-spawn.js";
 import {
   alignNpmPackageVersions,
   rehearseNpmInstallAndRun,
@@ -212,6 +213,15 @@ describe("resolvePnpm", () => {
 
   it("returns null when neither is available", () => {
     expect(resolvePnpm({ which: () => null })).toBeNull();
+  });
+
+  it("uses PATHEXT-aware PATH resolution when no which seam is injected (#2548)", () => {
+    const spy = vi.spyOn(commandSpawn, "resolveCommandOnPath").mockImplementation((name) => {
+      if (name === "pnpm") return "C:\\bin\\pnpm.CMD";
+      return null;
+    });
+    expect(resolvePnpm()).toEqual(["C:\\bin\\pnpm.CMD"]);
+    spy.mockRestore();
   });
 });
 
