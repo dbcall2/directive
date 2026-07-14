@@ -16,11 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Network-enabled doctor detects newer stable framework releases.** `deft doctor --network` now compares release-tag installs with the npm `latest` version even when the immutable pinned tag SHA still matches, preserves moved-ref priority, and does not nudge stable installs toward prereleases. Default doctor and session-ritual flows remain offline. Closes #1692. Refs #2488.
 - **Ordered-plan continuation stops "next" from escaping an approved sequence.** Agents bind bare "what's next?" / "proceed" to the narrowest operator-approved plan via `plan-sequence:*` and `verify:plan-sequence`; exhausted plans fail closed instead of pulling the triage queue. AGENTS keeps a pointer-thin #1149 precedence line; full rules live in the preamble and skills. Closes #2402.
 
 ### Changed
 
 ### Fixed
+
+- **macOS test runs use canonical temporary paths and a portable Unix no-op binary.** Vitest normalizes the `/var` alias before workers spawn, preventing cwd/git fixture mismatches, and the SCM binary-override fixture now uses `/usr/bin/true`, which exists on both macOS and common Linux hosts. Closes #2526, #2527.
 
 ### Removed
 
