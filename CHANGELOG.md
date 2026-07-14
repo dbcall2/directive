@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.76.0] - 2026-07-14
+
+> Phase-2 always-on shrink: managed AGENTS.md under 8 KB, daily-core install default, and read-only session posture so hello stays light until you mutate.
+
+### Added
+
 - **OpenPackage consumer installs default to daily-core skills.** The tier manifest and sync script now select the six session-bootstrap skills unless you pass `--tier all`, `--tier standard`, or `--tier advanced`; README and UPGRADING document how to expand tiers. Closes #2494. Refs #2491, #2462, #2463, #2370.
 - **Read-only Directive session posture defers ceremony until you start changing things.** Questions, Plan Mode, and ticket-shaping now default to alignment-only context loads without writing `.deft/ritual-state.json`, triage welcome, branch-policy dumps, or install side effects; the full mutable ritual still runs at mutation boundaries. Use `deft session:start -- --read-only` for explicit alignment-only mode. Closes #2176. Refs #2491.
 
@@ -4295,7 +4307,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.75.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.76.0...HEAD
+[0.76.0]: https://github.com/deftai/directive/compare/v0.75.0...v0.76.0
 [0.75.0]: https://github.com/deftai/directive/compare/v0.74.0...v0.75.0
 [0.74.0]: https://github.com/deftai/directive/compare/v0.73.1...v0.74.0
 [0.73.1]: https://github.com/deftai/directive/compare/v0.73.0...v0.73.1

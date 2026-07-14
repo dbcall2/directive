@@ -930,7 +930,21 @@
 - **#2452** -- gate(agents-md): promote absolute always-on budget from advisory to fail-closed -- `[completed]`
 - **#2453** -- refactor(agents-md): Wave 2 relocation — compress universal guardrails to one-line + gate pointers -- `[completed]`
 - **#2454** -- refactor(agents-md): Wave 2 relocation — move contextual guardrails behind runtime-detect lazy pointers -- `[completed]`
+- **#2176** -- Add a read-only Directive session posture that defers mutable ceremony until implementation intent -- `[completed]`
+- **#2180** -- Make Directive posture ephemeral and run ceremony only at mutation boundaries -- `[completed]`
+- **#2318** -- bug(vbrief-build): newly emitted xBRIEFs stamped v0.6 instead of current v0.8 -- `[completed]`
+- **#2414** -- AppSec scan 019f4605-e43a-77a9-83cd-8e673a779c62 — 27 informational findings (LLM trust-tier + DAST coverage) -- `[completed]`
+- **#2434** -- fix(release): Step 5 releaseCheckEnv poisons vitest — forces --skip-ci on production cuts (recurrence of #1553 after #2386) -- `[completed]`
+- **#2446** -- sec: triage cache + init/update projection writers follow repo-controlled symlinks outside the checkout -- `[completed]`
+- **#2447** -- sec: issue ingest leaves title/plan.items unscanned; scope lifecycle follows xbrief folder symlinks -- `[completed]`
+- **#2449** -- Bug: xbrief implementation preflight command is unavailable in v0.74 -- `[completed]`
 - **#2462** -- feat(packaging): OpenPackage distribution manifest for deft-directive tiered skills -- `[completed]`
 - **#2463** -- feat(gate): DD-3 harness skill frontmatter in verify:agents-md-budget -- `[completed]`
 - fix(windows): native path portability for task check / release preflight -- `[completed]`
+- **#2470** -- sec: four medium symlink/path-escape write sinks (scope planRef, issue cache, welcome audit, release markdown) -- `[completed]`
+- **#2490** -- refactor(agents-md): shrink maintainer AGENTS.md unmanaged header with consumer-parity mechanisms -- `[completed]`
+- **#2493** -- refactor(agents-md): Phase 2 session-routing compression aligned with read-only posture (#2176) -- `[completed]`
+- **#2494** -- feat(packaging): Phase 2 daily-core install default for consumer always-on (DD-3) -- `[completed]`
+- **#2501** -- refactor(agents-md): Phase 2 Wave 3a — evict Content packs / Skills / Codebase MAP from managed section -- `[completed]`
+- **#2502** -- refactor(agents-md): Phase 2 Wave 3b — compress umbrella / queue / body→comments / process cards to clear ≤8192 -- `[completed]`
 
