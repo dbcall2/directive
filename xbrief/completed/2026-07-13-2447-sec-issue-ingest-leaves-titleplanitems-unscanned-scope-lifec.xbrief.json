@@ -1,0 +1,90 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2447"
+  },
+  "plan": {
+    "title": "sec: issue ingest leaves title/plan.items unscanned; scope lifecycle follows xbrief folder symlinks",
+    "status": "completed",
+    "narratives": {
+      "Description": "This story implements the cited GitHub issue acceptance criteria in the scoped packages listed in swarm.file_scope. It includes regression tests and a CHANGELOG entry under Unreleased Fixed or Changed as appropriate.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2447",
+      "Overview": "**Severity:** Medium (2 findings)\r\n**Source:** Scheduled application-security review at `6e288a2de499cadfce43e176a7b08c5d15d52d4f`\r\n**Related:** incomplete coverage after #2306 (issue ingest quarantine); same symlink trust-boundary class as #2413 / #2446 / #2383\r\n\r\n## Summary\r\n\r\nTwo further medium findings from the same AppSec pass:\r\n\r\n1. Issue ingest still leaves `plan.title` and derived `plan.items[].title` unscanned after #2306 quarantined Overview.\r\n2. Scope lifecycle transitions can relocate story xBRIEFs outside the checkout when a lifecycle folder under `xbrief/` is a repo-controlled symlink.\r\n\r\n---\r\n\r\n### 1) Medium — Issue ingest leaves title and `plan.items` unscanned after #2306\r\n\r\n**Location:** `packages/core/src/lifecycle/issue-ingest.ts`\r\n\r\n**Attacker / input:** an attacker opens a GitHub issue with an injection-shaped or credential-shaped title and/or checkbox acceptance-criteria lines. An empty body can skip the body scan entirely.\r\n\r\n**Attack path:**\r\n1. Maintainer runs `triage:accept` / `issue:ingest`.\r\n2. `buildIssueVbrief` scans only Overview (post-#2306).\r\n3. Prompt-injection / credential-shaped text persists into agent-authoritative xBRIEF fields: `plan.title`, `narratives.Description`, and `plan.items[].title`.\r\n\r\n**Impact:** quarantined Overview creates a false sense of safety while title and checkbox AC text still land in fields agents treat as authoritative.\r\n\r\n**Remediation:** run `scan()` on the issue title and each extracted plan-item title (fail closed on hard-fail; fence soft signals) before writing the xBRIEF; prefer scanning derived fields from transformed content.\r\n\r\n---\r\n\r\n### 2) Medium — Scope lifecycle moves follow symlinked `xbrief` folder targets outside the repo\r\n\r\n**Location:** `packages/core/src/scope/transition.ts`\r\n\r\n**Attacker / input:** a malicious repository author commits a lifecycle folder such as `xbrief/completed` (or another lifecycle directory) as a symlink to a writable path outside the checkout.\r\n\r\n**Attack path:**\r\n1. Victim runs a routine lifecycle verb such as `task scope:complete` (also promote / activate).\r\n2. Transition code calls `mkdirSync` + `renameSync` on the destination under `xbrief/<lifecycle>/`.\r\n3. Those calls follow the folder symlink and relocate the story xBRIEF outside the project tree.\r\n\r\n**Impact:** scope lifecycle can move story artifacts into an attacker-chosen directory outside the checkout under the victim account.\r\n\r\n**Remediation:** apply `assertProjectionContained` (or equivalent `lstat` / `realpath` containment) to lifecycle destination dirs before mkdir/rename; reject escaping folder symlinks.\r\n\r\n---\r\n\r\n## Acceptance\r\n\r\n- [ ] `issue:ingest` / `triage:accept` runs quarantine `scan()` on issue title and each derived `plan.items[].title` before writing the xBRIEF; hard-fail refuses the write; soft signals are fenced.\r\n- [ ] Empty-body issues still scan title (and any extracted plan-item titles); body-scan skip does not imply title/item skip.\r\n- [ ] `scope:complete` / `promote` / `activate` refuse when the destination lifecycle folder (or a parent under `xbrief/`) is a symlink or resolves outside the project root; no out-of-tree `mkdir`/`rename` occurs.\r\n- [ ] Regression tests cover: injection-shaped title + checkbox AC into xBRIEF fields; empty-body title-only path; symlink-at-lifecycle-folder and symlink-in-parent-path for scope transitions.\r\n\r\n## Notes\r\n\r\nFinding (1) is a residual gap on #2306 — prefer extending the existing ingest scanner rather than a parallel path. Finding (2) should reuse `#2413` / `#2446` containment (`assertProjectionContained`) on lifecycle destinations; can ship with or immediately after the triage-cache / init-deposit containment work in #2446.\r\n\n",
+      "Labels": "bug, security",
+      "ImplementationPlan": "Edit these concrete paths: packages/core/src/lifecycle/issue-ingest.ts, packages/core/src/scope/transition.ts, packages/core/src/fs/projection-containment.ts, CHANGELOG.md. Verify with: pnpm exec vitest run packages/core/src/lifecycle packages/core/src/scope. 1. Extend issue ingest scan() to title and plan.items[].title (fail closed on hard-fail; fence soft signals).\n2. Apply assertProjectionContained to scope lifecycle destination dirs before mkdir/rename.\n3. Regression tests for empty-body title-only and lifecycle folder symlinks.",
+      "UserStory": "As a maintainer ingesting issues, I want titles and plan items quarantined and scope moves contained, so that injection text and symlink escapes cannot land outside trusted boundaries.",
+      "Traces": "missing_traces_justification: bugfix / security hardening without a mapped FR id in specification.xbrief.json"
+    },
+    "items": [
+      {
+        "id": 24471,
+        "title": "Title and items scanned",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given an injection-shaped issue title or checkbox AC, when issue:ingest runs, then hard-fail refuses or soft signals are fenced before write.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 24472,
+        "title": "Empty body still scans title",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given an empty body, when ingest runs, then title and extracted item titles are still scanned.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 24473,
+        "title": "Lifecycle folder containment",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given a symlinked xbrief lifecycle folder, when scope promote/activate/complete runs, then the transition refuses out-of-tree rename.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "security"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2447",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2447: sec: issue ingest leaves title/plan.items unscanned; scope lifecycle follows xbrief folder symlinks"
+      }
+    ],
+    "updated": "2026-07-13T17:41:28Z",
+    "id": "2447-ingest-scan-scope-symlink",
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "parent_issue": "#2447"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/lifecycle/issue-ingest.ts",
+          "packages/core/src/scope/transition.ts"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/lifecycle packages/core/src/scope"
+        ],
+        "expected_outputs": [
+          "acceptance criteria satisfied",
+          "task check green on feature branch",
+          "PR opened"
+        ],
+        "depends_on": [],
+        "conflict_group": "2447-ingest-scan-scope-symlink",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium"
+      },
+      "completedAt": "2026-07-13T17:41:28Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}

@@ -8,7 +8,7 @@
   "plan": {
     "id": "2490-maintainer-header-shrink",
     "title": "refactor(agents-md): shrink maintainer AGENTS.md unmanaged header with consumer-parity mechanisms",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Shrink the maintainer AGENTS.md unmanaged header (~25 KB) using the same pointer-sufficient / lazy-home mechanisms as the consumer managed section. Eliminate full-text restatements of managed rules; keep #1309 propagation and #2065 unmanaged-header contract. Low priority under #2491 — does not change consumer delivered load and must not block #2492–#2494.",
       "UserStory": "As a framework maintainer, I want the directive-repo AGENTS.md header to stop restating the managed section, so that maintainer sessions pay less always-on cost without forking consumer SoT.",
@@ -119,8 +119,10 @@
           "CHANGELOG.md"
         ],
         "priority": "low"
-      }
+      },
+      "completedAt": "2026-07-14T02:02:25Z",
+      "capacityBucket": "agentic-debt"
     },
-    "updated": "2026-07-13T22:13:37Z"
+    "updated": "2026-07-14T02:02:25Z"
   }
 }

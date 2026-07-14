@@ -1,0 +1,111 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Phase 2 Wave 3a — evict Content packs / Skills / Codebase MAP from managed agents-entry",
+    "created": "2026-07-14T02:05:00.000Z",
+    "updated": "2026-07-14T02:05:00.000Z"
+  },
+  "plan": {
+    "id": "2501-wave3a-discovery-eviction",
+    "title": "refactor(agents-md): Phase 2 Wave 3a — evict Content packs / Skills / Codebase MAP from managed section",
+    "status": "completed",
+    "narratives": {
+      "Description": "Pointer-out Content packs, Skills, and Codebase MAP cards from content/templates/agents-entry.md to on-demand docs; keep !/⊗ one-liners. ~2.0–2.5 KB toward managed ≤8192 under epic #2491.",
+      "UserStory": "As a framework maintainer, I want discovery and orientation prose out of always-on AGENTS.md, so that consumers load less text while agents still find packs, skills, and MAP guidance on demand.",
+      "ImplementationPlan": "1) Rewrite Content packs, Skills, and Codebase MAP sections in content/templates/agents-entry.md to pointer-thin !/⊗ lines targeting packs:slice, REFERENCES.md Skills Index, and codebase:map / plan.architecture.codeStructure. 2) Relocate any needed prose into content/commands.md or REFERENCES.md pointers; update packages/core/src/content-contracts/skills/agents_entry_contract.test.ts markers (retire full-text, pointer-sufficient). 3) Run task agents:refresh; re-seed absoluteMaxBytes (and line ratchet if needed) in xbrief/PROJECT-DEFINITION.xbrief.json. 4) CHANGELOG.md under [Unreleased] Closes #2501 Refs #2491. Verify: pnpm exec vitest run packages/core/src/content-contracts/skills/agents_entry_contract.test.ts; task verify:agents-md-budget; task check --allow-over-cap.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2501",
+      "Overview": "Conflict group agents-entry-phase2 — serialize ahead of #2502 Wave 3b."
+    },
+    "items": [
+      {
+        "id": "2501-a1",
+        "title": "Discovery sections pointer-thin",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given agents-entry, when Content packs / Skills / Codebase MAP are read, then they are pointer-thin with no multi-bullet discovery walkthroughs always-on.",
+          "Traces": "FR-1"
+        }
+      },
+      {
+        "id": "2501-a2",
+        "title": "Contract markers updated",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given marker updates, when agents_entry_contract tests run, then pointer-sufficient rules pass and retired full-text markers are gone.",
+          "Traces": "FR-1"
+        }
+      },
+      {
+        "id": "2501-a3",
+        "title": "Budget ratchet + agents:refresh",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given the byte drop, when agents:refresh and verify:agents-md-budget run, then AGENTS.md matches and absoluteMaxBytes is re-seeded downward.",
+          "Traces": "FR-1"
+        }
+      },
+      {
+        "id": "2501-a4",
+        "title": "CHANGELOG closes issue",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given merge, when PR lands, then CHANGELOG cites Closes #2501 Refs #2491.",
+          "Traces": "FR-1"
+        }
+      }
+    ],
+    "tags": [
+      "context-engineering",
+      "agent-experience",
+      "urgent"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2501",
+        "type": "x-xbrief/github-issue",
+        "title": "#2501"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2491",
+        "type": "x-xbrief/refs",
+        "title": "Parent epic #2491"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2502",
+        "type": "x-xbrief/refs",
+        "title": "Sibling Wave 3b #2502"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope_confidence": "high",
+        "model_tier": "medium",
+        "size": "medium",
+        "file_scope": [
+          "content/templates/agents-entry.md",
+          "packages/core/src/content-contracts/skills/agents_entry_contract.test.ts",
+          "xbrief/PROJECT-DEFINITION.xbrief.json",
+          "CHANGELOG.md",
+          "AGENTS.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/content-contracts/skills/agents_entry_contract.test.ts",
+          "task verify:agents-md-budget",
+          "task check --allow-over-cap"
+        ],
+        "expected_outputs": [
+          "pointer-thin Content packs / Skills / Codebase MAP sections",
+          "PR merged Closes #2501"
+        ],
+        "depends_on": [],
+        "conflict_group": "agents-entry-phase2"
+      },
+      "capacityBucket": "agentic-debt",
+      "completedAt": "2026-07-14T02:19:55Z"
+    },
+    "updated": "2026-07-14T02:19:55Z"
+  }
+}

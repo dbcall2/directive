@@ -1,0 +1,87 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2449"
+  },
+  "plan": {
+    "title": "Bug: xbrief implementation preflight command is unavailable in v0.74",
+    "status": "completed",
+    "narratives": {
+      "Description": "This story implements the cited GitHub issue acceptance criteria in the scoped packages listed in swarm.file_scope. It includes regression tests and a CHANGELOG entry under Unreleased Fixed or Changed as appropriate.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2449",
+      "Overview": "In a consumer using the xBRIEF lifecycle, the documented command 'deft xbrief:preflight -- <active xbrief path>' returns 'unknown verb'. The visible fallback 'deft vbrief:preflight' also rejects the positional path. This prevents agents from satisfying the documented implementation-intent gate for active xBRIEFs. Expected: xbrief:preflight works, or vbrief:preflight accepts the documented xbrief invocation with clear help text.",
+      "ImplementationPlan": "Edit these concrete paths: packages/cli/src, packages/core/src, Taskfile.yml, tasks. Verify with: task --list. 1. Wire task xbrief:preflight as an alias or first-class verb that accepts the documented active xBRIEF path.\n2. Ensure vbrief:preflight accepts xbrief/ paths with clear help when invoked with legacy name.\n3. Add CLI/Taskfile tests and CHANGELOG.",
+      "UserStory": "As an agent satisfying the implementation-intent gate, I want deft xbrief:preflight -- <path> to work, so that I can clear the #810 gate without unknown-verb failures.",
+      "Traces": "missing_traces_justification: bugfix / security hardening without a mapped FR id in specification.xbrief.json"
+    },
+    "items": [
+      {
+        "id": 24491,
+        "title": "xbrief:preflight verb resolves",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given an active xBRIEF path, when task xbrief:preflight -- <path> runs, then exit 0 for running active stories and does not report unknown verb.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 24492,
+        "title": "Help path is clear",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given a bad invocation, when preflight fails, then stderr names the expected path form and lifecycle requirements.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 24493,
+        "title": "Regression coverage",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given CLI/Taskfile contract tests, when the suite runs, then xbrief:preflight wiring is asserted.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      }
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2449",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2449: Bug: xbrief implementation preflight command is unavailable in v0.74"
+      }
+    ],
+    "updated": "2026-07-13T16:08:21Z",
+    "id": "2449-xbrief-preflight-alias",
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "parent_issue": "#2449"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/cli/src",
+          "packages/core/src",
+          "Taskfile.yml",
+          "tasks"
+        ],
+        "verify_commands": [
+          "task --list"
+        ],
+        "expected_outputs": [
+          "acceptance criteria satisfied",
+          "task check green on feature branch",
+          "PR opened"
+        ],
+        "depends_on": [],
+        "conflict_group": "cli-verbs",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium"
+      },
+      "completedAt": "2026-07-13T16:08:21Z",
+      "capacityBucket": "new-capability"
+    }
+  }
+}

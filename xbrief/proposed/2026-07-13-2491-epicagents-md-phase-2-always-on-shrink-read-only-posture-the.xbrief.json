@@ -1,0 +1,141 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "epic(agents-md): Phase 2 always-on shrink — read-only posture, then managed ≤8KB + daily-core default",
+    "created": "2026-07-13T21:04:30.410Z",
+    "updated": "2026-07-13T21:04:30.410Z"
+  },
+  "plan": {
+    "id": "2491-phase2-always-on-shrink",
+    "title": "epic(agents-md): Phase 2 always-on shrink — read-only posture, then managed ≤8KB + daily-core default",
+    "status": "proposed",
+    "narratives": {
+      "Description": "Phase-2 epic after closed #2369 (v0.75.0). Drive consumer always-on acceptance via Wave-0 read-only posture (#2176), then managed-section ≤8192 B and daily-core install default (#2494). #2180 is parallel hardening; #2490 is low-priority maintainer-header work and does not gate consumers.",
+      "UserStory": "As a framework maintainer, I want a Phase-2 epic that sequences posture-first then consumer AGENTS.md shrink plus daily-core defaults, so that acceptance improves without conflating unfinished #2369 mechanism work with the ≤8KB chase.",
+      "ImplementationPlan": "0) Keep this xBRIEF in proposed/ until an operator promotes/activates the epic intentionally — do not activate as part of ingest prep. 1) Wave 0: land #2176 (read-only posture) before activating #2493 session-routing compression. 2) Parallel: #2180 ephemeral posture (not a shrink gate); #2490 maintainer header low priority. 3) Shrink path: #2492 catalog eviction and #2494 daily-core default may proceed without #2176; #2493 waits on #2176. 4) Success: managed ≤8192 B + daily-core default shipped; re-seed absoluteMaxBytes in shrink PRs; hard combined ≤8192 is Phase-3 prep only. 5) Tracking: maintain ## Current shape on issue #2491; child xBRIEFs live beside this epic under xbrief/proposed/ until activated. Verify: task umbrella:current-shape 2491; child issues linked as sub-issues.",
+      "Origin": "Enriched from GitHub issue #2491 (Phase-2 epic); predecessor #2369 closed",
+      "Overview": "Locked: Wave 0=#2176; #2180 parallel; Phase-2 success=managed≤8192 + daily-core default; #2490 low priority; inherit A/OpenPackage/agents-entry SoT/DD-3 meter from #2369."
+    },
+    "items": [
+      {
+        "id": "2491-w0",
+        "title": "Wave 0 — #2176 read-only posture",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given Phase-2 shrink work, when #2493 starts, then #2176 posture contract is landed or explicitly waived by operator.",
+          "Traces": "FR-1"
+        }
+      },
+      {
+        "id": "2491-p-2180",
+        "title": "Parallel — #2180 ephemeral posture",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given Phase-2, when tracking progress, then #2180 remains visible as parallel hardening not blocking #2492/#2494.",
+          "Traces": "FR-1"
+        }
+      },
+      {
+        "id": "2491-c-2492",
+        "title": "Child — #2492 catalog eviction",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given epic success path, when managed bytes are chased, then command catalog is pointer-evicted from agents-entry.",
+          "Traces": "FR-1"
+        }
+      },
+      {
+        "id": "2491-c-2493",
+        "title": "Child — #2493 session-routing compression",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given #2176, when routing sections shrink, then the thin card encodes read-only→mutation posture.",
+          "Traces": "FR-1"
+        }
+      },
+      {
+        "id": "2491-c-2494",
+        "title": "Child — #2494 daily-core default",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given Phase-2 success criteria, when packaging defaults land, then daily-core is the consumer default tier.",
+          "Traces": "FR-1"
+        }
+      },
+      {
+        "id": "2491-lp-2490",
+        "title": "Low priority — #2490 maintainer header",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given consumer-first priority, when capacity allows, then maintainer unmanaged header uses consumer-parity mechanisms without gating #2492–#2494.",
+          "Traces": "FR-1"
+        }
+      }
+    ],
+    "tags": [
+      "context-engineering",
+      "epic",
+      "agent-experience",
+      "urgent"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2491",
+        "type": "x-xbrief/github-issue",
+        "title": "Epic #2491"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2369",
+        "type": "x-xbrief/refs",
+        "title": "Predecessor #2369 (closed)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2176",
+        "type": "x-xbrief/refs",
+        "title": "#2176 Wave 0"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2180",
+        "type": "x-xbrief/refs",
+        "title": "#2180 parallel"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2490",
+        "type": "x-xbrief/refs",
+        "title": "#2490 low priority"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2492",
+        "type": "x-xbrief/refs",
+        "title": "#2492"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2493",
+        "type": "x-xbrief/refs",
+        "title": "#2493"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2494",
+        "type": "x-xbrief/refs",
+        "title": "#2494"
+      }
+    ],
+    "metadata": {
+      "kind": "epic",
+      "estimatedChildren": 6,
+      "swarm": {
+        "readiness": "deferred",
+        "parallel_safe": false,
+        "depends_on": [],
+        "conflict_group": "phase2-always-on-shrink-epic",
+        "expected_outputs": [
+          "managed ≤8192 B",
+          "daily-core install default",
+          "#2176 posture before #2493"
+        ],
+        "notes": "Epic tracking only — do not swarm-launch this file as a leaf story. Activate/complete children individually."
+      }
+    },
+    "updated": "2026-07-13T21:04:30.410Z"
+  }
+}

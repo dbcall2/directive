@@ -1,0 +1,116 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Phase 2 Wave 3b — compress process/reading cards to clear managed ≤8192",
+    "created": "2026-07-14T02:05:00.000Z",
+    "updated": "2026-07-14T13:00:02Z"
+  },
+  "plan": {
+    "id": "2502-wave3b-process-compress",
+    "title": "refactor(agents-md): Phase 2 Wave 3b — compress umbrella / queue / body→comments / process cards to clear ≤8192",
+    "status": "completed",
+    "narratives": {
+      "Description": "After Wave 3a, compress Umbrella / Cache triage queue / Issue body→comments / Development Process (+ Contextual guardrails if needed) in agents-entry until verify:agents-md-budget reports managed absolute ≤8192 B. Phase-2 success closer for epic #2491.",
+      "UserStory": "As a framework maintainer, I want the remaining process cards thin enough that managed AGENTS.md is at most 8192 bytes, so that Phase-2 always-on shrink can close.",
+      "ImplementationPlan": "1) HARD GATE: merge #2501 (plan id 2501-wave3a-discovery-eviction) first — rebase onto master after it lands. 2) Compress Umbrella status, Cache-as-authoritative, Issue body→comments, and Development Process sections in content/templates/agents-entry.md to !/⊗ + commands.md / skill pointers; trim Contextual guardrails only if still over 8192. 3) Update packages/core/src/content-contracts/skills/agents_entry_contract.test.ts; task agents:refresh; re-seed absoluteMaxBytes to ≤8192 (or measured size ≤8192). 4) CHANGELOG.md Closes #2502 Refs #2491; update #2491 current-shape. Verify: pnpm exec vitest run packages/core/src/content-contracts/skills/agents_entry_contract.test.ts; task verify:agents-md-budget; task check --allow-over-cap. Success: managed absolute ≤8192 B.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2502",
+      "Overview": "Conflict group agents-entry-phase2 — MUST follow #2501."
+    },
+    "items": [
+      {
+        "id": "2502-a1",
+        "title": "Process cards compressed",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given agents-entry after #2501, when umbrella/queue/body→comments/process cards are read, then they are pointer-thin without losing !/⊗ obligations.",
+          "Traces": "FR-1"
+        },
+        "completed": "2026-07-14T13:00:02Z"
+      },
+      {
+        "id": "2502-a2",
+        "title": "Managed ≤8192 B",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the compress, when verify:agents-md-budget runs, then managed absolute bytes are ≤8192.",
+          "Traces": "FR-1"
+        },
+        "completed": "2026-07-14T13:00:02Z"
+      },
+      {
+        "id": "2502-a3",
+        "title": "Contracts and ratchet green",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given edits, when contract tests and agents:refresh run, then they pass and absoluteMaxBytes is re-seeded.",
+          "Traces": "FR-1"
+        },
+        "completed": "2026-07-14T13:00:02Z"
+      },
+      {
+        "id": "2502-a4",
+        "title": "CHANGELOG + epic shape",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given merge, when PR lands, then CHANGELOG cites Closes #2502 and #2491 current-shape notes Phase-2 managed bar met.",
+          "Traces": "FR-1"
+        },
+        "completed": "2026-07-14T13:00:02Z"
+      }
+    ],
+    "tags": [
+      "context-engineering",
+      "agent-experience",
+      "urgent"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2502",
+        "type": "x-xbrief/github-issue",
+        "title": "#2502"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2491",
+        "type": "x-xbrief/refs",
+        "title": "Parent epic #2491"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2501",
+        "type": "x-xbrief/refs",
+        "title": "Wave 3a prerequisite #2501"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope_confidence": "high",
+        "model_tier": "medium",
+        "size": "medium",
+        "file_scope": [
+          "content/templates/agents-entry.md",
+          "packages/core/src/content-contracts/skills/agents_entry_contract.test.ts",
+          "xbrief/PROJECT-DEFINITION.xbrief.json",
+          "CHANGELOG.md",
+          "AGENTS.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/content-contracts/skills/agents_entry_contract.test.ts",
+          "task verify:agents-md-budget",
+          "task check --allow-over-cap"
+        ],
+        "expected_outputs": [
+          "managed absolute ≤8192 B",
+          "PR merged Closes #2502"
+        ],
+        "depends_on": [
+          "2501-wave3a-discovery-eviction"
+        ],
+        "conflict_group": "agents-entry-phase2"
+      },
+      "capacityBucket": "agentic-debt"
+    },
+    "updated": "2026-07-14T13:00:02Z"
+  }
+}

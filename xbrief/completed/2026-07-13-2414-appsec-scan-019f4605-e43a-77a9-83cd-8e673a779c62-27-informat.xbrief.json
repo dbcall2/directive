@@ -1,0 +1,93 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2414"
+  },
+  "plan": {
+    "title": "AppSec scan 019f4605-e43a-77a9-83cd-8e673a779c62 — 27 informational findings (LLM trust-tier + DAST coverage)",
+    "status": "completed",
+    "narratives": {
+      "Description": "This story implements the cited GitHub issue acceptance criteria in the scoped packages listed in swarm.file_scope. It includes regression tests and a CHANGELOG entry under Unreleased Fixed or Changed as appropriate.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2414",
+      "Overview": "AppSec scan completed on github:deftai/directive.\n\n- 27 informational findings (no exploitable vulns)\n- 26 LLM-adversarial pattern matches (mostly docs/content packs)\n- 1 DAST note (dynamic probes skipped — no base URL configured)\n\nAll items below are informational/design-review signals. Use the checkboxes to track review status.\n\n1. LLM SDK usage in REFERENCES.md\n   - [ ] Completed\n   - [ ] Confirmed non-issue\n\n2. LLM SDK usage in content/coding/coding.md\n   - [ ] Completed\n   - [ ] Confirmed non-issue\n\n3. LLM SDK usage in content/context/context.md\n   - [ ] Completed\n   - [ ] Confirmed non-issue\n\n4. LLM SDK usage in content/deployments/agentuity/README.md\n   - [ ] Completed\n   - [ ] Confirmed non-issue\n\n5. LLM SDK usage in content/deployments/agentuity/via-cli.md\n   - [ ] Completed\n   - [ ] Confirmed non-issue\n\n6. LLM SDK usage in content/deployments/agentuity/via-cloud.md\n   - [ ] Completed\n   - [ ] Confirmed non-issue\n\n7. LLM SDK usage in content/deployments/agentuity/via-github-actions.md\n   - [ ] Completed\n   - [ ] Confirmed non-issue\n\n8. LLM SDK usage in content/packs/lessons/lessons-pack-0.1.json\n   - [ ] Completed\n   - [ ] Confirmed non-issue\n\n9. LLM SDK usage in content/packs/patterns/patterns-pack-0.1.json\n   - [ ] Completed\n   - [ ] Confirmed non-issue\n\n10. LLM SDK usage in content/packs/rules/rules-pack-0.1.json\n    - [ ] Completed\n    - [ ] Confirmed non-issue\n\n11. LLM SDK usage in content/patterns/executor-layer-credentials.md\n    - [ ] Completed\n    - [ ] Confirmed non-issue\n\n12. LLM SDK usage in content/patterns/llm-app.md\n    - [ ] Completed\n    - [ ] Confirmed non-issue\n\n13. LLM SDK usage in content/patterns/multi-agent.md\n    - [ ] Completed\n    - [ ] Confirmed non-issue\n\n14. LLM SDK usage in content/patterns/prompt-assembly-layer-ordering.md\n    - [ ] Completed\n    - [ ] Confirmed non-issue\n\n(Findings 15–26 follow the same pattern in remaining docs/content files — same remediation language.)\n\n27. DAST/LLM dynamic probes skipped (no base URL configured)\n    - [ ] Completed\n    - [ ] Confirmed non-issue\n\n## Next steps\n\n- Scope real runtime LLM surfaces and enforce trust-tier separation where agents execute.\n- Add a DAST base URL for future full scans if a web surface exists.",
+      "Labels": "documentation, security",
+      "ImplementationPlan": "1. Edit module files REFERENCES.md, content/meta/security.md, content/coding/coding.md, content/context/context.md, and content/patterns/llm-app.md to reinforce trust-tier framing.\n2. Verify with task verify:links and document each finding disposition in the PR body / issue comment as evidence.",
+      "UserStory": "As a maintainer reviewing AppSec informational findings, I want docs to state trust-tier boundaries clearly, so that LLM-pattern matches are not mistaken for exploitable gaps.",
+      "Traces": "missing_traces_justification: bugfix / security hardening without a mapped FR id in specification.xbrief.json"
+    },
+    "items": [
+      {
+        "id": 24141,
+        "title": "Docs clarify trust tier",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given LLM SDK mentions in guidance/packs, when reviewers read them, then they are framed as data/guidance under framework instruction hierarchy.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 24142,
+        "title": "Findings dispositioned",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given the #2414 checklist, when the PR lands, then each finding is Completed or Confirmed non-issue with rationale.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 24143,
+        "title": "No false remediations",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given informational-only findings, when the docs pass finishes, then no unrelated runtime behavior is changed.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      }
+    ],
+    "tags": [
+      "documentation",
+      "security"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2414",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2414: AppSec scan 019f4605-e43a-77a9-83cd-8e673a779c62 — 27 informational findings (LLM trust-tier + DAST coverage)"
+      }
+    ],
+    "updated": "2026-07-13T16:15:02Z",
+    "id": "2414-appsec-informational-docs",
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "parent_issue": "#2414"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "REFERENCES.md",
+          "content/coding/coding.md",
+          "content/context/context.md",
+          "content/patterns",
+          "content/meta/security.md"
+        ],
+        "verify_commands": [
+          "task verify:links"
+        ],
+        "expected_outputs": [
+          "acceptance criteria satisfied",
+          "task check green on feature branch",
+          "PR opened"
+        ],
+        "depends_on": [],
+        "conflict_group": "docs-security",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium"
+      },
+      "completedAt": "2026-07-13T16:15:02Z",
+      "capacityBucket": "cognitive-debt"
+    }
+  }
+}

@@ -8,7 +8,7 @@
   "plan": {
     "id": "2493-session-routing-compression",
     "title": "refactor(agents-md): Phase 2 session-routing compression aligned with read-only posture (#2176)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Compress First Session / Returning Sessions / Pre-Cutover / Cold-start in agents-entry into a thin routing card aligned with #2176 read-only posture (now shipped). Largest remaining managed-byte cut under epic #2491.",
       "UserStory": "As a framework maintainer, I want always-on session routing to be a thin posture card instead of multi-KB procedure, so that consumers load less text and agents default to read-only until mutation.",
@@ -109,8 +109,10 @@
           "2176-read-only-session-posture"
         ],
         "conflict_group": "agents-entry-phase2"
-      }
+      },
+      "completedAt": "2026-07-14T02:02:30Z",
+      "capacityBucket": "agentic-debt"
     },
-    "updated": "2026-07-13T22:26:22Z"
+    "updated": "2026-07-14T02:02:30Z"
   }
 }

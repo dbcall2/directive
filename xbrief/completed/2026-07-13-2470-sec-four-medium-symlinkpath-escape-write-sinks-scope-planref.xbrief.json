@@ -1,0 +1,92 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2470"
+  },
+  "plan": {
+    "title": "sec: four medium symlink/path-escape write sinks (scope planRef, issue cache, welcome audit, release markdown)",
+    "status": "completed",
+    "narratives": {
+      "Description": "This story implements the cited GitHub issue acceptance criteria in the scoped packages listed in swarm.file_scope. It includes regression tests and a CHANGELOG entry under Unreleased Fixed or Changed as appropriate.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2470",
+      "Overview": "**Severity:** Medium (4 findings)\r\n**Source:** Scheduled application-security review at `055bef735cf5`\r\n**Related:** same symlink / path-escape trust-boundary class as #2413 / #2446 / #2447 / #2383; prior memory-write findings appear fixed and were not re-reported\r\n\r\n## Summary\r\n\r\nFour TypeScript engine write paths still allow repo- or input-controlled path escape when resolving lifecycle refs or writing well-known projections. A malicious repository author (or crafted `planRef` / `references[].uri`) can steer routine operator/agent commands into `mkdir` / `write` / `append` outside the intended tree.\r\n\r\n`assertProjectionContained` (#2413) already guards newer projection surfaces; these four call sites were not covered.\r\n\r\n---\r\n\r\n### 1) Medium — Scope lifecycle `planRef` escapes the xbrief tree\r\n\r\n**Location:** `packages/core/src/scope/vbrief-ref.ts`\r\n\r\n**Attacker / input:** malicious `planRef` or `references[].uri` containing `..` segments or `file:///` absolute paths.\r\n\r\n**Attack path:**\r\n1. Victim runs `task scope:promote`, `scope:activate`, or `scope:complete`.\r\n2. Lifecycle code resolves the ref via `resolveLifecycleArtifactRef` / `resolveVbriefRef`.\r\n3. Escaping refs resolve outside the real lifecycle root; subsequent JSON rewrites write outside the xbrief tree.\r\n\r\n**Impact:** scope lifecycle can rewrite JSON files outside the lifecycle tree under the victim account.\r\n\r\n**Remediation:** contain `resolveLifecycleArtifactRef` / `resolveVbriefRef` under the real lifecycle root; reject absolute and escaping refs before any rewrite write.\r\n\r\n---\r\n\r\n### 2) Medium — Issue cache follows a repo-controlled `.deft-cache` symlink\r\n\r\n**Location:** `packages/core/src/cache/operations.ts`\r\n\r\n**Attacker / input:** a trackable `.deft-cache` → outside symlink (gitignore only matches `.deft-cache/`).\r\n\r\n**Attack path:**\r\n1. Victim clones the repo and runs cache put/fetch.\r\n2. Cache operations `mkdir` + write issue cache files under the resolved cache root.\r\n3. Without `lstat` / `realpath` containment, the symlink is followed outside the project.\r\n\r\n**Impact:** issue cache files can be created outside the project tree under the victim account.\r\n\r\n**Remediation:** apply `assertProjectionContained` (or equivalent Lstat/realpath) on the cache root before mkdir/write; refuse escaping symlinks.\r\n\r\n---\r\n\r\n### 3) Medium — Welcome audit follows `meta/policy-changes.log` symlink\r\n\r\n**Location:** `packages/core/src/triage/welcome/writers.ts`\r\n\r\n**Attacker / input:** a committed symlink at `meta/policy-changes.log` pointing to an outside file.\r\n\r\n**Attack path:**\r\n1. Victim runs `task triage:welcome --onboard`.\r\n2. Welcome writers `appendFileSync` policy audit lines to the audit path.\r\n3. The symlink is followed; lines land outside the project.\r\n\r\n**Impact:** policy audit appends can overwrite or extend an attacker-chosen file outside the checkout.\r\n\r\n**Remediation:** contain the audit path before append; use no-follow / atomic replace semantics.\r\n\r\n---\r\n\r\n### 4) Medium — Release/changelog writers follow root markdown symlinks\r\n\r\n**Location:** `packages/core/src/release/pipeline.ts`\r\n\r\n**Attacker / input:** committed `CHANGELOG.md` / `ROADMAP.md` symlinks to writable paths outside the checkout.\r\n\r\n**Attack path:**\r\n1. Victim runs release or roadmap render.\r\n2. Pipeline writes promoted changelog / rendered roadmap via `writeFileSync` (or equivalent) on the joined root paths.\r\n3. Symlinks are followed; outside files are overwritten.\r\n\r\n**Impact:** release/roadmap writes can overwrite attacker-chosen files outside the project tree with release content.\r\n\r\n**Remediation:** apply projection containment before changelog/roadmap writes.\r\n\r\n---\r\n\r\n## Acceptance\r\n\r\n- [ ] `resolveLifecycleArtifactRef` / `resolveVbriefRef` reject absolute and `..`-escaping refs; scope promote/activate/complete never rewrite JSON outside the real lifecycle root.\r\n- [ ] Issue-cache put/fetch refuse when `.deft-cache` (or a parent) is a symlink or resolves outside the project root; no out-of-tree mkdir/write occurs.\r\n- [ ] Welcome audit append refuses when `meta/policy-changes.log` is a symlink or resolves outside the project root; prefer no-follow / atomic replace.\r\n- [ ] Release/changelog and roadmap writers refuse when `CHANGELOG.md` / `ROADMAP.md` are symlinks or resolve outside the project root; no out-of-tree overwrite occurs.\r\n- [ ] Shared `assertProjectionContained` (or documented twin) covers `lstat` + parent walk + project-root / lifecycle-root prefix check before every affected write path.\r\n- [ ] Regression tests cover: escaping `planRef` / `file:///` absolute refs; symlink-at-`.deft-cache`; symlink-at-`meta/policy-changes.log`; symlink-at-`CHANGELOG.md` / `ROADMAP.md` (and symlink-in-parent-path where applicable).\r\n\r\n## Notes\r\n\r\nPrefer one PR if `#2413` containment can be reused across all four sinks; otherwise tightly scoped PRs in the same conflict-safe cohort. Finding (1) is input-path escape (ref string), not only symlink-at-target — still the same containment class once resolved. Prior memory-write issues that appear fixed were intentionally not re-reported in this pass.\r\n\n",
+      "Labels": "bug, security",
+      "ImplementationPlan": "Edit these concrete paths: packages/core/src/scope/vbrief-ref.ts, packages/core/src/cache/operations.ts, packages/core/src/triage/welcome/writers.ts, packages/core/src/release/pipeline.ts. Verify with: pnpm exec vitest run packages/core/src/scope packages/core/src/cache packages/core/src/release. 1. Contain resolveLifecycleArtifactRef / resolveVbriefRef under the real lifecycle root.\n2. Guard .deft-cache, meta/policy-changes.log, and CHANGELOG/ROADMAP writes with assertProjectionContained.\n3. Regression tests for escaping planRef, cache symlink, audit symlink, and release markdown symlinks.",
+      "UserStory": "As an operator running scope/cache/welcome/release verbs, I want path-escape sinks refused, so that crafted refs and symlinks cannot write outside the intended tree.",
+      "Traces": "missing_traces_justification: bugfix / security hardening without a mapped FR id in specification.xbrief.json"
+    },
+    "items": [
+      {
+        "id": 24701,
+        "title": "planRef containment",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given absolute or escaping planRef, when scope lifecycle resolves refs, then rewrites outside the lifecycle root are refused.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 24702,
+        "title": "Cache and audit containment",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given escaping .deft-cache or policy-changes.log symlinks, when cache/welcome writers run, then out-of-tree writes are refused.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 24703,
+        "title": "Release markdown containment",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given CHANGELOG.md or ROADMAP.md symlinks escaping the project, when release writers run, then overwrites are refused.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "security"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2470",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2470: sec: four medium symlink/path-escape write sinks (scope planRef, issue cache, welcome audit, release markdown)"
+      }
+    ],
+    "updated": "2026-07-13T17:54:23Z",
+    "id": "2470-four-path-escape-sinks",
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "parent_issue": "#2470"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/scope/vbrief-ref.ts",
+          "packages/core/src/cache/operations.ts",
+          "packages/core/src/triage/welcome/writers.ts",
+          "packages/core/src/release/pipeline.ts"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/scope packages/core/src/cache packages/core/src/release"
+        ],
+        "expected_outputs": [
+          "acceptance criteria satisfied",
+          "task check green on feature branch",
+          "PR opened"
+        ],
+        "depends_on": [],
+        "conflict_group": "2470-four-path-escape-sinks",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium"
+      },
+      "completedAt": "2026-07-13T17:54:23Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}

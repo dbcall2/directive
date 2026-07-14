@@ -8,7 +8,7 @@
   "plan": {
     "id": "2494-daily-core-default",
     "title": "feat(packaging): Phase 2 daily-core install default for consumer always-on (DD-3)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Make daily-core the default skill tier for consumer installs (Cursor + documented OpenPackage path) so DD-3 frontmatter stays ~2 KB class instead of all-skills ~7.7 KB. Phase-2 success with managed ≤8192 B; hard combined ≤8192 remains Phase-3 prep on #2491. Builds on #2462/#2463; does not require #2176.",
       "UserStory": "As a consumer operator, I want new installs to default to daily-core skills, so that Cursor always-on frontmatter cost stays low unless I opt into broader tiers.",
@@ -113,8 +113,10 @@
         "depends_on": [],
         "conflict_group": "openpackage-daily-core-2494",
         "priority": "phase2-shrink"
-      }
+      },
+      "completedAt": "2026-07-14T02:02:34Z",
+      "capacityBucket": "new-capability"
     },
-    "updated": "2026-07-13T21:22:59Z"
+    "updated": "2026-07-14T02:02:34Z"
   }
 }

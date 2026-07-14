@@ -8,7 +8,7 @@
   "plan": {
     "id": "2180-ephemeral-posture",
     "title": "Make Directive posture ephemeral and run ceremony only at mutation boundaries",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Treat conversational posture as ephemeral agent-context state, not authority derived from .deft/ritual-state.json. Fresh or cleared contexts default to read-only until explicit mutation intent; gates run fresh at mutation boundaries. Builds on #2176 UX; under #2491 this is Phase-2 parallel hardening, not a gate for #2492/#2494.",
       "UserStory": "As a framework maintainer, I want posture to follow live intent and handoffs rather than ritual-state files, so that cleared contexts do not rehydrate into false ceremony or skip fresh mutation checks.",
@@ -115,8 +115,10 @@
         "depends_on": [],
         "conflict_group": "session-posture-2180",
         "priority": "phase2-parallel"
-      }
+      },
+      "completedAt": "2026-07-14T02:01:45Z",
+      "capacityBucket": "new-capability"
     },
-    "updated": "2026-07-13T21:22:53Z"
+    "updated": "2026-07-14T02:01:45Z"
   }
 }

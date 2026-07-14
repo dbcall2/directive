@@ -1,0 +1,104 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2434"
+  },
+  "plan": {
+    "title": "fix(release): Step 5 releaseCheckEnv poisons vitest — forces --skip-ci on production cuts (recurrence of #1553 after #2386)",
+    "status": "completed",
+    "narratives": {
+      "Description": "This story implements the cited GitHub issue acceptance criteria in the scoped packages listed in swarm.file_scope. It includes regression tests and a CHANGELOG entry under Unreleased Fixed or Changed as appropriate.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2434",
+      "Overview": "## Summary\n\n`task release` / `directive release` Step 5 (`runReleaseCheck` → `releaseCheckEnv`) injects `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1` and `DEFT_RELEASE_PREFLIGHT=1` into the entire `task check` / vitest process tree. Nested tests that assert fail-closed branch policy or cache staleness then see `source=env-bypass` / soft-pass and fail falsely. On the **v0.74.0** cut this blocked Step 5 and forced `--skip-ci` for the production tag.\n\nThis is a recurrence of the #1553 class (env bypass leaking into nested tests), reintroduced by the #2386 Step 5 self-auth path that intentionally sets those vars for `verify:branch` / `verify:cache-fresh` tolerance on master.\n\n## Observed on v0.74.0 (2026-07-10)\n\nStep 5 failed with ~13 false failures, including:\n\n- `packages/cli/src/verify-branch.test.ts` — expected exit 1 on default branch, got 0\n- `packages/cli/src/gates-cli/policy-cli.test.ts` — expected `Branch-protection policy is ON`, got `source=env-bypass`\n- `packages/core/src/policy/resolve.test.ts` — expected `source=typed`, got `env-bypass`\n- `packages/core/src/events/attribution-ledger.test.ts` — branch gate expected exit 1, got 0\n- `packages/core/src/preflight-cache/evaluate.test.ts` — stale-cache cases expected exit 1, got 0 (softened by `DEFT_RELEASE_PREFLIGHT`)\n\nThe same suites pass when run **without** the release Step 5 env. E2E rehearsal (`release-e2e`, including npm dry-run) was green. Production cut proceeded with `--skip-ci` after that confidence check.\n\n## Root cause (current shape)\n\n`packages/core/src/release/preflight.ts` `releaseCheckEnv()` spreads `releaseSubprocessEnv()` (sets `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1`) and adds `DEFT_RELEASE_PREFLIGHT=1`, then passes that env into `dispatchTaskCheck`. Vitest inherits the parent env, so fixture repos cannot exercise fail-closed behavior.\n\nTyped `plan.policy.allowDirectCommitsToMaster=true` (the preferred #1553 release-session path) already satisfies the branch gate for the real checkout; the env bypass is redundant for that surface and harmful for nested tests.\n\n## Acceptance criteria\n\n- [ ] Step 5 can run a full framework `task check` on master during an authorized release without false vitest failures from inherited bypass env\n- [ ] Branch-gate / cache-staleness unit tests still fail closed when their fixtures expect blocking (no ambient `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT` / `DEFT_RELEASE_PREFLIGHT` in the test process)\n- [ ] Release session still authorizes default-branch commit/tag/push (typed policy and/or scoped subprocess env on **git mutation** steps only — not the whole check tree)\n- [ ] Regression test: running Step 5's check path (or a documented equivalent) does not leave `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT` / `DEFT_RELEASE_PREFLIGHT` set in the vitest worker env\n- [ ] Release skill / RELEASING.md no longer need `--skip-ci` as the workaround for this class\n\n## Suggested direction (non-binding)\n\nPrefer typed `policy:allow-direct-commits` for the release session (already documented) and keep `releaseSubprocessEnv` scoped to commit/tag/push only. For Step 5 cache tolerance, either (a) pass `DEFT_RELEASE_PREFLIGHT` only to the cache-fresh gate subprocess, not the whole check tree, or (b) teach the check orchestrator a release-preflight flag that does not rely on process-wide env inherited by vitest.\n\n## Refs\n\n- Refs #1553 (documented env-bypass leak into nested tests)\n- Refs #2386 (Step 5 self-auth / `DEFT_RELEASE_PREFLIGHT` — closed; this is the follow-on recurrence)\n- Observed during `deft-directive-release` cut of **v0.74.0**",
+      "Labels": "bug, blocks-release-tag, operational, determinism, test-debt",
+      "ImplementationPlan": "Edit these concrete paths: packages/core/src/ts-check-lane/run-lane.ts, packages/core/src/ts-check-lane/run-lane.test.ts, packages/core/src/ts-check-lane/index.ts, CHANGELOG.md. Verify with: pnpm exec vitest run packages/core/src/ts-check-lane/run-lane.test.ts. 1. Add sanitizeTsLaneEnv that strips DEFT_ALLOW_DEFAULT_BRANCH_COMMIT and DEFT_RELEASE_PREFLIGHT.\n2. Apply it in the default pnpm spawn for ts:check-lane so vitest never inherits release Step-5 poison env.\n3. Keep releaseCheckEnv for live verify:branch / verify:cache-fresh siblings.\n4. Add unit tests for sanitize + CHANGELOG; close #2434 and duplicate #2469.",
+      "UserStory": "As a maintainer cutting a release, I want Step 5 task check to stay green without --skip-ci, so that production tags are not blocked by false vitest failures.",
+      "Traces": "missing_traces_justification: bugfix / security hardening without a mapped FR id in specification.xbrief.json"
+    },
+    "items": [
+      {
+        "id": 24341,
+        "title": "Strip poison env from TS lane spawn",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given release Step-5 env is set, when ts:check-lane spawns pnpm/vitest, then DEFT_ALLOW_DEFAULT_BRANCH_COMMIT and DEFT_RELEASE_PREFLIGHT are absent from the child env.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 24342,
+        "title": "Fail-closed unit tests stay honest",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given branch/cache unit tests expect blocking, when they run under a poisoned parent env, then they still observe fail-closed behavior because the lane sanitized the child env.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 24343,
+        "title": "Release check still authorizes live gates",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given runReleaseCheck, when check:framework-source runs, then verify:branch and verify:cache-fresh still see the release tolerance flags.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "blocks-release-tag",
+      "operational",
+      "determinism",
+      "test-debt"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2434",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2434: fix(release): Step 5 releaseCheckEnv poisons vitest — forces --skip-ci on production cuts (recurrence of #1553 after #2386)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1553",
+        "type": "x-xbrief/refs",
+        "title": "Issue #1553"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2386",
+        "type": "x-xbrief/refs",
+        "title": "Issue #2386"
+      }
+    ],
+    "updated": "2026-07-13T15:51:57Z",
+    "id": "2434-release-check-env-poison",
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "parent_issue": "#2434"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/ts-check-lane/run-lane.ts",
+          "packages/core/src/ts-check-lane/run-lane.test.ts",
+          "packages/core/src/ts-check-lane/index.ts"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/ts-check-lane/run-lane.test.ts"
+        ],
+        "expected_outputs": [
+          "acceptance criteria satisfied",
+          "task check green on feature branch",
+          "PR opened"
+        ],
+        "depends_on": [],
+        "conflict_group": "release-check",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium"
+      },
+      "completedAt": "2026-07-13T15:51:57Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}

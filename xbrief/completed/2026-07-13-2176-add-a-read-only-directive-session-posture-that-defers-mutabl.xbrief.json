@@ -8,7 +8,7 @@
   "plan": {
     "id": "2176-read-only-session-posture",
     "title": "Add a read-only Directive session posture that defers mutable ceremony until implementation intent",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Add a true read-only Directive posture for questions, research, Plan Mode, and ticket-shaping so agents do not run mutable session:start ceremony, triage welcome, sync validation, or branch-policy dumps until mutation or implementation intent. Alignment confirmation and accurate context reads remain. This is Wave 0 under epic #2491 and the hard gate for #2493 session-routing compression. Tier-1 host hooks (#2437/#2438) may enforce later; this story targets Tier-0 prose/policy/CLI behavior.",
       "UserStory": "As an operator, I want to open a Directive repo and ask questions without session ceremony or local mutations, so that Directive feels light to adopt while remaining strict when I start changing the tree.",
@@ -121,8 +121,10 @@
         "depends_on": [],
         "conflict_group": "session-posture-2176",
         "priority": "wave-0"
-      }
+      },
+      "completedAt": "2026-07-14T02:01:03Z",
+      "capacityBucket": "new-capability"
     },
-    "updated": "2026-07-13T21:22:46Z"
+    "updated": "2026-07-14T02:01:03Z"
   }
 }

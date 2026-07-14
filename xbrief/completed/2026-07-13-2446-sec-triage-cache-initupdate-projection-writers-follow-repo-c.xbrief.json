@@ -1,0 +1,91 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2446"
+  },
+  "plan": {
+    "title": "sec: triage cache + init/update projection writers follow repo-controlled symlinks outside the checkout",
+    "status": "completed",
+    "narratives": {
+      "Description": "This story implements the cited GitHub issue acceptance criteria in the scoped packages listed in swarm.file_scope. It includes regression tests and a CHANGELOG entry under Unreleased Fixed or Changed as appropriate.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2446",
+      "Overview": "**Severity:** Medium (2 findings)\r\n**Source:** Scheduled application-security review at `6e288a2de499cadfce43e176a7b08c5d15d52d4f`\r\n**Related:** same trust-boundary class as #2413 (MAP / gitignore / gitattributes projection containment), #2383 (installer consumer projections), and #2305 / #2407 (deposit symlink escape)\r\n\r\n## Summary\r\n\r\nTwo TypeScript engine write paths still follow repo-controlled symlinks when resolving lifecycle/cache state or depositing installer-managed projections. A malicious repository author can commit a symlink at a well-known path; a routine operator/agent command then creates, appends, overwrites, or chmods an attacker-chosen writable file **outside** the project tree.\r\n\r\n`assertProjectionContained` (#2413) already guards newer projection surfaces; these two call sites were not covered.\r\n\r\n---\r\n\r\n### 1) Medium — Runtime triage/lifecycle state writes follow a repo-controlled `xbrief` symlink outside the checkout\r\n\r\n**Location:** `packages/core/src/triage/cache-path.ts`\r\n\r\n**Attacker / input:** a malicious repository author commits `xbrief` as a symlink to an existing writable directory outside the project.\r\n\r\n**Attack path:**\r\n1. Victim clones the repo and runs routine commands such as `task doctor`, `task triage:summary`, or scope lifecycle actions.\r\n2. Those commands call the layout-aware triage cache resolver.\r\n3. The resolver resolves or falls back to `<project>/xbrief/.triage-cache` without an `lstat` / `realpath` containment check.\r\n4. Downstream writers then `mkdirSync`, `appendFileSync`, or `writeFileSync` the returned paths.\r\n\r\n**Impact:** creates or appends Deft state files such as `summary-history.jsonl`, `doctor-state.json`, `scope-lifecycle.jsonl`, and lock files outside the repository under the victim account.\r\n\r\n**Remediation:** make lifecycle/cache path resolution reject symlinked `xbrief` / `.triage-cache` components that escape the real project root before any mkdir/read/write.\r\n\r\n---\r\n\r\n### 2) Medium — TS-native directive init/update projection writers follow repo-controlled symlinks outside the checkout\r\n\r\n**Location:** `packages/core/src/init-deposit/scaffold.ts`\r\n\r\n**Attacker / input:** a malicious repository author commits installer-managed projection paths such as `AGENTS.md`, `Taskfile.yml`, `.agents/`, `.githooks/`, `.github/codeql/`, `greptile.json`, or `.gitattributes` as symlinks to writable paths outside the checkout.\r\n\r\n**Attack path:**\r\n1. Victim clones the repo and runs init/update (`runInitDeposit` / `runRefreshDeposit`).\r\n2. Those call `writeAgentsMd`, `writeAgentsSkills`, `depositNeutralization`, `writeConsumerVbrief`, `writeConsumerGitHooks`, and `ensureTaskfile`.\r\n3. Helpers build destinations with `join(projectDir, ...)` and use `mkdirSync`, `writeFileSync`, `copyFileSync`, or `chmodSync` without the projection containment guard used by newer projection surfaces.\r\n\r\n**Impact:** routine init/update can overwrite, create, or chmod attacker-chosen files outside the project tree with Deft-managed content.\r\n\r\n**Remediation:** apply a reusable `assertProjectionContained`-style guard to every TS init/update projection target and parent directory before read/write/mkdir/chmod operations.\r\n\r\n---\r\n\r\n## Acceptance\r\n\r\n- [ ] Triage/lifecycle cache path resolution refuses when `xbrief` or `.triage-cache` is a symlink or resolves outside the project root; no out-of-tree mkdir/read/write occurs for doctor, triage:summary, or scope lifecycle writers.\r\n- [ ] Init/update projection writers refuse when managed targets (`AGENTS.md`, `Taskfile.yml`, `.agents/`, `.githooks/`, `.github/codeql/`, `greptile.json`, `.gitattributes`, and peers) are symlinks or resolve outside the project root; no out-of-tree write/mkdir/chmod occurs.\r\n- [ ] Shared `assertProjectionContained` (or documented twin) covers `lstat` + parent walk + project-root prefix check before every affected write path.\r\n- [ ] Regression tests cover symlink-at-target and symlink-in-parent-path cases for both surfaces.\r\n\r\n## Notes\r\n\r\nPrefer one PR if the existing `#2413` containment helper can be reused on both call sites; otherwise two tightly scoped PRs in the same conflict-safe cohort are fine. This is not installer-only — the TS triage-cache and init-deposit paths are independently reachable from consumer Taskfile verbs.\r\n\n",
+      "Labels": "bug, security",
+      "ImplementationPlan": "Edit these concrete paths: packages/core/src/triage/cache-path.ts, packages/core/src/init-deposit, packages/core/src/fs/projection-containment.ts, CHANGELOG.md. Verify with: pnpm exec vitest run packages/core/src/fs/projection-containment.test.ts packages/core/src/init-deposit. 1. Reuse assertProjectionContained on triage/lifecycle cache path resolution before mkdir/read/write.\n2. Guard init/update projection writers the same way.\n3. Add symlink-at-target and symlink-in-parent regression tests.",
+      "UserStory": "As an operator cloning an untrusted repo, I want triage cache and init/update writers to refuse escaping symlinks, so that routine commands cannot write outside the checkout.",
+      "Traces": "missing_traces_justification: bugfix / security hardening without a mapped FR id in specification.xbrief.json"
+    },
+    "items": [
+      {
+        "id": 24461,
+        "title": "Triage cache refuses escape",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given a symlinked xbrief or .triage-cache escaping the project, when triage/doctor/scope cache resolution runs, then it refuses without out-of-tree writes.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 24462,
+        "title": "Init/update refuses escape",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given managed projection paths that are escaping symlinks, when init/update deposit runs, then writes/mkdir/chmod are refused.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 24463,
+        "title": "Shared guard + tests",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given assertProjectionContained, when both surfaces are covered, then regression tests cover symlink-at-target and parent-path cases.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "security"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2446",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2446: sec: triage cache + init/update projection writers follow repo-controlled symlinks outside the checkout"
+      }
+    ],
+    "updated": "2026-07-13T17:18:04Z",
+    "id": "2446-containment-triage-init",
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "parent_issue": "#2446"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/triage/cache-path.ts",
+          "packages/core/src/init-deposit",
+          "packages/core/src/fs/projection-containment.ts"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/fs/projection-containment.test.ts packages/core/src/init-deposit"
+        ],
+        "expected_outputs": [
+          "acceptance criteria satisfied",
+          "task check green on feature branch",
+          "PR opened"
+        ],
+        "depends_on": [],
+        "conflict_group": "projection-containment",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium"
+      },
+      "completedAt": "2026-07-13T17:18:04Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}

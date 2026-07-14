@@ -1,0 +1,90 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2318"
+  },
+  "plan": {
+    "title": "bug(vbrief-build): newly emitted xBRIEFs stamped v0.6 instead of current v0.8",
+    "status": "completed",
+    "narratives": {
+      "Description": "This story implements the cited GitHub issue acceptance criteria in the scoped packages listed in swarm.file_scope. It includes regression tests and a CHANGELOG entry under Unreleased Fixed or Changed as appropriate.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2318",
+      "Overview": "## Problem\n\nEvery newly generated scope xBRIEF is stamped `vBRIEFInfo.version = \"0.6\"` even though the current schema version is **0.8**. New artifacts are born on the legacy version.\n\n## Evidence\n\n- `packages/types/src/constants.ts`:\n  - `VBRIEF_VERSION = \"0.8\"` (current)\n  - `LEGACY_VBRIEF_VERSION = \"0.6\"`\n  - `ACCEPTED_VBRIEF_VERSIONS = [\"0.6\", \"0.8\"]`\n  - `contract.test.ts` asserts `VBRIEF_VERSION === \"0.8\"`.\n- `packages/core/src/vbrief-build/constants.ts`:\n  - `export const EMITTED_VBRIEF_VERSION = \"0.6\";`  ← stale\n- `EMITTED_VBRIEF_VERSION` is the value written by **all** emit paths: `vbrief-build/build.ts`, `scope/decompose.ts`, `vbrief-build/speckit.ts`, `intake/issue-ingest.ts`, `render/project-render.ts`.\n\nSo `task scope:decompose`, spec/interview generation, and issue ingest all produce `version: \"0.6\"` documents on a repo that is otherwise supposed to be fully on v0.8.\n\n## Impact\n\n- New scope xBRIEFs are inconsistent with the declared current schema (`VBRIEF_VERSION`).\n- Mixed-version cohorts when any hand-authored/0.8 artifact sits beside emitted 0.6 ones (surfaced by a reviewer on PR #2317).\n- The ~900+ existing scope files are also all `0.6`, so the whole tree is effectively pinned to the legacy version by this constant.\n\n## Suggested fix\n\n1. Point the emitter at the current version: `EMITTED_VBRIEF_VERSION = VBRIEF_VERSION` (import from `@deftai/directive-types`), or delete the local constant and use `VBRIEF_VERSION` directly.\n2. Add a migration to bump existing `0.6` artifacts to `0.8` (semantic v0.6->v0.8 transform already referenced by `xbrief-migrate`).\n3. Add a test asserting `EMITTED_VBRIEF_VERSION === VBRIEF_VERSION` so this cannot regress.\n\n## Related\n\n- Same constants file still has `PROJECT_DEFINITION_REL_PATH = \"vbrief/PROJECT-DEFINITION.vbrief.json\"` (legacy `vbrief/` path) — worth auditing in the same pass.\n- Discovered while decomposing #1709 / #1703 into story xBRIEFs (PR #2317).",
+      "Labels": "bug",
+      "ImplementationPlan": "Edit these concrete paths: packages/core/src/vbrief-build/constants.ts, packages/types/src/constants.ts, packages/core/src/vbrief-build, CHANGELOG.md. Verify with: pnpm exec vitest run packages/core/src/vbrief-build packages/types. 1. Point EMITTED_VBRIEF_VERSION at VBRIEF_VERSION (0.8) from @deftai/directive-types.\n2. Add a contract test that EMITTED_VBRIEF_VERSION === VBRIEF_VERSION.\n3. Audit legacy PROJECT_DEFINITION_REL_PATH if still pointing at vbrief/.\n4. CHANGELOG.",
+      "UserStory": "As a contributor generating scope xBRIEFs, I want new artifacts stamped v0.8, so that emitted docs match the current schema and do not mix with hand-authored 0.8 files.",
+      "Traces": "missing_traces_justification: bugfix / security hardening without a mapped FR id in specification.xbrief.json"
+    },
+    "items": [
+      {
+        "id": 23181,
+        "title": "Emitter stamps 0.8",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given any emit path using EMITTED_VBRIEF_VERSION, when a new xBRIEF is written, then vBRIEFInfo.version is 0.8.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 23182,
+        "title": "Parity test",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given constants tests, when they run, then EMITTED_VBRIEF_VERSION equals VBRIEF_VERSION.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      },
+      {
+        "id": 23183,
+        "title": "No silent legacy path drift",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given the emit constants file, when audited, then PROJECT_DEFINITION_REL_PATH is corrected or documented if still legacy.",
+          "Traces": "missing_traces_justification: no FR id"
+        }
+      }
+    ],
+    "tags": [
+      "bug"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2318",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2318: bug(vbrief-build): newly emitted xBRIEFs stamped v0.6 instead of current v0.8"
+      }
+    ],
+    "updated": "2026-07-13T16:18:16Z",
+    "id": "2318-emit-vbrief-version-08",
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "parent_issue": "#2318"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/vbrief-build/constants.ts",
+          "packages/types/src/constants.ts",
+          "packages/core/src/vbrief-build"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/vbrief-build packages/types"
+        ],
+        "expected_outputs": [
+          "acceptance criteria satisfied",
+          "task check green on feature branch",
+          "PR opened"
+        ],
+        "depends_on": [],
+        "conflict_group": "vbrief-emit",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium"
+      },
+      "completedAt": "2026-07-13T16:18:16Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}
