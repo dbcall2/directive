@@ -124,11 +124,11 @@ describe("evaluateBiomeConfigGuard", () => {
     expect(result.code).toBe(0);
   });
 
-  it("keeps the repo biome formatter line ending platform-native for Windows checkouts", () => {
+  it("pins biome formatter lineEnding to lf to match .gitattributes eol=lf (#2467)", () => {
     const root = join(import.meta.dirname, "..", "..", "..", "..");
     const config = JSON.parse(readFileSync(join(root, "biome.json"), "utf8")) as {
       formatter?: { lineEnding?: unknown };
     };
-    expect(config.formatter?.lineEnding).toBe("auto");
+    expect(config.formatter?.lineEnding).toBe("lf");
   });
 });
