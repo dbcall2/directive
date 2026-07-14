@@ -83,7 +83,7 @@ function emitReleaseAvailable(
 ): void {
   const msg =
     `Newer framework release available (installed v${installedVersion}; ` +
-    `latest stable v${latestVersion} from npm registry). ` +
+    `latest v${latestVersion} from npm registry). ` +
     `Recommendation: run \`${upgradeCommand}\`.`;
   sink.warn(msg);
   addFinding({

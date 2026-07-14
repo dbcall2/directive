@@ -270,6 +270,34 @@ describe("payload-staleness (#2003 / #2004)", () => {
     }
   });
 
+  it("labels a newer prerelease as the latest release without calling it stable", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-ps-"));
+    try {
+      const sha = "a".repeat(40);
+      const findings: Finding[] = [];
+      runPayloadStalenessCheck(root, createPlainSink(), (f) => findings.push(f), {
+        isFile: (p) => p.includes("VERSION"),
+        readText: (p) =>
+          p.includes("VERSION") ? `sha: ${sha}\nref: v0.57.0-rc.1\ntag: v0.57.0-rc.1\n` : null,
+        runGitLsRemote: () => ({
+          ok: true,
+          stdout: `${sha}\trefs/tags/v0.57.0-rc.1\n`,
+        }),
+        runNpmViewVersion: () => ({ ok: true, version: "0.57.0-rc.2" }),
+      });
+
+      const stale = findings.find((f) => f.status === "stale");
+      expect(stale).toMatchObject({
+        installed_version: "0.57.0-rc.1",
+        latest_version: "0.57.0-rc.2",
+      });
+      expect(String(stale?.message)).toContain("latest v0.57.0-rc.2");
+      expect(String(stale?.message)).not.toContain("latest stable");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("does not query npm for a branch pin whose sha matches", () => {
     const root = mkdtempSync(join(tmpdir(), "deft-ps-"));
     try {
