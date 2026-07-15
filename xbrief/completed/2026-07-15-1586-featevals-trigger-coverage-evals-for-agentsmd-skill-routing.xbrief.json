@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "feat(evals): trigger coverage evals for AGENTS.md skill routing — skill-pi-trigger-eval integration",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "feat(evals): trigger coverage evals for AGENTS.md skill routing — skill-pi-trigger-eval integration",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1586",
@@ -60,6 +60,10 @@
         "title": "Issue #1532"
       }
     ],
-    "updated": "2026-07-15T14:32:19Z"
+    "updated": "2026-07-15T17:09:50Z",
+    "metadata": {
+      "completedAt": "2026-07-15T17:09:50Z",
+      "capacityBucket": "new-capability"
+    }
   }
 }

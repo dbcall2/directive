@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF from GitHub issue #2557 (manual ingest; issue:ingest scm wrapper failed)",
-    "updated": "2026-07-15T03:00:00Z"
+    "updated": "2026-07-15T17:27:09Z"
   },
   "plan": {
     "title": "fix(reconcile): release vBRIEF sync hard-fails when GraphQL cannot resolve a PR number as an Issue",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Release Step 3 fetchIssueStates hard-fails when gh GraphQL returns partial errors for PR numbers queried as Issues. Prefer REST or treat unresolvable PR-as-Issue partials as skippable so real issues still sync.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2557",
@@ -19,24 +19,27 @@
     "items": [
       {
         "title": "Soft-skip or REST-fetch issue states",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given a cohort that includes a PR number referenced as an issue, when fetchIssueStates runs, then it continues for resolvable issues and does not hard-fail the whole map solely on a GraphQL \"Could not resolve … as Issue\" partial."
-        }
+        },
+        "completed": "2026-07-15T17:27:09Z"
       },
       {
         "title": "Prefer REST when practical",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given the release Step 3 preflight, when fetching issue states, then the implementation prefers REST (per #954) or documents why a soft-skip GraphQL path remains."
-        }
+        },
+        "completed": "2026-07-15T17:27:09Z"
       },
       {
         "title": "Regression coverage for PR-as-Issue partial",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given a unit test that injects a GraphQL partial for an unresolvable PR number mixed with valid issues, when fetchIssueStates / checkVbriefLifecycleSyncNative runs, then valid issues sync and the cut does not hard-fail."
-        }
+        },
+        "completed": "2026-07-15T17:27:09Z"
       }
     ],
     "tags": [
@@ -50,7 +53,7 @@
         "title": "Issue #2557: fix(reconcile): release vBRIEF sync hard-fails when GraphQL cannot resolve a PR number as an Issue"
       }
     ],
-    "updated": "2026-07-15T03:04:08Z",
+    "updated": "2026-07-15T17:27:09Z",
     "id": "reconcile-vbrief-sync-pr-as-issue",
     "metadata": {
       "kind": "story",

@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF from GitHub issue #2555 (manual ingest; issue:ingest scm wrapper failed)",
-    "updated": "2026-07-15T03:00:00Z"
+    "updated": "2026-07-15T17:27:09Z"
   },
   "plan": {
     "title": "fix(release-e2e): Windows npm dry-run breaks on spaced path (C:\\Program Files)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "After #2548, release:e2e npm dry-run still fails on Windows when npm lives under a spaced path because spawnCommandText/shell:true splits C:\\Program Files. Quote or argv-spawn npm/pnpm safely and add a Program Files regression test.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2555",
@@ -19,24 +19,27 @@
     "items": [
       {
         "title": "Quote or argv-spawn spaced win32 paths",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given npm under C:\\Program Files\\nodejs\\npm.cmd, when release-e2e runs npm publish dry-run on win32, then spawn succeeds without treating C:\\Program as the command."
-        }
+        },
+        "completed": "2026-07-15T17:27:09Z"
       },
       {
         "title": "Unit coverage for Program Files paths",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given a unit test with a Program Files-style executable path, when spawnCommandText (or the npm-ops wrapper) runs, then the command line is correctly quoted or argv-based."
-        }
+        },
+        "completed": "2026-07-15T17:27:09Z"
       },
       {
         "title": "No #2548 PATHEXT regression",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given pnpm.cmd on PATH, when the win32 resolver runs, then #2548 PATHEXT resolution still prefers pnpm.cmd and does not ENOENT on a bare path."
-        }
+        },
+        "completed": "2026-07-15T17:27:09Z"
       }
     ],
     "tags": [
@@ -57,7 +60,7 @@
         "title": "Issue #2548"
       }
     ],
-    "updated": "2026-07-15T03:03:27Z",
+    "updated": "2026-07-15T17:27:09Z",
     "id": "release-e2e-npm-spaced-path",
     "metadata": {
       "kind": "story",

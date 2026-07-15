@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF from GitHub issue #2554 (manual ingest; issue:ingest scm wrapper failed)",
-    "updated": "2026-07-15T03:00:00Z"
+    "updated": "2026-07-15T17:27:09Z"
   },
   "plan": {
     "title": "ci(smoke): greenfield-python-free-smoke exits 143 (SIGTERM) with no stdout after engine-invoke",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "greenfield-python-free-smoke dies with exit 143 and empty stdout on PRs that touch engine-invoke / Taskfile dispatch. Reproduce, root-cause hang vs timeout, then harden with progress logs and bounded timeout so the smoke fails closed with diagnostics.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2554",
@@ -19,24 +19,27 @@
     "items": [
       {
         "title": "Reproduce and identify root cause",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given a PR that touches engine-invoke/Taskfile, when greenfield-python-free-smoke runs, then the failure mode is classified as hang, OOM, runner timeout, or spawn deadlock (or documented flake rate)."
-        }
+        },
+        "completed": "2026-07-15T17:27:09Z"
       },
       {
         "title": "Harden smoke with logs and bounded timeout",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given the smoke path, when it exceeds budget or hangs, then it fails closed with progress logs and an explicit timeout diagnostic instead of empty exit 143."
-        }
+        },
+        "completed": "2026-07-15T17:27:09Z"
       },
       {
         "title": "Smoke green on engine-invoke PR",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given a PR that exercises task release / engine:invoke on Linux CI, when greenfield-python-free-smoke runs, then it exits 0 with visible stdout or a clear soft-skip."
-        }
+        },
+        "completed": "2026-07-15T17:27:09Z"
       }
     ],
     "tags": [
@@ -57,7 +60,7 @@
         "title": "Issue #2547"
       }
     ],
-    "updated": "2026-07-15T03:03:08Z",
+    "updated": "2026-07-15T17:27:09Z",
     "id": "smoke-greenfield-143",
     "metadata": {
       "kind": "story",

@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "swarm(windows): Cursor Task-tool agents flood cmd.exe windows and freeze host",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "swarm(windows): Cursor Task-tool agents flood cmd.exe windows and freeze host",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2563",
@@ -38,6 +38,10 @@
         "title": "Issue #2563: swarm(windows): Cursor Task-tool agents flood cmd.exe windows and freeze host"
       }
     ],
-    "updated": "2026-07-15T14:31:55Z"
+    "updated": "2026-07-15T17:09:52Z",
+    "metadata": {
+      "completedAt": "2026-07-15T17:09:52Z",
+      "capacityBucket": "technical-debt"
+    }
   }
 }

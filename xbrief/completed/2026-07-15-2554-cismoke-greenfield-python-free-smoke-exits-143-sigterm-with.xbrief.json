@@ -1,11 +1,12 @@
 {
   "xBRIEFInfo": {
     "version": "0.8",
-    "description": "Scope xBRIEF ingested from GitHub issue #2554"
+    "description": "Scope xBRIEF ingested from GitHub issue #2554",
+    "updated": "2026-07-15T17:27:09Z"
   },
   "plan": {
     "title": "ci(smoke): greenfield-python-free-smoke exits 143 (SIGTERM) with no stdout after engine-invoke",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "ci(smoke): greenfield-python-free-smoke exits 143 (SIGTERM) with no stdout after engine-invoke",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2554",
@@ -15,19 +16,23 @@
     "items": [
       {
         "title": "Reproduce greenfield-python-free-smoke 143 on a minimal engine-invoke / Taskfile change (or document as flake with rate)",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-07-15T17:27:09Z"
       },
       {
         "title": "Root cause: hang vs OOM vs runner timeout vs spawn deadlock",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-07-15T17:27:09Z"
       },
       {
         "title": "Fix or harden: progress logs, bounded timeout, and/or repair engine-invoke consumer path",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-07-15T17:27:09Z"
       },
       {
         "title": "Smoke green on a PR that exercises `task release` / `engine:invoke` on Linux CI",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-07-15T17:27:09Z"
       }
     ],
     "tags": [
@@ -48,6 +53,6 @@
         "title": "Issue #2547"
       }
     ],
-    "updated": "2026-07-15T12:15:08Z"
+    "updated": "2026-07-15T17:27:09Z"
   }
 }

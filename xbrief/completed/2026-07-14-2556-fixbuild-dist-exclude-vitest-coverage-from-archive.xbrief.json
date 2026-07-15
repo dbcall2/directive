@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF from GitHub issue #2556 (manual ingest; issue:ingest scm wrapper failed)",
-    "updated": "2026-07-15T03:00:00Z"
+    "updated": "2026-07-15T17:27:09Z"
   },
   "plan": {
     "title": "fix(build-dist): exclude vitest coverage/ from archive walk (Windows ENOENT race)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "build-dist DEFAULT_EXCLUDES omits Vitest coverage/, so concurrent coverage/.tmp files race the archiver on Windows (ENOENT). Add coverage to DEFAULT_EXCLUDES and assert coverage/.tmp is not archived.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2556",
@@ -19,24 +19,27 @@
     "items": [
       {
         "title": "Add coverage to DEFAULT_EXCLUDES",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given DEFAULT_EXCLUDES in build-dist.ts, when inspected, then it includes `coverage` alongside `.coverage`."
-        }
+        },
+        "completed": "2026-07-15T17:27:09Z"
       },
       {
         "title": "Test coverage/.tmp is not archived",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given a fixture tree with coverage/.tmp/coverage-N.json, when iterSourceFiles / build-dist runs, then those paths are excluded from the archive set."
-        }
+        },
+        "completed": "2026-07-15T17:27:09Z"
       },
       {
         "title": "build succeeds with coverage/.tmp present",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given an active or stale coverage/.tmp directory, when task build / build-dist-runner runs, then it completes without ENOENT on coverage temp files."
-        }
+        },
+        "completed": "2026-07-15T17:27:09Z"
       }
     ],
     "tags": [
@@ -51,7 +54,7 @@
         "title": "Issue #2556: fix(build-dist): exclude vitest coverage/ from archive walk (Windows ENOENT race)"
       }
     ],
-    "updated": "2026-07-15T03:03:46Z",
+    "updated": "2026-07-15T17:27:09Z",
     "id": "build-dist-exclude-coverage",
     "metadata": {
       "kind": "story",

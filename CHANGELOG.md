@@ -20,9 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Agent-host hooks enforce Directive's mutation boundary for direct writes.** `directive init` / `deft update` now merge project `SessionStart` and `PreToolUse` registrations for Claude Code, Grok Build, and Cursor into their native hook files. The shared `deft hook:dispatch` bridge denies direct edit/write tools until the existing gated session ritual is fresh and an active/running xBRIEF passes canonical preflight; `deft verify:hooks-installed --scope=agent` and `doctor --full` report registration health. Shell/MCP policy, compact re-arm, and plugin packaging remain in their separate follow-ups. Closes #2438. Refs #2437, #2113, #1394, #2369.
 - **Always-on skill pin policy reduces false negatives on process gates.** AGENTS.md and the consumer template now document three pin tiers (always-pin / on-demand / reference-only), a default always-pin set for build / pre-PR / review-cycle / swarm skills, and an explicit anti-pattern against pinning entire language or deployment packs. Canonical policy: `content/docs/skill-pin-policy.md`; Skills Index and setup skill carry consumer guidance. Closes #2508. Refs #1862, #2484.
-
-### Added
-
 - **Babysit and cloud PR-shepherd intent routes through the Deft review cycle.** Skills Index triggers, review-cycle skill, AGENTS.md review-surface precedence, and the orchestrator preamble now map `babysit`, `shepherd`, `watch the PR`, and Cursor **babysit-pull-request-in-cloud** to `deft-directive-review-cycle` on Deft-managed repos -- superseding the Cursor-global babysit skill. Includes a review-monitor cloud dispatch worked example and Step 6 exit-predicate anti-patterns for ad hoc SLizard fixes. Closes #2261. Refs #1862, #954, #2308, #2508.
 
 ### Changed
@@ -35,18 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release Step 3 vBRIEF lifecycle sync no longer hard-fails when a referenced number is a pull request mistaken for an issue; issue-state fetch now uses REST instead of GraphQL (#2557).
 - **Windows release:e2e npm dry-run spawns npm under spaced Program Files paths.** `spawnCommandText` now quotes win32 `.cmd` executables that contain spaces before `shell: true` spawn, so `'C:\Program' is not recognized` no longer fails Phase 3 after a green pnpm install. Closes #2555.
 - **Release build-dist excludes Vitest `coverage/` from archive walk (#2556).** `DEFAULT_EXCLUDES` now skips the Vitest `coverage/` tree alongside pytest `.coverage`, so concurrent or leftover `coverage/.tmp` files no longer race the Windows archiver with ENOENT during release Step 8.
-
-### Removed
-
-## [0.77.0] - 2026-07-15
-
-> Combined always-on AGENTS north-star to 9 KB; ordered-plan continuation as the alternative whats next path; doctor release detection; Windows-native release hardening (Taskfile summary, vitest, pnpm e2e, USER.md path, metrics home).
-
-### Added
-
-### Changed
-
-### Fixed
 
 ### Removed
 
