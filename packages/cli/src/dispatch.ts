@@ -83,6 +83,7 @@ export const CLI_MODULE_VERBS = [
   "migrate-xbrief",
   "migrate-category-b",
   "framework-check-updates",
+  "hook-dispatch",
   "umbrella-current-shape",
   "changelog-check",
   "change-init",
@@ -245,6 +246,7 @@ const PLAN_SEQUENCE_COLON_ALIASES = Object.fromEntries(
 
 /** Task-style aliases (framework_commands / Taskfile names). */
 export const VERB_ALIASES: Readonly<Record<string, string>> = {
+  "hook:dispatch": "hook-dispatch",
   "verify:encoding": "verify-encoding",
   "verify:forward-coverage": "verify-forward-coverage",
   "verify:branch": "verify-branch",

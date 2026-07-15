@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Agent-host hooks enforce Directive's mutation boundary for direct writes.** `directive init` / `deft update` now merge project `SessionStart` and `PreToolUse` registrations for Claude Code, Grok Build, and Cursor into their native hook files. The shared `deft hook:dispatch` bridge denies direct edit/write tools until the existing gated session ritual is fresh and an active/running xBRIEF passes canonical preflight; `deft verify:hooks-installed --scope=agent` and `doctor --full` report registration health. Shell/MCP policy, compact re-arm, and plugin packaging remain in their separate follow-ups. Closes #2438. Refs #2437, #2113, #1394, #2369.
+
 ### Changed
 
 ### Fixed
