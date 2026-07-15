@@ -162,6 +162,8 @@ const UNMANAGED_HEADER_MARKERS = [
   "Session orientation",
 ] as const;
 
+const SHELL_ORIENTATION_MARKERS = ["Detect OS/shell", "portable syntax", "explicit shell"] as const;
+
 /** Not yet relocated to pointer form — retain full-text markers until Wave 2 (#2454). */
 const PROPAGATION_UMBRELLA_STATUS_MARKERS = [
   "claim-cites-state-surface",
@@ -679,6 +681,11 @@ describe("test_agents_entry_contract", () => {
   it("propagation_header_markers_present_in_both_files", () => {
     expect(missingMarkers(template, PROPAGATION_HEADER_MARKERS)).toEqual([]);
     expect(missingMarkers(agents, PROPAGATION_HEADER_MARKERS)).toEqual([]);
+  });
+
+  it("portable_shell_orientation_markers_present_in_both_files", () => {
+    expect(missingMarkers(template, SHELL_ORIENTATION_MARKERS)).toEqual([]);
+    expect(missingMarkers(agents, SHELL_ORIENTATION_MARKERS)).toEqual([]);
   });
 
   it("propagation_action_verb_list_present_in_both_files", () => {

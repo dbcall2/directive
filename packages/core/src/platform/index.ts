@@ -6,4 +6,5 @@ export * from "./linear-scan.js";
 export * from "./platform-capabilities.js";
 export * from "./resolve-changelog-unreleased.js";
 export * from "./resolve-version.js";
+export * from "./shell-context.js";
 export * from "./slug-normalize.js";

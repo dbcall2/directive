@@ -1,0 +1,55 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2568"
+  },
+  "plan": {
+    "title": "Detect and surface the user's default shell so agents don't assume Bash (zsh mangling on macOS)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Detect and surface the user's default shell so agents don't assume Bash (zsh mangling on macOS)",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2568",
+      "Overview": "## Problem\n\nDirective-guided agents tend to write shell commands assuming **Bash** semantics. On macOS the default interactive/login shell has been **zsh** since Catalina (10.15), so a large share of users run agent-issued commands under zsh. Several Bash-isms silently mangle under zsh, produce confusing errors, and cost the agent extra round-trips to diagnose and rewrite — work that adds no value and burns tokens/latency.\n\nThe agent has no reliable signal about which shell will actually execute its commands, so it defaults to Bash assumptions.\n\n## Concrete failures (observed this week in a real session)\n\n**1. Unquoted variable expansion is not word-split in zsh.** Bash splits `$VAR` on whitespace; zsh does not (without `${=VAR}` or `setopt shwordsplit`).\n\n```sh\nBIN=\"node packages/cli/dist/bin.js\"\n$BIN score .        # bash: runs `node packages/cli/dist/bin.js score .`\n                    # zsh:  tries to execute a command literally named\n                    #       \"node packages/cli/dist/bin.js\" ->\n                    #       \"no such file or directory: node packages/cli/dist/bin.js\"\n```\n\nThe whole invocation fails opaquely; the agent then has to notice zsh is in play and rewrite every call.\n\n**2. `~N` is a zsh directory-stack reference, not a literal.** An unquoted `~1` argument expands via the dirstack:\n\n```sh\nmytool diff . --from ~1 --to latest   # zsh: \"not enough directory stack entries\"\nmytool diff . --from '~1' --to latest # works once quoted\n```\n\nOther recurring offenders: glob/quoting differences, `[[ ... ]]` vs `[ ... ]` edge cases, `echo -e`, `local` scoping, array syntax, and `history`/`!` expansion in interactive contexts.\n\n## Proposed fix\n\nDirective should **detect the effective shell and surface it to the agent as orientation context**, and pair that with portability guidance so the agent stops assuming Bash:\n\n1. **Detect** the default/interactive shell (e.g. `$SHELL`, the login shell, or a harness-provided signal) and the OS, and include it in the agent's orientation (the same place OS/platform facts are surfaced).\n2. **Guidance** when the shell is zsh (or unknown), e.g.:\n   - Quote globs, tildes, and `~N`/`!`/`#` tokens that zsh expands differently.\n   - Don't rely on unquoted-variable word-splitting; use arrays, `${=VAR}`, or an explicit `bash -c '...'` when Bash semantics are required.\n   - Prefer portable POSIX constructs, or explicitly invoke `bash -c` when a Bash-only feature is needed.\n3. Optionally, a short \"write portable shell / don't assume Bash\" rule in the CLI/interfaces guidance so this is baked into agent behavior even when detection is unavailable.\n\n## Impact\n\n- Fewer failed commands and confusing errors for the (very common) macOS/zsh user.\n- Less wasted agent effort re-diagnosing and re-escaping commands.\n- More reliable first-try execution across shells.\n\nFiled from a real session on macOS/zsh where both failures above occurred and required manual rework.",
+      "Labels": "bug, adoption-blocker",
+      "Decision": "Implement the approved `shell-orientation-context` change as additive orientation metadata. Resolve a harness-provided `DEFT_EXECUTION_SHELL` first and label it `execution`; otherwise resolve the user's default shell from `SHELL`, the platform account record (`os.userInfo().shell`) on POSIX, or `ComSpec` on Windows and label it `default`. Preserve source attribution so agents never confuse a default shell with the process executor. Invalid or control-character-bearing candidates are skipped; unresolved environments report an explicit `unknown` shell instead of guessing.",
+      "ImplementationPlan": "1. Add a pure, dependency-injected shell-context detector under `packages/core/src/platform/` with typed source/kind fields, cross-platform basename handling, bounded input validation, and deterministic precedence tests.\n2. Compose host platform and shell context into the existing runtime capability report without consolidating the separate intake probe in this issue.\n3. Surface the structured `environment` object in `session:start --json` and one compact `[deft environment]` line in human output for both read-only and mutation postures, preserving the read-only no-write guarantee.\n4. Add portable-shell guidance to the CLI interface and command documentation, plus a compact always-on managed AGENTS rule that fits the current template budget; regenerate the root managed projection.\n5. Add unit, session, CLI, and content-contract coverage, update CHANGELOG `[Unreleased]`, then run focused tests, coverage, forward-coverage, and `task check`.",
+      "AcceptanceCriteria": "AC1. With `DEFT_EXECUTION_SHELL=/bin/bash`, orientation reports shell name `bash`, path `/bin/bash`, kind `execution`, and source `DEFT_EXECUTION_SHELL`, regardless of lower-precedence values.\nAC2. Without the override, POSIX and Windows fixtures resolve the first valid default-shell candidate with kind `default` and accurate source attribution; Windows paths derive names correctly and strip `.exe`.\nAC3. Empty, overlong, or control-character-bearing candidates never leak into output; resolution falls through deterministically and ultimately emits `{name: `unknown`, path: null, kind: `unknown`, source: `unknown`}`.\nAC4. `session:start` human output contains a compact OS/shell orientation line and JSON output contains `environment.host_platform` plus structured shell metadata in both postures.\nAC5. Read-only session start still performs zero writes while surfacing environment context.\nAC6. Consumer guidance tells agents to detect OS/shell, prefer portable syntax, quote zsh-sensitive tokens, avoid unquoted-variable word splitting, and invoke an explicit shell when its semantics are required.\nAC7. Managed AGENTS propagation, targeted tests, coverage, forward-coverage, and the repository quality gate pass.",
+      "NonGoals": "Do not change which shell the host harness actually uses; inspect dotfiles or shell options; rewrite arbitrary commands; promise that `SHELL` is the current executor; or consolidate the full platform capability probe with the minimal intake probe.",
+      "Approval": "Flynn explicitly approved change name `shell-orientation-context` on 2026-07-15."
+    },
+    "items": [
+      {
+        "title": "Detect a validated, source-attributed execution/default shell context across POSIX and Windows",
+        "status": "proposed"
+      },
+      {
+        "title": "Surface host platform and shell context in session-start text and JSON without read-only writes",
+        "status": "proposed"
+      },
+      {
+        "title": "Propagate portable-shell guidance through CLI docs and the managed AGENTS contract",
+        "status": "proposed"
+      },
+      {
+        "title": "Cover precedence, malformed input, Windows paths, session postures, CLI output, and content propagation",
+        "status": "proposed"
+      }
+    ],
+    "tags": [
+      "bug",
+      "adoption-blocker"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2568",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2568: Detect and surface the user's default shell so agents don't assume Bash (zsh mangling on macOS)"
+      }
+    ],
+    "updated": "2026-07-15T17:49:37Z",
+    "metadata": {
+      "completedAt": "2026-07-15T17:49:37Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}

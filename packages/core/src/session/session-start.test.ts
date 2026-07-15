@@ -2,11 +2,16 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import type { EnvironmentContext } from "../platform/shell-context.js";
 import type { ResolveUserMdResult } from "../user-config/resolve-user-md.js";
 import type { GitRunResult } from "./git.js";
 import { ritualStatePath, runSessionStart, type SessionStartOptions } from "./session-start.js";
 
 const temps: string[] = [];
+const environment: EnvironmentContext = {
+  hostPlatform: "darwin",
+  shell: { name: "zsh", path: "/bin/zsh", kind: "default", source: "SHELL" },
+};
 afterEach(() => {
   for (const t of temps) rmSync(t, { recursive: true, force: true });
   temps.length = 0;
@@ -42,6 +47,7 @@ function baseOptions(
     verifyTools: () => ({ exitCode: 0 }),
     runTriageWelcome: () => ({ exitCode: 0 }),
     resolveUserMd,
+    probeEnvironment: () => environment,
   };
 }
 
@@ -72,10 +78,20 @@ describe("runSessionStart — USER.md auto-resolution (#2271)", () => {
     expect(result.code).toBe(0);
     expect(result.lines.join("\n")).toContain("USER.md resolved (workspace-local)");
     expect(result.lines.join("\n")).toContain(join(root, ".deft", "USER.md"));
-    const payload = result.payload as { user_md: ResolveUserMdResult };
+    expect(result.lines.join("\n")).toContain(
+      "[deft environment] os=darwin; shell=zsh; kind=default; path=/bin/zsh; source=SHELL",
+    );
+    const payload = result.payload as {
+      user_md: ResolveUserMdResult;
+      environment: Record<string, unknown>;
+    };
     expect(payload.user_md.rung).toBe("workspace-local");
     expect(payload.user_md.found).toBe(true);
     expect(payload.user_md.path).toBe(join(root, ".deft", "USER.md"));
+    expect(payload.environment).toEqual({
+      host_platform: "darwin",
+      shell: { name: "zsh", path: "/bin/zsh", kind: "default", source: "SHELL" },
+    });
   });
 
   it("records which USER.md path was used in the alignment ritual step", () => {
