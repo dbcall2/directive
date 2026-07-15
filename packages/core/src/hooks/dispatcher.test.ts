@@ -139,9 +139,27 @@ describe("direct-write hook policy", () => {
     );
 
     expect(decision).toMatchObject({ verdict: "allow", code: "session-start-degraded" });
-    expect(decision.message).toContain("exit 2");
-    expect(decision.message).toContain("no active scope");
+    expect(decision.message).toBe(
+      "Directive SessionStart bookkeeping reported exit 2 on its non-blocking path: no active scope",
+    );
     expect(sessionStart).toHaveBeenCalledWith("/project");
+  });
+
+  it("reports a failed SessionStart result even when the hook returns no detail", () => {
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "session.start",
+        projectRoot: "/project",
+        payload: {},
+      },
+      readySeams({ sessionStart: () => ({ code: 1, stdout: "", stderr: "" }) }),
+    );
+
+    expect(decision).toMatchObject({ verdict: "allow", code: "session-start-degraded" });
+    expect(decision.message).toBe(
+      "Directive SessionStart bookkeeping reported exit 1 on its non-blocking path.",
+    );
   });
 
   it("keeps SessionStart non-blocking when bookkeeping throws", () => {
@@ -159,7 +177,24 @@ describe("direct-write hook policy", () => {
       }),
     );
     expect(decision).toMatchObject({ verdict: "allow", code: "session-start-degraded" });
-    expect(decision.message).toContain("read-only bookkeeping failed");
+    expect(decision.message).toBe(
+      "Directive SessionStart bookkeeping failed on its non-blocking path: Error: read-only bookkeeping failed",
+    );
+  });
+
+  it("reports successful SessionStart bookkeeping", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "session.start",
+        projectRoot: "/project",
+        payload: {},
+      },
+      readySeams(),
+    );
+
+    expect(decision).toMatchObject({ verdict: "allow", code: "session-start" });
+    expect(decision.message).toBe("SessionStart bookkeeping completed on a non-blocking path.");
   });
 
   it("fails closed when ritual inspection throws", () => {
