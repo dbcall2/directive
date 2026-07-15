@@ -948,6 +948,7 @@
 - **#2494** -- feat(packaging): Phase 2 daily-core install default for consumer always-on (DD-3) -- `[completed]`
 - **#1692** -- feat(doctor,ritual): detect when a newer published release is available at session start (latest-release comparison, not just pinned-ref movement) -- `[completed]`
 - **#2402** -- bug: continuation language can escape an approved ordered plan -- `[completed]`
+- **#2438** -- feat(harness): deft-hook P0 host PreToolUse enforcement and project deposit -- `[completed]`
 - **#2501** -- refactor(agents-md): Phase 2 Wave 3a — evict Content packs / Skills / Codebase MAP from managed section -- `[completed]`
 - **#2502** -- refactor(agents-md): Phase 2 Wave 3b — compress umbrella / queue / body→comments / process cards to clear ≤8192 -- `[completed]`
 - **#2532** -- gate(agents-md): seed skillFrontmatterMaxBytes fail-closed DD-3 ratchet (daily-core 2080 B) -- `[completed]`
@@ -957,4 +958,13 @@
 - **#2546** -- test(vitest): full suite passes then process fails on unhandled onTaskUpdate worker timeouts (Windows) -- `[completed]`
 - **#2547** -- fix(taskfile): release --summary with apostrophes breaks ENGINE_CMD single-quote interpolation -- `[completed]`
 - **#2548** -- fix(release-e2e): Windows npm dry-run fails spawnSync pnpm ENOENT (PATHEXT / .cmd) -- `[completed]`
+- **#2554** -- ci(smoke): greenfield-python-free-smoke exits 143 (SIGTERM) with no stdout after engine-invoke -- `[completed]`
+- **#2555** -- fix(release-e2e): Windows npm dry-run breaks on spaced path (C:\Program Files) -- `[completed]`
+- **#2556** -- fix(build-dist): exclude vitest coverage/ from archive walk (Windows ENOENT race) -- `[completed]`
+- **#2557** -- fix(reconcile): release vBRIEF sync hard-fails when GraphQL cannot resolve a PR number as an Issue -- `[completed]`
+- **#1586** -- feat(evals): trigger coverage evals for AGENTS.md skill routing — skill-pi-trigger-eval integration -- `[completed]`
+- **#2261** -- bug(routing,cloud): babysit-pull-request-in-cloud dispatch bypasses deft-directive-review-cycle and canonical preamble (#954) -- `[completed]`
+- **#2508** -- docs(agents,skills): always-on pin policy for critical skills in AGENTS.md -- `[completed]`
+- **#2554** -- ci(smoke): greenfield-python-free-smoke exits 143 (SIGTERM) with no stdout after engine-invoke -- `[completed]`
+- **#2563** -- swarm(windows): Cursor Task-tool agents flood cmd.exe windows and freeze host -- `[completed]`
 

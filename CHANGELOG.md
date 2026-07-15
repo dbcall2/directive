@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.78.0] - 2026-07-15
+
+> Review-cycle intent routing (pins, babysit/shepherd, trigger evals), agent-host write hooks, and Windows Task warm-dist / windowsHide mitigations.
+
+### Added
+
 - **Trigger routing evals for AGENTS.md skill discovery (#1586).** `evals/trigger-cases.jsonl` holds skill-pi-trigger-eval compatible should-fire / should-not-fire rows for every Skills Index rule in `REFERENCES.md` (including review-cycle babysit/shepherd and sub-agent paraphrases from #2261). `task eval:triggers` runs deterministic offline routing; `verify:eval-triggers-relocation` and CI run it when AGENTS.md or routing artifacts change. Closes #1586. Refs #1862, #1703.
 
 - **Agent-host hooks enforce Directive's mutation boundary for direct writes.** `directive init` / `deft update` now merge project `SessionStart` and `PreToolUse` registrations for Claude Code, Grok Build, and Cursor into their native hook files. The shared `deft hook:dispatch` bridge denies direct edit/write tools until the existing gated session ritual is fresh and an active/running xBRIEF passes canonical preflight; `deft verify:hooks-installed --scope=agent` and `doctor --full` report registration health. Shell/MCP policy, compact re-arm, and plugin packaging remain in their separate follow-ups. Closes #2438. Refs #2437, #2113, #1394, #2369.
@@ -4355,7 +4367,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.77.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.78.0...HEAD
+[0.78.0]: https://github.com/deftai/directive/compare/v0.77.0...v0.78.0
 [0.77.0]: https://github.com/deftai/directive/compare/v0.77.0...v0.77.0
 [0.77.0]: https://github.com/deftai/directive/compare/v0.76.0...v0.77.0
 [0.76.0]: https://github.com/deftai/directive/compare/v0.75.0...v0.76.0
