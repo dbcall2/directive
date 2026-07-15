@@ -209,6 +209,12 @@ Full always-on contract for the interactive session-start ritual and its gated v
 - Headless workers / CI MAY set `DEFT_SESSION_RITUAL_SKIP=1`; verifier exits 0 but warns when bypass hides failure.
 - ⊗ Self-report ritual complete without fresh `deft session:start` state; ⊗ bypass `deft verify:session-ritual` before implementation dispatch; ⊗ reorder/skip/merge ritual tiers without operator override.
 
+### Environment orientation (#2568)
+
+`deft session:start` surfaces shell orientation in both postures. Human output includes one `[deft environment]` line; `--json` includes `environment.host_platform` and `environment.shell.{name,path,kind,source}`. Resolution precedence is `DEFT_EXECUTION_SHELL` (kind `execution`), then `SHELL`, then the POSIX account shell or Windows `ComSpec` (kind `default`), then explicit `unknown`. Source attribution is part of the contract: a default shell is context for writing portable commands, not proof of which shell the host harness uses.
+
+Agents use this signal to prefer portable syntax and quote zsh-sensitive data such as globs, tildes, `~N`, `!`, and `#`. When a command requires Bash, zsh, PowerShell, or another shell's behavior, invoke that explicit shell rather than relying on implicit execution semantics.
+
 **Pre-`start_agent` gate stack (#1149/#1348):** (0) `deft verify:session-ritual -- --tier=gated` → (1) `deft verify:story-ready` → (2) `deft xbrief:preflight` → (3) `deft verify:cache-fresh` → (4) `deft verify:branch` + hooks → (5) `start_agent`.
 
 ```mermaid

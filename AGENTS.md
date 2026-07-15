@@ -155,7 +155,7 @@ Same `!` / `⊗` rules as managed below; `task issue:ingest` (#2143).
 
 Note: root-relative paths (this repo IS deft/); run `task agents:refresh` after agents-entry edits (#1309).
 
-<!-- deft:managed-section v3 sha=1cb3b2de10e6 refreshed=2026-07-15T14:49:13Z session=451a9fa40f03 -->
+<!-- deft:managed-section v3 sha=dd1b24050b41 refreshed=2026-07-15T17:51:23Z session=a0659753661b -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
@@ -242,7 +242,7 @@ Legacy `vbrief/` read-accepted; `deft migrate:xbrief` for `xbrief/` (v0.6→v0.8
 
 ## Contextual guardrails (runtime-detect lazy-load)
 
-! Lazy-load `.deft/core/scm/github.md` before risky ops (#2157 / #2369): PowerShell → `deft verify:encoding` (#798); TS capture (#1366); cascade → `deft pr:wait-mergeable-and-merge` (#1369); SCM → `deft verify:scm-boundary` (#884).
+! Detect OS/shell; use portable syntax or explicit shell (#2568). `.deft/core/scm/github.md` (#2157/#2369): PS→`deft verify:encoding`; TS capture; cascade→`deft pr:wait-mergeable-and-merge`; SCM→`deft verify:scm-boundary`.
 
 ## Development Process
 

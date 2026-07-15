@@ -1,12 +1,14 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseArgs, run } from "./session-start.js";
 
 const temps: string[] = [];
 afterEach(() => {
   for (const t of temps) rmSync(t, { recursive: true, force: true });
+  temps.length = 0;
+  vi.unstubAllEnvs();
 });
 
 describe("session-start parseArgs", () => {
@@ -119,11 +121,49 @@ describe("session-start run", () => {
       const code = run(["--project-root", root, "--read-only", "--no-history"]);
       expect(code).toBe(0);
       expect(out).toContain("read-only session posture");
+      expect(out).toContain("[deft environment] os=");
       expect(out).not.toContain("session ritual recorded");
     } finally {
       process.stdout.write = prevStdout;
       process.stderr.write = prevStderr;
     }
+  });
+
+  it("writes structured shell orientation in read-only JSON", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-session-start-json-"));
+    temps.push(root);
+    mkdirSync(join(root, "xbrief"), { recursive: true });
+    writeFileSync(
+      join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
+      `${JSON.stringify({ xBRIEFInfo: { version: "0.8" }, plan: { title: "T", status: "running", items: [] } })}\n`,
+      "utf8",
+    );
+    vi.stubEnv("DEFT_EXECUTION_SHELL", "/opt/homebrew/bin/bash");
+    vi.stubEnv("SHELL", "/bin/zsh");
+    const prevStdout = process.stdout.write.bind(process.stdout);
+    let out = "";
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      out += String(chunk);
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      expect(run(["--project-root", root, "--read-only", "--no-history", "--json"])).toBe(0);
+    } finally {
+      process.stdout.write = prevStdout;
+    }
+    const payload = JSON.parse(out) as {
+      environment: {
+        host_platform: string;
+        shell: { name: string; path: string | null; kind: string; source: string };
+      };
+    };
+    expect(payload.environment.shell).toEqual({
+      name: "bash",
+      path: "/opt/homebrew/bin/bash",
+      kind: "execution",
+      source: "DEFT_EXECUTION_SHELL",
+    });
+    expect(payload.environment.host_platform.length).toBeGreaterThan(0);
   });
 
   it("writes text lines to stdout on success", () => {

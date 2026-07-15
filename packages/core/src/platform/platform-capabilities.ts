@@ -9,6 +9,7 @@ import {
   RUNTIME_MODE_CURSOR_NATIVE_SANDBOX,
   RUNTIME_MODE_LOCAL_UNSANDBOXED,
 } from "./constants.js";
+import { detectEnvironmentContext, type ShellContext } from "./shell-context.js";
 
 const TRUTHY = new Set(["1", "true", "yes", "on"]);
 
@@ -44,6 +45,8 @@ export interface OwnershipFacts {
 }
 
 export interface RuntimeCapabilityReport {
+  readonly hostPlatform: NodeJS.Platform;
+  readonly shell: ShellContext;
   readonly runtimeMode: string;
   readonly identityKind: string;
   readonly effectiveUid: number | null;
@@ -157,6 +160,8 @@ function collectSignals(environ: Readonly<Record<string, string>>): Record<strin
 
 export interface ProbeRuntimeOptions {
   readonly environ?: Readonly<Record<string, string>>;
+  readonly platform?: NodeJS.Platform;
+  readonly userShell?: string | null;
   readonly uidMapPath?: string;
   readonly cwd?: string;
   readonly effectiveUidOverride?: number | null;
@@ -171,6 +176,11 @@ export function probeRuntimeCapabilities(
     options.environ === undefined
       ? ({ ...process.env } as Record<string, string>)
       : { ...options.environ };
+  const environment = detectEnvironmentContext({
+    environ: env,
+    platform: options.platform,
+    userShell: options.userShell,
+  });
 
   let effectiveUid: number | null;
   if (options.effectiveUidOverride !== undefined) {
@@ -204,6 +214,8 @@ export function probeRuntimeCapabilities(
   const ownership = readOwnership(cwdPath, sandboxUidRemap);
 
   return {
+    hostPlatform: environment.hostPlatform,
+    shell: environment.shell,
     runtimeMode,
     identityKind,
     effectiveUid,
@@ -225,6 +237,13 @@ export function getPlatformCapabilities(
 
 export function reportToDict(report: RuntimeCapabilityReport): Record<string, unknown> {
   return {
+    host_platform: report.hostPlatform,
+    shell: {
+      name: report.shell.name,
+      path: report.shell.path,
+      kind: report.shell.kind,
+      source: report.shell.source,
+    },
     runtime_mode: report.runtimeMode,
     identity_kind: report.identityKind,
     effective_uid: report.effectiveUid,

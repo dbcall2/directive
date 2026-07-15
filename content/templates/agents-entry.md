@@ -85,7 +85,7 @@ Legacy `vbrief/` read-accepted; `deft migrate:xbrief` for `xbrief/` (v0.6→v0.8
 
 ## Contextual guardrails (runtime-detect lazy-load)
 
-! Lazy-load `.deft/core/scm/github.md` before risky ops (#2157 / #2369): PowerShell → `deft verify:encoding` (#798); TS capture (#1366); cascade → `deft pr:wait-mergeable-and-merge` (#1369); SCM → `deft verify:scm-boundary` (#884).
+! Detect OS/shell; use portable syntax or explicit shell (#2568). `.deft/core/scm/github.md` (#2157/#2369): PS→`deft verify:encoding`; TS capture; cascade→`deft pr:wait-mergeable-and-merge`; SCM→`deft verify:scm-boundary`.
 
 ## Development Process
 

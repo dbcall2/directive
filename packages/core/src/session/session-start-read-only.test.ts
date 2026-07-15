@@ -2,11 +2,16 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import type { EnvironmentContext } from "../platform/shell-context.js";
 import type { ResolveUserMdResult } from "../user-config/resolve-user-md.js";
 import { ritualStatePath } from "./ritual-sentinel.js";
 import { READ_ONLY_POSTURE, READ_ONLY_RESULT_MESSAGE, runSessionStart } from "./session-start.js";
 
 const temps: string[] = [];
+const environment: EnvironmentContext = {
+  hostPlatform: "darwin",
+  shell: { name: "zsh", path: "/bin/zsh", kind: "default", source: "SHELL" },
+};
 afterEach(() => {
   for (const t of temps) rmSync(t, { recursive: true, force: true });
   temps.length = 0;
@@ -35,6 +40,7 @@ describe("runSessionStart read-only posture (#2176)", () => {
     const result = runSessionStart(root, {
       posture: READ_ONLY_POSTURE,
       resolveUserMd: () => userMdResult({ path: "/opt/USER.md", rung: "env-override" }),
+      probeEnvironment: () => environment,
     });
     expect(result.code).toBe(0);
     expect(result.payload.posture).toBe(READ_ONLY_POSTURE);
@@ -43,8 +49,13 @@ describe("runSessionStart read-only posture (#2176)", () => {
     expect(existsSync(ritualStatePath(root))).toBe(false);
     expect(result.lines.join("\n")).toContain("Deft Directive active");
     expect(result.lines.join("\n")).toContain("USER.md resolved (env-override)");
+    expect(result.lines.join("\n")).toContain("[deft environment] os=darwin; shell=zsh");
     expect(result.lines.join("\n")).not.toContain("[deft policy]");
     expect(result.lines.join("\n")).not.toContain("[welcome]");
+    expect(result.payload.environment).toEqual({
+      host_platform: "darwin",
+      shell: { name: "zsh", path: "/bin/zsh", kind: "default", source: "SHELL" },
+    });
   });
 
   it("mutation posture still writes ritual-state by default", () => {
@@ -54,6 +65,7 @@ describe("runSessionStart read-only posture (#2176)", () => {
       resolveUserMd: () => userMdResult(),
       verifyTools: () => ({ exitCode: 0 }),
       runTriageWelcome: () => ({ exitCode: 0 }),
+      probeEnvironment: () => environment,
       runGit: (_r, args) => {
         if (args[0] === "rev-parse" && args.includes("HEAD")) {
           return { code: 0, stdout: "abc123", stderr: "" };

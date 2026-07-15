@@ -2,6 +2,12 @@ import { randomUUID } from "node:crypto";
 import { runningInsideDeftRepo } from "../doctor/paths.js";
 import { emitSessionEvalReadback } from "../eval/readback.js";
 import { MIGRATE_COMPLETION_NUDGE, shouldEmitMigrateNudge } from "../init-deposit/migrate.js";
+import {
+  detectEnvironmentContext,
+  type EnvironmentContext,
+  environmentContextToDict,
+  formatEnvironmentContext,
+} from "../platform/shell-context.js";
 import { disclosureLine } from "../policy/disclosure.js";
 import { resolvePolicy } from "../policy/resolve.js";
 import { runDefaultMode } from "../triage/welcome/default-mode.js";
@@ -65,6 +71,7 @@ export interface SessionStartOptions {
   ) => { exitCode: number };
   readonly verifyTools?: (output: (line: string) => void) => { exitCode: number };
   readonly resolveUserMd?: (projectRoot: string) => ResolveUserMdResult;
+  readonly probeEnvironment?: () => EnvironmentContext;
 }
 
 function normaliseStepName(name: string): string {
@@ -250,6 +257,7 @@ function runReadOnlySessionStart(
   projectRoot: string,
   options: SessionStartOptions,
   instant: Date,
+  environment: EnvironmentContext,
 ): SessionStartResult {
   const lines: string[] = [];
   const resolveUserMd =
@@ -262,6 +270,7 @@ function runReadOnlySessionStart(
     : safeDiagnostic;
   lines.push(READ_ONLY_ALIGNMENT_MESSAGE);
   lines.push(userMdLine);
+  lines.push(formatEnvironmentContext(environment));
   const resultPayload = {
     ready: true,
     exit_code: 0,
@@ -281,6 +290,7 @@ function runReadOnlySessionStart(
       found: userMd.found,
       diagnostic: userMd.diagnostic,
     },
+    environment: environmentContextToDict(environment),
     message: READ_ONLY_RESULT_MESSAGE,
   };
   return { code: 0, payload: resultPayload, lines };
@@ -294,17 +304,23 @@ export function runSessionStart(
   const instant = options.now ?? new Date();
   const deferrals = options.deferrals ?? {};
   const runGit = options.runGit ?? defaultGitRunner;
+  const environment = (options.probeEnvironment ?? detectEnvironmentContext)();
 
   if (posture === READ_ONLY_POSTURE) {
-    return runReadOnlySessionStart(projectRoot, options, instant);
+    return runReadOnlySessionStart(projectRoot, options, instant, environment);
   }
   const { head: gitHeadValue, error: gitError } = gitHead(projectRoot, runGit);
   if (gitHeadValue === null) {
     const payload = {
       ready: false,
+      environment: environmentContextToDict(environment),
       message: gitError ?? "could not resolve git HEAD",
     };
-    return { code: 2, payload, lines: [payload.message as string] };
+    return {
+      code: 2,
+      payload,
+      lines: [formatEnvironmentContext(environment), payload.message as string],
+    };
   }
 
   const quickSteps: Record<string, Record<string, unknown>> = recordDeferredSteps(
@@ -346,6 +362,7 @@ export function runSessionStart(
     lines.push(message);
     lines.push(userMdLine);
   }
+  lines.push(formatEnvironmentContext(environment));
 
   if (!quickSteps.branch_policy) {
     const result = resolvePolicy(projectRoot);
@@ -464,6 +481,7 @@ export function runSessionStart(
       found: userMd.found,
       diagnostic: userMd.diagnostic,
     },
+    environment: environmentContextToDict(environment),
     message: code === 0 ? "session ritual recorded" : "session ritual failed",
   };
   return { code, payload: resultPayload, lines };

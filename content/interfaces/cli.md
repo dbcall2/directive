@@ -81,6 +81,15 @@ else:
     run_cli()
 ```
 
+## Shell Portability And Orientation
+
+- ! Detect the host OS and shell before composing commands; consume structured orientation from `session:start --json` when available
+- ! Treat `SHELL` and account records as the user's default shell, not proof of the current executor; `DEFT_EXECUTION_SHELL` is the explicit harness signal for executor semantics
+- ! Prefer portable syntax; when Bash, zsh, PowerShell, or another shell's semantics are required, invoke that explicit shell
+- ! Under zsh, quote globs, tildes, `~N`, `!`, and `#` tokens when they are data; do not rely on unquoted-variable word splitting
+- ~ Use argument arrays instead of command strings where the execution API supports them
+- ⊗ Assume Bash from the operating system alone
+
 **Plugin architecture**:
 - ? Support plugin discovery via entry points
 - ? Validate plugins before use
