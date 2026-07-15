@@ -14,6 +14,7 @@ import { copyTree } from "../deposit/copy-tree.js";
 import { prunePythonArtifactsFromDeposit } from "../deposit/python-free.js";
 import { resolveInstalledContentRoot } from "../deposit/resolve-content.js";
 import { readCorePackageVersion } from "../engine-version.js";
+import { writeAgentHookDeposit } from "./agent-hooks.js";
 import { ensureInitGitignoreLines, reconstituteDepositFromContent } from "./gitignore.js";
 import { depositStagePaths, printCommitGuidance } from "./hygiene.js";
 import {
@@ -224,6 +225,7 @@ export async function runInitDeposit(
   await depositNeutralization(projectDir, io);
   await writeConsumerVbrief(projectDir, deftDir, io);
   writeConsumerGitHooks(projectDir, deftDir, io, seams.gitHooks);
+  writeAgentHookDeposit(projectDir, io);
 
   let taskfileWired = false;
   if (args.nonInteractive) {

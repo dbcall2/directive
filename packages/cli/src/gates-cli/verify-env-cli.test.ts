@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { writeAgentHookDeposit } from "@deftai/directive-core/init-deposit";
 import { afterAll, describe, expect, it } from "vitest";
 import { resolveCanonicalVerb } from "../dispatch.js";
 import { run as runToolchainCheckCli } from "../toolchain-check.js";
@@ -48,6 +49,22 @@ describe("deft-ts verify-hooks-installed (maps tests/cli/test_verify_hooks_insta
     const direct = runDeftTs("verify-hooks-installed", ["--project-root", repoRoot()]);
     const alias = runDeftTs("verify:hooks-installed", ["--project-root", repoRoot()]);
     expect(alias.exitCode).toBe(direct.exitCode);
+  });
+
+  it("probes agent-hook registration independently from git hooks", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-agent-hooks-cli-"));
+    temps.push(root);
+    writeAgentHookDeposit(root);
+
+    const result = runDeftTs("verify-hooks-installed", ["--scope=agent", "--project-root", root]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Claude, Grok, Cursor");
+  });
+
+  it("rejects an unknown hook scope", () => {
+    const result = runDeftTs("verify-hooks-installed", ["--scope=everything"]);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("invalid choice");
   });
 });
 

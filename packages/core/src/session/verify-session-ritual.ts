@@ -172,6 +172,86 @@ export interface VerifySessionRitualOptions {
   readonly handoffText?: string | null;
 }
 
+export interface InspectSessionRitualOptions {
+  readonly tier?: "quick" | "gated";
+  readonly now?: Date;
+  readonly runGit?: GitRunner;
+  readonly posture?: DirectivePosture;
+  readonly envPosture?: string | undefined;
+  readonly handoffText?: string | null;
+}
+
+/**
+ * Read-only ritual-state inspection for host hooks.
+ *
+ * Unlike {@link verifySessionRitual}, this never runs missing gated entrypoints
+ * and never rewrites `.deft/ritual-state.json`. A PreToolUse decision must be a
+ * probe, not a hidden `doctor` / cache-refresh mutation boundary.
+ */
+export function inspectSessionRitual(
+  projectRoot: string,
+  options: InspectSessionRitualOptions = {},
+): VerifyResult {
+  const tier = options.tier ?? "quick";
+  const posture = resolveSessionPosture({
+    explicitPosture: options.posture ?? null,
+    envPosture: options.envPosture ?? process.env.DEFT_SESSION_POSTURE,
+    handoffText: options.handoffText,
+    tier,
+  });
+  const ritualStateRequired = posture === "mutation" && !ritualStateIsPostureAuthority();
+  const statePath = ritualStatePath(projectRoot);
+
+  if (posture === "read-only") {
+    return {
+      code: 0,
+      message: readOnlyPostureMessage(tier),
+      tier,
+      statePath,
+      bypassed: false,
+      wouldFailCode: null,
+      posture,
+      ritualStateRequired: false,
+    };
+  }
+
+  const missingStateFile = !existsSync(statePath);
+  const [state, err] = readRitualState(projectRoot);
+  if (state === null) {
+    const code = missingStateFile ? 1 : 2;
+    const startCommand = formatFrameworkCommand(["session:start"]);
+    return {
+      code,
+      message:
+        code === 1
+          ? `${err}. Run \`${startCommand}\` before implementation dispatch.`
+          : (err ?? "ritual state invalid"),
+      tier,
+      statePath,
+      bypassed: false,
+      wouldFailCode: null,
+      posture,
+      ritualStateRequired,
+    };
+  }
+
+  const [code, message] = evaluateLoadedState(projectRoot, state, {
+    tier,
+    now: options.now ?? new Date(),
+    runGit: options.runGit,
+  });
+  return {
+    code,
+    message,
+    tier,
+    statePath,
+    bypassed: false,
+    wouldFailCode: null,
+    posture,
+    ritualStateRequired,
+  };
+}
+
 export function verifySessionRitual(
   projectRoot: string,
   options: VerifySessionRitualOptions = {},

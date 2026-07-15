@@ -1,0 +1,118 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "P0 host-hook bridge, direct write denial, project deposit, and health reporting for issue #2438",
+    "created": "2026-07-14T23:00:00Z",
+    "updated": "2026-07-14T23:00:00Z"
+  },
+  "plan": {
+    "id": "2438-deft-hook-p0",
+    "title": "feat(harness): deft-hook P0 host PreToolUse enforcement and project deposit",
+    "status": "running",
+    "narratives": {
+      "Description": "Ship Directive's P0 Tier-1 host-hook surface: a provider-neutral hook dispatcher, direct write-tool denial backed by the existing gated session ritual and active/running xBRIEF predicates, idempotent project deposits, and doctor/verify registration health.",
+      "UserStory": "As a Directive user, I want the agent host to refuse direct file writes until the existing implementation gates pass, so advisory workflow rules cannot be silently bypassed before the working tree is modified.",
+      "ImplementationPlan": "1. Add a small normalized hook event/decision contract and CLI dispatcher for SessionStart and PreToolUse. 2. Extract a read-only ritual-state inspector from the existing verifier and compose it with the canonical xBRIEF preflight evaluator; do not create a second policy stack. 3. Add host codecs/deposits for the P0 project surfaces and wire them through init/update. 4. Extend hook health reporting and doctor without changing existing git-hook defaults. 5. Cover allow/deny, malformed input, idempotent merge, and doctor status. Explicitly defer compact re-arm (#2113), path/shell/MCP policy (#1394), and plugin packaging (#2369).",
+      "Origin": "GitHub issue #2438 under epic #2437; implementation scope locked by operator on 2026-07-14.",
+      "Acceptance": "1. Hook dispatcher accepts stdin JSON and emits host-native allow/deny for direct write tools. 2. Missing/stale gated ritual or no active/running xBRIEF denies a write with actionable remediation. 3. Project deposit is idempotent and doctor reports registration health. 4. SessionStart is non-blocking. 5. No compact, path-policy, routing, or plugin-packaging work lands."
+    },
+    "items": [
+      {
+        "id": "2438-a1",
+        "title": "Provider-neutral hook dispatcher",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given a supported host event on stdin, when hook:dispatch runs, then it normalizes the event and returns a deterministic allow or deny decision in the host's required response shape."
+        }
+      },
+      {
+        "id": "2438-a2",
+        "title": "Canonical direct-write gate",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given a direct write tool, when the gated ritual is stale or no active/running xBRIEF passes canonical preflight, then the host refuses the tool and names the recovery commands."
+        }
+      },
+      {
+        "id": "2438-a3",
+        "title": "Project deposit",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given directive init/update runs, when host hook files are deposited, then Directive-owned entries are present without overwriting unrelated user configuration and a second run is a no-op."
+        }
+      },
+      {
+        "id": "2438-a4",
+        "title": "Doctor and verification health",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given a project with installed, missing, or drifted agent hooks, when the health probe runs, then it reports the registration state separately from existing git-hook health."
+        }
+      },
+      {
+        "id": "2438-a5",
+        "title": "P0 regression coverage",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given the P0 test matrix, when focused tests run, then allow, deny, malformed input, deposit idempotence, and health-reporting branches are covered."
+        }
+      }
+    ],
+    "tags": [
+      "enhancement",
+      "harness",
+      "determinism",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2438",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2438"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2437",
+        "type": "x-xbrief/refs",
+        "title": "Parent epic #2437"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "sequential",
+        "parallel_safe": false,
+        "file_scope": [
+          "packages/core/src/hooks/",
+          "packages/core/src/session/",
+          "packages/core/src/init-deposit/",
+          "packages/core/src/verify-env/",
+          "packages/core/src/doctor/",
+          "packages/core/package.json",
+          "packages/cli/src/",
+          "packages/cli/package.json",
+          "content/commands.md",
+          "CHANGELOG.md",
+          "vitest.config.ts"
+        ],
+        "verify_commands": [
+          "pnpm --filter @deftai/directive-core test -- hooks",
+          "pnpm --filter @deftai/directive test -- hook",
+          "task check"
+        ],
+        "expected_outputs": [
+          "deft hook:dispatch P0 bridge",
+          "Direct write denial backed by canonical predicates",
+          "Idempotent host deposits",
+          "Agent-hook doctor status"
+        ],
+        "depends_on": [],
+        "conflict_group": "agent-host-hooks-p0",
+        "size": "L",
+        "file_scope_confidence": "high",
+        "model_tier": "high",
+        "missing_traces_justification": "Issue #2438 is the approved P0 implementation record; the affected surface is framework-internal harness infrastructure."
+      }
+    },
+    "updated": "2026-07-15T01:42:49Z"
+  }
+}

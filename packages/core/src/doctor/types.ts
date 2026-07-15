@@ -3,6 +3,7 @@ import type { ShadowedPlanExtension } from "../policy/plan-extensions.js";
 import type { EngineProbeResult } from "../resolution/classify.js";
 import type { ResolutionMode } from "../resolution/index.js";
 import type { ResolveUserMdResult } from "../user-config/resolve-user-md.js";
+import type { AgentHookHealthResult } from "../verify-env/agent-hooks.js";
 
 export const EXIT_CLEAN = 0;
 export const EXIT_DRIFT = 1;
@@ -142,4 +143,6 @@ export interface DoctorSeams {
    * its `plan` object; returns [] when no project definition is present.
    */
   readonly detectPlanExtensionShadows?: (projectRoot: string) => readonly ShadowedPlanExtension[];
+  /** Read-only agent-host hook registration probe (#2438). */
+  readonly evaluateAgentHooks?: (projectRoot: string) => AgentHookHealthResult;
 }

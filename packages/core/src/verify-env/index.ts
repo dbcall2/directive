@@ -1,3 +1,4 @@
+export * from "./agent-hooks.js";
 export * from "./command-spawn.js";
 export * from "./node-runtime.js";
 export * from "./toolchain-check.js";

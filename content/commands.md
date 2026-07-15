@@ -173,13 +173,21 @@ Current status: the validation, extractor, provider, registry, generated MAP, an
 - `task check:slow` -- slower/full checks.
 - `task verify:session-ritual` -- validate session-start ritual state.
 - `task verify:branch` -- enforce default-branch protection.
-- `task verify:hooks-installed` -- ensure local hooks are configured.
+- `task verify:hooks-installed` -- ensure local git hooks are configured; use `deft verify:hooks-installed --scope=agent` for agent-host hooks.
 - `task verify:encoding` -- detect mojibake and BOM issues.
 - `task verify:xbrief-conformance` -- validate xBRIEF conformance surfaces.
 - `task verify:cache-fresh` -- validate cache freshness where required.
 - `task verify:capacity`, `task verify:wip-cap`, and `task verify:judgment-gates` -- policy/capacity gates.
 
 Use `task --list` for the exact current verify namespace.
+
+### Agent-host direct-write hooks (#2438)
+
+`directive init` and `deft update` idempotently merge Directive-owned entries into `.claude/settings.json`, `.grok/hooks/deft.json`, and `.cursor/hooks.json` while preserving unrelated settings. `SessionStart` refreshes resume bookkeeping on a non-blocking path. `PreToolUse` covers direct edit/write tools and denies them until both existing gates pass: a fresh gated session ritual and an active/running xBRIEF accepted by canonical preflight.
+
+- Verify registration: `deft verify:hooks-installed --scope=agent` (or `--scope=all` for git + agent hooks).
+- Repair missing/drifted entries: `deft update`.
+- The P0 hook slice does not classify shell-mediated writes, MCP mutations, compact re-arm, or subagent routing; those remain owned by their dedicated follow-up issues.
 
 ## Session-start ritual (#1149)
 

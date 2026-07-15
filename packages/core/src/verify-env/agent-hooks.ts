@@ -1,0 +1,57 @@
+import { statSync } from "node:fs";
+import { resolve } from "node:path";
+import { type AgentHookInspection, inspectAgentHookDeposit } from "../init-deposit/agent-hooks.js";
+import type { OutputStream } from "./verify-hooks-installed.js";
+
+export interface AgentHookHealthResult {
+  readonly code: 0 | 1 | 2;
+  readonly message: string;
+  readonly stream: OutputStream;
+  readonly registrations: readonly AgentHookInspection[];
+}
+
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/** Read-only P0 agent-host registration health, independent of git hooks. */
+export function evaluateAgentHooks(projectRoot: string): AgentHookHealthResult {
+  const root = resolve(projectRoot);
+  if (!isDirectory(root)) {
+    return {
+      code: 2,
+      message: `❌ deft agent hooks: project root ${root} does not exist (config error).`,
+      stream: "stderr",
+      registrations: [],
+    };
+  }
+
+  const registrations = inspectAgentHookDeposit(root);
+  const unhealthy = registrations.filter((entry) => entry.status !== "healthy");
+  if (unhealthy.length > 0) {
+    return {
+      code: 1,
+      message:
+        "❌ deft agent hooks NON-FUNCTIONAL:\n" +
+        unhealthy
+          .map((entry) => `  - ${entry.host}: ${entry.status} at ${entry.path} — ${entry.detail}`)
+          .join("\n") +
+        "\n  Recovery: run `deft update` (or `directive init`) to refresh project hooks.",
+      stream: "stderr",
+      registrations,
+    };
+  }
+
+  return {
+    code: 0,
+    message:
+      "✓ deft agent hooks installed and functional for Claude, Grok, Cursor " +
+      "(SessionStart + PreToolUse direct-write tools only; shell/MCP policy is deferred).",
+    stream: "stdout",
+    registrations,
+  };
+}

@@ -1,4 +1,6 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { repoRoot } from "./_helpers.js";
@@ -126,6 +128,86 @@ describe("task surface routes through the guarded :engine:* pattern (#2126)", ()
     expect(engine).toMatch(/CLI artifact missing/);
     expect(engine).toMatch(/is_runtime_verb/);
     expect(engine).toMatch(/process\.versions\.node/);
+  });
+
+  it("treats command transport as one-hop so nested Task commands win (#2554)", () => {
+    const fixtureDir = mkdtempSync(join(tmpdir(), "deft-engine-invoke-"));
+    const helper = join(repoRoot(), "tasks", "engine-invoke.cjs");
+    const recorder = join(fixtureDir, "record-child.cjs");
+    const nestedTask = join(fixtureDir, "nested-task.cjs");
+    const nestedOut = join(fixtureDir, "nested-out.json");
+    const outerOut = join(fixtureDir, "outer-out.json");
+
+    try {
+      // File sinks: engine-invoke uses stdio inherit (#2554), so spawnSync cannot
+      // capture child stdout through the helper — record payloads on disk instead.
+      writeFileSync(
+        recorder,
+        `const { writeFileSync } = require("node:fs");
+writeFileSync(process.env.TEST_ENGINE_NESTED_OUT, JSON.stringify({
+  argv: process.argv.slice(2),
+  jsonTransport: process.env.DEFT_ENGINE_CMD_JSON ?? null,
+  legacyTransport: process.env.DEFT_ENGINE_CMD ?? null,
+}));\n`,
+        "utf8",
+      );
+      writeFileSync(
+        nestedTask,
+        `const { spawnSync } = require("node:child_process");
+const { writeFileSync, readFileSync } = require("node:fs");
+const env = { ...process.env };
+// Mirrors go-task's inherited-environment precedence: set the nested command
+// only when no stale parent transport value is present.
+env.DEFT_ENGINE_CMD_JSON ??= JSON.stringify("verify:tools --nested");
+const nested = spawnSync(process.execPath, [process.env.TEST_ENGINE_HELPER, "vendored", process.env.TEST_ENGINE_RECORDER], {
+  encoding: "utf8",
+  env,
+});
+if (nested.stderr) process.stderr.write(nested.stderr);
+if (nested.status !== 0) process.exit(nested.status ?? 1);
+writeFileSync(process.env.TEST_ENGINE_OUTER_OUT, JSON.stringify({
+  argv: process.argv.slice(2),
+  jsonTransport: process.env.DEFT_ENGINE_CMD_JSON ?? null,
+  legacyTransport: process.env.DEFT_ENGINE_CMD ?? null,
+  nested: JSON.parse(readFileSync(process.env.TEST_ENGINE_NESTED_OUT, "utf8")),
+}));\n`,
+        "utf8",
+      );
+
+      const result = spawnSync(process.execPath, [helper, "vendored", nestedTask], {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          DEFT_ENGINE_CMD_JSON: JSON.stringify('check:consumer --flag "value with spaces"'),
+          DEFT_ENGINE_CMD: "legacy-stale-command",
+          TEST_ENGINE_HELPER: helper,
+          TEST_ENGINE_RECORDER: recorder,
+          TEST_ENGINE_NESTED_OUT: nestedOut,
+          TEST_ENGINE_OUTER_OUT: outerOut,
+        },
+      });
+
+      expect(result.stderr ?? "").toBe("");
+      expect(result.status).toBe(0);
+      const payload = JSON.parse(readFileSync(outerOut, "utf8")) as {
+        argv: string[];
+        jsonTransport: string | null;
+        legacyTransport: string | null;
+        nested: {
+          argv: string[];
+          jsonTransport: string | null;
+          legacyTransport: string | null;
+        };
+      };
+      expect(payload.argv).toEqual(["check:consumer", "--flag", "value with spaces"]);
+      expect(payload.jsonTransport).toBeNull();
+      expect(payload.legacyTransport).toBeNull();
+      expect(payload.nested.argv).toEqual(["verify:tools", "--nested"]);
+      expect(payload.nested.jsonTransport).toBeNull();
+      expect(payload.nested.legacyTransport).toBeNull();
+    } finally {
+      rmSync(fixtureDir, { recursive: true, force: true });
+    }
   });
 
   it("pm-run / _ts-build hasCmd is cross-platform (no Unix sh/command -v) (#2415)", () => {

@@ -35,6 +35,7 @@ import {
   resolveEngine,
 } from "../resolution/index.js";
 import { gitPorcelain } from "../story-ready/git.js";
+import { writeAgentHookDeposit } from "./agent-hooks.js";
 import { ensureInitGitignoreLines, type GitLsFiles, isDepositTrackedInGit } from "./gitignore.js";
 import {
   depositStagePaths,
@@ -646,6 +647,7 @@ export async function runRefreshDeposit(
   }
 
   const agentsMdUpdated = writeAgentsMd(projectDir, deftDir, io);
+  writeAgentHookDeposit(projectDir, io);
 
   // #2148: the deft-core-guard CI workflow is only meaningful when the deposit
   // is git-tracked (committed vendor layout). On an npm-managed (gitignored)

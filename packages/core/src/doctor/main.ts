@@ -17,6 +17,7 @@ import {
   plan as resolvePlan,
 } from "../resolution/index.js";
 import { type ResolveUserMdResult, resolveUserMdPath } from "../user-config/resolve-user-md.js";
+import { evaluateAgentHooks } from "../verify-env/agent-hooks.js";
 import { agentsRefreshPlan, hasV3ManagedMarker } from "./agents-md.js";
 import { runChecks } from "./checks.js";
 import {
@@ -220,6 +221,12 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
   if (!jsonMode) {
     sink.blank();
   }
+  sink.info("Checking agent-host hook registration...");
+  runAgentHooksHealthCheck(projectRoot, consumerContext, sink, addFinding, seams);
+
+  if (!jsonMode) {
+    sink.blank();
+  }
   // #2182: payload-staleness is the only doctor check that can reach a
   // registry (git verifies the pin; npm compares stable release availability).
   // It stays in the OFFLINE
@@ -400,6 +407,43 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
   }
   sink.finalWarn(`System check completed with ${warningCount} warning(s).`);
   return 0;
+}
+
+export function runAgentHooksHealthCheck(
+  projectRoot: string,
+  consumerContext: boolean,
+  sink: ReturnType<typeof createPlainSink>,
+  addFinding: (finding: Finding) => void,
+  seams: DoctorSeams,
+): void {
+  const checkName = "agent-hooks-registration";
+  if (!consumerContext) {
+    const reason = "maintainer source checkout; project hook deposit is consumer-only";
+    sink.info(`${checkName}: skip -- ${reason}`);
+    addFinding({ severity: "skip", message: reason, check: checkName, status: "skip" });
+    return;
+  }
+  try {
+    const result = (seams.evaluateAgentHooks ?? evaluateAgentHooks)(projectRoot);
+    if (result.code === 0) {
+      sink.success(`${checkName}: healthy`);
+      return;
+    }
+    const message = `${checkName}: ${result.message.replace(/\s+/g, " ").trim()}`;
+    sink.warn(message);
+    addFinding({
+      severity: "warning",
+      message,
+      check: checkName,
+      status: result.code === 2 ? "unavailable" : "non-functional",
+      registrations: result.registrations,
+      suggestion: "deft update",
+    });
+  } catch (cause) {
+    const message = `${checkName}: probe failed -- ${String(cause)}`;
+    sink.warn(message);
+    addFinding({ severity: "warning", message, check: checkName, suggestion: "deft update" });
+  }
 }
 
 function runInstallIntegrityChecks(
