@@ -943,8 +943,18 @@
 - fix(windows): native path portability for task check / release preflight -- `[completed]`
 - **#2470** -- sec: four medium symlink/path-escape write sinks (scope planRef, issue cache, welcome audit, release markdown) -- `[completed]`
 - **#2490** -- refactor(agents-md): shrink maintainer AGENTS.md unmanaged header with consumer-parity mechanisms -- `[completed]`
+- **#2491** -- epic(agents-md): Phase 2 always-on shrink — read-only posture, then managed ≤8KB + daily-core default -- `[completed]`
 - **#2493** -- refactor(agents-md): Phase 2 session-routing compression aligned with read-only posture (#2176) -- `[completed]`
 - **#2494** -- feat(packaging): Phase 2 daily-core install default for consumer always-on (DD-3) -- `[completed]`
+- **#1692** -- feat(doctor,ritual): detect when a newer published release is available at session start (latest-release comparison, not just pinned-ref movement) -- `[completed]`
+- **#2402** -- bug: continuation language can escape an approved ordered plan -- `[completed]`
 - **#2501** -- refactor(agents-md): Phase 2 Wave 3a — evict Content packs / Skills / Codebase MAP from managed section -- `[completed]`
 - **#2502** -- refactor(agents-md): Phase 2 Wave 3b — compress umbrella / queue / body→comments / process cards to clear ≤8192 -- `[completed]`
+- **#2532** -- gate(agents-md): seed skillFrontmatterMaxBytes fail-closed DD-3 ratchet (daily-core 2080 B) -- `[completed]`
+- **#2535** -- refactor(agents-md): Phase 3 Wave A1 — collapse Session routing bootstrap (~850 B) -- `[completed]`
+- **#2536** -- refactor(agents-md): Phase 3 Wave A2 — medium-card pointer batch (~850 B) -- `[completed]`
+- **#2544** -- docs(agents): surface Windows %APPDATA%\\deft\\USER.md in always-on session bootstrap -- `[completed]`
+- **#2546** -- test(vitest): full suite passes then process fails on unhandled onTaskUpdate worker timeouts (Windows) -- `[completed]`
+- **#2547** -- fix(taskfile): release --summary with apostrophes breaks ENGINE_CMD single-quote interpolation -- `[completed]`
+- **#2548** -- fix(release-e2e): Windows npm dry-run fails spawnSync pnpm ENOENT (PATHEXT / .cmd) -- `[completed]`
 

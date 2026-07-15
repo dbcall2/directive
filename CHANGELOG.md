@@ -14,13 +14,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.77.0] - 2026-07-15
+
+> Combined always-on AGENTS north-star to 9 KB; ordered-plan continuation as the alternative whats next path; doctor release detection; Windows-native release hardening (Taskfile summary, vitest, pnpm e2e, USER.md path, metrics home).
+
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.77.0] - 2026-07-15
+
+> Combined always-on AGENTS north-star to 9 KB; ordered-plan continuation as the alternative whats next path; doctor release detection; Windows-native release hardening (Taskfile summary, vitest, pnpm e2e, USER.md path, metrics home).
+
 ### Changed
 
 - **Helped and health metrics persist outside the project tree.** `crud-metrics.jsonl` and `health-history.jsonl` now append under the resolved user-data metrics home (`helped/` and `health/` subdirs) via `DEFT_METRICS_HOME` / platform AppData or XDG defaults; no fallback to `xbrief/.eval/results/`. Closes #2545. Refs #2544.
 
 ### Added
 
-- **Network-enabled doctor detects newer stable framework releases.** `deft doctor --network` now compares release-tag installs with the npm `latest` version even when the immutable pinned tag SHA still matches, preserves moved-ref priority, and does not nudge stable installs toward prereleases. Default doctor and session-ritual flows remain offline. Closes #1692. Refs #2488.
+- **Network-enabled doctor detects newer stable framework releases.** `deft doctor --network` now compares release-tag installs with the npm `latest` version even when the immutable pinned tag SHA still matches, preserves moved-ref priority, and does not nudge stable installs toward prereleases. Default doctor and session-ritual flows remain offline. Refs #1692, #2488. Partial — remaining ritual/session-start surface still tracked on #1692.
 - **Ordered-plan continuation stops "next" from escaping an approved sequence.** Agents bind bare "what's next?" / "proceed" to the narrowest operator-approved plan via `plan-sequence:*` and `verify:plan-sequence`; exhausted plans fail closed instead of pulling the triage queue. AGENTS keeps a pointer-thin #1149 precedence line; full rules live in the preamble and skills. Closes #2402.
 
 ### Changed
@@ -4330,7 +4354,9 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.76.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.77.0...HEAD
+[0.77.0]: https://github.com/deftai/directive/compare/v0.77.0...v0.77.0
+[0.77.0]: https://github.com/deftai/directive/compare/v0.76.0...v0.77.0
 [0.76.0]: https://github.com/deftai/directive/compare/v0.75.0...v0.76.0
 [0.75.0]: https://github.com/deftai/directive/compare/v0.74.0...v0.75.0
 [0.74.0]: https://github.com/deftai/directive/compare/v0.73.1...v0.74.0
