@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   DIRECT_WRITE_TOOL_NAMES,
@@ -142,7 +143,7 @@ describe("direct-write hook policy", () => {
     expect(decision.message).toBe(
       "Directive SessionStart bookkeeping reported exit 2 on its non-blocking path: no active scope",
     );
-    expect(sessionStart).toHaveBeenCalledWith("/project");
+    expect(sessionStart).toHaveBeenCalledWith(resolve("/project"));
   });
 
   it("reports a failed SessionStart result even when the hook returns no detail", () => {
@@ -309,11 +310,16 @@ describe("provider input normalization", () => {
   });
 
   it("resolves supported workspace-root spellings with a fallback", () => {
-    expect(projectRootFromHookPayload(null, "/fallback")).toBe("/fallback");
-    expect(projectRootFromHookPayload({ workspace_root: "/snake" }, "/fallback")).toBe("/snake");
-    expect(projectRootFromHookPayload({ workspace_roots: ["/array"] }, "/fallback")).toBe("/array");
-    expect(projectRootFromHookPayload({ cwd: "/cwd" }, "/fallback")).toBe("/cwd");
-    expect(projectRootFromHookPayload({}, "/fallback")).toBe("/fallback");
+    // path.resolve is platform-native (win32 maps "/fallback" -> "C:\\fallback").
+    expect(projectRootFromHookPayload(null, "/fallback")).toBe(resolve("/fallback"));
+    expect(projectRootFromHookPayload({ workspace_root: "/snake" }, "/fallback")).toBe(
+      resolve("/snake"),
+    );
+    expect(projectRootFromHookPayload({ workspace_roots: ["/array"] }, "/fallback")).toBe(
+      resolve("/array"),
+    );
+    expect(projectRootFromHookPayload({ cwd: "/cwd" }, "/fallback")).toBe(resolve("/cwd"));
+    expect(projectRootFromHookPayload({}, "/fallback")).toBe(resolve("/fallback"));
   });
 
   it("validates public host and event identifiers", () => {

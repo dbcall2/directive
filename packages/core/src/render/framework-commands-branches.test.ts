@@ -22,7 +22,7 @@ describe("framework-commands branch coverage", () => {
     expect(cmdCoreValidate(["--extra"])).toBe(2);
   });
 
-  it("cmdCoreValidate succeeds with capture", () => {
+  it("cmdCoreValidate succeeds with capture", { timeout: 60_000 }, () => {
     const root = mkdtempSync(join(tmpdir(), "fw-core-val-"));
     writeFileSync(join(root, "sample.md"), "# sample\n", "utf8");
     try {

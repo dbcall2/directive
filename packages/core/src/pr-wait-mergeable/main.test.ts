@@ -108,10 +108,13 @@ describe("runWaitMergeable", () => {
   });
 
   it("cmdPrWaitMergeable delegates to runWaitMergeable", () => {
+    const prev = process.env.GH_REPO;
+    delete process.env.GH_REPO;
     const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     expect(cmdPrWaitMergeable(["1370"])).toBe(EXIT_CONFIG_ERROR);
     stderr.mockRestore();
     stdout.mockRestore();
+    if (prev !== undefined) process.env.GH_REPO = prev;
   });
 });
