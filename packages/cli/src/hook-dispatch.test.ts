@@ -50,15 +50,17 @@ describe("hook-dispatch CLI", () => {
 
   it("keeps SessionStart non-blocking and silent", () => {
     const out: string[] = [];
+    const err: string[] = [];
     const code = run(["--host", "claude", "--event", "session.start"], {
       readStdin: () => "{}",
       writeOut: (text) => out.push(text),
-      writeErr: () => undefined,
+      writeErr: (text) => err.push(text),
       cwd: () => "/definitely/not/a/repo",
     });
 
     expect(code).toBe(0);
     expect(out).toEqual([]);
+    expect(err.join("")).toContain("non-blocking path");
   });
 
   it("uses a payload-derived project root and allows non-write tools silently", () => {

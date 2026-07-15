@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  DIRECT_WRITE_TOOL_NAMES,
   decideHook,
   type HookPolicySeams,
   hookToolName,
@@ -125,7 +126,7 @@ describe("direct-write hook policy", () => {
     expect(decision).toMatchObject({ verdict: "deny", code: "invalid-input" });
   });
 
-  it("keeps SessionStart non-blocking even when resume bookkeeping fails", () => {
+  it("surfaces a failed SessionStart result without blocking the session", () => {
     const sessionStart = vi.fn(() => ({ code: 2, stdout: "", stderr: "no active scope" }));
     const decision = decideHook(
       {
@@ -137,7 +138,9 @@ describe("direct-write hook policy", () => {
       readySeams({ sessionStart }),
     );
 
-    expect(decision).toMatchObject({ verdict: "allow", code: "session-start" });
+    expect(decision).toMatchObject({ verdict: "allow", code: "session-start-degraded" });
+    expect(decision.message).toContain("exit 2");
+    expect(decision.message).toContain("no active scope");
     expect(sessionStart).toHaveBeenCalledWith("/project");
   });
 
@@ -155,7 +158,8 @@ describe("direct-write hook policy", () => {
         },
       }),
     );
-    expect(decision.verdict).toBe("allow");
+    expect(decision).toMatchObject({ verdict: "allow", code: "session-start-degraded" });
+    expect(decision.message).toContain("read-only bookkeeping failed");
   });
 
   it("fails closed when ritual inspection throws", () => {
@@ -246,15 +250,8 @@ describe("provider codecs", () => {
 });
 
 describe("direct-write classifier", () => {
-  it.each([
-    "Edit",
-    "Write",
-    "MultiEdit",
-    "NotebookEdit",
-    "StrReplace",
-    "Delete",
-    "apply_patch",
-  ])("classifies %s as a direct write", (tool) => expect(isDirectWriteTool(tool)).toBe(true));
+  it.each([...DIRECT_WRITE_TOOL_NAMES])("classifies %s as a direct write", (tool) =>
+    expect(isDirectWriteTool(tool)).toBe(true));
 
   it.each([
     "Read",

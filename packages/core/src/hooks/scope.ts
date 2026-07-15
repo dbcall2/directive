@@ -29,6 +29,8 @@ export function inspectActiveScope(projectRoot: string): ActiveScopeInspection {
     }
   }
 
+  // Stable traversal makes the selected path and first rejection reproducible.
+  // This is not a priority rule: every candidate is evaluated until one passes.
   candidates.sort();
   let firstRejection: string | null = null;
   for (const candidate of candidates) {

@@ -45,4 +45,19 @@ describe("scope denial", () => {
     expect(result.ready).toBe(false);
     expect(result.message).toContain("only 'running'");
   });
+
+  it("checks every candidate despite deterministic filename ordering", () => {
+    const project = root();
+    const active = join(project, "xbrief", "active");
+    mkdirSync(active, { recursive: true });
+    writeFileSync(
+      join(active, "a-rejected.xbrief.json"),
+      JSON.stringify({ plan: { status: "completed" } }),
+      "utf8",
+    );
+    const passing = join(active, "z-passing.xbrief.json");
+    writeFileSync(passing, JSON.stringify({ plan: { status: "running" } }), "utf8");
+
+    expect(inspectActiveScope(project)).toMatchObject({ ready: true, path: passing });
+  });
 });

@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { DIRECT_WRITE_TOOL_NAMES, isDirectWriteTool } from "../hooks/tools.js";
 import {
   AGENT_HOOK_PATHS,
   DIRECT_WRITE_HOOK_MATCHER,
@@ -37,9 +38,8 @@ describe("writeAgentHookDeposit", () => {
     expect(readFileSync(join(root, ".cursor/hooks.json"), "utf8")).toContain(
       "--host cursor --event tool.before",
     );
-    expect(DIRECT_WRITE_HOOK_MATCHER).toContain("WriteFile");
-    expect(DIRECT_WRITE_HOOK_MATCHER).toContain("DeleteFile");
-    expect(DIRECT_WRITE_HOOK_MATCHER).toContain("apply_patch");
+    expect(DIRECT_WRITE_HOOK_MATCHER.split("|")).toEqual([...DIRECT_WRITE_TOOL_NAMES]);
+    expect(DIRECT_WRITE_HOOK_MATCHER.split("|").every(isDirectWriteTool)).toBe(true);
     expect(lines.join("")).toContain("agent hooks");
     expect(inspectAgentHookDeposit(root).every((entry) => entry.status === "healthy")).toBe(true);
   });

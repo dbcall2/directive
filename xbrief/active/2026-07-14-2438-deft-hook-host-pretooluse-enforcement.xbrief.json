@@ -87,6 +87,7 @@
           "packages/core/src/init-deposit/",
           "packages/core/src/verify-env/",
           "packages/core/src/doctor/",
+          "packages/core/package.json",
           "packages/cli/src/",
           "packages/cli/package.json",
           "content/commands.md",

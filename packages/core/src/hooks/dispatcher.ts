@@ -2,6 +2,9 @@ import { resolve } from "node:path";
 import { runSessionStartHookWrite } from "../session/session-start-hook.js";
 import { inspectSessionRitual, type VerifyResult } from "../session/verify-session-ritual.js";
 import { type ActiveScopeInspection, inspectActiveScope } from "./scope.js";
+import { isDirectWriteTool } from "./tools.js";
+
+export { DIRECT_WRITE_TOOL_NAMES, isDirectWriteTool } from "./tools.js";
 
 export const HOOK_HOSTS = ["claude", "grok", "cursor"] as const;
 export type HookHost = (typeof HOOK_HOSTS)[number];
@@ -12,6 +15,7 @@ export type HookEvent = (typeof HOOK_EVENTS)[number];
 export type HookVerdict = "allow" | "deny";
 export type HookDecisionCode =
   | "session-start"
+  | "session-start-degraded"
   | "not-direct-write"
   | "invalid-input"
   | "ritual-not-ready"
@@ -41,20 +45,6 @@ export interface HookPolicySeams {
   readonly inspectScope?: (projectRoot: string) => ActiveScopeInspection;
   readonly sessionStart?: (projectRoot: string) => { code: number; stdout: string; stderr: string };
 }
-
-const DIRECT_WRITE_TOOLS = new Set([
-  "edit",
-  "write",
-  "writefile",
-  "createfile",
-  "multiedit",
-  "notebookedit",
-  "strreplace",
-  "searchreplace",
-  "delete",
-  "deletefile",
-  "applypatch",
-]);
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -97,10 +87,6 @@ export function isHookEvent(value: string): value is HookEvent {
   return (HOOK_EVENTS as readonly string[]).includes(value);
 }
 
-export function isDirectWriteTool(toolName: string): boolean {
-  return DIRECT_WRITE_TOOLS.has(toolName.toLowerCase().replace(/[^a-z0-9]/g, ""));
-}
-
 function deny(
   input: HookDispatchInput,
   code: HookDecisionCode,
@@ -124,9 +110,33 @@ export function decideHook(input: HookDispatchInput, seams: HookPolicySeams = {}
   const projectRoot = resolve(input.projectRoot);
   if (input.event === "session.start") {
     try {
-      (seams.sessionStart ?? runSessionStartHookWrite)(projectRoot);
-    } catch {
-      // SessionStart bookkeeping is best-effort and can never block a session.
+      const result = (seams.sessionStart ?? runSessionStartHookWrite)(projectRoot);
+      if (result.code !== 0) {
+        const detail = (result.stderr || result.stdout).trim().replace(/\s+/g, " ").slice(0, 400);
+        return {
+          verdict: "allow",
+          code: "session-start-degraded",
+          event: input.event,
+          host: input.host,
+          toolName: null,
+          projectRoot,
+          message:
+            `Directive SessionStart bookkeeping reported exit ${result.code} on its non-blocking path` +
+            `${detail.length > 0 ? `: ${detail}` : "."}`,
+          scopePath: null,
+        };
+      }
+    } catch (cause) {
+      return {
+        verdict: "allow",
+        code: "session-start-degraded",
+        event: input.event,
+        host: input.host,
+        toolName: null,
+        projectRoot,
+        message: `Directive SessionStart bookkeeping failed on its non-blocking path: ${String(cause)}`,
+        scopePath: null,
+      };
     }
     return {
       verdict: "allow",

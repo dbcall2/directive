@@ -113,6 +113,7 @@ export function run(argv: string[], seams: HookDispatchCliSeams = {}): number {
   });
   const rendered = renderHostDecision(args.host, decision);
   if (rendered.length > 0) writeOut(`${rendered}\n`);
+  if (decision.code === "session-start-degraded") writeErr(`${decision.message}\n`);
   return 0;
 }
 

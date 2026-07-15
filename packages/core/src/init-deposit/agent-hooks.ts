@@ -2,10 +2,10 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { dirname, join } from "node:path";
 import { assertDepositContained } from "../deposit/contain.js";
 import type { HookHost } from "../hooks/dispatcher.js";
+import { DIRECT_WRITE_TOOL_NAMES } from "../hooks/tools.js";
 import type { InitDepositIo } from "./constants.js";
 
-export const DIRECT_WRITE_HOOK_MATCHER =
-  "Edit|Write|WriteFile|CreateFile|MultiEdit|NotebookEdit|StrReplace|SearchReplace|Delete|DeleteFile|ApplyPatch|apply_patch";
+export const DIRECT_WRITE_HOOK_MATCHER = DIRECT_WRITE_TOOL_NAMES.join("|");
 export const DEFT_HOOK_COMMAND_MARKER = "deft hook:dispatch";
 export const AGENT_HOOK_PATHS = [
   ".claude/settings.json",
