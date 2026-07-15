@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "test(vitest): full suite passes then process fails on unhandled onTaskUpdate worker timeouts (Windows)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "On native Windows, pnpm run test can report all tests passed and still exit non-zero due to unhandled vitest-worker onTaskUpdate timeouts. Tune pool/timeouts or fail policy so a green suite does not fail the process solely on RPC timeouts.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2546",

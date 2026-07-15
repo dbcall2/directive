@@ -8,7 +8,7 @@
   "plan": {
     "id": "2532-seed-dd3-frontmatter-ratchet",
     "title": "gate(agents-md): seed skillFrontmatterMaxBytes fail-closed DD-3 ratchet (daily-core 2080 B)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Phase-3 insurance under #2531: seed plan.policy.agentsMdBudget.skillFrontmatterMaxBytes at the measured daily-core size (2080 B) and pin skillFrontmatterTier to daily-core so DD-3 frontmatter growth fails closed while the combined ≤8192 chase continues. Managed absoluteMaxBytes=7815 already fail-closed; this closes the advisory gap on skill frontmatter.",
       "ImplementationPlan": "1) Set plan.policy.agentsMdBudget.skillFrontmatterMaxBytes=2080 and skillFrontmatterTier=daily-core in xbrief/PROJECT-DEFINITION.xbrief.json. 2) CHANGELOG [Unreleased] Changed entry. 3) UPGRADING always-on budget note: framework tree now seeds the optional DD-3 ratchet. 4) Verify: task verify:agents-md-budget exits 0 and reports skill-frontmatter 2080/2080. No engine code changes — evaluate path already fail-closes when the field is set (#2463).",

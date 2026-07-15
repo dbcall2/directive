@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "fix(release-e2e): Windows npm dry-run fails spawnSync pnpm ENOENT (PATHEXT / .cmd)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "release:e2e npm publish dry-run uses spawnSync on a bare pnpm path and ENOENTs on Windows despite pnpm.cmd on PATH. Use the shared win32 PATHEXT-aware spawn helper (same class as #2467) or soft-skip with a clear diagnostic.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2548",

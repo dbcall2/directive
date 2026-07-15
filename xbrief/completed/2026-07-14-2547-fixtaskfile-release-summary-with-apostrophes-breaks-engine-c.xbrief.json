@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "fix(taskfile): release --summary with apostrophes breaks ENGINE_CMD single-quote interpolation",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "task release forwards CLI_ARGS inside a single-quoted ENGINE_CMD string, so apostrophes in --summary break go-task parsing. Fix arg forwarding for release and sibling ENGINE_CMD sites so free-text flags are shell-safe.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2547",

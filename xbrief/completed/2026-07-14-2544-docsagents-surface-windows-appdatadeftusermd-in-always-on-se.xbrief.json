@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "docs(agents): surface Windows %APPDATA%\\\\deft\\\\USER.md in always-on session bootstrap",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Always-on AGENTS session routing omits the Windows USER.md path, so agents invent ~/.config/deft and report USER.md missing. This story surfaces the platform default (and a resolve-verb mandate) without changing the onboarding write location.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2544",

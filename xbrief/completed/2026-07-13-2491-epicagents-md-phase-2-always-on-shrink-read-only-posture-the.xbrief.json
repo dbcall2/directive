@@ -8,7 +8,7 @@
   "plan": {
     "id": "2491-phase2-always-on-shrink",
     "title": "epic(agents-md): Phase 2 always-on shrink — read-only posture, then managed ≤8KB + daily-core default",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "Phase-2 epic after closed #2369 (v0.75.0). Drive consumer always-on acceptance via Wave-0 read-only posture (#2176), then managed-section ≤8192 B and daily-core install default (#2494). #2180 is parallel hardening; #2490 is low-priority maintainer-header work and does not gate consumers.",
       "UserStory": "As a framework maintainer, I want a Phase-2 epic that sequences posture-first then consumer AGENTS.md shrink plus daily-core defaults, so that acceptance improves without conflating unfinished #2369 mechanism work with the ≤8KB chase.",
