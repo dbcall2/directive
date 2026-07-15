@@ -88,12 +88,18 @@ function main() {
     process.exit(2);
   }
 
+  // Command transport is one-hop: a spawned CLI may invoke Task again with a
+  // different ENGINE_CMD, which must not be shadowed by this inherited value.
+  const childEnv = { ...process.env };
+  delete childEnv.DEFT_ENGINE_CMD_JSON;
+  delete childEnv.DEFT_ENGINE_CMD;
+
   // stdio inherit (not pipe): piped stdout/stderr deadlocks when the child emits
   // more than the OS pipe buffer before exit — observed as greenfield smoke
   // hanging then CI SIGTERM exit 143 with no output (#2554 / #2547).
   const result = spawnSync(execPath, execArgv, {
     stdio: "inherit",
-    env: process.env,
+    env: childEnv,
     // Global deft/directive on Windows are .cmd shims; shell:false cannot spawn them (#2415).
     shell: mode === "global" && process.platform === "win32",
   });
