@@ -9,7 +9,11 @@ import {
   RUNTIME_MODE_CURSOR_NATIVE_SANDBOX,
   RUNTIME_MODE_LOCAL_UNSANDBOXED,
 } from "./constants.js";
-import { detectEnvironmentContext, type ShellContext } from "./shell-context.js";
+import {
+  detectEnvironmentContext,
+  environmentContextToDict,
+  type ShellContext,
+} from "./shell-context.js";
 
 const TRUTHY = new Set(["1", "true", "yes", "on"]);
 
@@ -237,13 +241,7 @@ export function getPlatformCapabilities(
 
 export function reportToDict(report: RuntimeCapabilityReport): Record<string, unknown> {
   return {
-    host_platform: report.hostPlatform,
-    shell: {
-      name: report.shell.name,
-      path: report.shell.path,
-      kind: report.shell.kind,
-      source: report.shell.source,
-    },
+    ...environmentContextToDict({ hostPlatform: report.hostPlatform, shell: report.shell }),
     runtime_mode: report.runtimeMode,
     identity_kind: report.identityKind,
     effective_uid: report.effectiveUid,

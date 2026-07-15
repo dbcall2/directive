@@ -1,4 +1,5 @@
 import { userInfo } from "node:os";
+import { posix, win32 } from "node:path";
 
 const MAX_SHELL_CANDIDATE_LENGTH = 4096;
 
@@ -79,7 +80,7 @@ function normalizeCandidate(candidate: Candidate): ShellContext | null {
 
   return {
     name,
-    path: lastSeparator >= 0 ? value : null,
+    path: lastSeparator >= 0 && (posix.isAbsolute(value) || win32.isAbsolute(value)) ? value : null,
     kind: candidate.kind,
     source: candidate.source,
   };

@@ -122,6 +122,25 @@ describe("detectEnvironmentContext", () => {
     });
   });
 
+  it.each([
+    ["./bash", "bash"],
+    ["../bin/zsh", "zsh"],
+    ["relative\\pwsh", "pwsh"],
+  ])("does not surface a relative shell candidate %j as a validated path", (candidate, name) => {
+    expect(
+      detectEnvironmentContext({
+        environ: { DEFT_EXECUTION_SHELL: candidate },
+        platform: "linux",
+        userShell: null,
+      }).shell,
+    ).toEqual({
+      name,
+      path: null,
+      kind: "execution",
+      source: "DEFT_EXECUTION_SHELL",
+    });
+  });
+
   it("skips invalid higher-precedence candidates", () => {
     expect(
       detectEnvironmentContext({
