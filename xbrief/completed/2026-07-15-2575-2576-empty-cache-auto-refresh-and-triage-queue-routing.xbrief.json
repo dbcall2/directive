@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "Empty cache auto-refresh and triage:queue routing for what's next",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Empty triage cache should auto-fetch from GitHub; agents must not conclude false-empty from xBRIEF-only or GitHub-only reads.",
       "Origin": "Swarm cohort afk-wave1-2566-2581; combines https://github.com/deftai/directive/issues/2575 and https://github.com/deftai/directive/issues/2576",
@@ -25,9 +25,10 @@
         "title": "Issue #2576: what's next false-empty when agent skips triage:queue"
       }
     ],
-    "updated": "2026-07-15T20:05:00Z",
+    "updated": "2026-07-16T14:31:49Z",
     "metadata": {
-      "capacityBucket": "technical-debt"
+      "capacityBucket": "technical-debt",
+      "completedAt": "2026-07-16T14:31:49Z"
     }
   }
 }

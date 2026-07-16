@@ -1,0 +1,28 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "2598-lifecycle-reconciliation",
+    "status": "completed",
+    "items": [
+      {
+        "title": "Reproduce the base validation failure and merged-PR story resolution",
+        "status": "completed"
+      },
+      {
+        "title": "Repair the malformed shared scope and run canonical cohort finalization",
+        "status": "completed"
+      },
+      {
+        "title": "Run focused and repository-wide validation gates",
+        "status": "completed"
+      },
+      {
+        "title": "Publish the dedicated #2598 pull request and assess current PR impacts",
+        "status": "completed"
+      }
+    ],
+    "edges": []
+  }
+}

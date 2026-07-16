@@ -1,0 +1,27 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "2598-lifecycle-reconciliation",
+    "status": "approved",
+    "narratives": {
+      "Problem": "Merged PR #2589 closed issues #2575 and #2576 but left their shared xBRIEF active, running, and structurally invalid because plan.items was absent. That makes the repository-wide vBRIEF validation gate fail on every downstream branch.",
+      "Change": "Repair the missing required empty item list, then reconcile the merged story through the canonical post-merge cohort finalizer so it becomes a valid completed lifecycle record.",
+      "Scope": "In scope: the shared #2575/#2576 lifecycle record, focused post-merge sweep verification, repository validation, release notes, and issue #2598 closure. Out of scope: changing production lifecycle behavior or bundling either current feature PR.",
+      "Impact": "Moves one xBRIEF from active to completed. PR #2597 benefits from a green base validation gate. PR #2599 must drop its temporary edit to the same active file when rebased.",
+      "Risks": "A hand-authored move could bypass lifecycle metadata or lose the merged scope record; using swarm:finalize-cohort avoids that risk. The remaining integration risk is a predictable delete/modify conflict in PR #2599.",
+      "Approach": "Reproduce the validation failure, verify PR #2589 resolves both closing issues to one story, add the schema-required empty items field, run the canonical finalizer without its own commit/PR side effects, and validate the terminal result.",
+      "Alternatives": "Folding the repair into PR #2599 would broaden that bug-fix scope and leave PR #2597 blocked. Changing lifecycle production code is unnecessary because the finalizer resolves the merged cohort correctly when invoked.",
+      "Dependencies": "PR #2589 must be merged and its closing references to #2575 and #2576 must remain available through GitHub.",
+      "Confirmation": "Flynn explicitly approved /deft:change 2598-lifecycle-reconciliation on 2026-07-16."
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2598",
+        "type": "x-vbrief/github-issue",
+        "title": "Issue #2598: merged #2589 leaves invalid active scope"
+      }
+    ]
+  }
+}
