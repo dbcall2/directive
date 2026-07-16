@@ -75,6 +75,16 @@ describe("init-deposit scaffold", () => {
     );
     mkdirSync(join(deftDir, "vbrief", "schemas"), { recursive: true });
     writeFileSync(join(deftDir, "vbrief", "schemas", "example.schema.json"), "{}\n", "utf8");
+    writeFileSync(
+      join(deftDir, "vbrief", "schemas", "vbrief-core.schema.json"),
+      "legacy\n",
+      "utf8",
+    );
+    writeFileSync(
+      join(deftDir, "vbrief", "schemas", "xbrief-core-0.8.schema.json"),
+      "current\n",
+      "utf8",
+    );
     writeFileSync(join(deftDir, "vbrief", "vbrief.md"), "# vbrief\n", "utf8");
     mkdirSync(join(deftDir, ".githooks"), { recursive: true });
     writeFileSync(
@@ -122,6 +132,10 @@ describe("init-deposit scaffold", () => {
       expect(existsSync(join(project, "xbrief", sub, ".gitkeep"))).toBe(true);
     }
     expect(existsSync(join(project, "xbrief", "schemas", "example.schema.json"))).toBe(true);
+    expect(existsSync(join(project, "xbrief", "schemas", "vbrief-core.schema.json"))).toBe(false);
+    expect(existsSync(join(project, "xbrief", "schemas", "xbrief-core-0.8.schema.json"))).toBe(
+      true,
+    );
     expect(readFileSync(join(project, "xbrief", "vbrief.md"), "utf8")).toContain("# vbrief");
   });
 

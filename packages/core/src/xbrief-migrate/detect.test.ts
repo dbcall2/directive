@@ -172,6 +172,53 @@ describe("detectXbriefConvergence (#2270)", () => {
     expect(detectXbriefConvergence(root).state).toBe("legacy-only");
   });
 
+  it("treats a cache-only xbrief tree as support state, not canonical content (#2595)", () => {
+    mkdirSync(join(root, LEGACY_ARTIFACT_DIR, "active"), { recursive: true });
+    writeFileSync(
+      join(root, LEGACY_ARTIFACT_DIR, "active", `story${LEGACY_ARTIFACT_SUFFIX}`),
+      JSON.stringify({ xBRIEFInfo: { version: "0.8" }, plan: { title: "t", items: [] } }),
+      "utf8",
+    );
+    mkdirSync(join(root, MIGRATED_ARTIFACT_DIR, ".triage-cache", "issues"), { recursive: true });
+    writeFileSync(
+      join(root, MIGRATED_ARTIFACT_DIR, ".triage-cache", "issues", "2595.json"),
+      "{}\n",
+    );
+    mkdirSync(join(root, MIGRATED_ARTIFACT_DIR, "active"), { recursive: true });
+    writeFileSync(join(root, MIGRATED_ARTIFACT_DIR, "active", ".gitkeep"), "", "utf8");
+
+    const result = detectXbriefConvergence(root);
+    expect(result.state).toBe("legacy-only");
+    expect(result.xbriefPresent).toBe(true);
+    expect(result.xbriefHasContent).toBe(false);
+  });
+
+  it("still treats unknown xbrief files as canonical content", () => {
+    mkdirSync(join(root, LEGACY_ARTIFACT_DIR, "active"), { recursive: true });
+    writeFileSync(
+      join(root, LEGACY_ARTIFACT_DIR, "active", `story${LEGACY_ARTIFACT_SUFFIX}`),
+      JSON.stringify({ xBRIEFInfo: { version: "0.8" }, plan: { title: "t", items: [] } }),
+      "utf8",
+    );
+    mkdirSync(join(root, MIGRATED_ARTIFACT_DIR), { recursive: true });
+    writeFileSync(join(root, MIGRATED_ARTIFACT_DIR, "operator-note.txt"), "do not overwrite\n");
+    expect(detectXbriefConvergence(root).state).toBe("dual-populated");
+  });
+
+  itSymlink("does not hide a cache symlink as support-only state", () => {
+    mkdirSync(join(root, LEGACY_ARTIFACT_DIR, "active"), { recursive: true });
+    writeFileSync(
+      join(root, LEGACY_ARTIFACT_DIR, "active", `story${LEGACY_ARTIFACT_SUFFIX}`),
+      JSON.stringify({ xBRIEFInfo: { version: "0.8" }, plan: { title: "t", items: [] } }),
+      "utf8",
+    );
+    mkdirSync(join(root, MIGRATED_ARTIFACT_DIR, ".triage-cache"), { recursive: true });
+    const outside = join(root, "outside-cache.json");
+    writeFileSync(outside, "{}\n", "utf8");
+    symlinkSync(outside, join(root, MIGRATED_ARTIFACT_DIR, ".triage-cache", "linked.json"));
+    expect(detectXbriefConvergence(root).state).toBe("dual-populated");
+  });
+
   itSymlink(
     "does not treat a vbrief/ holding only a symlink as empty (never wipes symlinked content)",
     () => {

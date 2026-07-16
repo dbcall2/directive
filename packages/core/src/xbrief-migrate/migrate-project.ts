@@ -98,12 +98,26 @@ function writeMigratedFile(srcPath: string, destPath: string): void {
   writeFileSync(destPath, rewriteEmbeddedTokens(raw), "utf8");
 }
 
-function backupLegacyTree(projectRoot: string, legacyDir: string): string {
+function backupMigrationInputs(
+  projectRoot: string,
+  legacyDir: string,
+  migratedDir: string,
+): string {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const backupRoot = join(projectRoot, ".deft", `xbrief-migrate-backup-${stamp}`);
   mkdirSync(backupRoot, { recursive: true });
   cpSync(legacyDir, join(backupRoot, LEGACY_ARTIFACT_DIR), { recursive: true });
+  if (existsSync(migratedDir)) {
+    cpSync(migratedDir, join(backupRoot, MIGRATED_ARTIFACT_DIR), { recursive: true });
+  }
   return backupRoot;
+}
+
+/** Overlay the already-canonical cache last so it wins collisions. */
+function overlayCanonicalTriageCache(migratedDir: string, stagedDir: string): void {
+  const source = join(migratedDir, ".triage-cache");
+  if (!isDirectory(source)) return;
+  cpSync(source, join(stagedDir, ".triage-cache"), { recursive: true, force: true });
 }
 
 function migrateLegacyTree(
@@ -112,13 +126,15 @@ function migrateLegacyTree(
   options: { keepLegacy: boolean },
 ): { backupDir: string; files: number } {
   const migratedDir = join(projectRoot, MIGRATED_ARTIFACT_DIR);
-  if (existsSync(migratedDir)) {
+  const convergence = detectXbriefConvergence(projectRoot);
+  const hasCanonicalCache = isDirectory(join(migratedDir, ".triage-cache"));
+  if (existsSync(migratedDir) && (convergence.xbriefHasContent || !hasCanonicalCache)) {
     throw new Error(
-      `refusing to migrate: '${MIGRATED_ARTIFACT_DIR}/' already exists alongside '${LEGACY_ARTIFACT_DIR}/'`,
+      `refusing to migrate: '${MIGRATED_ARTIFACT_DIR}/' already exists alongside '${LEGACY_ARTIFACT_DIR}/' and is not a cache-only support tree`,
     );
   }
 
-  const backupDir = backupLegacyTree(projectRoot, legacyDir);
+  const backupDir = backupMigrationInputs(projectRoot, legacyDir, migratedDir);
   const stagedDir = join(projectRoot, `.${MIGRATED_ARTIFACT_DIR}.migrate-staging`);
   if (existsSync(stagedDir)) {
     rmSync(stagedDir, { recursive: true, force: true });
@@ -132,6 +148,7 @@ function migrateLegacyTree(
       const destPath = join(stagedDir, mapRelativePath(rel));
       writeMigratedFile(srcPath, destPath);
     }
+    overlayCanonicalTriageCache(migratedDir, stagedDir);
     renameOrReplace(stagedDir, migratedDir);
     // Converge to a single unambiguous root: the fully-migrated legacy tree is
     // either removed (default) or retained for read-compat behind an explicit

@@ -127,6 +127,17 @@ describe("@deftai/directive-content prepack (#1967 / #2022 Phase 3)", () => {
     expect(existsSync(join(pkgDir, "tasks", "swarm.yml"))).toBe(true);
   });
 
+  it("packages a Taskfile with no trailing whitespace (#2595)", () => {
+    const sourceTaskfile = readFileSync(join(process.cwd(), "Taskfile.yml"), "utf8");
+    expect(sourceTaskfile.match(/[ \t]+$/gm)).toBeNull();
+
+    const { root, pkgDir } = buildFakeRepo();
+    created.push(root);
+    writeFileSync(join(root, "Taskfile.yml"), sourceTaskfile, "utf8");
+    runPrepack(pkgDir);
+    expect(readFileSync(join(pkgDir, "Taskfile.yml"), "utf8").match(/[ \t]+$/gm)).toBeNull();
+  });
+
   it("does not bundle scripts/ or .py files even when present upstream (#2022 Phase 3)", () => {
     const { root, pkgDir } = buildFakeRepo();
     created.push(root);
