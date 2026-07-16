@@ -269,6 +269,16 @@ describe("provider codecs", () => {
     });
   });
 
+  it("renders Codex's canonical hookSpecificOutput denial", () => {
+    expect(JSON.parse(renderHostDecision("codex", deny))).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason: deny.message,
+      },
+    });
+  });
+
   it("emits no provider override for an allow decision", () => {
     const allow = decideHook(
       {
@@ -282,6 +292,7 @@ describe("provider codecs", () => {
     expect(renderHostDecision("claude", allow)).toBe("");
     expect(renderHostDecision("grok", allow)).toBe("");
     expect(renderHostDecision("cursor", allow)).toBe("");
+    expect(renderHostDecision("codex", allow)).toBe("");
   });
 });
 
@@ -324,6 +335,7 @@ describe("provider input normalization", () => {
 
   it("validates public host and event identifiers", () => {
     expect(isHookHost("cursor")).toBe(true);
+    expect(isHookHost("codex")).toBe(true);
     expect(isHookHost("opencode")).toBe(false);
     expect(isHookEvent("session.start")).toBe(true);
     expect(isHookEvent("tool.after")).toBe(false);

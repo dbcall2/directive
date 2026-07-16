@@ -11,6 +11,7 @@ export const AGENT_HOOK_PATHS = [
   ".claude/settings.json",
   ".grok/hooks/deft.json",
   ".cursor/hooks.json",
+  ".codex/hooks.json",
 ] as const;
 
 export type AgentHookPath = (typeof AGENT_HOOK_PATHS)[number];
@@ -90,7 +91,9 @@ function isManagedCursorEntry(value: unknown): boolean {
   return typeof entry?.command === "string" && entry.command.includes(DEFT_HOOK_COMMAND_MARKER);
 }
 
-function nestedGroup(host: "claude" | "grok", event: "session.start" | "tool.before") {
+type NestedHookHost = "claude" | "grok" | "codex";
+
+function nestedGroup(host: NestedHookHost, event: "session.start" | "tool.before") {
   return {
     ...(event === "tool.before" ? { matcher: DIRECT_WRITE_HOOK_MATCHER } : {}),
     hooks: [
@@ -106,7 +109,7 @@ function nestedGroup(host: "claude" | "grok", event: "session.start" | "tool.bef
 function mergeNestedConfig(
   config: Record<string, unknown>,
   path: string,
-  host: "claude" | "grok",
+  host: NestedHookHost,
 ): Record<string, unknown> {
   const hooks = hooksObject(config, path);
   const session = eventArray(hooks, "SessionStart", path).filter(
@@ -170,6 +173,10 @@ export function writeAgentHookDeposit(
       merge: (config, path) => mergeNestedConfig(config, path, "grok"),
     },
     { path: AGENT_HOOK_PATHS[2], merge: mergeCursorConfig },
+    {
+      path: AGENT_HOOK_PATHS[3],
+      merge: (config, path) => mergeNestedConfig(config, path, "codex"),
+    },
   ];
 
   const prepared = definitions.map((definition) => {
@@ -192,7 +199,7 @@ export function writeAgentHookDeposit(
   return { changed: changedPaths.length > 0, changedPaths };
 }
 
-function hasNestedRegistration(config: Record<string, unknown>, host: "claude" | "grok"): boolean {
+function hasNestedRegistration(config: Record<string, unknown>, host: NestedHookHost): boolean {
   const hooks = object(config.hooks);
   if (hooks === null) return false;
   const session = Array.isArray(hooks.SessionStart) ? hooks.SessionStart : [];
@@ -246,6 +253,11 @@ export function inspectAgentHookDeposit(projectRoot: string): AgentHookInspectio
       valid: (config) => hasNestedRegistration(config, "grok"),
     },
     { host: "cursor", path: AGENT_HOOK_PATHS[2], valid: hasCursorRegistration },
+    {
+      host: "codex",
+      path: AGENT_HOOK_PATHS[3],
+      valid: (config) => hasNestedRegistration(config, "codex"),
+    },
   ];
 
   return definitions.map((definition) => {

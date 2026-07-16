@@ -58,7 +58,8 @@ describe("deft-ts verify-hooks-installed (maps tests/cli/test_verify_hooks_insta
 
     const result = runDeftTs("verify-hooks-installed", ["--scope=agent", "--project-root", root]);
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("Claude, Grok, Cursor");
+    expect(result.stdout).toContain("Claude, Grok, Cursor, Codex");
+    expect(result.stdout).toContain("runtime trust is user-controlled");
   });
 
   it("rejects an unknown hook scope", () => {
