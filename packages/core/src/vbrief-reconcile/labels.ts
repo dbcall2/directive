@@ -4,6 +4,7 @@ import { hasArtifactSuffix, resolveLifecycleRoot, stripArtifactSuffix } from "..
 import { call } from "../scm/call.js";
 import { extractIssueRef } from "../triage/reconcile/parse-uri.js";
 import { depResolved, RESOLVED_FOLDERS } from "./graph.js";
+import { isRepoMutationAllowed } from "./repo-guard.js";
 import { allScopeIds, asStrList } from "./swarm-deps.js";
 import type { LabelChange, LabelClient, ReconcileLabelsOutcome } from "./types.js";
 
@@ -105,6 +106,9 @@ export interface ReconcileLabelsOptions {
   readonly repo?: string | null;
   readonly dryRun?: boolean;
   readonly client?: LabelClient;
+  /** Opt in to mutating issues outside the resolved project repo (#2601). */
+  readonly allowCrossRepo?: boolean;
+  readonly repoAllowlist?: readonly string[];
 }
 
 export function reconcileLabels(
@@ -193,6 +197,20 @@ export function reconcileLabels(
           ? (metadata.swarm as Record<string, unknown>)
           : {};
       const desired = computeDesiredLabels(plan, hasUnresolvedDeps(swarm, knownIds));
+
+      // Guard before any SCM read so cross-repo refusal is explicit (#2601 / Greptile P1).
+      const mutateGate = isRepoMutationAllowed(effectiveRepo, root, {
+        allowCrossRepo: options.allowCrossRepo,
+        allowlist: options.repoAllowlist,
+        explicitRepo: options.repo ?? null,
+      });
+      if (!mutateGate.allowed) {
+        outcome.errors.push({
+          story_id: storyId,
+          message: mutateGate.reason ?? `refusing cross-repo mutation on ${effectiveRepo}`,
+        });
+        continue;
+      }
 
       let current: string[];
       try {

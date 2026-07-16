@@ -234,7 +234,9 @@ describe("coverage branches round 2", () => {
           id: "m",
           status: "running",
           metadata: { kind: "story", swarm: null },
-          references: [{ type: "x-vbrief/github-issue", uri: "https://github.com/o/r/issues/7" }],
+          references: [
+            { type: "x-vbrief/github-issue", uri: "https://github.com/deftai/directive/issues/7" },
+          ],
         },
       })}\n`,
     );
@@ -243,7 +245,7 @@ describe("coverage branches round 2", () => {
       fetchLabels: () => [] as string[],
       apply: () => {},
     };
-    const [, outcome] = reconcileLabels(root, { client });
+    const [, outcome] = reconcileLabels(root, { client, repo: "deftai/directive" });
     expect(outcome.unchanged.length).toBe(1);
   });
 
@@ -266,7 +268,7 @@ describe("coverage branches round 2", () => {
       editComment: () => {},
       createComment: () => 1,
     };
-    const [, outcome] = reconcileUmbrellas(root, { client });
+    const [, outcome] = reconcileUmbrellas(root, { client, repo: "deftai/directive" });
     const report = renderUmbrellasReport(outcome);
     expect(report).toContain("Skipped");
     expect(outcome.skipped_no_ref).toContain("noref");
@@ -438,7 +440,7 @@ describe("coverage branches round 2", () => {
       editComment: () => {},
       createComment: () => 1,
     };
-    const [, outcome] = reconcileUmbrellas(root, { client });
+    const [, outcome] = reconcileUmbrellas(root, { client, repo: "deftai/directive" });
     expect(outcome.changed.length + outcome.unchanged.length).toBe(0);
   });
 
@@ -514,12 +516,14 @@ describe("coverage branches round 2", () => {
         plan: {
           status: "running",
           metadata: 1,
-          references: [{ type: "x-vbrief/github-issue", uri: "https://github.com/o/r/issues/8" }],
+          references: [
+            { type: "x-vbrief/github-issue", uri: "https://github.com/deftai/directive/issues/8" },
+          ],
         },
       })}\n`,
     );
     const client = { fetchLabels: () => [] as string[], apply: () => {} };
-    const [, outcome] = reconcileLabels(root, { client });
+    const [, outcome] = reconcileLabels(root, { client, repo: "deftai/directive" });
     expect(outcome.unchanged[0]?.story_id).toBe("from-file");
   });
 
@@ -636,6 +640,6 @@ describe("coverage branches round 2", () => {
       })}\n`,
     );
     vi.spyOn(scm, "call").mockReturnValue({ args: [], returncode: 0, stdout: "[]", stderr: "" });
-    expect(runUmbrellas({ projectRoot: root, json: true, dryRun: true })).toBe(0);
+    expect(runUmbrellas({ projectRoot: root, json: true, dryRun: true, repo: "o/r" })).toBe(0);
   });
 });
