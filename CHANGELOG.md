@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Release Step-5 no longer inherits ambient `DEFT_ALLOW_COVERAGE_DEBT` into unpaid checks (#2618).** `releaseCheckEnv` deletes the debt env when `--allow-coverage-debt` is not on the current invocation, so a parent release shell cannot poison nested `task check` / Vitest unit expectations. Refs #2573.
 - **Windows doctor/update no longer false-report engine unreachable (#2606).** `defaultEngineProbe` now prefers in-process core identity when already running inside `@deftai/directive`, and falls back to PATHEXT-aware PATH resolution plus `shell:true` for npm global `.cmd` shims instead of bare `execFileSync`. Closes #2606.
 - **AppSec four sinks fail closed (#2601).** `migrate:xbrief` rejects symlinked or escaping `vbrief/` trees before copy; `vbrief:reconcile:labels` and `vbrief:reconcile:umbrellas` refuse cross-repo SCM mutations unless `--allow-cross-repo` is set; `framework:check-updates` probes only the canonical upstream allowlist and ignores private/link-local manifest URLs. Closes #2601.
 - **Hybrid update/setup now deposit project-root git hooks (#2530).** `deft update` calls `writeConsumerGitHooks` on every refresh — including the already-current no-op path — so hybrid consumers missing `.githooks/` self-heal without re-init. `task setup` refuses to set `core.hooksPath=.githooks` when hook files are absent; `deft verify:hooks-installed` recovery prose points at `deft update` as the heal command. Closes #2530.

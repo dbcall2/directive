@@ -26,6 +26,10 @@ export function releaseCheckEnv(options: ReleaseCheckEnvOptions = {}): NodeJS.Pr
   };
   if (allowCoverageDebtIssue !== null) {
     env[COVERAGE_DEBT_ENV] = String(allowCoverageDebtIssue);
+  } else {
+    // Scrub ambient parent-shell debt so nested unit tests and unpaid checks
+    // do not inherit a prior --allow-coverage-debt from the release process (#2618).
+    delete env[COVERAGE_DEBT_ENV];
   }
   return env;
 }

@@ -64,6 +64,18 @@ describe("runReleaseCheck (#2022 Phase 1 native Step-5 pre-flight)", () => {
     expect(calls[0]?.env?.[COVERAGE_DEBT_ENV]).toBeUndefined();
   });
 
+  it("scrubs ambient DEFT_ALLOW_COVERAGE_DEBT when debt is not acknowledged (#2618)", () => {
+    const calls: Array<{ env?: NodeJS.ProcessEnv }> = [];
+    runReleaseCheck("/proj", {
+      checkSeams: { env: { ...process.env, [COVERAGE_DEBT_ENV]: "2618" } },
+      dispatchCheck: (_fw, _pr, checkSeams) => {
+        calls.push({ env: checkSeams?.env });
+        return 0;
+      },
+    });
+    expect(calls[0]?.env?.[COVERAGE_DEBT_ENV]).toBeUndefined();
+  });
+
   it("passes allowCoverageDebtIssue into releaseCheckEnv (#2573)", () => {
     const calls: Array<{ env?: NodeJS.ProcessEnv }> = [];
     runReleaseCheck(
