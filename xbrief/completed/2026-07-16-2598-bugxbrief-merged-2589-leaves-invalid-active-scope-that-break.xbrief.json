@@ -1,0 +1,45 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2598"
+  },
+  "plan": {
+    "title": "bug(xbrief): merged #2589 leaves invalid active scope that breaks task check",
+    "status": "completed",
+    "narratives": {
+      "Description": "bug(xbrief): merged #2589 leaves invalid active scope that breaks task check",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2598",
+      "Overview": "## Summary\n\n`upstream/master` at `665c8c6b` contains `xbrief/active/2026-07-15-2575-2576-empty-cache-auto-refresh-and-triage-queue-routing.xbrief.json` after PR #2589 merged and issues #2575/#2576 closed. The artifact remains `status: running` and has no required `plan.items`, so the repository-wide validation gate fails for every downstream branch.\n\n## Reproduction\n\n1. Check out `master` at `665c8c6b`.\n2. Run `task vbrief:validate` (or `task check`).\n3. Observe validation fail on the active #2575/#2576 file because `plan.items` is missing.\n\n## Impact\n\n- `task check` reaches its final framework validation step and exits non-zero on otherwise-green branches.\n- Unrelated PRs cannot satisfy the review-cycle full-check gate without citing a pre-existing-failure carve-out.\n- The merged work still appears active despite both originating issues being closed.\n\n## Expected\n\nThe #2589 lifecycle record is reconciled through the canonical completion path, leaving a structurally valid terminal xBRIEF outside `xbrief/active/`; repository validation is green again.\n\n## Acceptance criteria\n\n1. Reconcile `xbrief/active/2026-07-15-2575-2576-empty-cache-auto-refresh-and-triage-queue-routing.xbrief.json` through the canonical lifecycle command, preserving the merged scope record.\n2. The resulting xBRIEF validates and no longer appears as running work.\n3. `task vbrief:validate` succeeds on `master`.\n4. Add or confirm regression coverage for the post-merge cohort completion sweep so a merged story cannot remain as an invalid active xBRIEF.\n\n## Related\n\n- PR #2589\n- #2575\n- #2576\n- Lifecycle completion recurrence: #1487\n\n"
+    },
+    "items": [
+      {
+        "title": "Reconcile `xbrief/active/2026-07-15-2575-2576-empty-cache-auto-refresh-and-triage-queue-routing.xbrief.json` through the canonical lifecycle command, preserving the merged scope record.",
+        "status": "completed"
+      },
+      {
+        "title": "The resulting xBRIEF validates and no longer appears as running work.",
+        "status": "completed"
+      },
+      {
+        "title": "`task vbrief:validate` succeeds on `master`.",
+        "status": "completed"
+      },
+      {
+        "title": "Add or confirm regression coverage for the post-merge cohort completion sweep so a merged story cannot remain as an invalid active xBRIEF.",
+        "status": "completed"
+      }
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2598",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2598: bug(xbrief): merged #2589 leaves invalid active scope that breaks task check"
+      }
+    ],
+    "updated": "2026-07-16T14:34:03Z",
+    "metadata": {
+      "completedAt": "2026-07-16T14:34:03Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}
