@@ -181,13 +181,15 @@ Current status: the validation, extractor, provider, registry, generated MAP, an
 
 Use `task --list` for the exact current verify namespace.
 
-### Agent-host direct-write hooks (#2438)
+### Agent-host direct-write hooks (#2438, #2596)
 
-`directive init` and `deft update` idempotently merge Directive-owned entries into `.claude/settings.json`, `.grok/hooks/deft.json`, and `.cursor/hooks.json` while preserving unrelated settings. `SessionStart` refreshes resume bookkeeping on a non-blocking path. `PreToolUse` covers direct edit/write tools and denies them until both existing gates pass: a fresh gated session ritual and an active/running xBRIEF accepted by canonical preflight.
+`directive init` and `deft update` idempotently merge Directive-owned entries into `.claude/settings.json`, `.grok/hooks/deft.json`, `.cursor/hooks.json`, and `.codex/hooks.json` while preserving unrelated settings. `SessionStart` refreshes resume bookkeeping on a non-blocking path. `PreToolUse` covers direct edit/write tools and denies them until both existing gates pass: a fresh gated session ritual and an active/running xBRIEF accepted by canonical preflight.
 
 - Verify registration: `deft verify:hooks-installed --scope=agent` (or `--scope=all` for git + agent hooks).
 - Repair missing/drifted entries: `deft update`.
-- The P0 hook slice does not classify shell-mediated writes, MCP mutations, compact re-arm, or subagent routing; those remain owned by their dedicated follow-up issues.
+- Codex project hooks are trust-gated by Codex. Directive verifies only that the registrations are structurally current; after an install or changed hook hash, open `/hooks` in Codex and review/approve the project hook commands. Runtime trust cannot be inferred from the file alone.
+- Directive writes only `.codex/hooks.json`; it does not parse or modify `.codex/config.toml`. Codex can also load inline hooks from `config.toml`, so avoid defining duplicate Directive commands there or they may run more than once. See the [Codex hooks documentation](https://learn.chatgpt.com/docs/hooks).
+- The P0 hook slice does not classify shell-mediated writes, MCP mutations, richer unified-exec calls, WebSearch, compact re-arm, or subagent routing; those remain owned by their dedicated follow-up issues.
 
 ## Session-start ritual (#1149)
 

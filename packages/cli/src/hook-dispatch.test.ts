@@ -7,6 +7,10 @@ describe("hook-dispatch CLI", () => {
     expect(
       parseArgs(["--host", "grok", "--event", "tool.before", "--project-root=/project"]),
     ).toEqual({ host: "grok", event: "tool.before", projectRoot: "/project" });
+    expect(parseArgs(["--host", "codex", "--event", "session.start"])).toEqual({
+      host: "codex",
+      event: "session.start",
+    });
   });
 
   it("rejects unsupported providers and events as configuration errors", () => {
@@ -46,6 +50,24 @@ describe("hook-dispatch CLI", () => {
     expect(code).toBe(0);
     expect(JSON.parse(out.join(""))).toMatchObject({ decision: "deny" });
     expect(err).toEqual([]);
+  });
+
+  it("fails closed with a Codex-native denial when matched tool input is malformed", () => {
+    const out: string[] = [];
+    const code = run(["--host", "codex", "--event", "tool.before"], {
+      readStdin: () => "{bad-json",
+      writeOut: (text) => out.push(text),
+      writeErr: () => undefined,
+      cwd: () => "/project",
+    });
+
+    expect(code).toBe(0);
+    expect(JSON.parse(out.join(""))).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+      },
+    });
   });
 
   it("keeps SessionStart non-blocking and silent", () => {

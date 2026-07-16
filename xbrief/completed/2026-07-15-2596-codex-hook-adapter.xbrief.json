@@ -1,0 +1,122 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Thin Codex hook adapter, project deposit, and trust-aware health reporting for issue #2596",
+    "created": "2026-07-15T21:00:00Z",
+    "updated": "2026-07-16T01:53:43Z"
+  },
+  "plan": {
+    "id": "2596-codex-hook-adapter",
+    "title": "feat(harness): add Codex lifecycle hook adapter + project deposit",
+    "status": "completed",
+    "narratives": {
+      "Description": "Extend Directive's existing P0 agent-hook bridge to Codex with a host-native decision codec, an idempotent project-scoped .codex/hooks.json deposit, and health output that distinguishes structural registration from runtime trust.",
+      "UserStory": "As a Directive user working in Codex, I want direct write tools to use the same gated ritual and active xBRIEF enforcement already available in other supported hosts, without losing unrelated Codex hook configuration.",
+      "ImplementationPlan": "1. Add Codex to the provider-neutral hook host contract and render canonical Codex PreToolUse deny output while preserving allow as no override. 2. Deposit Directive-owned SessionStart and PreToolUse registrations into .codex/hooks.json with atomic, idempotent merge and existing containment guarantees. 3. Extend verify-env and doctor to report structural Codex registration while explicitly noting that runtime trust is user-controlled and cannot be verified statically. 4. Exercise init/update, malformed configuration, symlink escape, and CLI dispatch paths. 5. Document the supported surface and intentional deferrals: no .codex/config.toml mutation and no expansion to Bash, MCP, unified_exec, or WebSearch policy.",
+      "Origin": "GitHub issue #2596 under epic #2437, following the P0 hook bridge delivered by #2438; implementation approved by the operator with /deft:change codex-hook-adapter.",
+      "Acceptance": "1. hook:dispatch accepts host=codex and emits the canonical Codex deny envelope for gated direct-write tools. 2. init/update idempotently merge Directive registrations into .codex/hooks.json without overwriting unrelated hooks or touching .codex/config.toml. 3. malformed or escaping Codex targets fail before partial writes. 4. verify-env and doctor distinguish structural registration from runtime hook trust. 5. focused and full regression checks pass with documentation and changelog coverage."
+    },
+    "items": [
+      {
+        "id": "2596-a1",
+        "title": "Codex host decision codec",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a Codex SessionStart or PreToolUse event, when hook:dispatch evaluates it, then allow remains non-blocking and a denied direct write uses Codex's canonical hookSpecificOutput permissionDecision schema."
+        }
+      },
+      {
+        "id": "2596-a2",
+        "title": "Codex project deposit and containment",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given init or update runs in a project, when .codex/hooks.json is absent or contains unrelated hooks, then Directive registrations are merged atomically and idempotently; malformed JSON or symlink escape prevents all staged hook writes."
+        }
+      },
+      {
+        "id": "2596-a3",
+        "title": "Trust-aware health reporting",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given structurally valid Codex registration, when verify-env or doctor runs, then it reports registration health without claiming runtime functionality and identifies Codex hook trust as user-controlled and statically unverifiable."
+        }
+      },
+      {
+        "id": "2596-a4",
+        "title": "Init, update, and documentation integration",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given supported lifecycle commands and user documentation, when Codex support is inspected, then init/update include .codex/hooks.json and docs explain trust review, config coexistence, and the intentionally narrow P0 tool surface."
+        }
+      },
+      {
+        "id": "2596-a5",
+        "title": "Codex adapter regression verification",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the Codex adapter test matrix, when focused and repository checks run, then codec, malformed input, merge preservation, byte idempotence, containment, health, init, and update branches pass."
+        }
+      }
+    ],
+    "tags": [
+      "enhancement",
+      "harness",
+      "codex",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2596",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2596"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2437",
+        "type": "x-xbrief/refs",
+        "title": "Parent epic #2437"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2438",
+        "type": "x-xbrief/refs",
+        "title": "P0 hook bridge #2438"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "sequential",
+        "parallel_safe": false,
+        "file_scope": [
+          "packages/core/src/hooks/",
+          "packages/core/src/init-deposit/",
+          "packages/core/src/verify-env/",
+          "packages/core/src/doctor/",
+          "packages/cli/src/",
+          "content/commands.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm --filter @deftai/directive-core test -- hooks agent-hooks doctor",
+          "pnpm --filter @deftai/directive test -- hook init-deposit refresh verify-env",
+          "task check",
+          "task verify:forward-coverage"
+        ],
+        "expected_outputs": [
+          "Codex host-native hook decision codec",
+          "Idempotent .codex/hooks.json project deposit",
+          "Trust-aware Codex registration health",
+          "Init/update and documentation coverage"
+        ],
+        "depends_on": [],
+        "conflict_group": "agent-host-hooks-p0",
+        "size": "M",
+        "file_scope_confidence": "high",
+        "model_tier": "high",
+        "missing_traces_justification": "Issue #2596 is the approved implementation record and #2438 defines the existing provider-neutral hook policy this adapter reuses."
+      },
+      "completedAt": "2026-07-16T01:54:13Z",
+      "capacityBucket": "new-capability"
+    },
+    "updated": "2026-07-16T01:54:13Z"
+  }
+}

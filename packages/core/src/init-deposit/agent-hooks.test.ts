@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -22,7 +30,7 @@ function project(): string {
 }
 
 describe("writeAgentHookDeposit", () => {
-  it("deposits native Claude, Grok, and Cursor SessionStart/direct-write hooks", () => {
+  it("deposits native Claude, Grok, Cursor, and Codex SessionStart/direct-write hooks", () => {
     const root = project();
     const lines: string[] = [];
     const result = writeAgentHookDeposit(root, { printf: (text) => lines.push(text) });
@@ -37,6 +45,9 @@ describe("writeAgentHookDeposit", () => {
     );
     expect(readFileSync(join(root, ".cursor/hooks.json"), "utf8")).toContain(
       "--host cursor --event tool.before",
+    );
+    expect(readFileSync(join(root, ".codex/hooks.json"), "utf8")).toContain(
+      "--host codex --event tool.before",
     );
     expect(DIRECT_WRITE_HOOK_MATCHER.split("|")).toEqual([...DIRECT_WRITE_TOOL_NAMES]);
     expect(DIRECT_WRITE_HOOK_MATCHER.split("|").every(isDirectWriteTool)).toBe(true);
@@ -79,6 +90,52 @@ describe("writeAgentHookDeposit", () => {
     expect(second[0]).toContain("./custom-check.sh");
   });
 
+  it("preserves unrelated Codex hook groups while replacing only Directive-owned entries", () => {
+    const root = project();
+    mkdirSync(join(root, ".codex"), { recursive: true });
+    writeFileSync(
+      join(root, ".codex/hooks.json"),
+      `${JSON.stringify(
+        {
+          hooks: {
+            SessionStart: [
+              {
+                matcher: "resume",
+                hooks: [{ type: "command", command: "./resume-check.sh" }],
+              },
+            ],
+            PreToolUse: [
+              {
+                matcher: "Bash",
+                hooks: [{ type: "command", command: "./custom-codex-check.sh" }],
+              },
+              {
+                matcher: "stale",
+                hooks: [
+                  {
+                    type: "command",
+                    command: "deft hook:dispatch --host codex --event tool.before --old",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+
+    writeAgentHookDeposit(root);
+    const codex = readFileSync(join(root, ".codex/hooks.json"), "utf8");
+
+    expect(codex).toContain("./resume-check.sh");
+    expect(codex).toContain("./custom-codex-check.sh");
+    expect(codex).not.toContain("--old");
+    expect(codex.match(/--host codex --event tool\.before/g)).toHaveLength(1);
+  });
+
   it("refuses to overwrite malformed user JSON", () => {
     const root = project();
     mkdirSync(join(root, ".cursor"), { recursive: true });
@@ -86,15 +143,72 @@ describe("writeAgentHookDeposit", () => {
 
     expect(() => writeAgentHookDeposit(root)).toThrow(/not valid JSON/);
     expect(readFileSync(join(root, ".cursor/hooks.json"), "utf8")).toBe("{not-json\n");
+    expect(inspectAgentHookDeposit(root).find((entry) => entry.host === "cursor")).toMatchObject({
+      status: "drifted",
+      detail: expect.stringContaining("not valid JSON"),
+    });
     expect(() => readFileSync(join(root, ".claude/settings.json"), "utf8")).toThrow();
     expect(() => readFileSync(join(root, ".grok/hooks/deft.json"), "utf8")).toThrow();
   });
+
+  it("refuses a non-object Codex hooks member before writing any host deposit", () => {
+    const root = project();
+    mkdirSync(join(root, ".codex"), { recursive: true });
+    writeFileSync(join(root, ".codex/hooks.json"), '{"hooks":[]}\n', "utf8");
+
+    expect(() => writeAgentHookDeposit(root)).toThrow(/hooks must be a JSON object/);
+    expect(inspectAgentHookDeposit(root).find((entry) => entry.host === "codex")).toMatchObject({
+      status: "drifted",
+    });
+    for (const path of AGENT_HOOK_PATHS.slice(0, 3)) {
+      expect(existsSync(join(root, path))).toBe(false);
+    }
+  });
+
+  it("refuses a non-array Codex event before writing any host deposit", () => {
+    const root = project();
+    mkdirSync(join(root, ".codex"), { recursive: true });
+    writeFileSync(join(root, ".codex/hooks.json"), '{"hooks":{"SessionStart":{}}}\n', "utf8");
+
+    expect(() => writeAgentHookDeposit(root)).toThrow(/hooks\.SessionStart must be an array/);
+    for (const path of AGENT_HOOK_PATHS.slice(0, 3)) {
+      expect(existsSync(join(root, path))).toBe(false);
+    }
+  });
+
+  it("refuses malformed Codex JSON before writing any host deposit", () => {
+    const root = project();
+    mkdirSync(join(root, ".codex"), { recursive: true });
+    writeFileSync(join(root, ".codex/hooks.json"), "[]\n", "utf8");
+
+    expect(() => writeAgentHookDeposit(root)).toThrow(/must contain a JSON object/);
+    expect(readFileSync(join(root, ".codex/hooks.json"), "utf8")).toBe("[]\n");
+    for (const path of AGENT_HOOK_PATHS.slice(0, 3)) {
+      expect(existsSync(join(root, path))).toBe(false);
+    }
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "refuses a Codex directory symlink escape before writing any host deposit",
+    () => {
+      const root = project();
+      const outside = project();
+      symlinkSync(outside, join(root, ".codex"), "dir");
+
+      expect(() => writeAgentHookDeposit(root)).toThrow(/symlink escaping the project tree/);
+      for (const path of AGENT_HOOK_PATHS.slice(0, 3)) {
+        expect(existsSync(join(root, path))).toBe(false);
+      }
+      expect(existsSync(join(outside, "hooks.json"))).toBe(false);
+    },
+  );
 });
 
 describe("inspectAgentHookDeposit", () => {
   it("distinguishes missing and drifted registrations", () => {
     const root = project();
     expect(inspectAgentHookDeposit(root).map((entry) => entry.status)).toEqual([
+      "missing",
       "missing",
       "missing",
       "missing",

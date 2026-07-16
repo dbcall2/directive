@@ -36,7 +36,7 @@ export function evaluateAgentHooks(projectRoot: string): AgentHookHealthResult {
     return {
       code: 1,
       message:
-        "❌ deft agent hooks NON-FUNCTIONAL:\n" +
+        "❌ deft agent hook registration INCOMPLETE:\n" +
         unhealthy
           .map((entry) => `  - ${entry.host}: ${entry.status} at ${entry.path} — ${entry.detail}`)
           .join("\n") +
@@ -49,8 +49,9 @@ export function evaluateAgentHooks(projectRoot: string): AgentHookHealthResult {
   return {
     code: 0,
     message:
-      "✓ deft agent hooks installed and functional for Claude, Grok, Cursor " +
-      "(SessionStart + PreToolUse direct-write tools only; shell/MCP policy is deferred).",
+      "✓ deft agent hooks registered and structurally valid for Claude, Grok, Cursor, Codex " +
+      "(SessionStart + PreToolUse direct-write tools only; Codex runtime trust is " +
+      "user-controlled and must be reviewed with `/hooks`; shell/MCP policy is deferred).",
     stream: "stdout",
     registrations,
   };
