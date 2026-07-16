@@ -11,7 +11,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { ProjectionContainmentError } from "../fs/projection-containment.js";
-import { syncBareVersionMarker, syncConsumerXbriefSchemas } from "./xbrief-projections.js";
+import {
+  syncBareVersionMarker,
+  syncConsumerXbriefSchemas,
+  syncExistingBareVersionMarker,
+} from "./xbrief-projections.js";
 
 const itSymlink = it.skipIf(process.platform === "win32");
 
@@ -108,11 +112,11 @@ describe("xbrief consumer projections (#2595)", () => {
 
   it("does not create a root fallback during a no-op repair, but repairs one that exists", () => {
     const { project } = fixture();
-    expect(syncBareVersionMarker(project, "0.78.0", { allowRootFallback: false })).toBe(false);
+    expect(syncExistingBareVersionMarker(project, "0.78.0")).toBe(false);
     expect(existsSync(join(project, ".deft-version"))).toBe(false);
 
     writeFileSync(join(project, ".deft-version"), "0.72.0\n", "utf8");
-    expect(syncBareVersionMarker(project, "0.78.0", { allowRootFallback: false })).toBe(true);
+    expect(syncExistingBareVersionMarker(project, "0.78.0")).toBe(true);
     expect(readFileSync(join(project, ".deft-version"), "utf8")).toBe("0.78.0\n");
   });
 

@@ -99,15 +99,10 @@ export function syncConsumerXbriefSchemas(projectDir: string, deftDir: string): 
   return changed;
 }
 
-/**
- * Regenerate the bare consumer version derivative without rewriting it when
- * current. A no-op payload refresh may repair an existing root fallback, but
- * must not create one in a greenfield scaffold that has no lifecycle artifact.
- */
-export function syncBareVersionMarker(
+function syncBareVersionMarkerWithPolicy(
   projectDir: string,
   version: string,
-  options: { allowRootFallback?: boolean } = {},
+  allowRootFallback: boolean,
 ): boolean {
   const normalized = normalizeVersion(version);
   if (!normalized || normalized === DEV_FALLBACK) return false;
@@ -124,8 +119,18 @@ export function syncBareVersionMarker(
     // and repair an existing fallback on no-op refreshes without creating new
     // untracked state (#2118 / #2595).
     const rootMarker = join(projectDir, ".deft-version");
-    if (options.allowRootFallback === false && !existsSync(rootMarker)) return false;
+    if (!allowRootFallback && !existsSync(rootMarker)) return false;
   }
   const target = join(targetDir, ".deft-version");
   return writeFileIfChanged(projectDir, target, `${normalized}\n`);
+}
+
+/** Regenerate the bare consumer version derivative, retaining the historical root fallback. */
+export function syncBareVersionMarker(projectDir: string, version: string): boolean {
+  return syncBareVersionMarkerWithPolicy(projectDir, version, true);
+}
+
+/** Repair an existing marker without creating root state when no lifecycle artifact exists. */
+export function syncExistingBareVersionMarker(projectDir: string, version: string): boolean {
+  return syncBareVersionMarkerWithPolicy(projectDir, version, false);
 }

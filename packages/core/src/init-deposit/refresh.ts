@@ -60,7 +60,11 @@ import {
   writeAgentsMd,
   writeInstallManifest,
 } from "./scaffold.js";
-import { syncBareVersionMarker, syncConsumerXbriefSchemas } from "./xbrief-projections.js";
+import {
+  syncBareVersionMarker,
+  syncConsumerXbriefSchemas,
+  syncExistingBareVersionMarker,
+} from "./xbrief-projections.js";
 
 export interface RefreshDepositArgs extends InitDepositArgs {
   readonly upgrade: boolean;
@@ -612,7 +616,11 @@ export async function runRefreshDeposit(
 
   // #2595: payload freshness and consumer derivative freshness are independent.
   // Always repair these cheap projections, including on the #2118 no-op path.
-  syncBareVersionMarker(projectDir, contentVersion, { allowRootFallback: !alreadyCurrent });
+  if (alreadyCurrent) {
+    syncExistingBareVersionMarker(projectDir, contentVersion);
+  } else {
+    syncBareVersionMarker(projectDir, contentVersion);
+  }
   syncConsumerXbriefSchemas(projectDir, deftDir);
 
   const agentsMdUpdated = writeAgentsMd(projectDir, deftDir, io);
