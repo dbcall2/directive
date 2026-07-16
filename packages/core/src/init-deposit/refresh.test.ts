@@ -18,6 +18,7 @@ import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
 import { runChecksImpl } from "../doctor/checks.js";
 import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
 import type { ClassifySeams } from "../resolution/index.js";
+import { detectXbriefConvergence } from "../xbrief-migrate/detect.js";
 import { type LegacyLayoutDetection, LegacyLayoutRefusedError } from "./legacy-detect.js";
 import {
   buildVersionSkewNotice,
@@ -337,6 +338,52 @@ describe("runRefreshDeposit", () => {
     expect(
       doctor.checks.find((check) => check.name === "stale-xbrief-schema-deposit")?.status,
     ).not.toBe("fail");
+  });
+
+  it.each([
+    ["legacy-only", false],
+    ["legacy plus cache-only support", true],
+  ])("does not project schemas before xbrief migration (%s) (#2595)", async (_label, cacheOnly) => {
+    const project = freshRoot("refresh-pre-migration-projections-");
+    const contentRoot = installFakeContentPackage(project, "0.78.0");
+    mkdirSync(join(project, "vbrief", "active"), { recursive: true });
+    writeFileSync(
+      join(project, "vbrief", "active", "seed.vbrief.json"),
+      JSON.stringify({
+        vBRIEFInfo: { version: "0.6", description: "legacy fixture" },
+        plan: { title: "Legacy seed", status: "running", items: [] },
+      }),
+      "utf8",
+    );
+    if (cacheOnly) {
+      mkdirSync(join(project, "xbrief", ".triage-cache", "issues"), { recursive: true });
+      writeFileSync(join(project, "xbrief", ".triage-cache", "issues", "2595.json"), "{}\n");
+    }
+
+    const io = { printf: vi.fn() };
+    const args = {
+      projectDir: project,
+      jsonOut: false,
+      nonInteractive: true,
+      upgrade: true,
+    };
+    const seams = {
+      resolveContentRoot: async () => contentRoot,
+      readEngineVersion: () => "0.78.0",
+      nowIso: () => "2026-07-16T12:00:00Z",
+      gitPorcelain: () => "",
+    };
+
+    await runRefreshDeposit(args, io, seams);
+    await runRefreshDeposit(args, io, {
+      ...seams,
+      copyContent: async () => {
+        throw new Error("copyContent must not run for an already-current refresh");
+      },
+    });
+
+    expect(existsSync(join(project, "xbrief", "schemas"))).toBe(false);
+    expect(detectXbriefConvergence(project).state).toBe("legacy-only");
   });
 
   it("discloses core side-effects when AGENTS.md is already current", async () => {

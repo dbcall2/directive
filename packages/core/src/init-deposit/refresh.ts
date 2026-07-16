@@ -19,6 +19,7 @@ import { prunePythonArtifactsFromDeposit } from "../deposit/python-free.js";
 import { resolveInstalledContentRoot } from "../deposit/resolve-content.js";
 import { manifestTagToVersion, parseInstallManifest } from "../doctor/manifest.js";
 import { readCorePackageVersion } from "../engine-version.js";
+import { resolveLifecycleRoot } from "../layout/resolve.js";
 import {
   type ClassifySeams,
   checkLocalEngineIntegrity,
@@ -83,6 +84,15 @@ export interface RefreshDepositResult {
   readonly legacyLayout: boolean;
   readonly taskfileWired: boolean;
   readonly stagedPaths: string[];
+}
+
+function hasCanonicalXbriefLifecycle(projectDir: string): boolean {
+  try {
+    resolveLifecycleRoot(projectDir);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export type RefreshDepositStrategy = "file-swap" | "no-op";
@@ -621,7 +631,11 @@ export async function runRefreshDeposit(
   } else {
     syncBareVersionMarker(projectDir, contentVersion);
   }
-  syncConsumerXbriefSchemas(projectDir, deftDir);
+  // Do not turn a legacy-only or cache-only support tree into canonical
+  // lifecycle content before migrate:xbrief can transactionally converge it.
+  if (hasCanonicalXbriefLifecycle(projectDir)) {
+    syncConsumerXbriefSchemas(projectDir, deftDir);
+  }
 
   const agentsMdUpdated = writeAgentsMd(projectDir, deftDir, io);
   writeAgentHookDeposit(projectDir, io);
