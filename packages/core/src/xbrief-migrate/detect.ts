@@ -80,6 +80,44 @@ function walkJsonFiles(root: string, acc: string[] = []): string[] {
   return acc;
 }
 
+/** Cache support state may contain only ordinary files/directories, never links or special files. */
+function containsUnsupportedCacheEntry(root: string): boolean {
+  if (!isDirectory(root)) return false;
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (entry.isSymbolicLink()) return true;
+    if (entry.isDirectory()) {
+      if (containsUnsupportedCacheEntry(join(root, entry.name))) return true;
+      continue;
+    }
+    if (!entry.isFile()) return true;
+  }
+  return false;
+}
+
+/**
+ * A top-level `.triage-cache/` is operational support state, not evidence that
+ * project artifacts have already migrated. Everything else keeps the generic
+ * empty-tree semantics; unknown files and symlinks remain real content.
+ */
+function xbriefHasProjectContent(root: string): boolean {
+  if (!isDirectory(root)) return false;
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const full = join(root, entry.name);
+    if (entry.name === ".triage-cache" && entry.isDirectory()) {
+      if (containsUnsupportedCacheEntry(full)) return true;
+      continue;
+    }
+    if (entry.isSymbolicLink()) return true;
+    if (entry.isDirectory()) {
+      if (!isEffectivelyEmptyDir(full)) return true;
+      continue;
+    }
+    if (entry.isFile() && (entry.name === ".gitkeep" || entry.name === ".keep")) continue;
+    return true;
+  }
+  return false;
+}
+
 function scanFileContent(path: string, content: string, reasons: Set<string>): void {
   if (path.endsWith(LEGACY_ARTIFACT_SUFFIX)) {
     reasons.add(`legacy artifact filename: ${path}`);
@@ -149,7 +187,7 @@ export function detectXbriefConvergence(projectRoot: string): XbriefConvergenceD
   const vbriefHasMarker = vbriefPresent && hasVbriefDeprecationMarker(legacyDir);
   const vbriefEmpty = vbriefPresent && !vbriefHasMarker && isEffectivelyEmptyDir(legacyDir);
   const xbriefPresent = isDirectory(migratedDir);
-  const xbriefHasContent = xbriefPresent && !isEffectivelyEmptyDir(migratedDir);
+  const xbriefHasContent = xbriefPresent && xbriefHasProjectContent(migratedDir);
 
   let state: XbriefConvergenceState;
   if (vbriefHasMarker) {

@@ -361,7 +361,7 @@ tasks:
     cmds:
       - task: engine:invoke
         vars:
-          ENGINE_CMD: 'check --framework-root "{{.TASKFILE_DIR}}" --project-root "{{.USER_WORKING_DIR}}"' 
+          ENGINE_CMD: 'check --framework-root "{{.TASKFILE_DIR}}" --project-root "{{.USER_WORKING_DIR}}"'
 
   check:framework-source:
     desc: "Run all framework source-repo pre-commit checks (TS-only after #1860). Sole wired consumer of maintainer-only core:build / core:clean."
@@ -460,7 +460,7 @@ tasks:
     cmds:
       - task: engine:invoke
         vars:
-          ENGINE_CMD: 'validate-strategy-output --project-root "{{.USER_WORKING_DIR}}"' 
+          ENGINE_CMD: 'validate-strategy-output --project-root "{{.USER_WORKING_DIR}}"'
 
   # Pack-projection drift gate (#1294 / #1283, ADR-001). User-facing alias for
   # `packs:verify-drift`, defined at the root Taskfile so it carries the

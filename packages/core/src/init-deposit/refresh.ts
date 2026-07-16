@@ -9,7 +9,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, statSync } from "node:fs";
 import { platform as osPlatform } from "node:os";
 import { join, resolve } from "node:path";
 import type { ResolutionFacts, ResolutionPlan } from "@deftai/directive-types";
@@ -20,7 +20,6 @@ import { resolveInstalledContentRoot } from "../deposit/resolve-content.js";
 import { manifestTagToVersion, parseInstallManifest } from "../doctor/manifest.js";
 import { readCorePackageVersion } from "../engine-version.js";
 import { resolveLifecycleRoot } from "../layout/resolve.js";
-import { DEV_FALLBACK } from "../platform/constants.js";
 import {
   type ClassifySeams,
   checkLocalEngineIntegrity,
@@ -62,6 +61,11 @@ import {
   writeAgentsMd,
   writeInstallManifest,
 } from "./scaffold.js";
+import {
+  syncBareVersionMarker,
+  syncConsumerXbriefSchemas,
+  syncExistingBareVersionMarker,
+} from "./xbrief-projections.js";
 
 export interface RefreshDepositArgs extends InitDepositArgs {
   readonly upgrade: boolean;
@@ -80,6 +84,15 @@ export interface RefreshDepositResult {
   readonly legacyLayout: boolean;
   readonly taskfileWired: boolean;
   readonly stagedPaths: string[];
+}
+
+function hasCanonicalXbriefLifecycle(projectDir: string): boolean {
+  try {
+    resolveLifecycleRoot(projectDir);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export type RefreshDepositStrategy = "file-swap" | "no-op";
@@ -259,35 +272,6 @@ function readRecordedManagedBy(deftDir: string): string | null {
     return value || null;
   } catch {
     return null;
-  }
-}
-
-/**
- * Regenerate the bare `.deft-version` derivative from the deposited content
- * version in the same transaction as the payload swap (#2055). The canonical
- * marker lives at `vbrief/.deft-version`; fall back to the project root only
- * when `vbrief/` is absent. Never persist the dev fallback.
- */
-function syncBareVersionMarker(projectDir: string, version: string): void {
-  const normalized = normalizeVersion(version);
-  if (!normalized || normalized === DEV_FALLBACK) return;
-  let vbriefDir: string | null = null;
-  try {
-    vbriefDir = resolveLifecycleRoot(projectDir);
-  } catch {
-    // No xbrief/ layout present — write the root-level derivative instead.
-  }
-  let targetDir = projectDir;
-  try {
-    if (vbriefDir !== null && statSync(vbriefDir).isDirectory()) targetDir = vbriefDir;
-  } catch {
-    // xbrief/ absent — write the root-level derivative instead
-  }
-  try {
-    mkdirSync(targetDir, { recursive: true });
-    writeFileSync(join(targetDir, ".deft-version"), `${normalized}\n`, "utf8");
-  } catch {
-    // best-effort, mirrors install-upgrade marker write
   }
 }
 
@@ -638,12 +622,19 @@ export async function runRefreshDeposit(
     // .deft/core/VERSION has been rewritten (folded in from install-upgrade so no
     // manifest behavior is lost by the redirect). Best-effort; never fatal.
     migrateLegacyInstallManifest(projectDir, writtenManifestPath);
+  }
 
-    // #2055: regenerate the bare .deft-version derivative so it agrees with the
-    // freshly written manifest tag (otherwise doctor's manifest-agreement check
-    // fails and the operator must hand-edit the marker). No-op refreshes skip
-    // this projection because the manifest tag was not rewritten (#2118).
+  // #2595: payload freshness and consumer derivative freshness are independent.
+  // Always repair these cheap projections, including on the #2118 no-op path.
+  if (alreadyCurrent) {
+    syncExistingBareVersionMarker(projectDir, contentVersion);
+  } else {
     syncBareVersionMarker(projectDir, contentVersion);
+  }
+  // Do not turn a legacy-only or cache-only support tree into canonical
+  // lifecycle content before migrate:xbrief can transactionally converge it.
+  if (hasCanonicalXbriefLifecycle(projectDir)) {
+    syncConsumerXbriefSchemas(projectDir, deftDir);
   }
 
   const agentsMdUpdated = writeAgentsMd(projectDir, deftDir, io);

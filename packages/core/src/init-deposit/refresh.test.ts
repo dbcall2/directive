@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -14,8 +15,10 @@ import type { ResolutionFacts } from "@deftai/directive-types";
 import { RESOLUTION_PLAN_SCHEMA_VERSION } from "@deftai/directive-types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
+import { runChecksImpl } from "../doctor/checks.js";
 import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
 import type { ClassifySeams } from "../resolution/index.js";
+import { detectXbriefConvergence } from "../xbrief-migrate/detect.js";
 import { type LegacyLayoutDetection, LegacyLayoutRefusedError } from "./legacy-detect.js";
 import {
   buildVersionSkewNotice,
@@ -162,6 +165,7 @@ describe("runRefreshDeposit", () => {
   function installFakeContentPackage(projectRoot: string, version = "0.53.0"): string {
     const pkgDir = join(projectRoot, "node_modules", "@deftai", "directive-content");
     mkdirSync(join(pkgDir, "templates"), { recursive: true });
+    mkdirSync(join(pkgDir, "vbrief", "schemas"), { recursive: true });
     writeFileSync(
       join(pkgDir, "package.json"),
       JSON.stringify({ name: CONTENT_PACKAGE_NAME, version }),
@@ -172,6 +176,12 @@ describe("runRefreshDeposit", () => {
       join(pkgDir, "templates/agents-entry.md"),
     );
     writeFileSync(join(pkgDir, "main.md"), "# Deft\n", "utf8");
+    writeFileSync(join(pkgDir, "vbrief", "schemas", "vbrief-core.schema.json"), "legacy\n", "utf8");
+    writeFileSync(
+      join(pkgDir, "vbrief", "schemas", "xbrief-core-0.8.schema.json"),
+      "current\n",
+      "utf8",
+    );
     return pkgDir;
   }
 
@@ -254,6 +264,7 @@ describe("runRefreshDeposit", () => {
     await runRefreshDeposit(args, io, seams);
     const firstAgents = readFileSync(join(project, "AGENTS.md"), "utf8");
     const firstVersion = readFileSync(join(project, ".deft", "core", "VERSION"), "utf8");
+    rmSync(join(project, ".deft-version"), { force: true });
 
     io.printf.mockClear();
     const copyContent = vi.fn(async () => {
@@ -272,6 +283,7 @@ describe("runRefreshDeposit", () => {
 
     expect(secondAgents).toBe(firstAgents);
     expect(secondVersion).toBe(firstVersion);
+    expect(existsSync(join(project, ".deft-version"))).toBe(false);
     expect(second.agentsMdUpdated).toBe(false);
     expect(second.alreadyCurrent).toBe(true);
     expect(second.strategy).toBe("no-op");
@@ -283,6 +295,115 @@ describe("runRefreshDeposit", () => {
     expect(out).toContain("Windows line-ending note (#2118)");
     expect(out).not.toContain("Commit hygiene");
     expect(out).not.toContain("framework deposit commit");
+  });
+
+  it("repairs stale xbrief derivatives without copying an already-current payload (#2595)", async () => {
+    const project = freshRoot("refresh-current-projections-");
+    const contentRoot = installFakeContentPackage(project, "0.78.0");
+    mkdirSync(join(project, "xbrief", "active"), { recursive: true });
+    writeFileSync(
+      join(project, "xbrief", "active", "seed.xbrief.json"),
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8", description: "fixture" },
+        plan: { title: "Seed", status: "running", items: [] },
+      }),
+      "utf8",
+    );
+    const io = { printf: vi.fn() };
+    const args = {
+      projectDir: project,
+      jsonOut: false,
+      nonInteractive: true,
+      upgrade: true,
+    };
+    const seams = {
+      resolveContentRoot: async () => contentRoot,
+      readEngineVersion: () => "0.78.0",
+      nowIso: () => "2026-07-16T12:00:00Z",
+      gitPorcelain: () => "",
+    };
+
+    await runRefreshDeposit(args, io, seams);
+    mkdirSync(join(project, "xbrief", "schemas"), { recursive: true });
+    writeFileSync(join(project, "xbrief", ".deft-version"), "0.72.0\n", "utf8");
+    writeFileSync(join(project, "xbrief", "schemas", "vbrief-core.schema.json"), "stale\n", "utf8");
+    rmSync(join(project, "xbrief", "schemas", "xbrief-core-0.8.schema.json"), { force: true });
+
+    const copyContent = vi.fn(async () => {
+      throw new Error("copyContent must not run for an already-current refresh");
+    });
+    const repaired = await runRefreshDeposit(args, io, { ...seams, copyContent });
+
+    expect(repaired.strategy).toBe("no-op");
+    expect(copyContent).not.toHaveBeenCalled();
+    expect(readFileSync(join(project, "xbrief", ".deft-version"), "utf8")).toBe("0.78.0\n");
+    expect(existsSync(join(project, "xbrief", "schemas", "vbrief-core.schema.json"))).toBe(false);
+    expect(
+      readFileSync(join(project, "xbrief", "schemas", "xbrief-core-0.8.schema.json"), "utf8"),
+    ).toBe("current\n");
+
+    await runRefreshDeposit(args, io, { ...seams, copyContent });
+    expect(copyContent).not.toHaveBeenCalled();
+
+    const doctor = runChecksImpl(project, {
+      isDir: (path) => {
+        try {
+          return statSync(path).isDirectory();
+        } catch {
+          return false;
+        }
+      },
+    });
+    expect(doctor.checks.find((check) => check.name === "manifest-agreement")?.status).toBe("pass");
+    expect(
+      doctor.checks.find((check) => check.name === "stale-xbrief-schema-deposit")?.status,
+    ).not.toBe("fail");
+  });
+
+  it.each([
+    ["legacy-only", false],
+    ["legacy plus cache-only support", true],
+  ])("does not project schemas before xbrief migration (%s) (#2595)", async (_label, cacheOnly) => {
+    const project = freshRoot("refresh-pre-migration-projections-");
+    const contentRoot = installFakeContentPackage(project, "0.78.0");
+    mkdirSync(join(project, "vbrief", "active"), { recursive: true });
+    writeFileSync(
+      join(project, "vbrief", "active", "seed.vbrief.json"),
+      JSON.stringify({
+        vBRIEFInfo: { version: "0.6", description: "legacy fixture" },
+        plan: { title: "Legacy seed", status: "running", items: [] },
+      }),
+      "utf8",
+    );
+    if (cacheOnly) {
+      mkdirSync(join(project, "xbrief", ".triage-cache", "issues"), { recursive: true });
+      writeFileSync(join(project, "xbrief", ".triage-cache", "issues", "2595.json"), "{}\n");
+    }
+
+    const io = { printf: vi.fn() };
+    const args = {
+      projectDir: project,
+      jsonOut: false,
+      nonInteractive: true,
+      upgrade: true,
+    };
+    const seams = {
+      resolveContentRoot: async () => contentRoot,
+      readEngineVersion: () => "0.78.0",
+      nowIso: () => "2026-07-16T12:00:00Z",
+      gitPorcelain: () => "",
+    };
+
+    await runRefreshDeposit(args, io, seams);
+    await runRefreshDeposit(args, io, {
+      ...seams,
+      copyContent: async () => {
+        throw new Error("copyContent must not run for an already-current refresh");
+      },
+    });
+
+    expect(existsSync(join(project, "xbrief", "schemas"))).toBe(false);
+    expect(detectXbriefConvergence(project).state).toBe("legacy-only");
   });
 
   it("discloses core side-effects when AGENTS.md is already current", async () => {
@@ -748,6 +869,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
   function installFakeContentPackage(projectRoot: string, version = "0.53.0"): string {
     const pkgDir = join(projectRoot, "node_modules", "@deftai", "directive-content");
     mkdirSync(join(pkgDir, "templates"), { recursive: true });
+    mkdirSync(join(pkgDir, "vbrief", "schemas"), { recursive: true });
     writeFileSync(
       join(pkgDir, "package.json"),
       JSON.stringify({ name: CONTENT_PACKAGE_NAME, version }),
@@ -758,6 +880,11 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
       join(pkgDir, "templates/agents-entry.md"),
     );
     writeFileSync(join(pkgDir, "main.md"), "# Deft\n", "utf8");
+    writeFileSync(
+      join(pkgDir, "vbrief", "schemas", "xbrief-core-0.8.schema.json"),
+      "current\n",
+      "utf8",
+    );
     return pkgDir;
   }
 
@@ -768,12 +895,18 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
   ): void {
     const deftDir = join(project, ".deft", "core");
     mkdirSync(join(deftDir, "templates"), { recursive: true });
+    mkdirSync(join(deftDir, "vbrief", "schemas"), { recursive: true });
     writeFileSync(
       join(deftDir, "VERSION"),
       `tag: 'v${opts.contentVersion}'\nsha: abc\ninstall_root: '.deft/core'\n`,
       "utf8",
     );
     writeFileSync(join(deftDir, "main.md"), "# Deft\n", "utf8");
+    writeFileSync(
+      join(deftDir, "vbrief", "schemas", "xbrief-core-0.8.schema.json"),
+      "current\n",
+      "utf8",
+    );
     copyFileSync(
       join(process.cwd(), "content/templates/agents-entry.md"),
       join(deftDir, "templates/agents-entry.md"),

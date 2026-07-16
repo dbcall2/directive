@@ -113,6 +113,7 @@ function makeColdCloneFixture(options: MakeColdCloneOptions = {}): ColdCloneFixt
 
   // Fake content package the update seam re-projects .deft/core from.
   mkdirSync(join(contentRoot, "templates"), { recursive: true });
+  mkdirSync(join(contentRoot, "vbrief", "schemas"), { recursive: true });
   writeFileSync(
     join(contentRoot, "package.json"),
     JSON.stringify({ name: CONTENT_PACKAGE_NAME, version: contentVersion }),
@@ -123,6 +124,11 @@ function makeColdCloneFixture(options: MakeColdCloneOptions = {}): ColdCloneFixt
     join(contentRoot, "templates", "agents-entry.md"),
   );
   writeFileSync(join(contentRoot, "main.md"), "# Deft\n", "utf8");
+  writeFileSync(
+    join(contentRoot, "vbrief", "schemas", "xbrief-core-0.8.schema.json"),
+    "{}\n",
+    "utf8",
+  );
 
   if (options.withWorkspaceUserMd) {
     mkdirSync(join(projectDir, ".deft"), { recursive: true });

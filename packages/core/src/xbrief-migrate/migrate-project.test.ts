@@ -151,6 +151,38 @@ describe("runXbriefMigration", () => {
     expect(outcome.kind).toBe("config");
   });
 
+  it("migrates through a cache-only xbrief tree and preserves both cache sources (#2595)", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-migrate-cache-only-"));
+    temps.push(base);
+    const project = scaffoldLegacyProject(base);
+    const legacyCache = join(project, LEGACY_ARTIFACT_DIR, ".triage-cache", "issues");
+    const canonicalCache = join(project, MIGRATED_ARTIFACT_DIR, ".triage-cache", "issues");
+    mkdirSync(legacyCache, { recursive: true });
+    mkdirSync(canonicalCache, { recursive: true });
+    writeFileSync(join(legacyCache, "legacy-only.json"), "legacy-only\n", "utf8");
+    writeFileSync(join(legacyCache, "collision.json"), "legacy\n", "utf8");
+    writeFileSync(join(canonicalCache, "canonical-only.json"), "canonical-only\n", "utf8");
+    writeFileSync(join(canonicalCache, "collision.json"), "canonical\n", "utf8");
+
+    const outcome = runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO);
+    expect(outcome.kind).toBe("migrated");
+    if (outcome.kind !== "migrated") return;
+
+    expect(existsSync(join(project, MIGRATED_ARTIFACT_DIR, "active", "story.xbrief.json"))).toBe(
+      true,
+    );
+    expect(readFileSync(join(canonicalCache, "legacy-only.json"), "utf8")).toBe("legacy-only\n");
+    expect(readFileSync(join(canonicalCache, "canonical-only.json"), "utf8")).toBe(
+      "canonical-only\n",
+    );
+    expect(readFileSync(join(canonicalCache, "collision.json"), "utf8")).toBe("canonical\n");
+    expect(existsSync(join(outcome.backupDir, LEGACY_ARTIFACT_DIR))).toBe(true);
+    expect(
+      existsSync(join(outcome.backupDir, MIGRATED_ARTIFACT_DIR, ".triage-cache", "issues")),
+    ).toBe(true);
+    expect(runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO).kind).toBe("noop");
+  });
+
   it("returns config when a legacy artifact cannot be transformed", () => {
     const base = mkdtempSync(join(tmpdir(), "xbrief-migrate-bad-json-"));
     temps.push(base);

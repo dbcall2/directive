@@ -78,6 +78,7 @@ describe("install-upgrade <-> directive update parity (#2064)", () => {
     const project = freshRoot(prefix);
     const pkgDir = join(project, "node_modules", "@deftai", "directive-content");
     mkdirSync(join(pkgDir, "templates"), { recursive: true });
+    mkdirSync(join(pkgDir, "vbrief", "schemas"), { recursive: true });
     writeFileSync(
       join(pkgDir, "package.json"),
       JSON.stringify({ name: CONTENT_PACKAGE_NAME, version }),
@@ -88,6 +89,7 @@ describe("install-upgrade <-> directive update parity (#2064)", () => {
       join(pkgDir, "templates/agents-entry.md"),
     );
     writeFileSync(join(pkgDir, "main.md"), "# Deft\n", "utf8");
+    writeFileSync(join(pkgDir, "vbrief", "schemas", "xbrief-core-0.8.schema.json"), "{}\n", "utf8");
 
     // A stale vendored deposit so a real refresh has work to do.
     const deftDir = join(project, ".deft", "core");
