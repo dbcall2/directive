@@ -426,7 +426,19 @@ export function runAgentHooksHealthCheck(
   try {
     const result = (seams.evaluateAgentHooks ?? evaluateAgentHooks)(projectRoot);
     if (result.code === 0) {
-      sink.success(`${checkName}: healthy`);
+      const message =
+        `${checkName}: registered and structurally valid; ` +
+        "Codex runtime trust is user-controlled and must be reviewed with `/hooks`";
+      sink.success(message);
+      addFinding({
+        severity: "skip",
+        message,
+        check: checkName,
+        status: "registered",
+        registrations: result.registrations,
+        trust_status: "not-verifiable",
+        trust_review: "Open `/hooks` in Codex and review the project hook commands.",
+      });
       return;
     }
     const message = `${checkName}: ${result.message.replace(/\s+/g, " ").trim()}`;
@@ -435,7 +447,7 @@ export function runAgentHooksHealthCheck(
       severity: "warning",
       message,
       check: checkName,
-      status: result.code === 2 ? "unavailable" : "non-functional",
+      status: result.code === 2 ? "unavailable" : "incomplete",
       registrations: result.registrations,
       suggestion: "deft update",
     });

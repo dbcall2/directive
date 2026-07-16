@@ -6,7 +6,7 @@ import { isDirectWriteTool } from "./tools.js";
 
 export { DIRECT_WRITE_TOOL_NAMES, isDirectWriteTool } from "./tools.js";
 
-export const HOOK_HOSTS = ["claude", "grok", "cursor"] as const;
+export const HOOK_HOSTS = ["claude", "grok", "cursor", "codex"] as const;
 export type HookHost = (typeof HOOK_HOSTS)[number];
 
 export const HOOK_EVENTS = ["session.start", "tool.before"] as const;
@@ -229,21 +229,23 @@ export function decideHook(input: HookDispatchInput, seams: HookPolicySeams = {}
 /** Render only authoritative denials; allow preserves the host's own permission flow. */
 export function renderHostDecision(host: HookHost, decision: HookDecision): string {
   if (decision.verdict === "allow") return "";
-  if (host === "claude") {
-    return JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        permissionDecision: "deny",
-        permissionDecisionReason: decision.message,
-      },
-    });
+  switch (host) {
+    case "claude":
+    case "codex":
+      return JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "deny",
+          permissionDecisionReason: decision.message,
+        },
+      });
+    case "grok":
+      return JSON.stringify({ decision: "deny", reason: decision.message });
+    case "cursor":
+      return JSON.stringify({
+        permission: "deny",
+        user_message: decision.message,
+        agent_message: decision.message,
+      });
   }
-  if (host === "grok") {
-    return JSON.stringify({ decision: "deny", reason: decision.message });
-  }
-  return JSON.stringify({
-    permission: "deny",
-    user_message: decision.message,
-    agent_message: decision.message,
-  });
 }

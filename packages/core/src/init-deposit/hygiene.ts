@@ -33,6 +33,7 @@ export function installerManagedMatchers(): InstallerManagedMatcher[] {
     { exact: ".claude/settings.json" },
     { exact: ".grok/hooks/deft.json" },
     { exact: ".cursor/hooks.json" },
+    { exact: ".codex/hooks.json" },
     { exact: ".gitattributes" },
     { exact: ".gitignore" },
     { exact: "greptile.json" },
