@@ -243,6 +243,7 @@ describe("runRefreshDeposit", () => {
     await runRefreshDeposit(args, io, seams);
     const firstAgents = readFileSync(join(project, "AGENTS.md"), "utf8");
     const firstVersion = readFileSync(join(project, ".deft", "core", "VERSION"), "utf8");
+    rmSync(join(project, ".deft-version"), { force: true });
 
     io.printf.mockClear();
     const copyContent = vi.fn(async () => {
@@ -261,6 +262,7 @@ describe("runRefreshDeposit", () => {
 
     expect(secondAgents).toBe(firstAgents);
     expect(secondVersion).toBe(firstVersion);
+    expect(existsSync(join(project, ".deft-version"))).toBe(false);
     expect(second.agentsMdUpdated).toBe(false);
     expect(second.alreadyCurrent).toBe(true);
     expect(second.strategy).toBe("no-op");

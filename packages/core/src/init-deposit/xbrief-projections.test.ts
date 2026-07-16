@@ -106,6 +106,16 @@ describe("xbrief consumer projections (#2595)", () => {
     expect(syncBareVersionMarker(project, "0.78.0")).toBe(false);
   });
 
+  it("does not create a root fallback during a no-op repair, but repairs one that exists", () => {
+    const { project } = fixture();
+    expect(syncBareVersionMarker(project, "0.78.0", { allowRootFallback: false })).toBe(false);
+    expect(existsSync(join(project, ".deft-version"))).toBe(false);
+
+    writeFileSync(join(project, ".deft-version"), "0.72.0\n", "utf8");
+    expect(syncBareVersionMarker(project, "0.78.0", { allowRootFallback: false })).toBe(true);
+    expect(readFileSync(join(project, ".deft-version"), "utf8")).toBe("0.78.0\n");
+  });
+
   itSymlink("refuses schema symlinks in the framework payload", () => {
     const { project, deftDir, schemas } = fixture();
     const outside = join(project, "outside.schema.json");

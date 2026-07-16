@@ -612,7 +612,7 @@ export async function runRefreshDeposit(
 
   // #2595: payload freshness and consumer derivative freshness are independent.
   // Always repair these cheap projections, including on the #2118 no-op path.
-  syncBareVersionMarker(projectDir, contentVersion);
+  syncBareVersionMarker(projectDir, contentVersion, { allowRootFallback: !alreadyCurrent });
   syncConsumerXbriefSchemas(projectDir, deftDir);
 
   const agentsMdUpdated = writeAgentsMd(projectDir, deftDir, io);
