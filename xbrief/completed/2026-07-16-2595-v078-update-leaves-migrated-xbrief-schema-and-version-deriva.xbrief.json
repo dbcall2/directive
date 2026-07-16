@@ -1,0 +1,66 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2595"
+  },
+  "plan": {
+    "title": "v0.78 update leaves migrated xbrief schema and version derivative stale",
+    "status": "completed",
+    "narratives": {
+      "Description": "v0.78 update leaves migrated xbrief schema and version derivative stale",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2595",
+      "Overview": "Consumer upgrade from v0.72 to v0.78 reproduced two post-migration drifts: (1) xbrief/.deft-version remains 0.72.0 even after directive update reports current 0.78.0; (2) xbrief/schemas/vbrief-core.schema.json retains the vBRIEFInfo v0.6 root schema after migrate:xbrief, and a subsequent directive update no-ops instead of refreshing it. directive doctor --full reports manifest-agreement failure and stale-xbrief-schema-deposit. Also, a cache-only xbrief/.triage-cache directory caused the first migrate:xbrief --force invocation to report converged without migrating project artifacts. Refs #2034/#2110/#2149.\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @dbcall2 (2026-07-16T00:04:19Z)\n\nAdditional v0.78.0 deposit defect: .deft/core/Taskfile.yml contains trailing whitespace on generated ENGINE_CMD lines 364 and 463, causing git diff --check to fail in consumer pre-PR validation."
+    },
+    "items": [
+      {
+        "id": "2595-a1",
+        "title": "Current update repairs xBRIEF schema and version derivatives",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given a current 0.78 core payload and manifest with a stale xbrief/.deft-version plus vbrief-core.schema.json, when directive update runs, then the payload copy and manifest rewrite remain no-ops while the marker becomes 0.78, the obsolete schema is removed, the current schema is present, doctor clears both reported drifts, and a second run performs no projection writes."
+        }
+      },
+      {
+        "id": "2595-a2",
+        "title": "Greenfield schema projection excludes the obsolete v0.6 root",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given the framework schema deposit contains both legacy and current roots, when consumer xBRIEF scaffolding runs, then it projects current framework schemas, omits vbrief-core.schema.json, preserves unrelated consumer schemas, and rejects unsafe projection paths."
+        }
+      },
+      {
+        "id": "2595-a3",
+        "title": "Cache-only canonical state does not suppress legacy migration",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given legacy vbrief project artifacts and an xbrief tree containing only .triage-cache plus placeholders, when migrate:xbrief --force runs, then project artifacts migrate, both input trees are backed up, unique cache records survive, canonical cache records win collisions, and a rerun is idempotent; unknown canonical files still prevent destructive migration."
+        }
+      },
+      {
+        "id": "2595-a4",
+        "title": "Published Taskfile is free of trailing whitespace",
+        "status": "running",
+        "narrative": {
+          "Acceptance": "Given the repository Taskfile and content-package prepack, when packaging and git diff checks run, then neither the source nor packaged Taskfile contains trailing spaces and CHANGELOG [Unreleased] records the repair."
+        }
+      }
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2595",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2595: v0.78 update leaves migrated xbrief schema and version derivative stale"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2034",
+        "type": "x-xbrief/refs",
+        "title": "Issue #2034"
+      }
+    ],
+    "updated": "2026-07-16T11:44:31Z",
+    "metadata": {
+      "completedAt": "2026-07-16T11:44:31Z",
+      "capacityBucket": "new-capability"
+    }
+  }
+}

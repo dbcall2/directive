@@ -99,7 +99,7 @@ describe("runInitDeposit", () => {
   function installFakeContentPackage(projectRoot: string): string {
     const pkgDir = join(projectRoot, "node_modules", "@deftai", "directive-content");
     mkdirSync(join(pkgDir, "templates"), { recursive: true });
-    mkdirSync(join(pkgDir, "xbrief", "schemas"), { recursive: true });
+    mkdirSync(join(pkgDir, "vbrief", "schemas"), { recursive: true });
     mkdirSync(join(pkgDir, ".githooks"), { recursive: true });
     writeFileSync(
       join(pkgDir, "package.json"),
@@ -111,8 +111,9 @@ describe("runInitDeposit", () => {
       join(pkgDir, "templates/agents-entry.md"),
     );
     writeFileSync(join(pkgDir, "main.md"), "# Deft\n", "utf8");
-    writeFileSync(join(pkgDir, "xbrief", "schemas", "cache-meta.schema.json"), "{}\n", "utf8");
-    writeFileSync(join(pkgDir, "xbrief", "vbrief.md"), "# vbrief\n", "utf8");
+    writeFileSync(join(pkgDir, "vbrief", "schemas", "cache-meta.schema.json"), "{}\n", "utf8");
+    writeFileSync(join(pkgDir, "vbrief", "schemas", "xbrief-core-0.8.schema.json"), "{}\n", "utf8");
+    writeFileSync(join(pkgDir, "vbrief", "vbrief.md"), "# vbrief\n", "utf8");
     writeFileSync(
       join(pkgDir, ".githooks", "pre-commit"),
       readFileSync(join(process.cwd(), ".githooks/pre-commit"), "utf8"),

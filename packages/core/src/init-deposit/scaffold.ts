@@ -18,7 +18,6 @@ import {
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { platform } from "node:os";
 import { dirname, join, relative } from "node:path";
-import { copyTree } from "../deposit/copy-tree.js";
 import {
   assertProjectionContained,
   ProjectionContainmentError,
@@ -27,6 +26,7 @@ import { agentsRefreshPlan } from "../platform/agents-md.js";
 import { MIGRATED_ARTIFACT_DIR } from "../xbrief-migrate/constants.js";
 import { CANONICAL_INSTALL_ROOT, type InitDepositIo } from "./constants.js";
 import { installerManagedGuardEre } from "./hygiene.js";
+import { syncConsumerXbriefSchemas } from "./xbrief-projections.js";
 
 export type { InitDepositIo };
 export { CANONICAL_INSTALL_ROOT };
@@ -411,21 +411,17 @@ export async function writeConsumerVbrief(
   const schemasPresent = existsSync(schemasDst) && statSync(schemasDst).isDirectory();
   const vbriefMdPresent = existsSync(vbriefMdDst) && statSync(vbriefMdDst).isFile();
   const lifecyclePresent = vbriefLifecycleDirsPresent(consumerVbrief);
+  const schemasChanged = syncConsumerXbriefSchemas(projectDir, deftDir);
   if (schemasPresent && vbriefMdPresent && lifecyclePresent) {
-    io.printf("vbrief/ already present at project root — skipping.\n");
-    return false;
+    io.printf(
+      schemasChanged
+        ? "vbrief/ schemas refreshed at project root.\n"
+        : "vbrief/ already present at project root — skipping.\n",
+    );
+    return schemasChanged;
   }
 
   mkdirSync(consumerVbrief, { recursive: true });
-
-  if (!schemasPresent) {
-    const fwSchemas = join(deftDir, "vbrief", "schemas");
-    if (existsSync(fwSchemas) && statSync(fwSchemas).isDirectory()) {
-      await copyTree(fwSchemas, schemasDst);
-    } else {
-      mkdirSync(schemasDst, { recursive: true });
-    }
-  }
 
   if (!vbriefMdPresent) {
     const fwVbriefMd = join(deftDir, "vbrief", "vbrief.md");
