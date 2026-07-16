@@ -21,6 +21,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { posix, win32 } from "node:path";
 import { BRANCH_GATE_BYPASS_ENV, RELEASE_PREFLIGHT_ENV } from "../release/constants.js";
+import { resolveCoverageDebtIssue } from "../vitest-runner/coverage-debt.js";
 
 /** Release Step-5 vars that must not leak into vitest via inherited pnpm env (#2434). */
 const TS_LANE_POISON_ENV_KEYS = [BRANCH_GATE_BYPASS_ENV, RELEASE_PREFLIGHT_ENV] as const;
@@ -68,6 +69,11 @@ export interface RunTsLaneOptions {
   readonly runner?: LaneRunner;
   /** Injected sink for human-facing notices (defaults to stdout). */
   readonly out?: (message: string) => void;
+  /**
+   * Env used to resolve release coverage-debt before sanitizeTsLaneEnv strips
+   * DEFT_RELEASE_PREFLIGHT (#2618). Defaults to process.env.
+   */
+  readonly env?: NodeJS.ProcessEnv;
 }
 
 /** Windows command shims (.cmd/.bat) need a shell; native executables do not. */
@@ -134,6 +140,11 @@ export function runTsLane(projectRoot: string, options: RunTsLaneOptions): numbe
   const { pnpm } = options;
   const runner = options.runner ?? defaultRunner;
   const out = options.out ?? ((message: string) => process.stdout.write(`${message}\n`));
+  // Resolve debt from the pre-sanitize env: sanitizeTsLaneEnv strips
+  // DEFT_RELEASE_PREFLIGHT (required for the env-based debt path), so forward
+  // --allow-coverage-debt=#N on the vitest argv instead (#2618 / #2573).
+  const debt = resolveCoverageDebtIssue([], options.env ?? process.env);
+  const debtIssue = debt.kind === "valid" ? debt.issue : null;
 
   if (!pnpm) {
     out(SKIP_NOTICE);
@@ -142,6 +153,9 @@ export function runTsLane(projectRoot: string, options: RunTsLaneOptions): numbe
 
   for (const command of LANE_COMMANDS) {
     const argv = [pnpm, ...command];
+    if (debtIssue !== null && command[1] === "test") {
+      argv.push("--", `--allow-coverage-debt=${debtIssue}`);
+    }
     const result = runner(argv, projectRoot);
     const code = result.status;
     // A null status means the child was terminated by a signal (SIGKILL / OOM /

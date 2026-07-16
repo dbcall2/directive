@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { BRANCH_GATE_BYPASS_ENV, RELEASE_PREFLIGHT_ENV } from "../release/constants.js";
+import {
+  BRANCH_GATE_BYPASS_ENV,
+  COVERAGE_DEBT_ENV,
+  RELEASE_PREFLIGHT_ENV,
+} from "../release/constants.js";
 import {
   LANE_COMMANDS,
   resolvePnpm,
@@ -82,6 +86,27 @@ describe("runTsLane", () => {
       LANE_COMMANDS.map((cmd) => ["/usr/bin/pnpm", ...cmd]),
     );
     expect(runner.calls.every((c) => c.cwd === "/repo")).toBe(true);
+  });
+
+  it("forwards --allow-coverage-debt to pnpm test when release Step-5 env is set (#2618)", () => {
+    const runner = new Runner([0, 0, 0]);
+
+    const rc = runTsLane("/repo", {
+      pnpm: "/usr/bin/pnpm",
+      runner: runner.run,
+      out: () => undefined,
+      env: {
+        [COVERAGE_DEBT_ENV]: "2618",
+        [RELEASE_PREFLIGHT_ENV]: "1",
+      },
+    });
+
+    expect(rc).toBe(0);
+    expect(runner.calls.map((c) => c.argv)).toEqual([
+      ["/usr/bin/pnpm", "run", "lint"],
+      ["/usr/bin/pnpm", "run", "build"],
+      ["/usr/bin/pnpm", "run", "test", "--", "--allow-coverage-debt=2618"],
+    ]);
   });
 
   it("fails fast on the first non-zero exit", () => {
