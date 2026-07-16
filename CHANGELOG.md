@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.79.0] - 2026-07-16
+
+> Origin-linked xBRIEF→issue sync, triage cache auto-populate, Codex mutation hooks, and Windows engine-probe / AppSec / hybrid-hooks reliability fixes.
+
 ### Changed
 
 - **Windows swarm guidance no longer prefers cloud or concurrency=1 (#2563 follow-up).** Preamble §3.8 and the swarm skill now treat local parallel Cursor Task cohorts as first-class on Windows; they document the shipped `windowsHide` + warm-dist mitigations and forbid regressing them, instead of steering agents to cloud or a single worker.
@@ -4398,7 +4410,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.78.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.79.0...HEAD
+[0.79.0]: https://github.com/deftai/directive/compare/v0.78.0...v0.79.0
 [0.78.0]: https://github.com/deftai/directive/compare/v0.77.0...v0.78.0
 [0.77.0]: https://github.com/deftai/directive/compare/v0.77.0...v0.77.0
 [0.77.0]: https://github.com/deftai/directive/compare/v0.76.0...v0.77.0

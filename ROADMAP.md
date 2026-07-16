@@ -967,4 +967,25 @@
 - **#2508** -- docs(agents,skills): always-on pin policy for critical skills in AGENTS.md -- `[completed]`
 - **#2554** -- ci(smoke): greenfield-python-free-smoke exits 143 (SIGTERM) with no stdout after engine-invoke -- `[completed]`
 - **#2563** -- swarm(windows): Cursor Task-tool agents flood cmd.exe windows and freeze host -- `[completed]`
+- **#2566** -- scope:complete syncs specification.xbrief.json item statuses -- `[completed]`
+- **#2568** -- Detect and surface the user's default shell so agents don't assume Bash (zsh mangling on macOS) -- `[completed]`
+- **#2572** -- release-e2e: do not attempt temp-repo delete during agent release; report for manual cleanup -- `[completed]`
+- **#2573** -- Release coverage soft-pass only via --allow-coverage-debt=#N; restore win32 branches floor to 85 -- `[completed]`
+- **#2574** -- bug(cache,session): gated ritual recovery prints working cache fetch-all command -- `[completed]`
+- **#2575** -- Empty cache auto-refresh and triage:queue routing for what's next -- `[completed]`
+- **#2577** -- release: Step 3 lifecycle sync hard-fails when GitHub REST core rate limit is exhausted -- `[completed]`
+- **#2578** -- bug(scope): completed/ xBRIEFs must stamp plan.status completed|failed atomically with the folder move -- `[completed]`
+- **#2579** -- GH_REPO in parent shell breaks pr-wait-mergeable tests during task check / release -- `[completed]`
+- **#2580** -- bug(test,windows): Vitest coverage ENOENT on coverage/.tmp mid-suite fails task check after green tests -- `[completed]`
+- **#2596** -- feat(harness): add Codex lifecycle hook adapter + project deposit -- `[completed]`
+- docs(swarm): drop prefer-cloud and concurrency-1 Windows guidance (#2563 follow-up) -- `[completed]`
+- **#2530** -- fix(installer): hybrid update/setup must deposit root git hooks -- `[completed]`
+- **#2534** -- Exclude managed .deft/core from consumer Prettier / format gates -- `[completed]`
+- **#2538** -- doctor(payload-staleness): branch pin with stale tag must not false-nudge newer-release -- `[completed]`
+- **#2540** -- MVP: sync origin-linked GitHub issues after xBRIEF material updates -- `[completed]`
+- **#2542** -- docs: teach consumers the work-selection fork (ordered plan vs ranked queue) -- `[completed]`
+- **#2595** -- v0.78 update leaves migrated xbrief schema and version derivative stale -- `[completed]`
+- **#2598** -- bug(xbrief): merged #2589 leaves invalid active scope that breaks task check -- `[completed]`
+- **#2601** -- sec: AppSec — migrate symlink secret copy; reconcile confused-deputy; check-updates SSRF -- `[completed]`
+- **#2606** -- bug(resolution): defaultEngineProbe reports engine unreachable on Windows despite global npm install -- `[completed]`
 
