@@ -4,7 +4,7 @@
   },
   "plan": {
     "title": "2598-lifecycle-reconciliation",
-    "status": "running",
+    "status": "completed",
     "items": [
       {
         "title": "Reproduce the base validation failure and merged-PR story resolution",
@@ -20,7 +20,7 @@
       },
       {
         "title": "Publish the dedicated #2598 pull request and assess current PR impacts",
-        "status": "pending"
+        "status": "completed"
       }
     ],
     "edges": []
