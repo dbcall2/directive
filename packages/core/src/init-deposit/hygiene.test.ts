@@ -19,6 +19,21 @@ describe("installer-managed allowlist (#1576)", () => {
     expect(installerManagedGuardEre()).toContain("Taskfile\\.yml");
   });
 
+  it("allowlists and stages the project-scoped Codex hook deposit", () => {
+    const root = mkdtempSync(join(tmpdir(), "hygiene-codex-hook-"));
+    try {
+      mkdirSync(join(root, ".deft", "core"), { recursive: true });
+      mkdirSync(join(root, ".codex"), { recursive: true });
+      writeFileSync(join(root, ".codex", "hooks.json"), "{}\n", "utf8");
+
+      expect(isInstallerManagedPath(".codex/hooks.json")).toBe(true);
+      expect(installerManagedGuardEre()).toContain("\\.codex/hooks\\.json");
+      expect(frameworkStagePaths(root, join(root, ".deft", "core"))).toContain(".codex/hooks.json");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("includes Taskfile.yml in framework stage paths when present", () => {
     const root = mkdtempSync(join(tmpdir(), "hygiene-stage-"));
     try {

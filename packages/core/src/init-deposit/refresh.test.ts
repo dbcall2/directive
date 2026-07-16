@@ -201,6 +201,22 @@ describe("runRefreshDeposit", () => {
       `# Operator prose\n\n<!-- deft:managed-section v2 -->\nOld body\n${AGENTS_MANAGED_CLOSE}\n`,
       "utf8",
     );
+    mkdirSync(join(project, ".codex"), { recursive: true });
+    writeFileSync(
+      join(project, ".codex", "hooks.json"),
+      `${JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Bash",
+              hooks: [{ type: "command", command: "./consumer-check.sh" }],
+            },
+          ],
+        },
+      })}\n`,
+      "utf8",
+    );
+    writeFileSync(join(project, ".codex", "config.toml"), 'model = "gpt-5"\n', "utf8");
 
     const lines: string[] = [];
     const result = await runRefreshDeposit(
@@ -221,6 +237,10 @@ describe("runRefreshDeposit", () => {
     expect(result.agentsMdUpdated).toBe(true);
     expect(lines.join("")).toContain("refresh side effects (#1671)");
     expect(existsSync(join(result.deftDir, "main.md"))).toBe(true);
+    const codexHooks = readFileSync(join(project, ".codex", "hooks.json"), "utf8");
+    expect(codexHooks).toContain("./consumer-check.sh");
+    expect(codexHooks).toContain("deft hook:dispatch --host codex --event tool.before");
+    expect(readFileSync(join(project, ".codex", "config.toml"), "utf8")).toBe('model = "gpt-5"\n');
   });
 
   it("is idempotent on a second run (no AGENTS.md rewrite)", async () => {

@@ -17,21 +17,24 @@ function project(): string {
 }
 
 describe("evaluateAgentHooks", () => {
-  it("passes when all P0 registrations are healthy", () => {
+  it("passes when all P0 registrations are structurally healthy", () => {
     const root = project();
     writeAgentHookDeposit(root);
 
     const result = evaluateAgentHooks(root);
     expect(result.code).toBe(0);
-    expect(result.message).toContain("Claude, Grok, Cursor");
+    expect(result.message).toContain("Claude, Grok, Cursor, Codex");
+    expect(result.message).toContain("runtime trust is user-controlled");
+    expect(result.message).toContain("`/hooks`");
     expect(result.message).toContain("direct-write tools only");
   });
 
   it("reports missing registrations separately from git hooks", () => {
     const result = evaluateAgentHooks(project());
     expect(result.code).toBe(1);
-    expect(result.message).toContain("agent hooks NON-FUNCTIONAL");
+    expect(result.message).toContain("agent hook registration INCOMPLETE");
     expect(result.message).toContain(".grok/hooks/deft.json");
+    expect(result.message).toContain(".codex/hooks.json");
     expect(result.stream).toBe("stderr");
   });
 
