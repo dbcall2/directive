@@ -842,7 +842,14 @@ export function applyLifecycleFixes(
     mkdirSync(join(vbriefDir, destFolder), { recursive: true });
     try {
       statSync(dst);
-      failures.push(`target already exists in ${destFolder}/: ${filename}`);
+      // Destination already holds this basename (#2622). Treat as already-terminal
+      // and continue the sweep. Do not unlink the source — a same-basename collision
+      // can be a non-identical artifact; leave removal to the operator / git.
+      process.stderr.write(
+        `reconcile: skipped ${relPath} — already present in ${destFolder}/ (#2622); ` +
+          "left source in place for manual cleanup\n",
+      );
+      skipped += 1;
       continue;
     } catch {
       // destination free
