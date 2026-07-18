@@ -84,11 +84,13 @@ import {
   attachCompletedStatusDrift,
   buildLifecycleReport,
   detectRepo,
+  extractReferencesFromVbrief,
   fetchIssueStates,
   formatJson,
   formatMarkdown,
   IssueState,
   parseDecompositionOrigin,
+  parseIssueNumber,
   parseParentIssue,
   parsePlanRef,
   reconcile,
@@ -649,9 +651,9 @@ describe("intake coverage boost", () => {
         root,
       );
       expect(skipped).toBe(1);
-      expect(
-        stderr.mock.calls.some((c) => String(c[0]).includes("left source in place")),
-      ).toBe(true);
+      expect(stderr.mock.calls.some((c) => String(c[0]).includes("left source in place"))).toBe(
+        true,
+      );
 
       stderr.mockRestore();
       rmSync(root, { recursive: true, force: true });
@@ -727,6 +729,21 @@ describe("intake coverage boost", () => {
       const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
       expect(reconcileMain({ vbriefDir: "/nonexistent-vbrief-xyz" })).toBe(1);
       stderr.mockRestore();
+    });
+
+    it("parseIssueNumber and extractReferencesFromVbrief edge cases", () => {
+      expect(parseIssueNumber({ type: "x", url: "https://github.com/o/r/issues/88" })).toBe(88);
+      expect(parseIssueNumber({ type: "github-issue", id: "#99" })).toBe(99);
+      expect(parseIssueNumber({ type: "x" })).toBeNull();
+      expect(extractReferencesFromVbrief({ plan: { items: "not-array" } })).toEqual([]);
+      expect(
+        extractReferencesFromVbrief({
+          plan: {
+            references: [{ type: "x-vbrief/github-issue", uri: "https://github.com/o/r/issues/5" }],
+            items: [{ references: [{ type: "x-vbrief/github-issue", id: "#6" }] }],
+          },
+        }),
+      ).toHaveLength(2);
     });
   });
 

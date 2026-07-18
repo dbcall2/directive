@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { waitMergeableAndMerge } from "./cascade.js";
-import { classifyMonitorOutcome } from "./classify.js";
+import { classifyMonitorOutcome, parseMonitorPayload } from "./classify.js";
 import { EXIT_CONFIG_ERROR } from "./constants.js";
 import { parseWaitMergeableArgs, runWaitMergeable } from "./main.js";
 import { makeResult, toResultDict } from "./result.js";
@@ -148,9 +148,9 @@ describe("coverage boost", () => {
   it("classifyMonitorOutcome handles cap-reached and merged-by-sibling", () => {
     expect(classifyMonitorOutcome(1, {})[0]).toBe("cap-reached");
     expect(classifyMonitorOutcome(2, {})[0]).toBe("config-error");
-    expect(
-      classifyMonitorOutcome(3, { readiness: { partial_data: { merged: true } } })[0],
-    ).toBe("merged-by-sibling");
+    expect(classifyMonitorOutcome(3, { readiness: { partial_data: { merged: true } } })[0]).toBe(
+      "merged-by-sibling",
+    );
     expect(classifyMonitorOutcome(99, {})[0]).toBe("config-error");
   });
 
@@ -162,5 +162,12 @@ describe("coverage boost", () => {
     });
     expect(result.outcome).toBe("config-error");
     expect(result.error).toContain("protected boom");
+  });
+
+  it("parseMonitorPayload tolerates empty and invalid stdout", () => {
+    expect(parseMonitorPayload("")).toEqual({});
+    expect(parseMonitorPayload("not-json")).toEqual({});
+    expect(parseMonitorPayload("[1,2,3]")).toEqual({});
+    expect(parseMonitorPayload('{"monitor_result":"CLEAN"}').monitor_result).toBe("CLEAN");
   });
 });
