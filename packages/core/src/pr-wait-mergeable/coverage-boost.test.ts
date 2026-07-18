@@ -131,4 +131,36 @@ describe("coverage boost", () => {
     expect(dict.protected_check).toEqual({ returncode: 0 });
     expect(dict.merge_stdout).toBe("done");
   });
+
+  it("parseWaitMergeableArgs accepts protected list and repo equals form", () => {
+    const parsed = parseWaitMergeableArgs([
+      "42",
+      "--repo=o/r",
+      "--protected=1,2,3",
+      "--cap-minutes=5",
+    ]);
+    expect(parsed.error).toBeUndefined();
+    expect(parsed.prNumber).toBe(42);
+    expect(parsed.protectedValues).toEqual(["1,2,3"]);
+    expect(parsed.capMinutes).toBe(5);
+  });
+
+  it("classifyMonitorOutcome handles cap-reached and merged-by-sibling", () => {
+    expect(classifyMonitorOutcome(1, {})[0]).toBe("cap-reached");
+    expect(classifyMonitorOutcome(2, {})[0]).toBe("config-error");
+    expect(
+      classifyMonitorOutcome(3, { readiness: { partial_data: { merged: true } } })[0],
+    ).toBe("merged-by-sibling");
+    expect(classifyMonitorOutcome(99, {})[0]).toBe("config-error");
+  });
+
+  it("waitMergeableAndMerge surfaces protected check config errors", () => {
+    const result = waitMergeableAndMerge(1, "o/r", {
+      capMinutes: 1,
+      protected: [1119],
+      protectedFn: () => [2, "", "protected boom"],
+    });
+    expect(result.outcome).toBe("config-error");
+    expect(result.error).toContain("protected boom");
+  });
 });

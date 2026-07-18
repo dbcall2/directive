@@ -110,6 +110,8 @@ describe("fetch rate limit", () => {
 
   it("detectRateLimit handles invalid retry-after", () => {
     expect(detectRateLimit("HTTP 429 Retry-After: abc")[1]).toBe(60);
+    expect(detectRateLimit("HTTP 429 rate limit exceeded")[0]).toBe(true);
+    expect(detectRateLimit("HTTP 200 OK")[0]).toBe(false);
   });
 });
 

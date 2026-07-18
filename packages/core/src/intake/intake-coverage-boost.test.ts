@@ -81,6 +81,7 @@ import {
 } from "./platform-capabilities.js";
 import {
   applyLifecycleFixes,
+  attachCompletedStatusDrift,
   buildLifecycleReport,
   detectRepo,
   fetchIssueStates,
@@ -93,7 +94,9 @@ import {
   reconcile,
   reconcileMain,
   reconcileWithUnlinked,
+  repairCompletedStatusDrift,
   resolveLifecycleAnchor,
+  scanCompletedStatusDrift,
   scanLifecycleAnchors,
   scanVbriefDir,
   stateReasonOf,
@@ -441,6 +444,215 @@ describe("intake coverage boost", () => {
       expect(skipped).toBe(0);
       expect(failures).toHaveLength(0);
       expect(existsSync(join(root, "xbrief", "cancelled", "child.xbrief.json"))).toBe(true);
+      stderr.mockRestore();
+      rmSync(root, { recursive: true, force: true });
+    });
+
+    it("formatMarkdown renders populated and empty sections", () => {
+      const populated = formatMarkdown({
+        linked: [{ issue_number: 1, title: "Linked", vbrief_files: ["active/a.xbrief.json"] }],
+        no_open_issue: [
+          {
+            issue_number: 2,
+            vbrief_files: ["proposed/b.xbrief.json"],
+            note: "closed",
+            state_reason: "COMPLETED",
+          },
+        ],
+        unlinked: [{ issue_number: 3, title: "Orphan" }],
+        completed_status_drift: [
+          { rel_path: "completed/bad.xbrief.json", status: "running\nline" },
+        ],
+        summary: {
+          linked_count: 1,
+          vbriefs_no_open_issue_count: 1,
+          total_open_issues: 5,
+          unlinked_count: 1,
+        },
+      });
+      expect(populated).toContain("Open issues");
+      expect(populated).toContain("Unlinked");
+      expect(populated).toContain("#1 Linked");
+      expect(populated).toContain("#3 Orphan");
+      expect(populated).toContain("D2 drift");
+      expect(populated).toContain("running line");
+
+      const empty = formatMarkdown({
+        linked: [],
+        no_open_issue: [],
+        unlinked: [],
+        summary: {
+          linked_count: 0,
+          vbriefs_no_open_issue_count: 0,
+          total_open_issues: 0,
+          unlinked_count: 0,
+        },
+      });
+      expect(empty.match(/None\./g)?.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it("scanCompletedStatusDrift and repairCompletedStatusDrift branches", () => {
+      const root = mkdtempSync(join(tmpdir(), "reconcile-drift-"));
+      mkVbriefTree(root, [
+        {
+          folder: "completed",
+          name: "drift.xbrief.json",
+          data: { plan: { status: "running" } },
+        },
+        {
+          folder: "completed",
+          name: "ok.xbrief.json",
+          data: { plan: { status: "completed" } },
+        },
+      ]);
+      writeFileSync(join(root, "xbrief", "completed", "bad-json.xbrief.json"), "{", "utf8");
+      const vbriefDir = join(root, "xbrief");
+      const drift = scanCompletedStatusDrift(vbriefDir);
+      expect(drift.some((d) => d.rel_path === "completed/drift.xbrief.json")).toBe(true);
+      const report = attachCompletedStatusDrift(
+        {
+          linked: [],
+          no_open_issue: [],
+          summary: { linked_count: 0, vbriefs_no_open_issue_count: 0 },
+        },
+        drift,
+      );
+      expect(report.summary.completed_status_drift_count).toBe(drift.length);
+      expect(formatMarkdown(report)).toContain("D2 drift");
+
+      const [repaired, skipped, failures] = repairCompletedStatusDrift(vbriefDir, [
+        ...drift,
+        { rel_path: "completed/ok.xbrief.json", status: "completed" },
+      ]);
+      expect(repaired).toBeGreaterThanOrEqual(1);
+      expect(skipped).toBeGreaterThanOrEqual(1);
+      expect(failures).toHaveLength(0);
+
+      const [, , shapeFailures] = repairCompletedStatusDrift(vbriefDir, [
+        { rel_path: "orphan.xbrief.json", status: "running" },
+      ]);
+      expect(shapeFailures.some((f) => f.includes("unexpected vBRIEF path shape"))).toBe(true);
+
+      rmSync(root, { recursive: true, force: true });
+    });
+
+    it("applyLifecycleFixes covers skip and failure branches", () => {
+      const root = mkdtempSync(join(tmpdir(), "reconcile-branches-"));
+      mkVbriefTree(root, [
+        {
+          folder: "active",
+          name: "bad.xbrief.json",
+          data: { plan: { status: "running", references: [] } },
+        },
+        {
+          folder: "completed",
+          name: "terminal.xbrief.json",
+          data: { plan: { status: "completed", references: [] } },
+        },
+      ]);
+      writeFileSync(join(root, "xbrief", "active", "invalid.xbrief.json"), "not-json", "utf8");
+      const vbriefDir = join(root, "xbrief");
+      const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+      const baseReport = {
+        linked: [],
+        summary: { linked_count: 0, vbriefs_no_open_issue_count: 0 },
+        no_open_issue: [] as {
+          issue_number: number;
+          vbrief_files: string[];
+          state_reason?: string;
+          note?: string;
+        }[],
+      };
+
+      let [, skipped, failures] = applyLifecycleFixes(
+        vbriefDir,
+        {
+          ...baseReport,
+          no_open_issue: [
+            {
+              issue_number: 1,
+              vbrief_files: ["orphan.xbrief.json"],
+              state_reason: "COMPLETED",
+              note: "n",
+            },
+          ],
+        },
+        root,
+      );
+      expect(failures.some((f) => f.includes("unexpected vBRIEF path shape"))).toBe(true);
+
+      [, skipped, failures] = applyLifecycleFixes(
+        vbriefDir,
+        {
+          ...baseReport,
+          no_open_issue: [
+            {
+              issue_number: 2,
+              vbrief_files: ["completed/terminal.xbrief.json"],
+              state_reason: "COMPLETED",
+              note: "n",
+            },
+          ],
+        },
+        root,
+      );
+      expect(skipped).toBeGreaterThanOrEqual(1);
+
+      [, , failures] = applyLifecycleFixes(
+        vbriefDir,
+        {
+          ...baseReport,
+          no_open_issue: [
+            {
+              issue_number: 3,
+              vbrief_files: ["active/missing.xbrief.json"],
+              state_reason: "COMPLETED",
+              note: "n",
+            },
+          ],
+        },
+        root,
+      );
+      expect(failures.some((f) => f.includes("missing"))).toBe(true);
+
+      [, , failures] = applyLifecycleFixes(
+        vbriefDir,
+        {
+          ...baseReport,
+          no_open_issue: [
+            {
+              issue_number: 4,
+              vbrief_files: ["active/invalid.xbrief.json"],
+              state_reason: "COMPLETED",
+              note: "n",
+            },
+          ],
+        },
+        root,
+      );
+      expect(failures.some((f) => f.includes("failed to parse"))).toBe(true);
+
+      writeFileSync(join(vbriefDir, "completed", "bad.xbrief.json"), "{}\n", "utf8");
+      [, skipped] = applyLifecycleFixes(
+        vbriefDir,
+        {
+          ...baseReport,
+          no_open_issue: [
+            {
+              issue_number: 5,
+              vbrief_files: ["active/bad.xbrief.json"],
+              state_reason: "COMPLETED",
+              note: "n",
+            },
+          ],
+        },
+        root,
+      );
+      expect(skipped).toBe(1);
+      expect(
+        stderr.mock.calls.some((c) => String(c[0]).includes("left source in place")),
+      ).toBe(true);
+
       stderr.mockRestore();
       rmSync(root, { recursive: true, force: true });
     });

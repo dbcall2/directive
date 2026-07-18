@@ -6,7 +6,7 @@
   "plan": {
     "id": "emergency-patch-0.79.1",
     "title": "Emergency patch 0.79.1: Write-gate propose exemption + release cohort",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Ship a patch release fixing the Write-gate chicken-and-egg adoption blocker (#2625) plus the v0.79.0 cut friction bugs (#2622, #2623, #2621, #2615) and clear coverage debt (#2618) without a second soft-pass.",
       "Origin": "Operator-approved cohort: /deft:change emergency-patch-0.79.1",
@@ -106,8 +106,9 @@
     "metadata": {
       "kind": "story",
       "capacityBucket": "bug-fix",
-      "changeName": "emergency-patch-0.79.1"
+      "changeName": "emergency-patch-0.79.1",
+      "completedAt": "2026-07-18T00:13:31Z"
     },
-    "updated": "2026-07-17T23:04:52Z"
+    "updated": "2026-07-18T00:13:31Z"
   }
 }
