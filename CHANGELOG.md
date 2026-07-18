@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+### Removed
+
+## [0.79.1] - 2026-07-18
+
+> Write-gate propose exemption, release closeout hardening, and consumer pr-monitor path fix.
+
+### Added
+
+### Changed
+
 - **Release closeout commits `policy:enforce-branches` with a scoped push (#2623).** The release skill now requires committing the typed-flag restore in the same closeout (scoped `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1` on those git commands only) so origin does not stay opted-in or leave a dirty enforce under protection ON.
 - **PowerShell-safe coverage-debt flag examples (#2621).** Release help and the release skill document `--allow-coverage-debt=N` (no bare `#`) so Windows shells do not strip the issue number.
 
@@ -4418,7 +4430,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.79.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.79.1...HEAD
+[0.79.1]: https://github.com/deftai/directive/compare/v0.79.0...v0.79.1
 [0.79.0]: https://github.com/deftai/directive/compare/v0.78.0...v0.79.0
 [0.78.0]: https://github.com/deftai/directive/compare/v0.77.0...v0.78.0
 [0.77.0]: https://github.com/deftai/directive/compare/v0.77.0...v0.77.0

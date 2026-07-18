@@ -988,4 +988,5 @@
 - **#2598** -- bug(xbrief): merged #2589 leaves invalid active scope that breaks task check -- `[completed]`
 - **#2601** -- sec: AppSec — migrate symlink secret copy; reconcile confused-deputy; check-updates SSRF -- `[completed]`
 - **#2606** -- bug(resolution): defaultEngineProbe reports engine unreachable on Windows despite global npm install -- `[completed]`
+- **#2625** -- Emergency patch 0.79.1: Write-gate propose exemption + release cohort -- `[completed]`
 
