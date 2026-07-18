@@ -34,6 +34,34 @@ describe("captureExec", () => {
     expect(result.returncode).toBe(-1);
     expect(result.stderr).toContain("timed out after");
   });
+
+  it("streams stderr live when inheritStderr is set", () => {
+    const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const result = wrappers.captureExec(
+      process.execPath,
+      ["-e", "process.stderr.write('live')"],
+      5000,
+      { inheritStderr: true },
+    );
+    expect(result.returncode).toBe(0);
+    expect(result.stderr).toBe("");
+    stderrSpy.mockRestore();
+  });
+
+  it("passes custom env to the child process", () => {
+    const result = wrappers.captureExec(
+      process.execPath,
+      ["-e", "process.stdout.write(process.env.DEFT_WRAPPER_ENV_PROBE || '')"],
+      5000,
+      { env: { ...process.env, DEFT_WRAPPER_ENV_PROBE: "ok" } },
+    );
+    expect(result.stdout).toBe("ok");
+  });
+
+  it("returns -1 when spawn status is null", () => {
+    const result = wrappers.captureExec("/nonexistent/binary-xyz-2", [], 1000);
+    expect(result.returncode).toBe(-1);
+  });
 });
 
 describe("runGhMerge", () => {

@@ -452,4 +452,55 @@ describe("provider input normalization", () => {
     expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
     expect(decision.message).toContain("lifecycle artifact");
   });
+
+  it("hints when write target uses backslash proposed paths (#2625)", () => {
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Write",
+          tool_input: { file_path: "xbrief\\proposed\\notes.md" },
+        },
+      },
+      readySeams({
+        inspectScope: () => ({
+          ready: false,
+          path: null,
+          message: "No active xBRIEF",
+        }),
+      }),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+    expect(decision.message).toContain("lifecycle artifact");
+  });
+
+  it("resolves workspaceRoot camelCase spelling", () => {
+    expect(projectRootFromHookPayload({ workspaceRoot: "/camel" }, "/fallback")).toBe(
+      resolve("/camel"),
+    );
+  });
+
+  it("rejects lifecycle writes that escape the project root", () => {
+    expect(
+      isProposedLifecycleWrite("/project", "xbrief/proposed/../active/story.xbrief.json"),
+    ).toBe(false);
+  });
+
+  it("surfaces SessionStart stdout when stderr is empty", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "session.start",
+        projectRoot: "/project",
+        payload: {},
+      },
+      readySeams({
+        sessionStart: () => ({ code: 3, stdout: "stdout-only detail", stderr: "" }),
+      }),
+    );
+    expect(decision).toMatchObject({ verdict: "allow", code: "session-start-degraded" });
+    expect(decision.message).toContain("stdout-only detail");
+  });
 });

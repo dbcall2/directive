@@ -431,7 +431,9 @@ describe("intake cli and branch coverage", () => {
       ).toBe(0);
       expect(existsSync(join(root, "xbrief", "active", name))).toBe(true);
       expect(existsSync(join(root, "xbrief", "completed", name))).toBe(true);
-      expect(stderr.mock.calls.some((c) => String(c[0]).includes("already present"))).toBe(true);
+      expect(stderr.mock.calls.some((c) => String(c[0]).includes("left source in place"))).toBe(
+        true,
+      );
       callSpy.mockRestore();
       stderr.mockRestore();
       stdout.mockRestore();
