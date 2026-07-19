@@ -734,6 +734,7 @@
 - **#1942** -- S5: docs flip + greenfield/upgrade e2e legs -- `[completed]`
 - **#1912** -- Freeze the Go installer at v0.56.0 (pin LAST_GO_INSTALLER) -- `[completed]`
 - **#1967** -- Bundle .githooks/ + consumer Taskfile into @deftai/directive-content (npm-only deposit parity) -- `[completed]`
+- **#1972** -- Wave 5 finalization: freeze the Go bridge, retire Go, purge Python (runbook + recovery) -- `[completed]`
 - **#1985** -- Exclude __pycache__/*.pyc from @deftai/directive-content prepack -- `[completed]`
 - **#1987** -- Freeze gate should skip Go build gracefully (green) instead of hard-failing release.yml post-freeze -- `[completed]`
 - **#1989** -- Bump esbuild to >=0.28.1 in framework pnpm-lock (low-sev dev advisory) -- `[completed]`
@@ -989,4 +990,9 @@
 - **#2601** -- sec: AppSec — migrate symlink secret copy; reconcile confused-deputy; check-updates SSRF -- `[completed]`
 - **#2606** -- bug(resolution): defaultEngineProbe reports engine unreachable on Windows despite global npm install -- `[completed]`
 - **#2625** -- Emergency patch 0.79.1: Write-gate propose exemption + release cohort -- `[completed]`
+- **#2521** -- sec: five medium symlink/path-escape write sinks (deposit, capacity backfill, cache self-heal, swarm worktree-map, eval health) -- `[completed]`
+- **#2524** -- bug(change-init): scaffold current vBRIEF version instead of 0.5 -- `[completed]`
+- **#2528** -- bug(build-skill): replace missing task test:coverage gate -- `[completed]`
+- **#2620** -- pr:merge-ready can report CLEAN while unresolved Greptile inline P1 remains -- `[completed]`
+- **#2646** -- Windows PowerShell: safe multi-line git/gh bodies (heredoc + long --body) -- `[completed]`
 

@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.79.2] - 2026-07-19
+
+> Bug-fix patch: Greptile merge-ready gating, Windows coverage/CI hardening, symlink write-sink containment, PowerShell multi-line git/gh guidance, and agent skill/scaffold fixes.
+
+### Added
+
 - **`lifecycle:event` approval recorder on the consumer Taskfile/CLI surface (#2631).** Review-cycle merge-gate approval now records `plan:approved` via `task lifecycle:event` / `deft lifecycle:event`, with idempotent dedupe for repeated approvals on the same PR and HEAD SHA. Closes #2631.
 
 ### Changed
@@ -4447,7 +4459,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.79.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.79.2...HEAD
+[0.79.2]: https://github.com/deftai/directive/compare/v0.79.1...v0.79.2
 [0.79.1]: https://github.com/deftai/directive/compare/v0.79.0...v0.79.1
 [0.79.0]: https://github.com/deftai/directive/compare/v0.78.0...v0.79.0
 [0.78.0]: https://github.com/deftai/directive/compare/v0.77.0...v0.78.0
