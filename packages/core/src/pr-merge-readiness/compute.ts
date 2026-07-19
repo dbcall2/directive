@@ -18,6 +18,11 @@ import {
   resolveRepo,
 } from "./gh.js";
 import {
+  fetchUnresolvedGreptileInlineFindings,
+  type InlineGreptileFindings,
+  inlineFindingsToDict,
+} from "./greptile-inline.js";
+import {
   fetchMergeability,
   isGithubMergeableClean,
   type MergeabilitySignal,
@@ -38,9 +43,10 @@ function buildGateResult(
   via: string,
   partialData: Record<string, unknown> = {},
   error: string | null = null,
+  inline: InlineGreptileFindings | null = null,
 ): GateResult {
   const verdict = parseGreptileBody(body);
-  const failures = evaluateGates(prNumber, headSha, verdict);
+  const failures = evaluateGates(prNumber, headSha, verdict, inline);
   return {
     prNumber,
     repo,
@@ -162,6 +168,25 @@ function applyCiGateForHead(
  * is only soft-blocked -- absent or stale for the current head) reconcile
  * against GitHub's own mergeability (#2260). Shared by primary + fallback1.
  */
+function loadInlineGreptileFindings(
+  prNumber: number,
+  repo: string | null,
+  headSha: string,
+  runGh: RunGhFn,
+): InlineGreptileFindings {
+  const resolved = resolveRepo(repo, runGh);
+  if (resolved.repo === null) {
+    return {
+      p0Count: 0,
+      p1Count: 0,
+      unresolvedThreadCount: 0,
+      error:
+        resolved.error || "repo unresolved for inline reviewThreads lookup; pass --repo OWNER/REPO",
+    };
+  }
+  return fetchUnresolvedGreptileInlineFindings(prNumber, resolved.repo, headSha, runGh);
+}
+
 function finalizeVerdictGate(
   prNumber: number,
   repo: string | null,
@@ -170,9 +195,11 @@ function finalizeVerdictGate(
   runGh: RunGhFn,
   options: ComputeGateOptions,
 ): { failures: string[]; partialData: Record<string, unknown> } {
-  const failures = evaluateGates(prNumber, headSha, verdict);
   const partialData: Record<string, unknown> = {};
   const resolved = resolveRepo(repo, runGh);
+  const inline = loadInlineGreptileFindings(prNumber, repo, headSha, runGh);
+  partialData.greptile_inline = inlineFindingsToDict(inline);
+  const failures = evaluateGates(prNumber, headSha, verdict, inline);
 
   if (failures.length === 0) {
     const ci = applyCiGateForHead(resolved.repo, headSha, runGh, options);
@@ -188,7 +215,7 @@ function finalizeVerdictGate(
   if (
     options.disableMergeabilityReconcile === true ||
     resolved.repo === null ||
-    !verdictBlockIsSoftOnly(verdict, headSha)
+    !verdictBlockIsSoftOnly(verdict, headSha, inline)
   ) {
     return { failures, partialData };
   }
@@ -237,6 +264,9 @@ function computePrimary(
   }
   partial.head_sha = headSha;
 
+  const resolved = resolveRepo(repo, runGh);
+  const effectiveRepo = resolved.repo ?? repo;
+
   const body = fetchGreptileCommentBody(prNumber, repo, runGh);
   if (body === null) {
     partial.primary_error = "gh api /issues/<N>/comments --jq returned non-zero";
@@ -246,7 +276,7 @@ function computePrimary(
   const verdict = parseGreptileBody(body);
   const { failures, partialData } = finalizeVerdictGate(
     prNumber,
-    repo,
+    effectiveRepo,
     headSha,
     verdict,
     runGh,
@@ -255,7 +285,7 @@ function computePrimary(
   return {
     result: {
       prNumber,
-      repo,
+      repo: effectiveRepo,
       headSha,
       verdict,
       failures,
