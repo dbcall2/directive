@@ -8,6 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
+import { assertWriteTargetSafe, ProjectionContainmentError } from "../fs/projection-containment.js";
 import { hasArtifactSuffix, resolveLifecycleFolder } from "../layout/resolve.js";
 import { stripTrailingPathSeparators } from "../text/redos-safe.js";
 import { append, canonicalLogPath, latestForPath, newDecisionId } from "./audit-log.js";
@@ -79,6 +80,15 @@ export function demoteOne(
       message: `Invalid transition: 'demote' requires file in ${SOURCE_FOLDER}/. File is in ${parent}/.`,
       auditEntry: null,
     };
+  }
+
+  try {
+    assertWriteTargetSafe(projectRoot, resolved);
+  } catch (err) {
+    if (err instanceof ProjectionContainmentError) {
+      return { ok: false, message: err.message, auditEntry: null };
+    }
+    throw err;
   }
 
   let data: Record<string, unknown>;
@@ -176,6 +186,15 @@ export function batchDemote(
 
   for (const name of files) {
     const candidate = join(pendingDir, name);
+    try {
+      assertWriteTargetSafe(projectRoot, candidate);
+    } catch (err) {
+      if (err instanceof ProjectionContainmentError) {
+        skipped.push(`${name}: ${err.message}`);
+        continue;
+      }
+      throw err;
+    }
     let data: Record<string, unknown>;
     try {
       data = JSON.parse(readFileSync(candidate, "utf8")) as Record<string, unknown>;
