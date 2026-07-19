@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "bug(build-skill): replace missing task test:coverage gate",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "content/skills/deft-directive-build/SKILL.md requires task test:coverage after every phase, but the Taskfile exposes no test:coverage task and the command exits 200. The skill must alias the task or point at the canonical coverage command already used by task check.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2528",
@@ -82,8 +82,9 @@
         "file_scope_confidence": "high",
         "model_tier": "medium",
         "missing_traces_justification": "Bug-fix from GitHub issue #2528; no FR trace registry for hotfix cohort."
-      }
+      },
+      "completedAt": "2026-07-19T17:06:50Z"
     },
-    "updated": "2026-07-19T16:14:57Z"
+    "updated": "2026-07-19T17:06:50Z"
   }
 }

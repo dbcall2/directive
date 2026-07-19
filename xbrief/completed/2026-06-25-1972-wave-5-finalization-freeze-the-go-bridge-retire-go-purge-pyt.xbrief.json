@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF ingested from GitHub issue #1972"
+    "description": "Scope vBRIEF ingested from GitHub issue #1972",
+    "updated": "2026-07-19T17:16:25Z"
   },
   "plan": {
     "title": "Wave 5 finalization: freeze the Go bridge, retire Go, purge Python (runbook + recovery)",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "Wave 5 finalization: freeze the Go bridge, retire Go, purge Python (runbook + recovery)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1972",
@@ -15,19 +16,23 @@
     "items": [
       {
         "title": "**1. Freeze-build prep (npm must be feature-complete before the freeze blesses it as the path).**",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-07-19T17:16:25Z"
       },
       {
         "title": "**2. Freeze release.** Choose the next  version. In the release commit, pin  in  (and align  only if step 1a kept the literal relevant). Run the **pre-cut rehearsal**: , , and the bundled . Then cut the real tag () — one tag ships the npm packages **and** the final Go installer binaries (the permanent frozen bridge).",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-07-19T17:16:25Z"
       },
       {
         "title": "**3. Soak / validate** the published release in the wild. This is the gate for step 4 and for the deferred Go-deletion decision (#1979).",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-07-19T17:16:25Z"
       },
       {
         "title": "**4. Python purge — #1860 (closes #1530).** Gated on step 3 (npm path proven), #1967 (step 1d), and an explicit **pre-0.20 migration decision** (see Gotchas):  is still Python (), so the purge must first either port it to TS or consciously declare pre-0.20 projects must migrate on an older Deft version. NOT gated on #1669 or on Go deletion.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-07-19T17:16:25Z"
       }
     ],
     "tags": [
@@ -72,6 +77,7 @@
     ],
     "metadata": {
       "kind": "epic"
-    }
+    },
+    "updated": "2026-07-19T17:16:25Z"
   }
 }

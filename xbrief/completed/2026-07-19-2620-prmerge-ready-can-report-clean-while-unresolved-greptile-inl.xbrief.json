@@ -1,0 +1,87 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Swarm-ready scope xBRIEF for GitHub issue #2620",
+    "updated": "2026-07-19T14:44:06Z"
+  },
+  "plan": {
+    "title": "pr:merge-ready can report CLEAN while unresolved Greptile inline P1 remains",
+    "status": "completed",
+    "narratives": {
+      "Description": "pr:merge-ready can report MERGE-READY while Greptile still has unresolved inline P0/P1 comments on the same HEAD SHA. Badge/summary counts alone are insufficient when open review threads remain.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2620",
+      "Overview": "## Summary\nOn deftai/statusreport PR #120, after fix commit `3a277b7`, `task deft:pr:merge-ready -- 120` reported:\n\n- Confidence 4/5\n- Findings P0=0 P1=0 P2=0\n- Result: MERGE-READY\n\nMeanwhile Greptile had an **unresolved inline P1** on that same HEAD (`Path traversal via .. in owner/repo segments` on `server/src/register/github.ts`). A review-cycle poller treated criterion (3) as failed because of the open thread; the merge-ready gate did not.\n\n## Expected\n`pr:merge-ready` should fail closed (or at least warn) when Greptile has unresolved inline P0/P1 review comments on the current HEAD SHA, even if the summary badge counts are zero / check-run conclusion is success.\n\n## Actual\nBadge/summary counts showed P1=0 and the gate returned MERGE-READY, enabling atomic merge while an open security P1 thread remained.\n\n## Impact\nAgents following review-cycle + merge-ready can squash-merge with open Greptile P1s that arrived on the re-review of a fix batch.\n\n## Refs\n- https://github.com/deftai/statusreport/pull/120\n- Comment id 3599505280 on that PR",
+      "Labels": "bug",
+      "UserStory": "As a review-cycle operator, I want pr:merge-ready to fail closed when Greptile has unresolved inline P0/P1 comments on the current HEAD, so that agents cannot squash-merge with open security findings.",
+      "ImplementationPlan": "1. Update the packages/core/src/pr/merge-ready.ts module (and greptile probe helpers under packages/core/src/pr/) so unresolved inline P0/P1 review comments on the current HEAD SHA fail the merge-ready gate even when badge counts are zero.\n2. Add a focused unit test under packages/core/src/pr/merge-ready.test.ts (and greptile.test.ts if needed) that fixtures the statusreport PR #120 class failure and asserts fail-closed evidence.\n3. CHANGELOG [Unreleased] entry."
+    },
+    "items": [
+      {
+        "id": "ac1",
+        "title": "Gate unresolved inline P0/P1",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given unresolved Greptile inline P0/P1 on current HEAD, when pr:merge-ready runs, then it does not report MERGE-READY/CLEAN solely from badge counts."
+        }
+      },
+      {
+        "id": "ac2",
+        "title": "HEAD SHA match",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given stale vs current HEAD reviews, when the gate runs, then only unresolved threads for the current HEAD SHA affect the verdict."
+        }
+      },
+      {
+        "id": "ac3",
+        "title": "Regression test",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given a fixture mirroring summary-clean + open inline P1, when tests run, then the merge-ready path fails closed."
+        }
+      }
+    ],
+    "tags": [
+      "bug"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2620",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2620: pr:merge-ready can report CLEAN while unresolved Greptile inline P1 remains"
+      }
+    ],
+    "updated": "2026-07-19T17:06:51Z",
+    "id": "merge-ready-unresolved-greptile-p1",
+    "metadata": {
+      "kind": "story",
+      "capacityBucket": "bug-fix",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/pr/merge-ready.ts",
+          "packages/core/src/pr/merge-ready.test.ts",
+          "packages/core/src/pr/greptile.ts",
+          "packages/core/src/pr/greptile.test.ts"
+        ],
+        "verify_commands": [
+          "pnpm --filter @deftai/directive-core test -- merge-ready",
+          "pnpm --filter @deftai/directive-core test -- greptile"
+        ],
+        "expected_outputs": [
+          "merge-ready fails closed on unresolved inline P0/P1",
+          "regression test",
+          "CHANGELOG entry"
+        ],
+        "depends_on": [],
+        "conflict_group": "pr-merge-ready-greptile",
+        "size": "S",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium",
+        "missing_traces_justification": "Bug-fix / security remediation from GitHub issue #2620; no FR trace registry for hotfix cohort."
+      },
+      "completedAt": "2026-07-19T17:06:51Z"
+    }
+  }
+}

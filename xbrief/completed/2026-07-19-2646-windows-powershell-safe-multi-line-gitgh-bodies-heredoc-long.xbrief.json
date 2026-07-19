@@ -1,0 +1,106 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Swarm-ready scope xBRIEF for GitHub issue #2646 (Windows PowerShell safe multi-line git/gh bodies)",
+    "updated": "2026-07-19T16:12:53Z"
+  },
+  "plan": {
+    "title": "Windows PowerShell: safe multi-line git/gh bodies (heredoc + long --body)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Windows PowerShell agents fail when authoring multi-line git/gh payloads via bash heredocs or inline body flags. Host wrappers can also rewrite shell-embedded commit/issue prose; the fix is file-staged UTF-8 payloads plus win32 guidance.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2646",
+      "Overview": "## Problem\n\nOn Windows PowerShell (5.1 and often pwsh when commands are not routed through bash), agents hit a single failure class when authoring multi-line git/gh payloads:\n\n1. **Bash-style heredocs** (POSIX here-document redirection wrapped in cat / command substitution) prescribed by commit/PR agent rules are mangled or rejected — that redirection is not a heredoc operator in PowerShell, so commit messages and PR bodies never reach git / gh intact.\n2. **gh issue create / gh issue comment / gh pr create with long body flags** fail via quoting, escaping, and redirection (angle-bracket parse errors, bodies split into arguments, fragile here-strings + pipes). This is worsened by agent shell constraints (no pipes/redirections in command strings, etc.).\n3. **Host/agent shell wrappers can rewrite the payload while the agent is trying to file or patch the issue itself** (see Dogfood evidence below) — so the guidance gap is not only \"agents follow bash examples on win32,\" it is also \"the path used to land the fix can corrupt the issue body.\"\n\nBoth of (1) and (2) are the same delivery surface: **never put multi-line markdown inline in a PowerShell agent command; write a UTF-8 (no BOM) temp file and pass git commit -F / gh --body-file / gh api --input.** Item (3) adds: **prefer writing the JSON/markdown via a non-shell tool (editor/Write/Node script on disk), then `gh api --input <file>` — do not embed the issue text inside a PowerShell here-string or an inline shell one-liner that a host wrapper can rewrite.**\n\nRelated but out of scope for the prose fix itself:\n\n- #240 — Warp splitting multi-line **PowerShell** here-strings into separate terminal blocks (already documented; still forbidden)\n- #798 — PS 5.1 non-ASCII / encoding corruption on read→write round-trips (use the safe write path when creating the temp file)\n\n**Absorbs #1417** (closed as duplicate of this issue). Do not open a separate PR for #1417.\n\n## Observed failure modes\n\n1. Agent emits bash heredoc patterns for multi-line git commit messages or gh pr create under PowerShell → parse failure or truncated/empty payload.\n2. Agent embeds a long gh issue/pr body inline with newlines → argument splitting, angle-bracket errors, or silent truncation.\n3. Partial fixes (escaping, single-quoting, backtick-n newlines, multi-line PS here-strings in the agent command box) reintroduce #240 / #798 damage.\n4. Framework docs and agent preambles still assume POSIX shell heredocs or inline body flags in places, so Windows workers re-learn the failure every dispatch.\n5. Bash-only redirections (e.g. `<<<`) inside a PowerShell agent script fail at parse time before any `gh` call runs.\n\n## Dogfood evidence (filing/updating this issue on win32, 2026-07-19)\n\nWhile combining #1417 into this issue from a Cursor agent session on Windows PowerShell, the following failures were observed live. They belong in the acceptance surface because they are how maintainers and agents actually hit the bug:\n\n1. **Bash `<<<` in a PowerShell script** — an attempted label update used bash here-string redirection; PowerShell aborted with `Missing file specification after redirection operator` / parse error, so the whole multi-step script never ran.\n2. **Host wrapper rewrote `git commit …` text inside the issue body** — when the patch payload was built inside a PowerShell script that contained prose mentioning git commit with a message flag, the Cursor shell wrapper injected a Co-authored-by trailer (Cursor agent identity) into that text before PowerShell executed. The injected angle brackets then made PowerShell treat `<…>` as operators (`The '<' operator is reserved for future use`), so the PATCH never applied.\n3. **Host wrapper rewrote inline `--body \"…\"` prose** — the same class of rewrite inserted a `Made with [Cursor](https://cursor.com)` fragment into the issue body text that was being PATCHed, corrupting failure-mode examples that were meant to document quoting pain.\n4. **Recovery that worked** — write a Node (or other) script to disk with the editor/Write tool (so the shell never sees the markdown), have that script emit JSON to a temp file, then `gh api -X PATCH … --input <file>` via `execFileSync` / equivalent. Verifying the issue body afterward for the injected Co-authored-by / Made-with markers caught the earlier corruption.\n\nImplication for the docs: the recommended pattern must call out **both** (a) PowerShell vs bash heredoc/body quoting and (b) \"do not build multi-line gh/git payloads inside an instrumented agent shell string — stage the file first.\"\n\n## Desired outcome\n\nDocument one Windows-safe pattern in `content/scm/github.md` (PowerShell platform-conditional section) and point to it from agent-facing surfaces:\n\n- Write the multi-line payload to a UTF-8 (no BOM) temp file via a safe write path (not Get-Content → -replace → Set-Content round-trips; see #798).\n- Prefer creating that file outside the shell (editor/Write/Node script on disk), then pass it with git commit -F, gh --body-file, or gh api --input.\n- Explicitly forbid under Windows PowerShell: bash here-document redirection (including `<<<`), inline multi-line body flags, and multi-line PS here-strings pasted into the agent command box (#240).\n- Note that host/agent shell wrappers may rewrite strings that look like git commit / gh body invocations; treating the payload as a file avoids that rewrite surface.\n\nOptional follow-up (non-blocking): a tip/lint when process.platform is win32 and the active shell is PowerShell warning that bash here-docs / long inline body flags will fail.\n\n## Acceptance\n\n- [ ] `content/scm/github.md` states that bash-style heredocs MUST NOT be used under Windows PowerShell, and names the temp-file + git -F / gh --body-file substitute.\n- [ ] Same section documents the #1417 pattern for gh issue create / gh issue comment / gh pr create: long bodies MUST use --body-file (temp file), not an inline body flag.\n- [ ] Same section (or adjacent note) records the dogfood failure modes from this issue: bash `<<<` under PowerShell; host-wrapper injection into shell-embedded git/gh prose; recovery via file-staged `gh api --input`.\n- [ ] Agent-facing pointer (AGENTS.md managed surface and/or `agent-prompt-preamble.md`) links the rule so swarm/preamble dispatches on win32 do not inherit bash-only or inline-body examples blindly.\n- [ ] Lesson entry in `meta/lessons.md` covering the bash-heredoc-under-PowerShell failure mode, the long gh body quoting failure mode (ex-#1417), and the 2026-07-19 Cursor-on-win32 dogfood (wrapper rewrite + `<<<` parse abort).\n- [ ] Cross-links to #240 and #798 remain so maintainers do not conflate this with Warp here-string splitting or encoding gates alone.\n\n## Non-goals\n\n- Replacing bash heredocs on POSIX / Git Bash / WSL (those remain fine).\n- Re-litigating #798 encoding gates beyond requiring the safe temp-file write path in the documented pattern.\n- Fixing Cursor host-wrapper behavior upstream (document as a win32 agent footgun; file separately if a Cursor-side fix is desired).\n\n## Labels / type\n\nbug, documentation, agent-experience — documentation + guidance first; optional later gate.\n\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @MScottAdams (2026-07-19T16:12:32Z)\n\nCombined delivery scope: absorbed #1417 (now closed as duplicate).\n\nAcceptance on this issue covers both bash-heredoc mangling and long gh --body quoting under Windows PowerShell. One PR closes both outcomes.",
+      "Labels": "bug, documentation, agent-experience",
+      "UserStory": "As a Windows PowerShell agent operator, I want one documented temp-file pattern for multi-line git and gh bodies, so that commits and issue/PR payloads land intact without heredoc or inline-body failures.",
+      "ImplementationPlan": "1. Add a PowerShell platform-conditional section in content/scm/github.md that forbids bash-style heredocs (including <<<) and inline multi-line body flags under Windows PowerShell, and names the UTF-8 no-BOM temp-file + git commit -F / gh --body-file / gh api --input substitute; include the 2026-07-19 dogfood failure modes and cross-links to #240 and #798.\n2. Point agent-facing surfaces (content/templates/agent-prompt-preamble.md and content/templates/agents-entry.md as needed) at that rule so win32 swarm/preamble dispatches do not inherit bash-only examples; run task agents:refresh if agents-entry changes.\n3. Add a meta/lessons.md lesson covering bash-heredoc-under-PowerShell, long gh body quoting (ex-#1417), and Cursor-on-win32 wrapper rewrite; CHANGELOG [Unreleased]; verify with content/contract tests that touch the new pointers."
+    },
+    "items": [
+      {
+        "id": "ac1",
+        "title": "github.md win32 temp-file rule",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given content/scm/github.md, when read on the PowerShell platform section, then it forbids bash-style heredocs under Windows PowerShell and names temp-file + git -F / gh --body-file / gh api --input as the substitute."
+        }
+      },
+      {
+        "id": "ac2",
+        "title": "Long gh body --body-file pattern",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given the same section, when documenting gh issue create / comment / pr create, then long bodies MUST use --body-file (temp file), not an inline body flag (ex-#1417)."
+        }
+      },
+      {
+        "id": "ac3",
+        "title": "Dogfood failure modes recorded",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given the docs, when read, then they record bash <<< under PowerShell parse abort, host-wrapper injection into shell-embedded git/gh prose, and recovery via file-staged gh api --input."
+        }
+      },
+      {
+        "id": "ac4",
+        "title": "Agent-facing pointer",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given agent-prompt-preamble.md and/or agents-entry.md, when win32 agents load guidance, then they are pointed at the github.md PowerShell multi-line body rule."
+        }
+      },
+      {
+        "id": "ac5",
+        "title": "Lesson + CHANGELOG",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given meta/lessons.md and CHANGELOG [Unreleased], when the PR lands, then a lesson covers heredoc/body/wrapper dogfood modes with cross-links to #240 and #798, and CHANGELOG notes the guidance fix."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "documentation",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2646",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2646: Windows PowerShell: safe multi-line git/gh bodies (heredoc + long --body)"
+      }
+    ],
+    "id": "win32-ps-safe-multiline-git-gh-bodies",
+    "metadata": {
+      "kind": "story",
+      "capacityBucket": "bug-fix",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/scm/github.md",
+          "content/templates/agent-prompt-preamble.md",
+          "content/templates/agents-entry.md",
+          "meta/lessons.md"
+        ],
+        "verify_commands": [
+          "rg -n \"body-file|heredoc|PowerShell\" content/scm/github.md",
+          "task packs:render -- --pack lessons"
+        ],
+        "expected_outputs": [
+          "github.md PowerShell multi-line body rule",
+          "preamble/agents-entry pointer",
+          "lessons entry",
+          "CHANGELOG"
+        ],
+        "depends_on": [],
+        "conflict_group": "win32-ps-multiline-bodies",
+        "size": "S",
+        "file_scope_confidence": "high",
+        "model_tier": "medium",
+        "missing_traces_justification": "Documentation/agent-experience bug #2646; absorbs #1417; no FR trace registry."
+      },
+      "completedAt": "2026-07-19T16:24:34Z"
+    },
+    "updated": "2026-07-19T16:24:34Z"
+  }
+}

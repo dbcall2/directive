@@ -1,0 +1,111 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Swarm-ready scope xBRIEF for GitHub issue #2521",
+    "updated": "2026-07-19T16:14:50Z"
+  },
+  "plan": {
+    "title": "sec: five medium symlink/path-escape write sinks (deposit, capacity backfill, cache self-heal, swarm worktree-map, eval health)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Five medium symlink/path-escape write sinks remain in Go deposit writers, capacity backfill, cache self-heal, swarm worktree-map resolution, and eval health ledgers. Shared containment helpers already guard sibling writers; these call sites were not covered.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2521",
+      "Overview": "**Severity:** Medium (5 findings)\r\n**Source:** Application-security review at `5760a299`\r\n**Related:** same symlink / path-escape trust-boundary class as #2470 / #2446 / #2447 / #2413 / #2383\r\n\r\n## Summary\r\n\r\nFive write paths still allow repo- or input-controlled path escape when depositing projections, stamping completed xBRIEFs, self-healing triage cache state, creating swarm worktrees from a map, or appending eval health ledgers. A malicious repository author (or crafted `--worktree-map`) can steer routine operator/agent commands into `os.WriteFile` / `writeFileSync` / `appendFileSync` / `git worktree add` outside the intended tree.\r\n\r\nExisting helpers (`assertConsumerProjectionContained`, `assertProjectionContained`, `assertWritableCachePath`, `projectionTarget`) already guard sibling writers; these five call sites were not covered.\r\n\r\n---\r\n\r\n### 1) Medium — Go deposit neutralization follows repo-controlled projection symlinks\r\n\r\n**Location:** `cmd/deft-install/deposit.go`\r\n\r\n**Attacker / input:** committed projection symlinks (e.g. `greptile.json`, `.gitattributes`, CodeQL config, workflow paths) pointing outside the checkout.\r\n\r\n**Attack path:**\r\n1. Victim runs install/upgrade (`deft-install` deposit / Ensure* writers).\r\n2. Deposit neutralization writes via `os.WriteFile`, which follows symlinks.\r\n3. Without a pre-write containment check, contents land at the symlink target outside the project tree.\r\n\r\n**Impact:** Install/upgrade can overwrite attacker-chosen files outside the checkout under the victim account.\r\n\r\n**Remediation:** Call `assertConsumerProjectionContained` before each `Ensure*` write (match `setup.go` and the TS `projectionTarget` pattern).\r\n\r\n---\r\n\r\n### 2) Medium — `capacity:backfill --apply` writes through symlinked completed xBRIEFs\r\n\r\n**Location:** `packages/core/src/capacity/backfill.ts`\r\n\r\n**Attacker / input:** a trackable symlink under `xbrief/completed/` (or a parent path) resolving outside the project.\r\n\r\n**Attack path:**\r\n1. Victim runs `task capacity:backfill -- --apply`.\r\n2. Backfill stamps metadata and writes JSON via `writeMetadata` / `writeFileSync`.\r\n3. Symlinks are followed; stamped xBRIEF JSON is written outside the project.\r\n\r\n**Impact:** Arbitrary file overwrite outside the project with stamped xBRIEF JSON.\r\n\r\n**Remediation:** `assertProjectionContained` before `writeMetadata` / `writeFileSync`.\r\n\r\n---\r\n\r\n### 3) Medium — Cache self-heal bypasses `.deft-cache` containment\r\n\r\n**Location:** `packages/core/src/cache/fetch.ts`\r\n\r\n**Attacker / input:** a repo-controlled `.deft-cache` symlink (gitignore only matches `.deft-cache/`).\r\n\r\n**Attack path:**\r\n1. Victim runs `task triage:welcome` (or another path that self-heals cache state).\r\n2. `writeSelfHealState` writes `self-heal-state.json` under the resolved cache root.\r\n3. Sibling writers already use `assertWritableCachePath`; this path does not, so the symlink is followed outside the checkout.\r\n\r\n**Impact:** Self-heal state can be written outside the project tree under the victim account.\r\n\r\n**Remediation:** Route `writeSelfHealState` through `assertWritableCachePath`.\r\n\r\n---\r\n\r\n### 4) Medium — `swarm:launch --worktree-map` creates worktrees at absolute escape paths\r\n\r\n**Location:** `packages/core/src/swarm/worktrees.ts`\r\n\r\n**Attacker / input:** a `--worktree-map` JSON entry with absolute `worktree_path` values or `..` segments that escape the repo root.\r\n\r\n**Attack path:**\r\n1. Victim (or orchestrator) runs `task swarm:launch -- --worktree-map <path>`.\r\n2. `resolveWorktreeMap` / worktree setup accepts the mapped paths.\r\n3. `git worktree add` + `mkdir` run at the attacker-chosen absolute/`..` path outside the repo.\r\n\r\n**Impact:** Worktree creation and mkdir at attacker-chosen paths outside the repository.\r\n\r\n**Remediation:** Require each `worktree_path` stay under `realpath(repoRoot)`; reject absolute and `..` escapes.\r\n\r\n---\r\n\r\n```quarantined\n### 5) Medium — `eval:health` appends through uncontained `xbrief/.eval` ledgers\r\n\r\n**Location:** `packages/core/src/eval/health.ts`\r\n\r\n**Attacker / input:** a committed symlink escape under `xbrief/.eval` pointing to an outside file.\r\n\r\n**Attack path:**\r\n1. Victim runs `task eval:health`.\r\n2. `persistHealthRun` / `resolveEvalPath` appends health JSONL to the ledger path.\r\n3. Without containment, the symlink is followed and appends land outside the project.\r\n\r\n**Impact:** Append of health JSONL through a committed symlink escape under `xbrief/.eval`.\r\n\r\n**Remediation:** `assertProjectionContained` in `persistHealthRun` / `resolveEvalPath` before append.\r\n\r\n---\r\n\r\n```\n```quarantined\n## Acceptance\r\n\r\n- [ ] Each Go `Ensure*` deposit write calls `assertConsumerProjectionContained` (or equivalent) before `os.WriteFile`; symlink-at-projection targets are refused.\r\n- [ ] `capacity:backfill --apply` refuses when a completed xBRIEF path (or parent) is a symlink or resolves outside the project root; no out-of-tree `writeMetadata` / `writeFileSync` occurs.\r\n- [ ] `writeSelfHealState` routes through `assertWritableCachePath`; self-heal refuses escaping `.deft-cache` symlinks.\r\n- [ ] `resolveWorktreeMap` / swarm worktree creation reject absolute and `..`-escaping `worktree_path` values; every accepted path stays under `realpath(repoRoot)`.\r\n- [ ] `eval:health` refuse when the ledger path under `xbrief/.eval` is a symlink or resolves outside the project root; no out-of-tree append occurs.\r\n- [ ] Shared containment helpers (`assertConsumerProjectionContained` / `assertProjectionContained` / `assertWritableCachePath`) cover `lstat` + parent walk + project-root prefix check before every affected write path.\r\n- [ ] Regression tests cover: symlink-at-deposit projections; symlink-at-completed xBRIEF; symlink-at-`.deft-cache` self-heal; absolute/`..` worktree-map paths; symlink-at-`xbrief/.eval` ledger.\r\n\r\n```\n## Notes\r\n\r\nPrefer one PR if existing `#2413` / `#2470` containment helpers can be reused across all five sinks; otherwise tightly scoped PRs in the same conflict-safe cohort. Finding (4) is input-path escape (worktree map), not only symlink-at-target — still the same containment class once resolved. Finding (1) is the Go installer twin of prior TS projection containment.\r\n\n",
+      "Labels": "bug, security",
+      "UserStory": "As an operator running install deposit capacity backfill cache self-heal swarm launch or eval health on an untrusted repo, I want symlink and path-escape write sinks to refuse out-of-tree targets, so that routine commands cannot overwrite files outside the project root.",
+      "ImplementationPlan": "1. Guard cmd/deft-install/deposit.go Ensure* writers with assertConsumerProjectionContained before os.WriteFile; refuse symlink-at-projection targets.\n2. Guard packages/core/src/capacity/backfill.ts writeMetadata/writeFileSync with assertProjectionContained / assertWriteTargetSafe before apply stamps.\n3. Route packages/core/src/cache/fetch.ts writeSelfHealState through assertWritableCachePath; contain packages/core/src/swarm/worktrees.ts resolveWorktreeMap under realpath(repoRoot); guard packages/core/src/eval/health.ts persistHealthRun with assertProjectionContained before append.\n4. Add regression tests for all five sinks; reuse packages/core/src/fs/projection-containment.ts helpers from #2626/#2632; CHANGELOG [Unreleased]."
+    },
+    "items": [
+      {
+        "id": "ac1",
+        "title": "Go deposit containment",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given a symlink at a deposit projection path, when deft-install Ensure* writes, then assertConsumerProjectionContained refuses and no out-of-tree os.WriteFile occurs."
+        }
+      },
+      {
+        "id": "ac2",
+        "title": "capacity backfill containment",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given a symlink under xbrief/completed, when capacity:backfill --apply runs, then writeMetadata/writeFileSync is refused for out-of-tree targets."
+        }
+      },
+      {
+        "id": "ac3",
+        "title": "cache self-heal containment",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given an escaping .deft-cache symlink, when writeSelfHealState runs, then assertWritableCachePath refuses the write."
+        }
+      },
+      {
+        "id": "ac4",
+        "title": "worktree-map path containment",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given absolute or ..-escaping worktree_path values, when resolveWorktreeMap / swarm launch consumes the map, then those paths are rejected and accepted paths stay under realpath(repoRoot)."
+        }
+      },
+      {
+        "id": "ac5",
+        "title": "eval:health ledger containment",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given a symlink escape under xbrief/.eval, when eval:health persists, then append is refused and no out-of-tree append occurs."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "security"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2521",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2521: sec: five medium symlink/path-escape write sinks (deposit, capacity backfill, cache self-heal, swarm worktree-map, eval health)"
+      }
+    ],
+    "id": "sec-five-symlink-path-escape-sinks",
+    "metadata": {
+      "kind": "story",
+      "capacityBucket": "bug-fix",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "cmd/deft-install/deposit.go",
+          "packages/core/src/capacity/backfill.ts",
+          "packages/core/src/capacity/backfill.test.ts",
+          "packages/core/src/cache/fetch.ts",
+          "packages/core/src/cache/fetch.test.ts",
+          "packages/core/src/swarm/worktrees.ts",
+          "packages/core/src/swarm/worktrees.test.ts",
+          "packages/core/src/eval/health.ts",
+          "packages/core/src/eval/health.test.ts",
+          "packages/core/src/fs/projection-containment.ts"
+        ],
+        "verify_commands": [
+          "pnpm --filter @deftai/directive-core test -- backfill",
+          "pnpm --filter @deftai/directive-core test -- health",
+          "pnpm --filter @deftai/directive-core test -- worktrees"
+        ],
+        "expected_outputs": [
+          "five sinks contained",
+          "regression tests",
+          "CHANGELOG"
+        ],
+        "depends_on": [],
+        "conflict_group": "sec-symlink-writes-2521",
+        "size": "M",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium",
+        "missing_traces_justification": "Bug-fix from GitHub issue #2521; no FR trace registry for hotfix cohort."
+      },
+      "completedAt": "2026-07-19T17:06:48Z"
+    },
+    "updated": "2026-07-19T17:06:48Z"
+  }
+}
