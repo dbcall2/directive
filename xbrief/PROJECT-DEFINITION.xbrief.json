@@ -972,10 +972,10 @@
       {
         "id": "2026-06-25-1972-wave-5-finalization-freeze-the-go-bridge-retire-go-purge-pyt",
         "title": "Wave 5 finalization: freeze the Go bridge, retire Go, purge Python (runbook + recovery)",
-        "status": "proposed",
+        "status": "completed",
         "metadata": {
-          "source_path": "proposed/2026-06-25-1972-wave-5-finalization-freeze-the-go-bridge-retire-go-purge-pyt.xbrief.json",
-          "lifecycle_folder": "proposed",
+          "source_path": "completed/2026-06-25-1972-wave-5-finalization-freeze-the-go-bridge-retire-go-purge-pyt.xbrief.json",
+          "lifecycle_folder": "completed",
           "references": [
             {
               "uri": "https://github.com/deftai/directive/issues/1972",
