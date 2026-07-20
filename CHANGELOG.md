@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.79.4] - 2026-07-20
+
+> Consumer reliability patch: triage bootstrap cache for npm installs, packaged CLI path fixes, Cursor hook inference, pre-PR story-kind gate, review-cycle CI holdout action, and coverage headroom before the 85% floor.
+
+### Added
+
 - **Consumer `deft coverage:hotspots` / `task coverage:hotspots` surfaces branch headroom before the global gate (#2683).** Reads `coverage/coverage-final.json`, compares global metrics to project vitest thresholds (default 85%), fails closed below the branch floor or below configured headroom (default 0.3pp), lists lowest modules and git-diff uncovered branch samples, and supports `--json`. Pre-PR skill guidance now steers targeted `--coverage` runs and headroom above the project floor; complements `verify:forward-coverage` (#1310) and `--allow-coverage-debt=#N` (#2573). Closes #2683.
 
 ### Changed
@@ -4493,7 +4505,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.79.3...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.79.4...HEAD
+[0.79.4]: https://github.com/deftai/directive/compare/v0.79.3...v0.79.4
 [0.79.3]: https://github.com/deftai/directive/compare/v0.79.2...v0.79.3
 [0.79.2]: https://github.com/deftai/directive/compare/v0.79.1...v0.79.2
 [0.79.1]: https://github.com/deftai/directive/compare/v0.79.0...v0.79.1

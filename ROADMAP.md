@@ -997,5 +997,10 @@
 - **#2646** -- Windows PowerShell: safe multi-line git/gh bodies (heredoc + long --body) -- `[completed]`
 - **#2652** -- P0: release Step 5 / vitest coverage hangs force --skip-ci (untested npm publishes) -- `[completed]`
 - **#2525** -- refactor(version): consolidate duplicate release-tag parsers -- `[completed]`
+- **#2673** -- pr-wait-mergeable misclassifies missing pr-monitor CLI path as cap-reached -- `[completed]`
+- **#2680** -- Accept documented -- separator in verify:session-ritual -- `[completed]`
+- **#2683** -- Coverage hotspots verb and pre-PR headroom for consumers -- `[completed]`
+- **#2684** -- Bootstrap cache populate via TypeScript cacheFetchAll (drop scripts/cache.py gate) -- `[completed]`
+- **#2688** -- Review-cycle: Greptile CLEAN + ci_failures forces CI fix (no idle-poll) -- `[completed]`
 - ci: run TypeScript and Go jobs on GitHub-hosted ubuntu-latest -- `[completed]`
 
