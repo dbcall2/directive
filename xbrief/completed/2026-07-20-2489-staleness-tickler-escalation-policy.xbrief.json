@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "feat(triage): escalation policy for staleness tickler (#2489)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Overview": "Typed drift score (Directive distance + xBRIEF schema distance + age + deferral) maps to Quiet/Notice/Strong/Assert tiers with monotonic re-prompt cadence and snooze widening up to a cap then re-assert. All knobs under plan.policy.stalenessTickler; hold tier on detection failure; never nagware.",
       "Origin": "https://github.com/deftai/directive/issues/2489",
@@ -45,6 +45,10 @@
         "title": "Parent tickler #2488"
       }
     ],
-    "updated": "2026-07-20T22:09:28Z"
+    "updated": "2026-07-20T22:40:15Z",
+    "metadata": {
+      "completedAt": "2026-07-20T22:40:15Z",
+      "capacityBucket": "new-capability"
+    }
   }
 }
