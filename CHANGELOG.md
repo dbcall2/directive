@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`task verify:review-monitor` fail-closed gate when Tier 1 is available (#2655).** Requires a recorded active review-monitor (`.deft/review-monitor.json` or live subagent heartbeat) before a parent may yield, Approach-3 sleep-poll, or claim review ownership; companion `task review-monitor:register`. Three-state exit 0/1/2. Review-cycle + swarm skills name the gate. Closes #2655, #380, #1386.
+
 ### Changed
 
 - **CI TypeScript and Go jobs run on GitHub-hosted `ubuntu-latest`.** Required `CI` had been stuck `queued` for hours on Blacksmith `blacksmith-4vcpu-ubuntu-2404` with nothing `in_progress`; Windows already used `windows-latest`. Unblocks PR CI when Blacksmith capacity stalls.
@@ -23,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`pr:watch` / merge-readiness pick the most recently updated Greptile summary.** When Greptile leaves a later-created duplicate summary SHA-stale while editing the primary rolling summary in place, the detector no longer treats the stale duplicate as authoritative. Unblocks false `sha_match` holdouts after force-push / follow-up commits.
 - **`deft scope:promote` / `scope:activate` / `scope:complete` now resolve on the npm CLI (#2654).** Colon- and dash-style scope lifecycle verbs advertised in `deft help` and `deft commands` route through `scope-lifecycle` the same way as `deft scope promote`; previously only the two-token form worked and colon tokens returned `unknown verb`. Closes #2654.
 - **Vitest coverage / release Step 5 no longer hangs indefinitely (#2652).** Fixed an infinite `pr-monitor` poll loop when Greptile inline GraphQL was unmocked in unit tests; added Step 5 and GHA vitest hard timeouts (20m), production `--skip-ci` incident citation (`--allow-skip-ci=#N`), and recovery docs. Also: `task pr:watch -- --help` / `-h` print usage (flags + exits 0/1/2); `directive pr:watch` alias; swarm skill aligned to the #1056 three-state contract. Closes #2652.
 
