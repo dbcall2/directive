@@ -1,0 +1,32 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2673",
+    "updated": "2026-07-20T20:09:55Z"
+  },
+  "plan": {
+    "title": "pr-wait-mergeable misclassifies missing pr-monitor CLI path as cap-reached",
+    "status": "completed",
+    "narratives": {
+      "Description": "pr-wait-mergeable misclassifies missing pr-monitor CLI path as cap-reached",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2673",
+      "Overview": "## Problem\n\n`task pr:wait-mergeable-and-merge` / `deft pr-wait-mergeable` fails immediately on a packaged npm install because `cliScriptPath(\"pr-monitor\")` resolves to a non-existent nested `@deftai/cli` path. Node exits 1 for module-not-found, and `classifyMonitorOutcome` maps every monitor exit `1` to `cap-reached` / `TIMEOUT-OR-ESCALATION`.\n\nThis is the same `cliScriptPath` residual family as #2667 / #2615, but a different entrypoint and a different false outcome label:\n\n| sibling | missing entrypoint | false outcome |\n|---|---|---|\n| #2667 | `pr-protected-issues.js` | `protected-linked` |\n| **this** | `pr-monitor.js` | `cap-reached` |\n\nThe CLI file **is** published; resolution never finds it.\n\n## Reproduction\n\nObserved on Windows with `@deftai/directive@0.79.3` (global npm) while shepherding Dependabot PRs in `deftai/cartograph` (2026-07-20):\n\n```text\ntask -t .deft/core/Taskfile.yml pr:wait-mergeable-and-merge -- 112 --repo deftai/cartograph\n```\n\nImmediate failure (~2s), not a wait-budget timeout:\n\n```text\nError: Cannot find module '.../@deftai/directive/node_modules/@deftai/cli/dist/pr-monitor.js'\n\n[pr_wait_mergeable] PR #112 repo=deftai/cartograph result=TIMEOUT-OR-ESCALATION outcome=cap-reached\n```\n\nMeanwhile the file exists at the published package root:\n\n```text\n.../node_modules/@deftai/directive/dist/pr-monitor.js   # present\n```\n\nStandalone merge-ready on the same PR succeeded:\n\n```text\ntask -t .deft/core/Taskfile.yml pr:merge-ready -- 112\n=> MERGE-READY (Greptile skipped / author excluded; CI green)\n```\n\nManual atomic merge then worked (`pr:merge-ready` + `gh pr merge --squash --delete-branch --admin`).\n\n## Root cause (path candidates)\n\nIn `@deftai/directive-core` `pr-wait-mergeable/wrappers.js` `cliScriptPath()`:\n\n1. `require.resolve(\"@deftai/directive/package.json\")` → **`ERR_PACKAGE_PATH_NOT_EXPORTED`**  \n   (`@deftai/directive` `exports` only expose \".\"`; `package.json` is not exported.)\n2. Monorepo fallback `../../../cli/dist/pr-monitor.js` → resolves to nested `@deftai/cli/...` which **does not exist** on npm.\n3. Nested npm fallback `../../../../dist/pr-monitor.js` → **off-by-one**; lands in `directive/node_modules/dist`, not `directive/dist`.\n4. Final fallback returns the dead monorepo path → Node `MODULE_NOT_FOUND` → exit 1 → `cap-reached`.\n\nVerified with `createRequire` from the installed wrappers.js location on 0.79.3:\n\n```text\nc1 FAIL ERR_PACKAGE_PATH_NOT_EXPORTED\nc2 .../directive/node_modules/@deftai/cli/dist/pr-monitor.js  false\nc3 .../directive/node_modules/dist/pr-monitor.js              false\nc3fixed (.../../../../../../dist/pr-monitor.js)              true\nactual .../directive/dist/pr-monitor.js                       true\n```\n\n## Expected\n\n- Resolve packaged CLI entrypoints (`pr-monitor.js`, and the shared helper used by protected-check) correctly under the published `@deftai/directive` layout.\n- Treat module-not-found / wrapper spawn failure as **config error** (exit 2), not as `cap-reached` / timeout-or-escalation.\n- Preserve `cap-reached` only for a real monitor budget exhaustion after a successful spawn.\n\n## Workaround\n\nUse the manual freshness-window gate instead of the composed cascade verb:\n\n```text\ntask pr:merge-ready -- <N>\ngh pr merge <N> --squash --delete-branch --admin\n```\n\n## Related\n\n- #2667 — same `cliScriptPath` residual; protected-check → `protected-linked`\n- #2615 — original packaged-layout fix that this residual escaped\n- #1369 — cascade automation surface that routes agents through this verb\n\n## Environment\n\n- OS: win32\n- `@deftai/directive@0.79.3` (global npm under `%APPDATA%\\npm\\node_modules`)\n- Consumer repo: `deftai/cartograph`\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @MScottAdams (2026-07-20T14:55:25Z)\n\n## Triage / cohort intake\n\n**Verdict: confirmed accurate** — sibling of #2667 (same `cliScriptPath` residual from #2615).\n\n| | missing entrypoint | false outcome |\n| --- | --- | --- |\n| #2667 | `pr-protected-issues.js` | `protected-linked` |\n| **#2673** | `pr-monitor.js` | `cap-reached` |\n\nRoot cause already verified on `@deftai/directive@0.79.3`: `ERR_PACKAGE_PATH_NOT_EXPORTED` on `package.json` resolve → dead `@deftai/cli` fallback → Node exit 1 → misclassified.\n\n**Cohort plan:** Fold into swarm group `bugs-2662-2671` as an amendment to the #2667 leaf (same `wrappers.ts` / cascade classify paths). One PR should close both #2667 and #2673.",
+      "Labels": "bug, adoption-blocker, agent-experience, area:cli"
+    },
+    "items": [],
+    "tags": [
+      "bug",
+      "adoption-blocker",
+      "agent-experience",
+      "area:cli"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2673",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2673: pr-wait-mergeable misclassifies missing pr-monitor CLI path as cap-reached"
+      }
+    ],
+    "updated": "2026-07-20T20:09:55Z"
+  }
+}

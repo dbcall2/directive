@@ -1,11 +1,12 @@
 {
   "xBRIEFInfo": {
     "version": "0.8",
-    "description": "Scope xBRIEF ingested from GitHub issue #2683"
+    "description": "Scope xBRIEF ingested from GitHub issue #2683",
+    "updated": "2026-07-20T20:09:55Z"
   },
   "plan": {
     "title": "Coverage hotspots verb and pre-PR headroom for consumers",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Hairline branch-coverage misses (84.9x vs 85%) force full-suite reruns. Add a consumer-facing coverage:hotspots verb plus pre-PR headroom guidance so agents leave buffer before the expensive global gate. Must deposit via CLI + Taskfile + skill sync — not maintainer-only. This story closes GitHub issue #2683 with a narrowly scoped fix and regression coverage.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2683",
@@ -17,24 +18,27 @@
     "items": [
       {
         "title": "AC1",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "deft coverage:hotspots returns global coverage metrics and fails closed when branch headroom is below 0.3pp or below the project floor."
-        }
+        },
+        "completed": "2026-07-20T20:09:55Z"
       },
       {
         "title": "AC2",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "After deft update, deposited task coverage:hotspots and the pre-PR skill emits targeted-coverage plus headroom guidance that displays in the consumer skill file."
-        }
+        },
+        "completed": "2026-07-20T20:09:55Z"
       },
       {
         "title": "AC3",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Each regression test creates a fixture coverage report and the suite emits passing JSON-contract results; CHANGELOG Unreleased records issue 2683."
-        }
+        },
+        "completed": "2026-07-20T20:09:55Z"
       }
     ],
     "tags": [
@@ -49,7 +53,7 @@
         "title": "Issue #2683: feat(coverage): hotspots verb + pre-PR headroom so agents stop landing on the 85% hairline"
       }
     ],
-    "updated": "2026-07-20T16:17:31Z",
+    "updated": "2026-07-20T20:09:55Z",
     "id": "2683-coverage-hotspots-headroom",
     "metadata": {
       "kind": "story",
