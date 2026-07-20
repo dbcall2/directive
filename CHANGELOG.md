@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.79.3] - 2026-07-20
+
+> Review-monitor ownership gate, scope CLI colon aliases, release-tag parser consolidation, CI on ubuntu-latest, and vitest hang hardening after the #2652 skip-ci incident.
+
+### Added
+
 - **`task verify:review-monitor` fail-closed gate when Tier 1 is available (#2655).** Requires a recorded active review-monitor (`.deft/review-monitor.json` or live subagent heartbeat) before a parent may yield, Approach-3 sleep-poll, or claim review ownership; companion `task review-monitor:register`. Three-state exit 0/1/2. Review-cycle + swarm skills name the gate. Closes #2655, #380, #1386.
 
 ### Changed
@@ -4468,7 +4480,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.79.2...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.79.3...HEAD
+[0.79.3]: https://github.com/deftai/directive/compare/v0.79.2...v0.79.3
 [0.79.2]: https://github.com/deftai/directive/compare/v0.79.1...v0.79.2
 [0.79.1]: https://github.com/deftai/directive/compare/v0.79.0...v0.79.1
 [0.79.0]: https://github.com/deftai/directive/compare/v0.78.0...v0.79.0

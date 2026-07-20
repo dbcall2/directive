@@ -995,4 +995,7 @@
 - **#2528** -- bug(build-skill): replace missing task test:coverage gate -- `[completed]`
 - **#2620** -- pr:merge-ready can report CLEAN while unresolved Greptile inline P1 remains -- `[completed]`
 - **#2646** -- Windows PowerShell: safe multi-line git/gh bodies (heredoc + long --body) -- `[completed]`
+- **#2652** -- P0: release Step 5 / vitest coverage hangs force --skip-ci (untested npm publishes) -- `[completed]`
+- **#2525** -- refactor(version): consolidate duplicate release-tag parsers -- `[completed]`
+- ci: run TypeScript and Go jobs on GitHub-hosted ubuntu-latest -- `[completed]`
 
