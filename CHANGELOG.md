@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`scope:undo` and `migrate:xbrief` AGENTS.md header patch refuse symlink escape writes (#2668).** `scope:undo` now calls `assertWriteTargetSafe` before lifecycle xBRIEF writes (parity with `scope:demote`); the migrate header patch resolves `AGENTS.md` via projection containment before write (parity with init-deposit `writeAgentsMd`). Closes #2668.
 - **Cursor Write/StrReplace hooks infer tool identity from more payload shapes (#2669).** `hookToolName` now recognizes OpenAI-style `arguments`, `tool_call.name`, and object `tool.name` nestings that still returned `null` on 0.79.3; empty stdin, invalid JSON, and unknown-shape denies emit distinct host-integration messages, with top-level payload keys logged on Cursor `invalid-input`. Closes #2669.
 - **`deft verify:session-ritual -- --tier=gated` accepts the documented separator (#2680).** `parseArgs` now skips a lone `--` so the task-style invocation matches direct `--tier=gated`. Closes #2680.
 - **Pre-PR ordered-plan gate uses the current entry kind (#2662).** `deft-directive-pre-pr` no longer hardcodes `--target-kind pr`; agents resolve `kind` and `id` via `task plan-sequence:current` before `task verify:plan-sequence`, so story-backed PRs pass the gate when the target id matches. Closes #2662.
