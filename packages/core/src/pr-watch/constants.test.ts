@@ -6,6 +6,7 @@ import {
   EXIT_CLEAN,
   EXIT_NEW_P0_P1,
   EXIT_TERMINAL_ERROR,
+  VERDICT_CI_BLOCKED,
   VERDICT_CLEAN,
   VERDICT_CONFIG,
   VERDICT_ERRORED,
@@ -24,11 +25,12 @@ describe("pr-watch constants", () => {
   });
 
   it("all non-CLEAN/NEW_P0_P1 verdicts collapse onto the terminal-error exit", () => {
-    // The AC-1 contract: ERRORED | STALL | TIMEOUT | CONFIG | PENDING all exit 2.
+    // The AC-1 contract: ERRORED | STALL | TIMEOUT | CI_BLOCKED | CONFIG | PENDING all exit 2.
     for (const verdict of [
       VERDICT_ERRORED,
       VERDICT_STALL,
       VERDICT_TIMEOUT,
+      VERDICT_CI_BLOCKED,
       VERDICT_CONFIG,
       VERDICT_PENDING,
     ]) {
