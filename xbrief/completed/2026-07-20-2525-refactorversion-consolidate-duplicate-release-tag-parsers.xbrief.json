@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "refactor(version): consolidate duplicate release-tag parsers",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "refactor(version): consolidate duplicate release-tag parsers",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2525",
@@ -26,6 +26,10 @@
         "title": "Issue #2525: refactor(version): consolidate duplicate release-tag parsers"
       }
     ],
-    "updated": "2026-07-20T00:25:13Z"
+    "updated": "2026-07-20T13:08:57Z",
+    "metadata": {
+      "completedAt": "2026-07-20T13:08:57Z",
+      "capacityBucket": "technical-debt"
+    }
   }
 }

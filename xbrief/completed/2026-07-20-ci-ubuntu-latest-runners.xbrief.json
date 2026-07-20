@@ -1,0 +1,35 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "CI runner fallback when Blacksmith queue stuck"
+  },
+  "plan": {
+    "title": "ci: run TypeScript and Go jobs on GitHub-hosted ubuntu-latest",
+    "status": "completed",
+    "narratives": {
+      "Description": "Switch ci.yml ts+go from blacksmith-4vcpu-ubuntu-2404 to ubuntu-latest to unblock queued CI",
+      "Origin": "Operator Scott 2026-07-19 after Blacksmith queue stall blocking PRs #2658-#2660",
+      "Overview": "Blacksmith runners left required CI queued for hours with nothing in_progress. Flip TypeScript and Go jobs to GitHub-hosted ubuntu-latest. Windows already uses windows-latest."
+    },
+    "items": [
+      {
+        "title": "Change ci.yml ts and go runs-on to ubuntu-latest",
+        "status": "proposed"
+      },
+      {
+        "title": "CHANGELOG Unreleased note",
+        "status": "proposed"
+      }
+    ],
+    "tags": [
+      "ci-cd",
+      "bug"
+    ],
+    "references": [],
+    "updated": "2026-07-20T02:29:22Z",
+    "metadata": {
+      "completedAt": "2026-07-20T02:29:22Z",
+      "capacityBucket": "new-capability"
+    }
+  }
+}
