@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.80.0] - 2026-07-21
+
+> Tier-1 host hooks for compact re-arm, spawn/explore deny, and opt-in path policy, plus idle upgrade tickler, session release advisory, and Blacksmith CI failover.
+
+### Added
+
 - **Session runtime authority path policy in PreToolUse (#1394).** Opt-in typed policy under `plan.policy.runtimeAuthority` (`enabled` defaults false) with path allow/deny globs and graduated scopes (`edits`, `push`, `merge`). `deft hook:dispatch` evaluates direct-write targets after ritual/scope/read-only gates; inspect via `deft policy:show --field=runtimeAuthority`. Shell/MCP push/merge enforcement deferred — scopes are schema-ready for a future Shell matcher. Closes #1394. Refs #2437.
 - **Spawn/Task deny and read-only explore enforcement (#1185).** PreToolUse now classifies spawn tools (`Task`, `SubagentStart`, `spawn_subagent`, `start_agent`, `CreateAgent`) and denies implementation sub-agent spawns until the gated session ritual and active/running xBRIEF preflight pass (same predicates as direct writes). Explore spawns (`subagent_type: explore`) bypass implementation gates. Read-only explore agents deny direct writes when Grok `default_capability_mode = read-only`, `DEFT_HOOK_READ_ONLY=1`, or equivalent host payload markers are present. `directive init` / `deft update` deposit spawn matchers alongside direct-write hooks. Closes #1185. Refs #2437.
 - **Compact/resume re-arms the session ritual after host context compaction (#2113).** `deft hook:dispatch --event session.compact` marks `.deft/ritual-state.json` stale using existing gated-verifier semantics; `directive init` / `deft update` deposit Cursor `preCompact` and Claude/Grok `PreCompact`/`PostCompact` hooks so summary-based resume cannot silently bypass PreToolUse gates. Codex skips compact deposit (no native hook surface). Closes #2113. Refs #2437.
@@ -4515,7 +4527,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.79.4...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.80.0...HEAD
+[0.80.0]: https://github.com/deftai/directive/compare/v0.79.4...v0.80.0
 [0.79.4]: https://github.com/deftai/directive/compare/v0.79.3...v0.79.4
 [0.79.3]: https://github.com/deftai/directive/compare/v0.79.2...v0.79.3
 [0.79.2]: https://github.com/deftai/directive/compare/v0.79.1...v0.79.2

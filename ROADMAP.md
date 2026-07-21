@@ -996,11 +996,19 @@
 - **#2620** -- pr:merge-ready can report CLEAN while unresolved Greptile inline P1 remains -- `[completed]`
 - **#2646** -- Windows PowerShell: safe multi-line git/gh bodies (heredoc + long --body) -- `[completed]`
 - **#2652** -- P0: release Step 5 / vitest coverage hangs force --skip-ci (untested npm publishes) -- `[completed]`
+- **#1185** -- feat(harness): read-only explore constraint + PreToolUse spawn/Task deny (#1185) -- `[completed]`
+- **#1394** -- feat(contracts,harness): session policy manifest path/op allowlists in PreToolUse (#1394) -- `[completed]`
+- **#1692** -- feat(session): show a throttled newer-release advisory at mutable session start -- `[completed]`
+- **#2113** -- feat(harness): PreCompact/PostCompact ritual re-arm after summary resume (#2113) -- `[completed]`
+- **#2488** -- feat(triage): staleness tickler — offer Directive + xBRIEF upgrade at safe idle points (#2488) -- `[completed]`
+- **#2489** -- feat(triage): escalation policy for staleness tickler (#2489) -- `[completed]`
 - **#2525** -- refactor(version): consolidate duplicate release-tag parsers -- `[completed]`
+- **#2672** -- CI: Blacksmith primary + timed GH-hosted failover on runner capacity stall -- `[completed]`
 - **#2673** -- pr-wait-mergeable misclassifies missing pr-monitor CLI path as cap-reached -- `[completed]`
 - **#2680** -- Accept documented -- separator in verify:session-ritual -- `[completed]`
 - **#2683** -- Coverage hotspots verb and pre-PR headroom for consumers -- `[completed]`
 - **#2684** -- Bootstrap cache populate via TypeScript cacheFetchAll (drop scripts/cache.py gate) -- `[completed]`
 - **#2688** -- Review-cycle: Greptile CLEAN + ci_failures forces CI fix (no idle-poll) -- `[completed]`
+- **#2692** -- bug(release): Phase 1 long steps foreground-block the operator chat (#1880 Gap D) -- `[completed]`
 - ci: run TypeScript and Go jobs on GitHub-hosted ubuntu-latest -- `[completed]`
 
