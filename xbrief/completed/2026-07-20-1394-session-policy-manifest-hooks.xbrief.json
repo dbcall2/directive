@@ -1,0 +1,51 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Wave C Core T1 — #1394 session policy manifest evaluated in PreToolUse under epic #2437"
+  },
+  "plan": {
+    "title": "feat(contracts,harness): session policy manifest path/op allowlists in PreToolUse (#1394)",
+    "status": "completed",
+    "narratives": {
+      "Overview": "Add typed session-level policy (plan.policy or deft-policy surface) for path allowlists and graduated git/external permission scopes; evaluate inside deft hook:dispatch tool.before after ritual/scope gates. Phase Shell/MCP as host-gated follow-on — land direct-write path policy first. Depends on Waves A+B settling hooks surface. Epic #2437 Core T1 Wave C. Keep epic #2437 open after merge.",
+      "Origin": "https://github.com/deftai/directive/issues/1394",
+      "Approach": "Schema + resolve/validate policy; dispatcher evaluation; policy:show; docs; tests; CHANGELOG Closes #1394. Refs #2437."
+    },
+    "items": [
+      {
+        "title": "Typed policy schema + defaults + policy:show",
+        "status": "pending"
+      },
+      {
+        "title": "Evaluate path/op allowlists in tool.before",
+        "status": "pending"
+      },
+      {
+        "title": "Tests + docs + CHANGELOG Closes #1394",
+        "status": "pending"
+      }
+    ],
+    "tags": [
+      "harness",
+      "security",
+      "enhancement"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/1394",
+        "type": "x-xbrief/github-issue",
+        "title": "#1394"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2437",
+        "type": "x-xbrief/github-issue",
+        "title": "Epic #2437"
+      }
+    ],
+    "updated": "2026-07-21T02:07:54Z",
+    "metadata": {
+      "completedAt": "2026-07-21T02:07:54Z",
+      "capacityBucket": "new-capability"
+    }
+  }
+}

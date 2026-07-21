@@ -1,0 +1,51 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Wave B Core T1 — #1185 harness read-only explore + spawn/Task deny under epic #2437"
+  },
+  "plan": {
+    "title": "feat(harness): read-only explore constraint + PreToolUse spawn/Task deny (#1185)",
+    "status": "completed",
+    "narratives": {
+      "Overview": "Enforce explore/read-only at the harness: deny write tools for read-only explore roles and deny Task/SubagentStart-style implementation spawns without the pre-start_agent gate stack. Prefer Grok capability_mode where available; Cursor/Claude Task matchers via PreToolUse. Depends on Wave A compact event patterns landing first (shared hooks/*). Epic #2437 Core T1 Wave B.",
+      "Origin": "https://github.com/deftai/directive/issues/1185",
+      "Approach": "Extend hooks dispatcher + deposits for spawn tools; document role/read-only path; tests; CHANGELOG Closes #1185. Refs #2437."
+    },
+    "items": [
+      {
+        "title": "Classify spawn/Task tools; deny without gate stack",
+        "status": "pending"
+      },
+      {
+        "title": "Read-only explore path (Grok capability / host equivalent)",
+        "status": "pending"
+      },
+      {
+        "title": "Deposits + tests + CHANGELOG Closes #1185",
+        "status": "pending"
+      }
+    ],
+    "tags": [
+      "harness",
+      "swarm",
+      "enhancement"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/1185",
+        "type": "x-xbrief/github-issue",
+        "title": "#1185"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2437",
+        "type": "x-xbrief/github-issue",
+        "title": "Epic #2437"
+      }
+    ],
+    "updated": "2026-07-21T01:22:51Z",
+    "metadata": {
+      "completedAt": "2026-07-21T01:22:51Z",
+      "capacityBucket": "new-capability"
+    }
+  }
+}

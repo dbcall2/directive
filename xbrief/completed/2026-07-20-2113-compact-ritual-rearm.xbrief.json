@@ -1,0 +1,51 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Wave A Core T1 — #2113 PreCompact/ritual re-arm under epic #2437"
+  },
+  "plan": {
+    "title": "feat(harness): PreCompact/PostCompact ritual re-arm after summary resume (#2113)",
+    "status": "completed",
+    "narratives": {
+      "Overview": "Extend deft hook:dispatch with a compact/resume event that marks session ritual stale or re-arms ceremony so Cursor summary-based resume cannot silently skip gates. Deposit PreCompact/PostCompact (or host equivalents) for Cursor/Claude/Grok where supported; degrade cleanly on hosts without compact hooks. Reuse ritual-state + verify:session-ritual predicates — do not invent a second policy stack. Epic #2437 Core T1 Wave A.",
+      "Origin": "https://github.com/deftai/directive/issues/2113",
+      "Approach": "Add HOOK_EVENTS compact/re-arm path in packages/core/src/hooks; init-deposit codecs; doctor/verify:hooks-installed health; tests; CHANGELOG Closes #2113. Refs #2437."
+    },
+    "items": [
+      {
+        "title": "Compact hook event + ritual stale/re-arm semantics",
+        "status": "pending"
+      },
+      {
+        "title": "Host deposits + doctor/verify reporting",
+        "status": "pending"
+      },
+      {
+        "title": "Regression tests + CHANGELOG Closes #2113",
+        "status": "pending"
+      }
+    ],
+    "tags": [
+      "harness",
+      "urgent",
+      "enhancement"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2113",
+        "type": "x-xbrief/github-issue",
+        "title": "#2113"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2437",
+        "type": "x-xbrief/github-issue",
+        "title": "Epic #2437"
+      }
+    ],
+    "updated": "2026-07-21T01:03:47Z",
+    "metadata": {
+      "completedAt": "2026-07-21T01:03:47Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}
