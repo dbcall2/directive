@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.82.0] - 2026-07-22
+
+> Agent-skill and untrusted-fetch security gates, merge-cascade semantic-green, orphan-active lifecycle guard, and Windows issue-body RMW.
+
+### Added
+
 - **TOCTOU coding standard for mutable external resources (#1938).** `content/coding/security.md` forbids scan-once trust of mutable externals; requires coupled validate+use or pin-by-content-hash with re-validation on change. Cites #1714 stale-body replay and the AIR fake-skill experiment. Closes #1938.
 
 - **Agent-skill supply-chain security pattern (#1937).** `patterns/agent-skill-supply-chain.md` adds inbound RFC2119 guidance: treat skills as software, vet linked targets, pin/re-vet on change, least privilege, controlled sources (not stars-as-proof); cross-links #480 and #1700. Closes #1937.
@@ -4567,7 +4579,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.81.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.82.0...HEAD
+[0.82.0]: https://github.com/deftai/directive/compare/v0.81.0...v0.82.0
 [0.81.0]: https://github.com/deftai/directive/compare/v0.80.0...v0.81.0
 [0.80.0]: https://github.com/deftai/directive/compare/v0.79.4...v0.80.0
 [0.79.4]: https://github.com/deftai/directive/compare/v0.79.3...v0.79.4

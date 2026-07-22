@@ -1011,8 +1011,15 @@
 - **#2688** -- Review-cycle: Greptile CLEAN + ci_failures forces CI fix (no idle-poll) -- `[completed]`
 - **#2692** -- bug(release): Phase 1 long steps foreground-block the operator chat (#1880 Gap D) -- `[completed]`
 - ci: run TypeScript and Go jobs on GitHub-hosted ubuntu-latest -- `[completed]`
+- **#1936** -- feat(security,skills): untrusted fetched content doctrine + external-fetch gate -- `[completed]`
+- **#1937** -- feat(security,patterns): agent-skill supply-chain security (inbound) -- `[completed]`
+- **#2313** -- bug(pr:watch): no premature STALL on stale-SHA confidence during re-review -- `[completed]`
+- **#2321** -- stop-at:pr-open must not leave orphaned active/running xBRIEFs on master -- `[completed]`
+- **#2385** -- Merge cascade: semantic-green gate beyond merge-tree-clean -- `[completed]`
 - **#2591** -- Document TypeScript 7 side-by-side setup for Deft TypeScript projects -- `[completed]`
+- **#2607** -- feat(scm): issue-body postcondition verify + safe fetch-to-file (#2607) -- `[completed]`
 - **#2693** -- Consented agent-driven product signal (private deftai sink, defaults off) -- `[completed]`
 - **#2734** -- fix(hooks): strip UTF-8 BOM before Cursor preToolUse JSON.parse -- `[completed]`
 - **#2738** -- fix(hooks): classify Cursor free-form ApplyPatch in parsePayload -- `[completed]`
+- **#2744** -- docs/process: always-load win32 issue-body RMW footgun (PS string[]/OFS) -- `[completed]`
 
