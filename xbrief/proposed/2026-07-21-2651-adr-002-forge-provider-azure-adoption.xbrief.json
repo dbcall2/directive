@@ -57,11 +57,6 @@
         "uri": "https://github.com/deftai/directive/issues/881",
         "type": "x-xbrief/github-issue",
         "title": "Issue #881: scm:* task namespace"
-      },
-      {
-        "uri": "https://github.com/deftai/directive/issues/1145",
-        "type": "x-xbrief/github-issue",
-        "title": "Issue #1145: source-agnostic verb boundary scaffold"
       }
     ]
   }
