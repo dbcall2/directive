@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.81.0] - 2026-07-22
+
+> Product-signal opt-in check-ins, TypeScript 7 side-by-side guidance, and Cursor hook stdin fixes.
+
+### Added
+
 - **TypeScript 7 side-by-side guidance for Deft TypeScript projects (#2591).** `languages/typescript.md` documents the Cartograph alias pattern (`@typescript/native` → TS 7, `typescript` → `@typescript/typescript6`), Dependabot major-ignore for the alias, and links to the TS 7 announcement + typescript-eslint#12518. `UPGRADING.md` carries a short applies-when pointer. Advisory `deft doctor` install-integrity check warns when bare `typescript@7` coexists with typescript-eslint without the alias (exit-exempt). Scaffold bake remains deferred. Closes #2591.
 - **Consented product check-in to an internal partner sink (#2693).** Opt-in typed policy `plan.policy.productSignal` (default off) with `task product-signal:enable -- --confirm`, install-level consent file, CLI `task product-signal:status|consent|submit`, skill `deft-directive-product-signal`, versioned payload with minimized `localSignalSummary` (value/health/helped) and optional `skillsSummary` hook. Submits pulse/portrait standing threads to internal `deftai/product-signal` via `GitHubPrivateSinkAdapter`; fail-open on headless and sink unreachable. Refs #2603.
 
@@ -4535,7 +4547,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.80.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.81.0...HEAD
+[0.81.0]: https://github.com/deftai/directive/compare/v0.80.0...v0.81.0
 [0.80.0]: https://github.com/deftai/directive/compare/v0.79.4...v0.80.0
 [0.79.4]: https://github.com/deftai/directive/compare/v0.79.3...v0.79.4
 [0.79.3]: https://github.com/deftai/directive/compare/v0.79.2...v0.79.3
