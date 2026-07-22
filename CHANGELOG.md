@@ -31,8 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Branch coverage clears the 85% release floor again.** Targeted unit tests for `evaluateSkillExternalFetchGate` drift / config-error branches lift measured branch coverage above the global threshold without `--allow-coverage-debt`.
-
 - **Orphan-active guard for stop-at:pr-open lifecycle leaks (#2321).** Dispatch doctrine now assigns post-merge `scope:complete` / `scope:cancel` ownership to orchestrators for `stop-at: pr-open` workers and requires `drive-to: merge-ready` workers to complete their xBRIEF; `task verify:orphan-active` fails when `xbrief/active/` still holds `plan.status == running` briefs whose referenced issues are all closed or whose linked PR merged. Completes three previously orphaned active briefs surfaced by the new gate (#2313, #2607, #2744). Closes #2321.
 
 - **Scope lifecycle transitions use validated atomic brief IO (#2131).** `runTransition` and PROJECT-DEFINITION sync now read/write through shared typed validation (`validateVbriefSchema`, `validateFolderStatus`) and atomic persist (`atomicWriteBrief`, `projectDefinitionMutationLock` + `atomicWriteProjectDefinition`); invalid or folder/status-mismatched briefs are refused without mutating on-disk state. Closes #2131.
