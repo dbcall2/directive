@@ -1,8 +1,15 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { referenceTypeMatches } from "@deftai/directive-types";
-import { formatVbriefJson } from "./vbrief-json.js";
+import { atomicWriteText } from "../cache/io.js";
+import type { JsonObject } from "../vbrief-build/types.js";
+import { formatBriefJson } from "./brief-io.js";
 import { relativeToVbrief, resolveVbriefRef, scopeIdsForFilename } from "./vbrief-ref.js";
+
+export interface RegistryArtifactPersistHooks {
+  readonly loadForMutation?: () => [JsonObject, string];
+  readonly persist?: (path: string, data: JsonObject) => void;
+}
 
 function rewriteRegistryPlanReference(
   ref: unknown,
@@ -120,20 +127,30 @@ export function syncRegistryArtifactAfterScopeMove(
   newPath: string,
   vbriefRoot: string,
   targetStatus: string,
+  hooks: RegistryArtifactPersistHooks = {},
 ): void {
   const newRel = relativeToVbrief(newPath, vbriefRoot);
   if (newRel === null) {
     return;
   }
-  if (!existsSync(registryPath)) {
-    return;
-  }
   try {
-    const parsed: unknown = JSON.parse(readFileSync(registryPath, "utf8"));
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return;
+    let registry: Record<string, unknown>;
+    if (hooks.loadForMutation !== undefined) {
+      if (!existsSync(registryPath)) {
+        return;
+      }
+      const [loaded] = hooks.loadForMutation();
+      registry = loaded;
+    } else {
+      if (!existsSync(registryPath)) {
+        return;
+      }
+      const parsed: unknown = JSON.parse(readFileSync(registryPath, "utf8"));
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return;
+      }
+      registry = parsed as Record<string, unknown>;
     }
-    const registry = parsed as Record<string, unknown>;
     const plan = registry.plan;
     if (typeof plan !== "object" || plan === null || Array.isArray(plan)) {
       return;
@@ -181,9 +198,15 @@ export function syncRegistryArtifactAfterScopeMove(
       }
     }
     if (changed) {
-      writeFileSync(registryPath, formatVbriefJson(registry), "utf8");
+      if (hooks.persist !== undefined) {
+        hooks.persist(registryPath, registry as JsonObject);
+      } else {
+        atomicWriteText(registryPath, formatBriefJson(registry));
+      }
     }
-  } catch {
-    /* best-effort */
+  } catch (err: unknown) {
+    if (hooks.loadForMutation !== undefined || hooks.persist !== undefined) {
+      throw err;
+    }
   }
 }

@@ -28,9 +28,10 @@ import {
 import { demoteMain, lifecycleMain, undoMain } from "./main.js";
 import { resolveProjectRoot } from "./project-context.js";
 import { syncProjectDefinitionAfterScopeMove } from "./project-definition-sync.js";
+import { minimalScopeBrief } from "./scope-test-fixtures.test.js";
 import { recordWipCapOverride, runTransition } from "./transition.js";
 import { findByBatchId, findByDecisionId, isAlreadyUndone, undoBatch, undoOne } from "./undo.js";
-import { formatVbriefJson } from "./vbrief-json.js";
+import { formatBriefJson } from "./vbrief-json.js";
 
 function writeVbrief(
   dir: string,
@@ -41,7 +42,7 @@ function writeVbrief(
   mkdirSync(dir, { recursive: true });
   writeFileSync(
     join(dir, name),
-    formatVbriefJson({ plan: { title: "T", status, items: [], ...extra } }),
+    formatBriefJson(minimalScopeBrief({ title: "T", status, items: [], ...extra })),
   );
 }
 
@@ -108,7 +109,7 @@ describe("scope branch coverage", () => {
 
     writeFileSync(
       join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
-      formatVbriefJson({
+      formatBriefJson({
         plan: { policy: { capacityAllocation: { defaultBucket: "core" } } },
       }),
     );
@@ -117,7 +118,7 @@ describe("scope branch coverage", () => {
 
     writeFileSync(
       join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
-      formatVbriefJson({ plan: { policy: { capacityAllocation: { defaultBucket: 1 } } } }),
+      formatBriefJson({ plan: { policy: { capacityAllocation: { defaultBucket: 1 } } } }),
     );
     const plan2: Record<string, unknown> = {
       metadata: { capacityBucket: "  kept  " },
@@ -137,12 +138,12 @@ describe("scope branch coverage", () => {
     mkdirSync(join(root, "xbrief", "active"), { recursive: true });
     writeFileSync(
       join(root, "xbrief", "active", "seed.xbrief.json"),
-      formatVbriefJson({ plan: { title: "s", status: "running", items: [] } }),
+      formatBriefJson({ plan: { title: "s", status: "running", items: [] } }),
       "utf8",
     );
     writeFileSync(
       join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
-      formatVbriefJson({
+      formatBriefJson({
         plan: { policy: { capacityAllocation: { defaultBucket: "debt" } } },
       }),
       "utf8",
@@ -207,7 +208,7 @@ describe("scope branch coverage", () => {
     // framework DEFAULT_WIP_CAP (#2319 raised the default from 10 to 20).
     writeFileSync(
       join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
-      formatVbriefJson({
+      formatBriefJson({
         plan: { title: "P", status: "running", items: [], policy: { wipCap: 10 } },
       }),
     );
@@ -317,7 +318,7 @@ describe("scope branch coverage", () => {
     const parent = join(vbrief, "active", "parent.xbrief.json");
     writeFileSync(
       parent,
-      formatVbriefJson({
+      formatBriefJson({
         plan: {
           references: [
             { type: "other", uri: "x" },
@@ -342,7 +343,7 @@ describe("scope branch coverage", () => {
     mkdirSync(join(vbrief, "completed"), { recursive: true });
     writeFileSync(
       join(vbrief, "PROJECT-DEFINITION.xbrief.json"),
-      formatVbriefJson({
+      formatBriefJson({
         plan: {
           title: "Proj",
           items: [
@@ -361,7 +362,7 @@ describe("scope branch coverage", () => {
     const oauth = join(vbrief, "active", "oauth.xbrief.json");
     writeFileSync(
       oauth,
-      formatVbriefJson({ plan: { title: "Add OAuth support", status: "running", items: [] } }),
+      formatBriefJson({ plan: { title: "Add OAuth support", status: "running", items: [] } }),
     );
     syncProjectDefinitionAfterScopeMove(
       JSON.parse(readFileSync(oauth, "utf8")),

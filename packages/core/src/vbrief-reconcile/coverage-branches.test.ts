@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as scm from "../scm/call.js";
-import { formatVbriefJson } from "../scope/vbrief-json.js";
+import { formatBriefJson } from "../scope/vbrief-json.js";
 import { graphOutcomeToJson, reconcileGraph, renderGraphReport } from "./graph.js";
 import {
   computeDesiredLabels,
@@ -299,24 +299,26 @@ describe("coverage branches round 2", () => {
     }
     writeFileSync(
       join(root, "xbrief", "completed", "dep.xbrief.json"),
-      formatVbriefJson({
-        vBRIEFInfo: { version: "0.5" },
+      formatBriefJson({
+        xBRIEFInfo: { version: "0.8" },
         plan: {
           id: "dep",
           title: "dep",
           status: "completed",
+          items: [],
           metadata: { kind: "story", swarm: { depends_on: [] } },
         },
       }),
     );
     writeFileSync(
       join(root, "xbrief", "proposed", "child.xbrief.json"),
-      formatVbriefJson({
-        vBRIEFInfo: { version: "0.5" },
+      formatBriefJson({
+        xBRIEFInfo: { version: "0.8" },
         plan: {
           id: "child",
           title: "child",
           status: "proposed",
+          items: [],
           metadata: { kind: "story", swarm: { depends_on: ["dep"] } },
         },
       }),
@@ -337,7 +339,7 @@ describe("coverage branches round 2", () => {
     }
     writeFileSync(
       join(root, "xbrief", "completed", "dep2.xbrief.json"),
-      formatVbriefJson({
+      formatBriefJson({
         vBRIEFInfo: { version: "0.5" },
         plan: {
           id: "dep2",
@@ -349,7 +351,7 @@ describe("coverage branches round 2", () => {
     );
     writeFileSync(
       join(root, "xbrief", "proposed", "kid.xbrief.json"),
-      formatVbriefJson({
+      formatBriefJson({
         vBRIEFInfo: { version: "0.5" },
         plan: {
           id: "kid",
@@ -533,7 +535,7 @@ describe("coverage branches round 2", () => {
     mkdirSync(join(root, "xbrief", "proposed"), { recursive: true });
     writeFileSync(
       join(root, "xbrief", "proposed", "solo.xbrief.json"),
-      formatVbriefJson({
+      formatBriefJson({
         vBRIEFInfo: { version: "0.5" },
         plan: {
           id: "solo",

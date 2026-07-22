@@ -11,8 +11,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { batchDemote, demoteOne, resolveFilePath } from "./demote.js";
+import { minimalScopeBrief } from "./scope-test-fixtures.test.js";
 import { runTransition } from "./transition.js";
-import { formatVbriefJson } from "./vbrief-json.js";
+import { formatBriefJson } from "./vbrief-json.js";
 
 const itSymlink = it.skipIf(process.platform === "win32");
 
@@ -36,7 +37,7 @@ describe("demote", () => {
     const path = join(root, "xbrief", "pending", "x.xbrief.json");
     writeFileSync(
       path,
-      formatVbriefJson({
+      formatBriefJson({
         plan: { title: "T", status: "pending", updated: "2026-05-01T00:00:00Z", items: [] },
       }),
       "utf8",
@@ -53,7 +54,7 @@ describe("demote", () => {
     const path = join(root, "xbrief", "pending", "old.xbrief.json");
     writeFileSync(
       path,
-      formatVbriefJson({
+      formatBriefJson({
         plan: { title: "T", status: "pending", updated: "2026-01-01T00:00:00Z", items: [] },
       }),
       "utf8",
@@ -76,7 +77,7 @@ describe("demote", () => {
     const victim = join(escapeDir, "victim.xbrief.json");
     writeFileSync(
       victim,
-      formatVbriefJson({
+      formatBriefJson({
         plan: { title: "T", status: "pending", updated: "2026-05-01T00:00:00Z", items: [] },
       }),
       "utf8",
@@ -100,7 +101,7 @@ describe("demote", () => {
       const victim = join(escapeDir, "victim.xbrief.json");
       writeFileSync(
         victim,
-        formatVbriefJson({
+        formatBriefJson({
           plan: { title: "T", status: "pending", updated: "2026-01-01T00:00:00Z", items: [] },
         }),
         "utf8",
@@ -130,7 +131,7 @@ describe("promote then demote undo path", () => {
     const proposed = join(root, "xbrief", "proposed", "y.xbrief.json");
     writeFileSync(
       proposed,
-      formatVbriefJson({ plan: { title: "T", status: "proposed", items: [] } }),
+      formatBriefJson(minimalScopeBrief({ title: "T", status: "proposed", items: [] })),
       "utf8",
     );
     expect(runTransition("promote", proposed).ok).toBe(true);
