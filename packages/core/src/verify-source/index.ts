@@ -12,4 +12,5 @@ export * from "./cursor-tier1.js";
 export * from "./python-call-scan.js";
 export * from "./rule-ownership-lint.js";
 export * from "./scm-boundary.js";
+export * from "./skill-external-fetch-gate.js";
 export * from "./verify-stubs.js";

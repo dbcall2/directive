@@ -16,12 +16,16 @@ export function repoPath(...segments: string[]): string {
  * first (SOURCE layout), then fall back to the repo root so root-resident
  * harness entries (AGENTS.md) and the flattened consumer layout still resolve.
  */
-export function resolveRepoPath(relPath: string): string {
-  const underContent = join(REPO_ROOT, "content", relPath);
+export function resolveContentPathFromRoot(projectRoot: string, relPath: string): string {
+  const underContent = join(projectRoot, "content", relPath);
   if (existsSync(underContent)) {
     return underContent;
   }
-  return repoPath(relPath);
+  return join(projectRoot, relPath);
+}
+
+export function resolveRepoPath(relPath: string): string {
+  return resolveContentPathFromRoot(REPO_ROOT, relPath);
 }
 
 export function readRepoFile(relPath: string): string {
@@ -52,6 +56,28 @@ export function returningSessionsSection(): string {
   return nextHeading === -1 ? rest : rest.slice(0, nextHeading);
 }
 
+function skillsDirFromRoot(projectRoot: string): string | null {
+  const resolved = resolveContentPathFromRoot(projectRoot, "skills");
+  return existsSync(resolved) ? resolved : null;
+}
+
+export function listSkillMdFilesFromRoot(projectRoot: string): string[] {
+  const skillsDir = skillsDirFromRoot(projectRoot);
+  if (skillsDir === null) {
+    return [];
+  }
+  const results: string[] = [];
+  for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      const skillMd = join(skillsDir, entry.name, "SKILL.md");
+      if (existsSync(skillMd)) {
+        results.push(join("skills", entry.name, "SKILL.md"));
+      }
+    }
+  }
+  return results.sort();
+}
+
 export function listSkillMdFiles(): string[] {
   const skillsDir = resolveRepoPath("skills");
   const results: string[] = [];
@@ -64,6 +90,30 @@ export function listSkillMdFiles(): string[] {
     }
   }
   return results.sort();
+}
+
+export function listSkillMdEntriesFromRoot(
+  projectRoot: string,
+): ReadonlyArray<{ path: string; text: string }> {
+  const skillsDir = skillsDirFromRoot(projectRoot);
+  if (skillsDir === null) {
+    return [];
+  }
+  const entries: Array<{ path: string; text: string }> = [];
+  for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const skillMd = join(skillsDir, entry.name, "SKILL.md");
+    if (!existsSync(skillMd)) {
+      continue;
+    }
+    entries.push({
+      path: join("skills", entry.name, "SKILL.md"),
+      text: readFileSync(skillMd, "utf8").replace(/\r\n/g, "\n").replace(/\r/g, "\n"),
+    });
+  }
+  return entries.sort((a, b) => a.path.localeCompare(b.path));
 }
 
 export const RFC2119_LEGEND = "!=MUST, ~=SHOULD";
