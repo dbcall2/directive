@@ -1,9 +1,19 @@
 import { randomBytes } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import {
+  closeSync,
+  constants,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  writeSync,
+} from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { contentRoot } from "../content-root.js";
 import { ATTRIBUTION_REQUIRED_PAYLOAD } from "../events/attribution-constants.js";
+import { assertWriteTargetSafe, ProjectionContainmentError } from "../fs/projection-containment.js";
 
 /** Default event log location (project-local). */
 export const DEFAULT_EVENT_LOG = join(".deft-cache", "events.jsonl");
@@ -160,15 +170,71 @@ function jsonStringifySorted(value: unknown): string {
   return JSON.stringify(sortKeysDeep(value));
 }
 
-function resolveLogPath(logPath?: string | null): string {
+function resolveLogPath(logPath: string | null | undefined, projectRoot: string): string {
   if (logPath !== undefined && logPath !== null) {
-    return resolve(logPath);
+    return isAbsolute(logPath) ? resolve(logPath) : resolve(projectRoot, logPath);
   }
   const envPath = process.env.DEFT_EVENT_LOG;
   if (envPath !== undefined && envPath.length > 0) {
-    return resolve(envPath);
+    return isAbsolute(envPath) ? resolve(envPath) : resolve(projectRoot, envPath);
   }
-  return resolve(DEFAULT_EVENT_LOG);
+  return resolve(projectRoot, DEFAULT_EVENT_LOG);
+}
+
+function isNestedUnder(parent: string, child: string): boolean {
+  const rel = relative(resolve(parent), resolve(child));
+  return rel.length > 0 && !rel.startsWith("..") && !isAbsolute(rel);
+}
+
+function assertPathComponentsNotSymlinks(projectDir: string, targetPath: string): void {
+  const targetAbs = resolve(targetPath);
+  const projectAbs = resolve(projectDir);
+  let current = targetAbs;
+  const chain: string[] = [];
+  while (true) {
+    chain.unshift(current);
+    const parent = dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+  for (const segment of chain) {
+    let info: ReturnType<typeof lstatSync>;
+    try {
+      info = lstatSync(segment);
+    } catch {
+      continue;
+    }
+    if (info.isSymbolicLink()) {
+      throw new ProjectionContainmentError(
+        `projection write refused: ${segment} is a symlink on the write path`,
+        { projectDir: projectAbs, targetPath: targetAbs, offendingPath: segment },
+      );
+    }
+  }
+}
+
+/** Refuse symlink write targets for project-owned and explicit event logs (#2766). */
+function assertEventLogTargetSafe(projectRoot: string, targetPath: string): void {
+  if (isNestedUnder(projectRoot, targetPath)) {
+    assertWriteTargetSafe(projectRoot, targetPath);
+    return;
+  }
+  assertPathComponentsNotSymlinks(projectRoot, targetPath);
+}
+
+function appendLineNoFollow(target: string, line: string): void {
+  const fd = openSync(
+    target,
+    constants.O_WRONLY | constants.O_CREAT | constants.O_APPEND | constants.O_NOFOLLOW,
+    0o644,
+  );
+  try {
+    writeSync(fd, Buffer.from(line, "utf8"));
+  } finally {
+    closeSync(fd);
+  }
 }
 
 function newEventId(): string {
@@ -187,7 +253,11 @@ export interface BehavioralEventRecord {
 export function emit(
   name: string,
   payload: Record<string, unknown>,
-  options: { logPath?: string | null; detectedAt?: string | null } = {},
+  options: {
+    logPath?: string | null;
+    detectedAt?: string | null;
+    projectRoot?: string | null;
+  } = {},
 ): BehavioralEventRecord {
   const behavioralNames = registeredBehavioralNames();
   if (!behavioralNames.has(name)) {
@@ -212,15 +282,17 @@ export function emit(
     payload: { ...payload },
   };
 
-  const target = resolveLogPath(options.logPath);
+  const projectRoot = resolve(options.projectRoot ?? process.cwd());
+  const target = resolveLogPath(options.logPath, projectRoot);
+  assertEventLogTargetSafe(projectRoot, target);
   mkdirSync(dirname(target), { recursive: true });
-  appendFileSync(target, `${jsonStringifySorted(record)}\n`, "utf8");
+  appendLineNoFollow(target, `${jsonStringifySorted(record)}\n`);
   return record;
 }
 
 /** Return all events from the log in emission order. */
 export function readEvents(logPath?: string | null): BehavioralEventRecord[] {
-  const target = resolveLogPath(logPath);
+  const target = resolveLogPath(logPath, process.cwd());
   if (!existsSync(target)) {
     return [];
   }
