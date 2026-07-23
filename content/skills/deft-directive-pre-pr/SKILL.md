@@ -60,10 +60,20 @@ task verify:plan-sequence -- --target-kind <entry-kind> --target <entry-id>
 - ! After the PR's review cycle completes successfully, run `task plan-sequence:advance` so "next" resolves to the following entry (or exhausted).
 - ⊗ Treat skill-chaining or "what's next?" as permission to open a PR outside the current sequence entry.
 
+## Gate throughput — iteration fast lane vs merge chokepoint (#1704)
+
+> **Invariant:** every change MUST pass the full gate at least once before merge. Pre-PR is the merge chokepoint — NOT every iteration commit.
+
+- ! **Iteration lane (Phases 2–3 loop):** use affected/static gates on changed paths — `vitest run --coverage <paths>`, relevant `verify:*` on touched files, `task coverage:hotspots` — instead of full `task check` on every RWLDL iteration.
+- ! **Merge chokepoint (Phase 3 Lint exit + final confirm):** run full `task check` once before push/PR; Phase 3c targeted coverage precedes but does not replace the full gate.
+- ! **Escape-rate safety (#1703 Tier-1):** before recommending fleet-wide fast-lane tightening, cite `#1703` Tier-1 telemetry (`helped/crud-metrics.jsonl`) and `task eval:health` — do NOT invent a separate escape-rate surface.
+- ~ **In-engine incrementality (#1713):** content-hash cache + runner-delegated affected selection are sibling work (#1713).
+- ⊗ Treat Phase 3c targeted coverage alone as PR-ready without full `task check` at the merge chokepoint.
+
 ## When to Use
 
 - ! Before pushing a branch for PR creation
-- ! After completing implementation but before the final `task check` gate
+- ! After completing implementation but before the final merge-chokepoint `task check` (#1704)
 - ~ After addressing bot reviewer findings (run one RWLDL pass before pushing the fix batch)
 - ? During mid-implementation checkpoints on large changes
 
@@ -95,9 +105,9 @@ Each iteration proceeds through all phases in order. Do NOT skip phases or reord
 
 ### Phase 3 -- Lint
 
-! Run `task check` and fix any failures.
+! Run the merge-chokepoint gate and fix any failures (#1704).
 
-- ! Run `task check` (fmt + lint + typecheck + tests + coverage)
+- ! Run full `task check` (fmt + lint + typecheck + tests + coverage + verify:*) — the merge chokepoint, not every RWLDL iteration
 - ! Fix all failures before proceeding to Phase 3b
 - ~ If a lint fix requires changing a file, that counts as a change for the Loop phase
 

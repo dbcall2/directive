@@ -101,6 +101,10 @@ Legacy `vbrief/` read-accepted; `deft migrate:xbrief` for `xbrief/` (v0.6→v0.8
 
 ! `git status --short --branch` + `deft verify:story-ready`; `deft scope:promote -- <path>` / `deft scope:activate -- <path>` / `deft scope:complete -- <active-story-path>` (#1378) — `commands.md` § Scope xBRIEF Lifecycle.
 
+### Gate throughput (#1704)
+
+! Iteration commits use affected/static fast lane; full `deft check` is the merge chokepoint before push/PR — `commands.md` § Gate throughput; build / pre-pr / swarm skills (#1704).
+
 ## Commands
 
 ! `/deft:directive:*` namespace (#418 / #1670); full table in `.deft/core/commands.md` — load on demand.
