@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.84.0] - 2026-07-23
+
+> Faster consumer checks: in-engine content-hash cache and iteration fast lane, plus Windows Cursor Write path, session-ritual rebind, and symlink write hardening.
+
+### Added
+
 - **In-engine content-hash task cache (#1713).** `deft check` replays prior exit-0 results for unchanged cacheable gates from `.deft/cache/task/`; `--no-cache` and `deft cache:clear` escape hatches; `codeVersion` invalidates on upgrade; volatile gates opt out; runner auto-detect documents vitest/jest/go/pytest fast-lane conventions (full suite remains the merge gate per #1704). Public `@deft/types` contract deferred to #2784.
 - **Gate throughput process levers (#1704).** Iteration fast lane (affected/static gates during commits; full `task check` at PR/merge only) in build, swarm, and pre-pr skills; `task check:merge` alias; CI merge-gate job runs `task check:merge` as merge SoT (cached `deft check` cannot invoke internal Taskfile shims — `#1713` follow-up). Escape-rate consumption points at `#1703` Tier-1 telemetry. In-engine cache remains `#1713`. Merge queue deferred pending `#1713` + stable escape-rate signal.
 
@@ -4613,7 +4625,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.83.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.84.0...HEAD
+[0.84.0]: https://github.com/deftai/directive/compare/v0.83.0...v0.84.0
 [0.83.0]: https://github.com/deftai/directive/compare/v0.82.0...v0.83.0
 [0.82.0]: https://github.com/deftai/directive/compare/v0.81.0...v0.82.0
 [0.81.0]: https://github.com/deftai/directive/compare/v0.80.0...v0.81.0
