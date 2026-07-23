@@ -6,7 +6,7 @@
   "plan": {
     "id": "2791-cached-check-internal-shims",
     "title": "bug(check): #1713 cached task check shells internal Taskfile shims (go-task 202)",
-    "status": "running",
+    "status": "completed",
     "planRef": "https://github.com/deftai/directive/issues/2791",
     "narratives": {
       "Description": "After #1713, framework `task check` shells each FRAMEWORK_CHECK_GATES entry by name. Three Taskfile shims are internal:true and go-task 3.50 exits 202 when invoked directly, blocking release prep.",
@@ -50,8 +50,10 @@
         "expected_outputs": [
           "Public gate spawn args; no internal shim names in FRAMEWORK_CHECK_GATES"
         ]
-      }
+      },
+      "completedAt": "2026-07-23T21:08:04Z",
+      "capacityBucket": "new-capability"
     },
-    "updated": "2026-07-23T20:54:03Z"
+    "updated": "2026-07-23T21:08:04Z"
   }
 }
