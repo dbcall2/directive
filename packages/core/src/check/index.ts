@@ -1,9 +1,9 @@
 export { dispatchCachedTaskCheck } from "./cached-orchestrator.js";
 export {
   type CheckGateSpec,
+  CONSUMER_CHECK_GATES,
   checkGateId,
   checkGateSpawnArgs,
-  CONSUMER_CHECK_GATES,
   FRAMEWORK_CHECK_GATES,
   gatesForCheckTarget,
 } from "./gate-lists.js";
