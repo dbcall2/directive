@@ -1,9 +1,10 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GitRunner } from "./git.js";
+import { defaultGitRunner, type GitRunResult } from "./git.js";
 import { buildContext, evaluate, parse, ResumeGrammarError } from "./resume-conditions.js";
 import * as ritualSentinel from "./ritual-sentinel.js";
 import {
@@ -13,7 +14,7 @@ import {
   writeRitualState,
 } from "./ritual-sentinel.js";
 import { defaultBranchSync, runSessionStart } from "./session-start.js";
-import { verifySessionRitual } from "./verify-session-ritual.js";
+import { inspectSessionRitual, verifySessionRitual } from "./verify-session-ritual.js";
 
 const temps: string[] = [];
 afterEach(() => {
@@ -58,15 +59,37 @@ function initRepo(): { root: string; head: string } {
   return { root, head };
 }
 
+function capturedGitRun(projectRoot: string, args: readonly string[]): GitRunResult {
+  const result = spawnSync("git", [...args], {
+    cwd: projectRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: "T",
+      GIT_AUTHOR_EMAIL: "t@t.local",
+      GIT_COMMITTER_NAME: "T",
+      GIT_COMMITTER_EMAIL: "t@t.local",
+    },
+  });
+  return {
+    code: result.status ?? 2,
+    stdout: (result.stdout ?? "").trimEnd(),
+    stderr: (result.stderr ?? "").trimEnd(),
+  };
+}
+
 function fakeGit(head: string, worktree: string, overrides?: Partial<GitRunner>): GitRunner {
-  const base: GitRunner = (_r, args) => {
+  const base: GitRunner = (projectRoot, args) => {
     if (args[0] === "rev-parse" && args[1] === "--verify" && args[2] === "HEAD") {
-      return { code: 0, stdout: head, stderr: "" };
+      const run = capturedGitRun(projectRoot, args);
+      return { ...run, code: 0, stdout: head };
     }
     if (args[0] === "rev-parse" && args[1] === "--show-toplevel") {
-      return { code: 0, stdout: worktree, stderr: "" };
+      const run = capturedGitRun(projectRoot, args);
+      return { ...run, code: 0, stdout: worktree };
     }
-    return { code: 0, stdout: "", stderr: "" };
+    return defaultGitRunner(projectRoot, args);
   };
   return overrides ? (r, a) => overrides(r, a) ?? base(r, a) : base;
 }
@@ -106,11 +129,28 @@ describe("session branches", () => {
   it("verify detects head and worktree drift", () => {
     const { root, head } = initRepo();
     const now = new Date("2026-06-09T01:00:00Z");
+    writeFileSync(join(root, "forward.txt"), "x\n", "utf8");
+    execFileSync("git", ["add", "forward.txt"], { cwd: root, encoding: "utf8" });
+    execFileSync("git", ["commit", "-q", "-m", "forward"], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "T",
+        GIT_AUTHOR_EMAIL: "t@t.local",
+        GIT_COMMITTER_NAME: "T",
+        GIT_COMMITTER_EMAIL: "t@t.local",
+      },
+    });
+    const advancedHead = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim();
     writeRitualState(
       root,
       newRitualStatePayload({
         sessionId: "s",
-        gitHead: "old-head",
+        gitHead: advancedHead,
         worktreePath: resolve(root),
         startedAt: now,
         quickSteps: {
@@ -120,14 +160,14 @@ describe("session branches", () => {
         },
       }),
     );
+    execFileSync("git", ["reset", "--hard", head], { cwd: root, encoding: "utf8" });
     const headDrift = verifySessionRitual(root, {
       bypass: false,
       posture: "mutation",
       now,
-      runGit: fakeGit(head, resolve(root)),
     });
     expect(headDrift.code).toBe(1);
-    expect(headDrift.message).toContain("HEAD changed");
+    expect(headDrift.message).toContain("discontinuously");
 
     writeRitualState(
       root,
@@ -206,6 +246,53 @@ describe("session branches", () => {
     vi.restoreAllMocks();
   });
 
+  it("verify fails when forward HEAD rebind cannot write (#2782)", () => {
+    const { root, head } = initRepo();
+    const now = new Date("2026-07-23T12:00:00Z");
+    writeRitualState(
+      root,
+      newRitualStatePayload({
+        sessionId: "s",
+        gitHead: head,
+        worktreePath: resolve(root),
+        startedAt: now,
+        quickSteps: {
+          alignment: ritualStep({ ok: true, ts: now }),
+          branch_policy: ritualStep({ ok: true, ts: now }),
+          triage_welcome: ritualStep({ ok: true, ts: now }),
+        },
+        gatedSteps: {
+          doctor: ritualStep({ ok: true, ts: now }),
+          cache_fresh: ritualStep({ ok: true, ts: now }),
+        },
+      }),
+    );
+    writeFileSync(join(root, "forward.txt"), "x\n", "utf8");
+    execFileSync("git", ["add", "forward.txt"], { cwd: root, encoding: "utf8" });
+    execFileSync("git", ["commit", "-q", "-m", "forward"], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "T",
+        GIT_AUTHOR_EMAIL: "t@t.local",
+        GIT_COMMITTER_NAME: "T",
+        GIT_COMMITTER_EMAIL: "t@t.local",
+      },
+    });
+    vi.spyOn(ritualSentinel, "writeRitualState").mockImplementation(() => {
+      throw new Error("disk full");
+    });
+    const result = verifySessionRitual(root, {
+      bypass: false,
+      posture: "mutation",
+      now,
+    });
+    expect(result.code).toBe(2);
+    expect(result.message).toContain("could not rebind session ritual git HEAD");
+    vi.restoreAllMocks();
+  });
+
   it("runSessionStart triage exception path", () => {
     const { root, head } = initRepo();
     const result = runSessionStart(root, {
@@ -262,5 +349,119 @@ describe("session branches", () => {
       "utf8",
     );
     expect(readRitualState(root)[1]).toContain(".ok");
+  });
+
+  it("forward commit stays fresh; branch switch and rebase fail closed (#2782)", () => {
+    const { root } = initRepo();
+    const now = new Date("2026-07-23T12:00:00Z");
+    const gatedSteps = {
+      doctor: ritualStep({ ok: true, ts: now }),
+      cache_fresh: ritualStep({ ok: true, ts: now }),
+    };
+    const quickSteps = {
+      alignment: ritualStep({ ok: true, ts: now }),
+      branch_policy: ritualStep({ ok: true, ts: now }),
+      triage_welcome: ritualStep({ ok: true, ts: now }),
+    };
+
+    execFileSync("git", ["checkout", "-q", "-b", "feature"], { cwd: root, encoding: "utf8" });
+    execFileSync("git", ["checkout", "-q", "-"], { cwd: root, encoding: "utf8" });
+
+    writeFileSync(join(root, "forward.txt"), "x\n", "utf8");
+    execFileSync("git", ["add", "forward.txt"], { cwd: root, encoding: "utf8" });
+    execFileSync("git", ["commit", "-q", "-m", "forward"], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "T",
+        GIT_AUTHOR_EMAIL: "t@t.local",
+        GIT_COMMITTER_NAME: "T",
+        GIT_COMMITTER_EMAIL: "t@t.local",
+      },
+    });
+    const mainHead = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim();
+
+    writeRitualState(
+      root,
+      newRitualStatePayload({
+        sessionId: "s",
+        gitHead: mainHead,
+        worktreePath: resolve(root),
+        startedAt: now,
+        quickSteps,
+        gatedSteps,
+      }),
+    );
+
+    writeFileSync(join(root, "forward2.txt"), "y\n", "utf8");
+    execFileSync("git", ["add", "forward2.txt"], { cwd: root, encoding: "utf8" });
+    execFileSync("git", ["commit", "-q", "-m", "forward-2"], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "T",
+        GIT_AUTHOR_EMAIL: "t@t.local",
+        GIT_COMMITTER_NAME: "T",
+        GIT_COMMITTER_EMAIL: "t@t.local",
+      },
+    });
+    expect(inspectSessionRitual(root, { tier: "gated", posture: "mutation", now }).code).toBe(0);
+
+    execFileSync("git", ["checkout", "-q", "feature"], { cwd: root, encoding: "utf8" });
+    writeFileSync(join(root, "feature.txt"), "y\n", "utf8");
+    execFileSync("git", ["add", "feature.txt"], { cwd: root, encoding: "utf8" });
+    execFileSync("git", ["commit", "-q", "-m", "feature-only"], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "T",
+        GIT_AUTHOR_EMAIL: "t@t.local",
+        GIT_COMMITTER_NAME: "T",
+        GIT_COMMITTER_EMAIL: "t@t.local",
+      },
+    });
+    const branchSwitch = inspectSessionRitual(root, { tier: "gated", posture: "mutation", now });
+    expect(branchSwitch.code).toBe(1);
+    expect(branchSwitch.message).toContain("discontinuously");
+
+    execFileSync("git", ["checkout", "-q", "-"], { cwd: root, encoding: "utf8" });
+    const pinnedHead = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim();
+    writeRitualState(
+      root,
+      newRitualStatePayload({
+        sessionId: "s2",
+        gitHead: pinnedHead,
+        worktreePath: resolve(root),
+        startedAt: now,
+        quickSteps,
+        gatedSteps,
+      }),
+    );
+    writeFileSync(join(root, "amend.txt"), "z\n", "utf8");
+    execFileSync("git", ["add", "amend.txt"], { cwd: root, encoding: "utf8" });
+    execFileSync("git", ["commit", "-q", "--amend", "--no-edit"], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "T",
+        GIT_AUTHOR_EMAIL: "t@t.local",
+        GIT_COMMITTER_NAME: "T",
+        GIT_COMMITTER_EMAIL: "t@t.local",
+      },
+    });
+
+    const amend = inspectSessionRitual(root, { tier: "gated", posture: "mutation", now });
+    expect(amend.code).toBe(1);
+    expect(amend.message).toContain("discontinuously");
   });
 });
