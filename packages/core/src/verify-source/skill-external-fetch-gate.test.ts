@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import * as helpers from "../content-contracts/skills/helpers.js";
 import { evaluateSkillExternalFetchGate } from "./skill-external-fetch-gate.js";
 
 const REPO_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..", "..", "..", "..");
@@ -16,6 +17,7 @@ function makeTempRoot(): string {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   while (tempRoots.length > 0) {
     const root = tempRoots.pop();
     if (root) {
@@ -67,5 +69,18 @@ describe("evaluateSkillExternalFetchGate (#1936)", () => {
     const result = evaluateSkillExternalFetchGate(root);
     expect(result.code).toBe(2);
     expect(result.message).toContain("failed to read");
+  });
+
+  it("returns_config_error_when_skill_read_throws_non_error", () => {
+    const root = makeTempRoot();
+    const skillDir = join(root, "content", "skills", "ok");
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(join(skillDir, "SKILL.md"), "# ok\n", "utf8");
+    vi.spyOn(helpers, "listSkillMdEntriesFromRoot").mockImplementation(() => {
+      throw "broken read";
+    });
+    const result = evaluateSkillExternalFetchGate(root);
+    expect(result.code).toBe(2);
+    expect(result.message).toContain("broken read");
   });
 });
