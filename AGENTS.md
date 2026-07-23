@@ -157,7 +157,7 @@ Same `!` / `⊗` rules as managed below; `task issue:ingest` (#2143).
 
 Note: root-relative paths (this repo IS deft/); run `task agents:refresh` after agents-entry edits (#1309).
 
-<!-- deft:managed-section v3 sha=3bd115f734c8 refreshed=2026-07-22T03:01:23Z session=4f90b612ea8a -->
+<!-- deft:managed-section v3 sha=90d97a214b3e refreshed=2026-07-23T15:58:18Z session=46bf39e51662 -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
@@ -259,6 +259,10 @@ Legacy `vbrief/` read-accepted; `deft migrate:xbrief` for `xbrief/` (v0.6→v0.8
 ### Story Start Gate
 
 ! `git status --short --branch` + `deft verify:story-ready`; `deft scope:promote -- <path>` / `deft scope:activate -- <path>` / `deft scope:complete -- <active-story-path>` (#1378) — `commands.md` § Scope xBRIEF Lifecycle.
+
+### Gate throughput (#1704)
+
+! Iteration commits use affected/static fast lane; full `deft check` is the merge chokepoint before push/PR — `commands.md` § Gate throughput; build / pre-pr / swarm skills (#1704).
 
 ## Commands
 
