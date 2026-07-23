@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.83.0] - 2026-07-23
+
+> Persistent hostHooks opt-out, Cursor failClosed/ApplyPatch write fixes, AppSec hardening (corepack, product-signal, lifecycle events), and branch-coverage restore.
+
+### Added
+
 - **Persistent agent-host hook opt-out (#2752).** `plan.policy.hostHooks` lets consumers disable Directive hook deposit per host (`claude`, `cursor`, `grok`, `codex`). Opted-out hosts are skipped on `deft update` / `directive init`, managed entries are stripped without deleting unrelated settings, and doctor / `verify:hooks-installed` no longer recommend repair. Inspect with `deft policy:show --field=hostHooks`.
 
 ### Changed
@@ -4590,7 +4602,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.82.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.83.0...HEAD
+[0.83.0]: https://github.com/deftai/directive/compare/v0.82.0...v0.83.0
 [0.82.0]: https://github.com/deftai/directive/compare/v0.81.0...v0.82.0
 [0.81.0]: https://github.com/deftai/directive/compare/v0.80.0...v0.81.0
 [0.80.0]: https://github.com/deftai/directive/compare/v0.79.4...v0.80.0

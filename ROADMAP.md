@@ -1022,4 +1022,9 @@
 - **#2734** -- fix(hooks): strip UTF-8 BOM before Cursor preToolUse JSON.parse -- `[completed]`
 - **#2738** -- fix(hooks): classify Cursor free-form ApplyPatch in parsePayload -- `[completed]`
 - **#2744** -- docs/process: always-load win32 issue-body RMW footgun (PS string[]/OFS) -- `[completed]`
+- **#2752** -- deft update re-projects .claude/settings.json with no persistent opt-out; fail-closed hook causes friction in non-ritual repos -- `[completed]`
+- **#2762** -- test(coverage): restore branches >=85% after v0.82.0 hairline miss -- `[completed]`
+- **#2764** -- bug: Cursor ApplyPatch double-dispatch blocks Windows writes -- `[completed]`
+- **#2766** -- security(lifecycle): refuse symlink write targets for events.jsonl (#2761) -- `[completed]`
+- **#2779** -- bug(hooks): Cursor failClosed empty allow stdout blocks Write after successful Directive gate -- `[completed]`
 
