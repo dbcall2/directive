@@ -59,8 +59,8 @@
     "metadata": {
       "kind": "story",
       "swarm": {
-        "readiness": "sequential",
-        "parallel_safe": false,
+        "readiness": "ready",
+        "parallel_safe": true,
         "file_scope": [
           "packages/core/src/verify/skill-external-fetch-gate.ts",
           "packages/core/src/verify/skill-external-fetch-gate.test.ts"
