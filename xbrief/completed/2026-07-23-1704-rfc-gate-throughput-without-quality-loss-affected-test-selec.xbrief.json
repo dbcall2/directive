@@ -6,7 +6,7 @@
   "plan": {
     "id": "1704-gate-throughput-process",
     "title": "RFC: gate throughput without quality loss — process levers (fast lane, CI monolith, merge queue)",
-    "status": "running",
+    "status": "completed",
     "planRef": "https://github.com/deftai/directive/issues/1704",
     "narratives": {
       "Description": "Raise gate throughput without quality loss on the maintainer/process face. Keep the full-gate-at-merge invariant while making the iteration lane cheap for agents and humans. In-engine content-hash cache and runner-delegated affected selection are owned by #1713; this story ships skill/CI/merge-queue policy that makes the invariant real.",
@@ -85,7 +85,9 @@
         "size": "medium",
         "file_scope_confidence": "medium",
         "model_tier": "medium"
-      }
+      },
+      "completedAt": "2026-07-23T18:38:47Z",
+      "capacityBucket": "agentic-debt"
     },
     "references": [
       {
@@ -99,6 +101,6 @@
         "title": "Issue #1713: in-engine incrementality (sibling)"
       }
     ],
-    "updated": "2026-07-23T15:24:16Z"
+    "updated": "2026-07-23T18:38:47Z"
   }
 }
