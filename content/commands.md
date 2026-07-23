@@ -181,7 +181,7 @@ Current status: the validation, extractor, provider, registry, generated MAP, an
 > **Invariant:** every change MUST pass the full gate at least once before merge.
 
 - ! **Iteration lane (agents + humans):** during implementation, use affected/static gates — targeted tests on changed paths, relevant static `verify:*` gates, `task coverage:hotspots` / `task verify:forward-coverage` — not full `task check` on every commit.
-- ! **Merge chokepoint:** full `task check` (or `check:merge` in framework source) before push/PR and in CI via the monolith merge gate (`.github/workflows/ci.yml`).
+- ! **Merge chokepoint:** full `task check` (or `task check:merge` in framework source) before push/PR and in CI via the monolith merge-gate job (`.github/workflows/ci.yml` runs `check:merge`, not cached `deft check`, until `#1713` can invoke internal Taskfile shims).
 - ! **Escape-rate safety:** consume `#1703` Tier-1 telemetry (`helped/crud-metrics.jsonl`) and `task eval:health` (Tier 0) before tightening fast-lane defaults — do not invent a separate metric surface.
 - ~ **In-engine incrementality (#1713):** content-hash cache + runner-delegated affected selection are delivered separately.
 - ~ **Merge queue:** deferred — GitHub merge queue adoption waits until the CI monolith + escape-rate signal are stable; batch merge throughput is the next lever after `#1713` cache lands (#1704 ROI order).

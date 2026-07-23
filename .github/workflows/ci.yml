@@ -185,8 +185,8 @@ jobs:
       - name: Setup uv (toolchain gate in task check)
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
-      - name: task check (merge chokepoint SoT — #1704)
-        run: task check
+      - name: task check:merge (merge chokepoint SoT — #1704)
+        run: task check:merge
         env:
           GH_TOKEN: ${{ github.token }}
 
