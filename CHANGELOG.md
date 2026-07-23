@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Cached `task check` no longer shells internal Taskfile shims (#2791).** The #1713 framework gate list now invokes the public `verify:wip-cap --allow-over-cap` and eval-relocation surfaces (with `--base-ref origin/master`) instead of `internal: true` task names that go-task 3.50 refuses with exit 202. Closes #2791. Parent #1713.
+
 - Session ritual no longer invalidates on every forward commit on the same worktree. When the pinned `git_head` is still an ancestor of current HEAD, gated direct writes stay allowed and `verify:session-ritual` rebinds the pin in place; checkout, reset, rebase, and worktree mismatches still fail closed. Closes #2782.
 - **Cursor Write hook ritual path no longer doubles Windows drive prefix (#2787).** Hook project-root resolution now scans all Cursor payload workspace fields (not just the first drive-only `C:` entry), normalizes MSYS `/c/...` shapes, and collapses `C:\\c:\\...` doubled-drive paths before ritual-state lookup so Write PreToolUse matches `deft session:start` on Windows consumer trees like `C:\\Repos\\...`. Closes #2787.
 - **Three medium symlink write sinks contained (#2781).** `scope:decompose`, `swarm:routing-set` / `writeModelDecision`, and session readback history appends (`value/readback`, `eval/readback`) now call `assertWriteTargetSafe` before write/append so leaf symlinks cannot divert operator-controlled paths outside the repo. Closes #2781.
