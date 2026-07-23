@@ -209,14 +209,27 @@ All xBRIEFs (including those read from `xbrief/active/` and any new xBRIEFs this
 - ! If any required tool is missing, stop and report — do not proceed to Step 3
 - ⊗ Assume tools are available because the spec references them
 
-### Step 3: Build Phase by Phase
+### Gate throughput — iteration fast lane vs merge chokepoint (#1704)
+
+> **Invariant:** every change MUST pass the full gate at least once before merge. Iteration MAY use a cheaper proxy; the merge chokepoint MUST NOT be skipped.
+
+- ! **Iteration lane (agents + humans):** during implementation commits, use affected/static gates — targeted tests on changed paths (`vitest run --coverage <paths>` or project equivalent), static `verify:*` gates relevant to touched files, and `task coverage:hotspots` / `task verify:forward-coverage` — NOT full `task check` on every commit.
+- ! **Merge chokepoint:** run full `task check` (or `task check:merge` in the framework source repo) once before push/PR and again when CI merge gate runs. Pre-PR skill exit and review-cycle fix batches still require a green full gate.
+- ! **Escape-rate safety (#1703 Tier-1):** before tightening fast-lane defaults fleet-wide, consult `#1703` measurement — `task eval:health` (Tier 0) and Tier-1 session telemetry (`helped/crud-metrics.jsonl` via instrumented CRUD / workflow metrics). Do NOT invent a separate fast-lane escape-rate surface (#1704 LockedDecisions).
+- ~ **In-engine incrementality (#1713):** content-hash task cache and runner-delegated affected selection are sibling work — not required for this policy face.
+- ⊗ Run full `task check` on every iteration commit when a cheaper proxy suffices — reserve the full gate for PR/merge (#1704).
+- ⊗ Skip the merge chokepoint because the iteration lane passed — the fast lane is convenience only.
+
+**Cost model (swarm-heavy path):** moves from roughly `O(commits × full-gate)` toward `O(merges × full-gate) + O(iterations × cheap-proxy)` when workers iterate with affected/static gates and run full `task check` only at PR/merge.
+
+## Step 3: Build Phase by Phase
 
 For each phase:
 
 1. ! **Scaffold** — file structure, dependencies, config
 2. ! **Test first** — write tests before implementation (TDD)
 3. ! **Implement** — make tests pass, following deft coding standards
-4. ! **Verify** — run `task check`, fix any issues
+4. ! **Verify (iteration lane)** — run affected/static gates per `#1704` fast lane above; fix failures before checkpoint commits
 5. ! **Origin sync** — when this phase materially changed an origin-linked scope xBRIEF (`plan.references` includes `x-xbrief/github-issue`), run `task issue:sync-from-xbrief -- <path>` (or `--dry-run` to preview) so the linked GitHub issue receives a sync comment; if skipped, document why in the PR or session notes (#2540)
 6. ! **Checkpoint** — tell user what's done, what's next
 
@@ -224,15 +237,24 @@ For each phase:
 
 ### Step 4: Quality Gates
 
-After EVERY phase:
+After EVERY phase (iteration lane — #1704):
 
 ```bash
-task check          # Format, lint, type check, test, coverage
+vitest run --coverage <changed-paths>   # or project test runner on touched modules
+task coverage:hotspots                  # branch headroom before merge
+task verify:forward-coverage            # new-source coverage (#1310)
+```
+
+Before PR / phase handoff (merge chokepoint):
+
+```bash
+task check          # Full gate — format, lint, typecheck, tests, coverage, verify:*
 task test:coverage  # >=85% or PROJECT-DEFINITION.xbrief.json override
 ```
 
-- ! Phase is NOT done until `task check` passes
+- ! Phase checkpoint commits MAY use the iteration lane; phase is NOT done for PR handoff until full `task check` passes at the merge chokepoint
 - ⊗ Skip quality gates or claim they passed without running
+- ⊗ Treat iteration-lane green as merge-ready without full `task check`
 
 ## Coding Standards (Summary)
 
@@ -244,7 +266,7 @@ Read full files when you need detail:
 - ~ Naming: hyphens for filenames unless language idiom dictates otherwise
 - ! Contracts first: define interfaces/types before implementation
 - ! Secrets: in `secrets/` dir with `.example` templates; ⊗ secrets in code
-- ! Commits: Conventional Commits format; ! run `task check` before every commit
+- ! Commits: Conventional Commits format; ! use iteration fast lane before checkpoint commits; ! run full `task check` at PR/merge chokepoint only (#1704)
 
 See `deft/coding/coding.md` and `deft/coding/testing.md` for full rules.
 
@@ -266,7 +288,7 @@ See `deft/coding/coding.md` and `deft/coding/testing.md` for full rules.
 
 - ! Default to one story per branch/PR. Batching multiple stories in one branch requires explicit operator approval and a short rationale.
 - ! Create a checkpoint commit after each completed story before beginning another story.
-- ! Run `task check` before committing
+- ! Use iteration fast lane before checkpoint commits; run full `task check` at PR/merge chokepoint (#1704)
 - ⊗ Claim checks passed without running them
 
 ```
@@ -296,7 +318,7 @@ feat(phase-2): add REST API endpoints with integration tests
 - ⊗ Implement things not in scope xBRIEF without asking
 - ⊗ Read every deft file upfront
 - ⊗ Move to next phase before current passes checks
-- ⊗ Make commits without running `task check`
+- ⊗ Make commits without running iteration-lane validation; ⊗ skip full `task check` at PR/merge chokepoint (#1704)
 - ⊗ Proceed without USER.md -- always run the USER.md Gate first
 - ⊗ Spawn an implementation agent or invoke a code-writing tool against a xBRIEF that has not passed `task xbrief:preflight` (which wraps `scripts/preflight_implementation.py`) -- always run the Step 0 Implementation Preflight (#810) first; satisfy via `task xbrief:activate <path>`
 - ⊗ Proceed without `COST-ESTIMATE.md` and a recorded build / rescope / no-build / skip(+reason) decision -- always run the Cost Phase Gate (#739) first

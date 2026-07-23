@@ -146,16 +146,66 @@ jobs:
       runner: ubuntu-latest
 
   # -------------------------------------------------------------------------
+  # Merge chokepoint — authoritative `task check` monolith (#1704). Discrete
+  # lane jobs remain for capacity/failover signal; this job is the SoT that
+  # closes the enforcement gap vs local `task check` / `check:merge`.
+  # -------------------------------------------------------------------------
+  merge-gate:
+    name: Merge gate (task check)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch for relocation gates
+        run: git fetch origin master:refs/remotes/origin/master
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.52.0
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Go (toolchain gate in task check)
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Setup uv (toolchain gate in task check)
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+
+      - name: task check:merge (merge chokepoint SoT — #1704)
+        run: task check:merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # -------------------------------------------------------------------------
   # Authoritative aggregators — ONLY these jobs use the branch-protection
   # required check names. Primary/failover lane names must never collide.
   # -------------------------------------------------------------------------
   ts:
     name: TypeScript (build + lint + test)
-    needs: [capacity-watchdog, ts-failover]
+    needs: [capacity-watchdog, ts-failover, merge-gate]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Require merge gate (task check SoT — #1704)
+        if: needs.merge-gate.result != 'success'
+        run: |
+          echo "::error title=Merge gate (#1704)::Merge gate (task check) must pass before the TypeScript required check can succeed."
+          exit 1
       - name: Resolve authoritative TypeScript result
         env:
           GH_TOKEN: ${{ github.token }}

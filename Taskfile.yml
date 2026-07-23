@@ -380,6 +380,13 @@ tasks:
     cmds:
       - task: ts:test
 
+  check:merge:
+    desc: "Merge chokepoint gate — explicit alias for check:framework-source (#1704). CI and PR gates SHOULD invoke this (or task check) as the single SoT so discrete workflow steps cannot drift."
+    deps:
+      - task: engine:_ts-build
+    cmds:
+      - task: check:framework-source
+
   check:framework-source:
     desc: "Run all framework source-repo pre-commit checks (TS-only after #1860). Sole wired consumer of maintainer-only core:build / core:clean."
     deps:

@@ -1,0 +1,104 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Story xBRIEF for #1704 — maintainer/process gate-throughput: fast-lane policy, CI monolith, merge queue; cache engine stays in #1713."
+  },
+  "plan": {
+    "id": "1704-gate-throughput-process",
+    "title": "RFC: gate throughput without quality loss — process levers (fast lane, CI monolith, merge queue)",
+    "status": "running",
+    "planRef": "https://github.com/deftai/directive/issues/1704",
+    "narratives": {
+      "Description": "Raise gate throughput without quality loss on the maintainer/process face. Keep the full-gate-at-merge invariant while making the iteration lane cheap for agents and humans. In-engine content-hash cache and runner-delegated affected selection are owned by #1713; this story ships skill/CI/merge-queue policy that makes the invariant real.",
+      "ImplementationPlan": "1. Update content/skills/deft-directive-build/SKILL.md, content/skills/deft-directive-swarm/SKILL.md, and content/skills/deft-directive-pre-pr/SKILL.md so iteration uses affected/static fast lane and full task check is required at PR/merge only (agents + humans). 2. Close the CI enforcement gap: required merge check on master invokes task check or check:merge as a single SoT in .github/workflows (not only drifted discrete steps). 3. Wire escape-rate consumption guidance to #1703 Tier-1 (do not invent a new metric home). 4. Adopt GitHub merge queue or document explicit deferral with rationale in the PR. 5. Document before/after cost model on one swarm-heavy path. 6. CHANGELOG [Unreleased]. Verify with task ts:test and targeted workflow validation; task check at merge.",
+      "UserStory": "As a Directive maintainer running swarm workers, I want iteration to use a cheap fast lane while merge still runs the full gate, so that agent loops stop paying full task check on every commit without losing the merge invariant.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/1704",
+      "Traces": "#1704, #1703, #1713, #1681, LockedDecisions 2026-07-23"
+    },
+    "items": [
+      {
+        "id": "1704-a1",
+        "title": "Fast-lane policy in build/swarm/pre-pr skills",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given build, swarm, and pre-pr skills, when an agent iterates, then guidance requires affected/static fast lane (not full task check every commit) and requires full task check at PR/merge for agents and humans."
+        }
+      },
+      {
+        "id": "1704-a2",
+        "title": "CI monolith merge SoT",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given required CI on master/merge, when a PR merges, then task check or check:merge runs as the single source of truth rather than only a drifted discrete-step re-implementation."
+        }
+      },
+      {
+        "id": "1704-a3",
+        "title": "Escape-rate consume + merge queue",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given #1703 Tier-1, when fast-lane defaults ship, then escape-rate is referenced as the safety proof; merge queue is adopted or explicitly deferred with rationale in the PR body."
+        }
+      },
+      {
+        "id": "1704-a4",
+        "title": "Boundary + cost-model note",
+        "status": "proposed",
+        "narrative": {
+          "Acceptance": "Given the PR, when reviewed, then it states #1713 owns in-engine cache/affected runner plumbing, and documents a before/after move toward O(merges x full-gate) + O(iterations x cheap-proxy) on at least one swarm path; CHANGELOG [Unreleased] updated."
+        }
+      }
+    ],
+    "tags": [
+      "rfc",
+      "determinism",
+      "meta",
+      "urgent"
+    ],
+    "metadata": {
+      "kind": "story",
+      "x-tracking": {
+        "child_issue": "#1704",
+        "sibling": "#1713"
+      },
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/skills/deft-directive-build/SKILL.md",
+          "content/skills/deft-directive-swarm/SKILL.md",
+          "content/skills/deft-directive-pre-pr/SKILL.md",
+          "content/templates/agents-entry.md",
+          "content/commands.md",
+          ".github/workflows",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "task ts:test",
+          "task check"
+        ],
+        "expected_outputs": [
+          "Fast-lane skill policy; CI monolith SoT; merge queue or deferral; #1713 boundary noted; CHANGELOG"
+        ],
+        "depends_on": [],
+        "conflict_group": "1704-gate-throughput-process",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium"
+      }
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/1704",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #1704: gate throughput without quality loss"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1713",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #1713: in-engine incrementality (sibling)"
+      }
+    ],
+    "updated": "2026-07-23T15:24:16Z"
+  }
+}

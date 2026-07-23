@@ -325,6 +325,18 @@ git worktree add <path> -b <branch-name> <configured-base-branch>
 
 ~ Also prepare plain-text prompt versions for pasting into Warp agent chat or other terminal interfaces.
 
+## Gate throughput — iteration fast lane vs merge chokepoint (#1704)
+
+> **Invariant:** every change MUST pass the full gate at least once before merge. Swarm workers and human operators share the same commands.
+
+- ! **Iteration lane:** during implement/fix loops, run affected/static gates (targeted tests on changed paths, relevant static `verify:*` gates, `task coverage:hotspots`) — NOT full `task check` on every commit.
+- ! **Merge chokepoint:** run full `task check` once before push/PR open; CI enforces the same monolith at merge (#1704). Monitor checkpoints treat "Validating" as iteration-lane OR full gate; push requires full gate green at least once on the branch.
+- ! **Escape-rate safety (#1703 Tier-1):** consult `task eval:health` and Tier-1 session telemetry (`helped/crud-metrics.jsonl`) before fleet-wide fast-lane tightening — do NOT invent a separate escape-rate surface.
+- ~ **In-engine incrementality (#1713):** content-hash cache + runner-delegated affected plumbing is sibling work; this skill owns process policy only.
+- ⊗ Require full `task check` on every swarm iteration commit when affected/static proxies suffice (#1704).
+
+**Swarm cost model:** cohort workers move from `O(commits × full-gate)` toward `O(merges × full-gate) + O(iterations × cheap-proxy)` when they iterate with the fast lane and reserve full `task check` for PR/merge.
+
 ## Phase 3 — Launch
 
 ### Step 0: Populate the allocation-context consent token (#1378)
@@ -552,7 +564,7 @@ Track each agent through these stages:
 
 1. **Reading** — agent is loading AGENTS.md, xBRIEF files, project files (no file changes yet)
 2. **Implementing** — working tree shows modified files
-3. **Validating** — agent running `task check`
+3. **Validating** — agent running iteration-lane gates or full `task check` (full gate required before push/PR — #1704)
 4. **Committed** — new commit(s) in `git log`
 5. **Pushed** — branch exists on `origin`
 6. **PR Created** — PR visible via `gh pr list --head <branch>`
@@ -613,7 +625,7 @@ For each agent's PR:
 All PRs meet ALL of:
 - Greptile confidence > 3
 - No P0 or P1 issues remain (P2 issues are non-blocking style suggestions)
-- `task check` passed (or equivalent validation completed)
+- `task check` passed at merge chokepoint before push (or equivalent full-gate validation — #1704)
 - CHANGELOG entries present under `[Unreleased]`
 
 ! **Mandatory cohort verifier (#1364):** After every poller (Phase 6 review-cycle sub-agent) reports back, the monitor MUST run `task swarm:verify-review-clean -- <pr-numbers...>` and confirm exit 0 BEFORE evaluating the rest of the Exit Condition or surfacing the Phase 5 -> 6 gate. The verifier re-uses the Greptile rolling-summary parser from `task pr:merge-ready` so the per-PR merge gate and the cohort gate stay in lockstep (a parser fix lands in both surfaces at once). Exit codes: 0 (cohort CLEAN -- all PRs simultaneously have SHA match + confidence > 3 + zero P0/P1 + not errored on current HEAD); 1 (one or more PRs unclean with per-PR diagnostics -- re-dispatch the poller for the unclean PR or address findings, then re-run the verifier); 2 (config error -- empty cohort, malformed xBRIEF glob, gh missing). The verifier is the structural answer to the #1166 swarm execution recurrence where multiple pollers exited with `clean_gate_holdout=confidence` (confidence == 3) and the monitor still raised the Phase 5 -> 6 gate because the trigger keyed on "all pollers have reported back" rather than "every PR in the cohort is objectively CLEAN".
@@ -641,7 +653,7 @@ All PRs meet ALL of:
 2. ! **Merge-readiness checklist:** Before any `gh pr merge` call, the monitor MUST emit a structured checklist confirming each PR is merge-ready. For each PR, verify and explicitly confirm:
    - Greptile confidence score > 3
    - No P0 or P1 issues remaining
-   - `task check` passed on the branch
+   - full `task check` passed on the branch before push (#1704 merge chokepoint)
    - CHANGELOG.md entry present under `[Unreleased]`
    - Explicit user approval received for this merge cascade
 
@@ -918,7 +930,8 @@ When a monitor session crashes or a new session must take over an in-progress sw
 ```
 TASK: You must complete N [type] fixes on this branch ([branch-name]) in the deft directive repo.
 This is a git worktree. Do NOT just read files and stop — you must implement all changes,
-run task check, commit, push, create a PR, and run the review cycle.
+run iteration-lane validation during implement/fix loops, full task check before push,
+commit, push, create a PR, and run the review cycle.
 DO NOT STOP until all steps are complete.
 
 STEP 1 — Read directives: Read AGENTS.md, vbrief/vbrief.md, and the assigned xBRIEF(s) from xbrief/active/.
@@ -932,7 +945,7 @@ Task B (xBRIEF: [filename], issue #[N]): [one-paragraph description with specifi
 
 [...repeat for each task...]
 
-STEP 3 — Validate: Run task check. Fix any failures.
+STEP 3 — Validate: Use iteration fast lane during commits (affected/static gates). Run full task check once before push/PR (#1704). Fix any failures.
 
 STEP 4 — Commit: Add CHANGELOG.md entries under [Unreleased].
 Commit with message: [type]([scope]): [description] — with bullet-point body.
@@ -948,7 +961,7 @@ CONSTRAINTS:
 - Do not touch [list files other agents are working on]
 - New source files (scripts/, src/, cmd/, *.py, *.go) must have corresponding test files in the same PR
 - Use conventional commits: type(scope): description
-- Run task check before every commit
+- Iteration commits: affected/static fast lane only; full task check required before push (#1704)
 - Never force-push
 ```
 
@@ -963,7 +976,7 @@ CONSTRAINTS:
 
 ## Push Autonomy
 
-! Swarm agents operating under this skill with a monitor agent may push, create PRs, and run review cycles autonomously after passing `task check`. The global "never push/commit without explicit user instruction" convention does not apply to swarm agents executing the full STEP 1-6 prompt workflow -- the skill's quality gates (`task check`, Greptile review cycle) replace the interactive confirmation gate.
+! Swarm agents operating under this skill with a monitor agent may push, create PRs, and run review cycles autonomously after passing full `task check` at the merge chokepoint (#1704). The global "never push/commit without explicit user instruction" convention does not apply to swarm agents executing the full STEP 1-6 prompt workflow -- the skill's quality gates (merge chokepoint `task check`, Greptile review cycle) replace the interactive confirmation gate.
 
 ## Anti-Patterns
 

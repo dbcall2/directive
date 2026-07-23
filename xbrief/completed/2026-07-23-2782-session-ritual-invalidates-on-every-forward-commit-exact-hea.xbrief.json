@@ -6,7 +6,7 @@
   "plan": {
     "id": "2782-ritual-forward-head-rebind",
     "title": "Session ritual invalidates on every forward commit (exact HEAD pin + PreToolUse)",
-    "status": "running",
+    "status": "completed",
     "planRef": "https://github.com/deftai/directive/issues/2782",
     "narratives": {
       "Description": "Session ritual is pinned to an exact git HEAD SHA. Any forward commit on the same worktree invalidates .deft/ritual-state.json, so the next PreToolUse direct-write fails closed with git HEAD changed. Shell commits are outside the write gate, so the normal edit-commit-edit loop becomes a ceremony tax every few minutes. Age staleness is rarely the trigger; exact SHA equality is.",
@@ -83,7 +83,9 @@
         "size": "medium",
         "file_scope_confidence": "high",
         "model_tier": "medium"
-      }
+      },
+      "completedAt": "2026-07-23T18:20:37Z",
+      "capacityBucket": "technical-debt"
     },
     "references": [
       {
@@ -92,6 +94,6 @@
         "title": "Issue #2782: Session ritual invalidates on every forward commit (exact HEAD pin + PreToolUse)"
       }
     ],
-    "updated": "2026-07-23T14:53:48.238Z"
+    "updated": "2026-07-23T18:20:37Z"
   }
 }

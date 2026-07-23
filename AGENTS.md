@@ -88,7 +88,7 @@ Same as managed below; `task verify:story-ready`, `task scope:promote -- <path>`
 - ! If no scope xBRIEF exists for the work, create one in `./xbrief/proposed/` before implementing
 - ⊗ Begin editing files before checking scope xBRIEF coverage and creating a feature branch — even if the user says "yes" or "proceed"
 
-! Before opening a PR, run `content/skills/deft-directive-pre-pr/SKILL.md`. Before committing: `task check`; `task verify:forward-coverage` (#1310); `task coverage:hotspots` for branch headroom steering (#2683); CHANGELOG `[Unreleased]`.
+! Before opening a PR, run `content/skills/deft-directive-pre-pr/SKILL.md`. Before committing: `task verify:forward-coverage` (#1310); `task coverage:hotspots` for branch headroom steering (#2683); CHANGELOG `[Unreleased]`.
 
 ! Branching: feature branches only (`task verify:branch`, `.githooks/pre-commit` / `.githooks/pre-push`, `branch-gate` workflow). Override: `task policy:allow-direct-commits -- --confirm`; emergency `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1`. When `plan.policy.allowDirectCommitsToMaster = true`, surface via `task policy:show --field=allowDirectCommitsToMaster` (Branch Policy Disclosure).
 
@@ -157,7 +157,7 @@ Same `!` / `⊗` rules as managed below; `task issue:ingest` (#2143).
 
 Note: root-relative paths (this repo IS deft/); run `task agents:refresh` after agents-entry edits (#1309).
 
-<!-- deft:managed-section v3 sha=3bd115f734c8 refreshed=2026-07-22T03:01:23Z session=4f90b612ea8a -->
+<!-- deft:managed-section v3 sha=250529fc936f refreshed=2026-07-23T16:09:29Z session=eb091322de86 -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
