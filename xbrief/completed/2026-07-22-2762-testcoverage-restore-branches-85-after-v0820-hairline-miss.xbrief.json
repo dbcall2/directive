@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "test(coverage): restore branches >=85% after v0.82.0 hairline miss",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Restore Vitest branch coverage to at least 85% after the v0.82.0 hairline miss (84.97%). Clear the allow-coverage-debt citation so the next release does not soft-pass again.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2762",
@@ -54,7 +54,7 @@
         "title": "Issue #2573"
       }
     ],
-    "updated": "2026-07-23T01:36:47Z",
+    "updated": "2026-07-23T02:48:06Z",
     "id": "2026-07-22-2762-testcoverage-restore-branches-85",
     "metadata": {
       "kind": "story",
@@ -79,7 +79,9 @@
         "file_scope_confidence": "medium",
         "model_tier": "leaf-implementation",
         "missing_traces_justification": "Traced to GitHub issue acceptance criteria and AppSec/planning comments rather than a SPECIFICATION section."
-      }
+      },
+      "completedAt": "2026-07-23T02:48:06Z",
+      "capacityBucket": "technical-debt"
     }
   }
 }
