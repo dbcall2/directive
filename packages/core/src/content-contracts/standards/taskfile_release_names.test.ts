@@ -21,20 +21,17 @@ const DOUBLED = [
 ] as const;
 
 function listAllTaskNames(): string[] {
-  const out = execFileSync("task", ["-t", join(repoRoot(), "Taskfile.yml"), "--list-all"], {
-    cwd: repoRoot(),
-    encoding: "utf8",
-    env: { ...process.env, PYTHONUTF8: "1" },
-  });
-  const names: string[] = [];
-  for (const line of out.split("\n")) {
-    const stripped = line.trim();
-    if (!stripped.startsWith("* ")) continue;
-    const rest = stripped.slice(2);
-    const idx = rest.indexOf(":  ");
-    names.push(idx === -1 ? rest.replace(/:$/, "") : rest.slice(0, idx));
-  }
-  return names;
+  const out = execFileSync(
+    "task",
+    ["-t", join(repoRoot(), "Taskfile.yml"), "--list-all", "--json"],
+    {
+      cwd: repoRoot(),
+      encoding: "utf8",
+      env: { ...process.env, PYTHONUTF8: "1" },
+    },
+  );
+  const parsed = JSON.parse(out) as { tasks?: Array<{ name?: string; task?: string }> };
+  return (parsed.tasks ?? []).map((entry) => entry.task ?? entry.name ?? "").filter(Boolean);
 }
 
 describe("test_taskfile_release_names.py", () => {
