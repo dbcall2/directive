@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "deft update re-projects .claude/settings.json with no persistent opt-out; fail-closed hook causes friction in non-ritual repos",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Add a persistent opt-out so deft update does not keep re-projecting .claude/settings.json into repos that deliberately skip the fail-closed Claude ritual hooks. Removing the file must not be treated as drift that silently recreates it.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2752",
@@ -43,7 +43,7 @@
         "title": "Issue #2752: deft update re-projects .claude/settings.json with no persistent opt-out; fail-closed hook causes friction in non-ritual repos"
       }
     ],
-    "updated": "2026-07-22T23:08:11Z",
+    "updated": "2026-07-23T00:25:56Z",
     "id": "2026-07-22-2752-deft-update-re-projects-claudesettingsjson-opt-out",
     "metadata": {
       "kind": "story",
@@ -70,7 +70,9 @@
         "file_scope_confidence": "medium",
         "model_tier": "leaf-implementation",
         "missing_traces_justification": "Traced to GitHub issue acceptance criteria and AppSec/planning comments rather than a SPECIFICATION section."
-      }
+      },
+      "completedAt": "2026-07-23T00:25:56Z",
+      "capacityBucket": "new-capability"
     }
   }
 }
