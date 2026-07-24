@@ -74,6 +74,39 @@ describe("main human-mode branches", () => {
       process.stdout.write = orig;
     }
   });
+
+  it("labels throttle-skipped registry warnings as configuration advisories", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-doc-"));
+    const lines: string[] = [];
+    const orig = process.stdout.write.bind(process.stdout);
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      lines.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      expect(
+        cmdDoctor(["--project-root", root], {
+          readState: () => ({
+            lastRunAt: new Date(),
+            lastExitCode: 0,
+            lastFindingCount: 0,
+            lastErrorCount: 0,
+          }),
+          now: () => new Date(),
+          runNpmConfigGet: (key) =>
+            key === "@deftai:registry"
+              ? { ok: true, value: "undefined" }
+              : { ok: true, value: "https://npm.internal.example.com/" },
+        }),
+      ).toBe(0);
+      const output = lines.join("");
+      expect(output).toContain("local configuration / layout note(s)");
+      expect(output).not.toContain("npm-migration note(s)");
+    } finally {
+      process.stdout.write = orig;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 function writeConsumerRoot(root: string): void {

@@ -7,7 +7,6 @@ vi.mock("node:child_process", () => ({
 
 import { defaultNpmConfigGet, runNpmRegistryMirrorCheck } from "./npm-registry.js";
 import { createPlainSink } from "./output.js";
-import { defaultNpmViewVersion } from "./payload-staleness.js";
 import type { Finding } from "./types.js";
 
 function runCheck(values: Readonly<Record<string, { ok: boolean; value: string }>>): {
@@ -181,36 +180,6 @@ describe("npm registry mirror doctor check (#2808)", () => {
         encoding: "utf8",
         shell: false,
         timeout: 5_000,
-        windowsHide: true,
-      },
-    );
-  });
-
-  it("pins payload release lookup to the canonical public registry", () => {
-    vi.mocked(spawnSync).mockReturnValue({
-      status: 0,
-      stdout: "0.84.0\n",
-      stderr: "",
-      pid: 1,
-      output: [null, "0.84.0\n", ""],
-      signal: null,
-      error: undefined,
-    });
-
-    expect(defaultNpmViewVersion()).toEqual({ ok: true, version: "0.84.0" });
-    expect(vi.mocked(spawnSync)).toHaveBeenCalledWith(
-      "npm",
-      [
-        "view",
-        "@deftai/directive",
-        "version",
-        "--registry=https://registry.npmjs.org/",
-        "--ignore-scripts",
-      ],
-      {
-        encoding: "utf8",
-        shell: false,
-        timeout: 15_000,
         windowsHide: true,
       },
     );

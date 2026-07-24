@@ -139,7 +139,7 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
       const signpostWarnings = throttleFindings.filter((f) => f.severity === "warning").length;
       if (signpostWarnings > 0 && !jsonMode) {
         throttleSink.finalWarn(
-          `Signpost advisory: ${signpostWarnings} local layout / npm-migration note(s) above (throttle-skipped full probe).`,
+          `Signpost advisory: ${signpostWarnings} local configuration / layout note(s) above (throttle-skipped full probe).`,
         );
       }
       return decision.dirty ? 1 : 0;

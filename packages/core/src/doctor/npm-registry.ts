@@ -1,21 +1,12 @@
 import { spawnSync } from "node:child_process";
 import { NPM_REGISTRY_MIRROR_DOC_URL, PUBLIC_NPM_REGISTRY } from "./constants.js";
 import type { OutputSink } from "./output.js";
-import type { Finding } from "./types.js";
+import type { Finding, NpmConfigGet, NpmConfigGetResult } from "./types.js";
 
 const CHECK_NAME = "npm-registry-mirror";
 const DEFT_SCOPE_REGISTRY_KEY = "@deftai:registry";
 const DEFAULT_REGISTRY_KEY = "registry";
 const UNSET_NPM_VALUES = new Set(["", "null", "undefined"]);
-
-/** Result of an offline `npm config get` query. */
-export interface NpmConfigGetResult {
-  readonly ok: boolean;
-  readonly value: string;
-}
-
-/** Injectable npm-config reader used by doctor and its throttle-safe signposts. */
-export type NpmConfigGet = (key: string, cwd: string) => NpmConfigGetResult;
 
 /** Seams for the read-only npm registry routing diagnostic. */
 export interface NpmRegistryMirrorSeams {

@@ -4,7 +4,6 @@ import type { EngineProbeResult } from "../resolution/classify.js";
 import type { ResolutionMode } from "../resolution/index.js";
 import type { ResolveUserMdResult } from "../user-config/resolve-user-md.js";
 import type { AgentHookHealthResult } from "../verify-env/agent-hooks.js";
-import type { NpmConfigGet } from "./npm-registry.js";
 
 export const EXIT_CLEAN = 0;
 export const EXIT_DRIFT = 1;
@@ -36,6 +35,15 @@ export interface Finding {
   readonly status?: string;
   readonly [key: string]: unknown;
 }
+
+/** Result of an offline `npm config get` query. */
+export interface NpmConfigGetResult {
+  readonly ok: boolean;
+  readonly value: string;
+}
+
+/** Injectable npm-config reader used by doctor and its throttle-safe signposts. */
+export type NpmConfigGet = (key: string, cwd: string) => NpmConfigGetResult;
 
 /**
  * The single read-only decision surface derived from the shared keystone
