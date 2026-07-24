@@ -3,9 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as emptyPopulate from "../cache/empty-populate.js";
-import {
-  writeOpenInventoryStamp,
-} from "../cache/fetch.js";
+import { writeOpenInventoryStamp } from "../cache/fetch.js";
 import {
   CACHE_DIR_NAME,
   CANDIDATES_RELPATH,
@@ -53,11 +51,7 @@ function writeCacheEntry(
   );
 }
 
-function writeOpenInventoryStampAt(
-  root: string,
-  repo: string,
-  fetchedAt: string,
-): void {
+function writeOpenInventoryStampAt(root: string, repo: string, fetchedAt: string): void {
   writeOpenInventoryStamp({
     cacheRoot: join(root, CACHE_DIR_NAME),
     source: DEFAULT_SOURCE,

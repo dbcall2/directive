@@ -441,9 +441,7 @@ describe("fetch branches", () => {
       });
       expect(report.issuesWritten).toBe(0);
       expect(
-        existsSync(
-          join(root, "github-issue", "deftai", "directive", "open-inventory.json"),
-        ),
+        existsSync(join(root, "github-issue", "deftai", "directive", "open-inventory.json")),
       ).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });

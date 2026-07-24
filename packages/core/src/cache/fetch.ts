@@ -1,6 +1,5 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { utcIso, systemClock, type Clock } from "./time.js";
 import { assertWriteTargetSafe, ProjectionContainmentError } from "../fs/projection-containment.js";
 import {
   GhRestError,
@@ -11,10 +10,11 @@ import {
 } from "../scm/gh-rest.js";
 import { DEFAULT_BATCH_SIZE, DEFAULT_DELAY_MS } from "./constants.js";
 import { CacheError, CacheFetchError } from "./errors.js";
-import { pythonJsonLine } from "./json.js";
 import { atomicWriteText } from "./io.js";
+import { pythonJsonLine } from "./json.js";
 import { cachePut, isFresh, validateRepo } from "./operations.js";
 import { entryDir } from "./paths.js";
+import { type Clock, systemClock, utcIso } from "./time.js";
 import type { FetchAllReport, StateRefreshReport } from "./types.js";
 
 /** Repo-level stamp proving a successful open-only enumeration (#2826). */
@@ -25,11 +25,7 @@ export interface OpenInventoryStamp {
   readonly open_count: number;
 }
 
-export function openInventoryStampPath(
-  cacheRoot: string,
-  source: string,
-  repo: string,
-): string {
+export function openInventoryStampPath(cacheRoot: string, source: string, repo: string): string {
   const [owner, name] = repo.split("/", 2) as [string, string];
   return join(cacheRoot, source, owner, name, OPEN_INVENTORY_STAMP);
 }
