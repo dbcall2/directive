@@ -6,7 +6,7 @@
   "plan": {
     "id": "2826-empty-open-cache-fresh",
     "title": "fix(preflight-cache): treat successful empty open-issue refresh as fresh",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "After a successful open-only cache refresh that writes zero issues (empty inventory), verify:cache-fresh / preflight-cache still treat the cache as stale because minFetchedAt is null and age becomes Infinity. That blocks write hooks incorrectly. Fix evaluate.ts so a successfully refreshed empty open inventory is fresh while preserving fail-closed behavior for failed fetches, nonempty stale entries, drift, and --for-issue.",
       "ImplementationPlan": "1. In packages/core/src/preflight-cache/evaluate.ts, distinguish successful empty open-only refresh (inventory proven empty) from never-fetched/missing freshness metadata — likely via a durable refresh stamp or candidates-log/empty-populate signal written when issues_written=0 and failed=0. 2. Ensure age/staleness path does not use Infinityh as a hard block for that success case. 3. Add focused tests in evaluate.test.ts covering empty successful refresh => exit 0, and regression that failed/missing fetch still fails closed. 4. CHANGELOG [Unreleased].",
@@ -65,7 +65,9 @@
         "size": "small",
         "file_scope_confidence": "high",
         "model_tier": "medium"
-      }
+      },
+      "completedAt": "2026-07-24T22:39:59Z",
+      "capacityBucket": "technical-debt"
     },
     "references": [
       {
@@ -74,6 +76,6 @@
         "title": "Issue #2826"
       }
     ],
-    "updated": "2026-07-24T21:59:08Z"
+    "updated": "2026-07-24T22:39:59Z"
   }
 }
