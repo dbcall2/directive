@@ -16,11 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **PR-anchored review-owner lease (#2814).** `review-monitor:register`, new `review-monitor:release`, and `verify:review-monitor` now use a sticky GitHub PR comment (`<!-- deft:review-owner -->`) as the sole lease source of truth. Cross-machine double-babysit is blocked via REST claim/conflict semantics; legacy `.deft/review-monitor.json` is no longer written or honored.
 - **Cursor Task worker liveness gate (#2824).** New `task verify:subagent-alive` fail-closed gate (exit 1 prints `REDISPATCH_OK`) and `task agent:monitor` Taskfile surface wrapping `subagent-monitor`. Swarm Phase 4/5 and agent preamble §10.5 require the gate for in-flight `drive-to: merge*` leaves; Cursor false-alive (host running + missing/STALE heartbeat) authorizes takeover re-dispatch.
 
 - **Rule Map generator (#2809).** New maintainer-only `task docs:rule-map` engine verb (TypeScript, Node stdlib only, no new deps) renders `docs/RULE-MAP.md` (committed, diff-friendly, timestamp-free) and a self-contained zero-dependency `docs/rule-map/index.html` explorer (gitignored). `task docs:rule-map:check` gates staleness of the committed Markdown. Lives under maintainer-only top-level `docs/` so it stays out of the shipped payload.
 
 ### Changed
+
+- **Review-cycle ownership is GitHub-anchored (#2814).** Agents must succeed at `task review-monitor:register` on GitHub before claiming an active monitor; `task verify:review-monitor` requires an unexpired GitHub lease on Tier 1 (local heartbeat alone is insufficient).
 
 ### Fixed
 
@@ -35,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`directive update --help` no longer mutates the working tree (#2828).** `--help` / `-h` on `update`, `init`, and `migrate` now print usage and exit 0 without refreshing the deposit, rewriting AGENTS.md, or staging git changes.
 
 ### Removed
+
+- **Local review-monitor ledger (#2814).** `.deft/review-monitor.json` is obsolete; register/release/verify no longer read or write it.
 
 ## [0.84.0] - 2026-07-23
 

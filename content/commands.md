@@ -197,11 +197,11 @@ Current status: the validation, extractor, provider, registry, generated MAP, an
 
 Use `task --list` for the exact current verify namespace.
 
-### Review-monitor ownership on Cursor (#2797)
+### Review-monitor ownership on Cursor (#2797 / #2814)
 
 Use `task pr:watch -- <N>` as the blocking terminal-verdict wait for a `drive-to: merge-ready` Cursor `Task` leaf. A Cursor leaf cannot reliably spawn a nested `Task` review-monitor; do not replace the blocking wait with a background shell process or claim that it is monitoring.
 
-When the workflow needs an Approach 1 monitor, scope the Cursor leaf `stop-at: pr-open`. The orchestrator that owns the Task primitive must spawn the sibling review-monitor and record it with `task review-monitor:register -- --pr <N> --monitor-agent-id <id> --platform-primitive cursor-task`; `task verify:review-monitor -- --pr <N>` remains the fail-closed proof of active ownership. See `skills/deft-directive-review-cycle/SKILL.md` Review Monitoring and `skills/deft-directive-swarm/SKILL.md` Phase 3.
+When the workflow needs an Approach 1 monitor, scope the Cursor leaf `stop-at: pr-open`. The orchestrator that owns the Task primitive must spawn the sibling review-monitor and claim the PR-anchored lease with `task review-monitor:register -- --pr <N> --monitor-agent-id <id> --platform-primitive cursor-task`; `task verify:review-monitor -- --pr <N>` remains the fail-closed proof of active GitHub ownership (sticky `<!-- deft:review-owner -->` comment — not local JSON). Release with `task review-monitor:release -- --pr <N>` when done. See `skills/deft-directive-review-cycle/SKILL.md` Review Monitoring and `skills/deft-directive-swarm/SKILL.md` Phase 3.
 
 **Worker liveness (#2824):** For in-flight `drive-to: merge*` Cursor leaves, monitors run `task verify:subagent-alive -- --require-agent <agent-id> [--scratch-dir <worktree>/.deft-scratch/subagent-status]` each poll iteration. Exit `1` prints `REDISPATCH_OK` — authorize takeover when the host still reports running but heartbeats are missing/STALE. Raw heartbeat sweep: `task agent:monitor`. See `docs/subagent-heartbeat.md` § Cursor false-alive.
 
