@@ -506,10 +506,9 @@ function evaluateWithContext(
   if (minFetchedAt === null && rawCandidatePaths.length === 0 && resolvedRepo !== null) {
     const stamp = readOpenInventoryStamp(cacheRoot, source, resolvedRepo);
     if (stamp !== null) {
-      try {
-        minFetchedAt = new Date(stamp.fetched_at);
-      } catch {
-        /* invalid stamp -> keep null (fail closed) */
+      const parsed = new Date(stamp.fetched_at);
+      if (!Number.isNaN(parsed.getTime())) {
+        minFetchedAt = parsed;
       }
     }
   }

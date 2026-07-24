@@ -684,6 +684,27 @@ describe("evaluate -- empty open inventory stamp (#2826)", () => {
     expect(result.message).toContain("48.0h old");
   });
 
+  it("returns code 1 when open-inventory stamp has invalid fetched_at", () => {
+    const root = setupProjectRoot();
+    writeCandidates(root, []);
+    const stampDir = join(root, CACHE_DIR_NAME, DEFAULT_SOURCE, "owner", "repo");
+    mkdirSync(stampDir, { recursive: true });
+    writeFileSync(
+      join(stampDir, "open-inventory.json"),
+      JSON.stringify({ fetched_at: "not-a-date", open_count: 0 }),
+      "utf8",
+    );
+
+    const result = evaluate(root, {
+      allowMissingBootstrap: false,
+      repo: "owner/repo",
+      nowFn: () => new Date(),
+      probeDriftFn: noDriftProbe,
+    });
+    expect(result.code).toBe(1);
+    expect(result.message).toContain("Infinity");
+  });
+
   it("auto-populates empty cache with zero open issues then treats stamp as fresh", () => {
     const root = setupProjectRoot();
     writeCandidates(root, []);
