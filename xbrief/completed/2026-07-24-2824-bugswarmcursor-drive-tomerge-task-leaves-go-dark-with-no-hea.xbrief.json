@@ -6,7 +6,7 @@
   "plan": {
     "id": "2824-cursor-subagent-liveness-gate",
     "title": "bug(swarm,cursor): drive-to:merge Task leaves go dark with no heartbeat gate or REDISPATCH_OK",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Cursor Task drive-to:merge leaves can go silent after PR-open with no heartbeat, no DONE/FAILED, and a host false-alive \"still running\" state that blocks resume/replace. Prose (#1365) and deft-ts subagent-monitor exist, but there is no fail-closed Taskfile gate analogous to verify:review-monitor (#2655). This story wires task verify:subagent-alive / task agent:monitor, makes swarm Phase 5 fail closed on STALE/missing heartbeats with REDISPATCH_OK, documents Cursor false-alive re-dispatch policy, and adds a regression eval/contract case.",
       "ImplementationPlan": "1. Add packages/cli verify-subagent-alive (and optional agent:monitor alias) wrapping packages/core/src/orchestration/subagent-monitor.ts with three-state exit 0/1/2; register in packages/cli/src/dispatch.ts and tasks/verify.yml (mirror verify:review-monitor). 2. Update content/skills/deft-directive-swarm/SKILL.md Phase 5 + content/templates/agent-prompt-preamble.md §10.5 so monitors MUST run the gate for in-flight drive-to:merge* workers and treat STALE+no-activity as REDISPATCH_OK even when the host says running. 3. Document the Cursor false-alive policy in docs/subagent-heartbeat.md. 4. Add focused unit tests for the CLI gate plus an eval/trigger or contract test for \"PR open, no heartbeat => not healthy\". 5. CHANGELOG [Unreleased] + commands.md pointer. Coordinate shared files with open PR #2820 (#2814): rebase onto master after it merges, or carefully merge CHANGELOG.md, agent-prompt-preamble.md, and packages/cli/src/dispatch.ts.",
@@ -94,7 +94,9 @@
         "size": "medium",
         "file_scope_confidence": "high",
         "model_tier": "medium"
-      }
+      },
+      "completedAt": "2026-07-24T21:01:05Z",
+      "capacityBucket": "technical-debt"
     },
     "references": [
       {
@@ -123,6 +125,6 @@
         "title": "PR #2820 recurrence stimulus (open; coordinate shared files)"
       }
     ],
-    "updated": "2026-07-24T19:37:19Z"
+    "updated": "2026-07-24T21:01:05Z"
   }
 }
