@@ -142,14 +142,35 @@ describe("package-manager network scope (#2182)", () => {
     expect(GATED_ENTRYPOINT_COMMANDS.doctor).toEqual(["doctor"]);
   });
 
-  it("defaultRitualRunner's doctor step invokes no npm/pnpm on a private-scope-registry repo", () => {
+  it("defaultRitualRunner's doctor step invokes only offline npm config reads", () => {
     const { root } = initPrivateScopeRepo();
     temps.push(root);
 
     const result = defaultRitualRunner(GATED_ENTRYPOINT_COMMANDS.doctor.slice(), root);
 
     expect(typeof result.code).toBe("number");
-    expect(packageManagerCalls(spawnSyncMock)).toEqual([]);
+    expect(packageManagerCalls(spawnSyncMock)).toEqual([
+      [
+        "npm",
+        ["config", "get", "@deftai:registry"],
+        expect.objectContaining({
+          cwd: root,
+          encoding: "utf8",
+          shell: false,
+          timeout: 5_000,
+        }),
+      ],
+      [
+        "npm",
+        ["config", "get", "registry"],
+        expect.objectContaining({
+          cwd: root,
+          encoding: "utf8",
+          shell: false,
+          timeout: 5_000,
+        }),
+      ],
+    ]);
     expect(`${result.stdout}${result.stderr}`).toMatch(/--network/);
   });
 });

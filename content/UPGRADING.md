@@ -80,6 +80,49 @@ From v0.55.1 onwards `@deftai/directive` is published on npm. The canonical cons
 
    Ensure pnpm's global bin directory is on your `PATH` (`pnpm setup` configures `PNPM_HOME`). A project-local `pnpm add -D @deftai/directive@latest` (run via `pnpm exec directive …`) is equivalent for pnpm-managed repos that avoid global installs. `deft update` / `deft migrate` / `deft doctor` all work identically regardless of which package manager installed the engine.
 
+### Corporate or mirrored npm registry
+
+Corporate npm proxies can lag the public registry. The visible failure may be an
+`E404` / `ETARGET`, or it may fail silently: `@latest` resolves successfully
+but installs an older Directive release.
+
+Check npm's effective routing without contacting a registry:
+
+```bash
+npm config get @deftai:registry
+npm config get registry
+```
+
+The scoped value wins when `@deftai:registry` is set; otherwise npm uses the
+default `registry`. If either effective value is not
+`https://registry.npmjs.org/`, choose a recovery path allowed by your
+organization policy:
+
+- **One command:** request the required release directly from public npm:
+
+  ```bash
+  npm i -g @deftai/directive@<version> --registry=https://registry.npmjs.org/
+  ```
+
+- **Durable scoped routing:** add this line to the user or project `.npmrc` so
+  only the `@deftai` scope bypasses the default mirror:
+
+  ```ini
+  @deftai:registry=https://registry.npmjs.org/
+  ```
+
+If direct public-registry access is prohibited, do not bypass the policy. Ask
+IT or the registry administrator to synchronize all Directive packages:
+`@deftai/directive`, `@deftai/directive-core`,
+`@deftai/directive-content`, and `@deftai/directive-types`.
+
+`directive doctor` checks this routing with offline `npm config get` reads. A
+non-public effective registry produces an advisory warning but does not make
+doctor fail; configured registry URLs are not printed because they can contain
+internal hostnames or credentials. With `--network`, the release-availability
+probe always queries the canonical public registry explicitly, independent of
+the configured mirror.
+
 2. **Refresh the project deposit** from your project root:
 
    ```bash

@@ -84,14 +84,16 @@ describe("payload-staleness offline-by-default gating (#2182)", () => {
         frameworkRoot: framework,
         whichFn: () => "/bin/x",
         agentsRefreshPlan: () => ({ state: "current" }),
+        runNpmConfigGet: () => ({ ok: false, value: "" }),
       });
     } finally {
       process.stdout.write = origWrite;
     }
 
     // Real spawnSync (git ls-remote / npm view) MUST never fire when the
-    // network tier was not explicitly requested -- this is the assertion
-    // the #2182 acceptance criteria calls out: "assert not-called-with-network".
+    // network tier was not explicitly requested. The offline npm-config
+    // registry check is injected above so this assertion remains specifically
+    // about network-capable subprocesses.
     expect(spawnSyncMock).not.toHaveBeenCalled();
 
     const payload: unknown = JSON.parse(stdout.join(""));
@@ -116,6 +118,7 @@ describe("payload-staleness offline-by-default gating (#2182)", () => {
         frameworkRoot: framework,
         whichFn: () => "/bin/x",
         agentsRefreshPlan: () => ({ state: "current" }),
+        runNpmConfigGet: () => ({ ok: false, value: "" }),
         runGitLsRemote: () => ({ ok: false, stdout: "" }),
         runNpmViewVersion: () => ({ ok: true, version: "9.9.9" }),
       });
@@ -141,6 +144,7 @@ describe("payload-staleness offline-by-default gating (#2182)", () => {
         frameworkRoot: framework,
         whichFn: () => "/bin/x",
         agentsRefreshPlan: () => ({ state: "current" }),
+        runNpmConfigGet: () => ({ ok: false, value: "" }),
         runGitLsRemote: () => ({
           ok: true,
           stdout: `${"a".repeat(40)}\trefs/tags/v0.1.0\n`,
@@ -164,5 +168,41 @@ describe("payload-staleness offline-by-default gating (#2182)", () => {
       latest_version: "0.2.0",
       resolver: "npm-view",
     });
+  });
+
+  it("emits a nonblocking mirror advisory through the full JSON contract", () => {
+    const stdout: string[] = [];
+    const origWrite = process.stdout.write.bind(process.stdout);
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      stdout.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write;
+    let exitCode: number;
+    try {
+      exitCode = cmdDoctor(["--full", "--json", "--project-root", root], {
+        frameworkRoot: framework,
+        whichFn: () => "/bin/x",
+        agentsRefreshPlan: () => ({ state: "current" }),
+        runNpmConfigGet: (key) =>
+          key === "@deftai:registry"
+            ? { ok: true, value: "undefined" }
+            : { ok: true, value: "https://npm.internal.example.com/" },
+      });
+    } finally {
+      process.stdout.write = origWrite;
+    }
+
+    const payload = JSON.parse(stdout.join("")) as {
+      findings: Array<Record<string, unknown>>;
+    };
+    expect(exitCode).toBe(0);
+    expect(payload.findings).toContainEqual(
+      expect.objectContaining({
+        severity: "warning",
+        check: "npm-registry-mirror",
+        status: "non-public",
+      }),
+    );
+    expect(JSON.stringify(payload)).not.toContain("npm.internal.example.com");
   });
 });

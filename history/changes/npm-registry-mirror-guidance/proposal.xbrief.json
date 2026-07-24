@@ -1,0 +1,32 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "npm-registry-mirror-guidance",
+    "status": "approved",
+    "narratives": {
+      "Problem": "Corporate npm mirrors can lag the public npm registry, causing E404 or ETARGET for published Directive versions or silently resolving @latest to an older release. Existing upgrade docs do not explain the condition, and doctor neither detects the effective @deftai registry offline nor pins its network-tier npm view probe to the public registry.",
+      "Change": "Document the mirror failure mode and add a non-blocking, offline-capable doctor advisory that resolves the effective @deftai registry. Pin the existing doctor --network release lookup to registry.npmjs.org.",
+      "Scope": "In scope: UPGRADING guidance, a thin README pointer, package-manager network-contract clarification, effective scoped/default registry resolution, full and throttle-skipped doctor integration, public-registry pinning for npm view, structured findings, regression/content-contract tests, and one Unreleased changelog entry. Out of scope: rewriting .npmrc, changing an organization-wide registry, a second publication channel, or publishing to consumer mirrors.",
+      "Impact": "Touches the TypeScript doctor modules and seams, doctor network/throttle tests, package-manager network guidance, README/UPGRADING content contracts, and CHANGELOG.md.",
+      "Risks": "Reading only the default registry would keep warning after a correct @deftai-scoped override. Rendering raw registry values could leak embedded credentials or internal hostnames. Treating npm config reads as network access would regress the offline doctor contract, while leaving npm view unpinned would keep the network-tier result mirror-dependent.",
+      "Approach": "Add a small tested doctor module that queries @deftai:registry first and falls back to registry, normalizes only enough to recognize the canonical HTTPS public registry, emits an advisory without exposing the raw value, and degrades unavailable config reads to skip. Invoke it from normal and throttle signpost paths. Reuse a public-registry constant to pin npm view and document the exact remediation.",
+      "Alternatives": "Parsing .npmrc directly was rejected because npm's precedence, environment expansion, and multiple config files are easy to mis-model and risk reading unrelated credentials. Warning on the default registry alone was rejected because it conflicts with the recommended scoped override. Network comparison in the baseline doctor was rejected because doctor is offline by default.",
+      "Dependencies": "Requires the existing doctor finding/output contracts, throttle signpost surface, npm CLI installed with Node, and the current payload-staleness --network gate.",
+      "Confirmation": "Flynn explicitly approved the proposed implementation on 2026-07-24."
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2808",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2808: docs+doctor: guide consumers when corporate npm mirrors lag public @deftai/directive"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2808#issuecomment-5071784720",
+        "type": "x-xbrief/github-comment",
+        "title": "Approved proposed implementation details"
+      }
+    ]
+  }
+}

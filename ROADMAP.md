@@ -1030,4 +1030,4 @@
 - **#2782** -- Session ritual invalidates on every forward commit (exact HEAD pin + PreToolUse) -- `[completed]`
 - bug(check): #1713 cached task check shells internal Taskfile shims (go-task 202) -- `[completed]`
 - **#2779** -- bug(hooks): Cursor failClosed empty allow stdout blocks Write after successful Directive gate -- `[completed]`
-
+- **#2808** -- docs+doctor: guide consumers when corporate npm mirrors lag public @deftai/directive -- `[completed]`

@@ -15,7 +15,9 @@ describe("runLocalSignpostChecks (#1997)", () => {
       writeFileSync(join(core, "VERSION"), "tag: v0.56.0\nsha: abc\n", "utf8");
       writeFileSync(join(root, "AGENTS.md"), "Deft is installed in .deft/core/.\n", "utf8");
       const findings: Finding[] = [];
-      runLocalSignpostChecks(root, createPlainSink(), (f) => findings.push(f));
+      runLocalSignpostChecks(root, createPlainSink(), (f) => findings.push(f), {
+        runNpmConfigGet: () => ({ ok: false, value: "" }),
+      });
       expect(findings.some((f) => f.check === "canonical-vendored-npm-signpost")).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -28,10 +30,30 @@ describe("runLocalSignpostChecks (#1997)", () => {
       mkdirSync(join(root, ".deft"), { recursive: true });
       writeFileSync(join(root, ".deft", "VERSION"), "tag: v0.26.0\n", "utf8");
       const findings: Finding[] = [];
-      runLocalSignpostChecks(root, createPlainSink(), (f) => findings.push(f));
+      runLocalSignpostChecks(root, createPlainSink(), (f) => findings.push(f), {
+        runNpmConfigGet: () => ({ ok: false, value: "" }),
+      });
       expect(findings.some((f) => f.check === "legacy-layout")).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it("keeps the npm registry advisory active on the throttle-skipped path", () => {
+    const findings: Finding[] = [];
+    runLocalSignpostChecks("/tmp/project", createPlainSink(), (f) => findings.push(f), {
+      runningInsideDeftRepo: () => false,
+      runNpmConfigGet: (key) =>
+        key === "@deftai:registry"
+          ? { ok: true, value: "undefined" }
+          : { ok: true, value: "https://npm.internal.example.com/" },
+    });
+
+    expect(findings).toContainEqual(
+      expect.objectContaining({
+        severity: "warning",
+        check: "npm-registry-mirror",
+      }),
+    );
   });
 });

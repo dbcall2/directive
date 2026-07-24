@@ -1,9 +1,10 @@
 import { type CheckSeams, checkCanonicalVendoredNpmSignpost, checkLegacyLayout } from "./checks.js";
+import { type NpmRegistryMirrorSeams, runNpmRegistryMirrorCheck } from "./npm-registry.js";
 import type { OutputSink } from "./output.js";
 import { runningInsideDeftRepo } from "./paths.js";
 import type { Finding } from "./types.js";
 
-export interface LocalSignpostSeams extends CheckSeams {
+export interface LocalSignpostSeams extends CheckSeams, NpmRegistryMirrorSeams {
   readonly runningInsideDeftRepo?: (root: string) => boolean;
 }
 
@@ -19,6 +20,7 @@ export function runLocalSignpostChecks(
   if (insideDeft) {
     return;
   }
+  runNpmRegistryMirrorCheck(projectRoot, sink, addFinding, seams);
   for (const result of [
     checkLegacyLayout(projectRoot, seams),
     checkCanonicalVendoredNpmSignpost(projectRoot, seams),

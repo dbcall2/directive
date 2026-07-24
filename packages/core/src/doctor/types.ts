@@ -4,6 +4,7 @@ import type { EngineProbeResult } from "../resolution/classify.js";
 import type { ResolutionMode } from "../resolution/index.js";
 import type { ResolveUserMdResult } from "../user-config/resolve-user-md.js";
 import type { AgentHookHealthResult } from "../verify-env/agent-hooks.js";
+import type { NpmConfigGet } from "./npm-registry.js";
 
 export const EXIT_CLEAN = 0;
 export const EXIT_DRIFT = 1;
@@ -103,6 +104,8 @@ export interface DoctorSeams {
   readonly isFile?: (path: string) => boolean;
   readonly runGitLsRemote?: (deftDir: string, ref: string) => { ok: boolean; stdout: string };
   readonly runNpmViewVersion?: () => { ok: boolean; version: string };
+  /** Offline npm configuration reader for effective-registry diagnostics (#2808). */
+  readonly runNpmConfigGet?: NpmConfigGet;
   readonly agentsRefreshPlan?: (projectRoot: string) => Record<string, unknown>;
   readonly agentsMdAdvisoryEvaluate?: (projectRoot: string) => AdvisoryEvaluateResult;
   readonly readState?: (projectRoot: string) => DoctorState | null;

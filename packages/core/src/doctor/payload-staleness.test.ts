@@ -2,7 +2,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { CANONICAL_UPGRADE_COMMAND, VENDORED_NPM_DEPOSIT_UPGRADE_COMMAND } from "./constants.js";
+import {
+  CANONICAL_UPGRADE_COMMAND,
+  PUBLIC_NPM_REGISTRY,
+  VENDORED_NPM_DEPOSIT_UPGRADE_COMMAND,
+} from "./constants.js";
 import { createPlainSink } from "./output.js";
 import { runPayloadStalenessCheck } from "./payload-staleness.js";
 import type { Finding } from "./types.js";
@@ -14,6 +18,10 @@ function seedManifest(root: string, sha: string, ref = "v0.56.0"): void {
 }
 
 describe("payload-staleness (#2003 / #2004)", () => {
+  it("pins npm release lookup to the canonical public registry", () => {
+    expect(PUBLIC_NPM_REGISTRY).toBe("https://registry.npmjs.org/");
+  });
+
   it("stale via git ls-remote emits npm upgrade command", () => {
     const root = mkdtempSync(join(tmpdir(), "deft-ps-"));
     try {

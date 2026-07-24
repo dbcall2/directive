@@ -41,13 +41,17 @@ export const DOCTOR_ALLOWED_FLAGS = [
 
 /** npm consumer deposit after #2022 Phase 3 -- Python scripts/ tree is intentionally absent. */
 export const NPM_PACKAGE_NAME = "@deftai/directive";
+export const PUBLIC_NPM_REGISTRY = "https://registry.npmjs.org/";
+export const NPM_REGISTRY_MIRROR_DOC_URL = `${UPGRADING_DOC_URL}#corporate-or-mirrored-npm-registry`;
 
 // #2182: payload-staleness is the only doctor check that can reach a network
 // endpoint (git ls-remote verifies the pinned ref and `npm view` compares a
-// release-tag install with the latest stable package). It is OFF by default (offline tier)
-// and requires the explicit `--network` flag; this line discloses exactly
-// which tool + registry class it may contact BEFORE the check runs, and the
-// skip line tells an offline run how to opt in.
+// release-tag install with the latest stable package). The #2808 baseline
+// registry-routing check uses only offline `npm config get` reads.
+// Payload-staleness is OFF by default (offline tier) and requires the explicit
+// `--network` flag; this line discloses exactly which tool + registry class it
+// may contact BEFORE the check runs, and the skip line tells an offline run how
+// to opt in.
 export const NETWORK_DISCLOSURE_LINE =
   "[deft doctor] --network: this run may contact your git remote (framework " +
   "repo host) and the npm registry (registry.npmjs.org) to " +

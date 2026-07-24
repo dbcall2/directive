@@ -39,6 +39,7 @@ import {
 import { formatAllowedFlagsHint, formatUnknownFlagsError, parseDoctorFlags } from "./flags.js";
 import { pythonJsonDump } from "./json.js";
 import { parseInstallRootFromAgentsMd } from "./manifest.js";
+import { runNpmRegistryMirrorCheck } from "./npm-registry.js";
 import { createPlainSink } from "./output.js";
 import {
   readTextSafe,
@@ -224,12 +225,21 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
   sink.info("Checking agent-host hook registration...");
   runAgentHooksHealthCheck(projectRoot, consumerContext, sink, addFinding, seams);
 
+  if (consumerContext) {
+    if (!jsonMode) {
+      sink.blank();
+    }
+    sink.info("Checking npm registry routing...");
+    runNpmRegistryMirrorCheck(projectRoot, sink, addFinding, seams);
+  }
+
   if (!jsonMode) {
     sink.blank();
   }
-  // #2182: payload-staleness is the only doctor check that can reach a
-  // registry (git verifies the pin; npm compares stable release availability).
-  // It stays in the OFFLINE
+  // #2182: payload-staleness is the only doctor check that can reach a network
+  // endpoint (git verifies the pin; npm compares stable release availability).
+  // The baseline #2808 registry-routing diagnostic above is an offline
+  // `npm config get` read. Payload-staleness stays in the OFFLINE
   // tier (skipped) unless the operator explicitly opts into the NETWORK tier
   // via `--network`, and the tool + registry class is disclosed BEFORE the
   // check runs -- never silently, never as a side effect of a read-only

@@ -6,6 +6,7 @@ import type { PackageManager } from "../resolution/package-manager.js";
 import {
   CANONICAL_UPGRADE_COMMAND,
   NPM_PACKAGE_NAME,
+  PUBLIC_NPM_REGISTRY,
   upgradeCommandFor,
   VENDORED_NPM_DEPOSIT_UPGRADE_COMMAND,
 } from "./constants.js";
@@ -64,11 +65,21 @@ function parseRemoteSha(stdout: string): string {
   return firstLine.trim().split(/\s+/)[0] ?? "";
 }
 
-function defaultNpmViewVersion(): { ok: boolean; version: string } {
-  const proc = spawnSync("npm", ["view", NPM_PACKAGE_NAME, "version"], {
-    encoding: "utf8",
-    timeout: 15_000,
-  });
+/**
+ * Query the canonical public registry for the latest published Directive
+ * version, independent of the consumer's configured corporate mirror.
+ */
+export function defaultNpmViewVersion(): { ok: boolean; version: string } {
+  const proc = spawnSync(
+    "npm",
+    ["view", NPM_PACKAGE_NAME, "version", `--registry=${PUBLIC_NPM_REGISTRY}`, "--ignore-scripts"],
+    {
+      encoding: "utf8",
+      shell: false,
+      timeout: 15_000,
+      windowsHide: true,
+    },
+  );
   const version = (proc.stdout ?? "").trim().split("\n")[0]?.trim() ?? "";
   return { ok: proc.status === 0 && version.length > 0, version };
 }
