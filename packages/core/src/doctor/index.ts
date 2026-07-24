@@ -6,6 +6,7 @@ export * from "./flags.js";
 export * from "./json.js";
 export * from "./main.js";
 export * from "./manifest.js";
+export * from "./npm-registry.js";
 export * from "./paths.js";
 export * from "./payload-staleness.js";
 export * from "./release-availability.js";

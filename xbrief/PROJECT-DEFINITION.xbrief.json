@@ -20946,6 +20946,22 @@
         }
       },
       {
+        "id": "2026-07-24-2808-docsdoctor-guide-consumers-when-corporate-npm-mirrors-lag-pu",
+        "title": "docs+doctor: guide consumers when corporate npm mirrors lag public @deftai/directive",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-24-2808-docsdoctor-guide-consumers-when-corporate-npm-mirrors-lag-pu.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2808",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2808: docs+doctor: guide consumers when corporate npm mirrors lag public @deftai/directive"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-04-23-12-deft-bootstrap-cli-with-tui-typer-textual-strategy-aware",
         "title": "Deft Bootstrap CLI with TUI (Typer + Textual, strategy-aware feature branching, agent config generation)",
         "status": "cancelled",
@@ -21701,6 +21717,6 @@
     "updated": "2026-07-02T14:32:31Z"
   },
   "xBRIEFInfo": {
-    "updated": "2026-07-21T21:16:23Z"
+    "updated": "2026-07-24T16:05:43Z"
   }
 }

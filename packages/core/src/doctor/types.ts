@@ -36,6 +36,15 @@ export interface Finding {
   readonly [key: string]: unknown;
 }
 
+/** Result of an offline `npm config get` query. */
+export interface NpmConfigGetResult {
+  readonly ok: boolean;
+  readonly value: string;
+}
+
+/** Injectable npm-config reader used by doctor and its throttle-safe signposts. */
+export type NpmConfigGet = (key: string, cwd: string) => NpmConfigGetResult;
+
 /**
  * The single read-only decision surface derived from the shared keystone
  * `plan()` (#2267 / epic #2203). `plan()` is the ONE classifier: doctor never
@@ -103,6 +112,8 @@ export interface DoctorSeams {
   readonly isFile?: (path: string) => boolean;
   readonly runGitLsRemote?: (deftDir: string, ref: string) => { ok: boolean; stdout: string };
   readonly runNpmViewVersion?: () => { ok: boolean; version: string };
+  /** Offline npm configuration reader for effective-registry diagnostics (#2808). */
+  readonly runNpmConfigGet?: NpmConfigGet;
   readonly agentsRefreshPlan?: (projectRoot: string) => Record<string, unknown>;
   readonly agentsMdAdvisoryEvaluate?: (projectRoot: string) => AdvisoryEvaluateResult;
   readonly readState?: (projectRoot: string) => DoctorState | null;

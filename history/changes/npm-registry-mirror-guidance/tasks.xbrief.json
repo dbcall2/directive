@@ -1,0 +1,36 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "npm-registry-mirror-guidance",
+    "status": "completed",
+    "items": [
+      {
+        "title": "Add failing tests for effective registry precedence, advisory output, redaction, and skip behavior",
+        "status": "completed"
+      },
+      {
+        "title": "Implement the offline npm-registry-mirror doctor check and injected runner seam",
+        "status": "completed"
+      },
+      {
+        "title": "Wire the advisory into full and throttle-skipped doctor paths",
+        "status": "completed"
+      },
+      {
+        "title": "Pin doctor --network npm view to the public registry and preserve the offline gate",
+        "status": "completed"
+      },
+      {
+        "title": "Add UPGRADING guidance, README pointer, network-contract clarification, and content tests",
+        "status": "completed"
+      },
+      {
+        "title": "Add the Unreleased changelog entry and run focused plus full quality gates",
+        "status": "completed"
+      }
+    ],
+    "edges": []
+  }
+}

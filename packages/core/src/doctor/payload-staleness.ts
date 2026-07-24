@@ -5,11 +5,11 @@ import { isPublishable } from "../release/version.js";
 import type { PackageManager } from "../resolution/package-manager.js";
 import {
   CANONICAL_UPGRADE_COMMAND,
-  NPM_PACKAGE_NAME,
   upgradeCommandFor,
   VENDORED_NPM_DEPOSIT_UPGRADE_COMMAND,
 } from "./constants.js";
 import { locateManifest, parseInstallManifest } from "./manifest.js";
+import { defaultNpmViewVersion } from "./npm-view.js";
 import type { OutputSink } from "./output.js";
 import { readTextSafe, resolveDefaultFrameworkRoot } from "./paths.js";
 import { evaluateReleaseAvailability } from "./release-availability.js";
@@ -62,15 +62,6 @@ function parseRemoteSha(stdout: string): string {
   }
   const firstLine = stdout.split("\n").find((ln) => ln.trim()) ?? "";
   return firstLine.trim().split(/\s+/)[0] ?? "";
-}
-
-function defaultNpmViewVersion(): { ok: boolean; version: string } {
-  const proc = spawnSync("npm", ["view", NPM_PACKAGE_NAME, "version"], {
-    encoding: "utf8",
-    timeout: 15_000,
-  });
-  const version = (proc.stdout ?? "").trim().split("\n")[0]?.trim() ?? "";
-  return { ok: proc.status === 0 && version.length > 0, version };
 }
 
 function emitReleaseAvailable(

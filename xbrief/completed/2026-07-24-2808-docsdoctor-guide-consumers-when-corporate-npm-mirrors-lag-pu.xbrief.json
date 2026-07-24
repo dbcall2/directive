@@ -1,0 +1,56 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2808"
+  },
+  "plan": {
+    "title": "docs+doctor: guide consumers when corporate npm mirrors lag public @deftai/directive",
+    "status": "completed",
+    "narratives": {
+      "Description": "docs+doctor: guide consumers when corporate npm mirrors lag public @deftai/directive",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2808",
+      "Overview": "## Summary\n\nCorporate / mirrored npm registries (Artifactory, Nexus, Verdaccio, Azure Artifacts, etc.) can serve a stale packument for `@deftai/directive` while the package is already published on the public registry. Consumers then see `E404` / `ETARGET` for a real version, or worse — `@latest` silently installs an older version (e.g. mirror stuck at `0.80.0` while public is `0.84.0`).\n\nThis is not a missing publish. Directive already pins its own release probes to `https://registry.npmjs.org/` (session release-availability / staleness tickler), but **consumer install/upgrade commands** (`npm i -g @deftai/directive@latest`) honor the user's configured registry. Docs do not mention this failure mode today, and `deft doctor` does not steer operators toward the fix.\n\n### Field evidence (2026-07-24)\n\nConsumer on macOS with:\n\n```text\nnpm config get registry\n→ https://cfa.jfrog.io/artifactory/api/npm/npm/\n\nnpm view @deftai/directive version\n→ 0.80.0\n\nnpm view @deftai/directive@0.84.0 version\n→ E404 No match found for version 0.84.0\n\nnpm i -g @deftai/directive@0.84.0\n→ ETARGET No matching version found\n```\n\nPublic registry at the same time: `@deftai/directive@0.84.0` (and siblings) all present; `latest` = `0.84.0`.\n\n## Goals\n\nShip **both**:\n\n1. **Docs** — UPGRADING notes (+ thin README pointer) so humans/agents can diagnose and unblock.\n2. **Doctor** — an advisory finding that detects a non-public / mirrored default registry (or a related install mismatch) and points the operator at those UPGRADING notes.\n\n## Scope A — Docs\n\n### `content/UPGRADING.md`\n\nAdd a short callout near **Canonical upgrade — npm**, e.g. \"Corporate / mirrored npm registry\", covering:\n\n- Symptoms: `E404` / `ETARGET` for a version that exists on the GitHub release; or `@latest` resolving older than the published release\n- Diagnosis: `npm config get registry` — if not `https://registry.npmjs.org/`, you are on a mirror\n- Unblock (one-shot): `npm i -g @deftai/directive@<ver> --registry=https://registry.npmjs.org/`\n- Durable: `@deftai:registry=https://registry.npmjs.org/` in user/project `.npmrc` (keep company default for other scopes)\n- Org fix: re-cache / remote-sync **all four** packages — `@deftai/directive`, `directive-core`, `directive-content`, `directive-types`\n- Silent-stale warning: `@latest` can succeed on an outdated mirror\n\n### `README.md`\n\nOne sentence in the cold-start / install area (sibling to the existing Offline tip) linking into that UPGRADING section. Keep README thin.\n\n## Scope B — Doctor\n\nAdd an advisory doctor finding (prefer **offline-capable**) that:\n\n1. Reads the effective npm registry (`npm config get registry` or equivalent seam) without contacting any registry by default.\n2. When the configured registry is **not** the public npm registry (`https://registry.npmjs.org/` / trailing-slash normalized), emits a non-blocking advisory whose remediation text **links/points to the new UPGRADING section** (path + anchor), with the one-shot `--registry=` unblock and the scoped `.npmrc` option.\n3. Remains compatible with `content/tools/package-manager-network.md`: bare `deft doctor` stays offline; no new default-network contact. Optional enrichment under `deft doctor --network` is fine (e.g. if public latest and configured-registry latest diverge), but the baseline advisory must not require `--network`.\n4. Does **not** tell consumers to change their org-wide default registry; only documents scoped override / one-shot / IT sync.\n\nSuggested finding identity (bikeshed OK): `npm-registry-mirror` or `configured-npm-registry`.\n\n## Non-goals\n\n- Second install channel or publishing to Artifactory ourselves\n- Auto-rewriting consumer `.npmrc`\n- Treating mirrored registries as an error that fails doctor closed\n- Changing the canonical SoT away from public npm\n\n## Acceptance\n\n- [ ] UPGRADING section merged with symptoms, diagnosis, one-shot unblock, scoped override, sibling-package sync note, silent-stale warning\n- [ ] README one-liner points at that section\n- [ ] `deft doctor` (offline tier) surfaces the advisory when default registry ≠ public npmjs and points at the UPGRADING section\n- [ ] Tests for the doctor finding (public registry → no advisory; mirrored registry → advisory + UPGRADING pointer)\n- [ ] CHANGELOG `[Unreleased]` note (docs + doctor)\n\n## Related\n\n- `content/tools/package-manager-network.md` — doctor offline-by-default contract\n- `packages/core/src/session/release-availability.ts` / `staleness-tickler/probe-directive.ts` — already force `--registry=https://registry.npmjs.org/`\n- Informational remote-version probe precedent (#801)\r\n\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @dbcall2 (2026-07-24T15:55:36Z)\n\n## Proposed implementation (approved 2026-07-24)\n\nThe issue is reproducible: the configured JFrog registry resolves `@deftai/directive` to `0.80.0`, while the public npm registry resolves `@deftai/directive` and its three sibling packages to `0.84.0`.\n\n### Design amendments\n\n1. **Resolve the effective registry for the `@deftai` scope.**\n   - Query `npm config get @deftai:registry` first.\n   - When unset (`undefined` / empty), fall back to `npm config get registry`.\n   - This prevents a false-positive after the documented scoped override is applied.\n\n2. **Keep the baseline check offline and advisory-only.**\n   - The only subprocesses are local `npm config get ...` reads, run in the consumer project root with a timeout and no shell.\n   - A non-public effective registry emits warning finding `npm-registry-mirror` but never changes the doctor exit code.\n   - Unavailable/malformed npm config output degrades to a non-warning skip.\n   - Do not render the raw configured URL in text or JSON; it may contain credentials or disclose an internal hostname.\n\n3. **Cover normal and throttle-skipped doctor paths.**\n   - Run the advisory in the full doctor path.\n   - Include it in the lightweight local signposts evaluated when doctor is throttle-skipped, so a registry configuration change is not hidden for up to 24 hours.\n\n4. **Correct the existing network-tier probe.**\n   - `packages/core/src/doctor/payload-staleness.ts` currently runs `npm view` without a registry override even though doctor discloses `registry.npmjs.org`.\n   - Add `--registry=https://registry.npmjs.org/` and `--ignore-scripts` so `deft doctor --network` compares against the public source of truth.\n\n5. **Documentation.**\n   - Add stable heading `### Corporate or mirrored npm registry` under the canonical npm upgrade section.\n   - Cover `E404` / `ETARGET`, silently stale `@latest`, diagnosis, one-shot public-registry install, scoped `.npmrc` override, and organization mirror synchronization.\n   - Use the complete package names: `@deftai/directive`, `@deftai/directive-core`, `@deftai/directive-content`, and `@deftai/directive-types`.\n   - State that bypassing the corporate mirror is only appropriate where organization policy permits; otherwise request an IT-side sync.\n   - Add a thin README cold-start pointer and update `content/tools/package-manager-network.md` to distinguish offline-safe `npm config get` from network-reaching `npm view`.\n\n### Test matrix\n\n- public default registry -> no warning\n- mirrored default registry -> advisory + UPGRADING pointer\n- public `@deftai:registry` with mirrored default -> no warning\n- mirrored scoped registry with public default -> advisory\n- npm unavailable / malformed output -> skip, never fail doctor\n- raw registry credentials/internal URL never rendered\n- throttle-skipped doctor still emits the advisory\n- baseline doctor invokes no network-capable npm/git command\n- `doctor --network` pins `npm view` to public npm\n- advisory remains exit-code 0\n- README/UPGRADING content-contract coverage plus CHANGELOG `[Unreleased]`\n\nImplementation will use a dedicated tested doctor module, an injected npm-config runner seam, and the existing finding/output contracts.",
+      "Labels": "enhancement, docs, adoption-blocker, doctor"
+    },
+    "items": [
+      {
+        "title": "UPGRADING section merged with symptoms, diagnosis, one-shot unblock, scoped override, sibling-package sync note, silent-stale warning",
+        "status": "completed"
+      },
+      {
+        "title": "README one-liner points at that section",
+        "status": "completed"
+      },
+      {
+        "title": "`deft doctor` (offline tier) surfaces the advisory when default registry ≠ public npmjs and points at the UPGRADING section",
+        "status": "completed"
+      },
+      {
+        "title": "Tests for the doctor finding (public registry → no advisory; mirrored registry → advisory + UPGRADING pointer)",
+        "status": "completed"
+      },
+      {
+        "title": "CHANGELOG `[Unreleased]` note (docs + doctor)",
+        "status": "completed"
+      }
+    ],
+    "tags": [
+      "enhancement",
+      "docs",
+      "adoption-blocker",
+      "doctor"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2808",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2808: docs+doctor: guide consumers when corporate npm mirrors lag public @deftai/directive"
+      }
+    ],
+    "updated": "2026-07-24T16:05:39Z",
+    "metadata": {
+      "completedAt": "2026-07-24T16:05:39Z",
+      "capacityBucket": "new-capability"
+    }
+  }
+}
