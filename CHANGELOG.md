@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rule Map generator (#2809).** New maintainer-only `task docs:rule-map` engine verb (TypeScript, Node stdlib only, no new deps) renders `docs/RULE-MAP.md` (committed, diff-friendly, timestamp-free) and a self-contained zero-dependency `docs/rule-map/index.html` explorer (gitignored). `task docs:rule-map:check` gates staleness of the committed Markdown. Lives under maintainer-only top-level `docs/` so it stays out of the shipped payload.
+
 ### Changed
 
 ### Fixed
