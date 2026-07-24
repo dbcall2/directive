@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -440,6 +440,11 @@ describe("fetch branches", () => {
         cacheRoot: root,
       });
       expect(report.issuesWritten).toBe(0);
+      expect(
+        existsSync(
+          join(root, "github-issue", "deftai", "directive", "open-inventory.json"),
+        ),
+      ).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
       setPaginatedLister(restIssueListPaginated);
