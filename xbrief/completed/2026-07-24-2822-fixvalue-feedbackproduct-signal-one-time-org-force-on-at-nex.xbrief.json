@@ -6,7 +6,7 @@
   "plan": {
     "id": "2822-org-force-on-value-product-signal",
     "title": "fix(value-feedback,product-signal): one-time org force-on at next install",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Trusted-org repos stay dark for local value-feedback and product-signal because typed `enabled: false` blocks org-auto (#2376) and productSignal has no org-auto layer (#2693). This story adds a once-per-checkout install/upgrade migration that force-enables local valueFeedback (enabled/emitEvents/sessionLine true; upstreamPrompt false) and productSignal.enabled for trusted-org consumers, with durable markers so later intentional opt-outs are not fought forever, without silently granting personal product-signal consent.",
       "ImplementationPlan": "1. Add a once-per-checkout migration module under `packages/core/src/policy/` (value-feedback + product-signal force-on with durable markers under `.deft-cache/` or audited policy log) that forces local valueFeedback ON including subflags and sets productSignal.enabled=true for trusted-org origins, then wire it from the install/update refresh path in `packages/core/src/init-deposit/refresh.ts` (rebase onto #2818 if that PR still owns refresh). 2. Ensure post-force-enable missing/revoked product-signal consent triggers the D17 interactive consent ask on next interactive session/skill entry (headless fail-open); prefer `policy:clear-value-feedback` (or equivalent) so true opt-out/clear-key is distinct from baseline false. 3. Cover Part A/B ACs with focused tests in `value-feedback*.test.ts`, `product-signal` policy/consent suites, and CHANGELOG + docs for auditable source and post-migration opt-out.",
@@ -100,7 +100,9 @@
         "size": "medium",
         "file_scope_confidence": "high",
         "model_tier": "high"
-      }
+      },
+      "completedAt": "2026-07-25T00:19:48Z",
+      "capacityBucket": "new-capability"
     },
     "references": [
       {
@@ -122,6 +124,6 @@
         "TrustLevel": "external"
       }
     ],
-    "updated": "2026-07-24T19:01:28Z"
+    "updated": "2026-07-25T00:19:48Z"
   }
 }
