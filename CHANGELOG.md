@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.85.0] - 2026-07-25
+
+> PR-anchored review leases, Cursor worker liveness, empty-cache freshness, update --help safety, trusted-org value/product-signal force-on, and deposit/doctor upgrade fixes.
+
+### Added
+
 - **PR-anchored review-owner lease (#2814).** `review-monitor:register`, new `review-monitor:release`, and `verify:review-monitor` now use a sticky GitHub PR comment (`<!-- deft:review-owner -->`) as the sole lease source of truth. Cross-machine double-babysit is blocked via REST claim/conflict semantics; legacy `.deft/review-monitor.json` is no longer written or honored.
 - **Cursor Task worker liveness gate (#2824).** New `task verify:subagent-alive` fail-closed gate (exit 1 prints `REDISPATCH_OK`) and `task agent:monitor` Taskfile surface wrapping `subagent-monitor`. Swarm Phase 4/5 and agent preamble §10.5 require the gate for in-flight `drive-to: merge*` leaves; Cursor false-alive (host running + missing/STALE heartbeat) authorizes takeover re-dispatch.
 - **One-time trusted-org install force-on for value feedback and product signal (#2822).** `directive update` now runs a once-per-checkout migration for `deftai/*` (and `DEFT_VALUE_AUTOENABLE_ORGS`) repos that forces local valueFeedback ON (`enabled`/`emitEvents`/`sessionLine`; `upstreamPrompt` off) and `productSignal.enabled=true` without auto-granting personal consent. A durable `.deft-cache/org-force-on-v2822.json` marker prevents re-force against later opt-out; `policy:show` reports `install-force-on` source; `policy:clear-value-feedback` removes the typed key to return to org-auto. Interactive session start and `product-signal:status` surface the D17 consent ask when enable is on and consent is missing. Closes #2822.
@@ -4647,7 +4659,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.84.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.85.0...HEAD
+[0.85.0]: https://github.com/deftai/directive/compare/v0.84.0...v0.85.0
 [0.84.0]: https://github.com/deftai/directive/compare/v0.83.0...v0.84.0
 [0.83.0]: https://github.com/deftai/directive/compare/v0.82.0...v0.83.0
 [0.82.0]: https://github.com/deftai/directive/compare/v0.81.0...v0.82.0

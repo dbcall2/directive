@@ -1028,6 +1028,19 @@
 - **#2766** -- security(lifecycle): refuse symlink write targets for events.jsonl (#2761) -- `[completed]`
 - **#1704** -- RFC: gate throughput without quality loss — process levers (fast lane, CI monolith, merge queue) -- `[completed]`
 - **#2782** -- Session ritual invalidates on every forward commit (exact HEAD pin + PreToolUse) -- `[completed]`
+- **#2790** -- perf(harness): PreToolUse hook:dispatch cold CLI boot ~0.7–1s per edit on Windows -- `[completed]`
 - bug(check): #1713 cached task check shells internal Taskfile shims (go-task 202) -- `[completed]`
+- **#2792** -- chore(security): split synthetic ghp_ fixtures that trip secret-scanning alert #1 -- `[completed]`
+- **#2797** -- bug(cursor): nested Task subagents cannot own Approach 1 review-monitors -- `[completed]`
 - **#2779** -- bug(hooks): Cursor failClosed empty allow stdout blocks Write after successful Directive gate -- `[completed]`
+- **#2804** -- bug: npm update leaves stale frozen-bridge files in .deft/core -- `[completed]`
+- **#2806** -- bug: migrate:xbrief carries stale vbrief.md into xbrief with broken links -- `[completed]`
+- **#2807** -- AppSec review — 4 new medium findings (c7fc6df9) -- `[completed]`
 - **#2808** -- docs+doctor: guide consumers when corporate npm mirrors lag public @deftai/directive -- `[completed]`
+- **#2809** -- Rule Map: maintainer-facing generated view of the rule taxonomy (`task docs:rule-map`) -- `[completed]`
+- **#2814** -- feat(review-cycle): PR-anchored review-owner lease replaces local review-monitor.json -- `[completed]`
+- **#2822** -- fix(value-feedback,product-signal): one-time org force-on at next install -- `[completed]`
+- **#2824** -- bug(swarm,cursor): drive-to:merge Task leaves go dark with no heartbeat gate or REDISPATCH_OK -- `[completed]`
+- **#2826** -- fix(preflight-cache): treat successful empty open-issue refresh as fresh -- `[completed]`
+- **#2828** -- bug(cli): deft update --help performs the update instead of printing help -- `[completed]`
+
