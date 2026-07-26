@@ -10,6 +10,7 @@ describe("deft-hook executable", () => {
     ) as { bin: Record<string, string> };
 
     expect(source).toContain('import { run } from "./hook-dispatch.js"');
+    expect(source).toContain("isDirectEntrypoint");
     expect(source).not.toContain("routeAndDispatch");
     expect(manifest.bin["deft-hook"]).toBe("./dist/hook-bin.js");
   });
