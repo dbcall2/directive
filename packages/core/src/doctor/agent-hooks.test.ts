@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { runAgentHooksHealthCheck } from "./main.js";
+import { runAgentHooksHealthCheck, runAgentHooksLiveProbeCheck } from "./main.js";
 import { createPlainSink } from "./output.js";
 import type { DoctorSeams, Finding } from "./types.js";
 
@@ -24,15 +24,15 @@ describe("runAgentHooksHealthCheck", () => {
       }),
     };
 
-    runAgentHooksHealthCheck(
-      "/project",
-      true,
-      false,
-      createPlainSink({ write: (text) => lines.push(text) }),
-      (finding) => findings.push(finding),
-      seams,
-    );
-
+    expect(
+      runAgentHooksHealthCheck(
+        "/project",
+        true,
+        createPlainSink({ write: (text) => lines.push(text) }),
+        (finding) => findings.push(finding),
+        seams,
+      ),
+    ).toBe(true);
     expect(lines.join("")).toContain("registered and structurally valid");
     expect(lines.join("")).toContain("`/hooks`");
     expect(findings).toEqual([
@@ -46,56 +46,139 @@ describe("runAgentHooksHealthCheck", () => {
     ]);
   });
 
-  it("runs the live probe only under doctor --full", () => {
+  it("can defer the registered finding when a live probe will follow", () => {
+    const findings: Finding[] = [];
+    expect(
+      runAgentHooksHealthCheck(
+        "/project",
+        true,
+        createPlainSink({ write: () => undefined }),
+        (finding) => findings.push(finding),
+        {
+          evaluateAgentHooks: () => ({
+            code: 0,
+            message: "registered",
+            stream: "stdout",
+            registrations: [],
+          }),
+        },
+        false,
+      ),
+    ).toBe(true);
+    expect(findings).toEqual([]);
+  });
+
+  it("reports registration drift without claiming runtime non-functionality", () => {
+    const findings: Finding[] = [];
+    expect(
+      runAgentHooksHealthCheck(
+        "/project",
+        true,
+        createPlainSink({ write: () => undefined }),
+        (finding) => findings.push(finding),
+        {
+          evaluateAgentHooks: () => ({
+            code: 1,
+            message: "registration incomplete",
+            stream: "stderr",
+            registrations: [],
+          }),
+        },
+      ),
+    ).toBe(false);
+
+    expect(findings).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        status: "incomplete",
+      }),
+    ]);
+  });
+
+  it("distinguishes a registration probe configuration error", () => {
+    const findings: Finding[] = [];
+    expect(
+      runAgentHooksHealthCheck(
+        "/project",
+        true,
+        createPlainSink({ write: () => undefined }),
+        (finding) => findings.push(finding),
+        {
+          evaluateAgentHooks: () => ({
+            code: 2,
+            message: "project root unavailable",
+            stream: "stderr",
+            registrations: [],
+          }),
+        },
+      ),
+    ).toBe(false);
+
+    expect(findings).toEqual([expect.objectContaining({ status: "unavailable" })]);
+  });
+
+  it("reports a thrown registration probe without crashing doctor", () => {
+    const findings: Finding[] = [];
+    expect(
+      runAgentHooksHealthCheck(
+        "/project",
+        true,
+        createPlainSink({ write: () => undefined }),
+        (finding) => findings.push(finding),
+        {
+          evaluateAgentHooks: () => {
+            throw new Error("probe failed");
+          },
+        },
+      ),
+    ).toBe(false);
+
+    expect(findings).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        message: expect.stringContaining("probe failed"),
+      }),
+    ]);
+  });
+});
+
+describe("runAgentHooksLiveProbeCheck", () => {
+  it("records a passing live probe under doctor --full", () => {
     const findings: Finding[] = [];
     const liveProbe = vi.fn(() => ({
       code: 0 as const,
       message: "live probe passed",
       cases: [],
     }));
-    const seams: DoctorSeams = {
-      evaluateAgentHooks: () => ({
-        code: 0,
-        message: "registered",
-        stream: "stdout",
-        registrations: [],
-      }),
-      probeAgentHooksLive: liveProbe,
-    };
 
-    runAgentHooksHealthCheck(
+    runAgentHooksLiveProbeCheck(
       "/project",
-      true,
-      false,
       createPlainSink({ write: () => undefined }),
       (finding) => findings.push(finding),
-      seams,
+      {
+        evaluateAgentHooks: () => ({
+          code: 0,
+          message: "registered",
+          stream: "stdout",
+          registrations: [],
+        }),
+        probeAgentHooksLive: liveProbe,
+      },
     );
-    expect(liveProbe).not.toHaveBeenCalled();
 
-    runAgentHooksHealthCheck(
-      "/project",
-      true,
-      true,
-      createPlainSink({ write: () => undefined }),
-      (finding) => findings.push(finding),
-      seams,
-    );
     expect(liveProbe).toHaveBeenCalledTimes(1);
-    expect(findings.at(-1)).toEqual(
+    expect(findings).toEqual([
       expect.objectContaining({
         status: "registered-and-functional",
         live_probe: "passed",
       }),
-    );
+    ]);
   });
 
-  it("surfaces empty-stdout hook bins as non-functional under --full", () => {
+  it("surfaces empty-stdout hook bins as non-functional", () => {
     const findings: Finding[] = [];
-    runAgentHooksHealthCheck(
+    runAgentHooksLiveProbeCheck(
       "/project",
-      true,
-      true,
       createPlainSink({ write: () => undefined }),
       (finding) => findings.push(finding),
       {
@@ -126,76 +209,6 @@ describe("runAgentHooksHealthCheck", () => {
         check: "agent-hooks-live-probe",
         status: "non-functional",
         severity: "warning",
-      }),
-    ]);
-  });
-
-  it("reports registration drift without claiming runtime non-functionality", () => {
-    const findings: Finding[] = [];
-    runAgentHooksHealthCheck(
-      "/project",
-      true,
-      false,
-      createPlainSink({ write: () => undefined }),
-      (finding) => findings.push(finding),
-      {
-        evaluateAgentHooks: () => ({
-          code: 1,
-          message: "registration incomplete",
-          stream: "stderr",
-          registrations: [],
-        }),
-      },
-    );
-
-    expect(findings).toEqual([
-      expect.objectContaining({
-        severity: "warning",
-        status: "incomplete",
-      }),
-    ]);
-  });
-
-  it("distinguishes a registration probe configuration error", () => {
-    const findings: Finding[] = [];
-    runAgentHooksHealthCheck(
-      "/project",
-      true,
-      false,
-      createPlainSink({ write: () => undefined }),
-      (finding) => findings.push(finding),
-      {
-        evaluateAgentHooks: () => ({
-          code: 2,
-          message: "project root unavailable",
-          stream: "stderr",
-          registrations: [],
-        }),
-      },
-    );
-
-    expect(findings).toEqual([expect.objectContaining({ status: "unavailable" })]);
-  });
-
-  it("reports a thrown registration probe without crashing doctor", () => {
-    const findings: Finding[] = [];
-    runAgentHooksHealthCheck(
-      "/project",
-      true,
-      false,
-      createPlainSink({ write: () => undefined }),
-      (finding) => findings.push(finding),
-      {
-        evaluateAgentHooks: () => {
-          throw new Error("probe failed");
-        },
-      },
-    );
-
-    expect(findings).toEqual([
-      expect.objectContaining({
-        severity: "warning",
-        message: expect.stringContaining("probe failed"),
       }),
     ]);
   });
