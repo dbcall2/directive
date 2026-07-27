@@ -5,7 +5,7 @@
   },
   "plan": {
     "title": "release: on task check failure, file-and-merge the blocker — do not lead with inline hotfix (AGENTS.md bulk rejected)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "When release Phase 1 task check fails on a fixable defect, agents must file a GitHub issue and drive it through merge before resuming the cut. Leading with an inline hotfix or untracked --skip-ci is the wrong default; AGENTS.md bulk for this reminder is explicitly rejected.",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/2859",
@@ -86,8 +86,9 @@
         "model_tier": "leaf-implementation",
         "missing_traces_justification": "Traced to GitHub issue #2859 acceptance; skill SoT is skills-pack-0.1.json (packs:render)."
       },
-      "capacityBucket": "bugfix"
+      "capacityBucket": "bugfix",
+      "completedAt": "2026-07-27T15:17:06Z"
     },
-    "updated": "2026-07-27T14:51:00Z"
+    "updated": "2026-07-27T15:17:06Z"
   }
 }
