@@ -76,6 +76,27 @@ describe("probeAgentHooksLive", () => {
     expect(result.cases).toEqual([]);
   });
 
+  it("uses read-only Task spawn for the deny fixture", () => {
+    let denyEnv: NodeJS.ProcessEnv | undefined;
+    const result = probeAgentHooksLive("/project", {
+      resolveCommand: () => "/usr/bin/deft-hook",
+      spawnHook: ({ stdin, env }) => {
+        if (stdin.includes("Task")) {
+          denyEnv = env;
+          return {
+            status: 0,
+            stdout: '{"permission":"deny","user_message":"denied"}',
+            stderr: "",
+          };
+        }
+        return { status: 0, stdout: '{"permission":"allow"}', stderr: "" };
+      },
+    });
+
+    expect(result.code).toBe(0);
+    expect(denyEnv?.DEFT_HOOK_READ_ONLY).toBe("1");
+  });
+
   it("returns unavailable when the hook command is missing from PATH", () => {
     const result = probeAgentHooksLive("/project", {
       resolveCommand: () => null,

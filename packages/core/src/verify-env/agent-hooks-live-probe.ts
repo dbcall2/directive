@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import type { HookEvent, HookHost } from "../hooks/dispatcher.js";
+import { READ_ONLY_HOOK_ENV } from "../hooks/tools.js";
 import { DEFT_HOOK_COMMAND_MARKER } from "../init-deposit/agent-hooks.js";
 import { SUBPROCESS_MAX_BUFFER } from "../subprocess/max-buffer.js";
 import {
@@ -38,6 +39,7 @@ export interface AgentHookLiveProbeSeams {
     readonly args: readonly string[];
     readonly stdin: string;
     readonly cwd: string;
+    readonly env?: NodeJS.ProcessEnv;
   }) => { readonly status: number; readonly stdout: string; readonly stderr: string };
 }
 
@@ -72,18 +74,47 @@ function resolveHookCommand(seams: AgentHookLiveProbeSeams): ResolvedHookCommand
   return null;
 }
 
+function quoteWindowsCmdArg(value: string): string {
+  if (!/[\s"&|<>^()]/.test(value)) {
+    return value;
+  }
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
 function spawnHookWithStdin(
   command: string,
   args: readonly string[],
   stdin: string,
   cwd: string,
+  env: NodeJS.ProcessEnv = process.env,
 ): { status: number; stdout: string; stderr: string } {
   const shell = shouldUseShellForCommand(command);
+  if (shell && process.platform === "win32") {
+    const cmdLine = [quoteWin32CommandForShell(command), ...args.map(quoteWindowsCmdArg)].join(" ");
+    const proc = spawnSync(cmdLine, [], {
+      input: stdin,
+      cwd,
+      env,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "pipe"],
+      shell: true,
+      windowsHide: true,
+      maxBuffer: SUBPROCESS_MAX_BUFFER,
+    });
+    const status = proc.status ?? (proc.error ? 2 : proc.signal ? 128 : 0);
+    return {
+      status,
+      stdout: typeof proc.stdout === "string" ? proc.stdout : "",
+      stderr: typeof proc.stderr === "string" ? proc.stderr : "",
+    };
+  }
+
   const spawnCmd =
     shell && process.platform === "win32" ? quoteWin32CommandForShell(command) : command;
   const proc = spawnSync(spawnCmd, [...args], {
     input: stdin,
     cwd,
+    env,
     encoding: "utf8",
     stdio: ["pipe", "pipe", "pipe"],
     shell,
@@ -108,10 +139,15 @@ function allowFixture(projectRoot: string): string {
 
 function denyFixture(projectRoot: string): string {
   return JSON.stringify({
-    tool_name: "StrReplace",
+    tool_name: "Task",
     cwd: projectRoot,
     workspace_roots: [projectRoot],
+    tool_input: { subagent_type: "generalPurpose", prompt: "implement" },
   });
+}
+
+function denyProbeEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, [READ_ONLY_HOOK_ENV]: "1" };
 }
 
 function parseCursorDecision(stdout: string): CursorDecision {
@@ -148,6 +184,7 @@ function runFixtureProbe(
   projectRoot: string,
   fixture: "allow" | "deny",
   stdin: string,
+  env: NodeJS.ProcessEnv,
   spawnHook: NonNullable<AgentHookLiveProbeSeams["spawnHook"]>,
 ): AgentHookLiveProbeCase | null {
   const args = [
@@ -164,6 +201,7 @@ function runFixtureProbe(
     args,
     stdin,
     cwd: projectRoot,
+    env,
   });
   if (spawned.status !== 0) {
     return {
@@ -238,13 +276,21 @@ export function probeAgentHooksLive(
       readonly args: readonly string[];
       readonly stdin: string;
       readonly cwd: string;
-    }) => spawnHookWithStdin(input.command, input.args, input.stdin, input.cwd));
+      readonly env?: NodeJS.ProcessEnv;
+    }) =>
+      spawnHookWithStdin(
+        input.command,
+        input.args,
+        input.stdin,
+        input.cwd,
+        input.env ?? process.env,
+      ));
   const failures: AgentHookLiveProbeCase[] = [];
-  for (const [fixture, stdin] of [
-    ["allow", allowFixture(root)] as const,
-    ["deny", denyFixture(root)] as const,
+  for (const [fixture, stdin, env] of [
+    ["allow", allowFixture(root), process.env] as const,
+    ["deny", denyFixture(root), denyProbeEnv()] as const,
   ]) {
-    const failure = runFixtureProbe(resolved, root, fixture, stdin, spawnHook);
+    const failure = runFixtureProbe(resolved, root, fixture, stdin, env, spawnHook);
     if (failure !== null) failures.push(failure);
   }
 
