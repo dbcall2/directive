@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.86.0] - 2026-07-27
+
+> Doctor live-probe and maintainer false-positive fixes, symlink-safe hooks/CLI and AppSec write sinks, core:validate no longer hangs task check, and release Phase 1 file-and-merge discipline.
+
+### Added
+
 - **Doctor `--full` live-probes deposited agent hooks (#2852).** After structural registration checks pass, doctor spawns the configured `deft-hook` command with Cursor `tool.before` allow and deny fixtures and warns when stdout is empty, unparseable, or missing an expected deny — surfacing #2846-class packaging failures that structurally valid deposits hide. Closes #2852.
 
 ### Changed
@@ -4676,7 +4688,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.85.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.86.0...HEAD
+[0.86.0]: https://github.com/deftai/directive/compare/v0.85.0...v0.86.0
 [0.85.0]: https://github.com/deftai/directive/compare/v0.84.0...v0.85.0
 [0.84.0]: https://github.com/deftai/directive/compare/v0.83.0...v0.84.0
 [0.83.0]: https://github.com/deftai/directive/compare/v0.82.0...v0.83.0
