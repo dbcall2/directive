@@ -18,6 +18,7 @@ import {
 } from "../resolution/index.js";
 import { type ResolveUserMdResult, resolveUserMdPath } from "../user-config/resolve-user-md.js";
 import { evaluateAgentHooks } from "../verify-env/agent-hooks.js";
+import { probeAgentHooksLive } from "../verify-env/agent-hooks-live-probe.js";
 import { agentsRefreshPlan, hasV3ManagedMarker } from "./agents-md.js";
 import { runChecks } from "./checks.js";
 import {
@@ -223,7 +224,7 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
     sink.blank();
   }
   sink.info("Checking agent-host hook registration...");
-  runAgentHooksHealthCheck(projectRoot, consumerContext, sink, addFinding, seams);
+  runAgentHooksHealthCheck(projectRoot, consumerContext, fullMode, sink, addFinding, seams);
 
   if (consumerContext) {
     if (!jsonMode) {
@@ -422,11 +423,13 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
 export function runAgentHooksHealthCheck(
   projectRoot: string,
   consumerContext: boolean,
+  fullMode: boolean,
   sink: ReturnType<typeof createPlainSink>,
   addFinding: (finding: Finding) => void,
   seams: DoctorSeams,
 ): void {
   const checkName = "agent-hooks-registration";
+  const liveCheckName = "agent-hooks-live-probe";
   if (!consumerContext) {
     const reason = "maintainer source checkout; project hook deposit is consumer-only";
     sink.info(`${checkName}: skip -- ${reason}`);
@@ -435,31 +438,64 @@ export function runAgentHooksHealthCheck(
   }
   try {
     const result = (seams.evaluateAgentHooks ?? evaluateAgentHooks)(projectRoot);
-    if (result.code === 0) {
+    if (result.code !== 0) {
+      const message = `${checkName}: ${result.message.replace(/\s+/g, " ").trim()}`;
+      sink.warn(message);
+      addFinding({
+        severity: "warning",
+        message,
+        check: checkName,
+        status: result.code === 2 ? "unavailable" : "incomplete",
+        registrations: result.registrations,
+        suggestion: "deft update",
+      });
+      return;
+    }
+
+    if (fullMode) {
+      const liveResult = (seams.probeAgentHooksLive ?? probeAgentHooksLive)(projectRoot);
+      if (liveResult.code !== 0) {
+        const message = `${liveCheckName}: ${liveResult.message.replace(/\s+/g, " ").trim()}`;
+        sink.warn(message);
+        addFinding({
+          severity: "warning",
+          message,
+          check: liveCheckName,
+          status: liveResult.code === 2 ? "unavailable" : "non-functional",
+          cases: liveResult.cases,
+          suggestion: "npm i -g @deftai/directive@latest && deft update",
+        });
+        return;
+      }
       const message =
-        `${checkName}: registered and structurally valid; ` +
+        `${checkName}: registered, structurally valid, and live probe passed; ` +
         "Codex runtime trust is user-controlled and must be reviewed with `/hooks`";
       sink.success(message);
       addFinding({
         severity: "skip",
         message,
         check: checkName,
-        status: "registered",
+        status: "registered-and-functional",
         registrations: result.registrations,
         trust_status: "not-verifiable",
         trust_review: "Open `/hooks` in Codex and review the project hook commands.",
+        live_probe: "passed",
       });
       return;
     }
-    const message = `${checkName}: ${result.message.replace(/\s+/g, " ").trim()}`;
-    sink.warn(message);
+
+    const message =
+      `${checkName}: registered and structurally valid; ` +
+      "Codex runtime trust is user-controlled and must be reviewed with `/hooks`";
+    sink.success(message);
     addFinding({
-      severity: "warning",
+      severity: "skip",
       message,
       check: checkName,
-      status: result.code === 2 ? "unavailable" : "incomplete",
+      status: "registered",
       registrations: result.registrations,
-      suggestion: "deft update",
+      trust_status: "not-verifiable",
+      trust_review: "Open `/hooks` in Codex and review the project hook commands.",
     });
   } catch (cause) {
     const message = `${checkName}: probe failed -- ${String(cause)}`;

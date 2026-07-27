@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Doctor `--full` live-probes deposited agent hooks (#2852).** After structural registration checks pass, doctor spawns the configured `deft-hook` command with Cursor `tool.before` allow and deny fixtures and warns when stdout is empty, unparseable, or missing an expected deny — surfacing #2846-class packaging failures that structurally valid deposits hide. Closes #2852.
+
 ### Changed
 
 ### Fixed

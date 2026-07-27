@@ -1,31 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { runAgentHooksHealthCheck } from "./main.js";
 import { createPlainSink } from "./output.js";
 import type { DoctorSeams, Finding } from "./types.js";
 
 describe("runAgentHooksHealthCheck", () => {
-  it("skips agent-hooks registration on maintainer source checkout", () => {
-    const lines: string[] = [];
-    const findings: Finding[] = [];
-
-    runAgentHooksHealthCheck(
-      "/project",
-      false,
-      createPlainSink({ write: (text) => lines.push(text) }),
-      (finding) => findings.push(finding),
-      {},
-    );
-
-    expect(lines.join("")).toContain("skip -- maintainer source checkout");
-    expect(findings).toEqual([
-      expect.objectContaining({
-        severity: "skip",
-        check: "agent-hooks-registration",
-        status: "skip",
-      }),
-    ]);
-  });
-
   it("records structural health and leaves Codex runtime trust unverifiable", () => {
     const lines: string[] = [];
     const findings: Finding[] = [];
@@ -49,6 +27,7 @@ describe("runAgentHooksHealthCheck", () => {
     runAgentHooksHealthCheck(
       "/project",
       true,
+      false,
       createPlainSink({ write: (text) => lines.push(text) }),
       (finding) => findings.push(finding),
       seams,
@@ -67,11 +46,96 @@ describe("runAgentHooksHealthCheck", () => {
     ]);
   });
 
+  it("runs the live probe only under doctor --full", () => {
+    const findings: Finding[] = [];
+    const liveProbe = vi.fn(() => ({
+      code: 0 as const,
+      message: "live probe passed",
+      cases: [],
+    }));
+    const seams: DoctorSeams = {
+      evaluateAgentHooks: () => ({
+        code: 0,
+        message: "registered",
+        stream: "stdout",
+        registrations: [],
+      }),
+      probeAgentHooksLive: liveProbe,
+    };
+
+    runAgentHooksHealthCheck(
+      "/project",
+      true,
+      false,
+      createPlainSink({ write: () => undefined }),
+      (finding) => findings.push(finding),
+      seams,
+    );
+    expect(liveProbe).not.toHaveBeenCalled();
+
+    runAgentHooksHealthCheck(
+      "/project",
+      true,
+      true,
+      createPlainSink({ write: () => undefined }),
+      (finding) => findings.push(finding),
+      seams,
+    );
+    expect(liveProbe).toHaveBeenCalledTimes(1);
+    expect(findings.at(-1)).toEqual(
+      expect.objectContaining({
+        status: "registered-and-functional",
+        live_probe: "passed",
+      }),
+    );
+  });
+
+  it("surfaces empty-stdout hook bins as non-functional under --full", () => {
+    const findings: Finding[] = [];
+    runAgentHooksHealthCheck(
+      "/project",
+      true,
+      true,
+      createPlainSink({ write: () => undefined }),
+      (finding) => findings.push(finding),
+      {
+        evaluateAgentHooks: () => ({
+          code: 0,
+          message: "registered",
+          stream: "stdout",
+          registrations: [],
+        }),
+        probeAgentHooksLive: () => ({
+          code: 1,
+          message: "deft agent hooks live probe FAILED: allow: empty-stdout (empty stdout)",
+          cases: [
+            {
+              host: "cursor",
+              event: "tool.before",
+              fixture: "allow",
+              issue: "empty-stdout",
+              detail: "empty stdout",
+            },
+          ],
+        }),
+      },
+    );
+
+    expect(findings).toEqual([
+      expect.objectContaining({
+        check: "agent-hooks-live-probe",
+        status: "non-functional",
+        severity: "warning",
+      }),
+    ]);
+  });
+
   it("reports registration drift without claiming runtime non-functionality", () => {
     const findings: Finding[] = [];
     runAgentHooksHealthCheck(
       "/project",
       true,
+      false,
       createPlainSink({ write: () => undefined }),
       (finding) => findings.push(finding),
       {
@@ -97,6 +161,7 @@ describe("runAgentHooksHealthCheck", () => {
     runAgentHooksHealthCheck(
       "/project",
       true,
+      false,
       createPlainSink({ write: () => undefined }),
       (finding) => findings.push(finding),
       {
@@ -117,6 +182,7 @@ describe("runAgentHooksHealthCheck", () => {
     runAgentHooksHealthCheck(
       "/project",
       true,
+      false,
       createPlainSink({ write: () => undefined }),
       (finding) => findings.push(finding),
       {
