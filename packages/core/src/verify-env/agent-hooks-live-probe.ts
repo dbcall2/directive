@@ -74,11 +74,12 @@ function resolveHookCommand(seams: AgentHookLiveProbeSeams): ResolvedHookCommand
   return null;
 }
 
-function quoteWindowsCmdArg(value: string): string {
-  if (!/[\s"&|<>^()]/.test(value)) {
-    return value;
+export function quoteWindowsCmdArg(value: string): string {
+  const escaped = value.replace(/%/g, "%%");
+  if (!/[\s"&|<>^()]/.test(escaped)) {
+    return escaped;
   }
-  return `"${value.replace(/"/g, '""')}"`;
+  return `"${escaped.replace(/"/g, '""')}"`;
 }
 
 function spawnHookWithStdin(

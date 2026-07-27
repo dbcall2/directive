@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { probeAgentHooksLive } from "./agent-hooks-live-probe.js";
+import { probeAgentHooksLive, quoteWindowsCmdArg } from "./agent-hooks-live-probe.js";
 
 describe("probeAgentHooksLive", () => {
   it("reports empty stdout on allow fixture as non-functional (#2852)", () => {
@@ -104,5 +104,10 @@ describe("probeAgentHooksLive", () => {
 
     expect(result.code).toBe(2);
     expect(result.cases[0]?.issue).toBe("hook-command-missing");
+  });
+
+  it("escapes percent signs for Windows cmd shell arguments", () => {
+    expect(quoteWindowsCmdArg("C:/Repos/deft%directive")).toBe("C:/Repos/deft%%directive");
+    expect(quoteWindowsCmdArg("C:/Repos/with spaces")).toBe('"C:/Repos/with spaces"');
   });
 });
