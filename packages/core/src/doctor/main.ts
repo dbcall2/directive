@@ -18,6 +18,7 @@ import {
 } from "../resolution/index.js";
 import { type ResolveUserMdResult, resolveUserMdPath } from "../user-config/resolve-user-md.js";
 import { evaluateAgentHooks } from "../verify-env/agent-hooks.js";
+import { probeAgentHooksLive } from "../verify-env/agent-hooks-live-probe.js";
 import { agentsRefreshPlan, hasV3ManagedMarker } from "./agents-md.js";
 import { runChecks } from "./checks.js";
 import {
@@ -223,7 +224,25 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
     sink.blank();
   }
   sink.info("Checking agent-host hook registration...");
-  runAgentHooksHealthCheck(projectRoot, consumerContext, sink, addFinding, seams);
+  const findingCountBeforeHooks = findings.length;
+  const hooksHealthy = runAgentHooksHealthCheck(
+    projectRoot,
+    consumerContext,
+    sink,
+    addFinding,
+    seams,
+  );
+  if (fullMode && hooksHealthy) {
+    const lastFinding = findings[findings.length - 1];
+    if (
+      findings.length > findingCountBeforeHooks &&
+      lastFinding?.check === "agent-hooks-registration" &&
+      lastFinding?.status === "registered"
+    ) {
+      findings.pop();
+    }
+    runAgentHooksLiveProbeCheck(projectRoot, sink, addFinding, seams);
+  }
 
   if (consumerContext) {
     if (!jsonMode) {
@@ -425,46 +444,94 @@ export function runAgentHooksHealthCheck(
   sink: ReturnType<typeof createPlainSink>,
   addFinding: (finding: Finding) => void,
   seams: DoctorSeams,
-): void {
+): boolean {
   const checkName = "agent-hooks-registration";
   if (!consumerContext) {
     const reason = "maintainer source checkout; project hook deposit is consumer-only";
     sink.info(`${checkName}: skip -- ${reason}`);
     addFinding({ severity: "skip", message: reason, check: checkName, status: "skip" });
-    return;
+    return false;
   }
   try {
     const result = (seams.evaluateAgentHooks ?? evaluateAgentHooks)(projectRoot);
-    if (result.code === 0) {
-      const message =
-        `${checkName}: registered and structurally valid; ` +
-        "Codex runtime trust is user-controlled and must be reviewed with `/hooks`";
-      sink.success(message);
+    if (result.code !== 0) {
+      const message = `${checkName}: ${result.message.replace(/\s+/g, " ").trim()}`;
+      sink.warn(message);
       addFinding({
-        severity: "skip",
+        severity: "warning",
         message,
         check: checkName,
-        status: "registered",
+        status: result.code === 2 ? "unavailable" : "incomplete",
         registrations: result.registrations,
-        trust_status: "not-verifiable",
-        trust_review: "Open `/hooks` in Codex and review the project hook commands.",
+        suggestion: "deft update",
       });
-      return;
+      return false;
     }
-    const message = `${checkName}: ${result.message.replace(/\s+/g, " ").trim()}`;
-    sink.warn(message);
+
+    const message =
+      `${checkName}: registered and structurally valid; ` +
+      "Codex runtime trust is user-controlled and must be reviewed with `/hooks`";
+    sink.success(message);
     addFinding({
-      severity: "warning",
+      severity: "skip",
       message,
       check: checkName,
-      status: result.code === 2 ? "unavailable" : "incomplete",
+      status: "registered",
       registrations: result.registrations,
-      suggestion: "deft update",
+      trust_status: "not-verifiable",
+      trust_review: "Open `/hooks` in Codex and review the project hook commands.",
     });
+    return true;
   } catch (cause) {
     const message = `${checkName}: probe failed -- ${String(cause)}`;
     sink.warn(message);
     addFinding({ severity: "warning", message, check: checkName, suggestion: "deft update" });
+    return false;
+  }
+}
+
+export function runAgentHooksLiveProbeCheck(
+  projectRoot: string,
+  sink: ReturnType<typeof createPlainSink>,
+  addFinding: (finding: Finding) => void,
+  seams: DoctorSeams,
+): void {
+  const checkName = "agent-hooks-registration";
+  const liveCheckName = "agent-hooks-live-probe";
+  try {
+    const result = (seams.evaluateAgentHooks ?? evaluateAgentHooks)(projectRoot);
+    const liveResult = (seams.probeAgentHooksLive ?? probeAgentHooksLive)(projectRoot);
+    if (liveResult.code !== 0) {
+      const message = `${liveCheckName}: ${liveResult.message.replace(/\s+/g, " ").trim()}`;
+      sink.warn(message);
+      addFinding({
+        severity: "warning",
+        message,
+        check: liveCheckName,
+        status: liveResult.code === 2 ? "unavailable" : "non-functional",
+        cases: liveResult.cases,
+        suggestion: "npm i -g @deftai/directive@latest && deft update",
+      });
+      return;
+    }
+    const message =
+      `${checkName}: registered, structurally valid, and live probe passed; ` +
+      "Codex runtime trust is user-controlled and must be reviewed with `/hooks`";
+    sink.success(message);
+    addFinding({
+      severity: "skip",
+      message,
+      check: liveCheckName,
+      status: "registered-and-functional",
+      registrations: result.registrations,
+      trust_status: "not-verifiable",
+      trust_review: "Open `/hooks` in Codex and review the project hook commands.",
+      live_probe: "passed",
+    });
+  } catch (cause) {
+    const message = `${liveCheckName}: probe failed -- ${String(cause)}`;
+    sink.warn(message);
+    addFinding({ severity: "warning", message, check: liveCheckName, suggestion: "deft update" });
   }
 }
 
