@@ -224,15 +224,23 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
     sink.blank();
   }
   sink.info("Checking agent-host hook registration...");
+  const findingCountBeforeHooks = findings.length;
   const hooksHealthy = runAgentHooksHealthCheck(
     projectRoot,
     consumerContext,
     sink,
     addFinding,
     seams,
-    !fullMode,
   );
   if (fullMode && hooksHealthy) {
+    const lastFinding = findings[findings.length - 1];
+    if (
+      findings.length > findingCountBeforeHooks &&
+      lastFinding?.check === "agent-hooks-registration" &&
+      lastFinding?.status === "registered"
+    ) {
+      findings.pop();
+    }
     runAgentHooksLiveProbeCheck(projectRoot, sink, addFinding, seams);
   }
 
@@ -436,7 +444,6 @@ export function runAgentHooksHealthCheck(
   sink: ReturnType<typeof createPlainSink>,
   addFinding: (finding: Finding) => void,
   seams: DoctorSeams,
-  emitRegisteredFinding = true,
 ): boolean {
   const checkName = "agent-hooks-registration";
   if (!consumerContext) {
@@ -464,18 +471,16 @@ export function runAgentHooksHealthCheck(
     const message =
       `${checkName}: registered and structurally valid; ` +
       "Codex runtime trust is user-controlled and must be reviewed with `/hooks`";
-    if (emitRegisteredFinding) {
-      sink.success(message);
-      addFinding({
-        severity: "skip",
-        message,
-        check: checkName,
-        status: "registered",
-        registrations: result.registrations,
-        trust_status: "not-verifiable",
-        trust_review: "Open `/hooks` in Codex and review the project hook commands.",
-      });
-    }
+    sink.success(message);
+    addFinding({
+      severity: "skip",
+      message,
+      check: checkName,
+      status: "registered",
+      registrations: result.registrations,
+      trust_status: "not-verifiable",
+      trust_review: "Open `/hooks` in Codex and review the project hook commands.",
+    });
     return true;
   } catch (cause) {
     const message = `${checkName}: probe failed -- ${String(cause)}`;
@@ -516,7 +521,7 @@ export function runAgentHooksLiveProbeCheck(
     addFinding({
       severity: "skip",
       message,
-      check: checkName,
+      check: liveCheckName,
       status: "registered-and-functional",
       registrations: result.registrations,
       trust_status: "not-verifiable",

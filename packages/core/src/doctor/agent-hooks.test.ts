@@ -46,8 +46,9 @@ describe("runAgentHooksHealthCheck", () => {
     ]);
   });
 
-  it("can defer the registered finding when a live probe will follow", () => {
+  it("returns true without emitting a registered finding when cmdDoctor replaces it", () => {
     const findings: Finding[] = [];
+    const before = findings.length;
     expect(
       runAgentHooksHealthCheck(
         "/project",
@@ -62,10 +63,36 @@ describe("runAgentHooksHealthCheck", () => {
             registrations: [],
           }),
         },
-        false,
       ),
     ).toBe(true);
-    expect(findings).toEqual([]);
+    expect(findings.length).toBe(before + 1);
+    if (findings.length > before) {
+      findings.pop();
+    }
+    runAgentHooksLiveProbeCheck(
+      "/project",
+      createPlainSink({ write: () => undefined }),
+      (finding) => findings.push(finding),
+      {
+        evaluateAgentHooks: () => ({
+          code: 0,
+          message: "registered",
+          stream: "stdout",
+          registrations: [],
+        }),
+        probeAgentHooksLive: () => ({
+          code: 0,
+          message: "live probe passed",
+          cases: [],
+        }),
+      },
+    );
+    expect(findings.at(-1)).toEqual(
+      expect.objectContaining({
+        check: "agent-hooks-live-probe",
+        status: "registered-and-functional",
+      }),
+    );
   });
 
   it("reports registration drift without claiming runtime non-functionality", () => {
@@ -169,6 +196,7 @@ describe("runAgentHooksLiveProbeCheck", () => {
     expect(liveProbe).toHaveBeenCalledTimes(1);
     expect(findings).toEqual([
       expect.objectContaining({
+        check: "agent-hooks-live-probe",
         status: "registered-and-functional",
         live_probe: "passed",
       }),
