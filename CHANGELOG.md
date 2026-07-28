@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OpenClaw agent-host operator docs (#2877).** Discoverable `content/docs/openclaw-agent-host.md` covers Control UI / Telegram / TUI roles, bot vs human GitHub identity, executable babysit path (always follow installed review-cycle skill), and the epic **babysit → `sessions_spawn` Approach 1** expectation as design north star — no invented gate or register-primitive contracts; skill/engine wiring remains #2875/#2876. Cross-linked from `content/QUICK-START.md` and `content/docs/getting-started.md`. Closes #2877.
+
 ### Changed
 
 - **OpenClaw poller/preamble + heartbeat templates (#2879).** Greptile poller template names OpenClaw `sessions_spawn` and parent push/announce completion channel (alongside Warp `start_agent` and grok-build `spawn_subagent`); agent preamble lists OpenClaw as a first-class provider-neutral backend with Gap D background-dispatch and §10.5 heartbeat mapping; `docs/subagent-heartbeat.md` documents OpenClaw file-heartbeat + supplementary native liveness and `REDISPATCH_OK` posture. Closes #2879. Refs #2874, #1365, #2824.
