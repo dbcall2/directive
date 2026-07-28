@@ -1,4 +1,19 @@
-import { globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import {
+  chmodSync,
+  closeSync,
+  constants,
+  globSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+  writeSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { referenceTypeMatches } from "@deftai/directive-types";
@@ -13,11 +28,245 @@ export const EXTERNAL_TRUST_LEVEL = "external";
 
 const ISSUE_URL_PATTERN = /https?:\/\/\S+?\/issues\/\d+/;
 
+/**
+ * Structured post-create failure: remote issue exists; local stamp/ledger may not.
+ * `createdUrl` is the durable handle for retry (also mirrored in process + OS-temp recovery).
+ */
 export class IssueEmitError extends Error {
-  constructor(message: string) {
+  readonly createdUrl?: string;
+
+  constructor(message: string, options?: { createdUrl?: string }) {
     super(message);
     this.name = "IssueEmitError";
+    if (options?.createdUrl !== undefined && options.createdUrl.length > 0) {
+      this.createdUrl = options.createdUrl;
+    }
   }
+}
+
+/**
+ * Process-local fallback for post-create URL when project ledger and xBRIEF stamp both fail (#2880).
+ * Survives same-process retry without re-create; paired with private OS-temp sidecar for restarts.
+ */
+const processPendingUrls = new Map<string, string>();
+
+/** Vitest-only failure injection via env (not a production export surface). */
+function testFailProjectLedger(): boolean {
+  return process.env.VITEST === "true" && process.env.DEFT_ISSUE_EMIT_TEST_FAIL_LEDGER === "1";
+}
+
+function testFailStamp(): boolean {
+  return process.env.VITEST === "true" && process.env.DEFT_ISSUE_EMIT_TEST_FAIL_STAMP === "1";
+}
+
+function privateRecoveryRoot(): string {
+  const base =
+    typeof process.env.XDG_RUNTIME_DIR === "string" && process.env.XDG_RUNTIME_DIR.length > 0
+      ? process.env.XDG_RUNTIME_DIR
+      : tmpdir();
+  const uid = typeof process.getuid === "function" ? String(process.getuid()) : "u";
+  return join(base, `deft-issue-emit-recovery-${uid}`);
+}
+
+/** Refuse dirs/files we do not own or that are group/other-writable (forged recovery, #2880). */
+function isTrustedStat(st: {
+  isSymbolicLink(): boolean;
+  uid?: number;
+  mode: number | bigint;
+}): boolean {
+  if (st.isSymbolicLink()) {
+    return false;
+  }
+  if (typeof process.getuid === "function" && typeof st.uid === "number") {
+    if (st.uid !== process.getuid()) {
+      return false;
+    }
+  }
+  // Group/other write bits allow another local principal to rewrite recovery state.
+  const mode = Number(st.mode);
+  if ((mode & 0o022) !== 0) {
+    return false;
+  }
+  return true;
+}
+
+function ensureTrustedRecoveryDir(): string {
+  const dir = privateRecoveryRoot();
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const dirStat = lstatSync(dir);
+  if (!isTrustedStat(dirStat) || !dirStat.isDirectory()) {
+    throw new Error("issue-emit recovery dir is not a trusted directory owned by the current user");
+  }
+  if ((dirStat.mode & 0o777) !== 0o700) {
+    try {
+      chmodSync(dir, 0o700);
+    } catch {
+      // Best-effort tighten; isTrustedStat already refused group/other write.
+    }
+  }
+  return dir;
+}
+
+export function recoverySidecarPath(vbriefAbsPath: string): string {
+  const key = createHash("sha256").update(resolve(vbriefAbsPath)).digest("hex").slice(0, 40);
+  return join(privateRecoveryRoot(), `${key}.json`);
+}
+
+/**
+ * Write recovery sidecar without following symlinks (#2880 Greptile P1).
+ * Trusted per-uid dir (ownership + mode) + O_EXCL|O_NOFOLLOW create.
+ */
+function writeRecoverySidecarSafe(sidePath: string, payload: string): void {
+  const dir = ensureTrustedRecoveryDir();
+  if (resolve(dirname(sidePath)) !== resolve(dir)) {
+    // Always write under the validated recovery root.
+    throw new Error("issue-emit recovery path escapes trusted root");
+  }
+  try {
+    const existing = lstatSync(sidePath);
+    if (existing.isSymbolicLink() || existing.isFile()) {
+      // unlink of a symlink removes the link itself (does not follow).
+      unlinkSync(sidePath);
+    } else {
+      throw new Error("issue-emit recovery path exists and is not a regular file");
+    }
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      throw err;
+    }
+  }
+  let flags = constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL;
+  if (typeof constants.O_NOFOLLOW === "number") {
+    flags |= constants.O_NOFOLLOW;
+  }
+  const fd = openSync(sidePath, flags, 0o600);
+  try {
+    writeSync(fd, payload, undefined, "utf8");
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/**
+ * Always-on recovery after remote create: process memory + private OS-temp sidecar.
+ * Independent of project-contained ledger so dual local failure still reconciles on retry (#2880).
+ */
+export function rememberCreatedUrl(vbriefAbsPath: string, url: string): void {
+  const key = resolve(vbriefAbsPath);
+  processPendingUrls.set(key, url);
+  try {
+    writeRecoverySidecarSafe(
+      recoverySidecarPath(key),
+      `${JSON.stringify({ path: key, url }, null, 2)}\n`,
+    );
+  } catch {
+    // Best-effort disk mirror; process map still holds the URL for same-process retry.
+  }
+}
+
+export function loadRecoveredUrl(vbriefAbsPath: string): string | undefined {
+  const key = resolve(vbriefAbsPath);
+  const mem = processPendingUrls.get(key);
+  if (typeof mem === "string" && mem.length > 0) {
+    return mem;
+  }
+  try {
+    const side = recoverySidecarPath(key);
+    // Parent dir must be trusted before we read any sidecar (forged-dir attack, #2880).
+    const parent = dirname(side);
+    const parentStat = lstatSync(parent);
+    if (!isTrustedStat(parentStat) || !parentStat.isDirectory()) {
+      return undefined;
+    }
+    const st = lstatSync(side);
+    if (!st.isFile() || !isTrustedStat(st)) {
+      return undefined;
+    }
+    const raw = readFileSync(side, "utf8");
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const obj = parsed as Record<string, unknown>;
+      const url = obj.url;
+      const pathField = obj.path;
+      if (typeof url === "string" && url.length > 0 && ISSUE_URL_PATTERN.test(url)) {
+        if (typeof pathField === "string" && resolve(pathField) !== key) {
+          return undefined;
+        }
+        processPendingUrls.set(key, url);
+        return url;
+      }
+    }
+  } catch {
+    // Missing or untrusted recovery file is empty.
+  }
+  return undefined;
+}
+
+export function clearRecoveredUrl(vbriefAbsPath: string): void {
+  const key = resolve(vbriefAbsPath);
+  processPendingUrls.delete(key);
+  try {
+    const side = recoverySidecarPath(key);
+    try {
+      const st = lstatSync(side);
+      if (st.isSymbolicLink() || st.isFile()) {
+        unlinkSync(side);
+      }
+    } catch {
+      rmSync(side, { force: true });
+    }
+  } catch {
+    // Best-effort clear.
+  }
+}
+
+/** Project ledger first, then process/OS-temp recovery (#2880). */
+export function resolvePriorCreatedUrl(
+  projectRoot: string,
+  vbriefAbsPath: string,
+): string | undefined {
+  const absPath = resolve(vbriefAbsPath);
+  const pending = loadPendingEmitUrls(projectRoot)[absPath];
+  if (typeof pending === "string" && pending.length > 0) {
+    return pending;
+  }
+  return loadRecoveredUrl(absPath);
+}
+
+/**
+ * Record URL immediately after remote create. Project ledger is best-effort;
+ * recovery layers always run first so dual local failure cannot force re-create (#2880).
+ */
+export function recordCreatedUrlDurable(
+  projectRoot: string,
+  vbriefAbsPath: string,
+  url: string,
+): void {
+  rememberCreatedUrl(vbriefAbsPath, url);
+  if (testFailProjectLedger()) {
+    return;
+  }
+  try {
+    savePendingEmitUrl(projectRoot, vbriefAbsPath, url);
+  } catch {
+    // Recovery layers already hold the URL.
+  }
+}
+
+function stampUrlOntoVbrief(
+  path: string,
+  data: Record<string, unknown>,
+  url: string,
+  projectRoot: string,
+): void {
+  if (testFailStamp()) {
+    throw new Error("issue-emit test hook: stamp failure");
+  }
+  addGithubIssueReference(data, url);
+  writeVbrief(path, data, projectRoot);
+  clearPendingEmitUrl(projectRoot, path);
+  clearRecoveredUrl(path);
 }
 
 /** Contained durable map: abs vbrief path -> issue URL for in-flight emits (#2871). */
@@ -305,20 +554,24 @@ export function emitSingle(
     return { result: "dryrun", vbrief: shown, url: null, title };
   }
 
-  // Atomic emit contract (#2871 / Greptile):
+  // Atomic emit contract (#2871 / #2880):
   // 1) Resolve a trusted project root (never dirname of target).
-  // 2) Reconcile any prior pending URL for this path (retry after partial failure).
+  // 2) Reconcile prior URL from project ledger OR process/OS-temp recovery (no re-create).
   // 3) Pre-persist current payload so the write path is proven.
-  // 4) Create remote issue, immediately record URL in a contained pending ledger.
-  // 5) Stamp the vbrief; clear pending on success.
+  // 4) Create remote issue, then always record URL in recovery + best-effort project ledger.
+  // 5) Stamp the vbrief; clear recovery on success. Dual local failure still retries safely.
   const root = assertVbriefWriteTargetSafe(path, options.projectRoot);
   const absPath = resolve(path);
-  const pending = loadPendingEmitUrls(root);
-  const priorUrl = pending[absPath];
+  const priorUrl = resolvePriorCreatedUrl(root, absPath);
   if (typeof priorUrl === "string" && priorUrl.length > 0) {
-    addGithubIssueReference(data, priorUrl);
-    writeVbrief(path, data, root);
-    clearPendingEmitUrl(root, absPath);
+    try {
+      stampUrlOntoVbrief(path, data, priorUrl, root);
+    } catch (stampErr) {
+      throw new IssueEmitError(
+        `reconcile ${priorUrl} but failed to stamp local vbrief: ${String(stampErr)}`,
+        { createdUrl: priorUrl },
+      );
+    }
     return { result: "created", vbrief: shown, url: priorUrl, title };
   }
 
@@ -326,29 +579,17 @@ export function emitSingle(
   const body = renderIssueBody(data);
   assertVbriefWriteTargetSafe(path, root);
   const url = fileIssue(options.repo, title, body, options.scmCall);
-  // Durable URL ledger BEFORE vbrief stamp — retry will reconcile without re-create.
-  // Never lose the URL if ledger or stamp fails: return/throw always includes it (#2871).
+  // Recovery layers first (process + OS-temp), then best-effort project ledger (#2880).
+  // Dual ledger+stamp failure still leaves URL for retry without re-create.
+  recordCreatedUrlDurable(root, absPath, url);
   try {
-    savePendingEmitUrl(root, absPath, url);
-  } catch (ledgerErr) {
-    try {
-      addGithubIssueReference(data, url);
-      writeVbrief(path, data, root);
-      return { result: "created", vbrief: shown, url, title };
-    } catch (stampErr) {
-      throw new IssueEmitError(
-        "created " +
-          url +
-          " but failed to persist local records: " +
-          String(ledgerErr) +
-          " / " +
-          String(stampErr),
-      );
-    }
+    stampUrlOntoVbrief(path, data, url, root);
+  } catch (stampErr) {
+    throw new IssueEmitError(
+      `created ${url} but failed to stamp local vbrief: ${String(stampErr)}`,
+      { createdUrl: url },
+    );
   }
-  addGithubIssueReference(data, url);
-  writeVbrief(path, data, root);
-  clearPendingEmitUrl(root, absPath);
   return { result: "created", vbrief: shown, url, title };
 }
 
@@ -405,14 +646,28 @@ export function emitUmbrella(
   }
 
   const pending = loaded.filter(([, , data]) => existingGithubIssueRef(data) === undefined);
-  const already = loaded
-    .filter(([, , data]) => existingGithubIssueRef(data) !== undefined)
-    .map(([, disp]) => ({ vbrief: disp, result: "skipped" }));
+  const alreadyEntries = loaded.filter(([, , data]) => existingGithubIssueRef(data) !== undefined);
+  const already = alreadyEntries.map(([, disp]) => ({ vbrief: disp, result: "skipped" }));
+
+  // Already-stamped siblings seed the umbrella URL and participate in conflict checks (#2880).
+  let stampedSiblingUrl: string | null = null;
+  for (const [, , data] of alreadyEntries) {
+    const ref = existingGithubIssueRef(data);
+    if (typeof ref === "string" && ref.length > 0) {
+      if (stampedSiblingUrl !== null && stampedSiblingUrl !== ref) {
+        throw new IssueEmitError(
+          `umbrella siblings already stamped with conflicting issue URLs: ${stampedSiblingUrl} vs ${ref}`,
+          { createdUrl: stampedSiblingUrl },
+        );
+      }
+      stampedSiblingUrl = ref;
+    }
+  }
 
   const umbrellaTitle = options.title ?? defaultUmbrellaTitle(loaded.length);
 
   if (pending.length === 0) {
-    return { result: "skipped", url: null, title: umbrellaTitle, vbriefs: already };
+    return { result: "skipped", url: stampedSiblingUrl, title: umbrellaTitle, vbriefs: already };
   }
 
   if (options.noNetwork) {
@@ -424,7 +679,9 @@ export function emitUmbrella(
     };
   }
 
-  // Umbrella emit: reconcile pending URLs, pre-persist, create once, stamp all (#2871).
+  // Umbrella emit: same durability contract as emitSingle (#2871 / #2880).
+  // Reconcile pending/recovery URLs, pre-persist, create once, record all, stamp all.
+  // Mid-loop ledger/stamp failure must not force a second remote create on retry.
   const root =
     options.projectRoot !== undefined &&
     options.projectRoot !== null &&
@@ -434,39 +691,81 @@ export function emitUmbrella(
 
   const written: { vbrief: string; result: string }[] = [];
   const stillNeedRemote: [string, string, Record<string, unknown>][] = [];
+  // Pass 1: resolve recovered URLs and reject conflicts BEFORE any stamp (#2880).
+  // Include already-stamped sibling URLs so partial umbrella cohorts cannot split.
+  let reconciledUrl: string | null = stampedSiblingUrl;
+  const withPrior: [string, string, Record<string, unknown>, string][] = [];
   for (const [path, disp, data] of pending) {
-    const absPath = resolve(path);
-    const prior = loadPendingEmitUrls(root)[absPath];
+    const prior = resolvePriorCreatedUrl(root, path);
     if (typeof prior === "string" && prior.length > 0) {
-      addGithubIssueReference(data, prior);
-      writeVbrief(path, data, root);
-      clearPendingEmitUrl(root, absPath);
-      written.push({ vbrief: disp, result: "created" });
+      if (reconciledUrl !== null && reconciledUrl !== prior) {
+        throw new IssueEmitError(
+          `umbrella recovered conflicting issue URLs: ${reconciledUrl} vs ${prior}; resolve local pending/recovery state before retry`,
+          { createdUrl: reconciledUrl },
+        );
+      }
+      reconciledUrl = prior;
+      withPrior.push([path, disp, data, prior]);
     } else {
       writeVbrief(path, data, root);
       stillNeedRemote.push([path, disp, data]);
     }
   }
+  // Pass 2: stamp only after the recovered set is conflict-free.
+  for (const [path, disp, data, prior] of withPrior) {
+    try {
+      stampUrlOntoVbrief(path, data, prior, root);
+      written.push({ vbrief: disp, result: "created" });
+    } catch {
+      // Leave recovery/ledger for retry; still surface URL via reconciledUrl.
+      written.push({ vbrief: disp, result: "pending-reconcile" });
+    }
+  }
 
   if (stillNeedRemote.length === 0) {
+    const pendingLeft = written.some((w) => w.result === "pending-reconcile");
+    if (pendingLeft && reconciledUrl !== null) {
+      throw new IssueEmitError(
+        `created ${reconciledUrl} but failed to stamp one or more umbrella vbriefs; retry to reconcile without re-create`,
+        { createdUrl: reconciledUrl },
+      );
+    }
     return {
       result: "created",
-      url: null,
+      url: reconciledUrl,
       title: umbrellaTitle,
       vbriefs: [...written, ...already],
     };
   }
 
-  const body = renderUmbrellaBody(stillNeedRemote.map(([, disp, data]) => [disp, data]));
-  const url = fileIssue(options.repo, umbrellaTitle, body, options.scmCall);
-  for (const [path, ,] of stillNeedRemote) {
-    savePendingEmitUrl(root, path, url);
+  // Sibling recovery: reuse recovered/stamped umbrella URL instead of a second remote create (#2880).
+  let url = reconciledUrl;
+  if (url === null || url.length === 0) {
+    const body = renderUmbrellaBody(stillNeedRemote.map(([, disp, data]) => [disp, data]));
+    url = fileIssue(options.repo, umbrellaTitle, body, options.scmCall);
   }
+
+  // Record URL for every remaining artifact before any stamp can throw (#2880).
+  for (const [path] of stillNeedRemote) {
+    recordCreatedUrlDurable(root, path, url);
+  }
+
+  const stampErrors: string[] = [];
   for (const [path, disp, data] of stillNeedRemote) {
-    addGithubIssueReference(data, url);
-    writeVbrief(path, data, root);
-    clearPendingEmitUrl(root, path);
-    written.push({ vbrief: disp, result: "created" });
+    try {
+      stampUrlOntoVbrief(path, data, url, root);
+      written.push({ vbrief: disp, result: "created" });
+    } catch (stampErr) {
+      stampErrors.push(`${disp}: ${String(stampErr)}`);
+      written.push({ vbrief: disp, result: "pending-reconcile" });
+    }
+  }
+
+  if (stampErrors.length > 0) {
+    throw new IssueEmitError(
+      `created ${url} but failed to stamp ${stampErrors.length} umbrella vbrief(s): ${stampErrors.join("; ")}`,
+      { createdUrl: url },
+    );
   }
 
   return { result: "created", url, title: umbrellaTitle, vbriefs: [...written, ...already] };
