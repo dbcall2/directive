@@ -1,5 +1,7 @@
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ritualStatePath } from "../session/ritual-sentinel.js";
 import {
   DIRECT_WRITE_TOOL_NAMES,
@@ -11,6 +13,8 @@ import {
   isDirectWriteTool,
   isHookEvent,
   isHookHost,
+  isLexicalOutsideProjectRoot,
+  isOutsideProjectRootWrite,
   isProposedLifecycleWrite,
   isSpawnTool,
   normalizeHookProjectRoot,
@@ -19,6 +23,13 @@ import {
   renderHostDecision,
   SPAWN_TOOL_NAMES,
 } from "./index.js";
+
+// Symlinks require elevated privileges on Windows (SeCreateSymbolicLink); skip there.
+const itSymlink = it.skipIf(process.platform === "win32");
+const hookTemps: string[] = [];
+afterEach(() => {
+  for (const t of hookTemps.splice(0)) rmSync(t, { recursive: true, force: true });
+});
 
 function hasDoubledWindowsDrivePrefix(path: string): boolean {
   return /^[A-Za-z]:\\[A-Za-z]:\\/i.test(path.replace(/\//g, "\\"));
@@ -108,6 +119,197 @@ describe("direct-write hook policy", () => {
 
     expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
     expect(decision.message).toContain("deft scope:activate");
+  });
+
+  it("allows Write outside projectRoot when no active scope (#2885)", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Write",
+          cwd: "/project",
+          tool_input: {
+            file_path: "/home/user/.claude/projects/slug/memory/note.md",
+          },
+        },
+      },
+      readySeams({
+        inspectScope: () => ({
+          ready: false,
+          path: null,
+          message: "No active xBRIEF artifact was found under xbrief/active/",
+        }),
+      }),
+    );
+
+    expect(decision.verdict).toBe("allow");
+    expect(decision.code).not.toBe("scope-not-ready");
+  });
+
+  it("allows Edit outside projectRoot when no active scope (#2885)", () => {
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Edit",
+          tool_input: { path: "/tmp/agent-scratch/note.md" },
+        },
+      },
+      readySeams({
+        inspectScope: () => ({
+          ready: false,
+          path: null,
+          message: "No active xBRIEF artifact was found under xbrief/active/",
+        }),
+      }),
+    );
+
+    expect(decision.verdict).toBe("allow");
+    expect(decision.code).not.toBe("scope-not-ready");
+  });
+
+  it("denies unparseable Write target when no active scope (fail-closed, #2885)", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Write",
+          cwd: "/project",
+          // No extractable path — must not skip the gate via unparseable payload.
+        },
+      },
+      readySeams({
+        inspectScope: () => ({
+          ready: false,
+          path: null,
+          message: "No active xBRIEF artifact was found under xbrief/active/",
+        }),
+      }),
+    );
+
+    expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+  });
+
+  it("does not treat in-repo '..'-prefixed filenames as outside root (#2885)", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Write",
+          cwd: "/project",
+          tool_input: { file_path: "/project/..secret" },
+        },
+      },
+      readySeams({
+        inspectScope: () => ({
+          ready: false,
+          path: null,
+          message: "No active xBRIEF artifact was found under xbrief/active/",
+        }),
+      }),
+    );
+
+    expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+  });
+
+  it("classifies lexical outside-root shapes for #2885", () => {
+    expect(isLexicalOutsideProjectRoot("..")).toBe(true);
+    expect(isLexicalOutsideProjectRoot("../tmp/x")).toBe(true);
+    expect(isLexicalOutsideProjectRoot("..secret")).toBe(false);
+    expect(isLexicalOutsideProjectRoot("src/foo.ts")).toBe(false);
+    // Drive-letter relatives are outside only on win32 (cross-drive path.relative).
+    // On POSIX, `D:/tmp/x` is a valid in-project child path segment.
+    expect(isLexicalOutsideProjectRoot("D:/tmp/x")).toBe(process.platform === "win32");
+  });
+
+  it("denies in-repo drive-like POSIX child path without active scope (#2885)", () => {
+    if (process.platform === "win32") return;
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Write",
+          cwd: "/project",
+          tool_input: { file_path: "/project/D:/tmp/x" },
+        },
+      },
+      readySeams({
+        inspectScope: () => ({
+          ready: false,
+          path: null,
+          message: "No active xBRIEF artifact was found under xbrief/active/",
+        }),
+      }),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+  });
+
+  itSymlink("denies outside-root symlink that re-enters the project (#2885)", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "hook-2885-proj-"));
+    const outsideDir = mkdtempSync(join(tmpdir(), "hook-2885-out-"));
+    hookTemps.push(projectDir, outsideDir);
+    mkdirSync(join(projectDir, "src"), { recursive: true });
+    writeFileSync(join(projectDir, "src", "inside.ts"), "inside", "utf8");
+    // Lexically outside path aliases into project via dir symlink.
+    symlinkSync(join(projectDir, "src"), join(outsideDir, "alias"), "dir");
+    const aliasedTarget = join(outsideDir, "alias", "inside.ts");
+
+    expect(isOutsideProjectRootWrite(projectDir, aliasedTarget)).toBe(false);
+
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: projectDir,
+        payload: {
+          tool_name: "Write",
+          cwd: projectDir,
+          tool_input: { file_path: aliasedTarget },
+        },
+      },
+      readySeams({
+        inspectScope: () => ({
+          ready: false,
+          path: null,
+          message: "No active xBRIEF artifact was found under xbrief/active/",
+        }),
+      }),
+    );
+
+    expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+  });
+
+  it("still denies spawn when no active scope even without a write target (#2885)", () => {
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Task",
+          tool_input: { subagent_type: "generalPurpose", prompt: "implement" },
+        },
+      },
+      readySeams({
+        inspectScope: () => ({
+          ready: false,
+          path: null,
+          message: "No active/running xBRIEF is available.",
+        }),
+      }),
+    );
+
+    expect(decision).toMatchObject({ verdict: "deny", code: "spawn-not-ready" });
   });
 
   it("allows Write of xbrief/proposed/*.xbrief.json with no active scope (#2625)", () => {
