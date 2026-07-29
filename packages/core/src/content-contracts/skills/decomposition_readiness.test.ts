@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { readRepoFile, repoPath } from "./helpers.js";
+import { readRepoFile, readSwarmSkillSurface, repoPath } from "./helpers.js";
 
 /** Port of tests/content/test_decomposition_readiness.py (#1838 #1530) */
 
@@ -50,7 +50,7 @@ describe("test_decomposition_readiness", () => {
     }
   });
   it("swarm_skill_requires_readiness_before_allocation", () => {
-    const text = readRepoFile("skills/deft-directive-swarm/SKILL.md");
+    const text = readSwarmSkillSurface();
     expect(text).toContain("task swarm:readiness -- xbrief/active/*.xbrief.json");
     expect(text).toContain("needs decomposition");
     expect(text).toContain("Allocate concurrent workers unless candidates are swarm-ready");

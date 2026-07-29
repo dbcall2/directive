@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readAgentsMd, readRepoFile } from "./helpers.js";
+import { readAgentsMd, readSwarmSkillSurface } from "./helpers.js";
 
 /** Port of tests/content/test_swarm_headless_launch.py (#1838 #1530) */
 
@@ -11,10 +11,6 @@ const PHASE2_STEP1_HEADER = "### Step 1: Create Worktrees";
 const PHASE3_STEP05_HEADER =
   "### Step 0.5: Consume the launch-manifest before dispatch (headless path, C2 / #1387)";
 const AGENTS_HEADER = "## Headless swarm launch gate-stack (#1387)";
-
-function read(relPath: string): string {
-  return readRepoFile(relPath);
-}
 
 function boundedBlock(text: string, startMarker: string, endMarker: string, path: string): string {
   const start = text.indexOf(startMarker);
@@ -123,12 +119,12 @@ const CROSS_SURFACE_TOKENS = ["swarm:launch", "pre-created worktree map", "launc
 
 describe("test_swarm_headless_launch", () => {
   it.each(PHASE0_TOKENS)("swarm_phase0_headless_token_present %s", (token) => {
-    const block = phase0HeadlessBlock(read(SWARM_PATH));
+    const block = phase0HeadlessBlock(readSwarmSkillSurface());
     expect(block).toContain(token);
   });
 
   it("swarm_phase0_headless_reprompt_prohibition", () => {
-    const block = phase0HeadlessBlock(read(SWARM_PATH));
+    const block = phase0HeadlessBlock(readSwarmSkillSurface());
     let found = false;
     for (const line of block.split("\n")) {
       if (line.includes("Re-prompt the operator for per-phase batching approval")) {
@@ -141,23 +137,23 @@ describe("test_swarm_headless_launch", () => {
   });
 
   it.each(PHASE2_TOKENS)("swarm_phase2_worktree_map_token_present %s", (token) => {
-    const block = phase2Step1Block(read(SWARM_PATH));
+    const block = phase2Step1Block(readSwarmSkillSurface());
     expect(block).toContain(token);
   });
 
   it("swarm_phase2_has_both_modes", () => {
-    const block = phase2Step1Block(read(SWARM_PATH));
+    const block = phase2Step1Block(readSwarmSkillSurface());
     expect(block).toContain("Mode A");
     expect(block).toContain("Mode B");
   });
 
   it.each(PHASE3_TOKENS)("swarm_phase3_manifest_token_present %s", (token) => {
-    const block = phase3Step05Block(read(SWARM_PATH));
+    const block = phase3Step05Block(readSwarmSkillSurface());
     expect(block).toContain(token);
   });
 
   it("swarm_phase3_manifest_is_prep_not_spawn", () => {
-    const block = phase3Step05Block(read(SWARM_PATH));
+    const block = phase3Step05Block(readSwarmSkillSurface());
     let found = false;
     for (const line of block.split("\n")) {
       if (line.includes("Treat the C2 launch-manifest as the spawn itself")) {
@@ -188,7 +184,7 @@ describe("test_swarm_headless_launch", () => {
   });
 
   it.each(CROSS_SURFACE_TOKENS)("headless_contract_present_in_both_surfaces %s", (token) => {
-    const swarm = read(SWARM_PATH);
+    const swarm = readSwarmSkillSurface();
     const agents = readAgentsMd();
     expect(swarm).toContain(token);
     expect(agents).toContain(token);
