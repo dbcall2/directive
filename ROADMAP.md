@@ -1054,6 +1054,19 @@
 - **#2852** -- doctor: live-probe agent hooks (empty/unparseable stdout is currently invisible) -- `[completed]`
 - **#2858** -- bug(render): core:validate capture walks process.cwd()/node_modules (hangs task check) -- `[completed]`
 - **#2859** -- release: on task check failure, file-and-merge the blocker — do not lead with inline hotfix (AGENTS.md bulk rejected) -- `[completed]`
+- **#2862** -- bug(scope): scope:complete leaves the completing brief's own plan.items[].status pending and xBRIEFInfo.updated stale -- `[completed]`
+- **#2864** -- bug(hooks): Cursor tool.before intermittently blocks Task spawns on macOS — host reports "exit code 1" but no hook:dispatch path exits 1 -- `[completed]`
 - **#2865** -- test(coverage): restore branches >= 85% (84.99% blocks v0.86.0 release Step 5) -- `[completed]`
 - **#2866** -- release: prefer --allow-coverage-debt=#N when no open coverage-debt issue (don't interrupt cut for hairlines) -- `[completed]`
+- **#2869** -- AppSec review — 5 new medium findings (db39366e) -- `[completed]`
+- **#2875** -- feat(swarm): OpenClaw platform descriptor + capability matrix (Tier 1 sessions_spawn) -- `[completed]`
+- **#2876** -- feat(review-cycle): OpenClaw babysit/review-monitor → sessions_spawn (Approach 1) -- `[completed]`
+- **#2877** -- docs(interfaces): agent-host OpenClaw + Directive-for-OpenClaw-users -- `[completed]`
+- **#2878** -- feat(consumers): statusreport pr:watch / review-monitor or official gh-fallback -- `[completed]`
+- **#2879** -- feat(templates): OpenClaw poller/preamble + heartbeat mapping -- `[completed]`
+- **#2881** -- bug(process): babysit/review must not expand active story scope past xbrief AC -- `[completed]`
+- **#2885** -- bug(hooks): active-scope write gate skips outside-project-root targets -- `[completed]`
+- **#2890** -- feat(skills,triage): Phase 3 operator brief contract + triage:show --format=operator -- `[completed]`
+- **#2893** -- bug(doctor/skills): gates-surface broken for consumers — dual deft/task invoke -- `[completed]`
+- **#2880** -- bug(intake): issue-emit create/stamp durability — no orphan remote / no duplicate on retry -- `[completed]`
 

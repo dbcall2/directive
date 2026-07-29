@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.87.0] - 2026-07-29
+
+> OpenClaw Tier-1 host adapter, triage operator briefs, gates readiness, and consent-prompt test isolation.
+
+### Added
+
 - **Triage Phase 3 operator brief contract + `triage:show --format=operator` (#2890).** Skill requires a same-turn candidate brief (id/title/link, labels, summary, AC or thin-body note, lean+why) before every Phase 3 decision menu; forbids menu-only/chip-only turns; documents host `ask_user`/chips adapter (OpenClaw named); clarifies Phase 2.3 queue non-annotation does not forbid Phase 3 briefs. `task triage:show --format=operator` emits a pasteable cache-backed brief backbone (agent still owns lean). Closes #2890.
 - **OpenClaw is a first-class Tier-1 dispatch provider in the swarm capability matrix and routing (#2875).** Phase 3 probes OpenClaw `sessions_spawn` (descriptor `openclaw`) before Grok Build `spawn_subagent`, adds Step 2f launch / monitor / Phase 6 paths with parent-announce completion (not Grok poll output), accepts `openclaw` as a routing-gated `dispatch_provider`, and ships `task verify:openclaw-tier1` so the OpenClaw → Tier-1 mapping cannot silently regress to grok-build or generic-terminal. Closes #2875. Refs #2874, #1877, #1342, #1531.
 - **OpenClaw agent-host operator docs (#2877).** Discoverable `content/docs/openclaw-agent-host.md` covers Control UI / Telegram / TUI roles, bot vs human GitHub identity, executable babysit path (always follow installed review-cycle skill), and the epic **babysit → `sessions_spawn` Approach 1** expectation as design north star — no invented gate or register-primitive contracts; skill/engine wiring remains #2875/#2876. Cross-linked from `content/QUICK-START.md` and `content/docs/getting-started.md`. Closes #2877.
@@ -4707,7 +4719,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.86.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.87.0...HEAD
+[0.87.0]: https://github.com/deftai/directive/compare/v0.86.0...v0.87.0
 [0.86.0]: https://github.com/deftai/directive/compare/v0.85.0...v0.86.0
 [0.85.0]: https://github.com/deftai/directive/compare/v0.84.0...v0.85.0
 [0.84.0]: https://github.com/deftai/directive/compare/v0.83.0...v0.84.0
