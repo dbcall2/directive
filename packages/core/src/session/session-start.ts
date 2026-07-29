@@ -9,6 +9,13 @@ import {
   formatEnvironmentContext,
 } from "../platform/shell-context.js";
 import { disclosureLine } from "../policy/disclosure.js";
+import {
+  detectNoDeftDirective,
+  NO_DEFT_DIRECTIVE_DISABLED_MESSAGE,
+  NO_DEFT_DIRECTIVE_FLAG_NAME,
+  NO_DEFT_DIRECTIVE_INCONSISTENT_MESSAGE,
+  NO_DEFT_DIRECTIVE_INCONSISTENT_POLICY,
+} from "../policy/no-deft-directive.js";
 import { resolvePolicy } from "../policy/resolve.js";
 import { maybeFormatProductSignalConsentPrompt } from "../product-signal/consent-prompt.js";
 import { maybeRunStalenessTickler } from "../staleness-tickler/run.js";
@@ -319,6 +326,36 @@ export function runSessionStart(
   const deferrals = options.deferrals ?? {};
   const runGit = options.runGit ?? defaultGitRunner;
   const environment = (options.probeEnvironment ?? detectEnvironmentContext)();
+
+  // #2926: official root opt-out wins locally — skip Directive session ritual.
+  // disabled = skip ritual (exit 0 clean / 1 inconsistent). ready stays false so
+  // automation does not treat opt-out as "session fully initialized for work".
+  const optOut = detectNoDeftDirective(projectRoot);
+  if (optOut.present) {
+    const lines = [NO_DEFT_DIRECTIVE_DISABLED_MESSAGE];
+    if (optOut.inconsistent) {
+      lines.push(NO_DEFT_DIRECTIVE_INCONSISTENT_MESSAGE);
+    }
+    const code = optOut.inconsistent ? 1 : 0;
+    return {
+      code,
+      payload: {
+        ready: false,
+        exit_code: code,
+        disabled: true,
+        disabled_via: NO_DEFT_DIRECTIVE_FLAG_NAME,
+        inconsistent: optOut.inconsistent,
+        inconsistent_policy: optOut.inconsistent
+          ? NO_DEFT_DIRECTIVE_INCONSISTENT_POLICY
+          : undefined,
+        deposit_present: optOut.depositPresent,
+        posture,
+        environment: environmentContextToDict(environment),
+        message: NO_DEFT_DIRECTIVE_DISABLED_MESSAGE,
+      },
+      lines,
+    };
+  }
 
   if (posture === READ_ONLY_POSTURE) {
     return runReadOnlySessionStart(projectRoot, options, instant, environment);
