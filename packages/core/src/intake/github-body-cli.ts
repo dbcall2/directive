@@ -13,10 +13,25 @@ function parseArgs(argv: string[]): GitHubBodyCliArgs {
     else if (arg === "--pr") out.pr = Number.parseInt(argv[++i] as string, 10);
     else if (arg === "--body-file") out.bodyFile = argv[++i];
     else if (arg === "--out-file") out.outFile = argv[++i];
+    else if (/^\d+$/.test(arg)) {
+      // Positional number: issue-lint / issue-* use --issue; pr-lint / pr-* use --pr (#2960).
+      const n = Number.parseInt(arg, 10);
+      if (out.command.startsWith("pr-")) {
+        if (out.pr === undefined) out.pr = n;
+      } else if (out.issue === undefined) {
+        out.issue = n;
+      }
+    }
   }
   return out;
 }
 
+/**
+ * Production entry for `task scm:body:*` / `directive github-body <subcommand>`.
+ * Dispatch peels the `github-body` verb; argv[0] is the subcommand
+ * (`issue-lint`, `pr-lint`, `issue-edit`, …). Wired through githubBodyMain
+ * so create/edit fail closed and lint commands share one encoding gate (#2960).
+ */
 export function mainEntry(argv: string[] = process.argv.slice(2)): number {
   const parsed = parseArgs(argv);
   return githubBodyMain(parsed);
