@@ -92,10 +92,7 @@ function isTestPath(relPosix: string): boolean {
   return TEST_PATH_MARKERS.some((m) => relPosix.includes(m.replace(/\\/g, "/")));
 }
 
-function isAllowlisted(
-  relPosix: string,
-  allow: readonly string[],
-): boolean {
+function isAllowlisted(relPosix: string, allow: readonly string[]): boolean {
   if (isTestPath(relPosix)) {
     return true;
   }
@@ -183,10 +180,7 @@ export function evaluateContainedWrites(options: ContainedWritesOptions): Contai
   }
 
   const enforce = options.enforce === true;
-  const allow = [
-    ...CONTAINED_WRITES_ALLOWLIST,
-    ...(options.extraAllowlist ?? []),
-  ];
+  const allow = [...CONTAINED_WRITES_ALLOWLIST, ...(options.extraAllowlist ?? [])];
   const scanRoots = options.scanRoots ?? ["packages/core/src"];
   const findings: ContainedWriteFinding[] = [];
 

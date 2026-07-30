@@ -5,10 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  CONTAINED_WRITES_ALLOWLIST,
-  evaluateContainedWrites,
-} from "./contained-writes.js";
+import { CONTAINED_WRITES_ALLOWLIST, evaluateContainedWrites } from "./contained-writes.js";
 
 const temps: string[] = [];
 afterEach(() => {
@@ -64,24 +61,14 @@ describe("evaluateContainedWrites (#2951)", () => {
     const root = freshDir("cw-verify-allow-");
     const fsDir = join(root, "packages", "core", "src", "fs");
     mkdirSync(fsDir, { recursive: true });
-    writeFileSync(
-      join(fsDir, "contained-write.ts"),
-      'writeFileSync("x", "y");\n',
-      "utf8",
-    );
-    writeFileSync(
-      join(fsDir, "contained-write.test.ts"),
-      'writeFileSync("x", "y");\n',
-      "utf8",
-    );
+    writeFileSync(join(fsDir, "contained-write.ts"), 'writeFileSync("x", "y");\n', "utf8");
+    writeFileSync(join(fsDir, "contained-write.test.ts"), 'writeFileSync("x", "y");\n', "utf8");
     const result = evaluateContainedWrites({ projectRoot: root, enforce: true });
     expect(result.code).toBe(0);
     expect(result.findings).toEqual([]);
   });
 
   it("allowlist seed includes contained-write implementation", () => {
-    expect(CONTAINED_WRITES_ALLOWLIST).toContain(
-      "packages/core/src/fs/contained-write.ts",
-    );
+    expect(CONTAINED_WRITES_ALLOWLIST).toContain("packages/core/src/fs/contained-write.ts");
   });
 });

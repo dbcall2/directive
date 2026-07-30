@@ -25,6 +25,25 @@ export * as evalReport from "./eval/report.js";
 export * as evalRun from "./eval/run.js";
 export * as events from "./events/attribution-ledger.js";
 export * from "./forward-coverage/evaluate.js";
+// #2951 Phase 1: contained-write API for product sinks.
+export {
+  ContainedWriteError,
+  ContainedWriteErrorCode,
+  type ContainedWriteInput,
+  type ContainedWriteMode,
+  type ContainedWriteResult,
+  containedWrite,
+  resolveContainedTarget,
+} from "./fs/contained-write.js";
+export {
+  assertDestinationNotSymlink,
+  assertDirectoryNotSymlink,
+  assertProjectionContained,
+  assertWriteTargetSafe,
+  PROJECTION_CONTAINMENT_REFUSED_EXIT_CODE,
+  ProjectionContainmentError,
+  walkDirectoryRejectSymlinks,
+} from "./fs/projection-containment.js";
 export * as intake from "./intake/index.js";
 export * as layout from "./layout/index.js";
 export * as legacyBridge from "./legacy-bridge/index.js";
@@ -64,25 +83,6 @@ export * as verifyEnv from "./verify-env/index.js";
 export * as verifySource from "./verify-source/index.js";
 export * as wipCap from "./wip-cap/index.js";
 export * as xbriefMigrate from "./xbrief-migrate/index.js";
-// #2951 Phase 1: contained-write API for product sinks.
-export {
-  ContainedWriteError,
-  ContainedWriteErrorCode,
-  type ContainedWriteInput,
-  type ContainedWriteMode,
-  type ContainedWriteResult,
-  containedWrite,
-  resolveContainedTarget,
-} from "./fs/contained-write.js";
-export {
-  assertDestinationNotSymlink,
-  assertDirectoryNotSymlink,
-  assertProjectionContained,
-  assertWriteTargetSafe,
-  ProjectionContainmentError,
-  PROJECTION_CONTAINMENT_REFUSED_EXIT_CODE,
-  walkDirectoryRejectSymlinks,
-} from "./fs/projection-containment.js";
 
 export const CORE_PACKAGE = "@deftai/directive-core" as const;
 

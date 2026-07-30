@@ -29,10 +29,7 @@ import {
   writeSync,
 } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
-import {
-  assertWriteTargetSafe,
-  ProjectionContainmentError,
-} from "./projection-containment.js";
+import { assertWriteTargetSafe, ProjectionContainmentError } from "./projection-containment.js";
 
 /** Stable machine-readable error codes for contained-write refusals. */
 export const ContainedWriteErrorCode = {
@@ -121,11 +118,7 @@ export interface ContainedWriteResult {
   readonly mode: ContainedWriteMode;
 }
 
-const VALID_MODES: ReadonlySet<ContainedWriteMode> = new Set([
-  "create",
-  "replace",
-  "append",
-]);
+const VALID_MODES: ReadonlySet<ContainedWriteMode> = new Set(["create", "replace", "append"]);
 
 /**
  * Resolve `target` under `root`. Relative targets join root; absolute targets
@@ -170,9 +163,7 @@ function mapProjectionError(
   return new ContainedWriteError(
     msg.replace(/^projection write refused:/i, "contained write refused:"),
     {
-      code: isSymlink
-        ? ContainedWriteErrorCode.SYMLINK
-        : ContainedWriteErrorCode.ESCAPE,
+      code: isSymlink ? ContainedWriteErrorCode.SYMLINK : ContainedWriteErrorCode.ESCAPE,
       root: rootAbs,
       target: targetAbs,
       offendingPath: err.offendingPath,
@@ -266,15 +257,12 @@ export function containedWrite(input: ContainedWriteInput): ContainedWriteResult
   try {
     realpathSync(rootAbs);
   } catch {
-    throw new ContainedWriteError(
-      `contained write refused: root ${rootAbs} does not exist`,
-      {
-        code: ContainedWriteErrorCode.ROOT_MISSING,
-        root: rootAbs,
-        target: String(input.target),
-        offendingPath: rootAbs,
-      },
-    );
+    throw new ContainedWriteError(`contained write refused: root ${rootAbs} does not exist`, {
+      code: ContainedWriteErrorCode.ROOT_MISSING,
+      root: rootAbs,
+      target: String(input.target),
+      offendingPath: rootAbs,
+    });
   }
 
   const targetAbs = resolveContainedTarget(rootAbs, input.target);
