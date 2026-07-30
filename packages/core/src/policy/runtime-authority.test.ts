@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  classifyMcpTool,
+  classifyShellCommand,
   DEFAULT_RUNTIME_AUTHORITY_POLICY,
   evaluateRuntimeAuthorityDirectWrite,
   evaluateRuntimeAuthorityPath,
+  evaluateRuntimeAuthorityShellOp,
   inspectRuntimeAuthority,
+  listShellOps,
   loadRuntimeAuthorityPolicy,
   resolveRuntimeAuthorityPolicy,
   validateRuntimeAuthority,
@@ -126,5 +130,97 @@ describe("runtimeAuthority policy (#1394)", () => {
 
   it("resolves invalid raw to defaults", () => {
     expect(resolveRuntimeAuthorityPolicy("bad")).toEqual(DEFAULT_RUNTIME_AUTHORITY_POLICY);
+  });
+});
+
+describe("runtimeAuthority shell/MCP push/merge (#2711)", () => {
+  it("classifies git push and gh pr merge shell commands", () => {
+    expect(classifyShellCommand("git push origin HEAD")).toBe("push");
+    expect(classifyShellCommand("git.exe push --force-with-lease")).toBe("push");
+    expect(classifyShellCommand("cd pkg && git push")).toBe("push");
+    expect(classifyShellCommand("git -C /project push origin HEAD")).toBe("push");
+    expect(classifyShellCommand("DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1 git push")).toBe("push");
+    expect(classifyShellCommand("FOO=1 BAR=2 git -C repo push")).toBe("push");
+    expect(classifyShellCommand("gh pr merge 12 --squash")).toBe("merge");
+    expect(classifyShellCommand("gh.exe pr merge 12")).toBe("merge");
+    expect(classifyShellCommand("git status")).toBeNull();
+    expect(classifyShellCommand("echo git push is cool")).toBeNull();
+    expect(classifyShellCommand("")).toBeNull();
+    // Quoted / fragmented tokens: shell strips quotes and concatenates (#2711).
+    expect(classifyShellCommand("git 'push' origin HEAD")).toBe("push");
+    expect(classifyShellCommand('git "push" --force-with-lease')).toBe("push");
+    expect(classifyShellCommand("gh pr 'merge' 12")).toBe("merge");
+    expect(classifyShellCommand(`'git' push origin HEAD`)).toBe("push");
+    expect(classifyShellCommand("g''it push origin HEAD")).toBe("push");
+    expect(classifyShellCommand("git p''ush origin HEAD")).toBe("push");
+    expect(classifyShellCommand("gh pr m''erge 12")).toBe("merge");
+    expect(classifyShellCommand("g\\it push origin HEAD")).toBe("push");
+    expect(classifyShellCommand("git p\\ush origin HEAD")).toBe("push");
+    expect(classifyShellCommand("git --git-dir /repo push origin HEAD")).toBe("push");
+    expect(classifyShellCommand("git --git-dir=/repo push origin HEAD")).toBe("push");
+    expect(classifyShellCommand("git --work-tree /wt -C /repo push")).toBe("push");
+    // Compound / multi-line: list every op so enforcement can deny any out-of-scope step.
+    expect(listShellOps("gh pr merge 1 --squash && git push")).toEqual(["push", "merge"]);
+    expect(listShellOps("ls\ngit push origin HEAD")).toEqual(["push"]);
+    expect(listShellOps("git status && echo ok")).toEqual([]);
+    // Quoted / escaped separators must not invent executable segments (false-deny).
+    expect(listShellOps("printf '%s' ';' 'git push'")).toEqual([]);
+    expect(classifyShellCommand("printf '%s' ';' 'git push'")).toBeNull();
+    expect(listShellOps("printf '%s\\n' hello\\; git push")).toEqual([]);
+  });
+
+  it("classifies MCP merge/push tool names", () => {
+    expect(classifyMcpTool("mcp__github__merge_pull_request")).toBe("merge");
+    expect(classifyMcpTool("merge_pull_request")).toBe("merge");
+    expect(classifyMcpTool("mcp__git__git_push")).toBe("push");
+    expect(classifyMcpTool("server__push_to_remote")).toBe("push");
+    expect(classifyMcpTool("list_issues")).toBeNull();
+    expect(classifyMcpTool("mcp__github__create_issue", '{"title":"x"}')).toBeNull();
+  });
+
+  it("denies push when scopes.push is false and enabled", () => {
+    const policy = resolveRuntimeAuthorityPolicy({
+      enabled: true,
+      scopes: { edits: true, push: false, merge: true },
+    });
+    const denied = evaluateRuntimeAuthorityShellOp({ policy, op: "push" });
+    expect(denied.allowed).toBe(false);
+    expect(denied.code).toBe("runtime-policy-deny-scope");
+    expect(denied.reason).toMatch(/scopes\.push is false/);
+  });
+
+  it("denies merge when scopes.merge is false and enabled", () => {
+    const policy = resolveRuntimeAuthorityPolicy({
+      enabled: true,
+      scopes: { edits: true, push: true, merge: false },
+    });
+    const denied = evaluateRuntimeAuthorityShellOp({ policy, op: "merge" });
+    expect(denied.allowed).toBe(false);
+    expect(denied.code).toBe("runtime-policy-deny-scope");
+  });
+
+  it("allows push/merge when scopes grant them", () => {
+    const policy = resolveRuntimeAuthorityPolicy({
+      enabled: true,
+      scopes: { edits: true, push: true, merge: true },
+    });
+    expect(evaluateRuntimeAuthorityShellOp({ policy, op: "push" }).allowed).toBe(true);
+    expect(evaluateRuntimeAuthorityShellOp({ policy, op: "merge" }).allowed).toBe(true);
+  });
+
+  it("fails open when unclassifiable or policy disabled", () => {
+    const enabled = resolveRuntimeAuthorityPolicy({
+      enabled: true,
+      scopes: { edits: true, push: false, merge: false },
+    });
+    const open = evaluateRuntimeAuthorityShellOp({ policy: enabled, op: null });
+    expect(open.allowed).toBe(true);
+    expect(open.unclassifiable).toBe(true);
+
+    const disabled = resolveRuntimeAuthorityPolicy({
+      enabled: false,
+      scopes: { edits: true, push: false, merge: false },
+    });
+    expect(evaluateRuntimeAuthorityShellOp({ policy: disabled, op: "push" }).allowed).toBe(true);
   });
 });

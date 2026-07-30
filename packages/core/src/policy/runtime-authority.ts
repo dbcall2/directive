@@ -249,3 +249,299 @@ export function evaluateRuntimeAuthorityDirectWrite(
   }
   return { allowed: true, reason: null, code: null };
 }
+
+/** Classifiable shell/MCP operation for scopes.push / scopes.merge (#2711). */
+export type RuntimeAuthorityShellOp = "push" | "merge";
+
+/** True when token is a shell env assignment (FOO=1 / FOO=). Linear; no nested quantifiers. */
+function isShellEnvAssignToken(token: string): boolean {
+  const eq = token.indexOf("=");
+  if (eq <= 0) return false;
+  const name = token.slice(0, eq);
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) return false;
+  return true;
+}
+
+/**
+ * Normalize a shell token for classification (#2711).
+ * Shell strips quotes, empty quote pairs, and backslash escapes before exec
+ * (`g''it` / `g\it` / `'push'` → `git` / `push`). Dropping `'`/`"`/`\` after
+ * whitespace split closes those bypasses without nested-quantifier regex. O(n).
+ */
+function normalizeShellToken(token: string): string {
+  return token.replace(/['"\\]/g, "");
+}
+
+/**
+ * Split a shell command into list/pipeline/newline segments without splitting
+ * on separators that appear inside quotes or after a backslash escape (#2711).
+ * Prevents `printf '%s' ';' 'git push'` and `hello\; git push` false denials.
+ */
+function splitShellSegments(command: string): string[] {
+  const segments: string[] = [];
+  let cur = "";
+  let quote: "'" | '"' | null = null;
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i];
+    if (c === undefined) break;
+    if (quote !== null) {
+      if (c === quote) quote = null;
+      cur += c;
+      continue;
+    }
+    // Outside quotes: backslash escapes the next character (including separators).
+    if (c === "\\" && i + 1 < command.length) {
+      cur += c;
+      cur += command[i + 1] ?? "";
+      i++;
+      continue;
+    }
+    if (c === "'" || c === '"') {
+      quote = c;
+      cur += c;
+      continue;
+    }
+    // Outside quotes: list/pipeline separators and newlines start a new segment.
+    if (c === "&" && command[i + 1] === "&") {
+      segments.push(cur);
+      cur = "";
+      i++;
+      continue;
+    }
+    if (c === "|" && command[i + 1] === "|") {
+      segments.push(cur);
+      cur = "";
+      i++;
+      continue;
+    }
+    if (c === ";" || c === "|" || c === "&" || c === "\n" || c === "\r") {
+      segments.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += c;
+  }
+  segments.push(cur);
+  return segments;
+}
+
+/** Git global options that take a separate value token (not `--opt=value`). */
+const GIT_GLOBAL_VALUE_OPTS = new Set([
+  "-C",
+  "-c",
+  "--git-dir",
+  "--work-tree",
+  "--namespace",
+  "--config-env",
+  "--super-prefix",
+  "--list-cmds",
+]);
+
+/**
+ * Classify one shell list/pipeline segment for push/merge (#2711).
+ * Token walk is O(n) — avoids nested-quantifier ReDoS that CodeQL flags on
+ * `git (?:options)* push` style regexes (alerts #77 / #78 on this PR).
+ */
+function classifyShellSegment(segment: string): RuntimeAuthorityShellOp | null {
+  const tokens = segment
+    .trim()
+    .split(/\s+/)
+    .filter((t) => t.length > 0);
+  let i = 0;
+  while (i < tokens.length) {
+    const tok = tokens[i];
+    if (tok === undefined || !isShellEnvAssignToken(tok)) break;
+    i++;
+  }
+  const wrapTok = tokens[i];
+  if (wrapTok !== undefined) {
+    const wrap = normalizeShellToken(wrapTok).toLowerCase();
+    if (wrap === "sudo" || wrap === "env" || wrap === "command") {
+      i++;
+      while (i < tokens.length) {
+        const tok = tokens[i];
+        if (tok === undefined || !isShellEnvAssignToken(tok)) break;
+        i++;
+      }
+    }
+  }
+  const binTok = tokens[i];
+  if (binTok === undefined) return null;
+
+  const bin = normalizeShellToken(binTok).toLowerCase();
+  if (bin === "git" || bin === "git.exe") {
+    i++;
+    // Skip git global options before the subcommand (-C, --git-dir, -c, …).
+    while (i < tokens.length) {
+      const raw = tokens[i];
+      if (raw === undefined) return null;
+      const t = normalizeShellToken(raw);
+      const lower = t.toLowerCase();
+      if (!t.startsWith("-")) {
+        return lower === "push" ? "push" : null;
+      }
+      // --opt=value forms never consume a following token.
+      if (t.startsWith("--") && t.includes("=")) {
+        i++;
+        continue;
+      }
+      // Value-taking globals: -C path, --git-dir /repo, -c name=value, …
+      if (GIT_GLOBAL_VALUE_OPTS.has(t)) {
+        i += 2;
+        continue;
+      }
+      // Glued short forms: -C/path, -cname=value
+      if (t.startsWith("-C") || t.startsWith("-c")) {
+        i++;
+        continue;
+      }
+      // Boolean / other short/long flags without a separate value.
+      i++;
+    }
+    return null;
+  }
+
+  if (bin === "gh" || bin === "gh.exe") {
+    i++;
+    while (i < tokens.length) {
+      const flagRaw = tokens[i];
+      if (flagRaw === undefined) break;
+      const flag = normalizeShellToken(flagRaw);
+      if (!flag.startsWith("-")) break;
+      i++;
+    }
+    const pr = tokens[i];
+    const merge = tokens[i + 1];
+    if (
+      pr !== undefined &&
+      merge !== undefined &&
+      normalizeShellToken(pr).toLowerCase() === "pr" &&
+      normalizeShellToken(merge).toLowerCase() === "merge"
+    ) {
+      return "merge";
+    }
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * List all classifiable push/merge ops in a shell command (#2711).
+ * Scans every list/pipeline/newline segment so compound commands like
+ * `gh pr merge 1 && git push` surface both ops (dispatcher evaluates each).
+ * Newlines are delimiters so multi-line scripts cannot hide a later push/merge.
+ */
+export function listShellOps(command: string): RuntimeAuthorityShellOp[] {
+  const cmd = command.trim();
+  if (cmd.length === 0) return [];
+  const found = new Set<RuntimeAuthorityShellOp>();
+  // Quote-aware split so separators inside quotes are not treated as list ops.
+  for (const raw of splitShellSegments(cmd)) {
+    const op = classifyShellSegment(raw);
+    if (op !== null) found.add(op);
+  }
+  const out: RuntimeAuthorityShellOp[] = [];
+  // Stable order for deterministic multi-op evaluation.
+  if (found.has("push")) out.push("push");
+  if (found.has("merge")) out.push("merge");
+  return out;
+}
+
+/**
+ * Classify a shell command string for push/merge scopes (#2711).
+ * Unclassifiable commands return null (fail open at the gate).
+ * When a compound command has multiple ops, returns the first of listShellOps
+ * (push before merge); prefer listShellOps + evaluate-each for enforcement.
+ *
+ * Patterns (intentionally narrow; prefer false-open over false-deny):
+ * - push: `git push`, `git.exe push`, with optional env / -C / -c prefixes
+ * - merge: `gh pr merge`, `gh.exe pr merge`
+ */
+export function classifyShellCommand(command: string): RuntimeAuthorityShellOp | null {
+  const ops = listShellOps(command);
+  return ops[0] ?? null;
+}
+
+/**
+ * Classify an MCP (or MCP-like) tool name + optional argument blob for push/merge (#2711).
+ * Returns null when the tool is not a known push/merge mutation (fail open).
+ */
+export function classifyMcpTool(
+  toolName: string,
+  argsText: string | null = null,
+): RuntimeAuthorityShellOp | null {
+  const name = toolName.trim().toLowerCase();
+  if (name.length === 0) return null;
+  // Common GitHub MCP / bridge spellings for merge
+  if (
+    /merge[_-]?pull[_-]?request/.test(name) ||
+    /pull[_-]?request[_-]?merge/.test(name) ||
+    /(^|__)merge_pr($|__)/.test(name) ||
+    /pr[_-]?merge/.test(name)
+  ) {
+    return "merge";
+  }
+  // Push-like tool names (narrow — prefer fail-open)
+  if (/(^|__)git[_-]?push($|__)/.test(name) || /push[_-]?branch/.test(name)) {
+    return "push";
+  }
+  if (/push/.test(name) && /(git|branch|remote|ref)/.test(name)) return "push";
+
+  const blob = (argsText ?? "").toLowerCase();
+  if (blob.length > 0) {
+    if (/\bgit(?:\.exe)?\s+push\b/.test(blob)) return "push";
+    if (/\bgh(?:\.exe)?\s+pr\s+merge\b/.test(blob)) return "merge";
+  }
+  return null;
+}
+
+export interface RuntimeAuthorityShellOpInput {
+  readonly policy: RuntimeAuthorityPolicy;
+  readonly op: RuntimeAuthorityShellOp | null;
+}
+
+export interface RuntimeAuthorityShellOpResult {
+  readonly allowed: boolean;
+  readonly reason: string | null;
+  readonly code: "runtime-policy-deny-scope" | null;
+  /** True when op was null — gate should fail open. */
+  readonly unclassifiable: boolean;
+}
+
+/**
+ * Evaluate scopes.push / scopes.merge for a classifiable shell/MCP operation (#2711).
+ * null op → allow (unclassifiable fail-open). disabled policy → allow.
+ */
+export function evaluateRuntimeAuthorityShellOp(
+  input: RuntimeAuthorityShellOpInput,
+): RuntimeAuthorityShellOpResult {
+  const { policy, op } = input;
+  if (!policy.enabled) {
+    return { allowed: true, reason: null, code: null, unclassifiable: op === null };
+  }
+  if (op === null) {
+    return { allowed: true, reason: null, code: null, unclassifiable: true };
+  }
+  if (op === "push" && !policy.scopes.push) {
+    return {
+      allowed: false,
+      code: "runtime-policy-deny-scope",
+      unclassifiable: false,
+      reason:
+        "Directive denied this shell/MCP operation: plan.policy.runtimeAuthority.scopes.push is false. " +
+        "Grant the push scope in PROJECT-DEFINITION or disable runtimeAuthority.",
+    };
+  }
+  if (op === "merge" && !policy.scopes.merge) {
+    return {
+      allowed: false,
+      code: "runtime-policy-deny-scope",
+      unclassifiable: false,
+      reason:
+        "Directive denied this shell/MCP operation: plan.policy.runtimeAuthority.scopes.merge is false. " +
+        "Grant the merge scope in PROJECT-DEFINITION or disable runtimeAuthority.",
+    };
+  }
+  return { allowed: true, reason: null, code: null, unclassifiable: false };
+}

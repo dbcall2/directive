@@ -7,24 +7,34 @@ import {
   NO_DEFT_DIRECTIVE_INCONSISTENT_MESSAGE,
 } from "../policy/no-deft-directive.js";
 import {
+  classifyMcpTool,
   evaluateRuntimeAuthorityDirectWrite,
+  evaluateRuntimeAuthorityShellOp,
+  listShellOps,
   loadRuntimeAuthorityFromProject,
   type RuntimeAuthorityPolicy,
+  type RuntimeAuthorityShellOp,
 } from "../policy/runtime-authority.js";
 import { markRitualStaleAfterCompact } from "../session/ritual-sentinel.js";
 import { runSessionStartHookWrite } from "../session/session-start-hook.js";
 import { inspectSessionRitual, type VerifyResult } from "../session/verify-session-ritual.js";
 import { isExploreSpawn, isReadOnlyHookContext } from "./readonly.js";
 import { type ActiveScopeInspection, inspectActiveScope } from "./scope.js";
-import { isDirectWriteTool, isSpawnTool } from "./tools.js";
+import { isDirectWriteTool, isMcpTool, isShellTool, isSpawnTool } from "./tools.js";
 
 export { hookReadOnlyFromPayload, isExploreSpawn, isReadOnlyHookContext } from "./readonly.js";
 export {
   DIRECT_WRITE_HOOK_MATCHER,
   DIRECT_WRITE_TOOL_NAMES,
   isDirectWriteTool,
+  isMcpTool,
+  isShellTool,
   isSpawnTool,
+  MCP_HOOK_MATCHER,
+  MCP_PUSH_MERGE_BARE_NAMES,
   READ_ONLY_HOOK_ENV,
+  SHELL_HOOK_MATCHER,
+  SHELL_TOOL_NAMES,
   SPAWN_HOOK_MATCHER,
   SPAWN_TOOL_NAMES,
 } from "./tools.js";
@@ -63,7 +73,11 @@ export type HookDecisionCode =
   | "spawn-ready"
   | "spawn-not-ready"
   | "runtime-policy-deny-path"
-  | "runtime-policy-deny-scope";
+  | "runtime-policy-deny-scope"
+  /** Shell/MCP classifiable push/merge allowed under runtimeAuthority (#2711). */
+  | "shell-op-ready"
+  /** Shell/MCP tool seen but command/tool not classifiable as push/merge — fail open (#2711). */
+  | "shell-op-unclassifiable";
 
 export interface HookDecision {
   readonly verdict: HookVerdict;
@@ -112,7 +126,8 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function firstString(...values: unknown[]): string | null {
+/** First non-empty trimmed string from candidates (array form — clear arity for static tools). */
+function firstString(values: readonly unknown[]): string | null {
   for (const value of values) {
     if (typeof value === "string" && value.trim().length > 0) return value.trim();
   }
@@ -256,14 +271,14 @@ export function hookWriteTargetPath(payload: unknown): string | null {
   const input = record(payload);
   if (input === null) return null;
   const toolInput = toolInputRecord(input);
-  return firstString(
+  return firstString([
     toolInput?.file_path,
     toolInput?.filePath,
     toolInput?.path,
     input.file_path,
     input.filePath,
     input.path,
-  );
+  ]);
 }
 
 /** POSIX-ish project-relative path for lifecycle matching. */
@@ -450,6 +465,126 @@ function runtimeAuthorityForDirectWrite(
     verdict.reason ?? "Directive denied this direct write under runtime authority policy.",
     scopePath,
   );
+}
+
+/**
+ * Best-effort shell command string from host PreToolUse payloads (#2711).
+ * Hosts disagree on nesting (`tool_input.command` vs top-level `command`).
+ */
+export function hookShellCommand(payload: unknown): string | null {
+  const input = record(payload);
+  if (input === null) return null;
+  const toolInput = toolInputRecord(input);
+  return firstString([
+    toolInput !== null ? toolInput.command : null,
+    toolInput !== null ? toolInput.cmd : null,
+    toolInput !== null ? toolInput.shell_command : null,
+    input.command,
+    input.cmd,
+  ]);
+}
+
+/** Serialize tool args for MCP classification when nested objects are present (#2711). */
+function hookMcpArgsText(payload: unknown): string | null {
+  const input = record(payload);
+  if (input === null) return null;
+  const toolInput = toolInputRecord(input);
+  if (toolInput === null) return null;
+  try {
+    return JSON.stringify(toolInput);
+  } catch {
+    return null;
+  }
+}
+
+function loadRuntimeAuthorityPolicySafe(
+  input: HookDispatchInput,
+  seams: HookPolicySeams,
+): RuntimeAuthorityPolicy | null {
+  const projectRoot = resolve(input.projectRoot);
+  try {
+    return (seams.loadRuntimeAuthority ?? loadRuntimeAuthorityFromProject)(projectRoot);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Evaluate scopes.push / scopes.merge for Shell/Bash or classifiable MCP tools (#2711).
+ * Returns a full HookDecision (allow or deny). Unclassifiable ops fail open.
+ */
+function decideShellOrMcpRuntimeAuthority(
+  input: HookDispatchInput,
+  toolName: string,
+  seams: HookPolicySeams,
+): HookDecision {
+  const projectRoot = resolve(input.projectRoot);
+  const policy = loadRuntimeAuthorityPolicySafe(input, seams);
+  if (policy === null) {
+    return {
+      verdict: "allow",
+      code: "shell-op-unclassifiable",
+      event: input.event,
+      host: input.host,
+      toolName,
+      projectRoot,
+      message: `Directive allowed ${toolName}: runtimeAuthority policy load failed (fail open).`,
+      scopePath: null,
+    };
+  }
+
+  // Shell: evaluate every classifiable op in compound/multi-line commands (#2711 Greptile).
+  // MCP / bare push-merge names: single tool name maps to at most one op
+  // (includes bare `merge_pull_request` etc. that isMcpTool does not flag).
+  const ops: RuntimeAuthorityShellOp[] = [];
+  if (isShellTool(toolName)) {
+    const command = hookShellCommand(input.payload);
+    if (command !== null) ops.push(...listShellOps(command));
+  } else {
+    const mcpOp = classifyMcpTool(toolName, hookMcpArgsText(input.payload));
+    if (mcpOp !== null) ops.push(mcpOp);
+  }
+
+  if (ops.length === 0) {
+    return {
+      verdict: "allow",
+      code: "shell-op-unclassifiable",
+      event: input.event,
+      host: input.host,
+      toolName,
+      projectRoot,
+      message:
+        `${toolName} is classifiable as Shell/MCP but the command/tool was not recognized as ` +
+        "push or merge — fail open (host gap; see runtime-authority.md).",
+      scopePath: null,
+    };
+  }
+
+  // Deny if any classifiable op is out of scope (compound commands must not short-circuit).
+  for (const op of ops) {
+    const verdict = evaluateRuntimeAuthorityShellOp({ policy, op });
+    if (!verdict.allowed) {
+      return deny(
+        input,
+        verdict.code ?? "runtime-policy-deny-scope",
+        toolName,
+        verdict.reason ??
+          "Directive denied this shell/MCP operation under runtime authority policy.",
+      );
+    }
+  }
+
+  const opsLabel = ops.join("+");
+  return {
+    verdict: "allow",
+    code: "shell-op-ready",
+    event: input.event,
+    host: input.host,
+    toolName,
+    projectRoot,
+    message: `Directive runtimeAuthority allowed classifiable ${opsLabel} via ${toolName}.`,
+    scopePath: null,
+  };
 }
 
 function inspectMutationGates(
@@ -719,6 +854,18 @@ export function decideHook(input: HookDispatchInput, seams: HookPolicySeams = {}
     return inspectMutationGates(input, toolName, seams, { proposedLifecycleExempt: false });
   }
 
+  // Shell/Bash and classifiable MCP: enforce scopes.push / scopes.merge (#2711).
+  // Route bare push/merge MCP names (merge_pull_request, git_push, …) even when
+  // isMcpTool is false — classifyMcpTool is the gate (dispatcher-side, no tools↔policy cycle).
+  // Does not require active-scope ritual — only runtimeAuthority when enabled.
+  if (
+    isShellTool(toolName) ||
+    isMcpTool(toolName) ||
+    classifyMcpTool(toolName, hookMcpArgsText(input.payload)) !== null
+  ) {
+    return decideShellOrMcpRuntimeAuthority(input, toolName, seams);
+  }
+
   if (!isDirectWriteTool(toolName)) {
     return {
       verdict: "allow",
@@ -727,7 +874,7 @@ export function decideHook(input: HookDispatchInput, seams: HookPolicySeams = {}
       host: input.host,
       toolName,
       projectRoot,
-      message: `${toolName} is outside the P0 direct-write/spawn enforcement slice.`,
+      message: `${toolName} is outside the P0 direct-write/spawn/shell enforcement slice.`,
       scopePath: null,
     };
   }
