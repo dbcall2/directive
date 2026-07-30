@@ -71,4 +71,28 @@ describe("evaluateContainedWrites (#2951)", () => {
   it("allowlist seed includes contained-write implementation", () => {
     expect(CONTAINED_WRITES_ALLOWLIST).toContain("packages/core/src/fs/contained-write.ts");
   });
+
+  it("does not allowlist a path that merely ends with an allowlisted suffix", () => {
+    const root = freshDir("cw-verify-endswith-");
+    const spoof = join(root, "packages", "core", "src", "evil", "packages", "core", "src", "fs");
+    mkdirSync(spoof, { recursive: true });
+    writeFileSync(join(spoof, "contained-write.ts"), "writeFileSync(a, b);\n", "utf8");
+    const result = evaluateContainedWrites({ projectRoot: root, enforce: true });
+    expect(result.code).toBe(1);
+    expect(result.findings.some((f) => f.path.includes("evil"))).toBe(true);
+  });
+
+  it("detects low-level openSync/writeSync sinks under --enforce", () => {
+    const root = freshDir("cw-verify-opensync-");
+    const src = join(root, "packages", "core", "src", "evil");
+    mkdirSync(src, { recursive: true });
+    writeFileSync(
+      join(src, "low.ts"),
+      'import { openSync, writeSync } from "node:fs";\nconst fd = openSync(p, "w");\nwriteSync(fd, buf);\n',
+      "utf8",
+    );
+    const result = evaluateContainedWrites({ projectRoot: root, enforce: true });
+    expect(result.code).toBe(1);
+    expect(result.findings.length).toBeGreaterThan(0);
+  });
 });

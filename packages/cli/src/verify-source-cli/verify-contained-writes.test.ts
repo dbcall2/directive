@@ -30,4 +30,9 @@ describe("verify-contained-writes CLI (#2951)", () => {
     writeFileSync(join(src, "s.ts"), "writeFileSync(a, b);\n", "utf8");
     expect(run(["--project-root", root])).toBe(0);
   });
+
+  it("help exits 0 without scanning", () => {
+    expect(run(["--help"])).toBe(0);
+    expect(parseArgs(["--help"]).help).toBe(true);
+  });
 });

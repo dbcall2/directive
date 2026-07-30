@@ -10,6 +10,7 @@ import { evaluateContainedWrites } from "@deftai/directive-core/verify-source";
 interface ParsedArgs {
   projectRoot: string;
   enforce: boolean;
+  help?: boolean;
   error?: string;
 }
 
@@ -30,13 +31,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     } else if (arg === "--enforce") {
       parsed.enforce = true;
     } else if (arg === "--help" || arg === "-h") {
-      process.stdout.write(
-        "Usage: verify-contained-writes [--project-root <path>] [--enforce]\n" +
-          "  Inventory raw write sinks outside the allowlist (#2951).\n" +
-          "  Default: fail-open (exit 0 with advisory report).\n" +
-          "  --enforce: fail closed (exit 1) when non-allowlisted sinks remain.\n",
-      );
-      return parsed;
+      return { ...parsed, help: true };
     } else {
       return { ...parsed, error: `unrecognized argument: ${arg}` };
     }
@@ -44,9 +39,19 @@ export function parseArgs(argv: string[]): ParsedArgs {
   return parsed;
 }
 
+const HELP_TEXT =
+  "Usage: verify-contained-writes [--project-root <path>] [--enforce]\n" +
+  "  Inventory raw write sinks outside the allowlist (#2951).\n" +
+  "  Default: fail-open (exit 0 with advisory report).\n" +
+  "  --enforce: fail closed (exit 1) when non-allowlisted sinks remain.\n";
+
 /** Run the gate and return the process exit code. */
 export function run(argv: string[]): number {
   const args = parseArgs(argv);
+  if (args.help === true) {
+    process.stdout.write(HELP_TEXT);
+    return 0;
+  }
   if (args.error !== undefined) {
     process.stderr.write(`verify_contained_writes: ${args.error}\n`);
     return 2;

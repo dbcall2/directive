@@ -218,7 +218,15 @@ function toBuffer(data: string | Buffer, encoding: BufferEncoding): Buffer {
 function writeNoFollow(targetAbs: string, buf: Buffer, flags: number): number {
   const fd = openSync(targetAbs, flags, 0o644);
   try {
-    return writeSync(fd, buf, 0, buf.length, null);
+    let offset = 0;
+    while (offset < buf.length) {
+      const n = writeSync(fd, buf, offset, buf.length - offset, null);
+      if (n <= 0) {
+        throw new Error(`short write: wrote ${offset} of ${buf.length} bytes to ${targetAbs}`);
+      }
+      offset += n;
+    }
+    return offset;
   } finally {
     closeSync(fd);
   }

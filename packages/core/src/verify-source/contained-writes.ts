@@ -32,6 +32,14 @@ export const RAW_WRITE_PATTERNS: readonly RegExp[] = [
   /\bfs\.promises\.writeFile\s*\(/,
   /\bcreateWriteStream\s*\(/,
   /\bwriteFile\s*\(\s*[^)]+,\s*[^)]+,\s*['"]utf8['"]/,
+  // Low-level / async forms that also bypass containedWrite (#2951 Greptile P1).
+  /\bopenSync\s*\(/,
+  /\bwriteSync\s*\(/,
+  /\bappendFile\s*\(/,
+  /\.writeFile\s*\(/,
+  /\bpromises\.writeFile\s*\(/,
+  /\bfs\.open\s*\(/,
+  /\bfs\.write\s*\(/,
 ];
 
 /**
@@ -97,8 +105,10 @@ function isAllowlisted(relPosix: string, allow: readonly string[]): boolean {
     return true;
   }
   return allow.some((entry) => {
-    const e = entry.replace(/\\/g, "/");
-    return relPosix === e || relPosix.startsWith(`${e}/`) || relPosix.endsWith(e);
+    const e = entry.replace(/\\/g, "/").replace(/\/+$/, "");
+    // Exact file match, or directory-prefix only (never bare endsWith — that
+    // lets `evil/.../packages/core/src/fs/contained-write.ts` slip through).
+    return relPosix === e || relPosix.startsWith(`${e}/`);
   });
 }
 
