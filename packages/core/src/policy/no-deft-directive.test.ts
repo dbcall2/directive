@@ -73,6 +73,8 @@ describe("detectNoDeftDirective (#2926)", () => {
   });
 
   it("honors injectable seams without touching the filesystem", () => {
+    // Flag path uses resolve() (absolute); deposit probe uses join() — match both
+    // so the seam sets hit on win32 where join("/virtual/...") !== resolve(...).
     const root = "/virtual/project";
     // Flag path uses path.resolve (absolute); deposit probe uses path.join — match both (#2926 / win32).
     const files = new Set([resolve(root, NO_DEFT_DIRECTIVE_FLAG_NAME)]);
