@@ -2,12 +2,12 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope: runtimeAuthority Shell/MCP matchers for scopes.push and scopes.merge (#2711)",
-    "updated": "2026-07-30T02:10:39Z"
+    "updated": "2026-07-30T03:07:50Z"
   },
   "plan": {
     "title": "feat(harness): Shell/MCP PreToolUse matchers for runtimeAuthority scopes.push / scopes.merge",
-    "status": "running",
-    "updated": "2026-07-30T02:10:39Z",
+    "status": "completed",
+    "updated": "2026-07-30T03:07:50Z",
     "id": "2026-07-29-2711-runtime-authority-shell-mcp-push-merge",
     "narratives": {
       "Description": "Make plan.policy.runtimeAuthority.scopes.push and scopes.merge enforceable in PreToolUse via Shell/Bash and classifiable MCP matchers, not schema-only.",
@@ -19,21 +19,21 @@
     "items": [
       {
         "title": "Classifier + evaluate scopes.push/merge",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "git push and gh pr merge classifiable; deny when scope false and enabled true"
         }
       },
       {
         "title": "Dispatcher wire for Shell/MCP",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "PreToolUse denys classifiable push/merge; unclassifiable fail-open"
         }
       },
       {
         "title": "Tests docs CHANGELOG #2711",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Unit tests + contract docs + CHANGELOG cite #2711"
         }
@@ -84,7 +84,9 @@
         "conflict_group": "story-2711",
         "size": "S",
         "file_scope_confidence": "high"
-      }
+      },
+      "completedAt": "2026-07-30T03:07:50Z",
+      "capacityBucket": "new-capability"
     }
   }
 }

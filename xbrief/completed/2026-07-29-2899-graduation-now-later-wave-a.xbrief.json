@@ -1,0 +1,96 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope: Now+Later graduation dual-path locks Wave A",
+    "updated": "2026-07-30T03:18:26Z"
+  },
+  "plan": {
+    "title": "bug(strategies,scope): Now+Later graduation dual-path locks for intentional under-builds",
+    "status": "completed",
+    "updated": "2026-07-30T03:18:26Z",
+    "id": "2026-07-29-2899-graduation-now-later-wave-a",
+    "narratives": {
+      "Description": "Directive lacks a first-class Graduation type for decided weaker Now plus decided end-product Later, so agents collapse intentional under-builds into DeferredDecisions and complete MVP as permanent product. Wave A adds glossary, discuss/probe contract, scope:complete docs, Fail Loud claim language, and soft warn guidance.",
+      "Overview": "Wave A docs and strategy contract only; hard gates are Wave B follow-on.",
+      "Origin": "https://github.com/deftai/directive/issues/2899",
+      "UserStory": "As an operator shipping an intentional under-build, I want dual-path Now+Later locks with graduationRef and trigger, so that completing the Now story does not silently retire the end-product path.",
+      "ImplementationPlan": "Step 1: Edit content/strategies/discuss.md and content/strategies/probe.md files to define Graduation dual-path lock fields (now, later, graduationRef, trigger, status) when a lock chooses a temporary approach. Step 2: Edit content/coding/coding.md Fail Loud module for production-ready claims naming open graduationRefs. Step 3: Note in discuss that glossary xbrief naming is owned by #2907 sibling; keep graduation term defined in strategy prose. Step 4: Content-contract unit tests and CHANGELOG cite #2899. Verification: run content-contract tests and task check:merge.",
+      "Labels": "bug, enhancement, design, agent-experience, source-of-truth, area:skills",
+      "Traces": "Wave A acceptance from #2899 body."
+    },
+    "items": [
+      {
+        "title": "Glossary defines Graduation vs other laters",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given glossary, when read, then Graduation is distinct from DeferredDecisions, triage defer, and rapid graduate."
+        }
+      },
+      {
+        "title": "Discuss/probe require dual-path lock fields when under-building",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given discuss/probe contracts, when a lock chooses temporary approach, then Now Later graduationRef trigger and status are required."
+        }
+      },
+      {
+        "title": "scope:complete and Fail Loud honor open graduations",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given docs, when Now story completes or production-ready is claimed, then open graduation work stays open and claims must name graduationRefs or explicit skip."
+        }
+      },
+      {
+        "title": "Content contracts and CHANGELOG #2899",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the PR, when tests run, then narrative/schema requirements are checked and CHANGELOG cites #2899."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "enhancement",
+      "design",
+      "agent-experience",
+      "source-of-truth",
+      "area:skills"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2899",
+        "type": "x-xbrief/github-issue",
+        "TrustLevel": "external"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/strategies/discuss.md",
+          "content/strategies/probe.md",
+          "content/coding/coding.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "task test -- packages/core/src/content-contracts",
+          "task check:merge"
+        ],
+        "expected_outputs": [
+          "Graduation glossary",
+          "dual-path lock contract",
+          "CHANGELOG #2899"
+        ],
+        "depends_on": [],
+        "conflict_group": "story-2899",
+        "size": "M",
+        "file_scope_confidence": "high",
+        "model_tier": "standard"
+      },
+      "completedAt": "2026-07-30T03:18:26Z",
+      "capacityBucket": "new-capability"
+    }
+  }
+}

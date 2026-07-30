@@ -1,0 +1,87 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope: OpenClaw parent text-repetition hang after thin subagent DONE",
+    "updated": "2026-07-30T03:18:33Z"
+  },
+  "plan": {
+    "title": "bug(openclaw): parent agent text-repetition hang after thin subagent completion",
+    "status": "completed",
+    "updated": "2026-07-30T03:18:33Z",
+    "id": "2026-07-29-2943-openclaw-parent-text-repetition-hang",
+    "narratives": {
+      "Description": "OpenClaw parent agents can enter a text-only repetition hang after thin subagent completion events, regenerating the same progress sentence with zero tool calls. This story documents the failure mode and hardens parent-monitor policy and product guidance so completion events force tool-first or yield behavior.",
+      "Overview": "OpenClaw Control UI parent hang; separate from empty-leaf death but triggered by thin DONE.",
+      "Origin": "https://github.com/deftai/directive/issues/2943",
+      "UserStory": "As an OpenClaw swarm parent, I want thin leaf completions to force a tool batch or yield instead of narrated progress prose, so that the parent cannot lock into a zero-tool repetition hang.",
+      "ImplementationPlan": "Step 1: Edit content/docs/openclaw-agent-host.md module section for parent-monitor after subagent_announce: tool-first batch (gh/git files) or sessions_yield; forbid multi-sentence progress-only prose. Step 2: Edit content/skills/deft-directive-swarm/SKILL.md and content/templates/agent-prompt-preamble.md scripts for thin DONE failure (no prUrl/merge) and completion-event contract fields. Step 3: Add content-contract test markers under packages/core/src/content-contracts for those file strings. Step 4: CHANGELOG Unreleased cites #2943. Verification: run unit tests on content-contracts package and task check:merge before push.",
+      "Labels": "bug, swarm, operational, harness:openclaw",
+      "Traces": "Acceptance maps to #2943; missing_traces_justification until lines mapped."
+    },
+    "items": [
+      {
+        "title": "Parent monitor policy tool-first after leaf announce",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given docs/skills for OpenClaw swarm parents, when a subagent completion arrives, then guidance requires tool-first ground truth or yield and forbids multi-sentence progress-only first response."
+        }
+      },
+      {
+        "title": "Thin DONE treated as failed leaf",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a leaf completion without PR URL or merge evidence, when parent policy is followed, then the leaf is treated as failed (re-dispatch or take over) not as success."
+        }
+      },
+      {
+        "title": "Tests and CHANGELOG cite #2943",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the PR, when tests and CHANGELOG are inspected, then content-contract markers pass and Unreleased cites #2943."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "swarm",
+      "operational",
+      "harness:openclaw"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2943",
+        "type": "x-xbrief/github-issue",
+        "TrustLevel": "external"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/docs/openclaw-agent-host.md",
+          "content/skills/deft-directive-swarm/SKILL.md",
+          "content/templates/",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "task test -- packages/core/src/content-contracts",
+          "task check:merge"
+        ],
+        "expected_outputs": [
+          "parent tool-first policy",
+          "thin DONE failed leaf",
+          "CHANGELOG #2943"
+        ],
+        "depends_on": [],
+        "conflict_group": "story-2943",
+        "size": "S",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard"
+      },
+      "completedAt": "2026-07-30T03:18:33Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}

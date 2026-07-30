@@ -1,0 +1,97 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope: xbrief sole public canonical name; vBRIEF legacy",
+    "updated": "2026-07-30T03:18:29Z"
+  },
+  "plan": {
+    "title": "docs/product: vBRIEF is legacy — xbrief sole public canonical work-state name",
+    "status": "completed",
+    "updated": "2026-07-30T03:18:29Z",
+    "id": "2026-07-29-2907-xbrief-sole-public-canonical-name",
+    "narratives": {
+      "Description": "Consumer layout and disk SoT use xbrief/, but public docs, glossary, skills, and README still teach vBRIEF as current. This story makes xbrief/xBRIEF the sole public canonical name and labels vBRIEF legacy everywhere it remains.",
+      "Overview": "Adoption and agent confusion bug; migrate paths stay for history.",
+      "Origin": "https://github.com/deftai/directive/issues/2907",
+      "UserStory": "As a consumer or agent reading Directive docs, I want xbrief as the only current work-state name, so that I do not treat vBRIEF and xbrief as two competing present-day models.",
+      "ImplementationPlan": "Step 1: Edit docs/CONCEPTS.md and content/glossary.md files so xbrief is the sole current work-state name and vBRIEF entries are marked legacy with pointers. Step 2: Edit README.md and content/docs/getting-started.md (and QUICK-START if present) module strings that teach current vBRIEF paths. Step 3: Add a short legacy map section in content/UPGRADING.md or CONCEPTS. Step 4: Content-contract tests where practical; CHANGELOG cites #2907. Verification: run content-contract unit tests and task check:merge.",
+      "Labels": "documentation, docs, adoption-blocker, source-of-truth",
+      "Traces": "Acceptance maps to #2907 AC 1-7."
+    },
+    "items": [
+      {
+        "title": "Public canon is xbrief only",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given README QUICK-START CONCEPTS ARCHITECTURE glossary and user-facing skills, when read for current guidance, then work-state and lifecycle use xbrief/xBRIEF only."
+        }
+      },
+      {
+        "title": "Legacy map for vBRIEF",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given docs, when vBRIEF appears, then it is labeled legacy/historical with a single authoritative rename/history note."
+        }
+      },
+      {
+        "title": "Glossary and CLI strings prefer xbrief",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given glossary and doctor/help copy, when rendered, then lifecycle terms are under xbrief; vbrief task aliases if kept have deprecation notices."
+        }
+      },
+      {
+        "title": "Sweep + tests + CHANGELOG #2907",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the PR, when search and tests run, then user-facing current-guidance vBRIEF is zero outside legacy/migrate/changelog/archive and CHANGELOG cites #2907."
+        }
+      }
+    ],
+    "tags": [
+      "documentation",
+      "docs",
+      "adoption-blocker",
+      "source-of-truth"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2907",
+        "type": "x-xbrief/github-issue",
+        "TrustLevel": "external"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "docs/CONCEPTS.md",
+          "content/glossary.md",
+          "README.md",
+          "content/docs/getting-started.md",
+          "content/docs/QUICK-START.md",
+          "content/UPGRADING.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "task test -- packages/core/src/content-contracts",
+          "task check:merge"
+        ],
+        "expected_outputs": [
+          "xbrief public canon",
+          "vBRIEF legacy map",
+          "CHANGELOG #2907"
+        ],
+        "depends_on": [],
+        "conflict_group": "story-2907",
+        "size": "L",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard"
+      },
+      "completedAt": "2026-07-30T03:18:29Z",
+      "capacityBucket": "cognitive-debt"
+    }
+  }
+}
