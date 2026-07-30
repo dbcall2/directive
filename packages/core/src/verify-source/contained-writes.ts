@@ -100,12 +100,22 @@ function isTestPath(relPosix: string): boolean {
   return TEST_PATH_MARKERS.some((m) => relPosix.includes(m.replace(/\\/g, "/")));
 }
 
+/** Strip trailing `/` without regex (CodeQL js/polynomial-redos safe). */
+function stripTrailingSlashes(path: string): string {
+  let end = path.length;
+  while (end > 0 && path.charCodeAt(end - 1) === 47 /* / */) {
+    end -= 1;
+  }
+  return end === path.length ? path : path.slice(0, end);
+}
+
 function isAllowlisted(relPosix: string, allow: readonly string[]): boolean {
   if (isTestPath(relPosix)) {
     return true;
   }
   return allow.some((entry) => {
-    const e = entry.replace(/\\/g, "/").replace(/\/+$/, "");
+    // Avoid regex on path input (CodeQL js/polynomial-redos on /\/+$/).
+    const e = stripTrailingSlashes(entry.split("\\").join("/"));
     // Exact file match, or directory-prefix only (never bare endsWith — that
     // lets `evil/.../packages/core/src/fs/contained-write.ts` slip through).
     return relPosix === e || relPosix.startsWith(`${e}/`);
