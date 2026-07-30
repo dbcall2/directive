@@ -2,19 +2,14 @@
  * Disk store for authz state + grants under `.deft/authz/` (#2944).
  */
 
+import { existsSync, readdirSync, readFileSync, renameSync, rmSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import {
-  closeSync,
-  existsSync,
-  fdatasyncSync,
-  mkdirSync,
-  openSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-  writeSync,
-} from "node:fs";
-import { join } from "node:path";
+  ContainedWriteError,
+  ContainedWriteErrorCode,
+  containedWrite,
+} from "../fs/contained-write.js";
+import { assertWriteTargetSafe, ProjectionContainmentError } from "../fs/projection-containment.js";
 import { isHumanOrigin } from "./origin.js";
 import { authzAuditPath, authzGrantPath, authzGrantsDir, authzStatePath } from "./paths.js";
 import {
@@ -40,23 +35,60 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function atomicWriteJson(targetPath: string, payload: unknown, prefix: string): void {
-  mkdirSync(join(targetPath, ".."), { recursive: true });
-  const dir = join(targetPath, "..");
-  const tmpName = join(dir, `${prefix}${process.pid}.json.tmp`);
-  const fd = openSync(tmpName, "w");
+/** Map projection containment refusals onto ContainedWriteError (stable codes). */
+function refuseUnsafeTarget(root: string, targetAbs: string): void {
   try {
-    const text = `${JSON.stringify(payload, null, 2)}\n`;
-    writeSync(fd, text, undefined, "utf8");
-    try {
-      fdatasyncSync(fd);
-    } catch {
-      // best-effort on platforms without fdatasync
+    assertWriteTargetSafe(root, targetAbs);
+  } catch (err) {
+    if (err instanceof ProjectionContainmentError) {
+      const isSymlink = /symlink/i.test(err.message);
+      throw new ContainedWriteError(
+        err.message.replace(/^projection write refused:/i, "contained write refused:"),
+        {
+          code: isSymlink ? ContainedWriteErrorCode.SYMLINK : ContainedWriteErrorCode.ESCAPE,
+          root,
+          target: targetAbs,
+          offendingPath: err.offendingPath,
+        },
+      );
     }
-  } finally {
-    closeSync(fd);
+    throw err;
   }
-  renameSync(tmpName, targetPath);
+}
+
+/**
+ * Atomic JSON write via containedWrite create + rename (#2980 wave B).
+ * Refuses symlink/escape on the final target before publish; temp payload is
+ * contained under project root so partial crash does not truncate live state.
+ */
+function writeJsonContained(
+  projectRoot: string,
+  targetPath: string,
+  payload: unknown,
+  prefix: string,
+): void {
+  const root = resolve(projectRoot);
+  const absTarget = resolve(targetPath);
+  refuseUnsafeTarget(root, absTarget);
+  const dir = dirname(absTarget);
+  const tmp = join(dir, `${prefix}${process.pid}-${Date.now()}.json.tmp`);
+  try {
+    containedWrite({
+      root,
+      target: tmp,
+      data: `${JSON.stringify(payload, null, 2)}\n`,
+      mode: "create",
+    });
+    refuseUnsafeTarget(root, absTarget);
+    renameSync(tmp, absTarget);
+  } catch (err) {
+    try {
+      rmSync(tmp, { force: true });
+    } catch {
+      /* best-effort cleanup */
+    }
+    throw err;
+  }
 }
 
 function readString(rec: Record<string, unknown>, key: string): string | null {
@@ -259,7 +291,7 @@ export function markGrantUsed(
 }
 
 export function saveAuthzState(projectRoot: string, state: AuthzState): void {
-  atomicWriteJson(authzStatePath(projectRoot), state, ".authz-state.");
+  writeJsonContained(projectRoot, authzStatePath(projectRoot), state, ".authz-state.");
 }
 
 export function loadGrant(projectRoot: string, grantId: string): HumanOriginGrant | null {
@@ -273,7 +305,7 @@ export function loadGrant(projectRoot: string, grantId: string): HumanOriginGran
 }
 
 export function saveGrant(projectRoot: string, grant: HumanOriginGrant): void {
-  atomicWriteJson(authzGrantPath(projectRoot, grant.id), grant, ".authz-grant.");
+  writeJsonContained(projectRoot, authzGrantPath(projectRoot, grant.id), grant, ".authz-grant.");
 }
 
 export function listGrants(projectRoot: string): HumanOriginGrant[] {
@@ -318,9 +350,15 @@ export function listActiveHumanGrants(
 }
 
 export function appendAuthzAudit(projectRoot: string, record: AuthzAuditRecord): void {
+  const root = resolve(projectRoot);
   const path = authzAuditPath(projectRoot);
-  mkdirSync(join(path, ".."), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(record)}\n`, { flag: "a", encoding: "utf8" });
+  // #2980 wave B: product write sink routes through containedWrite.
+  containedWrite({
+    root,
+    target: path,
+    data: `${JSON.stringify(record)}\n`,
+    mode: "append",
+  });
 }
 
 export function mintOperatorOrigin(
