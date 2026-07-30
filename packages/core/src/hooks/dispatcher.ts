@@ -23,6 +23,7 @@ import {
 } from "../policy/no-deft-directive.js";
 import {
   classifyMcpTool,
+  DEFAULT_RUNTIME_AUTHORITY_POLICY,
   evaluateRuntimeAuthorityDirectWrite,
   evaluateRuntimeAuthorityShellOp,
   listShellOps,
@@ -30,6 +31,7 @@ import {
   type RuntimeAuthorityPolicy,
   type RuntimeAuthorityShellOp,
 } from "../policy/runtime-authority.js";
+import { loadStoryWriteFenceFromPath, resolveWriteFence } from "../policy/write-fence.js";
 import { detectBranch } from "../session/git.js";
 import { markRitualStaleAfterCompact } from "../session/ritual-sentinel.js";
 import { runSessionStartHookWrite } from "../session/session-start-hook.js";
@@ -150,6 +152,15 @@ export interface HookPolicySeams {
     message: string;
   };
   readonly loadRuntimeAuthority?: (projectRoot: string) => RuntimeAuthorityPolicy;
+  /**
+   * Test seam for #516 / #2443 story write fence.
+   * Defaults to reading `plan.metadata.swarm.file_scope` (+ writeScope alias)
+   * from the active scope path when present.
+   */
+  readonly loadStoryWriteFence?: (
+    projectRoot: string,
+    scopePath: string | null,
+  ) => { readonly fileScope: readonly string[]; readonly denyPaths: readonly string[] };
   /** Test seam for #2944 UAT lease + human-origin grants. */
   readonly loadAuthzState?: (projectRoot: string) => AuthzState;
   readonly loadAuthzGrants?: (
@@ -326,22 +337,43 @@ function runtimeAuthorityForDirectWrite(
   scopePath: string | null,
 ): HookDecision | null {
   const projectRoot = resolve(input.projectRoot);
-  let policy: RuntimeAuthorityPolicy;
+  // Project policy load failure: treat as disabled project layer, still apply
+  // independent story file_scope when present (#516 / #2443 Greptile P1).
+  let basePolicy: RuntimeAuthorityPolicy = DEFAULT_RUNTIME_AUTHORITY_POLICY;
   try {
-    policy = (seams.loadRuntimeAuthority ?? loadRuntimeAuthorityFromProject)(projectRoot);
+    basePolicy = (seams.loadRuntimeAuthority ?? loadRuntimeAuthorityFromProject)(projectRoot);
   } catch {
-    // Fail-open on policy load crash — host behavior; ritual/scope gates already passed.
-    return null;
+    basePolicy = DEFAULT_RUNTIME_AUTHORITY_POLICY;
   }
+  // Wave 3 unified write fence: intersect project runtimeAuthority with active
+  // story file_scope (#516 / #2443 / #2948). Single evaluation SoT via
+  // evaluateRuntimeAuthorityDirectWrite — no parallel writeScope engine.
+  let storyFence: { fileScope: readonly string[]; denyPaths: readonly string[] };
+  try {
+    storyFence = seams.loadStoryWriteFence
+      ? seams.loadStoryWriteFence(projectRoot, scopePath)
+      : loadStoryWriteFenceFromPath(scopePath);
+  } catch {
+    // Residual: host cannot load active story — project fence still applies.
+    storyFence = { fileScope: [], denyPaths: [] };
+  }
+  const fence = resolveWriteFence(basePolicy, storyFence.fileScope, {
+    storyDenyPaths: storyFence.denyPaths,
+  });
+  // Neither layer active → allow (same as disabled runtimeAuthority historically).
+  if (!fence.fenceActive) return null;
   const writeTarget = hookWriteTargetPath(input.payload);
   const relPath = writeTarget !== null ? toProjectRelativePosix(projectRoot, writeTarget) : null;
-  const verdict = evaluateRuntimeAuthorityDirectWrite({ policy, relPathPosix: relPath });
+  const verdict = evaluateRuntimeAuthorityDirectWrite({
+    policy: fence.policy,
+    relPathPosix: relPath,
+  });
   if (verdict.allowed) return null;
   return deny(
     input,
     verdict.code ?? "runtime-policy-deny-path",
     toolName,
-    verdict.reason ?? "Directive denied this direct write under runtime authority policy.",
+    verdict.reason ?? "Directive denied this direct write under write fence policy.",
     scopePath,
   );
 }
