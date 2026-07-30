@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.89.0] - 2026-07-30
+
+> Contained-write residual + fail-closed inventory (#2980), hooks matrix Phase B, authz/finish-loop waves, OpenClaw host lifecycle, install-trust pattern, and xBRIEF 0.8 write defaults.
+
+### Added
+
 - **Contained-write residual wave C — eval/doctor/xbrief project IO sinks (#2980 wave C).** Migrates eval ledgers (`run` golden history, `crud-telemetry` metrics + instrumented CRUD create/update, `health` history, `readback` history), `doctor-state` persistence, residual cache self-heal stamp (`cache/fetch`), `xbrief-migrate/migrate-project` product writes, and `vbrief-build/project-definition-io` atomic PROJECT-DEFINITION write onto `containedWrite`. Part of residual epic #2980 / #2951 (waves A/B/D and fail-closed check wiring remain open). Docs: `docs/reference/contained-write.md`.
 - **Contained-write residual wave B — intake/authz/escalation/scope ledgers (#2980 wave B).** Migrates intake issue-emit (pending ledger, vbrief stamp, recovery sidecar, temp body), candidates-log append+lock, github-body out-file write, uthz/store atomic grant/state + audit append, scalation/store atomic JSON, and scope/audit-log append onto containedWrite. Inventory no longer flags those product modules for raw writeFileSync/openSync sinks. Implements residual wave B of #2980 (epic #2951 remains open for init-deposit, eval I/O, leftovers, and enforce wiring).
 - **Contained-write residual wave B - intake/authz/escalation/scope ledgers (#2980 wave B).** Migrates intake issue-emit (pending ledger, vbrief stamp, recovery sidecar, temp body), candidates-log append+lock, github-body out-file write, authz/store atomic grant/state + audit append, escalation/store atomic JSON, and scope/audit-log append onto containedWrite. Inventory no longer flags those product modules for raw writeFileSync/openSync sinks. Implements residual wave B of #2980 (epic #2951 remains open for init-deposit, eval I/O, leftovers, and enforce wiring).
@@ -4784,7 +4796,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.88.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.89.0...HEAD
+[0.89.0]: https://github.com/deftai/directive/compare/v0.88.0...v0.89.0
 [0.88.0]: https://github.com/deftai/directive/compare/v0.87.0...v0.88.0
 [0.87.0]: https://github.com/deftai/directive/compare/v0.86.0...v0.87.0
 [0.86.0]: https://github.com/deftai/directive/compare/v0.85.0...v0.86.0
