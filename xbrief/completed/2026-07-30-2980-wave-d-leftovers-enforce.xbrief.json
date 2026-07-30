@@ -3,12 +3,12 @@
     "version": "0.8",
     "description": "Residual #2980 wave D: migrate remaining product raw writes after waves A–C, then enable fail-closed verify:contained-writes in task check (or CI with promote path). Depends on sibling waves merging first when possible; if launching solo, complete residual product findings then enforce.",
     "created": "2026-07-30T21:21:38.720Z",
-    "updated": "2026-07-30T21:35:47.805Z"
+    "updated": "2026-07-30T22:44:38Z"
   },
   "plan": {
     "id": "2026-07-30-2980-wave-d-leftovers-enforce",
     "title": "feat(security): #2980 leftovers sweep + fail-closed contained-writes in task check",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Residual #2980 wave D sweeps remaining product raw write sinks after waves A–C, then enables fail-closed verify:contained-writes in task check. Engine work in packages/core and tasks; docs record residual complete and Go deferred.",
       "Overview": "Close residual #2980 with enforce.",
@@ -104,8 +104,9 @@
         "file_scope_confidence": "high",
         "model_tier": "standard"
       },
-      "capacityBucket": "security"
+      "capacityBucket": "security",
+      "completedAt": "2026-07-30T22:44:38Z"
     },
-    "updated": "2026-07-30T21:35:47.805Z"
+    "updated": "2026-07-30T22:44:38Z"
   }
 }

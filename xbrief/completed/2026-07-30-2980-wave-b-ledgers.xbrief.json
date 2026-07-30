@@ -3,12 +3,12 @@
     "version": "0.8",
     "description": "Residual #2980 wave B: migrate intake, authz store, escalation store, and scope audit-log product writes onto containedWrite.",
     "created": "2026-07-30T21:21:38.720Z",
-    "updated": "2026-07-30T21:22:28.062Z"
+    "updated": "2026-07-30T22:44:33Z"
   },
   "plan": {
     "id": "2026-07-30-2980-wave-b-ledgers",
     "title": "feat(security): migrate intake/authz/escalation/scope ledgers to containedWrite (#2980 wave B)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Residual #2980 wave B migrates intake, authz, escalation, and scope audit product write sinks onto containedWrite. These are durable ledger and grant paths that still use raw openSync/writeFileSync after Phase 2. Engine-only; siblings own init-deposit and eval.",
       "Overview": "Durable ledger and grant/escalation write sinks.",
@@ -21,28 +21,28 @@
     "items": [
       {
         "title": "Intake product writes migrate",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given intake issue-emit and candidates-log write paths run, they call containedWrite (or approved contained helper) and tests return pass."
         }
       },
       {
         "title": "Authz and escalation stores migrate",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "When authz/store and escalation/store persist records, they no longer use raw writeFileSync/openSync product paths without containment; tests return pass."
         }
       },
       {
         "title": "Scope audit log migrates",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "When scope audit-log appends, it uses containedWrite and inventory no longer flags scope/audit-log.ts."
         }
       },
       {
         "title": "CHANGELOG wave B",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "When CHANGELOG.md is opened, it records an Unreleased entry that cites #2980 wave B."
         }
@@ -98,8 +98,9 @@
         "file_scope_confidence": "high",
         "model_tier": "standard"
       },
-      "capacityBucket": "security"
+      "capacityBucket": "security",
+      "completedAt": "2026-07-30T22:44:33Z"
     },
-    "updated": "2026-07-30T21:22:28.062Z"
+    "updated": "2026-07-30T22:44:33Z"
   }
 }

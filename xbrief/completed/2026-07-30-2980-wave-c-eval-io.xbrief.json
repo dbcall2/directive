@@ -3,12 +3,12 @@
     "version": "0.8",
     "description": "Residual #2980 wave C: migrate eval ledgers, doctor-state, residual cache fetch, xbrief-migrate and vbrief-build project IO product writes onto containedWrite.",
     "created": "2026-07-30T21:21:38.720Z",
-    "updated": "2026-07-30T21:22:28.069Z"
+    "updated": "2026-07-30T22:44:36Z"
   },
   "plan": {
     "id": "2026-07-30-2980-wave-c-eval-io",
     "title": "feat(security): migrate eval/doctor/xbrief residual product writes (#2980 wave C)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Residual #2980 wave C migrates eval ledgers, doctor-state, residual cache fetch, and xbrief/vbrief project IO product writes onto containedWrite. These sinks still appear in the product inventory after Phase 2. Engine-only; leave init-deposit and intake to sibling waves.",
       "Overview": "Eval and identity/migrate residual product sinks.",
@@ -21,28 +21,28 @@
     "items": [
       {
         "title": "Eval ledgers migrate",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "Given eval health/telemetry/run write paths execute, they call containedWrite and related vitest suites return pass."
         }
       },
       {
         "title": "Doctor and cache residual migrate",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "When doctor-state and residual cache fetch writers run, they use containedWrite and inventory drops those paths."
         }
       },
       {
         "title": "Xbrief/vbrief project IO migrates",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "When migrate-project and project-definition-io write project JSON, they use containedWrite and tests return pass."
         }
       },
       {
         "title": "CHANGELOG wave C",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Acceptance": "When CHANGELOG.md is opened, it records an Unreleased entry that cites #2980 wave C."
         }
@@ -100,8 +100,9 @@
         "file_scope_confidence": "high",
         "model_tier": "standard"
       },
-      "capacityBucket": "security"
+      "capacityBucket": "security",
+      "completedAt": "2026-07-30T22:44:36Z"
     },
-    "updated": "2026-07-30T21:22:28.069Z"
+    "updated": "2026-07-30T22:44:36Z"
   }
 }
