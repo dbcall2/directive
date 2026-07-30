@@ -1069,4 +1069,23 @@
 - **#2890** -- feat(skills,triage): Phase 3 operator brief contract + triage:show --format=operator -- `[completed]`
 - **#2893** -- bug(doctor/skills): gates-surface broken for consumers — dual deft/task invoke -- `[completed]`
 - **#2880** -- bug(intake): issue-emit create/stamp durability — no orphan remote / no duplicate on retry -- `[completed]`
+- **#2711** -- feat(harness): Shell/MCP PreToolUse matchers for runtimeAuthority scopes.push / scopes.merge -- `[completed]`
+- **#2899** -- bug(strategies,scope): Now+Later graduation dual-path locks for intentional under-builds -- `[completed]`
+- **#2907** -- docs/product: vBRIEF is legacy — xbrief sole public canonical work-state name -- `[completed]`
+- **#2908** -- security(install): pin+verify Git-for-Windows download before silent exec (install-deposit-01) -- `[completed]`
+- **#2909** -- security(install): pin+verify Linux --yes uv/task/gh bootstrap (install-deposit-02) -- `[completed]`
+- **#2910** -- security(cache): hard-fail fine-grained github_pat_ tokens in scanner (cache-quarantine-01) -- `[completed]`
+- **#2911** -- security(win32): engine-invoke shell:false — stop cmd.exe reparse of DEFT_ENGINE_CMD_JSON (subprocess-scm-01) -- `[completed]`
+- **#2912** -- security(deposit): refuse in-tree dest symlinks on consumer projection writers (install-deposit-04) -- `[completed]`
+- **#2913** -- security(deposit): npm update full-tree replace — no stale .deft/core survival (install-deposit-06) -- `[completed]`
+- **#2914** -- security(packs): contain pack-render path fields under CONTENT_ROOT + schema (skill-pack-supply-01) -- `[completed]`
+- **#2915** -- security(cache): neutralize nested fences inside quarantine wrappers (cache-quarantine-03) -- `[completed]`
+- **#2916** -- security(ingest): quarantine-scan issue labels/tags before xBRIEF Labels/tags (cache-quarantine-06) -- `[completed]`
+- **#2925** -- bug(strategies): chaining gate Proceed is artifact-blind - interview create-vs-update -- `[completed]`
+- **#2926** -- feat(policy/setup): official per-project .no-deft-directive opt-out flag -- `[completed]`
+- **#2927** -- docs: use short controlled English for docs and issues (ASD-STE100) -- `[completed]`
+- **#2928** -- feat(skills): load one host adapter after detect; keep other hosts out of context -- `[completed]`
+- **#2929** -- feat(swarm,openclaw): require worktree before sessions_spawn; block shared-checkout parallel dispatch -- `[completed]`
+- **#2934** -- feat(swarm): require next-phase tool dispatch after cohort complete (no prose-only handoff) -- `[completed]`
+- **#2943** -- bug(openclaw): parent agent text-repetition hang after thin subagent completion -- `[completed]`
 

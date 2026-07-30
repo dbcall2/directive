@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.88.0] - 2026-07-30
+
+> Easier adoption (docs site, xBRIEF naming, .no-deft-directive) with harder security and agent push/merge controls.
+
+### Added
+
 - **Graduation (Now+Later) dual-path locks for intentional under-builds — Wave A docs/strategy contract (#2899).** Discuss and probe require `now` + `later` + `graduationRef` + `trigger` + `status` when a lock chooses a temporary path; strategy prose distinguishes Graduation from `DeferredDecisions`, triage defer, and rapid graduate (glossary naming owned by #2907). `scope:complete` on Now must not close linked graduation work (soft warn Wave A; hard gates Wave B). Fail Loud (#1006) requires naming open `graduationRef`s (or explicit skip) before production-ready / feature-complete claims. Content contracts cover the narrative requirements. Closes #2899.
 - **Standalone public docs site on GitHub Pages (#2906).** Static minimum IA under `docs-site/` (What, Install, Concepts A/B/C, Gates, Upgrade, License) with evidence-bound copy and links to `docs/CATEGORY.md`. Hosting ADR at `docs/decisions/ADR-docs-site-hosting.md`. Workflow `.github/workflows/docs-site.yml` publishes to `https://deftai.github.io/directive/`. README docs entry and `packages/cli` `homepage` point at that URL. Pointing product domain `deft.md` at the live site remains an operator DNS / Pages custom-domain step (documented in the ADR). Closes #2906.
 - **Category decision aid — hosts vs skill packs vs practice layer vs orchestrators (#2905).** Canonical short page `docs/CATEGORY.md` with the four-way fit table, what Directive is / is not, skill-pack stacking, host-as-runtime boundary, swarm-skills ≠ app orchestrators, and star-count misuse warning (category demand ≠ substitute size). README TL;DR and Getting Started link it above install; glossary defines the four terms with cross-links. No invented traction. Refs #1597, #878, #392. Closes #2905.
@@ -4745,7 +4757,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.87.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.88.0...HEAD
+[0.88.0]: https://github.com/deftai/directive/compare/v0.87.0...v0.88.0
 [0.87.0]: https://github.com/deftai/directive/compare/v0.86.0...v0.87.0
 [0.86.0]: https://github.com/deftai/directive/compare/v0.85.0...v0.86.0
 [0.85.0]: https://github.com/deftai/directive/compare/v0.84.0...v0.85.0
