@@ -1,6 +1,7 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { assertWriteTargetSafe, ProjectionContainmentError } from "../fs/projection-containment.js";
+import { ContainedWriteError, containedWrite } from "../fs/contained-write.js";
+import { ProjectionContainmentError } from "../fs/projection-containment.js";
 import {
   enableProductSignal,
   formatProductSignalStatusLine,
@@ -62,20 +63,25 @@ function recordLastSubmit(
   url: string | null,
 ): void {
   const path = resolve(projectRoot, PRODUCT_SIGNAL_LAST_SUBMIT_REL);
-  assertWriteTargetSafe(projectRoot, path);
   try {
-    mkdirSync(join(path, ".."), { recursive: true });
-    appendFileSync(
-      path,
-      `${JSON.stringify({
+    // #2980 wave D: product write sink routes through containedWrite.
+    const root = resolve(projectRoot);
+    containedWrite({
+      root,
+      target: path,
+      data: `${JSON.stringify({
         outcome,
         issueUrl: url,
         at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
       })}\n`,
-      "utf8",
-    );
-  } catch {
-    // observability only
+      mode: "append",
+    });
+  } catch (err) {
+    // Containment refusals must fail closed (tests + product path) (#2807 / #2980).
+    if (err instanceof ContainedWriteError || err instanceof ProjectionContainmentError) {
+      throw err;
+    }
+    // other observability I/O failures only
   }
 }
 
@@ -195,7 +201,7 @@ export async function submitProductSignal(
     try {
       recordLastSubmit(root, result.outcome, result.issueUrl ?? null);
     } catch (err) {
-      if (err instanceof ProjectionContainmentError) {
+      if (err instanceof ProjectionContainmentError || err instanceof ContainedWriteError) {
         return {
           outcome: "error-config",
           exitCode: 2,

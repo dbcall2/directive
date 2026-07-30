@@ -279,6 +279,7 @@ describe("writeModelDecision symlink containment (#2781)", () => {
         model: "composer-2.5-fast",
       }),
     ).toThrow(ProjectionContainmentError);
+    // assertWriteTargetSafe fires before containedWrite on this path.
     expect(readFileSync(victim, "utf8")).toBe("victim\n");
     rmSync(root, { recursive: true, force: true });
     rmSync(escapeDir, { recursive: true, force: true });
