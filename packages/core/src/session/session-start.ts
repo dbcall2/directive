@@ -30,6 +30,7 @@ import { emitSessionValueReadback } from "../value/readback.js";
 import { verifyRequiredTools } from "../verify-env/verify-tools.js";
 import type { GitRunner } from "./git.js";
 import { defaultGitRunner, gitHead, gitIsAncestor, worktreePath } from "./git.js";
+import { emitSessionStartProcessCost } from "./process-cost.js";
 import {
   probeSessionReleaseAvailability,
   type ReleaseAvailabilityProbeOptions,
@@ -482,6 +483,17 @@ function runSessionRearm(
   if (!eligibility.eligible) {
     const coldCmd = formatSessionStartRecoveryCommand("cold");
     const message = `${REARM_INELIGIBLE_PREFIX} ${eligibility.reason}. Run \`${coldCmd}\`.`;
+    // #2994: still record failed attempt duration for process-cost rollups.
+    emitSessionStartProcessCost(
+      {
+        ceremonyTier: REARM_CEREMONY_TIER,
+        durationMs: elapsedMs(overallStarted),
+        exitCode: 1,
+        ready: false,
+        optionalNetwork: false,
+      },
+      { projectRoot },
+    );
     return {
       code: 1,
       payload: {
@@ -565,7 +577,31 @@ function runSessionRearm(
     }),
     ceremony_tier: REARM_CEREMONY_TIER,
   };
-  const statePath = writeRitualState(projectRoot, writePayload);
+  let statePath: string;
+  try {
+    statePath = writeRitualState(projectRoot, writePayload);
+  } catch (cause) {
+    // #2994: still record failed attempt when ritual-state write throws.
+    emitSessionStartProcessCost(
+      {
+        ceremonyTier: REARM_CEREMONY_TIER,
+        durationMs: elapsedMs(overallStarted),
+        exitCode: 2,
+        ready: false,
+        optionalNetwork: false,
+        steps: [
+          { name: "alignment", duration_ms: 0 },
+          { name: "branch_policy", duration_ms: 0 },
+          { name: "verify_tools", duration_ms: 0, skipped: true },
+          { name: "triage_welcome", duration_ms: 0, skipped: true },
+          { name: "release_probe", duration_ms: 0, skipped: true },
+          { name: "ritual_write", duration_ms: elapsedMs(writeStarted) },
+        ],
+      },
+      { projectRoot },
+    );
+    throw cause;
+  }
   const stepTimings: SessionStartStepTiming[] = [
     { name: "alignment", duration_ms: 0 },
     { name: "branch_policy", duration_ms: 0 },
@@ -579,6 +615,18 @@ function runSessionRearm(
     .filter(([, step]) => !step.ok && !step.deferred_reason)
     .map(([name]) => name);
   const code = failed.length > 0 ? 1 : 0;
+  // #2994: local process-cost event (best-effort; never blocks ceremony).
+  emitSessionStartProcessCost(
+    {
+      ceremonyTier: REARM_CEREMONY_TIER,
+      durationMs: totalMs,
+      exitCode: code,
+      ready: code === 0,
+      optionalNetwork: false,
+      steps: stepTimings,
+    },
+    { projectRoot },
+  );
   return {
     code,
     payload: {
@@ -663,9 +711,22 @@ export function runSessionStart(
   if (gitHeadValue === null) {
     const payload = {
       ready: false,
+      exit_code: 2,
+      ceremony_tier: COLD_CEREMONY_TIER,
       environment: environmentContextToDict(environment),
       message: gitError ?? "could not resolve git HEAD",
     };
+    // #2994: still record failed attempt duration for process-cost rollups.
+    emitSessionStartProcessCost(
+      {
+        ceremonyTier: COLD_CEREMONY_TIER,
+        durationMs: elapsedMs(overallStarted),
+        exitCode: 2,
+        ready: false,
+        optionalNetwork: allowOptionalNetwork,
+      },
+      { projectRoot },
+    );
     return {
       code: 2,
       payload,
@@ -884,7 +945,25 @@ export function runSessionStart(
     quickSteps,
     gatedSteps,
   });
-  const statePath = writeRitualState(projectRoot, payload);
+  let statePath: string;
+  try {
+    statePath = writeRitualState(projectRoot, payload);
+  } catch (cause) {
+    // #2994: still record failed attempt when ritual-state write throws.
+    stepTimings.push({ name: "ritual_write", duration_ms: elapsedMs(writeStarted) });
+    emitSessionStartProcessCost(
+      {
+        ceremonyTier: COLD_CEREMONY_TIER,
+        durationMs: elapsedMs(overallStarted),
+        exitCode: 2,
+        ready: false,
+        optionalNetwork: allowOptionalNetwork,
+        steps: stepTimings,
+      },
+      { projectRoot },
+    );
+    throw cause;
+  }
   stepTimings.push({ name: "ritual_write", duration_ms: elapsedMs(writeStarted) });
 
   const failed = Object.entries(quickSteps)
@@ -911,6 +990,18 @@ export function runSessionStart(
     environment: environmentContextToDict(environment),
     message: code === 0 ? "session ritual recorded" : "session ritual failed",
   };
+  // #2994: local process-cost event (best-effort; never blocks ceremony).
+  emitSessionStartProcessCost(
+    {
+      ceremonyTier: COLD_CEREMONY_TIER,
+      durationMs: totalMs,
+      exitCode: code,
+      ready: code === 0,
+      optionalNetwork: allowOptionalNetwork,
+      steps: stepTimings,
+    },
+    { projectRoot },
+  );
   return { code, payload: resultPayload, lines };
 }
 
