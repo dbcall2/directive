@@ -1103,4 +1103,13 @@
 - **#2980** -- feat(security): #2980 leftovers sweep + fail-closed contained-writes in task check -- `[completed]`
 - **#518** -- feat(authz): typed escalation events + CLI batch queue (#518 slim) -- `[completed]`
 - **#871** -- feat(tasks): directive:finish-loop + pr:finish-loop walk-away product (#871) -- `[completed]`
+- **#2742** -- design(runtime): inter-run learning surface for recurring agent workflows (supersedes #2700) -- `[completed]`
+- **#2967** -- feat(swarm,review-cycle): deterministic tool-call classifier — explore/commit/verify taxonomy -- `[completed]`
+- **#2986** -- coverage-debt: restore Vitest branches >=85% (hairline 84.9% at v0.89.0 preflight) -- `[completed]`
+- perf(session): slim session:start hot path + latency budget -- `[completed]`
+- feat(session): cold vs re-arm ceremony tiers -- `[completed]`
+- feat(cli): session:ready one-shot recovery -- `[completed]`
+- feat(observability): process-cost events + step timings -- `[completed]`
+- feat(lifecycle): weekly folder stats for process rollups -- `[completed]`
+- feat(doctor,openclaw): detect missing host skill pins + doctor --fix wire -- `[completed]`
 

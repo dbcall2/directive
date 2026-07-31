@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.90.0] - 2026-07-31
+
+> Session ceremony wall-clock: slim hot-path session:start, re-arm tiers, session:ready, local process-cost events, and lifecycle folder stats; OpenClaw doctor pin detect+fix; tool-call classifier and inter-run learning design.
+
+### Added
+
 - **Process-cost ceremony events on local events.jsonl (#2994).** Registers behavioral `session:start` and `session:ritual-blocked` (registry colon style). Mutation `session:start` (cold + re-arm) emits timing payload (`ceremony_tier`, `duration_ms`, `exit_code`, optional `steps[]` from #2991). PreToolUse `ritual-not-ready` denials emit a cheap local block event. Always-on best-effort; not gated on valueFeedback; no remote Insights (#2603). Helper: `packages/core/src/session/process-cost.ts`. Docs map WWYSYDH ceremony labels → event names in `content/commands.md` § Process-cost events. Closes #2994. Parent epic #2990.
 - **Doctor OpenClaw always-pin detect + `--fix` wire (#3001).** When OpenClaw signals are present (`OPENCLAW` / `DEFT_PROBE_OPENCLAW` / `DEFT_AGENT_RUNTIME=openclaw`, or `~/.openclaw` / `OPENCLAW_STATE_DIR`), `deft doctor` checks the main workspace skills root for the four always-pins (`deft-directive-build`, `pre-pr`, `review-cycle`, `swarm`). Miss → warning + remediation `deft doctor --fix`. Fix mode symlinks (preferred) or copies pins from the content package into `$OPENCLAW_STATE_DIR/workspace/skills` without deleting user skills; multi-seat only with `--openclaw-all-agents`; divergent dirs need `--force` or TTY confirm. Module: `packages/core/src/doctor/openclaw-skills.ts`. Docs: `content/docs/openclaw-agent-host.md` wire step + host-lifecycle pointer. Closes #3001. Refs #2508, #2874, #2968.
 - **`deft session:ready` one-shot mutation recovery (#2993).** Composes `session:start` (when quick-tier is not green) + `verify:session-ritual --tier=gated` + `cache fetch-all --force` when `cache_fresh` blocks, so PreToolUse gated inspect goes green in one verb. Idempotent fast path when already fresh (no unnecessary fetch-all). Hook denial copy points at `session:ready`. Core: `packages/core/src/session/session-ready.ts`; CLI: `packages/cli/src/session-ready.ts`; `task session:ready`. Docs: `content/commands.md` § Mutable ritual. Closes #2993. Parent epic #2990.
@@ -4810,7 +4822,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.89.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.90.0...HEAD
+[0.90.0]: https://github.com/deftai/directive/compare/v0.89.0...v0.90.0
 [0.89.0]: https://github.com/deftai/directive/compare/v0.88.0...v0.89.0
 [0.88.0]: https://github.com/deftai/directive/compare/v0.87.0...v0.88.0
 [0.87.0]: https://github.com/deftai/directive/compare/v0.86.0...v0.87.0
