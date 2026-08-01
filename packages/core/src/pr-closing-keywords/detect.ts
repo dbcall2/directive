@@ -28,7 +28,8 @@ const EXAMPLE_MARKERS: readonly RegExp[] = [
 ];
 
 const BLOCKQUOTE_RE = /^\s*>\s/m;
-const CODE_FENCE_RE = /^```/m;
+/** CommonMark fenced code opener/closer at line start: 3+ backticks or 3+ tildes. */
+const CODE_FENCE_LINE_RE = /^(?:`{3,}|~{3,})/;
 
 function findAllMatches(text: string, re: RegExp): RegExpExecArray[] {
   const flags = re.flags.includes("g") ? re.flags : `${re.flags}g`;
@@ -51,10 +52,40 @@ function lineStartingAt(text: string, offset: number): string {
   return text.slice(lineStart, lineEnd);
 }
 
+/**
+ * CommonMark fence stack: open and close must use the same character, and the
+ * closer length must be >= opener length. Mixed ``` / ~~~ or shorter closers
+ * do not pop the open fence.
+ */
 function isInsideCodeFence(text: string, offset: number): boolean {
-  const prefix = text.slice(0, offset);
-  const matches = prefix.match(CODE_FENCE_RE);
-  return matches !== null && matches.length % 2 === 1;
+  let openChar: "`" | "~" | null = null;
+  let openLen = 0;
+  let lineStart = 0;
+  while (lineStart < offset) {
+    let lineEnd = text.indexOf("\n", lineStart);
+    if (lineEnd === -1 || lineEnd > offset) {
+      lineEnd = Math.min(text.length, offset);
+    }
+    const line = text.slice(lineStart, lineEnd);
+    const m = CODE_FENCE_LINE_RE.exec(line);
+    if (m !== null) {
+      const fence = m[0] ?? "";
+      const ch = fence[0] as "`" | "~";
+      const len = fence.length;
+      if (openChar === null) {
+        openChar = ch;
+        openLen = len;
+      } else if (ch === openChar && len >= openLen) {
+        openChar = null;
+        openLen = 0;
+      }
+    }
+    if (lineEnd >= offset) {
+      break;
+    }
+    lineStart = lineEnd + 1;
+  }
+  return openChar !== null;
 }
 
 function classifyHit(text: string, match: RegExpExecArray): string | null {
@@ -110,6 +141,13 @@ export function renderHit(hit: Hit): string {
   );
 }
 
+function snippetAround(text: string, match: RegExpExecArray): string {
+  const snippetStart = Math.max(0, (match.index ?? 0) - 30);
+  const snippetEnd = Math.min(text.length, (match.index ?? 0) + match[0].length + 30);
+  return text.slice(snippetStart, snippetEnd).replace(/\n/g, " ");
+}
+
+/** Layer 0 FP hits only (#737): keyword in negation / quotation / example / code-block / blockquote. */
 export function findHits(text: string, source: string): Hit[] {
   const hits: Hit[] = [];
   const re = new RegExp(CLOSING_KEYWORD_RE.source, CLOSING_KEYWORD_RE.flags);
@@ -117,18 +155,47 @@ export function findHits(text: string, source: string): Hit[] {
   while (match !== null) {
     const category = classifyHit(text, match);
     if (category !== null) {
-      const snippetStart = Math.max(0, (match.index ?? 0) - 30);
-      const snippetEnd = Math.min(text.length, (match.index ?? 0) + match[0].length + 30);
-      const context = text.slice(snippetStart, snippetEnd).replace(/\n/g, " ");
       hits.push({
         source,
         keyword: match[1] ?? "",
         issueNumber: Number(match[2]),
-        context,
+        context: snippetAround(text, match),
         reason: category,
       });
     }
     match = re.exec(text);
   }
   return hits;
+}
+
+/**
+ * Intent-mode hits (#3015 class D): every closing-keyword + `#N` match, regardless of
+ * surrounding prose. GitHub closes on token presence; conditional English is ignored.
+ * reason is the FP category when present, otherwise `intent`.
+ */
+export function findAllClosingKeywordHits(text: string, source: string): Hit[] {
+  const hits: Hit[] = [];
+  const re = new RegExp(CLOSING_KEYWORD_RE.source, CLOSING_KEYWORD_RE.flags);
+  let match: RegExpExecArray | null = re.exec(text);
+  while (match !== null) {
+    const category = classifyHit(text, match);
+    hits.push({
+      source,
+      keyword: match[1] ?? "",
+      issueNumber: Number(match[2]),
+      context: snippetAround(text, match),
+      reason: category ?? "intent",
+    });
+    match = re.exec(text);
+  }
+  return hits;
+}
+
+/**
+ * Body trailer `deft-close-intent: full` is intentionally NOT an authorization path.
+ * Intent-mode allowlist is CLI `--allow-close N,M` only (#3015 / Greptile class-D gate).
+ * Markdown examples must never suppress real closing-keyword findings.
+ */
+export function hasFullCloseIntent(_text: string): boolean {
+  return false;
 }
