@@ -5,10 +5,6 @@
 
 # Roadmap
 
-## Active
-
-- **#2653** -- ROADMAP.md is Completed-only again — no forward-looking product roadmap (#632 recurrence) -- `[running]`
-
 ## Proposed
 
 _Scopes not yet promoted to pending. Orientation only — not a substitute for `task triage:queue`._
@@ -54,19 +50,24 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 - **#1298** -- Migrate existing free-form vBRIEF edit call sites to CRUD tool -- `[proposed]`
 - **#1299** -- When to use CRUD tool vs direct vBRIEF authoring (contributor doc) -- `[proposed]`
 - **#2651** -- ADR-002: Forge-provider Azure DevOps adoption gate (proposed) -- `[proposed]`
-- **#3009** -- epic(build,harness): multi-scope turn/cache budget (post-v0.90 ceremony) -- `[proposed]`
-- **#3010** -- feat(harness,build): ban re-init/session ceremony after offline seed -- `[proposed]`
-- **#3011** -- feat(scope): batch promote multi-scope pin; keep one active implement -- `[proposed]`
-- **#3012** -- docs(skills): multi-scope build — quality check once at end unless failed -- `[proposed]`
-- **#3013** -- feat(setup,seed): minimal render-ready PROJECT-DEFINITION for one-shot project:render -- `[proposed]`
 - **#3014** -- research(deposit): opt-in minimal consumer AGENTS profile for app-bank / greenfield -- `[proposed]`
 
 ## Completed
 
-_Showing 25 of 1098 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1108 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#3015** -- pr:check-closing-keywords misses multi-phase / conditional Closes #N (enterprize#29 false complete) -- `[completed]`
+- **#3011** -- feat(scope): batch promote multi-scope pin; keep one active implement -- `[completed]`
+- **#3010** -- feat(harness,build): ban re-init/session ceremony after offline seed -- `[completed]`
+- **#3009** -- epic(build,harness): multi-scope turn/cache budget (post-v0.90 ceremony) -- `[completed]`
+- **#1695** -- meta(coding-standards): codify 'no in-band signaling / absence is not a decision' — separate value from decision-provenance -- `[completed]`
+- **#1694** -- bug(triage,onboarding): wipCap onboarding nudge contradicts test_policy_omits_wip_cap on deft's own repo (unsatisfiable nudge + self-check trap) -- `[completed]`
+- **#1566** -- spec: render produces unusably large SPECIFICATION.md by default -- `[completed]`
+- **#2653** -- ROADMAP.md is Completed-only again — no forward-looking product roadmap (#632 recurrence) -- `[completed]`
 - **#3008** -- doctor OpenClaw always-pins: symlink install rejected by OpenClaw symlink-escape -- `[completed]`
 - feat(doctor,openclaw): detect missing host skill pins + doctor --fix wire -- `[completed]`
+- **#3013** -- feat(setup,seed): minimal render-ready PROJECT-DEFINITION for one-shot project:render -- `[completed]`
+- **#3012** -- docs(skills): multi-scope build — quality check once at end unless failed -- `[completed]`
 - **#2980** -- feat(security): #2980 leftovers sweep + fail-closed contained-writes in task check -- `[completed]`
 - **#2980** -- feat(security): migrate eval/doctor/xbrief residual product writes (#2980 wave C) -- `[completed]`
 - **#2980** -- feat(security): migrate intake/authz/escalation/scope ledgers to containedWrite (#2980 wave B) -- `[completed]`
@@ -80,14 +81,4 @@ _Showing 25 of 1098 completed scopes (newest first). Full history: lifecycle `co
 - **#2944** -- bug(authz): self-authored consent tokens and active UAT runs do not prevent unauthorized mutation -- `[completed]`
 - **#1193** -- feat(authz): agent blast-radius controls — intent ceiling (Wave 2 / #1193) -- `[completed]`
 - **#1095** -- feat(authz): closed-verb release gates + AFK templates consuming human-origin grants (#1095 slim) -- `[completed]`
-- **#2951** -- Phase 1: containedWrite API + tests + docs + verify skeleton (#2951) -- `[completed]`
-- **#2953** -- perf(release): speed up routine cuts — skip scratch scans, document Step 5 modes -- `[completed]`
-- **#2943** -- bug(openclaw): parent agent text-repetition hang after thin subagent completion -- `[completed]`
-- **#2907** -- docs/product: vBRIEF is legacy — xbrief sole public canonical work-state name -- `[completed]`
-- **#2899** -- bug(strategies,scope): Now+Later graduation dual-path locks for intentional under-builds -- `[completed]`
-- **#2711** -- feat(harness): Shell/MCP PreToolUse matchers for runtimeAuthority scopes.push / scopes.merge -- `[completed]`
-- **#2926** -- feat(policy/setup): official per-project .no-deft-directive opt-out flag -- `[completed]`
-- **#2925** -- bug(strategies): chaining gate Proceed is artifact-blind - interview create-vs-update -- `[completed]`
-- **#2934** -- feat(swarm): require next-phase tool dispatch after cohort complete (no prose-only handoff) -- `[completed]`
-- **#2929** -- feat(swarm,openclaw): require worktree before sessions_spawn; block shared-checkout parallel dispatch -- `[completed]`
 

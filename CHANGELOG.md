@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.91.0] - 2026-08-01
+
+> Cohort cut: OpenClaw pin copies, SCM readiness, closing-keyword intent mode, forward ROADMAP + compact SPECIFICATION, wipCap decision-provenance.
+
+### Added
+
 - **Coding standard: no in-band signaling / absence is not a decision (#1695).** Always-loaded `coding/coding.md` Design Principles block (`State & Data Modeling`) plus long-form `patterns/in-band-signaling.md` (orthogonality test, three-kinds-of-provenance, wipCap worked example). Content test pins both surfaces. Ships with the #1694 wipCap fix. Closes #1695. Refs #1694, #1186.
 - **Compact default `task spec:render` (#1566).** Lifecycle Scope outlook and `LegacyArtifacts` are off by default so `SPECIFICATION.md` stays a usable product spec instead of a completed-archive dump. Opt in: `--include-scopes=current` (pending+active), `--include-scopes=all` (legacy full aggregation), `--include-legacy-artifacts=on`. Rendered markdown strips trailing whitespace. Same compact defaults apply to `project:export-spec` / `exportSpec`. Closes #1566. Refs #1589.
 - **SCM tooling + auth readiness in mismatched/headless envs (#2275).** Detects `gh`/`ghx` on PATH and auth state in the *execution* env (host-gh vs injected-token / `GH_TOKEN`), fails loud with a named diagnostic instead of opaque spawn errors, and lists which SCM-dependent gates are skipped. `session:start` (read-only, cold, re-arm) emits `[deft scm]` lines + `scm` JSON; cold path records `scm_readiness` in `steps[]` (shallow by default; deep with `--with-network`). Explicit probe: `deft scm:status` / `scm:readiness` (exit 0/1/2; `--json`, `--deep`). Framework-local gates still run without SCM. Core: `packages/core/src/scm/readiness.ts` + readiness-cli; session wire in `session-start.ts`; docs `content/contracts/scm-readiness.md` + `content/scm/github.md` § Mismatched/headless SCM readiness. Closes #2275. Refs #2203, #2271, #1557, #884.
@@ -4839,7 +4851,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.90.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.91.0...HEAD
+[0.91.0]: https://github.com/deftai/directive/compare/v0.90.0...v0.91.0
 [0.90.0]: https://github.com/deftai/directive/compare/v0.89.0...v0.90.0
 [0.89.0]: https://github.com/deftai/directive/compare/v0.88.0...v0.89.0
 [0.88.0]: https://github.com/deftai/directive/compare/v0.87.0...v0.88.0
