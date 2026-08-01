@@ -26,6 +26,11 @@ export interface CallOptions {
 /**
  * Source-aware SCM invocation -- partial down-payment on #445 / #935 Workstream 6.
  * Mirrors `scripts/scm.py::call`.
+ *
+ * Binary absence still throws ScmStubError via resolveBinary with the #2275
+ * diagnostic. Full auth readiness is enforced at SCM CLI entry points
+ * (`scm/main`, issue-ingest, reconcile-issues) via requireScmReady — not on
+ * every call() — so unit tests that inject binary/seams stay hermetic.
  */
 export function call(
   source: string,
