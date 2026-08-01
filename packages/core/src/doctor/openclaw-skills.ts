@@ -21,7 +21,9 @@ import {
   lstatSync,
   mkdirSync,
   readdirSync,
+  readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -71,6 +73,7 @@ export interface OpenClawSkillPinsSeams {
   readonly symlinkDir?: (target: string, path: string) => void;
   readonly copyDir?: (src: string, dst: string) => void;
   readonly removePath?: (path: string) => void;
+  readonly renamePath?: (from: string, to: string) => void;
   readonly contentRootFor?: (frameworkRoot: string) => string;
   readonly isTty?: () => boolean;
   readonly readYn?: (prompt: string, defaultYes: boolean) => boolean;
@@ -237,6 +240,25 @@ function skillHasBody(
 }
 
 /**
+ * True when both dirs have SKILL.md with identical bytes (pin still current
+ * after package upgrade). False / unreadable → treat as stale (#3008 P1).
+ */
+function skillBodyMatchesPackage(
+  sourceDir: string,
+  targetDir: string,
+  isFile: (path: string) => boolean,
+): boolean {
+  const src = join(sourceDir, "SKILL.md");
+  const dst = join(targetDir, "SKILL.md");
+  if (!isFile(src) || !isFile(dst)) return false;
+  try {
+    return readFileSync(src, "utf8") === readFileSync(dst, "utf8");
+  } catch {
+    return false;
+  }
+}
+
+/**
  * True when `path` is a symlink whose resolved real path is outside `skillsDir`
  * (OpenClaw `symlink-escape` / #3008).
  */
@@ -262,19 +284,22 @@ export function isEscapingSkillSymlink(
 /**
  * Assess which always-pins are present / missing / divergent in a skills root.
  *
- * - present: real directory (or non-escaping symlink) with SKILL.md
+ * - present: real directory (or non-escaping symlink) with SKILL.md matching
+ *   the content package when `contentBase` is supplied
  * - missing: path does not exist
  * - divergent: path exists but is not a usable OpenClaw pin (file, empty dir,
- *   broken link, or **escaping symlink** into content package — #3008)
+ *   broken link, **escaping symlink**, or **stale SKILL.md** vs package — #3008)
  */
 export function assessOpenClawPins(
   skillsDir: string,
   seams: Pick<OpenClawSkillPinsSeams, "isDir" | "isFile" | "pathExists" | "lstatKind"> = {},
+  options: { contentBase?: string } = {},
 ): OpenClawPinAssessment {
   const isDir = seams.isDir ?? defaultIsDir;
   const isFile = seams.isFile ?? defaultIsFile;
   const pathExists = seams.pathExists ?? defaultPathExists;
   const lstatKind = seams.lstatKind ?? defaultLstatKind;
+  const contentBase = options.contentBase;
 
   const present: OpenClawAlwaysPinSkill[] = [];
   const missing: OpenClawAlwaysPinSkill[] = [];
@@ -293,6 +318,15 @@ export function assessOpenClawPins(
       continue;
     }
     if (skillHasBody(target, isFile, isDir)) {
+      if (contentBase) {
+        const sourceDir = resolvePinSourceDir(contentBase, skillId);
+        if (!skillBodyMatchesPackage(sourceDir, target, isFile)) {
+          // Stale copy after package upgrade — surface as divergent so doctor
+          // does not report "present" and skip repair (#3008 Greptile P1).
+          divergent.push(skillId);
+          continue;
+        }
+      }
       present.push(skillId);
       continue;
     }
@@ -339,6 +373,11 @@ function defaultCopyDir(src: string, dst: string): void {
  * reports "present". Opt into legacy symlink-first with `preferSymlink: true`
  * (still falls back to copy). Never deletes unrelated user skills. Divergent
  * targets (including escaping symlinks) require force or TTY confirm.
+ *
+ * Stale copies (SKILL.md differs from package) are not "already-present" —
+ * doctor --fix refreshes them so upgrades land without manual delete (#3008 P1).
+ * Forced replace stages into a sibling temp dir first so a failed copy does not
+ * leave the pin permanently deleted (#3008 P1).
  */
 export function installOpenClawPin(
   skillId: OpenClawAlwaysPinSkill,
@@ -349,6 +388,11 @@ export function installOpenClawPin(
     allowOverwrite?: boolean;
     /** When true, try symlink first (legacy #3001). Default false — copy (#3008). */
     preferSymlink?: boolean;
+    /**
+     * When true, refresh copied pins whose SKILL.md no longer matches the
+     * package (package upgrade path). Doctor --fix sets this.
+     */
+    refreshStale?: boolean;
   } = {},
   seams: OpenClawSkillPinsSeams = {},
 ): PinInstallResult {
@@ -366,10 +410,12 @@ export function installOpenClawPin(
   const copyDir = seams.copyDir ?? defaultCopyDir;
   const removePath =
     seams.removePath ?? ((p: string) => rmSync(p, { recursive: true, force: true }));
+  const renamePath = seams.renamePath ?? ((from: string, to: string) => renameSync(from, to));
 
   const target = join(skillsDir, skillId);
   const force = options.force === true || options.allowOverwrite === true;
   const preferSymlink = options.preferSymlink === true;
+  const refreshStale = options.refreshStale === true;
 
   if (!isDir(sourceDir) || !isFile(join(sourceDir, "SKILL.md"))) {
     return {
@@ -387,14 +433,28 @@ export function installOpenClawPin(
   if (kind !== "missing") {
     const escaping = kind === "symlink" && isEscapingSkillSymlink(skillsDir, target, { lstatKind });
     if (!escaping && skillHasBody(target, isFile, isDir)) {
-      return {
-        skillId,
-        method: "already-present",
-        target,
-        source: sourceDir,
-      };
-    }
-    if (!force) {
+      const matches = skillBodyMatchesPackage(sourceDir, target, isFile);
+      if (matches) {
+        return {
+          skillId,
+          method: "already-present",
+          target,
+          source: sourceDir,
+        };
+      }
+      // Stale copy after package upgrade — refresh under --fix / force.
+      if (!force && !refreshStale) {
+        return {
+          skillId,
+          method: "skipped",
+          target,
+          source: sourceDir,
+          detail:
+            "stale pin (SKILL.md differs from content package); re-run with --force or doctor --fix to refresh",
+        };
+      }
+      // fall through to safe replace
+    } else if (!force) {
       return {
         skillId,
         method: "skipped",
@@ -405,10 +465,9 @@ export function installOpenClawPin(
           : "divergent target exists; re-run with --force or confirm on TTY to replace",
       };
     }
-    removePath(target);
   }
 
-  if (preferSymlink) {
+  if (preferSymlink && kind === "missing") {
     try {
       symlinkDir(sourceDir, target);
       return { skillId, method: "symlink", target, source: sourceDir };
@@ -417,10 +476,142 @@ export function installOpenClawPin(
     }
   }
 
+  // Exclusive lock dir serializes concurrent doctor --fix on the same pin
+  // (non-recursive mkdir fails with EEXIST — atomic on win32 + posix). No
+  // writeFileSync (contained-writes #2951). Crash recovery: reclaim locks older
+  // than 10 minutes (pin install is seconds; long steal window is intentional).
+  const lockDir = `${target}.deft-lock`;
+  const STALE_LOCK_MS = 10 * 60 * 1000;
+  const tryAcquireLock = (): boolean => {
+    try {
+      mkdirSync(lockDir);
+      return true;
+    } catch {
+      try {
+        const ageMs = Date.now() - statSync(lockDir).mtimeMs;
+        if (ageMs >= STALE_LOCK_MS) {
+          rmSync(lockDir, { recursive: true, force: true });
+          mkdirSync(lockDir);
+          return true;
+        }
+      } catch {
+        try {
+          mkdirSync(lockDir);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      return false;
+    }
+  };
+  if (!tryAcquireLock()) {
+    return {
+      skillId,
+      method: "skipped",
+      target,
+      source: sourceDir,
+      detail: "another doctor process is installing this pin; re-run after it finishes",
+    };
+  }
+
+  const releaseLock = (): void => {
+    try {
+      removePath(lockDir);
+    } catch {
+      // ignore
+    }
+  };
+
+  // Stage copy first so a failed install never deletes the prior target without
+  // a replacement ready (#3008 Greptile P1: failed copies lose replaced targets).
+  // Unique suffix avoids leftover collision if a prior crash left staging files.
+  const swapId = `${process.pid}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const staging = `${target}.deft-installing-${swapId}`;
   try {
-    copyDir(sourceDir, target);
+    removePath(staging);
+  } catch {
+    // ignore missing staging
+  }
+  try {
+    copyDir(sourceDir, staging);
+  } catch (err) {
+    try {
+      removePath(staging);
+    } catch {
+      // ignore cleanup
+    }
+    releaseLock();
+    return {
+      skillId,
+      method: "skipped",
+      target,
+      source: sourceDir,
+      detail: `install failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
+  // Re-check under the lock: another process may have already refreshed to a
+  // matching real copy. Escaping symlinks still match SKILL.md bytes through
+  // the link — never short-circuit those; they must become real copies.
+  const kindUnderLock = lstatKind(target);
+  const escapingUnderLock =
+    kindUnderLock === "symlink" && isEscapingSkillSymlink(skillsDir, target, { lstatKind });
+  if (
+    kindUnderLock !== "missing" &&
+    !escapingUnderLock &&
+    skillHasBody(target, isFile, isDir) &&
+    skillBodyMatchesPackage(sourceDir, target, isFile)
+  ) {
+    try {
+      removePath(staging);
+    } catch {
+      // ignore
+    }
+    releaseLock();
+    return {
+      skillId,
+      method: "already-present",
+      target,
+      source: sourceDir,
+    };
+  }
+
+  const backup = kindUnderLock !== "missing" ? `${target}.deft-backup-${swapId}` : null;
+  try {
+    if (backup !== null) {
+      try {
+        removePath(backup);
+      } catch {
+        // ignore
+      }
+      renamePath(target, backup);
+    }
+    renamePath(staging, target);
+    if (backup !== null) {
+      try {
+        removePath(backup);
+      } catch {
+        // leftover backup is harmless
+      }
+    }
+    releaseLock();
     return { skillId, method: "copy", target, source: sourceDir };
   } catch (err) {
+    // Restore backup if we moved it away and the swap failed.
+    try {
+      removePath(staging);
+    } catch {
+      // ignore
+    }
+    if (backup !== null && lstatKind(target) === "missing" && lstatKind(backup) !== "missing") {
+      try {
+        renamePath(backup, target);
+      } catch {
+        // best-effort restore
+      }
+    }
+    releaseLock();
     return {
       skillId,
       method: "skipped",
@@ -479,7 +670,11 @@ export function runOpenClawSkillPinsCheck(
   let allPresent = true;
 
   for (const skillsDir of skillsDirs) {
-    const assessment = assessOpenClawPins(skillsDir, { isDir, isFile, lstatKind: seams.lstatKind });
+    const assessment = assessOpenClawPins(
+      skillsDir,
+      { isDir, isFile, lstatKind: seams.lstatKind },
+      { contentBase },
+    );
     if (assessment.missing.length > 0) {
       allPresent = false;
       missingByDir.push({ skillsDir, missing: [...assessment.missing] });
@@ -526,24 +721,41 @@ export function runOpenClawSkillPinsCheck(
     // Non-interactive --fix applies additive installs (safe); divergent needs --force.
     if (allowFix) {
       for (const skillsDir of skillsDirs) {
-        const assessment = assessOpenClawPins(skillsDir, {
-          isDir,
-          isFile,
-          lstatKind: seams.lstatKind,
-        });
+        const assessment = assessOpenClawPins(
+          skillsDir,
+          {
+            isDir,
+            isFile,
+            lstatKind: seams.lstatKind,
+          },
+          { contentBase },
+        );
         const toInstall = new Set<OpenClawAlwaysPinSkill>([
           ...assessment.missing,
           ...(options.force ? assessment.divergent : []),
         ]);
-        if (!options.force && assessment.divergent.length > 0 && isTty() && !options.jsonMode) {
+        // Stale pins (SKILL.md ≠ package) are classified divergent; under --fix
+        // refresh them without TTY confirm (safe overwrite of our own pins).
+        if (!options.force) {
           for (const skillId of assessment.divergent) {
+            const sourceDir = resolvePinSourceDir(contentBase, skillId);
+            const target = join(skillsDir, skillId);
             if (
-              readYn(
-                `Replace divergent OpenClaw skill dir ${join(skillsDir, skillId)} with pin from content package?`,
-                false,
-              )
+              skillHasBody(target, isFile, isDir) &&
+              !skillBodyMatchesPackage(sourceDir, target, isFile)
             ) {
               toInstall.add(skillId);
+              continue;
+            }
+            if (isTty() && !options.jsonMode) {
+              if (
+                readYn(
+                  `Replace divergent OpenClaw skill dir ${join(skillsDir, skillId)} with pin from content package?`,
+                  false,
+                )
+              ) {
+                toInstall.add(skillId);
+              }
             }
           }
         }
@@ -553,7 +765,10 @@ export function runOpenClawSkillPinsCheck(
             skillId,
             sourceDir,
             skillsDir,
-            { force: options.force || assessment.divergent.includes(skillId) },
+            {
+              force: options.force || assessment.divergent.includes(skillId),
+              refreshStale: true,
+            },
             seams,
           );
           installResults.push(result);
@@ -578,7 +793,11 @@ export function runOpenClawSkillPinsCheck(
     let stillMissing = false;
     const postMissing: string[] = [];
     for (const skillsDir of skillsDirs) {
-      const post = assessOpenClawPins(skillsDir, { isDir, isFile, lstatKind: seams.lstatKind });
+      const post = assessOpenClawPins(
+        skillsDir,
+        { isDir, isFile, lstatKind: seams.lstatKind },
+        { contentBase },
+      );
       if (post.missing.length > 0 || post.divergent.length > 0) {
         stillMissing = true;
         postMissing.push(

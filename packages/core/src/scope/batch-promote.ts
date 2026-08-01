@@ -5,13 +5,41 @@
  * Activate + implement remain one-at-a-time.
  */
 
-import { existsSync, readdirSync } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
+import { existsSync, readdirSync, realpathSync } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { hasArtifactSuffix, resolveLifecycleFolder } from "../layout/resolve.js";
 import { stripTrailingPathSeparators } from "../text/redos-safe.js";
 import { resolveProjectRoot } from "./project-context.js";
 import { recordWipCapOverride, runTransition } from "./transition.js";
 import { checkWipCapForAdditional, formatWipCapRefusal } from "./wip-cap-check.js";
+
+/** True when path (and its realpath, if resolvable) stay inside projectRoot. */
+function isPathInsideProject(projectRoot: string, absPath: string): boolean {
+  const root = resolve(projectRoot);
+  const abs = resolve(absPath);
+  const rel = relative(root, abs);
+  if (rel === "" || rel.startsWith(`..${sep}`) || rel.startsWith("..") || isAbsolute(rel)) {
+    return false;
+  }
+  // Reject in-project symlinks that resolve outside the tree (#3011 Greptile P1).
+  try {
+    const realRoot = realpathSync(root);
+    const realAbs = realpathSync(abs);
+    const realRel = relative(realRoot, realAbs);
+    if (
+      realRel === "" ||
+      realRel.startsWith(`..${sep}`) ||
+      realRel.startsWith("..") ||
+      isAbsolute(realRel)
+    ) {
+      return false;
+    }
+  } catch {
+    // Unreadable realpath — refuse rather than promote through a broken link.
+    return false;
+  }
+  return true;
+}
 
 export interface BatchPromoteOptions {
   /** Explicit files (absolute or project-relative). Empty = all proposed/ artifacts. */
@@ -86,6 +114,14 @@ export function batchPromote(options: BatchPromoteOptions = {}): BatchPromoteRes
   let promoted = 0;
 
   for (const filePath of files) {
+    // Re-validate containment immediately before use (TOCTOU: path may become
+    // an out-of-tree symlink after the initial candidate scan) (#3011 P1).
+    if (!isPathInsideProject(root, filePath)) {
+      skipped.push(
+        `${filePath.split(/[/\\]/).pop() ?? filePath}: path escapes project root at promote time`,
+      );
+      continue;
+    }
     const result = runTransition("promote", filePath);
     if (result.ok) {
       promoted += 1;
@@ -116,7 +152,8 @@ export function batchPromote(options: BatchPromoteOptions = {}): BatchPromoteRes
     promoted,
     skipped,
     messages,
-    exitCode: skipped.length === 0 ? 0 : promoted > 0 ? 0 : 1,
+    // Partial batch is failure for automation (#3011 Greptile P1).
+    exitCode: skipped.length === 0 ? 0 : 1,
     wipCapOverride: capCheck.forceOverride && promoted > 0,
   };
 }
@@ -135,6 +172,12 @@ function resolvePromoteCandidates(
       const abs = isAbsolute(stripped) ? resolve(stripped) : resolve(projectRoot, stripped);
       if (!existsSync(abs)) {
         return { files: [], error: `File not found: ${abs}` };
+      }
+      if (!isPathInsideProject(projectRoot, abs)) {
+        return {
+          files: [],
+          error: `Path escapes project root (refusing out-of-tree scope): ${abs}`,
+        };
       }
       const base = abs.split(/[/\\]/).pop() ?? "";
       if (!hasArtifactSuffix(base)) {
