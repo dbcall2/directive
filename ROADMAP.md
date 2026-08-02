@@ -12,7 +12,6 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 - **#100** -- [Compliance] Evidence collection automation hooks -- `[proposed]`
 - **#112** -- External “Deft Directive” PDF is premature -- describes post-Phase-1-3 state; defer distribution or add known-issues caveat; incorporate as `docs/getting-started.md` after Phases 1–3 ship -- `[proposed]`
 - **#114** -- Document all global Warp rules used for deft development; migrate project-scope rules to `AGENTS.md`/`CONVENTIONS.md`; inventory remaining global-only rules in `CONTRIBUTING.md` -- `[proposed]`
-- **#127** -- Improved support for Deft in existing repositories -- bootstrap should detect existing code and offer brownfield/map analysis path instead of greenfield-only questionnaire (related to #103; CLI integration in Phase 4 with #53) -- `[proposed]`
 - **#128** -- CI vBRIEF schema sync check: fetch upstream `vbrief-core.schema.json` from `deftai/vBRIEF`, diff against vendored copy, fail on divergence (depends on #57) -- `[proposed]`
 - **#136** -- Warp doesn't load deft's AGENTS.md by default -- `[proposed]`
 - **#194** -- User-facing best practices guide (`docs/best-practices.md`) -- Directive contract hierarchy usage, Warp swarming patterns, and user-oriented skill documentation; in-repo successor to premature PDF guide (#112); depends on #147 and #188 for stable content (xrefs #112, #84, #114) -- `[proposed]`
@@ -20,7 +19,6 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 - **#228** -- Bring run CLI into test coverage measurement -- refactor run/run.py to separate pure logic from terminal I/O, add unit tests, remove pyproject.toml omit entries (confirm #160 disposition before implementing) -- `[proposed]`
 - **#233** -- More Determinism (remaining): Phase 0 spec scaffolding, task doctor, build:verify, change:archive, task ci:local, task release -- `[proposed]`
 - **#258** -- Inventory Warp Drive global rules used for deft development and document in `CONTRIBUTING.md` under a Warp-specific section (spinoff of #114; blocked on #89 positioning resolution; with #136) -- `[proposed]`
-- **#46** -- Provide a way for users to update meta MD files (SOUL, MORALS, CODE-FIELD, USER, etc.) -- `[proposed]`
 - **#55** -- Register Deft commands as native agent slash commands (Claude Code, Copilot, Gemini, etc.) -- also absorbs slash-command registration scope from #54 -- `[proposed]`
 - **#56** -- Reduce installation friction -- add shell one-liner, Homebrew, and platform package managers (absorbed #101: decide whether manual clone path stays or goes) -- `[proposed]`
 - **#75** -- Skill auto-discovery: make deft skills work in both user projects and deft development (symlinks/copies to `.agents/skills/`, `.claude/skills/`, etc.) -- `[proposed]`
@@ -54,8 +52,19 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1108 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1119 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#127** -- Improved support for Deft in existing repositories -- bootstrap should detect existing code and offer brownfield/map analysis path instead of greenfield-only questionnaire (related to #103; CLI integration in Phase 4 with #53) -- `[completed]`
+- **#3048** -- docs: delete or archive valuable-go-task-improvements.md (post-#446) -- `[completed]`
+- **#3042** -- fix(security): projectRoot containment for atomicWriteText, ritual-state, probe-session (parent-as-root + bare write) -- `[completed]`
+- **#3041** -- bug(scope,swarm): completion succeeds without proof that implementation reached the delivery branch -- `[completed]`
+- **#46** -- setup: Revisit experimental rules (toggle Experimental Rules without hand-editing schema) -- `[completed]`
+- **#3044** -- fix(review-cycle,openclaw): empty announce ≠ done + single review-monitor lease -- `[completed]`
+- **#3039** -- feat(policy): `.deft-directive-disable` test kill-switch (file + AGENTS/CLI/doctor; re-enable needs new session) -- `[completed]`
+- **#3027** -- coverage-debt: restore Vitest branches >=85% (84.91% at v0.91.0 preflight) -- `[completed]`
+- **#3030** -- fail-closed: enforce #1430 consumer-path denylist on installerManagedMatchers (SPEC must break CI) -- `[completed]`
+- **#3032** -- process: through merge / drive-to:merge-ready must dispatch worker (parent must not implement); N=1 uses swarm path -- `[completed]`
+- **#3029** -- deft-core-guard allowlists PROJECT-DEFINITION — breaks #1430 mixed-change invariant -- `[completed]`
 - **#3015** -- pr:check-closing-keywords misses multi-phase / conditional Closes #N (enterprize#29 false complete) -- `[completed]`
 - **#3011** -- feat(scope): batch promote multi-scope pin; keep one active implement -- `[completed]`
 - **#3010** -- feat(harness,build): ban re-init/session ceremony after offline seed -- `[completed]`
@@ -70,15 +79,4 @@ _Showing 25 of 1108 completed scopes (newest first). Full history: lifecycle `co
 - **#3012** -- docs(skills): multi-scope build — quality check once at end unless failed -- `[completed]`
 - **#2980** -- feat(security): #2980 leftovers sweep + fail-closed contained-writes in task check -- `[completed]`
 - **#2980** -- feat(security): migrate eval/doctor/xbrief residual product writes (#2980 wave C) -- `[completed]`
-- **#2980** -- feat(security): migrate intake/authz/escalation/scope ledgers to containedWrite (#2980 wave B) -- `[completed]`
-- **#2951** -- feat(security): Phase 2 contained-write migrate high-risk sinks + enforce path (epic #2951) -- `[completed]`
-- **#2950** -- feat(hooks): Phase B matrix CI expansion + decision-code docs (epic #2950) -- `[completed]`
-- **#2950** -- feat(hooks): pure classifier extraction + fixture matrix skeleton (Phase A of #2950) -- `[completed]`
-- **#2971** -- fix(setup,xbrief): emit/write xBRIEF 0.8 by default; init path for existing docs -- `[completed]`
-- **#2969** -- docs(security,installer): install-trust pattern — no naked curl|sh as blessed path -- `[completed]`
-- **#871** -- feat(tasks): directive:finish-loop + pr:finish-loop walk-away product (#871) -- `[completed]`
-- **#518** -- feat(authz): typed escalation events + CLI batch queue (#518 slim) -- `[completed]`
-- **#2944** -- bug(authz): self-authored consent tokens and active UAT runs do not prevent unauthorized mutation -- `[completed]`
-- **#1193** -- feat(authz): agent blast-radius controls — intent ceiling (Wave 2 / #1193) -- `[completed]`
-- **#1095** -- feat(authz): closed-verb release gates + AFK templates consuming human-origin grants (#1095 slim) -- `[completed]`
 

@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.92.0] - 2026-08-02
+
+> Delivery-branch completion evidence, temp kill-switch, experimental-rules re-entry, through-merge N=1 dispatch, and containment/review-cycle fixes.
+
+### Added
+
 - **Setup re-entry: Revisit experimental rules (#46).** Post-bootstrap path on `deft-directive-setup` so returning users can enable/disable USER.md Experimental Rules for `meta/SOUL.md`, `meta/morals.md`, and `meta/code-field.md` without hand-editing schema or inventing a `deft config` verb family. Returning-user menu offers **Revisit experimental rules**; guided toggle shows current on/off state and reuses Phase 1 5a–5c explainers; safe UTF-8 section-only write with non-clobber of Personal/Defaults. Pure helper `applyExperimentalRulesState` / `setExperimentalRule` in `packages/core/src/user-config/experimental-rules.ts` (+ unit + content-contract tests). Closes #46.
 - **Delivery-branch completion evidence (#3041).** Code-bearing `scope:complete` / `swarm:complete-cohort` / `swarm:finalize-cohort` no longer treat merge-to-any-base as delivered. Typed `plan.policy.deliveryBranch` (distinct from swarm/PR `baseBranch`; defaults to the repo default branch when unset) gates completion: require a merge commit that is an ancestor of the **refreshed** remote delivery ref, or an explicit auditable non-delivery disposition (`accepted_not_delivered` / `superseded` / `experiment_archived` / `cancelled`). `finalize-cohort` validates `merged_at`, `base.ref`, `merge_commit_sha`, and delivery ancestry; intermediate/integration bases fail closed. Completion stamps provenance (`repository`, commits, PR, PR base, delivery branch, verifier, timestamp); handoff states distinguish implemented / PR-open / merged-to-integration / delivered; deploy and UAT are never inferred from Git. Legacy completed records without provenance surface as `unknown`/`unverified`. CLI: `scope:complete --non-delivery=…`, `--merge-commit`, `--pr-base`, `--delivery-branch`; `swarm:finalize-cohort --delivery-branch`. Closes #3041. Refs #1598, #86.
 - **Temporary test kill-switch `.deft-directive-disable` (#3039).** Root-only **local (untracked)** flag disables Directive **enforcement** (host SessionStart / PreToolUse / compact hooks, `session:start` ritual write, doctor short-circuit) while allowing the deposit to remain — distinct from permanent `.no-deft-directive` (#2926). A **tracked/committed** flag is misconfig: doctor warns and enforcement stays on (repo content cannot disable hooks for clones). Shared detector in `packages/core/src/policy/deft-directive-disable.ts`; recovery requires **delete the file** and a **new agent session**. Doctor reports `disabled-test-kill-switch` when active. AGENTS always-on contract via agents-entry; deposit gitignore baseline includes the flag path. Docs: `content/docs/deft-directive-disable.md`. Consumer note: A/B and DevHammer “without DD enforcement” arm. Closes #3039.
@@ -4865,7 +4877,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.91.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.92.0...HEAD
+[0.92.0]: https://github.com/deftai/directive/compare/v0.91.0...v0.92.0
 [0.91.0]: https://github.com/deftai/directive/compare/v0.90.0...v0.91.0
 [0.90.0]: https://github.com/deftai/directive/compare/v0.89.0...v0.90.0
 [0.89.0]: https://github.com/deftai/directive/compare/v0.88.0...v0.89.0
