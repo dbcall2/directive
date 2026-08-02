@@ -426,10 +426,14 @@ Send to parent:
 
     Subject: PR #{pr_number} CLEAN -- ready for merge
     Body:
-      Greptile review on HEAD <sha> is clean.
+      STATUS: DONE
+      HEAD: <sha>
+      CHECKS: <list of CheckRun statuses>
+      MERGE: n/a
+      ISSUE: open
+      NOTES: Greptile CLEAN confidence <N>/5; ready for merge
       Confidence: <N>/5
       Findings: P0=0, P1=0
-      CI: <list of CheckRun statuses>
       Last reviewed commit: <sha>
       -- no more polling, exiting now
 
@@ -445,9 +449,13 @@ If the same review surfaces 3 consecutive review cycles (push -> review -> still
 
     Subject: PR #{pr_number} escalation -- 3 review cycles still surfacing P0/P1
     Body:
-      Three consecutive review cycles after push still surfaced P0/P1 findings.
+      STATUS: BLOCKED
+      HEAD: <sha>
+      CHECKS: see latest findings
+      MERGE: n/a
+      ISSUE: open
+      NOTES: 3 review cycles still surfacing P0/P1; <summary>
       Latest findings: <summary>
-      Latest HEAD: <sha>
       -- no more polling, exiting now
 
 ### (3) ERRORED
@@ -458,7 +466,12 @@ Retry ONCE: post `@greptileai review` as a PR comment via `gh pr comment {pr_num
 
     Subject: PR #{pr_number} Greptile errored -- escalation required
     Body:
-      Greptile errored on HEAD <sha>; retry via @greptileai also errored.
+      STATUS: FAILED
+      HEAD: <sha>
+      CHECKS: Greptile errored (retry also errored)
+      MERGE: n/a
+      ISSUE: open
+      NOTES: escalate per swarm Phase 6 Step 1 (wait / empty retrigger / override)
       Parent should escalate to user with the three-way choice per
       skills/deft-directive-swarm/SKILL.md Phase 6 Step 1:
         (a) wait longer (~15-20 min)
@@ -474,6 +487,12 @@ Send:
 
     Subject: PR #{pr_number} poll cap exceeded -- parent should escalate
     Body:
+      STATUS: BLOCKED
+      HEAD: <sha>
+      CHECKS: <statuses>
+      MERGE: n/a
+      ISSUE: open
+      NOTES: poll cap exceeded; holdout=<which-of-the-five-conditions-failed>
       {poll_cap_minutes}-minute poll cap exceeded.
       Latest state:
         last_reviewed_sha: <sha or "unparsed">
@@ -494,6 +513,12 @@ Increment the `stall_streak` counter introduced under `## CLEAN gate evaluation,
 
     Subject: PR #{pr_number} poll loop wedged -- terminal-condition detection failure
     Body:
+      STATUS: BLOCKED
+      HEAD: <sha>
+      CHECKS: holdout=<which-of-the-five-conditions-failed>
+      MERGE: n/a
+      ISSUE: open
+      NOTES: STALL — detector cannot reach CLEAN or P0/P1; diagnose instrumentation
       Detector cannot reach CLEAN or NEW P0/P1 FINDINGS but no blocking signals
       are visible. Likely terminal-condition detection gap on this PR's review surface.
       Latest state:
@@ -515,6 +540,12 @@ Send:
 
     Subject: PR #{pr_number} informal-clean missing canonical fields -- recovery required
     Body:
+      STATUS: BLOCKED
+      HEAD: <sha>
+      CHECKS: informal-clean missing canonical fields
+      MERGE: n/a
+      ISSUE: open
+      NOTES: #1543 informal-clean; recovery @greptileai or override
       Greptile informal-clean missing-canonical-fields state (#1543).
       Latest Greptile comment says the diff is clean / prior issues resolved,
       but lacks canonical `Last reviewed commit:` and `Confidence Score: X/5`.
@@ -542,6 +573,18 @@ Send:
 - ! Use Python scripts (single `run_shell_command` call) for the poll loop, NEVER shell `Start-Sleep` + repeated tool calls. The Python script handles `time.sleep({poll_interval_seconds})` between polls and exits when a terminal condition fires.
 - ! Always pass `do_not_summarize_output: true` semantics when fetching `gh pr view --comments` -- summarizers silently drop the Outside-Diff section.
 - ! Send a status message to `{parent_agent_id}` at start (acknowledging the task) and at every terminal exit (CLEAN / NEW P0/P1 FINDINGS escalation / ERRORED / TIMEOUT / STALL / INFORMAL-CLEAN). Route it through the host completion channel for your primitive (see Role posture -- OpenClaw `sessions_spawn` uses parent push / announce). Do NOT silently complete.
+- ! **Required non-empty monitor handback (#3044):** every terminal exit message MUST be non-empty and include these structured fields (map CLEAN → `STATUS: DONE`, NEW P0/P1 / INFORMAL-CLEAN / TIMEOUT / STALL → `STATUS: BLOCKED`, ERRORED → `STATUS: FAILED` unless a hard failure):
+
+```text
+STATUS: DONE|BLOCKED|FAILED
+HEAD: <sha>
+CHECKS: <summary>
+MERGE: <url|error|n/a>
+ISSUE: <closed|open|n/a>
+NOTES: <short>
+```
+
+⊗ Empty final assistant message / empty `subagent_announce` body. Parents treat empty or missing-`STATUS` settles as FC04 residual, not success (`skills/deft-directive-review-cycle/SKILL.md` Empty announce ≠ done).
 
 ## Implementation Notes
 

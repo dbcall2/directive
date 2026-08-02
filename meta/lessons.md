@@ -443,7 +443,7 @@ Greptile occasionally drops its prior check run and starts a fresh one without a
 
 **Source:** #796 -- the `skills/deft-directive-review-cycle/SKILL.md` Phase 2 Step 1 dual-source-fetch contract (which correctly catches the `Comments Outside Diff` case via `gh pr view --comments` + MCP `get_review_comments` or `gh api` fallback) does not cover the cold-start case where the agent's first fetch lands BEFORE the bot reviewer (Greptile) has posted. Both sources return zero findings; the Step 6 exit condition false-positively declares the PR review-clean even though the bot review is still in flight. The Step 4 polling loop covers any cycle that includes a push, but the cold-start one-shot review-cycle entry path is uncovered.
 
-**Canonical encoding (strongest-applicable layer):** the operative `~` SHOULD rule (`Late-arriving bot review re-check`) and the matching `⊗` MUST NOT rule (no exit on a single empty fetch -- re-fetch at least once after a ~60s delay first) live in `skills/deft-directive-review-cycle/SKILL.md` Phase 2 Step 1, before the Step 6 exit-condition evaluation. Tier 1 deterministic enforcement: `tests/content/test_review_cycle_skill.py` regex-asserts the rule presence + canonical phrasing tokens (`re-fetch`, `60s`, `before evaluating`, `re-fetch at least once`) plus a defence-in-depth guard against the cp1252 mojibake form `Γèù` of the `⊗` glyph (the corruption fixed in PR #844 review-cycle on the same cohort's pending vBRIEFs). The poller template at `templates/swarm-greptile-poller-prompt.md` already handles the same case for push-driven cycles via its loop body -- the SKILL rule above closes the orthogonal cold-start path.
+**Canonical encoding (strongest-applicable layer):** the operative `~` SHOULD rule (`Late-arriving bot review re-check`) and the matching `⊗` MUST NOT rule (no exit on a single empty fetch -- re-fetch at least once after a ~60s delay first) live in `skills/deft-directive-review-cycle/SKILL.md` Phase 2 Step 1, before the Step 6 exit-condition evaluation. Tier 1 deterministic enforcement: `tests/content/test_review_cycle_skill.py` regex-asserts the rule presence + canonical phrasing tokens (`re-fetch`, `60s`, `before evaluating`, `re-fetch at least once`) plus a defence-in-depth guard against the cp1252 mojibake form `⊗` of the `⊗` glyph (the corruption fixed in PR #844 review-cycle on the same cohort's pending vBRIEFs). The poller template at `templates/swarm-greptile-poller-prompt.md` already handles the same case for push-driven cycles via its loop body -- the SKILL rule above closes the orthogonal cold-start path.
 
 **Why this is a short cross-reference, not a full prose rule:** per the Rule Authority [AXIOM] block in `main.md`, every rule MUST use the strongest applicable layer (deterministic > Taskfile > vBRIEF > RFC2119 > prose). The rule body lives in the SKILL Phase 2 Step 1 rules + the content test; this lessons entry exists for discoverability + recurrence-record citation only.
 
@@ -709,3 +709,16 @@ The 2026-05-07 session surfaced the `graphql` bucket exhaustion failure mode for
 **Canonical encoding:** AGENTS.md / templates/agents-entry.md ## Through-merge worker dispatch (#3032); maintainer Multi-agent #1880 bullets; skills/deft-directive-swarm/references/core-phase-0.md Through-merge / N=1; core-ops anti-pattern; content/docs/skill-pin-policy.md Through-merge is false-negative sensitive; agents_entry_contract markers.
 
 **Cross-references:** #1880 Gap C/D, #2508 skill pin policy, #954 multi-agent, #3027 session recurrence, #3032.
+
+## Empty review-monitor announce ≠ done + single lease (2026-08)
+
+**Source:** Issue #3044. Recurrence: deftai/enterprize PR #43 babysit (2026-08-02) after #2874/#2876 OpenClaw Approach 1 spawn routing shipped.
+
+**Failure mode:** Parent correctly spawns Approach 1 review-monitor via sessions_spawn, but host settle arrives empty / (no output) / status unknown. Parent treats empty as terminal failure and spawns a **second** monitor with the same taskName while the first may still be running or only falsely settled. Dual <!-- deft:review-owner --> thrash; PR stays open; babysit looks owned twice.
+
+**Rule:** Empty announce is **FC04 residual**, not DONE/CLEAN/merge-ready. Parent MUST same-turn ground truth (gh pr view + checks + HEAD). One sticky review-owner lease; pre-spawn list active same-task / lease holder; forbid second monitor while prior running or last settle empty/unknown without terminal ground truth. Dead owner + open PR → one replacement with force lease takeover + lease update. Monitor handback MUST include non-empty STATUS/HEAD/CHECKS/MERGE. Prefer visible:true on Control UI.
+
+**Canonical encoding:** skills/deft-directive-review-cycle/SKILL.md Empty announce / Single lease / Required handback; skills/deft-directive-swarm/references/host-openclaw.md Babysit residual; templates/swarm-greptile-poller-prompt.md handback; templates/agent-prompt-preamble.md §11 thin pointer.
+
+**Cross-references:** #3044, #2874, #2876, #2814, #2943, FC04 / growth friction R1 + R10, enterprize PR #43.
+
