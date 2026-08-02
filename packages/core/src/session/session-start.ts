@@ -8,6 +8,13 @@ import {
   environmentContextToDict,
   formatEnvironmentContext,
 } from "../platform/shell-context.js";
+import {
+  DEFT_DIRECTIVE_DISABLE_FLAG_NAME,
+  DEFT_DIRECTIVE_DISABLE_STATUS,
+  detectDeftDirectiveDisable,
+  formatDeftDirectiveDisableMessage,
+  isDeftDirectiveDisableActive,
+} from "../policy/deft-directive-disable.js";
 import { disclosureLine } from "../policy/disclosure.js";
 import {
   detectNoDeftDirective,
@@ -725,6 +732,37 @@ export function runSessionStart(
   const runGit = options.runGit ?? defaultGitRunner;
   const environment = (options.probeEnvironment ?? detectEnvironmentContext)();
   const ceremonyTier = options.ceremonyTier ?? COLD_CEREMONY_TIER;
+
+  // #3039: local (untracked) test kill-switch — skip ritual write; deposit may remain.
+  // Recovery requires delete + new session. Tracked flags do not short-circuit.
+  if (isDeftDirectiveDisableActive(projectRoot)) {
+    const killSwitch = detectDeftDirectiveDisable(projectRoot);
+    const optOutAlso = detectNoDeftDirective(projectRoot);
+    const message = formatDeftDirectiveDisableMessage({
+      permanentOptOutAlsoPresent: optOutAlso.present,
+      trackedByGit: false,
+    });
+    const lines = message.split("\n");
+    return {
+      code: 0,
+      payload: {
+        ready: false,
+        exit_code: 0,
+        disabled: true,
+        disabled_via: DEFT_DIRECTIVE_DISABLE_FLAG_NAME,
+        status: DEFT_DIRECTIVE_DISABLE_STATUS,
+        kill_switch: true,
+        inconsistent: false,
+        deposit_present: killSwitch.depositPresent,
+        tracked_by_git: false,
+        permanent_opt_out_also_present: optOutAlso.present,
+        posture,
+        environment: environmentContextToDict(environment),
+        message,
+      },
+      lines,
+    };
+  }
 
   // #2926: official root opt-out wins locally — skip Directive session ritual.
   // disabled = skip ritual (exit 0 clean / 1 inconsistent). ready stays false so

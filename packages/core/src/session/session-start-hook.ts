@@ -1,5 +1,10 @@
 import { resolveVersion } from "../doctor/paths.js";
 import {
+  detectDeftDirectiveDisable,
+  formatDeftDirectiveDisableMessage,
+  isDeftDirectiveDisableActive,
+} from "../policy/deft-directive-disable.js";
+import {
   detectNoDeftDirective,
   NO_DEFT_DIRECTIVE_DISABLED_MESSAGE,
   NO_DEFT_DIRECTIVE_INCONSISTENT_MESSAGE,
@@ -14,6 +19,8 @@ export interface SessionStartHookOptions {
   readonly writeSentinelFn?: typeof writeSentinel;
   /** Test seam for #2926 opt-out detection. */
   readonly detectNoDeftDirectiveFn?: typeof detectNoDeftDirective;
+  /** Test seam for #3039 test kill-switch detection. */
+  readonly detectDeftDirectiveDisableFn?: typeof detectDeftDirectiveDisable;
 }
 
 /** Write ``.deft/last-session.json`` from current git state (#1269). */
@@ -21,6 +28,28 @@ export function runSessionStartHookWrite(
   projectRoot: string,
   options: SessionStartHookOptions = {},
 ): { code: number; stdout: string; stderr: string } {
+  const detectKill = options.detectDeftDirectiveDisableFn ?? detectDeftDirectiveDisable;
+  // #3039: local (untracked) kill-switch — skip ritual bookkeeping (deposit OK).
+  // Tracked flags do not short-circuit (enforcement stays on).
+  const kill = detectKill(projectRoot);
+  const killActive =
+    options.detectDeftDirectiveDisableFn !== undefined
+      ? kill.active
+      : isDeftDirectiveDisableActive(projectRoot);
+  if (killActive) {
+    const detectOptOut = options.detectNoDeftDirectiveFn ?? detectNoDeftDirective;
+    const optOut = detectOptOut(projectRoot);
+    const message = formatDeftDirectiveDisableMessage({
+      permanentOptOutAlsoPresent: optOut.present,
+      trackedByGit: false,
+    });
+    return {
+      code: 0,
+      stdout: `${message}\n`,
+      stderr: "",
+    };
+  }
+
   const detectOptOut = options.detectNoDeftDirectiveFn ?? detectNoDeftDirective;
   // #2926: root opt-out wins — host SessionStart must not write ritual bookkeeping.
   const optOut = detectOptOut(projectRoot);

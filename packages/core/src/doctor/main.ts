@@ -5,6 +5,14 @@ import { evaluate as evaluateAgentsMdAdvisory } from "../agents-md-advisory/eval
 import { contentRoot } from "../content-root.js";
 import { resolveProjectDefinitionPath } from "../layout/resolve.js";
 import {
+  DEFT_DIRECTIVE_DISABLE_FLAG_NAME,
+  DEFT_DIRECTIVE_DISABLE_STATUS,
+  DEFT_DIRECTIVE_DISABLE_TRACKED_WARNING,
+  detectDeftDirectiveDisable,
+  formatDeftDirectiveDisableMessage,
+  isDeftDirectiveDisableActive,
+} from "../policy/deft-directive-disable.js";
+import {
   detectNoDeftDirective,
   NO_DEFT_DIRECTIVE_DISABLED_MESSAGE,
   NO_DEFT_DIRECTIVE_FLAG_NAME,
@@ -121,6 +129,43 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
   const consumerContext = resolve(projectRoot) !== resolve(frameworkRoot);
   const whichFn = seams.whichFn ?? defaultWhich;
   const nowFn = seams.now ?? (() => new Date());
+
+  // #3039: temporary test kill-switch. Active (untracked) → disabled short-circuit.
+  // Tracked/committed flag → warn only and continue normal doctor (no enforcement bypass).
+  const killSwitch = detectDeftDirectiveDisable(projectRoot, { skipTrackedCache: true });
+  if (
+    killSwitch.present &&
+    killSwitch.trackedByGit &&
+    !isDeftDirectiveDisableActive(projectRoot, { skipTrackedCache: true })
+  ) {
+    if (!jsonMode && !quietMode) {
+      process.stderr.write(`${DEFT_DIRECTIVE_DISABLE_TRACKED_WARNING}\n`);
+    }
+    // Continue into full doctor; do not short-circuit.
+  } else if (isDeftDirectiveDisableActive(projectRoot, { skipTrackedCache: true })) {
+    const optOutAlso = detectNoDeftDirective(projectRoot);
+    const message = formatDeftDirectiveDisableMessage({
+      permanentOptOutAlsoPresent: optOutAlso.present,
+      trackedByGit: false,
+    });
+    if (jsonMode) {
+      const payload = {
+        status: DEFT_DIRECTIVE_DISABLE_STATUS,
+        disabled: true,
+        disabled_via: DEFT_DIRECTIVE_DISABLE_FLAG_NAME,
+        kill_switch: true,
+        inconsistent: false,
+        deposit_present: killSwitch.depositPresent,
+        tracked_by_git: false,
+        permanent_opt_out_also_present: optOutAlso.present,
+        message,
+      };
+      process.stdout.write(`${pythonJsonDump(payload)}\n`);
+    } else if (!quietMode) {
+      process.stdout.write(`${message}\n`);
+    }
+    return 0;
+  }
 
   // #2926: official root opt-out — short-circuit Directive doctor when clean;
   // diagnose flag+deposit inconsistency (warn; exit dirty).

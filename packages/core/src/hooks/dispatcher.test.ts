@@ -666,6 +666,13 @@ describe("direct-write hook policy", () => {
       },
       readySeams({
         sessionStart,
+        detectDeftDirectiveDisable: () => ({
+          present: false,
+          flagPath: "/project/.deft-directive-disable",
+          depositPresent: false,
+          trackedByGit: false,
+          active: false,
+        }),
         detectNoDeftDirective: () => ({
           present: true,
           flagPath: "/project/.no-deft-directive",
@@ -680,6 +687,140 @@ describe("direct-write hook policy", () => {
     expect(sessionStart).not.toHaveBeenCalled();
   });
 
+  it("skips SessionStart when local kill-switch is active even with deposit (#3039)", () => {
+    const sessionStart = vi.fn(() => {
+      throw new Error("sessionStart must not run under kill-switch");
+    });
+    const markCompactStale = vi.fn(() => {
+      throw new Error("compact must not run under kill-switch");
+    });
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "session.start",
+        projectRoot: "/project",
+        payload: {},
+      },
+      readySeams({
+        sessionStart,
+        markCompactStale,
+        detectDeftDirectiveDisable: () => ({
+          present: true,
+          flagPath: "/project/.deft-directive-disable",
+          depositPresent: true,
+          trackedByGit: false,
+          active: true,
+        }),
+        detectNoDeftDirective: () => ({
+          present: false,
+          flagPath: "/project/.no-deft-directive",
+          depositPresent: true,
+          inconsistent: false,
+        }),
+      }),
+    );
+
+    expect(decision).toMatchObject({ verdict: "allow", code: "session-start-disabled" });
+    expect(decision.message).toContain(".deft-directive-disable");
+    expect(decision.message).toContain("NEW agent session");
+    expect(decision.message).toContain("Deposit may still be present");
+    expect(sessionStart).not.toHaveBeenCalled();
+  });
+
+  it("does not bypass gates when kill-switch flag is tracked by git (#3039)", () => {
+    const sessionStart = vi.fn(() => ({ code: 0, stdout: "ok\n", stderr: "" }));
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "session.start",
+        projectRoot: "/project",
+        payload: {},
+      },
+      readySeams({
+        sessionStart,
+        detectDeftDirectiveDisable: () => ({
+          present: true,
+          flagPath: "/project/.deft-directive-disable",
+          depositPresent: true,
+          trackedByGit: true,
+          active: false,
+        }),
+      }),
+    );
+    expect(decision).toMatchObject({ verdict: "allow", code: "session-start" });
+    expect(sessionStart).toHaveBeenCalled();
+  });
+
+  it("short-circuits PreToolUse and compact under active kill-switch (#3039)", () => {
+    const markCompactStale = vi.fn(() => {
+      throw new Error("compact must not run under kill-switch");
+    });
+    const killSeams = readySeams({
+      markCompactStale,
+      detectDeftDirectiveDisable: () => ({
+        present: true,
+        flagPath: "/project/.deft-directive-disable",
+        depositPresent: true,
+        trackedByGit: false,
+        active: true,
+      }),
+    });
+
+    const compact = decideHook(
+      {
+        host: "cursor",
+        event: "session.compact",
+        projectRoot: "/project",
+        payload: {},
+      },
+      killSeams,
+    );
+    expect(compact).toMatchObject({ verdict: "allow", code: "directive-disabled" });
+    expect(markCompactStale).not.toHaveBeenCalled();
+
+    const tool = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: { tool_name: "Write", tool_input: { path: "/project/x.ts" } },
+      },
+      killSeams,
+    );
+    expect(tool).toMatchObject({ verdict: "allow", code: "directive-disabled" });
+    expect(tool.message).toContain("rm .deft-directive-disable");
+  });
+
+  it("combines kill-switch and permanent opt-out messages when both flags present (#3039)", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "session.start",
+        projectRoot: "/project",
+        payload: {},
+      },
+      readySeams({
+        sessionStart: vi.fn(() => ({ code: 0, stdout: "", stderr: "" })),
+        detectDeftDirectiveDisable: () => ({
+          present: true,
+          flagPath: "/project/.deft-directive-disable",
+          depositPresent: true,
+          trackedByGit: false,
+          active: true,
+        }),
+        detectNoDeftDirective: () => ({
+          present: true,
+          flagPath: "/project/.no-deft-directive",
+          depositPresent: true,
+          inconsistent: true,
+        }),
+      }),
+    );
+    expect(decision.verdict).toBe("allow");
+    expect(decision.message).toContain(".deft-directive-disable");
+    expect(decision.message).toContain(".no-deft-directive");
+  });
+
   it("skips SessionStart bookkeeping on inconsistent opt-out without blocking (#2926)", () => {
     const sessionStart = vi.fn(() => ({ code: 0, stdout: "", stderr: "" }));
     const decision = decideHook(
@@ -691,6 +832,13 @@ describe("direct-write hook policy", () => {
       },
       readySeams({
         sessionStart,
+        detectDeftDirectiveDisable: () => ({
+          present: false,
+          flagPath: "/project/.deft-directive-disable",
+          depositPresent: true,
+          trackedByGit: false,
+          active: false,
+        }),
         detectNoDeftDirective: () => ({
           present: true,
           flagPath: "/project/.no-deft-directive",

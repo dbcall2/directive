@@ -15,6 +15,11 @@ import {
   utcIso,
 } from "../authz/index.js";
 import { hasArtifactSuffix } from "../layout/resolve.js";
+import {
+  detectDeftDirectiveDisable,
+  formatDeftDirectiveDisableMessage,
+  isDeftDirectiveDisableActive,
+} from "../policy/deft-directive-disable.js";
 import { evaluateIntentCeilingFromEnv, type IntentCeilingOp } from "../policy/intent-ceiling.js";
 import {
   detectNoDeftDirective,
@@ -92,6 +97,8 @@ export type HookDecisionCode =
   | "session-start"
   | "session-start-disabled"
   | "session-start-degraded"
+  /** Enforcement skipped: root `.deft-directive-disable` test kill-switch (#3039). */
+  | "directive-disabled"
   | "session-compact-rearm"
   | "session-compact-rearm-degraded"
   | "session-compact-noop"
@@ -151,6 +158,8 @@ export interface HookPolicySeams {
   readonly sessionStart?: (projectRoot: string) => { code: number; stdout: string; stderr: string };
   /** Test seam for #2926 root opt-out on SessionStart. */
   readonly detectNoDeftDirective?: typeof detectNoDeftDirective;
+  /** Test seam for #3039 root test kill-switch (precedence over #2926 for enforcement). */
+  readonly detectDeftDirectiveDisable?: typeof detectDeftDirectiveDisable;
   readonly markCompactStale?: (projectRoot: string) => {
     changed: boolean;
     statePath: string;
@@ -824,6 +833,38 @@ function inspectMutationGates(
 /** Decide a normalized event using only the P0 direct-write policy. */
 export function decideHook(input: HookDispatchInput, seams: HookPolicySeams = {}): HookDecision {
   const projectRoot = resolve(input.projectRoot);
+
+  // #3039: local (untracked) `.deft-directive-disable` wins for enforcement
+  // short-circuit (SessionStart / compact / PreToolUse). Deposit may remain.
+  // Tracked/committed flags do NOT bypass gates (repo-controlled content must
+  // not disable enforcement for clones) — doctor warns instead.
+  {
+    const detectKill = seams.detectDeftDirectiveDisable ?? detectDeftDirectiveDisable;
+    const kill = detectKill(projectRoot);
+    const killActive =
+      seams.detectDeftDirectiveDisable !== undefined
+        ? kill.active
+        : isDeftDirectiveDisableActive(projectRoot);
+    if (killActive) {
+      const detectOptOut = seams.detectNoDeftDirective ?? detectNoDeftDirective;
+      const optOut = detectOptOut(projectRoot);
+      const message = formatDeftDirectiveDisableMessage({
+        permanentOptOutAlsoPresent: optOut.present,
+        trackedByGit: false,
+      });
+      return {
+        verdict: "allow",
+        code: input.event === "session.start" ? "session-start-disabled" : "directive-disabled",
+        event: input.event,
+        host: input.host,
+        toolName: null,
+        projectRoot,
+        message,
+        scopePath: null,
+      };
+    }
+  }
+
   if (input.event === "session.compact") {
     try {
       const result = (seams.markCompactStale ?? markRitualStaleAfterCompact)(projectRoot);
