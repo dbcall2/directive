@@ -1,0 +1,109 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Harden review-cycle OpenClaw Approach 1: empty/unknown settle is not done; single review-monitor lease; required non-empty STATUS handback.",
+    "updated": "2026-08-02T18:16:50Z"
+  },
+  "plan": {
+    "id": "3044-review-cycle-empty-announce-single-lease",
+    "title": "fix(review-cycle,openclaw): empty announce ≠ done + single review-monitor lease",
+    "status": "completed",
+    "narratives": {
+      "Description": "Residual after #2874/#2876: parents treat empty/unknown subagent settles as terminal and respawn a second review-monitor. Harden post-spawn ownership and empty-settle DoD in review-cycle skill, host-openclaw adapter, and poller/preamble templates.",
+      "UserStory": "As a swarm parent on OpenClaw, I want empty review-monitor settles and dual leases to be forbidden by skill MUST rules, so that babysit does not thrash with dual ownership while the PR stays open.",
+      "ImplementationPlan": "Step 1: Edit the skill module file content/skills/deft-directive-review-cycle/SKILL.md to add MUST rules for empty/unknown settle (same-turn ground-truth, FC04) and single review-owner lease with pre-spawn check. Step 2: Update the Approach 1 monitor prompt template file under content/skills/deft-directive-review-cycle/ (or references/) with required non-empty STATUS/HEAD/CHECKS/MERGE handback. Step 3: Cross-link the host-openclaw adapter file content/skills/deft-directive-swarm/references/host-openclaw.md and content/templates/agent-prompt-preamble.md. Step 4: Add recurrence lesson and CHANGELOG #3044. Step 5: Verify with task agents:refresh if needed, content contract tests if present, and full task check before opening the PR.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3044",
+      "Overview": "Skill/template residual: empty announce ≠ done + single review-monitor lease on OpenClaw Approach 1.",
+      "Labels": "bug, enhancement, skills, operational, agent-experience, review-cycle, harness:openclaw",
+      "NonGoals": "Re-open #2874 Tier-1 matrix; fix OpenClaw host empty-announce root cause; multi-reviewer swarm rewrite #769; force admin merge."
+    },
+    "items": [
+      {
+        "title": "Empty settle parent DoD",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a review-monitor settle with empty body, missing STATUS, or status unknown, when the parent continues, skill MUST language requires same-turn ground-truth tools and forbids treating the settle as DONE/CLEAN/merge-ready (FC04 cite)."
+        }
+      },
+      {
+        "title": "Single lease and required handback",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given Approach 1 review-monitor spawn, when a prior owner is running or last settle was empty/unknown without terminal ground truth, skill MUST forbid a second monitor; monitor prompt template requires non-empty STATUS/HEAD/CHECKS/MERGE handback; OpenClaw host adapter/docs cross-link this residual."
+        }
+      },
+      {
+        "title": "Recurrence lesson and CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given skill Recurrence or meta/lessons and CHANGELOG [Unreleased], when the PR lands, enterprize#43 2026-08-02 is cited and CHANGELOG cites #3044."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "enhancement",
+      "skills",
+      "operational",
+      "agent-experience",
+      "review-cycle",
+      "harness:openclaw"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3044",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3044"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2874",
+        "type": "x-xbrief/refs",
+        "title": "Issue #2874"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2876",
+        "type": "x-xbrief/refs",
+        "title": "Issue #2876"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2943",
+        "type": "x-xbrief/refs",
+        "title": "Issue #2943"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/skills/deft-directive-review-cycle",
+          "content/skills/deft-directive-swarm/references/host-openclaw.md",
+          "content/templates/agent-prompt-preamble.md",
+          "content/templates",
+          "meta/lessons",
+          "content/docs"
+        ],
+        "verify_commands": [
+          "task agents:refresh",
+          "task check"
+        ],
+        "expected_outputs": [
+          "review-cycle MUST empty-settle DoD + single lease",
+          "Approach 1 required STATUS handback template",
+          "OpenClaw host cross-link",
+          "Recurrence + CHANGELOG #3044"
+        ],
+        "depends_on": [],
+        "conflict_group": "review-cycle-openclaw-3044",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body names skill/template paths and acceptance; residual of #2874/#2876 skill text hardening."
+      },
+      "capacityBucket": "bugfix",
+      "completedAt": "2026-08-02T18:16:50Z"
+    },
+    "updated": "2026-08-02T18:16:50Z"
+  }
+}

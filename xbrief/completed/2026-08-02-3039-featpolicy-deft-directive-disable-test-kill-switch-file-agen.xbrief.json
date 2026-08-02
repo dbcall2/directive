@@ -1,0 +1,114 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Temporary test/local kill-switch via root .deft-directive-disable (distinct from #2926 permanent opt-out).",
+    "updated": "2026-08-02T05:25:59Z"
+  },
+  "plan": {
+    "id": "3039-deft-directive-disable-test-kill-switch",
+    "title": "feat(policy): `.deft-directive-disable` test kill-switch (file + AGENTS/CLI/doctor; re-enable needs new session)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Add a temporary test/dev kill-switch so operators can turn Directive enforcement off without permanent project opt-out and without deleting the deposit. The locked flag is root `.deft-directive-disable` (gitignored). Presence disables hooks, session ritual, and automation while allowing `.deft/core` to remain. This is distinct from `.no-deft-directive` (#2926 permanent opt-out), which treats flag+deposit as inconsistent.",
+      "UserStory": "As a maintainer running A/B or DevHammer tests, I want a gitignored local kill-switch that disables Directive enforcement without removing the deposit, so that I can re-enable by deleting the flag and starting a new session without permanent opt-out semantics.",
+      "ImplementationPlan": "1. Add packages/core/src/policy/deft-directive-disable.ts with detector, recovery message (file gone + new session), and gitignore constant; deposit/docs ensure `.deft-directive-disable` is gitignored; committed flag is doctor warn only. 2. Wire shared detector into hooks SessionStart/PreToolUse/compact, CLI ritual/mutating verbs, and doctor as explicit disabled (test kill-switch) not #2926 dirty path. 3. Add AGENTS always-on contract (agents-entry + refresh) to check flag before further Directive process load. 4. Precedence: disable flag first (deposit OK), then .no-deft-directive, else normal; both flags combined message. 5. Unit/hook tests for detection + short-circuit; permanent opt-out path unchanged. 6. Docs distinct from no-deft-directive.md; CHANGELOG + consumer note for A/B / DevHammer.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3039",
+      "Overview": "Temporary test kill-switch: root `.deft-directive-disable` (gitignored). Deposit may stay. Recovery = delete file + new agent session. Not permanent opt-out (#2926).",
+      "Labels": "enhancement, doctor, agent-experience, process, tooling, vendored-deposit, area:cli, testing",
+      "NonGoals": "Auto-delete .deft/ or uninstall deposit; replace/weaken .no-deft-directive; rewrite AGENTS to stub on disable; org-remote kill switch; nested monorepo package roots; DEFT_DISABLED env (optional later)."
+    },
+    "items": [
+      {
+        "title": "Detector + gitignore for root .deft-directive-disable",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "When root .deft-directive-disable is present, the shared detector returns present=true and deposit/docs ensure the flag path is gitignored so new commits reject tracking it."
+        }
+      },
+      {
+        "title": "Hooks CLI doctor short-circuit on flag",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "When the flag is present, SessionStart hooks skip ritual bookkeeping, ritual CLI verbs emit the recovery message and exit without writing ritual state, and doctor reports disabled test kill-switch without #2926 flag-plus-deposit dirty failure."
+        }
+      },
+      {
+        "title": "AGENTS always-on contract and recovery text",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "When agents read AGENTS after agents:refresh, the always-on contract blocks further Directive process load and shows recovery text that requires deleting the flag and starting a new session before full operation claims."
+        }
+      },
+      {
+        "title": "No #2926 regression; tests and CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given only .no-deft-directive, permanent opt-out behavior is unchanged; given only the disable flag with deposit present, unit and hook tests validate short-circuit and CHANGELOG records #3039."
+        }
+      }
+    ],
+    "tags": [
+      "enhancement",
+      "doctor",
+      "agent-experience",
+      "process",
+      "tooling",
+      "vendored-deposit",
+      "area:cli",
+      "testing"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3039",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3039: feat(policy): `.deft-directive-disable` test kill-switch"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2926",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2926: permanent .no-deft-directive opt-out (related, must not regress)"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/policy/deft-directive-disable.ts",
+          "packages/core/src/policy/deft-directive-disable.test.ts",
+          "packages/core/src/policy/no-deft-directive.ts",
+          "packages/core/src/policy/index.ts",
+          "packages/core/src/hooks/dispatcher.ts",
+          "packages/core/src/doctor/checks.ts",
+          "packages/cli/src",
+          "content/docs/no-deft-directive.md",
+          "content/docs/deft-directive-disable.md",
+          "content/templates/agents-entry.md",
+          "content/init-deposit",
+          "packages/core/src/init-deposit",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/policy/deft-directive-disable.test.ts",
+          "task check"
+        ],
+        "expected_outputs": [
+          "Shared detector for .deft-directive-disable",
+          "Hooks/CLI/doctor short-circuit with recovery message",
+          "AGENTS always-on contract + gitignore",
+          "Tests + CHANGELOG cite #3039"
+        ],
+        "depends_on": [],
+        "conflict_group": "policy-directive-disable-3039",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "Story mirrors #2926 policy detector + hook/CLI/doctor wiring; acceptance criteria from locked issue design; file_scope is expected touch set for implementation."
+      },
+      "capacityBucket": "new-capability",
+      "completedAt": "2026-08-02T05:25:59Z"
+    },
+    "updated": "2026-08-02T05:25:59Z"
+  }
+}

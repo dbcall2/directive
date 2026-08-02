@@ -1,0 +1,91 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Dispose orphaned docs/valuable-go-task-improvements.md after #446 closed; update content-contract path pins.",
+    "updated": "2026-08-02T18:46:45Z"
+  },
+  "plan": {
+    "id": "3048-dispose-valuable-go-task-improvements-doc",
+    "title": "docs: delete or archive valuable-go-task-improvements.md (post-#446)",
+    "status": "completed",
+    "narratives": {
+      "Description": "After #446 closed (not pursuing go-task upstream proposals), docs/valuable-go-task-improvements.md is an orphaned design note. Delete (preferred) or archive under docs/analysis with historical banner; update standards content-contract tests; grep for live SoT references.",
+      "UserStory": "As a Directive maintainer, I want the go-task wishlist doc disposed after #446, so that agents do not rediscover it as live roadmap.",
+      "ImplementationPlan": "Step 1: Prefer delete of the docs file docs/valuable-go-task-improvements.md (disposition A), or move to docs/analysis/2026-04-valuable-go-task-improvements.md with a top banner citing closed #446 / historical / not pursuing. Step 2: Update the test module file packages/core/src/content-contracts/standards/standards.test.ts so hardcoded path cases no longer require the live docs path as SoT. Step 3: Grep the tracked tree for valuable-go-task-improvements and remove live roadmap references. Step 4: Append CHANGELOG [Unreleased] for #3048. Step 5: Verify with pnpm exec vitest run packages/core/src/content-contracts/standards/standards.test.ts and full task check. No engine, Taskfile, or go-task version changes.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3048",
+      "Overview": "Delete or archive valuable-go-task-improvements.md post-#446; fix standards.test path pins.",
+      "Labels": "operational",
+      "NonGoals": "go-task upstream features; rewriting harness-is-everything docs; SCM multi-backend #881; engine/Taskfile/version bumps."
+    },
+    "items": [
+      {
+        "title": "Dispose doc file",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given docs/valuable-go-task-improvements.md exists as an orphan post-#446, when this story lands, the file is deleted or archived under docs/analysis with a historical banner that cites closed #446 and not-pursuing."
+        }
+      },
+      {
+        "title": "Update content-contract tests and grep",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given packages/core/src/content-contracts/standards/standards.test.ts hardcodes the path, when tests run after the change, they pass without treating the old path as current SoT; grep shows no remaining live-roadmap references to valuable-go-task-improvements."
+        }
+      },
+      {
+        "title": "CHANGELOG only docs scope",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given CHANGELOG [Unreleased], when the PR lands, it cites #3048 and the PR does not change engine, Taskfile, or go-task versions."
+        }
+      }
+    ],
+    "tags": [
+      "operational",
+      "docs"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3048",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3048"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/446",
+        "type": "x-xbrief/refs",
+        "title": "Issue #446 closed parent decision"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "docs/valuable-go-task-improvements.md",
+          "docs/analysis",
+          "packages/core/src/content-contracts/standards/standards.test.ts",
+          "packages/core/src/content-contracts/standards"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/content-contracts/standards/standards.test.ts",
+          "task check"
+        ],
+        "expected_outputs": [
+          "Doc deleted or archived with historical banner",
+          "standards.test path pins updated",
+          "No live SoT references; CHANGELOG #3048"
+        ],
+        "depends_on": [],
+        "conflict_group": "docs-go-task-wishlist-3048",
+        "size": "small",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue locks disposition A/B, exact doc path, and standards.test.ts pin sites; no engine work."
+      },
+      "capacityBucket": "chore",
+      "completedAt": "2026-08-02T18:46:45Z"
+    },
+    "updated": "2026-08-02T18:46:45Z"
+  }
+}

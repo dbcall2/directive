@@ -1,0 +1,100 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Post-bootstrap guided revisit of Experimental Rules (SOUL/morals/code-field) via setup skill re-entry; no general config product.",
+    "updated": "2026-08-02T18:41:24Z"
+  },
+  "plan": {
+    "id": "46-revisit-experimental-meta-rules",
+    "title": "setup: Revisit experimental rules (toggle Experimental Rules without hand-editing schema)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Residual #46 after USER.md half covered. Ship a single guided path so users can enable/disable/revisit Experimental Rules entries for meta/SOUL.md, meta/morals.md, meta/code-field.md without hand-editing USER.md schema. Prefer deft-directive-setup re-entry named Revisit experimental rules over inventing a deft config verb family. Cite issue current-shape 2026-08-02 product framing only.",
+      "UserStory": "As a returning Directive user, I want to toggle experimental meta after week 1 without hand-editing USER.md schema, so that I can enable or disable SOUL/morals/code-field wiring without clobbering Personal or Defaults sections.",
+      "ImplementationPlan": "Step 1: Edit the setup skill pack source file content/packs/skills/skills-pack-0.1.json and re-render the skill module file content/skills/deft-directive-setup/SKILL.md to add a first-class re-entry path Revisit experimental rules when USER.md already exists and is complete (not a full Phase 1 re-interview). Step 2: Guided enable/disable/revisit for the three Experimental Rules lines only — show current on/off state and optional short explainer reusing Phase 1 steps 5a–5c copy. Step 3: Safe USER.md edit helper or explicit skill rules: UTF-8 write, add or remove Experimental Rules bullets only; non-clobber of Personal and Defaults sections. Step 4: Content-contract or unit tests that verify toggle adds/removes the three lines without rewriting Personal/Defaults. Step 5: CHANGELOG cites #46. Verify with task packs:render if pack-owned, vitest on content-contracts for setup skill, and full task check. Prefer skill-only; do not invent a new deft config CLI verb family.",
+      "Origin": "https://github.com/deftai/directive/issues/46 — current-shape 2026-08-02 product framing (not issue body as SoT)",
+      "Overview": "Setup skill re-entry: toggle Experimental Rules for SOUL/morals/code-field; non-clobber Personal/Defaults.",
+      "Labels": "enhancement",
+      "NonGoals": "General preferences UI; SOUL/morals/code-field content rewrite; deposit layout changes; full deft config mega-surface; re-building USER.md bootstrap or non-overwrite; directive update deposit refresh; inventing new config verb family when setup re-entry suffices."
+    },
+    "items": [
+      {
+        "title": "Guided enable/disable/revisit of Experimental Rules",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given an existing complete USER.md with Experimental Rules off for SOUL, when the operator chooses Revisit experimental rules in deft-directive-setup and enables SOUL, then the skill shows current on/off state and saves a meta/SOUL.md Experimental Rules bullet into USER.md without requiring hand-edited schema."
+        }
+      },
+      {
+        "title": "Non-clobber Personal/Defaults on toggle",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given USER.md Personal and Defaults sections with existing Name and Custom Rules text, when any experimental meta line is toggled on or off, then the write persists only Experimental Rules section changes and Personal and Defaults section bodies remain byte-identical."
+        }
+      },
+      {
+        "title": "Success without schema knowledge",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a returning user who skipped experimental meta at bootstrap, when they finish the Revisit experimental rules path, then USER.md updates reflect their toggles and CHANGELOG.md records issue #46 under Unreleased."
+        }
+      }
+    ],
+    "tags": [
+      "enhancement",
+      "setup",
+      "user-md",
+      "experimental-rules"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/46",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #46"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/skills/deft-directive-setup",
+          "content/packs/skills/skills-pack-0.1.json",
+          "packages/core/src/content-contracts/skills",
+          "packages/core/src/user-config"
+        ],
+        "verify_commands": [
+          "task packs:render",
+          "pnpm exec vitest run packages/core/src/content-contracts/skills packages/core/src/user-config",
+          "task check"
+        ],
+        "expected_outputs": [
+          "Setup skill Revisit experimental rules path",
+          "Safe Experimental Rules toggle without Personal/Defaults clobber",
+          "Tests + CHANGELOG #46"
+        ],
+        "depends_on": [],
+        "conflict_group": "setup-experimental-rules-46",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "AC locked to current-shape product framing table plus operator dispatch advice 2026-08-02; setup skill is preferred surface."
+      },
+      "capacityBucket": "new-capability",
+      "dispatch_constraints": {
+        "drive_to": "merge-ready",
+        "ac_source": "issue-46-current-shape-2026-08-02-product-framing-table",
+        "prefer": "setup-skill-revisit-experimental-rules",
+        "forbid": [
+          "general-preferences-ui",
+          "soul-content-rewrite",
+          "deposit-layout",
+          "invent-deft-config-verb-family"
+        ]
+      },
+      "completedAt": "2026-08-02T18:41:24Z"
+    },
+    "updated": "2026-08-02T18:41:24Z"
+  }
+}

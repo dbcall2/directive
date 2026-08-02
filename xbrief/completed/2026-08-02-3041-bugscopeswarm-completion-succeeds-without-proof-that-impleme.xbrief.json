@@ -1,0 +1,104 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Fail closed when completing code-bearing scopes without proof the implementation reached the configured delivery branch.",
+    "updated": "2026-08-02T18:46:40Z"
+  },
+  "plan": {
+    "id": "3041-delivery-branch-completion-evidence",
+    "title": "bug(scope,swarm): completion succeeds without proof that implementation reached the delivery branch",
+    "status": "completed",
+    "narratives": {
+      "Description": "scope:complete / swarm:complete-cohort / swarm:finalize-cohort treat merge-to-any-base as delivered. Add deliveryBranch distinct from baseBranch, require ancestry of merge commit from remote delivery ref before delivered completion, and keep deployment/UAT as separate evidence axes.",
+      "UserStory": "As a Directive consumer operator, I want completed scopes to require delivery-branch evidence, so that UAT is not greened by merges that only reached an integration branch.",
+      "ImplementationPlan": "Add deliveryBranch as a typed plan.policy field distinct from swarm baseBranch. Gate packages/core/src/scope/transition.ts scope:complete for code-bearing scopes on durable delivery evidence (merge commit ancestor of refreshed remote delivery ref) or an explicit non-delivery disposition. Update packages/core/src/swarm/finalize-cohort.ts to validate merged_at, base.ref, merge_commit_sha, and delivery-branch reachability; update complete-cohort.ts to refuse sweep without per-story evidence. Extend finalize-cohort.test.ts and scope transition tests for intermediate-branch rejection, refresh failure, and missing PR. Run pnpm exec vitest packages/core/src/scope packages/core/src/swarm and task check. Cite #3041 in CHANGELOG.md. Deploy/UAT remain separate non-inferred fields.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3041",
+      "Overview": "Delivery-integrity gate: completed != merged-to-integration; require delivery-branch reachability.",
+      "Labels": "bug, scope, swarm, delivery-integrity",
+      "NonGoals": "Auto-merge/deploy; treating PR-open as delivered; replacing deploy/UAT tooling; dirty-worktree recovery (#2849)."
+    },
+    "items": [
+      {
+        "title": "Delivery-evidence gate on scope:complete and cohort complete",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a code-bearing active scope whose PR merged only to a non-delivery base, when scope:complete or swarm:complete-cohort runs without an explicit non-delivery disposition, the transition fails closed and the xBRIEF stays non-delivered."
+        }
+      },
+      {
+        "title": "finalize-cohort validates delivery branch reachability",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given swarm:finalize-cohort for a PR with merged_at set, when base.ref is not the configured deliveryBranch or merge_commit_sha is not an ancestor of the refreshed remote delivery ref, finalization fails closed; when it is on deliveryBranch and ancestry holds, finalization succeeds and records completion provenance metadata."
+        }
+      },
+      {
+        "title": "Separate baseBranch vs deliveryBranch + tests + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given project policy, baseBranch and deliveryBranch are independent typed concepts; tests cover direct delivery merge, intermediate merge rejection, stale remote refresh failure, and missing PR data; CHANGELOG cites #3041."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "scope",
+      "swarm",
+      "delivery-integrity"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3041",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3041"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1598",
+        "type": "x-xbrief/refs",
+        "title": "Issue #1598"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/86",
+        "type": "x-xbrief/refs",
+        "title": "Issue #86"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/scope/transition.ts",
+          "packages/core/src/scope",
+          "packages/core/src/swarm/complete-cohort.ts",
+          "packages/core/src/swarm/finalize-cohort.ts",
+          "packages/core/src/swarm/finalize-cohort.test.ts",
+          "packages/core/src/swarm/complete-cohort.test.ts",
+          "packages/core/src/policy",
+          "packages/cli/src",
+          "content/docs"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/scope packages/core/src/swarm",
+          "task check"
+        ],
+        "expected_outputs": [
+          "deliveryBranch policy concept",
+          "scope:complete delivery evidence gate",
+          "finalize-cohort delivery-branch ancestry check",
+          "tests + CHANGELOG #3041"
+        ],
+        "depends_on": [],
+        "conflict_group": "delivery-completion-3041",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body locks acceptance and code coordinates (scope/transition, finalize-cohort, complete-cohort); file_scope is expected touch set for implementation."
+      },
+      "capacityBucket": "bugfix",
+      "completedAt": "2026-08-02T18:46:40Z"
+    },
+    "updated": "2026-08-02T18:46:40Z"
+  }
+}

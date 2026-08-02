@@ -1,0 +1,105 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Contain atomicWriteText, ritual-state, and probe-session writes to projectRoot (parent-as-root + bare write sinks).",
+    "updated": "2026-08-02T18:46:42Z"
+  },
+  "plan": {
+    "id": "3042-projectroot-containment-atomic-write-ritual-probe",
+    "title": "fix(security): projectRoot containment for atomicWriteText, ritual-state, probe-session (parent-as-root + bare write)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Three residual Medium containment gaps after #2951/#2980: atomicWriteText parent-as-root, writeRitualState parent-as-root, writeSession bare open/write/rename. Contain all three against projectRoot and refuse escaping symlink parents.",
+      "UserStory": "As a Directive operator, I want lifecycle and ritual writes contained to projectRoot, so that force-added directory symlinks cannot divert product writes outside the checkout.",
+      "ImplementationPlan": "Edit packages/core/src/cache/io.ts (atomicWriteText) to contain against projectRoot via assertWriteTargetSafe or containedWrite root=projectRoot; edit packages/core/src/session/ritual-sentinel.ts writeRitualState the same way; edit packages/core/src/orchestration/probe-session.ts writeSession to drop bare open/write/rename. Add unit tests under matching *.test.ts that force-add xbrief/ and .deft/ dir symlinks and assert fail-closed. Run pnpm exec vitest on those packages and task check. Cite #3042 in CHANGELOG.md.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3042",
+      "Overview": "projectRoot containment for three residual write sinks (cache/io atomicWriteText, ritual-sentinel, probe-session).",
+      "Labels": "bug, security, tooling, agent-safety, area:cli",
+      "NonGoals": "Full monorepo nested-root redesign; changing ritual/probe semantics beyond containment; reopening #2951 epic beyond these three sinks."
+    },
+    "items": [
+      {
+        "title": "Contain three write sinks to projectRoot",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a force-added directory symlink for xbrief/ or .deft/, when atomicWriteText, writeRitualState, or writeSession runs, the write is refused or contained so no file is created outside projectRoot."
+        }
+      },
+      {
+        "title": "Regression tests and inventory",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the unit regression suite for cache/session/orchestration, when run, symlink-escape cases fail closed; verify:contained-writes (or equivalent inventory) does not list these three sinks as open product holes."
+        }
+      },
+      {
+        "title": "CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given CHANGELOG.md [Unreleased], when the PR lands, it cites #3042 for the containment fix."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "security",
+      "tooling",
+      "agent-safety",
+      "area:cli"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3042",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3042"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2951",
+        "type": "x-xbrief/refs",
+        "title": "Issue #2951 contained-write epic"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2980",
+        "type": "x-xbrief/refs",
+        "title": "Issue #2980 residual TS sinks"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/cache/io.ts",
+          "packages/core/src/session/ritual-sentinel.ts",
+          "packages/core/src/orchestration/probe-session.ts",
+          "packages/core/src/fs/contained-write.ts",
+          "packages/core/src/fs/projection-containment.ts",
+          "packages/core/src/cache",
+          "packages/core/src/session",
+          "packages/core/src/orchestration"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/cache packages/core/src/session packages/core/src/orchestration",
+          "task check"
+        ],
+        "expected_outputs": [
+          "projectRoot-contained atomicWriteText / brief stay-path",
+          "projectRoot-contained writeRitualState",
+          "contained writeSession for probe-session",
+          "symlink parent regression tests",
+          "CHANGELOG #3042"
+        ],
+        "depends_on": [],
+        "conflict_group": "security-containment-3042",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body names the three sinks and remediation APIs; file_scope is the expected touch set from #3042 acceptance."
+      },
+      "capacityBucket": "bugfix",
+      "completedAt": "2026-08-02T18:46:42Z"
+    },
+    "updated": "2026-08-02T18:46:42Z"
+  }
+}
