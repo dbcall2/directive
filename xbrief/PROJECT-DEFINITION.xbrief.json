@@ -2,7 +2,7 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Project definition -- current Deft Directive identity, policy, scope registry, and authored architecture metadata.",
-    "updated": "2026-07-30T19:12:12.202Z"
+    "updated": "2026-08-02T19:43:29Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -268,22 +268,6 @@
         }
       },
       {
-        "id": "2026-04-23-127-improved-support-for-deft-in-existing-repositories",
-        "title": "Improved support for Deft in existing repositories -- bootstrap should detect existing code and offer brownfield/map analysis path instead of greenfield-only questionnaire (related to #103; CLI integration in Phase 4 with #53)",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-127-improved-support-for-deft-in-existing-repositories.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/127",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #127: Improved support for Deft in existing repositories -- bootstrap should detect existing code and offer brownfield/map analysis path instead of greenfield-only questionnaire (related to #103; CLI integration in Phase 4 with #53)"
-            }
-          ]
-        }
-      },
-      {
         "id": "2026-04-23-128-ci-vbrief-schema-sync-check-fetch-upstream-vbrief-core",
         "title": "CI vBRIEF schema sync check: fetch upstream `vbrief-core.schema.json` from `deftai/vBRIEF`, diff against vendored copy, fail on divergence (depends on #57)",
         "status": "proposed",
@@ -406,22 +390,6 @@
               "uri": "https://github.com/deftai/directive/issues/258",
               "type": "x-xbrief/github-issue",
               "title": "Issue #258: Inventory Warp Drive global rules used for deft development and document in `CONTRIBUTING.md` under a Warp-specific section (spinoff of #114; blocked on #89 positioning resolution; with #136)"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-46-provide-a-way-for-users-to-update-meta-md-files-soul",
-        "title": "Provide a way for users to update meta MD files (SOUL, MORALS, CODE-FIELD, USER, etc.)",
-        "status": "completed",
-        "metadata": {
-          "source_path": "completed/2026-04-23-46-provide-a-way-for-users-to-update-meta-md-files-soul.xbrief.json",
-          "lifecycle_folder": "completed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/46",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #46: Provide a way for users to update meta MD files (SOUL, MORALS, CODE-FIELD, USER, etc.)"
             }
           ]
         }
@@ -970,17 +938,38 @@
         }
       },
       {
-        "id": "2026-07-21-2734-fixhooks-strip-utf-8-bom-before-cursor-pretooluse-jsonparse",
-        "title": "fix(hooks): strip UTF-8 BOM before Cursor preToolUse JSON.parse",
-        "status": "completed",
+        "id": "2026-07-21-2651-adr-002-forge-provider-azure-adoption",
+        "title": "ADR-002: Forge-provider Azure DevOps adoption gate (proposed)",
+        "status": "proposed",
         "metadata": {
-          "source_path": "completed/2026-07-21-2734-fixhooks-strip-utf-8-bom-before-cursor-pretooluse-jsonparse.xbrief.json",
-          "lifecycle_folder": "completed",
+          "source_path": "proposed/2026-07-21-2651-adr-002-forge-provider-azure-adoption.xbrief.json",
+          "lifecycle_folder": "proposed",
           "references": [
             {
-              "uri": "https://github.com/deftai/directive/issues/2734",
+              "uri": "https://github.com/deftai/directive/issues/2651",
               "type": "x-xbrief/github-issue",
-              "title": "Issue #2734: fix(hooks): strip UTF-8 BOM before Cursor preToolUse JSON.parse"
+              "title": "Issue #2651: first-class Azure DevOps support (Boards + Repos)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/881",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #881: scm:* task namespace"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-31-3014-researchdeposit-opt-in-minimal-consumer-agents-profile-for-a",
+        "title": "research(deposit): opt-in minimal consumer AGENTS profile for app-bank / greenfield",
+        "status": "proposed",
+        "metadata": {
+          "source_path": "proposed/2026-07-31-3014-researchdeposit-opt-in-minimal-consumer-agents-profile-for-a.xbrief.json",
+          "lifecycle_folder": "proposed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3014",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3014: research(deposit): opt-in minimal consumer AGENTS profile for app-bank / greenfield"
             }
           ]
         }
@@ -2536,6 +2525,22 @@
               "uri": "https://github.com/deftai/directive/issues/126",
               "type": "x-xbrief/github-issue",
               "title": "Issue #126: specification.xbrief.json schema non-conformance -- agent generation guidance, subItems/narrative rules, spec_validate.py hardened, 5 new tests"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-04-23-127-improved-support-for-deft-in-existing-repositories",
+        "title": "Improved support for Deft in existing repositories -- bootstrap should detect existing code and offer brownfield/map analysis path instead of greenfield-only questionnaire (related to #103; CLI integration in Phase 4 with #53)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-127-improved-support-for-deft-in-existing-repositories.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/127",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #127: Improved support for Deft in existing repositories -- bootstrap should detect existing code and offer brownfield/map analysis path instead of greenfield-only questionnaire (related to #103; CLI integration in Phase 4 with #53)"
             }
           ]
         }
@@ -4426,6 +4431,22 @@
               "uri": "https://github.com/deftai/directive/issues/45",
               "type": "x-xbrief/github-issue",
               "title": "Issue #45: Bootstrap parity"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-04-23-46-provide-a-way-for-users-to-update-meta-md-files-soul",
+        "title": "setup: Revisit experimental rules (toggle Experimental Rules without hand-editing schema)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-46-provide-a-way-for-users-to-update-meta-md-files-soul.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/46",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #46"
             }
           ]
         }
@@ -20895,6 +20916,143 @@
         }
       },
       {
+        "id": "2026-07-21-1936-untrusted-fetched-content-gate",
+        "title": "feat(security,skills): untrusted fetched content doctrine + external-fetch gate",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-21-1936-untrusted-fetched-content-gate.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1936",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #1936: untrusted-fetched-content doctrine + skill external-fetch gate"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1532",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #1532: skill-validation gate"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-21-1937-agent-skill-supply-chain",
+        "title": "feat(security,patterns): agent-skill supply-chain security (inbound)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-21-1937-agent-skill-supply-chain.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1937",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #1937: agent-skill supply-chain security"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/480",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #480: Agent Trap Defenses"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-21-2313-pr-watch-premature-stall",
+        "title": "bug(pr:watch): no premature STALL on stale-SHA confidence during re-review",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-21-2313-pr-watch-premature-stall.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2313",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2313: pr:watch premature STALL on stale-SHA confidence"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-21-2321-stop-at-pr-open-orphan-active",
+        "title": "stop-at:pr-open must not leave orphaned active/running xBRIEFs on master",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-21-2321-stop-at-pr-open-orphan-active.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2321",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2321: stop-at:pr-open leaves orphaned active/running xBRIEFs"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1880",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #1880: orchestrator dispatch doctrine"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-21-2385-merge-cascade-semantic-green",
+        "title": "Merge cascade: semantic-green gate beyond merge-tree-clean",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-21-2385-merge-cascade-semantic-green.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2385",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2385: merge cascade semantic-green guard"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-21-2591-document-typescript-7-side-by-side-setup-for-deft-typescript",
+        "title": "Document TypeScript 7 side-by-side setup for Deft TypeScript projects",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-21-2591-document-typescript-7-side-by-side-setup-for-deft-typescript.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2591",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2591: Document TypeScript 7 side-by-side setup for Deft TypeScript projects"
+            },
+            {
+              "uri": "https://github.com/deftai/cartograph/pull/111",
+              "type": "x-xbrief/reference",
+              "title": "Cartograph TS7 side-by-side precedent"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-21-2607-safe-issue-body-patch-helper",
+        "title": "feat(scm): issue-body postcondition verify + safe fetch-to-file (#2607)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-21-2607-safe-issue-body-patch-helper.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2607",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2607: safe issue-body patch helper + postcondition verify"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2744",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2744: always-load RMW guidance (follow-on docs)"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-07-21-2693-consented-agent-driven-product-signal-private-deftai-sink-de",
         "title": "Consented agent-driven product signal (private deftai sink, defaults off)",
         "status": "completed",
@@ -20946,6 +21104,309 @@
         }
       },
       {
+        "id": "2026-07-21-2734-fixhooks-strip-utf-8-bom-before-cursor-pretooluse-jsonparse",
+        "title": "fix(hooks): strip UTF-8 BOM before Cursor preToolUse JSON.parse",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-21-2734-fixhooks-strip-utf-8-bom-before-cursor-pretooluse-jsonparse.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2734",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2734: fix(hooks): strip UTF-8 BOM before Cursor preToolUse JSON.parse"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-21-2738-fixhooks-classify-cursor-free-form-applypatch-in-parsepayloa",
+        "title": "fix(hooks): classify Cursor free-form ApplyPatch in parsePayload",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-21-2738-fixhooks-classify-cursor-free-form-applypatch-in-parsepayloa.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2738",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2738: fix(hooks): classify Cursor free-form ApplyPatch in parsePayload"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2713",
+              "type": "x-xbrief/reference",
+              "title": "Parent tracker #2713"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2734",
+              "type": "x-xbrief/reference",
+              "title": "BOM strip #2734 (shipped)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-21-2744-win32-issue-body-rmw-guidance",
+        "title": "docs/process: always-load win32 issue-body RMW footgun (PS string[]/OFS)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-21-2744-win32-issue-body-rmw-guidance.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2744",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2744: always-load win32 issue-body RMW footgun"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2607",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2607: safe issue-body patch helper (parent, merged)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-22-2752-deft-update-re-projects-claudesettingsjson-with-no-persisten",
+        "title": "deft update re-projects .claude/settings.json with no persistent opt-out; fail-closed hook causes friction in non-ritual repos",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-22-2752-deft-update-re-projects-claudesettingsjson-with-no-persisten.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2752",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2752: deft update re-projects .claude/settings.json with no persistent opt-out; fail-closed hook causes friction in non-ritual repos"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-22-2762-testcoverage-restore-branches-85-after-v0820-hairline-miss",
+        "title": "test(coverage): restore branches >=85% after v0.82.0 hairline miss",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-22-2762-testcoverage-restore-branches-85-after-v0820-hairline-miss.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2762",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2762: test(coverage): restore branches >=85% after v0.82.0 hairline miss"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2573",
+              "type": "x-xbrief/refs",
+              "title": "Issue #2573"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-22-2764-bug-cursor-applypatch-double-dispatch-blocks-windows-writes",
+        "title": "bug: Cursor ApplyPatch double-dispatch blocks Windows writes",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-22-2764-bug-cursor-applypatch-double-dispatch-blocks-windows-writes.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2764",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2764: bug: Cursor ApplyPatch double-dispatch blocks Windows writes"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-22-2766-securitylifecycle-refuse-symlink-write-targets-for-eventsjso",
+        "title": "security(lifecycle): refuse symlink write targets for events.jsonl (#2761)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-22-2766-securitylifecycle-refuse-symlink-write-targets-for-eventsjso.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2766",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2766: security(lifecycle): refuse symlink write targets for events.jsonl (#2761)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2761",
+              "type": "x-xbrief/github-issue",
+              "title": "Parent umbrella #2761"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-23-1704-rfc-gate-throughput-without-quality-loss-affected-test-selec",
+        "title": "RFC: gate throughput without quality loss — process levers (fast lane, CI monolith, merge queue)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-23-1704-rfc-gate-throughput-without-quality-loss-affected-test-selec.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1704",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #1704: gate throughput without quality loss"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1713",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #1713: in-engine incrementality (sibling)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-23-2782-session-ritual-invalidates-on-every-forward-commit-exact-hea",
+        "title": "Session ritual invalidates on every forward commit (exact HEAD pin + PreToolUse)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-23-2782-session-ritual-invalidates-on-every-forward-commit-exact-hea.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2782",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2782: Session ritual invalidates on every forward commit (exact HEAD pin + PreToolUse)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-23-2790-perfharness-pretooluse-hookdispatch-cold-cli-boot-071s-per-e",
+        "title": "perf(harness): PreToolUse hook:dispatch cold CLI boot ~0.7–1s per edit on Windows",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-23-2790-perfharness-pretooluse-hookdispatch-cold-cli-boot-071s-per-e.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2790",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2790: perf(harness): PreToolUse hook:dispatch cold CLI boot ~0.7–1s per edit on Windows"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-23-2791-cached-task-check-shells-internal-taskfile-shims",
+        "title": "bug(check): #1713 cached task check shells internal Taskfile shims (go-task 202)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-23-2791-cached-task-check-shells-internal-taskfile-shims.xbrief.json",
+          "lifecycle_folder": "completed"
+        }
+      },
+      {
+        "id": "2026-07-23-2792-choresecurity-split-synthetic-ghp-fixtures",
+        "title": "chore(security): split synthetic ghp_ fixtures that trip secret-scanning alert #1",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-23-2792-choresecurity-split-synthetic-ghp-fixtures.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2792",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2792"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-23-2797-bugcursor-nested-task-subagents-cannot-own-approach-1-review",
+        "title": "bug(cursor): nested Task subagents cannot own Approach 1 review-monitors",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-23-2797-bugcursor-nested-task-subagents-cannot-own-approach-1-review.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2797",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2797: bug(cursor): nested Task subagents cannot own Approach 1 review-monitors"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-23-cursor-failclosed-empty-allow",
+        "title": "bug(hooks): Cursor failClosed empty allow stdout blocks Write after successful Directive gate",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-23-cursor-failclosed-empty-allow.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2779",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2779: Cursor failClosed empty allow stdout blocks Write"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/pull/2778",
+              "type": "x-xbrief/github-pull-request",
+              "title": "PR #2778: emit Cursor permission allow for failClosed deposits"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-24-2804-bug-npm-update-leaves-stale-frozen-bridge-files-in-deftcore",
+        "title": "bug: npm update leaves stale frozen-bridge files in .deft/core",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-24-2804-bug-npm-update-leaves-stale-frozen-bridge-files-in-deftcore.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2804",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2804: bug: npm update leaves stale frozen-bridge files in .deft/core",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-24-2806-bug-migratexbrief-carries-stale-vbriefmd-into-xbrief-with-br",
+        "title": "bug: migrate:xbrief carries stale vbrief.md into xbrief with broken links",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-24-2806-bug-migratexbrief-carries-stale-vbriefmd-into-xbrief-with-br.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2806",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2806: bug: migrate:xbrief carries stale vbrief.md into xbrief with broken links",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-24-2807-appsec-review-4-new-medium-findings-c7fc6df9",
+        "title": "AppSec review — 4 new medium findings (c7fc6df9)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-24-2807-appsec-review-4-new-medium-findings-c7fc6df9.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2807",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2807: AppSec review — 4 new medium findings (c7fc6df9)",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-07-24-2808-docsdoctor-guide-consumers-when-corporate-npm-mirrors-lag-pu",
         "title": "docs+doctor: guide consumers when corporate npm mirrors lag public @deftai/directive",
         "status": "completed",
@@ -20957,6 +21418,1542 @@
               "uri": "https://github.com/deftai/directive/issues/2808",
               "type": "x-xbrief/github-issue",
               "title": "Issue #2808: docs+doctor: guide consumers when corporate npm mirrors lag public @deftai/directive"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-24-2809-rule-map-maintainer-facing-generated-view-of-the-rule-taxono",
+        "title": "Rule Map: maintainer-facing generated view of the rule taxonomy (`task docs:rule-map`)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-24-2809-rule-map-maintainer-facing-generated-view-of-the-rule-taxono.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2809",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2809: Rule Map: maintainer-facing generated view of the rule taxonomy (`task docs:rule-map`)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-24-2814-featreview-cycle-pr-anchored-review-owner-lease-replaces-loc",
+        "title": "feat(review-cycle): PR-anchored review-owner lease replaces local review-monitor.json",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-24-2814-featreview-cycle-pr-anchored-review-owner-lease-replaces-loc.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2814",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2814: feat(review-cycle): PR-anchored review-owner lease replaces local review-monitor.json",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2655",
+              "type": "x-xbrief/related",
+              "title": "Issue #2655: local review-monitor gate",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/pull/2810",
+              "type": "x-xbrief/related",
+              "title": "PR #2810 dogfood double-babysit",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-24-2822-fixvalue-feedbackproduct-signal-one-time-org-force-on-at-nex",
+        "title": "fix(value-feedback,product-signal): one-time org force-on at next install",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-24-2822-fixvalue-feedbackproduct-signal-one-time-org-force-on-at-nex.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2822",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2822: one-time org force-on for valueFeedback + productSignal",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2376",
+              "type": "x-xbrief/related",
+              "title": "Issue #2376 valueFeedback org-auto",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2693",
+              "type": "x-xbrief/related",
+              "title": "Issue #2693 product-signal Phase 1",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-24-2824-bugswarmcursor-drive-tomerge-task-leaves-go-dark-with-no-hea",
+        "title": "bug(swarm,cursor): drive-to:merge Task leaves go dark with no heartbeat gate or REDISPATCH_OK",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-24-2824-bugswarmcursor-drive-tomerge-task-leaves-go-dark-with-no-hea.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2824",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2824: bug(swarm,cursor): drive-to:merge Task leaves go dark with no heartbeat gate or REDISPATCH_OK (false-alive)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1365",
+              "type": "x-xbrief/refs",
+              "title": "Issue #1365"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2655",
+              "type": "x-xbrief/refs",
+              "title": "Issue #2655"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/pull/2818",
+              "type": "x-xbrief/refs",
+              "title": "PR #2818 recurrence stimulus (merged after silent leaf)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/pull/2820",
+              "type": "x-xbrief/refs",
+              "title": "PR #2820 recurrence stimulus (open; coordinate shared files)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-24-2826-fixpreflight-cache-treat-successful-empty-open-issue-refresh",
+        "title": "fix(preflight-cache): treat successful empty open-issue refresh as fresh",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-24-2826-fixpreflight-cache-treat-successful-empty-open-issue-refresh.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2826",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2826"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-24-2828-deft-update-help-performs-the-update-instead-of-printing-hel",
+        "title": "bug(cli): deft update --help performs the update instead of printing help",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-24-2828-deft-update-help-performs-the-update-instead-of-printing-hel.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2828",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2828"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-26-2836-testcoverage-restore-branches-85-after-v0850-hairline-miss-8",
+        "title": "test(coverage): restore branches >=85% after v0.85.0 hairline miss (84.95%)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-26-2836-testcoverage-restore-branches-85-after-v0850-hairline-miss-8.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2836",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2836: test(coverage): restore branches >=85% after v0.85.0 hairline miss (84.95%)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-26-2837-bugcli-documented-xbriefpreflight-separator-form-fails-on-v0",
+        "title": "bug(cli): documented xbrief:preflight separator form fails on v0.84.0",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-26-2837-bugcli-documented-xbriefpreflight-separator-form-fails-on-v0.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2837",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2837: bug(cli): documented xbrief:preflight separator form fails on v0.84.0"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-26-2838-bughooks-deft-update-leaves-orphaned-deft-cursor-hook-adapte",
+        "title": "bug(hooks): deft update leaves orphaned deft-cursor-hook-adapter.test.mjs",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-26-2838-bughooks-deft-update-leaves-orphaned-deft-cursor-hook-adapte.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2838",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2838: bug(hooks): deft update leaves orphaned deft-cursor-hook-adapter.test.mjs"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-26-2839-appsec-review-4-new-medium-findings-4f570263",
+        "title": "AppSec review — 4 new medium findings (4f570263)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-26-2839-appsec-review-4-new-medium-findings-4f570263.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2839",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2839: AppSec review — 4 new medium findings (4f570263)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-26-2843-swarm-monitor-must-not-self-implement-after-drive-tomerge-re",
+        "title": "swarm: monitor must not self-implement after drive-to:merge-ready leaf exits BLOCKED/DONE-with-blockers",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-26-2843-swarm-monitor-must-not-self-implement-after-drive-tomerge-re.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2843",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2843: swarm: monitor must not self-implement after drive-to:merge-ready leaf exits BLOCKED/DONE-with-blockers"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-26-2846-bughooks-deft-hook-symlink-shim-never-runs-main-argv1-realpa",
+        "title": "bug(hooks): deft-hook symlink shim never runs main() (argv[1] realpath mismatch)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-26-2846-bughooks-deft-hook-symlink-shim-never-runs-main-argv1-realpa.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2846",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2846: bug(hooks): deft-hook symlink shim never runs main() (argv[1] realpath mismatch)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-26-2847-appsec-medium-symlink-follow-writes-in-migratexbrief-policy",
+        "title": "AppSec: medium symlink-follow writes in migrate:xbrief + policy wip-cap/subagent-backend",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-26-2847-appsec-medium-symlink-follow-writes-in-migratexbrief-policy.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2847",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2847: AppSec medium symlink-follow writes in migrate:xbrief + policy wip-cap/subagent-backend"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-27-2850-bugdoctor-checking-deft-structure-agent-host-hook-checks-fir",
+        "title": "bug(doctor): Deft structure + agent-host hook checks fire spurious warnings in framework maintainer clone",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-27-2850-bugdoctor-checking-deft-structure-agent-host-hook-checks-fir.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2850",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2850: bug(doctor) spurious warnings in framework maintainer clone"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-27-2852-doctor-live-probe-agent-hooks-emptyunparseable-stdout-is-cur",
+        "title": "doctor: live-probe agent hooks (empty/unparseable stdout is currently invisible)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-27-2852-doctor-live-probe-agent-hooks-emptyunparseable-stdout-is-cur.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2852",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2852: doctor live-probe agent hooks"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-27-2858-bugrender-corevalidate-capture-walks-processcwdnode-modules",
+        "title": "bug(render): core:validate capture walks process.cwd()/node_modules (hangs task check)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-27-2858-bugrender-corevalidate-capture-walks-processcwdnode-modules.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2858",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2858: bug(render) core:validate capture walks process.cwd()/node_modules"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-27-2859-release-on-task-check-failure-file-and-merge-the-blocker-do",
+        "title": "release: on task check failure, file-and-merge the blocker — do not lead with inline hotfix (AGENTS.md bulk rejected)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-27-2859-release-on-task-check-failure-file-and-merge-the-blocker-do.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2859",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2859: release: on task check failure, file-and-merge the blocker — do not lead with inline hotfix (AGENTS.md bulk rejected)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-27-2862-bugscope-scopecomplete-leaves-the-completing-briefs-own-plan",
+        "title": "bug(scope): scope:complete leaves the completing brief's own plan.items[].status pending and xBRIEFInfo.updated stale",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-27-2862-bugscope-scopecomplete-leaves-the-completing-briefs-own-plan.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2862",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2862: bug(scope): scope:complete leaves the completing brief's own plan.items[].status pending and xBRIEFInfo.updated stale"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-27-2864-bughooks-cursor-toolbefore-intermittently-blocks-task-spawns",
+        "title": "bug(hooks): Cursor tool.before intermittently blocks Task spawns on macOS — host reports \"exit code 1\" but no hook:dispatch path exits 1",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-27-2864-bughooks-cursor-toolbefore-intermittently-blocks-task-spawns.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2864",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2864: bug(hooks): Cursor tool.before intermittently blocks Task spawns on macOS — host reports \"exit code 1\" but no hook:dispatch path exits 1"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-27-2865-testcoverage-restore-branches-85-8499-blocks-v0860-release-s",
+        "title": "test(coverage): restore branches >= 85% (84.99% blocks v0.86.0 release Step 5)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-27-2865-testcoverage-restore-branches-85-8499-blocks-v0860-release-s.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2865",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2865: test(coverage): restore branches >= 85% (84.99% blocks v0.86.0 release Step 5)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-27-2866-release-prefer-allow-coverage-debtn-when-no-open-coverage-de",
+        "title": "release: prefer --allow-coverage-debt=#N when no open coverage-debt issue (don't interrupt cut for hairlines)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-27-2866-release-prefer-allow-coverage-debtn-when-no-open-coverage-de.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2866",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2866: release: prefer --allow-coverage-debt=#N when no open coverage-debt issue (don't interrupt cut for hairlines)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-27-2869-appsec-review-5-new-medium-findings-db39366e",
+        "title": "AppSec review — 5 new medium findings (db39366e)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-27-2869-appsec-review-5-new-medium-findings-db39366e.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2869",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2869: AppSec review — 5 new medium findings (db39366e)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-28-2875-openclaw-platform-descriptor-matrix",
+        "title": "feat(swarm): OpenClaw platform descriptor + capability matrix (Tier 1 sessions_spawn)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-28-2875-openclaw-platform-descriptor-matrix.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2875",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-28-2876-openclaw-review-cycle-sessions-spawn",
+        "title": "feat(review-cycle): OpenClaw babysit/review-monitor → sessions_spawn (Approach 1)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-28-2876-openclaw-review-cycle-sessions-spawn.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2876",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-28-2877-docs-openclaw-agent-host",
+        "title": "docs(interfaces): agent-host OpenClaw + Directive-for-OpenClaw-users",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-28-2877-docs-openclaw-agent-host.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2877",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-28-2878-consumer-pr-watch-fallback",
+        "title": "feat(consumers): statusreport pr:watch / review-monitor or official gh-fallback",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-28-2878-consumer-pr-watch-fallback.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2878",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-28-2879-openclaw-templates-heartbeat",
+        "title": "feat(templates): OpenClaw poller/preamble + heartbeat mapping",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-28-2879-openclaw-templates-heartbeat.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2879",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-28-2881-babysit-must-not-expand-active-story-past-xbrief-ac",
+        "title": "bug(process): babysit/review must not expand active story scope past xbrief AC",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-28-2881-babysit-must-not-expand-active-story-past-xbrief-ac.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2881",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-28-2885-active-scope-outside-root-skip",
+        "title": "bug(hooks): active-scope write gate skips outside-project-root targets",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-28-2885-active-scope-outside-root-skip.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2885",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-28-2890-triage-phase3-operator-brief",
+        "title": "feat(skills,triage): Phase 3 operator brief contract + triage:show --format=operator",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-28-2890-triage-phase3-operator-brief.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2890",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-28-2893-gates-surface-readiness",
+        "title": "bug(doctor/skills): gates-surface broken for consumers — dual deft/task invoke",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-28-2893-gates-surface-readiness.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2893",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-28-issue-emit-create-stamp-durability-no-duplicate-on-retry",
+        "title": "bug(intake): issue-emit create/stamp durability — no orphan remote / no duplicate on retry",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-28-issue-emit-create-stamp-durability-no-duplicate-on-retry.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2880",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2711-runtime-authority-shell-mcp-push-merge",
+        "title": "feat(harness): Shell/MCP PreToolUse matchers for runtimeAuthority scopes.push / scopes.merge",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2711-runtime-authority-shell-mcp-push-merge.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2711",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2948",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2899-graduation-now-later-wave-a",
+        "title": "bug(strategies,scope): Now+Later graduation dual-path locks for intentional under-builds",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2899-graduation-now-later-wave-a.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2899",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2907-xbrief-sole-public-canonical-name",
+        "title": "docs/product: vBRIEF is legacy — xbrief sole public canonical work-state name",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2907-xbrief-sole-public-canonical-name.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2907",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2908-securityinstall-pinverify-git-for-windows-download-before-si",
+        "title": "security(install): pin+verify Git-for-Windows download before silent exec (install-deposit-01)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2908-securityinstall-pinverify-git-for-windows-download-before-si.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2908",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2908: security(install): pin+verify Git-for-Windows download before silent exec (install-deposit-01)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2909-securityinstall-pinverify-linux-yes-uvtaskgh-bootstrap-insta",
+        "title": "security(install): pin+verify Linux --yes uv/task/gh bootstrap (install-deposit-02)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2909-securityinstall-pinverify-linux-yes-uvtaskgh-bootstrap-insta.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2909",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2909: security(install): pin+verify Linux --yes uv/task/gh bootstrap (install-deposit-02)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2910-securitycache-hard-fail-fine-grained-github-pat-tokens-in-sc",
+        "title": "security(cache): hard-fail fine-grained github_pat_ tokens in scanner (cache-quarantine-01)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2910-securitycache-hard-fail-fine-grained-github-pat-tokens-in-sc.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2910",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2910: security(cache): hard-fail fine-grained github_pat_ tokens in scanner (cache-quarantine-01)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2911-securitywin32-engine-invoke-shellfalse-stop-cmdexe-reparse-o",
+        "title": "security(win32): engine-invoke shell:false — stop cmd.exe reparse of DEFT_ENGINE_CMD_JSON (subprocess-scm-01)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2911-securitywin32-engine-invoke-shellfalse-stop-cmdexe-reparse-o.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2911",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2911: security(win32): engine-invoke shell:false — stop cmd.exe reparse of DEFT_ENGINE_CMD_JSON (subprocess-scm-01)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2912-securitydeposit-refuse-in-tree-dest-symlinks-on-consumer-pro",
+        "title": "security(deposit): refuse in-tree dest symlinks on consumer projection writers (install-deposit-04)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2912-securitydeposit-refuse-in-tree-dest-symlinks-on-consumer-pro.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2912",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2912: security(deposit): refuse in-tree dest symlinks on consumer projection writers (install-deposit-04)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2913-securitydeposit-npm-update-full-tree-replace-no-stale-deftco",
+        "title": "security(deposit): npm update full-tree replace — no stale .deft/core survival (install-deposit-06)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2913-securitydeposit-npm-update-full-tree-replace-no-stale-deftco.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2913",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2913: security(deposit): npm update full-tree replace — no stale .deft/core survival (install-deposit-06)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2914-securitypacks-contain-pack-render-path-fields-under-content",
+        "title": "security(packs): contain pack-render path fields under CONTENT_ROOT + schema (skill-pack-supply-01)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2914-securitypacks-contain-pack-render-path-fields-under-content.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2914",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2914: security(packs): contain pack-render path fields under CONTENT_ROOT + schema (skill-pack-supply-01)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2915-securitycache-neutralize-nested-fences-inside-quarantine-wra",
+        "title": "security(cache): neutralize nested fences inside quarantine wrappers (cache-quarantine-03)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2915-securitycache-neutralize-nested-fences-inside-quarantine-wra.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2915",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2915: security(cache): neutralize nested fences inside quarantine wrappers (cache-quarantine-03)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2916-securityingest-quarantine-scan-issue-labelstags-before-xbrie",
+        "title": "security(ingest): quarantine-scan issue labels/tags before xBRIEF Labels/tags (cache-quarantine-06)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2916-securityingest-quarantine-scan-issue-labelstags-before-xbrie.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2916",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2916: security(ingest): quarantine-scan issue labels/tags before xBRIEF Labels/tags (cache-quarantine-06)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2925-bugstrategies-chaining-gate-proceed-is-artifact-blind-inte",
+        "title": "bug(strategies): chaining gate Proceed is artifact-blind - interview create-vs-update",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2925-bugstrategies-chaining-gate-proceed-is-artifact-blind-inte.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2925",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2925: bug(strategies): chaining gate Proceed is artifact-blind - interview create-vs-update"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2926-featpolicysetup-official-per-project-no-deft-directive-opt-o",
+        "title": "feat(policy/setup): official per-project .no-deft-directive opt-out flag",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2926-featpolicysetup-official-per-project-no-deft-directive-opt-o.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2926",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2926: feat(policy/setup): official per-project .no-deft-directive opt-out flag"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2927-docs-use-short-controlled-english-for-docs-and-issues-asd-st",
+        "title": "docs: use short controlled English for docs and issues (ASD-STE100)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2927-docs-use-short-controlled-english-for-docs-and-issues-asd-st.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2927",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2927: docs: use short controlled English for docs and issues (ASD-STE100)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2928-featskills-load-one-host-adapter-after-detect-keep-other-hos",
+        "title": "feat(skills): load one host adapter after detect; keep other hosts out of context",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2928-featskills-load-one-host-adapter-after-detect-keep-other-hos.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2928",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2928: feat(skills): load one host adapter after detect; keep other hosts out of context"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2929-featswarmopenclaw-require-worktree-before-sessions-spawn-blo",
+        "title": "feat(swarm,openclaw): require worktree before sessions_spawn; block shared-checkout parallel dispatch",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2929-featswarmopenclaw-require-worktree-before-sessions-spawn-blo.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2929",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2929: feat(swarm,openclaw): require worktree before sessions_spawn; block shared-checkout parallel dispatch"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2934-featswarm-require-next-phase-tool-dispatch-after-cohort-comp",
+        "title": "feat(swarm): require next-phase tool dispatch after cohort complete (no prose-only handoff)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2934-featswarm-require-next-phase-tool-dispatch-after-cohort-comp.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2934",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2934: feat(swarm): require next-phase tool dispatch after cohort complete (no prose-only handoff)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2943-openclaw-parent-text-repetition-hang",
+        "title": "bug(openclaw): parent agent text-repetition hang after thin subagent completion",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2943-openclaw-parent-text-repetition-hang.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2943",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2950-hooks-classify-phase-a",
+        "title": "feat(hooks): pure classifier extraction + fixture matrix skeleton (Phase A of #2950)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2950-hooks-classify-phase-a.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2950",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2951-phase1-contained-write-api",
+        "title": "Phase 1: containedWrite API + tests + docs + verify skeleton (#2951)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2951-phase1-contained-write-api.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2951",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2951: epic(security): mandatory contained-write API + ban raw write sinks"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-29-2953-perf-release-speed-up-routine-cuts",
+        "title": "perf(release): speed up routine cuts — skip scratch scans, document Step 5 modes",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-29-2953-perf-release-speed-up-routine-cuts.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2953",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2953: perf(release): speed up routine cuts"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-30-1095-wave4-closed-verb-session-auth-slim",
+        "title": "feat(authz): closed-verb release gates + AFK templates consuming human-origin grants (#1095 slim)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-30-1095-wave4-closed-verb-session-auth-slim.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1095",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2948",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2944",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-30-1193-rfc-agent-blast-radius-controls-hotfix-classifier-human-merg",
+        "title": "feat(authz): agent blast-radius controls — intent ceiling (Wave 2 / #1193)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-30-1193-rfc-agent-blast-radius-controls-hotfix-classifier-human-merg.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1193",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2948",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-30-2944-authz-wave1-human-origin-uat",
+        "title": "bug(authz): self-authored consent tokens and active UAT runs do not prevent unauthorized mutation",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-30-2944-authz-wave1-human-origin-uat.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2944",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2948",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-30-2950-hooks-phase-b-matrix",
+        "title": "feat(hooks): Phase B matrix CI expansion + decision-code docs (epic #2950)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-30-2950-hooks-phase-b-matrix.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2950",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-30-2951-contained-write-phase-2",
+        "title": "feat(security): Phase 2 contained-write migrate high-risk sinks + enforce path (epic #2951)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-30-2951-contained-write-phase-2.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2951",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-30-2969-install-trust-pattern",
+        "title": "docs(security,installer): install-trust pattern — no naked curl|sh as blessed path",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-30-2969-install-trust-pattern.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2969",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-30-2971-emit-xbrief-08-default",
+        "title": "fix(setup,xbrief): emit/write xBRIEF 0.8 by default; init path for existing docs",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-30-2971-emit-xbrief-08-default.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2971",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2970",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-30-2980-wave-b-ledgers",
+        "title": "feat(security): migrate intake/authz/escalation/scope ledgers to containedWrite (#2980 wave B)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-30-2980-wave-b-ledgers.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2980",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2951",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-30-2980-wave-c-eval-io",
+        "title": "feat(security): migrate eval/doctor/xbrief residual product writes (#2980 wave C)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-30-2980-wave-c-eval-io.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2980",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2951",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-30-2980-wave-d-leftovers-enforce",
+        "title": "feat(security): #2980 leftovers sweep + fail-closed contained-writes in task check",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-30-2980-wave-d-leftovers-enforce.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2980",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2951",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-30-518-wave5-typed-escalation-slim",
+        "title": "feat(authz): typed escalation events + CLI batch queue (#518 slim)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-30-518-wave5-typed-escalation-slim.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/518",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2948",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-30-871-wave5-finish-loop",
+        "title": "feat(tasks): directive:finish-loop + pr:finish-loop walk-away product (#871)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-30-871-wave5-finish-loop.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/871",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2948",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1095",
+              "type": "x-xbrief/github-issue",
+              "TrustLevel": "external"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-31-3001-feat-doctor-openclaw-skill-pins-fix",
+        "title": "feat(doctor,openclaw): detect missing host skill pins + doctor --fix wire",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-31-3001-feat-doctor-openclaw-skill-pins-fix.xbrief.json",
+          "lifecycle_folder": "completed"
+        }
+      },
+      {
+        "id": "2026-07-31-3009-epicbuildharness-multi-scope-turncache-budget-post-v090-cere",
+        "title": "epic(build,harness): multi-scope turn/cache budget (post-v0.90 ceremony)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-31-3009-epicbuildharness-multi-scope-turncache-budget-post-v090-cere.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3009",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3009: epic(build,harness): multi-scope turn/cache budget (post-v0.90 ceremony)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-31-3010-featharnessbuild-ban-re-initsession-ceremony-after-offline-s",
+        "title": "feat(harness,build): ban re-init/session ceremony after offline seed",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-31-3010-featharnessbuild-ban-re-initsession-ceremony-after-offline-s.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3010",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3010: feat(harness,build): ban re-init/session ceremony after offline seed"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-31-3011-featscope-batch-promote-multi-scope-pin-keep-one-active-impl",
+        "title": "feat(scope): batch promote multi-scope pin; keep one active implement",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-31-3011-featscope-batch-promote-multi-scope-pin-keep-one-active-impl.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3011",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3011: feat(scope): batch promote multi-scope pin; keep one active implement"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-31-3012-docsskills-multi-scope-build-quality-check-once-at-end-unles",
+        "title": "docs(skills): multi-scope build — quality check once at end unless failed",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-31-3012-docsskills-multi-scope-build-quality-check-once-at-end-unles.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3012",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3012: docs(skills): multi-scope build — quality check once at end unless failed"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-07-31-3013-featsetupseed-minimal-render-ready-project-definition-for-on",
+        "title": "feat(setup,seed): minimal render-ready PROJECT-DEFINITION for one-shot project:render",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-07-31-3013-featsetupseed-minimal-render-ready-project-definition-for-on.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3013",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3013: feat(setup,seed): minimal render-ready PROJECT-DEFINITION for one-shot project:render"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-01-1566-spec-render-produces-unusably-large-specificationmd-by-defau",
+        "title": "spec: render produces unusably large SPECIFICATION.md by default",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-01-1566-spec-render-produces-unusably-large-specificationmd-by-defau.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1566",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #1566: spec: render produces unusably large SPECIFICATION.md by default"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-01-1694-bugtriageonboarding-wipcap-onboarding-nudge-contradicts-test",
+        "title": "bug(triage,onboarding): wipCap onboarding nudge contradicts test_policy_omits_wip_cap on deft's own repo (unsatisfiable nudge + self-check trap)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-01-1694-bugtriageonboarding-wipcap-onboarding-nudge-contradicts-test.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1694",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #1694: bug(triage,onboarding): wipCap onboarding nudge contradicts test_policy_omits_wip_cap on deft's own repo (unsatisfiable nudge + self-check trap)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-01-1695-metacoding-standards-codify-no-in-band-signaling-absence-is",
+        "title": "meta(coding-standards): codify 'no in-band signaling / absence is not a decision' — separate value from decision-provenance",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-01-1695-metacoding-standards-codify-no-in-band-signaling-absence-is.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/1695",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #1695: meta(coding-standards): codify 'no in-band signaling / absence is not a decision' — separate value from decision-provenance"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-01-2653-roadmapmd-is-completed-only-again-no-forward-looking-product",
+        "title": "ROADMAP.md is Completed-only again — no forward-looking product roadmap (#632 recurrence)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-01-2653-roadmapmd-is-completed-only-again-no-forward-looking-product.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2653",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2653: ROADMAP.md is Completed-only again — no forward-looking product roadmap (#632 recurrence)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-01-3008-doctor-openclaw-always-pins-symlink-install-rejected-by-open",
+        "title": "doctor OpenClaw always-pins: symlink install rejected by OpenClaw symlink-escape",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-01-3008-doctor-openclaw-always-pins-symlink-install-rejected-by-open.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3008",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3008: doctor OpenClaw always-pins: symlink install rejected by OpenClaw symlink-escape"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-01-3015-prcheck-closing-keywords-misses-multi-phase-conditional-clos",
+        "title": "pr:check-closing-keywords misses multi-phase / conditional Closes #N (enterprize#29 false complete)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-01-3015-prcheck-closing-keywords-misses-multi-phase-conditional-clos.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3015",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3015: pr:check-closing-keywords misses multi-phase / conditional Closes #N (enterprize#29 false complete)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-01-3032-through-merge-worker-dispatch",
+        "title": "process: through merge / drive-to:merge-ready must dispatch worker (parent must not implement); N=1 uses swarm path",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-01-3032-through-merge-worker-dispatch.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3032",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3032: through merge / drive-to:merge-ready must dispatch worker"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-02-3027-coverage-debt-restore-vitest-branches-85-8491-at-v0910-prefl",
+        "title": "coverage-debt: restore Vitest branches >=85% (84.91% at v0.91.0 preflight)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-02-3027-coverage-debt-restore-vitest-branches-85-8491-at-v0910-prefl.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3027",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3027: coverage-debt: restore Vitest branches >=85% (84.91% at v0.91.0 preflight)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-02-3029-deft-core-guard-allowlists-project-definition-breaks-1430-mi",
+        "title": "deft-core-guard allowlists PROJECT-DEFINITION — breaks #1430 mixed-change invariant",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-02-3029-deft-core-guard-allowlists-project-definition-breaks-1430-mi.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3029",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3029: deft-core-guard allowlists PROJECT-DEFINITION — breaks #1430 mixed-change invariant"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-02-3030-fail-closed-enforce-1430-consumer-path-denylist-on-installer",
+        "title": "fail-closed: enforce #1430 consumer-path denylist on installerManagedMatchers (SPEC must break CI)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-02-3030-fail-closed-enforce-1430-consumer-path-denylist-on-installer.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3030",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3030: fail-closed: enforce #1430 consumer-path denylist on installerManagedMatchers (SPEC must break CI)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-02-3039-featpolicy-deft-directive-disable-test-kill-switch-file-agen",
+        "title": "feat(policy): `.deft-directive-disable` test kill-switch (file + AGENTS/CLI/doctor; re-enable needs new session)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-02-3039-featpolicy-deft-directive-disable-test-kill-switch-file-agen.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3039",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3039: feat(policy): `.deft-directive-disable` test kill-switch"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2926",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2926: permanent .no-deft-directive opt-out (related, must not regress)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-02-3041-bugscopeswarm-completion-succeeds-without-proof-that-impleme",
+        "title": "bug(scope,swarm): completion succeeds without proof that implementation reached the delivery branch",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-02-3041-bugscopeswarm-completion-succeeds-without-proof-that-impleme.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3041",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3041"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/1598",
+              "type": "x-xbrief/refs",
+              "title": "Issue #1598"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/86",
+              "type": "x-xbrief/refs",
+              "title": "Issue #86"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-02-3042-fixsecurity-projectroot-containment-for-atomicwritetext-ritu",
+        "title": "fix(security): projectRoot containment for atomicWriteText, ritual-state, probe-session (parent-as-root + bare write)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-02-3042-fixsecurity-projectroot-containment-for-atomicwritetext-ritu.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3042",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3042"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2951",
+              "type": "x-xbrief/refs",
+              "title": "Issue #2951 contained-write epic"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2980",
+              "type": "x-xbrief/refs",
+              "title": "Issue #2980 residual TS sinks"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-02-3044-fixreview-cycleopenclaw-empty-announce-done-single-review-mo",
+        "title": "fix(review-cycle,openclaw): empty announce ≠ done + single review-monitor lease",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-02-3044-fixreview-cycleopenclaw-empty-announce-done-single-review-mo.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3044",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3044"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2874",
+              "type": "x-xbrief/refs",
+              "title": "Issue #2874"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2876",
+              "type": "x-xbrief/refs",
+              "title": "Issue #2876"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/2943",
+              "type": "x-xbrief/refs",
+              "title": "Issue #2943"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-02-3048-docs-delete-or-archive-valuable-go-task-improvementsmd-post",
+        "title": "docs: delete or archive valuable-go-task-improvements.md (post-#446)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-02-3048-docs-delete-or-archive-valuable-go-task-improvementsmd-post.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3048",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3048"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/446",
+              "type": "x-xbrief/refs",
+              "title": "Issue #446 closed parent decision"
             }
           ]
         }
@@ -21400,6 +23397,23 @@
             }
           ]
         }
+      },
+      {
+        "id": "2026-07-24-2805-bug-frozen-bridge-leaves-tracked-legacy-deft-tree-and-doctor",
+        "title": "bug: frozen bridge leaves tracked legacy deft tree and Doctor misses dual layout",
+        "status": "cancelled",
+        "metadata": {
+          "source_path": "cancelled/2026-07-24-2805-bug-frozen-bridge-leaves-tracked-legacy-deft-tree-and-doctor.xbrief.json",
+          "lifecycle_folder": "cancelled",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/2805",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #2805: bug: frozen bridge leaves tracked legacy deft tree and Doctor misses dual layout",
+              "TrustLevel": "external"
+            }
+          ]
+        }
       }
     ],
     "metadata": {
@@ -21422,6 +23436,7 @@
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'VERSION manifest moved from .deft/VERSION to .deft/core/VERSION without migration; legacy file persists as stale source-of-truth' shares topics (legacy)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'bug(triage): deft triage:accept broken — delegates to removed legacy Python issue_ingest (ModuleNotFoundError), blocks verify:cache-fresh dispatch gate' shares topics (legacy)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'docs(readme): add \"Your Artifacts\" section documenting user-generated artifact locations' shares topics (artifacts)",
+        "Narrative 'LegacyArtifacts' may be stale: completed scope 'docs/product: vBRIEF is legacy — xbrief sole public canonical work-state name' shares topics (legacy)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'docs: reframe install paths around webinstaller + npm/pip; demote Go binary to legacy' shares topics (legacy)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'doctor and agents:refresh: fix legacy skill paths and false-positive checks' shares topics (legacy)",
         "Narrative 'LegacyArtifacts' may be stale: completed scope 'feat(#1912 E): pinned legacy->bridge->npm-hybrid e2e leg (reads Tier-0 SoT, pending-pin until frozen)' shares topics (legacy)",
@@ -21444,9 +23459,12 @@
         "Narrative 'OpenQuestions' may be stale: completed scope 'enh(swarm): auto-sweep cohort briefs active/ -> completed/ after PRs merge (eliminate stop-at:pr-open lifecycle-sweep tax)' shares topics (open)",
         "Narrative 'OpenQuestions' may be stale: completed scope 'feat(framework,skills): add Discuss + Back as canonical numbered options in all deterministic-mode questions' shares topics (questions)",
         "Narrative 'OpenQuestions' may be stale: completed scope 'feat(triage-scope): milestone rule any-of + is-open variants (#1181)' shares topics (open)",
+        "Narrative 'OpenQuestions' may be stale: completed scope 'fix(preflight-cache): treat successful empty open-issue refresh as fresh' shares topics (open)",
         "Narrative 'OpenQuestions' may be stale: completed scope 'fix(scripts/reconcile_issues.py, scripts/release.py): vBRIEF-lifecycle-sync gate false-positives on repos with >200 open issues' shares topics (open)",
         "Narrative 'OpenQuestions' may be stale: completed scope 'fix(triage): batch verify:cache-fresh scope filter so milestone is-open fetches once, not per-issue (#1424)' shares topics (open)",
+        "Narrative 'OpenQuestions' may be stale: completed scope 'release: prefer --allow-coverage-debt=#N when no open coverage-debt issue (don't interrupt cut for hairlines)' shares topics (open)",
         "Narrative 'OpenQuestions' may be stale: completed scope 'scope:complete should warn + reconcile when the completed scope is referenced by an OPEN umbrella' shares topics (open)",
+        "Narrative 'OpenQuestions' may be stale: completed scope 'stop-at:pr-open must not leave orphaned active/running xBRIEFs on master' shares topics (open)",
         "Narrative 'Overview' may be stale: completed scope 'bug(refinement,ingest): `task issue:ingest` produces stub vBRIEFs without `plan.narratives.Overview` or `plan.items` -- ingested items are not swarm-ready' shares topics (overview)",
         "Narrative 'Overview' may be stale: completed scope 'enhancement(ingest,skills): task issue:ingest produces stub-only vBRIEFs (no Overview, no items)' shares topics (overview)",
         "Narrative 'Overview' may be stale: completed scope 'fix(scripts): migrate_vbrief produces PROJECT-DEFINITION without required 'overview' narrative key' shares topics (overview)",
@@ -21472,10 +23490,12 @@
         "Narrative 'ProjectConfig' may be stale: completed scope 'USER.md / user-config resolution in mismatched + headless envs' shares topics (config)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'Wire + flip the render family (spec:validate, spec:render, prd:render, project:render)' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'Write SPECIFICATION.md and proper PROJECT.md for the deft project itself' shares topics (project)",
+        "Narrative 'ProjectConfig' may be stale: completed scope 'bug(hooks): active-scope write gate skips outside-project-root targets' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'bug(project:render): regenerated PROJECT-DEFINITION fails task vbrief:validate (D3 registry-status) + large reordering churn vs committed file' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'bug(scope): project-definition-sync.ts skips PROJECT-DEFINITION sync (hardcoded vbrief/ path) on migrated trees' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'bug(scripts/project_render): task project:render leaks xbrief/PROJECT-DEFINITION.xbrief.json.lock; trapped by git add -A on every chore commit' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'bug(triage,policy): adopt PROJECT-DEFINITION mutation lock across all RMW mutators' shares topics (project)",
+        "Narrative 'ProjectConfig' may be stale: completed scope 'deft-core-guard allowlists PROJECT-DEFINITION — breaks #1430 mixed-change invariant' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'deft-setup project name fallback' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'docs(skills): Wave 1 operator surfaces — project:export-spec + deft update hook refresh (#2013 follow-up)' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'docs: reframe Go installer across consumer docs (Node always required) + project-directory note' shares topics (project)",
@@ -21484,7 +23504,9 @@
         "Narrative 'ProjectConfig' may be stale: completed scope 'feat(consumer-example): deft's triage config + reference doc (#1186)' shares topics (config)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'feat(harness): add Codex lifecycle hook adapter + project deposit' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'feat(harness): deft-hook P0 host PreToolUse enforcement and project deposit' shares topics (project)",
+        "Narrative 'ProjectConfig' may be stale: completed scope 'feat(policy/setup): official per-project .no-deft-directive opt-out flag' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'feat(scripts,tasks,hooks): detection-bound branch gate — verify:branch + git hooks reading PROJECT-DEFINITION policy field' shares topics (project)",
+        "Narrative 'ProjectConfig' may be stale: completed scope 'feat(setup,seed): minimal render-ready PROJECT-DEFINITION for one-shot project:render' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'fix(cli): run project should create vbrief lifecycle subdirectories' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'fix(render): project:render must emit registry items that pass vbrief:validate for mixed-status decompose groups' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'fix(scripts): migrate_vbrief produces PROJECT-DEFINITION without required 'overview' narrative key' shares topics (project)",
