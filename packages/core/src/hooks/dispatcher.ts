@@ -43,8 +43,8 @@ import { markRitualStaleAfterCompact } from "../session/ritual-sentinel.js";
 import { runSessionStartHookWrite } from "../session/session-start-hook.js";
 import {
   formatRitualRecoveryInstruction,
-  inspectSessionRitual,
   type VerifyResult,
+  verifySessionRitual,
 } from "../session/verify-session-ritual.js";
 import {
   type HookPayloadContext,
@@ -169,6 +169,9 @@ export interface HookDispatchInput {
 }
 
 export interface HookPolicySeams {
+  /** Active mutation-boundary verifier. Defaults to gated verification. */
+  readonly verifyRitual?: (projectRoot: string) => VerifyResult;
+  /** @deprecated Compatibility seam for existing tests and callers. */
   readonly inspectRitual?: (projectRoot: string) => VerifyResult;
   readonly inspectScope?: (projectRoot: string) => ActiveScopeInspection;
   readonly sessionStart?: (projectRoot: string) => { code: number; stdout: string; stderr: string };
@@ -783,9 +786,19 @@ function inspectMutationGates(
 
   let ritual: VerifyResult;
   try {
+    // Mutation dispatch is a live gated boundary: active verification reruns
+    // non-cacheable agent-hook readiness instead of trusting persisted success.
+    // Its allow fixture is non-write and its deny fixture is read-only, so the
+    // installed-shim probe cannot recurse into this mutation path.
     ritual = (
+      seams.verifyRitual ??
       seams.inspectRitual ??
-      ((root) => inspectSessionRitual(root, { tier: "gated", posture: "mutation" }))
+      ((root) =>
+        verifySessionRitual(root, {
+          tier: "gated",
+          posture: "mutation",
+          bypass: false,
+        }))
     )(projectRoot);
   } catch (cause) {
     // #2994: best-effort local process-cost; never changes deny verdict.

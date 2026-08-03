@@ -61,7 +61,7 @@ const READY_SCOPE = {
 
 function readySeams(overrides: Partial<HookPolicySeams> = {}): HookPolicySeams {
   return {
-    inspectRitual: () => READY_RITUAL,
+    ...(overrides.inspectRitual ? {} : { verifyRitual: () => READY_RITUAL }),
     inspectScope: () => READY_SCOPE,
     sessionStart: () => ({ code: 0, stdout: "", stderr: "" }),
     ...overrides,
@@ -105,6 +105,28 @@ describe("direct-write hook policy", () => {
     expect(decision).toMatchObject({ verdict: "deny", code: "ritual-not-ready" });
     expect(decision.message).toContain("deft session:ready");
     expect(decision.message).toContain("one-shot");
+  });
+
+  it("refreshes hook readiness at every mutation dispatch", () => {
+    const verifyRitual = vi
+      .fn<HookPolicySeams["verifyRitual"]>()
+      .mockReturnValueOnce(READY_RITUAL)
+      .mockReturnValueOnce({
+        ...READY_RITUAL,
+        code: 1,
+        message: "session ritual gated step 'agent_hooks' failed: shim drifted",
+      });
+    const seams = readySeams({ verifyRitual });
+    const input = {
+      host: "grok" as const,
+      event: "tool.before" as const,
+      projectRoot: "/project",
+      payload: { toolName: "Edit", workspaceRoot: "/project" },
+    };
+
+    expect(decideHook(input, seams)).toMatchObject({ verdict: "allow", code: "write-ready" });
+    expect(decideHook(input, seams)).toMatchObject({ verdict: "deny", code: "ritual-not-ready" });
+    expect(verifyRitual).toHaveBeenCalledTimes(2);
   });
 
   it("denies a direct write when no active running scope passes preflight", () => {
