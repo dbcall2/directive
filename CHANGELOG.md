@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **projectRoot containment for triage welcome atomicWrite (#3077).** Residual Medium parent-as-root gap after #3042/#2980: `packages/core/src/triage/welcome/writers.ts` `atomicWrite` used `containedWrite({ root: dirname(path) })`, so a force-added `xbrief/` directory symlink could divert `writeTriageScope` / `writeWipCap` / `writeWipCapDecision` (and `triage:welcome --onboard`) outside the checkout. Containment root is now `projectRoot` via `assertWriteTargetSafe` + `containedWrite`; escaping/symlink `xbrief` parents fail closed before temp+rename. Regression tests cover fixture outside PROJECT-DEFINITION JSON. Closes #3077. Refs #3042, #2951, #2980.
 
+- **Consumer `task check` no longer dies on missing `verify:orphan-active` with opaque go-task 200/201 (#3070).** Check-graph Taskfile includes (`verify`, `toolchain`, `vbrief`) are non-optional so a missing `tasks/verify.yml` fails loud at load. The check orchestrator and `deft doctor` probe CONSUMER_CHECK_GATES integrity before shelling gates and emit deposit-repair guidance (`deft update`) instead of `Task "verify:orphan-active" does not exist`. Content-contract + fixture cover incomplete deposits. Closes #3070.
+
 ### Removed
 
 ## [0.93.0] - 2026-08-03
