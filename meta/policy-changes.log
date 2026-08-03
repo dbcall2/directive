@@ -184,3 +184,7 @@
 2026-08-03T03:44:14Z actor=task product-signal:enable productSignal.enabled=true sinkRepo=deftai/product-signal previous={"enabled":true,"sinkRepo":"deftai/product-signal"}
 2026-08-03T04:08:31Z actor=task product-signal:enable productSignal.enabled=true sinkRepo=deftai/product-signal previous={"enabled":true,"sinkRepo":"deftai/product-signal"}
 2026-08-03T04:20:24Z actor=deft policy:enforce-branches allowDirectCommitsToMaster=false previous=True
+2026-08-03T21:43:09Z actor=deft policy:allow-direct-commits allowDirectCommitsToMaster=true previous=False
+2026-08-03T21:48:07Z actor=task product-signal:enable productSignal.enabled=true sinkRepo=deftai/product-signal previous={"enabled":true,"sinkRepo":"deftai/product-signal"}
+2026-08-03T22:46:31Z actor=task product-signal:enable productSignal.enabled=true sinkRepo=deftai/product-signal previous={"enabled":true,"sinkRepo":"deftai/product-signal"}
+2026-08-03T23:01:46Z actor=deft policy:enforce-branches allowDirectCommitsToMaster=false previous=True

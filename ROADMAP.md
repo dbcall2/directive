@@ -38,8 +38,16 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1133 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1141 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#3095** -- feat(policy,review): dogfood Greptile CLEAN requires 5/5; consumers get per-project min-confidence lever -- `[completed]`
+- **#1870** -- bug(triage/ingest): Current shape comment invisible to cache + ingest pipeline -- `[completed]`
+- **#1649** -- fix(umbrella): umbrella checkboxes + current-shape never auto-sync to children state -- `[completed]`
+- **#3092** -- fix(preamble,swarm): orchestrator completion latch — one consolidate per runId -- `[completed]`
+- **#3090** -- fix(review-cycle,evidence): Owner Continuity Gate — ban silent hold after drive-to-merge -- `[completed]`
+- **#1273** -- UX: research strategy skips user interaction, bypasses chaining gate, unordered scopes -- `[completed]`
+- **#3077** -- fix(security): projectRoot containment for triage welcome atomicWrite (parent-as-root xbrief symlink) -- `[completed]`
+- **#3070** -- bug(check): consumer gate references missing verify:orphan-active task -- `[completed]`
 - **#86** -- Artifact-branch binding and complete audit trail for SDD (dual-format persistence, branch lifecycle hooks, artifact manifest) -- `[completed]`
 - **#56** -- Reduce installation friction -- add shell one-liner, Homebrew, and platform package managers (absorbed #101: decide whether manual clone path stays or goes) -- `[completed]`
 - **#55** -- Register Deft commands as native agent slash commands (Claude Code, Copilot, Gemini, etc.) -- also absorbs slash-command registration scope from #54 -- `[completed]`
@@ -57,12 +65,4 @@ _Showing 25 of 1133 completed scopes (newest first). Full history: lifecycle `co
 - **#127** -- Improved support for Deft in existing repositories -- bootstrap should detect existing code and offer brownfield/map analysis path instead of greenfield-only questionnaire (related to #103; CLI integration in Phase 4 with #53) -- `[completed]`
 - **#3048** -- docs: delete or archive valuable-go-task-improvements.md (post-#446) -- `[completed]`
 - **#3042** -- fix(security): projectRoot containment for atomicWriteText, ritual-state, probe-session (parent-as-root + bare write) -- `[completed]`
-- **#3041** -- bug(scope,swarm): completion succeeds without proof that implementation reached the delivery branch -- `[completed]`
-- **#46** -- setup: Revisit experimental rules (toggle Experimental Rules without hand-editing schema) -- `[completed]`
-- **#3044** -- fix(review-cycle,openclaw): empty announce ≠ done + single review-monitor lease -- `[completed]`
-- **#3039** -- feat(policy): `.deft-directive-disable` test kill-switch (file + AGENTS/CLI/doctor; re-enable needs new session) -- `[completed]`
-- **#3027** -- coverage-debt: restore Vitest branches >=85% (84.91% at v0.91.0 preflight) -- `[completed]`
-- **#3030** -- fail-closed: enforce #1430 consumer-path denylist on installerManagedMatchers (SPEC must break CI) -- `[completed]`
-- **#3032** -- process: through merge / drive-to:merge-ready must dispatch worker (parent must not implement); N=1 uses swarm path -- `[completed]`
-- **#3029** -- deft-core-guard allowlists PROJECT-DEFINITION — breaks #1430 mixed-change invariant -- `[completed]`
 
