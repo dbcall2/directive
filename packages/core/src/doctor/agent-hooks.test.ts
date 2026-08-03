@@ -222,6 +222,35 @@ describe("runAgentHooksHealthCheck", () => {
 });
 
 describe("runAgentHooksLiveProbeCheck", () => {
+  it("fails closed when registration changes before the live probe", () => {
+    const findings: Finding[] = [];
+    const liveProbe = vi.fn();
+
+    runAgentHooksLiveProbeCheck(
+      "/project",
+      createPlainSink({ write: () => undefined }),
+      (finding) => findings.push(finding),
+      {
+        evaluateAgentHooks: () => ({
+          code: 1,
+          message: "codex registration missing",
+          stream: "stderr",
+          registrations: [],
+        }),
+        probeAgentHooksLive: liveProbe,
+      },
+    );
+
+    expect(liveProbe).not.toHaveBeenCalled();
+    expect(findings).toEqual([
+      expect.objectContaining({
+        check: "agent-hooks-registration",
+        status: "incomplete",
+        message: expect.stringContaining("codex registration missing"),
+      }),
+    ]);
+  });
+
   it("records a passing live probe under doctor --full", () => {
     const findings: Finding[] = [];
     const liveProbe = vi.fn(() => ({

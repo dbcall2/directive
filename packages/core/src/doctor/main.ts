@@ -667,6 +667,19 @@ export function runAgentHooksLiveProbeCheck(
   const liveCheckName = "agent-hooks-live-probe";
   try {
     const result = (seams.evaluateAgentHooks ?? evaluateAgentHooks)(projectRoot);
+    if (result.code !== 0) {
+      const message = `${checkName}: ${result.message.replace(/\s+/g, " ").trim()}`;
+      sink.warn(message);
+      addFinding({
+        severity: "warning",
+        message,
+        check: checkName,
+        status: result.code === 2 ? "unavailable" : "incomplete",
+        registrations: result.registrations,
+        suggestion: "deft update",
+      });
+      return;
+    }
     const enabledHosts = result.registrations
       .filter((entry) => entry.status !== "disabled")
       .map((entry) => entry.host);
