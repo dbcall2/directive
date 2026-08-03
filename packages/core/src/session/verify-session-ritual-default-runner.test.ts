@@ -55,6 +55,27 @@ function repoGitRunner(root: string): GitRunner {
 }
 
 describe("defaultRitualRunner", () => {
+  it("runs functional agent-hook readiness in process", () => {
+    const result = defaultRitualRunner(
+      ["verify:hooks-installed", "--scope=agent", "--live"],
+      "/project",
+      {
+        evaluateAgentHookReadiness: () => ({
+          code: 0,
+          message: "hooks ready",
+          stream: "stdout",
+          skipped: false,
+          liveStatus: "functional",
+          hosts: [],
+          registrations: [],
+          liveProbe: null,
+        }),
+      },
+    );
+
+    expect(result).toEqual({ code: 0, stdout: "hooks ready\n", stderr: "" });
+  });
+
   it("runs cache-fresh with allow-missing-bootstrap on a fresh repo", () => {
     const { root } = initRepo();
     const result = defaultRitualRunner(["verify:cache-fresh"], root);
