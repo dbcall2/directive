@@ -181,3 +181,4 @@
 2026-08-02T19:02:43Z actor=deft policy:allow-direct-commits allowDirectCommitsToMaster=true previous=False
 2026-08-02T20:08:57Z actor=deft policy:enforce-branches allowDirectCommitsToMaster=false previous=True
 2026-08-03T02:38:34Z actor=deft policy:allow-direct-commits allowDirectCommitsToMaster=true previous=False
+2026-08-03T03:44:14Z actor=task product-signal:enable productSignal.enabled=true sinkRepo=deftai/product-signal previous={"enabled":true,"sinkRepo":"deftai/product-signal"}
