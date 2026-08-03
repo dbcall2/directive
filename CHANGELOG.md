@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.94.0] - 2026-08-03
+
+> Greptile 5/5 dogfood bar, owner-continuity and completion latch, assist/ephemeral postures without active xBRIEF, and umbrella current-shape sync in cache/ingest.
+
+### Added
 - **Greptile min-confidence policy + dogfood 5/5 CLEAN bar (#3095).** Typed `plan.policy.review.minGreptileConfidence` (1–5) is the single SoT for CLEAN / merge-ready confidence. Resolution: project policy > framework dogfood detect (framework source → **5**) > consumer default (**4**, legacy confidence > 3). Wired through `evaluateCleanGate`, `pr:watch`, `pr:merge-ready` / `evaluateGates`, `task policy:show --field=minGreptileConfidence`, review-cycle Step 6, greptile.md, and swarm greptile poller template. Consumer installs stay on 4/5+ unless they raise the floor; directive dogfood requires 5/5 + existing no-P0/P1 + SHA + terminal + CI rules. Closes #3095. Refs #1259, #1056.
 - **Owner Continuity Gate + `review_cycle` evidence enum (#3090).** `deft-directive-review-cycle` requires same-turn A/B/C after drive-to:merge-ready / babysit / shepherd claims (monitor+lease, parent-retained dual-source next action, or explicit BLOCKED finish) — bans silent hold, check-run SUCCESS alone as CLEAN, and freeform `review_cycle: started|pending|initiated`. Portable enum: `done` | `in_progress:<pr>#<ref>` | `skipped:<reason>` | `n/a`. Optional machine gate `deft verify:l4-owner` / `task verify:l4-owner` (lease or `--review-cycle done`). Preamble §11 + content-contracts pin the FAIL case (open P1s + SUCCESS check + no lease). Closes #3090. Refs #2876, #2878, #2797.
 - **Assist/research posture + allowlisted scratch writes without active xBRIEF (#1802).** Session **assist** posture (shared taxonomy with #3080 `ephemeral`/`docs`/`assist`) documents low-ceremony research notes: structural markers (`DEFT_SESSION_POSTURE=assist`, payload posture, role markers) plus path fence under `.deft-scratch/**` and `temp/**`. PreToolUse allows those direct writes without story-start or active scope (`write-assist-scratch-ready`); tracked product paths stay hard-gated; fail closed outside allowlist or without markers. Docs + deny recovery anti-pattern: do not fake `scope:activate` for Obsidian/scratch notes. Cohort twin of #3080 spawn posture. Closes #1802.
@@ -4918,7 +4930,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.93.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.94.0...HEAD
+[0.94.0]: https://github.com/deftai/directive/compare/v0.93.0...v0.94.0
 [0.93.0]: https://github.com/deftai/directive/compare/v0.92.0...v0.93.0
 [0.92.0]: https://github.com/deftai/directive/compare/v0.91.0...v0.92.0
 [0.91.0]: https://github.com/deftai/directive/compare/v0.90.0...v0.91.0
