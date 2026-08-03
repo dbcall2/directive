@@ -16,6 +16,12 @@ import { resolveInstalledContentRoot } from "../deposit/resolve-content.js";
 import { readCorePackageVersion } from "../engine-version.js";
 import { renderProjectDefinition } from "../render/project-render.js";
 import { depositOpenClawL2ProductCommands } from "../slash/openclaw-deposit.js";
+import {
+  type AgentHookReadinessResult,
+  agentHookReadinessJson,
+  evaluateAgentHookReadiness,
+  evaluateAgentHookReadinessSafely,
+} from "../verify-env/agent-hook-readiness.js";
 import { removeStaleMigratedFrameworkNarrative } from "../xbrief-migrate/migrate-project.js";
 import { writeAgentHookDeposit } from "./agent-hooks.js";
 import { ensureInitGitignoreLines, reconstituteDepositFromContent } from "./gitignore.js";
@@ -69,6 +75,7 @@ export interface InitDepositSeams {
   nowIso?: () => string;
   gitHooks?: Parameters<typeof writeConsumerGitHooks>[3];
   detectLegacy?: (projectDir: string) => LegacyLayoutDetection;
+  evaluateAgentHookReadiness?: (projectRoot: string) => AgentHookReadinessResult;
 }
 
 export function parseInitArgv(
@@ -136,9 +143,12 @@ function readContentVersion(contentRoot: string, readVersion = readCorePackageVe
 export function buildInstallSummaryJson(
   result: InitDepositResult,
   options: InitDepositArgs,
+  readiness?: AgentHookReadinessResult,
 ): Record<string, unknown> {
   return {
-    success: true,
+    success: readiness ? readiness.code === 0 : true,
+    deposit_completed: true,
+    ...(readiness ? { agent_hook_readiness: agentHookReadinessJson(readiness) } : {}),
     action: "install",
     version: readCorePackageVersion(),
     project_dir: result.projectDir,
@@ -321,13 +331,25 @@ export async function runInitDepositCli(options: RunInitDepositCliOptions): Prom
 
   try {
     const result = await runInitDeposit(options, io, options.seams);
+    const readiness = evaluateAgentHookReadinessSafely(
+      result.projectDir,
+      options.seams?.evaluateAgentHookReadiness ?? evaluateAgentHookReadiness,
+    );
     if (options.jsonOut) {
-      options.writeOut(`${JSON.stringify(buildInstallSummaryJson(result, options), null, 2)}\n`);
+      options.writeOut(
+        `${JSON.stringify(buildInstallSummaryJson(result, options, readiness), null, 2)}\n`,
+      );
       printNextSteps(result, { printf: options.writeErr });
     } else {
       printNextSteps(result, io);
     }
-    return 0;
+    const readinessOut = options.jsonOut
+      ? options.writeErr
+      : readiness.stream === "stderr"
+        ? options.writeErr
+        : options.writeOut;
+    readinessOut(`\n${readiness.message}\n`);
+    return readiness.code;
   } catch (cause) {
     if (cause instanceof LegacyLayoutRefusedError) {
       io.printf(buildLegacyRefusalMessage("init", cause.detection));

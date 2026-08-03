@@ -135,6 +135,7 @@ describe("verify-session-ritual failed-step messaging", () => {
           triage_welcome: ritualStep({ ok: true, ts: NOW }),
         },
         gatedSteps: {
+          agent_hooks: ritualStep({ ok: true, ts: NOW }),
           doctor: ritualStep({ ok: false, ts: NOW, deferredReason: "later" }),
         },
       }),
@@ -167,6 +168,9 @@ describe("verify-session-ritual failed-step messaging", () => {
           alignment: ritualStep({ ok: true, ts: NOW }),
           branch_policy: ritualStep({ ok: true, ts: NOW }),
           triage_welcome: ritualStep({ ok: true, ts: NOW }),
+        },
+        gatedSteps: {
+          agent_hooks: ritualStep({ ok: true, ts: NOW }),
         },
       }),
     );
@@ -218,6 +222,7 @@ describe("verify-session-ritual failed-step messaging", () => {
           triage_welcome: ritualStep({ ok: true, ts: NOW }),
         },
         gatedSteps: {
+          agent_hooks: ritualStep({ ok: true, ts: NOW }),
           doctor: ritualStep({ ok: true, ts: NOW }),
         },
       }),

@@ -1,0 +1,19 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "agent-hook-functional-readiness",
+    "status": "approved",
+    "narratives": {
+      "Problem": "Mutation readiness can report green while enabled agent-host hook registrations are missing, drifted, or non-functional because the structural verifier and live probe are not part of the gated readiness path.",
+      "Change": "Extend verify:hooks-installed with a fail-closed live agent scope, model registration/functionality/trust/interception separately, and wire that result into post-deposit reporting and gated session readiness.",
+      "Scope": "In scope: issue #3100 primary acceptance criteria, including hostHooks opt-out, Codex manual trust reporting, docs, and tests. Out of scope: trust acknowledgements, machine-inferred trust, and a default trust hard gate.",
+      "Impact": "Touches the core agent-hook verifier and probe, CLI parsing, doctor reporting, init/update wrappers, ritual/session readiness, operator documentation, and focused tests.",
+      "Risks": "Multi-host subprocess probes can regress ceremony latency; cached ritual state can hide later drift; post-deposit failures must not be misreported as failed writes or roll back a completed deposit.",
+      "Approach": "Reuse evaluateAgentHooks and probeAgentHooksLive behind one structured readiness coordinator, fail fast structurally, probe enabled host codecs through the installed deft-hook shim, then add a non-deferrable gated prerequisite without invoking it from cold session:start.",
+      "Alternatives": "Routing through doctor was rejected because doctor is advisory and throttleable. A default Codex trust-ack hard gate was rejected because trust is manual and unused default-enabled hosts must not block consumers.",
+      "Dependencies": "Existing hostHooks policy, agent-hook deposit inspection, hook dispatcher codecs, ritual-state gated steps, and the installed deft-hook binary."
+    }
+  }
+}

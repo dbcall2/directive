@@ -98,6 +98,7 @@ function seedRitual(
         }),
       },
       gatedSteps: {
+        agent_hooks: ritualStep({ ok: true, ts }),
         doctor: ritualStep({ ok: true, ts }),
         cache_fresh: ritualStep({ ok: true, ts }),
       },

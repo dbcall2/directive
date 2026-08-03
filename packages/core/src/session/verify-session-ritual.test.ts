@@ -7,6 +7,7 @@ import type { GitRunResult } from "./git.js";
 import {
   defaultGitRunner,
   emitVerifyJson,
+  GATED_ENTRYPOINT_COMMANDS,
   type GitRunner,
   inspectSessionRitual,
   newRitualStatePayload,
@@ -99,6 +100,7 @@ function freshPayload(root: string, head: string, now: Date): Record<string, unk
       triage_welcome: ritualStep({ ok: true, ts: now }),
     },
     gatedSteps: {
+      agent_hooks: ritualStep({ ok: true, ts: now }),
       doctor: ritualStep({ ok: true, ts: now }),
       cache_fresh: ritualStep({ ok: true, ts: now }),
     },
@@ -238,6 +240,67 @@ describe("forward HEAD rebind (#2782)", () => {
 });
 
 describe("verify session ritual", () => {
+  it("defines agent-hook readiness as the first dedicated gated command", () => {
+    expect(GATED_ENTRYPOINT_COMMANDS.agent_hooks).toEqual([
+      "verify:hooks-installed",
+      "--scope=agent",
+      "--live",
+    ]);
+  });
+
+  it("runs and records a missing agent-hook readiness prerequisite", () => {
+    const { root, head } = initRepo();
+    const now = new Date("2026-06-09T01:00:00Z");
+    const payload = freshPayload(root, head, now);
+    const gated = { ...(payload.gated_steps as Record<string, Record<string, unknown>>) };
+    delete gated.agent_hooks;
+    payload.gated_steps = gated;
+    writeRitualState(root, payload);
+    const commands: string[][] = [];
+
+    const result = verifySessionRitual(root, {
+      tier: "gated",
+      now,
+      runGit: fakeGit(head, resolve(root)),
+      runner: (command) => {
+        commands.push([...command]);
+        return { code: 0, stdout: "hooks ready", stderr: "" };
+      },
+    });
+
+    expect(result.code).toBe(0);
+    expect(commands).toEqual([["verify:hooks-installed", "--scope=agent", "--live"]]);
+    expect(readRitualState(root)[0]?.gatedSteps.agent_hooks).toMatchObject({
+      ok: true,
+      exit_code: 0,
+      message: "hooks ready",
+    });
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("can force a fresh agent-hook readiness probe for session:ready", () => {
+    const { root, head } = initRepo();
+    const now = new Date("2026-06-09T01:00:00Z");
+    writeRitualState(root, freshPayload(root, head, now));
+    const commands: string[][] = [];
+
+    const result = verifySessionRitual(root, {
+      tier: "gated",
+      now,
+      runGit: fakeGit(head, resolve(root)),
+      forceGatedSteps: ["agent_hooks"],
+      runner: (command) => {
+        commands.push([...command]);
+        return { code: 1, stdout: "", stderr: "hooks non-functional" };
+      },
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.message).toContain("agent_hooks");
+    expect(commands).toHaveLength(1);
+    rmSync(root, { recursive: true, force: true });
+  });
+
   it("missing state fails closed at gated mutation boundary", () => {
     const { root, head } = initRepo();
     const result = verifySessionRitual(root, {
@@ -308,6 +371,7 @@ describe("session start helpers", () => {
     expect(bad.errors.length).toBeGreaterThan(0);
     const ok = parseDeferrals(["alignment=later"]);
     expect(ok.deferrals.alignment).toBe("later");
+    expect(parseDeferrals(["agent_hooks=later"]).errors.join(" ")).toContain("not deferrable");
   });
 
   it("runSessionStart records state with fakes", () => {
@@ -329,6 +393,7 @@ describe("session start helpers", () => {
     });
     expect(result.code).toBe(0);
     expect(result.payload.ready).toBe(true);
+    expect(result.payload.gated_steps).not.toHaveProperty("agent_hooks");
     rmSync(root, { recursive: true, force: true });
   });
 

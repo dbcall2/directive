@@ -19,6 +19,7 @@ import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
 import { runChecksImpl } from "../doctor/checks.js";
 import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
 import type { ClassifySeams } from "../resolution/index.js";
+import type { AgentHookReadinessResult } from "../verify-env/agent-hook-readiness.js";
 import { evaluate as evaluateHooksInstalled } from "../verify-env/verify-hooks-installed.js";
 import { detectXbriefConvergence } from "../xbrief-migrate/detect.js";
 import { type LegacyLayoutDetection, LegacyLayoutRefusedError } from "./legacy-detect.js";
@@ -54,6 +55,28 @@ const FAKE_LEGACY: LegacyLayoutDetection = {
   detail: "Found a legacy deft/-prefixed framework install.",
   evidence: ["deft/"],
 };
+
+function agentHookReadiness(code: 0 | 1 = 0): AgentHookReadinessResult {
+  return {
+    code,
+    message:
+      code === 0
+        ? "✓ deft agent hook readiness: live green"
+        : "❌ deft agent hook readiness: live failed",
+    stream: code === 0 ? "stdout" : "stderr",
+    skipped: false,
+    liveStatus: code === 0 ? "functional" : "non-functional",
+    hosts: [],
+    registrations: [],
+    liveProbe: {
+      code,
+      message: code === 0 ? "live green" : "live failed",
+      cases: [],
+      hosts: [],
+      durationMs: 4,
+    },
+  };
+}
 
 describe("parseUpdateArgv", () => {
   it("records --upgrade from canonical argv", () => {
@@ -875,12 +898,18 @@ describe("runRefreshDeposit", () => {
         resolveContentRoot: async () => contentRoot,
         readEngineVersion: () => "0.53.0",
         nowIso: () => "2026-07-03T12:00:00Z",
+        evaluateAgentHookReadiness: () => agentHookReadiness(),
       },
     });
 
     expect(code).toBe(0);
     const payload = parseJsonObject(out.join(""));
     expect(payload.taskfile_wired).toBe(true);
+    expect(payload.deposit_completed).toBe(true);
+    expect(payload.agent_hook_readiness).toMatchObject({
+      ready: true,
+      live_status: "functional",
+    });
     expect(payload.staged_paths).toEqual(expect.arrayContaining(["Taskfile.yml", ".deft/core"]));
 
     const porcelain = execFileSync("git", ["status", "--porcelain"], {
@@ -1250,6 +1279,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
       nowIso: () => "2026-07-03T12:00:00Z",
       gitPorcelain: () => null,
       gitLsFiles: () => null,
+      evaluateAgentHookReadiness: () => agentHookReadiness(),
     };
 
     const run = async (): Promise<Record<string, unknown>> => {
@@ -1299,13 +1329,50 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
         nowIso: () => "2026-07-03T12:00:00Z",
         gitPorcelain: () => null,
         gitLsFiles: () => null,
+        evaluateAgentHookReadiness: () => agentHookReadiness(),
       },
     });
 
     expect(code).toBe(0);
     const payload = parseJsonObject(out.join(""));
     expect(payload.update_state).toBe("updated");
+    expect(payload.agent_hook_readiness).toMatchObject({ ready: true });
     expect(readFileSync(join(project, ".deft", "core", "VERSION"), "utf8")).toContain("v0.54.0");
+  });
+
+  it("keeps a completed refresh but exits non-zero when post-deposit hook readiness fails", async () => {
+    const project = freshRoot("update-readiness-failed-");
+    const contentRoot = installFakeContentPackage(project, "0.54.0");
+    writeInitializedProject(project, { contentVersion: "0.53.0", pinVersion: "0.54.0" });
+    const out: string[] = [];
+    const err: string[] = [];
+
+    const code = await runRefreshDepositCli({
+      projectDir: project,
+      jsonOut: true,
+      nonInteractive: true,
+      upgrade: true,
+      classifySeams: classifySeams({ reachable: true, version: "0.54.0" }),
+      writeOut: (text) => out.push(text),
+      writeErr: (text) => err.push(text),
+      seams: {
+        resolveContentRoot: async () => contentRoot,
+        readEngineVersion: () => "0.54.0",
+        nowIso: () => "2026-07-03T12:00:00Z",
+        gitPorcelain: () => null,
+        gitLsFiles: () => null,
+        evaluateAgentHookReadiness: () => agentHookReadiness(1),
+      },
+    });
+
+    expect(code).toBe(1);
+    expect(readFileSync(join(project, ".deft", "core", "VERSION"), "utf8")).toContain("v0.54.0");
+    expect(parseJsonObject(out.join(""))).toMatchObject({
+      success: false,
+      deposit_completed: true,
+      agent_hook_readiness: { ready: false, live_status: "non-functional" },
+    });
+    expect(err.join("")).toContain("deft agent hook readiness: live failed");
   });
 
   it("self-heals a mismatched engine via the global-first ladder, then completes the refresh (a3)", async () => {
@@ -1346,6 +1413,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
         nowIso: () => "2026-07-03T12:00:00Z",
         gitPorcelain: () => null,
         gitLsFiles: () => null,
+        evaluateAgentHookReadiness: () => agentHookReadiness(),
       },
     });
 
@@ -1386,6 +1454,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
         resolveContentRoot: async () => contentRoot,
         readEngineVersion: () => "0.54.0",
         nowIso: () => "2026-07-03T12:00:00Z",
+        evaluateAgentHookReadiness: () => agentHookReadiness(),
       },
     });
 

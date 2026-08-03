@@ -4,7 +4,24 @@ import { createPlainSink } from "./output.js";
 import type { DoctorSeams, Finding } from "./types.js";
 
 describe("runAgentHooksHealthCheck", () => {
-  it("records structural health and leaves Codex runtime trust unverifiable", () => {
+  it("skips registration inspection in a maintainer checkout", () => {
+    const findings: Finding[] = [];
+    const evaluateAgentHooks = vi.fn();
+
+    expect(
+      runAgentHooksHealthCheck(
+        "/framework",
+        false,
+        createPlainSink({ write: () => undefined }),
+        (finding) => findings.push(finding),
+        { evaluateAgentHooks },
+      ),
+    ).toBe(false);
+    expect(evaluateAgentHooks).not.toHaveBeenCalled();
+    expect(findings).toEqual([expect.objectContaining({ severity: "skip", status: "skip" })]);
+  });
+
+  it("records structural health and separates manual Codex trust review", () => {
     const lines: string[] = [];
     const findings: Finding[] = [];
     const registrations = [
@@ -40,7 +57,8 @@ describe("runAgentHooksHealthCheck", () => {
         severity: "skip",
         check: "agent-hooks-registration",
         status: "registered",
-        trust_status: "not-verifiable",
+        trust_status: "manual-review-required",
+        interception_status: "not-directly-verified",
         registrations,
       }),
     ]);
@@ -84,6 +102,8 @@ describe("runAgentHooksHealthCheck", () => {
           code: 0,
           message: "live probe passed",
           cases: [],
+          hosts: [],
+          durationMs: 1,
         }),
       },
     );
@@ -93,6 +113,38 @@ describe("runAgentHooksHealthCheck", () => {
         status: "registered-and-functional",
       }),
     );
+  });
+
+  it("reports not-applicable trust when Codex is not enabled", () => {
+    const findings: Finding[] = [];
+    expect(
+      runAgentHooksHealthCheck(
+        "/project",
+        true,
+        createPlainSink({ write: () => undefined }),
+        (finding) => findings.push(finding),
+        {
+          evaluateAgentHooks: () => ({
+            code: 0,
+            message: "registered",
+            stream: "stdout",
+            registrations: [
+              {
+                host: "codex",
+                path: ".codex/hooks.json",
+                status: "disabled",
+                detail: "disabled",
+                compactSupport: "unsupported",
+              },
+            ],
+          }),
+        },
+      ),
+    ).toBe(true);
+
+    expect(findings).toEqual([
+      expect.objectContaining({ trust_status: "not-applicable", trust_review: null }),
+    ]);
   });
 
   it("reports registration drift without claiming runtime non-functionality", () => {
@@ -176,6 +228,8 @@ describe("runAgentHooksLiveProbeCheck", () => {
       code: 0 as const,
       message: "live probe passed",
       cases: [],
+      hosts: [],
+      durationMs: 1,
     }));
 
     runAgentHooksLiveProbeCheck(
@@ -203,6 +257,48 @@ describe("runAgentHooksLiveProbeCheck", () => {
     ]);
   });
 
+  it("passes only structurally enabled hosts to the full live probe", () => {
+    const liveProbe = vi.fn(() => ({
+      code: 0 as const,
+      message: "live probe passed",
+      cases: [],
+      hosts: [{ host: "cursor" as const, status: "functional" as const }],
+      durationMs: 1,
+    }));
+
+    runAgentHooksLiveProbeCheck(
+      "/project",
+      createPlainSink({ write: () => undefined }),
+      () => undefined,
+      {
+        evaluateAgentHooks: () => ({
+          code: 0,
+          message: "registered",
+          stream: "stdout",
+          registrations: [
+            {
+              host: "cursor",
+              path: ".cursor/hooks.json",
+              status: "healthy",
+              compactSupport: "deposited",
+              detail: "registered",
+            },
+            {
+              host: "codex",
+              path: ".codex/hooks.json",
+              status: "disabled",
+              compactSupport: "unsupported",
+              detail: "disabled",
+            },
+          ],
+        }),
+        probeAgentHooksLive: liveProbe,
+      },
+    );
+
+    expect(liveProbe).toHaveBeenCalledWith("/project", { hosts: ["cursor"] });
+  });
+
   it("surfaces empty-stdout hook bins as non-functional", () => {
     const findings: Finding[] = [];
     runAgentHooksLiveProbeCheck(
@@ -228,6 +324,8 @@ describe("runAgentHooksLiveProbeCheck", () => {
               detail: "empty stdout",
             },
           ],
+          hosts: [{ host: "cursor", status: "non-functional" }],
+          durationMs: 1,
         }),
       },
     );
@@ -238,6 +336,122 @@ describe("runAgentHooksLiveProbeCheck", () => {
         status: "non-functional",
         severity: "warning",
       }),
+    ]);
+  });
+
+  it("distinguishes an unavailable live probe", () => {
+    const findings: Finding[] = [];
+    runAgentHooksLiveProbeCheck(
+      "/project",
+      createPlainSink({ write: () => undefined }),
+      (finding) => findings.push(finding),
+      {
+        evaluateAgentHooks: () => ({
+          code: 0,
+          message: "registered",
+          stream: "stdout",
+          registrations: [],
+        }),
+        probeAgentHooksLive: () => ({
+          code: 2,
+          message: "deft-hook missing",
+          cases: [],
+          hosts: [],
+          durationMs: 1,
+        }),
+      },
+    );
+
+    expect(findings).toEqual([expect.objectContaining({ status: "unavailable" })]);
+  });
+
+  it("reports successful live readiness without a Codex trust review", () => {
+    const findings: Finding[] = [];
+    runAgentHooksLiveProbeCheck(
+      "/project",
+      createPlainSink({ write: () => undefined }),
+      (finding) => findings.push(finding),
+      {
+        evaluateAgentHooks: () => ({
+          code: 0,
+          message: "registered",
+          stream: "stdout",
+          registrations: [],
+        }),
+        probeAgentHooksLive: () => ({
+          code: 0,
+          message: "passed",
+          cases: [],
+          hosts: [],
+          durationMs: 7,
+        }),
+      },
+    );
+
+    expect(findings).toEqual([
+      expect.objectContaining({
+        trust_status: "not-applicable",
+        trust_review: null,
+        live_probe_duration_ms: 7,
+      }),
+    ]);
+  });
+
+  it("keeps Codex trust review orthogonal after a successful live probe", () => {
+    const findings: Finding[] = [];
+    runAgentHooksLiveProbeCheck(
+      "/project",
+      createPlainSink({ write: () => undefined }),
+      (finding) => findings.push(finding),
+      {
+        evaluateAgentHooks: () => ({
+          code: 0,
+          message: "registered",
+          stream: "stdout",
+          registrations: [
+            {
+              host: "codex",
+              path: ".codex/hooks.json",
+              status: "healthy",
+              detail: "registered",
+              compactSupport: "unsupported",
+            },
+          ],
+        }),
+        probeAgentHooksLive: () => ({
+          code: 0,
+          message: "passed",
+          cases: [],
+          hosts: [{ host: "codex", status: "functional" }],
+          durationMs: 3,
+        }),
+      },
+    );
+
+    expect(findings).toEqual([
+      expect.objectContaining({
+        trust_status: "manual-review-required",
+        trust_review: expect.stringContaining("/hooks"),
+        interception_status: "not-directly-verified",
+      }),
+    ]);
+  });
+
+  it("contains a thrown live readiness probe", () => {
+    const findings: Finding[] = [];
+    runAgentHooksLiveProbeCheck(
+      "/project",
+      createPlainSink({ write: () => undefined }),
+      (finding) => findings.push(finding),
+      {
+        evaluateAgentHooks: () => {
+          throw "live probe exploded";
+        },
+      },
+    );
+
+    expect(findings).toEqual([
+      expect.objectContaining({ message: expect.stringContaining("live probe exploded") }),
     ]);
   });
 });

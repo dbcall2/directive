@@ -32,7 +32,7 @@ export const AGENT_HOOK_PATHS = [
 ] as const;
 
 export type AgentHookPath = (typeof AGENT_HOOK_PATHS)[number];
-export type AgentHookRegistrationStatus = "healthy" | "missing" | "drifted";
+export type AgentHookRegistrationStatus = "healthy" | "disabled" | "missing" | "drifted";
 
 /** Whether the host receives a compact/resume hook deposit (#2113). */
 export type AgentHookCompactSupport = "deposited" | "unsupported";
@@ -423,7 +423,10 @@ function hasNestedRegistration(
   const toolCommand = command(host, "tool.before");
   const compactCommand = command(host, "session.compact");
   const base =
-    session.some((entry) => nestedCommands(entry).includes(sessionCommand)) &&
+    session.some((entry) => {
+      const group = object(entry);
+      return group?.matcher === undefined && nestedCommands(entry).includes(sessionCommand);
+    }) &&
     preTool.some((entry) => {
       const group = object(entry);
       return (
@@ -543,7 +546,7 @@ export function inspectAgentHookDeposit(
       return {
         host: definition.host,
         path: definition.path,
-        status: "healthy",
+        status: "disabled",
         compactSupport: definition.compactSupport,
         detail: `plan.policy.hostHooks.${definition.host} is false — Directive hook deposit is skipped for this host.`,
       };

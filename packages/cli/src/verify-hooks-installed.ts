@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { evaluate, evaluateAgentHooks } from "@deftai/directive-core/verify-env";
+import {
+  type AgentHookHealthResult,
+  type AgentHookReadinessResult,
+  type EvaluateResult,
+  evaluate,
+  evaluateAgentHookReadinessSafely,
+  evaluateAgentHooks,
+} from "@deftai/directive-core/verify-env";
 
 type HookScope = "git" | "agent" | "all";
 
@@ -9,14 +16,24 @@ interface ParsedArgs {
   projectRoot: string;
   quiet: boolean;
   scope: HookScope;
+  live: boolean;
   error?: string;
 }
 
+export interface VerifyHooksInstalledCliSeams {
+  readonly evaluateGit?: (projectRoot: string) => EvaluateResult;
+  readonly evaluateAgent?: (projectRoot: string) => AgentHookHealthResult;
+  readonly evaluateReadiness?: (projectRoot: string) => AgentHookReadinessResult;
+  readonly writeOut?: (text: string) => void;
+  readonly writeErr?: (text: string) => void;
+}
+
 export function parseArgs(argv: string[]): ParsedArgs {
-  const parsed: ParsedArgs = { projectRoot: ".", quiet: false, scope: "git" };
+  const parsed: ParsedArgs = { projectRoot: ".", quiet: false, scope: "git", live: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--quiet") parsed.quiet = true;
+    else if (arg === "--live") parsed.live = true;
     else if (arg === "--project-root") {
       const value = argv[i + 1];
       if (value === undefined) {
@@ -46,26 +63,39 @@ export function parseArgs(argv: string[]): ParsedArgs {
       return { ...parsed, error: `unrecognized arguments: ${arg}` };
     }
   }
+  if (parsed.live && parsed.scope === "git") {
+    return { ...parsed, error: "argument --live requires --scope=agent or --scope=all" };
+  }
   return parsed;
 }
 
-export function run(argv: string[]): number {
+/** Verify git hooks, structural agent hooks, or functional agent-hook readiness. */
+export function run(argv: string[], seams: VerifyHooksInstalledCliSeams = {}): number {
   const args = parseArgs(argv);
+  const writeOut = seams.writeOut ?? ((text: string) => process.stdout.write(text));
+  const writeErr = seams.writeErr ?? ((text: string) => process.stderr.write(text));
   if (args.error !== undefined) {
-    process.stderr.write(`${args.error}\n`);
+    writeErr(`${args.error}\n`);
     return 2;
   }
   const projectRoot = resolve(args.projectRoot);
+  const evaluateGit = seams.evaluateGit ?? evaluate;
+  const evaluateAgent = seams.evaluateAgent ?? evaluateAgentHooks;
+  const evaluateReadiness = seams.evaluateReadiness
+    ? (root: string) => evaluateAgentHookReadinessSafely(root, seams.evaluateReadiness)
+    : evaluateAgentHookReadinessSafely;
   const results = [
-    ...(args.scope === "git" || args.scope === "all" ? [evaluate(projectRoot)] : []),
-    ...(args.scope === "agent" || args.scope === "all" ? [evaluateAgentHooks(projectRoot)] : []),
+    ...(args.scope === "git" || args.scope === "all" ? [evaluateGit(projectRoot)] : []),
+    ...(args.scope === "agent" || args.scope === "all"
+      ? [args.live ? evaluateReadiness(projectRoot) : evaluateAgent(projectRoot)]
+      : []),
   ];
   if (!args.quiet) {
     for (const result of results) {
       if (result.stream === "stdout") {
-        process.stdout.write(`${result.message}\n`);
+        writeOut(`${result.message}\n`);
       } else if (result.stream === "stderr") {
-        process.stderr.write(`${result.message}\n`);
+        writeErr(`${result.message}\n`);
       }
     }
   }

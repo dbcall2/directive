@@ -627,9 +627,14 @@ export function runAgentHooksHealthCheck(
       return false;
     }
 
+    const codexEnabled = result.registrations.some(
+      (entry) => entry.host === "codex" && entry.status !== "disabled",
+    );
     const message =
-      `${checkName}: registered and structurally valid; ` +
-      "Codex runtime trust is user-controlled and must be reviewed with `/hooks`";
+      `${checkName}: registered and structurally valid` +
+      (codexEnabled
+        ? "; Codex trust is manual-review-required — open `/hooks` to review the project commands"
+        : "");
     sink.success(message);
     addFinding({
       severity: "skip",
@@ -637,8 +642,11 @@ export function runAgentHooksHealthCheck(
       check: checkName,
       status: "registered",
       registrations: result.registrations,
-      trust_status: "not-verifiable",
-      trust_review: "Open `/hooks` in Codex and review the project hook commands.",
+      trust_status: codexEnabled ? "manual-review-required" : "not-applicable",
+      trust_review: codexEnabled
+        ? "Open `/hooks` in Codex and review the exact project hook commands."
+        : null,
+      interception_status: "not-directly-verified",
     });
     return true;
   } catch (cause) {
@@ -659,7 +667,12 @@ export function runAgentHooksLiveProbeCheck(
   const liveCheckName = "agent-hooks-live-probe";
   try {
     const result = (seams.evaluateAgentHooks ?? evaluateAgentHooks)(projectRoot);
-    const liveResult = (seams.probeAgentHooksLive ?? probeAgentHooksLive)(projectRoot);
+    const enabledHosts = result.registrations
+      .filter((entry) => entry.status !== "disabled")
+      .map((entry) => entry.host);
+    const liveResult = (seams.probeAgentHooksLive ?? probeAgentHooksLive)(projectRoot, {
+      hosts: enabledHosts,
+    });
     if (liveResult.code !== 0) {
       const message = `${liveCheckName}: ${liveResult.message.replace(/\s+/g, " ").trim()}`;
       sink.warn(message);
@@ -673,9 +686,15 @@ export function runAgentHooksLiveProbeCheck(
       });
       return;
     }
+    const codexEnabled = result.registrations.some(
+      (entry) => entry.host === "codex" && entry.status !== "disabled",
+    );
     const message =
-      `${checkName}: registered, structurally valid, and live probe passed; ` +
-      "Codex runtime trust is user-controlled and must be reviewed with `/hooks`";
+      `${checkName}: registered, structurally valid, and live probe passed` +
+      (codexEnabled
+        ? "; Codex trust is manual-review-required — open `/hooks` to review the project commands"
+        : "") +
+      "; direct shim invocation does not verify host interception";
     sink.success(message);
     addFinding({
       severity: "skip",
@@ -683,9 +702,13 @@ export function runAgentHooksLiveProbeCheck(
       check: liveCheckName,
       status: "registered-and-functional",
       registrations: result.registrations,
-      trust_status: "not-verifiable",
-      trust_review: "Open `/hooks` in Codex and review the project hook commands.",
+      trust_status: codexEnabled ? "manual-review-required" : "not-applicable",
+      trust_review: codexEnabled
+        ? "Open `/hooks` in Codex and review the exact project hook commands."
+        : null,
+      interception_status: "not-directly-verified",
       live_probe: "passed",
+      live_probe_duration_ms: liveResult.durationMs,
     });
   } catch (cause) {
     const message = `${liveCheckName}: probe failed -- ${String(cause)}`;

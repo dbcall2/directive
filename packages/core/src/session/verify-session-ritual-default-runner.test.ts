@@ -109,6 +109,7 @@ describe("verifySessionRitual gated tier via defaultRitualRunner", () => {
           triage_welcome: ritualStep({ ok: true, ts: now }),
         },
         gatedSteps: {
+          agent_hooks: ritualStep({ ok: true, ts: now, message: "seeded for test" }),
           doctor: ritualStep({ ok: true, ts: now, message: "seeded for test" }),
         },
       }),

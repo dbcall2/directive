@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { newRitualStatePayload, ritualStep, writeRitualState } from "./ritual-sentinel.js";
-import { emitBypassWarning, verifySessionRitual } from "./verify-session-ritual.js";
+import {
+  emitBypassWarning,
+  inspectSessionRitual,
+  verifySessionRitual,
+} from "./verify-session-ritual.js";
 
 const temps: string[] = [];
 afterEach(() => {
@@ -50,6 +54,23 @@ function initRepo(): { root: string; head: string } {
 }
 
 describe("verify-session-ritual branches", () => {
+  it("defaults inspection to read-only posture outside an authorized mutation boundary", () => {
+    const { root } = initRepo();
+
+    const result = inspectSessionRitual(root);
+
+    expect(result).toMatchObject({ code: 0, tier: "quick", posture: "read-only" });
+  });
+
+  it("uses default quick inspection options for a missing state", () => {
+    const { root } = initRepo();
+
+    const result = inspectSessionRitual(root, { posture: "mutation" });
+
+    expect(result.code).toBe(1);
+    expect(result.tier).toBe("quick");
+  });
+
   it("returns config error for corrupt ritual state", () => {
     const { root, head } = initRepo();
     mkdirSync(join(root, ".deft"), { recursive: true });
@@ -95,6 +116,32 @@ describe("verify-session-ritual branches", () => {
     expect(result.message).toContain("older than 1h");
   });
 
+  it("reports a message-less quick failure and blocks gated precheck", () => {
+    const { root, head } = initRepo();
+    const now = new Date("2026-06-09T01:00:00Z");
+    writeRitualState(
+      root,
+      newRitualStatePayload({
+        sessionId: "s",
+        gitHead: head,
+        worktreePath: resolve(root),
+        startedAt: now,
+        quickSteps: {
+          alignment: ritualStep({ ok: false, ts: now }),
+          branch_policy: ritualStep({ ok: true, ts: now }),
+          triage_welcome: ritualStep({ ok: true, ts: now }),
+        },
+      }),
+    );
+
+    const inspected = inspectSessionRitual(root, { posture: "mutation", now });
+    const verified = verifySessionRitual(root, { tier: "gated", posture: "mutation", now });
+
+    expect(inspected.message).toBe("session ritual quick step 'alignment' failed");
+    expect(verified.code).toBe(1);
+    expect(verified.message).toContain("alignment");
+  });
+
   it("emitBypassWarning is empty without would_fail_code", () => {
     expect(
       emitBypassWarning({
@@ -126,6 +173,7 @@ describe("verify-session-ritual branches", () => {
           triage_welcome: ritualStep({ ok: true, ts: now }),
         },
         gatedSteps: {
+          agent_hooks: ritualStep({ ok: true, ts: now, message: "done" }),
           doctor: ritualStep({ ok: true, ts: now, message: "done" }),
           cache_fresh: ritualStep({ ok: true, ts: now, message: "done" }),
         },
@@ -140,5 +188,57 @@ describe("verify-session-ritual branches", () => {
           : { code: 0, stdout: resolve(root), stderr: "" },
     });
     expect(result.code).toBe(0);
+  });
+
+  it("creates a missing gated-step object and records empty runner output", () => {
+    const { root, head } = initRepo();
+    const now = new Date("2026-06-09T01:00:00Z");
+    const payload = newRitualStatePayload({
+      sessionId: "s",
+      gitHead: head,
+      worktreePath: resolve(root),
+      startedAt: now,
+      quickSteps: {
+        alignment: ritualStep({ ok: true, ts: now }),
+        branch_policy: ritualStep({ ok: true, ts: now }),
+        triage_welcome: ritualStep({ ok: true, ts: now }),
+      },
+    });
+    payload.gated_steps = {};
+    writeRitualState(root, payload);
+
+    const result = verifySessionRitual(root, {
+      tier: "gated",
+      now,
+      runner: () => ({ code: 1, stdout: "", stderr: "" }),
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.message).toContain("verify:hooks-installed exited 1");
+  });
+
+  it("returns a clean bypass projection for a fresh ritual", () => {
+    const { root, head } = initRepo();
+    const now = new Date("2026-06-09T01:00:00Z");
+    writeRitualState(
+      root,
+      newRitualStatePayload({
+        sessionId: "s",
+        gitHead: head,
+        worktreePath: resolve(root),
+        startedAt: now,
+        quickSteps: {
+          alignment: ritualStep({ ok: true, ts: now }),
+          branch_policy: ritualStep({ ok: true, ts: now }),
+          triage_welcome: ritualStep({ ok: true, ts: now }),
+        },
+      }),
+    );
+
+    const result = verifySessionRitual(root, { bypass: true, posture: "mutation", now });
+
+    expect(result.code).toBe(0);
+    expect(result.bypassed).toBe(true);
+    expect(result.wouldFailCode).toBeNull();
   });
 });

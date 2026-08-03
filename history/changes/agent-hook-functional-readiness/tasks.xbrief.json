@@ -1,0 +1,24 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "agent-hook-functional-readiness",
+    "status": "completed",
+    "items": [
+      {
+        "title": "Implement structured readiness and multi-host live probe",
+        "status": "completed"
+      },
+      {
+        "title": "Wire verifier, doctor, init/update, ritual, and session:ready",
+        "status": "completed"
+      },
+      {
+        "title": "Document the readiness contract and pass quality gates",
+        "status": "completed"
+      }
+    ],
+    "edges": []
+  }
+}

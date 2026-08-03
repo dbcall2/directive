@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
-import type { HookEvent, HookHost } from "../hooks/dispatcher.js";
+import { HOOK_HOSTS, type HookEvent, type HookHost } from "../hooks/dispatcher.js";
 import { READ_ONLY_HOOK_ENV } from "../hooks/tools.js";
 import { DEFT_HOOK_COMMAND_MARKER } from "../init-deposit/agent-hooks.js";
 import { SUBPROCESS_MAX_BUFFER } from "../subprocess/max-buffer.js";
@@ -10,9 +10,12 @@ import {
   shouldUseShellForCommand,
 } from "./command-spawn.js";
 
+export const LIVE_PROBE_CASE_TIMEOUT_MS = 1_500;
+
 export type AgentHookLiveProbeIssue =
   | "hook-command-missing"
   | "spawn-failed"
+  | "timed-out"
   | "empty-stdout"
   | "unparseable-json"
   | "missing-allow"
@@ -26,54 +29,56 @@ export interface AgentHookLiveProbeCase {
   readonly detail: string;
 }
 
+export type AgentHookLiveProbeHostStatus = "functional" | "non-functional" | "unavailable";
+
+export interface AgentHookLiveProbeHostResult {
+  readonly host: HookHost;
+  readonly status: AgentHookLiveProbeHostStatus;
+}
+
 export interface AgentHookLiveProbeResult {
   readonly code: 0 | 1 | 2;
   readonly message: string;
   readonly cases: readonly AgentHookLiveProbeCase[];
+  readonly hosts: readonly AgentHookLiveProbeHostResult[];
+  readonly durationMs: number;
 }
 
 export interface AgentHookLiveProbeSeams {
+  /** Enabled hosts to probe. Defaults to every deposited host. */
+  readonly hosts?: readonly HookHost[];
   readonly resolveCommand?: (name: string) => string | null;
   readonly spawnHook?: (input: {
     readonly command: string;
     readonly args: readonly string[];
     readonly stdin: string;
     readonly cwd: string;
-    readonly env?: NodeJS.ProcessEnv;
-  }) => { readonly status: number; readonly stdout: string; readonly stderr: string };
+    readonly env: NodeJS.ProcessEnv;
+  }) => {
+    readonly status: number;
+    readonly stdout: string;
+    readonly stderr: string;
+    readonly timedOut?: boolean;
+  };
 }
 
-interface ResolvedHookCommand {
-  readonly command: string;
-  readonly argsPrefix: readonly string[];
-}
-
-interface CursorDecision {
-  readonly ok: boolean;
-  readonly permission?: "allow" | "deny";
+interface ParsedJson {
+  readonly value: Record<string, unknown> | null;
+  readonly issue: "empty-stdout" | "unparseable-json" | null;
   readonly detail: string;
 }
 
-const LIVE_PROBE_HOST: HookHost = "cursor";
 const LIVE_PROBE_EVENT: HookEvent = "tool.before";
 
-function resolveHookCommand(seams: AgentHookLiveProbeSeams): ResolvedHookCommand | null {
-  const resolveCommand = seams.resolveCommand ?? resolveCommandOnPath;
-  const deftHook = resolveCommand(DEFT_HOOK_COMMAND_MARKER);
-  if (deftHook !== null) {
-    return { command: deftHook, argsPrefix: [] };
-  }
-  const deft = resolveCommand("deft");
-  if (deft !== null) {
-    return { command: deft, argsPrefix: ["hook:dispatch"] };
-  }
-  const directive = resolveCommand("directive");
-  if (directive !== null) {
-    return { command: directive, argsPrefix: ["hook:dispatch"] };
-  }
-  return null;
+function elapsedMs(started: number): number {
+  return Math.max(0, Math.round(performance.now() - started));
 }
 
+function resolveHookCommand(seams: AgentHookLiveProbeSeams): string | null {
+  return (seams.resolveCommand ?? resolveCommandOnPath)(DEFT_HOOK_COMMAND_MARKER);
+}
+
+/** Quote one Windows cmd.exe argument used by the installed hook shim. */
 export function quoteWindowsCmdArg(value: string): string {
   const escaped = value.replace(/%/g, "%%");
   if (!/[\s"&|<>^()]/.test(escaped)) {
@@ -88,31 +93,13 @@ function spawnHookWithStdin(
   stdin: string,
   cwd: string,
   env: NodeJS.ProcessEnv = process.env,
-): { status: number; stdout: string; stderr: string } {
+): { status: number; stdout: string; stderr: string; timedOut?: boolean } {
   const shell = shouldUseShellForCommand(command);
-  if (shell && process.platform === "win32") {
-    const cmdLine = [quoteWin32CommandForShell(command), ...args.map(quoteWindowsCmdArg)].join(" ");
-    const proc = spawnSync(cmdLine, [], {
-      input: stdin,
-      cwd,
-      env,
-      encoding: "utf8",
-      stdio: ["pipe", "pipe", "pipe"],
-      shell: true,
-      windowsHide: true,
-      maxBuffer: SUBPROCESS_MAX_BUFFER,
-    });
-    const status = proc.status ?? (proc.error ? 2 : proc.signal ? 128 : 0);
-    return {
-      status,
-      stdout: typeof proc.stdout === "string" ? proc.stdout : "",
-      stderr: typeof proc.stderr === "string" ? proc.stderr : "",
-    };
-  }
-
-  const spawnCmd =
-    shell && process.platform === "win32" ? quoteWin32CommandForShell(command) : command;
-  const proc = spawnSync(spawnCmd, [...args], {
+  const commandArgs =
+    shell && process.platform === "win32"
+      ? [[quoteWin32CommandForShell(command), ...args.map(quoteWindowsCmdArg)].join(" "), []]
+      : [command, [...args]];
+  const proc = spawnSync(commandArgs[0] as string, commandArgs[1] as string[], {
     input: stdin,
     cwd,
     env,
@@ -121,12 +108,14 @@ function spawnHookWithStdin(
     shell,
     windowsHide: true,
     maxBuffer: SUBPROCESS_MAX_BUFFER,
+    timeout: LIVE_PROBE_CASE_TIMEOUT_MS,
   });
-  const status = proc.status ?? (proc.error ? 2 : proc.signal ? 128 : 0);
+  const timedOut = (proc.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT";
   return {
-    status,
+    status: proc.status ?? (proc.error ? 2 : proc.signal ? 128 : 0),
     stdout: typeof proc.stdout === "string" ? proc.stdout : "",
     stderr: typeof proc.stderr === "string" ? proc.stderr : "",
+    ...(timedOut ? { timedOut: true } : {}),
   };
 }
 
@@ -151,164 +140,189 @@ function denyProbeEnv(): NodeJS.ProcessEnv {
   return { ...process.env, [READ_ONLY_HOOK_ENV]: "1" };
 }
 
-function parseCursorDecision(stdout: string): CursorDecision {
+function parseJsonObject(stdout: string): ParsedJson {
   const trimmed = stdout.trim();
   if (trimmed.length === 0) {
-    return { ok: false, detail: "empty stdout" };
+    return { value: null, issue: "empty-stdout", detail: "empty stdout" };
   }
   try {
     const parsed = JSON.parse(trimmed) as unknown;
-    if (
-      parsed !== null &&
-      typeof parsed === "object" &&
-      !Array.isArray(parsed) &&
-      (parsed as Record<string, unknown>).permission === "allow"
-    ) {
-      return { ok: true, permission: "allow", detail: "permission allow" };
+    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return { value: parsed as Record<string, unknown>, issue: null, detail: "valid JSON object" };
     }
-    if (
-      parsed !== null &&
-      typeof parsed === "object" &&
-      !Array.isArray(parsed) &&
-      (parsed as Record<string, unknown>).permission === "deny"
-    ) {
-      return { ok: true, permission: "deny", detail: "permission deny" };
-    }
-    return { ok: false, detail: "stdout JSON missing permission allow/deny" };
+    return { value: null, issue: "unparseable-json", detail: "stdout JSON is not an object" };
   } catch {
-    return { ok: false, detail: "stdout is not valid JSON" };
+    return { value: null, issue: "unparseable-json", detail: "stdout is not valid JSON" };
   }
 }
 
+function validatesNestedDeny(value: Record<string, unknown>): boolean {
+  const output = value.hookSpecificOutput;
+  if (output === null || typeof output !== "object" || Array.isArray(output)) return false;
+  const nested = output as Record<string, unknown>;
+  return (
+    nested.hookEventName === "PreToolUse" &&
+    nested.permissionDecision === "deny" &&
+    typeof nested.permissionDecisionReason === "string"
+  );
+}
+
+function validateFixtureOutput(
+  host: HookHost,
+  fixture: "allow" | "deny",
+  stdout: string,
+): { ok: true } | { ok: false; issue: AgentHookLiveProbeIssue; detail: string } {
+  if (fixture === "allow" && host !== "cursor") {
+    if (stdout.trim().length === 0) return { ok: true };
+    const parsed = parseJsonObject(stdout);
+    return {
+      ok: false,
+      issue: parsed.issue ?? "missing-allow",
+      detail: "expected empty stdout so the host permission flow remains unchanged",
+    };
+  }
+
+  const parsed = parseJsonObject(stdout);
+  if (parsed.value === null) {
+    return {
+      ok: false,
+      issue: parsed.issue as "empty-stdout" | "unparseable-json",
+      detail: parsed.detail,
+    };
+  }
+  const value = parsed.value;
+  if (fixture === "allow") {
+    return value.permission === "allow"
+      ? { ok: true }
+      : { ok: false, issue: "missing-allow", detail: "expected Cursor permission allow" };
+  }
+
+  const denied =
+    host === "cursor"
+      ? value.permission === "deny"
+      : host === "grok"
+        ? value.decision === "deny" && typeof value.reason === "string"
+        : validatesNestedDeny(value);
+  return denied
+    ? { ok: true }
+    : { ok: false, issue: "missing-deny", detail: `expected ${host} deny envelope` };
+}
+
 function runFixtureProbe(
-  resolved: ResolvedHookCommand,
+  command: string,
+  host: HookHost,
   projectRoot: string,
   fixture: "allow" | "deny",
-  stdin: string,
-  env: NodeJS.ProcessEnv,
   spawnHook: NonNullable<AgentHookLiveProbeSeams["spawnHook"]>,
 ): AgentHookLiveProbeCase | null {
-  const args = [
-    ...resolved.argsPrefix,
-    "--host",
-    LIVE_PROBE_HOST,
-    "--event",
-    LIVE_PROBE_EVENT,
-    "--project-root",
-    projectRoot,
-  ];
   const spawned = spawnHook({
-    command: resolved.command,
-    args,
-    stdin,
+    command,
+    args: ["--host", host, "--event", LIVE_PROBE_EVENT, "--project-root", projectRoot],
+    stdin: fixture === "allow" ? allowFixture(projectRoot) : denyFixture(projectRoot),
     cwd: projectRoot,
-    env,
+    env: fixture === "allow" ? process.env : denyProbeEnv(),
   });
+  if (spawned.timedOut === true) {
+    return {
+      host,
+      event: LIVE_PROBE_EVENT,
+      fixture,
+      issue: "timed-out",
+      detail: `hook command exceeded ${LIVE_PROBE_CASE_TIMEOUT_MS}ms`,
+    };
+  }
   if (spawned.status !== 0) {
     return {
-      host: LIVE_PROBE_HOST,
+      host,
       event: LIVE_PROBE_EVENT,
       fixture,
       issue: "spawn-failed",
       detail: `hook command exited ${spawned.status}${spawned.stderr.trim() ? `: ${spawned.stderr.trim()}` : ""}`,
     };
   }
-
-  const decision = parseCursorDecision(spawned.stdout);
-  if (!decision.ok) {
-    return {
-      host: LIVE_PROBE_HOST,
-      event: LIVE_PROBE_EVENT,
-      fixture,
-      issue: decision.detail.includes("JSON") ? "unparseable-json" : "empty-stdout",
-      detail: decision.detail,
-    };
-  }
-
-  if (fixture === "allow" && decision.permission !== "allow") {
-    return {
-      host: LIVE_PROBE_HOST,
-      event: LIVE_PROBE_EVENT,
-      fixture,
-      issue: "missing-allow",
-      detail: `expected permission allow, got ${decision.permission ?? "none"}`,
-    };
-  }
-  if (fixture === "deny" && decision.permission !== "deny") {
-    return {
-      host: LIVE_PROBE_HOST,
-      event: LIVE_PROBE_EVENT,
-      fixture,
-      issue: "missing-deny",
-      detail: `expected permission deny, got ${decision.permission ?? "none"}`,
-    };
-  }
-  return null;
+  const validation = validateFixtureOutput(host, fixture, spawned.stdout);
+  return validation.ok
+    ? null
+    : {
+        host,
+        event: LIVE_PROBE_EVENT,
+        fixture,
+        issue: validation.issue,
+        detail: validation.detail,
+      };
 }
 
-/** Spawn the configured hook command and assert Cursor tool.before allow/deny behavior. */
+/** Invoke the installed deft-hook shim and validate enabled host allow/deny codecs. */
 export function probeAgentHooksLive(
   projectRoot: string,
   seams: AgentHookLiveProbeSeams = {},
 ): AgentHookLiveProbeResult {
+  const started = performance.now();
   const root = resolve(projectRoot);
-  const resolved = resolveHookCommand(seams);
-  if (resolved === null) {
+  const hosts = [...(seams.hosts ?? HOOK_HOSTS)];
+  if (hosts.length === 0) {
+    return {
+      code: 0,
+      message: "deft agent hooks live probe skipped: every host is intentionally disabled.",
+      cases: [],
+      hosts: [],
+      durationMs: elapsedMs(started),
+    };
+  }
+
+  const command = resolveHookCommand(seams);
+  if (command === null) {
     return {
       code: 2,
-      message:
-        "deft agent hooks live probe unavailable: neither deft-hook nor deft/directive hook:dispatch is on PATH.",
+      message: `deft agent hooks live probe unavailable: installed ${DEFT_HOOK_COMMAND_MARKER} is not on PATH.`,
       cases: [
         {
-          host: LIVE_PROBE_HOST,
+          host: hosts[0] as HookHost,
           event: LIVE_PROBE_EVENT,
           fixture: "allow",
           issue: "hook-command-missing",
           detail: `${DEFT_HOOK_COMMAND_MARKER} not found on PATH`,
         },
       ],
+      hosts: hosts.map((host) => ({ host, status: "unavailable" })),
+      durationMs: elapsedMs(started),
     };
   }
 
   const spawnHook =
     seams.spawnHook ??
-    ((input: {
-      readonly command: string;
-      readonly args: readonly string[];
-      readonly stdin: string;
-      readonly cwd: string;
-      readonly env?: NodeJS.ProcessEnv;
-    }) =>
-      spawnHookWithStdin(
-        input.command,
-        input.args,
-        input.stdin,
-        input.cwd,
-        input.env ?? process.env,
-      ));
+    ((input) => spawnHookWithStdin(input.command, input.args, input.stdin, input.cwd, input.env));
   const failures: AgentHookLiveProbeCase[] = [];
-  for (const [fixture, stdin, env] of [
-    ["allow", allowFixture(root), process.env] as const,
-    ["deny", denyFixture(root), denyProbeEnv()] as const,
-  ]) {
-    const failure = runFixtureProbe(resolved, root, fixture, stdin, env, spawnHook);
-    if (failure !== null) failures.push(failure);
+  const hostResults: AgentHookLiveProbeHostResult[] = [];
+  for (const host of hosts) {
+    let hostFailure: AgentHookLiveProbeCase | null = null;
+    for (const fixture of ["allow", "deny"] as const) {
+      hostFailure = runFixtureProbe(command, host, root, fixture, spawnHook);
+      if (hostFailure !== null) {
+        failures.push(hostFailure);
+        break;
+      }
+    }
+    hostResults.push({ host, status: hostFailure === null ? "functional" : "non-functional" });
   }
 
   if (failures.length === 0) {
     return {
       code: 0,
-      message: "deft agent hooks live probe passed for Cursor tool.before allow and deny fixtures.",
+      message: `deft agent hooks live probe passed allow/deny fixtures for ${hosts.join(", ")}.`,
       cases: [],
+      hosts: hostResults,
+      durationMs: elapsedMs(started),
     };
   }
-
   const summary = failures
-    .map((entry) => `${entry.fixture}: ${entry.issue} (${entry.detail})`)
+    .map((entry) => `${entry.host}/${entry.fixture}: ${entry.issue} (${entry.detail})`)
     .join("; ");
   return {
     code: 1,
     message: `deft agent hooks live probe FAILED: ${summary}. Recovery: reinstall @deftai/directive and run \`deft update\`.`,
     cases: failures,
+    hosts: hostResults,
+    durationMs: elapsedMs(started),
   };
 }

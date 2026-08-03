@@ -67,9 +67,9 @@ describe("inferSessionReadyRepo", () => {
 });
 
 describe("runSessionReady (#2993)", () => {
-  it("fast path when gated inspect is already green (no start / fetch)", () => {
+  it("fast path refreshes hook readiness without starting or fetching", () => {
     const inspectRitual = vi.fn(() => okVerify());
-    const verifyRitual = vi.fn();
+    const verifyRitual = vi.fn(() => okVerify());
     const runStart = vi.fn();
     const fetchAll = vi.fn();
 
@@ -78,16 +78,49 @@ describe("runSessionReady (#2993)", () => {
       verifyRitual,
       runStart,
       fetchAll,
+      sessionStartOptions: { writeHistory: true },
     });
 
     expect(result.code).toBe(0);
     expect(result.path).toBe(SESSION_READY_FAST_PATH);
     expect(result.message).toContain("already fresh");
-    expect(result.steps).toEqual([]);
+    expect(result.steps).toEqual(["verify:session-ritual:gated"]);
     expect(runStart).not.toHaveBeenCalled();
-    expect(verifyRitual).not.toHaveBeenCalled();
+    expect(verifyRitual).toHaveBeenCalledWith(
+      "/proj",
+      expect.objectContaining({ forceGatedSteps: ["agent_hooks"] }),
+    );
     expect(fetchAll).not.toHaveBeenCalled();
     expect(inspectRitual).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not report the fast path ready when the forced hook gate fails", () => {
+    const result = runSessionReady("/proj", {
+      inspectRitual: () => okVerify(),
+      verifyRitual: () => failVerify("session ritual gated step 'agent_hooks' failed"),
+      runStart: vi.fn(),
+      fetchAll: vi.fn(),
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.path).toBe(SESSION_READY_FAILED);
+    expect(result.message).toContain("agent_hooks");
+  });
+
+  it("refuses a bypassed forced hook gate on the fast path", () => {
+    const result = runSessionReady("/proj", {
+      inspectRitual: () => okVerify(),
+      verifyRitual: () =>
+        okVerify({
+          bypassed: true,
+          wouldFailCode: 1,
+          message: "session ritual gated step 'agent_hooks' failed",
+        }),
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.path).toBe(SESSION_READY_FAILED);
+    expect(result.message).toContain("refuses bypassed verification");
   });
 
   it("runs session:start when quick is not ready, then verifies gated", () => {
@@ -109,12 +142,14 @@ describe("runSessionReady (#2993)", () => {
       verifyRitual,
       runStart,
       fetchAll,
+      sessionStartOptions: { writeHistory: true },
     });
 
     expect(result.code).toBe(0);
     expect(result.path).toBe(SESSION_READY_VERIFIED);
     expect(result.steps).toEqual(["session:start", "verify:session-ritual:gated"]);
     expect(runStart).toHaveBeenCalledTimes(1);
+    expect(runStart).toHaveBeenCalledWith("/proj", expect.objectContaining({ writeHistory: true }));
     expect(verifyRitual).toHaveBeenCalledTimes(1);
     expect(fetchAll).not.toHaveBeenCalled();
   });
@@ -182,6 +217,34 @@ describe("runSessionReady (#2993)", () => {
     expect(runStart).not.toHaveBeenCalled();
   });
 
+  it("refuses a bypassed verification after cache recovery", () => {
+    const inspectRitual = vi
+      .fn()
+      .mockReturnValueOnce(failVerify("gated"))
+      .mockReturnValueOnce(okVerify({ tier: "quick" }));
+    const verifyRitual = vi
+      .fn()
+      .mockReturnValueOnce(failVerify("session ritual gated step 'cache_fresh' failed"))
+      .mockReturnValueOnce(
+        okVerify({
+          bypassed: true,
+          wouldFailCode: 1,
+          message: "session ritual gated step 'agent_hooks' failed",
+        }),
+      );
+
+    const result = runSessionReady("/proj", {
+      inspectRitual,
+      verifyRitual,
+      fetchAll: vi.fn(() => ({ issues_written: 1 })),
+      inferRepo: () => "o/r",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.path).toBe(SESSION_READY_FAILED);
+    expect(result.message).toContain("refuses bypassed verification");
+  });
+
   it("does not fetch-all when doctor fails", () => {
     const inspectRitual = vi
       .fn()
@@ -229,6 +292,20 @@ describe("runSessionReady (#2993)", () => {
     expect(result.code).toBe(2);
     expect(result.path).toBe(SESSION_READY_FAILED);
     expect(result.message).toContain("USER.md missing");
+  });
+
+  it("provides a fallback when session:start fails without output", () => {
+    const inspectRitual = vi
+      .fn()
+      .mockReturnValueOnce(failVerify("missing"))
+      .mockReturnValueOnce(failVerify("missing", { tier: "quick" }));
+    const result = runSessionReady("/proj", {
+      inspectRitual,
+      runStart: () => ({ code: 2, payload: {}, lines: [] }),
+    });
+
+    expect(result.code).toBe(2);
+    expect(result.message).toContain("session:start failed (exit 2)");
   });
 
   it("fails when cache recovery cannot resolve repo", () => {

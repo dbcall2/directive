@@ -21,6 +21,7 @@ import {
 import {
   formatSessionStartRecoveryCommand,
   GATED_STEPS,
+  type GatedStepName,
   QUICK_STEPS,
   type SessionCeremonyTier,
 } from "./session-start.js";
@@ -36,7 +37,8 @@ export {
   ENTRYPOINT_TIMEOUT_SECONDS,
 } from "./ritual-entrypoint.js";
 
-export const GATED_ENTRYPOINT_COMMANDS: Readonly<Record<string, readonly string[]>> = {
+export const GATED_ENTRYPOINT_COMMANDS: Readonly<Record<GatedStepName, readonly string[]>> = {
+  agent_hooks: ["verify:hooks-installed", "--scope=agent", "--live"],
   doctor: ["doctor"],
   cache_fresh: ["verify:cache-fresh"],
 };
@@ -76,23 +78,19 @@ function stepPasses(step: Record<string, unknown> | undefined | null): boolean {
   return step.ok === true;
 }
 
-function failedStepMessage(tierName: string, stepName: string, step: unknown): string {
+function failedStepMessage(
+  tierName: string,
+  stepName: string,
+  step: Record<string, unknown> | undefined,
+): string {
   const coldCmd = formatSessionStartRecoveryCommand("cold");
-  if (step === null || step === undefined) {
+  if (step === undefined) {
     return (
       `session ritual ${tierName} step '${stepName}' is missing. ` +
       `Run \`${coldCmd}\` before implementation dispatch.`
     );
   }
-  if (
-    typeof step === "object" &&
-    step !== null &&
-    (step as Record<string, unknown>).deferred_reason
-  ) {
-    return "";
-  }
-  const message =
-    typeof step === "object" && step !== null ? (step as Record<string, unknown>).message : null;
+  const message = step.message;
   const suffix = typeof message === "string" && message.length > 0 ? `: ${message}` : "";
   return `session ritual ${tierName} step '${stepName}' failed${suffix}`;
 }
@@ -118,13 +116,13 @@ export function formatRitualRecoveryInstruction(tier: SessionCeremonyTier = "col
 function runGatedStep(
   projectRoot: string,
   payload: Record<string, unknown>,
-  stepName: string,
+  stepName: GatedStepName,
   runner: RitualRunner,
   now: Date,
 ): string | null {
-  const command = [...(GATED_ENTRYPOINT_COMMANDS[stepName] ?? [])];
+  const command = [...GATED_ENTRYPOINT_COMMANDS[stepName]];
   const { code, stdout, stderr } = runner(command, projectRoot);
-  const message = stdout.trim() || stderr.trim() || `${command[0] ?? stepName} exited ${code}`;
+  const message = stdout.trim() || stderr.trim() || `${command[0] as string} exited ${code}`;
   const gated = (payload.gated_steps as Record<string, Record<string, unknown>> | undefined) ?? {};
   gated[stepName] = ritualStep({
     ok: code === 0,
@@ -269,6 +267,8 @@ export interface VerifySessionRitualOptions {
   readonly posture?: DirectivePosture;
   readonly envPosture?: string | undefined;
   readonly handoffText?: string | null;
+  /** Re-run selected gated prerequisites even when their recorded step is green. */
+  readonly forceGatedSteps?: readonly GatedStepName[];
 }
 
 export interface InspectSessionRitualOptions {
@@ -476,10 +476,11 @@ export function verifySessionRitual(
     const gated = { ...(payload.gated_steps as Record<string, Record<string, unknown>>) };
     payload.gated_steps = gated;
     const runCmd = options.runner ?? defaultRitualRunner;
+    const forced = new Set<GatedStepName>(options.forceGatedSteps ?? []);
     for (const stepName of GATED_STEPS) {
       const step = gated[stepName];
-      if (step?.deferred_reason) continue;
-      if (stepPasses(step)) continue;
+      if (step?.deferred_reason && stepName !== "agent_hooks") continue;
+      if (stepPasses(step) && !forced.has(stepName)) continue;
       const writeError = runGatedStep(projectRoot, payload, stepName, runCmd, instant);
       if (writeError !== null) {
         return {

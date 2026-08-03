@@ -77,6 +77,7 @@ function freshRitualRoot(): { root: string; head: string } {
         triage_welcome: ritualStep({ ok: true, ts: started }),
       },
       gatedSteps: {
+        agent_hooks: ritualStep({ ok: true, ts: started }),
         doctor: ritualStep({ ok: true, ts: started }),
         cache_fresh: ritualStep({ ok: true, ts: started }),
       },
@@ -159,6 +160,7 @@ describe("session.compact hook dispatch (#2113)", () => {
           triage_welcome: ritualStep({ ok: true, ts: refreshedStarted }),
         },
         gatedSteps: {
+          agent_hooks: ritualStep({ ok: true, ts: refreshedStarted }),
           doctor: ritualStep({ ok: true, ts: refreshedStarted }),
           cache_fresh: ritualStep({ ok: true, ts: refreshedStarted }),
         },
