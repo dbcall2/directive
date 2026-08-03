@@ -7,7 +7,14 @@ import {
   type RunGhApiFn,
   restIssueView,
   runGhApi,
+  splitRepo,
 } from "../scm/gh-rest.js";
+import {
+  CURRENT_SHAPE_SIDECAR,
+  isUmbrellaLikeIssue,
+  parseCommentsFromGhStdout,
+  RAW_ISSUE_COMMENTS_KEY,
+} from "../umbrella-current-shape/index.js";
 import { DEFAULT_BATCH_SIZE, DEFAULT_DELAY_MS } from "./constants.js";
 import { CacheError, CacheFetchError } from "./errors.js";
 import { atomicWriteText } from "./io.js";
@@ -98,16 +105,70 @@ export type PaginatedLister = (
 export type SleepFn = (seconds: number) => void;
 export type ProgressWriter = (line: string) => void;
 
+export type IssueCommentsFetcher = (
+  repo: string,
+  issueNumber: number,
+) => readonly Record<string, unknown>[];
+
+/**
+ * Default REST fetch for an issue's comment thread (#1870).
+ * Returns raw REST comment objects (with id/body/html_url/author_association).
+ */
+export function restIssueComments(
+  repo: string,
+  issueNumber: number,
+  options: { runGhApiFn?: RunGhApiFn } = {},
+): Record<string, unknown>[] {
+  const [owner, name] = splitRepo(repo);
+  const endpoint = `repos/${owner}/${name}/issues/${issueNumber}/comments?per_page=100`;
+  const runner = options.runGhApiFn ?? runGhApi;
+  const result = runner(["--paginate", endpoint]);
+  if (result.returncode !== 0) {
+    throw new GhRestError({
+      stderr: result.stderr.trim(),
+      exitCode: result.returncode,
+      endpoint,
+      payload: null,
+      hint: "verify repo/issue number and gh auth; comments feed the #1152 current-shape surface",
+    });
+  }
+  try {
+    // Reuse the paginated-JSON parser so multi-page comment threads stay intact.
+    const mapped = parseCommentsFromGhStdout(result.stdout);
+    return mapped.map((c) => ({
+      id: c.id,
+      body: c.body,
+      html_url: c.htmlUrl,
+      updated_at: c.updatedAt,
+      author_association: c.authorAssociation,
+      user: { login: c.authorLogin },
+    }));
+  } catch (exc) {
+    throw new GhRestError({
+      stderr: `non-JSON comments response: ${exc instanceof Error ? exc.message : String(exc)}`,
+      exitCode: 0,
+      endpoint,
+      payload: null,
+      hint: "REST comments endpoint returned non-JSON; check gh / ghx version",
+    });
+  }
+}
+
 let paginatedListerImpl: PaginatedLister = restIssueListPaginated;
 let sleepImpl: SleepFn = () => {};
 let progressWriterImpl: ProgressWriter = (line) => process.stderr.write(line);
 let progressFlusherImpl: () => void = () => {};
 let singleIssueFetcherImpl: (repo: string, n: number) => Record<string, unknown> = restIssueView;
+let issueCommentsFetcherImpl: IssueCommentsFetcher = restIssueComments;
 
 export function setSingleIssueFetcher(
   fn: (repo: string, n: number) => Record<string, unknown>,
 ): void {
   singleIssueFetcherImpl = fn;
+}
+
+export function setIssueCommentsFetcher(fn: IssueCommentsFetcher): void {
+  issueCommentsFetcherImpl = fn;
 }
 
 export function setPaginatedLister(fn: PaginatedLister): void {
@@ -116,6 +177,78 @@ export function setPaginatedLister(fn: PaginatedLister): void {
 
 export function setSleepFn(fn: SleepFn): void {
   sleepImpl = fn;
+}
+
+/**
+ * Attach the issue comment thread onto a raw issue payload when the issue is
+ * umbrella/tracker-like (#1870). Non-umbrellas skip the extra REST call.
+ * Failures leave the payload unchanged so body-only cache still lands.
+ *
+ * When `force` is true, re-fetches even if a comments array is already present
+ * (closed-state refresh and shape backfill paths).
+ */
+export function enrichRawWithCommentsIfUmbrella(
+  repo: string,
+  raw: Record<string, unknown>,
+  options: { fetchComments?: IssueCommentsFetcher; force?: boolean } = {},
+): Record<string, unknown> {
+  if (!isUmbrellaLikeIssue(raw)) {
+    return raw;
+  }
+  if (options.force !== true && Array.isArray(raw[RAW_ISSUE_COMMENTS_KEY])) {
+    return raw;
+  }
+  const number = raw.number;
+  if (typeof number !== "number" || number <= 0) {
+    return raw;
+  }
+  const fetcher = options.fetchComments ?? issueCommentsFetcherImpl;
+  try {
+    const comments = fetcher(repo, number);
+    return { ...raw, [RAW_ISSUE_COMMENTS_KEY]: [...comments] };
+  } catch {
+    // Soft-fail: cache body still useful; agents can live-fetch via umbrella:current-shape.
+    // Preserve a prior comments array when force-refresh fails so we do not
+    // drop a previously cached current-shape surface (#1870 Greptile P1).
+    if (Array.isArray(raw[RAW_ISSUE_COMMENTS_KEY])) {
+      return raw;
+    }
+    return raw;
+  }
+}
+
+/**
+ * True when an on-disk cache entry is umbrella-like but was written before
+ * #1870 comment enrichment (no `comments` key on raw.json). Used to override
+ * the TTL-fresh skip so body-only entries get one backfill pass.
+ */
+export function entryNeedsCurrentShapeBackfill(edir: string): boolean {
+  const rawPath = join(edir, "raw.json");
+  if (!existsSync(rawPath)) {
+    return false;
+  }
+  try {
+    const raw = JSON.parse(readFileSync(rawPath, "utf8")) as Record<string, unknown>;
+    if (!isUmbrellaLikeIssue(raw)) {
+      return false;
+    }
+    // Missing comments key → never enriched. Empty array is "attempted".
+    if (!Object.hasOwn(raw, RAW_ISSUE_COMMENTS_KEY)) {
+      return true;
+    }
+    // Has comments but no sidecar while a shape should exist: rare mid-write
+    // race; treat missing sidecar + non-empty comments as needing rewrite.
+    if (
+      Array.isArray(raw[RAW_ISSUE_COMMENTS_KEY]) &&
+      (raw[RAW_ISSUE_COMMENTS_KEY] as unknown[]).length > 0 &&
+      !existsSync(join(edir, CURRENT_SHAPE_SIDECAR))
+    ) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 export function setProgressWriter(fn: ProgressWriter, flusher?: () => void): void {
@@ -381,6 +514,7 @@ export function runFetchAll(options: {
   probeDriftFn?: typeof probeCacheDrift;
   isFresh?: (metaPath: string) => boolean;
   doPut?: (key: string, raw: Record<string, unknown>) => void;
+  fetchComments?: IssueCommentsFetcher;
 }): FetchAllReportImpl {
   const issues = listIssuesRest(options.repo, {
     state: options.state ?? "open",
@@ -429,7 +563,7 @@ export function runFetchAll(options: {
 
   for (let i = 0; i < issues.length; i += 1) {
     const processed = i + 1;
-    const raw = normaliseRestIssue(issues[i] ?? {});
+    let raw = normaliseRestIssue(issues[i] ?? {});
     const number = raw.number;
     if (typeof number !== "number" || number <= 0) {
       report.issuesFailed += 1;
@@ -441,11 +575,24 @@ export function runFetchAll(options: {
       const key = `${options.repo}/${number}`;
       const edir = entryDir(source, key, cacheRoot);
       const metaPath = join(edir, "meta.json");
-      const skipFresh = !options.force && isFreshFn(metaPath) && !contentDriftNumbers.has(number);
+      // #1870 Greptile P1: TTL-fresh must not skip body-only umbrella entries
+      // forever — comment enrichment is not part of the content-drift fingerprint.
+      const needsShapeBackfill = entryNeedsCurrentShapeBackfill(edir);
+      const skipFresh =
+        !options.force &&
+        isFreshFn(metaPath) &&
+        !contentDriftNumbers.has(number) &&
+        !needsShapeBackfill;
       if (skipFresh) {
         report.alreadyFresh += 1;
       } else {
         try {
+          // #1870: umbrella/tracker issues get comment threads so content.md
+          // carries the canonical ## Current shape surface, not body alone.
+          raw = enrichRawWithCommentsIfUmbrella(options.repo, raw, {
+            fetchComments: options.fetchComments,
+            force: needsShapeBackfill,
+          });
           doPutFn(key, raw);
           report.issuesWritten += 1;
         } catch (exc) {
@@ -493,6 +640,7 @@ export function cacheFetchAll(options: {
   force?: boolean;
   contentDriftNumbers?: readonly number[];
   probeDriftFn?: typeof probeCacheDrift;
+  fetchComments?: IssueCommentsFetcher;
 }): FetchAllReportImpl {
   if (options.source !== "github-issue") {
     throw new CacheError(
@@ -522,6 +670,7 @@ export function cacheFetchAll(options: {
     force: options.force,
     contentDriftNumbers: options.contentDriftNumbers,
     probeDriftFn: options.probeDriftFn,
+    fetchComments: options.fetchComments,
   });
 }
 
@@ -663,7 +812,10 @@ export function cacheRefreshClosed(options: {
     delayMs: options.delayMs ?? DEFAULT_DELAY_MS,
     fetchSingle: singleIssueFetcherImpl,
     doPut: (key, raw) => {
-      cachePut(options.source, key, raw, {
+      // #1870 Greptile P1: closed-state rewrite still enriches umbrella comments
+      // so current-shape.json is not deleted by a body-only single-issue put.
+      const enriched = enrichRawWithCommentsIfUmbrella(options.repo, raw, { force: true });
+      cachePut(options.source, key, enriched, {
         ttlSeconds: options.ttlSeconds,
         cacheRoot,
       });
