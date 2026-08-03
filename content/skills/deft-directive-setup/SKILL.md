@@ -655,7 +655,9 @@ omit = [
 - **anything else** (discuss, yolo, speckit, research, brownfield, map, etc.) →
   1. ! Read `deft/strategies/{strategy-name}.md` **right now, in this same turn**
   2. ! Begin the strategy's workflow immediately — ask its first question
-  3. ! **STOP reading this section** — do NOT use the interview process below
+  3. ! For `research`, the first question is the strategy's Scope Confirmation Gate (#1273); ask it and wait before any autonomous research begins.
+  4. ! For `research`, after the research artifact is written, surface the strategy's Then: Chaining Gate and wait for a user selection; do NOT create scope xBRIEFs from research output unless the user later chooses a spec-generating path; do NOT fall through to the interview output path after research.
+  5. ! **STOP reading this section** — do NOT use the interview process below
 
 - ⊗ Default to interview without reading PROJECT-DEFINITION.xbrief.json
 - ⊗ Continue reading below when PROJECT-DEFINITION.xbrief.json specifies a non-interview strategy
@@ -760,8 +762,14 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 **Spec Structure (both paths):**
 - ! Overview, Architecture
 - ! Implementation Plan: scope xBRIEFs in `xbrief/proposed/` with phases and dependencies
-- ! Explicit dependency mapping between scopes (via xBRIEF `edges` or `references`)
+- ! Explicit dependency mapping MUST use the field consumers actually read for the scope shape:
+  - **Story-shaped scopes** (`plan.metadata.kind = "story"` or scopes intended for swarm allocation / decompose): sequential/blocked work MUST set `plan.metadata.swarm.depends_on` to an array of **resolvable story identifiers**. Swarm readiness, decompose, and queue traversal read **only** this field for story ordering — not `plan.metadata.dependencies` alone. ! Each `depends_on` entry MUST equal the blocking scope's `plan.id` when that field is set; otherwise the blocking artifact's **filename stem** (basename with `.xbrief.json` / `.vbrief.json` stripped — the same stem readiness uses as `story_id`). ⊗ Use rendered titles, free-form prose, date-only prefixes, or unstripped full filenames — those do not resolve and leave the generated scope blocked.
+  - **Phase/epic or cross-scope roadmap batches**: MAY also set plan-level `plan.metadata.dependencies` for roadmap/export readers.
+  - `edges` / `references` may supplement documentation but **do not** replace `plan.metadata.swarm.depends_on` for sequential story scopes.
+- ! When multiple scopes are produced in one Phase 3 pass, encode machine-readable dependency ordering before finishing the write: independent scopes use empty `plan.metadata.swarm.depends_on` (`[]`); sequential/blocked story scopes use non-empty `plan.metadata.swarm.depends_on`. Optionally mirror the same DAG in `plan.metadata.dependencies` for roadmap views.
 - ~ Scopes designed for parallel work by multiple agents
+- ⊗ Deposit sequential story-shaped scopes with only `plan.metadata.dependencies` / `edges` / `references` and missing `plan.metadata.swarm.depends_on` — orchestration will treat them as independent or reject readiness.
+- ⊗ Deposit multiple generated scope xBRIEFs with no dependency metadata and rely on filenames or human prose for ordering.
 - ! Testing Strategy and Deployment captured in narratives
 - ⊗ Write code — specification only
 

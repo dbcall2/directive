@@ -22,6 +22,27 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 - ~ When the feature involves libraries or APIs the agent hasn't used in this project
 - ? Skip for well-understood domains where the agent has strong existing context
 
+## Scope Confirmation Gate (#1273)
+
+! Before autonomous research begins, present one blocking scope-confirmation prompt and wait for the user's selection. Use the deterministic question contract: the final two numbered options MUST be `Discuss` and `Back`.
+
+Prompt:
+> "What should this research focus on before I investigate autonomously?"
+
+1. Confirm the inferred feature/domain scope (Recommended)
+2. Refine the feature boundary or priority areas
+3. Provide sample data, artifacts, constraints, or sensitive areas to account for
+4. Discuss
+5. Back
+
+- ! **Confirmed-scope postcondition (required before survey):** research MUST NOT start the survey until a confirmed research scope is recorded in notes. Confirmation is achieved by **any** of: option **1** (accept inferred scope as-is), or option **2**/**3** after free-form capture (the free-form answer **is** the confirmation of scope — it replaces option-1 confirmation; do not re-open option 1 after capture).
+- ! On option **1** (confirm inferred scope): record the inferred feature/domain as the confirmed research scope and proceed to the survey step.
+- ! On option **2** (refine boundary): ask a **follow-up free-form question** in the next message (one question only) to capture the refined feature boundary or priority areas; wait for the user's answer; record that free-form text as the **confirmed** research scope; then proceed to survey. ⊗ Proceed to survey after option 2 without collecting free-form refinement text. ⊗ Leave research blocked after option 2 with no follow-up path.
+- ! On option **3** (artifacts/constraints/sensitivity): ask a **follow-up free-form question** in the next message (one question only) for sample data paths, artifacts to analyze, constraints, or sensitive areas; wait for the user's answer; record provided artifacts/constraints/sensitivity flags **and** treat the current feature/domain (plus those inputs) as the **confirmed** research scope; then proceed to survey. ⊗ Proceed to survey after option 3 without collecting free-form artifact/constraint input. ⊗ Leave research blocked after option 3 with no follow-up path.
+- ! If the user declines free-form input after option 2 or 3 (empty answer / "skip" / "none"): re-present the Scope Confirmation Gate once; if they pick option **1**, confirm inferred scope and proceed; if they again decline capture without confirming, stop research and return to the chaining gate or invoking menu — do not survey on unconfirmed scope.
+- ! Record the confirmed scope, any provided artifacts, and any sensitivity flags in the research notes before the survey step.
+- ⊗ Start the survey from project description alone without a confirmed research scope (option 1 acceptance or option 2/3 free-form confirmation).
+
 ## Output
 
 ! Before writing output artifacts, follow the [Preparatory Guard](./artifact-guards.md#preparatory-guard-light).
@@ -127,9 +148,12 @@ so the user can run additional preparatory strategies or proceed to spec generat
     append artifact path (`vbrief/proposed/{feature}-research.vbrief.json`)
   - Append the path to the flat `artifacts` array
 - ! Return to [interview.md Chaining Gate](./interview.md#chaining-gate)
+- ! Present the chaining gate as a blocking question and wait for a user selection before any spec generation or additional scope vBRIEF generation.
+- ! Explain at handoff that `completedStrategies` records that research ran, while `vbrief/proposed/{feature}-research.vbrief.json` remains a planning artifact in the scope lifecycle until a later strategy promotes or consumes it.
 - ! The research findings MUST inform subsequent strategies and spec generation:
   - "Don't Hand-Roll" items become constraints in the specification
   - "Common Pitfalls" become acceptance criteria or NFRs
+- ⊗ Generate implementation scope vBRIEFs directly from research findings or proceed to spec generation before the user chooses from the chaining gate.
 - ⊗ End the session after research without returning to the chaining gate
   or the invoking strategy's next-step menu
 
@@ -141,7 +165,7 @@ so the user can run additional preparatory strategies or proceed to spec generat
 
 ## Workflow
 
-1. **Scope** -- Identify the domain and feature boundaries for research
+1. **Scope confirmation** -- Ask the blocking scope-confirmation prompt, wait for the user, and record scope/artifact/sensitivity inputs
 2. **Survey** -- Check existing project dependencies, official docs, and known pitfalls
 3. **Document** -- Produce `vbrief/proposed/{feature}-research.vbrief.json` with `DontHandRoll` and `CommonPitfalls` narratives
 4. **Chain** -- Return to [interview.md Chaining Gate](./interview.md#chaining-gate), or -- if invoked from a standalone strategy (e.g. map's standalone next-step menu) -- return to the invoking strategy's menu per the [standalone-context rule](#then-chaining-gate) above
@@ -150,6 +174,7 @@ so the user can run additional preparatory strategies or proceed to spec generat
 
 - ⊗ Building custom solutions for solved problems
 - ⊗ Skipping research for unfamiliar domains ("how hard can auth be?")
+- ⊗ Starting autonomous research before the Scope Confirmation Gate has captured or explicitly skipped user-provided artifacts/constraints
 - ⊗ Research that produces a reading list instead of actionable guidance
 - ⊗ Research that doesn't flow into planning (written and never referenced)
 - ⊗ Ending after research without chaining into specification generation (chained mode; in standalone context, returning to the invoking strategy's menu satisfies the completion requirement per the [standalone-context rule](#then-chaining-gate))
