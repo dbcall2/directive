@@ -2,11 +2,11 @@
   "vBRIEFInfo": {
     "version": "0.6",
     "description": "Scope vBRIEF for #233 (remaining): More Determinism -- the 6 deterministic-enforcement tasks still open after v0.17.0 (Phase 0 generated per-phase gates, task doctor, build:verify, change:archive, task ci:local, task release). 8 v0.17.0-completed items (tasks/ restructure, toolchain:check, verify:stubs, verify:links, changelog:check, change:init, commit:lint, enhanced task check) are split out into xbrief/completed/2026-04-23-233-partial-... -- this vBRIEF only tracks remaining work.",
-    "updated": "2026-04-27T22:25:52Z"
+    "updated": "2026-08-03T02:51:05Z"
   },
   "plan": {
     "title": "More Determinism (remaining): Phase 0 spec scaffolding, task doctor, build:verify, change:archive, task ci:local, task release",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "SourceSection": "ROADMAP active phase",
       "Problem": "The original #233 'More Determinism' initiative bundled 14 deterministic-enforcement tasks. v0.17.0 shipped 8 of them (tasks/ restructure, toolchain:check, verify:stubs, verify:links, changelog:check, change:init, commit:lint, enhanced task check); the corresponding partial-completion record lives at xbrief/completed/2026-04-23-233-partial-more-determinism-tasks-restructure-toolchain.xbrief.json. Without an explicit done/pending split, this scope vBRIEF still claims the entire initiative as 'proposed' -- which double-counts the 8 done items and obscures the 6 that genuinely remain. Per the canonical workflow comment for issue #642 (PR #401 trim arc, locked decision: 0 new determinism-themed vBRIEFs; augment existing #233 instead), this vBRIEF is repaired in PR-A with an explicit split: the 8 v0.17.0 items move out (already captured by the partial-completion vBRIEF in completed/) and the 6 remaining tasks surface as plan.items[] here.",
@@ -21,56 +21,62 @@
       {
         "id": "phase-0-generated-per-phase-gates",
         "title": "Phase 0 spec scaffolding: generated per-phase task gates (e.g. spec:phase0, spec:pipeline) -- design RFC scaffolded under #635",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Action": "This is the upstream design-question item. Tracked in detail in the Phase 0 spec scaffolding RFC vBRIEF under #635 (xbrief/proposed/2026-04-27-635-phase-0-spec-scaffolding-rfc.xbrief.json). The RFC's outcome determines the implementation shape for this item; do NOT begin implementation until the RFC reaches discussion exit.",
           "Acceptance": "RFC reaches design-question close-out; implementation can be split into discrete leaf items at that point."
-        }
+        },
+        "completed": "2026-08-03T02:51:05Z"
       },
       {
         "id": "task-doctor",
         "title": "task doctor -- system-health diagnostic that bundles toolchain:check + version drift + AGENTS.md sentinel + vbrief lifecycle structure",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Action": "Add tasks/doctor.yml with a `doctor` task that aggregates toolchain:check, the upgrade-gate logic from `deft/run upgrade`, AGENTS.md sentinel detection (deft/main.md), and vbrief lifecycle folder integrity (proposed/pending/active/completed/cancelled all present and writable). Emit a single PASS/WARN/FAIL summary.",
           "Acceptance": "`task doctor` exits 0 on a healthy project, non-zero on a broken one with actionable diagnostics; covered by tests/cli/test_doctor.py."
-        }
+        },
+        "completed": "2026-08-03T02:51:05Z"
       },
       {
         "id": "task-build-verify",
         "title": "task build:verify -- post-build artifact integrity check (file shape, expected entries, sha256 manifest)",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Action": "Extend tasks/core.yml or add tasks/build.yml with a `build:verify` task that runs after `task build` and asserts the produced archive matches an expected file manifest (path set, sha256 per entry, optional version stamp). Wires into `task check` only when run on release branches to keep dev cycles fast.",
           "Acceptance": "`task build && task build:verify` exits 0 with a clean manifest summary; corrupting an archive entry causes build:verify to exit non-zero with the offending path; tests/cli/test_build_verify.py."
-        }
+        },
+        "completed": "2026-08-03T02:51:05Z"
       },
       {
         "id": "task-change-archive",
         "title": "task change:archive -- complete the change-proposal lifecycle (init -> approve -> archive) by moving merged proposals into history/changes/<name>/archived/",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Action": "Add a `change:archive` task to tasks/change.yml that takes a proposal name, verifies the corresponding PR has merged (gh pr view), moves the change directory under history/changes/<name>/archived/<YYYY-MM-DD>/, and updates any cross-references. Pairs with the existing `change:init` task; closes the symmetry gap that left merged proposals dangling in history/changes/<name>/ with no archive marker.",
           "Acceptance": "`task change:archive -- <name>` succeeds when the corresponding PR is merged and refuses (with actionable error) when the PR is open; tests/cli/test_change_archive.py."
-        }
+        },
+        "completed": "2026-08-03T02:51:05Z"
       },
       {
         "id": "task-ci-local",
         "title": "task ci:local -- run the full CI pipeline locally (matrix-aware where possible) so contributors catch CI failures before pushing",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Action": "Add tasks/ci.yml with a `ci:local` task that runs the same step graph as .github/workflows/ci.yml on the host platform (validate, lint, test, toolchain:check, verify:stubs, verify:links, vbrief:validate, build, build:verify). Document Linux/macOS/Windows differences inline. Output mirrors CI logs for debugging.",
           "Acceptance": "`task ci:local` reproduces a known-good CI run end-to-end on Windows / macOS / Linux; tests/cli/test_ci_local.py covers task graph composition."
-        }
+        },
+        "completed": "2026-08-03T02:51:05Z"
       },
       {
         "id": "task-release",
         "title": "task release -- automate the v0.X.Y release flow (tag, build, dist, CHANGELOG promote, ROADMAP move-to-completed)",
-        "status": "pending",
+        "status": "completed",
         "narrative": {
           "Action": "Add tasks/release.yml with a `release` task that takes a version, runs `task ci:local`, promotes [Unreleased] entries to [vX.Y.Z] - YYYY-MM-DD in CHANGELOG.md, batch-moves merged issues to ROADMAP.md ## Completed, builds dist, tags vX.Y.Z, pushes the tag, and creates a GitHub release via `gh release create`. Pairs with PR conventions in AGENTS.md.",
           "Acceptance": "`task release -- 0.21.0` produces a clean tag + GitHub release on a dry-run fixture; tests/cli/test_release.py covers CHANGELOG promotion and ROADMAP move-to-completed."
-        }
+        },
+        "completed": "2026-08-03T02:51:05Z"
       }
     ],
     "metadata": {
@@ -120,6 +126,6 @@
         "title": "Issue #642: tracking umbrella for PR #401 trim arc (canonical workflow comment authorizes this done/pending split + lifecycle move)"
       }
     ],
-    "updated": "2026-05-20T12:38:34Z"
+    "updated": "2026-08-03T02:51:05Z"
   }
 }

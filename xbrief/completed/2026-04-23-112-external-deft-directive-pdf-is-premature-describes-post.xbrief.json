@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF for #112: External “Deft Directive” PDF is premature -- describes post-Phase-1-3 state; defer distribution or add known-issues caveat; incorporate as `docs/getting-started.md` after Phases 1–3 ship"
+    "description": "Scope vBRIEF for #112: External “Deft Directive” PDF is premature -- describes post-Phase-1-3 state; defer distribution or add known-issues caveat; incorporate as `docs/getting-started.md` after Phases 1–3 ship",
+    "updated": "2026-08-03T02:51:04Z"
   },
   "plan": {
     "title": "External “Deft Directive” PDF is premature -- describes post-Phase-1-3 state; defer distribution or add known-issues caveat; incorporate as `docs/getting-started.md` after Phases 1–3 ship",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "SourceSection": "ROADMAP active phase"
     },
@@ -29,6 +30,6 @@
         "title": "Issue #112: External “Deft Directive” PDF is premature -- describes post-Phase-1-3 state; defer distribution or add known-issues caveat; incorporate as `docs/getting-started.md` after Phases 1–3 ship"
       }
     ],
-    "updated": "2026-05-20T12:38:34Z"
+    "updated": "2026-08-03T02:51:04Z"
   }
 }

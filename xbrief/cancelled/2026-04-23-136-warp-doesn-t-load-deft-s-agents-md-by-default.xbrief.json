@@ -1,11 +1,12 @@
 {
   "vBRIEFInfo": {
     "version": "0.6",
-    "description": "Scope vBRIEF for #136: Warp doesn't load deft's AGENTS.md by default"
+    "description": "Scope vBRIEF for #136: Warp doesn't load deft's AGENTS.md by default",
+    "updated": "2026-08-03T02:51:05Z"
   },
   "plan": {
     "title": "Warp doesn't load deft's AGENTS.md by default",
-    "status": "proposed",
+    "status": "cancelled",
     "narratives": {
       "SourceSection": "ROADMAP active phase"
     },
@@ -29,6 +30,6 @@
         "title": "Issue #136: Warp doesn't load deft's AGENTS.md by default"
       }
     ],
-    "updated": "2026-05-20T12:38:34Z"
+    "updated": "2026-08-03T02:51:05Z"
   }
 }

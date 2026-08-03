@@ -2,7 +2,7 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Project definition -- current Deft Directive identity, policy, scope registry, and authored architecture metadata.",
-    "updated": "2026-08-02T19:43:29Z"
+    "updated": "2026-08-03T02:51:14Z"
   },
   "plan": {
     "title": "PROJECT-DEFINITION",
@@ -236,240 +236,17 @@
         }
       },
       {
-        "id": "2026-04-23-112-external-deft-directive-pdf-is-premature-describes-post",
-        "title": "External “Deft Directive” PDF is premature -- describes post-Phase-1-3 state; defer distribution or add known-issues caveat; incorporate as `docs/getting-started.md` after Phases 1–3 ship",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-112-external-deft-directive-pdf-is-premature-describes-post.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/112",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #112: External “Deft Directive” PDF is premature -- describes post-Phase-1-3 state; defer distribution or add known-issues caveat; incorporate as `docs/getting-started.md` after Phases 1–3 ship"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-114-document-all-global-warp-rules-used-for-deft-development",
-        "title": "Document all global Warp rules used for deft development; migrate project-scope rules to `AGENTS.md`/`CONVENTIONS.md`; inventory remaining global-only rules in `CONTRIBUTING.md`",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-114-document-all-global-warp-rules-used-for-deft-development.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/114",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #114: Document all global Warp rules used for deft development; migrate project-scope rules to `AGENTS.md`/`CONVENTIONS.md`; inventory remaining global-only rules in `CONTRIBUTING.md`"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-128-ci-vbrief-schema-sync-check-fetch-upstream-vbrief-core",
-        "title": "CI vBRIEF schema sync check: fetch upstream `vbrief-core.schema.json` from `deftai/vBRIEF`, diff against vendored copy, fail on divergence (depends on #57)",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-128-ci-vbrief-schema-sync-check-fetch-upstream-vbrief-core.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/128",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #128: CI vBRIEF schema sync check: fetch upstream `vbrief-core.schema.json` from `deftai/vBRIEF`, diff against vendored copy, fail on divergence (depends on #57)"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-136-warp-doesn-t-load-deft-s-agents-md-by-default",
-        "title": "Warp doesn't load deft's AGENTS.md by default",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-136-warp-doesn-t-load-deft-s-agents-md-by-default.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/136",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #136: Warp doesn't load deft's AGENTS.md by default"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-194-user-facing-best-practices-guide-docs-best-practices-md",
-        "title": "User-facing best practices guide (`docs/best-practices.md`) -- Directive contract hierarchy usage, Warp swarming patterns, and user-oriented skill documentation; in-repo successor to premature PDF guide (#112); depends on #147 and #188 for stable content (xrefs #112, #84, #114)",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-194-user-facing-best-practices-guide-docs-best-practices-md.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/194",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #194: User-facing best practices guide (`docs/best-practices.md`) -- Directive contract hierarchy usage, Warp swarming patterns, and user-oriented skill documentation; in-repo successor to premature PDF guide (#112); depends on #147 and #188 for stable content (xrefs #112, #84, #114)"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-212-discussion-process-control-belongs-in-directive",
-        "title": "discussion: Process control belongs in Directive -- universal process principles (review cycle, parallel work, batch-fix) as first-class Directive content; skills become tool-specific adapters; explicitly DO NOT IMPLEMENT until team decision reached (xrefs #89, #147, #194, #159)",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-212-discussion-process-control-belongs-in-directive.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/212",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #212: discussion: Process control belongs in Directive -- universal process principles (review cycle, parallel work, batch-fix) as first-class Directive content; skills become tool-specific adapters; explicitly DO NOT IMPLEMENT until team decision reached (xrefs #89, #147, #194, #159)"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-228-bring-run-cli-into-test-coverage-measurement-refactor",
-        "title": "Bring run CLI into test coverage measurement -- refactor run/run.py to separate pure logic from terminal I/O, add unit tests, remove pyproject.toml omit entries (confirm #160 disposition before implementing)",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-228-bring-run-cli-into-test-coverage-measurement-refactor.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/228",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #228: Bring run CLI into test coverage measurement -- refactor run/run.py to separate pure logic from terminal I/O, add unit tests, remove pyproject.toml omit entries (confirm #160 disposition before implementing)"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-233-more-determinism-full-initiative-phase-0-spec",
-        "title": "More Determinism (remaining): Phase 0 spec scaffolding, task doctor, build:verify, change:archive, task ci:local, task release",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-233-more-determinism-full-initiative-phase-0-spec.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/233",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #233: More Determinism (remaining 6 tasks after v0.17.0 partial close)"
-            },
-            {
-              "uri": "completed/2026-04-23-233-partial-more-determinism-tasks-restructure-toolchain.xbrief.json",
-              "type": "x-xbrief/related-plan",
-              "title": "#233 (partial) -- v0.17.0 done items: tasks/ restructure, toolchain:check, verify:stubs, verify:links, changelog:check, change:init, commit:lint, enhanced check (historical record of split; related-plan, not parent/child, so no D4 back-link required)"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/635",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #635 (epic): skill-system maturity + framework-rule determinism -- anchors the Phase 0 spec scaffolding RFC vBRIEF that gates the first remaining item here"
-            },
-            {
-              "uri": "https://github.com/deftai/directive/issues/642",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #642: tracking umbrella for PR #401 trim arc (canonical workflow comment authorizes this done/pending split + lifecycle move)"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-258-inventory-warp-drive-global-rules-used-for-deft",
-        "title": "Inventory Warp Drive global rules used for deft development and document in `CONTRIBUTING.md` under a Warp-specific section (spinoff of #114; blocked on #89 positioning resolution; with #136)",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-258-inventory-warp-drive-global-rules-used-for-deft.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/258",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #258: Inventory Warp Drive global rules used for deft development and document in `CONTRIBUTING.md` under a Warp-specific section (spinoff of #114; blocked on #89 positioning resolution; with #136)"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-55-register-deft-commands-as-native-agent-slash-commands",
-        "title": "Register Deft commands as native agent slash commands (Claude Code, Copilot, Gemini, etc.) -- also absorbs slash-command registration scope from #54",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-55-register-deft-commands-as-native-agent-slash-commands.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/55",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #55: Register Deft commands as native agent slash commands (Claude Code, Copilot, Gemini, etc.) -- also absorbs slash-command registration scope from #54"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-56-reduce-installation-friction-add-shell-one-liner-homebrew",
-        "title": "Reduce installation friction -- add shell one-liner, Homebrew, and platform package managers (absorbed #101: decide whether manual clone path stays or goes)",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-56-reduce-installation-friction-add-shell-one-liner-homebrew.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/56",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #56: Reduce installation friction -- add shell one-liner, Homebrew, and platform package managers (absorbed #101: decide whether manual clone path stays or goes)"
-            }
-          ]
-        }
-      },
-      {
         "id": "2026-04-23-75-skill-auto-discovery-make-deft-skills-work-in-both-user",
         "title": "Skill auto-discovery: make deft skills work in both user projects and deft development (symlinks/copies to `.agents/skills/`, `.claude/skills/`, etc.)",
-        "status": "completed",
+        "status": "proposed",
         "metadata": {
-          "source_path": "completed/2026-04-23-75-skill-auto-discovery-make-deft-skills-work-in-both-user.xbrief.json",
-          "lifecycle_folder": "completed",
+          "source_path": "proposed/2026-04-23-75-skill-auto-discovery-make-deft-skills-work-in-both-user.xbrief.json",
+          "lifecycle_folder": "proposed",
           "references": [
             {
               "uri": "https://github.com/deftai/directive/issues/75",
               "type": "x-xbrief/github-issue",
               "title": "Issue #75: Skill auto-discovery: make deft skills work in both user projects and deft development (symlinks/copies to `.agents/skills/`, `.claude/skills/`, etc.)"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-76-obsidian-vault-generation-as-structured-agent-memory",
-        "title": "Obsidian Vault generation as structured agent memory (interlinked markdown notes, per-agent knowledge scopes)",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-76-obsidian-vault-generation-as-structured-agent-memory.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/76",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #76: Obsidian Vault generation as structured agent memory (interlinked markdown notes, per-agent knowledge scopes)"
-            }
-          ]
-        }
-      },
-      {
-        "id": "2026-04-23-86-artifact-branch-binding-and-complete-audit-trail-for-sdd",
-        "title": "Artifact-branch binding and complete audit trail for SDD (dual-format persistence, branch lifecycle hooks, artifact manifest)",
-        "status": "proposed",
-        "metadata": {
-          "source_path": "proposed/2026-04-23-86-artifact-branch-binding-and-complete-audit-trail-for-sdd.xbrief.json",
-          "lifecycle_folder": "proposed",
-          "references": [
-            {
-              "uri": "https://github.com/deftai/directive/issues/86",
-              "type": "x-xbrief/github-issue",
-              "title": "Issue #86: Artifact-branch binding and complete audit trail for SDD (dual-format persistence, branch lifecycle hooks, artifact manifest)"
             }
           ]
         }
@@ -2418,6 +2195,38 @@
         }
       },
       {
+        "id": "2026-04-23-112-external-deft-directive-pdf-is-premature-describes-post",
+        "title": "External “Deft Directive” PDF is premature -- describes post-Phase-1-3 state; defer distribution or add known-issues caveat; incorporate as `docs/getting-started.md` after Phases 1–3 ship",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-112-external-deft-directive-pdf-is-premature-describes-post.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/112",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #112: External “Deft Directive” PDF is premature -- describes post-Phase-1-3 state; defer distribution or add known-issues caveat; incorporate as `docs/getting-started.md` after Phases 1–3 ship"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-04-23-114-document-all-global-warp-rules-used-for-deft-development",
+        "title": "Document all global Warp rules used for deft development; migrate project-scope rules to `AGENTS.md`/`CONVENTIONS.md`; inventory remaining global-only rules in `CONTRIBUTING.md`",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-114-document-all-global-warp-rules-used-for-deft-development.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/114",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #114: Document all global Warp rules used for deft development; migrate project-scope rules to `AGENTS.md`/`CONVENTIONS.md`; inventory remaining global-only rules in `CONTRIBUTING.md`"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-04-23-115-strengthen-spec-validation-gate-add-ci-freshness-check",
         "title": "Strengthen spec validation gate: add CI freshness check detecting stale `SPECIFICATION.md` (schema checks landed in PR #130 -- `spec_validate.py` now enforces vBRIEF v0.5 structure, status enum, legacy key detection)",
         "status": "completed",
@@ -2541,6 +2350,22 @@
               "uri": "https://github.com/deftai/directive/issues/127",
               "type": "x-xbrief/github-issue",
               "title": "Issue #127: Improved support for Deft in existing repositories -- bootstrap should detect existing code and offer brownfield/map analysis path instead of greenfield-only questionnaire (related to #103; CLI integration in Phase 4 with #53)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-04-23-128-ci-vbrief-schema-sync-check-fetch-upstream-vbrief-core",
+        "title": "CI vBRIEF schema sync check: fetch upstream `vbrief-core.schema.json` from `deftai/vBRIEF`, diff against vendored copy, fail on divergence (depends on #57)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-128-ci-vbrief-schema-sync-check-fetch-upstream-vbrief-core.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/128",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #128: CI vBRIEF schema sync check: fetch upstream `vbrief-core.schema.json` from `deftai/vBRIEF`, diff against vendored copy, fail on divergence (depends on #57)"
             }
           ]
         }
@@ -3090,6 +2915,22 @@
         }
       },
       {
+        "id": "2026-04-23-194-user-facing-best-practices-guide-docs-best-practices-md",
+        "title": "User-facing best practices guide (`docs/best-practices.md`) -- Directive contract hierarchy usage, Warp swarming patterns, and user-oriented skill documentation; in-repo successor to premature PDF guide (#112); depends on #147 and #188 for stable content (xrefs #112, #84, #114)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-194-user-facing-best-practices-guide-docs-best-practices-md.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/194",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #194: User-facing best practices guide (`docs/best-practices.md`) -- Directive contract hierarchy usage, Warp swarming patterns, and user-oriented skill documentation; in-repo successor to premature PDF guide (#112); depends on #147 and #188 for stable content (xrefs #112, #84, #114)"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-04-23-195-deft-review-cycle-replace-blocking-polling-with-tiered",
         "title": "deft-review-cycle: replace blocking polling with tiered start_agent monitoring -- Approach 1 (sub-agent + send_message), Approach 2 (tool-call + yield fallback)",
         "status": "completed",
@@ -3282,6 +3123,22 @@
         }
       },
       {
+        "id": "2026-04-23-212-discussion-process-control-belongs-in-directive",
+        "title": "discussion: Process control belongs in Directive -- universal process principles (review cycle, parallel work, batch-fix) as first-class Directive content; skills become tool-specific adapters; explicitly DO NOT IMPLEMENT until team decision reached (xrefs #89, #147, #194, #159)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-212-discussion-process-control-belongs-in-directive.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/212",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #212: discussion: Process control belongs in Directive -- universal process principles (review cycle, parallel work, batch-fix) as first-class Directive content; skills become tool-specific adapters; explicitly DO NOT IMPLEMENT until team decision reached (xrefs #89, #147, #194, #159)"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-04-23-217-pyproject-toml-dev-deps-breaks-task-check-in-fresh",
         "title": "pyproject.toml dev deps breaks task check in fresh worktrees -- moved to [dependency-groups] (PEP 735), languages/python.md updated, uv.lock regenerated",
         "status": "completed",
@@ -3362,6 +3219,22 @@
         }
       },
       {
+        "id": "2026-04-23-228-bring-run-cli-into-test-coverage-measurement-refactor",
+        "title": "Bring run CLI into test coverage measurement -- refactor run/run.py to separate pure logic from terminal I/O, add unit tests, remove pyproject.toml omit entries (confirm #160 disposition before implementing)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-228-bring-run-cli-into-test-coverage-measurement-refactor.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/228",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #228: Bring run CLI into test coverage measurement -- refactor run/run.py to separate pure logic from terminal I/O, add unit tests, remove pyproject.toml omit entries (confirm #160 disposition before implementing)"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-04-23-23-yolo-md-refactored-to-reference-interview-md-shared",
         "title": "yolo.md refactored to reference interview.md shared phases",
         "status": "completed",
@@ -3373,6 +3246,37 @@
               "uri": "https://github.com/deftai/directive/issues/23",
               "type": "x-xbrief/github-issue",
               "title": "Issue #23: yolo.md refactored to reference interview.md shared phases"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-04-23-233-more-determinism-full-initiative-phase-0-spec",
+        "title": "More Determinism (remaining): Phase 0 spec scaffolding, task doctor, build:verify, change:archive, task ci:local, task release",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-233-more-determinism-full-initiative-phase-0-spec.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/233",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #233: More Determinism (remaining 6 tasks after v0.17.0 partial close)"
+            },
+            {
+              "uri": "completed/2026-04-23-233-partial-more-determinism-tasks-restructure-toolchain.xbrief.json",
+              "type": "x-xbrief/related-plan",
+              "title": "#233 (partial) -- v0.17.0 done items: tasks/ restructure, toolchain:check, verify:stubs, verify:links, changelog:check, change:init, commit:lint, enhanced check (historical record of split; related-plan, not parent/child, so no D4 back-link required)"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/635",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #635 (epic): skill-system maturity + framework-rule determinism -- anchors the Phase 0 spec scaffolding RFC vBRIEF that gates the first remaining item here"
+            },
+            {
+              "uri": "https://github.com/deftai/directive/issues/642",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #642: tracking umbrella for PR #401 trim arc (canonical workflow comment authorizes this done/pending split + lifecycle move)"
             }
           ]
         }
@@ -4580,6 +4484,38 @@
         }
       },
       {
+        "id": "2026-04-23-55-register-deft-commands-as-native-agent-slash-commands",
+        "title": "Register Deft commands as native agent slash commands (Claude Code, Copilot, Gemini, etc.) -- also absorbs slash-command registration scope from #54",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-55-register-deft-commands-as-native-agent-slash-commands.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/55",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #55: Register Deft commands as native agent slash commands (Claude Code, Copilot, Gemini, etc.) -- also absorbs slash-command registration scope from #54"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-04-23-56-reduce-installation-friction-add-shell-one-liner-homebrew",
+        "title": "Reduce installation friction -- add shell one-liner, Homebrew, and platform package managers (absorbed #101: decide whether manual clone path stays or goes)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-56-reduce-installation-friction-add-shell-one-liner-homebrew.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/56",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #56: Reduce installation friction -- add shell one-liner, Homebrew, and platform package managers (absorbed #101: decide whether manual clone path stays or goes)"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-04-23-57-github-actions-ci-workflow-python-ruff-mypy-pytest-cov-go",
         "title": "GitHub Actions CI workflow -- Python (ruff, mypy, pytest+cov) + Go (test + 3-platform build); pyproject.toml fail_under raised to 85%",
         "status": "completed",
@@ -4820,6 +4756,22 @@
         }
       },
       {
+        "id": "2026-04-23-75-skill-auto-discovery-make-deft-skills-work-in-both-user",
+        "title": "Skill auto-discovery residual: multi-host thin skill discovery deposit (#75)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-75-skill-auto-discovery-make-deft-skills-work-in-both-user.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/75",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #75: Skill auto-discovery: make deft skills work in both user projects and deft development (symlinks/copies to `.agents/skills/`, `.claude/skills/`, etc.)"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-04-23-77-allow-users-to-change-technical-rating-1-2-3-when",
         "title": "Allow users to change technical rating (1/2/3) when starting a new project",
         "status": "completed",
@@ -4938,6 +4890,22 @@
         "metadata": {
           "source_path": "completed/2026-04-23-84-phase-1-deft-as-teacher-phase-1-complete-contracts.xbrief.json",
           "lifecycle_folder": "completed"
+        }
+      },
+      {
+        "id": "2026-04-23-86-artifact-branch-binding-and-complete-audit-trail-for-sdd",
+        "title": "Artifact-branch binding and complete audit trail for SDD (dual-format persistence, branch lifecycle hooks, artifact manifest)",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-04-23-86-artifact-branch-binding-and-complete-audit-trail-for-sdd.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/86",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #86: Artifact-branch binding and complete audit trail for SDD (dual-format persistence, branch lifecycle hooks, artifact manifest)"
+            }
+          ]
         }
       },
       {
@@ -22959,6 +22927,54 @@
         }
       },
       {
+        "id": "2026-08-02-3053-featslash55-per-host-native-commandprompt-emitters",
+        "title": "feat(slash,#55): per-host native command/prompt emitters",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-02-3053-featslash55-per-host-native-commandprompt-emitters.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3053",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3053: feat(slash,#55): per-host native command/prompt emitters"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-02-3054-featslash55-multi-host-initupdate-deposit-for-slash-commands",
+        "title": "feat(slash,#55): multi-host init/update deposit for slash commands",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-02-3054-featslash55-multi-host-initupdate-deposit-for-slash-commands.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/3054",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #3054: feat(slash,#55): multi-host init/update deposit for slash commands"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-08-03-449-fixskillsdocs-untangle-rwldl-from-deft-pre-pr-naming-and-dis",
+        "title": "fix(skills,docs): untangle RWLDL from deft-pre-pr — naming and discoverability cleanup",
+        "status": "completed",
+        "metadata": {
+          "source_path": "completed/2026-08-03-449-fixskillsdocs-untangle-rwldl-from-deft-pre-pr-naming-and-dis.xbrief.json",
+          "lifecycle_folder": "completed",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/449",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #449: fix(skills,docs): untangle RWLDL from deft-pre-pr — naming and discoverability cleanup"
+            }
+          ]
+        }
+      },
+      {
         "id": "2026-04-23-12-deft-bootstrap-cli-with-tui-typer-textual-strategy-aware",
         "title": "Deft Bootstrap CLI with TUI (Typer + Textual, strategy-aware feature branching, agent config generation)",
         "status": "cancelled",
@@ -22970,6 +22986,54 @@
               "uri": "https://github.com/deftai/directive/issues/12",
               "type": "x-xbrief/github-issue",
               "title": "Issue #12: Deft Bootstrap CLI with TUI (Typer + Textual, strategy-aware feature branching, agent config generation)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-04-23-136-warp-doesn-t-load-deft-s-agents-md-by-default",
+        "title": "Warp doesn't load deft's AGENTS.md by default",
+        "status": "cancelled",
+        "metadata": {
+          "source_path": "cancelled/2026-04-23-136-warp-doesn-t-load-deft-s-agents-md-by-default.xbrief.json",
+          "lifecycle_folder": "cancelled",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/136",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #136: Warp doesn't load deft's AGENTS.md by default"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-04-23-258-inventory-warp-drive-global-rules-used-for-deft",
+        "title": "Inventory Warp Drive global rules used for deft development and document in `CONTRIBUTING.md` under a Warp-specific section (spinoff of #114; blocked on #89 positioning resolution; with #136)",
+        "status": "cancelled",
+        "metadata": {
+          "source_path": "cancelled/2026-04-23-258-inventory-warp-drive-global-rules-used-for-deft.xbrief.json",
+          "lifecycle_folder": "cancelled",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/258",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #258: Inventory Warp Drive global rules used for deft development and document in `CONTRIBUTING.md` under a Warp-specific section (spinoff of #114; blocked on #89 positioning resolution; with #136)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "2026-04-23-76-obsidian-vault-generation-as-structured-agent-memory",
+        "title": "Obsidian Vault generation as structured agent memory (interlinked markdown notes, per-agent knowledge scopes)",
+        "status": "cancelled",
+        "metadata": {
+          "source_path": "cancelled/2026-04-23-76-obsidian-vault-generation-as-structured-agent-memory.xbrief.json",
+          "lifecycle_folder": "cancelled",
+          "references": [
+            {
+              "uri": "https://github.com/deftai/directive/issues/76",
+              "type": "x-xbrief/github-issue",
+              "title": "Issue #76: Obsidian Vault generation as structured agent memory (interlinked markdown notes, per-agent knowledge scopes)"
             }
           ]
         }
@@ -23473,6 +23537,7 @@
         "Narrative 'ProjectConfig' may be stale: completed scope 'Allow users to change technical rating (1/2/3) when starting a new project' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'Automatically check for updates to cloned repos in a project -- detect stale cloned dependencies, notify user; part of future `deft doctor`/`deft update` (new CLI tooling)' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'Branching requirement too prescriptive -- context-aware solo-project qualifier' shares topics (project)",
+        "Narrative 'ProjectConfig' may be stale: completed scope 'Document all global Warp rules used for deft development; migrate project-scope rules to `AGENTS.md`/`CONVENTIONS.md`; inventory remaining global-only rules in `CONTRIBUTING.md`' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'Framework `uv run` invocations leak into ancestor `pyproject.toml`; pin project root' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'Greenfield setup should produce or offer a swarm-ready project bootstrap' shares topics (project)",
         "Narrative 'ProjectConfig' may be stale: completed scope 'Greptile Review status check blocks merge -- .greptile/config.json added with triggerOnUpdates, deft-review-cycle pre-flight check' shares topics (config)",
@@ -23536,6 +23601,7 @@
         "Narrative 'UserStories' may be stale: completed scope 'Remove language defaults from USER.md' shares topics (user)",
         "Narrative 'UserStories' may be stale: completed scope 'Separate contributor onboarding from the general user flow (don't gate everyone on a \"are you working on deft itself?\" question)' shares topics (user)",
         "Narrative 'UserStories' may be stale: completed scope 'USER.md / user-config resolution in mismatched + headless envs' shares topics (user)",
+        "Narrative 'UserStories' may be stale: completed scope 'User-facing best practices guide (`docs/best-practices.md`) -- Directive contract hierarchy usage, Warp swarming patterns, and user-oriented skill documentation; in-repo successor to premature PDF guide (#112); depends on #147 and #188 for stable content (xrefs #112, #84, #114)' shares topics (user)",
         "Narrative 'UserStories' may be stale: completed scope '[Playtest Feedback] First-time non-technical user session report (19 issues + 4 strategic recommendations) -- umbrella issue; content/wording fixes here, strategic recommendations (cost interview, co-pilot, tiered UX, IP risk flagging) deferred to Phase 5 (xrefs #77, #84, #89, #136)' shares topics (user)",
         "Narrative 'UserStories' may be stale: completed scope 'deft-roadmap-refresh: ! rule confirming analysis comment post to user with issue number and link' shares topics (user)",
         "Narrative 'UserStories' may be stale: completed scope 'deft-roadmap-refresh: Phase 4 PR & Review Cycle -- user confirmation gate, pre-flight before push, auto-chains to deft-review-cycle' shares topics (user)",
@@ -23723,7 +23789,7 @@
           }
         ]
       },
-      "allowDirectCommitsToMaster": false,
+      "allowDirectCommitsToMaster": true,
       "agentsMdBudget": {
         "managedMaxLines": 121,
         "unmanagedMaxLines": 162,
