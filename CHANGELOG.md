@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.93.0] - 2026-08-03
+
+> Multi-host slash + skill discovery, OpenClaw L2 adapter, on-demand xbrief create/verify, review principles, Blacksmith ci-cd guide, and RWLDL/pre-pr untangle.
+
+### Added
 - **Documentation-with-code guidance for agents (#447).** Lazy-loaded `content/coding/docs.md` (not always-on AGENTS) requires user-facing doc surfaces in the same PR when behavior changes (CHANGELOG, CLI/commands, install/first-run pointers, skill triggers). `coding/coding.md` links the rule; `deft-directive-pre-pr` Phase 1 checklist applies it. Closes #447.
 - **Blacksmith CI runner migration guide with tiered vCPU sizing (#448).** Optional `content/ci-cd/` layer (parallel to `deployments/`): `ci-cd/README.md` purpose/structure; `ci-cd/blacksmith/` with overview, runner-tiers (4/8/32 rules), agent migration-prompt, and lint-vs-test before/after example. Cross-links from `deployments/README.md` and `REFERENCES.md` Task-Based Loading. Content-manifest entry + content-contract pins. Lazy-load only — no always-on AGENTS bulk; does not change this repo's workflows or make Blacksmith default CI. Closes #448.
 - **Review-cycle principles in `coding/review.md` (#1471).** Promote tool-agnostic RFC2119 review process (read-all findings, P0/P1/P2 severity, single batch commit, cross-file grep, local structured-data validation, no mid-review push, exit on no P0/P1, post-merge closing-keyword check) into always-loadable Directive content. Quality chain link from `coding/coding.md`; discoverability in `REFERENCES.md` / `main.md`. `deft-directive-review-cycle` becomes the Greptile + GitHub adapter with a Principle Authority cross-ref (no inline restatement of the universal list). Closes #1471. Closes #212. Refs #212.
@@ -4888,7 +4900,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.92.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.93.0...HEAD
+[0.93.0]: https://github.com/deftai/directive/compare/v0.92.0...v0.93.0
 [0.92.0]: https://github.com/deftai/directive/compare/v0.91.0...v0.92.0
 [0.91.0]: https://github.com/deftai/directive/compare/v0.90.0...v0.91.0
 [0.90.0]: https://github.com/deftai/directive/compare/v0.89.0...v0.90.0

@@ -10,20 +10,6 @@
 _Scopes not yet promoted to pending. Orientation only — not a substitute for `task triage:queue`._
 
 - **#100** -- [Compliance] Evidence collection automation hooks -- `[proposed]`
-- **#112** -- External “Deft Directive” PDF is premature -- describes post-Phase-1-3 state; defer distribution or add known-issues caveat; incorporate as `docs/getting-started.md` after Phases 1–3 ship -- `[proposed]`
-- **#114** -- Document all global Warp rules used for deft development; migrate project-scope rules to `AGENTS.md`/`CONVENTIONS.md`; inventory remaining global-only rules in `CONTRIBUTING.md` -- `[proposed]`
-- **#128** -- CI vBRIEF schema sync check: fetch upstream `vbrief-core.schema.json` from `deftai/vBRIEF`, diff against vendored copy, fail on divergence (depends on #57) -- `[proposed]`
-- **#136** -- Warp doesn't load deft's AGENTS.md by default -- `[proposed]`
-- **#194** -- User-facing best practices guide (`docs/best-practices.md`) -- Directive contract hierarchy usage, Warp swarming patterns, and user-oriented skill documentation; in-repo successor to premature PDF guide (#112); depends on #147 and #188 for stable content (xrefs #112, #84, #114) -- `[proposed]`
-- **#212** -- discussion: Process control belongs in Directive -- universal process principles (review cycle, parallel work, batch-fix) as first-class Directive content; skills become tool-specific adapters; explicitly DO NOT IMPLEMENT until team decision reached (xrefs #89, #147, #194, #159) -- `[proposed]`
-- **#228** -- Bring run CLI into test coverage measurement -- refactor run/run.py to separate pure logic from terminal I/O, add unit tests, remove pyproject.toml omit entries (confirm #160 disposition before implementing) -- `[proposed]`
-- **#233** -- More Determinism (remaining): Phase 0 spec scaffolding, task doctor, build:verify, change:archive, task ci:local, task release -- `[proposed]`
-- **#258** -- Inventory Warp Drive global rules used for deft development and document in `CONTRIBUTING.md` under a Warp-specific section (spinoff of #114; blocked on #89 positioning resolution; with #136) -- `[proposed]`
-- **#55** -- Register Deft commands as native agent slash commands (Claude Code, Copilot, Gemini, etc.) -- also absorbs slash-command registration scope from #54 -- `[proposed]`
-- **#56** -- Reduce installation friction -- add shell one-liner, Homebrew, and platform package managers (absorbed #101: decide whether manual clone path stays or goes) -- `[proposed]`
-- **#75** -- Skill auto-discovery residual multi-host thin deposit (`.claude`/`.codex`/`.github`/`.cursor` skills) -- `[in progress]` (canonical `.agents/skills` already landed)
-- **#76** -- Obsidian Vault generation as structured agent memory (interlinked markdown notes, per-agent knowledge scopes) -- `[proposed]`
-- **#86** -- Artifact-branch binding and complete audit trail for SDD (dual-format persistence, branch lifecycle hooks, artifact manifest) -- `[proposed]`
 - **#9** -- Issue tracking system integration (GitHub Issues, Jira, Asana -- optional, via MCP) -- `[proposed]`
 - **#95** -- Compliance-aligned constitution templates + readiness scanners (SOC 2, ISO 27001, HIPAA, HiTrust); sub-issues #96–#100 cover config schema, control mapping registry, scoring, evidence gap analysis, and automation hooks -- `[proposed]`
 - **#96** -- [Compliance] Config schema + compliance-aware constitution templates -- `[proposed]`
@@ -52,8 +38,22 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1119 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1133 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#86** -- Artifact-branch binding and complete audit trail for SDD (dual-format persistence, branch lifecycle hooks, artifact manifest) -- `[completed]`
+- **#56** -- Reduce installation friction -- add shell one-liner, Homebrew, and platform package managers (absorbed #101: decide whether manual clone path stays or goes) -- `[completed]`
+- **#55** -- Register Deft commands as native agent slash commands (Claude Code, Copilot, Gemini, etc.) -- also absorbs slash-command registration scope from #54 -- `[completed]`
+- **#233** -- More Determinism (remaining): Phase 0 spec scaffolding, task doctor, build:verify, change:archive, task ci:local, task release -- `[completed]`
+- **#228** -- Bring run CLI into test coverage measurement -- refactor run/run.py to separate pure logic from terminal I/O, add unit tests, remove pyproject.toml omit entries (confirm #160 disposition before implementing) -- `[completed]`
+- **#212** -- discussion: Process control belongs in Directive -- universal process principles (review cycle, parallel work, batch-fix) as first-class Directive content; skills become tool-specific adapters; explicitly DO NOT IMPLEMENT until team decision reached (xrefs #89, #147, #194, #159) -- `[completed]`
+- **#194** -- User-facing best practices guide (`docs/best-practices.md`) -- Directive contract hierarchy usage, Warp swarming patterns, and user-oriented skill documentation; in-repo successor to premature PDF guide (#112); depends on #147 and #188 for stable content (xrefs #112, #84, #114) -- `[completed]`
+- **#128** -- CI vBRIEF schema sync check: fetch upstream `vbrief-core.schema.json` from `deftai/vBRIEF`, diff against vendored copy, fail on divergence (depends on #57) -- `[completed]`
+- **#114** -- Document all global Warp rules used for deft development; migrate project-scope rules to `AGENTS.md`/`CONVENTIONS.md`; inventory remaining global-only rules in `CONTRIBUTING.md` -- `[completed]`
+- **#112** -- External “Deft Directive” PDF is premature -- describes post-Phase-1-3 state; defer distribution or add known-issues caveat; incorporate as `docs/getting-started.md` after Phases 1–3 ship -- `[completed]`
+- **#449** -- fix(skills,docs): untangle RWLDL from deft-pre-pr — naming and discoverability cleanup -- `[completed]`
+- **#75** -- Skill auto-discovery residual: multi-host thin skill discovery deposit (#75) -- `[completed]`
+- **#3054** -- feat(slash,#55): multi-host init/update deposit for slash commands -- `[completed]`
+- **#3053** -- feat(slash,#55): per-host native command/prompt emitters -- `[completed]`
 - **#127** -- Improved support for Deft in existing repositories -- bootstrap should detect existing code and offer brownfield/map analysis path instead of greenfield-only questionnaire (related to #103; CLI integration in Phase 4 with #53) -- `[completed]`
 - **#3048** -- docs: delete or archive valuable-go-task-improvements.md (post-#446) -- `[completed]`
 - **#3042** -- fix(security): projectRoot containment for atomicWriteText, ritual-state, probe-session (parent-as-root + bare write) -- `[completed]`
@@ -65,18 +65,4 @@ _Showing 25 of 1119 completed scopes (newest first). Full history: lifecycle `co
 - **#3030** -- fail-closed: enforce #1430 consumer-path denylist on installerManagedMatchers (SPEC must break CI) -- `[completed]`
 - **#3032** -- process: through merge / drive-to:merge-ready must dispatch worker (parent must not implement); N=1 uses swarm path -- `[completed]`
 - **#3029** -- deft-core-guard allowlists PROJECT-DEFINITION — breaks #1430 mixed-change invariant -- `[completed]`
-- **#3015** -- pr:check-closing-keywords misses multi-phase / conditional Closes #N (enterprize#29 false complete) -- `[completed]`
-- **#3011** -- feat(scope): batch promote multi-scope pin; keep one active implement -- `[completed]`
-- **#3010** -- feat(harness,build): ban re-init/session ceremony after offline seed -- `[completed]`
-- **#3009** -- epic(build,harness): multi-scope turn/cache budget (post-v0.90 ceremony) -- `[completed]`
-- **#1695** -- meta(coding-standards): codify 'no in-band signaling / absence is not a decision' — separate value from decision-provenance -- `[completed]`
-- **#1694** -- bug(triage,onboarding): wipCap onboarding nudge contradicts test_policy_omits_wip_cap on deft's own repo (unsatisfiable nudge + self-check trap) -- `[completed]`
-- **#1566** -- spec: render produces unusably large SPECIFICATION.md by default -- `[completed]`
-- **#2653** -- ROADMAP.md is Completed-only again — no forward-looking product roadmap (#632 recurrence) -- `[completed]`
-- **#3008** -- doctor OpenClaw always-pins: symlink install rejected by OpenClaw symlink-escape -- `[completed]`
-- feat(doctor,openclaw): detect missing host skill pins + doctor --fix wire -- `[completed]`
-- **#3013** -- feat(setup,seed): minimal render-ready PROJECT-DEFINITION for one-shot project:render -- `[completed]`
-- **#3012** -- docs(skills): multi-scope build — quality check once at end unless failed -- `[completed]`
-- **#2980** -- feat(security): #2980 leftovers sweep + fail-closed contained-writes in task check -- `[completed]`
-- **#2980** -- feat(security): migrate eval/doctor/xbrief residual product writes (#2980 wave C) -- `[completed]`
 
