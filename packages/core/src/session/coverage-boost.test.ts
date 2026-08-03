@@ -247,6 +247,7 @@ describe("session coverage boost", () => {
       tier: "gated",
       posture: "mutation",
       now,
+      envSkip: "",
       runGit: fakeGit(head, resolve(root)),
       runner: () => ({ code: 0, stdout: "OK", stderr: "" }),
     });

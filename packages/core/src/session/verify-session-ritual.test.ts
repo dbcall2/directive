@@ -263,6 +263,7 @@ describe("verify session ritual", () => {
       tier: "gated",
       posture: "mutation",
       now,
+      envSkip: "",
       runGit: fakeGit(head, resolve(root)),
       runner: (command) => {
         commands.push([...command]);
@@ -290,6 +291,7 @@ describe("verify session ritual", () => {
       tier: "gated",
       posture: "mutation",
       now,
+      envSkip: "",
       runGit: fakeGit(head, resolve(root)),
       forceGatedSteps: ["agent_hooks"],
       runner: (command) => {

@@ -135,7 +135,12 @@ describe("verify-session-ritual branches", () => {
     );
 
     const inspected = inspectSessionRitual(root, { posture: "mutation", now });
-    const verified = verifySessionRitual(root, { tier: "gated", posture: "mutation", now });
+    const verified = verifySessionRitual(root, {
+      tier: "gated",
+      posture: "mutation",
+      now,
+      envSkip: "",
+    });
 
     expect(inspected.message).toBe("session ritual quick step 'alignment' failed");
     expect(verified.code).toBe(1);
@@ -184,6 +189,7 @@ describe("verify-session-ritual branches", () => {
       tier: "gated",
       posture: "mutation",
       now,
+      envSkip: "",
       runGit: (_r, a) =>
         a[2] === "HEAD"
           ? { code: 0, stdout: head, stderr: "" }
@@ -218,6 +224,7 @@ describe("verify-session-ritual branches", () => {
       tier: "gated",
       posture: "mutation",
       now,
+      envSkip: "",
       runner: () => ({ code: 1, stdout: "", stderr: "" }),
     });
 
