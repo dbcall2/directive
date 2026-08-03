@@ -480,7 +480,10 @@ export function verifySessionRitual(
     for (const stepName of GATED_STEPS) {
       const step = gated[stepName];
       if (step?.deferred_reason && stepName !== "agent_hooks") continue;
-      if (stepPasses(step) && !forced.has(stepName)) continue;
+      // Hook readiness is a live mutation prerequisite, not a cacheable doctor
+      // result. Re-run it at every gated boundary so registration/shim drift
+      // cannot remain hidden behind an earlier green ritual record.
+      if (stepName !== "agent_hooks" && stepPasses(step) && !forced.has(stepName)) continue;
       const writeError = runGatedStep(projectRoot, payload, stepName, runCmd, instant);
       if (writeError !== null) {
         return {

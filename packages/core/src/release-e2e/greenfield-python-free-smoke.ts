@@ -224,6 +224,11 @@ export function rehearseGreenfieldPythonFreeSmoke(
     }
 
     const pyFree = pythonFreePathEnv(envBase);
+    const installedBin = join(npmPrefix, "bin");
+    const installedEnv = {
+      ...pyFree,
+      PATH: `${installedBin}:${pyFree.PATH ?? ""}`,
+    };
     [ok, reason] = runStep(
       spawn,
       "directive init",
@@ -231,7 +236,7 @@ export function rehearseGreenfieldPythonFreeSmoke(
       ["init", "--yes", "--repo-root", projectDir],
       {
         cwd: work,
-        env: pyFree,
+        env: installedEnv,
         timeoutMs: 120_000,
       },
       onProgress,
@@ -254,8 +259,7 @@ export function rehearseGreenfieldPythonFreeSmoke(
     }
 
     const checkEnv = {
-      ...pyFree,
-      PATH: `${join(npmPrefix, "bin")}:${pyFree.PATH ?? ""}`,
+      ...installedEnv,
       DEFT_SESSION_RITUAL_SKIP: "1",
     };
 

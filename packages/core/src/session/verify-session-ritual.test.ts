@@ -147,6 +147,7 @@ describe("forward HEAD rebind (#2782)", () => {
       now,
       bypass: false,
       posture: "mutation",
+      runner: () => ({ code: 0, stdout: "hooks ready", stderr: "" }),
     });
     expect(result.code).toBe(0);
     const [state] = readRitualState(root);
@@ -260,6 +261,7 @@ describe("verify session ritual", () => {
 
     const result = verifySessionRitual(root, {
       tier: "gated",
+      posture: "mutation",
       now,
       runGit: fakeGit(head, resolve(root)),
       runner: (command) => {
@@ -286,6 +288,7 @@ describe("verify session ritual", () => {
 
     const result = verifySessionRitual(root, {
       tier: "gated",
+      posture: "mutation",
       now,
       runGit: fakeGit(head, resolve(root)),
       forceGatedSteps: ["agent_hooks"],

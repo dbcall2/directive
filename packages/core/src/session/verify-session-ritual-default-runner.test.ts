@@ -93,7 +93,7 @@ describe("defaultRitualRunner", () => {
 });
 
 describe("verifySessionRitual gated tier via defaultRitualRunner", () => {
-  it("records cache_fresh via defaultRitualRunner without an injected runner", () => {
+  it("records cache_fresh via defaultRitualRunner after a ready hook probe", () => {
     const { root, head } = initRepo();
     const now = new Date("2026-06-09T01:00:00Z");
     writeRitualState(
@@ -121,6 +121,10 @@ describe("verifySessionRitual gated tier via defaultRitualRunner", () => {
       bypass: false,
       envSkip: "",
       runGit: repoGitRunner(root),
+      runner: (command, projectRoot) =>
+        command[0] === "verify:hooks-installed"
+          ? { code: 0, stdout: "hooks ready", stderr: "" }
+          : defaultRitualRunner(command, projectRoot),
     });
     expect(result.code).toBe(0);
     const [state] = readRitualState(root);

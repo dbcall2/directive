@@ -157,7 +157,7 @@ describe("verify-session-ritual branches", () => {
     ).toBe("");
   });
 
-  it("gated tier accepts pre-completed doctor and cache steps", () => {
+  it("reruns non-deferrable agent-hook readiness while reusing doctor and cache steps", () => {
     const { root, head } = initRepo();
     const now = new Date("2026-06-09T01:00:00Z");
     writeRitualState(
@@ -179,15 +179,22 @@ describe("verify-session-ritual branches", () => {
         },
       }),
     );
+    const commands: string[][] = [];
     const result = verifySessionRitual(root, {
       tier: "gated",
+      posture: "mutation",
       now,
       runGit: (_r, a) =>
         a[2] === "HEAD"
           ? { code: 0, stdout: head, stderr: "" }
           : { code: 0, stdout: resolve(root), stderr: "" },
+      runner: (command) => {
+        commands.push([...command]);
+        return { code: 0, stdout: "hooks ready", stderr: "" };
+      },
     });
     expect(result.code).toBe(0);
+    expect(commands).toEqual([["verify:hooks-installed", "--scope=agent", "--live"]]);
   });
 
   it("creates a missing gated-step object and records empty runner output", () => {
@@ -209,6 +216,7 @@ describe("verify-session-ritual branches", () => {
 
     const result = verifySessionRitual(root, {
       tier: "gated",
+      posture: "mutation",
       now,
       runner: () => ({ code: 1, stdout: "", stderr: "" }),
     });

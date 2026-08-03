@@ -292,6 +292,16 @@ async function reconstituteColdClone(
         nowIso: () => "2026-07-03T12:00:00Z",
         gitPorcelain: () => null,
         gitLsFiles: () => null,
+        evaluateAgentHookReadiness: () => ({
+          code: 0,
+          message: "hooks ready",
+          stream: "stdout",
+          skipped: false,
+          liveStatus: "functional",
+          hosts: [],
+          registrations: [],
+          liveProbe: null,
+        }),
       },
     });
     update = { ran: true, exitCode, stdout: out.join(""), stderr: err.join("") };
