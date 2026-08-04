@@ -41,6 +41,19 @@ import {
 } from "./worktrees.js";
 import { parseWorktreesArgv, worktreesMain } from "./worktrees-cli.js";
 
+const EMPTY_REVIEW_THREADS = JSON.stringify({
+  data: {
+    repository: {
+      pullRequest: {
+        reviewThreads: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: [],
+        },
+      },
+    },
+  },
+});
+
 function gitInit(repo: string): void {
   execFileSync("git", ["init", "-q", "-b", "master", repo], { encoding: "utf8" });
   execFileSync("git", ["config", "user.email", "deep@test.local"], { cwd: repo, encoding: "utf8" });
@@ -586,6 +599,9 @@ describe("swarm verify-review-clean deep coverage", () => {
   it("reports clean cohort via json", () => {
     const runGh = vi.fn((cmd: readonly string[]) => {
       const joined = cmd.join(" ");
+      if (joined.includes("graphql")) {
+        return { returncode: 0, stdout: EMPTY_REVIEW_THREADS, stderr: "" };
+      }
       if (joined.includes("headRefOid")) {
         return { returncode: 0, stdout: `${sha}\n`, stderr: "" };
       }
@@ -678,6 +694,9 @@ describe("swarm verify-review-clean deep coverage", () => {
     const sha = "abcdef1234567890abcdef1234567890abcdef12";
     const runGh = vi.fn((cmd: readonly string[]) => {
       const joined = cmd.join(" ");
+      if (joined.includes("graphql")) {
+        return { returncode: 0, stdout: EMPTY_REVIEW_THREADS, stderr: "" };
+      }
       if (joined.includes("headRefOid")) {
         return { returncode: 0, stdout: `${sha}\n`, stderr: "" };
       }

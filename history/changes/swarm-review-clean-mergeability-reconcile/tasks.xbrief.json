@@ -1,0 +1,28 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "swarm-review-clean-mergeability-reconcile",
+    "status": "completed",
+    "items": [
+      {
+        "title": "Add regression coverage for absent Greptile plus clean GitHub mergeability",
+        "status": "completed"
+      },
+      {
+        "title": "Preserve fail-closed behavior for fallback/error and genuine blocking review findings",
+        "status": "completed"
+      },
+      {
+        "title": "Map the canonical readiness result into auditable cohort text and JSON",
+        "status": "completed"
+      },
+      {
+        "title": "Update the changelog and pass targeted plus full quality gates",
+        "status": "completed"
+      }
+    ],
+    "edges": []
+  }
+}

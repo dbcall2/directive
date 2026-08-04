@@ -14,6 +14,19 @@ import {
   verifyReviewClean,
 } from "./verify-review-clean.js";
 
+const EMPTY_REVIEW_THREADS = JSON.stringify({
+  data: {
+    repository: {
+      pullRequest: {
+        reviewThreads: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: [],
+        },
+      },
+    },
+  },
+});
+
 describe("swarm verify-review-clean", () => {
   it("returns external error for empty cohort", () => {
     const result = verifyReviewClean({ prNumbers: [] });
@@ -27,6 +40,9 @@ describe("swarm verify-review-clean", () => {
       `Last reviewed commit: [fix](https://github.com/deftai/directive/commit/${sha})\n`;
     const runGh = vi.fn((cmd: readonly string[]) => {
       const joined = cmd.join(" ");
+      if (joined.includes("graphql")) {
+        return { returncode: 0, stdout: EMPTY_REVIEW_THREADS, stderr: "" };
+      }
       if (joined.includes("headRefOid")) {
         return { returncode: 0, stdout: `${sha}\n`, stderr: "" };
       }
@@ -52,6 +68,153 @@ describe("swarm verify-review-clean", () => {
     });
     const per = evaluatePr(1, "deftai/directive", runGh);
     expect(per?.clean).toBe(true);
+  });
+
+  it("reconciles an absent Greptile verdict through the canonical GitHub gate", () => {
+    const sha = "abcdef1234567890abcdef1234567890abcdef12";
+    const runGh = vi.fn((cmd: readonly string[]) => {
+      const joined = cmd.join(" ");
+      if (joined.includes("graphql")) {
+        return { returncode: 0, stdout: EMPTY_REVIEW_THREADS, stderr: "" };
+      }
+      if (joined.includes("headRefOid")) {
+        return { returncode: 0, stdout: `${sha}\n`, stderr: "" };
+      }
+      if (joined.includes("/comments")) {
+        return { returncode: 0, stdout: "", stderr: "" };
+      }
+      if (joined.includes("/check-runs")) {
+        return {
+          returncode: 0,
+          stdout: JSON.stringify({
+            check_runs: [
+              {
+                name: "validate",
+                status: "completed",
+                conclusion: "success",
+              },
+            ],
+          }),
+          stderr: "",
+        };
+      }
+      if (joined.includes("/pulls/")) {
+        return {
+          returncode: 0,
+          stdout: JSON.stringify({
+            state: "open",
+            merged: false,
+            mergeable: true,
+            mergeable_state: "clean",
+            head: { sha },
+          }),
+          stderr: "",
+        };
+      }
+      return { returncode: 1, stdout: "", stderr: `unexpected: ${joined}` };
+    });
+
+    const result = verifyReviewClean({
+      prNumbers: [24],
+      repo: "bxc-3ci/FreshserviceAI",
+      emitJson: true,
+      runGh,
+    });
+
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout) as {
+      all_clean: boolean;
+      pr_results: Array<{
+        clean: boolean;
+        via: string;
+        partial_data: { verdict_override: { reason: string } };
+      }>;
+    };
+    expect(payload.all_clean).toBe(true);
+    expect(payload.pr_results[0]).toMatchObject({
+      clean: true,
+      via: "primary",
+      partial_data: {
+        verdict_override: { reason: "verdict-absent" },
+      },
+    });
+
+    const human = verifyReviewClean({
+      prNumbers: [24],
+      repo: "bxc-3ci/FreshserviceAI",
+      runGh,
+    });
+    expect(human.stdout).toContain("Gate via:           primary");
+    expect(human.stdout).toContain("Verdict override:   verdict-absent");
+    expect(human.stdout).toContain("Override basis:     github mergeable_state=clean");
+  });
+
+  it("does not reconcile a genuine current-head P0 finding", () => {
+    const sha = "abcdef1234567890abcdef1234567890abcdef12";
+    const runGh = vi.fn((cmd: readonly string[]) => {
+      const joined = cmd.join(" ");
+      if (joined.includes("graphql")) {
+        return { returncode: 0, stdout: EMPTY_REVIEW_THREADS, stderr: "" };
+      }
+      if (joined.includes("headRefOid")) {
+        return { returncode: 0, stdout: `${sha}\n`, stderr: "" };
+      }
+      if (joined.includes("/comments")) {
+        return {
+          returncode: 0,
+          stdout:
+            "## Greptile Summary\n\n**Confidence Score: 5/5**\n\n" +
+            `Last reviewed commit: [fix](https://github.com/deftai/directive/commit/${sha})\n` +
+            '### P0 findings (1)\n<img alt="P0" />\n',
+          stderr: "",
+        };
+      }
+      return { returncode: 1, stdout: "", stderr: `unexpected: ${joined}` };
+    });
+
+    const per = evaluatePr(25, "bxc-3ci/FreshserviceAI", runGh);
+
+    expect(per).toMatchObject({ clean: false, via: "primary" });
+    expect(per?.failures.some((failure) => failure.includes("P0 and 0 P1"))).toBe(true);
+    expect(per?.partial_data?.verdict_override).toBeUndefined();
+  });
+
+  it("keeps fallback2 as a non-clean heartbeat", () => {
+    const sha = "abcdef1234567890abcdef1234567890abcdef12";
+    const runGh = vi.fn((cmd: readonly string[]) => {
+      const joined = cmd.join(" ");
+      if (joined.includes("headRefOid") || joined.includes("--jq .head.sha")) {
+        return { returncode: 1, stdout: "", stderr: "primary paths unavailable" };
+      }
+      if (joined.includes("/pulls/26")) {
+        return {
+          returncode: 0,
+          stdout: JSON.stringify({
+            state: "open",
+            merged: false,
+            mergeable: true,
+            mergeable_state: "clean",
+            head: { sha },
+          }),
+          stderr: "",
+        };
+      }
+      if (joined.includes("/check-runs")) {
+        return {
+          returncode: 0,
+          stdout: JSON.stringify({
+            check_runs: [{ name: "validate", status: "completed", conclusion: "success" }],
+          }),
+          stderr: "",
+        };
+      }
+      return { returncode: 1, stdout: "", stderr: `unexpected: ${joined}` };
+    });
+
+    const per = evaluatePr(26, "bxc-3ci/FreshserviceAI", runGh);
+
+    expect(per).toMatchObject({ clean: false, via: "fallback2" });
+    expect(per?.failures.some((failure) => failure.includes("coarse signal"))).toBe(true);
   });
 
   it("resolveCohortFromVbriefs handles empty glob", () => {

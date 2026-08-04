@@ -1,0 +1,50 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3108",
+    "updated": "2026-08-04T12:20:58Z"
+  },
+  "plan": {
+    "title": "bug(swarm): cohort review verifier diverges from pr:merge-ready on absent Greptile",
+    "status": "running",
+    "narratives": {
+      "Description": "bug(swarm): cohort review verifier diverges from pr:merge-ready on absent Greptile",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3108",
+      "Overview": "## Summary\n\n`deft swarm:verify-review-clean` diverges from the canonical `deft pr:merge-ready` decision when Greptile has not posted a rolling-summary verdict.\n\nIn a consumer repository with no Greptile installation, a PR can be current-head `MERGEABLE`, have `mergeStateStatus: CLEAN`, and pass every required check. `deft pr:merge-ready` correctly exits 0 through the #2260 `verdict-absent` mergeability reconciliation, while `deft swarm:verify-review-clean` exits 1 because it directly parses and evaluates Greptile evidence and never invokes the canonical reconciliation.\n\n## Reproduction\n\n1. Use a PR with no Greptile rolling-summary comment.\n2. Ensure GitHub reports `mergeable: MERGEABLE`, `mergeStateStatus: CLEAN`, and all required checks pass.\n3. Run `deft pr:merge-ready <PR> --repo <OWNER/REPO> --json`.\n4. Run `deft swarm:verify-review-clean <PR> --repo <OWNER/REPO>`.\n\nObserved:\n\n- `pr:merge-ready`: exit 0, `merge_ready: true`, `via: primary`, override reason `verdict-absent`.\n- `swarm:verify-review-clean`: exit 1, cohort blocked because the Greptile verdict is absent.\n\n## Root cause\n\n`packages/core/src/swarm/verify-review-clean.ts` duplicates the older `fetchPrHeadSha` + `fetchGreptileCommentBody` + `parseGreptileBody` + `evaluateGates` path. It does not use `computeGateResult`, which owns the #2260 GitHub-mergeability reconciliation and the canonical CI, SLizard, fallback, and fail-closed semantics.\n\n## Expected behavior\n\nThe cohort verifier and `pr:merge-ready` should share one readiness computation for each PR:\n\n- Missing or stale Greptile evidence may be reconciled only when GitHub reports the exact PR head mergeable and clean and required checks pass.\n- Genuine current-head P0/P1 findings, an errored verdict, low confidence, unresolved blocking review threads, CI failures, or a non-clean/non-mergeable GitHub state remain blocking.\n- `fallback2` and `error` results remain non-clean.\n- Cohort text and JSON expose the decision path and any mergeability override so a CLEAN result never fabricates or implies reviewer evidence.\n- Existing `--skip-ci`, `--skip-slizard`, and ignored-check behavior remains intact.\n\n## Acceptance criteria\n\n- Add a regression test showing an absent Greptile verdict plus clean GitHub mergeability and green required checks produces a clean cohort through the same #2260 override used by `pr:merge-ready`.\n- Add negative tests proving fallback/error and genuine blocking review findings still fail closed.\n- Cohort output identifies the canonical gate path and override basis.\n- Existing swarm review-clean tests and the full project check pass.\n\nRelated: #2260, #1364.\n\n"
+    },
+    "items": [
+      {
+        "title": "Add a regression test showing an absent Greptile verdict plus clean GitHub mergeability and green required checks produces a clean cohort through the same #2260 override used by `pr:merge-ready`.",
+        "status": "completed"
+      },
+      {
+        "title": "Add negative tests proving fallback/error and genuine blocking review findings still fail closed.",
+        "status": "completed"
+      },
+      {
+        "title": "Cohort output identifies the canonical gate path and override basis.",
+        "status": "completed"
+      },
+      {
+        "title": "Existing swarm review-clean tests and the full project check pass.",
+        "status": "completed"
+      }
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3108",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3108: bug(swarm): cohort review verifier diverges from pr:merge-ready on absent Greptile"
+      }
+    ],
+    "updated": "2026-08-04T12:20:58Z",
+    "metadata": {
+      "issueSync": {
+        "fingerprint": "0a9caa9d5618510a",
+        "syncedAt": "2026-08-04T12:21:31.160Z",
+        "issueNumber": 3108,
+        "repo": "deftai/directive"
+      }
+    }
+  }
+}
