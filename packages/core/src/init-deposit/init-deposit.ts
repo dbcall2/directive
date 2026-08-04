@@ -140,11 +140,12 @@ function readContentVersion(contentRoot: string, readVersion = readCorePackageVe
   return readVersion();
 }
 
-export function buildInstallSummaryJson(
-  result: InitDepositResult,
-  options: InitDepositArgs,
-  readiness: AgentHookReadinessResult | undefined,
-): Record<string, unknown> {
+export function buildInstallSummaryJson(input: {
+  result: InitDepositResult;
+  options: InitDepositArgs;
+  readiness: AgentHookReadinessResult | undefined;
+}): Record<string, unknown> {
+  const { result, options, readiness } = input;
   return {
     success: readiness ? readiness.code === 0 : true,
     deposit_completed: true,
@@ -337,7 +338,7 @@ export async function runInitDepositCli(options: RunInitDepositCliOptions): Prom
     );
     if (options.jsonOut) {
       options.writeOut(
-        `${JSON.stringify(buildInstallSummaryJson(result, options, readiness), null, 2)}\n`,
+        `${JSON.stringify(buildInstallSummaryJson({ result, options, readiness }), null, 2)}\n`,
       );
       printNextSteps(result, { printf: options.writeErr });
     } else {

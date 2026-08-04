@@ -16,7 +16,7 @@ import {
 const mockSpawnSync = vi.mocked(spawnSync);
 const WINDOWS_SEPARATOR = String.fromCharCode(92);
 
-function windowsPath(...segments: string[]): string {
+function windowsPath(segments: readonly string[]): string {
   return segments.join(WINDOWS_SEPARATOR);
 }
 
@@ -30,12 +30,12 @@ afterEach(() => {
 
 describe("shouldUseShellForCommand (#2548)", () => {
   it("uses a shell for Windows command shims", () => {
-    expect(shouldUseShellForCommand(windowsPath("C:", "bin", "pnpm.CMD"), "win32")).toBe(true);
-    expect(shouldUseShellForCommand(windowsPath("C:", "bin", "pnpm.bat"), "win32")).toBe(true);
+    expect(shouldUseShellForCommand(windowsPath(["C:", "bin", "pnpm.CMD"]), "win32")).toBe(true);
+    expect(shouldUseShellForCommand(windowsPath(["C:", "bin", "pnpm.bat"]), "win32")).toBe(true);
   });
 
   it("does not use a shell for native executables or non-Windows platforms", () => {
-    expect(shouldUseShellForCommand(windowsPath("C:", "bin", "pnpm.EXE"), "win32")).toBe(false);
+    expect(shouldUseShellForCommand(windowsPath(["C:", "bin", "pnpm.EXE"]), "win32")).toBe(false);
     expect(shouldUseShellForCommand("/usr/bin/pnpm", "linux")).toBe(false);
     expect(shouldUseShellForCommand("/usr/bin/pnpm")).toBe(false);
   });
@@ -59,7 +59,7 @@ describe("resolveCommandOnPath (#2548)", () => {
   it("prefers pnpm.cmd over a bare extensionless shim on win32", () => {
     const found = resolveCommandOnPath("pnpm", {
       env: {
-        Path: windowsPath("C:", "Users", "msada", "AppData", "Roaming", "npm"),
+        Path: windowsPath(["C:", "Users", "msada", "AppData", "Roaming", "npm"]),
         PATHEXT: ".EXE;.CMD",
       },
       platform: "win32",
@@ -70,7 +70,7 @@ describe("resolveCommandOnPath (#2548)", () => {
 
   it("falls back to a default PATHEXT on win32 when unset", () => {
     const found = resolveCommandOnPath("pnpm", {
-      env: { Path: windowsPath("C:", "bin") },
+      env: { Path: windowsPath(["C:", "bin"]) },
       platform: "win32",
       exists: (p) => p.endsWith(".EXE"),
     });
@@ -91,18 +91,18 @@ describe("resolveCommandOnPath (#2548)", () => {
 
 describe("quoteWin32CommandForShell (#2555)", () => {
   it("quotes spaced paths on win32", () => {
-    const command = windowsPath("C:", "Program Files", "nodejs", "npm.cmd");
+    const command = windowsPath(["C:", "Program Files", "nodejs", "npm.cmd"]);
     expect(quoteWin32CommandForShell(command, "win32")).toBe(`"${command}"`);
   });
 
   it("leaves unspaced paths and non-win32 platforms unchanged", () => {
-    const command = windowsPath("C:", "bin", "pnpm.CMD");
+    const command = windowsPath(["C:", "bin", "pnpm.CMD"]);
     expect(quoteWin32CommandForShell(command, "win32")).toBe(command);
     expect(quoteWin32CommandForShell("/usr/bin/npm", "linux")).toBe("/usr/bin/npm");
   });
 
   it("does not double-quote already quoted paths", () => {
-    const command = windowsPath("C:", "Program Files", "npm.cmd");
+    const command = windowsPath(["C:", "Program Files", "npm.cmd"]);
     const doubleQuoted = `"${command}"`;
     const singleQuoted = `'${command}'`;
     expect(quoteWin32CommandForShell(doubleQuoted, "win32")).toBe(doubleQuoted);
@@ -129,7 +129,7 @@ describe("spawnCommandText (#2548 / #2555)", () => {
       error: undefined,
     });
 
-    const npmCmd = windowsPath("C:", "Program Files", "nodejs", "npm.cmd");
+    const npmCmd = windowsPath(["C:", "Program Files", "nodejs", "npm.cmd"]);
     spawnCommandText(npmCmd, ["publish", "--dry-run"]);
 
     expect(mockSpawnSync).toHaveBeenCalledWith(
@@ -151,7 +151,7 @@ describe("spawnCommandText (#2548 / #2555)", () => {
       error: undefined,
     });
 
-    const pnpmCmd = windowsPath("C:", "bin", "pnpm.CMD");
+    const pnpmCmd = windowsPath(["C:", "bin", "pnpm.CMD"]);
     spawnCommandText(pnpmCmd, ["install"]);
 
     expect(mockSpawnSync).toHaveBeenCalledWith(
@@ -184,8 +184,8 @@ describe("spawnCommandText (#2548 / #2555)", () => {
       });
 
     expect(
-      spawnCommandText(windowsPath("C:", "bin", "deft-hook"), [], {
-        env: { PATH: windowsPath("C:", "bin") },
+      spawnCommandText(windowsPath(["C:", "bin", "deft-hook"]), [], {
+        env: { PATH: windowsPath(["C:", "bin"]) },
       }),
     ).toEqual({ status: 0, stdout: "ok", stderr: "" });
     expect(mockSpawnSync).toHaveBeenCalledTimes(2);

@@ -520,12 +520,13 @@ export function buildVersionSkewNotice(
   return null;
 }
 
-export function buildUpdateSummaryJson(
-  result: RefreshDepositResult,
-  options: RefreshDepositArgs,
-  updateState: UpdateState | undefined,
-  readiness: AgentHookReadinessResult | undefined,
-): Record<string, unknown> {
+export function buildUpdateSummaryJson(input: {
+  result: RefreshDepositResult;
+  options: RefreshDepositArgs;
+  updateState: UpdateState | undefined;
+  readiness: AgentHookReadinessResult | undefined;
+}): Record<string, unknown> {
+  const { result, options, updateState, readiness } = input;
   return {
     success: readiness ? readiness.code === 0 : true,
     deposit_completed: true,
@@ -962,7 +963,7 @@ export async function runRefreshDepositCli(options: RunRefreshDepositCliOptions)
       : classification?.state;
     if (options.jsonOut) {
       options.writeOut(
-        `${JSON.stringify(buildUpdateSummaryJson(result, options, state, readiness), null, 2)}\n`,
+        `${JSON.stringify(buildUpdateSummaryJson({ result, options, updateState: state, readiness }), null, 2)}\n`,
       );
       printUpdateComplete(result, { printf: options.writeErr }, state);
     } else {

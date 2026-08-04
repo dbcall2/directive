@@ -272,8 +272,8 @@ describe("runInitDeposit", () => {
   });
 
   it("buildInstallSummaryJson keeps stable array fields", () => {
-    const summary = buildInstallSummaryJson(
-      {
+    const summary = buildInstallSummaryJson({
+      result: {
         projectDir: "/proj",
         deftDir: "/proj/.deft/core",
         skillsCreated: true,
@@ -282,9 +282,9 @@ describe("runInitDeposit", () => {
         legacyLayout: false,
         stagedPaths: ["Taskfile.yml", ".deft/core"],
       },
-      { projectDir: "/proj", jsonOut: true, nonInteractive: true },
-      undefined,
-    );
+      options: { projectDir: "/proj", jsonOut: true, nonInteractive: true },
+      readiness: undefined,
+    });
     expect(summary.missing_tools).toEqual([]);
     expect(summary.dirty_files).toEqual([]);
     expect(summary.staged_paths).toEqual(["Taskfile.yml", ".deft/core"]);
