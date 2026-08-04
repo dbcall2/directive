@@ -283,6 +283,7 @@ describe("runInitDeposit", () => {
         stagedPaths: ["Taskfile.yml", ".deft/core"],
       },
       { projectDir: "/proj", jsonOut: true, nonInteractive: true },
+      undefined,
     );
     expect(summary.missing_tools).toEqual([]);
     expect(summary.dirty_files).toEqual([]);

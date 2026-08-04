@@ -523,8 +523,8 @@ export function buildVersionSkewNotice(
 export function buildUpdateSummaryJson(
   result: RefreshDepositResult,
   options: RefreshDepositArgs,
-  updateState?: UpdateState,
-  readiness?: AgentHookReadinessResult,
+  updateState: UpdateState | undefined,
+  readiness: AgentHookReadinessResult | undefined,
 ): Record<string, unknown> {
   return {
     success: readiness ? readiness.code === 0 : true,

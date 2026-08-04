@@ -143,7 +143,7 @@ function readContentVersion(contentRoot: string, readVersion = readCorePackageVe
 export function buildInstallSummaryJson(
   result: InitDepositResult,
   options: InitDepositArgs,
-  readiness?: AgentHookReadinessResult,
+  readiness: AgentHookReadinessResult | undefined,
 ): Record<string, unknown> {
   return {
     success: readiness ? readiness.code === 0 : true,
