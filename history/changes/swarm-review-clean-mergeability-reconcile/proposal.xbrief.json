@@ -1,0 +1,19 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "swarm-review-clean-mergeability-reconcile",
+    "status": "approved",
+    "narratives": {
+      "Problem": "The swarm cohort verifier independently applies the pre-#2260 Greptile gate, so it blocks a PR that the canonical pr:merge-ready gate correctly accepts through GitHub's clean-and-mergeable reconciliation.",
+      "Change": "Make swarm:verify-review-clean consume the canonical per-PR gate result and report its decision path and mergeability override without inventing reviewer evidence.",
+      "Scope": "In scope: cohort result mapping, text/JSON audit output, regression and fail-closed tests, operator-facing changelog. Out of scope: changing #2260 policy, weakening current-head P0/P1 or confidence gates, installing a reviewer, or merging consumer PRs.",
+      "Impact": "The public swarm:verify-review-clean command will agree with pr:merge-ready for identical inputs. Existing flags and exit codes remain stable; JSON gains additive audit fields.",
+      "Risks": "An overly broad mapping could make fallback or genuine review failures appear clean. Tests will pin primary/fallback1 eligibility, fallback2/error refusal, current-head finding refusal, and explicit override output.",
+      "Approach": "Reuse computeGateResult and isMergeReady, map its verdict/failures/partial data into the cohort contract, and expose via plus partial_data in text and JSON. Add tests first, then update the implementation and changelog.",
+      "Alternatives": "Duplicating #2260 reconciliation inside the swarm module was rejected because it would preserve two policy implementations and allow future drift.",
+      "Dependencies": "Existing pr-merge-readiness compute, mergeability, CI, SLizard, and fallback contracts introduced by #2169 and #2260. Tracked by GitHub issue #3108."
+    }
+  }
+}

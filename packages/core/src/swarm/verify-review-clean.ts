@@ -1,20 +1,16 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { hasArtifactSuffix } from "../layout/resolve.js";
-import type { CiGateOptions } from "../pr-merge-readiness/ci-gate.js";
-import { buildCiSummaryLine, evaluateCiGate } from "../pr-merge-readiness/ci-gate.js";
 import {
-  defaultRunGh,
-  fetchCheckRunsRest,
-  fetchGreptileCommentBody,
-  fetchPrHeadSha,
-} from "../pr-merge-readiness/gh.js";
-import { evaluateGates, parseGreptileBody } from "../pr-merge-readiness/index.js";
-import type { SlizardGateOptions } from "../pr-merge-readiness/slizard-gate.js";
-import { evaluateSlizardGate, isSlizardCheck } from "../pr-merge-readiness/slizard-gate.js";
+  type ComputeGateOptions,
+  computeGateResult,
+  isMergeReady,
+} from "../pr-merge-readiness/compute.js";
+import { VIA_ERROR, VIA_FALLBACK2 } from "../pr-merge-readiness/constants.js";
+import { defaultRunGh } from "../pr-merge-readiness/gh.js";
 import type { RunGhFn } from "../pr-merge-readiness/types.js";
 
-type ReviewGateOptions = CiGateOptions & SlizardGateOptions;
+type ReviewGateOptions = ComputeGateOptions;
 
 import { EXIT_EXTERNAL_ERROR, EXIT_OK, EXIT_UNCLEAN } from "./constants.js";
 
@@ -31,6 +27,8 @@ export interface CohortPRResult {
   clean: boolean;
   ci_summary: Record<string, unknown> | null;
   slizard_summary: Record<string, unknown> | null;
+  via?: string;
+  partial_data?: Record<string, unknown>;
 }
 
 export interface CohortResult {
@@ -151,83 +149,29 @@ export function evaluatePr(
   runGh: RunGhFn = defaultRunGh,
   options: ReviewGateOptions = {},
 ): CohortPRResult | null {
-  const headSha = fetchPrHeadSha(prNumber, repo, runGh);
-  if (headSha === null) {
+  const result = computeGateResult(prNumber, repo, runGh, options);
+  if (result.via === VIA_ERROR) {
     return null;
   }
-  const body = fetchGreptileCommentBody(prNumber, repo, runGh);
-  if (body === null) {
-    return null;
-  }
-  const verdict = parseGreptileBody(body);
-  const failures = evaluateGates(prNumber, headSha, verdict);
-  let ciSummary: Record<string, unknown> | null = null;
-  let slizardSummary: Record<string, unknown> | null = null;
-  if (failures.length === 0) {
-    if (repo === null) {
-      failures.push(
-        "Could not resolve repo for required CI check-run gate. " +
-          "Use --repo OWNER/REPO or run from a checked-out repository.",
-      );
-      ciSummary = {
-        ready_state: "blocked",
-        error: "repo unresolved for check-runs lookup",
-      };
-      slizardSummary = { ready_state: "skipped", present: false };
-    } else if (options.skipCi === true) {
-      const ci = evaluateCiGate([], { skipCi: true });
-      ciSummary = {
-        ...ci.summary,
-        summary_line: "CI check-runs: skipped (--skip-ci)",
-      };
-      const slizard = evaluateSlizardGate([], options);
-      failures.push(...slizard.failures);
-      slizardSummary = { ...slizard.summary };
-    } else {
-      const checks = fetchCheckRunsRest(headSha, repo, runGh);
-      if (checks.summary === null) {
-        failures.push(
-          "Required CI check-runs could not be fetched; fail closed by default (#2169). " +
-            `Root cause: ${checks.error}`,
-        );
-        ciSummary = {
-          ready_state: "blocked",
-          error: checks.error,
-          checked_count: 0,
-          ignored_checks: [...(options.ignoreCheckNames ?? [])],
-          failed_required: [],
-          pending_required: [],
-          conclusions: [],
-        };
-        slizardSummary = { ready_state: "skipped", present: false };
-      } else {
-        const slizard = evaluateSlizardGate(checks.checkRuns, options);
-        // SLizard is scored by the structured gate; exclude it from the generic CI set.
-        const slizardNames = checks.checkRuns
-          .filter((r) => isSlizardCheck(r.name))
-          .map((r) => r.name);
-        const ci = evaluateCiGate(checks.checkRuns, {
-          skipCi: options.skipCi,
-          ignoreCheckNames: [...(options.ignoreCheckNames ?? []), ...slizardNames],
-        });
-        failures.push(...ci.failures, ...slizard.failures);
-        ciSummary = {
-          ...ci.summary,
-          summary_line: buildCiSummaryLine(ci.summary),
-        };
-        slizardSummary = { ...slizard.summary };
-      }
-    }
-  }
+  const ciSummary = asRecord(result.partialData.ci);
+  const slizardSummary = asRecord(result.partialData.slizard);
   return {
     pr_number: prNumber,
-    head_sha: headSha,
-    verdict: { ...verdict },
-    failures: [...failures],
-    clean: failures.length === 0,
+    head_sha: result.headSha,
+    verdict: { ...result.verdict },
+    failures: [...result.failures],
+    clean: result.via !== VIA_FALLBACK2 && isMergeReady(result.failures),
     ci_summary: ciSummary,
     slizard_summary: slizardSummary,
+    via: result.via,
+    partial_data: { ...result.partialData },
   };
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? { ...(value as Record<string, unknown>) }
+    : null;
 }
 
 export function cohortResultToDict(cohort: CohortResult): Record<string, unknown> {
@@ -243,6 +187,8 @@ export function cohortResultToDict(cohort: CohortResult): Record<string, unknown
       failures: r.failures,
       ci_summary: r.ci_summary,
       slizard_summary: r.slizard_summary,
+      via: r.via ?? null,
+      partial_data: r.partial_data ?? {},
     })),
     resolution_errors: cohort.resolution_errors,
   };
@@ -266,6 +212,7 @@ export function renderReviewCleanText(cohort: CohortResult): string {
     lines.push("");
     lines.push(`  PR #${r.pr_number} -- ${status}`);
     lines.push(`    HEAD SHA:           ${r.head_sha ?? "<unknown>"}`);
+    lines.push(`    Gate via:           ${r.via ?? "<unknown>"}`);
     lines.push(`    Greptile reviewed:  ${String(v.lastReviewedSha ?? "<not parsed>")}`);
     const conf = v.confidence;
     lines.push(
@@ -281,6 +228,13 @@ export function renderReviewCleanText(cohort: CohortResult): string {
     }
     if (r.slizard_summary && typeof r.slizard_summary.summary_line === "string") {
       lines.push(`    ${r.slizard_summary.summary_line}`);
+    }
+    const override = asRecord(r.partial_data?.verdict_override);
+    if (override !== null) {
+      lines.push(`    Verdict override:   ${String(override.reason ?? "<unknown>")}`);
+      if (typeof override.basis === "string") {
+        lines.push(`    Override basis:     ${override.basis}`);
+      }
     }
     r.failures.forEach((fail, index) => {
       lines.push(`      [${index + 1}] ${fail}`);

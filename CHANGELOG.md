@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **Swarm cohort review-clean now uses canonical merge readiness.** `swarm:verify-review-clean` delegates each PR to the same gate as `pr:merge-ready`, so absent or stale optional Greptile evidence can use the #2260 GitHub CLEAN + MERGEABLE reconciliation without bypassing current-head P0/P1, confidence, inline-review, CI, SLizard, or fallback refusal checks. Text and JSON output expose the gate path and override basis. Tracking #3108. Refs #2260, #1364.
 
 ### Removed
 
