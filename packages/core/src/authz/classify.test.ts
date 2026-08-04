@@ -111,6 +111,97 @@ describe("classifyShellAuthzOps (#2944)", () => {
     ).toContain("merge");
   });
 
+  it("classifies authz:grant / uat-* / revoke as settings (#3110)", () => {
+    for (const cmd of [
+      "deft authz:grant -- --operations edit --cohort x",
+      "task authz:grant -- --operations edit,push",
+      "directive authz:grant --template finish-loop",
+      "pnpm exec deft authz:grant -- --operations edit",
+      "npx deft authz grant --operations edit",
+      "deft authz:uat-start -- --campaign uat-1",
+      "task authz:uat-suspend",
+      "deft authz:revoke -- grant-abc",
+      "env FOO=1 deft authz:grant --operations edit",
+    ]) {
+      expect(classifyShellAuthzOps(cmd), cmd).toContain("settings");
+      expect(classifyShellAuthzOps(cmd), cmd).not.toEqual([]);
+    }
+    // Read-only show stays unclassifiable (not authority mutation).
+    expect(classifyShellAuthzOps("deft authz:show")).toEqual([]);
+  });
+
+  it("classifies shell writes under .deft/authz as settings (#3110 containment)", () => {
+    expect(classifyShellAuthzOps('echo {"x":1} > .deft/authz/grants/evil.json')).toContain(
+      "settings",
+    );
+    expect(classifyShellAuthzOps("cp /tmp/g.json .deft/authz/grants/g.json")).toContain("settings");
+    expect(classifyShellAuthzOps("mv grant.json .deft/authz/state.json")).toContain("settings");
+    expect(
+      classifyShellAuthzOps("Set-Content -Path .deft\\authz\\state.json -Value '{}'"),
+    ).toContain("settings");
+    // General-purpose writers (not only redirect + write-bin allowlist).
+    expect(classifyShellAuthzOps("dd if=/tmp/x of=.deft/authz/state.json")).toContain("settings");
+    expect(classifyShellAuthzOps("sed -i s/a/b/ .deft/authz/state.json")).toContain("settings");
+    expect(
+      classifyShellAuthzOps("python -c \"open('.deft/authz/grants/x.json','w').write('{}')\""),
+    ).toContain("settings");
+    // Pure reads stay unclassifiable (inspect via authz:show / host Read).
+    expect(classifyShellAuthzOps("cat .deft/authz/state.json")).toEqual([]);
+    // Redirect **from** store to backup is not a store write (dest is /tmp).
+    expect(classifyShellAuthzOps("cat .deft/authz/state.json > /tmp/backup")).toEqual([]);
+    // Indirect $VAR expansion (opaque names included — residual fail-open closed).
+    expect(classifyShellAuthzOps("echo '{}' > \"$AUTHZ_DIR/state.json\"")).toContain("settings");
+    expect(classifyShellAuthzOps("cp /tmp/g.json $AUTHZ_HOME/grants/evil.json")).toContain(
+      "settings",
+    );
+    expect(classifyShellAuthzOps("printf '{}' > \"$STORE\"")).toContain("settings");
+    // Ordinary expanded writes outside authz store stay unclassifiable.
+    expect(classifyShellAuthzOps('echo hi > "$HOME/out"')).toEqual([]);
+    expect(classifyShellAuthzOps('cp x "$TMPDIR/y"')).toEqual([]);
+    // Command substitution destinations (no contiguous .deft/authz literal).
+    expect(classifyShellAuthzOps('cp /tmp/evil.json "$(echo .deft)/authz/state.json"')).toContain(
+      "settings",
+    );
+    expect(classifyShellAuthzOps("cp /tmp/x `pwd`/grants/y.json")).toContain("settings");
+    // Destructive + opaque var; split path; positional expansion toward store.
+    expect(classifyShellAuthzOps("rm -rf $STORE")).toContain("settings");
+    expect(classifyShellAuthzOps("cd .deft && echo x > authz/state.json")).toContain("settings");
+    // Later redirect must not hide an earlier split-path store write.
+    expect(
+      classifyShellAuthzOps("cd .deft && echo x > authz/state.json && echo y > /tmp/z"),
+    ).toContain("settings");
+    // Relative write after cd into authz dir (dest has no "authz" text).
+    expect(classifyShellAuthzOps("cd .deft/authz && echo x > state.json")).toContain("settings");
+    expect(classifyShellAuthzOps("cd .deft/authz && cp /tmp/g.json grants/evil.json")).toContain(
+      "settings",
+    );
+    // Positional expansion alone + state.json is not enough without authz context.
+    expect(classifyShellAuthzOps("echo '{}' > $1/state.json")).toEqual([]);
+    // Authz-named expansion + state.json remains settings.
+    expect(classifyShellAuthzOps("echo '{}' > \"$AUTHZ_DIR/state.json\"")).toContain("settings");
+    // Programmatic os.environ / process.env write (no shell $ expansion).
+    expect(
+      classifyShellAuthzOps(
+        "python -c \"import os; open(os.environ['DEFT_AUTHZ_ROOT']+'/state.json','w').write('{}')\"",
+      ),
+    ).toContain("settings");
+    expect(
+      classifyShellAuthzOps(
+        "node -e \"require('fs').writeFileSync(process.env.AUTHZ_DIR+'/grants/x.json','{}')\"",
+      ),
+    ).toContain("settings");
+    // Ordinary cleanup / non-store opaque dest stays unclassifiable (no overclassify).
+    expect(classifyShellAuthzOps("rm -rf $TMPDIR/build")).toEqual([]);
+    expect(classifyShellAuthzOps("rm -rf $HOME/.cache/tmp")).toEqual([]);
+    // Unrelated app state.json (shell or programmatic) is NOT an authz settings mutation.
+    expect(classifyShellAuthzOps('echo hi > "$APP_DIR/state.json"')).toEqual([]);
+    expect(
+      classifyShellAuthzOps(
+        "python -c \"import os; open(os.environ['APP_DIR']+'/state.json','w').write('{}')\"",
+      ),
+    ).toEqual([]);
+  });
+
   it("covers gh flag forms and hook name variants (#2986)", () => {
     // --flag=value form and remaining GH_VALUE_FLAGS spellings.
     expect(classifyShellAuthzOps("gh --repo=owner/repo pr create --title t")).toContain("pr");

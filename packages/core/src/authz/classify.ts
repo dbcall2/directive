@@ -153,6 +153,449 @@ function hasGhApiPath(tokens: readonly string[], needle: string): boolean {
   return false;
 }
 
+/**
+ * Authz authority-mutating CLI verbs (#3110). Classified as **settings** so under
+ * active UAT they deny without a prior human grant — never empty → shell-op-unclassifiable fail-open.
+ */
+const AUTHZ_MUTATING_SUBCOMMANDS = new Set(["grant", "uat-start", "uat-suspend", "revoke"]);
+
+function authzSubcommandFromToken(token: string): string | null {
+  const t = normalizeToken(token);
+  if (t.startsWith("authz:")) {
+    const sub = t.slice("authz:".length);
+    return AUTHZ_MUTATING_SUBCOMMANDS.has(sub) ? sub : null;
+  }
+  return AUTHZ_MUTATING_SUBCOMMANDS.has(t) ? t : null;
+}
+
+/**
+ * Detect `deft|task|directive authz:grant` / `authz grant` (and wrappers) in shell tokens.
+ * O(n) token walk — no nested-quantifier regex on untrusted input.
+ */
+function hasAuthzMutatingCli(tokens: readonly string[]): boolean {
+  for (let i = 0; i < tokens.length; i++) {
+    const raw = tokens[i];
+    if (raw === undefined) break;
+    const t = normalizeToken(raw);
+    // Combined form anywhere: authz:grant / authz:uat-suspend / …
+    if (authzSubcommandFromToken(t) !== null && t.startsWith("authz:")) {
+      return true;
+    }
+    // Separated form: … authz grant|uat-start|uat-suspend|revoke
+    // Also path-ish bins ending in /authz or \authz (node …/authz.js grant).
+    const isAuthzBin =
+      t === "authz" ||
+      t.endsWith("/authz") ||
+      t.endsWith("\\authz") ||
+      t.endsWith("/authz.js") ||
+      t.endsWith("\\authz.js") ||
+      t.endsWith("/authz.ts") ||
+      t.endsWith("\\authz.ts");
+    if (!isAuthzBin) continue;
+    const next = tokens[i + 1] !== undefined ? normalizeToken(tokens[i + 1] as string) : "";
+    if (authzSubcommandFromToken(next) !== null) return true;
+  }
+  return false;
+}
+
+/**
+ * Path-ish normalize: keep separators (do not strip `\` like normalizeToken).
+ */
+function pathishToken(token: string): string {
+  return token.replace(/['"]/g, "").toLowerCase().replace(/\\/g, "/");
+}
+
+/**
+ * Shell **write** targeting `.deft/authz/` (#3110 AC-3).
+ * Pure reads (`cat .deft/authz/state.json`) stay unclassifiable — use `authz:show`.
+ * Redirects only count when the destination region contains `.deft/authz`.
+ */
+function hasAuthzDirShellWrite(command: string, tokens: readonly string[]): boolean {
+  const lower = command.toLowerCase().replace(/\\/g, "/");
+  if (!lower.includes(".deft/authz")) return false;
+
+  // Redirect dest region after each `>` / `>>` (O(n); no nested-quantifier regex).
+  for (let i = 0; i < lower.length; i++) {
+    if (lower[i] !== ">") continue;
+    let j = i + 1;
+    if (j < lower.length && lower[j] === ">") j++;
+    // Dest until pipe/semicolon/ampersand/newline.
+    let end = j;
+    while (
+      end < lower.length &&
+      lower[end] !== "|" &&
+      lower[end] !== ";" &&
+      lower[end] !== "&" &&
+      lower[end] !== "\n"
+    ) {
+      end++;
+    }
+    if (lower.slice(j, end).includes(".deft/authz")) return true;
+  }
+
+  // Write/destructive bins with an authz path argument.
+  for (let ti = 0; ti < tokens.length; ti++) {
+    if (!INDIRECT_WRITE_BINS.has(normalizeToken(tokens[ti] as string))) continue;
+    for (let tj = ti + 1; tj < tokens.length; tj++) {
+      if (pathishToken(tokens[tj] as string).includes(".deft/authz")) return true;
+    }
+  }
+  return false;
+}
+
+/** Write/destructive shell bins (token match after normalizeToken). */
+const INDIRECT_WRITE_BINS = new Set([
+  "dd",
+  "sed",
+  "tee",
+  "cp",
+  "mv",
+  "rsync",
+  "rm",
+  "rmdir",
+  "unlink",
+  "shred",
+  "truncate",
+  "chmod",
+  "chown",
+  "install",
+  "python",
+  "python3",
+  "node",
+  "perl",
+  "ruby",
+  "pwsh",
+  "powershell",
+  "set-content",
+  "out-file",
+  "add-content",
+  "copy-item",
+  "move-item",
+  "remove-item",
+  "ri",
+  "ni",
+  "sc",
+  "mi",
+]);
+
+/**
+ * O(n): true when command expands `$…` / `` `…` `` / `%VAR%`
+ * (no nested-quantifier regex). Includes command substitution and positional `$1`.
+ */
+function hasEnvExpansion(command: string): boolean {
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i];
+    if (c === "`") return true;
+    if (c === "$" && i + 1 < command.length) {
+      const n = command[i + 1] as string;
+      // $VAR / ${VAR} / $(cmd) / $1 / $@ / $* / $? / $'…' (ANSI-C)
+      if (
+        n === "{" ||
+        n === "(" ||
+        n === "_" ||
+        n === "'" ||
+        n === "@" ||
+        n === "*" ||
+        n === "?" ||
+        n === "#" ||
+        n === "!" ||
+        (n >= "0" && n <= "9") ||
+        (n >= "A" && n <= "Z") ||
+        (n >= "a" && n <= "z")
+      ) {
+        return true;
+      }
+    }
+    if (c === "%" && i + 1 < command.length) {
+      const n = command[i + 1] as string;
+      if (n === "_" || (n >= "A" && n <= "Z") || (n >= "a" && n <= "z")) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function hasWriteShape(command: string, tokens: readonly string[]): boolean {
+  if (command.includes(">")) return true;
+  for (const t of tokens) {
+    if (INDIRECT_WRITE_BINS.has(normalizeToken(t))) return true;
+  }
+  return false;
+}
+
+/**
+ * Split-path containment: `.deft` and `authz` both appear (e.g. `cd .deft && … authz/…`).
+ * O(n) substring checks — no nested-quantifier regex.
+ */
+function hasSplitAuthzPath(command: string): boolean {
+  const lower = command.toLowerCase().replace(/\\/g, "/");
+  if (!lower.includes("authz")) return false;
+  return lower.includes(".deft") || lower.includes("/deft/") || lower.includes("deft/");
+}
+
+/**
+ * Last non-flag token is a pure expansion dest (`$STORE`, `${STORE}`, `%TEMP%`)
+ * with no trailing path segment (`$HOME/out` is NOT pure — ordinary user write).
+ */
+function lastTokenIsOpaqueExpansion(tokens: readonly string[]): boolean {
+  let last = "";
+  for (const t of tokens) {
+    if (t.startsWith("-")) continue;
+    last = t;
+  }
+  if (last.length === 0) return false;
+  const n = last.replace(/['"]/g, "");
+  // Path after expansion → ordinary dest, not opaque store alias.
+  if (n.includes("/") || n.includes("\\")) return false;
+  if (n.startsWith("$") && n.length > 1) return true;
+  if (n.startsWith("%") && n.endsWith("%") && n.length > 2) return true;
+  return false;
+}
+
+/** Env / path tokens that are ordinary non-store destinations (not authz containment). */
+const ORDINARY_EXPANSION_PREFIXES = [
+  "home",
+  "tmpdir",
+  "temp",
+  "tmp",
+  "pwd",
+  "user",
+  "username",
+  "userprofile",
+  "xdg_",
+  "path",
+  "psmodulepath",
+  "appdata",
+  "localappdata",
+  "programfiles",
+  "systemroot",
+  "windir",
+  "shell",
+  "term",
+  "color",
+  "lang",
+  "lc_",
+  "editor",
+  "visual",
+  "pager",
+  "browser",
+  "http",
+  "https",
+  "proxy",
+  "npm_",
+  "pnpm_",
+  "yarn_",
+  "node_",
+  "python",
+  "virtual_env",
+  "conda",
+  "cargo",
+  "go",
+  "java",
+  "ssh",
+  "gpg",
+  "git_",
+  "gh_",
+  "github_",
+  "ci",
+  "tf_",
+  "aws_",
+  "azure",
+  "gcloud",
+];
+
+/**
+ * True when the expansion name itself suggests authz / grant store
+ * (e.g. $AUTHZ_DIR, $DEFT_AUTHZ_ROOT, %GRANT_STORE%) — residual path without keywords.
+ */
+function hasAuthzPlausibleExpansionName(command: string): boolean {
+  const lower = command.toLowerCase();
+  // O(n) scan for $NAME / ${NAME} / %NAME% containing authz/grant/store store-ish tokens.
+  for (let i = 0; i < lower.length; i++) {
+    const c = lower[i];
+    if (c === "$" && i + 1 < lower.length) {
+      let j = i + 1;
+      if (lower[j] === "{" || lower[j] === "(") j++;
+      let name = "";
+      while (j < lower.length) {
+        const ch = lower[j] as string;
+        if ((ch >= "a" && ch <= "z") || (ch >= "0" && ch <= "9") || ch === "_") {
+          name += ch;
+          j++;
+          continue;
+        }
+        break;
+      }
+      if (nameLooksAuthzStore(name)) return true;
+    }
+    if (c === "%" && i + 1 < lower.length) {
+      let j = i + 1;
+      let name = "";
+      while (j < lower.length && lower[j] !== "%") {
+        const ch = lower[j] as string;
+        if ((ch >= "a" && ch <= "z") || (ch >= "0" && ch <= "9") || ch === "_") {
+          name += ch;
+          j++;
+          continue;
+        }
+        break;
+      }
+      if (nameLooksAuthzStore(name)) return true;
+    }
+  }
+  return false;
+}
+
+function nameLooksAuthzStore(name: string): boolean {
+  if (name.length === 0) return false;
+  if (
+    name.includes("authz") ||
+    name.includes("grant") ||
+    name === "store" ||
+    name.endsWith("_store") ||
+    name.startsWith("store_") ||
+    name.includes("deft_auth") ||
+    name.includes("auth_store")
+  ) {
+    // Exclude ordinary false friends if any appear later.
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Programmatic env write to store: python/node open(os.environ[...]) / process.env patterns
+ * that lack shell `$` expansion but still hit authz paths (#3110 residual).
+ */
+function hasProgrammaticAuthzEnvWrite(command: string, tokens: readonly string[]): boolean {
+  const lower = command.toLowerCase();
+  let hasProg = false;
+  for (const t of tokens) {
+    const n = normalizeToken(t);
+    if (
+      n === "python" ||
+      n === "python3" ||
+      n === "node" ||
+      n === "nodejs" ||
+      n === "perl" ||
+      n === "ruby" ||
+      n === "pwsh" ||
+      n === "powershell"
+    ) {
+      hasProg = true;
+      break;
+    }
+  }
+  if (!hasProg) return false;
+  // Must look like a write (open/write/writefile/set-content) not a pure read.
+  const writeish =
+    lower.includes("open(") ||
+    lower.includes(".write") ||
+    lower.includes("writefile") ||
+    lower.includes("writetext") ||
+    lower.includes("set-content") ||
+    lower.includes("out-file") ||
+    lower.includes("fs.write") ||
+    lower.includes("createwritestream") ||
+    lower.includes(">>") ||
+    lower.includes("mode='w'") ||
+    lower.includes('mode="w"') ||
+    lower.includes(",'w'") ||
+    lower.includes(',"w"');
+  if (!writeish) return false;
+  // Authz-store target only — bare `state.json` alone is ordinary app state (#3110 residual).
+  if (
+    lower.includes("authz") ||
+    lower.includes("/grants/") ||
+    lower.includes("grant-") ||
+    lower.includes("deft_auth") ||
+    lower.includes("auth_store") ||
+    lower.includes(".deft/authz") ||
+    lower.includes(".deft\\authz")
+  ) {
+    return true;
+  }
+  // os.environ / process.env + authz-store-ish key (not generic "auth"/"store" alone).
+  if (
+    lower.includes("os.environ") ||
+    lower.includes("process.env") ||
+    lower.includes("$env:") ||
+    lower.includes("getenv")
+  ) {
+    if (
+      lower.includes("authz") ||
+      lower.includes("grant") ||
+      lower.includes("deft_auth") ||
+      lower.includes("auth_store")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Indirect shell FS mutation that can plausibly hit the authz store (#3110).
+ * Narrower than "any write + any expansion" (avoids denying `echo > $HOME/out` under UAT)
+ * but still catches opaque `$STORE` dest, `rm -rf $STORE`, authz-named expansions,
+ * and programmatic os.environ writes. Does **not** flag ordinary cleanup `rm $TMP/x`.
+ * O(n) walks — no polynomial regex on input.
+ */
+function hasIndirectAuthzStoreWrite(command: string, tokens: readonly string[]): boolean {
+  if (hasProgrammaticAuthzEnvWrite(command, tokens)) return true;
+  if (!hasWriteShape(command, tokens)) return false;
+  const lower = command.toLowerCase().replace(/\\/g, "/");
+  // Authz-plausible destination text (literal or expanded path segments).
+  // Bare `state.json` alone is ordinary app state — require authz/grants/.deft context
+  // (Greptile residual: do not deny unrelated expanded state-file writes under UAT).
+  if (
+    lower.includes("authz") ||
+    lower.includes("/grants/") ||
+    lower.includes("grant-") ||
+    lower.includes(".deft/authz") ||
+    (lower.includes("state.json") &&
+      (lower.includes("authz") ||
+        lower.includes(".deft") ||
+        lower.includes("/grants/") ||
+        hasAuthzPlausibleExpansionName(command)))
+  ) {
+    // Require write shape already true; still need expansion OR already handled by literal path.
+    // When expansion is absent, hasAuthzDirShellWrite covers literals; here catch expanded.
+    if (hasEnvExpansion(command) || hasAuthzPlausibleExpansionName(command)) return true;
+  }
+  if (!hasEnvExpansion(command)) return false;
+  // Expansion var **name** suggests store (e.g. $AUTHZ_DIR without "authz" path text after).
+  if (hasAuthzPlausibleExpansionName(command)) return true;
+  // Destructive bins: only pure-opaque dest or authz-named expansion — not `rm $TMP/build`.
+  let destructive = false;
+  for (const t of tokens) {
+    const n = normalizeToken(t);
+    if (
+      n === "rm" ||
+      n === "rmdir" ||
+      n === "unlink" ||
+      n === "shred" ||
+      n === "remove-item" ||
+      n === "ri"
+    ) {
+      destructive = true;
+      break;
+    }
+  }
+  if (destructive && lastTokenIsOpaqueExpansion(tokens)) return true;
+  // cp/mv/tee/redirect dest is only `$VAR` / `%VAR%` (opaque absolute store path).
+  // Skip ordinary well-known env prefixes ($HOME, $TMPDIR, …).
+  if (lastTokenIsOpaqueExpansion(tokens)) {
+    const last = [...tokens].reverse().find((t) => !t.startsWith("-")) ?? "";
+    const bare = last.replace(/['"%${}]/g, "").toLowerCase();
+    if (!ORDINARY_EXPANSION_PREFIXES.some((p) => bare === p || bare.startsWith(p))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Best-effort shell classification for UAT-sensitive ops beyond push/merge. */
 export function classifyShellAuthzOps(command: string): AuthzClassifiedOp[] {
   const cmd = command.trim();
@@ -187,6 +630,50 @@ export function classifyShellAuthzOps(command: string): AuthzClassifiedOp[] {
   if (hasGhApiPath(tokens, "/settings")) found.add("settings");
   if (hasTestRunner(tokens)) found.add("test");
   if (hasDeploy(tokens)) found.add("deployment");
+  // #3110: authz authority CLI + store **writes** (literal / split / $VAR / rm) → settings.
+  if (hasAuthzMutatingCli(tokens)) found.add("settings");
+  if (hasAuthzDirShellWrite(cmd, tokens)) found.add("settings");
+  // Split path write: `cd .deft && echo x > authz/state.json` OR `cd .deft/authz && echo x > state.json`
+  // OR `cd .deft/authz && cp … grants/x` (write bin without redirect).
+  // When the command cds into an authz path, any write shape is settings (relative dest has no "authz" text).
+  {
+    let cdsIntoAuthz = false;
+    for (let ti = 0; ti < tokens.length - 1; ti++) {
+      const bin = normalizeToken(tokens[ti] as string);
+      if (bin !== "cd" && bin !== "pushd" && bin !== "set-location" && bin !== "sl") continue;
+      const dest = pathishToken(tokens[ti + 1] as string);
+      if (dest.includes("authz")) {
+        cdsIntoAuthz = true;
+        break;
+      }
+    }
+    if (cdsIntoAuthz && hasWriteShape(cmd, tokens)) {
+      found.add("settings");
+    } else if (hasSplitAuthzPath(cmd) && cmd.includes(">")) {
+      // Scan every `>` region — not only the last — so a later `> /tmp/x` cannot hide an earlier store write.
+      const lower = cmd.toLowerCase().replace(/\\/g, "/");
+      for (let i = 0; i < lower.length; i++) {
+        if (lower[i] !== ">") continue;
+        let j = i + 1;
+        if (j < lower.length && lower[j] === ">") j++;
+        let end = j;
+        while (
+          end < lower.length &&
+          lower[end] !== "|" &&
+          lower[end] !== ";" &&
+          lower[end] !== "&" &&
+          lower[end] !== "\n"
+        ) {
+          end++;
+        }
+        if (lower.slice(j, end).includes("authz")) {
+          found.add("settings");
+          break;
+        }
+      }
+    }
+  }
+  if (hasIndirectAuthzStoreWrite(cmd, tokens)) found.add("settings");
 
   return [...found];
 }
