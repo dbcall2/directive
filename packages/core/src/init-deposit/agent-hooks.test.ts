@@ -229,6 +229,35 @@ describe("writeAgentHookDeposit", () => {
     expect(codex.match(/--host codex --event tool\.before/g)).toHaveLength(4);
   });
 
+  it("preserves malformed unrelated nested candidates without treating them as managed", () => {
+    const root = project();
+    mkdirSync(join(root, ".codex"), { recursive: true });
+    writeFileSync(
+      join(root, ".codex/hooks.json"),
+      `${JSON.stringify({
+        hooks: {
+          SessionStart: [null, { hooks: null }, { hooks: [null, { command: 7 }] }],
+          PreToolUse: [],
+        },
+      })}\n`,
+      "utf8",
+    );
+
+    writeAgentHookDeposit(root);
+
+    const codex = JSON.parse(readFileSync(join(root, ".codex/hooks.json"), "utf8")) as {
+      hooks: { SessionStart: unknown[] };
+    };
+    expect(codex.hooks.SessionStart.slice(0, 3)).toEqual([
+      null,
+      { hooks: null },
+      { hooks: [null, { command: 7 }] },
+    ]);
+    expect(inspectAgentHookDeposit(root).find((entry) => entry.host === "codex")?.status).toBe(
+      "healthy",
+    );
+  });
+
   it("refuses to overwrite malformed user JSON", () => {
     const root = project();
     mkdirSync(join(root, ".cursor"), { recursive: true });
@@ -338,6 +367,68 @@ describe("writeAgentHookDeposit", () => {
 
     expect(existsSync(join(root, ".claude/settings.json"))).toBe(false);
   });
+
+  it("strips legacy nested registrations while preserving custom groups", () => {
+    const root = project();
+    mkdirSync(join(root, ".claude"), { recursive: true });
+    writeFileSync(
+      join(root, ".claude/settings.json"),
+      `${JSON.stringify({
+        hooks: {
+          SessionStart: [
+            { hooks: [{ command: "./custom-session.sh" }] },
+            {
+              hooks: [{ command: "deft hook:dispatch --host claude --event session.start" }],
+            },
+          ],
+        },
+      })}\n`,
+      "utf8",
+    );
+    const policy = {
+      claude: false,
+      grok: false,
+      cursor: false,
+      codex: false,
+    };
+
+    writeAgentHookDeposit(root, { printf: () => undefined }, policy);
+
+    const content = readFileSync(join(root, ".claude/settings.json"), "utf8");
+    expect(content).toContain("./custom-session.sh");
+    expect(content).not.toContain("deft hook:dispatch");
+  });
+
+  it("strips legacy Cursor adapters while preserving malformed and custom entries", () => {
+    const root = project();
+    mkdirSync(join(root, ".cursor"), { recursive: true });
+    writeFileSync(
+      join(root, ".cursor/hooks.json"),
+      `${JSON.stringify({
+        version: 1,
+        hooks: {
+          sessionStart: [
+            null,
+            { command: "./custom-session.sh" },
+            { command: "deft-cursor-hook-adapter.mjs" },
+          ],
+        },
+      })}\n`,
+      "utf8",
+    );
+    const policy = {
+      claude: false,
+      grok: false,
+      cursor: false,
+      codex: false,
+    };
+
+    writeAgentHookDeposit(root, { printf: () => undefined }, policy);
+
+    const content = readFileSync(join(root, ".cursor/hooks.json"), "utf8");
+    expect(content).toContain("./custom-session.sh");
+    expect(content).not.toContain("deft-cursor-hook-adapter.mjs");
+  });
 });
 
 describe("inspectAgentHookDeposit", () => {
@@ -363,7 +454,7 @@ describe("inspectAgentHookDeposit", () => {
     });
   });
 
-  it("reports opted-out Claude host as healthy without requiring deposit", () => {
+  it("reports opted-out Claude host as intentionally disabled without requiring deposit", () => {
     const root = project();
     writeProjectDefinition(root, { claude: false });
     const policy = { ...DEFAULT_HOST_HOOKS_POLICY, claude: false };
@@ -371,7 +462,7 @@ describe("inspectAgentHookDeposit", () => {
     expect(
       inspectAgentHookDeposit(root, policy).find((entry) => entry.host === "claude"),
     ).toMatchObject({
-      status: "healthy",
+      status: "disabled",
       detail: expect.stringContaining("hostHooks.claude is false"),
     });
   });
@@ -423,5 +514,37 @@ describe("inspectAgentHookDeposit", () => {
     expect(inspectAgentHookDeposit(root).find((entry) => entry.host === "cursor")).toMatchObject({
       status: "drifted",
     });
+  });
+
+  it("treats non-array event collections as registration drift", () => {
+    const root = project();
+    writeAgentHookDeposit(root);
+    const claudePath = join(root, ".claude/settings.json");
+    const cursorPath = join(root, ".cursor/hooks.json");
+    const claudeOriginal = readFileSync(claudePath, "utf8");
+    const cursorOriginal = readFileSync(cursorPath, "utf8");
+
+    for (const eventName of ["SessionStart", "PreToolUse", "PreCompact", "PostCompact"] as const) {
+      const claude = JSON.parse(claudeOriginal) as {
+        hooks: Record<string, unknown>;
+      };
+      claude.hooks[eventName] = {};
+      writeFileSync(claudePath, `${JSON.stringify(claude, null, 2)}\n`, "utf8");
+      expect(inspectAgentHookDeposit(root).find((entry) => entry.host === "claude")?.status).toBe(
+        "drifted",
+      );
+    }
+    writeFileSync(claudePath, claudeOriginal, "utf8");
+
+    for (const eventName of ["sessionStart", "preToolUse", "preCompact"] as const) {
+      const cursor = JSON.parse(cursorOriginal) as {
+        hooks: Record<string, unknown>;
+      };
+      cursor.hooks[eventName] = {};
+      writeFileSync(cursorPath, `${JSON.stringify(cursor, null, 2)}\n`, "utf8");
+      expect(inspectAgentHookDeposit(root).find((entry) => entry.host === "cursor")?.status).toBe(
+        "drifted",
+      );
+    }
   });
 });

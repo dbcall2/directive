@@ -36,7 +36,9 @@ export function evaluateAgentHooks(
   }
 
   const registrations = inspectAgentHookDeposit(root, hostHooksPolicy);
-  const unhealthy = registrations.filter((entry) => entry.status !== "healthy");
+  const unhealthy = registrations.filter(
+    (entry) => entry.status === "missing" || entry.status === "drifted",
+  );
   if (unhealthy.length > 0) {
     return {
       code: 1,
@@ -45,12 +47,17 @@ export function evaluateAgentHooks(
         unhealthy
           .map((entry) => `  - ${entry.host}: ${entry.status} at ${entry.path} — ${entry.detail}`)
           .join("\n") +
-        "\n  Recovery: run `deft update` (or `directive init`) to refresh project hooks.",
+        "\n  Recovery: run `deft update` (or `directive init`) to refresh project hooks." +
+        " If a failed host is intentionally unused, inspect `deft policy:show --field=hostHooks`, " +
+        "set `plan.policy.hostHooks.<host> = false`, and run `deft update` again.",
       stream: "stderr",
       registrations,
     };
   }
 
+  const disabledHosts = registrations
+    .filter((entry) => entry.status === "disabled")
+    .map((entry) => entry.host[0]?.toUpperCase() + entry.host.slice(1));
   return {
     code: 0,
     message:
@@ -58,7 +65,10 @@ export function evaluateAgentHooks(
       "(SessionStart + PreToolUse direct-write and spawn/Task tools; compact re-arm deposited for Claude/Grok/Cursor; " +
       "Codex has no native compact hook — re-run session ritual manually after compaction). " +
       'Read-only explore: prefer Grok role `default_capability_mode = "read-only"`; hooks also honor ' +
-      "DEFT_HOOK_READ_ONLY=1 and explore subagent_type. Codex runtime trust is user-controlled and must be reviewed with `/hooks`; shell/MCP policy is deferred.",
+      "DEFT_HOOK_READ_ONLY=1 and explore subagent_type. Codex runtime trust is user-controlled and must be reviewed with `/hooks`; shell/MCP policy is deferred." +
+      (disabledHosts.length > 0
+        ? ` Intentional hostHooks disabled: ${disabledHosts.join(", ")}.`
+        : ""),
     stream: "stdout",
     registrations,
   };

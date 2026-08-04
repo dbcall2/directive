@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **Functional agent-hook mutation readiness (#3100).** `deft verify:hooks-installed --scope=agent --live` now fail-closes enabled hosts on structural drift or installed-shim allow/deny failures across Claude, Grok, Cursor, and Codex. Init/update report the post-deposit result; `session:ready` and a non-deferrable gated ritual step require it without adding the probe to cold `session:start`. Codex trust and real interception remain honest separate states (`manual-review-required`, `not-directly-verified`), and `hostHooks` opt-out remains healthy/disabled. Closes #3100.
+
 - **fix(pr-monitor): pass --project-root from CLI and pr-wait-mergeable cascade into confidence policy resolve (#3102).** Residual from #3095: production remote-monitor path no longer silently uses an unrelated cwd for minGreptileConfidence. Closes residual of #3095.
 
 - **Triage cache + `issue:ingest` surface #1152 Current shape comments (#1870).** Umbrella/tracker issues no longer plan from body-only cache or body-only Overview: `cache:fetch-all` fetches comment threads for epic/meta/tracker-like issues, `content.md` appends the canonical maintainer-authored `## Current shape (as of pass-N)` section (same selector as `task umbrella:current-shape`), and `current-shape.json` sidecar stores body + permalink. `issue:ingest` materializes `plan.narratives.CurrentShape` plus an `x-xbrief/current-shape` reference to the comment permalink (still keeps full #2143 comment thread in Overview). Non-maintainer forgeries ignored (#2307). Closes #1870. Refs #1152, #1649, #2143.

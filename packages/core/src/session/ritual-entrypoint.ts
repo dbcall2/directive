@@ -1,10 +1,18 @@
 import { cmdDoctor } from "../doctor/main.js";
 import { evaluate } from "../preflight-cache/evaluate.js";
+import {
+  type AgentHookReadinessResult,
+  evaluateAgentHookReadinessSafely,
+} from "../verify-env/agent-hook-readiness.js";
 
 export const ENTRYPOINT_TIMEOUT_SECONDS = 300;
 export const ENTRYPOINT_TIMEOUT_EXIT_CODE = 124;
 
 export type RitualEntrypointFn = (argv: readonly string[]) => number;
+
+export interface DefaultRitualRunnerSeams {
+  readonly evaluateAgentHookReadiness?: (projectRoot: string) => AgentHookReadinessResult;
+}
 
 /** Run an in-process ritual entrypoint with stdout/stderr capture. */
 export function callMain(
@@ -80,12 +88,25 @@ export function runCacheFreshMain(argv: readonly string[]): number {
   return result.code;
 }
 
-/** Default gated-tier runner: in-process doctor + cache-fresh (mirrors verify_session_ritual.py). */
+/** Default gated-tier runner: in-process hook readiness, doctor, and cache freshness. */
 export function defaultRitualRunner(
   command: readonly string[],
   projectRoot: string,
+  seams: DefaultRitualRunnerSeams = {},
 ): { code: number; stdout: string; stderr: string } {
   const [verb, ...rest] = command;
+  if (verb === "verify:hooks-installed") {
+    const evaluateReadiness = seams.evaluateAgentHookReadiness
+      ? (root: string) => evaluateAgentHookReadinessSafely(root, seams.evaluateAgentHookReadiness)
+      : evaluateAgentHookReadinessSafely;
+    const result = evaluateReadiness(projectRoot);
+    const output = `${result.message}\n`;
+    return {
+      code: result.code,
+      stdout: result.stream === "stdout" ? output : "",
+      stderr: result.stream === "stderr" ? output : "",
+    };
+  }
   if (verb === "doctor") {
     return callMain((argv) => cmdDoctor(argv), ["--project-root", projectRoot, ...rest]);
   }

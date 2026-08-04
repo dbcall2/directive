@@ -245,7 +245,9 @@ describe("session coverage boost", () => {
     );
     const gated = verifySessionRitual(root, {
       tier: "gated",
+      posture: "mutation",
       now,
+      envSkip: "",
       runGit: fakeGit(head, resolve(root)),
       runner: () => ({ code: 0, stdout: "OK", stderr: "" }),
     });

@@ -113,6 +113,16 @@ describe("install-upgrade <-> directive update parity (#2064)", () => {
       readEngineVersion: () => "0.53.0",
       nowIso: () => "2026-07-03T12:00:00Z",
       gitPorcelain: () => null,
+      evaluateAgentHookReadiness: () => ({
+        code: 0,
+        message: "hooks ready",
+        stream: "stdout",
+        skipped: false,
+        liveStatus: "functional",
+        hosts: [],
+        registrations: [],
+        liveProbe: null,
+      }),
     };
   }
 

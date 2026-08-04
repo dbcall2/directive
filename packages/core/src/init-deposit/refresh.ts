@@ -43,6 +43,12 @@ import {
 } from "../resolution/index.js";
 import { depositOpenClawL2ProductCommands } from "../slash/openclaw-deposit.js";
 import { gitPorcelain } from "../story-ready/git.js";
+import {
+  type AgentHookReadinessResult,
+  agentHookReadinessJson,
+  evaluateAgentHookReadiness,
+  evaluateAgentHookReadinessSafely,
+} from "../verify-env/agent-hook-readiness.js";
 import { removeStaleMigratedFrameworkNarrative } from "../xbrief-migrate/migrate-project.js";
 import { writeAgentHookDeposit } from "./agent-hooks.js";
 import { ensureInitGitignoreLines, type GitLsFiles, isDepositTrackedInGit } from "./gitignore.js";
@@ -130,6 +136,8 @@ export interface RefreshDepositSeams {
   gitHooks?: GitHooksSeams;
   /** #2822: optional seam for trusted-org policy force-on migration. */
   runOrgForceOn?: (projectRoot: string) => void;
+  /** Post-deposit functional readiness gate (#3100). */
+  evaluateAgentHookReadiness?: (projectRoot: string) => AgentHookReadinessResult;
 }
 
 /**
@@ -512,13 +520,17 @@ export function buildVersionSkewNotice(
   return null;
 }
 
-export function buildUpdateSummaryJson(
-  result: RefreshDepositResult,
-  options: RefreshDepositArgs,
-  updateState?: UpdateState,
-): Record<string, unknown> {
+export function buildUpdateSummaryJson(input: {
+  result: RefreshDepositResult;
+  options: RefreshDepositArgs;
+  updateState: UpdateState | undefined;
+  readiness: AgentHookReadinessResult | undefined;
+}): Record<string, unknown> {
+  const { result, options, updateState, readiness } = input;
   return {
-    success: true,
+    success: readiness ? readiness.code === 0 : true,
+    deposit_completed: true,
+    ...(readiness ? { agent_hook_readiness: agentHookReadinessJson(readiness) } : {}),
     action: "upgrade",
     ...(updateState ? { update_state: updateState } : {}),
     version: result.engineVersion,
@@ -942,18 +954,28 @@ export async function runRefreshDepositCli(options: RunRefreshDepositCliOptions)
 
   try {
     const result = await runRefreshDeposit(options, io, options.seams);
+    const readiness = evaluateAgentHookReadinessSafely(
+      result.projectDir,
+      options.seams?.evaluateAgentHookReadiness ?? evaluateAgentHookReadiness,
+    );
     const state: UpdateState | undefined = result.alreadyCurrent
       ? "current"
       : classification?.state;
     if (options.jsonOut) {
       options.writeOut(
-        `${JSON.stringify(buildUpdateSummaryJson(result, options, state), null, 2)}\n`,
+        `${JSON.stringify(buildUpdateSummaryJson({ result, options, updateState: state, readiness }), null, 2)}\n`,
       );
       printUpdateComplete(result, { printf: options.writeErr }, state);
     } else {
       printUpdateComplete(result, io, state);
     }
-    return 0;
+    const readinessOut = options.jsonOut
+      ? options.writeErr
+      : readiness.stream === "stderr"
+        ? options.writeErr
+        : options.writeOut;
+    readinessOut(`\n${readiness.message}\n`);
+    return readiness.code;
   } catch (cause) {
     if (cause instanceof LegacyLayoutRefusedError) {
       io.printf(buildLegacyRefusalMessage("update", cause.detection));

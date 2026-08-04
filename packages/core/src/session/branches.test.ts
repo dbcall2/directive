@@ -262,6 +262,7 @@ describe("session branches", () => {
           triage_welcome: ritualStep({ ok: true, ts: now }),
         },
         gatedSteps: {
+          agent_hooks: ritualStep({ ok: true, ts: now }),
           doctor: ritualStep({ ok: true, ts: now }),
           cache_fresh: ritualStep({ ok: true, ts: now }),
         },
@@ -355,6 +356,7 @@ describe("session branches", () => {
     const { root } = initRepo();
     const now = new Date("2026-07-23T12:00:00Z");
     const gatedSteps = {
+      agent_hooks: ritualStep({ ok: true, ts: now }),
       doctor: ritualStep({ ok: true, ts: now }),
       cache_fresh: ritualStep({ ok: true, ts: now }),
     };

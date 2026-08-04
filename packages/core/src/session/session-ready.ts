@@ -167,13 +167,22 @@ export function runSessionReady(
   const lines: string[] = [];
   const steps: string[] = [];
 
-  const inspect = options.inspectRitual ?? ((root, opts) => inspectSessionRitual(root, opts));
-  const verify = options.verifyRitual ?? ((root, opts) => verifySessionRitual(root, opts));
-  const start = options.runStart ?? ((root, opts) => runSessionStart(root, opts));
+  const inspect = options.inspectRitual ?? inspectSessionRitual;
+  const verify = options.verifyRitual ?? verifySessionRitual;
+  const start = options.runStart ?? runSessionStart;
   const fetchAll = options.fetchAll ?? cacheFetchAll;
   const inferRepo = options.inferRepo ?? ((root) => inferSessionReadyRepo(root, env));
 
-  // --- Fast path: already green for PreToolUse gated inspect ---
+  const verifyOpts: VerifySessionRitualOptions = {
+    tier: "gated",
+    posture: "mutation",
+    now,
+    runGit: options.runGit,
+    runner: options.runner,
+    forceGatedSteps: ["agent_hooks"],
+  };
+
+  // --- Fast path: inspect is green, but refresh functional hook readiness before returning. ---
   const gatedInspect = inspect(projectRoot, {
     tier: "gated",
     posture: "mutation",
@@ -181,6 +190,23 @@ export function runSessionReady(
     runGit: options.runGit,
   });
   if (gatedInspect.code === 0) {
+    steps.push("verify:session-ritual:gated");
+    const refreshed = verify(projectRoot, verifyOpts);
+    if (!isGatedVerifyActuallyReady(refreshed)) {
+      const message =
+        refreshed.code === 0 && refreshed.bypassed
+          ? bypassedReadyFailure(refreshed)
+          : `${refreshed.message}\n  Remaining blocker after session:ready. Fix the step above, then re-run \`${readyCommand()}\`.`;
+      lines.push(message);
+      return {
+        code: refreshed.code === 0 ? 1 : refreshed.code,
+        message,
+        path: SESSION_READY_FAILED,
+        lines,
+        steps,
+        duration_ms: elapsedMs(started),
+      };
+    }
     const message = "OK session ready (gated ritual already fresh).";
     lines.push(message);
     return {
@@ -218,7 +244,7 @@ export function runSessionReady(
         `session:start failed (exit ${startResult.code}). Recovery: run \`${readyCommand()}\` again after fixing the blocker.`;
       lines.push(message);
       return {
-        code: startResult.code === 0 ? 1 : startResult.code,
+        code: startResult.code,
         message,
         path: SESSION_READY_FAILED,
         lines,
@@ -230,13 +256,6 @@ export function runSessionReady(
 
   // --- Gated verify (lazy doctor + cache_fresh) ---
   steps.push("verify:session-ritual:gated");
-  const verifyOpts: VerifySessionRitualOptions = {
-    tier: "gated",
-    posture: "mutation",
-    now,
-    runGit: options.runGit,
-    runner: options.runner,
-  };
   let verifyResult = verify(projectRoot, verifyOpts);
   if (isGatedVerifyActuallyReady(verifyResult)) {
     const message = "OK session ready (gated ritual verified).";
@@ -307,7 +326,7 @@ export function runSessionReady(
     }
 
     steps.push("verify:session-ritual:gated:retry");
-    verifyResult = verify(projectRoot, verifyOpts);
+    verifyResult = verify(projectRoot, { ...verifyOpts, forceGatedSteps: [] });
     if (isGatedVerifyActuallyReady(verifyResult)) {
       const message = "OK session ready (recovered via cache refresh).";
       lines.push(message);
@@ -340,7 +359,7 @@ export function runSessionReady(
     `  Remaining blocker after session:ready. Fix the step above, then re-run \`${readyCommand()}\`.`;
   lines.push(message);
   return {
-    code: verifyResult.code === 0 ? 1 : verifyResult.code,
+    code: verifyResult.code,
     message,
     path: SESSION_READY_FAILED,
     lines,

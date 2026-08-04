@@ -587,16 +587,30 @@ jobs:
             "#!/bin/sh`nnode `"$cli`" " + '"$@"' + "`n",
             (New-Object System.Text.UTF8Encoding $false)
           )
+          $hookCli = Join-Path $env:GITHUB_WORKSPACE 'packages\cli\dist\hook-bin.js'
+          [System.IO.File]::WriteAllText(
+            (Join-Path $shimDir 'deft-hook.cmd'),
+            "@echo off`r`nnode `"$hookCli`" %*`r`n",
+            (New-Object System.Text.UTF8Encoding $false)
+          )
+          [System.IO.File]::WriteAllText(
+            (Join-Path $shimDir 'deft-hook'),
+            "#!/bin/sh`nnode `"$hookCli`" " + '"$@"' + "`n",
+            (New-Object System.Text.UTF8Encoding $false)
+          )
           if (Get-Command bash -ErrorAction SilentlyContinue) {
             $shShim = Join-Path $shimDir 'deft'
+            $hookShShim = Join-Path $shimDir 'deft-hook'
             $env:DEFT_SMOKE_SHIM = $shShim.Replace('\', '/')
+            $env:DEFT_SMOKE_HOOK_SHIM = $hookShShim.Replace('\', '/')
             try {
-              bash -lc 'chmod +x "$DEFT_SMOKE_SHIM"'
+              bash -lc 'chmod +x "$DEFT_SMOKE_SHIM" "$DEFT_SMOKE_HOOK_SHIM"'
               if ($LASTEXITCODE -ne 0) {
-                throw "failed to chmod deft shell shim"
+                throw "failed to chmod deft shell shims"
               }
             } finally {
               Remove-Item Env:DEFT_SMOKE_SHIM -ErrorAction SilentlyContinue
+              Remove-Item Env:DEFT_SMOKE_HOOK_SHIM -ErrorAction SilentlyContinue
             }
           }
           $env:PATH = "$shimDir;$env:PATH"

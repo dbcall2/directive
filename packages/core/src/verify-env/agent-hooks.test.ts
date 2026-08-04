@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -38,6 +38,40 @@ describe("evaluateAgentHooks", () => {
     expect(result.stream).toBe("stderr");
   });
 
+  it("fails when an enabled Codex registration file is removed", () => {
+    const root = project();
+    writeAgentHookDeposit(root);
+    rmSync(join(root, ".codex", "hooks.json"));
+
+    const result = evaluateAgentHooks(root);
+    expect(result.code).toBe(1);
+    expect(result.registrations.find((entry) => entry.host === "codex")).toMatchObject({
+      status: "missing",
+    });
+  });
+
+  it.each([
+    "SessionStart",
+    "PreToolUse",
+  ])("fails when the enabled Codex %s matcher drifts", (eventName) => {
+    const root = project();
+    writeAgentHookDeposit(root);
+    const hookPath = join(root, ".codex", "hooks.json");
+    const parsed = JSON.parse(readFileSync(hookPath, "utf8")) as {
+      hooks: Record<string, Array<Record<string, unknown>>>;
+    };
+    const registrations = parsed.hooks[eventName];
+    if (!registrations?.[0]) throw new Error(`missing test registration for ${eventName}`);
+    registrations[0].matcher = "drifted-matcher";
+    writeFileSync(hookPath, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
+
+    const result = evaluateAgentHooks(root);
+    expect(result.code).toBe(1);
+    expect(result.registrations.find((entry) => entry.host === "codex")).toMatchObject({
+      status: "drifted",
+    });
+  });
+
   it("returns a configuration error for a missing project root", () => {
     const root = project();
     const result = evaluateAgentHooks(join(root, "missing"));
@@ -65,7 +99,16 @@ describe("evaluateAgentHooks", () => {
     const result = evaluateAgentHooks(root);
     expect(result.code).toBe(0);
     expect(result.registrations.find((entry) => entry.host === "claude")).toMatchObject({
-      status: "healthy",
+      status: "disabled",
     });
+    expect(result.message).toContain("disabled: Claude");
+  });
+
+  it("offers hostHooks opt-out recovery for an enabled missing host", () => {
+    const result = evaluateAgentHooks(project());
+
+    expect(result.code).toBe(1);
+    expect(result.message).toContain("deft policy:show --field=hostHooks");
+    expect(result.message).toContain("hostHooks.<host> = false");
   });
 });

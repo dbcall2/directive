@@ -4,7 +4,10 @@ import type { EngineProbeResult } from "../resolution/classify.js";
 import type { ResolutionMode } from "../resolution/index.js";
 import type { ResolveUserMdResult } from "../user-config/resolve-user-md.js";
 import type { AgentHookHealthResult } from "../verify-env/agent-hooks.js";
-import type { AgentHookLiveProbeResult } from "../verify-env/agent-hooks-live-probe.js";
+import type {
+  AgentHookLiveProbeResult,
+  AgentHookLiveProbeSeams,
+} from "../verify-env/agent-hooks-live-probe.js";
 
 export const EXIT_CLEAN = 0;
 export const EXIT_DRIFT = 1;
@@ -162,7 +165,10 @@ export interface DoctorSeams {
   /** Read-only agent-host hook registration probe (#2438). */
   readonly evaluateAgentHooks?: (projectRoot: string) => AgentHookHealthResult;
   /** Live hook spawn probe for doctor --full (#2852). */
-  readonly probeAgentHooksLive?: (projectRoot: string) => AgentHookLiveProbeResult;
+  readonly probeAgentHooksLive?: (
+    projectRoot: string,
+    seams?: AgentHookLiveProbeSeams,
+  ) => AgentHookLiveProbeResult;
   /**
    * xBRIEF project-envelope staleness probe (#2971). Injected so doctor can
    * fail closed on 0.6 project JSON under an xbrief/ layout without re-deriving

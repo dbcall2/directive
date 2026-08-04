@@ -73,7 +73,8 @@ export const COLD_CEREMONY_TIER: SessionCeremonyTier = "cold";
 export const REARM_CEREMONY_TIER: SessionCeremonyTier = "rearm";
 
 export const QUICK_STEPS = ["alignment", "branch_policy", "triage_welcome"] as const;
-export const GATED_STEPS = ["doctor", "cache_fresh"] as const;
+export const GATED_STEPS = ["agent_hooks", "doctor", "cache_fresh"] as const;
+export type GatedStepName = (typeof GATED_STEPS)[number];
 
 /** Env opt-in for optional session:start network (release probe + triage cache hydrate) (#2991). */
 export const ENV_SESSION_START_NETWORK = "DEFT_SESSION_START_NETWORK";
@@ -289,6 +290,10 @@ export function parseDeferrals(rawValues: readonly string[]): {
     const name = raw.slice(0, eq);
     const reason = raw.slice(eq + 1);
     const stepName = normaliseStepName(name.trim());
+    if (stepName === "agent_hooks") {
+      errors.push('ritual step "agent_hooks" is not deferrable');
+      continue;
+    }
     if (!allowed.has(stepName)) {
       errors.push(
         `unknown ritual step ${JSON.stringify(name)}; expected one of ${JSON.stringify([...allowed].sort())}`,

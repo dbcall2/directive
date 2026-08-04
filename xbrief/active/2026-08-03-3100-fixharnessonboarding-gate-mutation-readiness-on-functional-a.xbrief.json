@@ -1,0 +1,101 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3100",
+    "updated": "2026-08-03T22:25:26Z"
+  },
+  "plan": {
+    "title": "fix(harness,onboarding): gate mutation readiness on functional agent hooks and Codex trust review",
+    "status": "running",
+    "narratives": {
+      "Description": "fix(harness,onboarding): gate mutation readiness on functional agent hooks and Codex trust review",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3100",
+      "Overview": "## Summary\n\nDirective deposits agent-host hooks during `directive init` / `deft update`, and `doctor --full` now complements structural inspection with a live `deft-hook` allow/deny probe (#2852).\n\nMutation onboarding still does not treat **enabled** hook readiness as a deterministic prerequisite:\n\n1. `session:start` performs no agent-hook verification.\n2. `verify:session-ritual --tier=gated` invokes bare `doctor`, not `doctor --full`.\n3. Bare doctor may be throttle-skipped.\n4. Missing, drifted, or non-functional hooks are doctor **warnings**, so doctor exits 0 when no unrelated errors exist.\n5. Codex project-hook trust remains manual and cannot be inferred from `.codex/hooks.json`.\n\nConsequently, the gated ritual / `session:ready` can report mutation-ready while the Tier-1 enforcement surface it assumes is missing, non-functional, or untrusted.\n\n### What already exists (do not reinvent)\n\n- `deft verify:hooks-installed --scope=agent` already **fail-closes on structural** registration problems (`evaluateAgentHooks`).\n- `doctor --full` already has the **live probe** (#2852) via `probeAgentHooksLive` (Cursor codec today).\n- `plan.policy.hostHooks` per-host opt-out already exists (#2752); defaults all **enabled**.\n- Default CLI/task scope for `verify:hooks-installed` remains **`git`** — agent wiring must pass `--scope=agent` or `--scope=all` explicitly.\n\nThe real gap is not \"no hooks check exists.\" It is: (1) structural verify is not on the mutation-ready path; (2) live functionality is advisory and gated behind `doctor --full`; (3) Codex trust is documented but not modeled as a distinct readiness state.\n\n## Parent / residual framing\n\n- Residual hardening outside closed Core T1 epic **#2437** (not a reopen of that epic).\n- Complements ceremony recovery **#2993** (`session:ready`) — readiness must not claim green when Tier-1 hooks are not actually functional.\n- Adjacent only to **#2769** (post-compact reinjection); keep separate.\n\n## Reproduction\n\n### Missing registration\n\n1. Initialize a consumer project.\n2. Remove `.codex/hooks.json` while `plan.policy.hostHooks.codex` remains enabled.\n3. Run `deft session:start`.\n4. Run `deft verify:session-ritual -- --tier=gated`.\n\nThe doctor step records success because hook registration drift is advisory. (Note: `verify:hooks-installed --scope=agent` would already fail here — it is simply not wired into the ritual.)\n\n### Non-functional hook binary\n\n1. Leave all deposited hook files structurally current.\n2. Make the installed `deft-hook` produce empty or invalid output.\n3. Run the normal gated ritual without forcing `doctor --full`.\n\nThe live probe does not run, so the doctor step can record success.\n\n### Doctor throttle\n\n1. Run doctor once to populate doctor state.\n2. Introduce hook drift.\n3. Run the gated ritual inside the doctor throttle window.\n\nBare doctor is throttle-skipped and does not inspect agent hooks.\n\n## Desired outcome\n\nEnabled agent-host hooks have a dedicated, deterministic readiness gate. Doctor remains a diagnostic surface; onboarding/session readiness does not depend on doctor warning severity or throttle state.\n\n## Scope (accept with this split)\n\n### In scope (primary story)\n\n1. Fail-closed **functional** agent-hook readiness (structural + live), reusing #2852.\n2. Wire into mutation readiness: post-deposit init/update report, `session:ready`, gated ritual step (not cold `session:start`).\n3. Honest **reporting** of Codex trust as a distinct state (registration ≠ functional ≠ trusted ≠ interception coverage).\n4. Honor existing `hostHooks` opt-out (#2752) — see Opt-out contract below.\n5. Docs + tests for the above.\n\n### Out of scope / follow-up (do not block primary ship)\n\n- A full `hooks:trust-ack` product surface as a **default hard gate** for mutation-ready.\n- Machine-inferred Codex trust (not possible today).\n- Reopening ceremony wall-clock work from #2990/#2991; live probes must not undo those wins.\n\nTrust-ack (hash-bound operator attestation) may be filed as a **child/follow-up** with explicit policy if product still wants it. It must not be required for every consumer just because Codex is default-enabled in `hostHooks`.\n\n## Proposed implementation\n\n### 1. First-class readiness command\n\n**Extend** the existing verifier (do not invent a second structural path):\n\n`deft verify:hooks-installed --scope=agent --live`\n\nIt should:\n\n- structurally inspect every **enabled** host deposit (existing `evaluateAgentHooks`);\n- on structural green, run the live probe by invoking the installed `deft-hook` shim, not its resolved source file;\n- reuse `probeAgentHooksLive` / #2852 rather than forking a second subprocess/codec path;\n- exercise allow and deny fixtures;\n- validate host-specific decision codecs for at least Cursor and Codex (expand beyond Cursor-only);\n- return non-zero for missing, drifted, unavailable, or non-functional **enabled** hooks;\n- treat `plan.policy.hostHooks.<host> = false` as intentional disabled, not a failure;\n- apply the same **consumer vs maintainer** rule as doctor: maintainer framework source checkouts skip consumer deposit fail-closed (consumer-only surface).\n\n### 2. Wire mutation onboarding\n\nRun the readiness gate:\n\n- after `directive init` / `deft update` deposits hooks (report post-deposit result);\n- from `deft session:ready`;\n- as a gated ritual prerequisite (record green only when readiness passes).\n\nDo **not** put the live probe on cold `session:start` (ceremony cost; #2990).\n\nDo **not** route this through bare doctor: doctor throttling and advisory severity are appropriate for diagnostics, not for a fail-closed gate.\n\n### 3. Ceremony / latency constraints\n\nThrottle-independent is required for **correctness**, but every `session:ready` / gated path must not reintroduce multi-second process tax:\n\n- Structural fail-fast first; live probe only after structural green.\n- Optional short TTL cache of a green live-probe result **inside the current ritual-state freshness window** — must **not** inherit doctor's 4h/24h throttle.\n- Document an expected probe budget; multi-host expansion must stay within it.\n\n### 4. Represent Codex trust honestly\n\nCodex trust cannot currently be machine-read. Expose it as a **distinct report state**:\n\n- `functional-untrusted` or `manual-review-required`;\n- actionable instruction: open `/hooks` and approve the exact project hook;\n- never describe Codex hooks as active solely because `.codex/hooks.json` exists and the command works.\n\n**v1 readiness hard-fail rules:** fail closed on missing / drifted / non-functional **enabled** hooks. Trust is reported distinctly; it is **not** a default hard gate for all consumers with default-enabled Codex.\n\nOptional follow-up: hash-bound operator acknowledgement, e.g. `deft hooks:trust-ack --host codex`. If added:\n\n- label it operator-attested, not machine-verified;\n- stale when the managed Codex hook definition hash changes;\n- only apply when policy requires it and/or the active host is Codex — never block Cursor-only or Claude-only operators solely because Codex remains default-enabled;\n- never apply to opted-out hosts.\n\n### 5. Opt-out contract (#2752)\n\nConsumers already have persistent per-host opt-out via `plan.policy.hostHooks` (hosts: `claude`, `cursor`, `grok`, `codex`; default all enabled). Inspect with `deft policy:show --field=hostHooks`. This readiness work must reuse that policy — do not invent a second opt-out flag.\n\nReadiness rules:\n\n- Only **enabled** hosts can fail the readiness gate.\n- `hostHooks.<host> = false` is intentional disabled: report healthy/disabled, never recommend `deft update` repair for that host.\n- Recovery copy when an enabled host fails and the operator does not use that host must also point at opt-out (`policy:show --field=hostHooks` / set that host to `false`), not only `deft update`.\n- Any Codex trust-ack or trust hard-gate (if implemented) must **not** apply to opted-out hosts, and must **not** block mutation solely because default-enabled Codex is present but unused.\n- Opt-out is independent of git hooks (`.githooks/`) and of `hostSlashCommands` slash deposit.\n\n## Acceptance criteria\n\n### Primary (ship-blocking)\n\n- [ ] Removing an enabled `.codex/hooks.json` makes agent-hook readiness exit non-zero.\n- [ ] Drifted Codex SessionStart or PreToolUse matchers make readiness exit non-zero.\n- [ ] Empty, invalid, or wrong allow/deny output from the installed hook shim makes readiness exit non-zero.\n- [ ] At least Cursor and Codex host-specific decision envelopes are live-tested (reuse #2852; no forked probe path).\n- [ ] Opted-out hosts (`plan.policy.hostHooks.<host> = false`) remain explicitly healthy/disabled and never fail readiness.\n- [ ] Failure recovery prose mentions opt-out via `deft policy:show --field=hostHooks` when the operator does not need that host.\n- [ ] `session:ready` cannot report mutation-ready when an enabled hook is missing or non-functional.\n- [ ] Gated ritual records agent-hook readiness green only when the readiness gate passes.\n- [ ] The gate does not inherit doctor's 4h/24h throttle.\n- [ ] Init/update report the post-deposit readiness result.\n- [ ] Codex trust is **reported** separately from registration and command functionality (not conflated as \"active\").\n- [ ] Live probe is not invoked from cold `session:start`.\n- [ ] Structural check fails before live probe runs (fail-fast).\n- [ ] Maintainer framework source checkouts do not fail closed for missing consumer deposits (same consumer-context rule as doctor).\n- [ ] Tests cover missing, drifted, non-functional, opted-out, and throttle-independent paths.\n- [ ] Documentation distinguishes: registration → command functionality → host trust → interception coverage.\n\n### Follow-up only (not primary ship)\n\n- [ ] Trust-ack / trust hard-gates (if any) skip opted-out hosts and do not fail readiness for unused default-enabled hosts.\n- [ ] Any manual trust acknowledgement is bound to the exact managed hook hash and is labeled operator-attested.\n- [ ] Tests cover trusted-ack and stale-ack when the follow-up lands.\n\n## Related\n\n- #2437 / #2438 — Tier-1 host-hook enforcement (closed; this issue is residual)\n- #2596 — Codex lifecycle hook adapter and trust-aware structural reporting\n- #2752 — persistent per-host opt-out\n- #2852 — `doctor --full` live probe\n- #2769 — post-compact context reinjection; adjacent but separate\n- #2990 / #2991 / #2992 / #2993 — ceremony cost, re-arm, `session:ready` (do not regress wall-clock wins)\n\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @MScottAdams (2026-08-03T21:13:10Z)\n\n## Evaluation (accept with amendments — applied to body)\n\n### Verdict\n**Do not accept the original undivided scope as-is.** Accept the problem statement and primary functional-readiness story; demote default hard-gate trust-ack to follow-up. Body updated accordingly.\n\n### Facts checked against current code\n| Claim | Status |\n|--------|--------|\n| `session:start` has no agent-hook verification | True |\n| Gated ritual runs bare `doctor` (`[\"doctor\"]`), not `--full` | True |\n| Bare doctor can be throttle-skipped | True |\n| Registration + live probe are doctor **warnings** (exit 0) | True |\n| Live probe only under `doctor --full`, Cursor codec only | True (#2852) |\n| `session:ready` can go green without functional hooks | True |\n| Structural `verify:hooks-installed --scope=agent` already fail-closes | True — gap is wiring + live, not inventing structure |\n| `hostHooks` per-host opt-out exists (#2752), default all enabled | True |\n\n### Related open work\n- No open issue owns this exact readiness gate.\n- #2769 adjacent only (post-compact reinjection).\n- Closed #2437 residual; closed #2990–#2993 ceremony path must not regress.\n\n### Why trust-ack was split out\nDefaults enable all hosts including Codex. Requiring operator trust-ack for mutation-ready whenever `hostHooks.codex` is true would block Cursor-only / Claude-only consumers. Attestation is also not verification — reporting trust distinctly is enough for v1.\n\n### Labels applied\n`bug`, `harness`, `agent-experience`, `determinism`, `doctor`, `process`, `area:cli`, `adoption-blocker`\n\n### Body amendments included\n1. What already exists (do not reinvent)\n2. Parent / residual framing (#2437 residual, #2993 complement)\n3. Primary vs follow-up scope split\n4. Ceremony / latency constraints (no cold session:start live probe; structural fail-fast; optional ritual-window TTL ≠ doctor throttle)\n5. Trust report vs default hard-gate\n6. Opt-out contract (#2752)\n7. Primary vs follow-up acceptance criteria\n8. Maintainer vs consumer skip rule",
+      "Labels": "bug, determinism, adoption-blocker, doctor, agent-experience, process, harness, area:cli"
+    },
+    "items": [
+      {
+        "title": "Removing an enabled `.codex/hooks.json` makes agent-hook readiness exit non-zero.",
+        "status": "completed"
+      },
+      {
+        "title": "Drifted Codex SessionStart or PreToolUse matchers make readiness exit non-zero.",
+        "status": "completed"
+      },
+      {
+        "title": "Empty, invalid, or wrong allow/deny output from the installed hook shim makes readiness exit non-zero.",
+        "status": "completed"
+      },
+      {
+        "title": "At least Cursor and Codex host-specific decision envelopes are live-tested (reuse #2852; no forked probe path).",
+        "status": "completed"
+      },
+      {
+        "title": "Opted-out hosts (`plan.policy.hostHooks.<host> = false`) remain explicitly healthy/disabled and never fail readiness.",
+        "status": "completed"
+      },
+      {
+        "title": "Failure recovery prose mentions opt-out via `deft policy:show --field=hostHooks` when the operator does not need that host.",
+        "status": "completed"
+      },
+      {
+        "title": "`session:ready` cannot report mutation-ready when an enabled hook is missing or non-functional.",
+        "status": "completed"
+      },
+      {
+        "title": "Gated ritual records agent-hook readiness green only when the readiness gate passes.",
+        "status": "completed"
+      },
+      {
+        "title": "The gate does not inherit doctor's 4h/24h throttle.",
+        "status": "completed"
+      },
+      {
+        "title": "Init/update report the post-deposit readiness result.",
+        "status": "completed"
+      },
+      {
+        "title": "Codex trust is **reported** separately from registration and command functionality (not conflated as \"active\").",
+        "status": "completed"
+      },
+      {
+        "title": "Live probe is not invoked from cold `session:start`.",
+        "status": "completed"
+      },
+      {
+        "title": "Structural check fails before live probe runs (fail-fast).",
+        "status": "completed"
+      },
+      {
+        "title": "Maintainer framework source checkouts do not fail closed for missing consumer deposits (same consumer-context rule as doctor).",
+        "status": "completed"
+      },
+      {
+        "title": "Tests cover missing, drifted, non-functional, opted-out, and throttle-independent paths.",
+        "status": "completed"
+      },
+      {
+        "title": "Documentation distinguishes: registration → command functionality → host trust → interception coverage.",
+        "status": "completed"
+      }
+    ],
+    "tags": [
+      "bug",
+      "determinism",
+      "adoption-blocker",
+      "doctor",
+      "agent-experience",
+      "process",
+      "harness",
+      "area:cli"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3100",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3100: fix(harness,onboarding): gate mutation readiness on functional agent hooks and Codex trust review"
+      }
+    ],
+    "updated": "2026-08-03T22:25:26Z"
+  }
+}

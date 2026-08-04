@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { CACHE_DIR_NAME, CANDIDATES_RELPATH, DEFAULT_SOURCE } from "../preflight-cache/evaluate.js";
 import type { GitRunner } from "./git.js";
+import { defaultRitualRunner } from "./ritual-entrypoint.js";
 import { newRitualStatePayload, ritualStep, writeRitualState } from "./ritual-sentinel.js";
 import { verifySessionRitual } from "./verify-session-ritual.js";
 
@@ -135,6 +136,7 @@ describe("verify-session-ritual failed-step messaging", () => {
           triage_welcome: ritualStep({ ok: true, ts: NOW }),
         },
         gatedSteps: {
+          agent_hooks: ritualStep({ ok: true, ts: NOW }),
           doctor: ritualStep({ ok: false, ts: NOW, deferredReason: "later" }),
         },
       }),
@@ -143,6 +145,7 @@ describe("verify-session-ritual failed-step messaging", () => {
     const result = verifySessionRitual(root, {
       bypass: false,
       tier: "gated",
+      posture: "mutation",
       now: NOW,
       runGit: fakeGit(head, resolve(root)),
       runner: (cmd) => {
@@ -151,7 +154,7 @@ describe("verify-session-ritual failed-step messaging", () => {
       },
     });
     expect(result.code).toBe(0);
-    expect(ran).toEqual(["verify:cache-fresh"]);
+    expect(ran).toEqual(["verify:hooks-installed", "verify:cache-fresh"]);
   });
 
   it("uses the exit-code fallback message when a gated runner is silent", () => {
@@ -168,6 +171,9 @@ describe("verify-session-ritual failed-step messaging", () => {
           branch_policy: ritualStep({ ok: true, ts: NOW }),
           triage_welcome: ritualStep({ ok: true, ts: NOW }),
         },
+        gatedSteps: {
+          agent_hooks: ritualStep({ ok: true, ts: NOW }),
+        },
       }),
     );
     const result = verifySessionRitual(root, {
@@ -175,7 +181,10 @@ describe("verify-session-ritual failed-step messaging", () => {
       tier: "gated",
       now: NOW,
       runGit: fakeGit(head, resolve(root)),
-      runner: () => ({ code: 3, stdout: "   ", stderr: "" }),
+      runner: (command) =>
+        command[0] === "verify:hooks-installed"
+          ? { code: 0, stdout: "hooks ready", stderr: "" }
+          : { code: 3, stdout: "   ", stderr: "" },
     });
     expect(result.code).toBe(1);
     expect(result.message).toContain("doctor");
@@ -218,6 +227,7 @@ describe("verify-session-ritual failed-step messaging", () => {
           triage_welcome: ritualStep({ ok: true, ts: NOW }),
         },
         gatedSteps: {
+          agent_hooks: ritualStep({ ok: true, ts: NOW }),
           doctor: ritualStep({ ok: true, ts: NOW }),
         },
       }),
@@ -228,6 +238,10 @@ describe("verify-session-ritual failed-step messaging", () => {
       posture: "mutation",
       now: NOW,
       runGit: fakeGit(head, resolve(root)),
+      runner: (command, projectRoot) =>
+        command[0] === "verify:hooks-installed"
+          ? { code: 0, stdout: "hooks ready", stderr: "" }
+          : defaultRitualRunner(command, projectRoot),
     });
     expect(result.code).toBe(1);
     expect(result.message).toContain("cache_fresh");

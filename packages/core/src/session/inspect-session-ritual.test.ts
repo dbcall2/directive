@@ -43,6 +43,9 @@ it("inspects gated ritual state without auto-running or rewriting missing gated 
           branch_policy: ritualStep({ ok: true, ts: now }),
           triage_welcome: ritualStep({ ok: true, ts: now }),
         },
+        gatedSteps: {
+          agent_hooks: ritualStep({ ok: true, ts: now }),
+        },
       }),
     );
     const before = readFileSync(ritualStatePath(root), "utf8");

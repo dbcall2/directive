@@ -55,6 +55,27 @@ function repoGitRunner(root: string): GitRunner {
 }
 
 describe("defaultRitualRunner", () => {
+  it("runs functional agent-hook readiness in process", () => {
+    const result = defaultRitualRunner(
+      ["verify:hooks-installed", "--scope=agent", "--live"],
+      "/project",
+      {
+        evaluateAgentHookReadiness: () => ({
+          code: 0,
+          message: "hooks ready",
+          stream: "stdout",
+          skipped: false,
+          liveStatus: "functional",
+          hosts: [],
+          registrations: [],
+          liveProbe: null,
+        }),
+      },
+    );
+
+    expect(result).toEqual({ code: 0, stdout: "hooks ready\n", stderr: "" });
+  });
+
   it("runs cache-fresh with allow-missing-bootstrap on a fresh repo", () => {
     const { root } = initRepo();
     const result = defaultRitualRunner(["verify:cache-fresh"], root);
@@ -93,7 +114,7 @@ describe("defaultRitualRunner", () => {
 });
 
 describe("verifySessionRitual gated tier via defaultRitualRunner", () => {
-  it("records cache_fresh via defaultRitualRunner without an injected runner", () => {
+  it("records cache_fresh via defaultRitualRunner after a ready hook probe", () => {
     const { root, head } = initRepo();
     const now = new Date("2026-06-09T01:00:00Z");
     writeRitualState(
@@ -109,6 +130,7 @@ describe("verifySessionRitual gated tier via defaultRitualRunner", () => {
           triage_welcome: ritualStep({ ok: true, ts: now }),
         },
         gatedSteps: {
+          agent_hooks: ritualStep({ ok: true, ts: now, message: "seeded for test" }),
           doctor: ritualStep({ ok: true, ts: now, message: "seeded for test" }),
         },
       }),
@@ -120,6 +142,10 @@ describe("verifySessionRitual gated tier via defaultRitualRunner", () => {
       bypass: false,
       envSkip: "",
       runGit: repoGitRunner(root),
+      runner: (command, projectRoot) =>
+        command[0] === "verify:hooks-installed"
+          ? { code: 0, stdout: "hooks ready", stderr: "" }
+          : defaultRitualRunner(command, projectRoot),
     });
     expect(result.code).toBe(0);
     const [state] = readRitualState(root);

@@ -67,6 +67,12 @@ describe("deft-ts verify-hooks-installed (maps tests/cli/test_verify_hooks_insta
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("invalid choice");
   });
+
+  it("rejects --live on the default git-only scope", () => {
+    const result = runDeftTs("verify-hooks-installed", ["--live"]);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("--live requires --scope=agent or --scope=all");
+  });
 });
 
 describe("deft-ts verify-no-task-runtime (maps tests/cli/test_verify_no_task_runtime.py)", () => {

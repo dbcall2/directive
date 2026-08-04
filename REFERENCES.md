@@ -215,6 +215,7 @@ Load as needed:
 - **[verification/uat.md](./content/verification/uat.md)** - Auto-generated user acceptance test scripts
 - **[verification/plan-checking.md](./content/verification/plan-checking.md)** - Pre-execution plan verification (coverage, completeness, wiring, scope)
 - **[verification/integration.md](./content/verification/integration.md)** - Cross-feature wiring verification (export→import, API→consumer, E2E flow)
+- **[contracts/agent-hook-readiness.md](./content/contracts/agent-hook-readiness.md)** - Fail-closed enabled-host registration/functionality gate; distinct Codex trust and interception reporting
 - Load: When completing tasks/features, before marking work done
 
 ### When Handling Session Interruptions

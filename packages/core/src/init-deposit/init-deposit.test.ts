@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
+import type { AgentHookReadinessResult } from "../verify-env/agent-hook-readiness.js";
 import {
   buildInstallSummaryJson,
   createUserConfigDir,
@@ -43,6 +44,28 @@ const FAKE_LEGACY: LegacyLayoutDetection = {
   detail: "Found an orphan .deft/VERSION manifest with no .deft/core/ directory.",
   evidence: [".deft/VERSION"],
 };
+
+function agentHookReadiness(code: 0 | 1 = 0): AgentHookReadinessResult {
+  return {
+    code,
+    message:
+      code === 0
+        ? "✓ deft agent hook readiness: live green"
+        : "❌ deft agent hook readiness: live failed",
+    stream: code === 0 ? "stdout" : "stderr",
+    skipped: false,
+    liveStatus: code === 0 ? "functional" : "non-functional",
+    hosts: [],
+    registrations: [],
+    liveProbe: {
+      code,
+      message: code === 0 ? "live green" : "live failed",
+      cases: [],
+      hosts: [],
+      durationMs: 4,
+    },
+  };
+}
 
 describe("parseInitArgv", () => {
   it("merges canonical and user argv", () => {
@@ -194,6 +217,7 @@ describe("runInitDeposit", () => {
       seams: {
         resolveContentRoot: async () => contentRoot,
         gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+        evaluateAgentHookReadiness: () => agentHookReadiness(),
       },
     });
 
@@ -204,14 +228,52 @@ describe("runInitDeposit", () => {
     }
     const payload = parsed as Record<string, unknown>;
     expect(payload.success).toBe(true);
+    expect(payload.deposit_completed).toBe(true);
     expect(payload.action).toBe("install");
     expect(payload.taskfile_wired).toBe(true);
+    expect(payload.agent_hook_readiness).toMatchObject({
+      ready: true,
+      live_status: "functional",
+    });
     expect(err.join("")).toContain("Deft installed successfully");
+    expect(err.join("")).toContain("deft agent hook readiness: live green");
+  });
+
+  it("keeps a completed deposit but exits non-zero when post-deposit hook readiness fails", async () => {
+    const project = freshRoot("init-deposit-readiness-failed-");
+    const contentRoot = installFakeContentPackage(project);
+    const out: string[] = [];
+    const err: string[] = [];
+
+    const code = await runInitDepositCli({
+      projectDir: project,
+      jsonOut: true,
+      nonInteractive: true,
+      writeOut: (text) => out.push(text),
+      writeErr: (text) => err.push(text),
+      seams: {
+        resolveContentRoot: async () => contentRoot,
+        gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+        evaluateAgentHookReadiness: () => agentHookReadiness(1),
+      },
+    });
+
+    expect(code).toBe(1);
+    expect(existsSync(join(project, ".codex", "hooks.json"))).toBe(true);
+    expect(parseJsonObject(out.join(""))).toMatchObject({
+      success: false,
+      deposit_completed: true,
+      agent_hook_readiness: {
+        ready: false,
+        live_status: "non-functional",
+      },
+    });
+    expect(err.join("")).toContain("deft agent hook readiness: live failed");
   });
 
   it("buildInstallSummaryJson keeps stable array fields", () => {
-    const summary = buildInstallSummaryJson(
-      {
+    const summary = buildInstallSummaryJson({
+      result: {
         projectDir: "/proj",
         deftDir: "/proj/.deft/core",
         skillsCreated: true,
@@ -220,8 +282,9 @@ describe("runInitDeposit", () => {
         legacyLayout: false,
         stagedPaths: ["Taskfile.yml", ".deft/core"],
       },
-      { projectDir: "/proj", jsonOut: true, nonInteractive: true },
-    );
+      options: { projectDir: "/proj", jsonOut: true, nonInteractive: true },
+      readiness: undefined,
+    });
     expect(summary.missing_tools).toEqual([]);
     expect(summary.dirty_files).toEqual([]);
     expect(summary.staged_paths).toEqual(["Taskfile.yml", ".deft/core"]);
@@ -422,10 +485,12 @@ describe("runInitDeposit", () => {
       seams: {
         resolveContentRoot: async () => contentRoot,
         gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+        evaluateAgentHookReadiness: () => agentHookReadiness(),
       },
     });
 
     expect(code).toBe(0);
     expect(out.join("")).toContain("Deft installed successfully");
+    expect(out.join("")).toContain("deft agent hook readiness: live green");
   });
 });
