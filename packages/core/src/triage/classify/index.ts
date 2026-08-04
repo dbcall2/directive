@@ -875,7 +875,9 @@ export function validateProject(projectRoot: string): {
   const rel = projectDefinitionPath(root);
   const classifyErrs = validateTriageAutoClassifyOnPlan(plan, rel);
   const holderErrs = validateTriageHoldMarkersOnPlan(plan, rel);
-  const errors = [...classifyErrs, ...holderErrs];
+  // label-mirror validates plan.policy.triageLabelMirror (#1423); imported via re-export graph.
+  const mirrorErrs = validateTriageLabelMirrorOnPlanFromModule(plan, rel);
+  const errors = [...classifyErrs, ...holderErrs, ...mirrorErrs];
   if (errors.length > 0) {
     const lines = errors.map((err) => `FAIL: ${err}`);
     lines.push("");
@@ -887,7 +889,7 @@ export function validateProject(projectRoot: string): {
   return {
     code: 0,
     stdout:
-      "OK: triageAutoClassify[] + triageHoldMarkers[] valid " +
+      "OK: triageAutoClassify[] + triageHoldMarkers[] + triageLabelMirror valid " +
       `(${rules.length} rules, ${markers.length} hold markers).\n`,
     stderr: "",
   };
@@ -899,4 +901,83 @@ export function listProject(projectRoot: string): string {
   const rules = resolveClassifyRules({ projectRoot: root });
   const markers = resolveHoldMarkers({ projectRoot: root });
   return `${renderList(rules, { holdMarkers: markers })}\n`;
+}
+
+// ---------------------------------------------------------------------------
+// Tier-1 label mirror (#1423 Wave 1)
+// label-mirror.ts does not import this module (avoids ESM/SLizard cycle).
+// Public mirrorLabels injects the classify engine into the pure implementation.
+// ---------------------------------------------------------------------------
+
+import {
+  type ClassifyAction,
+  DEFAULT_IDEMPOTENCY_LABEL,
+  defaultLabelMirrorPolicy,
+  desiredLabelsForClassification,
+  type LabelMirrorEngine,
+  type LabelMirrorItem,
+  type LabelMirrorOptions as LabelMirrorOptionsCore,
+  type LabelMirrorOutcome,
+  type LabelMirrorPolicy,
+  type LabelMirrorStatus,
+  labelMirrorOutcomeToJson,
+  mirrorLabels as mirrorLabelsCore,
+  type ResolvedLabelMirrorPolicy,
+  renderLabelMirrorReport,
+  resolveLabelMirrorPolicy,
+  validateLabelMirrorPolicy,
+  validateTriageLabelMirrorOnPlan as validateTriageLabelMirrorOnPlanFromModule,
+} from "./label-mirror.js";
+
+export {
+  type ClassifyAction,
+  DEFAULT_IDEMPOTENCY_LABEL,
+  defaultLabelMirrorPolicy,
+  desiredLabelsForClassification,
+  type LabelMirrorEngine,
+  type LabelMirrorItem,
+  type LabelMirrorOutcome,
+  type LabelMirrorPolicy,
+  type LabelMirrorStatus,
+  labelMirrorOutcomeToJson,
+  type ResolvedLabelMirrorPolicy,
+  renderLabelMirrorReport,
+  resolveLabelMirrorPolicy,
+  validateLabelMirrorPolicy,
+  validateTriageLabelMirrorOnPlanFromModule as validateTriageLabelMirrorOnPlan,
+};
+
+/** Public options: engine is optional (defaults to this module's classify API). */
+export type LabelMirrorOptions = Omit<LabelMirrorOptionsCore, "engine"> & {
+  readonly engine?: LabelMirrorEngine;
+};
+
+function defaultLabelMirrorEngine(): LabelMirrorEngine {
+  return {
+    classifyIssue: (issue, options) =>
+      classifyIssue(issue as GitHubIssue, {
+        rules: options?.rules as ClassifyRule[] | undefined,
+        holdMarkers: options?.holdMarkers,
+        vbriefReferenced: options?.vbriefReferenced,
+        hasTriageDecision: options?.hasTriageDecision,
+        now: options?.now,
+      }),
+    resolveClassifyRules,
+    resolveHoldMarkers,
+    extractReferencedIssues,
+  };
+}
+
+export { extractReferencedRepoIssueKeys } from "./label-mirror.js";
+
+/** Tier-1 label mirror with the #1129 classify engine bound in. */
+export function mirrorLabels(
+  projectRoot: string,
+  options: LabelMirrorOptions = {},
+): [number, LabelMirrorOutcome] {
+  const { engine, ...rest } = options;
+  return mirrorLabelsCore(projectRoot, {
+    ...rest,
+    engine: engine ?? defaultLabelMirrorEngine(),
+  });
 }
