@@ -85,6 +85,10 @@ When running tests with Windows-native Node (not WSL), a few extra steps help:
    Developer Mode or an elevated shell. They are automatically skipped on Windows
    via `it.skipIf(process.platform === "win32")` so a standard shell is fine.
 
+### Install scripts (pnpm `allowBuilds`, not npm `allowScripts`)
+
+Monorepo install-script authority is **pnpm** `allowBuilds` in `pnpm-workspace.yaml` (today: `esbuild: true` for vitest's platform binary link). CI and local installs use `pnpm install` / `pnpm install --frozen-lockfile`. Do **not** run `npm approve-scripts` against the pnpm virtual store and treat that map as monorepo SoT — npm v12 consumer allowlists apply to npm-managed app trees, not this layout. See [UPGRADING.md — npm v12 install-time security defaults](./content/UPGRADING.md#npm-v12-install-time-security-defaults).
+
 ## Contained writes (#2951)
 
 Product write sinks under `packages/core/src/**` must use the shared

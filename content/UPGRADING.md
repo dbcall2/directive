@@ -8,6 +8,54 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 <!-- xbrief-backcompat-2111 -->
 
+## npm v12 install-time security defaults
+
+npm v12 flips three install defaults from "on" to opt-in. The same features shipped on **npm 11.16.0+** with warnings so you can migrate before enforcement.
+
+| Default | v12 behavior |
+| --- | --- |
+| `allowScripts` | **Off.** `preinstall` / `install` / `postinstall` from dependencies do not run unless allowed. Implicit **node-gyp** rebuilds (packages with `binding.gyp` and no explicit install script) are blocked the same way. |
+| `--allow-git` | **none.** Git dependencies (direct or transitive) do not resolve unless allowed. |
+| `--allow-remote` | **none.** Remote URL dependencies (for example `https` tarballs) do not resolve unless allowed. |
+
+### Directive consumers (`npm i -g @deftai/directive`)
+
+Published `@deftai/directive*` packages ship **no dependency install lifecycle scripts**. A global install of Directive does **not** require a Directive-owned `allowScripts` map.
+
+If **your application tree** has native modules or other packages with install scripts, run the allowlist workflow in **that project** (not against the global Directive install) and commit the result:
+
+```bash
+npm approve-scripts --allow-scripts-pending   # review what would be blocked
+npm approve-scripts                           # allow packages you trust
+# commit the package.json allowlist npm wrote
+```
+
+### Globals and `npx`
+
+Project-level `npm approve-scripts` does **not** apply to global installs or `npx` (those contexts have no project `package.json` allowlist). Use npm config `allow-scripts` or install-time `--allow-scripts=` only when a package truly needs scripts:
+
+```bash
+npm install -g --allow-scripts=<pkg,...> <package>
+# or persist: npm config set allow-scripts=<pkg,...> --location=user
+```
+
+### Framework monorepo contributors
+
+Install source of truth for this repo is **pnpm** (`packageManager` field; CI uses `pnpm install --frozen-lockfile`). Install-script builds are gated by `pnpm-workspace.yaml` **`allowBuilds`** (currently `esbuild: true`). Do **not** treat `npm approve-scripts` under the pnpm virtual store as monorepo SoT.
+
+### Git / remote package sources and publish
+
+- Directive product packages do **not** depend on `git:` or remote-tarball package sources.
+- Framework releases use **OIDC trusted publishing** and provenance. GAT 2FA-bypass deprecation is **not** a consumer action for ordinary upgrades.
+
+### References
+
+- [npm approve-scripts](https://docs.npmjs.com/cli/v11/commands/npm-approve-scripts)
+- [Upcoming breaking changes for npm v12](https://github.blog/changelog/2026-06-09-upcoming-breaking-changes-for-npm-v12/)
+- [Preparing for npm v12 (community discussion)](https://github.com/orgs/community/discussions/198547)
+
+---
+
 ## Multi-host native slash commands (#55 / #3054 / #3055)
 
 - **Applies when:** you upgrade to a release that ships multi-host slash deposit (#3052–#3054) and want host autocomplete for `/deft…` on Claude / Cursor / Grok / Codex in a shared repo.
