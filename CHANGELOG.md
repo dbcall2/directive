@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **docs: npm v12 install-time security defaults.** UPGRADING documents `allowScripts` off, `--allow-git` / `--allow-remote` default none, Directive consumer path (no package allowlist for `@deftai/directive*`; app trees use `npm approve-scripts`), globals/`npx` config flags, monorepo pnpm `allowBuilds` (esbuild) as install-script SoT, and OIDC publish notes. CONTRIBUTING points monorepo install scripts at `allowBuilds`; README upgrade callout links the section.
+
 ### Fixed
 
 ### Removed
