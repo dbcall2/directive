@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.95.0] - 2026-08-05
+
+> Freshness + handoff-evidence contracts for multi-agent honesty, triage SCM label mirror and upgrade handoff, plus UAT authz and checkpoint fixes.
+
+### Added
 - **Bound proof for remote artifact claims in handoff evidence / invented-done fail class (#3120).** Handoff evidence must set `proof_status` (`bound` | `unbound` | `n/a-no-remote-claim`) and separate work / ship / gate axes. `status: pass` with PR URL, SHA, CI green, or review score is illegal unless same-turn probe snippets bind each claim (probe-then-fill). Invented-done ranks stricter than empty-done. Library: `packages/core/src/handoff-evidence/` (`validateHandoffEvidence`). Preamble §11 + build / pre-pr / review-cycle skill final checklists. Closes #3120. Refs #1598, #3090.
 - **Freshness contract: bound vs live generation for long-lived sessions (#3117).** Successful deposit apply/refresh stamps a monotonic live generation (`.deft/GENERATION.json`); mutation `session:start` binds it (`.deft/session-bind.json`). `deft freshness:report` / `freshness:bind` (and `session:freshness`) compare bound vs live with `current` | `stale_soft` | `stale_hard` | `unbound`, surface diffs, rebind-without-host-restart guidance, and mid-mission park/handoff. Core module `@deftai/directive-core/freshness`; docs `content/docs/freshness-contract.md`. Disk-only version probes are insufficient for session readiness. Closes #3117.
 - **Tier-1 deterministic SCM label mirror from classify (#1423 Wave 1).** `task triage:classify -- --mirror` classifies the github-issue cache with the existing #1129 engine and mirrors outcomes as SCM labels (`triaged` idempotency marker + optional `plan.policy.triageLabelMirror` action map). Dry-run by default; `--apply` writes through the SCM label client and cross-repo mutation boundary (compose #1288, do not reimplement). Re-run is a no-op for already-triaged issues. Never calls `triage:accept` / never writes `proposed/` xBRIEFs. Waves 2–3 (bootstrap mass-triage, agent Tier-2 comments) remain open on #1423. Refs #1129, #1288, #1420, #886.
@@ -4941,7 +4953,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.94.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.95.0...HEAD
+[0.95.0]: https://github.com/deftai/directive/compare/v0.94.0...v0.95.0
 [0.94.0]: https://github.com/deftai/directive/compare/v0.93.0...v0.94.0
 [0.93.0]: https://github.com/deftai/directive/compare/v0.92.0...v0.93.0
 [0.92.0]: https://github.com/deftai/directive/compare/v0.91.0...v0.92.0

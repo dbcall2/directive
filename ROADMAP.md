@@ -5,6 +5,10 @@
 
 # Roadmap
 
+## Active
+
+- **#1423** -- feat(triage): Tier-1 deterministic SCM label mirror from classify (Wave 1 of #1423) -- `[running]`
+
 ## Proposed
 
 _Scopes not yet promoted to pending. Orientation only — not a substitute for `task triage:queue`._
@@ -38,8 +42,17 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1141 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1150 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#3116** -- residual(triage): Phase 3 current-state validity analysis + URL-first (#1418 leftover after #2890) -- `[completed]`
+- **#3120** -- Bound proof for remote artifact claims in handoff evidence (invented-done fail class) -- `[completed]`
+- **#3117** -- Freshness contract: bound vs live generation for long-lived multi-agent sessions after deposit upgrade -- `[completed]`
+- **#3108** -- bug(swarm): cohort review verifier diverges from pr:merge-ready on absent Greptile -- `[completed]`
+- **#3110** -- fix(security): UAT self-approval via ungated authz:grant shell (classifyShellAuthzOps fail-open) -- `[completed]`
+- **#3103** -- coverage-debt: restore Vitest branches >=85% (84.99% at v0.94.0 preflight) -- `[completed]`
+- **#3105** -- fix: /deft:checkpoint host wrappers point at output continue.xbrief.json -- `[completed]`
+- **#1604** -- Upgrade workflow should carry framework updates through default-branch release handoff -- `[completed]`
+- **#3100** -- fix(harness,onboarding): gate mutation readiness on functional agent hooks and Codex trust review -- `[completed]`
 - **#3095** -- feat(policy,review): dogfood Greptile CLEAN requires 5/5; consumers get per-project min-confidence lever -- `[completed]`
 - **#1870** -- bug(triage/ingest): Current shape comment invisible to cache + ingest pipeline -- `[completed]`
 - **#1649** -- fix(umbrella): umbrella checkboxes + current-shape never auto-sync to children state -- `[completed]`
@@ -56,13 +69,4 @@ _Showing 25 of 1141 completed scopes (newest first). Full history: lifecycle `co
 - **#212** -- discussion: Process control belongs in Directive -- universal process principles (review cycle, parallel work, batch-fix) as first-class Directive content; skills become tool-specific adapters; explicitly DO NOT IMPLEMENT until team decision reached (xrefs #89, #147, #194, #159) -- `[completed]`
 - **#194** -- User-facing best practices guide (`docs/best-practices.md`) -- Directive contract hierarchy usage, Warp swarming patterns, and user-oriented skill documentation; in-repo successor to premature PDF guide (#112); depends on #147 and #188 for stable content (xrefs #112, #84, #114) -- `[completed]`
 - **#128** -- CI vBRIEF schema sync check: fetch upstream `vbrief-core.schema.json` from `deftai/vBRIEF`, diff against vendored copy, fail on divergence (depends on #57) -- `[completed]`
-- **#114** -- Document all global Warp rules used for deft development; migrate project-scope rules to `AGENTS.md`/`CONVENTIONS.md`; inventory remaining global-only rules in `CONTRIBUTING.md` -- `[completed]`
-- **#112** -- External “Deft Directive” PDF is premature -- describes post-Phase-1-3 state; defer distribution or add known-issues caveat; incorporate as `docs/getting-started.md` after Phases 1–3 ship -- `[completed]`
-- **#449** -- fix(skills,docs): untangle RWLDL from deft-pre-pr — naming and discoverability cleanup -- `[completed]`
-- **#75** -- Skill auto-discovery residual: multi-host thin skill discovery deposit (#75) -- `[completed]`
-- **#3054** -- feat(slash,#55): multi-host init/update deposit for slash commands -- `[completed]`
-- **#3053** -- feat(slash,#55): per-host native command/prompt emitters -- `[completed]`
-- **#127** -- Improved support for Deft in existing repositories -- bootstrap should detect existing code and offer brownfield/map analysis path instead of greenfield-only questionnaire (related to #103; CLI integration in Phase 4 with #53) -- `[completed]`
-- **#3048** -- docs: delete or archive valuable-go-task-improvements.md (post-#446) -- `[completed]`
-- **#3042** -- fix(security): projectRoot containment for atomicWriteText, ritual-state, probe-session (parent-as-root + bare write) -- `[completed]`
 
