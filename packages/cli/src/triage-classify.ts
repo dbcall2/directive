@@ -3,6 +3,10 @@ import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  type ResolveAuthenticatedLogin,
+  resolveAuthorFilter,
+} from "@deftai/directive-core/dist/triage/author-filter.js";
+import {
   type LabelMirrorOptions,
   labelMirrorOutcomeToJson,
   listProject,
@@ -23,6 +27,8 @@ export interface ParsedArgs {
   allowCrossRepo: boolean;
   /** Opt-in: include closed issues (default open-only, #3125). */
   includeClosed: boolean;
+  /** Raw --author value (LOGIN, @me, comma allow-list); null = no filter (#3129). */
+  author: string | null;
   /** Apply batch size (rate-limit awareness). */
   batchSize: number | null;
   /** Delay ms between apply batches. */
@@ -66,6 +72,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     repo: null,
     allowCrossRepo: false,
     includeClosed: false,
+    author: null,
     batchSize: null,
     delayMs: null,
     sampleLimit: null,
@@ -86,6 +93,32 @@ export function parseArgs(argv: string[]): ParsedArgs {
       parsed.allowCrossRepo = true;
     } else if (arg === "--include-closed") {
       parsed.includeClosed = true;
+    } else if (arg === "--author-mine") {
+      parsed.author = "@me";
+    } else if (arg === "--author") {
+      const value = argv[i + 1];
+      if (value === undefined) {
+        return { ...parsed, error: "argument --author: expected one argument" };
+      }
+      // Reject adjacent flags (e.g. `--author --apply`) so they are not
+      // swallowed as logins (#3129 Greptile P1 adjacent-option).
+      if (value.startsWith("-")) {
+        return {
+          ...parsed,
+          error: `argument --author: expected a login (or @me), got flag token '${value}'`,
+        };
+      }
+      parsed.author = value;
+      i += 1;
+    } else if (arg?.startsWith("--author=")) {
+      const value = arg.slice("--author=".length);
+      if (value.startsWith("-") && value.length > 1) {
+        return {
+          ...parsed,
+          error: `argument --author: expected a login (or @me), got flag token '${value}'`,
+        };
+      }
+      parsed.author = value;
     } else if (arg === "--repo") {
       const value = argv[i + 1];
       if (value === undefined) {
@@ -169,6 +202,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
   }
   if (
     (parsed.includeClosed ||
+      parsed.author !== null ||
       parsed.batchSize !== null ||
       parsed.delayMs !== null ||
       parsed.sampleLimit !== null) &&
@@ -177,7 +211,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     return {
       ...parsed,
       error:
-        "--include-closed / --batch-size / --delay-ms / --sample-limit require --mirror (#3125)",
+        "--include-closed / --author / --batch-size / --delay-ms / --sample-limit require --mirror (#3125 / #3129)",
     };
   }
   return parsed;
@@ -186,6 +220,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
 export interface RunOptions {
   /** Injected LabelClient for tests (apply path). */
   readonly labelClient?: LabelClient;
+  /** Override `@me` resolution for hermetic tests (#3129). */
+  readonly resolveAuthenticatedLogin?: ResolveAuthenticatedLogin;
 }
 
 /** Run the CLI and return the process exit code. */
@@ -224,11 +260,25 @@ export function run(argv: string[], options: RunOptions = {}): number {
   }
 
   if (args.doMirror) {
+    let authorFilter: LabelMirrorOptions["authorFilter"] = null;
+    // Flag present (including empty `--author=`) must resolve or fail closed —
+    // never silent no-op that would plan/apply the full open cache (#3129 Greptile P1).
+    if (args.author !== null) {
+      const resolved = resolveAuthorFilter(args.author, options.resolveAuthenticatedLogin);
+      if (resolved.error !== undefined || resolved.filter === undefined) {
+        process.stderr.write(
+          `ERR: ${resolved.error ?? "argument --author: expected a non-empty login (or @me)"}\n`,
+        );
+        return 2;
+      }
+      authorFilter = resolved.filter;
+    }
     const mirrorOpts: LabelMirrorOptions = {
       dryRun: !args.apply,
       repo: args.repo,
       allowCrossRepo: args.allowCrossRepo,
       includeClosed: args.includeClosed,
+      ...(authorFilter !== null && authorFilter !== undefined ? { authorFilter } : {}),
       ...(args.batchSize !== null ? { batchSize: args.batchSize } : {}),
       ...(args.delayMs !== null ? { delayMs: args.delayMs } : {}),
       ...(args.sampleLimit !== null ? { sampleLimit: args.sampleLimit } : {}),

@@ -18,15 +18,19 @@ import {
   buildQueue,
   collectOrphanIssueNumbers,
   DEFAULT_QUEUE_LIMIT,
+  formatAuthorFilterLine,
   type LiveOpenIssuesReader,
   loadCachedIssueDetail,
   loadCachedIssues,
   loadSliceRecords,
+  partitionByAuthorFilter,
+  type ResolveAuthenticatedLogin,
   readAuditEntries,
   reconcileLiveOpenState,
   renderOperatorBrief,
   renderQueue,
   renderShow,
+  resolveAuthorFilter,
   resolveRankingLabels,
   resolveRepo,
 } from "@deftai/directive-core/dist/triage/queue/index.js";
@@ -48,6 +52,8 @@ interface QueueArgs extends CommonArgs {
   includeBlocked: boolean;
   reconcile: boolean;
   slicesLog: string | null;
+  /** Raw --author value (LOGIN, @me, or comma allow-list); null = no filter (#3129). */
+  author: string | null;
 }
 
 interface ShowArgs extends CommonArgs {
@@ -132,6 +138,7 @@ export function parseArgs(argv: string[]): QueueArgs {
     includeBlocked: false,
     reconcile: true,
     slicesLog: null,
+    author: null,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -145,6 +152,39 @@ export function parseArgs(argv: string[]): QueueArgs {
     }
     if (arg === "--no-reconcile") {
       parsed.reconcile = false;
+      continue;
+    }
+    if (arg === "--author-mine") {
+      // #1318 Layer 1 optional alias for --author @me
+      parsed.author = "@me";
+      continue;
+    }
+    if (arg === "--author") {
+      const value = argv[i + 1];
+      if (value === undefined) {
+        return { ...parsed, error: "argument --author: expected one argument" };
+      }
+      // Reject adjacent flags (e.g. `--author --limit 10`) so they are not
+      // swallowed as logins (#3129 Greptile P1 adjacent-option).
+      if (value.startsWith("-")) {
+        return {
+          ...parsed,
+          error: `argument --author: expected a login (or @me), got flag token '${value}'`,
+        };
+      }
+      parsed.author = value;
+      i += 1;
+      continue;
+    }
+    if (arg?.startsWith("--author=")) {
+      const value = arg.slice("--author=".length);
+      if (value.startsWith("-") && value.length > 1) {
+        return {
+          ...parsed,
+          error: `argument --author: expected a login (or @me), got flag token '${value}'`,
+        };
+      }
+      parsed.author = value;
       continue;
     }
     const commonHit = parseCommonFlag(arg, argv, i, parsed);
@@ -264,9 +304,11 @@ export function parseShowArgs(argv: string[]): ShowArgs {
   return parsed;
 }
 
-/** Optional injection seam for `run` (tests supply a stub live-open reader). */
+/** Optional injection seams for `run` (tests supply stubs). */
 export interface RunOptions {
   readonly liveOpenReader?: LiveOpenIssuesReader;
+  /** Override `@me` resolution for hermetic tests (#3129). */
+  readonly resolveAuthenticatedLogin?: ResolveAuthenticatedLogin;
 }
 
 function runQueue(args: QueueArgs, options: RunOptions = {}): number {
@@ -282,12 +324,43 @@ function runQueue(args: QueueArgs, options: RunOptions = {}): number {
     return 2;
   }
 
+  let authorFilterLine: string | null = null;
+  let authorAllow: ReturnType<typeof resolveAuthorFilter>["filter"] | undefined;
+  // Flag present (including empty `--author=`) must resolve or fail closed — never
+  // silent no-op that would show the full queue (#3129 Greptile P1).
+  if (args.author !== null) {
+    const resolved = resolveAuthorFilter(
+      args.author,
+      options.resolveAuthenticatedLogin ?? undefined,
+    );
+    if (resolved.error !== undefined || resolved.filter === undefined) {
+      process.stderr.write(
+        `triage:queue: ${resolved.error ?? "argument --author: expected a non-empty login (or @me)"}\n`,
+      );
+      return 2;
+    }
+    authorAllow = resolved.filter;
+  }
+
   ensureTriageCacheHydrated(projectRoot, { repo });
 
   const cachedForQueue = loadCachedIssues(repo, { projectRoot });
-  const issuesForQueue = args.reconcile
+  let issuesForQueue = args.reconcile
     ? reconcileLiveOpenState(cachedForQueue, repo, options.liveOpenReader)
     : cachedForQueue;
+
+  if (authorAllow !== undefined) {
+    const partition = partitionByAuthorFilter(
+      issuesForQueue,
+      (row) => row.author ?? null,
+      authorAllow,
+    );
+    issuesForQueue = [...partition.matched];
+    authorFilterLine = formatAuthorFilterLine(authorAllow, {
+      unknownCount: partition.unknownCount,
+    });
+  }
+
   const issuesWithClosed = loadCachedIssues(repo, { projectRoot, includeClosed: true });
   const issuesByNumber = new Map(issuesWithClosed.map((row) => [row.number, row] as const));
   const auditEntries = readAuditEntries(repo, {
@@ -320,6 +393,7 @@ function runQueue(args: QueueArgs, options: RunOptions = {}): number {
       repo,
       limit,
       rankingLabels,
+      authorFilterLine,
     })}\n`,
   );
   return 0;
