@@ -1,0 +1,121 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3116",
+    "updated": "2026-08-05T03:08:29Z"
+  },
+  "plan": {
+    "title": "residual(triage): Phase 3 current-state validity analysis + URL-first (#1418 leftover after #2890)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Residual of closed #1418 after #2890 operator brief. Skill Phase 3 requires summary/AC/lean but not explicit still-valid analysis or URL-first ordering. Implement skill MUST bullets + minimal operator-format / docs support.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3116",
+      "Overview": "## Summary\n\nResidual of **#1418** after **#2890** / PR **#2895** shipped the Phase 3 **operator brief** contract and `task triage:show --format=operator`.\n\n#1418 primary AC (summary before decision menu; mechanical brief assist) is **done** via #2890. This residual tracks two items that #1418 (and its comments) still require and that are **not** hard-required in the skill today.\n\n## Parent / supersession\n\n- Primary story: #1418 (closed as shipped-with-residual 2026-08-04)\n- Shipped contract: #2890\n- Adjacent (do not merge into this issue): #1591 trust signals, #1590 swarm decision-ready handoff\n\n## Gaps (from #1418 body + 2026-06-11 comment)\n\n### 1. Current-state validity analysis\n#1418 requires a short **current-state analysis** before the menu, including at least:\n- Has the underlying problem been partially or fully addressed since the issue was filed?\n- Relevant architectural/process changes since filing\n- Rough remaining scope/impact\n\nToday Phase 3 requires a **problem/context summary + AC + lean**, but does **not** `!` require an explicit **still-valid / partially-shipped / superseded** analysis. Agents can summarize the body without checking current master or closed children.\n\n### 2. URL-first presentation\n#1418 comment (steipete fold-in): every surfaced item should be **URL-first** (canonical GitHub URL in the first line for that item). Operator format already **includes** `html_url`, but skill text does not `!` require URL-first ordering on shortlists or the brief lead line.\n\n## Acceptance criteria\n\n- [ ] `deft-directive-triage` Phase 3 `!` requires a **current-state validity** bullet/block (still open | partial | likely shipped | needs re-scope) with one-line evidence (e.g. linked closed PR, code path, or \"no evidence of fix\")\n- [ ] Skill `!` requires **URL-first** for each candidate brief / shortlist item (first line: issue URL or `#N title` + URL)\n- [ ] `triage:show --format=operator` or docs example shows validity + URL-first fields (minimal; no new subsystem required)\n- [ ] Optional: one eval/trigger or contract test that the skill SoT still names these MUST bullets after packs:render\n\n## Out of scope\n\n- Trust signals (#1591)\n- Autonomous SCM write-back (#1423)\n- Auto-accept into proposed/\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @MScottAdams (2026-08-04T22:43:41Z)\n\nParent closed: #1418. Shipped brief contract: #2890.",
+      "Labels": "docs, triage, agent-experience",
+      "UserStory": "As an operator walking the triage queue, I want each candidate brief to lead with the issue URL and state whether the issue is still valid vs partially shipped, so that accept/reject decisions are grounded in current reality not only the original body.",
+      "ImplementationPlan": "Step 1: Open content/packs/skills/skills-pack-0.1.json and add Phase 3 MUST rules for current-state validity (still-open, partial, likely-shipped, or needs-re-scope plus one evidence sentence) and URL-first lead line. Step 2: Change packages/core/src/triage/queue/show.ts renderOperatorBrief so html_url is the first field emitted and add a validity line agents complete. Step 3: Extend packages/core/src/triage/queue/show.test.ts to assert URL appears before title body fields. Step 4: Run task packs:render to regenerate content/skills/deft-directive-triage/SKILL.md. Step 5: Add CHANGELOG Unreleased note for issue 3116. Verification evidence: vitest packages/core/src/triage/queue/show.test.ts passes and rendered SKILL.md contains both MUST bullets.",
+      "missing_traces_justification": "AC items carry narrative.Traces; origin GitHub issue via issue:ingest."
+    },
+    "items": [
+      {
+        "id": "3116-validity-url-first-a1",
+        "title": "Phase 3 skill requires current-state validity bullet with evidence one-liner",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given 3116-validity-url-first scope, when complete, then: Phase 3 skill requires current-state validity bullet with evidence one-liner",
+          "Traces": "AC-1"
+        }
+      },
+      {
+        "id": "3116-validity-url-first-a2",
+        "title": "Phase 3 skill requires URL-first for each candidate brief",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given 3116-validity-url-first scope, when complete, then: Phase 3 skill requires URL-first for each candidate brief",
+          "Traces": "AC-2"
+        }
+      },
+      {
+        "id": "3116-validity-url-first-a3",
+        "title": "Operator format or docs example shows URL-first + validity fields",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given 3116-validity-url-first scope, when complete, then: Operator format or docs example shows URL-first + validity fields",
+          "Traces": "AC-3"
+        }
+      },
+      {
+        "id": "3116-validity-url-first-a4",
+        "title": "CHANGELOG [Unreleased] for #3116",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given 3116-validity-url-first scope, when complete, then: CHANGELOG [Unreleased] for #3116",
+          "Traces": "AC-4"
+        }
+      }
+    ],
+    "tags": [
+      "docs",
+      "triage",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3116",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3116: residual(triage): Phase 3 current-state validity analysis + URL-first (#1418 leftover after #2890)"
+      }
+    ],
+    "id": "3116-validity-url-first",
+    "updated": "2026-08-05T03:08:29Z",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/packs/skills/skills-pack-0.1.json",
+          "content/skills/deft-directive-triage/SKILL.md",
+          "packages/core/src/triage/queue/show.ts",
+          "packages/core/src/triage/queue/show.test.ts",
+          "packages/cli/src/triage-queue.ts",
+          "packages/cli/src/triage-queue.test.ts"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/triage/queue/show.test.ts",
+          "task packs:render",
+          "task verify:forward-coverage"
+        ],
+        "expected_outputs": [
+          "Skill Phase 3 validity + URL-first MUST",
+          "Operator format URL-first",
+          "CHANGELOG #3116"
+        ],
+        "depends_on": [],
+        "conflict_group": "triage-brief-3116",
+        "size": "small",
+        "file_scope_confidence": "high",
+        "model_tier": "medium"
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3119,
+        "prBase": "master",
+        "mergeCommit": "7bc822eaf33a352c020ba72baf5852fac099c92d",
+        "deliveryBranch": "master",
+        "deliveryCommit": "d33aa6946c3ac9632709a13cb3ece8678b79e5f4",
+        "verifiedAt": "2026-08-05T03:08:29Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-05T03:08:29Z",
+      "capacityBucket": "agentic-debt"
+    }
+  }
+}

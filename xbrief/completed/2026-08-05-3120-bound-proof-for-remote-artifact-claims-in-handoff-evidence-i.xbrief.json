@@ -1,0 +1,130 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3120",
+    "updated": "2026-08-05T03:02:06Z"
+  },
+  "plan": {
+    "title": "Bound proof for remote artifact claims in handoff evidence (invented-done fail class)",
+    "status": "completed",
+    "id": "3120-bound-proof-remote-claims",
+    "narratives": {
+      "Description": "Handoff evidence currently accepts free-text PR URLs, SHAs, CI green claims, and review scores without same-turn live probe binding. This story makes invented remote artifacts an illegal shape: status pass requires proof_status bound when any remote claim is present, with probe-then-fill rules in preamble and PR-facing skills.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3120",
+      "Overview": "## Observed\n\nBuilder/orchestrator handoffs can mark status pass and fill PR URL, commit SHA, CI green, or review score fields from narration or memory without a same-turn live probe. Completions may invent remote artifact identifiers that do not exist. Empty returns are already treated as incomplete; invented complete returns are worse and currently pass template-shaped evidence checks.\n\n## Expected\n\n1. Handoff evidence distinguishes at least: work state (local changes), ship state (pushed branch / PR exists), and gate state (checks/review on that HEAD).\n2. status pass is forbidden when any remote artifact is claimed unless proof_status is bound.\n3. Binding requires same-turn probe output (command + short raw snippet) for each remote claim (PR, SHA, CI, review score).\n4. Explicit fail class invented-done (false remote artifacts) ranked stricter than empty-done.\n5. Skills that open or report PRs (build / pre-pr / review-cycle / rollup) exit probe-then-fill: copy IDs from probe JSON/text, never from recollection.\n6. Unbound remote claims → invalid evidence (fail), not pass-with-notes.\n\n## Non-goals\n\n- Host-specific runtime yield fixes; auto-merge; freshness/generation handshake (#3117).",
+      "Labels": "skills, agent-experience, patterns:contracts-verification, dogfood, enterprise-crew",
+      "UserStory": "As a swarm parent or human operator, I want handoff evidence that cannot claim a PR, SHA, CI green, or review score unless same-turn probe output binds those claims, so that invented-done completions fail closed instead of looking like successful ship state.",
+      "ImplementationPlan": "Step 1: Extend content/templates/agent-prompt-preamble.md §11 (DONE / evidence) with proof_status enum (bound | unbound | n/a-no-remote-claim), work/ship/gate state axes, invented-done vs empty-done fail ranking, and probe-then-fill MUST. Step 2: Add or extend a small deterministic contract module under packages/core (e.g. packages/core/src/handoff-evidence/) that validates evidence shapes: remote claims without bound probes are invalid; unit tests for invented-done and empty-done. Step 3: Wire skill-side MUST bullets via content/packs/skills/skills-pack-0.1.json for deft-directive-build, deft-directive-pre-pr, and deft-directive-review-cycle final checklist (git + forge probe before filling remote fields; legal partial = local done + ship not_started without PR fields); run task packs:render. Step 4: CHANGELOG [Unreleased] for #3120. Verification: vitest on handoff-evidence module; rendered SKILL.md contains probe-then-fill; task verify:forward-coverage.",
+      "missing_traces_justification": "AC items carry narrative.Traces; origin GitHub issue via issue:ingest."
+    },
+    "items": [
+      {
+        "id": "3120-bound-proof-a1",
+        "title": "Preamble documents proof_status + invented-done fail class",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given #3120, when complete, then agent-prompt-preamble.md defines proof_status bound|unbound|n/a-no-remote-claim, work/ship/gate axes, and invented-done stricter than empty-done",
+          "Traces": "AC-1"
+        }
+      },
+      {
+        "id": "3120-bound-proof-a2",
+        "title": "Deterministic handoff-evidence validator rejects unbound remote claims",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given #3120, when complete, then a core module fails evidence with remote PR/SHA/CI/review claims when proof_status is not bound or probe snippets are missing",
+          "Traces": "AC-2"
+        }
+      },
+      {
+        "id": "3120-bound-proof-a3",
+        "title": "Build/pre-pr/review-cycle skills require probe-then-fill",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given #3120, when complete, then build, pre-pr, and review-cycle skill SoT require copy-from-probe for remote IDs and forbid recollection-filled PR/SHA fields",
+          "Traces": "AC-3"
+        }
+      },
+      {
+        "id": "3120-bound-proof-a4",
+        "title": "CHANGELOG [Unreleased] for #3120",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given #3120, when complete, then CHANGELOG [Unreleased] notes bound-proof handoff evidence / invented-done fail class",
+          "Traces": "AC-4"
+        }
+      }
+    ],
+    "tags": [
+      "skills",
+      "agent-experience",
+      "patterns:contracts-verification",
+      "dogfood",
+      "enterprise-crew"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3120",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3120: Bound proof for remote artifact claims in handoff evidence (invented-done fail class)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1598",
+        "type": "x-xbrief/refs",
+        "title": "Issue #1598"
+      }
+    ],
+    "updated": "2026-08-05T03:02:06Z",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/templates/agent-prompt-preamble.md",
+          "content/packs/skills/skills-pack-0.1.json",
+          "content/skills/deft-directive-build/SKILL.md",
+          "content/skills/deft-directive-pre-pr/SKILL.md",
+          "content/skills/deft-directive-review-cycle/SKILL.md",
+          "packages/core/src/handoff-evidence/",
+          "packages/core/src/finish-loop/"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/handoff-evidence",
+          "task packs:render",
+          "task verify:forward-coverage"
+        ],
+        "expected_outputs": [
+          "proof_status enum in preamble",
+          "handoff-evidence validator + tests",
+          "probe-then-fill in PR skills",
+          "CHANGELOG #3120"
+        ],
+        "depends_on": [],
+        "conflict_group": "handoff-evidence-3120",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium"
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3121,
+        "prBase": "master",
+        "mergeCommit": "d33aa6946c3ac9632709a13cb3ece8678b79e5f4",
+        "deliveryBranch": "master",
+        "deliveryCommit": "d33aa6946c3ac9632709a13cb3ece8678b79e5f4",
+        "verifiedAt": "2026-08-05T03:02:06Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-05T03:02:06Z",
+      "capacityBucket": "new-capability"
+    }
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3117",
+    "updated": "2026-08-05T02:30:04Z"
+  },
+  "plan": {
+    "title": "Freshness contract: bound vs live generation for long-lived multi-agent sessions after deposit upgrade",
+    "status": "completed",
+    "id": "3117-freshness-bound-vs-live",
+    "narratives": {
+      "Description": "After CLI or deposit upgrade, long-lived multi-agent sessions may still execute pre-upgrade payload while disk probes report up to date. This story ships a host-agnostic freshness contract: monotonic generation on apply, session bind of that generation, and a freshness report comparing bound vs live with current|stale_soft|stale_hard states plus rebind guidance that does not require restarting the shared host runtime.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3117",
+      "Overview": "## Summary\n\nLong-lived multi-agent sessions need a product **freshness contract** after a CLI or deposit upgrade. Disk can show the new generation while a running session still executes the pre-upgrade payload it loaded earlier.\n\n## Expected\n\n1. Generation handshake on successful upgrade/apply (monotonic token).\n2. Session bind of the generation loaded into runtime context.\n3. freshness verb/report: bound vs live across surface set; states current | stale_soft | stale_hard.\n4. In-product soft vs hard definitions and rebind guidance without full host restart.\n5. Mid-mission safety: park/hand off before hard refresh; empty session after refresh is not work complete.\n6. Host-agnostic API shape (not tied to one host session-key mechanism).\n\n## Non-goals\n\n- Restarting the whole shared runtime as the freshness mechanism.\n- Auto-resetting sessions on any file mtime change.\n- Bound proof for remote PR claims (#3120).",
+      "Labels": "enhancement, context-engineering, agent-experience, runtime-portability, urgent, vendored-deposit, area:cli, dogfood, enterprise-crew",
+      "UserStory": "As an operator of long-lived multi-agent sessions, I want a product signal that compares the generation my session bound to the live deposit generation, so that I do not trust disk-only version probes when the agent is still running pre-upgrade payload.",
+      "ImplementationPlan": "Step 1: On successful deposit apply/refresh (packages/core/src/init-deposit/refresh.ts and related), stamp a monotonic generation token (file or manifest field) for the live deposit. Step 2: Add packages/core freshness module (e.g. packages/core/src/freshness/) with types for bound generation, live generation, surface set, and state enum current|stale_soft|stale_hard; unit tests for each state. Step 3: Expose CLI/task verb (deft freshness / task freshness:report or session:freshness) that reports bound vs live and differing surfaces; document rebind without full host restart and mid-mission park/handoff. Step 4: Wire session:start or session-ready optional bind/record of generation when payload surfaces load. Step 5: Product docs (content/docs or commands.md) for soft vs hard meanings. Step 6: CHANGELOG [Unreleased] for #3117. Verification: vitest on freshness module; CLI smoke; task verify:forward-coverage.",
+      "missing_traces_justification": "AC items carry narrative.Traces; origin GitHub issue via issue:ingest."
+    },
+    "items": [
+      {
+        "id": "3117-freshness-a1",
+        "title": "Monotonic generation token stamped on successful deposit apply",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given #3117, when complete, then successful update/apply writes a monotonic live generation token readable without host-specific session APIs",
+          "Traces": "AC-1"
+        }
+      },
+      {
+        "id": "3117-freshness-a2",
+        "title": "freshness report: bound vs live with current|stale_soft|stale_hard",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given #3117, when complete, then a core+CLI surface reports bound generation, live generation, state enum, and which surfaces differ",
+          "Traces": "AC-2"
+        }
+      },
+      {
+        "id": "3117-freshness-a3",
+        "title": "Session bind + rebind guidance without full host restart",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given #3117, when complete, then docs/API describe session bind of generation, soft vs hard meanings, rebind without restarting shared host, and mid-mission park/handoff",
+          "Traces": "AC-3"
+        }
+      },
+      {
+        "id": "3117-freshness-a4",
+        "title": "CHANGELOG [Unreleased] for #3117",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given #3117, when complete, then CHANGELOG [Unreleased] notes freshness contract bound vs live generation",
+          "Traces": "AC-4"
+        }
+      }
+    ],
+    "tags": [
+      "enhancement",
+      "context-engineering",
+      "agent-experience",
+      "runtime-portability",
+      "urgent",
+      "vendored-deposit",
+      "area:cli",
+      "dogfood",
+      "enterprise-crew"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3117",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3117: Freshness contract: bound vs live generation for long-lived multi-agent sessions after deposit upgrade"
+      }
+    ],
+    "updated": "2026-08-05T02:30:04Z",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/freshness/",
+          "packages/core/src/init-deposit/refresh.ts",
+          "packages/core/src/init-deposit/refresh.test.ts",
+          "packages/core/src/session/session-ready.ts",
+          "packages/core/src/session/session-start.ts",
+          "packages/cli/src/",
+          "content/commands.md",
+          "content/docs/freshness-contract.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/freshness",
+          "task verify:forward-coverage"
+        ],
+        "expected_outputs": [
+          "generation token on apply",
+          "freshness report CLI/core",
+          "docs soft/hard rebind",
+          "CHANGELOG #3117"
+        ],
+        "depends_on": [],
+        "conflict_group": "freshness-3117",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium"
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3122,
+        "prBase": "master",
+        "mergeCommit": "97300fc11a9af286dc26328518556f7c7ab5fe1c",
+        "deliveryBranch": "master",
+        "deliveryCommit": "97300fc11a9af286dc26328518556f7c7ab5fe1c",
+        "verifiedAt": "2026-08-05T02:30:04Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-05T02:30:04Z",
+      "capacityBucket": "new-capability"
+    }
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #1423",
+    "updated": "2026-08-04T22:57:47Z"
+  },
+  "plan": {
+    "title": "feat(triage): Tier-1 deterministic SCM label mirror from classify (Wave 1 of #1423)",
+    "status": "running",
+    "narratives": {
+      "Description": "Wave 1 only of #1423 design lock (2026-08-04). Implement deterministic Tier-1 SCM label mirror: run existing triage classify engine over cache, map outcomes to labels (triaged idempotency marker + action-derived labels via policy), dry-run default with --apply, github-only writes through SCM boundary / existing reconcile surfaces. MUST NOT call triage:accept or write proposed/ xBRIEFs. Waves 2-3 (mass bootstrap comments, agent Tier-2 comments) are OUT OF SCOPE.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/1423",
+      "Overview": "# RFC: Autonomous auto-triage write-back cycle (SCM label mirror + agent-authored triage comment + bootstrap mass-triage)\r\n\r\n**Status**: Draft for Discussion\r\n**Parent umbrella**: #886 (triage, governance, workflow optimization)\r\n**Prior art**: Warp's `oz-for-oss` `triage-new-issues` workflow (see \"Prior art\" below)\r\n\r\n## Problem\r\n\r\nDirective's triage today is **inbound, local, offline, operator-gated**: `triage_bootstrap.py` seeds `.deft-cache/` from upstream issues, `triage_classify.py` (#1129) applies four hardcoded universal rules + consumer `triageAutoClassify[]` (`defer/archive/escalate/accept`) **to the local queue**, and `deft-directive-triage` walks the operator through a ranked queue. It ships **zero** SCM-facing labels and (except the narrow `triage:reject` -> `triage-rejected` label, see #1420) does not write triage back to the SCM.\r\n\r\nMeanwhile a brownfield repo onboarding directive has a large backlog of **untriaged upstream issues** that no human or collaborator can see the triage state of, because the classification lives only in the local cache. The intake side has no autonomous \"classify + reflect it where contributors look (the issue itself)\" step.\r\n\r\n## Prior art: Warp `oz-for-oss`\r\n\r\nOn issue creation, Warp's bot writes triage **onto** the issue within seconds:\r\n- **Labels**: type (`enhancement`), a `triaged` marker, a confidence signal (`repro:high`), and `area:*` (`area:agent`, `area:billing`).\r\n- **A structured comment**: one-line verdict -> collapsible \"Maintainer details\" with `## Triage summary`, `## Evidence from current surfaces` (it actually searched the code/docs), `## Duplicate check` (enumerated related issues), `## Open questions` -> a \"may be incorrect\" disclaimer -> a machine-readable `<!-- oz-agent-metadata ... -->` footer.\r\n\r\nReference run: warpdotdev/warp#12075 (labels `enhancement, triaged, repro:high, area:agent, area:billing` + an `oz-for-oss` triage comment).\r\n\r\n## What directive already has / has planned (do NOT re-file)\r\n\r\n- **#1129** -- `triage_classify.py` deterministic classifier (the engine to reuse).\r\n- **#1288** -- `task vbrief:reconcile:labels` (SCM label reconciliation write surface).\r\n- **#690** -- `rfc: area/* label convention for issue triage` (the label vocabulary).\r\n- **#1420** -- `triage:reject` already writes a `triage-rejected` label (narrow write-back precedent).\r\n- **#845 / #1119 / #883** -- pre-ingest triage workflow + cache rebind lineage.\r\n\r\nThe **label half** is therefore largely covered by #1288 + #690 + #1129. This RFC is the **composition + the two genuinely missing pieces**: an agent-authored triage *comment* and a *bootstrap mass-triage* phase.\r\n\r\n## Proposal -- two tiers (maps onto the determinism axiom)\r\n\r\n### Tier 1 -- deterministic label mirror (gate-able core)\r\nRun `triage_classify.py` over cached issues, then mirror the outcome to the SCM as labels via a consumer mapping (extend `triageAutoClassify[]` with an optional `labels:` to apply, or a sibling `plan.policy.triageLabelMirror`):\r\n- a `triaged` idempotency marker, a type label, an `area:*` label (#690), and an optional confidence/`repro:*` signal.\r\n- Pure function of the match DSL -> deterministic-tier, gate-able.\r\n- Consistent with #1419's principle \"SCM labels are an optional **one-way mirror**.\"\r\n- MUST be github-only behind `scm.py` / `verify:scm-boundary` (#1145); writes via #1288's surface.\r\n\r\n### Tier 2 -- agent-authored triage comment (opt-in, LLM-tier)\r\nA structured comment (`Triage summary` / `Evidence` / `Duplicate check` / `Open questions` + disclaimer + metadata footer). Directive's advantage over Warp: the **dup-check is grounded in the local cache + vBRIEF corpus** (the `universal:vbrief-referenced` rule already knows whether a proposed/active vBRIEF references the issue).\r\n- Idempotency reuses the **canonical-comment edit-in-place pattern (#1152)** -- ONE triage comment edited in place, never N comments -- plus a `<!-- deft-triage-metadata ... -->` footer.\r\n- This is a *skill* step (deft-directive-triage / -refinement), not a gate.\r\n\r\n### Bootstrap mass-triage phase (the highest-value application)\r\n`triage_bootstrap.py` today only seeds the cache. Add an opt-in phase (or a follow-on `task triage:bootstrap-classify`) that classifies the whole backlog and proposes the Tier-1 mirror (+ optional Tier-2 comments). Inherits directive's existing discipline:\r\n- **Dry-run-default + `--apply`** (mirrors #1419 `capacity:backfill` and every deft write surface); operator approves a digest before any write.\r\n- **Rate-limit-aware + REST/ghx** (#954 / #884) -- mass-commenting a backlog is the exact GraphQL-bucket / spam hazard those rules exist for.\r\n- **Idempotent** via the `triaged` label (skip already-triaged) -> re-run is a no-op.\r\n- **Labels-first, comments-opt-in** -- labels are cheap/reversible; comments are noisy and gated separately.\r\n- **Privacy** -- respects the `.deft-cache/` contract (`docs/privacy-nfr.md`).\r\n\r\n## Non-goals\r\n\r\n- A full SCM control-plane. The vBRIEF stays canonical; the SCM is a one-way mirror.\r\n- Replacing the operator-gated `deft-directive-triage` queue. This adds an autonomous reflect-to-SCM layer; the human queue still owns acceptance into the vBRIEF lifecycle.\r\n- Re-implementing label reconciliation (that is #1288) or the area vocabulary (that is #690).\r\n\r\n## Relationship to #1419\r\n\r\nAdjacent, not a merge. #1419 prioritizes **vBRIEFs** (buckets / gates / order) at the *post-promotion* stage; this RFC writes to **SCM issues** at the *pre-ingest intake* stage. The only shared component is the `triageAutoClassify` match-DSL engine (both reuse it) and the brownfield mass-classification UX (dry-run / confirm / journaled). #1419 `capacity:backfill` (classify completed vBRIEFs -> buckets) and this bootstrap mass-triage (classify upstream issues -> labels/comments) are sibling adoption-time flows that should share conventions while operating on different corpora.\r\n\r\n## Delivery (sliced)\r\n\r\n1. Tier-1 label mirror: `triageAutoClassify` `labels:` extension + classify->`scm.py` write behind `verify:scm-boundary`, dry-run-default. Composes #1288 + #690 + #1129.\r\n2. `triaged` idempotency marker + re-run no-op contract.\r\n3. Bootstrap mass-triage phase (dry-run digest + `--apply`, rate-limit-aware, batched).\r\n4. Tier-2 agent comment author (canonical edit-in-place per #1152, cache/vBRIEF-grounded dup-check) -- opt-in.\r\n\r\n## References\r\n\r\n- #886 (parent umbrella), #1419 (shared match-DSL engine + brownfield UX)\r\n- #1129 (`triage_classify.py`), #1288 (`vbrief:reconcile:labels`), #690 (`area/*` convention), #1420 (`triage:reject` label precedent)\r\n- #845 / #1119 / #883 (pre-ingest triage workflow + cache lineage)\r\n- #1152 (canonical-comment edit-in-place), #1145 (`verify:scm-boundary`), #954 / #884 (rate-limit / ghx)\r\n- Prior art: warpdotdev/warp `oz-for-oss` `triage-new-issues` (example run: warpdotdev/warp#12075)\r\n\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @MScottAdams (2026-08-04T22:44:23Z)\n\n## Design lock (2026-08-04) — analysis + delivery plan\n\n**Status:** Locked for Tier-1 delivery planning (not yet implementing).  \n**Altitude:** RFC / multi-slice product. **Not** an implementation cohort with #1418 (closed) or #3116 (operator-brief residual).\n\n### Facts checked against current code (2026-08-04)\n\n| Claim in #1423 body | Status |\n|---------------------|--------|\n| Triage is inbound, local, offline, operator-gated for accept | **True** — `triage:accept` → proposed/ only after operator decision |\n| `triage:classify` / universal + `triageAutoClassify` | **True** — `packages/core/src/triage/classify/` (#1129 closed) |\n| SCM write-back of triage state is essentially absent | **True** except narrow `triage:reject` → `triage-rejected` (#1420 closed) |\n| #1288 label reconcile surface | **Closed / available** — compose, do not re-file |\n| #690 area/* vocabulary | **Superseded-pending**; open follow-through **#1789** for rollout |\n| Operator accept into xBRIEF lifecycle remains human-gated | **Non-goal preserved** |\n\n### Locked decisions (Tier cut)\n\n1. **Wave 1 (implement next, one story):** **Tier-1 deterministic label mirror only**\n   - Reuse classify engine (#1129)\n   - Map classify action → SCM labels via policy (extend `triageAutoClassify` with optional `labels:` **or** sibling `plan.policy.triageLabelMirror` — pick one in story preflight; prefer single policy field)\n   - Include `triaged` idempotency marker; re-run is no-op for already-labeled\n   - **Dry-run default + `--apply`**\n   - Writes only through SCM boundary / existing reconcile surfaces (#1288 / scm); github-first, REST/ghx discipline (#954)\n   - **Does not** call `triage:accept` and does not write proposed/ xBRIEFs\n\n2. **Wave 2:** Bootstrap mass-triage phase (`triage:bootstrap-classify` or bootstrap opt-in) — dry-run digest, batching, rate-limit-aware; labels-first\n\n3. **Wave 3 (opt-in, LLM-tier):** Tier-2 agent-authored triage comment — single edit-in-place comment (#1152 pattern), cache/vBRIEF-grounded dup check, separate policy flag from Tier-1\n\n4. **Explicit non-goals (still locked):**\n   - No full SCM control-plane; vBRIEF remains canonical\n   - No replacement of operator-gated `deft-directive-triage` queue accept path\n   - No reimplementation of #1288 / #1789 vocabulary work — compose\n   - Sibling to #1419 capacity backfill (vBRIEF corpus vs issue corpus); share dry-run/`--apply` UX conventions only\n\n### Relationship to operator-brief residual\n\n- **#3116** (validity analysis + URL-first) is **operator local UX** — may run in parallel as a small skill story\n- **#1423** is **SCM write-back** — separate conflict group; do not merge file scopes with #3116\n\n### Parent umbrella\n\n- Parent claimed: **#886** — current-shape will list #1423 as open child (see #886 current-shape comment)\n- Lineage: #1119 / #845 / #883 for cache; not reopening #1119 for this work\n\n### Implementation readiness\n\n- **Not ready for code** until Wave 1 story xBRIEF exists with swarm metadata (file_scope, verify_commands) after this lock\n- Preflight must name: policy field shape, label set (`triaged` + mapped actions), dry-run output contract, dogfood risk (mass-labeling directive repo)\n\n### Open questions (non-blocking for Wave 1 design)\n\n1. Dogfood: default OFF for write-back on framework repo until consumer pilot?\n2. Interaction with #1789 if `area:*` labels not yet standard on target repo — degrade to `triaged` + type only?\n\n### Next concrete step\n\nAuthor Wave-1 scope xBRIEF (proposed/) from this lock when ready to implement; optional child issues for Wave 2/3 if preferred over epic body checkboxes.",
+      "Labels": "determinism, triage",
+      "UserStory": "As a brownfield operator onboarding a large issue backlog, I want classify outcomes mirrored to GitHub labels with dry-run by default, so that collaborators can see triaged state on the issue without accepting into xBRIEF lifecycle.",
+      "ImplementationPlan": "Locate classify engine at packages/core/src/triage/classify/index.ts and CLI at packages/cli/src/triage-classify.ts. Add policy field for label mapping (extend triageAutoClassify with labels arrays or plan.policy.triageLabelMirror). Implement dry-run-default mirror command path writing through packages/core/src/vbrief-reconcile/labels.ts or equivalent scm boundary. Add triaged label idempotency; vitest packages/cli/src/triage-classify.test.ts + labels.test.ts; document in content/commands.md; CHANGELOG Unreleased Wave 1 #1423. Verification: vitest classify+reconcile suites green; dry-run fixture shows planned labels without network; --apply path unit-tested with mock scm.",
+      "missing_traces_justification": "AC items carry narrative.Traces; origin GitHub issue via issue:ingest."
+    },
+    "items": [
+      {
+        "id": "1423-tier1-label-mirror-a1",
+        "title": "Dry-run default prints digest of label adds/skips with zero SCM writes",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given 1423-tier1-label-mirror scope, when complete, then: Dry-run default prints digest of label adds/skips with zero SCM writes",
+          "Traces": "AC-1"
+        }
+      },
+      {
+        "id": "1423-tier1-label-mirror-a2",
+        "title": "--apply writes labels via SCM-safe path; re-run is no-op for already-triaged",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given 1423-tier1-label-mirror scope, when complete, then: --apply writes labels via SCM-safe path; re-run is no-op for already-triaged",
+          "Traces": "AC-2"
+        }
+      },
+      {
+        "id": "1423-tier1-label-mirror-a3",
+        "title": "Classify engine reused (#1129); no reimplementation of match DSL",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given 1423-tier1-label-mirror scope, when complete, then: Classify engine reused (#1129); no reimplementation of match DSL",
+          "Traces": "AC-3"
+        }
+      },
+      {
+        "id": "1423-tier1-label-mirror-a4",
+        "title": "Never invokes triage:accept or creates proposed/ xBRIEFs",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given 1423-tier1-label-mirror scope, when complete, then: Never invokes triage:accept or creates proposed/ xBRIEFs",
+          "Traces": "AC-4"
+        }
+      },
+      {
+        "id": "1423-tier1-label-mirror-a5",
+        "title": "Tests + CHANGELOG [Unreleased] for #1423 Wave 1",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Given 1423-tier1-label-mirror scope, when complete, then: Tests + CHANGELOG [Unreleased] for #1423 Wave 1",
+          "Traces": "AC-5"
+        }
+      }
+    ],
+    "tags": [
+      "determinism",
+      "triage",
+      "feat"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/1423",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #1423: RFC: Autonomous auto-triage write-back cycle (SCM label mirror + agent triage comment + bootstrap mass-triage)"
+      }
+    ],
+    "id": "1423-tier1-label-mirror",
+    "updated": "2026-08-04T22:57:47Z",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/triage/classify/index.ts",
+          "packages/core/src/triage/classify/index.test.ts",
+          "packages/core/src/vbrief-reconcile/labels.ts",
+          "packages/core/src/vbrief-reconcile/labels.test.ts",
+          "packages/cli/src/triage-classify.ts",
+          "packages/cli/src/triage-classify.test.ts",
+          "packages/cli/src/triage-reconcile.ts",
+          "packages/cli/src/triage-reconcile-cli.test.ts",
+          "packages/cli/src/triage-help.ts",
+          "content/commands.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/triage/classify packages/cli/src/triage-classify.test.ts packages/cli/src/triage-reconcile-cli.test.ts",
+          "task verify:forward-coverage"
+        ],
+        "expected_outputs": [
+          "Dry-run label mirror verb or flags",
+          "triaged idempotency + --apply path",
+          "Tests green",
+          "CHANGELOG for #1423 Wave 1"
+        ],
+        "depends_on": [],
+        "conflict_group": "triage-label-mirror-1423",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "high"
+      }
+    }
+  }
+}
