@@ -14,6 +14,7 @@ import { copyTree } from "../deposit/copy-tree.js";
 import { prunePythonArtifactsFromDeposit } from "../deposit/python-free.js";
 import { resolveInstalledContentRoot } from "../deposit/resolve-content.js";
 import { readCorePackageVersion } from "../engine-version.js";
+import { stampLiveGeneration } from "../freshness/generation.js";
 import { renderProjectDefinition } from "../render/project-render.js";
 import { depositOpenClawL2ProductCommands } from "../slash/openclaw-deposit.js";
 import {
@@ -300,6 +301,15 @@ export async function runInitDeposit(
     includeTaskfile: taskfileWired,
   });
   printCommitGuidance(io, stagePaths, staged);
+
+  // #3117: stamp live generation only after required init projections succeed.
+  // Stamping earlier would advance authority for a failed/partial init (Greptile).
+  stampLiveGeneration(projectDir, {
+    contentVersion: version,
+    stampedBy: "directive-init",
+    increment: true,
+    nowIso: nowIso(),
+  });
 
   return {
     projectDir,
