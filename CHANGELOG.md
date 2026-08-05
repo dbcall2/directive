@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Maintainer issue label taxonomy catalog (#2609).** Adds a source of truth for issue-label facets, epic/tracker/child roles, machine labels, platform labels, and legacy-label decisions. Consumer kit and open-issue migration remain follow-up work. Closes #2609. Refs #886, #1423, #1789, #2611, #3128.
 - **Bootstrap mass-triage on classify label mirror (#3125 / #1423 Wave 2).** `task triage:classify -- --mirror` is the documented bootstrap mass entrypoint: **open-only** default (opt-in `--include-closed`), dry-run operator digest with totals + breakdown by state/rule/action + samples, `--json` aggregates, and batched rate-limit-aware `--apply` (`--batch-size` / `--delay-ms`) with partial-failure reporting and missing-label hints. Still never calls `triage:accept` / never writes `proposed/` xBRIEFs. Wave 3 (agent comments) remains on #1423. Closes #3125. Refs #1423, #3118, #1129.
 
 ### Changed
