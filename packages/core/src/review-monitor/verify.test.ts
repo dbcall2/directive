@@ -142,6 +142,27 @@ describe("evaluateReviewMonitorGate", () => {
     expect(result.message).toContain("Approach 3 blocking poll is forbidden");
   });
 
+  it("Claude Tier-1 redirect leads with leaf-safe ownership (#3134)", () => {
+    const root = mkdtempSync(join(tmpdir(), "rm-gate-claude-leaf-"));
+    const result = evaluateReviewMonitorGate({
+      pr: 42,
+      projectRoot: root,
+      repo: "deftai/directive",
+      approach3: true,
+      environ: { DEFT_PROBE_CLAUDE_CODE: "1" },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toContain("claude-agent");
+    expect(result.message).toContain("Ownership path for claude-agent");
+    expect(result.message).toContain("Do NOT nested-spawn");
+    expect(result.message).toContain("blocking dual-invoke `pr:watch`");
+    // Leaf-safe path must appear before the top-level spawn instruction.
+    const leafIdx = result.message.indexOf("Implementation leaf");
+    const spawnIdx = result.message.indexOf("Top-level parent");
+    expect(leafIdx).toBeGreaterThanOrEqual(0);
+    expect(spawnIdx).toBeGreaterThan(leafIdx);
+  });
+
   it("allows Approach 3 on Tier 3 with warning ack", () => {
     const root = mkdtempSync(join(tmpdir(), "rm-gate-a3ok-"));
     const result = evaluateReviewMonitorGate({
