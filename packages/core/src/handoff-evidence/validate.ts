@@ -1,0 +1,530 @@
+/**
+ * Deterministic handoff-evidence validator (#3120).
+ *
+ * status pass is forbidden when any remote artifact is claimed unless
+ * proof_status is bound and same-turn probe snippets cover each claim.
+ * Invented-done (false remote artifacts under pass) ranks stricter than
+ * empty-done (pass with no completion substance).
+ */
+
+/** Binding state for remote artifact claims in handoff evidence. */
+export type ProofStatus = "bound" | "unbound" | "n/a-no-remote-claim";
+
+/** Work / ship / gate axis state (local → forge → gates). */
+export type AxisState = "done" | "in_progress" | "not_started" | "blocked" | "n/a";
+
+/** Fail ranking: invented-done is stricter than empty-done. */
+export type HandoffFailClass =
+  | "none"
+  | "empty-done"
+  | "unbound-remote-claim"
+  | "invented-done"
+  | "shape-error";
+
+/** Same-turn live probe that binds a remote claim. */
+export interface RemoteProbe {
+  /** Command run this turn (e.g. `gh api repos/.../pulls/N`). */
+  readonly command: string;
+  /** Short raw snippet from that command's stdout (not narration). */
+  readonly snippet: string;
+}
+
+export interface AxisEvidence {
+  readonly state?: AxisState | string;
+  readonly notes?: string;
+}
+
+/**
+ * Portable handoff evidence block for builder / pre-pr / review-cycle exits.
+ * Free-text remote fields without bound probes are an illegal shape under pass.
+ */
+export interface HandoffEvidence {
+  /** Overall process status. `pass` is the strictest gate for remote claims. */
+  readonly status: "pass" | "fail" | "blocked" | "partial" | string;
+  /**
+   * Binding state. Required semantics:
+   * - `bound` when any remote claim is present and probes bind them
+   * - `n/a-no-remote-claim` when no remote PR/SHA/CI/review claim is made
+   * - `unbound` is never valid under status pass with remote claims
+   */
+  readonly proof_status?: ProofStatus | string;
+  /** Local work state (edits / tests / commits on the branch). */
+  readonly work?: AxisEvidence;
+  /** Ship state (pushed branch / PR exists). */
+  readonly ship?: AxisEvidence;
+  /** Gate state (CI / review on claimed HEAD). */
+  readonly gate?: AxisEvidence;
+  /** Remote PR URL claim (requires pr probe when set). */
+  readonly pr_url?: string | null;
+  /** Remote PR number claim (requires pr probe when set). */
+  readonly pr_number?: number | string | null;
+  /** Commit / HEAD SHA claim (requires sha probe when set). */
+  readonly commit_sha?: string | null;
+  /** Alias for commit_sha. */
+  readonly head_sha?: string | null;
+  /**
+   * CI claim. Values like green/pass/success/ok are remote claims.
+   * Neutral/unknown/pending without green semantics are not treated as claims.
+   */
+  readonly ci_status?: string | null;
+  /** Review score / confidence claim (requires review probe when set). */
+  readonly review_score?: number | string | null;
+  /** Same-turn probes that bind remote claims. */
+  readonly probes?: {
+    readonly pr?: RemoteProbe | null;
+    readonly sha?: RemoteProbe | null;
+    readonly ci?: RemoteProbe | null;
+    readonly review?: RemoteProbe | null;
+  };
+}
+
+export interface HandoffEvidenceValidation {
+  readonly ok: boolean;
+  readonly failClass: HandoffFailClass;
+  readonly reasons: readonly string[];
+  /** True when any remote PR/SHA/CI/review claim was detected. */
+  readonly hasRemoteClaims: boolean;
+  /** Claim keys that lack a binding probe. */
+  readonly unboundClaims: readonly string[];
+}
+
+const PROOF_STATUSES = new Set(["bound", "unbound", "n/a-no-remote-claim"]);
+const AXIS_STATES = new Set(["done", "in_progress", "not_started", "blocked", "n/a"]);
+const STATUS_VALUES = new Set(["pass", "fail", "blocked", "partial"]);
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isPresentClaim(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (typeof value === "number") return Number.isFinite(value);
+  return true;
+}
+
+/** Commands that look like same-turn forge/git/gate tool invocations. */
+const TOOLISH_CMD_RE =
+  /^(?:gh\b|git\b|task\b|deft\b|directive\b|pnpm\b|npm\b|npx\b|curl\b|python\b|node\b)/i;
+
+function probePresent(probe: RemoteProbe | null | undefined): boolean {
+  if (!probe) return false;
+  if (!isNonEmptyString(probe.command) || !isNonEmptyString(probe.snippet)) return false;
+  // Reject freeform narration commands ("I checked" / "x") — require tool-like invocation.
+  if (!TOOLISH_CMD_RE.test(probe.command.trim())) return false;
+  // Trivial snippet that is only the claim itself is not a probe payload.
+  if (probe.snippet.trim().length < 8) return false;
+  return true;
+}
+
+/** Escape untrusted claim text before interpolating into RegExp constructors. */
+function escapeRe(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Token-boundary match: needle must appear not as a substring of a longer
+ * alphanumeric identifier (PR 12 ⊄ 3120; score 5 ⊄ elapsed=15s).
+ */
+function hasToken(snippet: string, needle: string): boolean {
+  if (!needle) return false;
+  try {
+    return new RegExp(`(^|[^A-Za-z0-9_])${escapeRe(needle)}([^A-Za-z0-9_]|$)`, "i").test(snippet);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True when the probe's raw snippet actually mentions the claimed remote value
+ * with token-level binding (not incidental substring collisions).
+ * Never throws on malformed claims — returns false instead.
+ *
+ * Scope: textual shape binding only. Live probe execution/provenance is agent
+ * process responsibility (preamble probe-then-fill); this library does not
+ * re-run forge/git commands.
+ */
+export function probeBindsClaim(
+  claim: string,
+  evidence: HandoffEvidence,
+  probe: RemoteProbe | null | undefined,
+): boolean {
+  try {
+    if (!probePresent(probe) || !probe) return false;
+    const snippet = probe.snippet;
+
+    switch (claim) {
+      case "pr_url": {
+        const url = String(evidence.pr_url ?? "").trim();
+        if (!url) return false;
+        // Exact claimed URL present in probe output.
+        if (snippet.toLowerCase().includes(url.toLowerCase())) return true;
+        // GitHub HTML or API form must preserve owner/repo + number identity.
+        const html = url.match(/github\.com\/([^/]+)\/([^/]+)\/pulls?\/(\d+)/i);
+        if (html) {
+          const owner = html[1] ?? "";
+          const repo = html[2] ?? "";
+          const num = html[3] ?? "";
+          const o = escapeRe(owner);
+          const r = escapeRe(repo);
+          const n = escapeRe(num);
+          return (
+            new RegExp(`${o}\\/${r}\\/pulls?\\/${n}(?:[^0-9]|$)`, "i").test(snippet) ||
+            new RegExp(`repos\\/${o}\\/${r}\\/pulls\\/${n}(?:[^0-9]|$)`, "i").test(snippet)
+          );
+        }
+        // Non-GitHub URL: require the full URL string; no number-only fallback.
+        return false;
+      }
+      case "pr_number": {
+        const num = String(evidence.pr_number ?? "").trim();
+        if (!num || !/^\d+$/.test(num)) return false;
+        const n = escapeRe(num);
+        return (
+          new RegExp(`(?:number["'\\s:=]+|#|pulls?\\/)${n}(?:[^0-9]|$)`, "i").test(snippet) ||
+          hasToken(snippet, num)
+        );
+      }
+      case "commit_sha":
+      case "head_sha": {
+        const sha = String(
+          claim === "commit_sha" ? (evidence.commit_sha ?? "") : (evidence.head_sha ?? ""),
+        )
+          .trim()
+          .toLowerCase();
+        if (sha.length < 7 || !/^[0-9a-f]+$/i.test(sha)) return false;
+        const prefix = sha.slice(0, 7);
+        return (
+          hasToken(snippet, sha) ||
+          new RegExp(`(^|[^0-9a-f])${prefix}(?![0-9a-f])`, "i").test(snippet)
+        );
+      }
+      case "ci_status": {
+        const ci = String(evidence.ci_status ?? "")
+          .trim()
+          .toLowerCase();
+        if (!ci) return false;
+        const greenFamily = [
+          "green",
+          "pass",
+          "passed",
+          "success",
+          "successful",
+          "ok",
+          "clean",
+        ] as const;
+        const redFamily = [
+          "fail",
+          "failed",
+          "failure",
+          "failing",
+          "error",
+          "errored",
+          "cancelled",
+          "canceled",
+        ] as const;
+        if ((greenFamily as readonly string[]).includes(ci)) {
+          const hasGreen =
+            /"state"\s*:\s*"(success|successful|ok|clean|pass(?:ed)?)"/i.test(snippet) ||
+            greenFamily.some((tok) => hasToken(snippet, tok));
+          const hasRed =
+            /"state"\s*:\s*"(failure|failed|error|cancelled|canceled)"/i.test(snippet) ||
+            redFamily.some((tok) => hasToken(snippet, tok));
+          // Mixed success+failure in one snippet is not a clean green bind.
+          return hasGreen && !hasRed;
+        }
+        if ((redFamily as readonly string[]).includes(ci)) {
+          return (
+            /"state"\s*:\s*"(failure|failed|error|cancelled|canceled)"/i.test(snippet) ||
+            hasToken(snippet, ci)
+          );
+        }
+        return hasToken(snippet, ci);
+      }
+      case "review_score": {
+        const score = String(evidence.review_score ?? "").trim();
+        if (!score || !/^\d+(\.\d+)?$/.test(score)) return false;
+        const s = escapeRe(score);
+        // Labeled fields only — bare hasToken would bind p0=5 to review_score 5.
+        return new RegExp(
+          `(?:confidence(?:\\s*score)?|score|rating)\\s*[:=]?\\s*${s}(?:\\s*\\/\\s*5)?(?:[^0-9]|$)`,
+          "i",
+        ).test(snippet);
+      }
+      default:
+        return false;
+    }
+  } catch {
+    // Malformed claims must fail closed as unbound, never throw.
+    return false;
+  }
+}
+
+/** Detect which remote claim keys are present on the evidence object. */
+export function detectRemoteClaims(evidence: HandoffEvidence): string[] {
+  const claims: string[] = [];
+  if (isPresentClaim(evidence.pr_url)) claims.push("pr_url");
+  if (isPresentClaim(evidence.pr_number)) claims.push("pr_number");
+  if (isPresentClaim(evidence.commit_sha)) claims.push("commit_sha");
+  if (isPresentClaim(evidence.head_sha)) claims.push("head_sha");
+  if (isPresentClaim(evidence.ci_status)) {
+    const ci = String(evidence.ci_status).trim();
+    // Neutral tokens are not remote claims; green-family and other explicit
+    // forge outcomes (failing, cancelled, …) are claims that need probes.
+    if (!/^(unknown|pending|n\/a|none|skipped)$/i.test(ci)) {
+      claims.push("ci_status");
+    }
+  }
+  if (isPresentClaim(evidence.review_score)) claims.push("review_score");
+  return claims;
+}
+
+/** Map a remote claim key to the probe slot that must bind it. */
+function probeKeyForClaim(claim: string): "pr" | "sha" | "ci" | "review" {
+  if (claim === "pr_url" || claim === "pr_number") return "pr";
+  if (claim === "commit_sha" || claim === "head_sha") return "sha";
+  if (claim === "ci_status") return "ci";
+  return "review";
+}
+
+function unboundClaimKeys(evidence: HandoffEvidence, claims: readonly string[]): string[] {
+  const unbound: string[] = [];
+  for (const claim of claims) {
+    const slot = probeKeyForClaim(claim);
+    const probe = evidence.probes?.[slot];
+    if (!probeBindsClaim(claim, evidence, probe)) {
+      unbound.push(claim);
+    }
+  }
+  // Cross-claim consistency: PR + SHA must co-appear so unrelated forge artifacts
+  // cannot be stitched into one "bound" pass (Greptile residual on #3120).
+  try {
+    const claimSet = new Set(claims);
+    const hasPr = claimSet.has("pr_url") || claimSet.has("pr_number");
+    const shaClaim = claimSet.has("head_sha")
+      ? "head_sha"
+      : claimSet.has("commit_sha")
+        ? "commit_sha"
+        : null;
+    const rawSha = shaClaim
+      ? String(shaClaim === "head_sha" ? (evidence.head_sha ?? "") : (evidence.commit_sha ?? ""))
+          .trim()
+          .toLowerCase()
+      : "";
+    // Only hex SHAs participate in co-binding; malformed SHA fails closed as unbound.
+    const hexOk = /^[0-9a-f]{7,}$/i.test(rawSha);
+    if (shaClaim && !hexOk) {
+      if (!unbound.includes(shaClaim)) unbound.push(shaClaim);
+    }
+    const prefix = hexOk ? rawSha.slice(0, 7) : "";
+    if (hasPr && shaClaim && prefix) {
+      const prSnippet = evidence.probes?.pr?.snippet ?? "";
+      if (!new RegExp(`(^|[^0-9a-f])${prefix}`, "i").test(prSnippet)) {
+        if (!unbound.includes(shaClaim)) unbound.push(shaClaim);
+        if (!unbound.includes("pr_number") && claimSet.has("pr_number")) {
+          unbound.push("pr_number");
+        }
+        if (!unbound.includes("pr_url") && claimSet.has("pr_url")) {
+          unbound.push("pr_url");
+        }
+      }
+    }
+    if (claimSet.has("ci_status") && shaClaim && prefix) {
+      const ciCmd = evidence.probes?.ci?.command ?? "";
+      const ciSnippet = evidence.probes?.ci?.snippet ?? "";
+      const joined = `${ciCmd}\n${ciSnippet}`;
+      if (!new RegExp(`(^|[^0-9a-f])${prefix}`, "i").test(joined)) {
+        if (!unbound.includes("ci_status")) unbound.push("ci_status");
+      }
+    }
+  } catch {
+    // Fail closed on any unexpected error during consistency checks.
+    for (const claim of claims) {
+      if (!unbound.includes(claim)) unbound.push(claim);
+    }
+  }
+  return unbound;
+}
+
+function isPassStatus(status: string): boolean {
+  return status.trim().toLowerCase() === "pass";
+}
+
+/** Collect shape errors for unsupported status / proof_status / axis enums. */
+function enumShapeReasons(evidence: HandoffEvidence): string[] {
+  const reasons: string[] = [];
+  const status = evidence.status.toString().trim().toLowerCase();
+  if (!STATUS_VALUES.has(status)) {
+    reasons.push(`status must be one of pass|fail|blocked|partial (got ${evidence.status})`);
+  }
+  if (evidence.proof_status !== undefined && evidence.proof_status !== null) {
+    const proof = evidence.proof_status.toString().trim().toLowerCase();
+    if (proof.length > 0 && !PROOF_STATUSES.has(proof)) {
+      reasons.push(
+        `proof_status must be bound|unbound|n/a-no-remote-claim (got ${evidence.proof_status})`,
+      );
+    }
+  }
+  for (const [name, axis] of [
+    ["work", evidence.work],
+    ["ship", evidence.ship],
+    ["gate", evidence.gate],
+  ] as const) {
+    const state = axis?.state;
+    if (state === undefined || state === null) continue;
+    const s = state.toString().trim().toLowerCase();
+    if (s.length > 0 && !AXIS_STATES.has(s)) {
+      reasons.push(`${name}.state must be done|in_progress|not_started|blocked|n/a (got ${state})`);
+    }
+  }
+  return reasons;
+}
+
+function isEmptyDone(evidence: HandoffEvidence): boolean {
+  // Pass claimed but no work/ship/gate substance and no remote claims —
+  // the empty completion shape (stricter handling still prefers invented-done
+  // when remote claims are present without binding).
+  const work = evidence.work?.state?.toString().trim().toLowerCase();
+  const ship = evidence.ship?.state?.toString().trim().toLowerCase();
+  const gate = evidence.gate?.state?.toString().trim().toLowerCase();
+  const axesEmpty =
+    (!work || work === "n/a" || work === "not_started") &&
+    (!ship || ship === "n/a" || ship === "not_started") &&
+    (!gate || gate === "n/a" || gate === "not_started");
+  return axesEmpty;
+}
+
+/**
+ * Validate handoff evidence against the #3120 bound-proof contract.
+ *
+ * Ranking when invalid under status pass:
+ * 1. invented-done — remote claims present without bound proof
+ * 2. empty-done — pass with no completion substance and no remote claims
+ * 3. unbound-remote-claim — non-pass status but still has unbound remote claims
+ * 4. shape-error — malformed proof_status / inconsistent n/a
+ */
+export function validateHandoffEvidence(evidence: HandoffEvidence): HandoffEvidenceValidation {
+  if (!evidence || typeof evidence !== "object") {
+    return {
+      ok: false,
+      failClass: "shape-error",
+      reasons: ["evidence must be a non-null object"],
+      hasRemoteClaims: false,
+      unboundClaims: [],
+    };
+  }
+
+  if (!isNonEmptyString(evidence.status)) {
+    return {
+      ok: false,
+      failClass: "shape-error",
+      reasons: ["status is required"],
+      hasRemoteClaims: false,
+      unboundClaims: [],
+    };
+  }
+
+  const claims = detectRemoteClaims(evidence);
+  const hasRemoteClaims = claims.length > 0;
+  const unbound = unboundClaimKeys(evidence, claims);
+  const proof = (evidence.proof_status ?? "").toString().trim().toLowerCase();
+  const reasons: string[] = [...enumShapeReasons(evidence)];
+  const pass = isPassStatus(evidence.status);
+
+  // proof_status consistency
+  if (hasRemoteClaims && proof === "n/a-no-remote-claim") {
+    reasons.push(
+      "proof_status is n/a-no-remote-claim but remote claims are present (" +
+        claims.join(", ") +
+        ")",
+    );
+  }
+  if (!hasRemoteClaims && proof === "bound") {
+    reasons.push("proof_status is bound but no remote claims are present");
+  }
+
+  // Core rule: pass + remote claims requires bound + probes
+  if (hasRemoteClaims) {
+    if (proof !== "bound") {
+      reasons.push(
+        `remote claims present (${claims.join(", ")}) require proof_status=bound` +
+          (proof ? ` (got ${proof})` : " (missing)"),
+      );
+    }
+    if (unbound.length > 0) {
+      reasons.push(
+        `missing same-turn probes for: ${unbound.join(", ")} ` +
+          "(probe-then-fill: copy IDs from probe JSON/text, never recollection)",
+      );
+    }
+  } else if (pass && (!proof || proof === "unbound")) {
+    // No remote claims under pass: n/a-no-remote-claim is the legal proof_status.
+    // unbound without remote claims is a soft shape issue under pass.
+    if (proof === "unbound") {
+      reasons.push(
+        "proof_status=unbound with no remote claims; use n/a-no-remote-claim under pass",
+      );
+    }
+  }
+
+  // Rank fail class
+  let failClass: HandoffFailClass = "none";
+  let ok = reasons.length === 0;
+
+  if (pass && hasRemoteClaims && (proof !== "bound" || unbound.length > 0)) {
+    // Invented-done: complete-looking remote artifacts under pass without binding.
+    failClass = "invented-done";
+    ok = false;
+    if (!reasons.some((r) => r.includes("invented-done"))) {
+      reasons.unshift(
+        "invented-done: status pass with remote PR/SHA/CI/review claims " +
+          "without bound same-turn probes (stricter than empty-done)",
+      );
+    }
+  } else if (pass && !hasRemoteClaims && isEmptyDone(evidence)) {
+    failClass = "empty-done";
+    ok = false;
+    reasons.unshift(
+      "empty-done: status pass with no work/ship/gate substance and no remote claims",
+    );
+  } else if (!pass && hasRemoteClaims && (proof !== "bound" || unbound.length > 0)) {
+    failClass = "unbound-remote-claim";
+    ok = false;
+  } else if (reasons.length > 0) {
+    failClass = "shape-error";
+    ok = false;
+  }
+
+  // Legal partial: work done + ship not_started without PR fields → ok when not pass-with-remote
+  if (
+    ok &&
+    evidence.status === "partial" &&
+    !hasRemoteClaims &&
+    (evidence.ship?.state === "not_started" || !evidence.ship?.state)
+  ) {
+    return {
+      ok: true,
+      failClass: "none",
+      reasons: [],
+      hasRemoteClaims: false,
+      unboundClaims: [],
+    };
+  }
+
+  return {
+    ok,
+    failClass,
+    reasons,
+    hasRemoteClaims,
+    unboundClaims: unbound,
+  };
+}
+
+/**
+ * Convenience: true when status may legally be pass for this evidence.
+ * Equivalent to validateHandoffEvidence(...).ok under a pass status intent.
+ */
+export function canClaimPass(evidence: HandoffEvidence): boolean {
+  const candidate: HandoffEvidence = { ...evidence, status: "pass" };
+  return validateHandoffEvidence(candidate).ok;
+}
