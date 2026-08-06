@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **article-review Step 5 body-level dedupe + citation verify (#3163).** Titles are a shortlist only; related/owning claims require full issue body reads (and recent comments when the body is a stub). Cited issue numbers must exist and match claimed state (anti-hallucination). Prefer amend/comment on owning open issues over new filings; optional `.deft-cache/github-issue/` offline body-read path. Pack source + `task packs:render`. Closes #3163.
+
 ### Fixed
 
 - **Consumer-check-contract rejects backgrounded full checks (#3145).** 	ask check & / deft check& no longer count as composed full-check invocation (shell returns before enforcement; exit status not propagated). Greptile conf residual on PR #3151. Refs #3145.
