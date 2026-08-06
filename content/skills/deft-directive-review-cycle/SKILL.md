@@ -380,6 +380,38 @@ Remediation:
 
 ! **Swarm monitor must not self-implement (#2843 / Gap C):** When a cohort monitor receives `BLOCKED` or DONE-with-blockers from a `drive-to: merge-ready` implementation leaf, the monitor MUST NOT enter the review/fix loop inline on Tier 1 — background-dispatch ONE continuation leaf scoped `drive-to: merge-ready` on the same worktree. Monitor-inline review-cycle is permitted only on Tier 3 or with explicit operator consent (see `skills/deft-directive-swarm/SKILL.md` Phase 5 completion-notification decision tree).
 
+### Partner merge-path when implement stops at PR-open (#3153)
+
+! This skill is the **required partner** for the swarm **Envelope selection SLA** (`skills/deft-directive-swarm/references/core-phase-0.md` / Phase 3). When an implement leaf was deliberately scoped **`stop-at: pr-open`** (or a merge-ready leaf failed thin DONE and recovery chose babysit ownership), the parent/monitor MUST **not** leave the open PR without a merge-path owner.
+
+! **First-class merge-path ownership (MUST, same turn as PR ground-truth):**
+
+1. ! Spawn **or** retain **exactly one** review-cycle owner for the open PR:
+   - **Approach 1** review-monitor (`worker_role: review-monitor`) with sticky `<!-- deft:review-owner -->` lease (#3090 / #3044 / dual-invoke `review-monitor:register` when available), **or**
+   - A continuation leaf scoped **`drive-to: merge-ready`** on that PR/worktree that owns babysit → merge-ready in its tool loop, **or**
+   - Documented **parent-retained** ownership (`review_cycle: in_progress:<pr>#parent-retained`) with an explicit next poll/fix action — never silent hold.
+2. ! Route through **this skill** — ⊗ Cursor global babysit (`#2261`), freestyle main-session poll, or dual parallel monitors (`#3044`).
+3. ! Apply Owner Continuity Gate (#3090) and Single review-monitor lease (#3044) without exception: one sticky lease; force-takeover only when the prior owner is dead.
+4. ! **Post-merge `scope:complete` (#2321 / Gap C):** When the implement leaf stopped at pr-open, it MUST NOT have run `task scope:complete`. After the PR **merges**, the merge-path owner (or swarm Phase 6 `task swarm:finalize-cohort` / `task swarm:complete-cohort` / monitor) MUST run `task scope:complete` or `task scope:cancel`. `task verify:orphan-active` fails closed on stranded active briefs.
+5. ! **Human-merge / CLEAN-before-merge ownership (#3153 / #1193 / #2321):** When `plan.policy.requireHumanMerge` (or missing bot-merge authority) means the review owner reaches Greptile CLEAN / merge-ready but **cannot** squash-merge, lifecycle ownership is **not** complete. Prefer **durable** ownership (not a prose-only promise):
+   - **Preferred:** Parent/monitor **retains** ownership (`review_cycle: in_progress:<pr>#parent-retained` or sticky lease held by the long-lived monitor) until human merge lands, then runs `scope:complete` (or Phase 6 `task swarm:finalize-cohort` / `task swarm:complete-cohort`).
+   - **Allowed handoff:** Only to a **long-lived** parent/monitor / Phase 6 closer — same turn: (1) re-claim sticky `<!-- deft:review-owner -->` lease for the **recipient** (register/force as needed), (2) structured handback with PR, HEAD, `awaiting-human-merge`, and explicit post-merge `scope:complete` duty, (3) recipient acknowledges with `review_cycle: in_progress:<pr>#…` before the giving agent exits.
+   - ! Cohort through-merge: the **swarm monitor** is the default durable post-merge `scope:complete` owner for every `stop-at: pr-open` story (#2321) — do not rely on a review leaf that exits at CLEAN.
+   - ! **Post-CLEAN wake path (MUST):** After CLEAN under human-merge, the durable owner MUST keep a **reachable observe path** until the PR is `MERGED` (or closed without merge → `scope:cancel` / operator decision). Concrete options (pick one, same ownership):
+     1. **Background poller** (Approach 1 preferred when Tier 1): spawn/retain a review-monitor or short poll loop that probes `gh api repos/<owner>/<repo>/pulls/<N>` for `merged` / `state` on adaptive cadence (or host merge webhook when available), then runs post-merge verification + `scope:complete`.
+     2. **Parent-retained yield-with-wake:** parent keeps `review_cycle: in_progress:<pr>#parent-retained` and re-enters on the next operator message / scheduled re-invocation (Approach 2) with an explicit first action of "check merge state → if merged, `scope:complete`".
+     3. **Phase 6 cohort closer:** for swarm, record the PR as `awaiting-human-merge` in the monitor checkpoint and **require** the Phase 6 pre-sweep merge re-poll (`skills/deft-directive-swarm/references/core-phase-5-6.md` § Human-merge observe path / Step 1.5) before `task swarm:complete-cohort` / finalize — never skip `scope:complete` solely because Greptile was CLEAN earlier.
+   ⊗ Keep only a sticky lease with no poller, no parent re-entry plan, and no Phase 6 re-poll checklist — that is ownership-in-name-only and still strands `scope:complete`.
+   ⊗ Handoff to a short-lived leaf that exits at CLEAN without lease transfer.
+   ⊗ Emit terminal `DONE` / stand down at CLEAN when merge authority is human-only and no **reachable** durable owner (sticky lease + live parent/monitor/cohort closer **with an observe path above**) remains for post-merge `scope:complete`.
+6. ! **Thin DONE recovery (#2943 / #3153):** A failed `drive-to: merge-ready` leaf that only opened a PR is **not** success. After ground truth, hand merge path to **one** of the owners above — never improvise a second lease or re-dispatch implement + babysit in parallel without releasing the first.
+
+! **Cohort through-merge intent is unchanged:** stories still land on master. Envelope selection only assigns **who owns implement vs who owns Greptile/CI/merge** under capacity stall, conf floors, wall-clock budgets, or large multi-gate stories. Happy-path single `drive-to: merge-ready` leaves remain the default and do not use this partner handoff.
+
+! **Does not authorize:** lowering `minGreptileConfidence`, `--skip-ci` for capacity stalls, or unbounded redesign on conf-only holds (#2881 / #2672 / #3095).
+
+Cross-links: swarm decision tree `skills/deft-directive-swarm/references/core-phase-0.md` § Envelope selection SLA; Phase 3 Gap C `skills/deft-directive-swarm/references/core-phase-3.md`; thin SKILL pointer `skills/deft-directive-swarm/SKILL.md` § Envelope selection SLA.
+
 
 
 ! Select the monitoring approach based on runtime capability detection (the matrix in `skills/deft-directive-swarm/SKILL.md` Phase 3 Step 1, extended per #1342 slices 1-2 for `spawn_subagent` / "grok-build", per #1877 for Cursor as first-class Tier-1 tiers, per #2876 for OpenClaw `sessions_spawn`, and per #3134 for Claude Code `claude-code` / `claude-agent`). Probe the environment (tool set + env vars) to obtain the stable platform descriptor (`grok-build`, `warp-orchestrated`, `warp-manual`, `cursor-composer`, `cursor-cloud-agent`, `claude-code`, `openclaw`, etc.) from the launch adapter / `get_platform_capabilities` and map the descriptor to the appropriate tier + dispatch primitive (`start_agent`, `spawn_subagent`, the Cursor `Task` tool, Claude Code `Agent` / `claude-agent`, or OpenClaw `sessions_spawn`). The descriptor (not hard-coded tool presence) is the single source of truth for both launch and review monitoring.
@@ -657,6 +689,11 @@ task lifecycle:event -- emit plan:approved \
 
 ## Anti-Patterns
 
+- ⊗ Leave a deliberate `stop-at: pr-open` (or thin-DONE recovery) open PR without spawning/retaining one review-cycle babysit owner + lease continuity and post-merge `scope:complete` plan (#3153)
+- ⊗ Stand down at CLEAN under human-merge policy without a durable owner (sticky lease + live parent/monitor/Phase 6 closer) **and** a post-CLEAN observe path (poller / parent wake / Phase 6 re-poll) for post-merge `scope:complete` (#3153 / #1193 / #2321)
+- ⊗ Handoff human-merge cleanup to a short-lived leaf that exits at CLEAN without re-claiming the sticky lease (#3153)
+- ⊗ Retain only a sticky lease after CLEAN with no poller, no parent re-entry, and no Phase 6 merge re-poll — ownership-in-name-only (#3153)
+- ⊗ Dual-lease or freestyle Cursor global babysit for the partner merge-path after implement stops at PR-open (#3153 / #2261 / #3044)
 - ⊗ End owning turn with 0 children, no sticky lease, and no finish after drive-to-merge / babysit / shepherd claim — silent hold (#3090)
 - ⊗ Emit freeform `review_cycle: started` / `pending` / `initiated` or L4 `status: pass` without `done` or verifiable `in_progress:<pr>#…` lease/parent-retained (#3090)
 - ⊗ Treat check-run SUCCESS alone as CLEAN / merge-ready while dual-source P0/P1 remain (#3090)
