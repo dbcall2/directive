@@ -6,6 +6,9 @@ export {
   type CiGateSummary,
   type CiReadyState,
   evaluateCiGate,
+  isAuthoritativeSuiteAggregator,
+  isBotReviewCheck,
+  suiteFamilyOf,
 } from "./ci-gate.js";
 export { type ComputeGateOptions, computeGateResult, type FetchMergeabilityFn } from "./compute.js";
 export * from "./constants.js";
