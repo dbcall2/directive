@@ -1,0 +1,117 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF for #3164 propose-not-apply stance docs (swarm add-on)",
+    "updated": "2026-08-07T18:57:58Z"
+  },
+  "plan": {
+    "id": "3164-docs-self-improving-not-self-editing",
+    "title": "docs(main,meta): name directive self-modification stance - self-improving, not self-editing (propose-not-apply)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Name Directive stance: self-improving through formal gates, not self-editing live rules mid-run (propose-not-apply). Continual-Harness hosts may rewrite prompts mid-run; Directive must not. The refine loop proposes; issues/PRs/quality gates dispose. Parent epic #3179. Related #1200, #2741, #2436, #1307, #607.",
+      "UserStory": "As a framework maintainer, I want the self-improving not self-editing stance named in main.md or meta, so that future host-capability discussions do not relitigate live gate rewrites.",
+      "ImplementationPlan": "1. Edit the content/main.md file module to add a short propose-not-apply stance paragraph next to the #1200 formal-gates principle: Directive MUST NOT self-edit live operating rules mid-run; refine proposes; issue/PR/quality gates dispose. 2. Cross-link #2741 and parent #3179 in that paragraph; optionally touch content/meta/ files only for a pointer. 3. Add CHANGELOG.md [Unreleased] entry for #3164. 4. Only if consumer-visible: update content/templates/agents-entry.md file and run task agents:refresh. Verify by reading the new section and confirming agents:refresh exit 0 when agents-entry is touched; docs-only story uses verify evidence via file read and agents:refresh.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3164",
+      "Labels": "documentation, enhancement, meta, status:child"
+    },
+    "items": [
+      {
+        "title": "Stance paragraph in main.md or meta",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given content/main.md or designated meta doc, when read, then propose-not-apply is named: self-improving via gates, not live self-edit of constitution/gates."
+        }
+      },
+      {
+        "title": "Cross-links to #1200 #2741 #3179",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the stance section, when read, then it cites safety-via-gates (#1200), trajectory/refine epic (#2741), and parent #3179 without contradicting existing Rule Authority ladder prose."
+        }
+      },
+      {
+        "title": "CHANGELOG entry",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given merge, when CHANGELOG [Unreleased] is read, then #3164 documents the stance naming."
+        }
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/main.md",
+          "content/meta/",
+          "content/templates/agents-entry.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "task agents:refresh"
+        ],
+        "expected_outputs": [
+          "stance paragraph",
+          "cross-links",
+          "CHANGELOG #3164",
+          "PR through merge"
+        ],
+        "depends_on": [],
+        "conflict_group": "docs-propose-not-apply-3164",
+        "size": "small",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "Docs-only. Prefer content/main.md if that is SoT for principles; do not invent runtime self-edit machinery. Exclusive of skill #3201 and PR #3200 pilot unless only cross-links."
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3202,
+        "prBase": null,
+        "mergeCommit": "495d0511bdd3160c8200efb806939f707a3d1db4",
+        "deliveryBranch": "master",
+        "deliveryCommit": "495d0511bdd3160c8200efb806939f707a3d1db4",
+        "verifiedAt": "2026-08-07T18:57:58Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-07T18:57:58Z",
+      "capacityBucket": "new-capability"
+    },
+    "tags": [
+      "documentation",
+      "enhancement",
+      "meta"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3164",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3164"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3179",
+        "type": "x-xbrief/refs",
+        "title": "Issue #3179"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1200",
+        "type": "x-xbrief/refs",
+        "title": "Issue #1200"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2741",
+        "type": "x-xbrief/refs",
+        "title": "Issue #2741"
+      }
+    ],
+    "updated": "2026-08-07T18:57:58Z"
+  }
+}

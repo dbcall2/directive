@@ -1,0 +1,125 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF for #3187 swarm through-merge cohort",
+    "updated": "2026-08-07T16:35:45Z"
+  },
+  "plan": {
+    "title": "release: auto-hatch branch coverage hairline in Step 5 when ledger allows",
+    "status": "completed",
+    "narratives": {
+      "Description": "Release Step 5 almost always hits a Vitest branch-coverage hairline that already has deterministic hatch rules under #2866, but today the operator must fail, file debt, and re-run a 20-30m suite. This story classifies BRANCH_HAIRLINE after one run, auto-files the debt issue when the open ledger is empty, and continues the cut without re-running vitest.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3187",
+      "Overview": "## Summary\n\nRelease Step 5 almost always hits the Vitest **branch** coverage hairline hatch (#2866 / `--allow-coverage-debt=#N`). Today that means: fail Step 5 → operator files a debt issue → re-run the full ~20–30m check/coverage gauntlet with the flag. The second lap is mostly ceremony tax; the hatch eligibility rules are already deterministic.\n\n**Proposal:** after **one** Step 5 run, if the failure is hatch-eligible and the open-issue ledger allows a soft-pass, **auto-file** the coverage-debt issue and **continue the cut** without re-running Step 5.\n\n## Motivation\n\n- Observed pattern: consecutive cuts (including v0.97.0 / #3185) need the hatch.\n- Fail-then-retry doubles wall-clock without adding safety when the classifier would accept the same hatch on re-run.\n- #2866 already defines machine-checkable conditions (branch-only hairline; no open prior debt; markers; restore all four metrics).\n\n## Proposed behavior\n\nInside `task release` Step 5, after vitest/check returns non-zero:\n\n1. **Classify** the failure:\n   - `REAL_FAILURE` — failed tests, hangs, non-coverage defects\n   - `BRANCH_HAIRLINE` — branches sole metric &lt; 85%; lines, functions, statements all ≥ 85%; zero failed tests\n   - `OTHER_COVERAGE` — any other metric also under bar\n   - `UNKNOWN` — cannot parse / ambiguous\n\n2. `REAL_FAILURE` | `OTHER_COVERAGE` | `UNKNOWN` → **fail closed** (unchanged; still #2859 file-and-merge when product defect).\n\n3. `BRANCH_HAIRLINE`:\n   - Query open coverage-debt ledger (same probes as release skill #2866: title/body markers + CHANGELOG citation scan of open issues).\n   - If **any open** coverage-debt / `--allow-coverage-debt` issue exists → **fail closed** (\"restore coverage; close #N first\") — preserves consecutive soft-pass ban.\n   - Else → **create** issue `#N` with markers `coverage-debt` and `--allow-coverage-debt`, measured metrics, cut version, acceptance (all four metrics ≥ 85%); mark Step 5 `PASS_WITH_DEBT(#N)`; **continue** pipeline (no re-run); loud log + CHANGELOG/release citation of `#N`.\n\n4. **File before continue** — never \"would hatch\" without a durable issue (avoids publish with no ledger).\n\n## Non-goals\n\n- Auto soft-pass for multi-metric coverage misses, hangs, or real test failures.\n- Auto `--skip-ci` / general Step 5 skip.\n- Lowering the 85% bar or excluding modules by default.\n- Silent soft-pass with no issue / no markers.\n\n## Optional knobs (later)\n\n- `--no-auto-coverage-debt` — force fail-closed even on hairlines (hard cut).\n- Sticky debt issue: amend open body instead of a new issue every cut.\n- Streak limit: N auto-hatches without close → fail until restored (open-ledger alone already blocks if issue stays open).\n\n## Acceptance\n\n- [ ] One Step 5 invocation on branch-only hairline with empty debt ledger auto-files `#N` and continues release without re-running vitest.\n- [ ] Open prior coverage-debt issue still fails closed (no consecutive soft-pass).\n- [ ] Non-hairline failures still fail closed with no auto-issue.\n- [ ] Classifier refuses when metrics/report cannot be parsed (UNKNOWN → fail closed).\n- [ ] Operator-facing release skill / RELEASING.md disclose auto-hatch under Phase 1/Step 5.\n- [ ] Unit tests for classify + ledger gate + issue create seams (no live network in unit tests).\n\n## References\n\n- Release skill `deft-directive-release` § Step 5 branch-coverage threshold — open-issue ledger hatch (#2866)\n- Fixable check failure file-and-merge (#2859) — stays for real defects\n- Recent hatch: #3185 (v0.97.0 84.95% branches)\n- Prior restores: #3144, #3103, #3027, …\n\n## Discussed in\n\nOperator session: release v0.97.0; design discussion \"run once, auto-hatch if legal, continue.\"\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @MScottAdams (2026-08-07T15:21:26Z)\n\n## Amendment (coordination with #3189 / #3188)\n\n**Scope stays framework-release-first:** auto-hatch in `task release` Step 5 for deftai/directive remains valid without waiting on #3189.\n\n**Consumer expansion** of the same auto-hatch *behavior* is **blocked on #3189** (project `coverageDebt` policy + session nudge). Do not auto-file debt on deftai/directive from consumer trees; consumer ledger is always the consumer repo.\n\n**Depends-on / related:**\n- #3188 — suite stamp + fast-before-slow (complements: one suite + no late full re-run)\n- #3189 — PD policy + nudge (required before shipping hatch to consumers)\n- #2866 — ledger rules unchanged\n- #3185 — example open debt from v0.97.0 cut\n\n**Acceptance add:** document that consumer-facing auto-hatch (if ever) must read `plan.policy.coverageDebt` and refuse when `status=unset` or `mode=off`.",
+      "Labels": "enhancement",
+      "UserStory": "As a framework release operator, I want Step 5 to auto-hatch a branch-only hairline after one suite when the debt ledger is empty, so that I do not pay a full re-run tax for ceremony that is already deterministic.",
+      "ImplementationPlan": "1. Add pure classifier module under packages/core/src/release/ (or vitest-runner/coverage-debt.ts) for REAL_FAILURE | BRANCH_HAIRLINE | OTHER_COVERAGE | UNKNOWN from Step 5 output. 2. Wire packages/core/src/release/pipeline.ts Step 5: BRANCH_HAIRLINE + empty open debt ledger -> create issue with coverage-debt markers, PASS_WITH_DEBT(#N), continue without re-run; open debt fails closed. 3. Also in pipeline: after suite green or PASS_WITH_DEBT write SHA suite stamp; re-entry same clean HEAD skips suite (coordinates with #3188 check ordering). 4. Unit tests in packages/core/src/release/*.test.ts and vitest-runner/coverage-debt.test.ts (no network). 5. content/skills/deft-directive-release/SKILL.md + docs/RELEASING.md. Verify: npm test -w @deftai/directive-core -- --run release/ and vitest-runner/coverage-debt."
+    },
+    "items": [
+      {
+        "title": "One-run auto-hatch on empty ledger",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given branch-only hairline and empty debt ledger, when Step 5 runs once, then it auto-files #N and continues without re-running vitest."
+        }
+      },
+      {
+        "title": "Open prior debt fails closed",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given an open coverage-debt issue, when Step 5 sees BRANCH_HAIRLINE, then it fails closed with no auto-issue and no consecutive soft-pass."
+        }
+      },
+      {
+        "title": "Non-hairline stays fail-closed",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given REAL_FAILURE, OTHER_COVERAGE, or UNKNOWN, when Step 5 classifies, then it fails closed with no auto-issue."
+        }
+      },
+      {
+        "title": "Docs and unit tests",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the PR, when release skill/RELEASING and unit tests are reviewed, then auto-hatch is disclosed and tests cover classify + ledger + create seams without live network."
+        }
+      },
+      {
+        "title": "SHA suite stamp on green or PASS_WITH_DEBT",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given suite green or PASS_WITH_DEBT at HEAD S, when a suite stamp is written and re-entry occurs at clean S, then suite is skipped; dirty tree or different HEAD invalidates stamp. CI never trusts stamp."
+        }
+      }
+    ],
+    "tags": [
+      "enhancement"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3187",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3187: release: auto-hatch branch coverage hairline in Step 5 when ledger allows (no fail+re-run)"
+      }
+    ],
+    "id": "3187-release-auto-hatch-branch-hairline",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/release/pipeline.ts",
+          "packages/core/src/release/pipeline.test.ts",
+          "packages/core/src/release/flags.ts",
+          "packages/core/src/release/flags.test.ts",
+          "packages/core/src/release/preflight.ts",
+          "packages/core/src/release/preflight.test.ts",
+          "packages/core/src/vitest-runner/coverage-debt.ts",
+          "packages/core/src/vitest-runner/coverage-debt.test.ts",
+          "content/skills/deft-directive-release/SKILL.md",
+          "content/packs/skills/skills-pack-0.1.json",
+          "docs/RELEASING.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "npm test -w @deftai/directive-core -- --run release/",
+          "npm test -w @deftai/directive-core -- --run vitest-runner/coverage-debt"
+        ],
+        "expected_outputs": [
+          "auto-hatch classifier",
+          "PASS_WITH_DEBT path",
+          "docs",
+          "CHANGELOG #3187",
+          "PR through merge (with #3188)"
+        ],
+        "depends_on": [],
+        "conflict_group": "release-auto-hatch-3187",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "May add packages/core/src/release/auto-hatch.ts and suite-stamp.ts. Exclusive of packages/core/src/check/ (#3188). Framework-release hatch only; consumer hatch is #3189."
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3190,
+        "prBase": null,
+        "mergeCommit": "52a655a9f3153043d294a94a43b1f352cb8e0e55",
+        "deliveryBranch": "master",
+        "deliveryCommit": "52a655a9f3153043d294a94a43b1f352cb8e0e55",
+        "verifiedAt": "2026-08-07T16:35:45Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-07T16:35:45Z",
+      "capacityBucket": "new-capability"
+    },
+    "updated": "2026-08-07T16:35:45Z"
+  }
+}

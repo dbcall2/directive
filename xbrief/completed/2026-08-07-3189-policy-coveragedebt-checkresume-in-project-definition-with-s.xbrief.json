@@ -1,0 +1,113 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF for #3189 swarm through-merge cohort",
+    "updated": "2026-08-07T18:06:51Z"
+  },
+  "plan": {
+    "title": "policy: coverageDebt + checkResume in PROJECT-DEFINITION with skippable session nudge",
+    "status": "completed",
+    "narratives": {
+      "Description": "Release-born hatch and suite-stamp features must not expand to consumers as silent defaults. This story adds plan.policy.coverageDebt and plan.policy.checkResume with unset-versus-decided semantics, fail-closed defaults when unset, and a skippable session-start nudge until the project decides.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3189",
+      "Overview": "## Summary\n\nAdd **project-visible** policy for coverage-debt hatch and local check-resume / CI trust boundaries in `PROJECT-DEFINITION` (`plan.policy`), plus a **skippable session-start nudge** when the policy is unset. The nudge explains **why** and **what** is being asked; skip does not decide; the next session-start ritual nags again until the project decides (or records an explicit dismiss-with-reason).\n\nThis is the **consent / SoT surface** that makes it safe to expand release-originated features (#3187 auto-hatch, #3188 fast-before-slow + suite stamp) to **consumers** as policy-gated behavior—not silent defaults.\n\n## Motivation\n\n- #3187 / #3188 improve release Step 5 pain (hairline hatch re-runs; full suite after small late fails).\n- Expanding those behaviors to consumers without a **project decision** risks silent soft-pass, fake-green from laptop stamps, and multi-agent quality drift.\n- Hatch and ship bars are **product contracts** (shared by humans + agents on the repo), not USER.md personal prefs.\n- CI trust must be **per project** (and per pipeline), never per user.\n\n## Goals\n\n1. **Schema + defaults** in product definition for coverage-debt and check-resume.\n2. **Interactive nudge** when unset: plain language why/what; presets; skippable; re-nag on next ritual until decided.\n3. **Unlock matrix** for consumer expansion of release-born features once decided (see below).\n\n## Non-goals (v1)\n\n- CI trusting a **local** suite stamp (`ciTrustsLocalStamp` stays **false**; separate RFC to ever allow).\n- Silent default-on hatch for consumers.\n- Auto-filing coverage-debt issues on **deftai/directive** from a consumer tree (ledger is always **this** repo).\n- Blocking headless CI / non-interactive agents on the nudge.\n- Twelve-toggle wizard; prefer one bundled preset decision.\n\n## Proposed policy shape (conceptual)\n\n```text\nplan.policy.coverageDebt:\n  status: unset | decided\n  mode: off | warn | hatch      # meaningful when decided\n  autoFile: boolean             # only if mode=hatch; default false for consumers\n  # ledger: open issues on THIS repo with coverage-debt / --allow-coverage-debt markers (#2866)\n\nplan.policy.checkResume:\n  status: unset | decided\n  localStamp: off | on          # skip re-suite at same HEAD after green local suite\n  ciTrustsLocalStamp: false     # FIXED false in v1\n```\n\n**Defaults when unset or missing:** treat as `mode: off`, `localStamp: off`, CI never trusts stamps. Unset is **not** the same as decided-off for **nag** purposes (unset → nag; decided off → quiet).\n\nFramework release may keep its own Step 5 hatch path; consumer behavior is **policy-driven**, not a copy of `task release` semantics.\n\n## Nudge content (must say)\n\n**Why:** Long checks often fail late on small gates, or barely miss coverage. The project can fail closed, warn, or hatch with a tracked debt issue on **this** repo. Local machines may resume a suite that already passed at the same commit; CI must not trust a laptop stamp.\n\n**What we need:** One bundled choice (not five micro-toggles in v1):\n\n| Preset | Writes |\n|---|---|\n| **Strict** (recommended for most apps) | `coverageDebt.mode=off`, `checkResume.localStamp=off` (or local on only if we split—prefer both off for Strict) |\n| **Hatch-aware** | `coverageDebt.mode=hatch`, `autoFile=false` by default; `localStamp` opt (recommend on for DX) |\n| **Not now / Later** | Does **not** set `status=decided`; skip this session; **nag again** next session-start ritual |\n\n**What is not being asked:** npm publish, turning off required CI, USER.md as SoT for ship bars.\n\n**Skippable:** “Remind me next session” — no PD mode write.  \n**Stop nag:** only after `status=decided` (preset write) **or** explicit dismiss-with-reason (still visible via `policy:show` / doctor).\n\nUse deterministic-questions contract if structured (#1470): final options include Discuss and Back.\n\n## When the nudge fires\n\n- Session-start **mutation** / gated ritual path (same class as other policy ticklers)—not every read-only ask.\n- Condition: `coverageDebt.status == unset` (and/or checkResume unset if coupled in v1 preset).\n- At most **once per** cold or re-arm session-start ritual.\n- Skip entirely: `.no-deft-directive`, kill-switch, non-interactive / headless CI without TTY.\n- If org/template already wrote decided policy → no nudge.\n- Optional: after N skips, doctor warns “policy undecided”; frequency may soften (document choice in implementation).\n\n## Expansion matrix (after this lands)\n\n| Feature | Expand to consumers? | Gate |\n|---|---|---|\n| Fast-before-slow gate ordering (#3188) | **Yes even before nudge** | Universal fail-fast UX |\n| Local suite stamp resume (#3188) | **Yes when** `checkResume.localStamp=on` | Local only; CI ignores |\n| Coverage hatch / auto-file (#3187-shaped) | **Yes when** `coverageDebt.mode=hatch` (+ optional autoFile) | Ledger on **consumer** issues |\n| CI soft-pass hairline | Optional later; default no | Policy + workflow explicit |\n| CI trusts local stamp | **Not v1** | Separate RFC |\n\nWithout this issue: hatch/resume expansion is either silent (bad) or forever maintainer-only. With it: release-born features become **opt-in project policy**.\n\n## Acceptance\n\n- [ ] PD schema documents `coverageDebt` + `checkResume` (or equivalent names) with unset vs decided semantics.\n- [ ] Missing/unset → no hatch soft-pass, no local stamp skip, CI never trusts local stamps.\n- [ ] Interactive session-start (mutation/ritual): if unset, show why/what + Strict / Hatch-aware / Later; Later does not mark decided.\n- [ ] Strict / Hatch-aware writes PD and stops nag; `task policy:show` (or equivalent) surfaces the choice.\n- [ ] Dismiss-with-reason path documented and visible to doctor/policy show.\n- [ ] Headless/CI does not block on the nudge.\n- [ ] Docs (QUICK-START / policy / consumer check contract): why, what, skippable, re-nag, CI trust boundary.\n- [ ] Unit tests: defaults, preset writes, nag eligibility, no network in unit tests.\n- [ ] Explicit non-goal test or doc: consumer tree never auto-files coverage-debt on deftai/directive.\n\n## Implementation notes\n\n- Prefer **Personal never weakens ship bar**: USER.md may request stricter local re-run; must not authorize hatch or CI trust.\n- Align copy with Controlled English / STE-ish operator voice where docs land (#2927).\n- Reuse patterns from valueFeedback enable / product-signal consent (explain, confirm, durable SoT).\n\n## References\n\n- #3187 — release Step 5 auto-hatch branch hairline\n- #3188 — Step 5 fast-before-slow + SHA suite stamp\n- #2866 — open-issue ledger hatch rules\n- #3185 — v0.97.0 coverage-debt hatch example\n- #2859 — file-and-merge for real defects (unchanged)\n- #1470 / deterministic questions — Discuss/Back if structured menu\n- Session routing / session-start ritual (#2176 / #1149) — where nudge attaches\n- Discussed: hatch in PD; CI trust per project not per user; nudge unlocks consumer expansion\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @MScottAdams (2026-08-07T15:21:28Z)\n\n## Amendment (implementation order note)\n\nSuggested wave order (not hard blockers for all work):\n1. **#3188** fast-before-slow in shared gates (consumer win, low policy risk)\n2. **#3187** release auto-hatch (maintainer cut pain)\n3. **#3189** PD + nudge (unlocks consumer hatch/resume)\n4. **#3188** stamp generalized behind `checkResume` after #3189\n\nCross-link parents: #3187, #3188, #2866, #3185.",
+      "Labels": "enhancement",
+      "UserStory": "As a project owner using Directive, I want explicit project policy for coverage-debt hatch and local check resume with a skippable session nudge, so that consumer expansion of release-born features is opt-in and never silent.",
+      "ImplementationPlan": "1. Extend plan.policy types/schema under packages/core/src/policy/ for coverageDebt (status, mode, autoFile) and checkResume (status, localStamp, ciTrustsLocalStamp fixed false). 2. Fail-closed defaults when unset in policy readers. 3. Session-start mutation/ritual nudge in packages/core/src/session/ (and staleness-tickler if that is the nudge host) with Strict / Hatch-aware / Later; Later does not set decided. 4. policy:show + doctor/checks.ts surface; unit tests under policy/ and session/; docs content/docs/consumer-check-contract.md. Verify: npm test -w @deftai/directive-core -- --run policy/ and session/. Do not edit release/* or check/orchestrator."
+    },
+    "items": [
+      {
+        "title": "PD schema and fail-closed defaults",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given missing or unset coverageDebt/checkResume, when hatch or local stamp would apply, then both are off and CI never trusts local stamps."
+        }
+      },
+      {
+        "title": "Session-start skippable nudge",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given interactive mutation ritual and unset policy, when session-start runs, then why/what plus Strict/Hatch-aware/Later is shown; Later does not set decided and re-nags next ritual."
+        }
+      },
+      {
+        "title": "Presets write PD and stop nag",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given Strict or Hatch-aware, when chosen, then PD is written, status=decided, and the nudge stops; policy:show surfaces the choice."
+        }
+      },
+      {
+        "title": "Headless and docs/tests",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given headless/CI, when ritual runs, then nudge does not block; unit tests cover defaults/presets/eligibility; docs cover trust boundary and non-goal that consumers never auto-file debt on deftai/directive."
+        }
+      }
+    ],
+    "tags": [
+      "enhancement"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3189",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3189: policy: coverageDebt + checkResume in PROJECT-DEFINITION with skippable session nudge until decided"
+      }
+    ],
+    "id": "3189-policy-coverage-debt-check-resume-nudge",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/policy/",
+          "packages/core/src/session/",
+          "packages/core/src/staleness-tickler/",
+          "packages/core/src/doctor/checks.ts",
+          "packages/core/src/doctor/checks.test.ts",
+          "content/docs/consumer-check-contract.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "npm test -w @deftai/directive-core -- --run policy/",
+          "npm test -w @deftai/directive-core -- --run session/"
+        ],
+        "expected_outputs": [
+          "coverageDebt+checkResume policy",
+          "session nudge",
+          "docs/tests",
+          "CHANGELOG #3189",
+          "PR through merge"
+        ],
+        "depends_on": [],
+        "conflict_group": "policy-coverage-checkresume-3189",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "May touch policy schema types and session ritual hooks. Exclusive of release/* and check orchestrator owned by #3187/#3188 agent. policy/autonomy-branches.test.ts is exclusive to #3185 — do not edit that file; use other policy tests."
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3196,
+        "prBase": null,
+        "mergeCommit": "f82d6f127737d5f6d0a927aa4bd2d5e619698533",
+        "deliveryBranch": "master",
+        "deliveryCommit": "f82d6f127737d5f6d0a927aa4bd2d5e619698533",
+        "verifiedAt": "2026-08-07T18:06:51Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-07T18:06:51Z",
+      "capacityBucket": "new-capability"
+    },
+    "updated": "2026-08-07T18:06:51Z"
+  }
+}

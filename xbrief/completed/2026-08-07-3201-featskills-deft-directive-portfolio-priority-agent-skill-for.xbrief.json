@@ -1,0 +1,123 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF for #3201 portfolio-priority skill (swarm add-on)",
+    "updated": "2026-08-07T19:34:18Z"
+  },
+  "plan": {
+    "id": "3201-skill-portfolio-priority",
+    "title": "feat(skills): deft-directive-portfolio-priority — agent skill for #3198 priority briefs",
+    "status": "completed",
+    "narratives": {
+      "Description": "Implement the agent skill and discoverability pointers for the portfolio prioritization pass defined by #3198. From local github-issue cache plus classify partition, produce a propose-not-apply priority brief with epistemic gates, then hand off for operator dispose. #3198 owns process and dogfood; this issue owns the re-runnable skill entrypoint. Worked example: #3200 / docs/analysis/2026-08-07-portfolio-priority-brief-patterns-pilot.md.",
+      "UserStory": "As a maintainer, I want a discoverable deft-directive-portfolio-priority skill that produces verified priority briefs from the local issue cache, so that fresh agent sessions re-run portfolio prioritization without reinventing the pilot.",
+      "ImplementationPlan": "1. Create content/skills/deft-directive-portfolio-priority/SKILL.md with triggers (portfolio priority, competing RFCs, priority brief, cluster open issues), ordered phases, and RFC2119 MUST gates: cache freshness disclose, triage:classify --mirror as partition only, theme slice, cluster/conflict matrix/shortlist/park, epistemic verify via gh api or fresh cache, emit markdown template matching docs/analysis/2026-08-07-portfolio-priority-brief-patterns-pilot.md sections, dispose checklist to #1396/plan-sequence. 2. Register skill in content/packs/skills/skills-pack-0.1.json and run task packs:render; wire Skills Index via content/REFERENCES.md. 3. Optional one-line see-also in content/commands.md triage section. 4. CHANGELOG [Unreleased] for #3201. 5. Content-contract pins under packages/core/src/content-contracts/skills if required by pack. Verify: task packs:render; npm test -w @deftai/directive-core -- --run content-contracts/skills. Do not re-spec #3198 process; do not edit packages/core/src/triage/classify/label-mirror.ts.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3201",
+      "Labels": "enhancement, meta, triage, agent-experience, process, status:child"
+    },
+    "items": [
+      {
+        "title": "Skill exists and index-discoverable",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given pack render and Skills Index/REFERENCES conventions, when agents scan for portfolio priority triggers, then deft-directive-portfolio-priority (or final name) is discoverable."
+        }
+      },
+      {
+        "title": "Phases enforce filter + epistemic gates",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the SKILL.md, when followed, then classify is filter-only, every cited issue is verified and bodies read, and title-only supersession is forbidden."
+        }
+      },
+      {
+        "title": "Output template matches pilot shape",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a skill run, when the brief is emitted, then it includes scope counts, interrupt vs portfolio, family matrix, shortlist, park, epistemic limits, and dispose checklist; links #3200 pilot path."
+        }
+      },
+      {
+        "title": "No SCM mutations + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the skill, when used, then no SCM label writes, no triage:accept, no scope lifecycle; CHANGELOG cites #3201."
+        }
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/skills/deft-directive-portfolio-priority/",
+          "content/packs/skills/skills-pack-0.1.json",
+          "content/REFERENCES.md",
+          "content/commands.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "task packs:render",
+          "npm test -w @deftai/directive-core -- --run content-contracts/skills"
+        ],
+        "expected_outputs": [
+          "portfolio-priority skill",
+          "index wiring",
+          "CHANGELOG #3201",
+          "PR through merge"
+        ],
+        "depends_on": [],
+        "conflict_group": "skill-portfolio-priority-3201",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "Skill-only PR. #3198 process/dogfood and #3200 pilot brief are siblings — do not re-own pilot docs PR unless coordinating. Exclusive of label-mirror code (#3197 done)."
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3203,
+        "prBase": null,
+        "mergeCommit": "cb64f69bec0b8dae27bce1c4fae77eea63525fb1",
+        "deliveryBranch": "master",
+        "deliveryCommit": "cb64f69bec0b8dae27bce1c4fae77eea63525fb1",
+        "verifiedAt": "2026-08-07T19:34:18Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-07T19:34:18Z",
+      "capacityBucket": "new-capability"
+    },
+    "tags": [
+      "enhancement",
+      "meta",
+      "triage",
+      "agent-experience",
+      "process"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3201",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3201"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3198",
+        "type": "x-xbrief/refs",
+        "title": "Issue #3198"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/pull/3200",
+        "type": "x-xbrief/refs",
+        "title": "PR #3200 pilot"
+      }
+    ],
+    "updated": "2026-08-07T19:34:18Z"
+  }
+}

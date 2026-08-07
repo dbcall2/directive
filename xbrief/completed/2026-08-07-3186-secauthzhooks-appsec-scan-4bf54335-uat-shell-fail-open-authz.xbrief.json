@@ -1,0 +1,126 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF for #3186 swarm through-merge cohort",
+    "updated": "2026-08-07T16:47:54Z"
+  },
+  "plan": {
+    "title": "sec(authz,hooks): UAT Shell fail-open for authz obfuscation, kill-switch/policy, assist-scratch symlink",
+    "status": "completed",
+    "narratives": {
+      "Description": "AppSec scan at 4bf54335 found three residual UAT bypasses: unclassifiable Shell can still write authz state, Shell can plant the kill-switch or flip policy mutators, and assist-scratch allow is lexical-only so a symlink escapes the checkout. This story fail-closes those paths under active UAT with regression tests.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3186",
+      "Overview": "## Summary\n\nAppSec scan of **deftai/directive @ `4bf54335`** produced **3 validated findings** (2 HIGH, 1 MEDIUM). All are **UAT / PreToolUse residual bypass** class: #3110 closed literal `.deft/authz/` Shell writes, but **unclassifiable** Shell and **lexical** assist-scratch still fail open.\n\n**Impact theme:** Under active UAT, an agent can still clear or forge authz state, plant the Directive kill-switch, flip branch/merge policy, or escape the checkout via a symlink under the assist scratch carve-out — unlocking Write / push / PR / merge without a human grant.\n\n---\n\n## Findings\n\n### 1. HIGH — UAT residual: obfuscated Shell writes to `.deft/authz/` still fail-open\n\n| | |\n|--|--|\n| **Severity** | HIGH |\n| **Location** | `packages/core/src/authz/classify.ts` |\n| **Commit** | `4bf54335` |\n\n**Impact:** After #3110, literal authz store writes are denied, but `python3` / `node` (and similar) **byte/base64 path construction** returns `classifyShellAuthzOps=[]` → **`shell-op-unclassifiable` allow**. An agent can:\n\n- Clear UAT state or forge operator-cli grants\n- Empty `activeGrantIds` then activate grants → Write / push / PR / merge unlock\n\n**Remediation:**\n\n- Under active UAT, **fail-closed** on unclassifiable Shell that uses python / node / perl (or other) write bins; **or**\n- Require opaque FS writes to **resolve realpath** under the project and treat destinations under `.deft/authz` as **settings** (same deny posture as #3110 literals)\n\n**Tests:** Add fixtures for base64/byte-constructed paths to `.deft/authz/*` under UAT; expect deny, not unclassifiable allow.\n\n---\n\n### 2. HIGH — UAT residual: Shell can plant `.deft-directive-disable` / flip policy settings\n\n| | |\n|--|--|\n| **Severity** | HIGH |\n| **Location** | `packages/core/src/authz/classify.ts` |\n| **Commit** | `4bf54335` |\n\n**Impact:** Commands such as:\n\n- `echo > .deft-directive-disable`\n- `deft policy:allow-bot-merge` / `allow-direct-commits` / `disable-directive` (and peers)\n\nstill **classify empty** → Shell **allowed under UAT**.\n\nConsequences:\n\n- Planting the kill-switch → subsequent tools see **directive-disabled** (full gate bypass) without a new session / human recovery path as designed for operators\n- Policy flips weaken merge / branch gates **without a prior human grant**\n\n**Remediation:**\n\n- Classify **kill-switch path writes** and **`policy:*` authority mutators** as **settings**\n- **Hard-refuse under UAT** without a prior human grant (mirror #3110 authz CLI treatment)\n- Cross-check docs: `content/docs/deft-directive-disable.md` / policy surfaces — agent must not self-serve these under UAT\n\n**Tests:** Shell plant kill-switch under UAT → deny; `policy:allow-bot-merge` (and listed mutators) under UAT without grant → deny.\n\n---\n\n### 3. MEDIUM — Assist scratch carve-out (#1802) is lexical-only; `.deft-scratch` / temp dir symlink escapes\n\n| | |\n|--|--|\n| **Severity** | MEDIUM |\n| **Location** | `packages/core/src/hooks/dispatcher.ts` |\n| **Commit** | `4bf54335` |\n\n**Impact:** Force-addable gitignored dir **symlink** at `.deft-scratch` or temp + assist / ephemeral posture → `write-assist-scratch-ready` skips ritual / scope. Host Write follows parent symlink and **writes outside the checkout**.\n\n**Remediation:**\n\n- **Realpath** the scratch root\n- Require `assertProjectionContained(projectRoot, realScratchRoot)` before allow\n- **Refuse** symlink scratch roots (or any realpath outside project)\n\n**Tests:** Symlink `.deft-scratch` → outside tree under assist posture → deny; real contained scratch → allow as today.\n\n---\n\n## Suggested fix order\n\n1. Finding **2** (kill-switch / policy) — fastest full-bypass path  \n2. Finding **1** (obfuscated authz writes) — grant/UAT integrity  \n3. Finding **3** (scratch realpath) — containment parity with other write fences  \n\nPrefer one PR covering all three if test surface is shared; otherwise split 1+2 (classify.ts) vs 3 (dispatcher.ts).\n\n---\n\n## Acceptance criteria\n\n- [ ] Under active UAT, unclassifiable Shell that can write via python/node/perl (or equivalent) does **not** fail-open when targeting authz store paths (or all unclassifiable write-capable Shell is fail-closed under UAT — document chosen rule)\n- [ ] Shell writes to `.deft-directive-disable` (and equivalent kill-switch paths) are denied under UAT without human grant\n- [ ] `policy:*` authority mutators that weaken merge/branch/directive gates are classified as settings and denied under UAT without human grant\n- [ ] Assist scratch allow path realpaths the scratch root and refuses symlink / out-of-project realpath\n- [ ] Regression tests for each finding; no silent allow on the PoC shapes above\n- [ ] Brief note in authz / hooks docs or CHANGELOG under security\n\n## Non-goals\n\n- Redesigning UAT grant UX\n- Removing assist scratch entirely (#1802 intent stays)\n- Expanding beyond these three validated findings without a new scan\n\n## Related\n\n- #3110 — literal authz store Shell deny (residual: classification gap)\n- #1802 — assist scratch carve-out (residual: lexical-only containment)\n- #3039 — `.deft-directive-disable` kill-switch product behavior (must not be agent-plantable under UAT)\n- Contained-write / projection containment patterns elsewhere in hooks FS gates\n\n## Origin\n\nAppSec scan (deftai/directive @ `4bf54335`) — 3 new validated findings (2 HIGH, 1 MEDIUM).\r\n\n",
+      "Labels": "bug, security, harness, agent-safety, urgent, area:cli",
+      "UserStory": "As a security owner of the agent harness, I want UAT Shell and assist-scratch writes fail-closed against authz, kill-switch, policy mutators, and symlink escapes, so that agents cannot unlock Write/push/PR/merge without a human grant.",
+      "ImplementationPlan": "1. In packages/core/src/authz/classify.ts extend classifyShellAuthzOps to classify kill-switch writes (.deft-directive-disable) and policy:* authority mutators (allow-bot-merge, allow-direct-commits, disable-directive peers) as settings. 2. In packages/core/src/authz/evaluate.ts (and UAT shell path) fail-closed unclassifiable write-capable Shell under active UAT when targeting .deft/authz or write bins python/node/perl. 3. In packages/core/src/hooks/dispatcher.ts realpath assist-scratch root and assertProjectionContained; refuse symlink or out-of-project realpath before write-assist-scratch-ready. 4. Tests in classify.test.ts, evaluate.test.ts, dispatcher.test.ts; CHANGELOG security note. Verify: npm test -w @deftai/directive-core -- --run authz/classify and hooks/dispatcher."
+    },
+    "items": [
+      {
+        "title": "Authz unclassifiable write fail-closed under UAT",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given active UAT, when Shell uses python/node/perl-style path construction targeting .deft/authz, then the path is denied (not unclassifiable allow)."
+        }
+      },
+      {
+        "title": "Kill-switch plant denied under UAT",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given active UAT without human grant, when Shell writes .deft-directive-disable, then the write is denied."
+        }
+      },
+      {
+        "title": "Policy authority mutators denied under UAT",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given active UAT without grant, when Shell runs policy:allow-bot-merge or listed authority mutators, then they classify as settings and are denied."
+        }
+      },
+      {
+        "title": "Assist-scratch realpath containment",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given assist posture, when .deft-scratch is a symlink outside the project, then write-assist-scratch is denied; real contained scratch still allows."
+        }
+      },
+      {
+        "title": "Tests and security CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the PR, when tests run, then regression fixtures cover all three findings and CHANGELOG notes the security fix for #3186."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "security",
+      "harness",
+      "agent-safety",
+      "urgent",
+      "area:cli"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3186",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3186: sec(authz,hooks): AppSec scan @ 4bf54335 — UAT Shell fail-open (authz obfuscation, kill-switch/policy, assist-scratch symlink)"
+      }
+    ],
+    "id": "3186-sec-authz-hooks-uat-shell-fail-open",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/authz/classify.ts",
+          "packages/core/src/authz/classify.test.ts",
+          "packages/core/src/authz/evaluate.ts",
+          "packages/core/src/authz/evaluate.test.ts",
+          "packages/core/src/authz/evaluate-branches.test.ts",
+          "packages/core/src/hooks/dispatcher.ts",
+          "packages/core/src/hooks/dispatcher.test.ts",
+          "content/docs/deft-directive-disable.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "npm test -w @deftai/directive-core -- --run authz/classify",
+          "npm test -w @deftai/directive-core -- --run hooks/dispatcher"
+        ],
+        "expected_outputs": [
+          "UAT fail-closed for three findings",
+          "regression tests",
+          "CHANGELOG #3186",
+          "PR through merge"
+        ],
+        "depends_on": [],
+        "conflict_group": "sec-authz-uat-3186",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "May touch adjacent authz/hooks test helpers only; no release/check/session/policy PD schema edits."
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3191,
+        "prBase": null,
+        "mergeCommit": "e74c9062d604b9b2aba80b1d65a0705584c103bc",
+        "deliveryBranch": "master",
+        "deliveryCommit": "e74c9062d604b9b2aba80b1d65a0705584c103bc",
+        "verifiedAt": "2026-08-07T16:47:54Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-07T16:47:54Z",
+      "capacityBucket": "technical-debt"
+    },
+    "updated": "2026-08-07T16:47:54Z"
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF for #3185 swarm through-merge cohort",
+    "updated": "2026-08-07T17:12:20Z"
+  },
+  "plan": {
+    "title": "coverage-debt: restore Vitest branch coverage >=85% after v0.97.0 hairline (84.95%)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Release Step 5 for v0.97.0 failed solely on Vitest branch coverage at 84.95% versus the 85% global threshold while lines, statements, and functions already passed. This story restores all four metrics to at least 85% without the coverage-debt hatch so the open hatch ledger can close.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3185",
+      "Overview": "## Summary\nRelease Step 5 (v0.97.0 cut) failed on Vitest **branch** coverage only: measured **84.95%** vs 85% global threshold. Lines / statements / functions met threshold (failure message only named branches).\n\n## Hatch markers\n- coverage-debt\n- --allow-coverage-debt\n\n## Acceptance (must restore before close)\n- [ ] Restore **all four** Vitest coverage metrics (lines, functions, branches, statements) to **≥ 85%**\n- [ ] Re-run full coverage lane without `--allow-coverage-debt`\n- [ ] Close this issue when green\n\n## Context\n- Discovered during `task release -- 0.97.0` Step 5 (`task check` / vitest coverage)\n- Prior restore: #3144 (v0.96.0 hairline). No open prior hatch debt at cut time.\n- Release skill #2866 open-issue ledger hatch for branch-only miss.\n\n## Evidence\n```\nERROR: Coverage for branches (84.95%) does not meet global threshold (85%)\n[5/13] Pre-flight CI ... FAIL\n```",
+      "Labels": "bug",
+      "UserStory": "As a release maintainer, I want Vitest branch coverage restored to at least 85% on master, so that coverage-debt issue #3185 can close and future cuts are not blocked by an open hatch ledger.",
+      "ImplementationPlan": "1. Run coverage:hotspots and/or vitest coverage to identify modules with the lowest branch rates. 2. Add or extend focused *-branches.test.ts files (prefer new tests) that exercise both sides of uncovered branches without changing product behavior except where a real bug is found. 3. Re-run the full coverage lane without --allow-coverage-debt and confirm lines, functions, branches, and statements are all >=85%. 4. CHANGELOG [Unreleased] for #3185; open PR through merge; close #3185 when green."
+    },
+    "items": [
+      {
+        "title": "Raise branch coverage to >=85%",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given current master after this PR, when the full Vitest coverage lane runs without --allow-coverage-debt, then branches measure at least 85%."
+        }
+      },
+      {
+        "title": "All four metrics meet threshold",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the same coverage run, when thresholds are evaluated, then lines, functions, branches, and statements are each at least 85%."
+        }
+      },
+      {
+        "title": "No hatch dependency for green bar",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the PR is merge-ready, when CI or local full coverage runs, then green is achieved without --allow-coverage-debt for this restore."
+        }
+      },
+      {
+        "title": "CHANGELOG and issue close path",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given merge, when CHANGELOG and closing keywords are applied, then #3185 is cited and can close."
+        }
+      }
+    ],
+    "tags": [
+      "bug"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3185",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3185: coverage-debt: restore Vitest branch coverage ≥85% after v0.97.0 hairline (84.95%)"
+      }
+    ],
+    "updated": "2026-08-07T17:12:20Z",
+    "id": "3185-coverage-debt-restore-branch-85",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/cache/branches.test.ts",
+          "packages/core/src/cache/coverage-boost.test.ts",
+          "packages/core/src/cache/coverage-final.test.ts",
+          "packages/core/src/doctor/coverage-boost.test.ts",
+          "packages/core/src/doctor/coverage-final.test.ts",
+          "packages/core/src/delivery-attempt/coverage-boost.test.ts",
+          "packages/core/src/coverage-hotspots/evaluate.ts",
+          "packages/core/src/coverage-hotspots/evaluate.test.ts",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "npm test -w @deftai/directive-core -- --run coverage-hotspots",
+          "npm test -w @deftai/directive-core -- --run branches"
+        ],
+        "expected_outputs": [
+          "branch coverage >=85% all four metrics",
+          "CHANGELOG #3185",
+          "PR through merge"
+        ],
+        "depends_on": [],
+        "conflict_group": "coverage-debt-restore-3185",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "Worker MAY add new *-branches.test.ts under packages/core/src excluding authz/, hooks/, release/, check/, session/, and policy/ directories owned by sibling agents. Prefer new test files."
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3194,
+        "prBase": null,
+        "mergeCommit": "b9a6d0e3279902c17545b34df3de7e5525235f42",
+        "deliveryBranch": "master",
+        "deliveryCommit": "b9a6d0e3279902c17545b34df3de7e5525235f42",
+        "verifiedAt": "2026-08-07T17:12:20Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-07T17:12:20Z",
+      "capacityBucket": "technical-debt"
+    }
+  }
+}

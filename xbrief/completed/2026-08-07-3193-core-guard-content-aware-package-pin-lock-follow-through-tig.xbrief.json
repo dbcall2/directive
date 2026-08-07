@@ -1,0 +1,128 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF for #3193 core-guard content-aware pin+lock (swarm cohort add-on)",
+    "updated": "2026-08-07T17:42:57Z"
+  },
+  "plan": {
+    "title": "core-guard: content-aware package pin + lock follow-through (tighten #3127 path allowlist)",
+    "status": "completed",
+    "narratives": {
+      "Description": "The #3127 path-only allowlist lets package.json and lockfiles co-travel with .deft/core/** on upgrade PRs, but any edit to those paths is exempt. This story tightens the deposited deft-core-guard so package/lock co-travel is content-constrained to the @deftai/directive pin unit and necessary lock follow-through.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3193",
+      "Overview": "## Problem\n#3127 / PR #3138 correctly expanded `deft-core-guard` so a normal framework upgrade is **one PR**: deposit + `@deftai/directive` pin/lock + `.deft/GENERATION.json`.\n\nThe v1 implementation is **path-only** for `package.json` and lockfiles. That matches the #3127 note (“path-level allow is OK for v1; stricter pin-only is nicer if cheap”).\n\nResidual risk: a PR that mixes `.deft/core/**` with **unrelated** package/lock edits (other deps, scripts, metadata) can still pass the guard because those paths are unconditionally exempted when present.\n\nConsumer Greptile reviews on upgrade PRs now flag this as P2 (path-only) or, when operators hand-roll content checks in the consumer workflow, as a long P1 chase that does not belong in app repos.\n\n## Goal\nTighten the **deposited** guard so package/lock co-travel is content-constrained:\n\n| File | Pass only when |\n| --- | --- |\n| `package.json` | Diff is `@deftai/directive*` **dependency-key** pin change only (not scripts/settings that merely contain the substring) |\n| lockfile(s) | Follow-through for that pin (identity + necessary transitive/resolution lines), **not** unrelated direct product dependency identity or metadata-only product edits riding the exemption |\n| `.deft/GENERATION.json` | Remains path-allowlisted as upgrade stamp |\n\n## Must still fail\n- `.deft/core/**` + true app/product source\n- `.deft/core/**` + package/lock changes that are not the Directive pin unit\n\n## Non-goals\n- Removing the mixed core+app guard\n- Requiring two stacked upgrade PRs again\n- Per-consumer hand-rolled guard forks (fix ships in the deposit)\n\n## Acceptance\n- [ ] Deposit + Directive pin + lock follow-through + GENERATION (+ installer-managed paths) **passes**\n- [ ] Deposit + unrelated package.json field / unrelated lock identity or product metadata **fails**\n- [ ] Documented in UPGRADING next to the one-upgrade-PR shape\n- [ ] Classifier/guard tests cover pin-only vs mixed package cases (npm + at least one lock format used in CI)\n- [ ] No consumer needs to patch `deft-core-guard.yml` to land a normal upgrade\n\n## Context\n- Parent: #3127 (path allowlist v1), #1430 (guard origin), #3117 (GENERATION)\n- Observed: consumer upgrade reviews rate path-only as residual weakness; incomplete consumer-side content forks thrash review without fixing product SoT\n\n## Refs\n- #3127\n- #1430\n- #3117",
+      "UserStory": "As a consumer landing a normal framework upgrade, I want deft-core-guard to accept deposit + Directive pin + lock follow-through while rejecting unrelated package or lock edits, so that residual path-only weakness does not force hand-rolled consumer guard forks.",
+      "ImplementationPlan": "1. Locate classifier for no-mixed-core-and-app / installerManagedMatchers in packages/core/src/init-deposit/hygiene.ts and the deposited workflow body from scaffold coreGuardWorkflowContent. 2. Add content-aware checks: package.json diff may only change @deftai/directive* dependency-key pins (not scripts/settings that merely contain the substring); lockfiles allow only follow-through for that pin (identity + necessary transitive lines), not unrelated direct product deps. 3. Keep .deft/GENERATION.json path-allowlisted. 4. Fail on .deft/core/** + true app source or package/lock not the pin unit. 5. Tests in hygiene.test.ts (and related) for pin-only vs mixed npm + at least one lock format used in CI. 6. Document in content/UPGRADING.md next to one-upgrade-PR shape; CHANGELOG #3193. Verify: npm test -w @deftai/directive-core -- --run init-deposit/hygiene."
+    },
+    "items": [
+      {
+        "title": "Pin-only package.json co-travel passes",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given deposit + @deftai/directive* dependency-key pin change only + GENERATION + installer-managed paths, when the guard classifies the PR, then it passes."
+        }
+      },
+      {
+        "title": "Lock follow-through for pin passes",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given lockfile changes that only follow through the Directive pin identity and necessary transitive/resolution lines, when mixed with core deposit, then the guard passes."
+        }
+      },
+      {
+        "title": "Unrelated package/lock fails",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given .deft/core/** plus unrelated package.json field edits or unrelated lock product dependency identity, when the guard runs, then it fails."
+        }
+      },
+      {
+        "title": "Docs and classifier tests",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given UPGRADING one-upgrade-PR section and unit tests, when reviewed, then pin-only vs mixed cases are documented and covered for npm plus at least one CI lock format; no consumer must patch deft-core-guard.yml for a normal upgrade."
+        }
+      }
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3193",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3193: core-guard: content-aware package pin + lock follow-through (tighten #3127 path allowlist)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3127",
+        "type": "x-xbrief/refs",
+        "title": "Issue #3127"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1430",
+        "type": "x-xbrief/refs",
+        "title": "Issue #1430"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3117",
+        "type": "x-xbrief/refs",
+        "title": "Issue #3117"
+      }
+    ],
+    "id": "3193-core-guard-content-aware-pin-lock",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/init-deposit/hygiene.ts",
+          "packages/core/src/init-deposit/hygiene.test.ts",
+          "packages/core/src/init-deposit/scaffold.ts",
+          "packages/core/src/init-deposit/scaffold.test.ts",
+          "content/UPGRADING.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "npm test -w @deftai/directive-core -- --run init-deposit/hygiene",
+          "npm test -w @deftai/directive-core -- --run init-deposit/scaffold"
+        ],
+        "expected_outputs": [
+          "content-aware pin+lock guard",
+          "tests",
+          "UPGRADING",
+          "CHANGELOG #3193",
+          "PR through merge"
+        ],
+        "depends_on": [],
+        "conflict_group": "core-guard-pin-content-3193",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "May add packages/core/src/init-deposit/*pin* or content-classify helpers and Go parity under cmd/deft-install if required for deposited guard ERE. Parent #3127 path allowlist remains; this is content tighten only."
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3195,
+        "prBase": null,
+        "mergeCommit": "935148b7676d3bfa6ca1cb13282a27412b415098",
+        "deliveryBranch": "master",
+        "deliveryCommit": "935148b7676d3bfa6ca1cb13282a27412b415098",
+        "verifiedAt": "2026-08-07T17:42:57Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-07T17:42:57Z",
+      "capacityBucket": "technical-debt"
+    },
+    "tags": [
+      "enhancement",
+      "installer",
+      "core-guard"
+    ],
+    "updated": "2026-08-07T17:42:57Z"
+  }
+}

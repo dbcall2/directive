@@ -1,0 +1,134 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF for #3198 portfolio prioritization pass (swarm add-on)",
+    "updated": "2026-08-07T19:37:05Z"
+  },
+  "plan": {
+    "id": "3198-triage-portfolio-prioritization-briefs",
+    "title": "feat(triage,meta): portfolio prioritization pass — priority briefs from local cache (propose-not-apply)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Maintainers need pre-promotion portfolio prioritization: cluster competing RFCs/issues from the local github-issue cache, name conflicts/supersession, and emit a priority brief (shortlist + park list). This is propose-not-apply — no SCM label writes, no triage:accept, no xBRIEF lifecycle mutations. It sits between automated label-mirror triage (#1423) and post-promotion ranking (#1419/#1511) and triage:queue.",
+      "UserStory": "As a maintainer facing a large open backlog, I want a portfolio prioritization pass that produces a verified shortlist and park list from local cache without mutating SCM, so that I can dispose decisions into the decision log instead of re-litigating markdown essays.",
+      "ImplementationPlan": "1. Add a scoped skill or playbook (content/skills or packs) with triggers, inputs (local cache + optional classify JSON), and propose-not-apply stance (#3179). 2. Output template: theme/label/title-family clusters, conflict/supersession matrix, shortlist, park list, dispose checklist pointing at #1396 decision log + plan-sequence. 3. Epistemic gates MUST: verify every cited issue exists (live gh or fresh cache), read body (+ comments when claiming decided/superseded), accurate open/closed; no title-only supersession. 4. Explicit non-goals: no label mirror writes; does not replace triage:queue; no unattended auto-promote. 5. Cross-link #886; CHANGELOG; optional thin CLI later if needed — skill-first is OK. 6. Tests or content-contract pins for key skill tokens if framework requires. Verify: skill present, docs coherent, task check. Dogfood pilot comment on #3198 may inform template.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3198",
+      "Labels": "enhancement, meta, triage, agent-experience, process, status:child",
+      "Overview": "Parent #886. Related #1419/#1511 post-promotion sibling; #3179 propose-not-apply; #1423/#3197 A-side mirror."
+    },
+    "items": [
+      {
+        "title": "Skill/playbook with triggers and inputs",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a documented portfolio prioritization skill or playbook, when an agent follows it, then inputs (local github-issue cache + optional classify dry-run JSON) and propose-not-apply non-goals are explicit."
+        }
+      },
+      {
+        "title": "Priority brief output template",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a pass completes, when the brief is written, then it includes clusters, conflict/supersession matrix, shortlist, park list, and dispose checklist toward #1396 + plan-sequence."
+        }
+      },
+      {
+        "title": "Epistemic gates enforced",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the skill, when claims cite issues, then agents MUST verify existence and read bodies (and comments when claiming decided/superseded); title-only supersession is forbidden."
+        }
+      },
+      {
+        "title": "No SCM mutations + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the shipped path, when used, then it never writes SCM labels, never triage:accept, never scope lifecycle; CHANGELOG and #886 cross-links present."
+        }
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/skills/",
+          "content/packs/skills/skills-pack-0.1.json",
+          "content/docs/",
+          "content/REFERENCES.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "task agents:refresh",
+          "npm test -w @deftai/directive-core -- --run content-contracts/skills"
+        ],
+        "expected_outputs": [
+          "portfolio prioritization skill/playbook",
+          "brief template",
+          "CHANGELOG #3198",
+          "PR through merge"
+        ],
+        "depends_on": [],
+        "conflict_group": "triage-portfolio-brief-3198",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "Skill-first story. May add content/skills/deft-directive-portfolio-prioritize/ or similar. Do not implement post-promotion #1419 buckets. Exclusive of label-mirror --re-enrich (#3197) and policy coverageDebt (#3189)."
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3203,
+        "prBase": null,
+        "mergeCommit": "cb64f69bec0b8dae27bce1c4fae77eea63525fb1",
+        "deliveryBranch": "master",
+        "deliveryCommit": "cb64f69bec0b8dae27bce1c4fae77eea63525fb1",
+        "verifiedAt": "2026-08-07T19:37:05Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-07T19:37:05Z",
+      "capacityBucket": "new-capability"
+    },
+    "tags": [
+      "enhancement",
+      "meta",
+      "triage",
+      "agent-experience",
+      "process"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3198",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3198"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/886",
+        "type": "x-xbrief/refs",
+        "title": "Issue #886"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3179",
+        "type": "x-xbrief/refs",
+        "title": "Issue #3179"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1396",
+        "type": "x-xbrief/refs",
+        "title": "Issue #1396"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1423",
+        "type": "x-xbrief/refs",
+        "title": "Issue #1423"
+      }
+    ],
+    "updated": "2026-08-07T19:37:05Z"
+  }
+}

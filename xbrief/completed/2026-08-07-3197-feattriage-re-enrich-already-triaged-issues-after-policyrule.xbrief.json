@@ -1,0 +1,122 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF for #3197 triage re-enrich (swarm add-on)",
+    "updated": "2026-08-07T18:20:14Z"
+  },
+  "plan": {
+    "id": "3197-triage-re-enrich-already-triaged",
+    "title": "feat(triage): re-enrich already-triaged issues after policy/rule changes",
+    "status": "completed",
+    "narratives": {
+      "Description": "After mass SCM label-mirror apply, issues stamped with the idempotency label are skipped_already_triaged forever. That blocks re-enrichment when actionLabels, auto-classify rules, or hold markers change. This story keeps default one-shot skip behavior and adds an explicit opt-in re-enrich path that re-plans already-triaged issues with batched apply.",
+      "UserStory": "As a triage operator, I want an opt-in re-enrich mode for already-triaged issues after policy or rule changes, so that new action chips and corrected dispositions can backfill without hand-removing the triaged stamp.",
+      "ImplementationPlan": "1. Read packages/core/src/triage/classify/label-mirror.ts skipped_already_triaged path. 2. Keep default apply: already-triaged skips. 3. Add --re-enrich (or final documented flag) dry-run by default; re-classify already-triaged; additive label deltas v1; batch apply; never triage:accept or xBRIEF writes. 4. Dry-run digest first-time vs re-enrich. 5. Tests + CHANGELOG + commands.md; cross-link #3124. Verify: npm test -w @deftai/directive-core -- --run triage/classify/label-mirror.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3197",
+      "Labels": "enhancement, determinism, triage, status:child"
+    },
+    "items": [
+      {
+        "title": "Default skip unchanged",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given already-triaged issues and normal apply without re-enrich, when mirror runs, then they remain skipped_already_triaged."
+        }
+      },
+      {
+        "title": "Opt-in re-enrich re-plans",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given re-enrich flag dry-run, when run, then already-triaged issues are re-classified and digest distinguishes re-enrich rows."
+        }
+      },
+      {
+        "title": "Batched apply no lifecycle accept",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given re-enrich apply, when labels write, then batched rate-limit-aware and never triage:accept or xBRIEF writes."
+        }
+      },
+      {
+        "title": "Tests and docs",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given tests and commands.md/CHANGELOG, when reviewed, then skip-default + re-enrich plan covered and #3124 re-run vs re-enrich cross-linked."
+        }
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/triage/classify/label-mirror.ts",
+          "packages/core/src/triage/classify/label-mirror.test.ts",
+          "packages/core/src/triage/classify/cli.ts",
+          "packages/core/src/triage/classify/cli.test.ts",
+          "content/commands.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "npm test -w @deftai/directive-core -- --run triage/classify/label-mirror"
+        ],
+        "expected_outputs": [
+          "re-enrich flag",
+          "tests",
+          "docs",
+          "CHANGELOG #3197",
+          "PR through merge"
+        ],
+        "depends_on": [],
+        "conflict_group": "triage-re-enrich-3197",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "May touch classify help registry. Additive-only v1. Exclusive of policy/#3189 and init-deposit/#3193."
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3199,
+        "prBase": null,
+        "mergeCommit": "f878099c9bc898782ae0ffefd37ea6c8dd0dcb04",
+        "deliveryBranch": "master",
+        "deliveryCommit": "f878099c9bc898782ae0ffefd37ea6c8dd0dcb04",
+        "verifiedAt": "2026-08-07T18:20:14Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-07T18:20:14Z",
+      "capacityBucket": "new-capability"
+    },
+    "tags": [
+      "enhancement",
+      "determinism",
+      "triage"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3197",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3197"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/1423",
+        "type": "x-xbrief/refs",
+        "title": "Issue #1423"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3124",
+        "type": "x-xbrief/refs",
+        "title": "Issue #3124"
+      }
+    ],
+    "updated": "2026-08-07T18:20:14Z"
+  }
+}
