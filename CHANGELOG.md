@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.98.0] - 2026-08-07
+
+> Release Step 5 auto-hatch + suite stamp, UAT shell fail-closed, portfolio-priority skill, coverage restore, and related harness fixes since v0.97.0.
+
+### Added
 - **Portfolio-priority agent skill for pre-promotion RFC clustering (#3201).** New deft-directive-portfolio-priority skill (pack-rendered): cache freshness, 	riage:classify --mirror as filter only, theme slice, conflict matrix + shortlist + park, epistemic citation/body gates (no title-only supersession), pilot-shaped priority brief, dispose checklist to #1396 / plan-sequence. Explicit non-goals: no SCM label writes, no 	riage:accept, no scope lifecycle. Discoverability via Skills Index, commands.md triage see-also, and consumer CONSUMER_SKILL_DISCOVERY_INVENTORY multi-host deposit. Worked example: #3200 / docs/analysis/2026-08-07-portfolio-priority-brief-patterns-pilot.md. Parent process #3198. Closes #3201. Refs #3198, #3200, #1396, #3179, #1423.
 
 - **Self-improving, not self-editing stance named (propose-not-apply) (#3164).** `main.md` names the Directive identity: no mid-run self-edit of live operating rules (constitution); refine/meta-loops propose; issues, PRs, and quality gates dispose. Prose lessons may stay agent-writable at the bottom of the Rule Authority ladder. Pointer in `content/meta/philosophy.md`. Cross-links #1200 (safety via formal gates), #2741 (refine proposes; gates dispose), parent epic #3179. Docs only — not SkillOpt/proposer runtime (#2436/#1307). Closes #3164.
@@ -5031,7 +5043,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.97.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.98.0...HEAD
+[0.98.0]: https://github.com/deftai/directive/compare/v0.97.0...v0.98.0
 [0.97.0]: https://github.com/deftai/directive/compare/v0.96.0...v0.97.0
 [0.96.0]: https://github.com/deftai/directive/compare/v0.95.0...v0.96.0
 [0.95.0]: https://github.com/deftai/directive/compare/v0.94.0...v0.95.0

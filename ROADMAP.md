@@ -38,8 +38,18 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1163 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1173 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#3198** -- feat(triage,meta): portfolio prioritization pass — priority briefs from local cache (propose-not-apply) -- `[completed]`
+- **#3201** -- feat(skills): deft-directive-portfolio-priority — agent skill for #3198 priority briefs -- `[completed]`
+- **#3164** -- docs(main,meta): name directive self-modification stance - self-improving, not self-editing (propose-not-apply) -- `[completed]`
+- **#3197** -- feat(triage): re-enrich already-triaged issues after policy/rule changes -- `[completed]`
+- **#3189** -- policy: coverageDebt + checkResume in PROJECT-DEFINITION with skippable session nudge -- `[completed]`
+- **#3193** -- core-guard: content-aware package pin + lock follow-through (tighten #3127 path allowlist) -- `[completed]`
+- **#3185** -- coverage-debt: restore Vitest branch coverage >=85% after v0.97.0 hairline (84.95%) -- `[completed]`
+- **#3186** -- sec(authz,hooks): UAT Shell fail-open for authz obfuscation, kill-switch/policy, assist-scratch symlink -- `[completed]`
+- **#3187** -- release: auto-hatch branch coverage hairline in Step 5 when ledger allows -- `[completed]`
+- **#3188** -- release: Step 5 fast-before-slow gates + SHA suite stamp -- `[completed]`
 - **#1940** -- RFC: consumer observability contract — operator logging thin v1 (SLizard reference) -- `[completed]`
 - **#3180** -- feat(scm,ci): platform status probe + outage attribution for CI weather handoffs -- `[completed]`
 - **#3174** -- sec(codeql): clear polynomial-redos in xbrief/styles.ts (alerts #84-#87) -- `[completed]`
@@ -55,14 +65,4 @@ _Showing 25 of 1163 completed scopes (newest first). Full history: lifecycle `co
 - docs: npm v12 install-time security defaults (scripts/git/remote opt-in) -- `[completed]`
 - **#3116** -- residual(triage): Phase 3 current-state validity analysis + URL-first (#1418 leftover after #2890) -- `[completed]`
 - **#3120** -- Bound proof for remote artifact claims in handoff evidence (invented-done fail class) -- `[completed]`
-- **#3117** -- Freshness contract: bound vs live generation for long-lived multi-agent sessions after deposit upgrade -- `[completed]`
-- **#3108** -- bug(swarm): cohort review verifier diverges from pr:merge-ready on absent Greptile -- `[completed]`
-- **#3110** -- fix(security): UAT self-approval via ungated authz:grant shell (classifyShellAuthzOps fail-open) -- `[completed]`
-- **#3103** -- coverage-debt: restore Vitest branches >=85% (84.99% at v0.94.0 preflight) -- `[completed]`
-- **#3105** -- fix: /deft:checkpoint host wrappers point at output continue.xbrief.json -- `[completed]`
-- **#1604** -- Upgrade workflow should carry framework updates through default-branch release handoff -- `[completed]`
-- **#3100** -- fix(harness,onboarding): gate mutation readiness on functional agent hooks and Codex trust review -- `[completed]`
-- **#3095** -- feat(policy,review): dogfood Greptile CLEAN requires 5/5; consumers get per-project min-confidence lever -- `[completed]`
-- **#1870** -- bug(triage/ingest): Current shape comment invisible to cache + ingest pipeline -- `[completed]`
-- **#1649** -- fix(umbrella): umbrella checkboxes + current-shape never auto-sync to children state -- `[completed]`
 
