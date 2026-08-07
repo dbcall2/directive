@@ -355,10 +355,15 @@ describe("feedback-file CLI", () => {
 
   it("emits json CLI output and falls back when html_url is missing (#3144)", () => {
     const root = makeConsumerProject();
+    const prevNet = process.env.DEFT_NO_NETWORK;
     try {
+      // Offline so draft path does not flaky-fail on live gh dedup (exit 2 network).
+      process.env.DEFT_NO_NETWORK = "1";
       const code = feedbackFileMain(["--summary", "Json path", "--project-root", root, "--json"]);
       expect(code).toBe(1);
 
+      // Filing path uses seams; clear offline so confirm+seams still exercises POST.
+      delete process.env.DEFT_NO_NETWORK;
       const filed = runFeedbackFile({
         summary: "No url filed",
         projectRoot: root,
@@ -379,6 +384,11 @@ describe("feedback-file CLI", () => {
       expect(filed.outcome).toBe("filed");
       expect(filed.issueUrl).toContain("/issues/77");
     } finally {
+      if (prevNet === undefined) {
+        delete process.env.DEFT_NO_NETWORK;
+      } else {
+        process.env.DEFT_NO_NETWORK = prevNet;
+      }
       rmSync(root, { recursive: true, force: true });
     }
   });
