@@ -8,7 +8,7 @@
  * and scope briefs are never installer-managed; if they reappear in
  * `installerManagedMatchers()`, unit tests and deposit-time assert fail closed.
  *
- * Refs #1576, #1453, #1430, #3029, #3030, #3127, #3117.
+ * Refs #1576, #1453, #1430, #3029, #3030, #3127, #3117, #3193.
  */
 
 import { execFileSync } from "node:child_process";
@@ -93,11 +93,12 @@ export function installerManagedMatchers(): InstallerManagedMatcher[] {
     { exact: CODEQL_CONFIG_REL },
     { exact: CORE_GUARD_WORKFLOW_REL },
     { exact: "Taskfile.yml" },
-    // Upgrade co-travel unit (#3127): npm pin + lock follow-through and the
-    // freshness live stamp (#3117) are part of a normal framework upgrade, not
-    // product feature work. Path-level allow for v1 (stricter “only
-    // @deftai/directive version changed” is a follow-on if needed).
-    // Mixing .deft/core/** with true app/product paths still fails (#1430).
+    // Upgrade co-travel unit (#3127 / #3193): path-allow package/lock + GENERATION
+    // so they are not auto-classified as "app". When mixed with .deft/core/**, the
+    // deposited guard + classifyMixedCoreAndAppContentAware additionally require
+    // package.json to be @deftai/directive* dependency-key pin-only and lockfiles
+    // to be pin follow-through (not unrelated direct product deps). GENERATION
+    // stays path-only (#3117). True app/product paths still fail (#1430).
     { exact: "package.json" },
     { exact: "package-lock.json" },
     { exact: "pnpm-lock.yaml" },
@@ -221,12 +222,565 @@ export interface MixedCoreAndAppClassification {
   readonly app: string[];
   /** True when both core and app are non-empty — the deposited guard fails. */
   readonly wouldFail: boolean;
+  /**
+   * Pin/lock paths that were path-allowlisted but failed content-aware checks
+   * when co-travelling with core (#3193). Empty when path-only classification.
+   */
+  readonly pinContentRejected?: string[];
+}
+
+/** Paths that path-allowlist for upgrade co-travel but need content checks with core (#3193). */
+export const UPGRADE_PIN_CONTENT_PATHS = [
+  "package.json",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
+] as const;
+
+export type UpgradePinContentPath = (typeof UPGRADE_PIN_CONTENT_PATHS)[number];
+
+/** package.json dependency map fields that may hold @deftai/directive* pins. */
+export const PACKAGE_JSON_DEP_FIELDS = [
+  "dependencies",
+  "devDependencies",
+  "optionalDependencies",
+  "peerDependencies",
+] as const;
+
+/**
+ * True when `name` is an `@deftai/directive*` dependency **key** (#3193).
+ * Substring hits in scripts/settings values do not qualify.
+ */
+export function isDirectiveDependencyKey(name: string): boolean {
+  return name.startsWith("@deftai/directive");
+}
+
+function deepEqualJson(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return a === b;
+  if (typeof a !== typeof b) return false;
+  if (typeof a !== "object") return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((v, i) => deepEqualJson(v, b[i]));
+  }
+  const ao = a as Record<string, unknown>;
+  const bo = b as Record<string, unknown>;
+  const ak = Object.keys(ao).sort();
+  const bk = Object.keys(bo).sort();
+  if (ak.length !== bk.length) return false;
+  for (let i = 0; i < ak.length; i++) {
+    if (ak[i] !== bk[i]) return false;
+  }
+  return ak.every((k) => deepEqualJson(ao[k], bo[k]));
+}
+
+function stripDirectivePinsFromPackageJson(value: unknown): unknown {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+  const obj = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [key, raw] of Object.entries(obj)) {
+    if (
+      (PACKAGE_JSON_DEP_FIELDS as readonly string[]).includes(key) &&
+      raw !== null &&
+      typeof raw === "object" &&
+      !Array.isArray(raw)
+    ) {
+      const kept: Record<string, unknown> = {};
+      for (const [depKey, depVal] of Object.entries(raw as Record<string, unknown>)) {
+        if (!isDirectiveDependencyKey(depKey)) kept[depKey] = depVal;
+      }
+      out[key] = kept;
+    } else {
+      out[key] = raw;
+    }
+  }
+  return out;
+}
+
+/**
+ * package.json co-travel is allowed only when the sole differences are
+ * `@deftai/directive*` dependency-key pins under the standard dep maps (#3193).
+ * Scripts/settings/metadata that merely contain the substring still fail.
+ */
+export function isPackageJsonDirectivePinOnlyDiff(baseRaw: string, headRaw: string): boolean {
+  let base: unknown;
+  let head: unknown;
+  try {
+    base = JSON.parse(baseRaw);
+    head = JSON.parse(headRaw);
+  } catch {
+    return false;
+  }
+  return deepEqualJson(
+    stripDirectivePinsFromPackageJson(base),
+    stripDirectivePinsFromPackageJson(head),
+  );
+}
+
+function collectDepIdentities(pkg: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const field of PACKAGE_JSON_DEP_FIELDS) {
+    const block = pkg[field];
+    if (block !== null && typeof block === "object" && !Array.isArray(block)) {
+      for (const [k, v] of Object.entries(block as Record<string, unknown>)) {
+        if (typeof v === "string") out[k] = v;
+        else if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+          const version = (v as Record<string, unknown>).version;
+          if (typeof version === "string") out[k] = version;
+          else out[k] = JSON.stringify(v);
+        } else if (v !== undefined && v !== null) {
+          out[k] = String(v);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function onlyDirectiveDirectDepsDiffer(
+  baseDeps: Record<string, string>,
+  headDeps: Record<string, string>,
+): boolean {
+  const keys = new Set([...Object.keys(baseDeps), ...Object.keys(headDeps)]);
+  for (const key of keys) {
+    if (isDirectiveDependencyKey(key)) continue;
+    if ((baseDeps[key] ?? null) !== (headDeps[key] ?? null)) return false;
+  }
+  return true;
+}
+
+function npmLockRootDirectDeps(lock: Record<string, unknown>): Record<string, string> {
+  const packages = lock.packages;
+  if (packages !== null && typeof packages === "object" && !Array.isArray(packages)) {
+    const root = (packages as Record<string, unknown>)[""];
+    if (root !== null && typeof root === "object" && !Array.isArray(root)) {
+      return collectDepIdentities(root as Record<string, unknown>);
+    }
+  }
+  if (
+    lock.dependencies !== null &&
+    typeof lock.dependencies === "object" &&
+    !Array.isArray(lock.dependencies)
+  ) {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(lock.dependencies as Record<string, unknown>)) {
+      if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+        const version = (v as Record<string, unknown>).version;
+        out[k] = typeof version === "string" ? version : JSON.stringify(v);
+      } else if (typeof v === "string") {
+        out[k] = v;
+      }
+    }
+    return out;
+  }
+  return {};
+}
+
+/** Strip @deftai/directive* keys recursively from an npm v1 dependencies tree. */
+function stripDirectiveFromNpmV1Deps(value: unknown): unknown {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return value;
+  const obj = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (isDirectiveDependencyKey(k)) continue;
+    if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+      const entry = v as Record<string, unknown>;
+      const next: Record<string, unknown> = { ...entry };
+      if (entry.dependencies !== undefined) {
+        next.dependencies = stripDirectiveFromNpmV1Deps(entry.dependencies);
+      }
+      out[k] = next;
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+/**
+ * package-lock.json follow-through: non-@deftai/directive* root direct dependency
+ * identities (and their `node_modules/<name>` package entries when present) must
+ * be unchanged. Directive pin identity + transitive/resolution churn may change.
+ */
+export function isPackageLockDirectivePinFollowThrough(baseRaw: string, headRaw: string): boolean {
+  let base: unknown;
+  let head: unknown;
+  try {
+    base = JSON.parse(baseRaw);
+    head = JSON.parse(headRaw);
+  } catch {
+    return false;
+  }
+  if (
+    base === null ||
+    head === null ||
+    typeof base !== "object" ||
+    typeof head !== "object" ||
+    Array.isArray(base) ||
+    Array.isArray(head)
+  ) {
+    return false;
+  }
+  const baseObj = base as Record<string, unknown>;
+  const headObj = head as Record<string, unknown>;
+  const baseRoot = npmLockRootDirectDeps(baseObj);
+  const headRoot = npmLockRootDirectDeps(headObj);
+  if (!onlyDirectiveDirectDepsDiffer(baseRoot, headRoot)) return false;
+
+  const basePkgs =
+    baseObj.packages !== null &&
+    typeof baseObj.packages === "object" &&
+    !Array.isArray(baseObj.packages)
+      ? (baseObj.packages as Record<string, unknown>)
+      : {};
+  const headPkgs =
+    headObj.packages !== null &&
+    typeof headObj.packages === "object" &&
+    !Array.isArray(headObj.packages)
+      ? (headObj.packages as Record<string, unknown>)
+      : {};
+  // Freeze every non-@deftai/directive package record (including hoisted
+  // transitives and nested product trees). Only packages[""] root dep maps
+  // (directive keys only) and node_modules/@deftai/directive* trees may change.
+  const allPkgKeys = new Set([...Object.keys(basePkgs), ...Object.keys(headPkgs)]);
+  for (const key of allPkgKeys) {
+    if (key === "") continue;
+    if (key.includes("node_modules/@deftai/directive") || key.includes("/@deftai/directive/")) {
+      continue;
+    }
+    if (!deepEqualJson(basePkgs[key], headPkgs[key])) return false;
+  }
+
+  // Legacy npm lockfileVersion 1: no packages map — freeze the full nested
+  // dependencies tree after stripping @deftai/directive* keys (#3193 Greptile).
+  if (Object.keys(basePkgs).length === 0 && Object.keys(headPkgs).length === 0) {
+    if (
+      !deepEqualJson(
+        stripDirectiveFromNpmV1Deps(baseObj.dependencies),
+        stripDirectiveFromNpmV1Deps(headObj.dependencies),
+      )
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Minimal pnpm-lock.yaml (v6/v9) root importer (`.`) direct-dep extractor.
+ * Avoids a YAML dependency; sufficient for pin follow-through identity checks.
+ */
+export function pnpmLockRootDirectDeps(raw: string): Record<string, string> {
+  const lines = raw.split(/\r?\n/);
+  const out: Record<string, string> = {};
+  let inImporters = false;
+  let inRoot = false;
+  let inDepBlock = false;
+  let currentPkg: string | null = null;
+
+  const unquote = (s: string): string => {
+    const t = s.trim();
+    if ((t.startsWith("'") && t.endsWith("'")) || (t.startsWith('"') && t.endsWith('"'))) {
+      return t.slice(1, -1);
+    }
+    return t;
+  };
+
+  for (const line of lines) {
+    if (/^importers:\s*$/.test(line)) {
+      inImporters = true;
+      inRoot = false;
+      inDepBlock = false;
+      currentPkg = null;
+      continue;
+    }
+    if (!inImporters) continue;
+    // Left the importers section (top-level key at column 0).
+    if (/^[^\s#]/.test(line) && !line.startsWith("importers")) {
+      break;
+    }
+    // Root importer `.` (quoted or bare).
+    if (/^ {2}(?:\.|'\.'|"\."):\s*$/.test(line)) {
+      inRoot = true;
+      inDepBlock = false;
+      currentPkg = null;
+      continue;
+    }
+    // Sibling importer under importers (2-space indent, not a dep field).
+    if (inRoot && /^ {2}\S/.test(line) && !/^ {2}\./.test(line)) {
+      inRoot = false;
+      inDepBlock = false;
+      currentPkg = null;
+      continue;
+    }
+    if (!inRoot) continue;
+    if (
+      /^ {4}(?:dependencies|devDependencies|optionalDependencies|peerDependencies):\s*$/.test(line)
+    ) {
+      inDepBlock = true;
+      currentPkg = null;
+      continue;
+    }
+    // Non-dep field under root importer ends a dep block.
+    if (inDepBlock && /^ {4}\S/.test(line)) {
+      inDepBlock = false;
+      currentPkg = null;
+      continue;
+    }
+    if (!inDepBlock) continue;
+    const pkgMatch = line.match(/^ {6}(.+?):\s*$/);
+    if (pkgMatch) {
+      currentPkg = unquote(pkgMatch[1] ?? "");
+      continue;
+    }
+    if (currentPkg) {
+      const verMatch = line.match(/^ {8}version:\s*(.+?)\s*$/);
+      if (verMatch) {
+        out[currentPkg] = unquote(verMatch[1] ?? "");
+        currentPkg = null;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Extract pnpm `packages:` section records keyed by the package name (not
+ * name@version). Used to freeze product package resolution blocks.
+ */
+export function pnpmPackagesByName(raw: string): Map<string, string> {
+  const map = new Map<string, string[]>();
+  const lines = raw.split(/\r?\n/);
+  let inPackages = false;
+  let currentName: string | null = null;
+  let buf: string[] = [];
+  const flush = (): void => {
+    if (currentName === null) return;
+    const prev = map.get(currentName) ?? [];
+    prev.push(buf.join("\n"));
+    map.set(currentName, prev);
+    currentName = null;
+    buf = [];
+  };
+  const unquote = (s: string): string => {
+    const t = s.trim();
+    if ((t.startsWith("'") && t.endsWith("'")) || (t.startsWith('"') && t.endsWith('"'))) {
+      return t.slice(1, -1);
+    }
+    return t;
+  };
+  for (const line of lines) {
+    if (/^packages:\s*$/.test(line)) {
+      flush();
+      inPackages = true;
+      continue;
+    }
+    if (!inPackages) continue;
+    if (/^[^\s#]/.test(line) && !line.startsWith("packages")) {
+      flush();
+      break;
+    }
+    // Package key at 2-space indent: `  lodash@4.17.21:` or `  '@scope/pkg@1.0.0':`
+    const keyMatch = line.match(/^ {2}(.+?):\s*$/);
+    if (keyMatch) {
+      flush();
+      const key = unquote(keyMatch[1] ?? "");
+      // name@version or @scope/name@version — strip version suffix after last @
+      // that is not the scope marker.
+      const at = key.startsWith("@") ? key.indexOf("@", 1) : key.indexOf("@");
+      currentName = at > 0 ? key.slice(0, at) : key;
+      buf = [line];
+      continue;
+    }
+    if (currentName !== null) buf.push(line);
+  }
+  flush();
+  // Join multi-version records for stable compare.
+  const out = new Map<string, string>();
+  for (const [name, blocks] of map) {
+    out.set(name, blocks.slice().sort().join("\n---\n"));
+  }
+  return out;
+}
+
+/**
+ * pnpm-lock.yaml follow-through: root importer (`.`) non-directive direct dep
+ * identities must be unchanged, and every non-@deftai/directive packages-section
+ * record (including transitive product packages) must be byte-stable (#3193).
+ */
+/**
+ * Extract a top-level pnpm section (`packages:` or `snapshots:`) keyed by package name.
+ */
+function pnpmNamedSectionByName(
+  raw: string,
+  section: "packages" | "snapshots",
+): Map<string, string> {
+  const map = new Map<string, string[]>();
+  const lines = raw.split(/\r?\n/);
+  let inSection = false;
+  let currentName: string | null = null;
+  let buf: string[] = [];
+  const sectionRe = new RegExp(`^${section}:\\s*$`);
+  const flush = (): void => {
+    if (currentName === null) return;
+    const prev = map.get(currentName) ?? [];
+    prev.push(buf.join("\n"));
+    map.set(currentName, prev);
+    currentName = null;
+    buf = [];
+  };
+  const unquote = (s: string): string => {
+    const t = s.trim();
+    if ((t.startsWith("'") && t.endsWith("'")) || (t.startsWith('"') && t.endsWith('"'))) {
+      return t.slice(1, -1);
+    }
+    return t;
+  };
+  for (const line of lines) {
+    if (sectionRe.test(line)) {
+      flush();
+      inSection = true;
+      continue;
+    }
+    if (!inSection) continue;
+    if (/^[^\s#]/.test(line) && !line.startsWith(section)) {
+      flush();
+      break;
+    }
+    const keyMatch = line.match(/^ {2}(.+?):\s*$/);
+    if (keyMatch) {
+      flush();
+      const key = unquote(keyMatch[1] ?? "");
+      const at = key.startsWith("@") ? key.indexOf("@", 1) : key.indexOf("@");
+      currentName = at > 0 ? key.slice(0, at) : key;
+      buf = [line];
+      continue;
+    }
+    if (currentName !== null) buf.push(line);
+  }
+  flush();
+  const out = new Map<string, string>();
+  for (const [name, blocks] of map) {
+    out.set(name, blocks.slice().sort().join("\n---\n"));
+  }
+  return out;
+}
+
+export function isPnpmLockDirectivePinFollowThrough(baseRaw: string, headRaw: string): boolean {
+  const baseRoot = pnpmLockRootDirectDeps(baseRaw);
+  const headRoot = pnpmLockRootDirectDeps(headRaw);
+  if (!onlyDirectiveDirectDepsDiffer(baseRoot, headRoot)) return false;
+  for (const section of ["packages", "snapshots"] as const) {
+    const baseSec = pnpmNamedSectionByName(baseRaw, section);
+    const headSec = pnpmNamedSectionByName(headRaw, section);
+    const names = new Set([...baseSec.keys(), ...headSec.keys()]);
+    for (const name of names) {
+      if (isDirectiveDependencyKey(name)) continue;
+      if ((baseSec.get(name) ?? null) !== (headSec.get(name) ?? null)) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * yarn.lock (v1) package identity blocks: every non-@deftai/directive* package
+ * must keep identical block text (or fail if added/removed). Directive package
+ * blocks may change freely as pin follow-through (#3193).
+ */
+export function isYarnLockDirectivePinFollowThrough(baseRaw: string, headRaw: string): boolean {
+  const baseBlocks = yarnLockPackageBlocks(baseRaw);
+  const headBlocks = yarnLockPackageBlocks(headRaw);
+  const names = new Set([...baseBlocks.keys(), ...headBlocks.keys()]);
+  for (const name of names) {
+    if (isDirectiveDependencyKey(name)) continue;
+    if ((baseBlocks.get(name) ?? null) !== (headBlocks.get(name) ?? null)) return false;
+  }
+  return true;
+}
+
+function yarnLockPackageBlocks(raw: string): Map<string, string> {
+  const map = new Map<string, string>();
+  const lines = raw.split(/\r?\n/);
+  let currentNames: string[] = [];
+  let buf: string[] = [];
+  const flush = (): void => {
+    if (currentNames.length === 0) return;
+    const body = buf.join("\n");
+    for (const name of currentNames) {
+      map.set(name, body);
+    }
+    currentNames = [];
+    buf = [];
+  };
+  for (const line of lines) {
+    if (line === "" || line.startsWith("#")) {
+      if (currentNames.length > 0 && line === "") {
+        flush();
+      }
+      continue;
+    }
+    // Package header: `"lodash@^4.17.21":` or `lodash@^4.17.21:`
+    if (!/^\s/.test(line) && line.endsWith(":")) {
+      flush();
+      const header = line.slice(0, -1);
+      currentNames = header.split(",").map((part) => {
+        let p = part.trim();
+        if ((p.startsWith('"') && p.endsWith('"')) || (p.startsWith("'") && p.endsWith("'"))) {
+          p = p.slice(1, -1);
+        }
+        // name@version or @scope/name@version
+        const at = p.startsWith("@") ? p.indexOf("@", 1) : p.indexOf("@");
+        return at > 0 ? p.slice(0, at) : p;
+      });
+      buf = [line];
+      continue;
+    }
+    if (currentNames.length > 0) buf.push(line);
+  }
+  flush();
+  return map;
+}
+
+/**
+ * Content-aware check for a single upgrade pin path (#3193).
+ * Returns true when the path may co-travel with `.deft/core/**`.
+ */
+export function isUpgradePinPathContentAllowed(
+  path: string,
+  baseRaw: string,
+  headRaw: string,
+): boolean {
+  const normalized = path.replace(/\\/g, "/");
+  switch (normalized) {
+    case "package.json":
+      return isPackageJsonDirectivePinOnlyDiff(baseRaw, headRaw);
+    case "package-lock.json":
+      return isPackageLockDirectivePinFollowThrough(baseRaw, headRaw);
+    case "pnpm-lock.yaml":
+      return isPnpmLockDirectivePinFollowThrough(baseRaw, headRaw);
+    case "yarn.lock":
+      return isYarnLockDirectivePinFollowThrough(baseRaw, headRaw);
+    default:
+      return false;
+  }
+}
+
+export interface PinContentFilePair {
+  readonly base: string;
+  readonly head: string;
 }
 
 /**
  * TS twin of Go `classifyChangedPaths` / deposited shell guard (#1430).
  * Core = `.deft/core/**`; installer-managed = allowlist; app = everything else.
  * Guard fails iff both core and app are non-empty.
+ *
+ * Path-only: does not inspect package/lock contents. Prefer
+ * {@link classifyMixedCoreAndAppContentAware} when base/head blobs are available
+ * (deposited guard + unit tests for #3193).
  */
 export function classifyMixedCoreAndApp(
   changedPaths: readonly string[],
@@ -251,6 +805,54 @@ export function classifyMixedCoreAndApp(
     installerManaged,
     app,
     wouldFail: core.length > 0 && app.length > 0,
+  };
+}
+
+/**
+ * Content-aware upgrade co-travel classifier (#3193).
+ *
+ * Starts from path classification (#3127 allowlist), then when `.deft/core/**`
+ * is present reclassifies package.json / lockfile paths as **app** unless their
+ * base→head content is the Directive pin unit (or lock follow-through).
+ * `.deft/GENERATION.json` remains path-allowlisted with no content constraint.
+ *
+ * Missing content for a pin path co-travelling with core fails closed (treated
+ * as app) so partial fixtures cannot silently re-open the path-only hole.
+ */
+export function classifyMixedCoreAndAppContentAware(
+  changedPaths: readonly string[],
+  fileContents: Readonly<Partial<Record<string, PinContentFilePair>>>,
+  matchers: readonly InstallerManagedMatcher[] = installerManagedMatchers(),
+): MixedCoreAndAppClassification {
+  const base = classifyMixedCoreAndApp(changedPaths, matchers);
+  if (base.core.length === 0) {
+    return { ...base, pinContentRejected: [] };
+  }
+
+  const pinContentRejected: string[] = [];
+  const keptManaged: string[] = [];
+  const app = [...base.app];
+
+  for (const path of base.installerManaged) {
+    if (!(UPGRADE_PIN_CONTENT_PATHS as readonly string[]).includes(path)) {
+      keptManaged.push(path);
+      continue;
+    }
+    const pair = fileContents[path];
+    if (!pair || !isUpgradePinPathContentAllowed(path, pair.base, pair.head)) {
+      pinContentRejected.push(path);
+      app.push(path);
+    } else {
+      keptManaged.push(path);
+    }
+  }
+
+  return {
+    core: base.core,
+    installerManaged: keptManaged,
+    app,
+    wouldFail: app.length > 0,
+    pinContentRejected,
   };
 }
 
@@ -594,7 +1196,7 @@ export function printCommitGuidance(
   if (paths.length === 0) return;
   const addCmd = `git add ${paths.join(" ")}`;
   io.printf(
-    "\nCommit hygiene (#1453, #1671, #3127): keep the framework upgrade in its OWN branch/PR.\n",
+    "\nCommit hygiene (#1453, #1671, #3127, #3193): keep the framework upgrade in its OWN branch/PR.\n",
   );
   io.printf("Do NOT use `git add -A` -- mixing the payload with product/app files trips the\n");
   io.printf("deft-core-guard CI check.\n");
@@ -602,8 +1204,9 @@ export function printCommitGuidance(
     "One upgrade PR MAY co-travel: .deft/core/** + installer-managed deposits + package.json\n",
   );
   io.printf(
-    "pin/lock + .deft/GENERATION.json. True app/product paths still require a separate PR.\n",
+    "pin/lock (Directive pin-only + lock follow-through, #3193) + .deft/GENERATION.json.\n",
   );
+  io.printf("True app/product paths still require a separate PR.\n");
   if (staged) {
     io.printf("The installer already staged ONLY these framework + installer-managed paths:\n");
     io.printf(`  ${addCmd}\n`);
