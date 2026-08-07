@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.97.0] - 2026-08-07
+
+> CI weather resilience, dual-stop and delivery circuit breaker, scope/test gates, post-compact rebind, and operator-log hygiene.
+
+### Added
+
 - **Operator-log hygiene pattern + build/probe checklist (#1940).** New `content/patterns/operator-log-hygiene.md` documents six case-study failure modes, anti-patterns, positive rules, and thin non-goals (no core `plan.observability`, no default-on `deft check` hard-fail, not Product Insights #2603 / LLM telemetry #481). Copy-paste checklist in `content/docs/operator-log-hygiene-checklist.md`; optional consumer Taskfile/validator stub in `content/docs/operator-log-hygiene-consumer-pack-stub.md`. Discovery via `REFERENCES.md` keywords and a lazy-load pointer on the build skill. SLizard cited as external reference only. Closes #1940.
 - **Platform status probe + outage attribution for CI weather handoffs (#3180).** Docs (`scm/github.md` + review-cycle) MUST-probe GitHub Status and Blacksmith Status when weather codes fire; attribution table (`platform` / `capacity` / `repo_config` / `unknown`); anti-thrash during platform outage; extended `BLOCKED: ci_weather` fields (`platform_status_github`, `platform_status_blacksmith`, optional incident URL, attribution). `pr:watch` / `pr:merge-ready` surface static status URLs on weather-class `ci_ready_state` (JSON + human; no network fetch in v1). Cross-links #3167, #3168, #2672, #2688. Closes #3180.
 - **`pr:watch` / `pr:merge-ready` CI weather reason codes + review-cycle thrash caps (#3167).** Distinct `ci_ready_state` / verdicts: `ci_never_scheduled`, `runner_capacity_stall`, `ci_failures`, `ci_cancelled_no_failover` (JSON + exit 2). Review-cycle documents thrash caps (max 2 empty-commit/close-reopen), `BLOCKED: ci_weather` handoff, SLizard advisory-only for merge-ready wait, and opt-in human outage admin-merge playbook (no silent skip-ci). Cross-links envelope SLA (#3153) and sibling workflow #3168. Closes #3167. Refs #2672, #2688, #1056, #3168, #3153.
@@ -5005,7 +5017,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.96.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.97.0...HEAD
+[0.97.0]: https://github.com/deftai/directive/compare/v0.96.0...v0.97.0
 [0.96.0]: https://github.com/deftai/directive/compare/v0.95.0...v0.96.0
 [0.95.0]: https://github.com/deftai/directive/compare/v0.94.0...v0.95.0
 [0.94.0]: https://github.com/deftai/directive/compare/v0.93.0...v0.94.0

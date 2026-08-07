@@ -38,8 +38,14 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1157 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1163 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#1940** -- RFC: consumer observability contract — operator logging thin v1 (SLizard reference) -- `[completed]`
+- **#3180** -- feat(scm,ci): platform status probe + outage attribution for CI weather handoffs -- `[completed]`
+- **#3174** -- sec(codeql): clear polynomial-redos in xbrief/styles.ts (alerts #84-#87) -- `[completed]`
+- **#3168** -- ci(blacksmith): GH-hosted failover skipped when capacity-watchdog cancelled — arm failover for true capacity death -- `[completed]`
+- **#3175** -- sec(codeql): clear shell-command-injection-from-environment in engine-invoke.cjs (alert #74) -- `[completed]`
+- **#3167** -- feat(pr-watch,review-cycle): ci_never_scheduled + capacity-stall reason codes and babysit thrash caps -- `[completed]`
 - **#1137** -- feat(cache,triage): reversible archive for closed github-issue cache entries -- `[completed]`
 - **#1136** -- feat(scope,triage): promote --from-issue reciprocity + accept --auto-promote -- `[completed]`
 - **#3128** -- chore(labels): migrate open directive issues onto #2609 taxonomy scheme -- `[completed]`
@@ -59,10 +65,4 @@ _Showing 25 of 1157 completed scopes (newest first). Full history: lifecycle `co
 - **#3095** -- feat(policy,review): dogfood Greptile CLEAN requires 5/5; consumers get per-project min-confidence lever -- `[completed]`
 - **#1870** -- bug(triage/ingest): Current shape comment invisible to cache + ingest pipeline -- `[completed]`
 - **#1649** -- fix(umbrella): umbrella checkboxes + current-shape never auto-sync to children state -- `[completed]`
-- **#3092** -- fix(preamble,swarm): orchestrator completion latch — one consolidate per runId -- `[completed]`
-- **#3090** -- fix(review-cycle,evidence): Owner Continuity Gate — ban silent hold after drive-to-merge -- `[completed]`
-- **#1273** -- UX: research strategy skips user interaction, bypasses chaining gate, unordered scopes -- `[completed]`
-- **#3077** -- fix(security): projectRoot containment for triage welcome atomicWrite (parent-as-root xbrief symlink) -- `[completed]`
-- **#3070** -- bug(check): consumer gate references missing verify:orphan-active task -- `[completed]`
-- **#86** -- Artifact-branch binding and complete audit trail for SDD (dual-format persistence, branch lifecycle hooks, artifact manifest) -- `[completed]`
 
