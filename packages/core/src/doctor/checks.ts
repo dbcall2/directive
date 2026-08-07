@@ -14,6 +14,9 @@ import {
   NPM_MANAGED_SENTINEL_VALUE,
 } from "../init-deposit/migrate.js";
 import { resolveLifecycleRoot } from "../layout/resolve.js";
+import { resolveCheckResume } from "../policy/check-resume.js";
+import { resolveCoverageDebt } from "../policy/coverage-debt.js";
+import { policyColonInvocation } from "../policy/policy-invocation.js";
 import { findSkillPathsInText } from "../text/redos-safe.js";
 import { stripGitignoreInlineComment } from "../triage/bootstrap/gitignore.js";
 import { LEGACY_INFO_ROOT_KEY, MIGRATED_ARTIFACT_DIR } from "../xbrief-migrate/constants.js";
@@ -843,6 +846,87 @@ export function checkGitignoreCoverage(projectRoot: string, seams: CheckSeams = 
   };
 }
 
+/**
+ * Surface undecided / invalid coverageDebt + checkResume policy (#3189).
+ * Advisory skip when undecided; never hard-fails doctor / check:consumer.
+ * Decided-off is quiet; dismiss-with-reason is pass with reason in detail.
+ * Invalid typed blocks resolve fail-closed and surface via source=default-on-error.
+ */
+export function checkCoverageCheckResumePolicy(projectRoot: string): CheckResult {
+  const debt = resolveCoverageDebt(projectRoot);
+  const resume = resolveCheckResume(projectRoot);
+  if (debt.source === "default-on-error" || resume.source === "default-on-error") {
+    return {
+      name: "coverage-check-resume-policy",
+      status: "skip",
+      detail:
+        "advisory: coverageDebt and/or checkResume block is invalid; " +
+        "resolution is fail-closed (mode off, localStamp off, CI never trusts stamps). " +
+        `coverageDebt.error=${JSON.stringify(debt.error)}; ` +
+        `checkResume.error=${JSON.stringify(resume.error)}. ` +
+        "Fix the typed block or re-apply Strict / Hatch-aware / dismiss-with-reason.",
+      data: {
+        coverageDebt: { status: debt.status, source: debt.source, error: debt.error },
+        checkResume: { status: resume.status, source: resume.source, error: resume.error },
+        advisory: true,
+        invalid: true,
+      },
+    };
+  }
+  const undecided = debt.status === "unset" || resume.status === "unset";
+  if (!undecided) {
+    const dismissParts: string[] = [];
+    if (debt.dismissReason) {
+      dismissParts.push(`coverageDebt.dismissReason=${JSON.stringify(debt.dismissReason)}`);
+    }
+    if (resume.dismissReason) {
+      dismissParts.push(`checkResume.dismissReason=${JSON.stringify(resume.dismissReason)}`);
+    }
+    const dismissNote = dismissParts.length > 0 ? ` Dismissed: ${dismissParts.join("; ")}.` : "";
+    return {
+      name: "coverage-check-resume-policy",
+      status: "pass",
+      detail:
+        `coverageDebt status=${debt.status} mode=${debt.mode}; ` +
+        `checkResume status=${resume.status} localStamp=${resume.localStamp}; ` +
+        `ciTrustsLocalStamp=false (fixed v1).${dismissNote}`,
+      data: {
+        coverageDebt: {
+          status: debt.status,
+          mode: debt.mode,
+          autoFile: debt.autoFile,
+          dismissReason: debt.dismissReason,
+        },
+        checkResume: {
+          status: resume.status,
+          localStamp: resume.localStamp,
+          ciTrustsLocalStamp: false,
+          dismissReason: resume.dismissReason,
+        },
+      },
+    };
+  }
+  // Advisory only (status=skip): never hard-fails doctor / check:consumer (#3189).
+  // Behavior remains fail-closed while unset; session-start nudge carries the ask.
+  return {
+    name: "coverage-check-resume-policy",
+    status: "skip",
+    detail:
+      "advisory: coverageDebt and/or checkResume policy is undecided (status=unset). " +
+      "Behavior stays fail-closed (no hatch soft-pass, no local suite stamp, CI never trusts stamps). " +
+      "Choose Strict / Hatch-aware on the next interactive session-start nudge, or record " +
+      "dismiss-with-reason. Inspect: " +
+      `\`${policyColonInvocation("show", " --field=coverageDebt")}\` / ` +
+      `\`${policyColonInvocation("show", " --field=checkResume")}\`.`,
+    data: {
+      coverageDebt: { status: debt.status, mode: debt.mode },
+      checkResume: { status: resume.status, localStamp: resume.localStamp },
+      suggested_fix: policyColonInvocation("show", " --field=coverageDebt"),
+      advisory: true,
+    },
+  };
+}
+
 export function deriveExitCode(checks: readonly CheckResult[], errors: readonly string[]): number {
   const exitExempt = new Set([
     "canonical-vendored-npm-signpost",
@@ -850,6 +934,7 @@ export function deriveExitCode(checks: readonly CheckResult[], errors: readonly 
     "gitignore-coverage",
     "stale-xbrief-schema-deposit",
     "typescript-7-side-by-side",
+    "coverage-check-resume-policy",
   ]);
   if (errors.length > 0 || checks.some((c) => c.status === "error")) {
     return 2;
@@ -897,6 +982,7 @@ export function runChecksImpl(
     checks.push(checkStaleXbriefSchemaDeposit(projectRoot, seams));
     checks.push(checkGitignoreCoverage(projectRoot, seams));
     checks.push(checkTypescript7SideBySide(projectRoot, seams));
+    checks.push(checkCoverageCheckResumePolicy(projectRoot));
     return {
       projectRoot,
       installRoot: null,
@@ -915,6 +1001,7 @@ export function runChecksImpl(
   checks.push(checkStaleXbriefSchemaDeposit(projectRoot, seams));
   checks.push(checkGitignoreCoverage(projectRoot, seams));
   checks.push(checkTypescript7SideBySide(projectRoot, seams));
+  checks.push(checkCoverageCheckResumePolicy(projectRoot));
   return {
     projectRoot,
     installRoot,
