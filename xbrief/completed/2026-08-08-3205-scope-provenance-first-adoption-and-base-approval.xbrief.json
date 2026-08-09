@@ -1,0 +1,134 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Single story for #3205: fix scope-provenance base-approval false positive and deposit first-adoption renewal CLI through merge",
+    "updated": "2026-08-09T02:43:47Z"
+  },
+  "plan": {
+    "title": "scope-provenance: first-adoption path + base-visible approval authority (#3205)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Directive 0.97+/0.98 verify:scope-provenance has no operator-facing renewal surface and incorrectly rejects valid base-visible human approvals during pending->active activation. Single story delivers both the evaluator correction and the record-approved-scope operator path, plus docs and real-Git regressions, as one through-merge unit.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3205 (operator-approved single-story swarm through-merge; cohort open for later issues)",
+      "Overview": "## Defect (two faces, one story)\n\n1. **Missing first-adoption / renewal surface**: library exposes `renewedApprovals` only as an evaluation/test option; CLI has no independent renewal input; remediation cites `task scope:record-approved-scope`, which is not deposited.\n2. **Base-visible approval false positive**: when a valid human-approved `.deft/approved-scope/<plan-id>.json` already exists unchanged on the merge base, canonical `pending/` -> `active/` still hard-fails as `self-authorizing-scope-expansion` because disk-only inference reads the *active xBRIEF* from base and treats absence as approval rewrite. Multi-PR bootstrap therefore does not work.\n\n## Expected outcome\n\n- Authority comes from the approval record in the merge base (schema, human stamp, plan id, path, scope, digest; current record unchanged vs base).\n- Operator can mint/re-record digests via a real `scope:record-approved-scope` (or equivalent) surface.\n- First-adoption flow documented for consumers whose active story + gate land together.\n- Real-Git regressions cover pending->active, missing/mismatched approval, same-PR rewrite fail-closed, expansion beyond base fail, separate approval-then-expand pass, and independent `renewedApprovals` still supported.\n- Fail-closed posture preserved (no self-auth bypass).\n\n## Related\n- Parent feature: #3145 (closed)\n- Module: packages/core/src/scope-provenance/, packages/cli verify-scope-provenance, tasks/scope.yml + tasks/verify.yml, content/docs/scope-provenance.md",
+      "UserStory": "As a Directive consumer upgrading to 0.97+/0.98 with non-empty file_scope stories, I want pending->active and first-adoption paths to accept independently minted human approvals without emptying file_scope, so that the provenance gate protects against self-auth without blocking legitimate activation.",
+      "ImplementationPlan": "1. packages/core/src/scope-provenance/evaluate.ts: replace approvalDiskOnly inference that treats missing base active xBRIEF as rewrite; authority = validated base .deft/approved-scope/<plan-id>.json (schema, human stamp, planId, xbriefRelPath, digest; current record semantically unchanged vs base). Keep same-PR approval rewrite fail-closed.\n2. packages/core/src/scope-provenance/evaluate.test.ts (+ optional real-Git fixture test): cover pending->active with base approval pass; missing/mismatched/agent/same-PR rewrite fail; base-approved expansion pass; renewedApprovals still works.\n3. Deposit operator surface: packages/cli/src/scope-record-approved-scope.ts (+ test), packages/cli/src/dispatch.ts, tasks/scope.yml verb scope:record-approved-scope wrapping buildApprovedScopeRecord/writeApprovedScopeRecord with humanApproval requirements; refuse agent stamps.\n4. content/docs/scope-provenance.md + remediation strings in evaluate.ts: name real command; first-adoption + multi-PR flows.\n5. CHANGELOG.md [Unreleased] #3205. Verify: npm test -w @deftai/directive-core -- --run scope-provenance; npm test -w @deftai/directive-cli -- --run scope-record / verify-scope-provenance.",
+      "Labels": "bug,P1,scope-provenance"
+    },
+    "items": [
+      {
+        "title": "Base-ref approval authority (evaluator)",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given merge base with pending xBRIEF + valid human-approved path-bound approved-scope record, when branch only activates without changing file_scope or approval, then verify:scope-provenance --base-ref base --enforce exits 0."
+        }
+      },
+      {
+        "title": "Fail closed on missing or same-PR-rewritten approval",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given activation with non-empty file_scope when base approval is absent, malformed, agent-stamped, mismatched, or same-change-set rewritten, then gate hard-fails appropriately."
+        }
+      },
+      {
+        "title": "Approved expansion after base approval",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given separately committed expanded human approval on base, when later PR updates active xBRIEF to that exact scope without rewriting approval in-PR, then gate passes under --enforce."
+        }
+      },
+      {
+        "title": "Operator record-approved-scope + docs",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given operator mints/renews via deposited scope:record-approved-scope with human stamp, digest file is written correctly; agent stamps refused; remediation and content/docs/scope-provenance.md name the real command and first-adoption/multi-PR flows."
+        }
+      },
+      {
+        "title": "Regressions, CHANGELOG, through-merge",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given PR, regression matrix covered, CHANGELOG [Unreleased] cites #3205, review-cycle clean, merge-ready, scope:complete, #3205 closable."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "P1",
+      "scope-provenance",
+      "swarm"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3205",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3205: scope provenance first-adoption path lacks independent renewal CLI"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3145",
+        "type": "x-xbrief/github-issue",
+        "title": "Related parent #3145 (closed): test boundary + scope provenance gates"
+      }
+    ],
+    "updated": "2026-08-09T02:43:47Z",
+    "id": "3205-scope-provenance-first-adoption-base-approval",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/scope-provenance/evaluate.ts",
+          "packages/core/src/scope-provenance/evaluate.test.ts",
+          "packages/core/src/scope-provenance/digest.ts",
+          "packages/core/src/scope-provenance/digest.test.ts",
+          "packages/core/src/scope-provenance/index.ts",
+          "packages/cli/src/verify-scope-provenance.ts",
+          "packages/cli/src/verify-scope-provenance.test.ts",
+          "packages/cli/src/dispatch.ts",
+          "tasks/scope.yml",
+          "tasks/verify.yml",
+          "content/docs/scope-provenance.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "npm test -w @deftai/directive-core -- --run scope-provenance",
+          "npm test -w @deftai/directive-cli -- --run verify-scope-provenance",
+          "task verify:scope-provenance -- --base-ref origin/master"
+        ],
+        "expected_outputs": [
+          "base-visible approval allows pending->active",
+          "scope:record-approved-scope deposited",
+          "docs + remediation fixed",
+          "real-Git regressions",
+          "PR through merge closes #3205"
+        ],
+        "depends_on": [],
+        "conflict_group": "scope-provenance-3205",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "Worker MAY add packages/cli/src/scope-record-approved-scope.ts (+ test), packages/core/src/scope-provenance/*-git*.test.ts fixtures under tests/ or packages/core temp dirs, and Taskfile wiring only. Prefer new CLI module over bloating verify-scope-provenance. Do not empty consumer file_scope as the fix."
+      },
+      "capacityBucket": "bugfix",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3207,
+        "prBase": null,
+        "mergeCommit": "41c29eab90573d6c4cbfd20d9284de4f9a150062",
+        "deliveryBranch": "master",
+        "deliveryCommit": "41c29eab90573d6c4cbfd20d9284de4f9a150062",
+        "verifiedAt": "2026-08-09T02:43:47Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-09T02:43:47Z"
+    }
+  }
+}

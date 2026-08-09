@@ -1,0 +1,128 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Single story for #3206: UAT Shell fail-open residuals via curl/wget/xxd/openssl (authz grants + kill-switch)",
+    "updated": "2026-08-09T02:43:17Z"
+  },
+  "plan": {
+    "title": "sec(authz): UAT Shell fail-open residuals — downloaders/decoders plant grants + kill-switch (#3206)",
+    "status": "completed",
+    "narratives": {
+      "Description": "After #3186, UAT PreToolUse Shell still allows curl/wget/xxd/openssl to plant .deft/authz grants or .deft-directive-disable because INDIRECT_WRITE_BINS and hasKillSwitchShellWrite omit downloaders/decoders and destination flag parsing. Single story closes both HIGH findings.",
+      "Origin": "https://github.com/deftai/directive/issues/3206 — open cohort open-cohort-2026-08-08 / cohort-open-2026-08-08-scope-gates",
+      "Overview": "## Findings\n1. HIGH: curl/wget/xxd/openssl plant .deft/authz/** via -o/--output/-O/-out; classifyShellAuthzOps empty; shell-op-unclassifiable allow; forged grant unlocks Write/push/PR/merge.\n2. HIGH: curl -o .deft-directive-disable (and peers) bypass hasKillSwitchShellWrite (redirects-only).\n\n## Fix\n- packages/core/src/authz/classify.ts: extend indirect write / kill-switch detection for downloaders/decoders + destination flags.\n- Fail-closed under active UAT for .deft/authz/** and kill-switch basenames.\n- Tests: fixtures for each residual; literal echo redirect still settings deny; forged grant does not unlock Write.\n- CHANGELOG security note.\n\nRelated: #3186, #3110, #3039",
+      "UserStory": "As an operator running UAT with PreToolUse Shell hooks, I want downloaders and decoders that target authz grants or the Directive kill-switch to be denied without a human grant, so that residual fail-open paths after #3186 cannot bypass Wave 1 human-approval.",
+      "ImplementationPlan": "1. packages/core/src/authz/classify.ts: add curl/wget/xxd/openssl to INDIRECT_WRITE_BINS (or equivalent); parse -o/--output/-O/-out destinations; fail-closed under UAT when destination is under .deft/authz/**. 2. Extend hasKillSwitchShellWrite (or peer) so downloader destinations naming kill-switch basenames (e.g. .deft-directive-disable) classify as settings deny under UAT. 3. packages/core/src/authz/classify.test.ts (+ incident-regression if needed): residual cmds under active UAT deny; echo redirect kill-switch still denied; forged grant path does not unlock Write. 4. CHANGELOG.md [Unreleased] security for #3206; brief docs note if an authz security surface exists. 5. Verify: npm test -w @deftai/directive-core -- --run authz/classify. Pre-pr, PR, review-cycle, drive-to merge-ready, scope:complete, close #3206.",
+      "Labels": "bug,security,harness,agent-safety,urgent,area:cli"
+    },
+    "items": [
+      {
+        "title": "Downloader/decoder authz-dir write deny under UAT",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given active UAT with PreToolUse Shell, when curl/wget/xxd/openssl write or decode to a .deft/authz/** destination via common -o/--output/-O/-out forms, then the op is denied (not shell-op-unclassifiable allow)."
+        }
+      },
+      {
+        "title": "Downloader kill-switch plant deny under UAT",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given active UAT, when a downloader uses -o/--output/-O to a kill-switch basename (e.g. .deft-directive-disable), then Shell is hard-denied without human grant."
+        }
+      },
+      {
+        "title": "Destination flag parsing coverage",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the listed bins, when common destination flag forms are used, then classification covers them (not only redirects)."
+        }
+      },
+      {
+        "title": "Regression tests + literal redirect still denied",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the test suite, when residual fixtures run under active UAT, each finding is denied; literal echo redirect kill-switch remains settings deny; forged grant does not unlock Write."
+        }
+      },
+      {
+        "title": "CHANGELOG + through-merge",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given PR, CHANGELOG [Unreleased] cites #3206 security; review-cycle clean; merge-ready; scope:complete; #3206 closable."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "security",
+      "harness",
+      "agent-safety",
+      "urgent",
+      "swarm"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3206",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3206: UAT Shell fail-open residuals curl/wget/xxd/openssl"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3186",
+        "type": "x-xbrief/github-issue",
+        "title": "Related #3186 UAT Shell fail-open Wave 1"
+      }
+    ],
+    "updated": "2026-08-09T02:43:17Z",
+    "id": "3206-sec-authz-uat-shell-downloader-residuals",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/authz/classify.ts",
+          "packages/core/src/authz/classify.test.ts",
+          "packages/core/src/authz/incident-regression.test.ts",
+          "packages/core/src/authz/evaluate.ts",
+          "packages/core/src/authz/evaluate.test.ts",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "npm test -w @deftai/directive-core -- --run authz/classify",
+          "npm test -w @deftai/directive-core -- --run authz/incident-regression"
+        ],
+        "expected_outputs": [
+          "curl/wget/xxd/openssl authz plant denied under UAT",
+          "downloader kill-switch plant denied under UAT",
+          "CHANGELOG #3206",
+          "PR through merge closes #3206"
+        ],
+        "depends_on": [],
+        "conflict_group": "authz-uat-shell-3206",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "Worker MAY add packages/core/src/authz/* residual test fixtures and a short security note under content/docs if an authz doc exists. Prefer classify.ts-only product change. Do not redesign UAT grant UX."
+      },
+      "capacityBucket": "security",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3208,
+        "prBase": null,
+        "mergeCommit": "a7c66c4cbf205c2e05a79d2de84ab202b72b9775",
+        "deliveryBranch": "master",
+        "deliveryCommit": "a7c66c4cbf205c2e05a79d2de84ab202b72b9775",
+        "verifiedAt": "2026-08-09T02:43:17Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-09T02:43:17Z"
+    }
+  }
+}
