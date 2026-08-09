@@ -38,8 +38,10 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1173 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1175 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#3205** -- scope-provenance: first-adoption path + base-visible approval authority (#3205) -- `[completed]`
+- **#3206** -- sec(authz): UAT Shell fail-open residuals — downloaders/decoders plant grants + kill-switch (#3206) -- `[completed]`
 - **#3198** -- feat(triage,meta): portfolio prioritization pass — priority briefs from local cache (propose-not-apply) -- `[completed]`
 - **#3201** -- feat(skills): deft-directive-portfolio-priority — agent skill for #3198 priority briefs -- `[completed]`
 - **#3164** -- docs(main,meta): name directive self-modification stance - self-improving, not self-editing (propose-not-apply) -- `[completed]`
@@ -63,6 +65,4 @@ _Showing 25 of 1173 completed scopes (newest first). Full history: lifecycle `co
 - **#3125** -- feat(triage): #1423 Wave 2 — bootstrap mass-triage (filters, digest, safe apply) -- `[completed]`
 - **#1423** -- feat(triage): Tier-1 deterministic SCM label mirror from classify (Wave 1 of #1423) -- `[completed]`
 - docs: npm v12 install-time security defaults (scripts/git/remote opt-in) -- `[completed]`
-- **#3116** -- residual(triage): Phase 3 current-state validity analysis + URL-first (#1418 leftover after #2890) -- `[completed]`
-- **#3120** -- Bound proof for remote artifact claims in handoff evidence (invented-done fail class) -- `[completed]`
 

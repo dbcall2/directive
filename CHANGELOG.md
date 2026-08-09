@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.98.1] - 2026-08-09
+
+> Patch on 0.98.0: consumer adoption unblock for scope-provenance, and UAT Shell security residual for downloaders/decoders.
+
+### Added
+
 - **`task scope:record-approved-scope` first-adoption / renewal surface (#3205).** Operator CLI deposits human-origin `.deft/approved-scope/<plan-id>.json` digests (`--actor` required; agent stamps refused; pending→active path binding). Taskfile + dispatch alias; docs in `content/docs/scope-provenance.md` cover first-adoption and multi-PR expansion. Closes #3205.
 
 ### Changed
@@ -5049,7 +5061,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.98.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.98.1...HEAD
+[0.98.1]: https://github.com/deftai/directive/compare/v0.98.0...v0.98.1
 [0.98.0]: https://github.com/deftai/directive/compare/v0.97.0...v0.98.0
 [0.97.0]: https://github.com/deftai/directive/compare/v0.96.0...v0.97.0
 [0.96.0]: https://github.com/deftai/directive/compare/v0.95.0...v0.96.0
