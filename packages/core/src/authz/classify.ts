@@ -17,17 +17,33 @@ import type { AuthzOperation } from "./types.js";
 
 export type AuthzClassifiedOp = AuthzOperation | "test" | "evidence" | "unknown";
 
-/** Split on whitespace without nested quantifiers (O(n)). */
+/**
+ * Split on whitespace without nested quantifiers (O(n)).
+ * Newlines become `;` segment breaks so compound lists like
+ * `scp …authz…\necho ok` keep the scp dest (#3213 Greptile residual).
+ * Bare space/tab/CR still only separate tokens.
+ */
 function shellTokens(command: string): string[] {
   const out: string[] = [];
   let cur = "";
   for (let i = 0; i < command.length; i++) {
     const c = command[i];
     if (c === undefined) break;
-    if (c === " " || c === "\t" || c === "\n" || c === "\r") {
+    if (c === " " || c === "\t" || c === "\r") {
       if (cur.length > 0) {
         out.push(cur);
         cur = "";
+      }
+      continue;
+    }
+    if (c === "\n") {
+      if (cur.length > 0) {
+        out.push(cur);
+        cur = "";
+      }
+      // Emit a segment break once (avoid runs of `;` from blank lines).
+      if (out.length > 0 && out[out.length - 1] !== ";") {
+        out.push(";");
       }
       continue;
     }
@@ -174,15 +190,25 @@ const POLICY_AUTHORITY_MUTATORS = new Set([
 const KILL_SWITCH_BASENAMES = [".deft-directive-disable", ".no-deft-directive"] as const;
 
 /**
- * Downloaders / decoders that can plant files without shell redirects (#3206).
- * Not in INDIRECT_WRITE_BINS: those feed hasWriteShape and would classify bare
- * `curl $URL` as a store write via opaque-expansion heuristics.
+ * Downloaders / decoders / remote-copy tools that can plant files without shell
+ * redirects (#3206 / #3213). Not in INDIRECT_WRITE_BINS: those feed hasWriteShape
+ * and would classify bare `curl $URL` as a store write via opaque-expansion heuristics.
  */
-const DOWNLOADER_DECODER_BINS = new Set(["curl", "wget", "xxd", "openssl"]);
+const DOWNLOADER_DECODER_BINS = new Set([
+  "curl",
+  "wget",
+  "xxd",
+  "openssl",
+  // #3213 residual after #3206: alternate downloaders / remote copy.
+  "scp",
+  "aria2c",
+  "certutil",
+]);
 
 /**
  * File destination flags for downloaders/decoders (#3206).
  * normalizeToken lowercases, so wget `-O` and curl `-o` share `-o`.
+ * scp: `-o` is an SSH option — excluded in isDownloaderDestFlag.
  */
 const DOWNLOADER_FILE_DEST_FLAGS = new Set([
   "-o",
@@ -192,9 +218,16 @@ const DOWNLOADER_FILE_DEST_FLAGS = new Set([
   "--out",
 ]);
 
-/** Directory destination flags (curl --output-dir / wget -P); bin-scoped below. */
+/** Directory destination flags (curl --output-dir / wget -P / aria2c -d); bin-scoped below. */
 const CURL_DIR_DEST_FLAGS = new Set(["--output-dir"]);
 const WGET_DIR_DEST_FLAGS = new Set(["-p", "--directory-prefix"]);
+const ARIA2C_DIR_DEST_FLAGS = new Set(["-d", "--dir"]);
+
+/**
+ * Symlink / hard-link plant bins (#3213). Absent from prior killWriteBins →
+ * `ln -sf … .deft-directive-disable` classified empty → UAT fail-open.
+ */
+const SYMLINK_PLANT_BINS = new Set(["ln", "link", "mklink"]);
 
 /** Final path segment of a token (path-qualified bins / .exe). */
 function binBareName(token: string): string {
@@ -211,16 +244,68 @@ function isDownloaderDecoderBin(token: string): boolean {
 }
 
 function isDownloaderDestFlag(flag: string, bin: string): boolean {
+  // scp: `-o` is OpenSSH option (ProxyCommand, …), not a file dest flag.
+  if (bin === "scp") return false;
   if (DOWNLOADER_FILE_DEST_FLAGS.has(flag)) return true;
   if (bin === "curl" && CURL_DIR_DEST_FLAGS.has(flag)) return true;
   if (bin === "wget" && WGET_DIR_DEST_FLAGS.has(flag)) return true;
+  if (bin === "aria2c" && ARIA2C_DIR_DEST_FLAGS.has(flag)) return true;
   return false;
 }
 
 /**
- * Destinations from curl/wget/xxd/openssl via -o/--output/-O/-out/--output-dir/-P
- * (separate, =value, or attached short form) and xxd -r path-like write positionals (#3206).
+ * OpenSSH/scp flags that take a separate value token (`-o ProxyCommand=…`, `-i key`, `-P port`).
+ * Not dest flags — must skip so value tokens are not mistaken for write destinations (#3213).
+ * Case-sensitive where needed: scp `-P` (port) takes a value; `-p` (preserve) does not.
+ */
+const SCP_VALUE_FLAGS_LOWER = new Set(["-o", "-i", "-c", "-s", "-j", "-f", "-l", "-b"]);
+const SCP_VALUE_FLAGS_EXACT = new Set(["-P", "-F", "-S", "-J"]);
+
+/** Shell metacharacters that end a command segment (compound lists / pipelines). */
+function isShellSegmentBreak(token: string): boolean {
+  const t = token.trim();
+  if (t.length === 0) return false;
+  if (t === ";" || t === "|" || t === "||" || t === "&&" || t === "&") return true;
+  // Trailing operator glued to a prior token is handled by pathish stripping; bare ops here.
+  return false;
+}
+
+/**
+ * First unquoted, unescaped shell-list operator (`;` `&` `|`) in a token, or -1.
+ * Quoted operators (e.g. `'file;name'`) and escaped unquoted ops (e.g. `path\;file`)
+ * are literal data and must not end scp segments (#3213 Greptile residual).
+ * O(n). Unquoted / double-quoted `\` escapes the next char; single-quoted `\` is literal.
+ */
+function firstUnquotedShellOpIndex(raw: string): number {
+  let inSingle = false;
+  let inDouble = false;
+  for (let k = 0; k < raw.length; k++) {
+    const ch = raw[k] as string;
+    // Outside single quotes, backslash escapes the next character (POSIX-ish).
+    if (ch === "\\" && k + 1 < raw.length && !inSingle) {
+      k++;
+      continue;
+    }
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle;
+      continue;
+    }
+    if (ch === '"' && !inSingle) {
+      inDouble = !inDouble;
+      continue;
+    }
+    if (inSingle || inDouble) continue;
+    if (ch === ";" || ch === "&" || ch === "|") return k;
+  }
+  return -1;
+}
+
+/**
+ * Destinations from curl/wget/xxd/openssl/scp/aria2c/certutil via -o/--output/-O/-out/
+ * --output-dir/-P/-d/--dir (separate, =value, or attached short form), xxd -r path-like
+ * write positionals (#3206), and positional dests for scp/certutil (#3213).
  * openssl uses flags only (no positional dests — avoids treating -in paths as writes).
+ * Segment stops at shell operators so compound `scp …authz…; echo` cannot overwrite dests.
  * O(n) token walk — no nested-quantifier regex on untrusted input.
  */
 function downloaderDecoderDestinations(tokens: readonly string[]): string[] {
@@ -235,9 +320,23 @@ function downloaderDecoderDestinations(tokens: readonly string[]): string[] {
     i++;
     // xxd reverse mode writes; without -r, path positionals are dump inputs (read).
     let xxdReverse = false;
+    // scp / certutil: collect pathish operands in this segment (#3213).
+    // Fail-closed under UAT: any pathish mentioning protected store/kill paths is a dest
+    // candidate (scp source-or-dest of `.deft/authz` is treated as settings — prefer deny
+    // over source/dest thrash). Last pathish remains the ordinary write dest.
+    // Segment breaks (`;`/`\n`/glued ops) prevent following-command overwrite.
+    let lastPositionalPath: string | null = null;
+    const protectedPathish: string[] = [];
     while (i < tokens.length) {
       const raw = tokens[i] as string;
       const n = normalizeToken(raw);
+
+      // Bare shell ops end this bin's segment. Do NOT use normalizeToken here —
+      // quoted `';'` becomes `;` after strip and would cut before the real authz dest
+      // (Greptile P1 residual #3213). Glued ops are handled by firstUnquotedShellOpIndex.
+      if (isShellSegmentBreak(raw)) {
+        break;
+      }
 
       // New bare bin starts another command segment (not pathish ./wget operands).
       if (
@@ -266,19 +365,37 @@ function downloaderDecoderDestinations(tokens: readonly string[]): string[] {
         continue;
       }
 
-      // --flag=value (and rare -out=value)
+      // scp: skip OpenSSH value-taking flags + their values (-o Option=Value, -i key, -P port).
+      if (
+        bin === "scp" &&
+        (SCP_VALUE_FLAGS_LOWER.has(n) ||
+          SCP_VALUE_FLAGS_EXACT.has(raw) ||
+          SCP_VALUE_FLAGS_EXACT.has(n))
+      ) {
+        const next = tokens[i + 1];
+        if (next !== undefined && !String(next).startsWith("-") && !isShellSegmentBreak(next)) {
+          i += 2;
+          continue;
+        }
+        i++;
+        continue;
+      }
+
+      // --flag=value (and rare -out=value); scp -oOption=Value attached form also lands here.
       if (n.includes("=") && (n.startsWith("-") || n.startsWith("--"))) {
         const eq = raw.indexOf("=");
         const flag = normalizeToken(raw.slice(0, eq));
         if (isDownloaderDestFlag(flag, bin)) {
           dests.push(pathishToken(raw.slice(eq + 1)));
         }
+        // scp attached -oProxyCommand=… is not a file dest — skip without recording.
         i++;
         continue;
       }
 
       // Attached short: -oPATH / -OPATH (after lowercasing both are -opath…)
-      if (n.startsWith("-") && !n.startsWith("--") && n.length > 2) {
+      // Skip for scp (OpenSSH -oOption=Value attached forms are not file dests).
+      if (bin !== "scp" && n.startsWith("-") && !n.startsWith("--") && n.length > 2) {
         if (n.startsWith("-out") && n.length > 4 && !n.startsWith("-output")) {
           dests.push(pathishToken(raw.slice(4)));
           i++;
@@ -295,12 +412,18 @@ function downloaderDecoderDestinations(tokens: readonly string[]): string[] {
           i++;
           continue;
         }
+        // aria2c attached -dDIR (#3213)
+        if (bin === "aria2c" && n.startsWith("-d") && n.length > 2) {
+          dests.push(pathishToken(raw.slice(2)));
+          i++;
+          continue;
+        }
       }
 
-      // Separate value: -o PATH / --output PATH / -out PATH / --output-dir / -P
+      // Separate value: -o PATH / --output PATH / -out PATH / --output-dir / -P / -d
       if (isDownloaderDestFlag(n, bin)) {
         const next = tokens[i + 1];
-        if (next !== undefined && !String(next).startsWith("-")) {
+        if (next !== undefined && !String(next).startsWith("-") && !isShellSegmentBreak(next)) {
           dests.push(pathishToken(next));
           i += 2;
           continue;
@@ -321,7 +444,38 @@ function downloaderDecoderDestinations(tokens: readonly string[]): string[] {
           dests.push(p);
         }
       }
+
+      // scp / certutil: pathish operands (quote-aware glued-op cut).
+      // certutil under UAT: any `.deft/authz` / kill-switch pathish is fail-closed settings
+      // (read vs write thrash deferred — prefer deny over dest-parser perfection; #3213).
+      if ((bin === "scp" || bin === "certutil") && !n.startsWith("-")) {
+        const cut = firstUnquotedShellOpIndex(raw);
+        const cleaned = cut >= 0 ? raw.slice(0, cut) : raw;
+        const p = pathishToken(cleaned);
+        if (p.length > 0) {
+          lastPositionalPath = p;
+          // Fail-closed: protected store/kill basenames anywhere in scp/certutil pathish.
+          if (
+            p.includes(".deft/authz") ||
+            p.includes(".deft-directive-disable") ||
+            p.includes(".no-deft-directive")
+          ) {
+            protectedPathish.push(p);
+          }
+        }
+        if (cut >= 0) {
+          i++;
+          break;
+        }
+      }
       i++;
+    }
+    // Prefer protected pathish (fail-closed) then last ordinary dest.
+    for (const p of protectedPathish) {
+      dests.push(p);
+    }
+    if (lastPositionalPath !== null && !protectedPathish.includes(lastPositionalPath)) {
+      dests.push(lastPositionalPath);
     }
   }
   return dests;
@@ -402,52 +556,74 @@ function hasPolicyAuthorityMutator(tokens: readonly string[]): boolean {
   return false;
 }
 
+/** True when pathish token names a kill-switch basename (quote-strip resistant). */
+function pathishMentionsKillSwitch(pathish: string): boolean {
+  for (const name of KILL_SWITCH_BASENAMES) {
+    if (pathish === name || pathish.endsWith(`/${name}`) || pathish.includes(name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
- * Shell write targeting `.deft-directive-disable` / `.no-deft-directive` (#3186 / #3039).
+ * Shell write targeting `.deft-directive-disable` / `.no-deft-directive` (#3186 / #3039 / #3213).
  * Planting the kill-switch under UAT would full-bypass subsequent gates without operator recovery.
+ * Includes symlink plant bins (`ln`/`link`/`mklink`) and quote-split-resistant basename checks.
  */
 function hasKillSwitchShellWrite(command: string, tokens: readonly string[]): boolean {
   const lower = command.toLowerCase().replace(/\\/g, "/");
+  // Quote-stripped form so `'.deft'-directive-disable`-class splits still match (#3213).
+  const stripped = lower.replace(/['"]/g, "");
   let mentionsKill = false;
   for (const name of KILL_SWITCH_BASENAMES) {
-    if (lower.includes(name)) {
+    if (lower.includes(name) || stripped.includes(name)) {
       mentionsKill = true;
       break;
     }
   }
+  if (!mentionsKill) {
+    for (const t of tokens) {
+      if (pathishMentionsKillSwitch(pathishToken(t))) {
+        mentionsKill = true;
+        break;
+      }
+    }
+  }
   if (!mentionsKill) return false;
 
-  // Redirect dest region after each `>` / `>>` (O(n)).
-  for (let i = 0; i < lower.length; i++) {
-    if (lower[i] !== ">") continue;
-    let j = i + 1;
-    if (j < lower.length && lower[j] === ">") j++;
-    let end = j;
-    while (
-      end < lower.length &&
-      lower[end] !== "|" &&
-      lower[end] !== ";" &&
-      lower[end] !== "&" &&
-      lower[end] !== "\n"
-    ) {
-      end++;
-    }
-    const dest = lower.slice(j, end);
-    for (const name of KILL_SWITCH_BASENAMES) {
-      if (dest.includes(name)) return true;
+  // Redirect dest region after each `>` / `>>` (O(n)); check raw + quote-stripped.
+  for (const hay of [lower, stripped]) {
+    for (let i = 0; i < hay.length; i++) {
+      if (hay[i] !== ">") continue;
+      let j = i + 1;
+      if (j < hay.length && hay[j] === ">") j++;
+      let end = j;
+      while (
+        end < hay.length &&
+        hay[end] !== "|" &&
+        hay[end] !== ";" &&
+        hay[end] !== "&" &&
+        hay[end] !== "\n"
+      ) {
+        end++;
+      }
+      const dest = hay.slice(j, end);
+      for (const name of KILL_SWITCH_BASENAMES) {
+        if (dest.includes(name)) return true;
+      }
     }
   }
 
-  // Downloader/decoder destinations: curl -o .deft-directive-disable, wget -O, … (#3206).
+  // Downloader/decoder destinations: curl -o .deft-directive-disable, scp, … (#3206 / #3213).
   for (const dest of downloaderDecoderDestinations(tokens)) {
-    for (const name of KILL_SWITCH_BASENAMES) {
-      if (dest.includes(name)) return true;
-    }
+    if (pathishMentionsKillSwitch(dest)) return true;
   }
 
-  // Write/destructive bins with a kill-switch path argument (touch, New-Item, …).
+  // Write/destructive + symlink plant bins with a kill-switch path argument (#3213: ln/link/mklink).
   const killWriteBins = new Set([
     ...INDIRECT_WRITE_BINS,
+    ...SYMLINK_PLANT_BINS,
     "touch",
     "new-item",
     "ni",
@@ -456,25 +632,26 @@ function hasKillSwitchShellWrite(command: string, tokens: readonly string[]): bo
     "type",
   ]);
   for (let ti = 0; ti < tokens.length; ti++) {
-    if (!killWriteBins.has(normalizeToken(tokens[ti] as string))) continue;
+    const binTok = normalizeToken(tokens[ti] as string);
+    const bare = binBareName(tokens[ti] as string);
+    if (!killWriteBins.has(binTok) && !killWriteBins.has(bare)) continue;
     for (let tj = ti + 1; tj < tokens.length; tj++) {
-      const p = pathishToken(tokens[tj] as string);
-      for (const name of KILL_SWITCH_BASENAMES) {
-        if (p.includes(name)) return true;
-      }
+      if (pathishMentionsKillSwitch(pathishToken(tokens[tj] as string))) return true;
     }
   }
-  // Bare `touch .deft-directive-disable` — first token may be touch, path later.
+  // Bare `touch .deft-directive-disable` / `ln -sf x .deft-directive-disable` — path later.
   for (const t of tokens) {
     const p = pathishToken(t);
     for (const name of KILL_SWITCH_BASENAMES) {
       // Exact basename or ends with /basename
       if (p === name || p.endsWith(`/${name}`)) {
-        // Require some write shape (redirect already handled; touch/ni/echo/…)
+        // Require some write shape (redirect already handled; touch/ni/echo/ln/…)
         if (
           hasWriteShape(command, tokens) ||
           lower.includes("touch") ||
-          lower.includes("new-item")
+          lower.includes("new-item") ||
+          SYMLINK_PLANT_BINS.has(binBareName(tokens[0] as string)) ||
+          tokens.some((tok) => SYMLINK_PLANT_BINS.has(binBareName(tok)))
         ) {
           return true;
         }
@@ -655,45 +832,72 @@ function pathishToken(token: string): string {
 }
 
 /**
- * Shell **write** targeting `.deft/authz/` (#3110 AC-3).
+ * True when a pathish string targets `.deft/authz` (after quote strip / slash normalize).
+ * Quote-split forms like `'.deft/'authz'/grants/x'` become `.deft/authz/grants/x` via pathishToken.
+ */
+function pathishIsAuthzDir(pathish: string): boolean {
+  return pathish.includes(".deft/authz");
+}
+
+/**
+ * Shell **write** targeting `.deft/authz/` (#3110 AC-3 / #3206 / #3213).
  * Pure reads (`cat .deft/authz/state.json`) stay unclassifiable — use `authz:show`.
  * Redirects only count when the destination region contains `.deft/authz`.
+ * Pathish/token checks run even when the raw command lacks contiguous `.deft/authz`
+ * text (quote-split residual: `cp x '.deft/'authz'/grants/y'`).
  */
 function hasAuthzDirShellWrite(command: string, tokens: readonly string[]): boolean {
   const lower = command.toLowerCase().replace(/\\/g, "/");
-  if (!lower.includes(".deft/authz")) return false;
+  // Quote-stripped contiguous form for redirect dest checks (#3213).
+  const stripped = lower.replace(/['"]/g, "");
 
   // Redirect dest region after each `>` / `>>` (O(n); no nested-quantifier regex).
-  for (let i = 0; i < lower.length; i++) {
-    if (lower[i] !== ">") continue;
-    let j = i + 1;
-    if (j < lower.length && lower[j] === ">") j++;
-    // Dest until pipe/semicolon/ampersand/newline.
-    let end = j;
-    while (
-      end < lower.length &&
-      lower[end] !== "|" &&
-      lower[end] !== ";" &&
-      lower[end] !== "&" &&
-      lower[end] !== "\n"
-    ) {
-      end++;
+  // Check both raw and quote-stripped so quote-split dests still match.
+  for (const hay of [lower, stripped]) {
+    for (let i = 0; i < hay.length; i++) {
+      if (hay[i] !== ">") continue;
+      let j = i + 1;
+      if (j < hay.length && hay[j] === ">") j++;
+      // Dest until pipe/semicolon/ampersand/newline.
+      let end = j;
+      while (
+        end < hay.length &&
+        hay[end] !== "|" &&
+        hay[end] !== ";" &&
+        hay[end] !== "&" &&
+        hay[end] !== "\n"
+      ) {
+        end++;
+      }
+      if (hay.slice(j, end).includes(".deft/authz")) return true;
     }
-    if (lower.slice(j, end).includes(".deft/authz")) return true;
   }
 
-  // Write/destructive bins with an authz path argument.
+  // Write/destructive + symlink plant bins with an authz path argument (pathish =
+  // quote-strip resistant). Always run — do not gate on contiguous `.deft/authz`
+  // in the raw command (#3213). SYMLINK_PLANT_BINS: `ln -s forged .deft/authz/grants/x`
+  // must not fail-open as unclassifiable (SLizard residual).
   for (let ti = 0; ti < tokens.length; ti++) {
-    if (!INDIRECT_WRITE_BINS.has(normalizeToken(tokens[ti] as string))) continue;
+    const bare = binBareName(tokens[ti] as string);
+    const n = normalizeToken(tokens[ti] as string);
+    if (
+      !INDIRECT_WRITE_BINS.has(n) &&
+      !INDIRECT_WRITE_BINS.has(bare) &&
+      !SYMLINK_PLANT_BINS.has(bare)
+    ) {
+      continue;
+    }
     for (let tj = ti + 1; tj < tokens.length; tj++) {
-      if (pathishToken(tokens[tj] as string).includes(".deft/authz")) return true;
+      if (pathishIsAuthzDir(pathishToken(tokens[tj] as string))) return true;
     }
   }
 
-  // Downloader/decoder destinations under .deft/authz (#3206 residual after #3186).
+  // Downloader/decoder destinations under .deft/authz (#3206 / #3213 scp/aria2c/certutil).
   for (const dest of downloaderDecoderDestinations(tokens)) {
-    if (dest.includes(".deft/authz")) return true;
+    if (pathishIsAuthzDir(dest)) return true;
   }
+
+  // Contiguous mention without write shape stays false (reads like cat .deft/authz/…).
   return false;
 }
 
