@@ -16,6 +16,16 @@ import {
   formatEnvironmentContext,
 } from "../platform/shell-context.js";
 import {
+  type CeremonyDialInputs,
+  type CeremonyDialSelection,
+  ceremonyDialToDict,
+  formatCeremonyDialStatusLine,
+  mergeCeremonyDialDeferrals,
+  type ProvisionalCeremonyEstimateHints,
+  resolveCeremonyDial,
+  resolveSessionCeremonyDialInputs,
+} from "../policy/ceremony-dial.js";
+import {
   DEFT_DIRECTIVE_DISABLE_FLAG_NAME,
   DEFT_DIRECTIVE_DISABLE_STATUS,
   detectDeftDirectiveDisable,
@@ -81,7 +91,14 @@ export type SessionCeremonyTier = (typeof SESSION_CEREMONY_TIERS)[number];
 export const COLD_CEREMONY_TIER: SessionCeremonyTier = "cold";
 export const REARM_CEREMONY_TIER: SessionCeremonyTier = "rearm";
 
-export const QUICK_STEPS = ["alignment", "branch_policy", "triage_welcome"] as const;
+// verify_tools is mutation readiness recorded on cold path (#3214 / #3156) —
+// included so re-arm refuses after a tools-failed cold start.
+export const QUICK_STEPS = [
+  "alignment",
+  "branch_policy",
+  "triage_welcome",
+  "verify_tools",
+] as const;
 export const GATED_STEPS = ["agent_hooks", "doctor", "cache_fresh"] as const;
 export type GatedStepName = (typeof GATED_STEPS)[number];
 
@@ -180,6 +197,22 @@ export interface SessionStartOptions {
    * network is enabled. Inject in tests.
    */
   readonly probeScm?: (options: ProbeScmReadinessOptions) => ScmReadinessReport;
+  /**
+   * #3214: ceremony dial inputs (task size × model tier × project shape).
+   * Missing fields are filled by the headless provisional classifier
+   * (env / verb / file-scope / deposit layout) — no plan-item effort (#1581).
+   */
+  readonly ceremonyDialInputs?: CeremonyDialInputs;
+  /**
+   * #3214: optional intake hints for provisional size (prompt/verb/files).
+   * Vanilla deposit session:start runs provisional fill without policy opt-in.
+   */
+  readonly ceremonyDialHints?: Omit<ProvisionalCeremonyEstimateHints, "projectRoot" | "env">;
+  /**
+   * #3214: optional pre-resolved dial (tests). When omitted, resolveCeremonyDial
+   * loads plan.policy.ceremonyDial and applies inputs (after provisional fill).
+   */
+  readonly ceremonyDial?: CeremonyDialSelection;
 }
 
 /** Format preferred `session:start` recovery command for cold vs re-arm (#2992). */
@@ -246,7 +279,13 @@ export function assessRearmEligibility(
     }
   }
   for (const stepName of QUICK_STEPS) {
-    if (!stepPassesForRearm(state.quickSteps[stepName])) {
+    const step = state.quickSteps[stepName];
+    // Legacy ritual-state (pre-#3214 tools persistence) omits verify_tools —
+    // treat missing as pass; explicit failure still refuses re-arm.
+    if (stepName === "verify_tools" && (step === undefined || step === null)) {
+      continue;
+    }
+    if (!stepPassesForRearm(step)) {
       return {
         eligible: false,
         reason: `quick step '${stepName}' is missing or failed (full cold session:start required)`,
@@ -673,6 +712,42 @@ function runSessionRearm(
 
   const priorQuick = eligibility.state.quickSteps;
   const priorTriage = priorQuick.triage_welcome ?? ritualStep({ ok: true, ts: instant });
+  // Greptile P1: legacy ritual-state without verify_tools must re-run tools —
+  // never invent ok:true. When prior exists, preserve without re-run (#2992).
+  let toolsStep: Record<string, unknown>;
+  if (priorQuick.verify_tools && typeof priorQuick.verify_tools === "object") {
+    const priorTools = priorQuick.verify_tools as Record<string, unknown>;
+    toolsStep = {
+      ...priorTools,
+      ts: ritualStep({ ok: priorTools.ok === true, ts: instant }).ts,
+      message:
+        typeof priorTools.message === "string"
+          ? priorTools.message
+          : "verify:tools preserved on re-arm",
+    };
+  } else {
+    const verifyToolsFn =
+      options.verifyTools ??
+      ((output) => {
+        const toolLines: string[] = [];
+        const result = verifyRequiredTools({ outputFn: (line) => toolLines.push(line) });
+        for (const line of toolLines) {
+          output(line);
+        }
+        return { exitCode: result.exitCode };
+      });
+    const toolsOutcome = verifyToolsFn((line) => lines.push(line));
+    const toolsOk = toolsOutcome.exitCode === 0;
+    toolsStep = ritualStep({
+      ok: toolsOk,
+      ts: instant,
+      message: toolsOk
+        ? "verify:tools re-run on re-arm (legacy ritual lacked tools step)"
+        : `verify:tools failed on re-arm (exit ${toolsOutcome.exitCode})`,
+      exitCode: toolsOutcome.exitCode,
+      durationMs: 0,
+    });
+  }
   const policyOk = policyResult.error === null || policyResult.source === "default-fail-closed";
   const quickSteps: Record<string, Record<string, unknown>> = {
     alignment: ritualStep({
@@ -688,6 +763,7 @@ function runSessionRearm(
       exitCode: policyOk ? 0 : 2,
       durationMs: 0,
     }),
+    verify_tools: toolsStep,
     // Preserve prior triage outcome; do not re-run welcome / self-heal on re-arm.
     triage_welcome: {
       ...priorTriage,
@@ -911,12 +987,29 @@ export function runSessionStart(
   const stepTimings: SessionStartStepTiming[] = [];
   const allowOptionalNetwork = resolveSessionStartOptionalNetwork(options);
 
+  // #3214 / #3156: select ritual (ceremony) depth before building deferral maps.
+  // Rapid/minimal auto-defer informational cold steps only; mutation readiness
+  // (doctor, cache_fresh, agent_hooks, verify_tools) stays constant.
+  // Two-stage + provisional intake (#3214 design note / #1581 ordering): fill
+  // missing size/tier/shape from env/verb/files/deposit BEFORE resolve — never
+  // block on plan-item effort (post-planning only). Cold incomplete → rapid.
+  const { inputs: resolvedDialInputs, provisional: provisionalDial } =
+    resolveSessionCeremonyDialInputs(projectRoot, options.ceremonyDialInputs, {
+      ...options.ceremonyDialHints,
+      env: options.env,
+    });
+  const ceremonyDialSelection: CeremonyDialSelection =
+    options.ceremonyDial ?? resolveCeremonyDial(projectRoot, { inputs: resolvedDialInputs });
+  const effectiveDeferrals = mergeCeremonyDialDeferrals(deferrals, ceremonyDialSelection);
+  const skipFatPath = ceremonyDialSelection.profile.skipFatPath;
+
   const { head: gitHeadValue, error: gitError } = gitHead(projectRoot, runGit);
   if (gitHeadValue === null) {
     const payload = {
       ready: false,
       exit_code: 2,
       ceremony_tier: COLD_CEREMONY_TIER,
+      ceremony_dial: ceremonyDialToDict(ceremonyDialSelection),
       environment: environmentContextToDict(environment),
       message: gitError ?? "could not resolve git HEAD",
     };
@@ -940,15 +1033,19 @@ export function runSessionStart(
 
   const quickSteps: Record<string, Record<string, unknown>> = recordDeferredSteps(
     QUICK_STEPS,
-    deferrals,
+    effectiveDeferrals,
     instant,
   );
   const gatedSteps: Record<string, Record<string, unknown>> = recordDeferredSteps(
     GATED_STEPS,
-    deferrals,
+    effectiveDeferrals,
     instant,
   );
   const lines: string[] = [];
+  lines.push(formatCeremonyDialStatusLine(ceremonyDialSelection));
+  if (provisionalDial.reasons.length > 0 && options.ceremonyDial === undefined) {
+    lines.push(`[deft ceremony-dial] provisional: ${provisionalDial.reasons.join("; ")}`);
+  }
 
   // Resolve USER.md via the shared first-hit-wins resolver so the alignment
   // step finds preferences automatically in mismatched / headless sandboxes
@@ -1030,6 +1127,11 @@ export function runSessionStart(
     stepTimings.push({ name: "branch_policy", duration_ms: 0, skipped: true });
   }
 
+  // #3214 / #3156: verify_tools is mutation readiness — always run, even under
+  // rapid/minimal. Dial skipFatPath only lightens *ceremony* (triage welcome,
+  // optional network, staleness tickler), never readiness gates.
+  // Persist outcome into quick_steps so ritual-state records failure (not only
+  // process exit) — re-arm / later readers must not see a green cold start.
   {
     const stepStarted = performance.now();
     const verifyToolsFn =
@@ -1042,11 +1144,29 @@ export function runSessionStart(
         }
         return { exitCode: result.exitCode };
       });
-    verifyToolsFn((line) => lines.push(line));
-    stepTimings.push({ name: "verify_tools", duration_ms: elapsedMs(stepStarted) });
+    const toolsOutcome = verifyToolsFn((line) => lines.push(line));
+    const durationMs = elapsedMs(stepStarted);
+    const toolsOk = toolsOutcome.exitCode === 0;
+    const toolsMessage = toolsOk
+      ? "verify:tools ok"
+      : `verify:tools failed (exit ${toolsOutcome.exitCode}); session not ready.`;
+    if (!toolsOk) {
+      lines.push(`[deft session] ${toolsMessage}`);
+    }
+    // Record on quick_steps (durable ritual-state) in addition to step timings.
+    quickSteps.verify_tools = ritualStep({
+      ok: toolsOk,
+      ts: instant,
+      message: toolsMessage,
+      exitCode: toolsOutcome.exitCode,
+      command: ["verify:tools"],
+      durationMs,
+    });
+    stepTimings.push({ name: "verify_tools", duration_ms: durationMs });
   }
 
-  if (!quickSteps.triage_welcome) {
+  // #3214: rapid/minimal skip informational cold-path ceremony only.
+  if (!quickSteps.triage_welcome && !skipFatPath) {
     const stepStarted = performance.now();
     const captured: string[] = [];
     const triageCommand = ["triage_welcome.run_default_mode", "--project-root", projectRoot];
@@ -1104,7 +1224,8 @@ export function runSessionStart(
   }
 
   // #2991: npm release probe is optional network — off by default so ritual write is not blocked.
-  if (allowOptionalNetwork) {
+  // #3214: also skipped under rapid/minimal dial (lifecycleWrites light/minimal).
+  if (allowOptionalNetwork && !skipFatPath) {
     const stepStarted = performance.now();
     try {
       const releaseAvailability = (
@@ -1117,16 +1238,20 @@ export function runSessionStart(
     stepTimings.push({ name: "release_probe", duration_ms: elapsedMs(stepStarted) });
   } else {
     stepTimings.push({ name: "release_probe", duration_ms: 0, skipped: true });
-    lines.push(OPTIONAL_NETWORK_SKIPPED_MESSAGE);
+    if (!skipFatPath) {
+      lines.push(OPTIONAL_NETWORK_SKIPPED_MESSAGE);
+    }
   }
 
-  try {
-    const tickler = (options.runStalenessTickler ?? maybeRunStalenessTickler)(projectRoot, {
-      now: instant,
-    });
-    lines.push(...tickler.lines);
-  } catch {
-    // Staleness tickler is best-effort and must never block session start.
+  if (!skipFatPath) {
+    try {
+      const tickler = (options.runStalenessTickler ?? maybeRunStalenessTickler)(projectRoot, {
+        now: instant,
+      });
+      lines.push(...tickler.lines);
+    } catch {
+      // Staleness tickler is best-effort and must never block session start.
+    }
   }
 
   if (!runningInsideDeftRepo(projectRoot) && shouldEmitMigrateNudge(projectRoot)) {
@@ -1168,14 +1293,27 @@ export function runSessionStart(
 
   const writeStarted = performance.now();
   const coldSessionId = (options.newSessionId ?? randomUUID)();
-  const payload = newRitualStatePayload({
-    sessionId: coldSessionId,
-    gitHead: gitHeadValue,
-    worktreePath: worktreePath(projectRoot, runGit),
-    startedAt: instant,
-    quickSteps,
-    gatedSteps,
-  });
+  const dialDict = {
+    ...ceremonyDialToDict(ceremonyDialSelection),
+    provisional: {
+      taskSize: provisionalDial.taskSize,
+      modelTier: provisionalDial.modelTier,
+      projectShape: provisionalDial.projectShape,
+      reasons: [...provisionalDial.reasons],
+    },
+  };
+  const payload: Record<string, unknown> = {
+    ...newRitualStatePayload({
+      sessionId: coldSessionId,
+      gitHead: gitHeadValue,
+      worktreePath: worktreePath(projectRoot, runGit),
+      startedAt: instant,
+      quickSteps,
+      gatedSteps,
+    }),
+    // #3214: record dial choice on ritual-state for audit / later re-arm context.
+    ceremony_dial: dialDict,
+  };
   let statePath: string;
   try {
     statePath = writeRitualState(projectRoot, payload);
@@ -1200,6 +1338,7 @@ export function runSessionStart(
   const failed = Object.entries(quickSteps)
     .filter(([, step]) => !step.ok && !step.deferred_reason)
     .map(([name]) => name);
+  // verify_tools is recorded on quick_steps; failure makes ready=false.
   const code = failed.length > 0 ? 1 : 0;
   const totalMs = elapsedMs(overallStarted);
 
@@ -1239,13 +1378,14 @@ export function runSessionStart(
     ready: code === 0,
     exit_code: code,
     ceremony_tier: COLD_CEREMONY_TIER,
+    ceremony_dial: dialDict,
     state_path: statePath,
     ...(freshnessBind ? { freshness: freshnessBind } : {}),
     quick_steps: quickSteps,
     gated_steps: gatedSteps,
     steps: stepTimings,
     duration_ms: totalMs,
-    optional_network: allowOptionalNetwork,
+    optional_network: allowOptionalNetwork && !skipFatPath,
     user_md: {
       path: userMd.path,
       rung: userMd.rung,

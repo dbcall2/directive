@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { clearRegistryCache, DEFAULT_EVENT_LOG, readEvents } from "../lifecycle/events.js";
 import type { EnvironmentContext } from "../platform/shell-context.js";
+import { selectCeremonyDepth } from "../policy/ceremony-dial.js";
 import type { ResolveUserMdResult } from "../user-config/resolve-user-md.js";
 import type { GitRunResult } from "./git.js";
 import {
@@ -15,6 +16,11 @@ import {
   type SessionStartOptions,
   type SessionStartStepTiming,
 } from "./session-start.js";
+
+/** Full ceremony profile — used when tests assert fat-path / optional-network behavior. */
+const STANDARD_DIAL = selectCeremonyDepth({
+  config: { enabled: true, override: "standard" },
+});
 
 const temps: string[] = [];
 const environment: EnvironmentContext = {
@@ -199,6 +205,8 @@ describe("runSessionStart hot path + step timings (#2991)", () => {
       ...baseOptions(root, () =>
         userMdResult({ path: join(root, "USER.md"), rung: "workspace-local" }),
       ),
+      // Force standard so fat-path steps run (cold default is rapid two-stage).
+      ceremonyDial: STANDARD_DIAL,
       probeReleaseAvailability: () => {
         releaseCalls += 1;
         return { lines: ["should not run"] };
@@ -269,6 +277,7 @@ describe("runSessionStart hot path + step timings (#2991)", () => {
     let releaseCalls = 0;
     const result = runSessionStart(root, {
       ...baseOptions(root, () => userMdResult()),
+      ceremonyDial: STANDARD_DIAL,
       allowOptionalNetwork: true,
       probeReleaseAvailability: () => {
         releaseCalls += 1;
@@ -295,6 +304,7 @@ describe("runSessionStart hot path + step timings (#2991)", () => {
       verifyTools: () => ({ exitCode: 0 }),
       resolveUserMd: () => userMdResult(),
       probeEnvironment: () => environment,
+      ceremonyDial: STANDARD_DIAL,
       runStalenessTickler: () => ({ lines: [], prompted: false }),
       probeReleaseAvailability: () => {
         throw new Error("release probe must not run on hot path");
@@ -303,5 +313,156 @@ describe("runSessionStart hot path + step timings (#2991)", () => {
     expect(result.code).toBe(0);
     expect(result.payload.optional_network).toBe(false);
     expect(result.lines).toContain(OPTIONAL_NETWORK_SKIPPED_MESSAGE);
+  });
+});
+
+describe("runSessionStart ceremony dial (#3214)", () => {
+  it("records rapid dial by default (two-stage cold) and still runs verify_tools", () => {
+    const root = tempRoot();
+    let toolsCalled = false;
+    const result = runSessionStart(root, {
+      ...baseOptions(root, () => userMdResult()),
+      env: {},
+      verifyTools: () => {
+        toolsCalled = true;
+        return { exitCode: 0 };
+      },
+      runStalenessTickler: () => ({ lines: [], prompted: false }),
+    });
+    expect(result.code).toBe(0);
+    expect(result.lines.join("\n")).toContain("[deft ceremony-dial] depth=rapid");
+    const dial = result.payload.ceremony_dial as { depth: string; source: string };
+    expect(dial.depth).toBe("rapid");
+    // Mutation readiness constant (#3156) — tools run even on cold rapid default.
+    expect(toolsCalled).toBe(true);
+    const state = JSON.parse(readFileSync(ritualStatePath(root), "utf8")) as {
+      ceremony_dial: { depth: string };
+    };
+    expect(state.ceremony_dial.depth).toBe("rapid");
+  });
+
+  it("S × frontier selects rapid, skips ceremony fat path, keeps readiness", () => {
+    const root = tempRoot();
+    let toolsCalled = false;
+    let triageCalled = false;
+    const result = runSessionStart(root, {
+      ...baseOptions(root, () => userMdResult()),
+      ceremonyDialInputs: {
+        taskSize: "S",
+        modelTier: "frontier",
+        projectShape: "project",
+      },
+      verifyTools: () => {
+        toolsCalled = true;
+        return { exitCode: 0 };
+      },
+      runTriageWelcome: () => {
+        triageCalled = true;
+        return { exitCode: 0 };
+      },
+      runStalenessTickler: () => {
+        throw new Error("tickler must not run on rapid dial");
+      },
+    });
+    expect(result.code).toBe(0);
+    expect(result.lines.join("\n")).toContain("depth=rapid");
+    expect(result.lines.join("\n")).toContain("content/strategies/rapid.md");
+    const dial = result.payload.ceremony_dial as {
+      depth: string;
+      composition: { rapidStrategy: string | null };
+    };
+    expect(dial.depth).toBe("rapid");
+    expect(dial.composition.rapidStrategy).toContain("rapid.md");
+    // #3156 gate integrity: verify_tools always runs; triage is ceremony-only skip.
+    expect(toolsCalled).toBe(true);
+    expect(triageCalled).toBe(false);
+    const steps = result.payload.steps as SessionStartStepTiming[];
+    expect(steps.find((s) => s.name === "verify_tools")?.skipped).toBeUndefined();
+    expect(steps.find((s) => s.name === "triage_welcome")?.skipped).toBe(true);
+    const quick = result.payload.quick_steps as {
+      triage_welcome: { deferred_reason?: string };
+      verify_tools: { ok?: boolean; deferred_reason?: string };
+    };
+    expect(quick.triage_welcome.deferred_reason).toMatch(/ceremony-dial/);
+    // verify_tools is persisted on ritual-state quick_steps (not deferred).
+    expect(quick.verify_tools?.ok).toBe(true);
+    expect(quick.verify_tools?.deferred_reason).toBeUndefined();
+    // Gated readiness steps must remain available (not auto-deferred).
+    const gated = result.payload.gated_steps as Record<string, { deferred_reason?: string }>;
+    expect(gated.doctor?.deferred_reason).toBeUndefined();
+    expect(gated.cache_fresh?.deferred_reason).toBeUndefined();
+    expect(gated.agent_hooks?.deferred_reason).toBeUndefined();
+  });
+
+  it("persists verify_tools failure on ritual-state and fails ready", () => {
+    const root = tempRoot();
+    const result = runSessionStart(root, {
+      ...baseOptions(root, () => userMdResult()),
+      ceremonyDialInputs: {
+        taskSize: "S",
+        modelTier: "frontier",
+        projectShape: "project",
+      },
+      verifyTools: () => ({ exitCode: 2 }),
+      runStalenessTickler: () => ({ lines: [], prompted: false }),
+    });
+    expect(result.code).toBe(1);
+    expect(result.payload.ready).toBe(false);
+    const quick = result.payload.quick_steps as {
+      verify_tools: { ok: boolean; exit_code?: number; message?: string };
+    };
+    expect(quick.verify_tools.ok).toBe(false);
+    expect(quick.verify_tools.exit_code).toBe(2);
+    expect(quick.verify_tools.message).toMatch(/verify:tools failed/);
+    const state = JSON.parse(readFileSync(ritualStatePath(root), "utf8")) as {
+      quick_steps: { verify_tools: { ok: boolean } };
+    };
+    expect(state.quick_steps.verify_tools.ok).toBe(false);
+  });
+
+  it("provisional M size escalates to standard without plan-item effort", () => {
+    const root = tempRoot();
+    let toolsCalled = false;
+    const result = runSessionStart(root, {
+      ...baseOptions(root, () => userMdResult()),
+      env: {},
+      ceremonyDialHints: { verb: "implement" },
+      verifyTools: () => {
+        toolsCalled = true;
+        return { exitCode: 0 };
+      },
+      runStalenessTickler: () => ({ lines: [], prompted: false }),
+    });
+    expect(result.code).toBe(0);
+    const dial = result.payload.ceremony_dial as {
+      depth: string;
+      inputs: { taskSize: string | null };
+      provisional: { taskSize: string | null; reasons: string[] };
+    };
+    expect(dial.inputs.taskSize).toBe("M");
+    expect(dial.depth).toBe("standard");
+    expect(dial.provisional.reasons.some((r) => r.includes("verb"))).toBe(true);
+    // Readiness constant: tools still run on escalated standard.
+    expect(toolsCalled).toBe(true);
+  });
+
+  it("non-project shape selects minimal and points at #3014 research", () => {
+    const root = tempRoot();
+    const result = runSessionStart(root, {
+      ...baseOptions(root, () => userMdResult()),
+      ceremonyDialInputs: {
+        taskSize: "S",
+        modelTier: "frontier",
+        projectShape: "non-project",
+      },
+      runStalenessTickler: () => ({ lines: [], prompted: false }),
+    });
+    expect(result.code).toBe(0);
+    const dial = result.payload.ceremony_dial as {
+      depth: string;
+      composition: { minimalAgentsProfile: string | null };
+    };
+    expect(dial.depth).toBe("minimal");
+    expect(dial.composition.minimalAgentsProfile).toContain("#3014");
   });
 });

@@ -18,6 +18,7 @@ import { inspectSessionRitual, verifySessionRitual } from "./verify-session-ritu
 
 const temps: string[] = [];
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const t of temps) rmSync(t, { recursive: true, force: true });
   temps.length = 0;
 });
@@ -157,6 +158,7 @@ describe("session branches", () => {
           alignment: ritualStep({ ok: true, ts: now }),
           branch_policy: ritualStep({ ok: true, ts: now }),
           triage_welcome: ritualStep({ ok: true, ts: now }),
+          verify_tools: ritualStep({ ok: true, ts: now }),
         },
       }),
     );
@@ -180,6 +182,7 @@ describe("session branches", () => {
           alignment: ritualStep({ ok: true, ts: now }),
           branch_policy: ritualStep({ ok: true, ts: now }),
           triage_welcome: ritualStep({ ok: true, ts: now }),
+          verify_tools: ritualStep({ ok: true, ts: now }),
         },
       }),
     );
@@ -206,6 +209,7 @@ describe("session branches", () => {
           alignment: ritualStep({ ok: false, ts: now, message: "nope" }),
           branch_policy: ritualStep({ ok: true, ts: now }),
           triage_welcome: ritualStep({ ok: true, ts: now }),
+          verify_tools: ritualStep({ ok: true, ts: now }),
         },
       }),
     );
@@ -229,6 +233,7 @@ describe("session branches", () => {
           alignment: ritualStep({ ok: true, ts: now }),
           branch_policy: ritualStep({ ok: true, ts: now }),
           triage_welcome: ritualStep({ ok: true, ts: now }),
+          verify_tools: ritualStep({ ok: true, ts: now }),
         },
       }),
     );
@@ -260,6 +265,7 @@ describe("session branches", () => {
           alignment: ritualStep({ ok: true, ts: now }),
           branch_policy: ritualStep({ ok: true, ts: now }),
           triage_welcome: ritualStep({ ok: true, ts: now }),
+          verify_tools: ritualStep({ ok: true, ts: now }),
         },
         gatedSteps: {
           agent_hooks: ritualStep({ ok: true, ts: now }),
@@ -305,6 +311,12 @@ describe("session branches", () => {
         throw new Error("boom");
       },
       writeHistory: false,
+      // #3214: force full ceremony so triage runs (cold default is rapid).
+      ceremonyDialInputs: {
+        taskSize: "M",
+        modelTier: "mid",
+        projectShape: "project",
+      },
     });
     expect(result.code).toBe(1);
     const [state] = readRitualState(root);
@@ -364,6 +376,7 @@ describe("session branches", () => {
       alignment: ritualStep({ ok: true, ts: now }),
       branch_policy: ritualStep({ ok: true, ts: now }),
       triage_welcome: ritualStep({ ok: true, ts: now }),
+      verify_tools: ritualStep({ ok: true, ts: now }),
     };
 
     execFileSync("git", ["checkout", "-q", "-b", "feature"], { cwd: root, encoding: "utf8" });
