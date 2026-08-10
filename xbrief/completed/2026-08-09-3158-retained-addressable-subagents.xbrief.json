@@ -1,0 +1,124 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF for #3158 — named retained / message-later / steer-mid-flight sub-agent semantic in swarm (extends #2510/#673).",
+    "updated": "2026-08-10T01:07:56Z"
+  },
+  "plan": {
+    "id": "3158-retained-addressable-subagents",
+    "title": "feat(swarm): retained addressable sub-agents — message-later and steer-mid-flight semantics",
+    "status": "completed",
+    "narratives": {
+      "Description": "Name the retained sub-agent semantic in swarm guidance: full agents with persistent identity, results as messages, parent can steer mid-flight and re-message the same child later. Directive swarm is largely dispatch-and-collect; #2510/#2516 adjacent but do not fully name this. Couples to #3155 nuclear-family topology bounds (prefer co-land or explicit temporary deferral of bounds). Capability-gate for hosts that cannot retain. Align #3179/#3164: retention is for orchestration, not mid-run constitution self-edit. Also amends mid-scope gate split-dispatch mandate (#954) per host capability when retain is supported.",
+      "ImplementationPlan": "1) Author swarm documentation source files naming retained-child dispatch as a mode alongside dispatch-and-collect (when to keep a worker alive vs one-shot); cross-link #3155 and capability-gate language for hosts without retain.\n2) Update content/skills/deft-directive-swarm skill source (and host adapters as needed) to note continue-by-agent-id/name where the host supports it; pointer only for missing hosts.\n3) Where always-loaded AGENTS applies the mid-scope split-dispatch rule (#954), add capability-tiered language via content/templates/agents-entry.md and task agents:refresh (#1309) so retained hosts may single-dispatch with mid-scope gate without forcing a second full dispatch.\n4) Align stance with #3164 (not self-edit); CHANGELOG; verify with task agents:refresh and task check.",
+      "UserStory": "As a swarm orchestrator on a host that can resume children by id, I want a named retained-child mode and capability-gated guidance, so that I can steer mid-flight without paying a second full dispatch on every mid-scope gate.",
+      "Traces": "FR-3158",
+      "AcceptanceJustification": "Issue AC: named semantic, #3155 co-land or deferral note, capability-gated language, skill pointer, CHANGELOG."
+    },
+    "items": [
+      {
+        "id": "3158-a1",
+        "title": "Named retained-child semantic in swarm docs",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given swarm documentation source files, when an orchestrator loads the retained-child section, then the docs return a named retained / message-later / steer-mid-flight mode beside dispatch-and-collect and record a #3155 cross-link or explicit temporary bounds deferral.",
+          "Traces": "FR-3158"
+        }
+      },
+      {
+        "id": "3158-a2",
+        "title": "Skill + capability-gated host language",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given deft-directive-swarm skill source, when the host supports continue-by-agent-id, then the skill returns that path; when the host cannot retain, then the skill records split-dispatch or one-shot semantics instead.",
+          "Traces": "FR-3158"
+        }
+      },
+      {
+        "id": "3158-a3",
+        "title": "AGENTS/agents-entry capability tier + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given agents-entry SoT and task agents:refresh, when the always-loaded mid-scope gate prose is written, then capability-tiered retain language is recorded without reversing #3164; CHANGELOG records the surface.",
+          "Traces": "FR-3158"
+        }
+      }
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3158",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3158: retained addressable sub-agents"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3155",
+        "type": "x-xbrief/related",
+        "title": "#3155 nuclear-family topology (prefer before/with)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3179",
+        "type": "x-xbrief/related",
+        "title": "Parent epic #3179"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2510",
+        "type": "x-xbrief/related",
+        "title": "#2510 status-polled multi-session workers"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "capacityBucket": "swarm-docs",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/skills/deft-directive-swarm",
+          "content/templates/agents-entry.md",
+          "content/docs",
+          "content/swarm",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "task agents:refresh",
+          "task check"
+        ],
+        "expected_outputs": [
+          "named retained-child semantic",
+          "capability-gated host language",
+          "agents-entry + CHANGELOG"
+        ],
+        "depends_on": [],
+        "conflict_group": "retained-subagents-3158",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "medium"
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3232,
+        "prBase": "master",
+        "mergeCommit": "3f55527d0917522b4fd550f31d9eade2d450148a",
+        "deliveryBranch": "master",
+        "deliveryCommit": "3f55527d0917522b4fd550f31d9eade2d450148a",
+        "verifiedAt": "2026-08-10T01:07:56Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-10T01:07:56Z"
+    },
+    "tags": [
+      "enhancement",
+      "swarm",
+      "patterns:multi-agent",
+      "status:child"
+    ],
+    "updated": "2026-08-10T01:07:56Z"
+  }
+}
