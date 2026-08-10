@@ -1,5 +1,11 @@
 import { existsSync } from "node:fs";
+import { readCorePackageVersion } from "../engine-version.js";
 import { formatFrameworkCommand } from "../render/framework-commands.js";
+import {
+  type ActiveCliCheckResult,
+  type ActiveCliCheckSeams,
+  checkActiveCliAgainstTarget,
+} from "./active-cli.js";
 import { defaultGitRunner, type GitRunner, gitHead, gitIsAncestor, worktreePath } from "./git.js";
 import { pythonJsonDump } from "./json.js";
 import {
@@ -269,6 +275,22 @@ export interface VerifySessionRitualOptions {
   readonly handoffText?: string | null;
   /** Re-run selected gated prerequisites even when their recorded step is green. */
   readonly forceGatedSteps?: readonly GatedStepName[];
+  /**
+   * #3233: engine version the post-upgrade / ritual check must match on the
+   * shell-active CLI. When null/omitted, still fail closed on multi-prefix
+   * version skew (active older than another PATH candidate).
+   */
+  readonly targetEngineVersion?: string | null;
+  /** Injectable active-CLI seams for hermetic tests (#3233). */
+  readonly activeCliSeams?: ActiveCliCheckSeams;
+  /**
+   * Override the active-CLI probe entirely (tests). Defaults to
+   * {@link checkActiveCliAgainstTarget}.
+   */
+  readonly checkActiveCli?: (
+    targetVersion: string | null,
+    seams?: ActiveCliCheckSeams,
+  ) => ActiveCliCheckResult;
 }
 
 export interface InspectSessionRitualOptions {
@@ -511,6 +533,37 @@ export function verifySessionRitual(
         wouldFailCode: null,
         posture,
         ritualStateRequired,
+      };
+    }
+
+    // #3233: after gated entrypoints, verify the shell-active deft/directive
+    // is not a stale higher-precedence shadow of a multi-prefix install.
+    // Independent target = explicit option, else in-process publishable engine
+    // (never the active CLI's own version — see resolveDefaultActiveCliTarget).
+    const targetEngineVersion = options.targetEngineVersion ?? null;
+    const checkActiveCli = options.checkActiveCli ?? checkActiveCliAgainstTarget;
+    let inProcessVersion: string | null = null;
+    try {
+      inProcessVersion = readCorePackageVersion();
+    } catch {
+      inProcessVersion = null;
+    }
+    const activeCliSeams: ActiveCliCheckSeams = {
+      inProcessVersion,
+      ...options.activeCliSeams,
+    };
+    const activeCli = checkActiveCli(targetEngineVersion, activeCliSeams);
+    if (!activeCli.ok) {
+      return {
+        code: activeCli.code === 0 ? 1 : activeCli.code,
+        message: activeCli.lines.length > 0 ? activeCli.lines.join("\n") : activeCli.message,
+        tier,
+        statePath,
+        bypassed: false,
+        wouldFailCode: null,
+        posture,
+        ritualStateRequired,
+        recoveryTier: "cold",
       };
     }
   }
