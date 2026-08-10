@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.99.0] - 2026-08-10
+
+> Swarm retain/pre-dispatch + nuclear-family A2A, ceremony dial, decision log, effort XL gate, and related security/check fixes since v0.98.1.
+
+### Added
+
 - **Retained addressable sub-agents — message-later / steer-mid-flight (#3158).** Names retained-child mode beside dispatch-and-collect in swarm canon (`swarm/swarm.md`), swarm skill + Phase 3 classify, and per-host continue-by-id notes (Warp/OpenClaw retain when live; Cursor/Claude/Grok/generic default one-shot unless host documents resume). Capability-tiered mid-scope gate (#954): retain-capable hosts may single-dispatch with re-message; others keep split-dispatch. Always-on agents-entry pin + preamble §10; #3164 stance (orchestration not constitution self-edit); couples to landed #3155 nuclear-family topology (retain does not license open mesh). Closes #3158. Refs #2510, #673, #954, #3155, #3164, #3179, #1309.
 
 - **Swarm pre-dispatch deny when unit already has an active implement leaf (#3228).** Wires #3143 `DENY_DUPLICATE_ACTIVE` (`maxActiveAttempts: 1`) onto the swarm re-dispatch path via `task swarm:pre-dispatch` (exit 0 allow / 1 active deny or gate block / 2 config). Default unit key: `scopeId` + `targetId` + `workflowId=drive-to:merge-ready`. Actions: `begin` (default, begins attempt on allow), `complete`, `cancel` (takeover = cancel then begin — not concurrent dual active). Skill/preamble pointer only; CLI is authoritative. Core: `packages/core/src/swarm/pre-dispatch.ts`. Closes #3228. Refs #3143, #261, #263.
@@ -5092,7 +5104,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.98.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.99.0...HEAD
+[0.99.0]: https://github.com/deftai/directive/compare/v0.98.1...v0.99.0
 [0.98.1]: https://github.com/deftai/directive/compare/v0.98.0...v0.98.1
 [0.98.0]: https://github.com/deftai/directive/compare/v0.97.0...v0.98.0
 [0.97.0]: https://github.com/deftai/directive/compare/v0.96.0...v0.97.0

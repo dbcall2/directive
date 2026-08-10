@@ -38,8 +38,11 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1175 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1178 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#852** -- feat(patterns): goal-gate-determinism — skills specify goals and gates rigidly; execution path is flexible guidance -- `[completed]`
+- **#3085** -- feat(context,patterns): tool-surface grammar — flat params, nesting×heterogeneity tax -- `[completed]`
+- **#3158** -- feat(swarm): retained addressable sub-agents — message-later and steer-mid-flight semantics -- `[completed]`
 - **#3205** -- scope-provenance: first-adoption path + base-visible approval authority (#3205) -- `[completed]`
 - **#3206** -- sec(authz): UAT Shell fail-open residuals — downloaders/decoders plant grants + kill-switch (#3206) -- `[completed]`
 - **#3198** -- feat(triage,meta): portfolio prioritization pass — priority briefs from local cache (propose-not-apply) -- `[completed]`
@@ -62,7 +65,4 @@ _Showing 25 of 1175 completed scopes (newest first). Full history: lifecycle `co
 - **#1136** -- feat(scope,triage): promote --from-issue reciprocity + accept --auto-promote -- `[completed]`
 - **#3128** -- chore(labels): migrate open directive issues onto #2609 taxonomy scheme -- `[completed]`
 - **#2609** -- feat(process,scm): issue label taxonomy — platform facet, public docs, dedupe -- `[completed]`
-- **#3125** -- feat(triage): #1423 Wave 2 — bootstrap mass-triage (filters, digest, safe apply) -- `[completed]`
-- **#1423** -- feat(triage): Tier-1 deterministic SCM label mirror from classify (Wave 1 of #1423) -- `[completed]`
-- docs: npm v12 install-time security defaults (scripts/git/remote opt-in) -- `[completed]`
 
