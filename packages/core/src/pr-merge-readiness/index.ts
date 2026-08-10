@@ -10,10 +10,26 @@ export {
   isBotReviewCheck,
   suiteFamilyOf,
 } from "./ci-gate.js";
-export { type ComputeGateOptions, computeGateResult, type FetchMergeabilityFn } from "./compute.js";
+export {
+  type ComputeGateOptions,
+  computeGateResult,
+  type FetchMergeabilityFn,
+  type FetchRequiredContextsFn,
+} from "./compute.js";
 export * from "./constants.js";
 export { evaluateGates, isMergeReady } from "./evaluate.js";
-export { defaultRunGh } from "./gh.js";
+export {
+  checkRunMatchesRequiredContext,
+  contextsFromBranchProtection,
+  contextsFromBranchRules,
+  defaultRunGh,
+  fetchPrBaseRef,
+  fetchRequiredStatusContexts,
+  normalizeRequiredContexts,
+  type RequiredStatusContext,
+  type RequiredStatusContextsResult,
+  requiredContextLabel,
+} from "./gh.js";
 export {
   evaluateInlineReviewThreads,
   fetchUnresolvedGreptileInlineFindings,

@@ -59,6 +59,10 @@ function fakeRunGh(opts: FakeOpts): RunGhFn {
     if (joined.includes("/check-runs")) {
       return { returncode: 0, stdout: checks, stderr: "" };
     }
+    // No rulesets / classic protection configured (soft-empty inventory).
+    if (joined.includes("/rules/branches/") || joined.includes("/protection")) {
+      return { returncode: 1, stdout: "", stderr: "HTTP 404: Not Found" };
+    }
     if (joined.includes("/pulls/")) {
       return {
         returncode: 0,
@@ -68,6 +72,7 @@ function fakeRunGh(opts: FakeOpts): RunGhFn {
           mergeable: opts.mergeable ?? true,
           mergeable_state: opts.mergeableState ?? "clean",
           head: { sha: HEAD },
+          base: { ref: "master" },
         }),
         stderr: "",
       };
@@ -186,6 +191,112 @@ describe("computeGateResult #2260 reconciliation", () => {
     expect(result.failures).toEqual([]);
     // No override needed — the verdict itself was clean.
     expect((result.partialData as Record<string, unknown>).verdict_override).toBeUndefined();
+  });
+
+  it("fails closed on green observed CI when ruleset required context is absent (#3234)", () => {
+    const result = computeGateResult(
+      3234,
+      "deftai/directive",
+      fakeRunGh({ commentBody: cleanGreptileBody(HEAD), mergeableState: "clean", mergeable: true }),
+      {
+        requiredContexts: [
+          "TypeScript (build + lint + test)",
+          "terraform-plan",
+          "terraform-apply-staging",
+        ],
+      },
+    );
+    expect(result.failures.length).toBeGreaterThan(0);
+    expect(result.failures.join(" ")).toContain("ci_absent_required");
+    expect(result.failures.join(" ")).toContain("terraform-plan");
+    const ci = (result.partialData as Record<string, unknown>).ci as Record<string, unknown>;
+    expect(ci.ready_state).toBe("ci_absent_required");
+    expect(ci.absent_required).toEqual(["terraform-plan", "terraform-apply-staging"]);
+    expect(ci.required_contexts).toEqual([
+      "TypeScript (build + lint + test)",
+      "terraform-plan",
+      "terraform-apply-staging",
+    ]);
+  });
+
+  it("stays merge-ready when injected required contexts are all observed green (#3234)", () => {
+    const result = computeGateResult(
+      3234,
+      "deftai/directive",
+      fakeRunGh({ commentBody: cleanGreptileBody(HEAD), mergeableState: "clean", mergeable: true }),
+      {
+        requiredContexts: ["TypeScript (build + lint + test)"],
+      },
+    );
+    expect(result.failures).toEqual([]);
+    const ci = (result.partialData as Record<string, unknown>).ci as Record<string, unknown>;
+    expect(ci.ready_state).toBe("ready");
+    expect(ci.absent_required).toEqual([]);
+  });
+
+  it("resolves required contexts via fetchRequiredContextsFn seam (#3234)", () => {
+    let branchSeen = "";
+    const result = computeGateResult(
+      3234,
+      "deftai/directive",
+      fakeRunGh({ commentBody: cleanGreptileBody(HEAD), mergeableState: "clean", mergeable: true }),
+      {
+        fetchRequiredContextsFn: (_repo, branch) => {
+          branchSeen = branch;
+          return {
+            contexts: [{ name: "TypeScript (build + lint + test)" }, { name: "terraform-plan" }],
+            sources: ["rulesets"],
+            error: "",
+            resolutionFailed: false,
+          };
+        },
+      },
+    );
+    expect(branchSeen).toBe("master");
+    expect(result.failures.join(" ")).toContain("terraform-plan");
+    const ci = (result.partialData as Record<string, unknown>).ci as Record<string, unknown>;
+    expect(ci.ready_state).toBe("ci_absent_required");
+    expect(ci.required_contexts_source).toBe("rulesets");
+    expect(ci.required_contexts_base_ref).toBe("master");
+  });
+
+  it("does not discard ci_absent_required under soft-verdict CLEAN reconciliation (#3234)", () => {
+    const result = computeGateResult(
+      3234,
+      "deftai/directive",
+      // Absent Greptile verdict → soft block; GitHub CLEAN would previously
+      // wipe CI failures via #2260 reconciliation.
+      fakeRunGh({ commentBody: "", mergeableState: "clean", mergeable: true }),
+      {
+        requiredContexts: ["TypeScript (build + lint + test)", "terraform-plan"],
+      },
+    );
+    expect(result.failures.join(" ")).toContain("ci_absent_required");
+    expect(result.failures.join(" ")).toContain("terraform-plan");
+    expect((result.partialData as Record<string, unknown>).verdict_override).toBeUndefined();
+    const ci = (result.partialData as Record<string, unknown>).ci as Record<string, unknown>;
+    expect(ci.ready_state).toBe("ci_absent_required");
+  });
+
+  it("fails closed when required-context inventory resolution fails (#3234)", () => {
+    const result = computeGateResult(
+      3234,
+      "deftai/directive",
+      fakeRunGh({ commentBody: cleanGreptileBody(HEAD), mergeableState: "clean", mergeable: true }),
+      {
+        fetchRequiredContextsFn: () => ({
+          contexts: [],
+          sources: [],
+          error: "rules/branches parse: Unexpected token",
+          resolutionFailed: true,
+        }),
+      },
+    );
+    expect(result.failures.join(" ")).toContain("could not be resolved");
+    expect(result.failures.join(" ")).toContain("#3234");
+    const ci = (result.partialData as Record<string, unknown>).ci as Record<string, unknown>;
+    expect(ci.ready_state).toBe("blocked");
+    expect(ci.required_contexts_resolution_failed).toBe(true);
   });
 
   it("uses injectable fetchMergeabilityFn seam", () => {

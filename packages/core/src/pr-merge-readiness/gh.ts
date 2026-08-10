@@ -14,6 +14,71 @@ export interface CheckRunRecord {
   readonly created_at?: string | null;
   /** ISO started_at — null while still queued with no runner (#2672). */
   readonly started_at?: string | null;
+  /**
+   * GitHub App id that produced the check run (`app.id`), when present.
+   * Used to match app-bound required contexts from rulesets / branch protection (#3234).
+   */
+  readonly appId?: number | null;
+}
+
+/**
+ * A required status-check context name, optionally bound to a GitHub App id
+ * (branch-protection `app_id` / ruleset `integration_id`) (#3234).
+ */
+export interface RequiredStatusContext {
+  readonly name: string;
+  readonly appId?: number | null;
+}
+
+/** Display / inventory key for a required context (includes app binding when set). */
+export function requiredContextLabel(ctx: RequiredStatusContext): string {
+  if (ctx.appId != null) {
+    return `${ctx.name} (app:${ctx.appId})`;
+  }
+  return ctx.name;
+}
+
+/** Normalize injected string names or full specs into RequiredStatusContext (#3234). */
+export function normalizeRequiredContexts(
+  input: readonly (string | RequiredStatusContext)[] | undefined,
+): RequiredStatusContext[] {
+  if (input === undefined) {
+    return [];
+  }
+  const out: RequiredStatusContext[] = [];
+  for (const item of input) {
+    if (typeof item === "string") {
+      if (item.length > 0) {
+        out.push({ name: item });
+      }
+      continue;
+    }
+    if (
+      item !== null &&
+      typeof item === "object" &&
+      typeof item.name === "string" &&
+      item.name.length > 0
+    ) {
+      const appId =
+        typeof item.appId === "number" && Number.isFinite(item.appId) ? item.appId : null;
+      out.push(appId === null ? { name: item.name } : { name: item.name, appId });
+    }
+  }
+  return out;
+}
+
+/** True when an observed check-run satisfies a required context (name + optional app id). */
+export function checkRunMatchesRequiredContext(
+  run: CheckRunRecord,
+  ctx: RequiredStatusContext,
+): boolean {
+  if (run.name !== ctx.name) {
+    return false;
+  }
+  if (ctx.appId == null) {
+    return true;
+  }
+  return run.appId === ctx.appId;
 }
 
 /** UTF-8-safe gh capture via execFile (no shell) — mirrors _safe_subprocess.run_text (#1366). */
@@ -351,12 +416,21 @@ export function fetchCheckRunsRest(
     const runSummary = extractCheckRunSummary(r);
     const createdAt = typeof r.created_at === "string" ? r.created_at : null;
     const startedAt = typeof r.started_at === "string" ? r.started_at : null;
+    let appId: number | null = null;
+    const appBlock = r.app;
+    if (appBlock !== null && typeof appBlock === "object" && !Array.isArray(appBlock)) {
+      const id = (appBlock as Record<string, unknown>).id;
+      if (typeof id === "number" && Number.isFinite(id)) {
+        appId = id;
+      }
+    }
     const record: CheckRunRecord = {
       name,
       status,
       conclusion,
       created_at: createdAt,
       started_at: startedAt,
+      appId,
       ...(runSummary === null ? {} : { summary: runSummary }),
     };
     checkRuns.push(record);
@@ -370,4 +444,244 @@ export function fetchCheckRunsRest(
     }
   }
   return { summary, checkRuns, error: "" };
+}
+
+/** PR base branch ref (rulesets / branch protection apply to the merge target) (#3234). */
+export function fetchPrBaseRef(
+  prNumber: number,
+  repo: string,
+  runGh: RunGhFn,
+): { baseRef: string | null; error: string } {
+  const rc = runGh(["gh", "api", `repos/${repo}/pulls/${prNumber}`]);
+  if (rc.returncode !== 0) {
+    return { baseRef: null, error: `gh api /pulls/${prNumber} failed: ${rc.stderr.trim()}` };
+  }
+  if (!rc.stdout.trim()) {
+    return { baseRef: null, error: "empty body from gh api /pulls/<N>" };
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(rc.stdout) as unknown;
+  } catch (exc: unknown) {
+    const message = exc instanceof Error ? exc.message : String(exc);
+    return { baseRef: null, error: `could not parse PR JSON: ${message}` };
+  }
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return { baseRef: null, error: "unexpected PR JSON shape (not a dict)" };
+  }
+  const base = (payload as Record<string, unknown>).base;
+  if (base !== null && typeof base === "object" && !Array.isArray(base)) {
+    const ref = (base as Record<string, unknown>).ref;
+    if (typeof ref === "string" && ref.length > 0) {
+      return { baseRef: ref, error: "" };
+    }
+  }
+  return { baseRef: null, error: "PR JSON missing base.ref" };
+}
+
+function parseOptionalAppId(raw: unknown): number | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return raw;
+  }
+  return null;
+}
+
+/** Extract required contexts from `GET .../rules/branches/{branch}` payload (#3234). */
+export function contextsFromBranchRules(payload: unknown): RequiredStatusContext[] {
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+  const out: RequiredStatusContext[] = [];
+  for (const rule of payload) {
+    if (rule === null || typeof rule !== "object" || Array.isArray(rule)) {
+      continue;
+    }
+    const r = rule as Record<string, unknown>;
+    if (r.type !== "required_status_checks") {
+      continue;
+    }
+    const params = r.parameters;
+    if (params === null || typeof params !== "object" || Array.isArray(params)) {
+      continue;
+    }
+    const checks = (params as Record<string, unknown>).required_status_checks;
+    if (!Array.isArray(checks)) {
+      continue;
+    }
+    for (const check of checks) {
+      if (check === null || typeof check !== "object" || Array.isArray(check)) {
+        continue;
+      }
+      const c = check as Record<string, unknown>;
+      const context = c.context;
+      if (typeof context !== "string" || context.length === 0) {
+        continue;
+      }
+      // Rulesets use integration_id; treat as GitHub App id for check-run matching.
+      const appId = parseOptionalAppId(c.integration_id);
+      out.push(appId === null ? { name: context } : { name: context, appId });
+    }
+  }
+  return out;
+}
+
+/** Extract required contexts from classic branch-protection payload (#3234). */
+export function contextsFromBranchProtection(payload: unknown): RequiredStatusContext[] {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return [];
+  }
+  const rsc = (payload as Record<string, unknown>).required_status_checks;
+  if (rsc === null || typeof rsc !== "object" || Array.isArray(rsc)) {
+    return [];
+  }
+  const block = rsc as Record<string, unknown>;
+  const out: RequiredStatusContext[] = [];
+  const contexts = block.contexts;
+  if (Array.isArray(contexts)) {
+    for (const c of contexts) {
+      if (typeof c === "string" && c.length > 0) {
+        out.push({ name: c });
+      }
+    }
+  }
+  const checks = block.checks;
+  if (Array.isArray(checks)) {
+    for (const check of checks) {
+      if (check === null || typeof check !== "object" || Array.isArray(check)) {
+        continue;
+      }
+      const c = check as Record<string, unknown>;
+      const context = c.context;
+      if (typeof context !== "string" || context.length === 0) {
+        continue;
+      }
+      const appId = parseOptionalAppId(c.app_id);
+      out.push(appId === null ? { name: context } : { name: context, appId });
+    }
+  }
+  return out;
+}
+
+function contextDedupeKey(ctx: RequiredStatusContext): string {
+  return ctx.appId == null ? ctx.name : `${ctx.name}\0${ctx.appId}`;
+}
+
+export interface RequiredStatusContextsResult {
+  readonly contexts: readonly RequiredStatusContext[];
+  /** Which REST surfaces contributed contexts (`rulesets` / `branch_protection`). */
+  readonly sources: readonly string[];
+  readonly error: string;
+  /**
+   * True when inventory could not be trusted (parse failure / non-404 REST error
+   * with no successful source). Callers MUST fail closed (#3234 Greptile P1).
+   */
+  readonly resolutionFailed: boolean;
+}
+
+/**
+ * Resolve required status-check contexts for a branch from rulesets and/or
+ * classic branch protection (REST only) (#3234).
+ *
+ * Absent or 404 sources are soft-skipped (empty contribution). Parse failures
+ * and non-404 REST errors with no successful source set `resolutionFailed`.
+ * Callers compare returned contexts against exact-HEAD check runs (name +
+ * optional app id) and fail closed on absent required contexts.
+ */
+export function fetchRequiredStatusContexts(
+  repo: string,
+  branch: string,
+  runGh: RunGhFn,
+): RequiredStatusContextsResult {
+  const found = new Map<string, RequiredStatusContext>();
+  const sources: string[] = [];
+  const notes: string[] = [];
+  let hardFailure = false;
+  const encoded = encodeURIComponent(branch);
+
+  const rulesRc = runGh(["gh", "api", `repos/${repo}/rules/branches/${encoded}`]);
+  if (rulesRc.returncode === 0) {
+    if (!rulesRc.stdout.trim()) {
+      // Exit-zero empty body is not a trusted empty inventory (#3234 conf residual).
+      notes.push("rules/branches: empty body");
+      hardFailure = true;
+    } else {
+      try {
+        const payload = JSON.parse(rulesRc.stdout) as unknown;
+        const fromRules = contextsFromBranchRules(payload);
+        // Successful parse (including `[]`) is trusted; only non-empty contributes.
+        if (fromRules.length > 0) {
+          for (const c of fromRules) {
+            found.set(contextDedupeKey(c), c);
+          }
+          sources.push("rulesets");
+        } else {
+          sources.push("rulesets");
+        }
+      } catch (exc: unknown) {
+        const message = exc instanceof Error ? exc.message : String(exc);
+        notes.push(`rules/branches parse: ${message}`);
+        hardFailure = true;
+      }
+    }
+  } else {
+    // Soft-skip only when the error text clearly indicates no rulesets.
+    // Nonzero with empty stderr (or other errors) is fail-closed (#3234).
+    const err = rulesRc.stderr.trim();
+    if (/404|Not Found/i.test(err)) {
+      // no rulesets — soft empty contribution
+    } else {
+      notes.push(`rules/branches: ${err || `exit ${rulesRc.returncode}`}`);
+      hardFailure = true;
+    }
+  }
+
+  const protRc = runGh(["gh", "api", `repos/${repo}/branches/${encoded}/protection`]);
+  if (protRc.returncode === 0) {
+    if (!protRc.stdout.trim()) {
+      notes.push("branches/protection: empty body");
+      hardFailure = true;
+    } else {
+      try {
+        const payload = JSON.parse(protRc.stdout) as unknown;
+        const fromProt = contextsFromBranchProtection(payload);
+        if (fromProt.length > 0) {
+          for (const c of fromProt) {
+            found.set(contextDedupeKey(c), c);
+          }
+          sources.push("branch_protection");
+        } else {
+          // Successful protection payload with no required checks still counts
+          // as a trusted source (inventory empty intentionally).
+          sources.push("branch_protection");
+        }
+      } catch (exc: unknown) {
+        const message = exc instanceof Error ? exc.message : String(exc);
+        notes.push(`branches/protection parse: ${message}`);
+        hardFailure = true;
+      }
+    }
+  } else {
+    const err = protRc.stderr.trim();
+    if (/404|Not Found|Branch not protected/i.test(err)) {
+      // no classic protection — soft empty contribution
+    } else {
+      notes.push(`branches/protection: ${err || `exit ${protRc.returncode}`}`);
+      hardFailure = true;
+    }
+  }
+
+  const contexts = [...found.values()].sort((a, b) =>
+    requiredContextLabel(a).localeCompare(requiredContextLabel(b)),
+  );
+  // Fail closed on any hard error (parse / non-404), even when another source
+  // contributed contexts. Partial inventory can omit unique required checks
+  // from the failed source (#3234 Greptile conf residual).
+  const resolutionFailed = hardFailure;
+
+  return {
+    contexts,
+    sources,
+    error: notes.join("; "),
+    resolutionFailed,
+  };
 }
