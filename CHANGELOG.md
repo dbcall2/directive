@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.100.0] - 2026-08-11
+
+> Literal acceptance verification, parent-lineage/decompose gates, effort budget, dual-stop follow-up, and lifecycle consistency since v0.99.0.
+
+### Added
+
 - **Literal acceptance-command verification (#3267).** At intake, capture exact stated shell acceptance commands into `plan.metadata.literal_acceptance_commands` (source=`task_statement`, no paraphrase). Agent-authored `swarm.verify_commands` / plan-item `command` run **verbatim** before done via `task verify:literal-ac` and `scope:complete` — fail closed on non-zero or unpromoted task_statement-only commands. Shell meta + first-token allowlist refuse closed; **wrapper verbs** (`task`/`deft`/`directive`) limited to `check|doctor|verify:*|help|--version` and package-manager `exec` to `vitest` only (no ambient scope/policy/scm). Safety-rejected shell-shaped lines persist on a **rejected ledger** (`literal_acceptance_rejected`) surfaced by verify/complete. Dedup preserves distinct `cwd`/`expectedExitCode`; reload keeps execution context; trailing path token `.` is not stripped as punctuation. `task_statement` is never auto-promoted into `swarm.verify_commands`. Self-chosen verification is supplementary only. Survives ceremony dial rapid/minimal (`literalAcceptanceRequired: true`; #3214 / #3156). Extends #973. Core: `packages/core/src/literal-acceptance/`; skills: build + pre-pr; strategy: rapid. Relates #3266. Closes #3267.
 - **Operator follow-up after dual-stop / hard stop (#3273).** Named low-token section on `deft-directive-swarm` (thin SKILL + `references/core-phase-4.md` / `core-ops.md`) and `deft-directive-review-cycle`: one residual pass under operator consent, authorized conf floor this-PR-only, anti thrash (⊗ unlimited auto-retry). Mandatory halt-report resume line (residual class + pursue residual / follow-up hard-stop / same as conf-hold / continue dual-stopped PR + skill pointer) so agents discover resume without chat memory. When to Use triggers; content-contract markers; optional `commands.md` pointer. Portable consumer + maintainer. Does not lower `minGreptileConfidence` or allow parent self-implement (#2843). Closes #3273. Refs #2442, #3095, #3225, #2843.
 - **story-ready and preflight verify parent requirement lineage (#3241).** When a child xBRIEF links a parent that authors stable requirement IDs (#3238), Gate 0 (`verify:story-ready`) and implementation preflight (`xbrief:preflight` / pre-PR) require `plan.metadata.parent_lineage` coverage artifacts (or equivalent `coverage_map` + `behavioral_deltas`). Missing coverage fails closed (`defect_class=child_spec`). Uncovered parent IDs, negative invariants omitted without `behavioral_delta`, and undeclared deltas fail closed (`defect_class=parent_child_drift`). Structure-only — reuses `validateCoverageMap`. Decompose stamps full parent lineage onto children. Emits `PARENT_LINEAGE` JSON. Core: `packages/core/src/scope/parent-lineage.ts` + `story-ready` / `preflight` / `decompose`. Closes #3241. Refs #3237, #3238.
@@ -5179,7 +5191,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.99.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.100.0...HEAD
+[0.100.0]: https://github.com/deftai/directive/compare/v0.99.0...v0.100.0
 [0.99.0]: https://github.com/deftai/directive/compare/v0.98.1...v0.99.0
 [0.98.1]: https://github.com/deftai/directive/compare/v0.98.0...v0.98.1
 [0.98.0]: https://github.com/deftai/directive/compare/v0.97.0...v0.98.0

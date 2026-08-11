@@ -38,31 +38,31 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1178 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1196 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#3267** -- feat(verification,strategies): literal acceptance-command verification - capture exact stated commands at intake, run verbatim before done -- `[completed]`
+- **#3266** -- feat(build,session): budget-aware effort sizing - bank the pass before deepening -- `[completed]`
+- **#3273** -- feat(swarm,review-cycle): operator follow-up path after dual-stop / hard stop (consumer + maintainer) -- `[completed]`
+- **#3263** -- bug(policy,session): ceremony dial - cold-start rapid may be tier-hostile on hard tasks; make start depth tier-conditional (follows #3214) -- `[completed]`
+- **#3241** -- feat(scope,swarm): story-ready and pre-PR verify parent lineage not only child AC -- `[completed]`
+- **#3264** -- bug(lifecycle,gates): completed xBRIEFs can remain untracked after merge (#1358 recurrence) -- `[completed]`
+- **#3259** -- fix(cursor): ephemeral local-dev ops must not require an active xBRIEF -- `[completed]`
+- **#3242** -- feat(scope,doctor): fail closed when completed lifecycle disagrees with plan.status or open plan.items -- `[completed]`
+- **#3239** -- feat(scope,authz): bind scope:decompose apply to human-origin draft digest grant -- `[completed]`
+- **#3243** -- fix(doctor): fail closed on xBRIEF envelope major version mismatch -- `[completed]`
+- **#3252** -- fix(scope,swarm): decompose --check rejects size=large with parallel_safe=true (readiness parity) -- `[completed]`
+- **#3240** -- feat(scope): scope:complete requires typed evidence or disposition per acceptance criterion -- `[completed]`
+- **#3246** -- bug(hooks): raise Cursor spawn/tool.before timeout so gated ritual is not opaque failClosed exit-1 -- `[completed]`
+- **#3245** -- sec(authz): close UAT residual archive/alt-downloaders + kill-switch plant; harden triage-cache symlink follow -- `[completed]`
+- **#3236** -- fix(migrate): rewrite hybrid xBRIEFInfo@0.6 envelopes on already-xbrief trees -- `[completed]`
+- **#3235** -- fix(review): invalidate merge approval when PR HEAD changes under auto-merge -- `[completed]`
+- **#3234** -- fix(pr): merge-ready fails closed on absent required ruleset check contexts -- `[completed]`
+- **#3233** -- fix(session): detect stale higher-precedence CLI after global upgrade -- `[completed]`
+- **#3158** -- feat(swarm): retained addressable sub-agents — message-later and steer-mid-flight semantics -- `[completed]`
 - **#852** -- feat(patterns): goal-gate-determinism — skills specify goals and gates rigidly; execution path is flexible guidance -- `[completed]`
 - **#3085** -- feat(context,patterns): tool-surface grammar — flat params, nesting×heterogeneity tax -- `[completed]`
-- **#3158** -- feat(swarm): retained addressable sub-agents — message-later and steer-mid-flight semantics -- `[completed]`
 - **#3205** -- scope-provenance: first-adoption path + base-visible approval authority (#3205) -- `[completed]`
 - **#3206** -- sec(authz): UAT Shell fail-open residuals — downloaders/decoders plant grants + kill-switch (#3206) -- `[completed]`
 - **#3198** -- feat(triage,meta): portfolio prioritization pass — priority briefs from local cache (propose-not-apply) -- `[completed]`
 - **#3201** -- feat(skills): deft-directive-portfolio-priority — agent skill for #3198 priority briefs -- `[completed]`
-- **#3164** -- docs(main,meta): name directive self-modification stance - self-improving, not self-editing (propose-not-apply) -- `[completed]`
-- **#3197** -- feat(triage): re-enrich already-triaged issues after policy/rule changes -- `[completed]`
-- **#3189** -- policy: coverageDebt + checkResume in PROJECT-DEFINITION with skippable session nudge -- `[completed]`
-- **#3193** -- core-guard: content-aware package pin + lock follow-through (tighten #3127 path allowlist) -- `[completed]`
-- **#3185** -- coverage-debt: restore Vitest branch coverage >=85% after v0.97.0 hairline (84.95%) -- `[completed]`
-- **#3186** -- sec(authz,hooks): UAT Shell fail-open for authz obfuscation, kill-switch/policy, assist-scratch symlink -- `[completed]`
-- **#3187** -- release: auto-hatch branch coverage hairline in Step 5 when ledger allows -- `[completed]`
-- **#3188** -- release: Step 5 fast-before-slow gates + SHA suite stamp -- `[completed]`
-- **#1940** -- RFC: consumer observability contract — operator logging thin v1 (SLizard reference) -- `[completed]`
-- **#3180** -- feat(scm,ci): platform status probe + outage attribution for CI weather handoffs -- `[completed]`
-- **#3174** -- sec(codeql): clear polynomial-redos in xbrief/styles.ts (alerts #84-#87) -- `[completed]`
-- **#3168** -- ci(blacksmith): GH-hosted failover skipped when capacity-watchdog cancelled — arm failover for true capacity death -- `[completed]`
-- **#3175** -- sec(codeql): clear shell-command-injection-from-environment in engine-invoke.cjs (alert #74) -- `[completed]`
-- **#3167** -- feat(pr-watch,review-cycle): ci_never_scheduled + capacity-stall reason codes and babysit thrash caps -- `[completed]`
-- **#1137** -- feat(cache,triage): reversible archive for closed github-issue cache entries -- `[completed]`
-- **#1136** -- feat(scope,triage): promote --from-issue reciprocity + accept --auto-promote -- `[completed]`
-- **#3128** -- chore(labels): migrate open directive issues onto #2609 taxonomy scheme -- `[completed]`
-- **#2609** -- feat(process,scm): issue label taxonomy — platform facet, public docs, dedupe -- `[completed]`
 
