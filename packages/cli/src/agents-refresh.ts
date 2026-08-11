@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 /**
  * agents:refresh — rewrite AGENTS.md managed section from the canonical template (#768 / #1996).
+ * #3286: when the managed section is already current, print one-line
+ * "unchanged - sha match" (content-based; always plans against the live AGENTS.md).
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { applyAgentsRefresh } from "@deftai/directive-core/platform";
+import { formatDepositShaMatchLine } from "@deftai/directive-core/session";
 
 export interface AgentsRefreshArgs {
   projectRoot: string;
@@ -46,6 +49,9 @@ export function runAgentsRefresh(argv: readonly string[]): number {
     return 2;
   }
 
+  // Always plan against live AGENTS.md (#3286 Greptile P1: deposit fingerprint
+  // alone cannot detect local managed-section edits). Content-current → one-line
+  // sha-match phrasing for harness parsers.
   // The read->compute->write is serialized behind an advisory lock and written
   // atomically inside applyAgentsRefresh, so concurrent refreshers cannot clobber
   // one another's session= write or observe a partial write (#1329).
@@ -61,7 +67,8 @@ export function runAgentsRefresh(argv: readonly string[]): number {
   }
 
   if (state === "current") {
-    process.stdout.write("AGENTS.md managed section is current — no changes.\n");
+    // #3286: one-line no-op phrasing when managed section already matches template.
+    process.stdout.write(`${formatDepositShaMatchLine("agents:refresh")}\n`);
     return 0;
   }
 

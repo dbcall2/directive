@@ -373,6 +373,9 @@ const REMEDIATION_NO_CANDIDATES = [
  * Evaluate cache freshness for the given project root.
  *
  * Faithful port of scripts/preflight_cache.py::evaluate().
+ * #3286 note: deposit-sha orientation no-ops live in session orientation
+ * composition (age-gated), not here — triage cache freshness is age/drift based
+ * and must not short-circuit solely on payload/templates/engine fingerprints.
  */
 export function evaluate(projectRoot: string, options: EvaluateOptions = {}): GateResult {
   return evaluateWithContext(projectRoot, options, { afterEmptyPopulate: false });
