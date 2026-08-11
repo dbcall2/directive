@@ -291,6 +291,9 @@ describe("dispatchCachedTaskCheck fail-fast before suite (#3188)", () => {
 
     const code = dispatchCachedTaskCheck("/fw-root-3188", "/fw-root-3188", {
       noCache: true,
+      // #3282: isolate fail-fast ordering from live toolchain preflight.
+      preflight: null,
+      emitRunSummary: false,
       onGateStart: (gateId) => {
         started.push(gateId);
       },
@@ -374,6 +377,8 @@ tasks:
     const project = join(tmpdir(), "consumer-project-3188");
     const code = dispatchCachedTaskCheck(framework, project, {
       noCache: true,
+      preflight: null,
+      emitRunSummary: false,
       gateSpawnFn: (gateId) => {
         if (gateId === "verify:branch") {
           return { exitCode: 1, stdout: "", stderr: "branch fail\n" };
@@ -395,6 +400,8 @@ tasks:
 
     const code = dispatchCachedTaskCheck("/fw-root-3188-ok", "/fw-root-3188-ok", {
       noCache: true,
+      preflight: null,
+      emitRunSummary: false,
       onGateStart: (gateId) => {
         started.push(gateId);
       },

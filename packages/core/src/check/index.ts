@@ -1,4 +1,4 @@
-export { dispatchCachedTaskCheck } from "./cached-orchestrator.js";
+export { type CachedCheckOptions, dispatchCachedTaskCheck } from "./cached-orchestrator.js";
 export {
   CHECK_GRAPH_REQUIRED_NAMESPACES,
   CONSUMER_GATE_INTEGRITY_RECOVERY,
@@ -27,6 +27,13 @@ export {
   PRODUCT_FIRST_AC_GATE,
   SUITE_CHECK_GATE_IDS,
 } from "./gate-lists.js";
+export {
+  extractGateCause,
+  formatDegradedSkipReport,
+  formatNamedCauseFailure,
+  type NamedCauseMessage,
+  remedyForGate,
+} from "./named-cause.js";
 export type { CheckOrchestratorOptions, CheckOrchestratorSeams } from "./orchestrator.js";
 export {
   dispatchTaskCheck,

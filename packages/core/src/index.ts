@@ -75,6 +75,7 @@ export * as releasePublish from "./release-publish/index.js";
 export * as releaseRollback from "./release-rollback/index.js";
 export * as render from "./render/index.js";
 export * as resolution from "./resolution/index.js";
+export * as runSummary from "./run-summary/index.js";
 export * as scm from "./scm/index.js";
 export * as scope from "./scope/index.js";
 export * as scopeProvenance from "./scope-provenance/index.js";
