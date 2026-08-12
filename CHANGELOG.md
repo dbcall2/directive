@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.101.0] - 2026-08-12
+
+> Product-first done-gate, orientation compression, AC-pass banking, structural grant CLI, SCM mirror discovery, session coda, and evidence schema alignment since v0.100.0.
+
+### Added
+
 - **Optional deterministic session coda on interactive doctor success (#2712).** After the final human success footer (`System check passed!` / warnings footer), interactive TTY doctor (exit 0, not CI, not `--json`) may print one extra operator line controlled by env-only `DEFT_SESSION_CODA`: **unset** → fixed discoverability `Session coda: off (set DEFT_SESSION_CODA=1 to enable)`; **`=1`** → exactly one `✦ <coda>` from content pack `content/doctor/session-coda.json` (deterministic FNV-1a of UTC date + project root); **`=0`** → silent. Never on hard fail; never mid-run `Next command:`; never JSON/AGENTS/skills; pack load fail omits star without failing doctor. Documented in `doctor --help`. Operator UX / agent-experience only — no new CLI verb, no USER.md key, no exit-code or Next-command changes. Closes #2712.
 - **Consumer issue-label kit: optional `security` project routing label (#3299).** Documents optional portable `security` for advisory security review routing when a project uses that path — create on forge only if used; catalog in consumer `.github/ISSUE_LABELS.md`; not Core always-recommend; not a merge gate or maintainer AppSec taxonomy import. Source: `content/docs/consumer-issue-label-kit.md` (deposit on release). Closes #3299. Refs #2611, #2609.
 - **Operator discovery for SCM label mirror (#3124).** Cold `session:start` / `triage:welcome` surfaces a throttled tip (until first successful `--mirror` dry-run or `triage:classify -- --ack-discovery` — not every re-arm) that teaches existence **and** get-the-most: dry-run first, defaults only stamp `triaged` on matches (control stamp), board usability needs full five-chip `actionLabels`, match rate needs `triageAutoClassify`, never auto-accept, policy:show + PROJECT-DEFINITION location, GitHub labels must exist, re-enrich warning, pointer to consumer kit #2611. Dry-run digests hint when `actionLabels` is empty or open `no_match` dominates. Agent anti-swallow rule requires user-visible restatement when the tip fires. Core: `packages/core/src/triage/classify/mirror-discovery-tip.ts`; welcome + classify digest + CLI dry-run throttle and ack entry. Also fixes vitest-3 coverage-debt soft-pass forwarding via `DEFT_TS_LANE_COVERAGE_DEBT` (CAC rejects unknown CLI debt tokens). Closes #3124. Refs #1423, #2611, #3125, #3197, #2573, #2618.
@@ -5209,7 +5221,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.100.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.101.0...HEAD
+[0.101.0]: https://github.com/deftai/directive/compare/v0.100.0...v0.101.0
 [0.100.0]: https://github.com/deftai/directive/compare/v0.99.0...v0.100.0
 [0.99.0]: https://github.com/deftai/directive/compare/v0.98.1...v0.99.0
 [0.98.1]: https://github.com/deftai/directive/compare/v0.98.0...v0.98.1

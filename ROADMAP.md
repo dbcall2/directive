@@ -38,8 +38,15 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1196 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1203 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#3305** -- [framework-gap] scope:complete evidence schema conflicts with vBRIEF conformance -- `[completed]`
+- **#2712** -- feat(doctor): optional deterministic session coda on interactive doctor success -- `[completed]`
+- **#3291** -- [framework-gap] authz:grant cannot mint scope:decompose structural bindings -- `[completed]`
+- **#3124** -- feat(session,triage): operator discovery for SCM label mirror (after #1423 Wave 2) -- `[completed]`
+- **#3299** -- docs(labels): consumer issue-label kit should mention optional security routing label -- `[completed]`
+- **#3286** -- feat(session,agents): orientation compression Now+Later - compose doctor+preflight into session:start, deposit-sha fast-path, compact flag; graduate to unified deft orient on telemetry trigger (#2899 dual-path) -- `[completed]`
+- **#3287** -- coverage-debt: restore vitest branch coverage >=85% after v0.100.0 hairline (84.96%) -- `[completed]`
 - **#3267** -- feat(verification,strategies): literal acceptance-command verification - capture exact stated commands at intake, run verbatim before done -- `[completed]`
 - **#3266** -- feat(build,session): budget-aware effort sizing - bank the pass before deepening -- `[completed]`
 - **#3273** -- feat(swarm,review-cycle): operator follow-up path after dual-stop / hard stop (consumer + maintainer) -- `[completed]`
@@ -58,11 +65,4 @@ _Showing 25 of 1196 completed scopes (newest first). Full history: lifecycle `co
 - **#3235** -- fix(review): invalidate merge approval when PR HEAD changes under auto-merge -- `[completed]`
 - **#3234** -- fix(pr): merge-ready fails closed on absent required ruleset check contexts -- `[completed]`
 - **#3233** -- fix(session): detect stale higher-precedence CLI after global upgrade -- `[completed]`
-- **#3158** -- feat(swarm): retained addressable sub-agents — message-later and steer-mid-flight semantics -- `[completed]`
-- **#852** -- feat(patterns): goal-gate-determinism — skills specify goals and gates rigidly; execution path is flexible guidance -- `[completed]`
-- **#3085** -- feat(context,patterns): tool-surface grammar — flat params, nesting×heterogeneity tax -- `[completed]`
-- **#3205** -- scope-provenance: first-adoption path + base-visible approval authority (#3205) -- `[completed]`
-- **#3206** -- sec(authz): UAT Shell fail-open residuals — downloaders/decoders plant grants + kill-switch (#3206) -- `[completed]`
-- **#3198** -- feat(triage,meta): portfolio prioritization pass — priority briefs from local cache (propose-not-apply) -- `[completed]`
-- **#3201** -- feat(skills): deft-directive-portfolio-priority — agent skill for #3198 priority briefs -- `[completed]`
 
