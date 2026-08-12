@@ -1,0 +1,138 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3299",
+    "updated": "2026-08-11T22:33:02Z"
+  },
+  "plan": {
+    "title": "docs(labels): consumer issue-label kit should mention optional security routing label",
+    "status": "completed",
+    "narratives": {
+      "Description": "Consumer issue-label kit omits optional portable security routing label. Under no-invention catalog rule, consumers and agents cannot create security for advisory security-officer routing. Thin docs fix: optional project routing note only; not full AppSec taxonomy.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3299",
+      "Overview": "## Capability gap\n\nThe **consumer issue-label kit** (`content/docs/consumer-issue-label-kit.md` / deposit `.deft/core/docs/consumer-issue-label-kit.md`) documents core, role (`epic` / `status:tracker` / `status:child`), and triage/mirror labels — but does **not** mention an optional portable **`security`** routing label.\n\n## Why it matters\n\nConsumers that route security-axis PRs/issues to an advisory Security Officer (or similar) need the label to **exist on the forge** and appear in the consumer catalog. Under the kit rule **⊗ invent labels outside the catalog**, omitting `security` from both the recommended kit and any “optional project routing” note causes:\n\n1. Catalogs cloned from the kit to drop `security`\n2. Agents to refuse creating/applying it (no-invention)\n3. Label-based security review routing to silently fail\n\nThis is a **docs/kit completeness** gap, not a mandate that every consumer must create `security`.\n\n## Proposed thin fix\n\nIn consumer-issue-label-kit.md, add a short **Optional project routing** (or equivalent) subsection, e.g.:\n\n- Optional: `security` — marks security-axis issues/PRs for advisory security review routing when the project has that path\n- Create on forge only if used; document in the consumer’s `.github/ISSUE_LABELS.md`\n- Not a merge gate; not a substitute for review bots; not maintainer AppSec taxonomy import\n\nKeep out of Core always-recommend if undesired — **optional** is enough.\n\n## Acceptance\n\n- [ ] Kit mentions optional `security` (or deliberate “out of scope / project-only” note so consumers know to extend catalogs)\n- [ ] No full maintainer AppSec taxonomy import\n- [ ] Deposit path updates with normal release\n\n## Related\n\n- Consumer kit source: #2611 area\n- Maintainer taxonomy boundary: #2609\n- Not: #3007 maintainer AppSec playbook (different surface)\n\n## Non-goals\n\n- ⊗ Require every consumer to create `security`\n- ⊗ Import maintainer-only security facet trees\n- ⊗ Change Greptile/SLizard behavior",
+      "Labels": "documentation",
+      "UserStory": "As a consumer project maintainer, I want the issue-label kit to document an optional security routing label, so that projects with security review routing can create that label without inventing outside the catalog.",
+      "ImplementationPlan": "1. Edit content/docs/consumer-issue-label-kit.md to add Optional project routing subsection for security.\n2. Keep optional; do not add to core always-recommend; no maintainer AppSec taxonomy import.\n3. CHANGELOG Unreleased docs note; ensure deposit path will pick up via normal release.",
+      "Traces": "ISSUE-BODY"
+    },
+    "items": [
+      {
+        "id": "kit-optional-security",
+        "title": "Kit mentions optional security label",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the consumer issue-label kit, when an operator reads it, then an optional project routing note documents the security label purpose create-only-if-used and not a merge gate.",
+          "Traces": "ISSUE-BODY"
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3303 merge 081817b02b874d61e7606eaae43fce5db489935f — content/docs/consumer-issue-label-kit.md Optional project routing documents optional security label (create-only-if-used; not merge gate)",
+          "recorded_at": "2026-08-11T22:31:09Z",
+          "recorded_by": "agent/docs/3299-consumer-kit-optional-security"
+        },
+        "metadata": {
+          "effort": "S"
+        }
+      },
+      {
+        "id": "no-taxonomy-import",
+        "title": "No full AppSec taxonomy import",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the kit change, when compared to maintainer AppSec surfaces, then no full maintainer security facet tree is imported and security remains optional not always-recommend.",
+          "Traces": "ISSUE-BODY"
+        },
+        "x-directive/evidence": {
+          "kind": "review",
+          "pointer": "https://github.com/deftai/directive/pull/3303 Greptile CLEAN 5/5; Optional project routing explicitly not Core always-recommend and forbids maintainer AppSec taxonomy import (#2609/#3007 boundary)",
+          "recorded_at": "2026-08-11T22:31:09Z",
+          "recorded_by": "agent/docs/3299-consumer-kit-optional-security"
+        },
+        "metadata": {
+          "effort": "S"
+        }
+      },
+      {
+        "id": "changelog",
+        "title": "CHANGELOG Unreleased docs entry",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the docs change ships, when CHANGELOG Unreleased is read, then a brief docs entry mentions the optional security routing label note.",
+          "Traces": "ISSUE-BODY"
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3303 CHANGELOG.md [Unreleased] entry for optional security routing label (#3299)",
+          "recorded_at": "2026-08-11T22:31:09Z",
+          "recorded_by": "agent/docs/3299-consumer-kit-optional-security"
+        },
+        "metadata": {
+          "effort": "S"
+        }
+      }
+    ],
+    "tags": [
+      "documentation"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3299",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3299: docs(labels): consumer issue-label kit should mention optional security routing label"
+      }
+    ],
+    "id": "story-3299-consumer-kit-optional-security-label",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/docs/consumer-issue-label-kit.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core --reporter=dot -t consumer-issue-label"
+        ],
+        "expected_outputs": [
+          "kit documents optional security routing label"
+        ],
+        "depends_on": [],
+        "conflict_group": "docs-labels-3299",
+        "size": "S",
+        "file_scope_confidence": "high",
+        "model_tier": "medium",
+        "missing_traces_justification": "Docs issue #3299; acceptance from issue body."
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3303,
+        "prBase": "master",
+        "mergeCommit": "081817b02b874d61e7606eaae43fce5db489935f",
+        "deliveryBranch": "master",
+        "deliveryCommit": "081817b02b874d61e7606eaae43fce5db489935f",
+        "verifiedAt": "2026-08-11T22:33:02Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-11T22:33:02Z",
+      "capacityBucket": "cognitive-debt",
+      "x-directive/acceptance": {
+        "commands": [],
+        "none_stated": true
+      }
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true
+    },
+    "updated": "2026-08-11T22:33:02Z"
+  }
+}

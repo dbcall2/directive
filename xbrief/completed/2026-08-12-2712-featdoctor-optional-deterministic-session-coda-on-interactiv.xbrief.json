@@ -1,0 +1,173 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #2712",
+    "updated": "2026-08-12T02:03:18Z"
+  },
+  "plan": {
+    "title": "feat(doctor): optional deterministic session coda on interactive doctor success",
+    "status": "completed",
+    "narratives": {
+      "Description": "Optional deterministic session coda after successful interactive doctor: one operator microcopy line when DEFT_SESSION_CODA=1, fixed discoverability off-hint when unset, silent when =0. TTY-only; never JSON/CI/agent context. Content pack owned copy; no USER.md key in v1.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/2712",
+      "Overview": "## Summary\n\nAdd an optional **session coda**: one operator-facing line of curated\nmicrocopy after a successful interactive directive doctor run — plus a\n**discoverable off-state** when the feature is unset.\n\nThis is a human TTY affordance only. It must never enter agent context\n(AGENTS.md, skill payloads, or JSON diagnostics).\n\n**Size:** ~30–45 min · default off (with TTY discoverability line) · final success footer only · content-pack copy · no agent context\n\n## Background\n\nSuccess paths currently terminate on pure operational signal (final summary /\nNext-command when blocking). That is correct for agents and CI. For interactive\nhuman operators, several mature CLIs append a single line of non-instructional\nmicrocopy after a clean status transition without changing the command contract.\n\nDirective already has:\n\n- a clear success seam on doctor (diagnosis + final human footer)\n- content-pack / content-file infrastructure for versioned, non-engine copy\n- strong norms around determinism and context hygiene\n\nThis change uses that seam. It does not add a product verb and does not\nchange doctor’s diagnostic contract.\n\n## Goals\n\n1. After a **successful** (exit 0), **interactive** doctor, optionally print exactly\n   **one** additional line of curated operator microcopy (“session coda”) when enabled.\n2. When disabled via **unset** env on that same path, print a **fixed discoverability\n   status line** so operators can find the feature without reading the changelog.\n3. Selection of coda text must be **deterministic** and unit-testable.\n4. Copy must live in a **versioned content pack or content file**, not hardcoded in the engine.\n5. Default **behavior** for CI, JSON, and non-TTY must be **unchanged** (no coda, no status line).\n\n## Non-goals\n\n- No new primary CLI command in v1\n- No LLM- or network-sourced copy\n- No injection into AGENTS.md, skills, prompts, or agent-visible transcripts\n- No localization framework\n- No user-authored coda files in v1 (pack/file is framework-owned)\n- No change to doctor exit codes, diagnosis structure, or Next-command selection\n- No USER.md / operator.sessionCoda config key in v1 (env-only)\n- No rotating microcopy on the off/discoverability path\n\n## Locked decisions (2026-08-12)\n\nResolved with operator before implementation.\n\n### D1 — Success definition\n\n**Exit 0 only (soft green OK).** Coda / off-hint may print when errorCount === 0\n(exit 0), including runs that finished with warnings. Hard fail (errors / exit 1):\nnever print coda or off-hint.\n\n### D2 — Placement\n\nPrint **after** the **final human success footer** (System check passed! or\n`System check completed with N warning(s).`), with one blank line before the\nextra line. **Do not** attach to the mid-run resolution / Next-command block\n(that path is for blockers; clean/soft success often has no Next-command).\n\n### D3 — Opt-in: env three-state (discoverable default)\n\n**Env-only v1.** No operator.sessionCoda user-config key.\n\n| DEFT_SESSION_CODA | Interactive path: exit 0, stdout.isTTY, CI unset/false, not --json |\n| --- | --- |\n| **unset** (default) | Fixed status line only: `Session coda: off (set DEFT_SESSION_CODA=1 to enable) — **no** ✦` |\n| **=1** | Exactly one ✦ <coda text> line — no “enabled” meta line |\n| **=0** | **Silent** — no hint, no coda (operator dismissed discoverability) |\n\nAlso document one line under doctor --help / env docs.\n\nPrecedence: only env; =0 and =1 are explicit; unset is discoverability-off (feature functionally off).\n\n### D4 — Failure and surface rules\n\n- **Pack/file load fail** (missing, unreadable, empty after filter, or all lines invalid): **omit** ✦ coda; doctor still succeeds; **no** error/warn noise for the missing coda.\n- When =1 but pack bad: same omit; still no fail.\n- **TTY gate:** process.stdout.isTTY (not stdin alone).\n- **Hash:** stable string hash documented in code; no Math.random. Empty list after length filter → omit coda.\n- Off-hint wording is **fixed** (deterministic), not selected from the pack.\n\n## Behavior\n\n### When to print anything extra\n\n| Condition | Rule |\n| --- | --- |\n| Command | directive doctor / deft doctor finished |\n| Success | exit 0 (errorCount === 0; warnings allowed) |\n| Interactivity | process.stdout.isTTY === true |\n| CI | CI unset/false |\n| Output mode | not --json / machine-readable |\n| Env | see three-state table (D3) |\n\nIf TTY/CI/json/exit gates fail: print **nothing** extra (no hint, no coda, no log noise).\n\n### Format\n\n**Enabled (=1), pack OK:**\n\nEnabled example line (not a shell command): star-prefix then body text from the pack.\n\n- Prefix: U+2726 (✦) + space (stable; do not localize)\n- Body: single line, max **100** characters\n- Exactly one line; no second line; no “tip:” label variants in v1\n\n**Unset (default), gates pass:**\n\nUnset example line (fixed discoverability string; not a shell command).\n\nFixed string (tests may snapshot it). Not prefixed with ✦.\n\n**=0 or gates fail:** no extra line.\n\n### Selection (determinism) — enabled path only\n\nSelection formula (documented in code comments; not a shell command): hash of UTC date plus project root, modulo pack length.\n\n- utc_date_yyyy_mm_dd: UTC calendar date (stable for 24h across a team’s day)\n- project_root_realpath: resolved project root string used elsewhere by doctor\n- Same inputs ⇒ same line (required for tests)\n- Do **not** use Math.random, wall-clock beyond the date key, or hostname\n\nDocument the hash function choice in code comments; prefer an existing shared\nhash utility if one exists.\n\n## Content pack\n\nAdd a framework content pack or committed content file, e.g. pack id\nsession-coda or content/.../session-coda.json, containing an ordered list of strings.\n\n### Editorial constraints (for pack authors / PR review)\n\nEach line MUST:\n\n- Be imperative or aphoristic, not a tutorial\n- Reinforce existing Directive norms (one-shot work, anti-slop, determinism,\n  context thrift, vertical slices, doctor-before-vibe)\n- Avoid lines that look like shell instructions (do not write bare package-manager install or ad-hoc run directives)\n- Avoid user-specific or topical jokes\n- Stay ≤ 100 chars\n\n### Seed set (ship these in v1; exact wording OK to copy)\n\n1. A one-shot plan beats a ten-shot apology.\n2. If the agent re-asked, the standard was soft.\n3. Context is rent; spend it on the task, not the monologue.\n4. Prefer a boring vertical slice to an exciting horizontal mess.\n5. Doctor first. Then continue.\n6. If it is not deterministic, it is not a gate.\n7. Clarity over cleverness; cleverness over ceremony.\n8. The next command is the product; everything else is noise.\n9. Anti-slop is a practice, not a banner.\n10. Ship the small true thing.\n11. Agents forget; standards remember.\n12. One next step. Not five optional journeys.\n13. Brownfield is a path, not a personality.\n14. Exit codes are for machines; codas are for operators.\n15. Keep the success path shorter than the failure path.\n16. Prefer a content pack to a hard-coded personality.\n17. Interactive TTY is not a second API.\n18. JSON mode stays silent; humans can tolerate one line.\n19. Scope is a kindness to the next session.\n20. Leave the repo easier to doctor than you found it.\n\nPack schema should follow existing pack patterns (JSON list or pack slice).\nIf pack machinery is heavier than this change, a committed\ncontent/.../session-coda.json array loaded by the doctor path is acceptable\nfor v1 **provided** it is not embedded as a giant string literal in engine code.\n\nLoader: reject or skip entries > 100 chars (pick one; document). Empty after filter → omit coda.\n\n## Config\n\n- **v1: env only** — DEFT_SESSION_CODA three-state (D3)\n- Document next to other doctor/operator env flags\n- directive doctor help text: one line under options/env (discoverability even without a success run)\n- No USER.md key in v1\n\n## Tests\n\n1. **Gate matrix** (table-driven): TTY / CI / json / exit / env combinations ⇒ nothing / off-hint / coda\n2. **Determinism**: fixed date + fixed root ⇒ fixed index / line when =1\n3. **Date rollover**: different UTC dates can change index\n4. **Default unset**: interactive success ⇒ fixed off-hint; **no** ✦\n5. **=0**: interactive success ⇒ no off-hint, no ✦\n6. **=1**: interactive success ⇒ exactly one ✦ line after final footer\n7. **JSON mode**: success JSON has no coda field; stdout has no ✦ and no off-hint\n8. **Soft green**: exit 0 with warnings ⇒ off-hint or coda still allowed under env rules\n9. **Hard fail**: exit 1 ⇒ no off-hint, no coda\n10. **Pack load fail / empty**: =1 still exit 0; no ✦; no doctor failure\n11. **Length**: pack loader rejects or skips entries > 100 chars\n12. **Copy not in AGENTS.md** templates or skill bodies\n\n## Implementation sketch (agent guidance)\n\n1. Locate human-readable **final** success footer in doctor (after checks; System check passed! / warnings footer).\n2. Add pure `selectSessionCoda({ date, projectRoot, codas }) -> string | null`.\n3. Add pure `sessionCodaMode(env) -> \"unset\" | \"on\" | \"off\"` and\n   `shouldEmitSessionCodaLine({ tty, ci, json, exitOk }) -> boolean`.\n4. Load coda list from pack/file; filter length; fail open (empty → omit).\n5. Wire **only** in the human formatter after final success; never in JSON payload.\n6. Tests next to other doctor formatting tests.\n7. CHANGELOG: agent-experience / operator UX; “session coda”, not “tips spam.”\n\n## Acceptance criteria\n\n- [ ] **D1:** Extra lines only when doctor **exit 0** (warnings OK); never on error exit\n- [ ] **D2:** Extra line only **after** final success footer (not mid-run Next-command)\n- [ ] **D3 unset:** interactive success + gates ⇒ exactly the fixed off-hint line; no ✦\n- [ ] **D3 =1:** interactive success + gates + valid pack ⇒ exactly one ✦ … line; no off-hint\n- [ ] **D3 =0:** interactive success + gates ⇒ no off-hint, no ✦\n- [ ] CI / --json / non-TTY (stdout not TTY): no off-hint, no coda\n- [ ] Selection stable under unit tests with frozen date + root\n- [ ] Pack/file load failure or empty list: doctor still 0; no ✦; no error spam\n- [ ] Copy not present in AGENTS.md templates or skill bodies\n- [ ] Seed pack/file of ≥ 20 lines meeting editorial constraints (≤ 100 chars)\n- [ ] Docs + doctor --help: env three-state + one example enabled line + off-hint example\n- [ ] No new required user migration; no USER.md schema change\n- [ ] No change to exit codes, diagnosis structure, or Next-command selection\n\n## Open questions\n\n_None remaining — locked 2026-08-12 (D1–D4)._\n\n## Out of scope follow-ups (do not implement in this issue)\n\n- init / update success codas\n- Per-project coda overrides / USER.md operator.sessionCoda\n- Hidden directive coda verb\n- Rotating “categories” of microcopy\n- Agent-shell env markers to suppress off-hint (revisit only if dogfood noise)\r\n\n\n\n## Executable acceptance\n\nverify: pnpm exec vitest run packages/core/src/doctor/session-coda.test.ts --reporter=dot\n",
+      "Labels": "enhancement, doctor, triaged, triage:deferred",
+      "UserStory": "As an interactive human operator, I want a discoverable optional one-line session coda after doctor succeeds, so that I get a brief norm reminder without changing agent or CI doctor contracts.",
+      "ImplementationPlan": "1. Add content pack/file session-coda with >=20 seed lines (<=100 chars); pure selectSessionCoda hash of UTC date + project root.\n2. Wire DEFT_SESSION_CODA three-state after final human success footer only; TTY/CI/json/exit gates.\n3. doctor --help and env docs; never inject into AGENTS/skills/JSON.\n4. Table-driven tests for gate matrix, determinism, soft green, pack fail-open; CHANGELOG.",
+      "Traces": "ISSUE-BODY"
+    },
+    "items": [
+      {
+        "id": "env-three-state",
+        "title": "DEFT_SESSION_CODA three-state after final footer",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given interactive doctor exit 0 with stdout TTY and not CI or json, when env is unset then fixed off-hint only; when =1 and pack OK then exactly one star coda line; when =0 then silence.",
+          "Traces": "ISSUE-BODY"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/doctor/session-coda.test.ts; PR #3307 Greptile CLEAN 5/5; merge 39d0d186",
+          "recorded_at": "2026-08-12T02:03:16.013Z",
+          "recorded_by": "grok-build-leaf-2712"
+        },
+        "metadata": {
+          "effort": "M"
+        }
+      },
+      {
+        "id": "gates",
+        "title": "TTY CI json hard-fail gates",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given non-TTY or CI or json mode or exit 1, when doctor finishes, then no off-hint and no coda appear.",
+          "Traces": "ISSUE-BODY"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/doctor/session-coda.test.ts; PR #3307 Greptile CLEAN 5/5; merge 39d0d186",
+          "recorded_at": "2026-08-12T02:03:16.013Z",
+          "recorded_by": "grok-build-leaf-2712"
+        },
+        "metadata": {
+          "effort": "S"
+        }
+      },
+      {
+        "id": "determinism-pack",
+        "title": "Deterministic selection and content pack",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given fixed UTC date and project root and =1, when coda is selected, then the same pack line is chosen and pack load fail or empty omits star without failing doctor.",
+          "Traces": "ISSUE-BODY"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/doctor/session-coda.test.ts; PR #3307 Greptile CLEAN 5/5; merge 39d0d186",
+          "recorded_at": "2026-08-12T02:03:16.013Z",
+          "recorded_by": "grok-build-leaf-2712"
+        },
+        "metadata": {
+          "effort": "M"
+        }
+      },
+      {
+        "id": "docs-tests",
+        "title": "Help docs tests CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the feature ships, when help and unit tests run, then three-state env is documented and gate matrix plus determinism tests pass without agent-context copy leakage.",
+          "Traces": "ISSUE-BODY"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/doctor/session-coda.test.ts; PR #3307 Greptile CLEAN 5/5; merge 39d0d186",
+          "recorded_at": "2026-08-12T02:03:16.013Z",
+          "recorded_by": "grok-build-leaf-2712"
+        },
+        "metadata": {
+          "effort": "S"
+        }
+      }
+    ],
+    "tags": [
+      "enhancement",
+      "doctor",
+      "triaged",
+      "triage:deferred"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/2712",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #2712: feat(doctor): optional deterministic session coda on interactive doctor success"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/doctor/session-coda.test.ts --reporter=dot",
+          "source": "verify_commands",
+          "sourceSpan": "swarm.verify_commands"
+        }
+      ],
+      "literal_acceptance_rejected": [],
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/doctor",
+          "packages/cli/src",
+          "content",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/doctor/session-coda.test.ts --reporter=dot"
+        ],
+        "expected_outputs": [
+          "session coda gate matrix and determinism tests pass"
+        ],
+        "depends_on": [],
+        "conflict_group": "doctor-session-coda-2712",
+        "size": "S",
+        "file_scope_confidence": "high",
+        "model_tier": "medium",
+        "missing_traces_justification": "Issue #2712 locked D1-D4 2026-08-12; acceptance from issue body."
+      },
+      "kind": "story",
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3307,
+        "prBase": "master",
+        "mergeCommit": "39d0d18613081bd9791359e3889328852aba0498",
+        "deliveryBranch": "master",
+        "deliveryCommit": "39d0d18613081bd9791359e3889328852aba0498",
+        "verifiedAt": "2026-08-12T02:03:18Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-12T02:03:18Z",
+      "capacityBucket": "new-capability",
+      "x-directive/acceptance": {
+        "commands": [
+          "pnpm exec vitest run packages/core/src/doctor/session-coda.test.ts --reporter=dot"
+        ],
+        "none_stated": false
+      }
+    },
+    "id": "story-2712-doctor-session-coda",
+    "acceptance": {
+      "commands": [
+        "pnpm exec vitest run packages/core/src/doctor/session-coda.test.ts --reporter=dot"
+      ],
+      "none_stated": false
+    },
+    "updated": "2026-08-12T02:03:18Z"
+  }
+}
