@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.102.0] - 2026-08-13
+
+> Rung-2 derived AC, product-oracle integrity, Blacksmith unclaimed failover, and the #3313-#3340 growing-cohort land since v0.101.0.
+
+### Added
+
 - **Rung-2 derived AC: clause decompose at intake, walk at done (#3323).** When no shell commands are stated, intake derives numbered independently testable clauses from the task statement onto `plan.acceptance.clauses[]` (`none_stated: true`, `source_rung: derived`) before the first product edit. Ambiguous clauses record both readings and the chosen one. `verify:ac` walks every clause against the shipped artifact at its stated path (verified / unverifiable / failed); unverifiable is reported, never dropped; done reports lead with failed/unverifiable. Run-summary adds `acceptance_stamp` (rung, none_stated, command/clause count) and carries rung + per-clause outcomes on the verify:ac `acceptance` sibling. `schema_version` stays 1. Does not change rung 1 or rung 3. Closes #3323. Refs #3284, #3267, #3334, #3322, #3320, #3282.
 
 - **Product-oracle gate integrity (#3322).** A red product verification may be resolved only by a product change or an independently re-derived oracle. Run-summary `verification` events record `{check_id, method_fingerprint, outcome}`; `fail` then method-change then `pass` on one check id is flagged. `verify:ac` fails closed unless `independent_rederivation` is recorded. Build + pre-pr MUST/⊗ via pack source. Extends #3156. Closes #3322. Refs #3282, #3319, #3320, #1006, #3265.
@@ -5253,7 +5265,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.101.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.102.0...HEAD
+[0.102.0]: https://github.com/deftai/directive/compare/v0.101.0...v0.102.0
 [0.101.0]: https://github.com/deftai/directive/compare/v0.100.0...v0.101.0
 [0.100.0]: https://github.com/deftai/directive/compare/v0.99.0...v0.100.0
 [0.99.0]: https://github.com/deftai/directive/compare/v0.98.1...v0.99.0

@@ -38,8 +38,23 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1203 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1218 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#3315** -- docs(skills): overlap dispose via decision:write + list-before-recommend -- `[completed]`
+- **#3323** -- feat(intake,verification): rung-2 derived AC - decompose the task statement into testable clauses at intake, walk every clause against shipped artifacts at done (sharpens #3267/#3284) -- `[completed]`
+- **#3334** -- bug(verify-ac,check): empty-resolution soft pass presents as green run - unstamped acceptance yields a fail-open done-gate that licenses stopping; scope:activate must refuse acceptance-shaped narratives without plan.acceptance -- `[completed]`
+- **#3335** -- bug(check,preflight): consumer gate execution requires go-task and the preflight remedy says install it - CLI-native gates must run via engine dispatch in deposits (#3282/#3324 third layer) -- `[completed]`
+- **#3336** -- AppSec: 2 HIGH — post-#3311 UAT Shell residuals (oras/ncat/patch… plant authz grants + kill-switch) -- `[completed]`
+- **#3340** -- bug(ci): Blacksmith failover skips while required jobs are still unclaimed — merge-gate has no GH-hosted twin (#2672/#3168 residual) -- `[completed]`
+- **#3322** -- feat(verification,policy): gate integrity for product oracles - a red verification may not be self-adjudicated by editing the comparison; pass-after-fail-with-method-change is a flagged event -- `[completed]`
+- **#3331** -- bug(engine,install): Go installer / legacy deft/ deposit does not plant the consumer-deposit marker (#3324 residual) -- `[completed]`
+- **#3324** -- bug(engine,deposit): consumer deposits present as buildable source - check-family verbs fall through to the corepack/pnpm self-build path; deposit marker should force global-CLI dispatch for all verbs (#3282 residual) -- `[completed]`
+- **#3320** -- bug(session,telemetry): #3286 Later graduation trigger reads a tool-call share the #3282 run summary never emits - counts without a denominator -- `[completed]`
+- **#3319** -- bug(policy,session): ceremony dial emits no escalation-evaluation event - a declined escalation and a never-evaluated one are indistinguishable, and an externally pinned start tier silently bypasses #3274 -- `[completed]`
+- **#3321** -- bug(regression): two hard-task regressions introduced at 0.99 survive 0.101 - field-solved and directive-solved at 0.92, and the done-gate turn-sink explanation is now disconfirmed -- `[completed]`
+- **#3314** -- refactor: retire the coverageDebt/checkResume ritual; keep two plain settings -- `[completed]`
+- **#3313** -- fix(agents-entry,preamble): Rule Authority [AXIOM] + Thin Fail-Closed (#3265) unreachable from agent entry surfaces -- `[completed]`
+- **#3311** -- AppSec: 2 HIGH — post-#3288 UAT Shell residuals (alt bins plant authz grants + kill-switch) -- `[completed]`
 - **#3305** -- [framework-gap] scope:complete evidence schema conflicts with vBRIEF conformance -- `[completed]`
 - **#2712** -- feat(doctor): optional deterministic session coda on interactive doctor success -- `[completed]`
 - **#3291** -- [framework-gap] authz:grant cannot mint scope:decompose structural bindings -- `[completed]`
@@ -50,19 +65,4 @@ _Showing 25 of 1203 completed scopes (newest first). Full history: lifecycle `co
 - **#3267** -- feat(verification,strategies): literal acceptance-command verification - capture exact stated commands at intake, run verbatim before done -- `[completed]`
 - **#3266** -- feat(build,session): budget-aware effort sizing - bank the pass before deepening -- `[completed]`
 - **#3273** -- feat(swarm,review-cycle): operator follow-up path after dual-stop / hard stop (consumer + maintainer) -- `[completed]`
-- **#3263** -- bug(policy,session): ceremony dial - cold-start rapid may be tier-hostile on hard tasks; make start depth tier-conditional (follows #3214) -- `[completed]`
-- **#3241** -- feat(scope,swarm): story-ready and pre-PR verify parent lineage not only child AC -- `[completed]`
-- **#3264** -- bug(lifecycle,gates): completed xBRIEFs can remain untracked after merge (#1358 recurrence) -- `[completed]`
-- **#3259** -- fix(cursor): ephemeral local-dev ops must not require an active xBRIEF -- `[completed]`
-- **#3242** -- feat(scope,doctor): fail closed when completed lifecycle disagrees with plan.status or open plan.items -- `[completed]`
-- **#3239** -- feat(scope,authz): bind scope:decompose apply to human-origin draft digest grant -- `[completed]`
-- **#3243** -- fix(doctor): fail closed on xBRIEF envelope major version mismatch -- `[completed]`
-- **#3252** -- fix(scope,swarm): decompose --check rejects size=large with parallel_safe=true (readiness parity) -- `[completed]`
-- **#3240** -- feat(scope): scope:complete requires typed evidence or disposition per acceptance criterion -- `[completed]`
-- **#3246** -- bug(hooks): raise Cursor spawn/tool.before timeout so gated ritual is not opaque failClosed exit-1 -- `[completed]`
-- **#3245** -- sec(authz): close UAT residual archive/alt-downloaders + kill-switch plant; harden triage-cache symlink follow -- `[completed]`
-- **#3236** -- fix(migrate): rewrite hybrid xBRIEFInfo@0.6 envelopes on already-xbrief trees -- `[completed]`
-- **#3235** -- fix(review): invalidate merge approval when PR HEAD changes under auto-merge -- `[completed]`
-- **#3234** -- fix(pr): merge-ready fails closed on absent required ruleset check contexts -- `[completed]`
-- **#3233** -- fix(session): detect stale higher-precedence CLI after global upgrade -- `[completed]`
 
