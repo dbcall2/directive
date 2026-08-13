@@ -1,0 +1,128 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3323",
+    "updated": "2026-08-13T18:59:37Z"
+  },
+  "plan": {
+    "title": "feat(intake,verification): rung-2 derived AC - decompose the task statement into testable clauses at intake, walk every clause against shipped artifacts at done (sharpens #3267/#3284)",
+    "status": "completed",
+    "narratives": {
+      "Description": "At intake when no commands are stated, derive numbered independently testable clauses from the task statement before the first product edit. Walk every clause against the shipped artifact path. Ambiguous clauses are marked with both readings. Add acceptance_stamp telemetry with rung, none-stated, and clause count.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3323",
+      "Overview": "Rung-2 derived acceptance: when no shell commands are stated, derive numbered independently testable clauses at intake and walk every clause against the shipped artifact at done. Telemetry records acceptance_stamp plus per-clause outcomes. Cite issue 3323.",
+      "Labels": "enhancement, determinism",
+      "UserStory": "As an implementer of a multi-clause task, I want clauses derived at intake and walked at done, so that self-authored tests cannot silently share the implementation's reading.",
+      "ImplementationPlan": "Stamp clauses on plan.acceptance at intake when none stated. Walk clauses in verify ac. Emit acceptance_stamp. Update CHANGELOG.",
+      "AcceptanceJustification": "3 items from issue body."
+    },
+    "items": [
+      {
+        "title": "intake clauses",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "A statement with N testable constraints yields N recorded clauses at intake before the first product edit."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/intake/issue-ingest.test.ts + packages/core/src/verify-ac/clauses.test.ts",
+          "recorded_at": "2026-08-13T18:56:00Z",
+          "recorded_by": "vitest"
+        }
+      },
+      {
+        "title": "clause walk",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "verify:ac names each clause and outcome; done leads with failed/unverifiable clauses."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/verify-ac/clauses.test.ts + packages/core/src/product-first-done-gate/empty-resolution.test.ts",
+          "recorded_at": "2026-08-13T18:56:00Z",
+          "recorded_by": "vitest"
+        }
+      },
+      {
+        "title": "telemetry + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Run summary gains acceptance_stamp plus clause outcomes; CHANGELOG cites #3323."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/run-summary/run-summary.test.ts + CHANGELOG.md [Unreleased] #3323",
+          "recorded_at": "2026-08-13T18:56:00Z",
+          "recorded_by": "vitest"
+        }
+      }
+    ],
+    "tags": [
+      "enhancement",
+      "determinism"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3323",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3323: feat(intake,verification): rung-2 derived AC - decompose the task statement into testable clauses at intake, walk every clause against shipped artifacts at done (sharpens #3267/#3284)"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [],
+      "literal_acceptance_rejected": [],
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/verify-ac",
+          "packages/core/src/issue-ingest",
+          "packages/core/src/run-summary",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [],
+        "expected_outputs": [
+          "3323-rung-2-derived-ac-clauses",
+          "CHANGELOG"
+        ],
+        "depends_on": [
+          "3320-run-summary-tool-call-denominator"
+        ],
+        "conflict_group": "growing-cohort-3319-3324",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body plus comments 2026-08-13.",
+        "acceptance_criteria_justification": "3 items from issue AC sketch."
+      },
+      "kind": "story",
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3343,
+        "prBase": null,
+        "mergeCommit": "9149b9222389e4a69ad8abd007cbb14a653cd0c1",
+        "deliveryBranch": "master",
+        "deliveryCommit": "9149b9222389e4a69ad8abd007cbb14a653cd0c1",
+        "verifiedAt": "2026-08-13T18:59:37Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-13T18:59:37Z",
+      "capacityBucket": "new-capability"
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "project_floor",
+      "derived_reason": "no shell acceptance commands stated in task text; floor until agent derives AC (#3284 ladder)"
+    },
+    "id": "3323-rung-2-derived-ac-clauses",
+    "updated": "2026-08-13T18:59:37Z"
+  }
+}

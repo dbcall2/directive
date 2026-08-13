@@ -1,0 +1,170 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3311",
+    "updated": "2026-08-12T16:33:32Z"
+  },
+  "plan": {
+    "title": "AppSec: 2 HIGH — post-#3288 UAT Shell residuals (alt bins plant authz grants + kill-switch)",
+    "status": "completed",
+    "narratives": {
+      "Description": "After #3288, UAT Shell still fail-opens on versioned and alternate binaries that plant `.deft/authz` grants or the Directive kill-switch. Those bins classify as empty / unclassifiable and allow write-shaped Shell, which bypasses Wave 1 human approval.",
+      "UserStory": "As a Directive operator running active UAT, I want alternate and versioned write bins to classify as settings deny when they target authz grants or the kill-switch, so that agents cannot plant forged operator-cli grants or disable Directive.",
+      "ImplementationPlan": "1. Add residual bins (`gpg2`, `rage`, `xh`, `httpie`, `wcurl`, `curlie`, `uudecode`, `iconv`, `gtar`, `star`, and close peers) to downloader/decoder and archive-alt write detection in `packages/core/src/authz/classify.ts`. 2. Treat those destinations as settings when they write into `.deft/authz/**` or plant `.deft-directive-disable` / `.no-deft-directive`. 3. Prefer fail-closed on unclassifiable write-shaped Shell under active UAT in classify/evaluate. 4. Extend `classify.test.ts` (and evaluate tests if the fail-closed path lives there) with residual-bin vs already-denied peer cases and ordinary non-authz download negatives. 5. Add a CHANGELOG Unreleased entry.",
+      "Traces": "#3311",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3311",
+      "Overview": "## Summary\n\nAppSec review residual after **#3288**: two **HIGH** UAT Shell classification gaps remain on versioned / alternate binaries. Under active UAT, these paths still classify as empty / unclassifiable and **allow** write-shaped Shell that can plant forged `.deft/authz` grants or the kill-switch, bypassing Wave 1 human-approval and Directive gates.\n\n**Repo / tip:** `deftai/directive` @ `e3c9490d7225aeaf8683036e2bdd512edb29df4e`  \n**Primary code:** `packages/core/src/authz/classify.ts`  \n**Attacker model:** Agent under **active UAT** with PreToolUse Shell hooks\n\n## Findings\n\n### 1. HIGH — UAT residual: `gpg2` / `rage` / `xh` / `httpie` / `wcurl` / … still plant `.deft/authz` grants\n\n| Field | Detail |\n|-------|--------|\n| **Location** | `packages/core/src/authz/classify.ts` |\n| **Attacker** | Agent under active UAT with PreToolUse Shell hooks |\n| **Input** | `gpg2 -o .deft/authz/grants/evil.json …`, `rage -d -o …`, `xh` / `httpie` / `wcurl` / `curlie -o …`, `uudecode -o`, `iconv -o`, `gtar` / `star -C .deft/authz/…` |\n| **Path** | #3288 denies `gpg` / `age` / `http` / `tar`; **versioned / alt bins** classify `[]` → `shell-op-unclassifiable` **allow** → forged **operator-cli** grant → Write / push / PR / merge unlock |\n| **Impact** | Complete Wave 1 UAT human-approval bypass |\n| **Fix** | Add `gpg2` / `rage` / `xh` / `httpie` / `wcurl` / `curlie` / `uudecode` / `iconv` / `gtar` / `star` (+ peers) to downloader/decoder write detection; prefer **fail-closed** on unclassifiable write-shaped Shell under UAT |\n\n### 2. HIGH — UAT residual: same alt bins still plant `.deft-directive-disable`\n\n| Field | Detail |\n|-------|--------|\n| **Location** | `packages/core/src/authz/classify.ts` |\n| **Attacker** | Agent under active UAT |\n| **Input** | Same alternate binaries targeting `.deft-directive-disable` |\n| **Path** | classify `[]` → Shell **allow** → plant kill-switch → subsequent tools `allow` / `directive-disabled` (#3039) |\n| **Impact** | Immediate full Directive gate bypass for the session |\n| **Fix** | Classify those destinations as **settings** under UAT; mirror authz fail-closed posture |\n\n## Evidence\n\nVitest on HEAD:\n\n- Residual bins → `classifyShellAuthzOps([])` + Bash `allow` / `shell-op-unclassifiable`\n- Contrast: `gpg` / `age` / `http` / `curl` / `tar` still **settings-denied**\n- Forged operator-cli grant unlocks Write\n\n## Acceptance criteria\n\n- [ ] Under active UAT, listed residual binaries that write into `.deft/authz/**` classify as **settings deny** (not unclassifiable allow)\n- [ ] Same bins targeting `.deft-directive-disable` / `.no-deft-directive` classify as **settings deny**\n- [ ] Prefer fail-closed on unclassifiable **write-shaped** Shell under UAT (not silent allow)\n- [ ] Regression tests cover residual bins vs already-denied peers (`gpg`/`age`/`http`/`curl`/`tar`)\n- [ ] No false deny of ordinary non-authz / non-kill-switch downloads outside UAT write paths\n\n## Related\n\n- Residual of #3288 UAT Shell hardening\n- Kill-switch contract: #3039\n- Prior authz UAT Shell residual class: #3206, #3213, #3245, #3186\n\n## Labels / routing\n\nSecurity / agent-safety / tooling — framework-source fix in `packages/core/src/authz/`.\r\n\n",
+      "Labels": "security, tooling, agent-safety"
+    },
+    "id": "3311-uat-shell-alt-bin-residuals",
+    "items": [
+      {
+        "id": "3311-a1",
+        "title": "Under active UAT, listed residual binaries that write into `.deft/authz/**` classify as **settings deny** (not unclassifiable allow)",
+        "status": "completed",
+        "effort": "M",
+        "narrative": {
+          "Acceptance": "Given active UAT, when listed residual bins write into `.deft/authz/**`, then classifyShellAuthzOps returns settings (not empty / unclassifiable allow).",
+          "Traces": "#3311"
+        },
+        "x-directive/evidence": {
+          "kind": "uat",
+          "pointer": "verify:ac + classify.test.ts residual-bin matrix; PR https://github.com/deftai/directive/pull/3312 merge 9415977b33b5845877778c82e8c47db651a37fc9",
+          "recorded_at": "2026-08-12T16:29:30Z",
+          "recorded_by": "leaf-implementation@3311"
+        }
+      },
+      {
+        "id": "3311-a2",
+        "title": "Same bins targeting `.deft-directive-disable` / `.no-deft-directive` classify as **settings deny**",
+        "status": "completed",
+        "effort": "S",
+        "narrative": {
+          "Acceptance": "Given active UAT, when the same residual bins target `.deft-directive-disable` or `.no-deft-directive`, then classifyShellAuthzOps returns settings.",
+          "Traces": "#3311"
+        },
+        "x-directive/evidence": {
+          "kind": "uat",
+          "pointer": "verify:ac + classify.test.ts residual-bin matrix; PR https://github.com/deftai/directive/pull/3312 merge 9415977b33b5845877778c82e8c47db651a37fc9",
+          "recorded_at": "2026-08-12T16:29:30Z",
+          "recorded_by": "leaf-implementation@3311"
+        }
+      },
+      {
+        "id": "3311-a3",
+        "title": "Prefer fail-closed on unclassifiable **write-shaped** Shell under UAT (not silent allow)",
+        "status": "completed",
+        "effort": "M",
+        "narrative": {
+          "Acceptance": "Given active UAT, when Shell is write-shaped but otherwise unclassifiable, then evaluation fails closed rather than allowing as shell-op-unclassifiable.",
+          "Traces": "#3311"
+        },
+        "x-directive/evidence": {
+          "kind": "uat",
+          "pointer": "verify:ac + classify.test.ts residual-bin matrix; PR https://github.com/deftai/directive/pull/3312 merge 9415977b33b5845877778c82e8c47db651a37fc9",
+          "recorded_at": "2026-08-12T16:29:30Z",
+          "recorded_by": "leaf-implementation@3311"
+        }
+      },
+      {
+        "id": "3311-a4",
+        "title": "Regression tests cover residual bins vs already-denied peers (`gpg`/`age`/`http`/`curl`/`tar`)",
+        "status": "completed",
+        "effort": "S",
+        "narrative": {
+          "Acceptance": "Given the residual-bin and peer-bin command matrix, when classify tests run, then residual bins and already-denied peers both classify as settings.",
+          "Traces": "#3311"
+        },
+        "x-directive/evidence": {
+          "kind": "uat",
+          "pointer": "verify:ac + classify.test.ts residual-bin matrix; PR https://github.com/deftai/directive/pull/3312 merge 9415977b33b5845877778c82e8c47db651a37fc9",
+          "recorded_at": "2026-08-12T16:29:30Z",
+          "recorded_by": "leaf-implementation@3311"
+        }
+      },
+      {
+        "id": "3311-a5",
+        "title": "No false deny of ordinary non-authz / non-kill-switch downloads outside UAT write paths",
+        "status": "completed",
+        "effort": "S",
+        "narrative": {
+          "Acceptance": "Given residual bins writing to ordinary destinations such as `/tmp`, when classify runs, then the result stays unclassifiable and does not deny.",
+          "Traces": "#3311"
+        },
+        "x-directive/evidence": {
+          "kind": "uat",
+          "pointer": "verify:ac + classify.test.ts residual-bin matrix; PR https://github.com/deftai/directive/pull/3312 merge 9415977b33b5845877778c82e8c47db651a37fc9",
+          "recorded_at": "2026-08-12T16:29:30Z",
+          "recorded_by": "leaf-implementation@3311"
+        }
+      }
+    ],
+    "tags": [
+      "security",
+      "tooling",
+      "agent-safety"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3311",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3311: AppSec: 2 HIGH — post-#3288 UAT Shell residuals (alt bins plant authz grants + kill-switch)"
+      }
+    ],
+    "acceptance": {
+      "commands": [
+        "pnpm exec vitest run packages/core/src/authz/classify.test.ts packages/core/src/authz/evaluate.test.ts"
+      ],
+      "none_stated": false,
+      "source_rung": "derived",
+      "derived_reason": "derived from #3311 AC: residual-bin settings deny + no overclassify"
+    },
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/authz/classify.ts",
+          "packages/core/src/authz/classify.test.ts",
+          "packages/core/src/authz/evaluate.ts",
+          "packages/core/src/authz/evaluate.test.ts",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/authz/classify.test.ts packages/core/src/authz/evaluate.test.ts"
+        ],
+        "expected_outputs": [
+          "gpg2/rage/xh/httpie/wcurl/curlie/uudecode/iconv/gtar/star plants of .deft/authz and kill-switch classify as settings under UAT",
+          "unclassifiable write-shaped Shell under UAT fails closed",
+          "ordinary non-authz downloads stay unclassifiable"
+        ],
+        "depends_on": [],
+        "conflict_group": "authz-classify",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "medium"
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3312,
+        "prBase": "master",
+        "mergeCommit": "9415977b33b5845877778c82e8c47db651a37fc9",
+        "deliveryBranch": "master",
+        "deliveryCommit": "9415977b33b5845877778c82e8c47db651a37fc9",
+        "verifiedAt": "2026-08-12T16:33:32Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-12T16:33:32Z",
+      "capacityBucket": "technical-debt"
+    },
+    "updated": "2026-08-12T16:33:32Z"
+  }
+}

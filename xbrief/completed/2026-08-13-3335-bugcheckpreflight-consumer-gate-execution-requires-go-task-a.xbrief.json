@@ -1,0 +1,161 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3335",
+    "updated": "2026-08-13T17:27:36Z"
+  },
+  "plan": {
+    "title": "bug(check,preflight): consumer gate execution requires go-task and the preflight remedy says install it - CLI-native gates must run via engine dispatch in deposits (#3282/#3324 third layer)",
+    "status": "completed",
+    "narratives": {
+      "Description": "bug(check,preflight): consumer gate execution requires go-task and the preflight remedy says install it - CLI-native gates must run via engine dispatch in deposits (#3282/#3324 third layer)",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3335",
+      "Overview": "**TL;DR: in a consumer deposit, check-gate execution still requires the go-task binary — telemetry shows `verify:ac` SKIPPED with cause \"go-task binary not found\" — and the #3282 preflight's remedy string tells the agent to INSTALL go-task. The agent complies, bootstrapping tooling the product does not need, which is the exact behavior #3282's own doctrine forbids. CLI-native gates must run via engine dispatch in deposits; the preflight remedy for a missing task binary in a deposit should be \"none needed\", not an install instruction.**\n\n**Evidence (internal benchmark artifacts, private; run-summary JSONL from two trials on the current release):**\n\n1. First `check_invocation` on each trial: `exit_code: 2, degraded: true`, gate `verify:ac` `status: \"skipped\", cause: \"go-task binary not found on PATH\", remedy: \"Install go-task: ...\"`. So #3282's named-cause/degraded machinery works — but the gate it skipped is a **deft CLI verb** that needs no task runner.\n2. Preflight findings in `session_start` carry the same remedies: install go-task, enable pnpm via corepack. In an ephemeral container this is an instruction to bootstrap framework tooling.\n3. Later `check_invocation` events show the gate running green — i.e. the agent followed the remedy and installed the toolchain mid-run. Both official trials spent this time; the thin-prompt control arm (no forced check) spent none of it.\n\nThis is the third layer of the same onion: #3282 fixed diagnosis, #3324 fixes engine self-build, and this issue fixes **gate dispatch** — the check orchestrator shelling out to `task <gate>` for gates that are native CLI verbs.\n\n## Fix (thin — #3265)\n\n1. **Gate execution falls back to engine/CLI dispatch in deposits.** For gates that are CLI-native (`verify:ac`, `verify:branch`, other `verify:*`), the consumer check orchestrator invokes them through the same engine dispatch as any other verb (global CLI per #3324) when go-task is absent — go-task presence must not decide whether a CLI verb runs.\n2. **Preflight remedy becomes environment-aware.** In a deposit where all composed gates are CLI-dispatchable, a missing task binary is `present: false, impact: none` with no install instruction. Remedies that instruct toolchain bootstrap appear only when a gate genuinely requires that tool.\n3. Observed in the same telemetry, likely same container class: the orientation `cache_fresh` section reports `status: \"error\"` on every consumer run (official and thin arms alike). Diagnose while in here — an always-error orientation section is noise that trains agents to ignore section failures.\n\n## Acceptance sketch\n\n- In a container with node + git + global CLI and NO go-task/pnpm: `deft check` (consumer composition) runs all CLI-native gates and reports real outcomes; nothing is skipped for missing go-task; no remedy instructs installing it.\n- Preflight in that container reports no actionable findings (or only product-relevant ones).\n- `cache_fresh` orientation section reports ok or a named, actionable cause in consumer deposits.\n\nRelates #3282 (parent — diagnosis shipped, dispatch residual), #3324 (engine self-build — sibling layer), #2410, #1659, #1648.\n\n\n---\n\n## Issue comment thread\n\n_The issue body is the original write-up; maintainer comments below may supersede it. Read the full thread before building a dispatch envelope (#2143)._\n\n### Comment by @MScottAdams (2026-08-13T14:36:03Z)\n\nOperator decision: targeted for the next release alongside the #3319-#3324 batch. Sibling of #3324 - coordinate on the engine-dispatch surface so the deposit marker and the gate-runner fallback are one design, not two.",
+      "Labels": "bug, agent-experience",
+      "UserStory": "As a consumer-deposit agent without go-task, I want CLI-native check gates to run via engine dispatch, so that preflight does not tell me to install go-task.",
+      "ImplementationPlan": "For CLI-native verify:* gates, consumer check orchestrator falls back to engine/global-CLI dispatch when go-task is absent. Preflight in a deposit where all composed gates are CLI-dispatchable reports missing task as impact none with no install remedy. Diagnose cache_fresh always-error in consumer deposits. Do not change what check composes. Do not edit verify-ac internals. Cite #3335. Refs #3282 #3324.",
+      "AcceptanceJustification": "3 items from issue AC sketch."
+    },
+    "items": [
+      {
+        "title": "cli dispatch",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "In node+git+global CLI with no go-task/pnpm, deft check runs CLI-native gates and reports real outcomes; nothing skipped for missing go-task; no install-go-task remedy."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "https://github.com/deftai/directive/pull/3339 packages/core/src/check CLI-native dispatch + merge edaa6273fd4065e1762abe1e13992b710e72d6e2",
+          "recorded_at": "2026-08-13T17:24:24Z",
+          "recorded_by": "agent/residual-merge-path/3335"
+        }
+      },
+      {
+        "title": "preflight impact none",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Preflight in that deposit reports no actionable toolchain-bootstrap findings (or only product-relevant ones)."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "https://github.com/deftai/directive/pull/3339 packages/core/src/session/toolchain-preflight.ts impact none + merge edaa6273fd4065e1762abe1e13992b710e72d6e2",
+          "recorded_at": "2026-08-13T17:24:24Z",
+          "recorded_by": "agent/residual-merge-path/3335"
+        }
+      },
+      {
+        "title": "cache_fresh + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "cache_fresh orientation is ok or a named actionable cause in consumer deposits; CHANGELOG cites #3335."
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3339 merge edaa6273fd4065e1762abe1e13992b710e72d6e2 — cache_fresh named dirty/bootstrap cause + CHANGELOG [Unreleased] #3335",
+          "recorded_at": "2026-08-13T17:24:24Z",
+          "recorded_by": "agent/residual-merge-path/3335"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3335",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3335: bug(check,preflight): consumer gate execution requires go-task and the preflight remedy says install it - CLI-native gates must run via engine dispatch in deposits (#3282/#3324 third layer)"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [],
+      "literal_acceptance_rejected": [
+        {
+          "command": "ac` SKIPPED with cause \"go-task binary not found\" — and the #3282 preflight's remedy string tells the agent to INSTALL go-task. The agent complies, bootstrapping tooling the product does not need, which is the exact behavior #3282's own doctrine forbids. CLI-native gates must run via engine dispatch in deposits; the preflight remedy for a missing task binary in a deposit should be \"none needed\", not an install instruction.**",
+          "reason": "shell metacharacter \"`\" is not allowed in literal AC commands",
+          "sourceSpan": "labeled@L3"
+        },
+        {
+          "command": "ac` `status: \"skipped\", cause: \"go-task binary not found on PATH\", remedy: \"Install go-task: ...\"`. So #3282's named-cause/degraded machinery works — but the gate it skipped is a **deft CLI verb** that needs no task runner",
+          "reason": "shell metacharacter \"`\" is not allowed in literal AC commands",
+          "sourceSpan": "labeled@L7"
+        },
+        {
+          "command": "ac`, `verify:branch`, other `verify:*`), the consumer check orchestrator invokes them through the same engine dispatch as any other verb (global CLI per #3324) when go-task is absent — go-task presence must not decide whether a CLI verb runs",
+          "reason": "shell metacharacter \"`\" is not allowed in literal AC commands",
+          "sourceSpan": "labeled@L15"
+        },
+        {
+          "command": "exit_code: 2, degraded: true",
+          "reason": "path-like first token is not allowlisted",
+          "sourceSpan": "inline@L7"
+        },
+        {
+          "command": "status: \"skipped\", cause: \"go-task binary not found on PATH\", remedy: \"Install go-task: ...\"",
+          "reason": "path-like first token is not allowlisted",
+          "sourceSpan": "inline@L7"
+        },
+        {
+          "command": "status: \"error\"",
+          "reason": "path-like first token is not allowlisted",
+          "sourceSpan": "inline@L17"
+        }
+      ],
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/check",
+          "packages/core/src/session",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/check packages/core/src/session",
+          "task check"
+        ],
+        "expected_outputs": [
+          "3335-cli-native-gates-without-gotask",
+          "CHANGELOG"
+        ],
+        "depends_on": [
+          "3324-deposit-marker-force-global-cli"
+        ],
+        "conflict_group": "growing-cohort-3319-3336",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body plus comments 2026-08-13.",
+        "acceptance_criteria_justification": "3 items from issue AC sketch."
+      },
+      "kind": "story",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3339,
+        "prBase": null,
+        "mergeCommit": "edaa6273fd4065e1762abe1e13992b710e72d6e2",
+        "deliveryBranch": "master",
+        "deliveryCommit": "edaa6273fd4065e1762abe1e13992b710e72d6e2",
+        "verifiedAt": "2026-08-13T17:27:36Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-13T17:27:36Z",
+      "capacityBucket": "technical-debt"
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "project_floor",
+      "derived_reason": "no shell acceptance commands stated in task text; floor until agent derives AC (#3284 ladder)"
+    },
+    "id": "3335-cli-native-gates-without-gotask",
+    "updated": "2026-08-13T17:27:36Z"
+  }
+}

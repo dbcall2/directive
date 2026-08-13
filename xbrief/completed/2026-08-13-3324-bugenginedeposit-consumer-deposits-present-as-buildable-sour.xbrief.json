@@ -1,0 +1,126 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3324",
+    "updated": "2026-08-13T04:05:46Z"
+  },
+  "plan": {
+    "title": "bug(engine,deposit): consumer deposits present as buildable source - check-family verbs fall through to the corepack/pnpm self-build path; deposit marker should force global-CLI dispatch for all verbs (#3282 residual)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Add a consumer-deposit marker (file or package.json field). When present, engine:invoke never takes the buildable-source/self-build path: resolve global CLI for every verb; if missing, fail closed with npm i -g @deftai/directive (exit 2). Runtime-verb whitelist remains for true source checkouts. Do not change what check composes (#3284). Pin a test for the marker branch. Cite #3324. Refs #3282 #20",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3324",
+      "Overview": "Consumer deposits that look like buildable source (package.json plus a build script, no CLI dist) must not take the self-build path. Add a deposit marker. When it is present, engine dispatch resolves the global CLI for every verb and fails closed with the single remediation npm i -g @deftai/directive (exit 2) when the CLI is missing. The runtime-verb whitelist stays for true source checkouts. Out of scope: source-checkout self-build, and what check composes (#3284). Relates #3282 #2022 #1659 #2410.",
+      "Labels": "bug, agent-experience",
+      "UserStory": "As a consumer-deposit agent, I want every verb to use the global CLI when a deposit marker is present, so that check never bootstraps pnpm to self-build the framework.",
+      "ImplementationPlan": "Add a consumer-deposit marker (file or package.json field). When present, engine:invoke never takes the buildable-source/self-build path: resolve global CLI for every verb; if missing, fail closed with npm i -g @deftai/directive (exit 2). Runtime-verb whitelist remains for true source checkouts. Do not change what check composes (#3284). Pin a test for the marker branch. Cite #3324. Refs #3282 #2022 #1659.",
+      "AcceptanceJustification": "3 items from issue body."
+    },
+    "items": [
+      {
+        "title": "marker honored",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "In a deposit with no local dist and a global CLI, every deft/task deft:* verb uses the global CLI; no corepack/pnpm/build path is reachable."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "tasks/engine-invoke.test.cjs (deposit marker / global-CLI dispatch branch)",
+          "recorded_at": "2026-08-13T04:05:30Z",
+          "recorded_by": "3324-residual-merge-path"
+        }
+      },
+      {
+        "title": "fail closed",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "In a deposit with no global CLI, any verb fails closed with the one remediation string; exit 2."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "tasks/engine-invoke.test.cjs (missing global CLI remediates npm i -g @deftai/directive, exit 2)",
+          "recorded_at": "2026-08-13T04:05:30Z",
+          "recorded_by": "3324-residual-merge-path"
+        }
+      },
+      {
+        "title": "source unchanged + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Source checkouts still self-build; a test pins the marker branch; CHANGELOG cites #3324."
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3329 merge 26d98d756c446a27e662216d4f2e7e65ca3a43e7",
+          "recorded_at": "2026-08-13T04:05:30Z",
+          "recorded_by": "3324-residual-merge-path"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3324",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3324: bug(engine,deposit): consumer deposits present as buildable source - check-family verbs fall through to the corepack/pnpm self-build path; deposit marker should force global-CLI dispatch for all verbs (#3282 residual)"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [],
+      "literal_acceptance_rejected": [],
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "tasks/engine.yml",
+          "tasks/engine-invoke.cjs",
+          "packages/content/package.json",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [],
+        "expected_outputs": [
+          "3324-deposit-marker-force-global-cli",
+          "CHANGELOG"
+        ],
+        "depends_on": [],
+        "conflict_group": "growing-cohort-3319-3324",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body plus comments 2026-08-13.",
+        "acceptance_criteria_justification": "3 items from issue AC sketch."
+      },
+      "kind": "story",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3329,
+        "prBase": null,
+        "mergeCommit": "26d98d756c446a27e662216d4f2e7e65ca3a43e7",
+        "deliveryBranch": "master",
+        "deliveryCommit": "26d98d756c446a27e662216d4f2e7e65ca3a43e7",
+        "verifiedAt": "2026-08-13T04:05:46Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-13T04:05:46Z",
+      "capacityBucket": "technical-debt"
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "project_floor",
+      "derived_reason": "Issue AC sketch is behavioral; pin test is node --test tasks/engine-invoke.test.cjs (node first-token is not literal-AC allowlisted)."
+    },
+    "id": "3324-deposit-marker-force-global-cli",
+    "updated": "2026-08-13T04:05:46Z"
+  }
+}

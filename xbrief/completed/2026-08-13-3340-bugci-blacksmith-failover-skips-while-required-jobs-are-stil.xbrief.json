@@ -1,0 +1,132 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3340",
+    "updated": "2026-08-13T16:53:44Z"
+  },
+  "plan": {
+    "title": "bug(ci): Blacksmith failover skips while required jobs are still unclaimed — merge-gate has no GH-hosted twin (#2672/#3168 residual)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Unclaimed means no runner_name (not started_at, not reusable-workflow caller in_progress). capacity-arm must not skip while TS primary, Go primary, or merge-gate is unclaimed. Add GH-hosted merge-gate twin + required aggregator. Same-run rerun must re-evaluate the arm. Never cancel a claimed runner (#2652). Do not implement on PR #3333. Cite #3340. Refs #2672 #3168 #3333.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3340",
+      "Overview": "## TL;DR\n\n#2672 / #3168 give TypeScript and Go a Blacksmith primary plus a timed GH-hosted failover. That path can decide **skip** while a required Blacksmith job is still **unclaimed**, then never convert it. **Merge gate** (`task check`) has **no** GH-hosted twin at all. On a known us-west outage (2026-08-13), PR #3333 sat with merge-gate and TS primary queued, no `runner_name`, failovers already skipped. A claimed-but-dead runner is already forbidden to cancel (#2652). An **unclaimed sit after skip** is the missing recovery.\n\nThis is not a babysit-weather issue. #3167 / #3180 only tell the agent to wait. They do not make the required check finish.\n\n## Evidence (PR #3333, SHA `56b8ae4997009ab4e885468053f655f85f7a1a1f`)\n\nBlacksmith incident: [Partial outage in us-west](https://status.blacksmith.sh/cmsrg61yg09vd0lo9s1eagibm) — Identified / major. Upstream us-west cooling-power / thermal event. Latest update (15:11 UTC 2026-08-13): no ETA. They also pointed at GitHub [webhooks incident](https://www.githubstatus.com/incidents/k8vbzwqjkxzn).\n\n**First CI run** (`31711793724` first attempt):\n\n- TypeScript (Blacksmith primary): success\n- Merge gate (task check): success on Blacksmith\n- Go (Blacksmith primary): **queued**, no runner\n- Go / TS GH-hosted failover: **skipped**\n- Capacity arm: success, failover skipped\n- Go aggregator (`Go (test + build)`): in progress, polling the primary (up to 6h when `WANT_FAILOVER=false`)\n\nSo the first sit was **Go still queued after failover had already skipped**. Merge-gate failover would not have helped that attempt.\n\n**After cancel + `rerun` of the same run id:**\n\n- Same run `31711793724` came back `queued` (no new run id)\n- Capacity arm finished in ~10s with “primaries claimed or done”\n- Both GH-hosted failovers **skipped again**\n- Go primary then **claimed** `blacksmith-01kzxpxsde27pr2ccqkzjrqz1e-4vcpu` and finished **success** in ~98s (15:22:53–15:24:31Z) — claimed + step timestamps moving = actually active\n- Merge gate and TypeScript primary stayed **queued** with **no `runner_name`** but a `started_at` already set\n- `POST .../actions/jobs/{id}/cancel` from the operator PAT returned **404**; in-workflow `cancel-queued-ci-primary.py` is the only cancel path, and it already ran\n\n`cancel-queued-ci-primary.py` treats `started_at` or `runner_name` as claimed and will not cancel. Watchdog `pending` is only `queued` / `missing`. A reusable-workflow **caller** can look started / in_progress while the inner `/run` job is still waiting for a Blacksmith runner. The arm then exits skip. Nothing in that run will start failover later.\n\n## Why #2672 / #3168 are not this issue\n\n| Closed work | What it covers | What it does not |\n|-------------|----------------|------------------|\n| #2672 | TS/Go Blacksmith primary + timed GH-hosted failover | Merge-gate; claimed-vs-unclaimed detection |\n| #3168 | Arm failover when the **watchdog is cancelled**; cancel unclaimed primaries before failover starts | Arm skip while a required job is still unclaimed; rerunning the same run keeps skip |\n| #3167 / #3180 | `pr:watch` weather codes + status-page attribution | Making the required check finish |\n\nMerge gate in `ci.yml` is `runs-on: blacksmith-4vcpu-ubuntu-2404` with no ubuntu-latest twin and no aggregator failover. Even a perfect TS/Go failover still leaves the required merge check waiting on us-west.\n\n## What would have auto-proceeded (and what would not)\n\n- **Merge-gate twin only:** would **not** have saved the first run (merge-gate was already green; Go was the sit). Would **not** have saved the rerun unless the arm also started that twin.\n- **Arm must not skip while unclaimed (correct claim = `runner_name`):** would have failed over **Go** on the first run. TS + merge-gate were already green → required checks could go green → the #3273 closer could merge. That is the first-run automatic path.\n- **Rerun + merge-gate twin + arm that still skips in 10s:** merge-gate failover never starts. Still a sit.\n- **Full set below:** stall budget (~20 min) then failover. Automatic. Not instant. Not a 24h queue sit.\n\n## Ask (thin, fail-closed — #3265)\n\n1. **Unclaimed means no `runner_name`.** Do not treat `started_at` or reusable-workflow caller `in_progress` as a claimed runner. #2652 still forbids cancelling a job that has a runner name.\n2. **`capacity-arm` / watchdog must not skip** while any required Blacksmith job (TS primary, Go primary, **merge-gate**) is unclaimed. Stall budget then cancel-unclaimed + arm failover, same as #3168 intended for the lanes.\n3. **Merge-gate gets a GH-hosted twin** and a required aggregator so a cancelled/unclaimed Blacksmith merge-gate can still go green (same shape as TS/Go aggregators).\n4. **Same-run rerun must re-evaluate the arm.** A cancelled run that is `rerun` must not keep the old skip while jobs are still unclaimed.\n\nOut of scope: `--skip-ci` as the recovery; cancelling a claimed runner (#2652); rewriting Greptile floors; babysit-only weather text; fixing this on PR #3333.\n\n## Acceptance sketch\n\n- A fixture / test of `classify-ci-job-state` + `cancel-queued-ci-primary`: job `status=queued` or `in_progress` with `started_at` set and **no** `runner_name` is **unclaimed** (cancelable / failover-armable). A job with `runner_name` is claimed (do not cancel).\n- A reusable-workflow caller that is `in_progress` without a Blacksmith `runner_name` on the inner suite job does not make the arm skip that suite.\n- Merge-gate unclaimed past the stall budget arms a GH-hosted merge-gate; the required merge-gate aggregator can go green when that twin succeeds, even if the Blacksmith merge-gate was cancelled unclaimed.\n- After GitHub reruns a cancelled CI run, if a required Blacksmith job is still unclaimed, failover is armed (not left skipped from the prior attempt).\n- Existing claimed-runner rule unchanged: never cancel `in_progress` with a runner name.\n- CHANGELOG cites this issue. Refs #2672 #3168 #2652 #3333.\n\n## Related\n\n- Residual of #2672 (lane failover) and #3168 (arm when watchdog cancelled)\n- Observed on PR #3333 during Blacksmith us-west outage 2026-08-13\n- #3167 / #3180 remain the agent weather surface; this issue is the **workflow** recovery\n- Do not expand PR #3333 to implement this (#2881)\n\n",
+      "Labels": "bug, ci-cd",
+      "UserStory": "As a PR on a Blacksmith outage, I want unclaimed required jobs to fail over to GH-hosted runners, including merge-gate, so that CI does not sit queued.",
+      "ImplementationPlan": "Unclaimed means no runner_name (not started_at, not reusable-workflow caller in_progress). capacity-arm must not skip while TS primary, Go primary, or merge-gate is unclaimed. Add GH-hosted merge-gate twin + required aggregator. Same-run rerun must re-evaluate the arm. Never cancel a claimed runner (#2652). Do not implement on PR #3333. Cite #3340. Refs #2672 #3168 #3333.",
+      "AcceptanceJustification": "3 items from issue AC sketch."
+    },
+    "items": [
+      {
+        "title": "unclaimed detection",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "queued/in_progress with started_at and no runner_name is unclaimed; runner_name set is claimed and is not cancelled."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": ".github/scripts/test_classify_ci_job_state.py + test_cancel_queued_ci_primary.py (31 tests, python -m unittest discover -s .github/scripts -q)",
+          "recorded_at": "2026-08-13T16:52:46Z",
+          "recorded_by": "grok-build-leaf-implementation"
+        }
+      },
+      {
+        "title": "arm + merge-gate twin",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Unclaimed required Blacksmith jobs past stall budget arm GH-hosted failover, including merge-gate; aggregator can go green on the twin."
+        },
+        "x-directive/evidence": {
+          "kind": "observed_behavior",
+          "pointer": "https://github.com/deftai/directive/pull/3341 CI: Go/TS GH-hosted failover success; Merge gate (task check) aggregator success after stall budget",
+          "recorded_at": "2026-08-13T16:52:46Z",
+          "recorded_by": "grok-build-leaf-implementation"
+        }
+      },
+      {
+        "title": "rerun re-arm + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "gh run rerun of a cancelled CI run re-evaluates the arm if a required job is still unclaimed; CHANGELOG cites #3340."
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3341 merged as ca8514618733141aae9b689d4e1495ecaaa39975; CHANGELOG [Unreleased] cites #3340",
+          "recorded_at": "2026-08-13T16:52:46Z",
+          "recorded_by": "grok-build-leaf-implementation"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "ci-cd"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3340",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3340: bug(ci): Blacksmith failover skips while required jobs are still unclaimed — merge-gate has no GH-hosted twin (#2672/#3168 residual)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/2672",
+        "type": "x-xbrief/refs",
+        "title": "Issue #2672"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [],
+      "literal_acceptance_rejected": [],
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          ".github/workflows/ci.yml",
+          ".github/scripts/classify-ci-job-state.py",
+          ".github/scripts/cancel-queued-ci-primary.py",
+          ".github/scripts/resolve-ci-authoritative-lane.py",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [],
+        "expected_outputs": [
+          "3340-blacksmith-unclaimed-failover-merge-gate",
+          "CHANGELOG"
+        ],
+        "depends_on": [],
+        "conflict_group": "growing-cohort-3319-3340",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body filed 2026-08-13 from PR #3333 weather.",
+        "acceptance_criteria_justification": "3 items from issue AC sketch."
+      },
+      "kind": "story",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3341,
+        "prBase": "master",
+        "mergeCommit": "ca8514618733141aae9b689d4e1495ecaaa39975",
+        "deliveryBranch": "master",
+        "deliveryCommit": "ca8514618733141aae9b689d4e1495ecaaa39975",
+        "verifiedAt": "2026-08-13T16:53:44Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-13T16:53:44Z",
+      "capacityBucket": "technical-debt"
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "project_floor",
+      "derived_reason": "no shell acceptance commands stated in task text; floor until agent derives AC (#3284 ladder)"
+    },
+    "id": "3340-blacksmith-unclaimed-failover-merge-gate",
+    "updated": "2026-08-13T16:53:44Z"
+  }
+}

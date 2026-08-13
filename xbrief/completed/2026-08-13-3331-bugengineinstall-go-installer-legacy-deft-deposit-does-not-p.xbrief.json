@@ -1,0 +1,129 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3331",
+    "updated": "2026-08-13T04:45:50Z"
+  },
+  "plan": {
+    "title": "bug(engine,install): Go installer / legacy deft/ deposit does not plant the consumer-deposit marker (#3324 residual)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Plant the #3324 consumer-deposit marker from deft-install on canonical .deft/core and legacy deft/ layouts. Engine dispatch honor stays on #3324. Do not change what check composes. Cite #3331.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3331",
+      "Overview": "## TL;DR\n\n#3324 / PR #3329 mark current consumer deposits and force global-CLI dispatch. The Go installer still writes some deposits as an unmarked source-looking tree under the legacy \\deft/\\ layout. Review keeps reopening that hole on the #3324 PR. Track the installer residual here so it does not expand #3324 again.\n\n## Why this is separate\n\nPR #3329 already covers:\n\n- \\deftConsumerDeposit\\ on the content package\n- \\.deft-consumer-deposit\\ marker file\n- content-package name\n- gitless \\.deft/core\\ path identity\n\nThe leftover Greptile P1 is a **different layout**: supported legacy \\deft/\\ (and GitHub source-tarball installs whose root \\package.json\\ is unmarked while \\packages/cli/package.json\\ is present). Those still classify as buildable source. A complete close needs the **installer to plant the marker** in \\cmd/deft-install\\, which is outside #3324 file scope.\n\n#2881 / #3273: do not expand #3324 mid-review to own every historical install path.\n\n## Ask (thin, fail-closed)\n\n1. \\deft-install\\ (canonical \\.deft/core\\ **and** \\--legacy-layout\\ / \\deft/\\) writes the same consumer-deposit marker that \\^[ngine:invoke\\ already honors.\n2. A gitless legacy \\deft/\\ tree with no local CLI dist uses the global CLI for every verb, or fails closed with pm i -g @deftai/directive\\ (exit 2).\n3. A genuine framework source checkout is unchanged.\n\nOut of scope: changing what \\check\\ composes (#3284); rewriting #3324 dispatch.\n\n## Acceptance sketch\n\n- After a Go install into legacy \\deft/\\, the deposit carries the marker.\n- \\^[ngine:invoke\\ in that tree does not take the corepack/pnpm/self-build path.\n- Tests pin the installer write and the dispatch classification.\n- CHANGELOG cites this issue. Refs #3324 #3329 #3282 #2022.\n\nRelates #3324 (parent dispatch fix), #3329 (open PR), #3282 (named causes), #2022 (global-CLI deposits).\n\n",
+      "Labels": "bug, agent-experience",
+      "UserStory": "As a consumer on a Go-installed legacy deft/ deposit, I want the installer to plant the consumer-deposit marker, so that engine:invoke uses the global CLI instead of self-build.",
+      "ImplementationPlan": "In cmd/deft-install, plant the same consumer-deposit marker that engine:invoke already honors (file and/or package field) for both canonical .deft/core and --legacy-layout deft/. Do not rewrite engine:invoke (#3324). Pin installer write tests. CHANGELOG cites #3331.",
+      "AcceptanceJustification": "3 items from issue AC sketch."
+    },
+    "items": [
+      {
+        "title": "installer plants marker",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "After a Go install into canonical .deft/core or legacy deft/, the deposit carries the consumer-deposit marker."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "go test ./cmd/deft-install/ -run PlantConsumerDepositMarker (canonical + legacy)",
+          "recorded_at": "2026-08-13T04:45:00Z",
+          "recorded_by": "3331-leaf"
+        }
+      },
+      {
+        "title": "legacy dispatch",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "A gitless legacy deft/ tree with no local CLI dist uses the global CLI or fails closed with npm i -g @deftai/directive (exit 2). Honor path is #3324; this story plants the marker the honor path already reads."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "cmd/deft-install/deposit_test.go TestPlantConsumerDepositMarker_HonoredByEngineInvoke + https://github.com/deftai/directive/pull/3332",
+          "recorded_at": "2026-08-13T04:45:00Z",
+          "recorded_by": "3331-leaf"
+        }
+      },
+      {
+        "title": "source unchanged + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "A genuine framework source checkout is unchanged; tests pin the installer write; CHANGELOG cites #3331."
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3332 merge 2947e608cad7969fc936eb454605cd5f33fd3aa2",
+          "recorded_at": "2026-08-13T04:45:00Z",
+          "recorded_by": "3331-leaf"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3331",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3331: bug(engine,install): Go installer / legacy deft/ deposit does not plant the consumer-deposit marker (#3324 residual)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3324",
+        "type": "x-xbrief/refs",
+        "title": "Issue #3324"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "project_floor",
+      "derived_reason": "no shell acceptance commands stated in task text; floor until agent derives AC (#3284 ladder)"
+    },
+    "id": "3331-installer-plant-deposit-marker",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "cmd/deft-install",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [],
+        "expected_outputs": [
+          "3331-installer-plant-deposit-marker",
+          "CHANGELOG"
+        ],
+        "depends_on": [
+          "3324-deposit-marker-force-global-cli"
+        ],
+        "conflict_group": "growing-cohort-3319-3324",
+        "size": "small",
+        "file_scope_confidence": "high",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body filed 2026-08-13 from #3324 residual. Worker verify is go test ./cmd/deft-install/; that first token is not literal-AC allowlisted, so it is not listed in verify_commands (rejected-ledger would deadlock check; #3284 / #3267).",
+        "acceptance_criteria_justification": "3 items from issue AC sketch."
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3332,
+        "prBase": null,
+        "mergeCommit": "2947e608cad7969fc936eb454605cd5f33fd3aa2",
+        "deliveryBranch": "master",
+        "deliveryCommit": "2947e608cad7969fc936eb454605cd5f33fd3aa2",
+        "verifiedAt": "2026-08-13T04:45:50Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-13T04:45:50Z",
+      "capacityBucket": "technical-debt"
+    },
+    "updated": "2026-08-13T04:45:50Z"
+  }
+}

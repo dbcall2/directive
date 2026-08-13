@@ -1,0 +1,129 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3320",
+    "updated": "2026-08-13T03:51:07Z"
+  },
+  "plan": {
+    "title": "bug(session,telemetry): #3286 Later graduation trigger reads a tool-call share the #3282 run summary never emits - counts without a denominator",
+    "status": "completed",
+    "narratives": {
+      "Description": "Add a total tool/turn denominator field to the #3282 run-summary event stream. Have eval:report (or nearest surface) print ritual+gate share when present; if absent report trigger unevaluable. Do not invent a share from counts. Wait until #3319 has released packages/core/src/run-summary. Cite #3320. No new command.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3320",
+      "Overview": "**TL;DR: #3286's Later graduation trigger is defined on a tool-call SHARE. The #3282 run summary emits invocation COUNTS and no denominator. The trigger cannot be evaluated from the telemetry that was built to evaluate it. Ask is one denominator field.**\n\n**Evidence (internal benchmark, private; first post-Now run, one hard task bank, 12 trials):** the emitted run summary reports check/verify invocations of **2–8 per trial**. That is almost certainly well under the graduation threshold — but \"almost certainly\" is the entire problem. The number needed is a ratio and only the numerator is recorded.\n\n## The mismatch\n\n#3286 shipped as a #2899 Now+Later dual-path. The Later deliverable (unified orient) is explicitly gated on a 25 percent ritual-plus-gate share of tool calls on a post-Now benchmark run.\n\nThe #3282 emitter records each check/verify invocation as an event with named causes. It does not record total tool calls for the session, so no share can be computed from the summary. Consequences:\n\n- Later cannot be graduated on evidence, only on impression.\n- Equally, Later cannot be *declined* on evidence — and #3286 states Now completion MUST NOT close Later, so this trigger is the only defined exit for that thread.\n- The same denominator gap blocks any future ritual-overhead claim, which is the durable measurement this whole telemetry line exists to support.\n\nThis is a spec-to-emitter gap, not an implementation defect in either issue taken alone. Both shipped as written; the two definitions were authored against different units.\n\n## Fix (thin, fail-closed — #3265)\n\n**One field, one remediation.**\n\n1. The run summary carries a **denominator**: total tool/turn count for the session, emitted on the same event stream so a share is computable without joining to harness-side artifacts. Harness artifact collection is not guaranteed to include framework-side paths, so the denominator must travel in the summary itself, not be assumed recoverable from the host.\n2. `deft eval:report` (or the nearest existing surface) computes and prints ritual+gate share when the field is present, so the #3286 trigger has one named place to be read from.\n3. Fail-closed on the *decision*, not the run: a #3286 graduation or decline that cites share MUST cite an emitted share. Absent the field, the correct output is \"trigger unevaluable\", not a number inferred from counts.\n\nEmitter contract unchanged otherwise: fail-open, silent when `DEFT_RUN_SUMMARY_PATH` is unset, no stdout unless explicitly requested.\n\n## Acceptance sketch\n\n- A run summary with the denominator present allows ritual+gate share to be computed from the summary alone, with no harness-side data.\n- A run summary without it reports the trigger as unevaluable rather than producing a count-derived approximation.\n- #3286's Later thread has a single named surface that answers graduate / do-not-graduate.\n- No new command; no change to #2176 read-only default.\n\nRelates #3286 (orientation compression Now+Later), #3282 (run-summary emitter), #2899 (dual-path), #3265 (thin fail-closed), #1703 (eval and framework health).\n\n",
+      "Labels": "bug, agent-experience",
+      "UserStory": "As an operator deciding #3286 Later graduation, I want a tool-call denominator on the run summary, so that ritual+gate share is computable without harness artifacts.",
+      "ImplementationPlan": "Add a total tool/turn denominator field to the #3282 run-summary event stream. Have eval:report (or nearest surface) print ritual+gate share when present; if absent report trigger unevaluable. Do not invent a share from counts. Wait until #3319 has released packages/core/src/run-summary. Cite #3320. No new command.",
+      "AcceptanceJustification": "3 items from issue body."
+    },
+    "items": [
+      {
+        "title": "denominator field",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Run summary carries total tool/turn count so share is computable from the summary alone."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/run-summary/run-summary.test.ts emits total_tool_turns on tool_turn_denominator; packages/core/src/run-summary/share.test.ts share from summary alone",
+          "recorded_at": "2026-08-13T03:50:00Z",
+          "recorded_by": "parent-residual-3330"
+        }
+      },
+      {
+        "title": "unevaluable without field",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Absent the field, graduation/decline cites trigger unevaluable, not a count-derived approximation."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/eval/later-graduation.test.ts unevaluable without denominator; eval:report trigger unevaluable",
+          "recorded_at": "2026-08-13T03:50:00Z",
+          "recorded_by": "parent-residual-3330"
+        }
+      },
+      {
+        "title": "named surface",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "#3286 Later has one named surface that answers graduate / do-not-graduate; CHANGELOG cites #3320."
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3330 merge dd3fd684986087cac18f84a51824897568193a19",
+          "recorded_at": "2026-08-13T03:50:00Z",
+          "recorded_by": "parent-residual-3330"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3320",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3320: bug(session,telemetry): #3286 Later graduation trigger reads a tool-call share the #3282 run summary never emits - counts without a denominator"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [],
+      "literal_acceptance_rejected": [],
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/run-summary",
+          "packages/core/src/eval",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/run-summary packages/core/src/eval"
+        ],
+        "expected_outputs": [
+          "3320-run-summary-tool-call-denominator",
+          "CHANGELOG"
+        ],
+        "depends_on": [
+          "3319-ceremony-dial-escalation-evaluation-event"
+        ],
+        "conflict_group": "growing-cohort-3319-3324",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body plus comments 2026-08-13.",
+        "acceptance_criteria_justification": "3 items from issue AC sketch."
+      },
+      "kind": "story",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3330,
+        "prBase": null,
+        "mergeCommit": "dd3fd684986087cac18f84a51824897568193a19",
+        "deliveryBranch": "master",
+        "deliveryCommit": "dd3fd684986087cac18f84a51824897568193a19",
+        "verifiedAt": "2026-08-13T03:51:07Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-13T03:51:07Z",
+      "capacityBucket": "technical-debt"
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "project_floor",
+      "derived_reason": "no shell acceptance commands stated in task text; floor until agent derives AC (#3284 ladder)"
+    },
+    "id": "3320-run-summary-tool-call-denominator",
+    "updated": "2026-08-13T03:51:07Z"
+  }
+}

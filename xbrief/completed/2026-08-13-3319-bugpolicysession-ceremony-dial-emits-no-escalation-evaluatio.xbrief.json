@@ -1,0 +1,138 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3319",
+    "updated": "2026-08-13T02:24:55Z"
+  },
+  "plan": {
+    "title": "bug(policy,session): ceremony dial emits no escalation-evaluation event - a declined escalation and a never-evaluated one are indistinguishable, and an externally pinned start tier silently bypasses #3274",
+    "status": "completed",
+    "narratives": {
+      "Description": "Add a run-summary event for every ceremony-dial escalation evaluation (tier, outcome escalated|declined, reason) in packages/core/src/run-summary. Surface start-tier provenance on the session-start status line. When the dial is externally pinned, session:start states that #3274 cold-start selection is bypassed and names unset-the-pin as remediation. Emitter stays fail-open when DEFT_RUN_SUMMARY_PA",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3319",
+      "Overview": "**TL;DR: the ceremony dial never escalated on a single trial — including every failing trial — and when the start tier is pinned by external harness config, directive's own tier-conditional cold-start selection (#3274) never runs at all. Today both facts are invisible: \"no escalation happened\" and \"escalation was never evaluated\" emit the same thing, which is nothing. Ask is one emitted decision event with a reason, so absence of escalation is distinguishable from absence of evaluation.**\n\n**Evidence (internal benchmark, private; first release shipping the #3282 run-summary emitter; one hard task bank, 12 trials, n=1 per task):** the emitted run summary for the whole bank reduces to three facts:\n\n- Start tier `rapid` on **all 12 trials**, with provenance recorded as externally pinned by the run matrix — not selected by directive's cold-start logic.\n- **Zero dial escalations across all 12 trials**, including all 6 trials that failed their official verifier.\n- Check/verify invocations of **2–8 per trial** — down hard from the ~44–47%-of-all-turns figure that motivated #3282. That part is working.\n\n## Two distinct problems\n\n**(1) Externally pinned start tier silently bypasses #3274.** When the harness or an operator pins the start tier, the tier-conditional cold-start selection added by #3274 never executes. Any version-over-version read that attributes a score movement to cold-start tiering on such a run is invalid — the mechanism under test was not running. This is not hypothetical: it makes the #3263 revert trigger (\"mid-tier turns/cost up with no score recovery next run\") unevaluable on the run that was supposed to evaluate it. The run summary *does* carry the provenance; nothing consumes it and no surface warns.\n\n**(2) Escalation produced no events on any failing trial.** Two readings are consistent with the data and the telemetry cannot distinguish them:\n\n- escalate-on-evidence evaluated on each failing trial and correctly declined, or\n- the escalation path is inert in this configuration — plausibly because an externally pinned tier suppresses transitions entirely, in which case the pin is a silent kill switch for the whole dial mechanism.\n\nNote this is a **different** claim from #3263, and does not resurrect it. #3263 hypothesised that escalation fires *too late*; transcript forensics disconfirmed that and #3274 was correctly downgraded to a prior-driven design choice with no revert. This issue says something narrower and better-evidenced: we cannot currently observe whether escalation is evaluated *at all*. Silence is not evidence of a correct decline.\n\n## Fix (thin, fail-closed — #3265)\n\n**One emitted decision event, one remediation.**\n\n1. Every dial escalation *evaluation* emits an event to the #3282 run summary, whether or not it results in a transition: the tier considered, the outcome (`escalated` / `declined`), and the reason. A run that never evaluates emits nothing and is then distinguishable from a run that evaluated and declined.\n2. Start-tier provenance (`cold-start` / `external-pin` / `operator`) is already captured — surface it on the session-start status line so an operator reading a run knows whether #3274 was live.\n3. Fail-closed check: when the dial is externally pinned, `session:start` states plainly that cold-start tier selection is bypassed, and names the remediation (unset the pin to exercise #3274). Never silently accept a pin that disables a mechanism under measurement.\n\nExplicitly out of scope for a first ship: changing escalation thresholds, changing the default tier, or any revert of #3274. This is an observability close, not a behavioural one — behavioural change needs evidence this issue is designed to make available.\n\n## Acceptance sketch\n\n- A run with an externally pinned start tier surfaces the pin and the #3274-bypass consequence at session start.\n- Every escalation evaluation appends an event with tier, outcome, and reason; a declined escalation is visibly distinct from no evaluation.\n- A run that ends in failure at the lowest tier with zero escalation-evaluation events is detectable after the fact from the run summary alone.\n- No new command; no change to #2176 read-only default; emitter stays fail-open and silent when `DEFT_RUN_SUMMARY_PATH` is unset.\n\nRelates #3282 (run-summary emitter), #3274 / #3263 (tier-conditional cold start), #3214 (ceremony dial), #3286 (orientation telemetry), #3265 (thin fail-closed), #1006 (fail loud).\n\n",
+      "Labels": "bug, agent-experience",
+      "UserStory": "As an operator reading a pinned-tier run, I want every dial evaluation to emit an event and session-start to name a #3274 bypass, so that declined escalation is distinct from never-evaluated.",
+      "ImplementationPlan": "Add a run-summary event for every ceremony-dial escalation evaluation (tier, outcome escalated|declined, reason) in packages/core/src/run-summary. Surface start-tier provenance on the session-start status line. When the dial is externally pinned, session:start states that #3274 cold-start selection is bypassed and names unset-the-pin as remediation. Emitter stays fail-open when DEFT_RUN_SUMMARY_PATH is unset. Do not change thresholds or default tier. Cite #3319 in CHANGELOG. Tests cover emit-on-evaluate, pin disclosure, and silent-when-unset.",
+      "AcceptanceJustification": "4 items from issue body."
+    },
+    "items": [
+      {
+        "title": "evaluation event",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Every dial escalation evaluation appends an event with tier, outcome, and reason; declined is distinct from no evaluation."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/run-summary/run-summary.test.ts + packages/core/src/policy/ceremony-dial-escalation.test.ts",
+          "recorded_at": "2026-08-13T02:24:00Z",
+          "recorded_by": "3319-leaf"
+        }
+      },
+      {
+        "title": "pin disclosure",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "An externally pinned start tier is named on the session-start line with the #3274-bypass consequence."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/session/session-start.test.ts start-tier provenance + evaluation events (#3319)",
+          "recorded_at": "2026-08-13T02:24:00Z",
+          "recorded_by": "3319-leaf"
+        }
+      },
+      {
+        "title": "fail-closed pin",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "When pinned, session:start states cold-start selection is bypassed and names unset-the-pin remediation."
+        },
+        "x-directive/evidence": {
+          "kind": "review",
+          "pointer": "https://github.com/deftai/directive/pull/3327 Greptile 5/5 CLEAN HEAD 9f8f2f638f9e",
+          "recorded_at": "2026-08-13T02:24:00Z",
+          "recorded_by": "3319-leaf"
+        }
+      },
+      {
+        "title": "tests and CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Unit tests cover emit/decline/pin/silent-unset; CHANGELOG cites #3319; no new command."
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3327 merge 04c48a3561e5e017093e82d2096079b7643bde0f",
+          "recorded_at": "2026-08-13T02:24:00Z",
+          "recorded_by": "3319-leaf"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3319",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3319: bug(policy,session): ceremony dial emits no escalation-evaluation event - a declined escalation and a never-evaluated one are indistinguishable, and an externally pinned start tier silently bypasses #3274"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "project_floor",
+      "derived_reason": "no shell acceptance commands stated in task text; floor until agent derives AC (#3284 ladder)"
+    },
+    "id": "3319-ceremony-dial-escalation-evaluation-event",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/run-summary",
+          "packages/core/src/session",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/run-summary packages/core/src/session"
+        ],
+        "expected_outputs": [
+          "3319-ceremony-dial-escalation-evaluation-event",
+          "CHANGELOG"
+        ],
+        "depends_on": [],
+        "conflict_group": "growing-cohort-3319-3324",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body plus comments 2026-08-13.",
+        "acceptance_criteria_justification": "4 items from issue AC sketch."
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3327,
+        "prBase": "master",
+        "mergeCommit": "04c48a3561e5e017093e82d2096079b7643bde0f",
+        "deliveryBranch": "master",
+        "deliveryCommit": "04c48a3561e5e017093e82d2096079b7643bde0f",
+        "verifiedAt": "2026-08-13T02:24:55Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-13T02:24:55Z",
+      "capacityBucket": "technical-debt"
+    },
+    "updated": "2026-08-13T02:24:55Z"
+  }
+}

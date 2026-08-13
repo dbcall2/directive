@@ -1,0 +1,126 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3336",
+    "updated": "2026-08-13T17:21:48Z"
+  },
+  "plan": {
+    "title": "AppSec: 2 HIGH — post-#3311 UAT Shell residuals (oras/ncat/patch… plant authz grants + kill-switch)",
+    "status": "completed",
+    "narratives": {
+      "Description": "AppSec: 2 HIGH — post-#3311 UAT Shell residuals (oras/ncat/patch… plant authz grants + kill-switch)",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3336",
+      "Overview": "## Summary\n\nAppSec review residual after **#3311**: two **HIGH** UAT Shell classification gaps remain on further write-capable binaries. Under active UAT, these paths still classify as empty / unclassifiable and **allow** write-shaped Shell that can plant forged `.deft/authz` grants or the kill-switch, bypassing Wave 1 human-approval and Directive gates.\n\n**Repo / tip:** `deftai/directive` @ `2947e608cad7969fc936eb454605cd5f33fd3aa2`  \n**Primary code:** `packages/core/src/authz/classify.ts`  \n**Attacker model:** Agent under **active UAT** with PreToolUse Shell hooks\n\n## Findings\n\n### 1. HIGH — UAT residual: `oras` / `lwp-download` / `ncat` / `patch` / `base32` / `lrzip` / `unar` / `cabextract` / `ditto` / `dpkg-deb` / `hg` / `msguniq` still plant `.deft/authz` grants\n\n| Field | Detail |\n|-------|--------|\n| **Location** | `packages/core/src/authz/classify.ts` |\n| **Attacker** | Agent under active UAT with PreToolUse Shell hooks |\n| **Input** | `-o` / `-d` / positional writers, e.g. `oras … -o .deft/authz/grants/evil.json`, `lwp-download -o …`, `ncat …`, `patch -o …`, `base32 -d -o …`, `lrzip -o …`, `unar` / `cabextract` / `ditto` / `dpkg-deb` / `hg` / `msguniq` targeting `.deft/authz/**` |\n| **Path** | #3311 denies `gpg2` / `rage` / `xh` / `wcurl` / `curl`; **these residual bins** classify `[]` → `shell-op-unclassifiable` **allow** → forged **operator-cli** grant JSON → empty `activeGrantIds` activates grants → Write / push / PR / merge unlock |\n| **Impact** | Complete residual bypass of Wave 1 UAT human-approval after #3311 |\n| **Fix** | Add these `-o` / `-d` / positional writers to `DOWNLOADER_DECODER_BINS` / dest parsing. Prefer **fail-closed** on unclassifiable write-shaped Shell under UAT. Do **not** stop at named-peer allowlists. |\n\n### 2. HIGH — UAT residual: `oras` / `lwp-download` / `ncat` / `patch` / `base32` / `lrzip` / `ditto` / `hg` / `msguniq` still plant `.deft-directive-disable`\n\n| Field | Detail |\n|-------|--------|\n| **Location** | `packages/core/src/authz/classify.ts` |\n| **Attacker** | Agent under active UAT |\n| **Input** | Same residual binaries targeting `.deft-directive-disable` |\n| **Path** | classify `[]` → Shell **allow** → plant kill-switch → subsequent tools `allow` / `directive-disabled` (#3039) |\n| **Impact** | Immediate complete Directive gate bypass for the rest of the session |\n| **Fix** | Classify the same residual bins targeting kill-switch basenames as **settings** under UAT; mirror authz fail-closed posture |\n\n## Evidence\n\nVitest PoC on `2947e608`:\n\n- Residual bins → `classifyShellAuthzOps([])` + Bash `decideHook` → `allow` / `shell-op-unclassifiable` under active UAT\n- Write deny without grant, then **allow** after forged operator-cli grant\n- Kill-switch plant → `allow` / `directive-disabled`\n- Contrast: `gpg2` / `rage` / `xh` / `wcurl` / `curl` still **settings-denied** (#3311)\n\n## Not re-reported\n\n- `php` / `lua` / `deno` / `bun` / `base64` / `tac` (already tracked as -14)\n- `gpg2` / `rage` / `xh` / peers — #3311 fixed\n- Known parent-as-root / subscribe opens\n\n## Acceptance criteria\n\n- [ ] Under active UAT, listed residual binaries that write into `.deft/authz/**` classify as **settings deny** (not unclassifiable allow)\n- [ ] Same bins targeting `.deft-directive-disable` / `.no-deft-directive` classify as **settings deny** (`unar` / `cabextract` / `dpkg-deb` included if they plant kill-switch dests)\n- [ ] Prefer fail-closed on unclassifiable **write-shaped** Shell under UAT (not silent allow). Do not stop at named-peer allowlists.\n- [ ] Regression tests cover residual bins vs already-denied peers (`gpg2` / `rage` / `xh` / `wcurl` / `curl`)\n- [ ] No false deny of ordinary non-authz / non-kill-switch dests (e.g. `/tmp`) outside UAT write paths\n\n## Related\n\n- Residual of #3311 UAT Shell hardening (post-#3288)\n- Kill-switch contract: #3039\n- Prior authz UAT Shell residual class: #3206, #3213, #3245, #3288, #3186\n\n## Labels / routing\n\nSecurity / agent-safety / tooling — framework-source fix in `packages/core/src/authz/`.\n\n",
+      "Labels": "security, tooling, agent-safety",
+      "UserStory": "As a UAT-protected project, I want residual write bins that plant authz grants or the kill-switch denied as settings, so that #3311 cannot be bypassed by oras/ncat/patch peers.",
+      "ImplementationPlan": "Add residual writer bins (oras, lwp-download, ncat, patch, base32, lrzip, unar, cabextract, ditto, dpkg-deb, hg, msguniq) to dest parsing. Under active UAT, writes into .deft/authz/** or kill-switch basenames are settings deny. Prefer fail-closed on unclassifiable write-shaped Shell under UAT. No false deny of ordinary /tmp dests. Tests vs gpg2/rage/xh/wcurl/curl. Cite #3336. Refs #3311 #3039.",
+      "AcceptanceJustification": "3 items from issue AC sketch."
+    },
+    "items": [
+      {
+        "title": "authz dest deny",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Under active UAT, listed residual bins writing into .deft/authz/** classify as settings deny, not unclassifiable allow."
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3338 merge 040f8597749cae451d6cadaac52ba781fb7aac00",
+          "recorded_at": "2026-08-13T16:50:26Z",
+          "recorded_by": "3336-leaf"
+        }
+      },
+      {
+        "title": "kill-switch deny",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Same bins targeting .deft-directive-disable / .no-deft-directive classify as settings deny."
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3338 merge 040f8597749cae451d6cadaac52ba781fb7aac00",
+          "recorded_at": "2026-08-13T16:50:26Z",
+          "recorded_by": "3336-leaf"
+        }
+      },
+      {
+        "title": "tests + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Regression tests cover residual bins vs #3311 peers; ordinary non-authz dests stay unclassifiable; CHANGELOG cites #3336."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/classify.test.ts #3336 residual writer plants + CHANGELOG Unreleased; PR https://github.com/deftai/directive/pull/3338",
+          "recorded_at": "2026-08-13T16:50:26Z",
+          "recorded_by": "3336-leaf"
+        }
+      }
+    ],
+    "tags": [
+      "security",
+      "tooling",
+      "agent-safety"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3336",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3336: AppSec: 2 HIGH — post-#3311 UAT Shell residuals (oras/ncat/patch… plant authz grants + kill-switch)"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "project_floor",
+      "derived_reason": "no shell acceptance commands stated in task text; floor until agent derives AC (#3284 ladder)"
+    },
+    "id": "3336-uat-shell-residual-oras-ncat-patch",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/authz",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/authz",
+          "task check"
+        ],
+        "expected_outputs": [
+          "3336-uat-shell-residual-oras-ncat-patch",
+          "CHANGELOG"
+        ],
+        "depends_on": [],
+        "conflict_group": "growing-cohort-3319-3336",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body plus comments 2026-08-13.",
+        "acceptance_criteria_justification": "3 items from issue AC sketch."
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3338,
+        "prBase": "master",
+        "mergeCommit": "040f8597749cae451d6cadaac52ba781fb7aac00",
+        "deliveryBranch": "master",
+        "deliveryCommit": "ca8514618733141aae9b689d4e1495ecaaa39975",
+        "verifiedAt": "2026-08-13T17:21:48Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-13T17:21:48Z",
+      "capacityBucket": "technical-debt"
+    },
+    "updated": "2026-08-13T17:21:48Z"
+  }
+}

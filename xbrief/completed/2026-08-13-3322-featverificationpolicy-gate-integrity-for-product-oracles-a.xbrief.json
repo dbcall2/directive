@@ -1,0 +1,130 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3322",
+    "updated": "2026-08-13T15:46:00Z"
+  },
+  "plan": {
+    "title": "feat(verification,policy): gate integrity for product oracles - a red verification may not be self-adjudicated by editing the comparison; pass-after-fail-with-method-change is a flagged event",
+    "status": "completed",
+    "narratives": {
+      "Description": "Extend #3156 to product oracles: a red verification may be resolved only by a product change or an independently re-derived oracle. Add a run-summary verification event. Fail then method-change then pass is flagged. The product AC gate treats comparison-method mutation as unresolved unless independent re-derivation is recorded.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3322",
+      "Overview": "Gate integrity #3156 protects framework gates from being edited to go green. This story extends that rule to the agent-derived product oracle. Evidence: a final equivalence check contradicted an earlier pass; the agent repaired the comparison apparatus instead of the product and shipped a confident success claim the official verifier scored 0.\n\nRule: a red verification may be resolved only by a product change or an independently re-derived oracle (both sides rebuilt, different method). In-place repair of the failing comparison then pass is unresolved and must be fail-loud (#1006).\n\nThe run summary gains a verification event with check id, method fingerprint, and outcome. A fail then method-change then pass sequence on one check id is flagged. The product AC gate treats that mutation as unresolved unless independent re-derivation is recorded. Build and pre-pr carry the MUST/forbid pair via pack source.\n\nRelates #3156, #1006, #3284, #3285, #3282, #3319, #3320.\n",
+      "Labels": "bug, agent-experience",
+      "UserStory": "As a done-gate, I want pass-after-fail-with-method-change flagged, so that an agent cannot self-adjudicate a red product oracle by editing the comparison.",
+      "ImplementationPlan": "Extend #3156 to product oracles. Add a run-summary verification event (check id, method fingerprint, outcome). Flag fail then method-change then pass. The product AC gate treats comparison-method mutation as unresolved unless independent re-derivation is recorded. Add MUST/forbid to build and pre-pr via pack source then packs render. Cite #3322.",
+      "AcceptanceJustification": "3 items from issue body."
+    },
+    "items": [
+      {
+        "title": "rule + event",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Run summary records verification attempts with method fingerprints; fail-change-pass on one check id is flaggable."
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3333#67378a0f1efceed71abc39b1c2ef77b12b4e3f44",
+          "recorded_at": "2026-08-13T15:45:00Z",
+          "recorded_by": "residual-merge-path/3322"
+        }
+      },
+      {
+        "title": "verify:ac unresolved",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "verify:ac treats discrepancy resolved by comparison-method mutation as unresolved unless independent re-derivation is recorded."
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3333#67378a0f1efceed71abc39b1c2ef77b12b4e3f44",
+          "recorded_at": "2026-08-13T15:45:00Z",
+          "recorded_by": "residual-merge-path/3322"
+        }
+      },
+      {
+        "title": "skill + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Build and pre-pr carry the MUST/⊗ pair; CHANGELOG cites #3322."
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3333#67378a0f1efceed71abc39b1c2ef77b12b4e3f44",
+          "recorded_at": "2026-08-13T15:45:00Z",
+          "recorded_by": "residual-merge-path/3322"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3322",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3322: feat(verification,policy): gate integrity for product oracles - a red verification may not be self-adjudicated by editing the comparison; pass-after-fail-with-method-change is a flagged event"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [],
+      "literal_acceptance_rejected": [],
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/verify-ac",
+          "packages/core/src/run-summary",
+          "content/packs/skills/skills-pack-0.1.json",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/verify-ac packages/core/src/run-summary"
+        ],
+        "expected_outputs": [
+          "3322-product-oracle-gate-integrity",
+          "CHANGELOG"
+        ],
+        "depends_on": [
+          "3319-ceremony-dial-escalation-evaluation-event"
+        ],
+        "conflict_group": "growing-cohort-3319-3324",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body plus comments 2026-08-13.",
+        "acceptance_criteria_justification": "3 items from issue AC sketch."
+      },
+      "kind": "story",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3333,
+        "prBase": null,
+        "mergeCommit": "67378a0f1efceed71abc39b1c2ef77b12b4e3f44",
+        "deliveryBranch": "master",
+        "deliveryCommit": "67378a0f1efceed71abc39b1c2ef77b12b4e3f44",
+        "verifiedAt": "2026-08-13T15:46:00Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-13T15:46:00Z",
+      "capacityBucket": "technical-debt"
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "project_floor",
+      "derived_reason": "no shell acceptance commands stated in task text; floor until agent derives AC (#3284 ladder)"
+    },
+    "id": "3322-product-oracle-gate-integrity",
+    "updated": "2026-08-13T15:46:00Z"
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3334",
+    "updated": "2026-08-13T17:31:16Z"
+  },
+  "plan": {
+    "title": "bug(verify-ac,check): empty-resolution soft pass presents as green run - unstamped acceptance yields a fail-open done-gate that licenses stopping; scope:activate must refuse acceptance-shaped narratives without plan.acceptance",
+    "status": "completed",
+    "narratives": {
+      "Description": "Empty verify-ac soft pass presents as green run; refuse unstamped acceptance-shaped narratives.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3334",
+      "Overview": "Empty verify-ac resolution must not present as a green run when the project has no suite floor. scope-activate refuses acceptance-shaped narratives without plan.acceptance. Telemetry distinguishes verified-pass from empty-pass. Closes issue 3334.",
+      "Labels": "bug, agent-experience",
+      "UserStory": "As an operator of a consumer done-gate, I want empty unstamped acceptance to be a distinct non-green outcome, so that check cannot license stopping on nothing.",
+      "ImplementationPlan": "Fail closed on empty resolution without a suite floor. Refuse activate when narratives carry Test or AcceptanceCriteria or Verification without plan.acceptance. Emit acceptance telemetry. Do not rewrite 3322 oracle integrity.",
+      "AcceptanceJustification": "3 items from issue AC sketch."
+    },
+    "items": [
+      {
+        "title": "activate refuse",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "A brief with prose acceptance in narratives and no plan.acceptance cannot pass scope:activate; one remediation string."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/scope/acceptance-activate-gate.test.ts",
+          "recorded_at": "2026-08-13T17:29:58Z",
+          "recorded_by": "residual-merge-path-3342"
+        }
+      },
+      {
+        "title": "empty not green",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "verify:ac on zero commands in a no-suite-floor project is non-zero or a visibly distinct non-run through check, never a bare green run."
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/product-first-done-gate/empty-resolution.test.ts + packages/core/src/check/orchestrator.test.ts (soft_empty not a green run)",
+          "recorded_at": "2026-08-13T17:29:58Z",
+          "recorded_by": "residual-merge-path-3342"
+        }
+      },
+      {
+        "title": "telemetry + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Run summary distinguishes verified-pass from empty-pass; CHANGELOG cites #3334."
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3342 merge dc885ea26e95aea2f0d51defd3288226622d91ca",
+          "recorded_at": "2026-08-13T17:29:58Z",
+          "recorded_by": "residual-merge-path-3342"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3334",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3334: bug(verify-ac,check): empty-resolution soft pass presents as green run - unstamped acceptance yields a fail-open done-gate that licenses stopping; scope:activate must refuse acceptance-shaped narratives without plan.acceptance"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/verify-ac packages/core/src/scope packages/core/src/check",
+          "source": "verify_commands",
+          "sourceSpan": "swarm.verify_commands"
+        }
+      ],
+      "literal_acceptance_rejected": [],
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/verify-ac",
+          "packages/core/src/scope",
+          "packages/core/src/check",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/verify-ac packages/core/src/scope packages/core/src/check"
+        ],
+        "expected_outputs": [
+          "3334-empty-verify-ac-not-green-run",
+          "CHANGELOG"
+        ],
+        "depends_on": [
+          "3322-product-oracle-gate-integrity"
+        ],
+        "conflict_group": "growing-cohort-3319-3336",
+        "size": "small",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard",
+        "missing_traces_justification": "Issue body plus comments 2026-08-13.",
+        "acceptance_criteria_justification": "3 items from issue AC sketch."
+      },
+      "kind": "story",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3342,
+        "prBase": "master",
+        "mergeCommit": "dc885ea26e95aea2f0d51defd3288226622d91ca",
+        "deliveryBranch": "master",
+        "deliveryCommit": "dc885ea26e95aea2f0d51defd3288226622d91ca",
+        "verifiedAt": "2026-08-13T17:31:16Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-13T17:31:16Z",
+      "capacityBucket": "technical-debt"
+    },
+    "acceptance": {
+      "commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/verify-ac packages/core/src/scope packages/core/src/check"
+        }
+      ],
+      "none_stated": false,
+      "source_rung": "derived",
+      "derived_reason": "swarm.verify_commands without recursive task check (#3334)"
+    },
+    "id": "3334-empty-verify-ac-not-green-run",
+    "updated": "2026-08-13T17:31:16Z"
+  }
+}
