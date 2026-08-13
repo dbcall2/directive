@@ -10,6 +10,9 @@ export const RUN_SUMMARY_SCHEMA_VERSION = 1 as const;
 /** Env var that opts into / redirects run-summary JSONL (#3282). */
 export const ENV_RUN_SUMMARY_PATH = "DEFT_RUN_SUMMARY_PATH";
 
+/** Harness-supplied session tool/turn total stamped onto run-summary lines (#3320). */
+export const ENV_TOTAL_TOOL_TURNS = "DEFT_TOTAL_TOOL_TURNS";
+
 /** Repo-root default collectible path when gitignore coverage is present. */
 export const DEFAULT_RUN_SUMMARY_BASENAME = ".deft-run-summary.json";
 
@@ -25,6 +28,7 @@ export const RUN_SUMMARY_EVENT_KINDS = [
   "dial_transition",
   "dial_escalation_evaluation",
   "check_invocation",
+  "tool_turn_denominator",
 ] as const;
 
 export type RunSummaryEventKind = (typeof RUN_SUMMARY_EVENT_KINDS)[number];
@@ -37,6 +41,11 @@ export interface RunSummaryBaseFields {
   readonly seq: number;
   readonly ts: string;
   readonly event: RunSummaryEventKind;
+  /**
+   * Session total tool/turn count (#3320). Present so ritual+gate share is
+   * computable from the summary alone. Absence means the #3286 trigger is unevaluable.
+   */
+  readonly total_tool_turns?: number;
 }
 
 export interface SessionStartRunSummaryPayload {
@@ -86,11 +95,17 @@ export interface CheckInvocationRunSummaryPayload {
   readonly gates: readonly CheckGateOutcome[];
 }
 
+/** Total tool/turn count for the session (#3320). */
+export interface ToolTurnDenominatorRunSummaryPayload {
+  readonly total_tool_turns: number;
+}
+
 export type RunSummaryPayload =
   | SessionStartRunSummaryPayload
   | DialTransitionRunSummaryPayload
   | DialEscalationEvaluationRunSummaryPayload
-  | CheckInvocationRunSummaryPayload;
+  | CheckInvocationRunSummaryPayload
+  | ToolTurnDenominatorRunSummaryPayload;
 
 export type RunSummaryLine = RunSummaryBaseFields & {
   readonly payload: RunSummaryPayload;

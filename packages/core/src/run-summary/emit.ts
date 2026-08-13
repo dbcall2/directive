@@ -16,6 +16,7 @@ import {
   type CheckInvocationRunSummaryPayload,
   type DialEscalationEvaluationRunSummaryPayload,
   type DialTransitionRunSummaryPayload,
+  ENV_TOTAL_TOOL_TURNS,
   RUN_SUMMARY_SCHEMA_VERSION,
   RUN_SUMMARY_STDOUT_PREFIX,
   RUN_SUMMARY_WRITE_WARNING,
@@ -24,6 +25,7 @@ import {
   type RunSummaryLine,
   type RunSummaryPayload,
   type SessionStartRunSummaryPayload,
+  type ToolTurnDenominatorRunSummaryPayload,
 } from "./types.js";
 
 export interface RunSummaryEmitterOptions extends ResolveRunSummaryDestinationOptions {
@@ -136,6 +138,7 @@ export class RunSummaryEmitter {
   private readonly frameworkVersion: string;
   private readonly now: () => Date;
   private readonly destination: RunSummaryDestination;
+  private readonly env: NodeJS.ProcessEnv;
   private readonly writeStdout: (line: string) => void;
   private readonly writeStderr: (line: string) => void;
 
@@ -144,10 +147,11 @@ export class RunSummaryEmitter {
     this.sessionId = options.sessionId;
     this.frameworkVersion = options.frameworkVersion ?? readCorePackageVersion();
     this.now = options.now ?? (() => new Date());
+    this.env = options.env ?? process.env;
     this.destination =
       options.destination ??
       resolveRunSummaryDestination(options.projectRoot, {
-        env: options.env,
+        env: this.env,
         gitignoreCovers: options.gitignoreCovers,
       });
     this.writeStdout = options.writeStdout ?? ((line) => process.stdout.write(`${line}\n`));
@@ -164,6 +168,8 @@ export class RunSummaryEmitter {
         return { emitted: false, destination: this.destination, line: null, warning: false };
       }
       this.seq += 1;
+      const denominator =
+        readPayloadToolTurnDenominator(payload) ?? readEnvToolTurnDenominator(this.env);
       const line: RunSummaryLine = {
         schema_version: RUN_SUMMARY_SCHEMA_VERSION,
         session_id: this.sessionId,
@@ -172,6 +178,7 @@ export class RunSummaryEmitter {
         ts: this.now().toISOString(),
         event,
         payload,
+        ...(denominator !== undefined ? { total_tool_turns: denominator } : {}),
       };
       const text = lineToJson(line);
 
@@ -217,6 +224,40 @@ export class RunSummaryEmitter {
   emitCheckInvocation(payload: CheckInvocationRunSummaryPayload): EmitRunSummaryResult {
     return this.emit("check_invocation", payload);
   }
+
+  emitToolTurnDenominator(payload: ToolTurnDenominatorRunSummaryPayload): EmitRunSummaryResult {
+    return this.emit("tool_turn_denominator", payload);
+  }
+
+  /** Emit the harness-supplied denominator when DEFT_TOTAL_TOOL_TURNS is set. */
+  emitKnownToolTurnDenominator(): EmitRunSummaryResult {
+    const n = readEnvToolTurnDenominator(this.env);
+    if (n === undefined) {
+      return { emitted: false, destination: this.destination, line: null, warning: false };
+    }
+    return this.emitToolTurnDenominator({ total_tool_turns: n });
+  }
+}
+
+function readPayloadToolTurnDenominator(payload: RunSummaryPayload): number | undefined {
+  if (!("total_tool_turns" in payload)) {
+    return undefined;
+  }
+  const value = payload.total_tool_turns;
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/** Parse harness-supplied DEFT_TOTAL_TOOL_TURNS (integer > 0). Invalid/unset → omit. */
+export function readEnvToolTurnDenominator(env: NodeJS.ProcessEnv): number | undefined {
+  const raw = env[ENV_TOTAL_TOOL_TURNS];
+  if (raw === undefined || raw.trim().length === 0) {
+    return undefined;
+  }
+  const n = Number(raw.trim());
+  if (!Number.isInteger(n) || !Number.isFinite(n) || n <= 0) {
+    return undefined;
+  }
+  return n;
 }
 
 /**

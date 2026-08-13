@@ -6,6 +6,7 @@ import { RunSummaryEmitter } from "./emit.js";
 import {
   DEFAULT_RUN_SUMMARY_BASENAME,
   ENV_RUN_SUMMARY_PATH,
+  ENV_TOTAL_TOOL_TURNS,
   gitignoreCoversRunSummary,
   RUN_SUMMARY_STDOUT_PREFIX,
   RUN_SUMMARY_WRITE_WARNING,
@@ -274,5 +275,105 @@ describe("RunSummaryEmitter (#3282)", () => {
     expect(result.emitted).toBe(false);
     expect(stdout).toEqual([]);
     expect(stderr).toEqual([]);
+  });
+
+  it("emits total_tool_turns on a tool_turn_denominator event (#3320)", () => {
+    const root = freshRoot("run-summary-denom-");
+    const out = join(root, "summary.jsonl");
+    const emitter = new RunSummaryEmitter({
+      projectRoot: root,
+      sessionId: "sess-denom",
+      frameworkVersion: "0.0.0",
+      env: { [ENV_RUN_SUMMARY_PATH]: out },
+    });
+    const result = emitter.emitToolTurnDenominator({ total_tool_turns: 32 });
+    expect(result.emitted).toBe(true);
+    const line = JSON.parse(readFileSync(out, "utf8").trim()) as {
+      event: string;
+      total_tool_turns: number;
+      payload: { total_tool_turns: number };
+    };
+    expect(line.event).toBe("tool_turn_denominator");
+    expect(line.total_tool_turns).toBe(32);
+    expect(line.payload.total_tool_turns).toBe(32);
+  });
+
+  it("stays silent for tool_turn_denominator when path is unset (#3320)", () => {
+    const root = freshRoot("run-summary-denom-silent-");
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    const emitter = new RunSummaryEmitter({
+      projectRoot: root,
+      sessionId: "s",
+      frameworkVersion: "0.0.0",
+      env: {},
+      gitignoreCovers: () => false,
+      writeStdout: (line) => stdout.push(line),
+      writeStderr: (line) => stderr.push(line),
+    });
+    const result = emitter.emitToolTurnDenominator({ total_tool_turns: 10 });
+    expect(result.emitted).toBe(false);
+    expect(stdout).toEqual([]);
+    expect(stderr).toEqual([]);
+  });
+
+  it("stamps DEFT_TOTAL_TOOL_TURNS onto production events when set (#3320)", () => {
+    const root = freshRoot("run-summary-env-denom-");
+    const out = join(root, "summary.jsonl");
+    const emitter = new RunSummaryEmitter({
+      projectRoot: root,
+      sessionId: "sess-env",
+      frameworkVersion: "0.0.0",
+      env: { [ENV_RUN_SUMMARY_PATH]: out, [ENV_TOTAL_TOOL_TURNS]: "40" },
+    });
+    emitter.emitCheckInvocation({ target: "check:consumer", exit_code: 0, gates: [] });
+    const line = JSON.parse(readFileSync(out, "utf8").trim()) as {
+      event: string;
+      total_tool_turns?: number;
+    };
+    expect(line.event).toBe("check_invocation");
+    expect(line.total_tool_turns).toBe(40);
+  });
+
+  it("does not invent a denominator from an invalid DEFT_TOTAL_TOOL_TURNS (#3320)", () => {
+    const root = freshRoot("run-summary-env-bad-");
+    const out = join(root, "summary.jsonl");
+    const emitter = new RunSummaryEmitter({
+      projectRoot: root,
+      sessionId: "sess-env-bad",
+      frameworkVersion: "0.0.0",
+      env: { [ENV_RUN_SUMMARY_PATH]: out, [ENV_TOTAL_TOOL_TURNS]: "nope" },
+    });
+    emitter.emitCheckInvocation({ target: "check:consumer", exit_code: 0, gates: [] });
+    const line = JSON.parse(readFileSync(out, "utf8").trim()) as {
+      total_tool_turns?: number;
+    };
+    expect(line.total_tool_turns).toBeUndefined();
+  });
+
+  it("emits tool_turn_denominator from production emitKnown when env is set (#3320)", () => {
+    const root = freshRoot("run-summary-known-");
+    const out = join(root, "summary.jsonl");
+    const emitter = new RunSummaryEmitter({
+      projectRoot: root,
+      sessionId: "sess-known",
+      frameworkVersion: "0.0.0",
+      env: { [ENV_RUN_SUMMARY_PATH]: out, [ENV_TOTAL_TOOL_TURNS]: "12" },
+    });
+    const missing = new RunSummaryEmitter({
+      projectRoot: root,
+      sessionId: "sess-known-missing",
+      frameworkVersion: "0.0.0",
+      env: { [ENV_RUN_SUMMARY_PATH]: out },
+    });
+    expect(missing.emitKnownToolTurnDenominator().emitted).toBe(false);
+    expect(emitter.emitKnownToolTurnDenominator().emitted).toBe(true);
+    const lines = readFileSync(out, "utf8")
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l) as { event: string; total_tool_turns?: number });
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.event).toBe("tool_turn_denominator");
+    expect(lines[0]?.total_tool_turns).toBe(12);
   });
 });
