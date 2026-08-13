@@ -10,6 +10,7 @@ import {
   type LiteralAcceptanceCommand,
   readStoredLiteralAcceptanceCommands,
 } from "../literal-acceptance/index.js";
+import { readAcceptanceClauses, serializeAcceptanceClauses } from "../verify-ac/clauses.js";
 import {
   type AcceptanceCommand,
   type AcSourceRung,
@@ -87,6 +88,22 @@ export function validatePlanAcceptance(value: unknown): string[] {
   if ("source_rung" in rec && rec.source_rung !== undefined && !isAcSourceRung(rec.source_rung)) {
     errors.push('plan.acceptance.source_rung must be "stated" | "derived" | "project_floor"');
   }
+  if ("clauses" in rec && rec.clauses !== undefined && !Array.isArray(rec.clauses)) {
+    errors.push("plan.acceptance.clauses must be an array");
+  }
+  if (Array.isArray(rec.clauses)) {
+    rec.clauses.forEach((entry, index) => {
+      const row = asRecord(entry);
+      if (row === null) {
+        errors.push(`plan.acceptance.clauses[${index}] must be an object`);
+        return;
+      }
+      const text = isNonEmptyString(row.text) ? row.text.trim() : "";
+      if (text.length === 0) {
+        errors.push(`plan.acceptance.clauses[${index}].text must be a non-empty string`);
+      }
+    });
+  }
   const commands = coerceCommands(rec.commands);
   const noneStated = rec.none_stated === true;
   if (commands.length === 0 && !noneStated) {
@@ -132,6 +149,7 @@ export function readPlanAcceptance(
       if (noneStated && commands.length === 0) {
         sourceRung = isAcSourceRung(rec.source_rung) ? rec.source_rung : "project_floor";
       }
+      const clauses = readAcceptanceClauses(rec);
       return {
         commands,
         none_stated: noneStated,
@@ -141,6 +159,7 @@ export function readPlanAcceptance(
           : isNonEmptyString(rec.derivedReason)
             ? rec.derivedReason
             : null,
+        ...(clauses.length > 0 ? { clauses } : {}),
       };
     }
   }
@@ -210,6 +229,9 @@ export function attachPlanAcceptance(
   };
   if (acceptance.derived_reason) {
     serializable.derived_reason = acceptance.derived_reason;
+  }
+  if (acceptance.clauses !== undefined && acceptance.clauses.length > 0) {
+    serializable.clauses = serializeAcceptanceClauses(acceptance.clauses);
   }
 
   let next: Record<string, unknown> = {
