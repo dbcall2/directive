@@ -25,6 +25,14 @@ import {
   resolveCeremonyDial,
   resolveSessionCeremonyDialInputs,
 } from "../policy/ceremony-dial.js";
+import {
+  type CeremonyStartTierProvenance,
+  emitCeremonyDialEscalationEvaluation,
+  evaluateSessionStartCeremonyDialEscalation,
+  formatCeremonyDialPinBypassLine,
+  isCeremonyStartTierPinned,
+  resolveCeremonyStartTierProvenance,
+} from "../policy/ceremony-dial-escalation.js";
 import { maybeFormatCoverageCheckResumeDisclosure } from "../policy/coverage-debt.js";
 import {
   DEFT_DIRECTIVE_DISABLE_FLAG_NAME,
@@ -249,6 +257,11 @@ export interface SessionStartOptions {
    * loads plan.policy.ceremonyDial and applies inputs (after provisional fill).
    */
   readonly ceremonyDial?: CeremonyDialSelection;
+  /**
+   * #3319: start-tier provenance hint. CLI `--ceremony-depth` / harness pin
+   * should pass `external-pin`. Policy override is inferred as `operator`.
+   */
+  readonly ceremonyDialStartTierProvenance?: CeremonyStartTierProvenance;
   /**
    * #3282: done-gate toolchain preflight seams (tests inject result or probe).
    * When omitted, runs live preflight after verify_tools on cold path.
@@ -1095,6 +1108,11 @@ export function runSessionStart(
     });
   const ceremonyDialSelection: CeremonyDialSelection =
     options.ceremonyDial ?? resolveCeremonyDial(projectRoot, { inputs: resolvedDialInputs });
+  const startTierProvenance = resolveCeremonyStartTierProvenance({
+    selection: ceremonyDialSelection,
+    injectedSelection: options.ceremonyDial !== undefined,
+    hint: options.ceremonyDialStartTierProvenance,
+  });
   const effectiveDeferrals = mergeCeremonyDialDeferrals(deferrals, ceremonyDialSelection);
   const skipFatPath = ceremonyDialSelection.profile.skipFatPath;
 
@@ -1137,7 +1155,15 @@ export function runSessionStart(
     instant,
   );
   const lines: string[] = [];
-  lines.push(formatCeremonyDialStatusLine(ceremonyDialSelection));
+  lines.push(
+    formatCeremonyDialStatusLine(ceremonyDialSelection, {
+      startTierProvenance,
+    }),
+  );
+  const pinBypassLine = formatCeremonyDialPinBypassLine(startTierProvenance);
+  if (pinBypassLine !== null) {
+    lines.push(pinBypassLine);
+  }
   if (provisionalDial.reasons.length > 0 && options.ceremonyDial === undefined) {
     lines.push(`[deft ceremony-dial] provisional: ${provisionalDial.reasons.join("; ")}`);
   }
@@ -1504,6 +1530,8 @@ export function runSessionStart(
   const coldSessionId = (options.newSessionId ?? randomUUID)();
   const dialDict = {
     ...ceremonyDialToDict(ceremonyDialSelection),
+    start_tier: ceremonyDialSelection.depth,
+    start_tier_provenance: startTierProvenance,
     provisional: {
       taskSize: provisionalDial.taskSize,
       modelTier: provisionalDial.modelTier,
@@ -1587,6 +1615,18 @@ export function runSessionStart(
             }
           : {}),
       });
+      // #3319: evaluate escalate-on-evidence only when #3274 is live. A pin
+      // emits nothing so never-evaluated stays distinguishable from declined.
+      if (!isCeremonyStartTierPinned(startTierProvenance)) {
+        emitCeremonyDialEscalationEvaluation({
+          projectRoot,
+          sessionId: coldSessionId,
+          env: options.env,
+          evaluation: evaluateSessionStartCeremonyDialEscalation({
+            selection: ceremonyDialSelection,
+          }),
+        });
+      }
     } catch {
       // fail-open
     }
