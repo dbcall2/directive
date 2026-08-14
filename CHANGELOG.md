@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.104.0] - 2026-08-14
+
+> Always-on writing bar (clarity, simplicity, brevity), telemetry dead-surface detector, ceremony-dial evidence, and done-gate/session/UAT/origin-freshness fixes.
+
 > Always-on writing bar: clarity, simplicity, brevity for documents and communications (#3368).
 
 ### Added
@@ -5309,7 +5321,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.103.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.104.0...HEAD
+[0.104.0]: https://github.com/deftai/directive/compare/v0.103.0...v0.104.0
 [0.103.0]: https://github.com/deftai/directive/compare/v0.102.0...v0.103.0
 [0.102.0]: https://github.com/deftai/directive/compare/v0.101.0...v0.102.0
 [0.101.0]: https://github.com/deftai/directive/compare/v0.100.0...v0.101.0

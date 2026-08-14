@@ -38,8 +38,21 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1218 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1231 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#3372** -- bug(doctor,hooks): advisory #3242 completed-open-items hard-blocks Write/Task so official recovery is unreachable -- `[completed]`
+- **#3362** -- feat(check,telemetry): telemetry-coverage dead-surface detector - every event kind needs a production caller and a field-shaped fixture -- `[completed]`
+- **#3368** -- docs: always-on writing bar (clarity, simplicity, brevity) for docs and communications -- `[completed]`
+- **#3356** -- bug(telemetry): tool_turn_denominator has no production callers - shipped in schema, never emitted; #3352 trigger still unevaluable (#3320 residual) -- `[completed]`
+- **#3355** -- bug(telemetry,verify-ac): acceptance events absent in field streams - stamp emission bound solely to issue:ingest; verify:ac emitted no outcome events across fail AND pass paths in a real trial -- `[completed]`
+- **#3363** -- bug(lifecycle): origin GitHub updates after ingest are not fail-closed at activate; reconcile:issues lacks the documented stale-content bucket -- `[completed]`
+- **#3351** -- investigation(verification): the one remaining hard-task gap vs 0.92 - read the new run's acceptance-clause telemetry and disposition the ambiguous-clause branch (re-scope of closed #3321) -- `[completed]`
+- **#3357** -- bug(check,scope): completion vacates the done-gate - scope:complete then check yields soft-missing green with nothing verified (third fail-open edge after #3334/#3335) -- `[completed]`
+- **#3360** -- bug(intake,scope): clause derivation never engages on hand-authored briefs - #3334 forces plan.acceptance to exist but nothing routes through #3323 decomposition (branch-3 fix from #3351) -- `[completed]`
+- **#3358** -- feat(dial): escalation evaluation has no evidence source in consumer runs - inputs permanently null, every evaluation declines identically (#3319 follow-up) -- `[completed]`
+- **#3350** -- bug(run-summary): seq is 1 on every emitted line - per-process emitter never seeds from the target file; seqSeed has no callers (#3320 post-close residual) -- `[completed]`
+- **#3361** -- bug(run-summary): seq lock live-holder reclaim needs ownership check (#3350 residual) -- `[completed]`
+- **#3354** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3336 UAT Shell residuals (nc/7zz/msgfmt… plant authz grants + kill-switch) + slices.jsonl leaf diversion -- `[completed]`
 - **#3315** -- docs(skills): overlap dispose via decision:write + list-before-recommend -- `[completed]`
 - **#3323** -- feat(intake,verification): rung-2 derived AC - decompose the task statement into testable clauses at intake, walk every clause against shipped artifacts at done (sharpens #3267/#3284) -- `[completed]`
 - **#3334** -- bug(verify-ac,check): empty-resolution soft pass presents as green run - unstamped acceptance yields a fail-open done-gate that licenses stopping; scope:activate must refuse acceptance-shaped narratives without plan.acceptance -- `[completed]`
@@ -52,17 +65,4 @@ _Showing 25 of 1218 completed scopes (newest first). Full history: lifecycle `co
 - **#3320** -- bug(session,telemetry): #3286 Later graduation trigger reads a tool-call share the #3282 run summary never emits - counts without a denominator -- `[completed]`
 - **#3319** -- bug(policy,session): ceremony dial emits no escalation-evaluation event - a declined escalation and a never-evaluated one are indistinguishable, and an externally pinned start tier silently bypasses #3274 -- `[completed]`
 - **#3321** -- bug(regression): two hard-task regressions introduced at 0.99 survive 0.101 - field-solved and directive-solved at 0.92, and the done-gate turn-sink explanation is now disconfirmed -- `[completed]`
-- **#3314** -- refactor: retire the coverageDebt/checkResume ritual; keep two plain settings -- `[completed]`
-- **#3313** -- fix(agents-entry,preamble): Rule Authority [AXIOM] + Thin Fail-Closed (#3265) unreachable from agent entry surfaces -- `[completed]`
-- **#3311** -- AppSec: 2 HIGH — post-#3288 UAT Shell residuals (alt bins plant authz grants + kill-switch) -- `[completed]`
-- **#3305** -- [framework-gap] scope:complete evidence schema conflicts with vBRIEF conformance -- `[completed]`
-- **#2712** -- feat(doctor): optional deterministic session coda on interactive doctor success -- `[completed]`
-- **#3291** -- [framework-gap] authz:grant cannot mint scope:decompose structural bindings -- `[completed]`
-- **#3124** -- feat(session,triage): operator discovery for SCM label mirror (after #1423 Wave 2) -- `[completed]`
-- **#3299** -- docs(labels): consumer issue-label kit should mention optional security routing label -- `[completed]`
-- **#3286** -- feat(session,agents): orientation compression Now+Later - compose doctor+preflight into session:start, deposit-sha fast-path, compact flag; graduate to unified deft orient on telemetry trigger (#2899 dual-path) -- `[completed]`
-- **#3287** -- coverage-debt: restore vitest branch coverage >=85% after v0.100.0 hairline (84.96%) -- `[completed]`
-- **#3267** -- feat(verification,strategies): literal acceptance-command verification - capture exact stated commands at intake, run verbatim before done -- `[completed]`
-- **#3266** -- feat(build,session): budget-aware effort sizing - bank the pass before deepening -- `[completed]`
-- **#3273** -- feat(swarm,review-cycle): operator follow-up path after dual-stop / hard stop (consumer + maintainer) -- `[completed]`
 
