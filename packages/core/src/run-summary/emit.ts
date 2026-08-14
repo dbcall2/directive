@@ -6,10 +6,15 @@
  * Symlink destinations are refused (no-follow / containment) — fail-open.
  */
 
-import { mkdirSync, realpathSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, realpathSync, unlinkSync } from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { readCorePackageVersion } from "../engine-version.js";
-import { containedWrite } from "../fs/contained-write.js";
+import {
+  ContainedWriteError,
+  ContainedWriteErrorCode,
+  containedWrite,
+} from "../fs/contained-write.js";
 import { assertWriteTargetSafe } from "../fs/projection-containment.js";
 import { type ResolveRunSummaryDestinationOptions, resolveRunSummaryDestination } from "./path.js";
 import {
@@ -131,7 +136,179 @@ function writeRunSummaryLine(
 }
 
 /**
- * Stateful emitter: one instance per session tracks seq and write-warning once.
+ * Count non-empty lines in an existing append-only JSONL. Missing/unreadable
+ * files seed at 0 (fail-open). Used so a fresh CLI process continues seq
+ * from the destination file instead of resetting to 1 (#3350).
+ */
+function countExistingJsonlLines(path: string): number {
+  try {
+    if (!existsSync(path)) {
+      return 0;
+    }
+    const text = readFileSync(path, "utf8");
+    if (text.length === 0) {
+      return 0;
+    }
+    let count = 0;
+    for (const line of text.split(/\r?\n/)) {
+      if (line.trim().length > 0) {
+        count += 1;
+      }
+    }
+    return count;
+  } catch {
+    return 0;
+  }
+}
+
+function seedSeqFromDestination(destination: RunSummaryDestination): number {
+  if (destination.kind !== "file") {
+    return 0;
+  }
+  return countExistingJsonlLines(destination.path);
+}
+
+const SEQ_LOCK_WAIT_MS = 2_000;
+const SEQ_LOCK_SPIN_MS = 15;
+
+/** Owner token stored in `.seq.lock` so reclaim is not age-based (#3361). */
+export interface SeqLockOwner {
+  readonly pid: number;
+  readonly nonce: string;
+}
+
+function isErrno(err: unknown, code: string): boolean {
+  return Boolean(err && typeof err === "object" && "code" in err && err.code === code);
+}
+
+function isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    // EPERM: process exists but we cannot signal it — treat as live.
+    return isErrno(err, "EPERM");
+  }
+}
+
+function parseSeqLockOwner(raw: string): SeqLockOwner | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== "object") {
+      return null;
+    }
+    const pid = (parsed as { pid?: unknown }).pid;
+    const nonce = (parsed as { nonce?: unknown }).nonce;
+    if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0) {
+      return null;
+    }
+    if (typeof nonce !== "string" || nonce.length === 0) {
+      return null;
+    }
+    return { pid, nonce };
+  } catch {
+    return null;
+  }
+}
+
+function newSeqLockOwner(): SeqLockOwner {
+  return { pid: process.pid, nonce: randomBytes(8).toString("hex") };
+}
+
+function serializeSeqLockOwner(owner: SeqLockOwner): string {
+  return `${JSON.stringify({ pid: owner.pid, nonce: owner.nonce })}\n`;
+}
+
+/**
+ * Reclaim `.seq.lock` only when the owner process is dead or the token is
+ * missing/unreadable/corrupt (unknown owner). Live holders are never stolen
+ * by mtime (#3361).
+ */
+export function tryReclaimSeqLock(lockPath: string): boolean {
+  try {
+    const owner = parseSeqLockOwner(readFileSync(lockPath, "utf8"));
+    if (owner !== null && isPidAlive(owner.pid)) {
+      return false;
+    }
+    unlinkSync(lockPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Unlink `.seq.lock` only when the on-disk token still matches this holder
+ * (ownership-blind release must not delete a successor's lock).
+ */
+export function releaseSeqLockIfOwner(lockPath: string, owner: SeqLockOwner): boolean {
+  try {
+    const current = parseSeqLockOwner(readFileSync(lockPath, "utf8"));
+    if (current === null || current.pid !== owner.pid || current.nonce !== owner.nonce) {
+      return false;
+    }
+    unlinkSync(lockPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Cross-process exclusive lock so count-then-append is one critical section
+ * (#3350 / #3361). Fail-open: if the lock cannot be acquired within the wait
+ * window, emit still proceeds with a best-effort recount. Reclaim is allowed
+ * only when the owner process is dead or the token is unknown — never by
+ * mtime of a live holder.
+ */
+function acquireSeqLock(targetPath: string): () => void {
+  const noop = () => {
+    /* fail-open: no lock held */
+  };
+  try {
+    const targetAbs = resolve(targetPath);
+    const parent = dirname(targetAbs);
+    mkdirSync(parent, { recursive: true });
+    const lockPath = `${targetAbs}.seq.lock`;
+    const deadline = Date.now() + SEQ_LOCK_WAIT_MS;
+    while (true) {
+      const owner = newSeqLockOwner();
+      try {
+        containedWrite({
+          root: parent,
+          target: lockPath,
+          data: serializeSeqLockOwner(owner),
+          mode: "create",
+        });
+        return () => {
+          releaseSeqLockIfOwner(lockPath, owner);
+        };
+      } catch (err) {
+        if (err instanceof ContainedWriteError && err.code === ContainedWriteErrorCode.EXISTS) {
+          if (tryReclaimSeqLock(lockPath)) {
+            continue;
+          }
+          if (Date.now() < deadline) {
+            const spinEnd = Date.now() + SEQ_LOCK_SPIN_MS;
+            while (Date.now() < spinEnd) {
+              /* brief spin */
+            }
+            continue;
+          }
+        }
+        return noop;
+      }
+    }
+  } catch {
+    return noop;
+  }
+}
+
+/**
+ * Stateful emitter: one instance tracks seq and write-warning once.
+ * File destinations seed seq from the current JSONL line count so multiple
+ * CLI processes appending to one DEFT_RUN_SUMMARY_PATH share 1..N (#3350).
+ * Stdout destinations stay per-process (each constructor starts at 0).
  */
 export class RunSummaryEmitter {
   private seq = 0;
@@ -157,6 +334,7 @@ export class RunSummaryEmitter {
         env: this.env,
         gitignoreCovers: options.gitignoreCovers,
       });
+    this.seq = seedSeqFromDestination(this.destination);
     this.writeStdout = options.writeStdout ?? ((line) => process.stdout.write(`${line}\n`));
     this.writeStderr = options.writeStderr ?? ((line) => process.stderr.write(`${line}\n`));
   }
@@ -165,45 +343,60 @@ export class RunSummaryEmitter {
     return this.destination;
   }
 
+  private buildLine(event: RunSummaryEventKind, payload: RunSummaryPayload): RunSummaryLine {
+    const denominator =
+      readPayloadToolTurnDenominator(payload) ?? readEnvToolTurnDenominator(this.env);
+    return {
+      schema_version: RUN_SUMMARY_SCHEMA_VERSION,
+      session_id: this.sessionId,
+      framework_version: this.frameworkVersion,
+      seq: this.seq,
+      ts: this.now().toISOString(),
+      event,
+      payload,
+      ...(denominator !== undefined ? { total_tool_turns: denominator } : {}),
+    };
+  }
+
   emit(event: RunSummaryEventKind, payload: RunSummaryPayload): EmitRunSummaryResult {
     try {
       if (this.destination.kind === "silent") {
         return { emitted: false, destination: this.destination, line: null, warning: false };
       }
-      this.seq += 1;
-      const denominator =
-        readPayloadToolTurnDenominator(payload) ?? readEnvToolTurnDenominator(this.env);
-      const line: RunSummaryLine = {
-        schema_version: RUN_SUMMARY_SCHEMA_VERSION,
-        session_id: this.sessionId,
-        framework_version: this.frameworkVersion,
-        seq: this.seq,
-        ts: this.now().toISOString(),
-        event,
-        payload,
-        ...(denominator !== undefined ? { total_tool_turns: denominator } : {}),
-      };
-      const text = lineToJson(line);
 
       if (this.destination.kind === "stdout") {
-        this.writeStdout(`${RUN_SUMMARY_STDOUT_PREFIX}${text}`);
+        this.seq += 1;
+        const line = this.buildLine(event, payload);
+        this.writeStdout(`${RUN_SUMMARY_STDOUT_PREFIX}${lineToJson(line)}`);
         return { emitted: true, destination: this.destination, line, warning: false };
       }
 
-      // file destination — no-follow containment (#3282 Greptile P1 security)
+      // file destination — lock count-then-append so concurrent CLI processes
+      // cannot share the same next seq (#3350 Greptile P1).
       const { path, truncateOnSessionStart, explicit } = this.destination;
+      const release = acquireSeqLock(path);
       try {
-        const mode = event === "session_start" && truncateOnSessionStart ? "replace" : "append";
-        writeRunSummaryLine(this.projectRoot, path, text, mode);
+        const replace = event === "session_start" && truncateOnSessionStart;
+        this.seq = replace ? 1 : countExistingJsonlLines(path) + 1;
+        const line = this.buildLine(event, payload);
+        writeRunSummaryLine(
+          this.projectRoot,
+          path,
+          lineToJson(line),
+          replace ? "replace" : "append",
+        );
         return { emitted: true, destination: this.destination, line, warning: false };
       } catch {
         // Symlink / containment refusal and I/O both fail-open.
+        const line = this.buildLine(event, payload);
         if (explicit && !this.warned) {
           this.warned = true;
           this.writeStderr(RUN_SUMMARY_WRITE_WARNING);
           return { emitted: false, destination: this.destination, line, warning: true };
         }
         return { emitted: false, destination: this.destination, line, warning: false };
+      } finally {
+        release();
       }
     } catch {
       return { emitted: false, destination: this.destination, line: null, warning: false };
@@ -277,7 +470,9 @@ export function readEnvToolTurnDenominator(env: NodeJS.ProcessEnv): number | und
 
 /**
  * One-shot helper for call sites that do not hold an emitter (e.g. dial escalate).
- * Still fail-open; creates a fresh seq=1 emitter unless `seqSeed` is passed via reuse.
+ * Still fail-open. File destinations seed seq from the existing JSONL line
+ * count so successive one-shot calls into the same path continue 1..N (#3350).
+ * Stdout destinations stay per-process (each call starts at seq=1).
  */
 export function emitRunSummaryEvent(
   options: RunSummaryEmitterOptions & {

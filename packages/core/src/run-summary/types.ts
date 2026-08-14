@@ -40,7 +40,14 @@ export interface RunSummaryBaseFields {
   readonly schema_version: typeof RUN_SUMMARY_SCHEMA_VERSION;
   readonly session_id: string;
   readonly framework_version: string;
-  /** Monotonic per-emitter sequence (1-based). */
+  /**
+   * Monotonic 1-based sequence for this destination (#3350).
+   * File destinations continue from the existing JSONL line count so multiple
+   * CLI processes appending to one DEFT_RUN_SUMMARY_PATH share 1..N. Concurrent
+   * file writers serialize count-then-append via a sibling lock; reclaim is
+   * allowed only when the lock owner process is dead or the token is unknown
+   * (#3361). Stdout destinations stay per-process (each process starts at 1).
+   */
   readonly seq: number;
   readonly ts: string;
   readonly event: RunSummaryEventKind;
