@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.103.0] - 2026-08-14
+
+> Wave 5 Code Mode + context partitioning, #607 CI triage, #3337 scope-namespaced verify:ac oracle ids, and #3345 loadable deft-core-guard.
+
+### Added
+
 - **Code Mode pattern (#2593).** `content/patterns/code-mode.md`: compact `search`/`describe` + sandboxed `execute` over large static tool catalogs; progressive discovery; job split (ephemeral compose vs named durable ops #2087 vs host explore); anti-patterns and non-goals; public citations. Pointers from `tool-design.md` complementarity and `llm-app.md` tool-call section. Wave 5 under #3179.
 
 - **Context partitioning + handles (#487).** Names human-curated context partitioning on Select strategy; prefer handles (paths, pack slices, xbrief ids, cache keys) over paste; RLM as optional qualified citation only (not identity rewrite). Short partition→recurse→combine in `long-horizon.md`. Cross-link Code Mode twin. Wave 5 under #3179.
@@ -5278,7 +5290,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.102.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.103.0...HEAD
+[0.103.0]: https://github.com/deftai/directive/compare/v0.102.0...v0.103.0
 [0.102.0]: https://github.com/deftai/directive/compare/v0.101.0...v0.102.0
 [0.101.0]: https://github.com/deftai/directive/compare/v0.100.0...v0.101.0
 [0.100.0]: https://github.com/deftai/directive/compare/v0.99.0...v0.100.0
