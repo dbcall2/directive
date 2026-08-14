@@ -1,0 +1,206 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { newRitualStatePayload, writeRitualState } from "../session/ritual-sentinel.js";
+import {
+  resolveSessionCompletedVerifyAcTarget,
+  SESSION_COMPLETED_AC_REMEDIATION,
+  writeSessionCompletedMarker,
+} from "./session-completed-ac.js";
+
+function writeCompleted(
+  root: string,
+  name: string,
+  meta: Record<string, unknown>,
+  dirName = "xbrief",
+): string {
+  const dir = join(root, dirName, "completed");
+  mkdirSync(dir, { recursive: true });
+  const path = join(dir, name);
+  writeFileSync(
+    path,
+    JSON.stringify({
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: name,
+        status: "completed",
+        metadata: meta,
+      },
+    }),
+    "utf8",
+  );
+  return path;
+}
+
+describe("resolveSessionCompletedVerifyAcTarget (#3357)", () => {
+  it("returns none when no completed briefs exist", () => {
+    const root = mkdtempSync(join(tmpdir(), "sess-ac-none-"));
+    expect(
+      resolveSessionCompletedVerifyAcTarget({
+        projectRoot: root,
+        sessionId: "sess-1",
+      }),
+    ).toEqual({ kind: "none" });
+  });
+
+  it("returns none when session is unknown even if completed briefs exist", () => {
+    const root = mkdtempSync(join(tmpdir(), "sess-ac-unk-"));
+    writeCompleted(root, "old.xbrief.json", {
+      completedAt: "2026-01-01T00:00:00Z",
+    });
+    expect(
+      resolveSessionCompletedVerifyAcTarget({
+        projectRoot: root,
+        env: {},
+      }),
+    ).toEqual({ kind: "none" });
+  });
+
+  it("targets the most recent same-session completed brief", () => {
+    const root = mkdtempSync(join(tmpdir(), "sess-ac-hit-"));
+    writeCompleted(root, "older.xbrief.json", {
+      completedAt: "2026-08-14T10:00:00Z",
+      completedSessionId: "sess-1",
+    });
+    const latest = writeCompleted(root, "newer.xbrief.json", {
+      completedAt: "2026-08-14T12:00:00Z",
+      completedSessionId: "sess-1",
+    });
+    writeCompleted(root, "other-session.xbrief.json", {
+      completedAt: "2026-08-14T13:00:00Z",
+      completedSessionId: "sess-2",
+    });
+    expect(
+      resolveSessionCompletedVerifyAcTarget({
+        projectRoot: root,
+        sessionId: "sess-1",
+      }),
+    ).toEqual({ kind: "target", path: latest });
+  });
+
+  it("does not mix DEFT_SESSION_ID with a different ritual startedAt", () => {
+    const root = mkdtempSync(join(tmpdir(), "sess-ac-mix-"));
+    writeRitualState(
+      root,
+      newRitualStatePayload({
+        sessionId: "ritual-sess",
+        gitHead: "abc1234",
+        worktreePath: root,
+        startedAt: new Date("2026-08-14T10:00:00Z"),
+      }),
+    );
+    writeCompleted(root, "unstamped.xbrief.json", {
+      completedAt: "2026-08-14T11:00:00Z",
+    });
+    expect(
+      resolveSessionCompletedVerifyAcTarget({
+        projectRoot: root,
+        env: { DEFT_SESSION_ID: "env-sess" },
+      }),
+    ).toEqual({ kind: "none" });
+  });
+
+  it("does not select a newer brief stamped for a different session", () => {
+    const root = mkdtempSync(join(tmpdir(), "sess-ac-other-"));
+    const ours = writeCompleted(root, "ours.xbrief.json", {
+      completedAt: "2026-08-14T11:00:00Z",
+      completedSessionId: "sess-1",
+    });
+    writeCompleted(root, "theirs.xbrief.json", {
+      completedAt: "2026-08-14T13:00:00Z",
+      completedSessionId: "sess-2",
+    });
+    expect(
+      resolveSessionCompletedVerifyAcTarget({
+        projectRoot: root,
+        sessionId: "sess-1",
+        sessionStartedAt: new Date("2026-08-14T10:00:00Z"),
+      }),
+    ).toEqual({ kind: "target", path: ours });
+  });
+
+  it("matches completedAt after session start when session id was not stamped", () => {
+    const root = mkdtempSync(join(tmpdir(), "sess-ac-time-"));
+    writeCompleted(root, "before.xbrief.json", {
+      completedAt: "2026-08-14T09:00:00Z",
+    });
+    const during = writeCompleted(root, "during.xbrief.json", {
+      completedAt: "2026-08-14T11:00:00Z",
+    });
+    expect(
+      resolveSessionCompletedVerifyAcTarget({
+        projectRoot: root,
+        sessionId: "sess-time",
+        sessionStartedAt: new Date("2026-08-14T10:00:00Z"),
+      }),
+    ).toEqual({ kind: "target", path: during });
+  });
+
+  it("returns cannot when the last-completed marker is malformed even if other briefs exist", () => {
+    const root = mkdtempSync(join(tmpdir(), "sess-ac-bad-marker-"));
+    writeCompleted(root, "other.xbrief.json", {
+      completedAt: "2026-08-14T10:00:00Z",
+      completedSessionId: "sess-other",
+    });
+    mkdirSync(join(root, ".deft"), { recursive: true });
+    writeFileSync(join(root, ".deft", "last-completed.json"), "{not-json", "utf8");
+    expect(
+      resolveSessionCompletedVerifyAcTarget({
+        projectRoot: root,
+        sessionId: "sess-1",
+      }),
+    ).toEqual({ kind: "cannot", message: SESSION_COMPLETED_AC_REMEDIATION });
+  });
+
+  it("returns cannot when this session marker path is unreadable even if other briefs exist", () => {
+    const root = mkdtempSync(join(tmpdir(), "sess-ac-marker-"));
+    writeCompleted(root, "other.xbrief.json", {
+      completedAt: "2026-08-14T10:00:00Z",
+      completedSessionId: "sess-other",
+    });
+    const dest = join(root, "xbrief", "completed", "ours-broken.xbrief.json");
+    mkdirSync(join(root, "xbrief", "completed"), { recursive: true });
+    writeFileSync(dest, "{not-json", "utf8");
+    writeSessionCompletedMarker(root, {
+      path: dest,
+      sessionId: "sess-1",
+      completedAt: "2026-08-14T12:00:00Z",
+    });
+    expect(
+      resolveSessionCompletedVerifyAcTarget({
+        projectRoot: root,
+        sessionId: "sess-1",
+      }),
+    ).toEqual({ kind: "cannot", message: SESSION_COMPLETED_AC_REMEDIATION });
+  });
+
+  it("returns cannot when an unreadable completed brief exists beside another session", () => {
+    const root = mkdtempSync(join(tmpdir(), "sess-ac-mixed-"));
+    writeCompleted(root, "other.xbrief.json", {
+      completedAt: "2026-08-14T10:00:00Z",
+      completedSessionId: "sess-other",
+    });
+    const dest = join(root, "xbrief", "completed", "ours-broken.xbrief.json");
+    writeFileSync(dest, "{not-json", "utf8");
+    expect(
+      resolveSessionCompletedVerifyAcTarget({
+        projectRoot: root,
+        sessionId: "sess-1",
+      }),
+    ).toEqual({ kind: "cannot", message: SESSION_COMPLETED_AC_REMEDIATION });
+  });
+
+  it("returns cannot with the single remediation when every completed brief is unreadable", () => {
+    const root = mkdtempSync(join(tmpdir(), "sess-ac-bad-"));
+    const dir = join(root, "xbrief", "completed");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "broken.xbrief.json"), "{not-json", "utf8");
+    expect(
+      resolveSessionCompletedVerifyAcTarget({
+        projectRoot: root,
+        sessionId: "sess-bad",
+      }),
+    ).toEqual({ kind: "cannot", message: SESSION_COMPLETED_AC_REMEDIATION });
+  });
+});
