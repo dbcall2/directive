@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **verify:ac product-oracle check ids are namespaced per active scope (#3337).** Multi-active sessions no longer share one global `verify:ac` check id, so a fail from story A and a pass from story B cannot false-deny as an unresolved method-change sequence. Same-scope fail then different-method pass still fails closed without independent re-derivation. Residual of #3322 / PR #3333. Closes #3337. Refs #3322, #3333.
 
+- **Deposited `deft-core-guard` workflow loads and emits `no-mixed-core-and-app` on pull_request (#3345).** The #3193 pin-content Python heredoc was emitted at column 0, which terminated the YAML `run: |` block so GitHub Actions never adopted `name: deft-core-guard` (registry stayed the path string; runs were 0s/0 jobs) and classic branch protection requiring that check context merge-blocked forever. Python body lines are now indented with the run block; the installer-managed allowlist is one ERE per line via `grep -vE -f` (no ~5k-char shell line). Mix detection semantics unchanged. Consumers need `deft update` / re-deposit to receive the fixed workflow. Closes #3345. Refs #1430, #3193, #3127.
+
 ### Removed
 
 ## [0.102.0] - 2026-08-13
@@ -52,8 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Retire the coverageDebt/checkResume consent ritual; keep two plain settings (#3314).** Session-start no longer quizzes Strict / Hatch-aware / Later. `policy:coverage-check-resume-preset|later|dismiss` and the nudge/preset modules are gone. `coverageDebt.mode` and `checkResume.localStamp` stay as optional fail-closed fields (default off). Interactive mutation ritual prints one disclosure line when either is non-default. Hatch and local stamp are reserved; live hatch is `--allow-coverage-debt=#N` (#2866). Closes #3314. Refs #3189, #3187, #2866.
 
 ### Fixed
-
-- **Deposited `deft-core-guard` workflow loads and emits `no-mixed-core-and-app` on pull_request (#3345).** The #3193 pin-content Python heredoc was emitted at column 0, which terminated the YAML `run: |` block so GitHub Actions never adopted `name: deft-core-guard` (registry stayed the path string; runs were 0s/0 jobs) and classic branch protection requiring that check context merge-blocked forever. Python body lines are now indented with the run block; the installer-managed allowlist is one ERE per line via `grep -vE -f` (no ~5k-char shell line). Mix detection semantics unchanged. Consumers need `deft update` / re-deposit to receive the fixed workflow. Closes #3345. Refs #1430, #3193, #3127.
 
 - **Blacksmith failover no longer skips while required jobs are unclaimed; merge-gate gets a GH-hosted twin (#3340).** Unclaimed means no `runner_name`. `started_at` or a reusable-workflow caller `in_progress` is not a claim. The capacity arm waits the stall budget, then cancels unclaimed TypeScript, Go, and merge-gate primaries and arms GH-hosted failover. The required merge-gate aggregator can go green on the twin. Same-run rerun re-evaluates the arm. Claimed runners are still never cancelled (#2652). Closes #3340. Refs #2672, #3168, #2652, #3333.
 
