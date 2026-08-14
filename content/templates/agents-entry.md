@@ -71,6 +71,10 @@ Legacy `vbrief/` read-accepted; `deft migrate:xbrief` for `xbrief/` (v0.6→v0.8
 ## Thin Fail-Closed Design (#3265)
 ! One fail-closed `task deft:*` check + one remediation. See main.md.
 
+## Continuous Improvement Learning (#607 / #3164)
+
+! After a failure: ask if it could recur with a different query or session. One-off → write and later re-read `./lessons.md` inbox (also load packs:slice; ⊗ hand-edit generated `meta/lessons.md`); recurrable structural → propose skill/directive via issue/PR under Self-Improving gates — never mid-run constitution self-edit. Depth: Continuous Improvement in main.md; stance #3164; optional #666.
+
 ## Through-merge worker dispatch (#3032)
 
 ! On **through merge** / **drive to merge** / land-ship / **drive-to: merge-ready** story intent: parent MUST dispatch a `drive-to: merge-ready` worker (worktree, preflight, pre-pr, review-cycle, merge/`scope:complete`) via the **swarm/solo-worker launch path** even if **cohort size is 1** — parent MUST NOT implement as the leaf. Depth: swarm Phase 0 + skill-pin-policy (#3032 / #1880 Gap C).

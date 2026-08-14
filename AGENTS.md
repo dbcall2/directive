@@ -160,7 +160,7 @@ Same `!` / `⊗` rules as managed below; `task issue:ingest` (#2143).
 
 Note: root-relative paths (this repo IS deft/); run `task agents:refresh` after agents-entry edits (#1309).
 
-<!-- deft:managed-section v3 sha=9415977b33b5 refreshed=2026-08-12T19:18:31Z session=5a99965c5626 -->
+<!-- deft:managed-section v3 sha=7ba22d62390d refreshed=2026-08-14T00:23:38Z session=685f6741f27f -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
@@ -232,6 +232,10 @@ Legacy `vbrief/` read-accepted; `deft migrate:xbrief` for `xbrief/` (v0.6→v0.8
 ! Prefer `task deft:*` over AGENTS.md prose. See main.md.
 ## Thin Fail-Closed Design (#3265)
 ! One fail-closed `task deft:*` check + one remediation. See main.md.
+
+## Continuous Improvement Learning (#607 / #3164)
+
+! After a failure: ask if it could recur with a different query or session. One-off → write and later re-read `./lessons.md` inbox (also load packs:slice; ⊗ hand-edit generated `meta/lessons.md`); recurrable structural → propose skill/directive via issue/PR under Self-Improving gates — never mid-run constitution self-edit. Depth: Continuous Improvement in main.md; stance #3164; optional #666.
 
 ## Through-merge worker dispatch (#3032)
 
