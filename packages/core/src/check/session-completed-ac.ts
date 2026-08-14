@@ -146,9 +146,14 @@ function readCompletedCandidate(path: string): CompletedBriefCandidate | "unread
   }
   const data = asRecord(parsed);
   const plan = asRecord(data?.plan);
-  const meta = asRecord(plan?.metadata);
-  if (plan === null || meta === null) {
+  if (plan === null) {
     return "unreadable";
+  }
+  const meta = asRecord(plan.metadata);
+  if (meta === null) {
+    // Historical completed briefs (pre-#3357) often have no plan.metadata.
+    // That is not an unreadable this-session target (#3375).
+    return { path, completedAtMs: 0, sessionId: null };
   }
   const sessionRaw =
     typeof meta.completedSessionId === "string" ? meta.completedSessionId.trim() : "";

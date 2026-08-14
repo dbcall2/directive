@@ -175,6 +175,27 @@ describe("resolveSessionCompletedVerifyAcTarget (#3357)", () => {
     ).toEqual({ kind: "cannot", message: SESSION_COMPLETED_AC_REMEDIATION });
   });
 
+  it("ignores historical completed briefs that have plan but no metadata (#3375)", () => {
+    const root = mkdtempSync(join(tmpdir(), "sess-ac-legacy-"));
+    const dir = join(root, "xbrief", "completed");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "legacy.xbrief.json"),
+      JSON.stringify({
+        vBRIEFInfo: { version: "0.6" },
+        plan: { title: "legacy", status: "completed", items: [] },
+      }),
+      "utf8",
+    );
+    expect(
+      resolveSessionCompletedVerifyAcTarget({
+        projectRoot: root,
+        sessionId: "sess-1",
+        sessionStartedAt: new Date("2026-08-14T22:14:06Z"),
+      }),
+    ).toEqual({ kind: "none" });
+  });
+
   it("returns cannot when an unreadable completed brief exists beside another session", () => {
     const root = mkdtempSync(join(tmpdir(), "sess-ac-mixed-"));
     writeCompleted(root, "other.xbrief.json", {

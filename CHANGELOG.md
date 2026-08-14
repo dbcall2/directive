@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`verify:ac` no longer fail-closes on historical completed xBRIEFs that lack `plan.metadata` (#3375).** Parseable pre-#3357 completed files are not this-session unreadable targets, so `task check` after `session:start` can soft-skip when nothing completed this session. Broken JSON and a same-session marker at an unreadable path still fail closed. Closes #3375. Refs #3357.
+
 - **Advisory `completed-open-items` no longer fail-closes doctor or Write/Task (#3372).** `cmdDoctor` mapped unlisted check fails to `severity: error`, so `lastErrorCount > 0` and gated ritual / PreToolUse blocked the official recovery (edit completed JSON). The check is now a warning through the findings mapper, same allowlist pattern as other exit-exempt checks. Finding still names artifact paths. `completed-lifecycle-consistency` and new `scope:complete` stay fail-closed. Closes #3372. Refs #3242, #2862.
 
 - **session:start emits `tool_turn_denominator` so ritual share is computable (#3356).** `emitKnownToolTurnDenominator` stayed silent unless `DEFT_TOTAL_TOOL_TURNS` was set, so field streams never got a denominator. session:start now always emits one when `DEFT_RUN_SUMMARY_PATH` is set: harness actuals, else `DEFT_MAX_TURNS` / host `maxTurns`, else this CLI invocation (1). Share is `ritual_events / denominator`. Seq lock protocol unchanged. Closes #3356. Refs #3352, #3320, #3282.
