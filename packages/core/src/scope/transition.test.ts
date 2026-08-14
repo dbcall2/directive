@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { ENV_RUN_SUMMARY_PATH } from "../run-summary/index.js";
 import { atomicWriteBrief, readBriefForMutation } from "./brief-io.js";
 import { detectLifecycleFolder, runTransition } from "./transition.js";
 import { formatBriefJson } from "./vbrief-json.js";
@@ -160,6 +161,117 @@ describe("runTransition", () => {
     const result = runTransition("activate", path);
     expect(result.ok).toBe(true);
     expect(existsSync(join(root, "xbrief", "active", "stamped.xbrief.json"))).toBe(true);
+  });
+
+  it("activates a hand-authored brief only after #3323 clause derivation (#3360)", () => {
+    root = makeRepo();
+    const path = join(root, "xbrief", "pending", "trial.xbrief.json");
+    writeFile(path, {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "Hand-authored trial",
+        status: "pending",
+        narratives: {
+          Overview: `## Acceptance sketch
+- Persist the session token in packages/core/src/session/token.ts
+- Write the verifier to packages/core/src/verify-ac/clauses.ts or packages/core/src/verify-ac/evaluate.ts
+- Cite CHANGELOG.md under Unreleased
+`,
+        },
+        items: [],
+      },
+    });
+    const result = runTransition("activate", path);
+    expect(result.ok).toBe(true);
+    expect(result.message).toMatch(/#3323 clause derivation stamped 3 clause/);
+    expect(result.message).toMatch(/flagged-ambiguous: 1/);
+    expect(result.message).toMatch(/chosen_reading=0/);
+    const dest = join(root, "xbrief", "active", "trial.xbrief.json");
+    const data = JSON.parse(readFileSync(dest, "utf8")) as {
+      plan: {
+        acceptance: {
+          source_rung: string;
+          none_stated: boolean;
+          clauses: { ambiguous: boolean; chosen_reading?: number }[];
+        };
+      };
+    };
+    expect(data.plan.acceptance.source_rung).toBe("derived");
+    expect(data.plan.acceptance.none_stated).toBe(true);
+    expect(data.plan.acceptance.clauses).toHaveLength(3);
+    expect(data.plan.acceptance.clauses[1]?.ambiguous).toBe(true);
+    expect(data.plan.acceptance.clauses[1]?.chosen_reading).toBe(0);
+  });
+
+  it("promotes a command-only brief after stamping derived clauses (#3360)", () => {
+    root = makeRepo();
+    const path = join(root, "xbrief", "proposed", "cmd-only.xbrief.json");
+    writeFile(path, {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "Command only",
+        status: "proposed",
+        narratives: {
+          Overview:
+            "## Acceptance sketch\n- Write the helper to packages/core/src/intake/clause-derivation.ts\n",
+        },
+        acceptance: {
+          commands: [{ command: "pnpm test" }],
+          none_stated: false,
+          source_rung: "stated",
+        },
+        items: [],
+      },
+    });
+    const result = runTransition("promote", path);
+    expect(result.ok).toBe(true);
+    expect(result.message).toMatch(/#3323 clause derivation stamped 1 clause/);
+    const dest = join(root, "xbrief", "pending", "cmd-only.xbrief.json");
+    const data = JSON.parse(readFileSync(dest, "utf8")) as {
+      plan: {
+        acceptance: {
+          source_rung: string;
+          commands: { command: string }[];
+          clauses: unknown[];
+        };
+      };
+    };
+    expect(data.plan.acceptance.source_rung).toBe("stated");
+    expect(data.plan.acceptance.commands).toEqual([{ command: "pnpm test" }]);
+    expect(data.plan.acceptance.clauses).toHaveLength(1);
+  });
+
+  it("does not emit acceptance_stamp when activate is refused after derivation (#3360)", () => {
+    root = makeRepo();
+    const summary = join(root, "summary.jsonl");
+    const prev = process.env[ENV_RUN_SUMMARY_PATH];
+    process.env[ENV_RUN_SUMMARY_PATH] = summary;
+    try {
+      const path = join(root, "xbrief", "pending", "xl-derived.xbrief.json");
+      writeFile(path, {
+        xBRIEFInfo: { version: "0.8" },
+        plan: {
+          title: "XL after derive",
+          status: "pending",
+          narratives: {
+            Overview:
+              "## Acceptance sketch\n- Write the helper to packages/core/src/intake/clause-derivation.ts\n",
+          },
+          items: [{ id: "big", title: "Needs breakdown", status: "pending", effort: "XL" }],
+        },
+      });
+      const result = runTransition("activate", path);
+      expect(result.ok).toBe(false);
+      expect(result.message).toMatch(/effort=XL|#1581/);
+      expect(existsSync(summary)).toBe(false);
+      expect(existsSync(path)).toBe(true);
+    } finally {
+      if (prev === undefined) {
+        delete process.env[ENV_RUN_SUMMARY_PATH];
+      } else {
+        process.env[ENV_RUN_SUMMARY_PATH] = prev;
+      }
+    }
   });
 
   it("completes active to completed with stamp", () => {
