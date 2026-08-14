@@ -1,0 +1,158 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3363",
+    "updated": "2026-08-14T19:34:48Z"
+  },
+  "plan": {
+    "title": "bug(lifecycle): origin GitHub updates after ingest are not fail-closed at activate; reconcile:issues lacks the documented stale-content bucket",
+    "status": "completed",
+    "narratives": {
+      "Description": "After issue:ingest, promote/activate/preflight do not re-read GitHub. A later origin update, especially a comment that supersedes the body, is invisible and workers implement the snapshot. reconcile:issues lacks the stale-content bucket the refinement and sync skills document.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3363",
+      "Overview": "**TL;DR: after `issue:ingest`, a GitHub body or comment change is not mechanically visible to promote / activate / preflight. Workers implement the snapshotted xBRIEF. `reconcile:issues` does not implement the stale-content bucket the refinement and sync skills document. #2143 is prose-only. First ship is one fail-closed tripwire at implementation intent, not auto-merge of origin into the brief.**\n\n## What is true today\n\n- **Ingest is live-first.** `fetchIssue` prefers GitHub, then cache (#1714). Comments are fetched live and folded into the proposed brief (#2143 ingest path).\n- **Promote / activate / preflight do not re-read the origin.** They move folders and flip status.\n- **`task reconcile:issues`** reports open vs closed vs unlinked (and completed-status drift). It does **not** compare origin `updated_at` to the brief `updated` timestamp.\n- **Skill text disagrees.** `deft-directive-refinement` Phase 3 and `deft-directive-sync` Phase 5 say reconcile / sync will flag **stale** when the issue is newer than the brief, then walk the operator. That bucket is not on the engine.\n- **#309 D12** already decided: detect mid-lifecycle origin change; never auto-update the brief; preserve intentional divergence. Detection at activate / dispatch is missing.\n\nThe cache-fresh inventory gate is a different problem (queue inventory, 24h + open-set drift). It does not keep an already-ingested brief current with its origin.\n\n## Why this bites\n\nGitHub remains the origin. After ingest the xBRIEF is the working source of truth and is often *ahead* of the issue (file scope, chosen option, extra AC). Auto-applying origin onto the brief would clobber that. The hole is the opposite: a **later** origin change (especially a comment that supersedes the body) is invisible unless an agent happens to re-fetch comments.\n\n**Dogfood (#3351):** the investigation brief was ingested from the original body. A designer then posted the branch-3 disposition and successor (#3360) **in comments** and closed the issue. A worker still running the ingested brief would have treated the body as current. Hold + handoff avoided that. The lifecycle verbs would not have stopped it.\n\nSame class as #2126 / #2143 (body-only dispatch shipped the wrong fix), now after a valid ingest snapshot instead of at first read.\n\n## Thin first ship (#3265)\n\nOne fail-closed check, one remediation. Do **not** auto-write the brief.\n\nAt `scope:activate` or `xbrief:preflight` (implementation-intent, not every promote):\n\n- If the brief has an `x-xbrief/github-issue` (or accepted alias) origin, fetch the live issue.\n- If origin `updated_at` is newer than the brief `updated` / `xBRIEFInfo.updated`, exit 1.\n- Remediation: re-read body + comments (#2143), then either refresh the brief or record intentional divergence (and bump brief `updated` so the gate stays quiet).\n\n`updated_at` is noisy (labels, “lgtm”). Acceptable for v1 if the action is look-then-dispose. A body+comments hash stored at ingest is a later tightening, not this ship.\n\nAlso close the skill/engine lie: either teach `reconcile:issues` the documented stale-content bucket, or change the skills to match what the verb actually reports.\n\n## Out of scope\n\n- Auto-merging GitHub into the xBRIEF\n- Using `cache:fetch-all` as the fix\n- Fail-closed on every `scope:promote`\n- Changing #309 D12 (detect, do not silent-overwrite)\n\n## Acceptance sketch\n\n- Activate / preflight of an origin-linked brief fails closed when the live issue `updated_at` is newer than the brief, with a remediation that names re-read + dispose (not overwrite).\n- A fixture: ingest, then a newer origin timestamp, then activate/preflight exits 1; after recording divergence or refreshing the brief, the gate passes.\n- Refinement / sync prose and `reconcile:issues` agree on whether a stale-content bucket exists.\n- No test or skill change that auto-applies origin text onto the brief.\n\n## Relates\n\n#309 D12 (origin freshness, no auto-update), #1714 (ingest live-first), #2143 (body then comments), #1938 (TOCTOU on mutable externals), #3265 (thin fail-closed), #3351 (comment-supersedes-body after ingest).\n\n",
+      "Labels": "bug, determinism, triage, agent-experience, area:vbrief",
+      "UserStory": "As an implementer, I want activate/preflight to fail closed when the live GitHub origin is newer than the brief, so that I re-read comments before coding against a stale snapshot.",
+      "ImplementationPlan": "Put the tripwire in packages/core/src/preflight (xbrief:preflight / implementation-intent), not every promote and not scope:activate (3360 owns activate). If the brief has an x-xbrief/github-issue origin and live updated_at is newer than xBRIEFInfo.updated, exit 1 with remediation: re-read body+comments then refresh or record intentional divergence (bump brief updated). Do not auto-write origin onto the brief. Teach task reconcile:issues a stale-content bucket or change refinement/sync Phase 5 prose to match the verb. Fixture: ingest, newer origin timestamp, preflight exits 1; after dispose the gate passes. CHANGELOG #3363."
+    },
+    "items": [
+      {
+        "title": "Preflight fail-closed on newer origin",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given an origin-linked brief whose live GitHub issue updated_at is newer than xBRIEFInfo.updated, when xbrief:preflight (or the chosen implementation-intent gate) runs, it exits 1 and the remediation names re-read body+comments then dispose, not overwrite.",
+          "Traces": "FR-3363-1"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/vbrief-reconcile/origin-freshness.test.ts#evaluateOriginFreshness",
+          "recorded_at": "2026-08-14T19:32:02Z",
+          "recorded_by": "3363-origin-freshness-preflight"
+        }
+      },
+      {
+        "title": "Fixture then dispose passes",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a fixture that ingests then advances the origin timestamp, when preflight runs it exits 1. After recording divergence or refreshing the brief, the same gate exits 0. No test auto-applies origin text onto the brief.",
+          "Traces": "FR-3363-2"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/preflight/evaluate.test.ts#origin-freshness",
+          "recorded_at": "2026-08-14T19:32:02Z",
+          "recorded_by": "3363-origin-freshness-preflight"
+        }
+      },
+      {
+        "title": "Reconcile/skill agreement + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given refinement/sync prose and task reconcile:issues, when this lands they agree on whether a stale-content bucket exists. CHANGELOG [Unreleased] cites #3363.",
+          "Traces": "FR-3363-3"
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3367#3e7f077fd037e7db0263d71b050c3c1abdacffbb",
+          "recorded_at": "2026-08-14T19:32:02Z",
+          "recorded_by": "3363-origin-freshness-preflight"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "determinism",
+      "triage",
+      "agent-experience",
+      "area:vbrief"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3363",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3363: bug(lifecycle): origin GitHub updates after ingest are not fail-closed at activate; reconcile:issues lacks the documented stale-content bucket"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [],
+      "literal_acceptance_rejected": [],
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/preflight",
+          "packages/core/src/vbrief-reconcile",
+          "content/skills/deft-directive-refinement",
+          "content/skills/deft-directive-sync",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/preflight packages/core/src/vbrief-reconcile"
+        ],
+        "expected_outputs": [
+          "origin freshness preflight tripwire",
+          "CHANGELOG #3363"
+        ],
+        "depends_on": [],
+        "conflict_group": "origin-freshness",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard"
+      },
+      "kind": "story",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3367,
+        "prBase": null,
+        "mergeCommit": "3e7f077fd037e7db0263d71b050c3c1abdacffbb",
+        "deliveryBranch": "master",
+        "deliveryCommit": "3e7f077fd037e7db0263d71b050c3c1abdacffbb",
+        "verifiedAt": "2026-08-14T19:34:48Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-14T19:34:48Z",
+      "capacityBucket": "technical-debt"
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 4 independently testable clauses from the task statement before product edit (#3323)",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "Activate / preflight of an origin-linked brief fails closed when the live issue `updated_at` is newer than the brief, with a remediation that names re-read + dispose (not overwrite).",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 2,
+          "text": "A fixture: ingest, then a newer origin timestamp, then activate/preflight exits 1; after recording divergence or refreshing the brief, the gate passes.",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 3,
+          "text": "Refinement / sync prose and `reconcile:issues` agree on whether a stale-content bucket exists.",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 4,
+          "text": "No test or skill change that auto-applies origin text onto the brief.",
+          "artifact_path": null,
+          "ambiguous": false
+        }
+      ]
+    },
+    "id": "3363-origin-freshness-preflight",
+    "updated": "2026-08-14T19:34:48Z"
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3356",
+    "updated": "2026-08-14T20:17:23Z"
+  },
+  "plan": {
+    "title": "bug(telemetry): tool_turn_denominator has no production callers - shipped in schema, never emitted; #3352 trigger still unevaluable (#3320 residual)",
+    "status": "completed",
+    "narratives": {
+      "Description": "tool_turn_denominator shipped as a schema kind and emitter method with zero production callers. Field streams therefore cannot compute ritual share and the #3352 trigger stays unevaluable.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3356",
+      "Overview": "**TL;DR: `tool_turn_denominator` shipped as a schema kind and an emitter method with zero production callers. Field streams confirm: no denominator event in any collected trial. Without it, ritual+gate share is not computable and the #3352 orient-Later trigger stays unevaluable — the exact condition #3320 was filed to end.**\n\n**Evidence:** grep at HEAD: the only non-test reference to `tool_turn_denominator` outside the type union is the emitter method itself (`packages/core/src/run-summary/emit.ts:232`). Collected field JSONL (internal benchmark, private; framework 0.102.0) contains zero denominator events across all trials.\n\n**Design note the implementer must solve, not dodge:** the CLI cannot see host tool turns. Candidate denominators: (a) count of CLI invocations per session as a proxy (cheap, undercounts), (b) host-supplied signal (`DEFT_MAX_TURNS`-style env or a host descriptor) recorded at session start with actuals unavailable, (c) emit per-invocation events and let the analyst join against harness-side turn counts. Pick one, document what the share means under it, and wire the caller. A denominator that measures something slightly different but is actually emitted beats a perfect one that never fires.\n\n## Acceptance sketch\n- A consumer trial with `DEFT_RUN_SUMMARY_PATH` set yields at least one denominator event per session, and `share = ritual_events / denominator` is computable from the stream alone.\n- #3352 updated with the chosen semantics.\n\nRelates #3320 (closed as shipped; the callers never landed), #3352 (blocked on this), #3286, #3282.",
+      "Labels": "bug",
+      "UserStory": "As a telemetry analyst, I want at least one denominator event per session, so that ritual_events / denominator is computable from the stream alone.",
+      "ImplementationPlan": "In packages/core/src/session (session:start) or a single CLI invocation site, call RunSummaryEmitter.tool_turn_denominator so a consumer trial with DEFT_RUN_SUMMARY_PATH emits at least one denominator event. Document share = ritual_events / denominator on #3352. Do not change seq lock protocol in emit.ts. Evidence: pnpm exec vitest run packages/core/src/run-summary packages/core/src/session plus CHANGELOG #3356."
+    },
+    "items": [
+      {
+        "title": "Production caller emits denominator",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a consumer trial with DEFT_RUN_SUMMARY_PATH set, when a session runs, at least one tool_turn_denominator event is present and share = ritual_events / denominator is computable from the stream alone.",
+          "Traces": "FR-3356-1"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/session/session-start.test.ts runSessionStart tool_turn_denominator (#3356); PR #3371 Greptile CLEAN 5/5; merge a9303e67",
+          "recorded_at": "2026-08-14T20:15:00Z",
+          "recorded_by": "3356-tool-turn-denominator-caller"
+        }
+      },
+      {
+        "title": "Semantics + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the chosen denominator semantics, when this lands, GitHub issue #3352 has a comment naming how share equals ritual_events divided by that denominator, and CHANGELOG [Unreleased] cites #3356.",
+          "Traces": "FR-3356-2"
+        },
+        "x-directive/evidence": {
+          "kind": "observed_behavior",
+          "pointer": "https://github.com/deftai/directive/issues/3352#issuecomment-5297043649; CHANGELOG.md [Unreleased] Fixed cites #3356; PR #3371 merge a9303e67",
+          "recorded_at": "2026-08-14T20:15:00Z",
+          "recorded_by": "3356-tool-turn-denominator-caller"
+        }
+      }
+    ],
+    "tags": [
+      "bug"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3356",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3356: bug(telemetry): tool_turn_denominator has no production callers - shipped in schema, never emitted; #3352 trigger still unevaluable (#3320 residual)"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 2 independently testable clauses from the task statement before product edit (#3323)",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "A production caller exists at its stated path so a consumer trial with DEFT_RUN_SUMMARY_PATH yields at least one tool_turn_denominator event and share = ritual_events / denominator is computable from the stream.",
+          "artifact_path": "packages/core/src/session/session-start.ts",
+          "ambiguous": false
+        },
+        {
+          "id": 2,
+          "text": "Chosen denominator semantics exist at the stated path: share equals ritual_events divided by DEFT_TOTAL_TOOL_TURNS, else DEFT_MAX_TURNS / host maxTurns, else this CLI invocation (1). GitHub issue #3352 carries the same comment.",
+          "artifact_path": "packages/core/src/run-summary/emit.ts",
+          "ambiguous": false
+        }
+      ]
+    },
+    "id": "3356-tool-turn-denominator-caller",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/run-summary",
+          "packages/core/src/session",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/run-summary packages/core/src/session"
+        ],
+        "expected_outputs": [
+          "3356-tool-turn-denominator-caller",
+          "CHANGELOG #3356"
+        ],
+        "depends_on": [
+          "3361-seq-lock-live-holder"
+        ],
+        "conflict_group": "run-summary-seq",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3371,
+        "prBase": null,
+        "mergeCommit": "a9303e67a68337fa6672c7d64d459dd872259a25",
+        "deliveryBranch": "master",
+        "deliveryCommit": "a9303e67a68337fa6672c7d64d459dd872259a25",
+        "verifiedAt": "2026-08-14T20:17:23Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "2bdb4043-b1b6-4f41-a9c2-e42b22fa32c4"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-14T20:17:23Z",
+      "completedSessionId": "2bdb4043-b1b6-4f41-a9c2-e42b22fa32c4",
+      "capacityBucket": "technical-debt"
+    },
+    "updated": "2026-08-14T20:17:23Z"
+  }
+}

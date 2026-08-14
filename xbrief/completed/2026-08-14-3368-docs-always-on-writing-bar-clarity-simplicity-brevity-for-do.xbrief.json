@@ -1,0 +1,173 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3368; release-highlight + no-reasoning-scope 2026-08-14",
+    "updated": "2026-08-14T20:42:05Z"
+  },
+  "plan": {
+    "title": "docs: always-on writing bar (clarity, simplicity, brevity) for docs and communications",
+    "status": "completed",
+    "id": "3368-always-on-writing-bar",
+    "narratives": {
+      "Description": "Make clarity, simplicity, and brevity a standing writing bar for documents and user communications, including sub-agent status and handbacks. The #2927 STE depth page stays the how; the three words must live in always-on agents-entry so chat and workers see them without opening that page. The bar does not govern reasoning or thinking budgets.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3368",
+      "Overview": "## Summary\n\nMake **clarity, simplicity, and brevity** a product-wide standing writing bar for documents **and** user communications, including sub-agent status and handbacks.\n\nKeep the #2927 STE four mechanics on the depth page. Put the three outcome words in always-on agent entry so the bar fires when no document is being written.\n\n## Release highlight (operator 2026-08-14)\n\nWhen this ships, call it out as a **highlighted item** in the release that contains it: the CHANGELOG `[<version>]` `>` blurb, the GitHub release *Key Changes*, and the Slack *Key Changes*. Do not bury it as an unmarked notes line.\n\n## Decision (operator 2026-08-14)\n\n- Outcome bar: Zinsser’s first three — **clarity, simplicity, brevity**.\n- Keep STE how: short sentences, active voice, one term = one meaning, first-use definitions.\n- Do **not** mark this `[AXIOM]`.\n- Process MUST. Not a red CI style gate.\n- Cut ceremony, not required fields.\n- Product-content voice carve-out lives only on the depth page.\n- Scope limit (operator 2026-08-14 body update): the bar does not govern reasoning itself. Thinking budgets are harness knobs (effort tier, per-role routing #1739), not prose rules. Do not extend the bar to thinking.\n\n## Surfaces\n\n1. `content/templates/agents-entry.md` — one `!` line with the three words inline; `agents_entry_contract` marker; `task agents:refresh`.\n2. `content/templates/agent-prompt-preamble.md` — pointer-sufficient #3313-style section.\n3. `content/docs/writing-ste100.md` — outcome bar + four STE mechanics + ceremony-vs-fields + product-content carve-out.\n4. Replace the unmanaged maintainer AGENTS.md #2927 line; path stays `content/docs/writing-ste100.md`.\n\nFull issue body is origin #3368.",
+      "Labels": "documentation, enhancement, agent-experience, area:guidance, docs",
+      "UserStory": "As an agent or maintainer, I want a standing clarity-simplicity-brevity bar in always-on entry, so that chat and handbacks stay short without opening a depth page.",
+      "ImplementationPlan": "Edit source file content/templates/agents-entry.md: replace the #2927 STE bullet with one standing ! line (clarity, simplicity, brevity inline; documents, user communications, sub-agent handbacks; cite .deft/core/docs/writing-ste100.md) and add an agents_entry_contract marker. Edit source file content/templates/agent-prompt-preamble.md: add a pointer-sufficient #3313-style section that names the three words. Edit source file content/docs/writing-ste100.md: name the outcome bar, keep the four STE mechanics, add ceremony-vs-fields plus product-content voice carve-outs, and state the bar does not govern reasoning. Edit source file AGENTS.md unmanaged header #2927 line with the same words and path content/docs/writing-ste100.md. Verify with task agents:refresh. CHANGELOG [Unreleased] ### Added is a highlighted bold entry citing #3368; the next release version blurb and Slack/GitHub Key Changes must name the writing bar. Evidence: task agents:refresh plus CHANGELOG #3368."
+    },
+    "items": [
+      {
+        "title": "Always-on agents-entry line",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given agents-entry.md after this lands, when it is read, one standing ! line contains clarity, simplicity, brevity inline, names documents, user communications, and sub-agent handbacks, cites .deft/core/docs/writing-ste100.md, includes ⊗ prefacing the rule, replaces the old #2927 STE bullet, is not labeled [AXIOM], and is covered by an agents_entry_contract marker. task agents:refresh updates the managed section.",
+          "Traces": "FR-3368-1"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "task verify:ac clause 1 @ content/templates/agents-entry.md",
+          "recorded_at": "2026-08-14T20:40:37Z",
+          "recorded_by": "leaf-implementation/3368"
+        }
+      },
+      {
+        "title": "Preamble + maintainer AGENTS",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a worker that never reopens AGENTS.md, when it reads the preamble, it sees the three words in a pointer-sufficient section. The unmanaged maintainer AGENTS.md #2927 line matches and cites content/docs/writing-ste100.md.",
+          "Traces": "FR-3368-2"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "task verify:ac clause 2 @ content/templates/agent-prompt-preamble.md",
+          "recorded_at": "2026-08-14T20:40:37Z",
+          "recorded_by": "leaf-implementation/3368"
+        }
+      },
+      {
+        "title": "Depth page carve-outs",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given writing-ste100.md, when it is read, it names the three-word outcome bar, keeps the four STE mechanics, states cut-ceremony-not-required-fields, lists protocol fields that stay complete, states the product-content voice carve-out, and states the bar does not govern reasoning or thinking budgets. The always-on line does not mention those carve-outs. No red CI style gate is added.",
+          "Traces": "FR-3368-3"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "task verify:ac clause 3 @ content/docs/writing-ste100.md",
+          "recorded_at": "2026-08-14T20:40:37Z",
+          "recorded_by": "leaf-implementation/3368"
+        }
+      },
+      {
+        "title": "Release highlight + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given this ships, when the next framework release is cut, CHANGELOG [Unreleased] has a highlighted ### Added bold entry citing #3368, and that release's version blurb plus GitHub/Slack Key Changes name the writing bar. It is not buried as an unmarked notes line.",
+          "Traces": "FR-3368-4"
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3373",
+          "recorded_at": "2026-08-14T20:40:37Z",
+          "recorded_by": "leaf-implementation/3368"
+        }
+      }
+    ],
+    "tags": [
+      "documentation",
+      "enhancement",
+      "agent-experience",
+      "area:guidance",
+      "docs"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3368",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3368: docs: always-on writing bar (clarity, simplicity, brevity) for docs and communications"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/templates/agents-entry.md",
+          "content/templates/agent-prompt-preamble.md",
+          "content/docs/writing-ste100.md",
+          "AGENTS.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "task verify:agents-md-budget"
+        ],
+        "expected_outputs": [
+          "3368-always-on-writing-bar",
+          "CHANGELOG #3368",
+          "release highlight"
+        ],
+        "depends_on": [],
+        "conflict_group": "writing-bar",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3373,
+        "prBase": "master",
+        "mergeCommit": "0d21c6cf448b0c6703ef0c5200c9c248d0a3d734",
+        "deliveryBranch": "master",
+        "deliveryCommit": "0d21c6cf448b0c6703ef0c5200c9c248d0a3d734",
+        "verifiedAt": "2026-08-14T20:42:05Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "54bc6aa8-d1b4-4ff9-a12a-e0c6a8605fc3"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-14T20:42:05Z",
+      "completedSessionId": "54bc6aa8-d1b4-4ff9-a12a-e0c6a8605fc3",
+      "capacityBucket": "new-capability"
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 4 independently testable clauses from the task statement before product edit (#3323)",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "agents-entry.md contains 'Clarity, simplicity, brevity' and 'sub-agent status and handbacks'.",
+          "artifact_path": "content/templates/agents-entry.md",
+          "ambiguous": false
+        },
+        {
+          "id": 2,
+          "text": "The preamble contains 'Clarity, simplicity, brevity' and 'Writing bar'.",
+          "artifact_path": "content/templates/agent-prompt-preamble.md",
+          "ambiguous": false
+        },
+        {
+          "id": 3,
+          "text": "writing-ste100.md contains 'clarity, simplicity, and brevity', 'Short sentences', and 'does not govern reasoning'.",
+          "artifact_path": "content/docs/writing-ste100.md",
+          "ambiguous": false
+        },
+        {
+          "id": 4,
+          "text": "CHANGELOG.md contains 'Always-on writing bar: clarity, simplicity, brevity (#3368)'.",
+          "artifact_path": "CHANGELOG.md",
+          "ambiguous": false
+        }
+      ]
+    },
+    "updated": "2026-08-14T20:42:05Z"
+  }
+}

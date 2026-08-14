@@ -1,0 +1,129 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3350",
+    "updated": "2026-08-14T17:29:43Z"
+  },
+  "plan": {
+    "id": "3350-run-summary-seq-seed-from-file",
+    "title": "bug(run-summary): seq is 1 on every emitted line - per-process emitter never seeds from the target file; seqSeed has no callers (#3320 post-close residual)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Every collected field run-summary JSONL line currently carries seq: 1 because each CLI process constructs a fresh emitter. The schema documents a monotonic per-emitter sequence, but seqSeed has no callers, so consumers cannot rely on seq for order.",
+      "UserStory": "As a telemetry consumer, I want run-summary seq to be monotonic across CLI invocations that append to the same file, so that I can order events without silently falling back to ts.",
+      "ImplementationPlan": "Implement Option A in packages/core/src/run-summary/emit.ts: when the destination is a file, seed seq from the current line count of the append-only JSONL at emitter construction. Keep stdout destination per-process. Add a test that covers multiple constructor/CLI invocations into one file. Update the schema comment and CHANGELOG #3350.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3350",
+      "Overview": "**TL;DR: every line in collected field run-summary JSONL carries `seq: 1`. The schema documents \"monotonic per-emitter sequence (1-based)\", but every real event comes from a separate CLI process, each constructing a fresh emitter. The `seqSeed` reuse mechanism exists in `packages/core/src/run-summary/emit.ts` but has no callers. A field that promises ordering and never delivers will get built against; ordering currently falls back silently to `ts`.**\n\n(Originally reported as a comment on #3320 after it closed — re-filed so it has an open home.)\n\n**Evidence:** collected field telemetry (internal benchmark, private) shows `seq: 1` on 100% of lines across all trials on both releases that have shipped the emitter. At HEAD: `emitRunSummaryEvent` (\"one-shot helper for call sites that do not hold an emitter\") constructs `new RunSummaryEmitter(...)` per call; grep for `seqSeed` finds only its own doc comment.\n\n## Fix (pick one, thin)\n\n- **Option A (preferred):** when the destination is a file, seed `seq` from the current line count of the target file at emitter construction (the file is append-only JSONL; count-then-append gives a monotonic per-session sequence with no extra state). Stdout destination keeps per-process seq and the docs say so.\n- **Option B:** drop the field and document `ts` as the order key.\n\nEither way the schema comment stops promising something the wire never delivers.\n\n## Acceptance sketch\n\n- A session producing N events into one `DEFT_RUN_SUMMARY_PATH` file yields seq 1..N (option A), or the field is gone and docs name `ts` (option B).\n- Test covers the multiple-CLI-invocation case, not just one emitter instance.\n\nRelates #3320 (shipped the denominator; this defect was reported there post-close), #3282 (emitter).\n\n",
+      "Labels": "bug"
+    },
+    "items": [
+      {
+        "status": "completed",
+        "title": "Seed file-destination seq from existing JSONL line count (Option A)",
+        "narrative": {
+          "Acceptance": "Given N prior events already in DEFT_RUN_SUMMARY_PATH, when a new CLI process constructs a file-destination emitter and emits, seq continues as N+1 rather than resetting to 1. Stdout destination keeps per-process seq and docs say so.",
+          "Traces": "FR-3350-1"
+        }
+      },
+      {
+        "status": "completed",
+        "title": "Multi-CLI-invocation regression test",
+        "narrative": {
+          "Acceptance": "Given a test that invokes emit across separate process/construction boundaries into one file, when it runs, it asserts seq 1..N across invocations (not just one emitter instance).",
+          "Traces": "FR-3350-2"
+        }
+      },
+      {
+        "status": "completed",
+        "title": "Schema/docs + CHANGELOG",
+        "narrative": {
+          "Acceptance": "Given the schema comment that promised monotonic per-emitter seq, when this lands, the comment matches wire behavior and CHANGELOG [Unreleased] cites #3350.",
+          "Traces": "FR-3350-3"
+        }
+      }
+    ],
+    "tags": [
+      "bug"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3350",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3350: bug(run-summary): seq is 1 on every emitted line - per-process emitter never seeds from the target file; seqSeed has no callers (#3320 post-close residual)"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/run-summary",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/run-summary",
+          "task check"
+        ],
+        "expected_outputs": [
+          "file-destination seq seed",
+          "multi-process test",
+          "CHANGELOG #3350"
+        ],
+        "depends_on": [],
+        "conflict_group": "run-summary-seq",
+        "size": "small",
+        "file_scope_confidence": "high",
+        "model_tier": "standard"
+      },
+      "capacityBucket": "bugfix",
+      "literal_acceptance_commands": [],
+      "literal_acceptance_rejected": [
+        {
+          "command": "seq: 1",
+          "reason": "path-like first token is not allowlisted",
+          "sourceSpan": "inline@L3"
+        }
+      ],
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3353,
+        "prBase": null,
+        "mergeCommit": "bd7e49ad9c7b593d7799789f6fc63cea6ff6f77e",
+        "deliveryBranch": "master",
+        "deliveryCommit": "bd7e49ad9c7b593d7799789f6fc63cea6ff6f77e",
+        "verifiedAt": "2026-08-14T17:29:43Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-14T17:29:43Z"
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 2 independently testable clauses from the task statement before product edit (#3323)",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "A session producing N events into one `DEFT_RUN_SUMMARY_PATH` file yields seq 1..N (option A), or the field is gone and docs name `ts` (option B).",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 2,
+          "text": "Test covers the multiple-CLI-invocation case, not just one emitter instance.",
+          "artifact_path": null,
+          "ambiguous": false
+        }
+      ]
+    },
+    "updated": "2026-08-14T17:29:43Z"
+  }
+}

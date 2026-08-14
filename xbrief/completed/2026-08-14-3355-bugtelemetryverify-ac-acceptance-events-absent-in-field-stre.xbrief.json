@@ -1,0 +1,160 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3355",
+    "updated": "2026-08-14T19:56:46Z"
+  },
+  "plan": {
+    "title": "bug(telemetry,verify-ac): acceptance events absent in field streams - stamp emission bound solely to issue:ingest; verify:ac emitted no outcome events across fail AND pass paths in a real trial",
+    "status": "completed",
+    "narratives": {
+      "Description": "acceptance_stamp emits only from issue:ingest, so hand-authored consumer briefs never stamp. The product AC gate produced no acceptance outcome events on either fail or pass paths in a real trial.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3355",
+      "Overview": "**TL;DR: acceptance telemetry is unreliable in the field. `acceptance_stamp` emits from exactly one call site — the issue-ingest intake verb — which consumer/headless flows that hand-author scope briefs never call. `acceptance` outcome events emitted zero times across a full real trial that exercised the product AC gate on BOTH its fail path (issue 3334 refusal, exit 2) and its pass path (exit 0, twice). The #3323 clause/rung telemetry is therefore invisible exactly where it matters.**\n\n**Evidence (internal benchmark artifacts, private):** one complete trial's `DEFT_RUN_SUMMARY_PATH` stream (framework 0.102.0, 7 lines) contains session_start, dial_escalation_evaluation, and check_invocation events — and no acceptance events of either kind, despite the trial hand-authoring a brief, tripping the #3334 empty-acceptance refusal, stamping `plan.acceptance` mid-run, and passing the product AC gate twice. Source at HEAD: emitAcceptanceStamp is called only from packages/core/src/intake/issue-ingest.ts; emitAcceptanceOutcome call sites exist in product-first-done-gate/evaluate.ts but produced nothing on this trial — trace why (early-return paths, emitter wiring in the gate subprocess, or env propagation).\n\n## Fix\n1. Stamp emission becomes state-observed, not verb-bound: whenever plan.acceptance is first written or materially changed through any lifecycle verb (promote/activate/verify), emit acceptance_stamp from the observed state.\n2. The product AC gate emits an acceptance outcome event on EVERY terminal path — config-error, soft-missing, soft-empty, run-pass, run-fail — so the stream distinguishes them (composes #3334 visibility).\n3. Test fixture: a trial-shaped integration test (hand-authored brief then #3334 refusal then stamp then verify) asserting both event kinds appear.\n\nRelates #3323 (telemetry deliverable — shipped surface, unwired paths), #3334, #3282, #3320.",
+      "Labels": "bug, agent-experience",
+      "UserStory": "As a telemetry consumer, I want acceptance_stamp and acceptance outcome events on every real path, so that field streams show whether derivation and the product AC gate actually ran.",
+      "ImplementationPlan": "In packages/core/src/scope and packages/core/src/intake, emit acceptance_stamp when plan.acceptance is first written or materially changed (promote/activate/verify), not only issue-ingest.ts. In packages/core/src/product-first-done-gate/evaluate.ts, emit an acceptance outcome on every product-AC-gate terminal path. Add a trial-shaped fixture. Do not edit run-summary lock/seq. Evidence command is the stated plan.acceptance command plus CHANGELOG #3355."
+    },
+    "items": [
+      {
+        "title": "State-observed acceptance_stamp",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given plan.acceptance is first written or materially changed via promote, activate, or verify, when that verb completes, an acceptance_stamp event is emitted from the observed state even if issue:ingest was never called.",
+          "Traces": "FR-3355-1"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/scope/transition.test.ts emits acceptance_stamp when activate first writes plan.acceptance; packages/core/src/intake/clause-derivation.test.ts state-observed stamp change",
+          "recorded_at": "2026-08-14T19:53:30Z",
+          "recorded_by": "agent/leaf-implementation/3355-acceptance-events-unwired"
+        }
+      },
+      {
+        "title": "verify:ac outcome on every terminal path",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given verify:ac exits via config-error, soft-missing, soft-empty, run-pass, or run-fail, when DEFT_RUN_SUMMARY_PATH is set, an acceptance outcome event is emitted that distinguishes that path.",
+          "Traces": "FR-3355-2"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/product-first-done-gate/acceptance-events.test.ts terminal outcomes; packages/cli/src/verify-ac.test.ts soft-missing CLI emit",
+          "recorded_at": "2026-08-14T19:53:30Z",
+          "recorded_by": "agent/leaf-implementation/3355-acceptance-events-unwired"
+        }
+      },
+      {
+        "title": "Trial fixture + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a hand-authored brief that trips #3334 then stamps then verify:ac, when the fixture runs, both event kinds appear. CHANGELOG [Unreleased] cites #3355.",
+          "Traces": "FR-3355-3"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/product-first-done-gate/acceptance-events.test.ts trial-shaped fixture; CHANGELOG.md [Unreleased] #3355; PR https://github.com/deftai/directive/pull/3369 merge 7feebfc976db6bf9631c9ae5bca9ef5e1ded172e",
+          "recorded_at": "2026-08-14T19:53:30Z",
+          "recorded_by": "agent/leaf-implementation/3355-acceptance-events-unwired"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3355",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3355: bug(telemetry,verify-ac): acceptance events absent in field streams - stamp emission bound solely to issue:ingest; verify:ac emitted no outcome events across fail AND pass paths in a real trial"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/intake packages/core/src/product-first-done-gate packages/core/src/verify",
+          "source": "explicit",
+          "sourceSpan": "plan.acceptance.commands"
+        }
+      ],
+      "literal_acceptance_rejected": [],
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/intake",
+          "packages/core/src/product-first-done-gate",
+          "packages/core/src/verify",
+          "packages/core/src/scope",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/intake packages/core/src/product-first-done-gate packages/core/src/verify"
+        ],
+        "expected_outputs": [
+          "3355-acceptance-events-unwired",
+          "CHANGELOG #3355"
+        ],
+        "depends_on": [
+          "3360-hand-authored-clause-derivation"
+        ],
+        "conflict_group": "acceptance-lifecycle-telemetry",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard"
+      },
+      "kind": "story",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3369,
+        "prBase": null,
+        "mergeCommit": "7feebfc976db6bf9631c9ae5bca9ef5e1ded172e",
+        "deliveryBranch": "master",
+        "deliveryCommit": "7feebfc976db6bf9631c9ae5bca9ef5e1ded172e",
+        "verifiedAt": "2026-08-14T19:56:46Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-14T19:56:46Z",
+      "capacityBucket": "technical-debt"
+    },
+    "acceptance": {
+      "commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/intake packages/core/src/product-first-done-gate packages/core/src/verify"
+        }
+      ],
+      "none_stated": false,
+      "source_rung": "stated",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "packages/core/src/intake/clause-derivation.ts exists and emits acceptance_stamp on first write or material change",
+          "artifact_path": "packages/core/src/intake/clause-derivation.ts",
+          "ambiguous": false
+        },
+        {
+          "id": 2,
+          "text": "packages/core/src/product-first-done-gate/evaluate.ts exists and emits an acceptance outcome on every terminal path",
+          "artifact_path": "packages/core/src/product-first-done-gate/evaluate.ts",
+          "ambiguous": false
+        },
+        {
+          "id": 3,
+          "text": "packages/core/src/product-first-done-gate/acceptance-events.test.ts exists as the trial-shaped fixture for both event kinds",
+          "artifact_path": "packages/core/src/product-first-done-gate/acceptance-events.test.ts",
+          "ambiguous": false
+        }
+      ]
+    },
+    "id": "3355-acceptance-events-unwired",
+    "updated": "2026-08-14T19:56:46Z"
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3362",
+    "updated": "2026-08-14T21:41:26Z"
+  },
+  "plan": {
+    "title": "feat(check,telemetry): telemetry-coverage dead-surface detector - every event kind needs a production caller and a field-shaped fixture",
+    "status": "completed",
+    "narratives": {
+      "Description": "task check does not fail when a run-summary event kind has no production caller or no field fixture. Emitters can ship silent while gates stay green.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3362",
+      "Overview": "**TL;DR: gates fail loudly, emitters fail silently. The last release shipped every gate correctly and three telemetry surfaces unwired: tool_turn_denominator with zero production callers (#3356), acceptance events silent across a full field trial (#3355), seqSeed with zero callers plus per-process session_id (#3350). Nothing in the framework check list fails when an event never fires, so nothing in the swarm quality loop can catch this class. One deterministic gate closes it: a dead-surface detector.**\n\n## The gate (composed into the framework check list)\n\nTwo static checks, one remediation:\n\n1. **No dead event kinds.** Every kind in RUN_SUMMARY_EVENT_KINDS (and every exported emitter method) has at least one production call site outside the emitter module. Would have caught tool_turn_denominator and seqSeed on the PR that shipped them.\n2. **Every event kind has a field-shaped fixture.** A shared integration harness runs a fake trial (temp consumer deposit, real verb sequence, DEFT_RUN_SUMMARY_PATH set) and reads the JSONL back. Each kind must be asserted present by at least one fixture test. The harness is the reusable piece. #3355's acceptance sketch demands the first instance. This issue generalizes it. This half also catches the subtler failures static analysis cannot: call sites that exist but never execute on real paths (the #3355 case), and per-process identity resets (#3350 seq/session_id — the fixture asserts monotonic seq and a stable session_id across a multi-invocation trial).\n\nRemediation string names the missing half: event kind k has no production caller / no field fixture — wire it or remove it from the schema.\n\n## How it reaches the swarm\n\nNo prompt or checklist text is load-bearing: drive-to-merge-ready workers must pass the framework check list, so landing the gate enrolls every future worker automatically. Companion prose (explanation tier, not enforcement): one MUST/⊗ pair in content/templates/agent-prompt-preamble.md and CONTRIBUTING — a telemetry deliverable is not done until a fixture reads its events from a fake trial. Silence is the failure mode this gate exists for. Framework-internal dev process only — NOT consumer-relevant, so no agents-entry propagation under #1309.\n\n## Acceptance sketch\n\n- The framework check list warns (later fails) on a branch that adds a schema event kind with no caller, or an emitter method with no fixture asserting its output.\n- The fake-trial harness exists once and is extended per kind, not rebuilt.\n- Gate ships warn-only for one release if the existing debt (#3355/#3356/#3350 fixes in flight) would hard-block, then fail-closed.\n\nRelates #3355, #3356, #3350 (the three instances), #3320/#3323/#3319 (shipped kinds this retroactively covers), #3265 (thin fail-closed), #3156 (the gate tests the telemetry, never the reverse), #954/#1309 (propagation discipline — explicitly not consumer-facing).",
+      "Labels": "enhancement, determinism",
+      "UserStory": "As a framework maintainer, I want the telemetry-coverage verifier inside the framework check list, so that dead event kinds fail in the same loop as every other gate.",
+      "ImplementationPlan": "Add packages/core/src/telemetry-coverage (or packages/core/src/verify/telemetry-coverage.ts) with two checks: every RUN_SUMMARY_EVENT_KINDS / exported emitter method has a production caller, and each kind has a field-shaped fixture on a shared fake-trial harness. Wire the telemetry-coverage verifier in tasks/verify.yml into the framework check list. Ship warn-only this release because #3355/#3356 are in the same wave. Companion MUST/⊗ in content/templates/agent-prompt-preamble.md and CONTRIBUTING.md only; no agents-entry. Evidence: pnpm exec vitest run packages/core/src/telemetry-coverage plus CHANGELOG #3362."
+    },
+    "items": [
+      {
+        "title": "Dead-kind detector",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a branch that adds a schema event kind with no production caller, when task check runs the new gate, it fails (or warns in the one-release warn-only window) with a remediation that names the kind.",
+          "Traces": "FR-3362-1"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/telemetry-coverage/evaluate.test.ts#3362",
+          "recorded_at": "2026-08-14T21:36:00Z",
+          "recorded_by": "leaf-worker/3362"
+        }
+      },
+      {
+        "title": "Shared fake-trial harness",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the harness exists once, when a kind is enrolled, a fixture asserts that kind appears in DEFT_RUN_SUMMARY_PATH JSONL from a fake trial.",
+          "Traces": "FR-3362-2"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/telemetry-coverage/fake-trial.test.ts#3362",
+          "recorded_at": "2026-08-14T21:36:00Z",
+          "recorded_by": "leaf-worker/3362"
+        }
+      },
+      {
+        "title": "Check composition + prose",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the gate lands, task check (framework list) includes it, preamble and CONTRIBUTING have the MUST/⊗ pair, and CHANGELOG [Unreleased] cites #3362. No agents-entry edit.",
+          "Traces": "FR-3362-3"
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "db389ee111e3756ac3e2fd5f953ecce3819164d7",
+          "recorded_at": "2026-08-14T21:36:00Z",
+          "recorded_by": "leaf-worker/3362"
+        }
+      }
+    ],
+    "tags": [
+      "enhancement",
+      "determinism"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3362",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3362: feat(check,telemetry): verify:telemetry-coverage dead-surface detector - every event kind needs a production caller and a field-shaped fixture; enrolls swarm workers via task check"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/telemetry-coverage",
+          "source": "verify_commands",
+          "sourceSpan": "swarm.verify_commands"
+        }
+      ],
+      "literal_acceptance_rejected": [],
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/telemetry-coverage",
+          "tasks/verify.yml",
+          "content/templates/agent-prompt-preamble.md",
+          "CONTRIBUTING.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/telemetry-coverage"
+        ],
+        "expected_outputs": [
+          "3362-verify-telemetry-coverage",
+          "CHANGELOG #3362"
+        ],
+        "depends_on": [
+          "3357-scope-complete-vacates-done-gate"
+        ],
+        "conflict_group": "check-composition",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard"
+      },
+      "kind": "story",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3370,
+        "prBase": null,
+        "mergeCommit": "db389ee111e3756ac3e2fd5f953ecce3819164d7",
+        "deliveryBranch": "master",
+        "deliveryCommit": "db389ee111e3756ac3e2fd5f953ecce3819164d7",
+        "verifiedAt": "2026-08-14T21:41:26Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "54bc6aa8-d1b4-4ff9-a12a-e0c6a8605fc3"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-14T21:41:26Z",
+      "completedSessionId": "54bc6aa8-d1b4-4ff9-a12a-e0c6a8605fc3",
+      "capacityBucket": "new-capability"
+    },
+    "acceptance": {
+      "commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/telemetry-coverage"
+        }
+      ],
+      "none_stated": false,
+      "source_rung": "stated"
+    },
+    "id": "3362-verify-telemetry-coverage",
+    "updated": "2026-08-14T21:41:26Z"
+  }
+}

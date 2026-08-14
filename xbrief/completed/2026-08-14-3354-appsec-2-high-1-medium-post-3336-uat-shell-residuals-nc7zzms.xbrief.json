@@ -1,0 +1,200 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3354",
+    "updated": "2026-08-14T14:56:27Z"
+  },
+  "plan": {
+    "id": "3354-uat-shell-residuals-slices",
+    "title": "AppSec: 2 HIGH + 1 MEDIUM \u2014 post-#3336 UAT Shell residuals (nc/7zz/msgfmt\u2026 plant authz grants + kill-switch) + slices.jsonl leaf diversion",
+    "status": "completed",
+    "narratives": {
+      "Description": "Post-#3336 UAT Shell still classifies residual write-capable binaries as empty or unclassifiable and allows write-shaped commands. Those residuals can plant forged .deft/authz grants or a regular-file .deft-directive-disable kill-switch. Separately, slices.jsonl append still uses a raw writer and follows an in-tree leaf symlink.",
+      "UserStory": "As a Directive operator under active UAT, I want residual write-capable Shell bins and the slices.jsonl writer to stay fail-closed, so that agents cannot plant authz grants, plant a kill-switch, or divert slice appends into tracked files.",
+      "ImplementationPlan": "Extended classify residual-bin detection and dest-flag parsing. Routed slice record appends through containedWrite. Added AppSec regressions and CHANGELOG note.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3354",
+      "Overview": "Shipped in PR 3359. Residual UAT Shell writers deny authz and kill-switch plants; slices.jsonl append uses containedWrite.",
+      "Labels": "bug, security, tooling, agent-safety"
+    },
+    "items": [
+      {
+        "title": "UAT residual bins deny authz and kill-switch writes",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given active UAT, when listed residual bins (nc, netcat, 7zz, msgfmt, msgcat, lz4, lzop, unrar, rar, aunpack, atool, ftpget, tftp, sqlite3, crane, objcopy) write into .deft/authz or plant .deft-directive-disable / .no-deft-directive, they classify as settings deny. Dest-flag parsing covers -o / --output / --outfile and bin-specific dest forms including 7zz attached -oDIR. Unclassifiable write-shaped Shell under UAT is fail-closed, not silent allow. Ordinary non-authz dests such as /tmp stay allowed outside UAT write paths. Regression tests cover residual bins versus already-denied ncat / 7z / msguniq peers.",
+          "Traces": "FR-3354-1"
+        },
+        "x-directive/evidence": {
+          "kind": "uat",
+          "pointer": "packages/core/src/authz/incident-regression.test.ts denies residual writer authz/kill-switch plant under UAT (#3354); PR https://github.com/deftai/directive/pull/3359",
+          "recorded_at": "2026-08-14T16:20:44Z",
+          "recorded_by": "3354-uat-shell-residuals-slices"
+        }
+      },
+      {
+        "title": "slices.jsonl append refuses leaf-symlink diversion",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given writeSliceUnlocked or slice:record-existing, when xbrief/.triage-cache/slices.jsonl is an in-tree leaf symlink or an out-of-containment destination, the write is refused via containedWrite or assertWriteTargetSafe. An AppSec regression plants a leaf symlink to a tracked fixture and asserts the append does not divert and the fixture stays intact.",
+          "Traces": "FR-3354-2"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/slice/record.test.ts leaf-symlink + out-of-containment; existing.test.ts record-existing refuse; PR https://github.com/deftai/directive/pull/3359",
+          "recorded_at": "2026-08-14T16:20:44Z",
+          "recorded_by": "3354-uat-shell-residuals-slices"
+        }
+      },
+      {
+        "title": "CHANGELOG Unreleased security note",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the security fix lands, when CHANGELOG [Unreleased] is read, it has a brief security note for #3354 with no exploit cookbook.",
+          "Traces": "FR-3354-3"
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3359 merge 8976157ecaa701f49b7c45d3ed79642f0859398c",
+          "recorded_at": "2026-08-14T16:20:44Z",
+          "recorded_by": "3354-uat-shell-residuals-slices"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "security",
+      "tooling",
+      "agent-safety"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3354",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3354: AppSec: 2 HIGH + 1 MEDIUM \u2014 post-#3336 UAT Shell residuals (nc/7zz/msgfmt\u2026 plant authz grants + kill-switch) + slices.jsonl leaf diversion"
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/authz",
+          "packages/core/src/slice",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/authz packages/core/src/slice",
+          "task check"
+        ],
+        "expected_outputs": [
+          "UAT residual bins settings-deny",
+          "slices.jsonl containedWrite",
+          "CHANGELOG #3354"
+        ],
+        "depends_on": [],
+        "conflict_group": "authz-uat-shell",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard"
+      },
+      "completedAt": "2026-08-14T16:34:34Z",
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": "c6c72ae2ab297c3eb7e187085a61b6e16f0ac460",
+        "prNumber": 3359,
+        "prBase": "master",
+        "mergeCommit": "8976157ecaa701f49b7c45d3ed79642f0859398c",
+        "deliveryBranch": "master",
+        "deliveryCommit": "8976157ecaa701f49b7c45d3ed79642f0859398c",
+        "verifiedAt": "2026-08-14T16:34:34Z",
+        "verifier": "3354-leaf-scope-complete-recovery",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      }
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 12 independently testable clauses from the task statement before product edit (#3323)",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "*HIGH \u2014 UAT Shell residuals (must land together)",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 2,
+          "text": "Under active UAT, listed residual binaries that write into `.deft/authz/` classify as settings deny (not unclassifiable allow)",
+          "artifact_path": ".deft/authz/",
+          "ambiguous": false
+        },
+        {
+          "id": 3,
+          "text": "Same bins targeting `.deft-directive-disable` / `.no-deft-directive` classify as settings deny",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 4,
+          "text": "Dest-flag parsing covers `-o` / `--output` / `--outfile` / bin-specific dest forms (including 7zz attached `-oDIR` if that is the dest form)",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 5,
+          "text": "Prefer fail-closed on unclassifiable write-shaped Shell under UAT (not silent allow). Do not stop at named-peer allowlists.",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 6,
+          "text": "Regression tests cover residual bins vs already-denied peers (`ncat` / `7z` / `msguniq`)",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 7,
+          "text": "No false deny of ordinary non-authz / non-kill-switch dests (e.g. `/tmp`) outside UAT write paths",
+          "artifact_path": "/tmp",
+          "ambiguous": false
+        },
+        {
+          "id": 8,
+          "text": "*MEDIUM \u2014 slices.jsonl writer (same PR preferred; may split if needed)",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 9,
+          "text": "`writeSliceUnlocked` / `slice:record-existing` refuse leaf symlinks / out-of-containment destinations (`containedWrite` / `assertWriteTargetSafe` parity with candidates / summary / reconcile / bootstrap)",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 10,
+          "text": "AppSec regression: leaf symlink \u2192 in-tree target does not divert the append; tracked fixture stays intact",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 11,
+          "text": "*Release hygiene",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 12,
+          "text": "CHANGELOG `[Unreleased]` security note (brief; no exploit cookbook)",
+          "artifact_path": null,
+          "ambiguous": false
+        }
+      ]
+    },
+    "updated": "2026-08-14T16:34:34Z"
+  }
+}

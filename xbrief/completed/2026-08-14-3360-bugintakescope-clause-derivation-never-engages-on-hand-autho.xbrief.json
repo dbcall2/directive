@@ -1,0 +1,145 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3360",
+    "updated": "2026-08-14T17:52:00Z"
+  },
+  "plan": {
+    "title": "bug(intake,scope): clause derivation never engages on hand-authored briefs - #3334 forces plan.acceptance to exist but nothing routes through #3323 decomposition (branch-3 fix from #3351)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Hand-authored briefs never run #3323 clause derivation. The #3334 gate only demands plan.acceptance exist, so agents move prose into the field and skip decomposition.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3360",
+      "Overview": "**TL;DR: the #3351 investigation dispositioned branch 3 — #3323's clause derivation never engages when the agent hand-authors a scope brief, which is the dominant path in every consumer/headless flow. #3334 correctly refuses an empty `plan.acceptance`, but its remediation only demands the field exist; nothing routes the agent through clause decomposition or ambiguity flagging. The load-bearing ambiguous clause therefore ships unexamined, and the same-author-oracle failure recurs with the derivation machinery sitting unused one verb away.**\n\n**Evidence (internal benchmark artifacts, private; full sanitized disposition on #3351):** on a hard multi-clause task, the agent hand-authored a brief with acceptance as a prose list in a hand-invented field; the #3334 gate refused (exit 2, named cause); the agent moved content into `plan.acceptance`; no clause decomposition, no ambiguity flag, no recorded readings, no `acceptance_stamp` event (emission is wired only to `issue:ingest` — #3355 covers the event half). The clause that decided the trial had two defensible readings; the agent implemented one, authored tests to the same one, and failed the hidden verifier on the other. Verifier ground truth confirms a calling-convention mismatch, not a quality miss.\n\n## Fix (thin — #3265)\n\n1. **`scope:activate` (or `scope:promote`) runs clause derivation** when the brief's `plan.acceptance` is absent, empty-with-none_stated, or command-only-without-clauses: decompose the task-statement/Overview narratives into numbered testable clauses with the #3323 ambiguity pass, stamp them (emitting `acceptance_stamp` — composes #3355), and surface flagged-ambiguous clauses in the activation output so the agent sees the readings before implementing.\n2. **#3334's remediation string names the derive step**, not just the field: \"stamp plan.acceptance via <derive verb>\" instead of \"add plan.acceptance\" — the difference between forcing the field to exist and forcing the derivation to happen is exactly the branch-3 gap.\n3. Headless behavior per #3323's existing contract: ambiguity is flagged and a chosen reading recorded, never a blocking question.\n\n## Acceptance sketch\n\n- A hand-authored brief with prose acceptance activates only after clause derivation has run; the resulting `plan.acceptance.clauses[]` carries `ambiguous`/`readings`/`chosen_reading` where applicable, and an `acceptance_stamp` event is emitted.\n- The #3334 refusal's remedy text routes to the derive step.\n- Fixture: a brief modeled on the dispositioned trial (multi-clause contract, one two-reading clause) derives N clauses with the ambiguous one flagged.\n\nRelates #3351 (branch-3 disposition — this is its fix issue), #3323 (machinery exists; this wires the path), #3334, #3355, #3284.",
+      "Labels": "bug, agent-experience",
+      "UserStory": "As an operator of a hand-authored brief, I want activate or promote to run clause derivation, so that ambiguous clauses are flagged before implementation.",
+      "ImplementationPlan": "In packages/core/src/scope activate/promote and packages/core/src/intake, run #3323 clause derivation when plan.acceptance is absent, empty-with-none_stated, or command-only. Update the #3334 remediation string to name the derive step. Evidence: targeted vitest on packages/core/src/scope packages/core/src/intake plus CHANGELOG #3360."
+    },
+    "items": [
+      {
+        "title": "Activate derives clauses on hand-authored briefs",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a hand-authored brief with prose acceptance, when it activates, plan.acceptance.clauses[] exists with ambiguous/readings/chosen_reading where applicable and an acceptance_stamp is emitted.",
+          "Traces": "FR-3360-1"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/scope/transition.test.ts#activate-promote-derivation",
+          "recorded_at": "2026-08-14T17:50:00.000Z",
+          "recorded_by": "leaf-implementation/3360"
+        }
+      },
+      {
+        "title": "#3334 remedy names derive",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the #3334 empty-acceptance refusal, when the remediation string is shown, it routes to the derive step rather than only add plan.acceptance.",
+          "Traces": "FR-3360-2"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/product-first-done-gate/empty-resolution.test.ts#empty-ac-remedy",
+          "recorded_at": "2026-08-14T17:50:00.000Z",
+          "recorded_by": "leaf-implementation/3360"
+        }
+      },
+      {
+        "title": "Trial fixture + CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a fixture modeled on the #3351 multi-clause contract with one two-reading clause, when it runs, N clauses are derived and the ambiguous one is flagged. CHANGELOG [Unreleased] cites #3360.",
+          "Traces": "FR-3360-3"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/intake/clause-derivation.test.ts#two-reading-fixture",
+          "recorded_at": "2026-08-14T17:50:00.000Z",
+          "recorded_by": "leaf-implementation/3360"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3360",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3360: bug(intake,scope): clause derivation never engages on hand-authored briefs - #3334 forces plan.acceptance to exist but nothing routes through #3323 decomposition (branch-3 fix from #3351)"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 3 independently testable clauses from the task statement before product edit (#3323)",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "A hand-authored brief with prose acceptance activates only after clause derivation has run; the resulting `plan.acceptance.clauses[]` carries `ambiguous`/`readings`/`chosen_reading` where applicable, and an `acceptance_stamp` event is emitted.",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 2,
+          "text": "The #3334 refusal's remedy text routes to the derive step.",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 3,
+          "text": "Fixture: a brief modeled on the dispositioned trial (multi-clause contract, one two-reading clause) derives N clauses with the ambiguous one flagged.",
+          "artifact_path": null,
+          "ambiguous": false
+        }
+      ]
+    },
+    "id": "3360-hand-authored-clause-derivation",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/scope/acceptance-activate-gate.ts",
+          "packages/core/src/intake",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/scope packages/core/src/intake"
+        ],
+        "expected_outputs": [
+          "3360-hand-authored-clause-derivation",
+          "CHANGELOG #3360"
+        ],
+        "depends_on": [],
+        "conflict_group": "acceptance-lifecycle-telemetry",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard"
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3366,
+        "prBase": "master",
+        "mergeCommit": "25d76eb6545a9526fd42e3839bef3c99ef3b837b",
+        "deliveryBranch": "master",
+        "deliveryCommit": "25d76eb6545a9526fd42e3839bef3c99ef3b837b",
+        "verifiedAt": "2026-08-14T17:52:00Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-14T17:52:00Z",
+      "capacityBucket": "technical-debt"
+    },
+    "updated": "2026-08-14T17:52:00Z"
+  }
+}

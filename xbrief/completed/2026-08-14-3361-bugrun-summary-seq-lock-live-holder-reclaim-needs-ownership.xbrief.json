@@ -1,0 +1,110 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3361",
+    "updated": "2026-08-14T17:29:35Z"
+  },
+  "plan": {
+    "title": "bug(run-summary): seq lock live-holder reclaim needs ownership check (#3350 residual)",
+    "status": "completed",
+    "narratives": {
+      "Description": "PR 3353 seq lock can be stolen by mtime if a live writer stays in the critical section longer than the 2s wait. Greptile also wants fail-closed acquire, but fail-open after a bounded wait remains the #3282 contract.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3361",
+      "Overview": "## Summary\n\nPR #3353 landed Option A file-destination seq seed plus a sibling lock and stale-lock reclaim. Greptile on HEAD cc7da373995d81633bf0b4848358f6ba98509e70 still holds at Confidence 3/5 with advisory should-not-merge.\n\n## Residual\n\nInline P1: if a live writer spends longer than the 2s wait window recounting or appending, another process deletes the lock by mtime and both can append the same seq. Greptile also wants fail-closed acquire (no proceed without the lock).\n\n## Why not in #3353\n\n- Fail-open is the #3282 run-summary contract (emission never throws / never changes exit codes).\n- Owner-token / live-PID reclaim is a new lock protocol, not the thin Option A count-then-append story.\n- Review-cycle #2881: do not invent a new reliability subsystem mid-babysit.\n\n## Suggested follow-up (thin)\n\n- Write a lock owner token (pid + nonce) and reclaim only when that process is dead.\n- Keep fail-open after a bounded wait; do not block CLI exit codes.\n- Test live-holder vs dead-holder reclaim.\n\nRefs #3350 #3353 #3282.\n\n",
+      "Labels": "bug",
+      "UserStory": "As a telemetry consumer, I want live lock holders to keep ownership until they finish or die, so that two processes cannot append the same destination-wide seq.",
+      "ImplementationPlan": "In packages/core/src/run-summary/emit.ts, store a lock owner token (pid + nonce) and reclaim only when that process is dead. Keep fail-open after a bounded wait. Land on existing PR 3353. Evidence: pnpm exec vitest run packages/core/src/run-summary plus CHANGELOG #3361."
+    },
+    "items": [
+      {
+        "title": "Owner-token reclaim",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a live writer holds the seq lock, when another process waits past 2s, it does not delete that lock by mtime. Reclaim is allowed only when the owner process is dead.",
+          "Traces": "FR-3361-1"
+        }
+      },
+      {
+        "title": "Fail-open after bounded wait",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given lock acquire cannot complete within the wait window, when emit continues, it fail-opens without throwing or changing CLI exit codes, per #3282.",
+          "Traces": "FR-3361-2"
+        }
+      },
+      {
+        "title": "Tests + CHANGELOG + PR 3353",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given live-holder and dead-holder tests, when they run they pass. CHANGELOG [Unreleased] cites #3361. Land on PR 3353 and drive that PR to merge-ready.",
+          "Traces": "FR-3361-3"
+        }
+      }
+    ],
+    "tags": [
+      "bug"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3361",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3361: bug(run-summary): seq lock live-holder reclaim needs ownership check (#3350 residual)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3350",
+        "type": "x-xbrief/refs",
+        "title": "Issue #3350"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "project_floor",
+      "derived_reason": "no shell acceptance commands stated in task text; floor until agent derives AC (#3284 ladder)"
+    },
+    "id": "3361-seq-lock-live-holder",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/run-summary",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/run-summary"
+        ],
+        "expected_outputs": [
+          "3361-seq-lock-live-holder",
+          "CHANGELOG #3361"
+        ],
+        "depends_on": [],
+        "conflict_group": "run-summary-seq",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3353,
+        "prBase": null,
+        "mergeCommit": "bd7e49ad9c7b593d7799789f6fc63cea6ff6f77e",
+        "deliveryBranch": "master",
+        "deliveryCommit": "bd7e49ad9c7b593d7799789f6fc63cea6ff6f77e",
+        "verifiedAt": "2026-08-14T17:29:35Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-14T17:29:35Z",
+      "capacityBucket": "technical-debt"
+    },
+    "updated": "2026-08-14T17:29:35Z"
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3351; re-read comments 2026-08-14T16:29Z (branch-3 disposition + #3360 successor)",
+    "updated": "2026-08-14T18:39:53Z"
+  },
+  "plan": {
+    "id": "3351-hard-task-acceptance-clause-disposition",
+    "title": "investigation(verification): the one remaining hard-task gap vs 0.92 - read the new run's acceptance-clause telemetry and disposition the ambiguous-clause branch (re-scope of closed #3321)",
+    "status": "completed",
+    "narratives": {
+      "Description": "The remaining hard-task score gap versus 0.92 is an investigation, not a score flip. The worker must read the post-#3323 official-arm run artifacts and disposition which of three mechanism branches the acceptance-clause telemetry supports.",
+      "UserStory": "As a maintainer, I want a written disposition of the remaining hard-task failure citing clause telemetry, so that we know whether #3323 under-fired, never derived clauses, or flagged the wrong reading.",
+      "ImplementationPlan": "GitHub comments now supersede the original investigation steps. Disposition is already written (branch 3 — intake never derived). Successor fix is #3360. Remaining work is close-out only: close #3351 referencing #3360 without a GitHub closing keyword on #3360, then scope:complete this brief. Do not re-run the investigation.",
+      "Disposition": "Branch 3 — intake never derived. Evidence: no acceptance_stamp events (corroborating only); transcript shows hand-authored brief with no clause decomposition; #3334 refused empty plan.acceptance.commands mid-run; derivation is wired only to issue:ingest. Follow-up filed as #3360. n=1 variance caveat recorded. Related: #3355 #3356 #3357 #3358 #3362. Closure is by disposition + filed successor, not a score flip.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3351",
+      "Overview": "**TL;DR: one hard task now accounts for the entire remaining score gap between the current release and the 0.92 high-water mark on the discriminating bank. It failed again on the first post-fix run (33 turns, official arm). It is BOTH variance-prone (the same-harness no-framework control also fails it) AND the documented same-author-oracle case from the trajectory autopsy. This issue is the investigation: read the new run's acceptance-clause telemetry and transcript, then disposition down one of three branches. Re-scoped from the closed #3321, whose task A recovered without a bisect.**\n\n**Context (internal benchmark, private):** the task's statement is a multi-clause behavioral contract containing one genuinely ambiguous clause (two defensible readings that produce different artifacts). The 0.99 autopsy showed the agent implementing one reading, authoring its own tests to the same reading, passing them, and failing the hidden verifier. Rung-2 clause derivation (#3323) shipped in the current release specifically to force intake-time decomposition and ambiguity flagging; the task still failed post-fix.\n\n## Investigation steps\n\n1. Obtain the new run's artifacts for this task (transcript + run-summary JSONL + workspace xBRIEF — the bundle channel already exists).\n2. Read the `acceptance` / `acceptance_stamp` events and `plan.acceptance`: were clauses derived at intake? Is the ambiguous clause flagged with both readings and a recorded choice, per the #3323 contract?\n3. Disposition by branch:\n   - **Clauses derived, ambiguity flagged, recorded choice wrong** → #3323 worked as designed with an unlucky read. Then the enhancement question is real: when a flagged ambiguous clause is load-bearing and cheap to test both ways, implement to one reading but structure the artifact so the alternate is a small diff, and say which reading was chosen in the final report. Scope that as its own follow-up if the transcript supports it.\n   - **Clauses derived, ambiguity NOT flagged** → the ambiguity detector under-fires; tighten #3323's flagging with this clause as the fixture.\n   - **No clauses derived** → implementation gap in the intake path under the mandated-ceremony arm; fix the wiring (this would also predict silent rung-3 in the telemetry).\n4. Record the variance caveat in whatever closes this: the same-harness control fails this task too, so a single pass/fail flip next run is NOT evidence about this investigation's fix (n=1 rule).\n\n## Acceptance sketch\n\n- A written disposition (issue comment or linked analysis) naming which branch the evidence supports, citing the clause telemetry.\n- If branch 2 or 3: the corresponding defect issue filed with the fixture.\n- No score-based closure — closure is by evidence of which mechanism state held, not by the task passing once.\n\nRelates #3323 (clause derivation under test here), #3321 (predecessor, closed — task A recovered), #3322, #3334.\n\n",
+      "Labels": "bug, agent-experience"
+    },
+    "items": [
+      {
+        "status": "completed",
+        "title": "Obtain new-run artifacts",
+        "narrative": {
+          "Acceptance": "Given the post-#3323 official-arm run, when the worker starts, it locates transcript + run-summary JSONL + workspace xBRIEF for the remaining hard task (or records why they are unavailable).",
+          "Traces": "FR-3351-1"
+        }
+      },
+      {
+        "status": "completed",
+        "title": "Read clause telemetry",
+        "narrative": {
+          "Acceptance": "Given those artifacts, when acceptance / acceptance_stamp events and plan.acceptance are read, the disposition cites whether clauses were derived, whether the ambiguous clause was flagged with both readings, and which choice was recorded.",
+          "Traces": "FR-3351-2"
+        }
+      },
+      {
+        "status": "completed",
+        "title": "Written disposition + follow-up",
+        "narrative": {
+          "Acceptance": "Given the evidence, when the worker finishes, GitHub #3351 has a written disposition naming branch 1/2/3, citing telemetry; if branch 2 or 3 a defect issue is filed with the fixture; n=1 variance caveat is recorded. Closure is by evidence, not a single score flip.",
+          "Traces": "FR-3351-3"
+        }
+      }
+    ],
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "docs/analysis"
+        ],
+        "verify_commands": [
+          "task verify:investigation -- --ledger docs/analysis/2026-08-14-3351-hard-task-clause-disposition.md"
+        ],
+        "expected_outputs": [
+          "disposition comment or analysis on #3351",
+          "follow-up issue if branch 2/3",
+          "variance caveat"
+        ],
+        "depends_on": [],
+        "conflict_group": "hard-task-clause-investigation",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard"
+      },
+      "capacityBucket": "bugfix",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": null,
+        "prBase": null,
+        "mergeCommit": null,
+        "deliveryBranch": "master",
+        "deliveryCommit": null,
+        "verifiedAt": "2026-08-14T18:39:53Z",
+        "verifier": "scope:complete",
+        "disposition": "superseded",
+        "handoffState": "implemented",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "superseded",
+      "handoffState": "implemented",
+      "completedAt": "2026-08-14T18:39:53Z"
+    },
+    "tags": [
+      "bug",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3351",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3351: investigation(verification): the one remaining hard-task gap vs 0.92 - read the new run's acceptance-clause telemetry and disposition the ambiguous-clause branch (re-scope of closed #3321)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3321",
+        "type": "x-xbrief/github-issue",
+        "title": "Related predecessor #3321 (closed)"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 3 independently testable clauses from the task statement before product edit (#3323)",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "A written disposition (issue comment or linked analysis) naming which branch the evidence supports, citing the clause telemetry.",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 2,
+          "text": "If branch 2 or 3: the corresponding defect issue filed with the fixture.",
+          "artifact_path": null,
+          "ambiguous": false
+        },
+        {
+          "id": 3,
+          "text": "No score-based closure — closure is by evidence of which mechanism state held, not by the task passing once.",
+          "artifact_path": null,
+          "ambiguous": false
+        }
+      ]
+    },
+    "updated": "2026-08-14T18:39:53Z"
+  }
+}

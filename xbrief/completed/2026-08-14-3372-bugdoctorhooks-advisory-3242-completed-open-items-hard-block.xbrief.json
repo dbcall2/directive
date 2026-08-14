@@ -1,0 +1,184 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3372",
+    "updated": "2026-08-14T22:05:34Z"
+  },
+  "plan": {
+    "title": "bug(doctor,hooks): advisory #3242 completed-open-items hard-blocks Write/Task so official recovery is unreachable",
+    "status": "completed",
+    "id": "3372-completed-open-items-advisory",
+    "narratives": {
+      "Description": "Map completed-open-items through cmdDoctor as a warning so historical completed/ open items do not fail gated ritual or deny Write/Task. Keep completed-lifecycle-consistency and new scope:complete fail-closed.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3372",
+      "Overview": "## Summary\n\n`completed-open-items` (#3242) is documented as **advisory** for historical `xbrief/completed/` corpora, but a dirty doctor still fails `session:ready` gated ritual and **fail-closes Write and Task implement**. The official fix is editing those completed JSON item statuses to terminal. Editing requires Write. Write is blocked until doctor is clean. There is no stamp/backfill CLI. Recovery is unreachable from the session that discovered the failure.\n\n## Repro (consumer: deftai/agentsentri, 2026-08-14)\n\nContent deposit **v0.103.0** after `deft update` (v0.99.0 → v0.103.0).\n\n1. Historical completed xBRIEFs left `plan.items[].status` as `proposed` / `running` when scopes were completed pre-#2862 (datasets via PR #9, prompts via PR #13, A2A via PR #69; parity-research Story A shipped as a successor xBRIEF).\n2. `deft doctor --full` → `completed-open-items: fail` with copy that the historical corpus is **advisory until backfill** and that `scope:complete` fails closed on this class.\n3. Doctor records `lastErrorCount > 0` → `doctor.ok=false` in orientation / ritual state.\n4. `deft session:ready` fails gated step `doctor`.\n5. Cursor Write / StrReplace on `xbrief/completed/*.xbrief.json` denied: session ritual gated step `doctor` failed. Recovery text points back at `session:ready`.\n6. Task `generalPurpose` (implement) denied for the same reason. Explore-only Task still works.\n7. `commands.md` has no `scope:stamp-evidence` / bulk backfill command. `stampNamespacedEvidence` is library-only, invoked by `scope:complete` on **active** scopes — not historical `completed/` files.\n\nOperator-authorized backfill therefore cannot be applied by the same agent session. Product work (review-cycle fix on [agentsentri#110](https://github.com/deftai/agentsentri/pull/110), already merged) left an active xBRIEF that also cannot `scope:complete` while Write is blocked.\n\n## Locked decision (2026-08-14)\n\nValid bug. Close **option 1** on this issue: treat `completed-open-items` as advisory through `cmdDoctor` / gated ritual / PreToolUse, the same way other exit-exempt doctor checks become warnings.\n\nCause in current source (not consumer-only): `deriveExitCode` already exit-exempts `completed-open-items`. The check still returns `status: \"fail\"`. `packages/core/src/doctor/main.ts` maps unlisted fails to `severity: \"error\"`, so `lastErrorCount > 0` and doctor exit 1. Gated ritual runs `cmdDoctor`, not `deriveExitCode`. `session:ready` then fails step `doctor`. Write/Task deny and point back at `session:ready`.\n\nUnit tests lock only the checks-layer exit 0. They do not lock the doctor findings mapper.\n\nA no-Write stamp/backfill CLI is a **follow-up**, not this story.\n\nDo not require a fake product `scope:activate` to edit bookkeeping JSON.\n\n## Acceptance\n\n- [ ] Historical `completed/` with non-terminal `plan.items` only: `deft doctor --full` exits 0, `lastErrorCount` is 0, and the finding is a **warning** that still names the artifact paths.\n- [ ] `session:ready` / gated ritual `doctor` is ok for that corpus alone. PreToolUse does not deny Write/Task solely for this check.\n- [ ] `completed-lifecycle-consistency` still hard-fails on `plan.status` drift or unreadable artifacts.\n- [ ] `scope:complete` still fails closed on open items for **new** completes.\n- [ ] A `cmdDoctor` / ritual test locks the three bullets above. Do not rely on `deriveExitCode` alone.\n\n## Non-goals\n\n- New `scope:stamp-evidence` / bulk backfill CLI (follow-up).\n- Silent drop of the finding (warning must still name paths).\n- Changing `#3240` / `#3305` acceptance-evidence on `scope:complete`.\n- Repairing the agentsentri leftover active brief in this issue.\n\n## Caveat\n\nIf any `completed/` file also has non-terminal `plan.status`, option 1 will not unblock Write. That is `completed-lifecycle-consistency`, a different hard check. Confirm the consumer corpus is open-items-only before claiming recovery.\n\nAfter Write returns, the leftover active PR-110 brief can still fail `#3240` evidence on `scope:complete`. That is separate.\n\n## Actual\n\nDoctor is “advisory” in prose and hard-fail in the mutation hook. The recovery listed on the deny (`session:ready` / edit the files) is the blocked path.\n\n## Related\n\n- #3242 `completed-open-items` (closed framework-gap; this is the consumer hook wiring)\n- #2862 `scope:complete` left own `plan.items[].status` pending (why the historical corpus is dirty)\n- #3240 / #3305 `scope:complete` acceptance evidence (distinct gate; also blocked here)\n- #3259 Cursor Multitask residual (context: implement Task already needs an active xBRIEF)\n\n## Consumer leftovers (not the bug, just the stuck state)\n\n- https://github.com/deftai/agentsentri\n- Active: `xbrief/active/2026-08-14-pr-110-bound-dependency-overrides.xbrief.json` (PR 110 merged; needs evidence + `scope:complete` after Write unblocks)",
+      "Labels": "bug, adoption-blocker, doctor, agent-experience, process, harness, agent-safety, area:cli",
+      "UserStory": "As a consumer agent, I want completed-open-items to warn without failing doctor, so that Write and Task stay available for official recovery.",
+      "ImplementationPlan": "Edit source file packages/core/src/doctor/main.ts: map completed-open-items fail to severity warning in the cmdDoctor findings mapper (same allowlist pattern as other exit-exempt checks) so lastErrorCount is 0 and doctor exit is 0 while the finding still names artifact paths. Keep completed-lifecycle-consistency as error. Do not change scope:complete fail-closed on new completes. Add a cmdDoctor / ritual test in packages/core/src/doctor/ that verifies a historical completed/ corpus with only open plan.items exits 0 with warning severity and lastErrorCount 0. Evidence: cmdDoctor --full --json plus the new test."
+    },
+    "items": [
+      {
+        "title": "Doctor warning not error",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given historical completed/ with non-terminal plan.items only, when deft doctor --full runs, it exits 0, lastErrorCount is 0, and the completed-open-items finding is a warning that still names the artifact paths.",
+          "Traces": "FR-3372-1"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/doctor/main.test.ts",
+          "recorded_at": "2026-08-14T21:56:49Z",
+          "recorded_by": "3372-leaf"
+        }
+      },
+      {
+        "title": "Gated ritual and PreToolUse",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given that corpus alone, when session:ready / gated ritual doctor runs, doctor is ok and PreToolUse does not deny Write/Task solely for completed-open-items.",
+          "Traces": "FR-3372-2"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/doctor/main.test.ts",
+          "recorded_at": "2026-08-14T21:56:49Z",
+          "recorded_by": "3372-leaf"
+        }
+      },
+      {
+        "title": "Hard checks stay hard",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given completed-lifecycle-consistency drift or unreadable artifacts, when doctor runs, that check still hard-fails. scope:complete still fails closed on open items for new completes.",
+          "Traces": "FR-3372-3"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/doctor/main.test.ts",
+          "recorded_at": "2026-08-14T21:56:49Z",
+          "recorded_by": "3372-leaf"
+        }
+      },
+      {
+        "title": "cmdDoctor test lock",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the mapper change, when the cmdDoctor / ritual test runs, it locks warning mapping, lastErrorCount 0, and lifecycle-consistency still error. It does not rely on deriveExitCode alone.",
+          "Traces": "FR-3372-4"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/doctor/main.test.ts",
+          "recorded_at": "2026-08-14T21:56:49Z",
+          "recorded_by": "3372-leaf"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "adoption-blocker",
+      "doctor",
+      "agent-experience",
+      "process",
+      "harness",
+      "agent-safety",
+      "area:cli"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3372",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3372: bug(doctor,hooks): advisory #3242 completed-open-items hard-blocks Write/Task so official recovery is unreachable"
+      }
+    ],
+    "acceptance": {
+      "commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/doctor/main.test.ts"
+        }
+      ],
+      "none_stated": false,
+      "source_rung": "stated",
+      "derived_reason": "derived 5 independently testable clauses from the task statement before product edit (#3323)",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "packages/core/src/doctor/main.test.ts contains 'completed-open-items' and 'lastErrorCount' and 'warning'.",
+          "artifact_path": "packages/core/src/doctor/main.test.ts",
+          "ambiguous": false
+        },
+        {
+          "id": 2,
+          "text": "packages/core/src/doctor/main.test.ts contains 'ritual.lastErrorCount'.",
+          "artifact_path": "packages/core/src/doctor/main.test.ts",
+          "ambiguous": false
+        },
+        {
+          "id": 3,
+          "text": "packages/core/src/doctor/main.test.ts contains 'completed-lifecycle-consistency'.",
+          "artifact_path": "packages/core/src/doctor/main.test.ts",
+          "ambiguous": false
+        },
+        {
+          "id": 4,
+          "text": "packages/core/src/doctor/main.ts contains 'completed-open-items'.",
+          "artifact_path": "packages/core/src/doctor/main.ts",
+          "ambiguous": false
+        },
+        {
+          "id": 5,
+          "text": "packages/core/src/doctor/main.ts contains 'severity: \"warning\"'.",
+          "artifact_path": "packages/core/src/doctor/main.ts",
+          "ambiguous": false
+        }
+      ]
+    },
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/doctor/main.ts",
+          "packages/core/src/doctor/main.test.ts",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/doctor/main.test.ts"
+        ],
+        "expected_outputs": [
+          "3372-completed-open-items-advisory",
+          "completed-open-items warning",
+          "lastErrorCount 0"
+        ],
+        "depends_on": [],
+        "conflict_group": "doctor-mapper",
+        "size": "medium",
+        "file_scope_confidence": "high",
+        "model_tier": "standard"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3374,
+        "prBase": null,
+        "mergeCommit": "c0c4e2b685691f84e33d4a95c70d414711e5e6c9",
+        "deliveryBranch": "master",
+        "deliveryCommit": "c0c4e2b685691f84e33d4a95c70d414711e5e6c9",
+        "verifiedAt": "2026-08-14T22:05:34Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "54bc6aa8-d1b4-4ff9-a12a-e0c6a8605fc3"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-14T22:05:34Z",
+      "completedSessionId": "54bc6aa8-d1b4-4ff9-a12a-e0c6a8605fc3",
+      "capacityBucket": "technical-debt"
+    },
+    "updated": "2026-08-14T22:05:34Z"
+  }
+}

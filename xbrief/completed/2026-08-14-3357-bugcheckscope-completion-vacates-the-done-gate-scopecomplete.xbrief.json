@@ -1,0 +1,140 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3357",
+    "updated": "2026-08-14T18:26:21Z"
+  },
+  "plan": {
+    "title": "bug(check,scope): completion vacates the done-gate - scope:complete then check yields soft-missing green with nothing verified (third fail-open edge after #3334/#3335)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Completion then check must not skip acceptance after a same-session complete.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3357",
+      "Overview": "Completion then check used to take the verify-ac soft-missing path and exit 0 with nothing verified. After this story, completion runs the acceptance walk as a hard precondition and check targets the just-completed brief. One remediation string when that target cannot be used. Closes 3357.",
+      "Labels": "bug, agent-experience",
+      "UserStory": "As a maintainer, I want completion to keep the acceptance walk fail-closed, so that completing a story cannot turn the final check green without verifying acceptance.",
+      "ImplementationPlan": "Run the acceptance walk as a hard precondition in scope completion. Check composition targets the just-completed brief instead of a soft skip. Evidence is targeted vitest on scope and check plus CHANGELOG 3357."
+    },
+    "items": [
+      {
+        "title": "scope:complete hard acceptance precondition",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a completing brief with empty or failing acceptance, when scope:complete runs, it fails closed instead of accepting a disposition flag and leaving verify:ac nothing to check.",
+          "Traces": "FR-3357-1"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/scope/transition.test.ts#3357",
+          "recorded_at": "2026-08-14T18:22:22Z",
+          "recorded_by": "grok-build"
+        }
+      },
+      {
+        "title": "Check targets just-completed brief",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a story completed this session, when check runs verify:ac, the soft-missing skip is not used; verify:ac targets the just-completed brief under xbrief/completed.",
+          "Traces": "FR-3357-2"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/scope/transition.test.ts#3357",
+          "recorded_at": "2026-08-14T18:22:22Z",
+          "recorded_by": "grok-build"
+        }
+      },
+      {
+        "title": "CHANGELOG",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given the fix lands, CHANGELOG [Unreleased] cites #3357.",
+          "Traces": "FR-3357-3"
+        },
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/3364",
+          "recorded_at": "2026-08-14T18:22:22Z",
+          "recorded_by": "grok-build"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3357",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3357: bug(check,scope): completion vacates the done-gate - scope:complete then check yields soft-missing green with nothing verified (third fail-open edge after #3334/#3335)"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/scope packages/core/src/check",
+          "source": "explicit",
+          "sourceSpan": "swarm.verify_commands"
+        }
+      ],
+      "literal_acceptance_rejected": [],
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/scope/acceptance-evidence.ts",
+          "packages/core/src/scope/delivery-evidence.ts",
+          "packages/core/src/check",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/scope packages/core/src/check"
+        ],
+        "expected_outputs": [
+          "3357-scope-complete-vacates-done-gate",
+          "CHANGELOG #3357"
+        ],
+        "depends_on": [],
+        "conflict_group": "check-composition",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard"
+      },
+      "kind": "story",
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3364,
+        "prBase": "master",
+        "mergeCommit": "18f55d9db24e033847fe3a1a346cb3d7c70ca874",
+        "deliveryBranch": "master",
+        "deliveryCommit": "18f55d9db24e033847fe3a1a346cb3d7c70ca874",
+        "verifiedAt": "2026-08-14T18:26:21Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "c0d0e7fb-b9de-4a55-bcc2-51e61c7e30a1"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-14T18:26:21Z",
+      "completedSessionId": "c0d0e7fb-b9de-4a55-bcc2-51e61c7e30a1",
+      "capacityBucket": "technical-debt"
+    },
+    "acceptance": {
+      "commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/scope packages/core/src/check"
+        }
+      ],
+      "none_stated": false,
+      "source_rung": "derived",
+      "derived_reason": "swarm.verify_commands from #3357 xBRIEF"
+    },
+    "id": "3357-scope-complete-vacates-done-gate",
+    "updated": "2026-08-14T18:26:21Z"
+  }
+}

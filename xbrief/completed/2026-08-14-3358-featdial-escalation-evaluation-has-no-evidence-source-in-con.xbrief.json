@@ -1,0 +1,110 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3358",
+    "updated": "2026-08-14T17:47:33Z"
+  },
+  "plan": {
+    "title": "feat(dial): escalation evaluation has no evidence source in consumer runs - inputs permanently null, every evaluation declines identically (#3319 follow-up)",
+    "status": "completed",
+    "narratives": {
+      "Description": "Dial escalation evaluation always declines with insufficient evidence because taskSize and modelTier stay null. Hard multi-clause tasks are evaluated identically to trivial ones.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3358",
+      "Overview": "**TL;DR: dial escalation evaluation (#3319) now emits — and in consumer field runs it always declines with the same vacuous reason: \"insufficient evidence to raise above rapid (size=- modelTier=-)\". Both inputs are permanently null in this environment, so the evaluation is a coin with one side. The mechanism #3274 built has evidence events now but still no evidence source.**\n\n**Evidence (internal benchmark artifacts, private; framework 0.102.0):** every `dial_escalation_evaluation` event across collected trials: `{\"outcome\":\"declined\",\"reason\":\"insufficient evidence to raise above rapid (size=- modelTier=-)\",\"tier\":\"rapid\"}`. `taskSize` and `modelTier` are null in `ceremony_dial.inputs` on every session_start. Hard multi-clause tasks that subsequently failed their verifiers were evaluated identically to trivial ones.\n\n## Fix (design first, small)\nWire at least one real input the consumer environment can actually supply, e.g.: task-statement length/structure at intake (clause count from #3323 once stamped — a natural size proxy), failing-gate count mid-session, or a host-supplied tier hint env. Then the evaluation can sometimes escalate, and the #3319 events start carrying information instead of a constant.\n\nNon-goal: changing the rapid default or the decline threshold before an input exists — a threshold on null is still null.\n\nRelates #3319 (events shipped — this is the evidence source), #3274, #3214, #3323 (clause count as size proxy).",
+      "Labels": "enhancement, agent-experience",
+      "UserStory": "As a session owner, I want at least one real ceremony-dial input from the consumer environment, so that escalation evaluation can sometimes raise above rapid instead of always declining.",
+      "ImplementationPlan": "In packages/core/src/session ceremony-dial evaluation, wire one real input (clause count, failing-gate count, or host tier env) so taskSize/modelTier is not permanently null. Evidence: targeted vitest on packages/core/src/session plus CHANGELOG #3358."
+    },
+    "items": [
+      {
+        "title": "One real evidence input",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given a consumer run, when dial escalation evaluates, at least one of taskSize, modelTier, or an equivalent documented input is non-null when the environment can supply it.",
+          "Traces": "FR-3358-1"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "https://github.com/deftai/directive/pull/3365 ; pnpm exec vitest run packages/core/src/session",
+          "recorded_at": "2026-08-14T17:45:00Z",
+          "recorded_by": "MScottAdams"
+        }
+      },
+      {
+        "title": "Evaluation can escalate",
+        "status": "completed",
+        "narrative": {
+          "Acceptance": "Given that input, when evidence supports raising above rapid, the evaluation is not forced to the vacuous insufficient-evidence decline. CHANGELOG [Unreleased] cites #3358.",
+          "Traces": "FR-3358-2"
+        },
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "https://github.com/deftai/directive/pull/3365 ; pnpm exec vitest run packages/core/src/session",
+          "recorded_at": "2026-08-14T17:45:00Z",
+          "recorded_by": "MScottAdams"
+        }
+      }
+    ],
+    "tags": [
+      "enhancement",
+      "agent-experience"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3358",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3358: feat(dial): escalation evaluation has no evidence source in consumer runs - inputs permanently null, every evaluation declines identically (#3319 follow-up)"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "project_floor",
+      "derived_reason": "no shell acceptance commands stated in task text; floor until agent derives AC (#3284 ladder)"
+    },
+    "id": "3358-dial-escalation-evidence-source",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/session",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/session"
+        ],
+        "expected_outputs": [
+          "3358-dial-escalation-evidence-source",
+          "CHANGELOG #3358"
+        ],
+        "depends_on": [],
+        "conflict_group": "ceremony-dial",
+        "size": "medium",
+        "file_scope_confidence": "medium",
+        "model_tier": "standard"
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 3365,
+        "prBase": "master",
+        "mergeCommit": "a6d1cea646a95ba2f36b4f54d0d471699a9a3edc",
+        "deliveryBranch": "master",
+        "deliveryCommit": "a6d1cea646a95ba2f36b4f54d0d471699a9a3edc",
+        "verifiedAt": "2026-08-14T17:47:33Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-08-14T17:47:33Z",
+      "capacityBucket": "new-capability"
+    },
+    "updated": "2026-08-14T17:47:33Z"
+  }
+}
