@@ -1,9 +1,9 @@
 /**
  * Typed plan.policy.deliveryBranch (#3041).
  *
- * Distinct from swarm/PR `baseBranch` (integration target for PRs / finalize
- * sweep PRs). deliveryBranch is where shipped work must land for a delivered
- * completion disposition.
+ * Distinct from typed `plan.policy.baseBranch` (#3388), the integration-branch
+ * source for the shared branch-sync detector. deliveryBranch is dest: where
+ * shipped work must land for a delivered completion disposition.
  */
 
 import { defaultGitRunner, type GitRunner } from "../session/git.js";
@@ -65,6 +65,14 @@ function defaultBranchCandidates(projectRoot: string, runGit: GitRunner): string
     }
   }
   return candidates;
+}
+
+/** Git-only dest when dest-ref policy has no typed deliveryBranch (#3388). */
+export function resolveGitDefaultDeliveryBranch(
+  projectRoot: string,
+  runGit: GitRunner = defaultGitRunner,
+): string {
+  return defaultBranchCandidates(projectRoot, runGit)[0] ?? DEFAULT_DELIVERY_BRANCH_FALLBACK;
 }
 
 /**
