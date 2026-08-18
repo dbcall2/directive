@@ -9,6 +9,7 @@ import {
   stripArtifactSuffix,
 } from "../layout/resolve.js";
 import { evaluate as preflightEvaluate } from "../preflight/evaluate.js";
+import { applyWorktreeOccupancy } from "../session/occupancy.js";
 import { issueNumbersFromPlan, scopeMetadataRank } from "../triage/queue/scope-walk.js";
 import { selectionOrderingKey } from "../triage/queue/selection.js";
 import {
@@ -413,6 +414,152 @@ function defaultWorktree(projectRoot: string, sid: string): string {
   return join(projectRoot, ".deft-scratch", "worktrees", safeSegment(sid)).replace(/\\/g, "/");
 }
 
+export const SWARM_LAUNCH_MANIFEST_RELPATH = [".deft", "swarm-launch-manifest.json"] as const;
+export const SWARM_LAUNCH_OCCUPANCY_DIR = [".deft", "swarm-launch-occupancy"] as const;
+
+export function swarmLaunchManifestPath(projectRoot: string): string {
+  return join(resolve(projectRoot), ...SWARM_LAUNCH_MANIFEST_RELPATH);
+}
+
+export interface LaunchOccupancyRecord {
+  readonly allocation_plan_id: string | null;
+  readonly occupancy_session_id: string;
+  readonly story_ids: readonly string[];
+  readonly cohort_key: string;
+}
+
+export interface LaunchOccupancyQuery {
+  readonly allocationPlanId?: string | null;
+  readonly storyIds?: readonly string[];
+}
+
+export type LaunchOccupancyLookupReason = "ok" | "missing" | "wrong-cohort";
+
+export function occupancyCohortKey(
+  allocationPlanId: string | null | undefined,
+  storyIds: readonly string[] = [],
+): string {
+  const plan = allocationPlanId?.trim() ?? "";
+  if (plan.length > 0) return `plan:${plan}`;
+  const stories = [...storyIds].map((id) => id.trim()).filter((id) => id.length > 0);
+  stories.sort();
+  return `stories:${stories.join(",")}`;
+}
+
+export function launchOccupancyRecordRelpath(cohortKey: string): string[] {
+  return [...SWARM_LAUNCH_OCCUPANCY_DIR, `${safeSegment(cohortKey)}.json`];
+}
+
+function parseLaunchOccupancyRecord(payload: unknown): LaunchOccupancyRecord | null {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const obj = payload as Record<string, unknown>;
+  const sessionId =
+    typeof obj.occupancy_session_id === "string" ? obj.occupancy_session_id.trim() : "";
+  if (sessionId.length === 0) return null;
+  const cohortKey = typeof obj.cohort_key === "string" ? obj.cohort_key.trim() : "";
+  if (cohortKey.length === 0) return null;
+  const planRaw = obj.allocation_plan_id;
+  const allocationPlanId =
+    typeof planRaw === "string" && planRaw.trim().length > 0 ? planRaw.trim() : null;
+  const storyIds = Array.isArray(obj.story_ids)
+    ? obj.story_ids.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+    : [];
+  return {
+    allocation_plan_id: allocationPlanId,
+    occupancy_session_id: sessionId,
+    story_ids: storyIds,
+    cohort_key: cohortKey,
+  };
+}
+
+function storySetEquals(left: readonly string[], right: ReadonlySet<string>): boolean {
+  if (left.length !== right.size) return false;
+  return left.every((id) => right.has(id));
+}
+
+function readLaunchOccupancyFile(
+  projectRoot: string,
+  cohortKey: string,
+): LaunchOccupancyRecord | null {
+  const path = join(resolve(projectRoot), ...launchOccupancyRecordRelpath(cohortKey));
+  try {
+    if (!existsSync(path)) return null;
+    return parseLaunchOccupancyRecord(JSON.parse(readFileSync(path, { encoding: "utf8" })));
+  } catch {
+    return null;
+  }
+}
+
+function listLaunchOccupancyRecords(projectRoot: string): LaunchOccupancyRecord[] {
+  const dir = join(resolve(projectRoot), ...SWARM_LAUNCH_OCCUPANCY_DIR);
+  if (!existsSync(dir)) return [];
+  const out: LaunchOccupancyRecord[] = [];
+  for (const name of readdirSync(dir)) {
+    if (!name.endsWith(".json")) continue;
+    try {
+      const parsed = parseLaunchOccupancyRecord(
+        JSON.parse(readFileSync(join(dir, name), { encoding: "utf8" })),
+      );
+      if (parsed !== null) out.push(parsed);
+    } catch {
+      /* skip unreadable cohort slot */
+    }
+  }
+  return out;
+}
+
+export function persistLaunchOccupancyRecord(
+  projectRoot: string,
+  record: LaunchOccupancyRecord,
+): void {
+  const relpath = launchOccupancyRecordRelpath(record.cohort_key);
+  const absDir = join(resolve(projectRoot), ...SWARM_LAUNCH_OCCUPANCY_DIR);
+  mkdirSync(absDir, { recursive: true });
+  containedWrite({
+    root: projectRoot,
+    target: join(...relpath),
+    data: `${JSON.stringify(record, null, 2)}\n`,
+    mode: "replace",
+  });
+}
+
+export function resolveLaunchOccupancySessionId(
+  projectRoot: string,
+  query: LaunchOccupancyQuery = {},
+): { sessionId: string; reason: LaunchOccupancyLookupReason } {
+  const storyIds = (query.storyIds ?? []).map((id) => id.trim()).filter((id) => id.length > 0);
+  const requestedKey = occupancyCohortKey(query.allocationPlanId, storyIds);
+  const exact = readLaunchOccupancyFile(projectRoot, requestedKey);
+  if (exact !== null) {
+    const wantedPlan = query.allocationPlanId?.trim() ?? "";
+    if (exact.cohort_key !== requestedKey) {
+      return { sessionId: "", reason: "wrong-cohort" };
+    }
+    if (wantedPlan.length > 0 && exact.allocation_plan_id !== wantedPlan) {
+      return { sessionId: "", reason: "wrong-cohort" };
+    }
+    return { sessionId: exact.occupancy_session_id, reason: "ok" };
+  }
+  if ((query.allocationPlanId?.trim() ?? "").length > 0) {
+    return { sessionId: "", reason: "missing" };
+  }
+  if (storyIds.length === 0) {
+    return { sessionId: "", reason: "missing" };
+  }
+  const wanted = new Set(storyIds);
+  const matches = listLaunchOccupancyRecords(projectRoot).filter((rec) =>
+    storySetEquals(rec.story_ids, wanted),
+  );
+  if (matches.length === 0) {
+    return { sessionId: "", reason: "missing" };
+  }
+  const sessionIds = new Set(matches.map((rec) => rec.occupancy_session_id));
+  if (sessionIds.size !== 1) {
+    return { sessionId: "", reason: "wrong-cohort" };
+  }
+  return { sessionId: matches[0]?.occupancy_session_id ?? "", reason: "ok" };
+}
+
 export function buildManifest(
   resolved: readonly ResolvedStory[],
   options: {
@@ -431,6 +578,7 @@ export function buildManifest(
     modelSource?: string | null;
     runtimeMode?: string | null;
     githubAuthMode?: string | null;
+    occupancySessionId?: string | null;
   },
 ): Record<string, unknown>[] {
   const cohortVbriefs = resolved.map((s) => s.relpath);
@@ -462,6 +610,9 @@ export function buildManifest(
       branch: deriveBranch(options.group ?? null, story.story_id),
       allocation_context: allocationContext,
     };
+    if (options.occupancySessionId !== undefined && options.occupancySessionId !== null) {
+      entry.occupancy_session_id = options.occupancySessionId;
+    }
     if (options.subagentBackend !== undefined && options.subagentBackend !== null) {
       entry.subagent_backend = options.subagentBackend;
     }
@@ -727,6 +878,18 @@ export function swarmLaunch(args: LaunchArgs): {
         : null;
   const workerRoleValue = routingFile !== null || backend !== null ? LEAF_CODING_WORKER_ROLE : null;
 
+  const occupancy = applyWorktreeOccupancy(projectRoot, {
+    env: args.environ ?? process.env,
+    intent: "swarm",
+  });
+  if (occupancy.code !== 0) {
+    return {
+      exitCode: EXIT_GATE_FAILED,
+      stdout: "",
+      stderr: `${occupancy.message}\n`,
+    };
+  }
+
   const manifest = buildManifest(ordered, {
     projectRoot,
     group: args.group ?? null,
@@ -743,9 +906,34 @@ export function swarmLaunch(args: LaunchArgs): {
     modelSource,
     runtimeMode,
     githubAuthMode,
+    occupancySessionId: occupancy.sessionId,
   });
 
   const rendered = `${JSON.stringify(manifest, null, 2)}\n`;
+  const storyIds = ordered.map((story) => story.story_id);
+  const cohortKey = occupancyCohortKey(allocationPlanId, storyIds);
+
+  try {
+    mkdirSync(dirname(swarmLaunchManifestPath(projectRoot)), { recursive: true });
+    containedWrite({
+      root: projectRoot,
+      target: join(...SWARM_LAUNCH_MANIFEST_RELPATH),
+      data: rendered,
+      mode: "replace",
+    });
+    persistLaunchOccupancyRecord(projectRoot, {
+      allocation_plan_id: allocationPlanId,
+      occupancy_session_id: occupancy.sessionId,
+      story_ids: storyIds,
+      cohort_key: cohortKey,
+    });
+  } catch (exc: unknown) {
+    return {
+      exitCode: EXIT_CONFIG_ERROR,
+      stdout: "",
+      stderr: `Error: could not persist launch occupancy_session_id: ${String(exc)}\n`,
+    };
+  }
 
   if (args.output !== undefined && args.output !== null) {
     try {
