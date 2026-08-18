@@ -27,7 +27,7 @@ import {
   MIGRATED_INFO_ROOT_KEY,
   VBRIEF_VERSION,
 } from "../xbrief-migrate/constants.js";
-import { emitAcceptanceStampFromPlan } from "./clause-derivation.js";
+import { applyClauseQualityForIngest, emitAcceptanceStampFromPlan } from "./clause-derivation.js";
 import {
   findAcHeading,
   parseCheckboxItems,
@@ -613,6 +613,7 @@ export function buildIssueVbrief(
       [title, overviewSource].filter((s) => s.length > 0).join("\n\n"),
     );
     Object.assign(plan, derived.plan);
+    applyClauseQualityForIngest(plan);
   } else {
     // No body: still record none_stated acceptance so absence is a decision.
     Object.assign(plan, stampAcceptanceFromLiteralCapture(plan));
@@ -631,6 +632,30 @@ export function buildIssueVbrief(
     },
     folder,
   ];
+}
+
+/** Include a refused-stamp remediation on the ingest result so it is not silent. */
+export function formatIngestCreatedMessage(
+  folder: string,
+  filename: string,
+  plan: unknown,
+  dryRun = false,
+): string {
+  const lead = dryRun
+    ? `DRY-RUN would write ${folder}/${filename}`
+    : `CREATED ${folder}/${filename}`;
+  if (typeof plan !== "object" || plan === null || Array.isArray(plan)) {
+    return lead;
+  }
+  const acceptance = (plan as { acceptance?: unknown }).acceptance;
+  if (typeof acceptance !== "object" || acceptance === null || Array.isArray(acceptance)) {
+    return lead;
+  }
+  const notice = (acceptance as { quality_notice?: unknown }).quality_notice;
+  if (typeof notice !== "string" || notice.trim().length === 0) {
+    return lead;
+  }
+  return `${lead}\n${notice.trim()}`;
 }
 
 export function targetFilename(
@@ -902,7 +927,7 @@ export function ingestOne(
   const target = join(folderPath, filename);
 
   if (options.dryRun) {
-    return ["dryrun", target, `DRY-RUN would write ${folder}/${filename}`];
+    return ["dryrun", target, formatIngestCreatedMessage(folder, filename, vbrief.plan, true)];
   }
 
   // Gate lifecycle folder + leaf before mkdir/write so folder/parent symlinks
@@ -924,7 +949,7 @@ export function ingestOne(
   mkdirSync(folderPath, { recursive: true });
   writeFileSync(target, `${JSON.stringify(vbrief, null, 2)}\n`, "utf8");
   emitAcceptanceStampFromPlan(projectRoot, vbrief.plan);
-  return ["created", target, `CREATED ${folder}/${filename}`];
+  return ["created", target, formatIngestCreatedMessage(folder, filename, vbrief.plan)];
 }
 
 export function ingestBulk(
@@ -968,6 +993,7 @@ export function ingestBulk(
     duplicate: [],
     dryrun: [],
     failed: [],
+    notices: [],
   };
 
   for (const issue of filtered) {
@@ -985,9 +1011,12 @@ export function ingestBulk(
       }
       throw exc;
     }
-    const [result, path, _msg] = ingested;
+    const [result, path, msg] = ingested;
     const rel = path !== null ? path.replace(`${options.vbriefDir}/`, "").replace(/\\/g, "/") : "";
     (summary[result] as string[]).push(rel);
+    if (msg.includes("\n")) {
+      (summary.notices as string[]).push(msg);
+    }
     if (result === "created" && path !== null) {
       const num = Number(issue.number);
       const existing = refs.get(num) ?? [];
@@ -1074,6 +1103,9 @@ export function issueIngestMain(args: IssueIngestCliArgs): number {
     for (const entry of created) {
       process.stdout.write(`  CREATED ${entry}\n`);
     }
+    for (const notice of (summary.notices as string[] | undefined) ?? []) {
+      process.stdout.write(`${notice}\n`);
+    }
     for (const entry of dryrun) {
       process.stdout.write(`  DRY-RUN ${entry}\n`);
     }
@@ -1121,7 +1153,7 @@ export function ingestSingleForAccept(
     status?: IngestStatus;
     cacheRoot?: string | null;
   } = {},
-): [IngestResult, string | null] {
+): [IngestResult, string | null, string] {
   const root = resolve(options.projectRoot ?? process.cwd());
   const vbriefDir = resolveLifecycleRoot(root);
   mkdirSync(vbriefDir, { recursive: true });
@@ -1135,11 +1167,12 @@ export function ingestSingleForAccept(
       `failed to fetch GitHub issue #${n} from ${repo} (unified cache miss + live gh api fetch failed; see stderr)`,
     );
   }
-  const [result, path] = ingestOne(issue, {
+  // Forward ingestOne's notice-bearing third return so triage:accept can
+  // print a refused-stamp remediation instead of only the decision id (#3398).
+  return ingestOne(issue, {
     vbriefDir,
     status: options.status ?? "proposed",
     repoUrl,
     cwd: root,
   });
-  return [result, path];
 }
