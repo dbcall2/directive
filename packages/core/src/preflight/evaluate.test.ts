@@ -6,6 +6,7 @@ import { afterAll, describe, expect, it } from "vitest";
 // chmodSync does not reliably block file reads on Windows; skip chmod-dependent tests there.
 const itChmod = it.skipIf(process.platform === "win32");
 
+import { buildIssueVbrief } from "../intake/issue-ingest.js";
 import {
   ELIGIBLE_STATUS,
   emitJson,
@@ -14,6 +15,21 @@ import {
   PREFLIGHT_USAGE_HINT,
 } from "./evaluate.js";
 import { emitJson as emitJsonFromIndex, evaluate as evaluateFromIndex } from "./index.js";
+import {
+  INTENDED_PLACEMENT_GRANDFATHER_HINT,
+  INTENDED_PLACEMENT_SCHEMA,
+  stampIntendedPlacement,
+} from "./intended-placement.js";
+
+function underThresholdPlacement(): Record<string, unknown> {
+  return {
+    intended_placement: {
+      schema: INTENDED_PLACEMENT_SCHEMA,
+      files: ["src/new-module.ts"],
+      module_boundary: "new focused module",
+    },
+  };
+}
 
 const temps: string[] = [];
 afterAll(() => {
@@ -37,7 +53,7 @@ describe("evaluate", () => {
     const path = writeVbrief(
       "active",
       "story.xbrief.json",
-      JSON.stringify({ plan: { status: "running" } }),
+      JSON.stringify({ plan: { status: "running", metadata: underThresholdPlacement() } }),
     );
     const result = evaluate(path);
     expect(result.exitCode).toBe(0);
@@ -50,7 +66,11 @@ describe("evaluate", () => {
     const dir = join(root, "xbrief", "active");
     mkdirSync(dir, { recursive: true });
     const path = join(dir, "story.xbrief.json");
-    writeFileSync(path, JSON.stringify({ plan: { status: "running" } }), "utf8");
+    writeFileSync(
+      path,
+      JSON.stringify({ plan: { status: "running", metadata: underThresholdPlacement() } }),
+      "utf8",
+    );
     const result = evaluate(path);
     expect(result.exitCode).toBe(0);
   });
@@ -119,6 +139,39 @@ describe("evaluate", () => {
     const result = evaluate(path);
     expect(result.exitCode).toBe(1);
     expect(result.message).toContain("vBRIEF not found");
+  });
+
+  it("grandfathers a missing intended_placement on a pre-existing brief (#3424)", () => {
+    const path = writeVbrief(
+      "active",
+      "story.xbrief.json",
+      JSON.stringify({ plan: { status: "running" } }),
+    );
+    const result = evaluate(path);
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain(INTENDED_PLACEMENT_GRANDFATHER_HINT);
+  });
+
+  it("preflights a freshly ingested brief end-to-end (#3424)", () => {
+    const [vbrief] = buildIssueVbrief(
+      {
+        number: 3424,
+        title: "fresh ingest placement",
+        url: "https://github.com/deftai/directive/issues/3424",
+        body: "## Acceptance\n- [ ] Record intended placement\n",
+        labels: [],
+      },
+      "active",
+      "https://github.com/deftai/directive",
+    );
+    const plan = vbrief.plan as Record<string, unknown>;
+    plan.status = "running";
+    stampIntendedPlacement(plan);
+    const path = writeVbrief("active", "ingested.xbrief.json", JSON.stringify(vbrief));
+    const result = evaluate(path, { skipOriginFreshness: true });
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("ready for implementation");
+    expect(result.message).not.toContain("lacks plan.metadata.intended_placement");
   });
 
   it("rejects a directory path", () => {
@@ -209,6 +262,7 @@ describe("parent lineage pre-PR (#3241)", () => {
           planRef: "pending/parent.xbrief.json",
           metadata: {
             kind: "story",
+            ...underThresholdPlacement(),
             parent_lineage: {
               schema: "deft.scope.parent_lineage.v1",
               parent_plan_id: "epic-preflight-lineage",
@@ -308,6 +362,7 @@ describe("project invariants preflight (#3425)", () => {
           metadata: {
             swarm: { file_scope: ["packages/core/src/preflight"] },
             coverage_map: { "host-load": { disposition: "covered" } },
+            ...underThresholdPlacement(),
           },
         },
       }),
@@ -333,7 +388,9 @@ describe("project invariants preflight (#3425)", () => {
       }),
       "utf8",
     );
-    expect(evaluate(path, { skipProjectInvariants: true }).exitCode).toBe(0);
+    expect(
+      evaluate(path, { skipProjectInvariants: true, skipIntendedPlacement: true }).exitCode,
+    ).toBe(0);
   });
 });
 
@@ -346,6 +403,7 @@ describe("origin freshness (#3363)", () => {
         xBRIEFInfo: { version: "0.8", updated },
         plan: {
           status: "running",
+          metadata: underThresholdPlacement(),
           references: [
             {
               type: "x-xbrief/github-issue",
@@ -405,6 +463,7 @@ describe("origin freshness (#3363)", () => {
         xBRIEFInfo: { version: "0.8", updated: "2026-08-14T16:00:00Z" },
         plan: {
           status: "running",
+          metadata: underThresholdPlacement(),
           narratives: {
             Origin: "Ingested from https://github.com/deftai/directive/issues/3363",
           },
