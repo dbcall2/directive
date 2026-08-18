@@ -146,9 +146,81 @@ describe("evaluate", () => {
       {
         path: "xbrief/active/shipped-story.xbrief.json",
         reason: "all referenced issues are closed",
+        kind: "shipped",
       },
     ]);
-    expect(result.message).toContain("task scope:complete");
+    expect(result.message).toContain(
+      "task scope:complete -- xbrief/active/shipped-story.xbrief.json",
+    );
+  });
+
+  it("fails closed on --issue N when that origin is a closed active brief", () => {
+    const root = makeRepo();
+    writeBrief(root, "shipped-story.xbrief.json", {
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/1001",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    });
+    writeBrief(root, "other-orphan.xbrief.json", {
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/2002",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    });
+    writeCachedIssue(root, "deftai/directive", 1001, "closed");
+    writeCachedIssue(root, "deftai/directive", 2002, "closed");
+    const result = evaluate(root, { repo: "deftai/directive", skipGh: true, issue: 1001 });
+    expect(result.code).toBe(1);
+    expect(result.orphans).toEqual([
+      {
+        path: "xbrief/active/shipped-story.xbrief.json",
+        reason: "issue #1001 is closed",
+        kind: "shipped",
+      },
+    ]);
+    expect(result.message).toContain(
+      "task scope:complete -- xbrief/active/shipped-story.xbrief.json",
+    );
+    expect(result.message).not.toContain("other-orphan.xbrief.json");
+  });
+
+  it("returns 0 for --issue N when that origin is still open and the PR is unmerged", () => {
+    const root = makeRepo();
+    writeBrief(root, "live-story.xbrief.json", {
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/1001",
+          type: "x-xbrief/github-issue",
+        },
+        {
+          uri: "https://github.com/deftai/directive/pull/43",
+          type: "x-xbrief/github-pr",
+        },
+      ],
+    });
+    writeCachedIssue(root, "deftai/directive", 1001, "open");
+    const runGh: RunGhFn = (cmd) => {
+      if (cmd.join(" ").includes("/pulls/43")) {
+        return {
+          returncode: 0,
+          stdout: JSON.stringify({ merged_at: null }),
+          stderr: "",
+        };
+      }
+      return { returncode: 1, stdout: "", stderr: "unexpected" };
+    };
+    const result = evaluate(root, { repo: "deftai/directive", runGh, issue: 1001 });
+    expect(result.code).toBe(0);
+    expect(result.orphans).toEqual([]);
+    expect(result.message).toContain("for issue #1001");
   });
 
   it("flags orphan when linked PR is merged", () => {
@@ -191,6 +263,233 @@ describe("evaluate", () => {
     writeCachedIssue(root, "deftai/directive", 1001, "closed");
     const result = evaluate(root, { repo: "deftai/directive", skipGh: true });
     expect(result.code).toBe(0);
+  });
+
+  it("fails closed on --issue N when a linked PR lookup fails even if the origin is open", () => {
+    const root = makeRepo();
+    writeBrief(root, "open-issue-unknown-pr.xbrief.json", {
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/1001",
+          type: "x-xbrief/github-issue",
+        },
+        {
+          uri: "https://github.com/deftai/directive/pull/42",
+          type: "x-xbrief/github-pr",
+        },
+      ],
+    });
+    writeCachedIssue(root, "deftai/directive", 1001, "open");
+    const runGh: RunGhFn = () => ({
+      returncode: 1,
+      stdout: "",
+      stderr: "api failed",
+    });
+    const result = evaluate(root, { repo: "deftai/directive", runGh, issue: 1001 });
+    expect(result.code).toBe(1);
+    expect(result.orphans[0]?.reason).toBe("linked PR #42 state could not be resolved");
+    expect(result.orphans[0]?.kind).toBe("unresolved");
+    expect(result.message).toContain("task verify:orphan-active -- --issue 1001");
+    expect(result.message).not.toContain(
+      "task scope:complete -- xbrief/active/open-issue-unknown-pr.xbrief.json",
+    );
+  });
+
+  it("prints scope:complete on --issue N when the selected origin is closed even if a linked PR lookup fails", () => {
+    const root = makeRepo();
+    writeBrief(root, "closed-issue-unknown-pr.xbrief.json", {
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/1001",
+          type: "x-xbrief/github-issue",
+        },
+        {
+          uri: "https://github.com/deftai/directive/pull/42",
+          type: "x-xbrief/github-pr",
+        },
+      ],
+    });
+    writeCachedIssue(root, "deftai/directive", 1001, "closed");
+    const runGh: RunGhFn = () => ({
+      returncode: 1,
+      stdout: "",
+      stderr: "api failed",
+    });
+    const result = evaluate(root, { repo: "deftai/directive", runGh, issue: 1001 });
+    expect(result.code).toBe(1);
+    expect(result.orphans[0]?.reason).toBe("issue #1001 is closed");
+    expect(result.orphans[0]?.kind).toBe("shipped");
+    expect(result.message).toContain(
+      "task scope:complete -- xbrief/active/closed-issue-unknown-pr.xbrief.json",
+    );
+    expect(result.message).not.toContain("task verify:orphan-active -- --issue 1001");
+  });
+
+  it("fails closed on --issue N when a linked PR is merged even if an issue is still open", () => {
+    const root = makeRepo();
+    writeBrief(root, "open-issue-merged-pr.xbrief.json", {
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/1001",
+          type: "x-xbrief/github-issue",
+        },
+        {
+          uri: "https://github.com/deftai/directive/pull/42",
+          type: "x-xbrief/github-pr",
+        },
+      ],
+    });
+    writeCachedIssue(root, "deftai/directive", 1001, "open");
+    const runGh: RunGhFn = (cmd) => {
+      if (cmd.join(" ").includes("/pulls/42")) {
+        return {
+          returncode: 0,
+          stdout: JSON.stringify({ merged_at: "2026-08-17T00:00:00Z" }),
+          stderr: "",
+        };
+      }
+      return { returncode: 1, stdout: "", stderr: "unexpected" };
+    };
+    const result = evaluate(root, { repo: "deftai/directive", runGh, issue: 1001 });
+    expect(result.code).toBe(1);
+    expect(result.orphans[0]?.reason).toBe("linked PR #42 is merged");
+    expect(result.orphans[0]?.kind).toBe("shipped");
+    expect(result.message).toContain(
+      "task scope:complete -- xbrief/active/open-issue-merged-pr.xbrief.json",
+    );
+  });
+
+  it("fails closed on --issue N when origin state cannot be resolved", () => {
+    const root = makeRepo();
+    writeBrief(root, "unknown-state.xbrief.json", {
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/4040",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    });
+    const result = evaluate(root, { repo: "deftai/directive", skipGh: true, issue: 4040 });
+    expect(result.code).toBe(1);
+    expect(result.orphans[0]?.reason).toBe("issue #4040 state could not be resolved");
+    expect(result.orphans[0]?.kind).toBe("unresolved");
+    expect(result.message).toContain("task verify:orphan-active -- --issue 4040");
+    expect(result.message).not.toContain(
+      "task scope:complete -- xbrief/active/unknown-state.xbrief.json",
+    );
+  });
+
+  it("fails closed on --issue N when the selected origin is unknown even if a sibling is open", () => {
+    const root = makeRepo();
+    writeBrief(root, "multi-origin.xbrief.json", {
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/4040",
+          type: "x-xbrief/github-issue",
+        },
+        {
+          uri: "https://github.com/deftai/directive/issues/2002",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    });
+    writeCachedIssue(root, "deftai/directive", 2002, "open");
+    const result = evaluate(root, { repo: "deftai/directive", skipGh: true, issue: 4040 });
+    expect(result.code).toBe(1);
+    expect(result.orphans[0]?.reason).toBe("issue #4040 state could not be resolved");
+    expect(result.orphans[0]?.kind).toBe("unresolved");
+    expect(result.message).toContain("task verify:orphan-active -- --issue 4040");
+    expect(result.message).not.toContain(
+      "task scope:complete -- xbrief/active/multi-origin.xbrief.json",
+    );
+  });
+
+  it("fails closed on --issue N when the selected origin is closed even if a sibling is open", () => {
+    const root = makeRepo();
+    writeBrief(root, "closed-origin-open-sibling.xbrief.json", {
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/1001",
+          type: "x-xbrief/github-issue",
+        },
+        {
+          uri: "https://github.com/deftai/directive/issues/2002",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    });
+    writeCachedIssue(root, "deftai/directive", 1001, "closed");
+    writeCachedIssue(root, "deftai/directive", 2002, "open");
+    const result = evaluate(root, { repo: "deftai/directive", skipGh: true, issue: 1001 });
+    expect(result.code).toBe(1);
+    expect(result.orphans[0]?.reason).toBe("issue #1001 is closed");
+    expect(result.orphans[0]?.kind).toBe("shipped");
+    expect(result.message).toContain(
+      "task scope:complete -- xbrief/active/closed-origin-open-sibling.xbrief.json",
+    );
+  });
+
+  it("prints scope:complete only for shipped briefs when mixed with unresolved lookup", () => {
+    const root = makeRepo();
+    writeBrief(root, "unknown-issue.xbrief.json", {
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/1001",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    });
+    writeBrief(root, "merged-pr-story.xbrief.json", {
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/1001",
+          type: "x-xbrief/github-issue",
+        },
+        {
+          uri: "https://github.com/deftai/directive/pull/42",
+          type: "x-xbrief/github-pr",
+        },
+      ],
+    });
+    const runGh: RunGhFn = (cmd) => {
+      if (cmd.join(" ").includes("/pulls/42")) {
+        return {
+          returncode: 0,
+          stdout: JSON.stringify({ merged_at: "2026-08-18T00:00:00Z" }),
+          stderr: "",
+        };
+      }
+      return { returncode: 1, stdout: "", stderr: "api failed" };
+    };
+    const result = evaluate(root, { repo: "deftai/directive", runGh, issue: 1001 });
+    expect(result.code).toBe(1);
+    expect(result.orphans).toEqual([
+      {
+        path: "xbrief/active/merged-pr-story.xbrief.json",
+        reason: "linked PR #42 is merged",
+        kind: "shipped",
+      },
+      {
+        path: "xbrief/active/unknown-issue.xbrief.json",
+        reason: "issue #1001 state could not be resolved",
+        kind: "unresolved",
+      },
+    ]);
+    expect(result.message).toContain(
+      "task scope:complete -- xbrief/active/merged-pr-story.xbrief.json",
+    );
+    expect(result.message).toContain("task verify:orphan-active -- --issue 1001");
+    expect(result.message).not.toContain(
+      "task scope:complete -- xbrief/active/unknown-issue.xbrief.json",
+    );
   });
 
   it("does not orphan when issue state is unknown", () => {
