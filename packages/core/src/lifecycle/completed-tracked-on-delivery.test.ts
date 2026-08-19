@@ -98,6 +98,32 @@ describe("resolveDeliveryTip", () => {
     expect(error).toBeNull();
     expect(tip).toBe("HEAD");
   });
+
+  // #3478 review: the gate proves an artifact landed on the delivery tip, not on
+  // feature-worktree HEAD. When neither origin/<branch> nor <branch> resolves
+  // (shallow clone, unfetched worktree, fetch-depth:1 checkout), falling back to
+  // HEAD would check the very branch whose land is in question and pass.
+  it("fails closed instead of falling back to HEAD when the delivery ref is absent", () => {
+    const root = makeGitRepo();
+    // Detach onto a feature-shaped ref so neither origin/master nor master resolve.
+    git(root, ["checkout", "-q", "-b", "feature/land-in-flight"]);
+    git(root, ["branch", "-q", "-D", "master"]);
+    const { tip, error } = resolveDeliveryTip(root, null, (cwd, args) => {
+      try {
+        const stdout = execFileSync("git", [...args], {
+          cwd,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+        return { code: 0, stdout: String(stdout).trimEnd(), stderr: "" };
+      } catch {
+        return { code: 1, stdout: "", stderr: "fail" };
+      }
+    });
+    expect(tip).toBeNull();
+    expect(error).toContain("could not resolve delivery tip");
+    expect(error).toContain("--tip");
+  });
 });
 
 describe("evaluateCompletedTracked (#3264)", () => {
@@ -398,6 +424,99 @@ describe("evaluateCompletedTracked (#3264)", () => {
     expect(headTip.code).toBe(0);
   });
 
+  it("scopes --issue N so a sibling unlanded closed issue does not fail (#3476)", () => {
+    const root = makeGitRepo();
+    writeBrief(root, "completed", "landed.xbrief.json", issuePlan(9101));
+    writeBrief(root, "completed", "sibling-untracked.xbrief.json", issuePlan(9102));
+    writeCachedIssue(root, "deftai/directive", 9101, "closed");
+    writeCachedIssue(root, "deftai/directive", 9102, "closed");
+    git(root, ["add", "xbrief/completed/landed.xbrief.json"]);
+    git(root, ["commit", "-q", "-m", "land 9101 only"]);
+    const scoped = evaluateCompletedTracked(root, {
+      repo: "deftai/directive",
+      skipGh: true,
+      tip: "HEAD",
+      issue: 9101,
+    });
+    expect(scoped.code).toBe(0);
+    expect(scoped.missing).toEqual([]);
+    const sibling = evaluateCompletedTracked(root, {
+      repo: "deftai/directive",
+      skipGh: true,
+      tip: "HEAD",
+      issue: 9102,
+    });
+    expect(sibling.code).toBe(1);
+    expect(sibling.missing[0]?.issue.number).toBe(9102);
+  });
+
+  it("fails --issue N when completed is only on feature HEAD, not delivery tip (#3476)", () => {
+    const root = makeGitRepo();
+    const deliveryTip = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim();
+    writeBrief(root, "completed", "laptop-only.xbrief.json", issuePlan(9103));
+    writeCachedIssue(root, "deftai/directive", 9103, "closed");
+    git(root, ["add", "xbrief/completed/laptop-only.xbrief.json"]);
+    git(root, ["commit", "-q", "-m", "feature-only land"]);
+    const result = evaluateCompletedTracked(root, {
+      repo: "deftai/directive",
+      skipGh: true,
+      tip: deliveryTip,
+      issue: 9103,
+    });
+    expect(result.code).toBe(1);
+    expect(result.missing[0]?.issue.number).toBe(9103);
+    expect(result.message).toContain("task swarm:finalize-cohort");
+    const featureHead = evaluateCompletedTracked(root, {
+      repo: "deftai/directive",
+      skipGh: true,
+      tip: "HEAD",
+      issue: 9103,
+    });
+    expect(featureHead.code).toBe(0);
+  });
+
+  it("fails --issue N with no local origin when the issue is closed and unlanded (#3476)", () => {
+    const root = makeGitRepo();
+    writeCachedIssue(root, "deftai/directive", 9104, "closed");
+    const result = evaluateCompletedTracked(root, {
+      repo: "deftai/directive",
+      skipGh: true,
+      tip: "HEAD",
+      issue: 9104,
+    });
+    expect(result.code).toBe(1);
+    expect(result.missing[0]?.issue.number).toBe(9104);
+    expect(result.missing[0]?.origins).toContain("--issue 9104");
+  });
+
+  it("does not fail --issue N when the named issue is still open and unlanded", () => {
+    const root = makeGitRepo();
+    writeCachedIssue(root, "deftai/directive", 9105, "open");
+    const result = evaluateCompletedTracked(root, {
+      repo: "deftai/directive",
+      skipGh: true,
+      tip: "HEAD",
+      issue: 9105,
+    });
+    expect(result.code).toBe(0);
+    expect(result.missing).toEqual([]);
+  });
+
+  it("returns config error for a non-positive --issue", () => {
+    const root = makeGitRepo();
+    const result = evaluateCompletedTracked(root, {
+      repo: "deftai/directive",
+      skipGh: true,
+      tip: "HEAD",
+      issue: 0,
+    });
+    expect(result.code).toBe(2);
+    expect(result.message).toContain("positive integer");
+  });
+
   it("fails closed when live gh fails for an unlanded origin (#3264 conf residual)", () => {
     const root = makeGitRepo();
     writeBrief(root, "completed", "stale-open-live-fail.xbrief.json", issuePlan(9080));
@@ -411,5 +530,65 @@ describe("evaluateCompletedTracked (#3264)", () => {
     // Unknown with live expected must not green-skip unlanded residue.
     expect(result.code).toBe(1);
     expect(result.missing[0]?.issue.number).toBe(9080);
+  });
+
+  // #3478 review: --issue matching must be repo-scoped. A foreign repo's
+  // same-numbered issue previously survived the filter, left originMap
+  // non-empty (suppressing synthesis of the requested issue), and let its
+  // own open state green-skip the local unlanded one.
+  it("does not let a foreign repo's same-numbered issue satisfy --issue", () => {
+    const root = makeGitRepo();
+    writeBrief(root, "completed", "foreign-same-number.xbrief.json", {
+      status: "completed",
+      title: "foreign story 9200",
+      references: [
+        {
+          uri: "https://github.com/otherorg/otherrepo/issues/9200",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    });
+    writeCachedIssue(root, "otherorg/otherrepo", 9200, "open");
+    writeCachedIssue(root, "deftai/directive", 9200, "closed");
+    const result = evaluateCompletedTracked(root, {
+      repo: "deftai/directive",
+      skipGh: true,
+      tip: "HEAD",
+      issue: 9200,
+    });
+    expect(result.code).toBe(1);
+    expect(result.missing).toHaveLength(1);
+    expect(result.missing[0]?.issue.repo).toBe("deftai/directive");
+    expect(result.missing[0]?.issue.number).toBe(9200);
+  });
+
+  // #3478 review: --skip-gh must not turn the named-issue DONE form into a
+  // no-op for an issue the cache has never seen.
+  it("fails --issue N under --skip-gh when the cache has no state for it", () => {
+    const root = makeGitRepo();
+    const result = evaluateCompletedTracked(root, {
+      repo: "deftai/directive",
+      skipGh: true,
+      tip: "HEAD",
+      issue: 9201,
+    });
+    expect(result.code).toBe(1);
+    expect(result.missing[0]?.issue.number).toBe(9201);
+    expect(result.missing[0]?.origins).toContain("--issue 9201");
+  });
+
+  // Guard the narrowing above: the unscoped corpus scan keeps its offline
+  // allowance, since a cold cache legitimately knows nothing about most
+  // scoped issues. Only the explicitly named --issue tightens.
+  it("keeps the offline allowance for uncached issues on the unscoped scan", () => {
+    const root = makeGitRepo();
+    writeBrief(root, "completed", "uncached-unscoped.xbrief.json", issuePlan(9202));
+    const result = evaluateCompletedTracked(root, {
+      repo: "deftai/directive",
+      skipGh: true,
+      tip: "HEAD",
+    });
+    expect(result.code).toBe(0);
+    expect(result.missing).toEqual([]);
   });
 });
