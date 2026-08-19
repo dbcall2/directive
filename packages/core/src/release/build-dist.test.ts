@@ -1,17 +1,154 @@
-import { mkdirSync, mkdtempSync, statSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import {
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import {
+  ARCHIVE_BINARY_NAME_MARK,
+  archiveMemberBytes,
+  archiverEntryName,
+  assertArchiveEntriesTrackedOrGenerated,
   buildArchive,
+  containedAbsPath,
   DEFAULT_EXCLUDES,
+  DEFAULT_GENERATED_ALLOWLIST,
   emitBuildProgress,
+  flattenContentPrefixBytes,
+  fsLookupPath,
+  GIT_LS_FILES_Z_ENCODING,
+  isValidUtf8Buffer,
   iterSourceFiles,
+  joinRootAndRelBytes,
+  listGitTrackedFiles,
   main,
   outputPath,
   parseExtraExcludes,
+  resolveArchiveEntries,
   selectFormat,
+  splitGitLsFilesZ,
+  UntrackedArchiveEntryError,
 } from "./build-dist.js";
+
+function gitCommitAll(root: string, message = "init"): void {
+  execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["config", "user.name", "test"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["add", "-A"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "-m", message], {
+    cwd: root,
+    stdio: "ignore",
+  });
+}
+
+function payloadFingerprint(
+  entries: Array<{ absPath: string | Buffer; archiveRel: string }>,
+): string {
+  const hash = createHash("sha256");
+  for (const entry of entries) {
+    hash.update(entry.archiveRel);
+    hash.update("\0");
+    hash.update(readFileSync(entry.absPath));
+    hash.update("\0");
+  }
+  return hash.digest("hex");
+}
+
+function zipMemberNames(zipPath: string): string[] {
+  const buf = readFileSync(zipPath);
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= 0; i -= 1) {
+    if (buf.readUInt32LE(i) === 0x06054b50) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) throw new Error("zip EOCD not found");
+  const count = buf.readUInt16LE(eocd + 10);
+  let offset = buf.readUInt32LE(eocd + 16);
+  const names: string[] = [];
+  for (let n = 0; n < count; n += 1) {
+    if (buf.readUInt32LE(offset) !== 0x02014b50) throw new Error("zip central header corrupt");
+    const nameLen = buf.readUInt16LE(offset + 28);
+    const extraLen = buf.readUInt16LE(offset + 30);
+    const commentLen = buf.readUInt16LE(offset + 32);
+    names.push(buf.subarray(offset + 46, offset + 46 + nameLen).toString("utf8"));
+    offset += 46 + nameLen + extraLen + commentLen;
+  }
+  return names.sort();
+}
+
+function zipMemberHeaders(zipPath: string): Array<{ name: Buffer; utf8Flag: boolean }> {
+  const buf = readFileSync(zipPath);
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= 0; i -= 1) {
+    if (buf.readUInt32LE(i) === 0x06054b50) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) throw new Error("zip EOCD not found");
+  const count = buf.readUInt16LE(eocd + 10);
+  let offset = buf.readUInt32LE(eocd + 16);
+  const members: Array<{ name: Buffer; utf8Flag: boolean }> = [];
+  for (let n = 0; n < count; n += 1) {
+    if (buf.readUInt32LE(offset) !== 0x02014b50) throw new Error("zip central header corrupt");
+    const flags = buf.readUInt16LE(offset + 8);
+    const nameLen = buf.readUInt16LE(offset + 28);
+    const extraLen = buf.readUInt16LE(offset + 30);
+    const commentLen = buf.readUInt16LE(offset + 32);
+    members.push({
+      name: Buffer.from(buf.subarray(offset + 46, offset + 46 + nameLen)),
+      utf8Flag: (flags & 0x0800) !== 0,
+    });
+    offset += 46 + nameLen + extraLen + commentLen;
+  }
+  return members;
+}
+
+function tarMemberNameBytes(tarGzPath: string): Buffer[] {
+  const buf = gunzipSync(readFileSync(tarGzPath));
+  const names: Buffer[] = [];
+  let offset = 0;
+  while (offset + 512 <= buf.length) {
+    const header = buf.subarray(offset, offset + 512);
+    if (header.every((b) => b === 0)) break;
+    const typeflag = header[156];
+    const sizeField = header.subarray(124, 136).toString("ascii").replace(/\0/g, "").trim();
+    const size = Number.parseInt(sizeField, 8) || 0;
+    const padded = Math.ceil(size / 512) * 512;
+    if (typeflag === 0x78) {
+      let body = buf.subarray(offset + 512, offset + 512 + size);
+      while (body.length > 0) {
+        let i = 0;
+        while (i < body.length && body[i] !== 0x20) i += 1;
+        const recLen = Number.parseInt(body.subarray(0, i).toString("ascii"), 10);
+        if (!recLen || recLen > body.length) break;
+        const rec = body.subarray(0, recLen);
+        const eq = rec.indexOf(0x3d, i + 1);
+        if (eq > 0 && rec.subarray(i + 1, eq).toString("utf8") === "path") {
+          names.push(Buffer.from(rec.subarray(eq + 1, rec.length - 1)));
+        }
+        body = body.subarray(recLen);
+      }
+    } else {
+      const nul = header.subarray(0, 100).indexOf(0);
+      names.push(Buffer.from(header.subarray(0, nul < 0 ? 100 : nul)));
+    }
+    offset += 512 + padded;
+  }
+  return names;
+}
 
 describe("build-dist helpers", () => {
   it("selectFormat honors explicit arg and defaults", () => {
@@ -94,9 +231,10 @@ describe("build-dist helpers", () => {
   it("buildArchive succeeds when coverage/.tmp is present", async () => {
     const root = mkdtempSync(join(tmpdir(), "deft-build-dist-coverage-archive-"));
     mkdirSync(join(root, "content"), { recursive: true });
-    mkdirSync(join(root, "coverage", ".tmp"), { recursive: true });
     writeFileSync(join(root, "README.md"), "# fixture\n");
     writeFileSync(join(root, "content", "doc.md"), "hello\n");
+    gitCommitAll(root);
+    mkdirSync(join(root, "coverage", ".tmp"), { recursive: true });
     writeFileSync(join(root, "coverage", ".tmp", "coverage-2.json"), "{}\n");
 
     const out = await buildArchive(root, "9.9.9", "zip");
@@ -124,6 +262,7 @@ describe("build-dist helpers", () => {
     mkdirSync(join(root, "content"), { recursive: true });
     writeFileSync(join(root, "README.md"), "# fixture\n");
     writeFileSync(join(root, "content", "doc.md"), "hello\n");
+    gitCommitAll(root);
     const stages: string[] = [];
     await buildArchive(root, "1.0.0", "zip", {
       onProgress: (p) => {
@@ -165,6 +304,7 @@ describe("build-dist helpers", () => {
     mkdirSync(join(root, "content"), { recursive: true });
     writeFileSync(join(root, "README.md"), "# fixture\n");
     writeFileSync(join(root, "content", "doc.md"), "hello\n");
+    gitCommitAll(root);
     return root;
   }
 
@@ -189,5 +329,493 @@ describe("build-dist helpers", () => {
     const root = fixtureProject();
     expect(await main(["--version", "9.9.9", "--format", "zip", "--root", root])).toBe(0);
     expect(statSync(outputPath(root, "9.9.9", "zip")).size).toBeGreaterThan(0);
+  });
+
+  it("DEFAULT_GENERATED_ALLOWLIST is empty so generated outputs must be named", () => {
+    expect(DEFAULT_GENERATED_ALLOWLIST).toEqual([]);
+  });
+
+  it("listGitTrackedFiles fails closed outside a git work tree", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-build-dist-nogit-"));
+    writeFileSync(join(root, "README.md"), "# hi\n");
+    expect(() => listGitTrackedFiles(root)).toThrow(/git ls-files failed/);
+  });
+
+  it("listGitTrackedFiles fails closed when --root is not the repository root", () => {
+    const root = fixtureProject();
+    expect(() => listGitTrackedFiles(join(root, "content"))).toThrow(/git ls-files failed/);
+  });
+
+  it("resolveArchiveEntries packs tracked files and ignores untracked host trees (#3490)", () => {
+    const root = fixtureProject();
+    mkdirSync(join(root, ".claude", "worktrees", "agent"), { recursive: true });
+    mkdirSync(join(root, ".deft-scratch", "worktrees", "story"), { recursive: true });
+    mkdirSync(join(root, ".new-agent-host"), { recursive: true });
+    writeFileSync(join(root, ".claude", "settings.local.json"), "{}\n");
+    writeFileSync(join(root, ".claude", "worktrees", "agent", "noise.md"), "x\n");
+    writeFileSync(join(root, ".deft-scratch", "worktrees", "story", "scratch.md"), "x\n");
+    writeFileSync(join(root, ".new-agent-host", "state.json"), "{}\n");
+    writeFileSync(join(root, "untracked-root.txt"), "surprise\n");
+
+    const rels = resolveArchiveEntries(root).map((e) => e.archiveRel);
+    expect(rels).toContain("README.md");
+    expect(rels).toContain("doc.md");
+    expect(rels.some((r) => r.includes(".claude"))).toBe(false);
+    expect(rels.some((r) => r.includes(".deft-scratch"))).toBe(false);
+    expect(rels.some((r) => r.includes(".new-agent-host"))).toBe(false);
+    expect(rels).not.toContain("untracked-root.txt");
+  });
+
+  it("archive contents match with and without extra untracked directories (#3490)", async () => {
+    const root = fixtureProject();
+    const cleanEntries = resolveArchiveEntries(root);
+    const cleanZip = await buildArchive(root, "1.0.0", "zip");
+    const cleanNames = zipMemberNames(cleanZip);
+    const cleanFp = payloadFingerprint(cleanEntries);
+
+    mkdirSync(join(root, ".claude", "worktrees", "agent"), { recursive: true });
+    mkdirSync(join(root, ".deft-scratch", "worktrees", "story"), { recursive: true });
+    mkdirSync(join(root, ".new-agent-host"), { recursive: true });
+    writeFileSync(join(root, ".claude", "settings.local.json"), "secret\n");
+    writeFileSync(join(root, ".claude", "worktrees", "agent", "nested.ts"), "x\n");
+    writeFileSync(join(root, ".deft-scratch", "worktrees", "story", "scratch.md"), "x\n");
+    writeFileSync(join(root, ".new-agent-host", "state.json"), "{}\n");
+
+    const dirtyEntries = resolveArchiveEntries(root);
+    const dirtyZip = await buildArchive(root, "1.0.0", "zip");
+    expect(dirtyEntries.map((e) => e.archiveRel)).toEqual(cleanEntries.map((e) => e.archiveRel));
+    expect(payloadFingerprint(dirtyEntries)).toBe(cleanFp);
+    expect(zipMemberNames(dirtyZip)).toEqual(cleanNames);
+  });
+
+  it("assertArchiveEntriesTrackedOrGenerated fails closed on surprise untracked files", () => {
+    const root = fixtureProject();
+    writeFileSync(join(root, "secret.txt"), "nope\n");
+    expect(() => assertArchiveEntriesTrackedOrGenerated(root, ["README.md", "secret.txt"])).toThrow(
+      UntrackedArchiveEntryError,
+    );
+    expect(() => assertArchiveEntriesTrackedOrGenerated(root, ["README.md", "secret.txt"])).toThrow(
+      /secret\.txt/,
+    );
+  });
+
+  it("generated allowlist files may be packed even when untracked", async () => {
+    const root = fixtureProject();
+    writeFileSync(join(root, "generated.out"), "built\n");
+    const rels = resolveArchiveEntries(root, { generatedAllowlist: ["generated.out"] }).map(
+      (e) => e.archiveRel,
+    );
+    expect(rels).toContain("generated.out");
+    const out = await buildArchive(root, "1.0.0", "zip", {
+      generatedAllowlist: ["generated.out"],
+    });
+    expect(zipMemberNames(out)).toContain("deft/generated.out");
+  });
+
+  it("defence in depth still skips tracked paths under excluded basenames", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-build-dist-excluded-tracked-"));
+    mkdirSync(join(root, "node_modules", "pkg"), { recursive: true });
+    mkdirSync(join(root, "content"), { recursive: true });
+    writeFileSync(join(root, "README.md"), "# hi\n");
+    writeFileSync(join(root, "content", "doc.md"), "hello\n");
+    writeFileSync(join(root, "node_modules", "pkg", "index.js"), "x\n");
+    gitCommitAll(root);
+    const rels = resolveArchiveEntries(root).map((e) => e.archiveRel);
+    expect(rels).toContain("README.md");
+    expect(rels).not.toContain("node_modules/pkg/index.js");
+  });
+
+  it("main returns 1 when git ls-files cannot run", async () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-build-dist-main-nogit-"));
+    writeFileSync(join(root, "README.md"), "# hi\n");
+    expect(await main(["--version", "1.0.0", "--format", "zip", "--root", root])).toBe(1);
+  });
+
+  it("containedAbsPath rejects parent traversal", () => {
+    const root = fixtureProject();
+    expect(containedAbsPath(root, "README.md")).toBe(join(root, "README.md"));
+    expect(containedAbsPath(root, "../secret.txt")).toBeNull();
+    expect(containedAbsPath(root, "content/../../secret.txt")).toBeNull();
+  });
+
+  it("generated allowlist paths that escape the root fail closed", () => {
+    const root = fixtureProject();
+    expect(() => resolveArchiveEntries(root, { generatedAllowlist: ["../outside.txt"] })).toThrow(
+      /escapes the archive root/,
+    );
+  });
+
+  it("listGitTrackedFiles preserves internal spaces in filenames", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-build-dist-space-"));
+    mkdirSync(join(root, "content"), { recursive: true });
+    writeFileSync(join(root, "README.md"), "# hi\n");
+    writeFileSync(join(root, "content", "doc.md"), "hello\n");
+    writeFileSync(join(root, "has space.txt"), "x\n");
+    gitCommitAll(root);
+    expect(listGitTrackedFiles(root)).toContain("has space.txt");
+  });
+
+  it("listGitTrackedFiles keeps a non-ASCII tracked path intact", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-build-dist-utf8-"));
+    mkdirSync(join(root, "content"), { recursive: true });
+    writeFileSync(join(root, "README.md"), "# hi\n");
+    writeFileSync(join(root, "content", "doc.md"), "hello\n");
+    writeFileSync(join(root, "café.txt"), "x\n");
+    gitCommitAll(root);
+    expect(listGitTrackedFiles(root)).toContain("café.txt");
+  });
+
+  it("splitGitLsFilesZ keeps bytes that whole-stream utf8 decode would replace", () => {
+    const segment = Buffer.from([0x66, 0x6f, 0x6f, 0xff, 0x2e, 0x74, 0x78, 0x74]);
+    const raw = Buffer.concat([segment, Buffer.from([0])]);
+    const naive = raw
+      .toString("utf8")
+      .split("\0")
+      .filter((line) => line.length > 0);
+    const faithful = segment.toString("latin1");
+    expect(naive[0]).not.toBe(faithful);
+    expect(splitGitLsFilesZ(raw)).toEqual([faithful]);
+  });
+
+  it("listGitTrackedFiles splits a Buffer -z payload without utf8 encoding", () => {
+    expect(GIT_LS_FILES_Z_ENCODING).toBeNull();
+    const cafe = Buffer.from("café.txt", "utf8");
+    const invalid = Buffer.from([0x66, 0x6f, 0x6f, 0xff, 0x2e, 0x74, 0x78, 0x74]);
+    const payload = Buffer.concat([cafe, Buffer.from([0]), invalid, Buffer.from([0])]);
+    const seen: Array<{ encoding: unknown; args: readonly string[] }> = [];
+    const spawn = (
+      _command: string,
+      args: readonly string[],
+      options: { encoding: null },
+    ): { status: number; stdout: Buffer; stderr: Buffer } => {
+      seen.push({ encoding: options.encoding, args });
+      return { status: 0, stdout: payload, stderr: Buffer.alloc(0) };
+    };
+    const paths = listGitTrackedFiles("/unused-root", spawn);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.encoding).toBeNull();
+    expect(seen[0]?.args).toContain("-z");
+    expect(paths).toEqual(["café.txt", invalid.toString("latin1")]);
+  });
+
+  it("fsLookupPath keeps invalid -z bytes as a Buffer instead of utf8", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-build-dist-lookup-"));
+    const invalid = Buffer.from([0x66, 0x6f, 0x6f, 0xff, 0x2e, 0x74, 0x78, 0x74]);
+    const lookup = fsLookupPath(root, invalid.toString("latin1"), invalid);
+    expect(Buffer.isBuffer(lookup)).toBe(true);
+    expect((lookup as Buffer).includes(0xff)).toBe(true);
+    expect(Buffer.from(String(lookup), "utf8").includes(0xff)).toBe(false);
+    const utf8Rel = Buffer.from("README.md", "utf8");
+    const utf8Lookup = fsLookupPath(root, "README.md", utf8Rel);
+    expect(typeof utf8Lookup).toBe("string");
+    expect(joinRootAndRelBytes(Buffer.from(root, "utf8"), invalid).includes(0xff)).toBe(true);
+  });
+
+  it("joinRootAndRelBytes keeps non-utf8 bytes from the canonical root", () => {
+    const rootBytes = Buffer.from([0x2f, 0x74, 0x6d, 0x70, 0x2f, 0x72, 0xff, 0x6f, 0x6f, 0x74]);
+    const rel = Buffer.from([0x61, 0xff, 0x2e, 0x74]);
+    const joined = joinRootAndRelBytes(rootBytes, rel);
+    expect(joined.subarray(0, rootBytes.length).equals(rootBytes)).toBe(true);
+    expect(Buffer.from(rootBytes.toString("utf8"), "utf8").equals(rootBytes)).toBe(false);
+  });
+
+  it("invalid-byte -z paths survive list and contained resolve", () => {
+    const root = fixtureProject();
+    const invalid = Buffer.from([0x66, 0x6f, 0x6f, 0xff, 0x2e, 0x74, 0x78, 0x74]);
+    const payload = Buffer.concat([
+      Buffer.from("README.md"),
+      Buffer.from([0]),
+      invalid,
+      Buffer.from([0]),
+    ]);
+    const spawn = (): { status: number; stdout: Buffer; stderr: Buffer } => ({
+      status: 0,
+      stdout: payload,
+      stderr: Buffer.alloc(0),
+    });
+    const realpathArgs: Array<string | Buffer> = [];
+    const lstatArgs: Array<string | Buffer> = [];
+    const standIn = realpathSync(join(root, "README.md"));
+    const entries = resolveArchiveEntries(root, {
+      spawn,
+      fs: {
+        realpathSync: (path, options) => {
+          realpathArgs.push(path);
+          if (Buffer.isBuffer(path)) {
+            return options?.encoding === "buffer" ? Buffer.from(standIn, "utf8") : standIn;
+          }
+          return options?.encoding === "buffer"
+            ? realpathSync(path, { encoding: "buffer" })
+            : realpathSync(path);
+        },
+        lstatSync: (path) => {
+          lstatArgs.push(path);
+          if (Buffer.isBuffer(path)) return lstatSync(standIn);
+          return lstatSync(path);
+        },
+      },
+    });
+    const bytePreserving = [...realpathArgs, ...lstatArgs].some(
+      (arg) => Buffer.isBuffer(arg) && arg.includes(0xff),
+    );
+    expect(bytePreserving).toBe(true);
+    expect(entries.map((e) => e.archiveRel)).toContain("README.md");
+    expect(entries.map((e) => e.archiveRel)).toContain(invalid.toString("latin1"));
+  });
+
+  it("invalid-byte -z lookup joins canonical root bytes not utf8(resolve(root))", () => {
+    const root = fixtureProject();
+    const invalid = Buffer.from([0x66, 0x6f, 0x6f, 0xff, 0x2e, 0x74, 0x78, 0x74]);
+    const payload = Buffer.concat([invalid, Buffer.from([0])]);
+    const spawn = (): { status: number; stdout: Buffer; stderr: Buffer } => ({
+      status: 0,
+      stdout: payload,
+      stderr: Buffer.alloc(0),
+    });
+    const standIn = realpathSync(join(root, "README.md"));
+    const rootBytes = Buffer.concat([Buffer.from(realpathSync(root), "utf8"), Buffer.from([0xff])]);
+    const realpathArgs: Array<string | Buffer> = [];
+    const entries = resolveArchiveEntries(root, {
+      spawn,
+      fs: {
+        realpathSync: (path, options) => {
+          realpathArgs.push(path);
+          if (typeof path === "string") {
+            if (options?.encoding === "buffer") return rootBytes;
+            return realpathSync(path);
+          }
+          return options?.encoding === "buffer" ? path : path.toString("latin1");
+        },
+        lstatSync: (path) => {
+          if (Buffer.isBuffer(path)) return lstatSync(standIn);
+          return lstatSync(path);
+        },
+      },
+    });
+    const joinedRootAndRel = realpathArgs.some(
+      (arg) =>
+        Buffer.isBuffer(arg) &&
+        arg.includes(0xff) &&
+        arg.subarray(0, rootBytes.length).equals(rootBytes),
+    );
+    expect(joinedRootAndRel).toBe(true);
+    expect(entries.map((e) => e.archiveRel)).toContain(invalid.toString("latin1"));
+    expect(
+      entries
+        .find((e) => e.archiveRel === invalid.toString("latin1"))
+        ?.archiveRelBytes.equals(invalid),
+    ).toBe(true);
+  });
+
+  it("flattenContentPrefixBytes strips a content/ prefix without utf8-decoding", () => {
+    const invalid = Buffer.from([0x66, 0x6f, 0x6f, 0xff, 0x2e, 0x74, 0x78, 0x74]);
+    const underContent = Buffer.concat([Buffer.from("content/", "utf8"), invalid]);
+    expect(flattenContentPrefixBytes(underContent).equals(invalid)).toBe(true);
+    expect(flattenContentPrefixBytes(invalid).equals(invalid)).toBe(true);
+    expect(
+      flattenContentPrefixBytes(Buffer.from("content", "utf8")).equals(
+        Buffer.from("content", "utf8"),
+      ),
+    ).toBe(true);
+  });
+
+  it("archiverEntryName marks non-utf8 member bytes and leaves valid utf8 unmarked", () => {
+    const cafe = archiveMemberBytes(Buffer.from("café.txt", "utf8"));
+    expect(isValidUtf8Buffer(cafe)).toBe(true);
+    expect(archiverEntryName(cafe)).toBe("deft/café.txt");
+    expect(archiverEntryName(cafe).startsWith(ARCHIVE_BINARY_NAME_MARK)).toBe(false);
+    const invalid = Buffer.from([0x66, 0x6f, 0x6f, 0xff, 0x2e, 0x74, 0x78, 0x74]);
+    const member = archiveMemberBytes(invalid);
+    expect(isValidUtf8Buffer(member)).toBe(false);
+    const named = archiverEntryName(member);
+    expect(named.startsWith(ARCHIVE_BINARY_NAME_MARK)).toBe(true);
+    expect(Buffer.from(named.slice(ARCHIVE_BINARY_NAME_MARK.length), "latin1").equals(member)).toBe(
+      true,
+    );
+  });
+
+  it("zip and tar member names keep invalid -z path bytes", async () => {
+    const root = fixtureProject();
+    const invalid = Buffer.from([0x66, 0x6f, 0x6f, 0xff, 0x2e, 0x74, 0x78, 0x74]);
+    const payload = Buffer.concat([
+      Buffer.from("README.md"),
+      Buffer.from([0]),
+      Buffer.from("content/doc.md"),
+      Buffer.from([0]),
+      invalid,
+      Buffer.from([0]),
+    ]);
+    const spawn = (): { status: number; stdout: Buffer; stderr: Buffer } => ({
+      status: 0,
+      stdout: payload,
+      stderr: Buffer.alloc(0),
+    });
+    const standIn = realpathSync(join(root, "README.md"));
+    const fsLookup = {
+      realpathSync: (
+        path: string | Buffer,
+        options?: { encoding?: BufferEncoding | "buffer" | null },
+      ): string | Buffer => {
+        if (Buffer.isBuffer(path)) {
+          return options?.encoding === "buffer" ? Buffer.from(standIn, "utf8") : standIn;
+        }
+        return options?.encoding === "buffer"
+          ? realpathSync(path, { encoding: "buffer" })
+          : realpathSync(path);
+      },
+      lstatSync: (path: string | Buffer) => {
+        if (Buffer.isBuffer(path)) return lstatSync(standIn);
+        return lstatSync(path);
+      },
+    };
+    const zip = await buildArchive(root, "1.0.0", "zip", { spawn, fs: fsLookup });
+    const tar = await buildArchive(root, "1.0.1", "tar", { spawn, fs: fsLookup });
+    const expected = archiveMemberBytes(invalid);
+    const corrupted = Buffer.from(expected.toString("latin1"), "utf8");
+    expect(corrupted.equals(expected)).toBe(false);
+    const zipHeaders = zipMemberHeaders(zip);
+    expect(zipHeaders.some((m) => m.name.equals(expected))).toBe(true);
+    expect(zipHeaders.some((m) => m.name.equals(corrupted))).toBe(false);
+    const invalidZip = zipHeaders.find((m) => m.name.equals(expected));
+    expect(invalidZip?.utf8Flag).toBe(false);
+    expect(tarMemberNameBytes(tar).some((n) => n.equals(expected))).toBe(true);
+    expect(tarMemberNameBytes(tar).some((n) => n.equals(corrupted))).toBe(false);
+  });
+
+  it("splitGitLsFilesZ drops empty segments and keeps a trailing unterminated path", () => {
+    const raw = Buffer.from("a.txt\0\0b.txt", "utf8");
+    expect(splitGitLsFilesZ(raw)).toEqual(["a.txt", "b.txt"]);
+    expect(splitGitLsFilesZ(Buffer.alloc(0))).toEqual([]);
+  });
+
+  it("listGitTrackedFiles accepts string stdout and fails closed on spawn errors", () => {
+    expect(
+      listGitTrackedFiles("/unused-root", () => ({
+        status: 0,
+        stdout: "ok.txt\0",
+        stderr: "",
+      })),
+    ).toEqual(["ok.txt"]);
+    expect(
+      listGitTrackedFiles("/unused-root", () => ({
+        status: 0,
+        stdout: null,
+        stderr: null,
+      })),
+    ).toEqual([]);
+    expect(() =>
+      listGitTrackedFiles("/unused-root", () => ({
+        status: 1,
+        stdout: Buffer.from("ignored"),
+        stderr: Buffer.from("fatal: boom\n"),
+      })),
+    ).toThrow(/git ls-files failed.*fatal: boom/);
+    expect(() =>
+      listGitTrackedFiles("/unused-root", () => ({
+        status: 1,
+        stdout: "stdout-detail",
+        stderr: "",
+      })),
+    ).toThrow(/stdout-detail/);
+    expect(() =>
+      listGitTrackedFiles("/unused-root", () => ({
+        status: null,
+        stdout: null,
+        stderr: null,
+        error: new Error("ENOENT"),
+      })),
+    ).toThrow(/ENOENT/);
+    expect(() =>
+      listGitTrackedFiles("/unused-root", () => ({
+        status: 1,
+        stdout: null,
+        stderr: null,
+      })),
+    ).toThrow(/unknown error/);
+  });
+
+  it("containedAbsPath treats only POSIX slashes as separators", () => {
+    const root = fixtureProject();
+    expect(containedAbsPath(root, "content/doc.md")).toBe(join(root, "content", "doc.md"));
+    expect(containedAbsPath(root, "content/../README.md")).toBeNull();
+    // Git index paths are `/`-separated (gitglossary "path"). A literal `\` is
+    // a filename byte. Splitting on `\` would pack a POSIX file named `foo\bar`
+    // as nested segments and could escape the root. On win32, Node resolve
+    // still fail-closes OS-separator `..\` via isInsideRoot.
+    const winEscape = "content\\..\\..\\secret.txt";
+    if (process.platform === "win32") {
+      expect(containedAbsPath(root, winEscape)).toBeNull();
+    } else {
+      expect(containedAbsPath(root, winEscape)).toBe(join(root, winEscape));
+    }
+  });
+
+  it("generated allowlist symlink to a file outside the root fails closed", () => {
+    const root = fixtureProject();
+    const outside = join(mkdtempSync(join(tmpdir(), "deft-build-dist-out-")), "secret.txt");
+    writeFileSync(outside, "secret\n");
+    const link = join(root, "generated.out");
+    try {
+      symlinkSync(outside, link);
+    } catch {
+      return;
+    }
+    expect(() => resolveArchiveEntries(root, { generatedAllowlist: ["generated.out"] })).toThrow(
+      /resolves outside the archive root/,
+    );
+  });
+
+  it("generated allowlist file under a symlinked ancestor directory fails closed", () => {
+    const root = fixtureProject();
+    const outsideDir = mkdtempSync(join(tmpdir(), "deft-build-dist-outdir-"));
+    writeFileSync(join(outsideDir, "secret.txt"), "secret\n");
+    const linkDir = join(root, "linkdir");
+    try {
+      symlinkSync(outsideDir, linkDir, "dir");
+    } catch {
+      try {
+        symlinkSync(outsideDir, linkDir);
+      } catch {
+        return;
+      }
+    }
+    expect(() =>
+      resolveArchiveEntries(root, { generatedAllowlist: ["linkdir/secret.txt"] }),
+    ).toThrow(/resolves outside the archive root/);
+  });
+
+  function trySymlinkDir(target: string, link: string): boolean {
+    try {
+      symlinkSync(target, link, "dir");
+      return true;
+    } catch {
+      try {
+        symlinkSync(target, link, "junction");
+        return true;
+      } catch {
+        try {
+          symlinkSync(target, link);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    }
+  }
+
+  it("archive via a symlink root matches the real checkout (#3490)", async () => {
+    const realRoot = fixtureProject();
+    const holder = mkdtempSync(join(tmpdir(), "deft-build-dist-linkroot-"));
+    const linkRoot = join(holder, "link-root");
+    if (!trySymlinkDir(realRoot, linkRoot)) return;
+
+    const viaReal = resolveArchiveEntries(realRoot);
+    const viaLink = resolveArchiveEntries(linkRoot);
+    expect(viaLink.map((e) => e.archiveRel)).toEqual(viaReal.map((e) => e.archiveRel));
+    expect(payloadFingerprint(viaLink)).toBe(payloadFingerprint(viaReal));
+
+    const zipReal = await buildArchive(realRoot, "1.0.0", "zip");
+    const zipLink = await buildArchive(linkRoot, "1.0.1", "zip");
+    expect(zipMemberNames(zipLink)).toEqual(zipMemberNames(zipReal));
   });
 });
