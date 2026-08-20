@@ -23,6 +23,9 @@ const EXCLUDED_DIR_NAMES = new Set([
 
 const EXCLUDED_PATH_PREFIXES = ["xbrief/", "vbrief/", ".deft/", ".git/"];
 
+/** Repo-root run-summary telemetry must not invalidate a green bank (#3558). */
+const ROOT_RUN_SUMMARY_REL = ".deft-run-summary.json";
+
 export interface HashProductStateInput {
   readonly projectRoot: string;
   readonly plan: Record<string, unknown>;
@@ -61,11 +64,12 @@ function toPosix(rel: string): string {
   return rel.replace(/\\/g, "/");
 }
 
-function isExcludedRel(rel: string): boolean {
+function isExcludedRel(rel: string, options?: { readonly keepTelemetryFiles?: boolean }): boolean {
   const posix = toPosix(rel);
   if (posix === "." || posix.length === 0) return false;
   const first = posix.split("/")[0] ?? "";
   if (EXCLUDED_DIR_NAMES.has(first)) return true;
+  if (!options?.keepTelemetryFiles && posix === ROOT_RUN_SUMMARY_REL) return true;
   return EXCLUDED_PATH_PREFIXES.some(
     (prefix) => posix === prefix.slice(0, -1) || posix.startsWith(prefix),
   );
@@ -157,6 +161,7 @@ function walkFiles(
   dir: string | Buffer,
   out: string[],
   seen = new Set<string>(),
+  keepTelemetryFiles = false,
 ): void {
   const dirBuf = asPathBuf(dir);
   let real: string;
@@ -177,7 +182,7 @@ function walkFiles(
     const nameLatin1 = nameBuf.toString("latin1");
     const abs = joinNameBytes(dirBuf, nameBuf);
     const rel = relFromRootBytes(root, abs);
-    if (isExcludedRel(rel)) continue;
+    if (isExcludedRel(rel, { keepTelemetryFiles })) continue;
     let st: ReturnType<typeof statSync>;
     try {
       st = statSync(abs);
@@ -186,7 +191,7 @@ function walkFiles(
     }
     if (st.isDirectory()) {
       if (EXCLUDED_DIR_NAMES.has(nameLatin1)) continue;
-      walkFiles(root, abs, out, seen);
+      walkFiles(root, abs, out, seen, keepTelemetryFiles);
       continue;
     }
     if (st.isFile()) out.push(rel);
@@ -418,7 +423,7 @@ function literalDirPrefix(rel: string): string {
   return literal.join("/");
 }
 
-function expandPath(root: string, relOrGlob: string): string[] {
+function expandPath(root: string, relOrGlob: string, keepTelemetryFiles = false): string[] {
   const rel = toPosix(relOrGlob).replace(/^\.\//, "");
   if (looksLikeGlob(rel)) {
     try {
@@ -427,7 +432,13 @@ function expandPath(root: string, relOrGlob: string): string[] {
       for (const pattern of globPatternsIncludingDotfiles(rel)) {
         for (const match of globSync(pattern, { cwd: root })) {
           const posix = toPosix(relative(root, resolve(root, match)));
-          if (posix.length === 0 || isExcludedRel(posix) || seen.has(posix)) continue;
+          if (
+            posix.length === 0 ||
+            isExcludedRel(posix, { keepTelemetryFiles }) ||
+            seen.has(posix)
+          ) {
+            continue;
+          }
           seen.add(posix);
           const absMatch = resolve(root, posix);
           let st: ReturnType<typeof statSync>;
@@ -437,7 +448,7 @@ function expandPath(root: string, relOrGlob: string): string[] {
             continue;
           }
           if (st.isFile()) out.push(posix);
-          else if (st.isDirectory()) walkFiles(root, absMatch, out);
+          else if (st.isDirectory()) walkFiles(root, absMatch, out, new Set(), keepTelemetryFiles);
         }
       }
       {
@@ -452,7 +463,7 @@ function expandPath(root: string, relOrGlob: string): string[] {
           }
           if (st?.isDirectory()) {
             const walked: string[] = [];
-            walkFiles(root, startDir, walked);
+            walkFiles(root, startDir, walked, new Set(), keepTelemetryFiles);
             const re = globToRegExp(rel);
             for (const file of walked) {
               if (seen.has(file) || !re.test(file)) continue;
@@ -473,7 +484,7 @@ function expandPath(root: string, relOrGlob: string): string[] {
     const st = statSync(abs);
     if (st.isDirectory()) {
       const out: string[] = [];
-      walkFiles(root, abs, out);
+      walkFiles(root, abs, out, new Set(), keepTelemetryFiles);
       return out;
     }
     if (st.isFile()) return [toPosix(relative(root, abs))];
@@ -619,42 +630,49 @@ export function hashProductState(input: HashProductStateInput): ProductStateHash
   const runGit = input.runGit ?? defaultGitRunner;
   const files = new Set<string>();
   let statusOk = true;
+  const scope = fileScopePaths(input.plan);
+  const specifiedSurface = input.productPaths !== undefined || scope.length > 0;
+  const keepTelemetryFiles = specifiedSurface;
 
   if (input.productPaths !== undefined) {
     for (const rel of input.productPaths) {
-      for (const expanded of expandPath(root, rel)) files.add(expanded);
+      for (const expanded of expandPath(root, rel, true)) files.add(expanded);
+    }
+  } else if (scope.length > 0) {
+    for (const entry of scope) {
+      for (const expanded of expandPath(root, entry, keepTelemetryFiles)) files.add(expanded);
     }
   } else {
-    const scope = fileScopePaths(input.plan);
-    if (scope.length > 0) {
-      for (const entry of scope) {
-        for (const expanded of expandPath(root, entry)) files.add(expanded);
-      }
-    } else {
-      const git = existsSync(join(root, ".git"));
-      if (git) {
-        const dirty = dirtyProductFiles(root, runGit);
-        statusOk = dirty.ok;
+    const git = existsSync(join(root, ".git"));
+    if (git) {
+      const dirty = dirtyProductFiles(root, runGit);
+      if (dirty.ok) {
+        statusOk = true;
         for (const rel of dirty.files) {
           for (const expanded of expandIfDirectory(root, rel)) files.add(expanded);
         }
       } else {
+        // git status failed (containers, missing git, safe.directory).
+        // Walk product files instead of miss-forever (#3558 / #3549).
         const walked: string[] = [];
         walkFiles(root, root, walked);
         for (const rel of walked) files.add(rel);
+        statusOk = true;
       }
+    } else {
+      const walked: string[] = [];
+      walkFiles(root, root, walked);
+      for (const rel of walked) files.add(rel);
     }
   }
 
-  const sorted = [...files].sort();
+  const sorted = [...files].filter((rel) => !isExcludedRel(rel, { keepTelemetryFiles })).sort();
   const fileHashes: Record<string, string> = {};
   for (const rel of sorted) {
     fileHashes[rel] = hashProductRel(root, rel, runGit);
   }
 
   const head = existsSync(join(root, ".git")) ? gitHead(root, runGit).head : null;
-  const specifiedSurface =
-    input.productPaths !== undefined || fileScopePaths(input.plan).length > 0;
   const hasSurface = specifiedSurface
     ? sorted.length > 0
     : statusOk && (sorted.length > 0 || head !== null);

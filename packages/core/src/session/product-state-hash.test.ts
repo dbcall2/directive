@@ -307,22 +307,167 @@ describe("hashProductState (#3387)", () => {
     expect(second.digest).not.toBe(first.digest);
   });
 
-  it("treats failed git status as an incomplete surface", () => {
-    const root = mkdtempSync(join(tmpdir(), "deft-3387-psh-statusfail-"));
+  it("falls back to a product-file walk when git status fails (#3558)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-3558-psh-statusfail-"));
     mkdirSync(join(root, ".git"), { recursive: true });
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "app.txt"), "v1\n", "utf8");
     const plan = { acceptance: { commands: [{ command: "true" }] } };
-    const hashed = hashProductState({
+    const failingGit = (headOk: boolean) => (_cwd: string, args: readonly string[]) => {
+      if (args.includes("rev-parse")) {
+        return headOk
+          ? { code: 0, stdout: "abc123", stderr: "" }
+          : { code: 128, stdout: "", stderr: "no HEAD" };
+      }
+      return { code: 128, stdout: "", stderr: "status failed" };
+    };
+    const withFiles = hashProductState({
       projectRoot: root,
       plan,
-      runGit: (_cwd, args) => {
-        if (args.includes("rev-parse")) {
-          return { code: 0, stdout: "abc123", stderr: "" };
-        }
-        return { code: 128, stdout: "", stderr: "status failed" };
-      },
+      runGit: failingGit(false),
     });
-    expect(hashed.complete).toBe(false);
-    expect(hashed.files).toEqual([]);
+    expect(withFiles.complete).toBe(true);
+    expect(withFiles.files).toContain("src/app.txt");
+    writeFileSync(join(root, "src", "app.txt"), "v2\n", "utf8");
+    const afterEdit = hashProductState({
+      projectRoot: root,
+      plan,
+      runGit: failingGit(false),
+    });
+    expect(afterEdit.digest).not.toBe(withFiles.digest);
+
+    const emptyRoot = mkdtempSync(join(tmpdir(), "deft-3558-psh-statusfail-empty-"));
+    mkdirSync(join(emptyRoot, ".git"), { recursive: true });
+    const headOnly = hashProductState({
+      projectRoot: emptyRoot,
+      plan,
+      runGit: failingGit(true),
+    });
+    expect(headOnly.complete).toBe(true);
+    expect(headOnly.files).toEqual([]);
+
+    const neither = hashProductState({
+      projectRoot: emptyRoot,
+      plan,
+      runGit: failingGit(false),
+    });
+    expect(neither.complete).toBe(false);
+    expect(neither.files).toEqual([]);
+  });
+
+  it("ignores default run-summary telemetry but not other root jsonl (#3558)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-3558-psh-jsonl-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "app.txt"), "v1\n", "utf8");
+    const plan = { acceptance: { commands: [{ command: "true" }] } };
+    const first = hashProductState({ projectRoot: root, plan });
+    writeFileSync(join(root, ".deft-run-summary.json"), "{}\n", "utf8");
+    const afterTelemetry = hashProductState({ projectRoot: root, plan });
+    expect(first.complete).toBe(true);
+    expect(afterTelemetry.digest).toBe(first.digest);
+    expect(afterTelemetry.files).not.toContain(".deft-run-summary.json");
+    writeFileSync(join(root, "events.jsonl"), "{}\n", "utf8");
+    const afterProductJsonl = hashProductState({ projectRoot: root, plan });
+    expect(afterProductJsonl.digest).not.toBe(first.digest);
+    expect(afterProductJsonl.files).toContain("events.jsonl");
+  });
+
+  it("hashes nested run-summary on the default product walk (#3558)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-3558-psh-nested-summary-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "app.txt"), "v1\n", "utf8");
+    writeFileSync(join(root, "src", ".deft-run-summary.json"), "a\n", "utf8");
+    const plan = { acceptance: { commands: [{ command: "true" }] } };
+    const first = hashProductState({ projectRoot: root, plan });
+    expect(first.complete).toBe(true);
+    expect(first.files).toContain("src/.deft-run-summary.json");
+    expect(first.files).not.toContain(".deft-run-summary.json");
+    writeFileSync(join(root, "src", ".deft-run-summary.json"), "b\n", "utf8");
+    const second = hashProductState({ projectRoot: root, plan });
+    expect(second.digest).not.toBe(first.digest);
+  });
+
+  it("hashes an explicitly selected telemetry filename (#3558)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-3558-psh-explicit-"));
+    writeFileSync(join(root, "src.txt"), "v1\n", "utf8");
+    writeFileSync(join(root, ".deft-run-summary.json"), "a\n", "utf8");
+    const plan = { acceptance: { commands: [{ command: "true" }] } };
+    const first = hashProductState({
+      projectRoot: root,
+      plan,
+      productPaths: ["src.txt", ".deft-run-summary.json"],
+    });
+    expect(first.files).toContain(".deft-run-summary.json");
+    writeFileSync(join(root, ".deft-run-summary.json"), "b\n", "utf8");
+    const second = hashProductState({
+      projectRoot: root,
+      plan,
+      productPaths: ["src.txt", ".deft-run-summary.json"],
+    });
+    expect(second.digest).not.toBe(first.digest);
+  });
+
+  it("hashes root telemetry when file_scope selects it (#3558)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-3558-psh-filescope-summary-"));
+    writeFileSync(join(root, "src.txt"), "v1\n", "utf8");
+    writeFileSync(join(root, ".deft-run-summary.json"), "a\n", "utf8");
+    const plan = {
+      acceptance: { commands: [{ command: "true" }] },
+      metadata: { swarm: { file_scope: [".deft-run-summary.json", "src.txt"] } },
+    };
+    const first = hashProductState({ projectRoot: root, plan });
+    expect(first.complete).toBe(true);
+    expect(first.files).toContain(".deft-run-summary.json");
+    expect(first.files).toContain("src.txt");
+    writeFileSync(join(root, ".deft-run-summary.json"), "b\n", "utf8");
+    const second = hashProductState({ projectRoot: root, plan });
+    expect(second.digest).not.toBe(first.digest);
+  });
+
+  it("hashes telemetry files found under an explicit productPaths directory (#3558)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-3558-psh-dirpaths-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "app.txt"), "v1\n", "utf8");
+    writeFileSync(join(root, "src", ".deft-run-summary.json"), "a\n", "utf8");
+    const plan = { acceptance: { commands: [{ command: "true" }] } };
+    const first = hashProductState({
+      projectRoot: root,
+      plan,
+      productPaths: ["src"],
+    });
+    expect(first.complete).toBe(true);
+    expect(first.files).toContain("src/app.txt");
+    expect(first.files).toContain("src/.deft-run-summary.json");
+    writeFileSync(join(root, "src", ".deft-run-summary.json"), "b\n", "utf8");
+    const second = hashProductState({
+      projectRoot: root,
+      plan,
+      productPaths: ["src"],
+    });
+    expect(second.digest).not.toBe(first.digest);
+  });
+
+  it("hashes telemetry files matched by an explicit productPaths glob (#3558)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-3558-psh-globpaths-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "app.txt"), "v1\n", "utf8");
+    writeFileSync(join(root, "src", ".deft-run-summary.json"), "a\n", "utf8");
+    const plan = { acceptance: { commands: [{ command: "true" }] } };
+    const first = hashProductState({
+      projectRoot: root,
+      plan,
+      productPaths: ["src/*"],
+    });
+    expect(first.complete).toBe(true);
+    expect(first.files).toContain("src/app.txt");
+    expect(first.files).toContain("src/.deft-run-summary.json");
+    writeFileSync(join(root, "src", ".deft-run-summary.json"), "b\n", "utf8");
+    const second = hashProductState({
+      projectRoot: root,
+      plan,
+      productPaths: ["src/*"],
+    });
+    expect(second.digest).not.toBe(first.digest);
   });
 
   it("includes a nested leading-dot file under a recursive ** scope", () => {
