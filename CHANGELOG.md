@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.105.0] - 2026-08-19
 ### Security
 
 - **UAT Shell residual after #3421: extra dest writers plant authz, kill-switch, and approved-scope (#3459).** Under active UAT, write-shaped Shell dests that #3421 missed classify as settings deny when they target `.deft/authz/**`, kill-switch basenames, or `.deft/approved-scope/**`. GNU coreutils `g*` prefixes and unknown dest flags targeting those paths fail closed. Ordinary dests such as `/tmp` stay unclassifiable. Already-denied `install` / `cp` / `git clone` / `Set-Content` stay denied. Closes #3459. Refs #3421, #3410, #3039.
@@ -5406,7 +5415,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.104.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.105.0...HEAD
+[0.105.0]: https://github.com/deftai/directive/compare/v0.104.0...v0.105.0
 [0.104.0]: https://github.com/deftai/directive/compare/v0.103.0...v0.104.0
 [0.103.0]: https://github.com/deftai/directive/compare/v0.102.0...v0.103.0
 [0.102.0]: https://github.com/deftai/directive/compare/v0.101.0...v0.102.0

@@ -38,31 +38,31 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1231 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1276 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
-- **#3372** -- bug(doctor,hooks): advisory #3242 completed-open-items hard-blocks Write/Task so official recovery is unreachable -- `[completed]`
-- **#3362** -- feat(check,telemetry): telemetry-coverage dead-surface detector - every event kind needs a production caller and a field-shaped fixture -- `[completed]`
-- **#3368** -- docs: always-on writing bar (clarity, simplicity, brevity) for docs and communications -- `[completed]`
-- **#3356** -- bug(telemetry): tool_turn_denominator has no production callers - shipped in schema, never emitted; #3352 trigger still unevaluable (#3320 residual) -- `[completed]`
-- **#3355** -- bug(telemetry,verify-ac): acceptance events absent in field streams - stamp emission bound solely to issue:ingest; verify:ac emitted no outcome events across fail AND pass paths in a real trial -- `[completed]`
-- **#3363** -- bug(lifecycle): origin GitHub updates after ingest are not fail-closed at activate; reconcile:issues lacks the documented stale-content bucket -- `[completed]`
-- **#3351** -- investigation(verification): the one remaining hard-task gap vs 0.92 - read the new run's acceptance-clause telemetry and disposition the ambiguous-clause branch (re-scope of closed #3321) -- `[completed]`
-- **#3357** -- bug(check,scope): completion vacates the done-gate - scope:complete then check yields soft-missing green with nothing verified (third fail-open edge after #3334/#3335) -- `[completed]`
-- **#3360** -- bug(intake,scope): clause derivation never engages on hand-authored briefs - #3334 forces plan.acceptance to exist but nothing routes through #3323 decomposition (branch-3 fix from #3351) -- `[completed]`
-- **#3358** -- feat(dial): escalation evaluation has no evidence source in consumer runs - inputs permanently null, every evaluation declines identically (#3319 follow-up) -- `[completed]`
-- **#3350** -- bug(run-summary): seq is 1 on every emitted line - per-process emitter never seeds from the target file; seqSeed has no callers (#3320 post-close residual) -- `[completed]`
-- **#3361** -- bug(run-summary): seq lock live-holder reclaim needs ownership check (#3350 residual) -- `[completed]`
-- **#3354** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3336 UAT Shell residuals (nc/7zz/msgfmt… plant authz grants + kill-switch) + slices.jsonl leaf diversion -- `[completed]`
-- **#3315** -- docs(skills): overlap dispose via decision:write + list-before-recommend -- `[completed]`
-- **#3323** -- feat(intake,verification): rung-2 derived AC - decompose the task statement into testable clauses at intake, walk every clause against shipped artifacts at done (sharpens #3267/#3284) -- `[completed]`
-- **#3334** -- bug(verify-ac,check): empty-resolution soft pass presents as green run - unstamped acceptance yields a fail-open done-gate that licenses stopping; scope:activate must refuse acceptance-shaped narratives without plan.acceptance -- `[completed]`
-- **#3335** -- bug(check,preflight): consumer gate execution requires go-task and the preflight remedy says install it - CLI-native gates must run via engine dispatch in deposits (#3282/#3324 third layer) -- `[completed]`
-- **#3336** -- AppSec: 2 HIGH — post-#3311 UAT Shell residuals (oras/ncat/patch… plant authz grants + kill-switch) -- `[completed]`
-- **#3340** -- bug(ci): Blacksmith failover skips while required jobs are still unclaimed — merge-gate has no GH-hosted twin (#2672/#3168 residual) -- `[completed]`
-- **#3322** -- feat(verification,policy): gate integrity for product oracles - a red verification may not be self-adjudicated by editing the comparison; pass-after-fail-with-method-change is a flagged event -- `[completed]`
-- **#3331** -- bug(engine,install): Go installer / legacy deft/ deposit does not plant the consumer-deposit marker (#3324 residual) -- `[completed]`
-- **#3324** -- bug(engine,deposit): consumer deposits present as buildable source - check-family verbs fall through to the corepack/pnpm self-build path; deposit marker should force global-CLI dispatch for all verbs (#3282 residual) -- `[completed]`
-- **#3320** -- bug(session,telemetry): #3286 Later graduation trigger reads a tool-call share the #3282 run summary never emits - counts without a denominator -- `[completed]`
-- **#3319** -- bug(policy,session): ceremony dial emits no escalation-evaluation event - a declined escalation and a never-evaluated one are indistinguishable, and an externally pinned start tier silently bypasses #3274 -- `[completed]`
-- **#3321** -- bug(regression): two hard-task regressions introduced at 0.99 survive 0.101 - field-solved and directive-solved at 0.92, and the done-gate turn-sink explanation is now disconfirmed -- `[completed]`
+- **#3490** -- fix(release): build-dist packs untracked files — denylist model ships host-local state into the archive -- `[completed]`
+- **#3511** -- Fenced terminal transcript is not blocking acceptance; with-floor empty skip must not silently pass -- `[completed]`
+- **#3449** -- verify:ac exits 201 on a passing run and never executes stated plan.acceptance.commands -- `[completed]`
+- **#3459** -- UAT Shell residuals after #3421: dest-form plant of authz, kill-switch, and approved-scope -- `[completed]`
+- **#3506** -- bug(session,cli): gated ritual failure never surfaces the session:ready one-shot -- recovery line is hook-path only -- `[completed]`
+- **#3502** -- fix(init-deposit): agent-host working dirs are not gitignored — dirty tree blocks releases for every consumer -- `[completed]`
+- **#3476** -- fix(swarm): drive-to DONE requires completed-tracked on delivery tip -- `[completed]`
+- **#3264** -- chore(xbrief): land completed-tracked 3470/3469/3454 -- `[completed]`
+- **#3470** -- feat(check): ts:check-lane progress indicators -- `[completed]`
+- **#3469** -- fix(routing): host-unknown disclosure not gate -- `[completed]`
+- **#3454** -- fix(cli): feedback:file --context accumulates -- `[completed]`
+- **#3462** -- feat(update): dry-run plan via side-effect port (ADR-004) -- `[completed]`
+- **#3462** -- ADR-004 land + 3453 architecture-independent salvage -- `[completed]`
+- **#3437** -- Dry-run version-skew headline (tier-1 of #3437) -- `[completed]`
+- **#3456** -- Chokepoint coverage: dest deletes, plan-mode zero-mutation, schema planned-content -- `[completed]`
+- **#3433** -- feat(session,swarm): fail-closed worktree occupancy lease for overlapping mutation sessions -- `[completed]`
+- **#3424** -- Steer per-file size during planning and xBRIEF, not after god files form -- `[completed]`
+- **#3429** -- merged story leaves xBRIEF in active/ because orphan-active is not on the merge path -- `[completed]`
+- **#3399** -- Run-summary stream: one session_id, component field, ac_pass_bank envelope, no fake denominator -- `[completed]`
+- **#3428** -- slices.jsonl expected_close_signal never updates or closes GitHub umbrellas -- `[completed]`
+- **#3398** -- Derived clauses need statement traceability and an ambiguity attestation -- `[completed]`
+- **#3448** -- feat(review-cycle,swarm): standing residual until resolved conf floor or same-fingerprint loop -- `[completed]`
+- **#3425** -- Agents in a shared product must inherit assumed project knowledge -- `[completed]`
+- **#3396** -- No-op acceptance commands refused at capture and stamp; stated requires statement provenance -- `[completed]`
+- **#3387** -- scope:complete acceptance walk must consume the #3285 bank instead of re-executing every command -- `[completed]`
 
