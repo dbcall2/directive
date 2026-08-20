@@ -6,7 +6,12 @@ import {
 import { valueFeedbackInstallForceOnSource } from "./org-force-on-migration.js";
 import { migrateLegacyPolicyKey, PLAN_POLICY_KEY, readPlanPolicy } from "./plan-extensions.js";
 import { policyColonInvocation } from "./policy-invocation.js";
-import { appendAuditLog, loadProjectDefinition, projectDefinitionPath } from "./resolve.js";
+import {
+  appendAuditLog,
+  loadProjectDefinition,
+  POLICY_AUDIT_NOOP_STDOUT,
+  projectDefinitionPath,
+} from "./resolve.js";
 import { isTrustedOrgAutoEnable, type OrgAutoEnableOptions } from "./value-feedback-autoenable.js";
 
 /** Canonical registered policy field name (matches other FIELD_* dotted paths). */
@@ -343,7 +348,7 @@ export function enableValueFeedback(
         }
       }
       const plan = data.plan as Record<string, unknown>;
-      migrateLegacyPolicyKey(plan);
+      const legacyKeyMigrated = migrateLegacyPolicyKey(plan);
       const existingPolicy = plan[PLAN_POLICY_KEY];
       if (
         typeof existingPolicy !== "object" ||
@@ -383,7 +388,8 @@ export function enableValueFeedback(
         previousNormalized.enabled !== nextBlock.enabled ||
         previousNormalized.emitEvents !== nextBlock.emitEvents ||
         previousNormalized.sessionLine !== nextBlock.sessionLine ||
-        previousNormalized.upstreamPrompt !== nextBlock.upstreamPrompt;
+        previousNormalized.upstreamPrompt !== nextBlock.upstreamPrompt ||
+        legacyKeyMigrated;
       policyBlock.valueFeedback = nextBlock;
       if (changedFlag) {
         atomicWriteProjectDefinition(path, data);
@@ -402,16 +408,14 @@ export function enableValueFeedback(
       if (note) {
         parts.push(`note=${note.replace(/\n/g, " ").replace(/\r/g, " ")}`);
       }
-      appendAuditLog(projectRoot, parts.join(" "));
+      appendAuditLog(projectRoot, parts.join(" "), changedFlag);
       return { changed: changedFlag };
     });
 
     const resolved = resolveValueFeedback(projectRoot);
     const lines = [
       `\u2713 ${FIELD_VALUE_FEEDBACK}.enabled=true (value-feedback ON).`,
-      changed
-        ? "  audit: meta/policy-changes.log updated."
-        : "  no-op: value already matched (audit entry still appended for trail).",
+      changed ? "  audit: meta/policy-changes.log updated." : POLICY_AUDIT_NOOP_STDOUT,
       formatValueFeedbackStatusLine(resolved),
     ];
     return { exitCode: 0, stdout: `${lines.join("\n")}\n`, changed };
@@ -483,7 +487,7 @@ export function clearValueFeedback(
       if (note) {
         parts.push(`note=${note.replace(/\n/g, " ").replace(/\r/g, " ")}`);
       }
-      appendAuditLog(projectRoot, parts.join(" "));
+      appendAuditLog(projectRoot, parts.join(" "), true);
       return { changed: true };
     });
 

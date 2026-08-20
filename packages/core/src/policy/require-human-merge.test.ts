@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -137,5 +137,38 @@ describe("setRequireHumanMerge", () => {
     const p = resolveHumanMergePolicy(r, {});
     expect(p.requireHumanMerge).toBe(false);
     expect(p.source).toBe("typed");
+    expect(readFileSync(join(r, "meta", "policy-changes.log"), "utf8")).toContain("changed=true");
+  });
+
+  it("no-op does not append the audit log (#3528)", () => {
+    const r = tempRoot();
+    writePd(r, { requireHumanMerge: false });
+    const { changed } = setRequireHumanMerge(r, { requireHumanMerge: false, actor: "test" });
+    expect(changed).toBe(false);
+    expect(existsSync(join(r, "meta", "policy-changes.log"))).toBe(false);
+  });
+
+  it("equal-value set still persists a legacy plan.policy key migration", () => {
+    const r = tempRoot();
+    mkdirSync(join(r, "xbrief"), { recursive: true });
+    writeFileSync(
+      join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8" },
+        plan: { title: "t", status: "running", policy: { requireHumanMerge: false } },
+      }),
+      "utf8",
+    );
+    const { changed, auditEntry } = setRequireHumanMerge(r, {
+      requireHumanMerge: false,
+      actor: "test",
+    });
+    expect(changed).toBe(true);
+    expect(auditEntry).toContain("changed=true");
+    const plan = JSON.parse(
+      readFileSync(join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"), "utf8"),
+    ).plan as Record<string, unknown>;
+    expect(plan.policy).toBeUndefined();
+    expect((plan["x-directive/policy"] as Record<string, unknown>).requireHumanMerge).toBe(false);
   });
 });

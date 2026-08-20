@@ -22,7 +22,12 @@ import {
 } from "../vbrief-build/project-definition-io.js";
 import { migrateLegacyPolicyKey, PLAN_POLICY_KEY, readPlanPolicy } from "./plan-extensions.js";
 import { policyColonInvocation } from "./policy-invocation.js";
-import { appendAuditLog, loadProjectDefinition, projectDefinitionPath } from "./resolve.js";
+import {
+  appendAuditLog,
+  loadProjectDefinition,
+  projectDefinitionPath,
+  stampChangedToken,
+} from "./resolve.js";
 
 export const FIELD_REQUIRE_HUMAN_MERGE = "plan.policy.requireHumanMerge";
 export const FIELD_REQUIRE_HUMAN_MERGE_CLI_ALIAS = "requireHumanMerge";
@@ -377,7 +382,7 @@ export function setRequireHumanMerge(
       }
     }
     const plan = data.plan as Record<string, unknown>;
-    migrateLegacyPolicyKey(plan);
+    const legacyKeyMigrated = migrateLegacyPolicyKey(plan);
     const existingPolicy = plan[PLAN_POLICY_KEY];
     if (
       typeof existingPolicy !== "object" ||
@@ -406,9 +411,7 @@ export function setRequireHumanMerge(
       legacyDropped = true;
     }
 
-    atomicWriteProjectDefinition(path, data);
-
-    const changed = previous !== Boolean(requireHumanMerge) || legacyDropped;
+    const changed = previous !== Boolean(requireHumanMerge) || legacyDropped || legacyKeyMigrated;
     const parts = [
       `actor=${actor}`,
       `requireHumanMerge=${requireHumanMerge ? "true" : "false"}`,
@@ -418,8 +421,11 @@ export function setRequireHumanMerge(
     if (note) {
       parts.push(`note=${note.replace(/\n/g, " ").replace(/\r/g, " ")}`);
     }
-    const auditEntry = parts.join(" ");
-    appendAuditLog(projectRoot, auditEntry);
+    const auditEntry = stampChangedToken(parts.join(" "), changed);
+    if (changed) {
+      atomicWriteProjectDefinition(path, data);
+    }
+    appendAuditLog(projectRoot, auditEntry, changed);
     return { changed, auditEntry };
   });
 }
