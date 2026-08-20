@@ -43,6 +43,8 @@ While probe completion criteria (below) are NOT met:
 
 ! Read existing context and interrogate only — artifacts land in the Output phase after completion.
 
+**Waiver (#3556):** This skill keeps the no-artifact guard and does not require `deft probe-session`. The probe strategy names `deft probe-session`. Silence is not agreement.
+
 ## Workflow
 
 ### Step 1: Establish the plan
@@ -95,7 +97,7 @@ Walk the decision tree depth-first. For each unresolved branch:
 
 `{scope}` is the project name from `PROJECT-DEFINITION.xbrief.json`, or the feature/component name if probing a sub-scope. Use the same value consistently throughout the session.
 
-- ! Produce a `xbrief/proposed/{scope}-probe.xbrief.json` scope xBRIEF with three mandatory narratives:
+- ! Produce a `xbrief/proposed/YYYY-MM-DD-{scope}-probe.xbrief.json` scope xBRIEF with three mandatory narratives:
   - `LockedDecisions` — what was resolved and why
   - `SurfacedRisks` — concerns raised, even if not fully resolved
   - `DeferredDecisions` — explicitly acknowledged items with justification
@@ -105,7 +107,7 @@ Walk the decision tree depth-first. For each unresolved branch:
 
 ## Chaining Gate
 
-After the probe is complete and `xbrief/proposed/{scope}-probe.xbrief.json` is written:
+After the probe is complete and `xbrief/proposed/YYYY-MM-DD-{scope}-probe.xbrief.json` is written:
 
 - ! Register artifacts in `./xbrief/plan.xbrief.json` (`completedStrategies`, `artifacts`)
 - ! Return to [interview.md Chaining Gate](../../strategies/interview.md#chaining-gate) when invoked from the interview flow
