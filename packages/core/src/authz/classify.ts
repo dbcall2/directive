@@ -190,6 +190,38 @@ const POLICY_AUTHORITY_MUTATORS = new Set([
 const KILL_SWITCH_BASENAMES = [".deft-directive-disable", ".no-deft-directive"] as const;
 
 /**
+ * Dest-form writers #3529 harvest missed (#3545). Shared across downloader,
+ * archive-alt, positional, and indirect-write membership so a named-peer
+ * allowlist cannot be the only fail-closed path.
+ */
+const UAT_RESIDUAL_DEST_WRITE_BINS_3545 = [
+  "fromdos",
+  "todos",
+  "emacsclient",
+  "pico",
+  "pdftk",
+  "gs",
+  "dpkg",
+  "degit",
+  "composer",
+  "ddrescue",
+  "dc3dd",
+  "sg_dd",
+] as const;
+/** In-place residual writers: any protected operand is a dest. Extract/output bins stay dest-flag gated. */
+const UAT_RESIDUAL_INPLACE_WRITE_BINS_3545 = [
+  "fromdos",
+  "todos",
+  "emacsclient",
+  "pico",
+  "degit",
+  "composer",
+  "ddrescue",
+  "dc3dd",
+  "sg_dd",
+] as const;
+
+/**
  * Downloaders / decoders / remote-copy tools that can plant files without shell
  * redirects (#3206 / #3213 / #3245). Not in INDIRECT_WRITE_BINS: those feed hasWriteShape
  * and would classify bare `curl $URL` as a store write via opaque-expansion heuristics.
@@ -328,6 +360,8 @@ const DOWNLOADER_DECODER_BINS = new Set([
   "extrac32",
   "makecab",
   "replace",
+  // #3545 residual after #3529: dest-form writers harvest missed.
+  ...UAT_RESIDUAL_DEST_WRITE_BINS_3545,
 ]);
 
 /**
@@ -439,6 +473,8 @@ const ARCHIVE_ALT_WRITE_BINS = new Set([
   "extrac32",
   "makecab",
   "replace",
+  // #3545 residual: dest writers that are not general-purpose cmd/git.
+  ...UAT_RESIDUAL_INPLACE_WRITE_BINS_3545,
 ]);
 
 /**
@@ -558,6 +594,8 @@ const PROTECTED_POSITIONAL_BINS = new Set([
   "extrac32",
   "makecab",
   "replace",
+  // #3545 residual: positional dest writers (fromdos/dpkg/degit/ddrescue).
+  ...UAT_RESIDUAL_DEST_WRITE_BINS_3545,
 ]);
 
 /**
@@ -695,6 +733,10 @@ const GENERIC_PROTECTED_EXTRA_DEST_FLAGS = new Set([
   "-destinationpath",
   "-filepath",
   "--prefix",
+  // #3545 residual dest flags (VCS repo dest + ghostscript output).
+  "--repodir",
+  "--repo-dir",
+  "-soutputfile",
 ]);
 /** Bins whose `--file` / `-f` operand is an input, not a dest plant. */
 const READ_SHAPED_FILE_FLAG_BINS = new Set([
@@ -935,6 +977,29 @@ function firstUnquotedShellOpIndex(raw: string): number {
 }
 
 /**
+ * dpkg/pdftk/gs only harvest protected positionals on write forms
+ * (`dpkg -x`, `pdftk … output`, gs dest flags). Inspect/read forms stay unclassifiable.
+ */
+function residualPositionalBinIsWriteShaped(
+  bin: string,
+  tokens: readonly string[],
+  start: number,
+): boolean {
+  if (bin !== "dpkg" && bin !== "pdftk" && bin !== "gs") return true;
+  for (let k = start; k < tokens.length; k++) {
+    const raw = tokens[k] as string;
+    if (tokenEndsShellSegment(raw)) break;
+    const n = normalizeToken(raw);
+    if (bin === "dpkg" && (n === "-x" || n === "--extract" || n === "--vextract")) {
+      return true;
+    }
+    if (bin === "pdftk" && n === "output") return true;
+    if (bin === "gs" && (n.startsWith("-soutputfile") || n === "-soutputfile")) return true;
+  }
+  return false;
+}
+
+/**
  * Destinations from curl/wget/xxd/openssl/scp/aria2c/certutil via -o/--output/-O/-out/
  * --output-dir/-P/-d/--dir (separate, =value, or attached short form), xxd -r path-like
  * write positionals (#3206), positional dests for scp/certutil (#3213), and #3245 residual
@@ -963,7 +1028,7 @@ function downloaderDecoderDestinations(tokens: readonly string[]): string[] {
     let lastPositionalPath: string | null = null;
     const protectedPathish: string[] = [];
     const collectsProtectedPositionals =
-      PROTECTED_POSITIONAL_BINS.has(bin) ||
+      (PROTECTED_POSITIONAL_BINS.has(bin) && residualPositionalBinIsWriteShaped(bin, tokens, i)) ||
       (bin === "git" && gitHasWriteSubcommand(tokens, i)) ||
       (bin === "git" && gitHasBundleCreate(tokens, i)) ||
       (bin === "jj" && jjHasWriteSubcommand(tokens, i)) ||
@@ -1277,6 +1342,176 @@ function isGenericProtectedDestFlag(flag: string): boolean {
   return DOWNLOADER_FILE_DEST_FLAGS.has(flag) || GENERIC_PROTECTED_EXTRA_DEST_FLAGS.has(flag);
 }
 
+/** Env-style dest keys harvested even without a leading `--` (`make DESTDIR=`). */
+const DEST_ASSIGNMENT_KEYS = new Set(["destdir", "prefix", "install_root", "dest_dir"]);
+/** Bins whose DESTDIR=/PREFIX= assignment is a dest plant (not `echo DESTDIR=…`). */
+const DEST_ASSIGNMENT_OWNER_BINS = new Set(["make", "gmake"]);
+/**
+ * First-command bins that print/read: a later `make` token is data, not the writer
+ * (`echo DESTDIR=… make`, `git log make DESTDIR=…`). Also the first command of a
+ * search-launcher `-exec` / `-c` payload (`find -exec echo make DESTDIR=`).
+ * Search/launchers themselves are not in this set — `find -exec make DESTDIR=`
+ * still harvests the payload writer.
+ */
+const DEST_ASSIGNMENT_NON_WRITER_FIRST_BINS = new Set([
+  "echo",
+  "printf",
+  "true",
+  "false",
+  ":",
+  "git",
+  "gh",
+  "hg",
+  "svn",
+  "cat",
+  "ls",
+  "grep",
+  "egrep",
+  "fgrep",
+  "rg",
+  "head",
+  "tail",
+  "less",
+  "more",
+  "wc",
+  "diff",
+  "stat",
+  "file",
+]);
+/**
+ * Search/launchers whose first token is not the writer. Harvest make/DESTDIR
+ * only from `-exec` / `--exec` / `-c` payloads (`find -exec make DESTDIR=`).
+ * The payload's first command still uses NON_WRITER (`find -exec echo make`).
+ * `xargs make DESTDIR=` stays a wrapper (not in the non-writer set).
+ */
+const DEST_ASSIGNMENT_SEARCH_LAUNCHER_BINS = new Set(["find"]);
+const DEST_ASSIGNMENT_EXEC_PAYLOAD_FLAGS = new Set([
+  "-exec",
+  "--exec",
+  "-execdir",
+  "--execdir",
+  "-c",
+]);
+/** find `-exec` payload terminator (`\;` or `+`). Resets so a later `-exec` is still operative. */
+function isFindExecPayloadTerminator(n: string): boolean {
+  return n === ";" || n === "+";
+}
+/** make targets that do not apply DESTDIR (avoid denying `make DESTDIR=… clean`). */
+const DEST_ASSIGNMENT_NON_WRITE_TARGETS = new Set([
+  "clean",
+  "distclean",
+  "mostlyclean",
+  "maintainer-clean",
+  "check",
+  "test",
+  "tests",
+  "help",
+]);
+/** make flags that consume the next token (`-C dir`, `-f Makefile`). */
+const MAKE_VALUE_FLAGS = new Set([
+  "-c",
+  "--directory",
+  "-f",
+  "--file",
+  "--makefile",
+  "--include-dir",
+  "-j",
+  "--jobs",
+  "-l",
+  "--load-average",
+  "--eval",
+]);
+
+/**
+ * True when a DESTDIR/PREFIX assignment is an operative make write.
+ * Looks for make/gmake anywhere after wrappers (including unknown wrappers
+ * such as `xargs`), unless the first command is a print/read bin.
+ * Search/launchers (`find`) still harvest from `-exec` / `--exec` / `-c`
+ * payloads unless that payload's first command is a print/read bin.
+ * Payload state resets at `\;` / `+` so a later `-exec make DESTDIR=` is
+ * still operative (`find -exec echo hi \; -exec make DESTDIR= install`).
+ * Non-writing targets (`clean`) are not operative.
+ */
+function segmentDestAssignmentIsOperative(tokens: readonly string[], tokenIndex: number): boolean {
+  let start = tokenIndex;
+  while (start > 0 && !tokenEndsShellSegment(tokens[start - 1] as string)) start--;
+  let skipNext = false;
+  let firstCommand = "";
+  let inExecPayload = false;
+  let execPayloadFirstCommand = "";
+  let sawMake = false;
+  const targets: string[] = [];
+  for (let k = start; k < tokens.length; k++) {
+    const raw = tokens[k] as string;
+    if (tokenEndsShellSegment(raw)) break;
+    if (skipNext) {
+      skipNext = false;
+      continue;
+    }
+    const n = normalizeToken(raw);
+    if (inExecPayload && isFindExecPayloadTerminator(n)) {
+      inExecPayload = false;
+      execPayloadFirstCommand = "";
+      continue;
+    }
+    // Print/read `-exec` payload: skip until terminator so a later `-exec` is seen.
+    if (
+      inExecPayload &&
+      execPayloadFirstCommand.length > 0 &&
+      DEST_ASSIGNMENT_NON_WRITER_FIRST_BINS.has(execPayloadFirstCommand)
+    ) {
+      continue;
+    }
+    if (n.startsWith("-")) {
+      // find -exec / -c opens the payload; do not consume the next token as a
+      // wrapper value. After make is seen, -C still skips its directory.
+      if (
+        DEST_ASSIGNMENT_EXEC_PAYLOAD_FLAGS.has(n) &&
+        DEST_ASSIGNMENT_SEARCH_LAUNCHER_BINS.has(firstCommand) &&
+        !sawMake
+      ) {
+        inExecPayload = true;
+        execPayloadFirstCommand = "";
+        continue;
+      }
+      if (!n.includes("=") && (WRAPPER_VALUE_FLAGS.has(n) || MAKE_VALUE_FLAGS.has(n))) {
+        skipNext = true;
+      }
+      continue;
+    }
+    if (isEnvAssign(raw)) continue;
+    const bare = writeBinName(raw);
+    if (COMMAND_WRAPPER_BINS.has(bare)) continue;
+    if (bare.length > 0 && bare[0] !== undefined && bare[0] >= "0" && bare[0] <= "9") {
+      continue;
+    }
+    if (firstCommand.length === 0) {
+      firstCommand = bare;
+      if (DEST_ASSIGNMENT_NON_WRITER_FIRST_BINS.has(bare)) return false;
+    }
+    if (inExecPayload && execPayloadFirstCommand.length === 0) {
+      execPayloadFirstCommand = bare;
+    }
+    if (inExecPayload && DEST_ASSIGNMENT_NON_WRITER_FIRST_BINS.has(execPayloadFirstCommand)) {
+      continue;
+    }
+    if (DEST_ASSIGNMENT_OWNER_BINS.has(bare)) {
+      if (DEST_ASSIGNMENT_SEARCH_LAUNCHER_BINS.has(firstCommand) && !inExecPayload) {
+        continue;
+      }
+      sawMake = true;
+      continue;
+    }
+    if (sawMake) targets.push(n);
+  }
+  if (!sawMake) return false;
+  if (targets.length === 0) return true;
+  for (const t of targets) {
+    if (!DEST_ASSIGNMENT_NON_WRITE_TARGETS.has(t)) return true;
+  }
+  return false;
+}
+
 function isReadShapedInputFileFlag(bin: string, flag: string): boolean {
   return READ_SHAPED_FILE_FLAG_BINS.has(bin) && READ_INPUT_FILE_FLAGS.has(flag);
 }
@@ -1428,7 +1663,7 @@ function genericProtectedDests(tokens: readonly string[]): string[] {
       currentBin = "";
       continue;
     }
-    if (!n.startsWith("-")) {
+    if (!n.startsWith("-") && !isEnvAssign(raw)) {
       if (isDownloaderDecoderBin(raw)) {
         currentBin = writeBinName(raw);
       } else if (
@@ -1441,6 +1676,19 @@ function genericProtectedDests(tokens: readonly string[]): string[] {
       }
     }
     if (isScpFamilyBin(currentBin) || currentBin === "cpio") continue;
+    // Env-style dest assignments (`DESTDIR=`, `PREFIX=`) without a leading dash (#3545).
+    if (n.includes("=") && !n.startsWith("-")) {
+      const eq = raw.indexOf("=");
+      const keyRaw = raw.slice(0, eq);
+      if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(keyRaw)) {
+        const key = normalizeToken(keyRaw);
+        if (DEST_ASSIGNMENT_KEYS.has(key) && segmentDestAssignmentIsOperative(tokens, i)) {
+          const dest = pathishToken(raw.slice(eq + 1));
+          if (pathishIsProtectedDest(dest)) dests.push(dest);
+        }
+      }
+      continue;
+    }
     if (n.includes("=") && (n.startsWith("-") || n.startsWith("--"))) {
       const eq = raw.indexOf("=");
       const flag = normalizeToken(raw.slice(0, eq));
@@ -1646,6 +1894,9 @@ function isProgrammaticWriteBinToken(token: string): boolean {
     bare === "nodejs" ||
     bare === "perl" ||
     bare === "ruby" ||
+    bare === "jruby" ||
+    bare === "pypy" ||
+    bare === "pypy3" ||
     bare === "pwsh" ||
     bare === "powershell" ||
     bare === "tsx" ||
@@ -1665,6 +1916,10 @@ function isProgrammaticWriteBinToken(token: string): boolean {
   if (/^node\d+$/.test(bare)) return true;
   if (/^php\d+(\.\d+)*$/.test(bare)) return true;
   if (/^lua\d+(\.\d+)*$/.test(bare)) return true;
+  // #3545 residual: versioned ruby / jruby / pypy (bare `ruby` already matched).
+  if (/^ruby\d+(\.\d+)*$/.test(bare)) return true;
+  if (/^jruby\d+(\.\d+)*$/.test(bare)) return true;
+  if (bare.startsWith("pypy3.") || /^pypy\d+(\.\d+)*$/.test(bare)) return true;
   return false;
 }
 
@@ -1763,6 +2018,83 @@ function includesOutsideQuotes(haystack: string, needle: string): boolean {
 }
 
 /**
+ * Perl `open F,">dest"` / `open FH, '>'` without parens (#3545).
+ * Quote-aware so `print 'open F,>'` is not a write. O(n).
+ */
+function hasPerlBareOpenWrite(haystack: string): boolean {
+  let inSingle = false;
+  let inDouble = false;
+  for (let i = 0; i < haystack.length; i++) {
+    const c = haystack[i] as string;
+    if (c === "\\" && i + 1 < haystack.length && (inSingle || inDouble)) {
+      i++;
+      continue;
+    }
+    if (c === "'" && !inDouble) {
+      inSingle = !inSingle;
+      continue;
+    }
+    if (c === '"' && !inSingle) {
+      inDouble = !inDouble;
+      continue;
+    }
+    if (inSingle || inDouble) continue;
+    if (!haystack.startsWith("open", i)) continue;
+    if (i > 0) {
+      const prev = haystack[i - 1] as string;
+      if ((prev >= "a" && prev <= "z") || (prev >= "0" && prev <= "9") || prev === "_") continue;
+    }
+    let j = i + 4;
+    while (j < haystack.length) {
+      const w = haystack[j] as string;
+      if (w === " " || w === "\t" || w === "\n" || w === "\r") {
+        j++;
+        continue;
+      }
+      break;
+    }
+    const identStart = j;
+    while (j < haystack.length) {
+      const ch = haystack[j] as string;
+      if (
+        (ch >= "a" && ch <= "z") ||
+        (ch >= "A" && ch <= "Z") ||
+        (ch >= "0" && ch <= "9") ||
+        ch === "_"
+      ) {
+        j++;
+        continue;
+      }
+      break;
+    }
+    if (j === identStart) continue;
+    while (j < haystack.length) {
+      const w = haystack[j] as string;
+      if (w === " " || w === "\t") {
+        j++;
+        continue;
+      }
+      break;
+    }
+    if (j >= haystack.length || haystack[j] !== ",") continue;
+    j++;
+    while (j < haystack.length) {
+      const w = haystack[j] as string;
+      if (w === " " || w === "\t") {
+        j++;
+        continue;
+      }
+      break;
+    }
+    const q = haystack[j];
+    if ((q === "'" || q === '"') && j + 1 < haystack.length && haystack[j + 1] === ">") {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * True when command uses a programmatic bin with a **write** API, optionally with
  * path-obfuscation markers (base64/bytes/chr). Pure reads / print-only stay unclassifiable.
  *
@@ -1804,6 +2136,19 @@ function hasWriteCapableProgrammaticShell(command: string, tokens: readonly stri
     lower.includes("path.write(") ||
     lower.includes("file.write(") ||
     lower.includes("spurt") ||
+    interpreterScriptPayloads(tokens).some((p) => {
+      const pl = p.toLowerCase();
+      return (
+        includesIdentCall(pl, "write_file") ||
+        includesIdentCall(pl, "spew") ||
+        includesOutsideQuotes(pl, "->spew") ||
+        hasPerlBareOpenWrite(pl)
+      );
+    }) ||
+    includesIdentCall(lower, "write_file") ||
+    includesIdentCall(lower, "spew") ||
+    includesOutsideQuotes(lower, "->spew") ||
+    hasPerlBareOpenWrite(lower) ||
     lower.includes(">>") ||
     lower.includes("unlink(") ||
     lower.includes("rmsync") ||
@@ -1844,7 +2189,15 @@ function hasWriteCapableProgrammaticShell(command: string, tokens: readonly stri
       lower.includes('mode="a') ||
       lower.includes("mode=w"));
 
-  const writeish = writeApi || openWriteMode;
+  // Perl `open F,">dest"` — `open(` is absent; `-e` payloads with spaces split tokens (#3545).
+  const perlBareOpenWrite =
+    (lower.includes("open ") || lower.includes("open\t")) &&
+    (lower.includes(",'>") ||
+      lower.includes(',">') ||
+      lower.includes(", '>") ||
+      lower.includes(', ">'));
+
+  const writeish = writeApi || openWriteMode || perlBareOpenWrite;
 
   // Path construction that hides the destination from literal classifiers.
   const obfuscatedPath =
@@ -2083,6 +2436,8 @@ const INDIRECT_WRITE_BINS = new Set([
   "extrac32",
   "makecab",
   "replace",
+  // #3545 residual: dest writers (fromdos/degit/ddrescue). dpkg/pdftk/gs stay dest-flag gated.
+  ...UAT_RESIDUAL_INPLACE_WRITE_BINS_3545,
 ]);
 
 /**
@@ -2282,17 +2637,7 @@ function hasProgrammaticAuthzEnvWrite(command: string, tokens: readonly string[]
   const lower = command.toLowerCase();
   let hasProg = false;
   for (const t of tokens) {
-    const n = normalizeToken(t);
-    if (
-      n === "python" ||
-      n === "python3" ||
-      n === "node" ||
-      n === "nodejs" ||
-      n === "perl" ||
-      n === "ruby" ||
-      n === "pwsh" ||
-      n === "powershell"
-    ) {
+    if (isProgrammaticWriteBinToken(t)) {
       hasProg = true;
       break;
     }
