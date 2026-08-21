@@ -258,7 +258,7 @@ export function promoteFromIssue(options: PromoteFromIssueOptions): PromoteFromI
           ok: false,
           message:
             `No triage-cache decision for #${n} (${repoSafe}). ` +
-            `Accept first: task triage:accept -- --issue ${n} --repo ${repoSafe} ` +
+            `Accept first: deft triage:accept --issue ${n} --repo ${repoSafe} ` +
             `(or omit --strict to soft-warn and proceed; --force-no-cache skips the gate).`,
           exitCode: 1,
           warnings,
@@ -277,7 +277,7 @@ export function promoteFromIssue(options: PromoteFromIssueOptions): PromoteFromI
         message:
           `Refusing promote for #${n} (${repoSafe}): latest triage decision is '${sanitizeMsg(latest.decision)}' ` +
           `(decision_id=${latest.decision_id}). ` +
-          `Accept first: task triage:accept -- --issue ${n} --repo ${repoSafe} ` +
+          `Accept first: deft triage:accept --issue ${n} --repo ${repoSafe} ` +
           `or override with --force-no-cache.`,
         exitCode: 1,
         warnings,
@@ -386,8 +386,8 @@ export function promoteFromIssue(options: PromoteFromIssueOptions): PromoteFromI
       ok: false,
       message:
         `No proposed/ scope artifact found for issue #${n} (${repoSafe}). ` +
-        `Ingest first (task triage:accept -- --issue ${n} --repo ${repoSafe}) ` +
-        `or pass an explicit path: task scope:promote -- <path>.`,
+        `Ingest first (deft triage:accept --issue ${n} --repo ${repoSafe}) ` +
+        `or pass an explicit path: deft scope:promote <path>.`,
       exitCode: 1,
       warnings,
       repo,
@@ -403,7 +403,7 @@ export function promoteFromIssue(options: PromoteFromIssueOptions): PromoteFromI
       ok: false,
       message:
         `Multiple proposed/ artifacts match issue #${n}; refuse to guess.\n${list}\n` +
-        `Promote one path explicitly: task scope:promote -- <path> ` +
+        `Promote one path explicitly: deft scope:promote <path> ` +
         `or re-run with --path <one-of-the-above>.`,
       exitCode: 1,
       warnings,
