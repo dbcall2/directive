@@ -38,31 +38,31 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1276 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1300 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#3434** -- design-critique thin router skill (triggers + five pointer stops; no auto-dispatch) -- `[completed]`
+- **#3596** -- fix(authz): operator mint unreachable on Windows — CONIN$ probe opened read-only (#3110) -- `[completed]`
+- **#3434** -- design-critique v1 vehicle — locked decisions (discuss strategy, 2026-08-20) -- `[completed]`
+- **#3439** -- Work-selection commands in AGENTS.md and commands.md don't match the shipped CLI surface -- `[completed]`
+- **#3434** -- design-critique contract + brief template from disposed SoT (no skill) -- `[completed]`
+- **#3434** -- design-critique judgment gate (ADR-005) — marker, policy entry, clearance line; advisory only -- `[completed]`
+- **#3570** -- bug(hooks): agent-hook readiness probe fail-closes on a functional hook under concurrent load (fixed 1500ms budget) -- `[completed]`
+- **#3571** -- bug(hooks,policy): disabling hostHooks writes {} and strips guardrails with no capability-cost disclosure — and verify:agent-hooks recommends it -- `[completed]`
+- **#3572** -- bug(acceptance): literal-AC gate re-parses ingested narrative prose as shell commands, blocking scope:complete -- `[completed]`
+- **#3557** -- bug(strategies): shipped strategies still MUST-write vbrief/ (parent #3547) -- `[completed]`
+- **#3558** -- bug(banking): ac-pass bank writes regressed 0.104->0.105 and the serve path has never hit in the field (15/15 executed) - #3549 branch-1 fix; emit miss_reason on every executed walk -- `[completed]`
+- **#3556** -- bug(probe): strategy still mandates deleted probe_session.py (parent #3547) -- `[completed]`
+- **#3554** -- bug(swarm): finalize-cohort fetches master; fail-closed argv (parent #3547) -- `[completed]`
+- **#3559** -- bug(verify-ac): #3398 ambiguity-attestation enforcement inert in the field - stamp with no flag, no attestation, zero commands got verified-pass; re-filed open, release-targeted (split from #3550) -- `[completed]`
+- **#3555** -- bug(render): spec-validate still rejects v0.8 xBRIEF (parent #3547) -- `[completed]`
+- **#3545** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3529 UAT Shell residuals (rubyN/jruby/pypy/perl File::Slurp, dpkg -x, fromdos, emacsclient, degit, composer, ddrescue plant authz + kill-switch; approved-scope mint) -- `[completed]`
+- **#3505** -- feat(verify): detect when lifecycle paths are hidden by any ignore mechanism -- `[completed]`
+- **#3514** -- feat(verify): forward-coverage is new-file-existence only, not diff coverage — the compensating control for a lowered floor does not exist -- `[completed]`
+- **#3528** -- policy-changes.log holds two contradictory no-op conventions; 63 of 236 rows record nothing (#1250 vs typed-policy writers) -- `[completed]`
+- **#3508** -- feat(session,telemetry): #2994 process-cost events have no reader -- ceremony cost is write-only -- `[completed]`
+- **#3507** -- rfc(session,triage): scope-condition the cache_fresh drift probe on work selection -- without producing a deferred_reason -- `[completed]`
+- **#3529** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3459 UAT Shell residuals (xcopy/robocopy/move/bun/deno/php/BitsTransfer/Expand-Archive plant authz + kill-switch; approved-scope mint) -- `[completed]`
+- **#3527** -- Release authz gate is on the draft flip, not the npm-publishing tag push (#716 / #3110) -- `[completed]`
+- **#3504** -- bug(lifecycle): .git/info/exclude blanket-hides xbrief/active/ on this clone — lifecycle artifacts silently untrackable -- `[completed]`
 - **#3490** -- fix(release): build-dist packs untracked files — denylist model ships host-local state into the archive -- `[completed]`
-- **#3511** -- Fenced terminal transcript is not blocking acceptance; with-floor empty skip must not silently pass -- `[completed]`
-- **#3449** -- verify:ac exits 201 on a passing run and never executes stated plan.acceptance.commands -- `[completed]`
-- **#3459** -- UAT Shell residuals after #3421: dest-form plant of authz, kill-switch, and approved-scope -- `[completed]`
-- **#3506** -- bug(session,cli): gated ritual failure never surfaces the session:ready one-shot -- recovery line is hook-path only -- `[completed]`
-- **#3502** -- fix(init-deposit): agent-host working dirs are not gitignored — dirty tree blocks releases for every consumer -- `[completed]`
-- **#3476** -- fix(swarm): drive-to DONE requires completed-tracked on delivery tip -- `[completed]`
-- **#3264** -- chore(xbrief): land completed-tracked 3470/3469/3454 -- `[completed]`
-- **#3470** -- feat(check): ts:check-lane progress indicators -- `[completed]`
-- **#3469** -- fix(routing): host-unknown disclosure not gate -- `[completed]`
-- **#3454** -- fix(cli): feedback:file --context accumulates -- `[completed]`
-- **#3462** -- feat(update): dry-run plan via side-effect port (ADR-004) -- `[completed]`
-- **#3462** -- ADR-004 land + 3453 architecture-independent salvage -- `[completed]`
-- **#3437** -- Dry-run version-skew headline (tier-1 of #3437) -- `[completed]`
-- **#3456** -- Chokepoint coverage: dest deletes, plan-mode zero-mutation, schema planned-content -- `[completed]`
-- **#3433** -- feat(session,swarm): fail-closed worktree occupancy lease for overlapping mutation sessions -- `[completed]`
-- **#3424** -- Steer per-file size during planning and xBRIEF, not after god files form -- `[completed]`
-- **#3429** -- merged story leaves xBRIEF in active/ because orphan-active is not on the merge path -- `[completed]`
-- **#3399** -- Run-summary stream: one session_id, component field, ac_pass_bank envelope, no fake denominator -- `[completed]`
-- **#3428** -- slices.jsonl expected_close_signal never updates or closes GitHub umbrellas -- `[completed]`
-- **#3398** -- Derived clauses need statement traceability and an ambiguity attestation -- `[completed]`
-- **#3448** -- feat(review-cycle,swarm): standing residual until resolved conf floor or same-fingerprint loop -- `[completed]`
-- **#3425** -- Agents in a shared product must inherit assumed project knowledge -- `[completed]`
-- **#3396** -- No-op acceptance commands refused at capture and stamp; stated requires statement provenance -- `[completed]`
-- **#3387** -- scope:complete acceptance walk must consume the #3285 bank instead of re-executing every command -- `[completed]`
 

@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.106.0] - 2026-08-21
+
+> Design-critique contract, host-hooks opt-out, forward-coverage and lifecycle-visible gates, Windows mint, UAT shell residuals, and release tag-push authz.
+
 ### Security
 
 - **UAT Shell residual after #3529: versioned interpreters and dest-form writers still plant authz, kill-switch, and approved-scope (#3545).** Under active UAT, remaining dest-form Shell writers (`rubyN` / `jruby` / `pypy`, Perl `write_file` / `spew` / bare `open`, `make DESTDIR=` including `find -exec make DESTDIR=` and a later `-exec make DESTDIR=` after a print `-exec`, `dpkg -x`, newline converters, editors, `pdftk` / `gs`, `npx degit`, `composer`, `ddrescue` family, `darcs --repodir=`) classify as settings deny when they target `.deft/authz/**`, kill-switch basenames, or `.deft/approved-scope/**`. Unknown dest flags and `DESTDIR=` assignments targeting those paths fail closed. Ordinary dests such as `/tmp` stay unclassifiable. Read commands such as `git log make DESTDIR=` and `find -exec echo make DESTDIR=` stay unclassifiable. Already-denied `ruby` / `python3` / `dpkg-deb` / `xcopy` / `cp` stay denied. Closes #3545. Refs #3529, #3459, #3421, #3410, #3039.
@@ -5467,7 +5479,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.105.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.106.0...HEAD
+[0.106.0]: https://github.com/deftai/directive/compare/v0.105.0...v0.106.0
 [0.105.0]: https://github.com/deftai/directive/compare/v0.104.0...v0.105.0
 [0.104.0]: https://github.com/deftai/directive/compare/v0.103.0...v0.104.0
 [0.103.0]: https://github.com/deftai/directive/compare/v0.102.0...v0.103.0
