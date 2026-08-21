@@ -23879,7 +23879,7 @@
           }
         ]
       },
-      "allowDirectCommitsToMaster": false,
+      "allowDirectCommitsToMaster": true,
       "agentsMdBudget": {
         "managedMaxLines": 162,
         "unmanagedMaxLines": 162,
