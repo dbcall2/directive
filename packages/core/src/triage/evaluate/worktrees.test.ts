@@ -1,0 +1,100 @@
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import type { GitRunner } from "./types.js";
+import {
+  addEvaluatorWorktree,
+  EvaluatorWorktreeError,
+  removeEvaluatorWorktree,
+} from "./worktrees.js";
+
+const temps: string[] = [];
+afterEach(() => {
+  for (const root of temps.splice(0)) {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+describe("evaluator worktrees", () => {
+  it("adds then force-removes a detached worktree", () => {
+    const root = mkdtempSync(join(tmpdir(), "wt-"));
+    temps.push(root);
+    const git: GitRunner = (args) => {
+      if (args[1] === "add") {
+        expect(args[4]).toBe("abc123def456aaaaaaaa");
+        expect(args).not.toContain("origin/master");
+        mkdirSync(String(args[3]), { recursive: true });
+        return { returncode: 0, stdout: "", stderr: "" };
+      }
+      if (args[1] === "remove") {
+        rmSync(String(args[3]), { recursive: true, force: true });
+        return { returncode: 0, stdout: "", stderr: "" };
+      }
+      return { returncode: 0, stdout: "", stderr: "" };
+    };
+    const path = addEvaluatorWorktree(root, 3, "inv", "abc123def456aaaaaaaa", git);
+    expect(existsSync(path)).toBe(true);
+    removeEvaluatorWorktree(root, path, git);
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it("falls back to directory delete and prune when force-remove fails", () => {
+    const root = mkdtempSync(join(tmpdir(), "wt-"));
+    temps.push(root);
+    let removes = 0;
+    const git: GitRunner = (args) => {
+      if (args[1] === "add") {
+        mkdirSync(String(args[3]), { recursive: true });
+        return { returncode: 0, stdout: "", stderr: "" };
+      }
+      if (args[1] === "remove") {
+        removes += 1;
+        if (removes === 1) {
+          return { returncode: 1, stdout: "", stderr: "locked" };
+        }
+        rmSync(String(args[3]), { recursive: true, force: true });
+        return { returncode: 0, stdout: "", stderr: "" };
+      }
+      if (args[1] === "prune") {
+        return { returncode: 0, stdout: "", stderr: "" };
+      }
+      return { returncode: 0, stdout: "", stderr: "" };
+    };
+    const path = addEvaluatorWorktree(root, 3, "inv", "abc123def456aaaaaaaa", git);
+    expect(existsSync(path)).toBe(true);
+    removeEvaluatorWorktree(root, path, git);
+    expect(existsSync(path)).toBe(false);
+    expect(removes).toBe(2);
+  });
+
+  it("raises when fallback prune still leaves a registered worktree", () => {
+    const root = mkdtempSync(join(tmpdir(), "wt-"));
+    temps.push(root);
+    const git: GitRunner = (args) => {
+      if (args[1] === "add") {
+        mkdirSync(String(args[3]), { recursive: true });
+        return { returncode: 0, stdout: "", stderr: "" };
+      }
+      if (args[1] === "remove") {
+        return { returncode: 1, stdout: "", stderr: "locked" };
+      }
+      if (args[1] === "list") {
+        const listed = join(root, ".deft-scratch", "worktrees", "issue-eval-3-inv");
+        return { returncode: 0, stdout: `worktree ${listed}\n`, stderr: "" };
+      }
+      return { returncode: 0, stdout: "", stderr: "" };
+    };
+    const path = addEvaluatorWorktree(root, 3, "inv", "abc123def456aaaaaaaa", git);
+    expect(() => removeEvaluatorWorktree(root, path, git)).toThrow(EvaluatorWorktreeError);
+  });
+
+  it("raises when git worktree add fails", () => {
+    const root = mkdtempSync(join(tmpdir(), "wt-"));
+    temps.push(root);
+    const git: GitRunner = () => ({ returncode: 1, stdout: "", stderr: "denied" });
+    expect(() => addEvaluatorWorktree(root, 3, "inv", "abc123", git)).toThrow(
+      EvaluatorWorktreeError,
+    );
+  });
+});

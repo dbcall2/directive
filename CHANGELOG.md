@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Issue-eval Stage A: isolated validity, parent WIP census, value advice (#3648).** `task triage:evaluate` fans out read-only evaluators in detached origin/master worktrees, writes a gitignored sink under `.deft-scratch/issue-eval/<sha12>/<invocation-id>/`, and may set `critique-recommend:` without the reserved design-critique clearance line. No GitHub writes. Closes #3648.
 - **Land leftover completed-tracked artifact for #3646 (#3264 / #1358).** The #3646 xBRIEF stayed untracked after squash of PR 3653. Moved to `xbrief/completed/` via `scope:complete`. Does not reopen or recut that issue. Refs #2321, #3476.
 - **Comment lead on design-critique comments is model then role (#3646).** First line stays `model: <slug>`. Second line is `role: triage|critic|parent` (Stop 4 retry critics are critic; #3640 auto-posted table/synthesis comments are parent). Not an issue label. Thin skill pointer. Closes #3646.
 - **Land leftover completed-tracked artifact for #3642 (#3264 / #1358).** The #3642 xBRIEF stayed untracked after squash of PR 3647. Moved to `xbrief/completed/` via `scope:complete`. Does not reopen or recut that issue. Refs #2321, #3476.
@@ -33,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Issue-eval open-PR census fails loud at the 5,000 page cap (#3648).** A full last page is an incomplete census, not a complete 5,000. Later PRs are not silently dropped from linkage verdicts.
 - **Doctor no longer treats a bare `vbrief/` mention as a half-migrated layout pointer (#3637).** Left-bound `vbrief/` so `x-vbrief/` is not a hit. Child paths, `.vbrief.json`, and `vbrief:preflight` still rewrite; already-xbrief doctor copy points at hand-edit, not `migrate:xbrief`. Closes #3637. Refs #2154.
 - **Win32 operator mint opens `\\.\CONIN$` with r+ (#3596 leftover).** Bare `CONIN$` ENOENT on a real console. Probe errors still refuse mint. Refs #3596, #3110.
 - **Shell dest-form wrappers still see the verb after a post-flag env assignment (#3438 leftover).** `sudo -u root GIT_WORK_TREE=pkg git checkout -- file` stays recognized (fail-closed on work-tree). `sudo grep rm file` stays unclassifiable. Refs #3438.
