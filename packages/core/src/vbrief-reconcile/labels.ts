@@ -1,5 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import {
+  applyDesignCritiqueCatalogChip,
+  isDesignCritiqueCatalogChip,
+} from "../design-critique/exclusive-chip.js";
 import { hasArtifactSuffix, resolveLifecycleRoot, stripArtifactSuffix } from "../layout/resolve.js";
 import { call } from "../scm/call.js";
 import { extractIssueRef } from "../triage/reconcile/parse-uri.js";
@@ -83,6 +87,40 @@ export class ScmLabelClient implements LabelClient {
     add: readonly string[],
     remove: readonly string[],
   ): void {
+    const catalogAdds = add.filter(isDesignCritiqueCatalogChip);
+    if (catalogAdds.length > 0) {
+      const nextChip = catalogAdds[catalogAdds.length - 1] as string;
+      const restAdd = add.filter((name) => !isDesignCritiqueCatalogChip(name));
+      const restRemove = remove.filter((name) => !isDesignCritiqueCatalogChip(name));
+      let applied = false;
+      const inner: LabelClient = {
+        fetchLabels: (r, n) => this.fetchLabels(r, n),
+        apply: (r, n, a, rem) => {
+          applied = true;
+          const addSet = new Set<string>([...a, ...restAdd]);
+          const removeSet = new Set<string>([...rem, ...restRemove]);
+          for (const name of addSet) removeSet.delete(name);
+          this.applyMut(r, n, [...addSet], [...removeSet]);
+        },
+      };
+      applyDesignCritiqueCatalogChip(inner, repo, issueNumber, nextChip);
+      if (!applied && (restAdd.length > 0 || restRemove.length > 0)) {
+        this.applyMut(repo, issueNumber, restAdd, restRemove);
+      }
+      return;
+    }
+    this.applyMut(repo, issueNumber, add, remove);
+  }
+
+  private applyMut(
+    repo: string,
+    issueNumber: number,
+    add: readonly string[],
+    remove: readonly string[],
+  ): void {
+    if (add.length === 0 && remove.length === 0) {
+      return;
+    }
     const args = ["edit", String(issueNumber), "--repo", repo];
     for (const name of add) args.push("--add-label", name);
     for (const name of remove) args.push("--remove-label", name);
