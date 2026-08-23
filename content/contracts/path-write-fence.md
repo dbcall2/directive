@@ -52,7 +52,132 @@ path when `inspectActiveScope` reports one. Residual gaps (document, not silent)
 - Story JSON unreadable → story layer fail-open; project fence still applies
 
 Shell/MCP push/merge scopes remain project-only (`runtimeAuthority.scopes`); they are not
-re-scoped by `file_scope`.
+re-scoped by `file_scope`. Recognized Shell dest-forms (`git checkout --`, `git restore`,
+`rm`/`rmdir`) use the same write fence as Edit/Write, including story `file_scope` (#3438).
+
+### Dest-form enforcement is opt-in (#3438 / #3594)
+
+```jsonc
+// xbrief/PROJECT-DEFINITION.xbrief.json
+{ "plan": { "policy": { "runtimeAuthority": {
+  "shellDestForms": "off"      // default — Shell exactly as before #3438
+  // "shellDestForms": "enforce"  // opt in
+} } } }
+```
+
+`off` is the default and leaves Shell mutations unrecognized and fail-open, as they were before
+this gate existed, so landing the classifier denies nothing a consumer runs today. `enforce`
+turns on **both** halves together: recognized dest-forms go through `inspectMutationGates`, and
+targets that cannot be proved fail closed.
+
+- ⊗ Do not split the two halves behind separate switches. Enforcing only resolved dests would
+  allow `cd x && rm y` while denying `rm x/y`; enforcing only the fail-closed branch would deny
+  the compound while letting the in-scope simple form through unchecked.
+- Independent of `enabled` in both directions: opting into the gate does not require the
+  `runtimeAuthority` grant ladder, and enabling the ladder does not silently opt into the gate.
+- An unknown value (`"warn"`, `"on"`, a typo) resolves to `off` — the no-new-denials direction —
+  and `validateRuntimeAuthority` reports it, so it is never silent.
+- An unreadable policy also resolves to `off` rather than failing closed.
+- Tracked project policy may only **enable** this gate. A tracked switch that *disabled* it would
+  contradict `policy/deft-directive-disable.ts`, where repository-controlled content must not
+  disable hooks for downstream clones.
+
+⊗ There is no `warn` state. Its only purpose would be staging a breaking change, and with `off`
+as the default there is nothing to stage. It is also unimplementable today: `renderHostDecision`
+emits no text on the allow path for `tool.before`, so a warned denial would be
+indistinguishable from `git status` in the decision record. Revisit only alongside an allow-path
+sink (#3620).
+
+### Dest-form threat model (#3438) — read this first
+
+The Shell dest-form gate is a **guardrail for cooperative-but-careless agents, not a security
+boundary against adversarial ones.** An agent that wants out of the fence has unbounded exits
+and this layer cannot close them. State that plainly before reading the rules below, because
+every rule is scoped by it.
+
+Why the limit is structural: Edit/Write payloads are **declarative** — the target path is data
+in the payload, so gating them is sound. Shell payloads are **imperative** — the target is the
+output of running a program, so gating them by parsing the command string means predicting what
+a program will do without running it. Recognition of *destructive spellings* is decidable;
+prediction of *mutation* is not.
+
+What that means concretely — all of these are **fail-open today**:
+
+- Unrecognized mutators: `git reset --hard`, `git clean -fd`, `git stash drop`, `git checkout`
+  without `--`, `mv`, `cp`, `sed -i`, `truncate`, `find -delete`, and `>` / `>>` redirection
+- Interpreters: `bash -c 'rm x'`, `python -c`, `node -e`, `cmd /c`
+- Non-literal verbs: `\rm x`, `rm${IFS}x` — the tokenizer cannot see the verb, so even the
+  fail-closed branch does not fire
+- **cmd / PowerShell mutators are not recognized at all**: `del`, `erase`, `rd`, `move`,
+  `copy /y`, `Remove-Item`, `Out-File`. Only POSIX-shaped verbs are on the list, and the hook
+  cannot tell which shell will run the command (#3624)
+- Mutations by allowed programs: `npm run build`, `node scripts/clean.js`, `make` — inherent
+  to any string recognizer, since writing files is what those commands are *for*
+- **Nothing on the allow path is audited**, so a bypass currently leaves no trace
+
+Do not describe this gate as closing the Bash bypass. It raises the floor on the four
+recognized verbs in simple commands. The bypass class remains open.
+
+### Dest-form target recognition (#3438)
+
+The fence resolves a target for exactly one shape: **a single simple command**. Everything
+else that is *recognized* is denied rather than resolved. An **absolute** dest is checked
+soundly; a **relative** dest is checked under the assumption that the shell's working
+directory is the project root, which persistent-shell hosts do not guarantee across tool
+calls (see the cwd residual below).
+
+A command is simple when it has no unquoted `&&`, `||`, `|`, `&`, `;`, or newline, no
+grouping or substitution (`(`, `)`, `{`, `}`, `` ` ``, `$`), and no git context option. Then
+each dest token is checked against the same fence as Edit/Write.
+
+Everything else **fails closed** — denied regardless of whether the path would have been in
+scope:
+
+| Fail-closed | Why |
+| --- | --- |
+| Any compound command (`cd x && rm y`, pipelines, `;`, `&`) | cwd is not provable |
+| Grouping / substitution (`(…)`, `{…;}`, `$(…)`, backticks) | target is computed at runtime |
+| Git context options (`-C`, `--work-tree`, `--git-dir`, `-c core.workTree`, `--config-env`, `GIT_WORK_TREE=`, `GIT_DIR=`) | relocates the tree; resolution depends on the git dir |
+| Glob / variable dests, or a leading `~` | expands at runtime (a *trailing* `~` as in `foo.ts~` is an ordinary path) |
+| A **retained** backslash — one not consumed as an escape (`rm C:\Repos\a.ts`, `rm foo\bar`) | dialect-ambiguous: a path separator on win32, an escape under a POSIX shell including Git Bash *on* win32, and the payload does not say which shell runs. Rewrite with forward slashes, which git and node accept on Windows (#3624) |
+| `git checkout\|restore --pathspec-from-file=<f>` / `--pathspec-file-nul` | the targets live inside a file; reading it means hook-time I/O plus resolving against an unknown cwd (#3624) |
+
+⊗ **Do not add cwd or git-context reconstruction back.** It was implemented and withdrawn
+(#3438): the target depends on operator precedence (`&` binds looser than `&&`, which binds
+looser than `|`), on exit status (`cd x || …` runs only when the `cd` failed), on subshell
+boundaries, and on git config — and every resolution rule added produced its own fence
+bypass. Recognition of a *legible* verb is cheap; resolution was not. Neither is total —
+see the threat model above.
+
+Rewrite guidance the deny message carries: name a concrete path in one simple command
+(`rm x/y`, not `cd x && rm y`), or issue one command per tool call. Prefer an **absolute**
+path: absolute dests are checked soundly, relative ones assume the shell is at the project
+root.
+
+**Cwd residual:** the classifier never consults the shell's working directory (`input.cwd`
+only supplies project-root candidates). A relative dest is resolved against the project root
+unconditionally, so whenever the shell's cwd differs — including a benign in-project `cd` in
+an earlier tool call — the fence checks a different path from the one mutated. Absolute dests
+are unaffected. Tracked in #3594.
+
+**Cost of the narrowing, accepted deliberately:** legitimate compound commands are denied,
+with the rewrite above. Cross-repo work has an escape: an absolute out-of-root dest is
+allowed, so `cd /other/repo` then `git checkout -- /other/repo/f.ts` works where
+`git -C /other/repo checkout -- f.ts` is denied. Quoting is honoured (an unquoted backslash
+escapes only a character that needs escaping, so `rm protected\ file` is ONE dest while
+`C:\Repos\file.ts` keeps its separators; `rm\ secret` is one word naming a nonexistent
+program and is correctly not a dest-form).
+
+**The fail-closed branch reaches no exemptions.** Because it never calls
+`inspectMutationGates`, assist/scratch, proposed-lifecycle, and story `file_scope` do not
+apply to it: `rm .deft-scratch/a.txt` is allowed under assist posture but
+`rm .deft-scratch/a.txt && rm .deft-scratch/b.txt` is denied. Split the calls. This is
+structural — a fail-closed dest has no path, so a path-conditional exemption cannot be
+evaluated.
+
+**Known-open — recognition, not resolution:** `python -c`, `cmd /c copy`, and obfuscated
+`bash -c 'rm …'` are not recognized as dest-forms at all, so they stay fail-open. Narrowing
+bounds what resolution can get wrong; it does not close the recognition gap.
 
 ## Skill behavior (build / swarm)
 

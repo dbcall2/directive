@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_RUNTIME_AUTHORITY_POLICY } from "../policy/runtime-authority.js";
 import { applyWorktreeOccupancy } from "../session/occupancy.js";
 import { ritualStatePath } from "../session/ritual-sentinel.js";
 import { fixtureCaseById, fixtureCasesFor, HOOK_FIXTURE_CASES } from "./fixtures/index.js";
@@ -67,6 +68,22 @@ function readySeams(overrides: Partial<HookPolicySeams> = {}): HookPolicySeams {
     sessionStart: () => ({ code: 0, stdout: "", stderr: "" }),
     ...overrides,
   };
+}
+
+/**
+ * Shell dest-form enforcement is opt-in (#3438 / #3594): `readySeams` keeps the
+ * production default (`shellDestForms: "off"`), so any test asserting a
+ * dest-form verdict must enable it explicitly. Kept separate rather than folded
+ * into `readySeams` so the opt-in is visible at every call site.
+ */
+function enforcingSeams(overrides: Partial<HookPolicySeams> = {}): HookPolicySeams {
+  return readySeams({
+    loadRuntimeAuthority: () => ({
+      ...DEFAULT_RUNTIME_AUTHORITY_POLICY,
+      shellDestForms: "enforce" as const,
+    }),
+    ...overrides,
+  });
 }
 
 describe("direct-write hook policy", () => {
@@ -197,6 +214,9 @@ describe("direct-write hook policy", () => {
 
     expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
     expect(decision.message).toContain("deft scope:activate");
+    expect(decision.message).toMatch(/direct-write/);
+    expect(decision.message).toMatch(/spawn/);
+    expect(decision.message).toMatch(/not this deny/);
   });
 
   it("allows Write outside projectRoot when no active scope (#2885)", () => {
@@ -2397,6 +2417,400 @@ describe("runtimeAuthority shell/MCP push/merge in decideHook (#2711)", () => {
     expect(decision.verdict).toBe("deny");
     expect(decision.code).toBe("runtime-policy-deny-scope");
     expect(decision.message).toMatch(/scopes\.merge is false/);
+  });
+
+  it("denies Shell git checkout -- and rm dest-forms when no active scope (#3438)", () => {
+    const reporter =
+      "git checkout -- apps/web/tsconfig.json apps/web/next-env.d.ts && rm apps/web/AGENTS.md apps/web/CLAUDE.md";
+    const emptyScope = enforcingSeams({
+      inspectScope: () => ({
+        ready: false,
+        path: null,
+        message: "No active xBRIEF artifact was found under xbrief/active/",
+      }),
+    });
+    const checkout = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: { tool_name: "Bash", tool_input: { command: reporter } },
+      },
+      emptyScope,
+    );
+    // Still denied, now through the fail-closed channel: the reporter is a
+    // compound command, so no target is claimed for it (#3438).
+    expect(checkout).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+    expect(checkout.message).toMatch(/not reconstructable/);
+
+    const restore = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: { tool_name: "Shell", tool_input: { command: "git restore src/a.ts" } },
+      },
+      emptyScope,
+    );
+    expect(restore).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+    // A simple command still resolves its target and denies through the gate.
+    expect(restore.message).toMatch(/recognized Shell dest-form/);
+
+    const rmdir = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: { tool_name: "Bash", tool_input: { command: "rmdir tmp/dir" } },
+      },
+      emptyScope,
+    );
+    expect(rmdir).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+  });
+
+  it("keeps git status and hostile residual dest writers fail-open with empty active (#3438 / #2711)", () => {
+    const emptyScope = readySeams({
+      inspectScope: () => ({
+        ready: false,
+        path: null,
+        message: "No active xBRIEF artifact was found under xbrief/active/",
+      }),
+    });
+    for (const command of [
+      "git status",
+      "python -c \"open('f','w').write('x')\"",
+      "cmd /c copy a b",
+      "bash -c 'rm apps/web/AGENTS.md'",
+      "git checkout apps/web/tsconfig.json",
+    ]) {
+      const decision = decideHook(
+        {
+          host: "claude",
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: { tool_name: "Bash", tool_input: { command } },
+        },
+        emptyScope,
+      );
+      expect(decision, command).toMatchObject({
+        verdict: "allow",
+        code: "shell-op-unclassifiable",
+      });
+    }
+  });
+
+  it("allows recognized dest-forms under assist scratch and proposed lifecycle (#3438)", () => {
+    const emptyScope = enforcingSeams({
+      inspectScope: () => ({
+        ready: false,
+        path: null,
+        message: "No active xBRIEF artifact was found under xbrief/active/",
+      }),
+    });
+    const scratch = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          posture: "assist",
+          tool_input: { command: "rm .deft-scratch/notes.md" },
+        },
+      },
+      emptyScope,
+    );
+    expect(scratch).toMatchObject({ verdict: "allow", code: "write-assist-scratch-ready" });
+
+    const proposed = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "rm xbrief/proposed/2026-08-21-story.xbrief.json" },
+        },
+      },
+      emptyScope,
+    );
+    expect(proposed).toMatchObject({ verdict: "allow", code: "write-propose-ready" });
+  });
+
+  it("applies story file_scope to Shell dest-forms (Edit/Write parity, #3438)", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "git checkout -- docs/readme.md" },
+        },
+      },
+      enforcingSeams({
+        loadStoryWriteFence: () => ({
+          fileScope: ["src/**"],
+          denyPaths: [],
+        }),
+      }),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "runtime-policy-deny-path" });
+    expect(decision.message).toMatch(/story file_scope/);
+  });
+
+  it("fails closed on git -C instead of resolving it outside the root (#3438)", () => {
+    const emptyScope = enforcingSeams({
+      inspectScope: () => ({
+        ready: false,
+        path: null,
+        message: "No active xBRIEF artifact was found under xbrief/active/",
+      }),
+    });
+    const outside = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "git -C /tmp checkout -- file.ts" },
+        },
+      },
+      emptyScope,
+    );
+    // TRADEOFF (#3438): resolving `-C` used to let an out-of-root checkout
+    // through, and that resolution produced two of the fence bypasses. Git
+    // context is no longer resolved, so this legitimate cross-repo command is
+    // now denied. Re-admitting `-C` composition means re-admitting the class.
+    expect(outside).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+    expect(outside.message).toMatch(/not reconstructable/);
+
+    const pipeline = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "cd /tmp | rm secret.ts" },
+        },
+      },
+      emptyScope,
+    );
+    expect(pipeline).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+
+    const inside = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "git -C packages checkout -- a.ts" },
+        },
+      },
+      emptyScope,
+    );
+    expect(inside).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+  });
+
+  it("denies glob dest-forms fail-closed even with ready scope", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "rm src/*.ts" },
+        },
+      },
+      enforcingSeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+    expect(decision.message).toMatch(/not reconstructable/);
+  });
+
+  it("denies subshell-grouped dest-forms fail-closed even with ready scope", () => {
+    // Grouping moves cwd in ways the classifier does not model, so the fence
+    // cannot prove it would inspect the path the shell mutates (#3438).
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "(cd apps/web && rm AGENTS.md)" },
+        },
+      },
+      enforcingSeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+    expect(decision.message).toMatch(/not reconstructable/);
+    // The deny teaches the rewrite rather than just naming the construct.
+    expect(decision.message).toMatch(/ONE simple command/);
+  });
+
+  it("carries the parent cwd onto a pipeline member so the fence cannot be bypassed", () => {
+    // The fence allows docs/a.md and AGENTS.md only. `cd docs && rm a.md | rm
+    // AGENTS.md` really removes docs/AGENTS.md, which is NOT in the fence.
+    // Dropping the parent prefix on the pipeline member reconstructs the
+    // in-fence AGENTS.md instead and lets the real target through (#3438).
+    const fenced = enforcingSeams({
+      loadStoryWriteFence: () => ({
+        fileScope: ["docs/a.md", "AGENTS.md"],
+        denyPaths: [],
+      }),
+    });
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "cd docs && rm a.md | rm AGENTS.md" },
+        },
+      },
+      fenced,
+    );
+    // Previously this had to be caught by reconstructing docs/AGENTS.md and
+    // matching it against the fence. Compound commands are now fail-closed, so
+    // the bypass is unreachable without the fence needing to resolve anything.
+    expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+    expect(decision.message).toMatch(/not reconstructable/);
+  });
+
+  it("is OFF by default: dest-forms stay fail-open exactly as before #3438", () => {
+    // The whole point of the opt-in default (#3594): landing the classifier
+    // must not deny anything a consumer runs today. `readySeams` deliberately
+    // carries the production default, so these use it rather than
+    // `enforcingSeams`.
+    const emptyScope = readySeams({
+      inspectScope: () => ({
+        ready: false,
+        path: null,
+        message: "No active xBRIEF artifact was found under xbrief/active/",
+      }),
+    });
+    for (const command of [
+      "rm src/a.ts",
+      "git checkout -- src/a.ts",
+      "git restore src/a.ts",
+      "rmdir tmp/dir",
+      "cd x && rm y",
+      "rm src/*.ts",
+      "rm ~/secret",
+      "git -C repo checkout -- f.ts",
+      "(cd sub && rm secret.ts)",
+    ]) {
+      const decision = decideHook(
+        {
+          host: "claude",
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: { tool_name: "Bash", tool_input: { command } },
+        },
+        emptyScope,
+      );
+      expect(decision.verdict, command).toBe("allow");
+      expect(decision.code, command).toBe("shell-op-unclassifiable");
+    }
+  });
+
+  it("enforce turns on resolved gating and fail-closed together, not separately", () => {
+    // Splitting the two halves would let `cd x && rm y` through while denying
+    // `rm x/y`, or the reverse. Same policy value must move both.
+    const emptyScope = { inspectScope: () => ({ ready: false, path: null, message: "none" }) };
+    const resolved = "rm src/a.ts";
+    const failClosed = "cd x && rm y";
+
+    for (const command of [resolved, failClosed]) {
+      expect(
+        decideHook(
+          {
+            host: "claude",
+            event: "tool.before",
+            projectRoot: "/project",
+            payload: { tool_name: "Bash", tool_input: { command } },
+          },
+          readySeams(emptyScope),
+        ).verdict,
+        `${command} @ off`,
+      ).toBe("allow");
+      expect(
+        decideHook(
+          {
+            host: "claude",
+            event: "tool.before",
+            projectRoot: "/project",
+            payload: { tool_name: "Bash", tool_input: { command } },
+          },
+          enforcingSeams(emptyScope),
+        ).verdict,
+        `${command} @ enforce`,
+      ).toBe("deny");
+    }
+  });
+
+  it("an unreadable runtimeAuthority policy resolves to off, not enforce", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: { tool_name: "Bash", tool_input: { command: "rm src/a.ts" } },
+      },
+      readySeams({
+        inspectScope: () => ({ ready: false, path: null, message: "none" }),
+        loadRuntimeAuthority: () => {
+          throw new Error("unreadable policy");
+        },
+      }),
+    );
+    expect(decision.verdict).toBe("allow");
+  });
+
+  it("allows Shell dest-form when active scope is ready", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "git checkout -- src/a.ts" },
+        },
+      },
+      enforcingSeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "allow", code: "write-ready" });
+  });
+
+  it("still denies dest-form&&push when push is out of scope", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "git checkout -- src/a.ts && git push origin HEAD" },
+        },
+      },
+      {
+        ...readySeams(),
+        loadRuntimeAuthority: () => ({
+          enabled: true,
+          allowPaths: [] as string[],
+          denyPaths: [] as string[],
+          scopes: { edits: true, push: false, merge: false },
+        }),
+      },
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "runtime-policy-deny-scope" });
   });
 
   it("allows Shell git status (unclassifiable) fail-open", () => {
