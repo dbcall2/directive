@@ -31,10 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Design-critique walk is parent-disagreement only; empty all-accept map auto-stamps (#3640).** **walk** iterates disagree headings. **walk all** is the census (`walk findings one at a time` stays a one-release alias). A non-empty all-accept successor lean auto-posts the verified-claims table then `design-critique: synthesis accepted, because agents agreed (empty disagreement set)` and remaining-set-replaces to `triage-ready`. Stub critics and dispatch-fail do not stamp. Looks-good still does not bind. Thin skill pointer. Closes #3640.
 - **Exclusive remaining-set replace for design-critique catalog chips (#3642).** Applying `design-critique:mechanism-shaped` or `design-critique:triage-ready` GET-drops the other catalog name and PUT/PATCHes that remaining set (`LabelClient.apply` / `mergeIssueLabels`). Parent write is `task scm:issue:design-critique-chip -- --issue N --chip triage-ready|mechanism-shaped` (not additive `scm:issue:edit --add-label`). No DELETE-then-POST window. Chip is list state, not consent. Closes #3642.
 
 ### Fixed
 
+- **Stop 4 retry critic posts stay in the auto-stamp denominator (#3640).** Comments after the id ceiling stay out of envelope except the critic's own Stop 4 retry post, including after the disagreement-map input ceiling. Do not chip `triage-ready` while those retry headings are undisposed.
 - **Issue-eval open-PR census fails loud at the 5,000 page cap (#3648).** A full last page is an incomplete census, not a complete 5,000. Later PRs are not silently dropped from linkage verdicts.
 - **Doctor no longer treats a bare `vbrief/` mention as a half-migrated layout pointer (#3637).** Left-bound `vbrief/` so `x-vbrief/` is not a hit. Child paths, `.vbrief.json`, and `vbrief:preflight` still rewrite; already-xbrief doctor copy points at hand-edit, not `migrate:xbrief`. Closes #3637. Refs #2154.
 - **Win32 operator mint opens `\\.\CONIN$` with r+ (#3596 leftover).** Bare `CONIN$` ENOENT on a real console. Probe errors still refuse mint. Refs #3596, #3110.
