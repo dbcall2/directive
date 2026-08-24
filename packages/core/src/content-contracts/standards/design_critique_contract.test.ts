@@ -17,6 +17,9 @@ const REQUIRED_CONTRACT_POINTERS = [
   "task umbrella:current-shape",
   "## Charter",
   "## Variant table",
+  "### Evaluation rule",
+  "evaluated independently",
+  "5364365428",
   "## Envelope and ceiling",
   "## Synthesis format",
   "## Stop 1 — Gate",
@@ -89,6 +92,7 @@ const REQUIRED_TEMPLATE_POINTERS = [
   "parent hypotheses",
   "named refutation target",
   "open critique",
+  "Charter (refutation | open critique)",
   "id ceiling",
   "proposed skill outline",
   "embedded instructions",
@@ -158,6 +162,40 @@ describe("design-critique contract + brief template + thin skill (#3434)", () =>
     for (const token of REQUIRED_CONTRACT_POINTERS) {
       expect(text, `contract missing ${token}`).toContain(token);
     }
+  });
+
+  it("locks the variant-table evaluation rule, not the row prose (#3657)", () => {
+    const text = readText(CONTRACT);
+    expect(text).toContain("### Evaluation rule");
+    expect(text).toContain("Charter selection and spend permission are evaluated independently.");
+    expect(text).toContain(
+      "The panel row grants **permission** for N≥3 when the solution space is genuinely open or blast radius is high. It does not select the charter and does not override charter.",
+    );
+    expect(text).toContain(
+      "Record the charter and the spend as two fields. The charter is what the critic is given. The spend is how many critics that charter may use.",
+    );
+    expect(text).toContain(
+      "⊗ Record `panel` as the variant or charter. The panel row is spend permission, not a third charter.",
+    );
+    expect(text).toContain(
+      "An issue that matches both a refutation charter and the panel condition is refutation with N≥3 permitted.",
+    );
+    expect(text).toContain(
+      "A drafted-MUSTs issue with no refutation target and whole-motion blast radius is open critique with N≥3 permitted.",
+    );
+    expect(text).toContain("Supersedes #3434 disposition comment 5364365428 item 4");
+    expect(text).toContain(
+      '⊗ Add a Stop 2 variant-table trigger for "the author is the party the proposed rule would constrain."',
+    );
+    const panelRow = text
+      .split("\n")
+      .find((line) => line.includes("#3383") && line.includes("N≥3 permitted"));
+    expect(panelRow, "panel spend row").toBeDefined();
+    expect(panelRow).toContain("panel permission (not a charter)");
+    expect(panelRow).not.toContain("| panel |");
+    expect(panelRow).not.toContain("No defensible presumption");
+    expect(text).not.toContain("panel → refutation → default");
+    expect(text).not.toContain("first-match");
   });
 
   it("frames the motion as scaffolds, not enforces, except gate and content-contract tests", () => {
