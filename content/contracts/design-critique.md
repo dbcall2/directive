@@ -23,6 +23,11 @@ ADR-005 is vehicle-invariant. The gate never computes "is this triage mechanism-
 
 The write-back first two lines name the model and role (Stop 3).
 
+The Stop 1 write-back records `refutation-target:` naming the triage author's highest-leverage asserted premise.
+
+- ! Record `refutation-target:` on the Stop 1 write-back.
+- ⊗ Treat `refutation-target:` as an `audit:` marker. The field creates no unresolved-marker state and never blocks bind.
+
 `verify:judgment-gates --enforce` stays opt-in unused in this rollout. Advisory observe first. No marker means the gate never fires. Voluntary critiques stay legal.
 
 ## Stop 2 — Variant selection
@@ -191,6 +196,8 @@ After each accept-X, or before synthesis, parent posts a successor `**Lean:**` c
 
 A `role: parent` artifact that introduces a load-bearing premise while adjudicating a critic finding records a substantiation token at that point. The token records the premise. It does not decide whether the reading is true.
 
+A load-bearing premise introduced before any critic exists is outside this obligation. At Stop 1 nobody has spoken and the entire critic pass is the audit. ADR-006 addresses post-critic arbitration where the critic gets no reply. #3651's round-1 critic named a pre-critic premise and instructed: state expressly that the initial triage remains outside this amendment, or widen scope deliberately. The successor lean widened the trigger. This paragraph is the other half.
+
 Token grammar:
 
 ```text
@@ -332,4 +339,4 @@ This motion ingests untrusted issue threads by design.
 
 ## Test surface
 
-`packages/core/src/content-contracts/standards/design_critique_contract.test.ts` locks required pointer strings, the scaffolds framing, the comment-lead field as model then role from the closed set (not an issue label), the operator-gated loop (successor lean, operator verbs including walk / walk all, dual stop, halt line, exclusive remaining-set replace of the two catalog chips, #3640 auto-stamp on a non-empty all-accept map and no-stamp on stubs), the parent-side substantiation token and independence rules, the composed auto-bind conjunct (all-accept map AND zero unresolved audit markers) at Operator verbs and Bind path 1, the variant-table evaluation rule (charter selection and spend permission evaluated independently), the critic-method heading and distinctive obligation tokens (exact class tokens, citations-are-claims, existing mechanisms, injection / swarm trigger nouns, failed-reviewer phrase, finding anatomy) rather than full body sentences, the brief-template forbidden-inputs list, and the thin router skill (existence, line cap, pointer resolution, no-normative-content). `evaluateParentAudit` locks the omission failure modes.
+`packages/core/src/content-contracts/standards/design_critique_contract.test.ts` locks required pointer strings, the scaffolds framing, the comment-lead field as model then role from the closed set (not an issue label), the operator-gated loop (successor lean, operator verbs including walk / walk all, dual stop, halt line, exclusive remaining-set replace of the two catalog chips, #3640 auto-stamp on a non-empty all-accept map and no-stamp on stubs), the parent-side substantiation token and independence rules, the Stop 1 exclusion (pre-critic premises outside the trigger) and `refutation-target:` field tokens rather than full body sentences, the composed auto-bind conjunct (all-accept map AND zero unresolved audit markers) at Operator verbs and Bind path 1, the variant-table evaluation rule (charter selection and spend permission evaluated independently), the critic-method heading and distinctive obligation tokens (exact class tokens, citations-are-claims, existing mechanisms, injection / swarm trigger nouns, failed-reviewer phrase, finding anatomy) rather than full body sentences, the brief-template forbidden-inputs list, and the thin router skill (existence, line cap, pointer resolution, no-normative-content). `evaluateParentAudit` locks the omission failure modes.
