@@ -15,7 +15,11 @@ import type {
   LiteralAcceptanceSource,
   RejectedLiteralCommand,
 } from "./types.js";
-import { EXECUTABLE_LITERAL_SOURCES, LITERAL_ACCEPTANCE_REJECTED_METADATA_KEY } from "./types.js";
+import {
+  EXECUTABLE_LITERAL_SOURCES,
+  LITERAL_ACCEPTANCE_NOT_COMMANDS_METADATA_KEY,
+  LITERAL_ACCEPTANCE_REJECTED_METADATA_KEY,
+} from "./types.js";
 
 /** Labeled keywords (single-token, linear match). */
 const LABELED_KEYWORDS = new Set(["verify", "command", "run", "check", "exec", "shell"]);
@@ -114,7 +118,26 @@ function pushCommand(buckets: CaptureBuckets, cmd: LiteralAcceptanceCommand): vo
     return;
   }
   const key = commandDedupeKey(cmd);
-  if (buckets.seen.has(key)) return;
+  if (buckets.seen.has(key)) {
+    const idx = buckets.out.findIndex((row) => commandDedupeKey(row) === key);
+    const existing = idx >= 0 ? buckets.out[idx] : undefined;
+    if (
+      existing !== undefined &&
+      idx >= 0 &&
+      isInlineProseMention(existing) &&
+      isExecutableSource(cmd.source)
+    ) {
+      buckets.out[idx] = {
+        command: cmd.command,
+        cwd: cmd.cwd ?? null,
+        expectedStdout: cmd.expectedStdout ?? null,
+        expectedExitCode: cmd.expectedExitCode ?? 0,
+        source: cmd.source,
+        sourceSpan: cmd.sourceSpan ?? null,
+      };
+    }
+    return;
+  }
   buckets.seen.add(key);
   buckets.out.push({
     command: cmd.command,
@@ -420,8 +443,9 @@ function matchMarkdownHeading(line: string): { level: number; text: string } | n
  * marker). Mid-line label capture is deliberately not attempted (#3484): a
  * `verify:<verb>` token inside ordinary prose has no terminator, so the capture
  * swallowed the rest of the paragraph and the phantom then blocked completion on
- * the safety ledger. Commands stated mid-sentence must live in a fence, a `$`
- * prompt, or an inline backtick span — all of which have real delimiters.
+ * the safety ledger. Commands stated mid-sentence must live in a fence or a `$`
+ * prompt. An inline backtick inside a prose sentence is a reference, not a
+ * stated command (#3721).
  */
 function extractFromLabeledLines(text: string, buckets: CaptureBuckets): void {
   const lines = text.split(/\r?\n/);
@@ -450,9 +474,15 @@ function extractFromLabeledLines(text: string, buckets: CaptureBuckets): void {
   }
 }
 
+/** Reason stamped when an inline backtick is recorded as a mention, not AC (#3721). */
+export const INLINE_PROSE_MENTION_REASON =
+  "inline backtick in prose is a mention, not a stated acceptance command (#3721)";
+
 /**
  * Extract inline `` `command` `` spans that follow verify/run language on the same line.
- * Example: `run \`task check\` before done`
+ * These are references, not stated acceptance commands (#3721). Recorded on the
+ * rejected ledger with an `inline@` span so #3511 demotes them to advisory.
+ * They must not enter the stated-command list (that would require promotion).
  */
 function extractInlineVerifySpans(text: string, buckets: CaptureBuckets): void {
   const lines = text.split(/\r?\n/);
@@ -472,9 +502,24 @@ function extractInlineVerifySpans(text: string, buckets: CaptureBuckets): void {
       if (inner.includes("\n")) continue;
       const normalized = normalizeCommand(inner);
       if (normalized === null || !looksLikeShellCommand(normalized)) continue;
-      pushUnique(buckets, normalized, "task_statement", `inline@L${i + 1}`);
+      recordRejected(buckets, normalized, INLINE_PROSE_MENTION_REASON, `inline@L${i + 1}`);
     }
   }
+}
+
+/**
+ * True when a capture-only row came from an inline backtick in prose (#3721).
+ * Those mentions are not stated acceptance commands. Labeled, prompt, and fence
+ * spans stay stated.
+ */
+export function isInlineProseMention(cmd: {
+  readonly source?: string;
+  readonly sourceSpan?: string | null;
+}): boolean {
+  if (cmd.source !== "task_statement") return false;
+  const span = cmd.sourceSpan;
+  if (span === null || span === undefined) return false;
+  return span.startsWith("inline@");
 }
 
 function emptyBuckets(): CaptureBuckets {
@@ -583,7 +628,7 @@ export function readStoredLiteralAcceptanceDetailed(
       // literal_acceptance_commands rows already loaded — do not invent a
       // null-cwd duplicate for the same command text.
       const alreadyHasCommand = (command: string): boolean =>
-        buckets.out.some((c) => c.command === command);
+        buckets.out.some((c) => c.command === command && !isInlineProseMention(c));
       for (const cmd of coerceCommandList(
         swarm.verify_commands,
         "verify_commands",
@@ -886,6 +931,39 @@ export function hasStructuredAcceptanceCommands(
   const swarm = asRecord(metadata.swarm);
   if (swarm === null) return false;
   return hasNonEmptyCommandList(swarm.verify_commands);
+}
+
+/**
+ * Command strings the operator recorded as not acceptance commands (#3721).
+ * Listing a string here dispositions a capture without asserting it is AC.
+ */
+export function readNotAcceptanceCommands(
+  plan: Record<string, unknown> | null | undefined,
+): ReadonlySet<string> {
+  const rec = asRecord(plan);
+  if (rec === null) return new Set();
+  const metadata = asRecord(rec.metadata);
+  if (metadata === null) return new Set();
+  const raw =
+    metadata[LITERAL_ACCEPTANCE_NOT_COMMANDS_METADATA_KEY] ??
+    metadata.literalAcceptanceNotCommands ??
+    null;
+  const out = new Set<string>();
+  if (typeof raw === "string" && raw.trim().length > 0) {
+    out.add(raw.trim());
+    return out;
+  }
+  if (!Array.isArray(raw)) return out;
+  for (const entry of raw) {
+    if (typeof entry === "string" && entry.trim().length > 0) {
+      out.add(entry.trim());
+      continue;
+    }
+    const row = asRecord(entry);
+    if (row === null) continue;
+    if (isNonEmptyString(row.command)) out.add(row.command.trim());
+  }
+  return out;
 }
 
 /** Format rejected ledger for CLI / complete-gate messages. */

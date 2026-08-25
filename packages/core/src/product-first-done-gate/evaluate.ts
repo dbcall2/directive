@@ -19,10 +19,14 @@ import {
   appendLiteralAcceptanceAdvisory,
   type EvaluateLiteralAcceptanceOptions,
   evaluateLiteralAcceptanceFromPlan,
+  isExecutableLiteralSource,
+  isInlineProseMention,
   isNoopRefusalReason,
   type LiteralAcceptanceGateResult,
   type LiteralAcceptanceRunner,
   type RejectedLiteralCommand,
+  readNotAcceptanceCommands,
+  readStoredLiteralAcceptanceCommands,
   runLiteralAcceptanceCommands,
   stripLiteralAcceptanceAdvisory,
 } from "../literal-acceptance/index.js";
@@ -360,10 +364,11 @@ export function evaluateVerifyAcFromPlan(
   // the #3267 ledger is a parallel store and can be empty while stated commands exist.
   // Stated was previously excluded, so rung=stated + empty ledger printed "nothing to run".
   // Do not override a blocking rejected ledger or a config error.
-  if (shouldRunPlanAcceptanceDirectly(base, acceptance)) {
+  if (shouldRunPlanAcceptanceDirectly(base, acceptance, plan)) {
     const runner: LiteralAcceptanceRunner | undefined = optionsWithScope.runner;
+    const directCommands = statedAcceptanceCommands(acceptance, plan);
     const direct = runLiteralAcceptanceCommands(
-      acceptance.commands.map((c) => ({
+      directCommands.map((c) => ({
         command: c.command,
         cwd: c.cwd ?? null,
         expectedStdout: c.expectedStdout ?? null,
@@ -446,11 +451,54 @@ export function evaluateVerifyAcFromPlan(
   return applyOracle(annotate(base, acceptance, optionsWithScope.quiet), optionsWithScope, plan);
 }
 
+function hasNonDefaultAcceptanceContext(command: PlanAcceptance["commands"][number]): boolean {
+  const cwd = command.cwd !== undefined && command.cwd !== null && String(command.cwd).trim();
+  const stdout =
+    command.expectedStdout !== undefined &&
+    command.expectedStdout !== null &&
+    String(command.expectedStdout).length > 0;
+  const exit = typeof command.expectedExitCode === "number" && command.expectedExitCode !== 0;
+  return Boolean(cwd) || stdout || exit;
+}
+
+function hasStructuredAcceptancePeer(plan: Record<string, unknown>, command: string): boolean {
+  return readStoredLiteralAcceptanceCommands(plan).some(
+    (c) => c.command === command && isExecutableLiteralSource(c.source),
+  );
+}
+
+/**
+ * True when a plan.acceptance.commands row is only an ingest copy of an inline
+ * prose mention (or an operator not-command disposition) and has no structured
+ * peer. Independently authored rows — promoted verify_commands, or a command
+ * with its own cwd/expectedStdout/exit — still run (#3721 Greptile).
+ */
+function isInlineScrapedAcceptanceCommand(
+  plan: Record<string, unknown>,
+  command: PlanAcceptance["commands"][number],
+): boolean {
+  if (hasNonDefaultAcceptanceContext(command)) return false;
+  if (hasStructuredAcceptancePeer(plan, command.command)) return false;
+  if (readNotAcceptanceCommands(plan).has(command.command)) return true;
+  return readStoredLiteralAcceptanceCommands(plan).some(
+    (c) => c.command === command.command && isInlineProseMention(c),
+  );
+}
+
+/** plan.acceptance.commands minus ingest-copied inline mentions (#3721). */
+function statedAcceptanceCommands(
+  acceptance: PlanAcceptance,
+  plan: Record<string, unknown>,
+): PlanAcceptance["commands"] {
+  return acceptance.commands.filter((c) => !isInlineScrapedAcceptanceCommand(plan, c));
+}
+
 function shouldRunPlanAcceptanceDirectly(
   base: LiteralAcceptanceGateResult,
   acceptance: PlanAcceptance,
+  plan: Record<string, unknown>,
 ): boolean {
-  if (acceptance.commands.length === 0) return false;
+  if (statedAcceptanceCommands(acceptance, plan).length === 0) return false;
   if (base.runs.length > 0) return false;
   if (base.code === 2) return false;
   if ((base.rejected?.length ?? 0) > 0) return false;
