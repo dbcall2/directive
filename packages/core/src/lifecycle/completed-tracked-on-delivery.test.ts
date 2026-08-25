@@ -3,7 +3,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { evaluateCompletedTracked, resolveDeliveryTip } from "./completed-tracked-on-delivery.js";
+import { defaultGitRunner } from "../session/git.js";
+import {
+  evaluateCompletedTracked,
+  resolveDeliveryTip,
+  shouldAnnounceProgress,
+  shouldAnnounceUpFrontCount,
+} from "./completed-tracked-on-delivery.js";
 
 const temps: string[] = [];
 afterAll(() => {
@@ -590,5 +596,99 @@ describe("evaluateCompletedTracked (#3264)", () => {
     });
     expect(result.code).toBe(0);
     expect(result.missing).toEqual([]);
+  });
+
+  // #3673: issue identity is parsed plan content, not the filename. This
+  // is one of the 148 terminal artifacts whose authoritative issue number
+  // does not appear in the path. A filename pre-filter would miss it.
+  it("lands --issue 2001 from a filename that does not contain 2001 (#3673)", () => {
+    const filename =
+      "2026-06-26-add-a-read-only-gate-subcommand-to-the-frozen-go-binary-deft.xbrief.json";
+    expect(filename.includes("2001")).toBe(false);
+    const root = makeGitRepo();
+    writeBrief(root, "cancelled", filename, {
+      status: "cancelled",
+      title: "Add a read-only gate subcommand",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/2001",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    });
+    writeCachedIssue(root, "deftai/directive", 2001, "closed");
+    git(root, ["add", `xbrief/cancelled/${filename}`]);
+    git(root, ["commit", "-q", "-m", "land 2001 under a name without 2001"]);
+    const showCalls: string[][] = [];
+    const runGit = (cwd: string, args: readonly string[]) => {
+      if (args[0] === "show") {
+        showCalls.push([...args]);
+      }
+      return defaultGitRunner(cwd, args);
+    };
+    const result = evaluateCompletedTracked(root, {
+      repo: "deftai/directive",
+      skipGh: true,
+      tip: "HEAD",
+      issue: 2001,
+      runGit,
+    });
+    expect(showCalls).toEqual([]);
+    expect(result.code).toBe(0);
+    expect(result.missing).toEqual([]);
+  });
+
+  it("emits listed then read progress with blob counts (#3673)", () => {
+    const root = makeGitRepo();
+    writeBrief(root, "completed", "landed.xbrief.json", issuePlan(9301));
+    writeCachedIssue(root, "deftai/directive", 9301, "closed");
+    git(root, ["add", "xbrief/completed/landed.xbrief.json"]);
+    git(root, ["commit", "-q", "-m", "land"]);
+    const events: Array<{ phase: string; terminalCount: number }> = [];
+    const result = evaluateCompletedTracked(root, {
+      repo: "deftai/directive",
+      skipGh: true,
+      tip: "HEAD",
+      issue: 9301,
+      now: (() => {
+        let t = 0;
+        return () => {
+          t += 10;
+          return t;
+        };
+      })(),
+      onProgress: (event) => {
+        events.push({ phase: event.phase, terminalCount: event.terminalCount });
+      },
+    });
+    expect(result.code).toBe(0);
+    expect(events.map((e) => e.phase)).toEqual(["listed", "read"]);
+    expect(events[0]?.terminalCount).toBe(1);
+    expect(events[1]?.terminalCount).toBe(1);
+  });
+});
+
+describe("shouldAnnounceProgress (#3673)", () => {
+  it("stays silent under the measured duration threshold", () => {
+    expect(shouldAnnounceProgress(1_700)).toBe(false);
+    expect(shouldAnnounceProgress(2_999)).toBe(false);
+  });
+
+  it("announces once the measured duration threshold is crossed", () => {
+    expect(shouldAnnounceProgress(3_000)).toBe(true);
+    expect(shouldAnnounceProgress(10, 5)).toBe(true);
+  });
+});
+
+describe("shouldAnnounceUpFrontCount (#3673)", () => {
+  it("stays silent for fixture-sized corpora", () => {
+    expect(shouldAnnounceUpFrontCount(1, 0)).toBe(false);
+    expect(shouldAnnounceUpFrontCount(0, 26)).toBe(false);
+  });
+
+  it("announces after listing when the corpus is large enough to stall", () => {
+    expect(shouldAnnounceUpFrontCount(1345, 26)).toBe(true);
+    expect(shouldAnnounceUpFrontCount(31, 1, 32)).toBe(true);
+    expect(shouldAnnounceUpFrontCount(31, 0, 32)).toBe(false);
   });
 });
