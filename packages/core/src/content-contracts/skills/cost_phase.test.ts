@@ -5,6 +5,7 @@ import { readRepoFile, repoFileExists } from "./helpers.js";
 
 const _COST_SKILL_PATH = "skills/deft-directive-cost/SKILL.md";
 const _BUILD_SKILL_PATH = "skills/deft-directive-build/SKILL.md";
+const _SETUP_SKILL_PATH = "skills/deft-directive-setup/SKILL.md";
 const _COST_TEMPLATE_PATH = "templates/COST-ESTIMATE.md";
 const _COST_MODELS_PATH = "references/cost-models.md";
 const _RFC2119_LEGEND = "!=MUST, ~=SHOULD";
@@ -53,6 +54,24 @@ describe("test_cost_phase", () => {
     for (const choice of ["Build", "Rescope", "No-build", "Skip"]) {
       expect(text).toContain(choice);
     }
+  });
+  it("cost_skill_resolves_full_spec_or_greenfield_authority", () => {
+    const text = readRepoFile(_COST_SKILL_PATH);
+    expect(text).toContain("two-path authority");
+    expect(text).toContain("xbrief/PROJECT-DEFINITION.xbrief.json");
+    expect(text).toContain("plus lifecycle scopes");
+    expect(text).toContain("full-spec artifact");
+    expect(text).toContain('do not require `plan.status = "approved"` on PROJECT-DEFINITION');
+    expect(text).toContain("Require or create `xbrief/specification.xbrief.json`");
+  });
+  it("setup_handoff_routes_through_cost_before_build", () => {
+    const text = readRepoFile(_SETUP_SKILL_PATH);
+    const handoff = text.slice(text.indexOf("### Handoff to deft-directive-build"));
+    const costIndex = handoff.indexOf("skills/deft-directive-cost/SKILL.md");
+    const buildIndex = handoff.indexOf("skills/deft-directive-build/SKILL.md", costIndex + 1);
+    expect(costIndex).toBeGreaterThanOrEqual(0);
+    expect(buildIndex).toBeGreaterThan(costIndex);
+    expect(handoff).toContain("recorded Build or Skip decision");
   });
   it("cost_skill_kickoff_menu_discuss_back_final_two_options", () => {
     const text = readRepoFile(_COST_SKILL_PATH);
@@ -167,6 +186,15 @@ describe("test_cost_phase", () => {
     const text = readRepoFile(_BUILD_SKILL_PATH);
     expect(text).toContain("## Cost Phase Gate");
     expect(text).toContain("#739");
+  });
+  it("build_skill_accepts_project_definition_backed_generated_spec", () => {
+    const text = readRepoFile(_BUILD_SKILL_PATH);
+    const guardStart = text.indexOf("## Pre-Cutover Detection Guard");
+    const guardEnd = text.indexOf("## USER.md Gate", guardStart);
+    const guard = text.slice(guardStart, guardEnd);
+    expect(guard).toContain("<!-- Purpose: rendered specification -->");
+    expect(guard).toContain("xbrief/PROJECT-DEFINITION.xbrief.json");
+    expect(guard).toContain("greenfield authority");
   });
   it("build_skill_cost_gate_refuses_without_artifact", () => {
     const text = readRepoFile(_BUILD_SKILL_PATH);

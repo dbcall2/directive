@@ -107,7 +107,7 @@ The gate exits 0 only when the candidate xBRIEF lives in `xbrief/active/` AND `p
 
 A project is **pre-cutover** if ANY of the following are true. This prose mirrors the executable helper in `scripts/_precutover.py`; when in doubt, the helper is canonical.
 
-1. `SPECIFICATION.md` exists and is neither a deprecation redirect nor a current generated spec export. A current generated spec export contains `<!-- Purpose: rendered specification -->` and `<!-- Source of truth: xbrief/specification.xbrief.json -->`, and `xbrief/specification.xbrief.json` plus all five lifecycle folders exist.
+1. `SPECIFICATION.md` exists and is neither a deprecation redirect nor a current generated spec export. A current generated spec export contains `<!-- Purpose: rendered specification -->`, all five lifecycle folders exist, and its `<!-- Source of truth: ... -->` marker names an authority artifact that exists: either `xbrief/specification.xbrief.json` for full-spec compatibility or `xbrief/PROJECT-DEFINITION.xbrief.json` for greenfield authority (legacy `vbrief/...` aliases remain read-compatible).
 2. `PROJECT.md` exists and contains neither the legacy `<!-- deft:deprecated-redirect -->` sentinel NOR the current `Purpose: deprecation redirect` canonical-banner marker (real content, not a deprecation redirect)
 3. `xbrief/specification.xbrief.json` exists but the lifecycle folders (`xbrief/proposed/`, `xbrief/pending/`, `xbrief/active/`, `xbrief/completed/`, `xbrief/cancelled/`) do NOT exist
 4. Strategy output shape violations (run `task verify-strategy-output` -- the canonical gate -- or the direct form `python .deft/core/scripts/validate_strategy_output.py --project-root <path>` after `deft` install):

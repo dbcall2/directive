@@ -4,10 +4,11 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { exportSpec, exportSpecMain, parseExportSpecArgv } from "../render/export-spec.js";
 import { aggregateScopeSection, buildScopeOutlookSection } from "../render/scope-outlook.js";
+import { renderSpec } from "../render/spec-render.js";
 import {
-  EXPORT_SPEC_PD_BANNER,
   GENERATED_SPEC_PURPOSE,
-  GENERATED_SPEC_SOURCE_PD,
+  GENERATED_SPEC_SOURCE_PD_XBRIEF,
+  GENERATED_SPEC_SOURCE_SPEC_XBRIEF,
 } from "./constants.js";
 import { checkSpecMigrationFidelity } from "./migration-fidelity.js";
 import { renderNarrativeSections, resolveExportNarratives } from "./narratives.js";
@@ -73,6 +74,16 @@ function makeGreenfieldTree(): string {
     status: "pending",
     narratives: { Overview: "Ready when promoted." },
   });
+  writeScope(vbrief, "active", "2026-06-28-active.xbrief.json", {
+    title: "Active story",
+    status: "running",
+    narratives: { Overview: "In progress." },
+  });
+  writeScope(vbrief, "completed", "2026-06-28-completed.xbrief.json", {
+    title: "Completed story",
+    status: "completed",
+    narratives: { Overview: "Already delivered." },
+  });
   return root;
 }
 
@@ -88,7 +99,9 @@ describe("spec-authority resolver", () => {
     roots.push(root);
     const authority = resolveSpecAuthority(root);
     expect(authority?.kind).toBe("greenfield");
+    expect(authority?.sourcePath).toBe(join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json"));
     expect(authority?.banner).toContain("project:export-spec");
+    expect(authority?.banner).toContain(GENERATED_SPEC_SOURCE_PD_XBRIEF);
   });
 
   it("recognizes greenfield export banner without cross-classifying legacy spec", () => {
@@ -99,7 +112,7 @@ describe("spec-authority resolver", () => {
     expect(ok).toBe(true);
     const md = readFileSync(out, "utf8");
     expect(md).toContain(GENERATED_SPEC_PURPOSE);
-    expect(md).toContain(GENERATED_SPEC_SOURCE_PD);
+    expect(md).toContain(GENERATED_SPEC_SOURCE_PD_XBRIEF);
     expect(isGreenfieldSpecExport(root)).toBe(true);
     expect(isFullSpecState(root)).toBe(false);
     expect(isCurrentGeneratedSpecification(root)).toBe(true);
@@ -117,36 +130,82 @@ describe("spec-authority resolver", () => {
     expect(narratives.Configuration).toBeUndefined();
   });
 
-  it("includes proposed scopes only for internal audience", () => {
+  it("keeps stakeholder omitted scope selection compact", () => {
     const root = makeGreenfieldTree();
     roots.push(root);
-    // #1566: scopes are opt-in; pass includeScopes so audience filtering is exercised.
-    const stakeholderOut = join(root, "SPEC-stakeholder.md");
-    exportSpec({
-      projectRoot: root,
-      outPath: stakeholderOut,
-      audience: "stakeholder",
-      includeScopes: "all",
-    });
-    const stakeholderMd = readFileSync(stakeholderOut, "utf8");
-    expect(stakeholderMd).toContain("## Scope outlook");
-    expect(stakeholderMd).toContain("Accepted backlog");
-    expect(stakeholderMd).not.toContain("Not yet accepted (proposed)");
-
-    const internalOut = join(root, "SPEC-internal.md");
-    exportSpec({
-      projectRoot: root,
-      outPath: internalOut,
-      audience: "internal",
-      includeScopes: "all",
-    });
-    const internalMd = readFileSync(internalOut, "utf8");
-    expect(internalMd).toContain("Not yet accepted (proposed)");
-    expect(internalMd).toContain("ideas, not approved backlog");
-    expect(internalMd).toContain("Future idea");
+    const out = join(root, "SPEC-stakeholder.md");
+    exportSpec({ projectRoot: root, outPath: out, audience: "stakeholder" });
+    expect(readFileSync(out, "utf8")).not.toContain("## Scope outlook");
   });
 
-  it("exportSpec defaults to compact (no Scope outlook) (#1566)", () => {
+  it("renders proposed-only outlook for internal audience when scope selection is omitted", () => {
+    const root = makeGreenfieldTree();
+    roots.push(root);
+    const out = join(root, "SPEC-internal.md");
+    exportSpec({ projectRoot: root, outPath: out, audience: "internal" });
+    const md = readFileSync(out, "utf8");
+    expect(md).toContain("## Scope outlook");
+    expect(md).toContain("Not yet accepted (proposed)");
+    expect(md).toContain("ideas, not approved backlog");
+    expect(md).toContain("Future idea");
+    expect(md).not.toContain("Accepted backlog (pending)");
+    expect(md).not.toContain("Active story");
+    expect(md).not.toContain("Completed story");
+  });
+
+  it.each([
+    {
+      audience: "stakeholder" as const,
+      mode: "current" as const,
+      expected: ["Accepted story", "Active story"],
+      excluded: ["Future idea", "Completed story"],
+    },
+    {
+      audience: "internal" as const,
+      mode: "current" as const,
+      expected: ["Future idea", "Accepted story", "Active story"],
+      excluded: ["Completed story"],
+    },
+    {
+      audience: "stakeholder" as const,
+      mode: "all" as const,
+      expected: ["Accepted story", "Active story", "Completed story"],
+      excluded: ["Future idea"],
+    },
+    {
+      audience: "internal" as const,
+      mode: "all" as const,
+      expected: ["Future idea", "Accepted story", "Active story", "Completed story"],
+      excluded: [],
+    },
+  ])("applies explicit $mode scope selection for $audience audience", ({
+    audience,
+    mode,
+    expected,
+    excluded,
+  }) => {
+    const root = makeGreenfieldTree();
+    roots.push(root);
+    const out = join(root, `SPEC-${audience}-${mode}.md`);
+    exportSpec({ projectRoot: root, outPath: out, audience, includeScopes: mode });
+    const md = readFileSync(out, "utf8");
+    expect(md).toContain("## Scope outlook");
+    for (const title of expected) expect(md).toContain(title);
+    for (const title of excluded) expect(md).not.toContain(title);
+  });
+
+  it.each([
+    false,
+    "off" as const,
+  ])("treats explicit scope-off value %s as a hard override for internal audience", (includeScopes) => {
+    const root = makeGreenfieldTree();
+    roots.push(root);
+    const out = join(root, "SPEC-internal-off.md");
+    exportSpec({ projectRoot: root, outPath: out, audience: "internal", includeScopes });
+    expect(readFileSync(out, "utf8")).not.toContain("## Scope outlook");
+  });
+
+  it("exportSpec retains compact default for stakeholder audience (#1566)", () => {
     const root = makeGreenfieldTree();
     roots.push(root);
     const out = join(root, "SPEC-compact.md");
@@ -192,13 +251,14 @@ describe("spec-authority resolver", () => {
     expect(checkSpecMigrationFidelity(root)).toEqual([]);
   });
 
-  it("export banner matches EXPORT_SPEC_PD_BANNER constant", () => {
+  it("export banner names the resolved xBRIEF PROJECT-DEFINITION source", () => {
     const root = makeGreenfieldTree();
     roots.push(root);
     const out = join(root, "SPECIFICATION.md");
     exportSpec({ projectRoot: root, outPath: out });
     const md = readFileSync(out, "utf8");
-    expect(md.startsWith(EXPORT_SPEC_PD_BANNER.trim())).toBe(true);
+    expect(md).toContain(GENERATED_SPEC_SOURCE_PD_XBRIEF);
+    expect(md).not.toContain("vbrief/PROJECT-DEFINITION.vbrief.json");
   });
 
   it("buildScopeOutlookSection returns empty when no scopes", () => {
@@ -253,6 +313,172 @@ describe("spec-authority resolver", () => {
     expect(isGreenfieldSpecExport(root)).toBe(false);
   });
 
+  it("recognizes a source-derived banner from an explicit spec path", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-spec-auth-explicit-"));
+    roots.push(root);
+    const vbrief = join(root, "xbrief");
+    for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+      mkdirSync(join(vbrief, folder), { recursive: true });
+    }
+    writeProjectDef(vbrief, { Overview: "PD overview" });
+    const specification = {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "Explicit full spec",
+        status: "approved",
+        narratives: { Overview: "Spec overview" },
+        items: [],
+      },
+    };
+    writeJson(join(vbrief, "specification.xbrief.json"), specification);
+    const explicitDir = join(root, "inputs");
+    mkdirSync(explicitDir, { recursive: true });
+    const explicitSpecPath = join(explicitDir, "custom-spec.json");
+    writeJson(explicitSpecPath, specification);
+
+    const out = join(root, "SPECIFICATION.md");
+    const [ok] = renderSpec(explicitSpecPath, out);
+
+    expect(ok).toBe(true);
+    expect(readFileSync(out, "utf8")).toContain(
+      `<!-- Source of truth: ${explicitSpecPath.replaceAll("\\", "/")} -->`,
+    );
+    expect(isFullSpecState(root)).toBe(true);
+    expect(isCurrentGeneratedSpecification(root)).toBe(true);
+  });
+
+  it("recognizes an equivalent explicit spec through a normalized relative marker", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-spec-auth-relative-"));
+    roots.push(root);
+    const vbrief = join(root, "xbrief");
+    for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+      mkdirSync(join(vbrief, folder), { recursive: true });
+    }
+    writeProjectDef(vbrief, { Overview: "PD overview" });
+    const specification = {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "Relative explicit full spec",
+        status: "approved",
+        narratives: { Overview: "Spec overview" },
+        items: [],
+      },
+    };
+    writeJson(join(vbrief, "specification.xbrief.json"), specification);
+    mkdirSync(join(root, "inputs"), { recursive: true });
+    writeJson(join(root, "inputs", "custom-spec.json"), specification);
+    writeFileSync(
+      join(root, "SPECIFICATION.md"),
+      `${GENERATED_SPEC_PURPOSE}\n<!-- Source of truth: inputs/../inputs/custom-spec.json -->\n`,
+      "utf8",
+    );
+
+    expect(isFullSpecState(root)).toBe(true);
+    expect(isCurrentGeneratedSpecification(root)).toBe(true);
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "keeps unsafe explicit spec filename bytes reversible without breaking the banner",
+    () => {
+      const root = mkdtempSync(join(tmpdir(), "deft-spec-auth-encoded-"));
+      roots.push(root);
+      const vbrief = join(root, "xbrief");
+      for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+        mkdirSync(join(vbrief, folder), { recursive: true });
+      }
+      writeProjectDef(vbrief, { Overview: "PD overview" });
+      const specification = {
+        xBRIEFInfo: { version: "0.8" },
+        plan: {
+          title: "Encoded explicit full spec",
+          status: "approved",
+          narratives: { Overview: "Spec overview" },
+          items: [],
+        },
+      };
+      writeJson(join(vbrief, "specification.xbrief.json"), specification);
+      const explicitDir = join(root, "inputs");
+      mkdirSync(explicitDir, { recursive: true });
+      const explicitSpecPath = join(explicitDir, "custom\r\nspec-->alias\\name.json");
+      writeJson(explicitSpecPath, specification);
+
+      const out = join(root, "SPECIFICATION.md");
+      const [ok] = renderSpec(explicitSpecPath, out);
+      const sourceLine = readFileSync(out, "utf8")
+        .split("\n")
+        .find((line) => line.startsWith("<!-- Source of truth:"));
+
+      expect(ok).toBe(true);
+      expect(sourceLine).toContain("%0D%0A");
+      expect(sourceLine).toContain("--%3E");
+      expect(sourceLine).toContain("%5C");
+      expect(sourceLine?.match(/-->/g)).toHaveLength(1);
+      expect(isFullSpecState(root)).toBe(true);
+      expect(isCurrentGeneratedSpecification(root)).toBe(true);
+    },
+  );
+
+  it("rejects a generated source marker unrelated to the resolved spec artifact", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-spec-auth-unrelated-"));
+    roots.push(root);
+    const vbrief = join(root, "xbrief");
+    for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+      mkdirSync(join(vbrief, folder), { recursive: true });
+    }
+    writeProjectDef(vbrief, { Overview: "PD overview" });
+    writeJson(join(vbrief, "specification.xbrief.json"), {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "Resolved specification",
+        status: "approved",
+        narratives: { Overview: "Resolved overview" },
+        items: [],
+      },
+    });
+    const unrelatedPath = join(root, "inputs", "unrelated.json");
+    mkdirSync(join(root, "inputs"), { recursive: true });
+    writeJson(unrelatedPath, {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "Unrelated artifact",
+        status: "approved",
+        narratives: { Overview: "Different content" },
+        items: [],
+      },
+    });
+    writeFileSync(
+      join(root, "SPECIFICATION.md"),
+      `${GENERATED_SPEC_PURPOSE}\n<!-- Source of truth: ${unrelatedPath.replaceAll("\\", "/")} -->\n`,
+      "utf8",
+    );
+
+    expect(isFullSpecState(root)).toBe(false);
+    expect(isCurrentGeneratedSpecification(root)).toBe(false);
+  });
+
+  it("rejects a resolved source marker paired with the wrong purpose", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-spec-auth-purpose-"));
+    roots.push(root);
+    const vbrief = join(root, "xbrief");
+    for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+      mkdirSync(join(vbrief, folder), { recursive: true });
+    }
+    writeProjectDef(vbrief, { Overview: "PD overview" });
+    writeJson(join(vbrief, "specification.xbrief.json"), {
+      xBRIEFInfo: { version: "0.8" },
+      plan: { title: "Spec", status: "approved", narratives: {}, items: [] },
+    });
+    writeFileSync(
+      join(root, "SPECIFICATION.md"),
+      "<!-- Purpose: rendered roadmap -->\n" +
+        "<!-- Source of truth: xbrief/specification.xbrief.json -->\n",
+      "utf8",
+    );
+
+    expect(isFullSpecState(root)).toBe(false);
+    expect(isCurrentGeneratedSpecification(root)).toBe(false);
+  });
+
   it("parseExportSpecArgv rejects unknown flags", () => {
     const { errors } = parseExportSpecArgv(["--bogus-flag"]);
     expect(errors).toContain("Unknown flag: --bogus-flag");
@@ -281,6 +507,13 @@ describe("spec-authority resolver", () => {
     expect(options.audience).toBe("internal");
     expect(options.proposedLimit).toBe(5);
     expect(options.includeScopes).toBe("off");
+  });
+
+  it("preserves omitted scope selection separately from explicit off", () => {
+    expect(parseExportSpecArgv(["--audience=internal"]).options.includeScopes).toBeUndefined();
+    expect(
+      parseExportSpecArgv(["--audience=internal", "--include-scopes=off"]).options.includeScopes,
+    ).toBe("off");
   });
 
   it("exportSpecMain returns 2 on argv errors, 1 on export failure, 0 on success", () => {
@@ -322,6 +555,7 @@ describe("spec-authority resolver", () => {
     expect(md).toContain("Canonical spec");
     expect(md).toContain("Problem");
     expect(md).toContain("PD arch");
+    expect(md).toContain(GENERATED_SPEC_SOURCE_SPEC_XBRIEF);
   });
 
   it("exportSpec skips scopes when includeScopes is false", () => {

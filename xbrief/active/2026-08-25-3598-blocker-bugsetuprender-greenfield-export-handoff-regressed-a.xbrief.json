@@ -1,11 +1,12 @@
 {
   "xBRIEFInfo": {
     "version": "0.8",
-    "description": "Scope xBRIEF ingested from GitHub issue #3598"
+    "description": "Scope xBRIEF ingested from GitHub issue #3598",
+    "updated": "2026-08-26T17:44:35Z"
   },
   "plan": {
     "title": "BLOCKER: bug(setup,render): greenfield export handoff regressed after #1502",
-    "status": "proposed",
+    "status": "running",
     "narratives": {
       "Description": "BLOCKER: bug(setup,render): greenfield export handoff regressed after #1502",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/3598",
@@ -34,6 +35,34 @@
       },
       {
         "title": "Consumer-task integration coverage invokes the exact setup command lines and checks output content, provenance, and exit status.",
+        "status": "proposed"
+      },
+      {
+        "title": "The cost skill accepts PROJECT-DEFINITION plus lifecycle scopes for greenfield authority without requiring or creating `specification.xbrief.json`.",
+        "status": "proposed"
+      },
+      {
+        "title": "Setup routes Continue to build through the required cost decision phase before build.",
+        "status": "proposed"
+      },
+      {
+        "title": "Build recognizes a current PROJECT-DEFINITION-backed greenfield export while retaining the cost-decision gate.",
+        "status": "proposed"
+      },
+      {
+        "title": "An end-to-end consumer fixture covers setup through internal export, cost decision, and build preflight on an xBRIEF-only greenfield tree.",
+        "status": "proposed"
+      },
+      {
+        "title": "For internal exports, omitted scope selection includes proposed scopes only; explicit current or all includes the requested lifecycle buckets plus proposed; explicit off or no-scopes suppresses all scopes.",
+        "status": "proposed"
+      },
+      {
+        "title": "Stakeholder exports and PRD output remain compact and contain no scope outlook.",
+        "status": "proposed"
+      },
+      {
+        "title": "Full-spec authority and explicit --spec compatibility retain existing behavior.",
         "status": "proposed"
       }
     ],
@@ -81,20 +110,45 @@
       "swarm": {},
       "intended_placement": {
         "schema": "deft.scope.intended_placement.v1",
-        "files": [],
-        "module_boundary": ""
+        "files": [
+          "packages/core/src/spec-authority/constants.ts",
+          "packages/core/src/spec-authority/narratives.ts",
+          "packages/core/src/spec-authority/resolver.ts",
+          "packages/core/src/spec-authority/spec-authority.test.ts",
+          "packages/core/src/render/constants.ts",
+          "packages/core/src/render/export-spec.ts",
+          "packages/core/src/render/prd-render.ts",
+          "packages/core/src/render/scope-outlook.ts",
+          "packages/cli/src/render-cli/export-spec-cli.ts",
+          "packages/cli/src/render-cli/prd-render-cli.ts",
+          "packages/cli/src/render-cli/render-surfaces-cli.test.ts",
+          "content/packs/skills/skills-pack-0.1.json",
+          "content/skills/deft-directive-setup/SKILL.md",
+          "content/skills/deft-directive-interview/SKILL.md",
+          "content/skills/deft-directive-cost/SKILL.md",
+          "content/skills/deft-directive-build/SKILL.md",
+          "packages/core/src/content-contracts/skills/change_and_skills.test.ts",
+          "packages/core/src/content-contracts/skills/cost_phase.test.ts",
+          "packages/core/src/content-contracts/skills/interview_always_structured.test.ts",
+          "packages/core/src/content-contracts/skills/phase3_export_prompt.test.ts",
+          "CHANGELOG.md"
+        ],
+        "module_boundary": "Shared spec authority and renderer/CLI behavior, plus canonical skills-pack content and generated skill projections.",
+        "cohesion_exemption": "CHANGELOG.md and the canonical skills-pack JSON are intentionally single generated or release-history documents; this change makes localized entries and regenerates the four affected skill projections rather than splitting those artifacts."
       }
     },
     "acceptance": {
-      "commands": [],
-      "none_stated": true,
+      "commands": [
+        "pnpm exec vitest run packages/core/src/spec-authority/spec-authority.test.ts packages/core/src/content-contracts/skills/change_and_skills.test.ts packages/core/src/content-contracts/skills/cost_phase.test.ts packages/core/src/content-contracts/skills/interview_always_structured.test.ts packages/core/src/content-contracts/skills/phase3_export_prompt.test.ts packages/core/src/content-contracts/skills/machine_generated_banner.test.ts packages/cli/src/render-cli/render-surfaces-cli.test.ts"
+      ],
+      "none_stated": false,
       "source_rung": "derived",
-      "derived_reason": "derived 7 independently testable clauses from the task statement before product edit (#3323)",
+      "derived_reason": "Issue acceptance and the consolidated comment plan were converted into one deterministic runtime-and-content regression command before completion (#3323).",
       "clauses": [
         {
           "id": 1,
           "text": "On an xBRIEF-only greenfield fixture with no `specification.xbrief.json`, every export choice presented by `deft-directive-setup` has defined, truthful behavior.",
-          "artifact_path": "specification.xbrief.json",
+          "artifact_path": "packages/cli/src/render-cli/render-surfaces-cli.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
@@ -135,13 +189,56 @@
         },
         {
           "id": 7,
-          "text": "--",
+          "text": "The cost skill accepts PROJECT-DEFINITION plus lifecycle scopes for greenfield authority without requiring or creating `specification.xbrief.json`.",
+          "artifact_path": "content/skills/deft-directive-cost/SKILL.md",
+          "ambiguous": false,
+          "provenance": "issue-comment-5372941926"
+        },
+        {
+          "id": 8,
+          "text": "Setup routes Continue to build through the required cost decision phase before build.",
+          "artifact_path": "content/skills/deft-directive-setup/SKILL.md",
+          "ambiguous": false,
+          "provenance": "issue-comment-5372941926"
+        },
+        {
+          "id": 9,
+          "text": "Build recognizes a current PROJECT-DEFINITION-backed greenfield export while retaining the cost-decision gate.",
+          "artifact_path": "content/skills/deft-directive-build/SKILL.md",
+          "ambiguous": false,
+          "provenance": "issue-comment-5372941926"
+        },
+        {
+          "id": 10,
+          "text": "An end-to-end consumer fixture covers setup through internal export, cost decision, and build preflight on an xBRIEF-only greenfield tree.",
           "artifact_path": null,
           "ambiguous": false,
-          "provenance": "statement"
+          "provenance": "issue-comment-5372941926"
+        },
+        {
+          "id": 11,
+          "text": "For internal exports, omitted scope selection includes proposed scopes only; explicit current or all includes the requested lifecycle buckets plus proposed; explicit off or no-scopes suppresses all scopes.",
+          "artifact_path": "packages/core/src/render/export-spec.ts",
+          "ambiguous": false,
+          "provenance": "issue-comment-5428696921"
+        },
+        {
+          "id": 12,
+          "text": "Stakeholder exports and PRD output remain compact and contain no scope outlook.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "issue-comment-5428696921"
+        },
+        {
+          "id": 13,
+          "text": "Full-spec authority and explicit --spec compatibility retain existing behavior.",
+          "artifact_path": "xbrief/specification.xbrief.json",
+          "ambiguous": false,
+          "provenance": "issue-comment-5428696921"
         }
       ],
       "ambiguity_attestation": "none_found"
-    }
+    },
+    "updated": "2026-08-26T17:44:35Z"
   }
 }

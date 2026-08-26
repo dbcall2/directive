@@ -1,16 +1,19 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { isAbsolute, join, resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import {
   resolveLifecycleLayout,
   resolveLifecycleRoot,
   resolveProjectDefinitionPath,
+  resolveSpecArtifactPath,
 } from "../layout/resolve.js";
-import { SPEC_RENDER_BANNER } from "../render/constants.js";
 import {
+  buildExportSpecPdBanner,
+  buildGeneratedArtifactBanner,
   contentHasGeneratedPdSource,
   contentHasGeneratedSpecSource,
-  EXPORT_SPEC_PD_BANNER,
   GENERATED_SPEC_PURPOSE,
+  generatedSpecSourcePaths,
 } from "./constants.js";
 
 export type SpecAuthorityKind = "full-spec" | "greenfield";
@@ -21,6 +24,7 @@ export interface ResolvedSpecAuthority {
   readonly vbriefDir: string;
   readonly projectDefPath: string;
   readonly specPath: string | null;
+  readonly sourcePath: string;
   readonly banner: string;
 }
 
@@ -40,7 +44,10 @@ export function resolveSpecAuthority(projectRoot: string): ResolvedSpecAuthority
   const specPath = join(vbriefDir, `specification${layout.artifactSuffix}`);
   const hasSpec = existsSync(specPath);
   const kind: SpecAuthorityKind = hasSpec ? "full-spec" : "greenfield";
-  const banner = kind === "full-spec" ? SPEC_RENDER_BANNER : EXPORT_SPEC_PD_BANNER;
+  const sourcePath = hasSpec ? specPath : projectDefPath;
+  const banner = hasSpec
+    ? buildGeneratedArtifactBanner("task spec:render", "rendered specification", sourcePath)
+    : buildExportSpecPdBanner(sourcePath);
 
   return {
     kind,
@@ -48,6 +55,7 @@ export function resolveSpecAuthority(projectRoot: string): ResolvedSpecAuthority
     vbriefDir,
     projectDefPath,
     specPath: hasSpec ? specPath : null,
+    sourcePath,
     banner,
   };
 }
@@ -61,11 +69,60 @@ export function readSpecMarkdown(projectRoot: string): string {
   }
 }
 
+function sourcePathFromMarker(projectRoot: string, source: string): string {
+  return isAbsolute(source) ? source : resolve(projectRoot, source);
+}
+
+function contentMatchesResolvedSpecSource(
+  projectRoot: string,
+  content: string,
+  resolvedSourcePath: string,
+): boolean {
+  if (contentHasGeneratedSpecSource(content, resolvedSourcePath)) return true;
+
+  let resolvedSource: unknown;
+  try {
+    resolvedSource = JSON.parse(readFileSync(resolvedSourcePath, "utf8"));
+  } catch {
+    return false;
+  }
+
+  for (const source of generatedSpecSourcePaths(content)) {
+    try {
+      const candidate = sourcePathFromMarker(projectRoot, source);
+      if (!statSync(candidate).isFile()) continue;
+      // Explicit --spec paths remain valid aliases only when they identify the
+      // same JSON authority as the layout-resolved specification artifact.
+      if (isDeepStrictEqual(JSON.parse(readFileSync(candidate, "utf8")), resolvedSource)) {
+        return true;
+      }
+    } catch {
+      // Missing or unreadable explicit source markers are not resolved authority.
+    }
+  }
+  return false;
+}
+
+/** True when the markdown source marker resolves to the project's specification authority. */
+export function contentHasResolvedSpecSource(projectRoot: string, content: string): boolean {
+  let resolvedSourcePath: string;
+  try {
+    resolvedSourcePath = resolveSpecArtifactPath(projectRoot);
+  } catch {
+    return false;
+  }
+  if (!existsSync(resolvedSourcePath)) return false;
+  return contentMatchesResolvedSpecSource(projectRoot, content, resolvedSourcePath);
+}
+
 export function isFullSpecState(projectRoot: string): boolean {
   const authority = resolveSpecAuthority(projectRoot);
   if (authority?.kind !== "full-spec") return false;
   const specMd = readSpecMarkdown(projectRoot);
-  return specMd.includes(GENERATED_SPEC_PURPOSE) && contentHasGeneratedSpecSource(specMd);
+  return (
+    specMd.includes(GENERATED_SPEC_PURPOSE) &&
+    contentMatchesResolvedSpecSource(projectRoot, specMd, authority.sourcePath)
+  );
 }
 
 export function isGreenfieldSpecExport(projectRoot: string): boolean {

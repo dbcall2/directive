@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -128,6 +128,116 @@ const PRD_SPEC_JSON = JSON.stringify({
   },
 });
 
+function makeGreenfieldExportFixture(): string {
+  const root = mkdtempSync(join(tmpdir(), "deft-cli-greenfield-export-"));
+  temps.push(root);
+  const xbrief = join(root, "xbrief");
+  for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+    mkdirSync(join(xbrief, folder), { recursive: true });
+  }
+  writeFileSync(
+    join(xbrief, "PROJECT-DEFINITION.xbrief.json"),
+    JSON.stringify({
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "Greenfield Product",
+        status: "running",
+        narratives: {
+          Overview: "Greenfield overview",
+          Architecture: "Greenfield architecture",
+          ProjectConfig: "internal configuration",
+          "tech stack": "private stack details",
+        },
+        items: [],
+      },
+    }),
+    "utf8",
+  );
+  const writeScope = (folder: string, filename: string, title: string, status: string): void => {
+    writeFileSync(
+      join(xbrief, folder, filename),
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8" },
+        plan: { title, status, narratives: { Overview: `${title} overview` }, items: [] },
+      }),
+      "utf8",
+    );
+  };
+  writeScope("proposed", "2026-08-26-proposed.xbrief.json", "Proposed story", "proposed");
+  writeScope("pending", "2026-08-26-pending.xbrief.json", "Pending story", "pending");
+  writeScope("active", "2026-08-26-active.xbrief.json", "Active story", "running");
+  writeScope("completed", "2026-08-26-completed.xbrief.json", "Completed story", "completed");
+  return root;
+}
+
+describe("deft-ts greenfield setup export handoff", () => {
+  it("runs setup's exact export and PRD command shapes without manufacturing a spec artifact", () => {
+    const root = makeGreenfieldExportFixture();
+    const stakeholderOut = join(root, "SPEC-stakeholder.md");
+    const internalOut = join(root, "SPEC-internal.md");
+    const internalOffOut = join(root, "SPEC-internal-off.md");
+    const currentOut = join(root, "SPEC-internal-current.md");
+    const allOut = join(root, "SPEC-internal-all.md");
+    const prdOut = join(root, "PRD.md");
+
+    expect(runDeftTs("project:export-spec", [root, stakeholderOut]).exitCode).toBe(0);
+    expect(
+      runDeftTs("project:export-spec", [root, internalOut, "--audience=internal"]).exitCode,
+    ).toBe(0);
+    expect(
+      runDeftTs("project:export-spec", [root, internalOffOut, "--audience=internal", "--no-scopes"])
+        .exitCode,
+    ).toBe(0);
+    expect(
+      runDeftTs("project:export-spec", [
+        root,
+        currentOut,
+        "--audience=internal",
+        "--include-scopes=current",
+      ]).exitCode,
+    ).toBe(0);
+    expect(
+      runDeftTs("project:export-spec", [
+        root,
+        allOut,
+        "--audience=internal",
+        "--include-scopes=all",
+      ]).exitCode,
+    ).toBe(0);
+    expect(runDeftTs("prd-render", ["--project-root", root, "--output", prdOut]).exitCode).toBe(0);
+
+    const stakeholder = readFileSync(stakeholderOut, "utf8");
+    expect(stakeholder).toContain(
+      "<!-- Source of truth: xbrief/PROJECT-DEFINITION.xbrief.json -->",
+    );
+    expect(stakeholder).not.toContain("## Scope outlook");
+
+    const internal = readFileSync(internalOut, "utf8");
+    expect(internal).toContain("## Scope outlook");
+    expect(internal).toContain("Proposed story");
+    expect(internal).not.toContain("Pending story");
+    expect(internal).not.toContain("Active story");
+    expect(internal).not.toContain("Completed story");
+    expect(readFileSync(internalOffOut, "utf8")).not.toContain("## Scope outlook");
+
+    const current = readFileSync(currentOut, "utf8");
+    expect(current).toContain("Proposed story");
+    expect(current).toContain("Pending story");
+    expect(current).toContain("Active story");
+    expect(current).not.toContain("Completed story");
+    expect(readFileSync(allOut, "utf8")).toContain("Completed story");
+
+    const prd = readFileSync(prdOut, "utf8");
+    expect(prd).toContain("<!-- Source of truth: xbrief/PROJECT-DEFINITION.xbrief.json -->");
+    expect(prd).toContain("Greenfield overview");
+    expect(prd).not.toContain("ProjectConfig");
+    expect(prd).not.toContain("tech stack");
+    expect(prd).not.toContain("## Scope outlook");
+    expect(prd).not.toContain("Proposed story");
+    expect(existsSync(join(root, "xbrief", "specification.xbrief.json"))).toBe(false);
+  });
+});
+
 describe("deft-ts prd-render", () => {
   it("writes PRD.md from specification narratives via --spec path", () => {
     const root = mkdtempSync(join(tmpdir(), "deft-cli-prd-"));
@@ -140,6 +250,23 @@ describe("deft-ts prd-render", () => {
     const content = readFileSync(outPath, "utf8");
     expect(content).toContain("AUTO-GENERATED by task prd:render");
     expect(content).toContain("Stakeholder overview");
+    expect(content).toContain("<!-- Source of truth:");
+    expect(content).toContain("spec.json -->");
+  });
+
+  it("rejects a null specification root without a TypeError", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-cli-prd-null-root-"));
+    temps.push(root);
+    const specPath = join(root, "spec.json");
+    const outPath = join(root, "PRD.md");
+    writeFileSync(specPath, "null\n", "utf8");
+
+    const result = runDeftTs("prd-render", ["--spec", specPath, "--output", outPath]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(`${specPath} root must be a JSON object`);
+    expect(result.stderr).not.toContain("TypeError");
+    expect(existsSync(outPath)).toBe(false);
   });
 
   it("resolves spec via --project-root on migrated xbrief tree (#2132)", () => {
@@ -153,6 +280,7 @@ describe("deft-ts prd-render", () => {
     const content = readFileSync(outPath, "utf8");
     expect(content).toContain("AUTO-GENERATED by task prd:render");
     expect(content).toContain("Stakeholder overview");
+    expect(content).toContain("<!-- Source of truth: xbrief/specification.xbrief.json -->");
   });
 
   it("resolves spec via --project-root on legacy vbrief tree (#2132)", () => {

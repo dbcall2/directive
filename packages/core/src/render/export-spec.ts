@@ -35,6 +35,43 @@ export interface ExportSpecOptions {
 
 export type ExportSpecResult = readonly [boolean, string];
 
+interface ExportScopePolicy {
+  readonly render: boolean;
+  readonly includeProposed: boolean;
+  readonly includeCurrent: boolean;
+  readonly includeCompleted: boolean;
+}
+
+function resolveExportScopePolicy(
+  audience: ExportAudience,
+  includeScopes: ExportSpecOptions["includeScopes"],
+): ExportScopePolicy {
+  const includeProposed = audience === "internal";
+  if (includeScopes === undefined) {
+    return {
+      render: includeProposed,
+      includeProposed,
+      includeCurrent: false,
+      includeCompleted: false,
+    };
+  }
+  const mode = normalizeIncludeScopesMode(includeScopes);
+  if (mode === "off") {
+    return {
+      render: false,
+      includeProposed: false,
+      includeCurrent: false,
+      includeCompleted: false,
+    };
+  }
+  return {
+    render: true,
+    includeProposed,
+    includeCurrent: true,
+    includeCompleted: mode === "all",
+  };
+}
+
 function loadPlanTitle(path: string, fallback: string): string {
   try {
     const doc = JSON.parse(readFileSync(path, "utf8")) as JsonObject;
@@ -66,9 +103,8 @@ export function exportSpec(options: ExportSpecOptions = {}): ExportSpecResult {
   const projectRoot = resolve(options.projectRoot ?? process.cwd());
   const outPath = options.outPath ?? join(projectRoot, "SPECIFICATION.md");
   const audience = options.audience ?? "stakeholder";
-  const includeScopesMode = normalizeIncludeScopesMode(options.includeScopes);
+  const scopePolicy = resolveExportScopePolicy(audience, options.includeScopes);
   const includeLegacyArtifacts = options.includeLegacyArtifacts ?? false;
-  const includeProposed = audience === "internal";
 
   const authority = resolveSpecAuthority(projectRoot);
   if (!authority) {
@@ -100,11 +136,12 @@ export function exportSpec(options: ExportSpecOptions = {}): ExportSpecResult {
     ...renderNarrativeSections(narratives),
   ];
 
-  if (includeScopesMode !== "off") {
+  if (scopePolicy.render) {
     const scopeLines = buildScopeOutlookSection(authority.vbriefDir, {
-      includeProposed,
+      includeProposed: scopePolicy.includeProposed,
       proposedLimit: options.proposedLimit,
-      includeCompleted: includeScopesMode === "all",
+      includeCurrent: scopePolicy.includeCurrent,
+      includeCompleted: scopePolicy.includeCompleted,
     });
     if (scopeLines.length > 0) lines.push(...scopeLines);
   }

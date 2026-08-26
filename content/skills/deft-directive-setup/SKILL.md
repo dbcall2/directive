@@ -614,7 +614,7 @@ omit = [
 ! **Path Resolution Anchor**: Same rule as Phase 2 -- resolve ALL paths relative to the user's pwd at skill entry, never relative to the skill file, AGENTS.md, or any framework directory.
 
 - ~ Skip if user already has scope xBRIEFs in `./xbrief/` they're happy with
-- ! Check `./xbrief/specification.xbrief.json` or `./xbrief/proposed/` for existing scope xBRIEFs
+- ! Check `./xbrief/PROJECT-DEFINITION.xbrief.json` and `./xbrief/proposed/` for existing greenfield authority; treat `./xbrief/specification.xbrief.json` as a full-spec compatibility artifact only
 - ⊗ Count ANY file inside `./deft/` as the project's spec — those are framework-internal
   (e.g. `deft/PROJECT.md`, `deft/specs/`, `deft/templates/`, `deft/core/project.md`
   are all part of the framework, NOT the user's project)
@@ -682,8 +682,10 @@ project complexity per [strategies/interview.md](../../strategies/interview.md#s
 - ⊗ Combine the sizing proposal with the first interview question
 - ⊗ Proceed to interview questions before the user has confirmed the path
 
-**Light** (small/medium): Interview → `specification.xbrief.json` with slim narratives (Overview + Architecture) → scope xBRIEFs in `xbrief/proposed/`.
-**Full** (large/complex): Interview → rich narratives in `specification.xbrief.json` (user approval) → scope xBRIEFs with traceability.
+**Light** (small/medium): Interview → slim narratives (Overview + Architecture) in `PROJECT-DEFINITION.xbrief.json` → scope xBRIEFs in `xbrief/proposed/`.
+**Full** (large/complex): Interview → rich PROJECT-DEFINITION narratives for user approval → scope xBRIEFs with traceability.
+
+! Neither greenfield path creates `xbrief/specification.xbrief.json`; that file remains a full-spec compatibility artifact.
 
 ### Interview Process (interview strategy)
 
@@ -715,7 +717,7 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 
 ### Output — Light Path
 
-1. ! Write `./xbrief/specification.xbrief.json` with `"xBRIEFInfo": { "version": "0.8" }`, `status: draft`, and slim narratives:
+1. ! Merge the confirmed slim narratives into `./xbrief/PROJECT-DEFINITION.xbrief.json`:
    - `Overview`: Brief project summary
    - `Architecture`: System design description
 2. ! Create scope xBRIEFs in `./xbrief/proposed/` for each identified work item
@@ -733,8 +735,8 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
        }
      ]
      ```
-3. ! Summarize decisions, ask user to review the xBRIEF narratives
-4. ! On approval, update `specification.xbrief.json` status to `approved`
+3. ! Summarize decisions and ask the user to approve the PROJECT-DEFINITION narratives and proposed scope set
+4. ! Record approval in the setup session; do not manufacture or require `specification.xbrief.json`
 - ⊗ Create a separate PRD.md on the Light path
 - ⊗ Generate an authoritative PRD.md — if needed, users run `task prd:render`
 
@@ -747,7 +749,7 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 
 ### Output — Full Path
 
-1. ! Write rich narratives to `./xbrief/specification.xbrief.json` with `"xBRIEFInfo": { "version": "0.8" }`, `plan.status: draft`, and these narrative keys:
+1. ! Merge these rich narratives into `./xbrief/PROJECT-DEFINITION.xbrief.json` for review:
    - `ProblemStatement`: What problem this project solves
    - `Goals`: High-level project goals
    - `UserStories`: User stories in standard format
@@ -755,8 +757,8 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
    - `SuccessMetrics`: Measurable success criteria
    - `Architecture`: System design and technical architecture
    - `Overview`: Brief project summary
-2. ! **Human approval gate**: Present the xBRIEF draft narratives to the user for review — reviewing the `specification.xbrief.json` narratives IS the approval step (replaces the former PRD.md review). The user may request changes before approving.
-3. ! On approval, update `status` to `approved` and proceed to downstream generation
+2. ! **Human approval gate**: Present the PROJECT-DEFINITION narratives and proposed scope plan to the user for review. The user may request changes before approving.
+3. ! Record approval in the setup session and proceed to downstream generation; do not manufacture or require `specification.xbrief.json`
 4. ! Create scope xBRIEFs in `./xbrief/proposed/` with traceability to requirement IDs from the narratives
 - ! Scope xBRIEFs MUST trace tasks back to requirement IDs (FR-1, NFR-1) from the `Requirements` narrative
 - ⊗ Generate an authoritative PRD.md — if needed, users run `task prd:render`
@@ -813,8 +815,9 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 
 ### Handoff to deft-directive-build
 
-- ! Emit a structured-tool question asking whether to continue to the build phase only when the host preserves numeric labels; otherwise emit the deterministic numbered menu in chat. Options: `1. Yes (continue)`, `2. Not now (exit setup)`, `3. Discuss`, `4. Back (revisit previous phase)`. The numeric labels MUST remain visible and be returned as numeric selections or exact displayed option text.
-- ~ If platform supports skill invocation and the user picks Yes, invoke `skills/deft-directive-build/SKILL.md`
+- ! Emit a structured-tool question asking whether to continue toward the build phase only when the host preserves numeric labels; otherwise emit the deterministic numbered menu in chat. Options: `1. Yes (run cost phase)`, `2. Not now (exit setup)`, `3. Discuss`, `4. Back (revisit previous phase)`. The numeric labels MUST remain visible and be returned as numeric selections or exact displayed option text.
+- ! If the user picks Yes, invoke `skills/deft-directive-cost/SKILL.md`; only a recorded Build or Skip decision from that skill may hand off to `skills/deft-directive-build/SKILL.md`
+- ⊗ Invoke the build skill directly from setup and bypass the required cost decision
 - ⊗ Leave user with a dead end -- always offer the next step via the structured-tool phase-transition question
 - ⊗ Ask the handoff-to-build question as unnumbered conversational prose or through a structured UI that hides the canonical numeric labels -- it is a deterministic menu and MUST preserve visible numbers (#478, #1563).
 
@@ -832,7 +835,8 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 4. ! If the user says `no`: re-display the values and ask which ones to correct, then re-confirm before writing
 5. ! If any value appears to be auto-generated filler (e.g. repeated default text, placeholder strings, or values that echo the question prompt), warn the user explicitly: "Some values look like they may have been auto-filled rather than provided by you. Please review carefully."
 
-⊗ Write USER.md, PROJECT-DEFINITION.xbrief.json, specification.xbrief.json, or any other deft-directive-setup artifact without first displaying captured values and receiving explicit user confirmation.
+⊗ Write USER.md, PROJECT-DEFINITION.xbrief.json, lifecycle scope xBRIEFs, or any other deft-directive-setup artifact without first displaying captured values and receiving explicit user confirmation.
+⊗ Create `specification.xbrief.json` on a greenfield Light or Full path solely to satisfy export, cost, or build handoff.
 ⊗ Treat a broad "proceed" or "continue" as confirmation to write files -- the user must explicitly confirm the displayed values.
 
 ? **Yolo strategy carve-out**: When the user's chosen strategy is `yolo` (auto-pilot), the confirmation gate still applies but the agent (Johnbot) may self-confirm on the user's behalf by displaying the summary and immediately proceeding -- the user has already opted into auto-pilot by selecting yolo. The summary must still be displayed so the user can interrupt if values look wrong.

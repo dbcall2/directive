@@ -1,11 +1,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import {
+  buildSpecRenderBanner,
   DEFAULT_INCLUDE_SCOPES_MODE,
   type IncludeScopesMode,
   LEGACY_ARTIFACTS_NARRATIVE_KEY,
   RENDERABLE_SPEC_STATUSES,
-  SPEC_RENDER_BANNER,
   SPECIFICATION_NARRATIVE_KEY_ORDER,
 } from "./constants.js";
 import { buildScopeOutlookSection } from "./scope-outlook.js";
@@ -126,7 +126,7 @@ export function renderSpec(
     ];
   }
 
-  const lines: string[] = [SPEC_RENDER_BANNER];
+  const lines: string[] = [buildSpecRenderBanner(specPath)];
   let title = "Specification";
   if (typeof plan === "object" && plan !== null && !Array.isArray(plan)) {
     title = String((plan as JsonObject).title ?? "Specification");
