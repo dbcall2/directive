@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { exportSpec, exportSpecMain, parseExportSpecArgv } from "../render/export-spec.js";
 import { aggregateScopeSection, buildScopeOutlookSection } from "../render/scope-outlook.js";
+import { renderSpec } from "../render/spec-render.js";
 import {
   GENERATED_SPEC_PURPOSE,
   GENERATED_SPEC_SOURCE_PD_XBRIEF,
@@ -310,6 +311,40 @@ describe("spec-authority resolver", () => {
     );
     expect(isFullSpecState(root)).toBe(true);
     expect(isGreenfieldSpecExport(root)).toBe(false);
+  });
+
+  it("recognizes a source-derived banner from an explicit spec path", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-spec-auth-explicit-"));
+    roots.push(root);
+    const vbrief = join(root, "xbrief");
+    for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+      mkdirSync(join(vbrief, folder), { recursive: true });
+    }
+    writeProjectDef(vbrief, { Overview: "PD overview" });
+    const specification = {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "Explicit full spec",
+        status: "approved",
+        narratives: { Overview: "Spec overview" },
+        items: [],
+      },
+    };
+    writeJson(join(vbrief, "specification.xbrief.json"), specification);
+    const explicitDir = join(root, "inputs");
+    mkdirSync(explicitDir, { recursive: true });
+    const explicitSpecPath = join(explicitDir, "custom-spec.json");
+    writeJson(explicitSpecPath, specification);
+
+    const out = join(root, "SPECIFICATION.md");
+    const [ok] = renderSpec(explicitSpecPath, out);
+
+    expect(ok).toBe(true);
+    expect(readFileSync(out, "utf8")).toContain(
+      `<!-- Source of truth: ${explicitSpecPath.replaceAll("\\", "/")} -->`,
+    );
+    expect(isFullSpecState(root)).toBe(true);
+    expect(isCurrentGeneratedSpecification(root)).toBe(true);
   });
 
   it("parseExportSpecArgv rejects unknown flags", () => {

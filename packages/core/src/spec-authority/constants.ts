@@ -15,12 +15,22 @@ export const GENERATED_SPEC_SOURCE_PD =
 export const GENERATED_SPEC_SOURCE_PD_XBRIEF =
   "<!-- Source of truth: xbrief/PROJECT-DEFINITION.xbrief.json -->";
 
-/** True when markdown carries a generated-spec source marker for either layout. */
+const GENERATED_SOURCE_MARKER = /^<!-- Source of truth: (.+?) -->\r?$/gm;
+const PROJECT_DEFINITION_SOURCE = /(?:^|\/)PROJECT-DEFINITION\.(?:vbrief|xbrief)\.json$/i;
+
+/** True when markdown carries a generated-spec source marker for a canonical or explicit path. */
 export function contentHasGeneratedSpecSource(content: string): boolean {
-  return (
+  if (
     content.includes(GENERATED_SPEC_SOURCE_SPEC) ||
     content.includes(GENERATED_SPEC_SOURCE_SPEC_XBRIEF)
-  );
+  ) {
+    return true;
+  }
+  for (const match of content.matchAll(GENERATED_SOURCE_MARKER)) {
+    const source = match[1]?.trim().replaceAll("\\", "/");
+    if (source && !PROJECT_DEFINITION_SOURCE.test(source)) return true;
+  }
+  return false;
 }
 
 /** True when markdown carries a generated greenfield PD source marker for either layout. */
