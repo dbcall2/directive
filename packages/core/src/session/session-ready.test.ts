@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { OccupancyDecision } from "./occupancy.js";
+import {
+  type ApplyOccupancyInput,
+  type OccupancyDecision,
+  resolveOccupancySessionId,
+} from "./occupancy.js";
 import {
   inferSessionReadyRepo,
   isCacheFreshFailure,
@@ -26,7 +30,15 @@ function stubOccupancy(): OccupancyDecision {
 }
 
 function ready(projectRoot: string, options: SessionReadyOptions = {}) {
-  return runSessionReady(projectRoot, { applyOccupancy: stubOccupancy, ...options });
+  return runSessionReady(projectRoot, {
+    applyOccupancy: stubOccupancy,
+    env: {},
+    ...options,
+    sessionStartOptions: {
+      newSessionId: () => "ready-session",
+      ...options.sessionStartOptions,
+    },
+  });
 }
 
 function okVerify(overrides: Partial<VerifyResult> = {}): VerifyResult {
@@ -39,6 +51,7 @@ function okVerify(overrides: Partial<VerifyResult> = {}): VerifyResult {
     wouldFailCode: null,
     posture: "mutation",
     ritualStateRequired: true,
+    boundSessionId: "ready-session",
     ...overrides,
   };
 }
@@ -99,6 +112,7 @@ describe("runSessionReady (#2993)", () => {
     });
 
     expect(result.code).toBe(0);
+    expect(result.sessionId).toBe("ready-session");
     expect(result.path).toBe(SESSION_READY_FAST_PATH);
     expect(result.message).toContain("already fresh");
     expect(result.steps).toEqual(["verify:session-ritual:gated"]);
@@ -108,7 +122,7 @@ describe("runSessionReady (#2993)", () => {
       expect.objectContaining({ forceGatedSteps: ["agent_hooks"] }),
     );
     expect(fetchAll).not.toHaveBeenCalled();
-    expect(inspectRitual).toHaveBeenCalledTimes(1);
+    expect(inspectRitual).toHaveBeenCalledTimes(2);
   });
 
   it("does not report the fast path ready when the forced hook gate fails", () => {
@@ -144,7 +158,8 @@ describe("runSessionReady (#2993)", () => {
     const inspectRitual = vi
       .fn()
       .mockReturnValueOnce(failVerify("ritual state missing")) // gated
-      .mockReturnValueOnce(failVerify("ritual state missing", { tier: "quick" })); // quick
+      .mockReturnValueOnce(failVerify("ritual state missing", { tier: "quick" })) // quick
+      .mockReturnValue(okVerify()); // post-claim
     const startResult: SessionStartResult = {
       code: 0,
       payload: {},
@@ -163,6 +178,7 @@ describe("runSessionReady (#2993)", () => {
     });
 
     expect(result.code).toBe(0);
+    expect(result.sessionId).toBe("ready-session");
     expect(result.path).toBe(SESSION_READY_VERIFIED);
     expect(result.steps).toEqual(["session:start", "verify:session-ritual:gated"]);
     expect(runStart).toHaveBeenCalledTimes(1);
@@ -171,11 +187,303 @@ describe("runSessionReady (#2993)", () => {
     expect(fetchAll).not.toHaveBeenCalled();
   });
 
+  it("resolves one identity for preview, nested start, and final claim (#3611)", () => {
+    const inspectRitual = vi
+      .fn()
+      .mockReturnValueOnce(failVerify("ritual state missing"))
+      .mockReturnValueOnce(failVerify("ritual state missing", { tier: "quick" }))
+      .mockReturnValue(okVerify({ boundSessionId: "resolved-ready-session" }));
+    const newSessionId = vi
+      .fn<() => string>()
+      .mockReturnValueOnce("resolved-ready-session")
+      .mockReturnValueOnce("unexpected-nested-session")
+      .mockReturnValueOnce("unexpected-final-session");
+    const occupancyInputs: ApplyOccupancyInput[] = [];
+    const applyOccupancy = vi.fn(
+      (_projectRoot: string, input: ApplyOccupancyInput): OccupancyDecision => {
+        occupancyInputs.push(input);
+        return {
+          action: input.write === false ? "claimed" : "heartbeat",
+          sessionId: resolveOccupancySessionId(input),
+          record: null,
+          path: "/proj/.deft/occupancy.json",
+          message: "occupancy ready",
+          code: 0,
+        };
+      },
+    );
+    const runStart = vi.fn(
+      (
+        _projectRoot: string,
+        options: Parameters<NonNullable<SessionReadyOptions["runStart"]>>[1],
+      ) => ({
+        code: 0,
+        payload: {
+          occupancy: {
+            session_id: resolveOccupancySessionId(options),
+          },
+        },
+        lines: ["alignment ok"],
+      }),
+    );
+
+    const result = ready("/proj", {
+      env: {},
+      inspectRitual,
+      verifyRitual: () => okVerify({ boundSessionId: "resolved-ready-session" }),
+      runStart,
+      applyOccupancy,
+      sessionStartOptions: { newSessionId },
+    });
+
+    expect(result.code).toBe(0);
+    expect(newSessionId).toHaveBeenCalledTimes(1);
+    expect(result.sessionId).toBe("resolved-ready-session");
+    expect(occupancyInputs.map((input) => input.sessionId)).toEqual([
+      "resolved-ready-session",
+      "resolved-ready-session",
+    ]);
+    expect(occupancyInputs.map((input) => input.write)).toEqual([false, true]);
+    expect(runStart).toHaveBeenCalledWith(
+      "/proj",
+      expect.objectContaining({ sessionId: "resolved-ready-session" }),
+    );
+  });
+
+  it("rejects a nested session:start result that reports a different owner (#3611)", () => {
+    const inspectRitual = vi
+      .fn()
+      .mockReturnValueOnce(failVerify("ritual state missing"))
+      .mockReturnValueOnce(failVerify("ritual state missing", { tier: "quick" }));
+    const occupancyInputs: ApplyOccupancyInput[] = [];
+    const result = ready("/proj", {
+      sessionId: "host:codex:v1:ZXhwZWN0ZWQ",
+      inspectRitual,
+      runStart: () => ({
+        code: 0,
+        payload: { occupancy: { session_id: "host:codex:v1:Zm9yZWlnbg" } },
+        lines: ["unexpected owner"],
+      }),
+      applyOccupancy: (_projectRoot, input) => {
+        occupancyInputs.push(input);
+        return { ...stubOccupancy(), sessionId: input.sessionId ?? "missing" };
+      },
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.message).toContain("nested session:start owner");
+    expect(result.message).toContain("Refusing to claim a mismatched lease");
+    expect(occupancyInputs.map((input) => input.write)).toEqual([false]);
+  });
+
+  it("uses an explicit ready identity instead of environment or minting (#3611)", () => {
+    const newSessionId = vi.fn(() => "unexpected-minted-session");
+    const occupancyInputs: ApplyOccupancyInput[] = [];
+    const applyOccupancy = vi.fn(
+      (_projectRoot: string, input: ApplyOccupancyInput): OccupancyDecision => {
+        occupancyInputs.push(input);
+        return {
+          ...stubOccupancy(),
+          sessionId: resolveOccupancySessionId(input),
+        };
+      },
+    );
+
+    const result = ready("/proj", {
+      sessionId: "host:cursor:v1:Y29udmVyc2F0aW9u",
+      env: { DEFT_SESSION_ID: "foreign-environment-id" },
+      sessionStartOptions: { newSessionId },
+      inspectRitual: () => okVerify({ boundSessionId: "host:cursor:v1:Y29udmVyc2F0aW9u" }),
+      verifyRitual: () => okVerify({ boundSessionId: "host:cursor:v1:Y29udmVyc2F0aW9u" }),
+      applyOccupancy,
+    });
+
+    expect(result.code).toBe(0);
+    expect(newSessionId).not.toHaveBeenCalled();
+    expect(result.sessionId).toBe("host:cursor:v1:Y29udmVyc2F0aW9u");
+    expect(occupancyInputs.map((input) => input.sessionId)).toEqual([
+      "host:cursor:v1:Y29udmVyc2F0aW9u",
+      "host:cursor:v1:Y29udmVyc2F0aW9u",
+    ]);
+  });
+
+  it("realigns a fresh foreign ritual before claiming the resolved owner (#3611)", () => {
+    const owner = "host:claude:v1:bmV3LXNlc3Npb24";
+    const inspectRitual = vi
+      .fn()
+      .mockReturnValueOnce(okVerify({ boundSessionId: "released-old-owner" }))
+      .mockReturnValueOnce(okVerify({ boundSessionId: "released-old-owner" }))
+      .mockReturnValue(okVerify({ boundSessionId: owner }));
+    const runStart = vi.fn(
+      (): SessionStartResult => ({
+        code: 0,
+        payload: { occupancy: { session_id: owner } },
+        lines: ["ritual realigned"],
+      }),
+    );
+
+    const result = ready("/proj", {
+      sessionId: owner,
+      inspectRitual,
+      verifyRitual: () => okVerify({ boundSessionId: owner }),
+      runStart,
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.path).toBe(SESSION_READY_VERIFIED);
+    expect(inspectRitual).toHaveBeenCalledTimes(3);
+    expect(runStart).toHaveBeenCalledWith("/proj", expect.objectContaining({ sessionId: owner }));
+  });
+
+  it("refuses readiness when the verified ritual owner changes before claim (#3611)", () => {
+    const owner = "host:codex:v1:b3duZXItYQ";
+    const occupancyInputs: ApplyOccupancyInput[] = [];
+    const result = ready("/proj", {
+      sessionId: owner,
+      inspectRitual: () => okVerify({ boundSessionId: owner }),
+      verifyRitual: () => okVerify({ boundSessionId: "host:codex:v1:b3duZXItYg" }),
+      applyOccupancy: (_projectRoot, input) => {
+        occupancyInputs.push(input);
+        return { ...stubOccupancy(), sessionId: owner };
+      },
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.path).toBe(SESSION_READY_FAILED);
+    expect(result.message).toContain("Refusing to claim a mismatched lease");
+    expect(occupancyInputs.map((input) => input.write)).toEqual([false]);
+  });
+
+  it("fails closed when ritual ownership changes during the final occupancy claim (#3611)", () => {
+    const ownerA = "host:codex:v1:b3duZXItYQ";
+    const ownerB = "host:codex:v1:b3duZXItYg";
+    let ritualOwner = ownerA;
+    const occupancyInputs: ApplyOccupancyInput[] = [];
+    const result = ready("/proj", {
+      sessionId: ownerA,
+      inspectRitual: () => okVerify({ boundSessionId: ritualOwner }),
+      verifyRitual: () => okVerify({ boundSessionId: ownerA }),
+      applyOccupancy: (_projectRoot, input) => {
+        occupancyInputs.push(input);
+        if (input.write === true) ritualOwner = ownerB;
+        return { ...stubOccupancy(), sessionId: ownerA };
+      },
+    });
+
+    expect(result).toMatchObject({ code: 1, path: SESSION_READY_FAILED, sessionId: ownerA });
+    expect(result.message).toContain(`post-claim ritual owner ${ownerB}`);
+    expect(result.message).toContain("Readiness remains fail-closed");
+    expect(occupancyInputs.map((input) => input.write)).toEqual([false, true]);
+  });
+
+  it("does not repeat a confirmed steal after nested session:start claimed occupancy (#3611)", () => {
+    const inspectRitual = vi
+      .fn()
+      .mockReturnValueOnce(failVerify("ritual state missing"))
+      .mockReturnValueOnce(failVerify("ritual state missing", { tier: "quick" }))
+      .mockReturnValue(okVerify({ boundSessionId: "host:codex:v1:c3RlYWw" }));
+    const occupancyInputs: ApplyOccupancyInput[] = [];
+    const applyOccupancy = vi.fn(
+      (_projectRoot: string, input: ApplyOccupancyInput): OccupancyDecision => {
+        occupancyInputs.push(input);
+        return {
+          ...stubOccupancy(),
+          action: input.steal === true ? "stolen" : "heartbeat",
+          sessionId: input.sessionId ?? "missing-session-id",
+        };
+      },
+    );
+    const runStart = vi.fn(
+      (): SessionStartResult => ({
+        code: 0,
+        payload: { occupancy: { session_id: "host:codex:v1:c3RlYWw" } },
+        lines: ["steal completed"],
+      }),
+    );
+
+    const result = ready("/proj", {
+      sessionId: "host:codex:v1:c3RlYWw",
+      env: {},
+      inspectRitual,
+      verifyRitual: () => okVerify({ boundSessionId: "host:codex:v1:c3RlYWw" }),
+      runStart,
+      applyOccupancy,
+      sessionStartOptions: {
+        steal: true,
+        confirm: true,
+        occupant: "legacy-session",
+      },
+    });
+
+    expect(result.code).toBe(0);
+    expect(runStart).toHaveBeenCalledWith(
+      "/proj",
+      expect.objectContaining({
+        sessionId: "host:codex:v1:c3RlYWw",
+        steal: true,
+        confirm: true,
+        occupant: "legacy-session",
+      }),
+    );
+    expect(occupancyInputs.map(({ write, steal }) => ({ write, steal }))).toEqual([
+      { write: false, steal: true },
+      { write: true, steal: false },
+    ]);
+  });
+
+  it("does not fast-path a confirmed steal over a green legacy ritual (#3611)", () => {
+    const occupancyInputs: ApplyOccupancyInput[] = [];
+    const applyOccupancy = vi.fn(
+      (_projectRoot: string, input: ApplyOccupancyInput): OccupancyDecision => {
+        occupancyInputs.push(input);
+        return {
+          ...stubOccupancy(),
+          action: input.steal === true ? "stolen" : "heartbeat",
+          sessionId: input.sessionId ?? "missing-session-id",
+        };
+      },
+    );
+    const runStart = vi.fn(
+      (): SessionStartResult => ({
+        code: 0,
+        payload: { occupancy: { session_id: "host:codex:v1:bmV3LW93bmVy" } },
+        lines: ["aligned lease and ritual"],
+      }),
+    );
+
+    const result = ready("/proj", {
+      sessionId: "host:codex:v1:bmV3LW93bmVy",
+      env: {},
+      inspectRitual: vi
+        .fn()
+        .mockReturnValueOnce(okVerify({ boundSessionId: "legacy-owner" }))
+        .mockReturnValueOnce(okVerify({ boundSessionId: "legacy-owner" }))
+        .mockReturnValue(okVerify({ boundSessionId: "host:codex:v1:bmV3LW93bmVy" })),
+      verifyRitual: () => okVerify({ boundSessionId: "host:codex:v1:bmV3LW93bmVy" }),
+      runStart,
+      applyOccupancy,
+      sessionStartOptions: {
+        steal: true,
+        confirm: true,
+        occupant: "legacy-owner",
+      },
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.path).toBe(SESSION_READY_VERIFIED);
+    expect(runStart).toHaveBeenCalledTimes(1);
+    expect(occupancyInputs.map(({ write, steal }) => ({ write, steal }))).toEqual([
+      { write: false, steal: true },
+      { write: true, steal: false },
+    ]);
+  });
+
   it("skips session:start when quick is fresh but gated steps need verify", () => {
     const inspectRitual = vi
       .fn()
       .mockReturnValueOnce(failVerify("session ritual gated step 'cache_fresh' is missing"))
-      .mockReturnValueOnce(okVerify({ tier: "quick", message: "OK quick" }));
+      .mockReturnValueOnce(okVerify({ tier: "quick", message: "OK quick" }))
+      .mockReturnValue(okVerify());
     const runStart = vi.fn();
     const verifyRitual = vi.fn(() => okVerify());
     const fetchAll = vi.fn();
@@ -198,7 +506,8 @@ describe("runSessionReady (#2993)", () => {
     const inspectRitual = vi
       .fn()
       .mockReturnValueOnce(failVerify("gated not ready"))
-      .mockReturnValueOnce(okVerify({ tier: "quick" }));
+      .mockReturnValueOnce(okVerify({ tier: "quick" }))
+      .mockReturnValue(okVerify());
     const verifyRitual = vi
       .fn()
       .mockReturnValueOnce(

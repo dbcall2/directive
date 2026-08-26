@@ -14,6 +14,7 @@ import {
   shouldConsumeSingleUseGrant,
   utcIso,
 } from "../authz/index.js";
+import { runningInsideDeftRepo } from "../doctor/paths.js";
 import {
   assertProjectionContained,
   ProjectionContainmentError,
@@ -65,8 +66,12 @@ import {
   hookShellCommand,
   hookToolName,
   hookWriteTargetPath,
+  inspectExactLifecycleCommand,
   missingToolNameMessage,
   record,
+  resolveHookHostIdentity,
+  rewriteExactLifecycleCommand,
+  toolInputRecord,
 } from "./classify/index.js";
 import { classifyProductDestForms, payloadWithInjectedWriteTarget } from "./dest-form.js";
 import {
@@ -135,6 +140,12 @@ export type HookDecisionCode =
   | "ritual-not-ready"
   /** Product-path write while another live session occupies this worktree (#3433). */
   | "occupancy-occupied"
+  /** A supported host omitted or malformed its cooperative payload owner (#3611). */
+  | "occupancy-identity-unavailable"
+  /** Host payload identity conflicts with explicit/environment identity (#3611). */
+  | "occupancy-identity-conflict"
+  /** Live lease and exact verified ritual state name different owners (#3611). */
+  | "occupancy-ritual-mismatch"
   | "scope-not-ready"
   | "write-propose-ready"
   /** Allowlisted assist/scratch write without active xBRIEF (#1802). */
@@ -172,6 +183,8 @@ export interface HookDecision {
   readonly projectRoot: string;
   readonly message: string;
   readonly scopePath: string | null;
+  /** Complete host tool input replacement for an exact lifecycle command (#3611). */
+  readonly updatedInput?: Readonly<Record<string, unknown>>;
 }
 
 export interface HookDispatchInput {
@@ -233,6 +246,12 @@ export interface HookPolicySeams {
   ) => readonly HumanOriginGrant[];
   /** When false, skip writing `.deft/authz/audit.jsonl` (tests). Default true. */
   readonly authzAudit?: boolean;
+  /** Test seam for restricting Task lifecycle rewrites to the Directive source repo. */
+  readonly runningInsideDeftRepo?: (projectRoot: string) => boolean;
+  /** Test seam for execution-root realpath binding in lifecycle rewrites. */
+  readonly realpathLifecycleExecutionRoot?: (path: string) => string;
+  /** Test seam for Windows drive-only execution-root payloads (#2787). */
+  readonly lifecycleExecutionPlatform?: NodeJS.Platform;
 }
 
 /** POSIX-ish project-relative path for lifecycle matching. */
@@ -398,8 +417,11 @@ export function isAssistScratchWrite(
   return false;
 }
 
-function isWindowsDriveOnlyRoot(value: string): boolean {
-  return /^[A-Za-z]:[/\\]?$/.test(value.trim());
+function isWindowsDriveOnlyRoot(
+  value: string,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  return platform === "win32" && /^[A-Za-z]:[/\\]?$/.test(value.trim());
 }
 
 function hookPayloadRootCandidates(input: Record<string, unknown>): string[] {
@@ -498,6 +520,59 @@ function deny(
     projectRoot: resolve(input.projectRoot),
     message,
     scopePath,
+  };
+}
+
+interface MutationActorResolution {
+  readonly sessionId: string | undefined;
+  readonly issue: "unavailable" | "conflict" | null;
+  readonly message: string | null;
+  readonly payloadAuthoritative: boolean;
+}
+
+/**
+ * Resolve the cooperative actor presented to the occupancy gate.
+ * Supported payload hosts are payload-authoritative; ambient identity may only
+ * corroborate. Grok retains the pre-#3611 environment path until its payload
+ * contract is verified.
+ */
+function resolveMutationActor(
+  input: HookDispatchInput,
+  environ: NodeJS.ProcessEnv,
+): MutationActorResolution {
+  const hostIdentity = resolveHookHostIdentity(input.host, input.payload);
+  const environmentId = environ.DEFT_SESSION_ID?.trim() || undefined;
+  if (hostIdentity.status === "unsupported") {
+    return {
+      sessionId: environmentId,
+      issue: null,
+      message: null,
+      payloadAuthoritative: false,
+    };
+  }
+  if (hostIdentity.status === "ok" && hostIdentity.sessionId !== null) {
+    if (environmentId !== undefined && environmentId !== hostIdentity.sessionId) {
+      return {
+        sessionId: hostIdentity.sessionId,
+        issue: "conflict",
+        message:
+          `Host payload owner ${hostIdentity.sessionId} conflicts with ` +
+          `DEFT_SESSION_ID ${environmentId}.`,
+        payloadAuthoritative: true,
+      };
+    }
+    return {
+      sessionId: hostIdentity.sessionId,
+      issue: null,
+      message: null,
+      payloadAuthoritative: true,
+    };
+  }
+  return {
+    sessionId: undefined,
+    issue: hostIdentity.status === "conflict" ? "conflict" : "unavailable",
+    message: hostIdentity.message,
+    payloadAuthoritative: true,
   };
 }
 
@@ -918,9 +993,38 @@ function inspectMutationGates(
         formatRitualRecoveryInstruction("cold"),
     );
   }
+  const actor = isSpawnTool(toolName) ? null : resolveMutationActor(input, environ);
   const occupancyGate = isSpawnTool(toolName)
     ? { allow: true, message: null as string | null, occupant: null }
-    : evaluateOccupancyWriteGate(projectRoot, { env: environ });
+    : evaluateOccupancyWriteGate(projectRoot, {
+        sessionId: actor?.sessionId,
+        // Payload-supported hosts must not fall back to a stale ambient owner.
+        env: actor?.payloadAuthoritative === true ? {} : environ,
+      });
+  if (occupancyGate.occupant !== null && actor?.issue !== null && actor !== null) {
+    const code: HookDecisionCode =
+      actor.issue === "conflict" ? "occupancy-identity-conflict" : "occupancy-identity-unavailable";
+    const detail =
+      actor.message ??
+      "The host did not supply a usable cooperative session/conversation identity.";
+    emitSessionRitualBlockedProcessCost(
+      {
+        toolName,
+        code,
+        recoveryTier: ritual.recoveryTier === "rearm" ? "rearm" : "cold",
+        detail,
+      },
+      { projectRoot },
+    );
+    return deny(
+      input,
+      code,
+      toolName,
+      `Directive denied ${toolName}: ${detail} A live occupancy lease exists for ` +
+        `session ${occupancyGate.occupant.sessionId}; use an exact host-mediated lifecycle ` +
+        "command or pass the matching --session-id explicitly.",
+    );
+  }
   if (!occupancyGate.allow && occupancyGate.message !== null) {
     const ritualNote = ritual.code !== 0 ? ` Also ritual-not-ready: ${ritual.message}` : "";
     emitSessionRitualBlockedProcessCost(
@@ -938,6 +1042,36 @@ function inspectMutationGates(
       toolName,
       `Directive denied ${toolName}: ${occupancyGate.message}${ritualNote}`,
     );
+  }
+  if (occupancyGate.occupant !== null && actor !== null) {
+    const expectedOwner = actor.sessionId;
+    const verifiedOwner = ritual.boundSessionId;
+    const ritualOwnerMismatch =
+      expectedOwner !== undefined &&
+      (verifiedOwner !== undefined ? verifiedOwner !== expectedOwner : ritual.code === 0);
+    if (ritualOwnerMismatch) {
+      const detail =
+        verifiedOwner === undefined
+          ? "gated ritual verification returned ready without an exact bound owner"
+          : `exact verified ritual owner ${verifiedOwner} differs from host/lease owner ${expectedOwner}`;
+      emitSessionRitualBlockedProcessCost(
+        {
+          toolName,
+          code: "occupancy-ritual-mismatch",
+          recoveryTier: ritual.recoveryTier === "rearm" ? "rearm" : "cold",
+          detail,
+        },
+        { projectRoot },
+      );
+      return deny(
+        input,
+        "occupancy-ritual-mismatch",
+        toolName,
+        `Directive denied ${toolName}: ${detail}. ` +
+          "Run the canonical session recovery with the same explicit --session-id; " +
+          "intermediate lease/ritual mismatches fail closed.",
+      );
+    }
   }
   if (ritual.code !== 0) {
     // #2992: prefer re-arm recovery when age/compact stale; cold when bind invalid.
@@ -960,6 +1094,52 @@ function inspectMutationGates(
     );
   }
 
+  // Narrow the cooperative file-gate race: authorization/scope checks can
+  // take long enough for another session to transition the lease. Re-read
+  // only occupancy immediately before each direct-write allow, while retaining
+  // the exact ritual owner above (never adopt a later ritual file here).
+  const recheckOccupancyBeforeWriteAllow = (): HookDecision | null => {
+    if (actor === null) return null;
+    const finalOccupancy = evaluateOccupancyWriteGate(projectRoot, {
+      sessionId: actor.sessionId,
+      env: actor.payloadAuthoritative ? {} : environ,
+    });
+    if (finalOccupancy.occupant !== null && actor.issue !== null) {
+      return deny(
+        input,
+        actor.issue === "conflict"
+          ? "occupancy-identity-conflict"
+          : "occupancy-identity-unavailable",
+        toolName,
+        `Directive denied ${toolName}: the live occupancy owner changed while mutation ` +
+          "gates were running, and this hook has no unambiguous matching actor identity.",
+      );
+    }
+    if (!finalOccupancy.allow && finalOccupancy.message !== null) {
+      return deny(
+        input,
+        "occupancy-occupied",
+        toolName,
+        `Directive denied ${toolName}: occupancy changed while mutation gates were running. ` +
+          finalOccupancy.message,
+      );
+    }
+    if (
+      finalOccupancy.occupant !== null &&
+      actor.sessionId !== undefined &&
+      ritual.boundSessionId !== actor.sessionId
+    ) {
+      return deny(
+        input,
+        "occupancy-ritual-mismatch",
+        toolName,
+        `Directive denied ${toolName}: final lease owner ${actor.sessionId} does not match ` +
+          `the exact verified ritual owner ${ritual.boundSessionId ?? "<unbound>"}.`,
+      );
+    }
+    return null;
+  };
+
   if (options.proposedLifecycleExempt) {
     const writeTarget = hookWriteTargetPath(input.payload);
     if (isProposedLifecycleWrite(projectRoot, writeTarget)) {
@@ -974,6 +1154,8 @@ function inspectMutationGates(
       if (authzDeny !== null) return authzDeny;
       const runtimeDeny = runtimeAuthorityForDirectWrite(input, toolName, seams, null);
       if (runtimeDeny !== null) return runtimeDeny;
+      const occupancyDeny = recheckOccupancyBeforeWriteAllow();
+      if (occupancyDeny !== null) return occupancyDeny;
       return {
         verdict: "allow",
         code: "write-propose-ready",
@@ -1072,6 +1254,8 @@ function inspectMutationGates(
     if (authzDeny !== null) return authzDeny;
     const runtimeDeny = runtimeAuthorityForDirectWrite(input, toolName, seams, scope.path);
     if (runtimeDeny !== null) return runtimeDeny;
+    const occupancyDeny = recheckOccupancyBeforeWriteAllow();
+    if (occupancyDeny !== null) return occupancyDeny;
   }
   return {
     verdict: "allow",
@@ -1143,6 +1327,196 @@ function decideShellDestFormsThenRuntimeAuthority(
     return destAllow;
   }
   return runtime;
+}
+
+const LIFECYCLE_EXECUTION_DIRECTORY_FIELDS = [
+  "cwd",
+  "workdir",
+  "working_directory",
+  "workingDirectory",
+] as const;
+
+function sameExecutionDirectory(left: string, right: string): boolean {
+  if (process.platform === "win32") return left.toLowerCase() === right.toLowerCase();
+  return left === right;
+}
+
+function lifecycleExecutionRootCheck(
+  payload: unknown,
+  projectRoot: string,
+  realpath: (path: string) => string,
+  platform: NodeJS.Platform,
+): { readonly aligned: boolean; readonly message: string } {
+  const input = record(payload);
+  if (input === null) {
+    return { aligned: false, message: "the hook payload has no inspectable execution root" };
+  }
+  const expected = normalizeHookProjectRoot(projectRoot);
+  const toolInput = toolInputRecord(input);
+  const records = toolInput === null || toolInput === input ? [input] : [input, toolInput];
+  for (const source of records) {
+    for (const field of LIFECYCLE_EXECUTION_DIRECTORY_FIELDS) {
+      if (!(field in source)) continue;
+      const raw = source[field];
+      if (typeof raw !== "string" || raw.trim().length === 0) {
+        return {
+          aligned: false,
+          message: `execution-directory field ${field} is missing or invalid`,
+        };
+      }
+      const trimmed = raw.trim();
+      // Cursor can report a drive-only cwd (for example `C:`) while the
+      // explicit/workspace-derived project root remains usable (#2787). Keep
+      // this fence aligned with projectRootFromHookPayload: a drive-only value
+      // is not a concrete execution directory and must not override that root.
+      if (isWindowsDriveOnlyRoot(trimmed, platform)) continue;
+      if (trimmed.replace(/\\/g, "/").split("/").includes("..")) {
+        return {
+          aligned: false,
+          message: `execution-directory field ${field} contains parent traversal`,
+        };
+      }
+      const candidate = isAbsolute(trimmed) ? trimmed : `${expected}${sep}${trimmed}`;
+      let actual: string;
+      let expectedReal: string;
+      try {
+        // Keep relative `..` segments intact until realpath resolution. Lexical
+        // path.resolve would collapse `link/..` before observing that `link`
+        // can be a symlink to a foreign tree.
+        expectedReal = normalizeHookProjectRoot(realpath(expected));
+        actual = normalizeHookProjectRoot(realpath(candidate));
+      } catch (cause) {
+        return {
+          aligned: false,
+          message: `execution-directory field ${field} could not be realpath-bound: ${String(cause)}`,
+        };
+      }
+      if (!sameExecutionDirectory(actual, expectedReal)) {
+        return {
+          aligned: false,
+          message:
+            `execution-directory field ${field} resolves to ${actual}, not the hook project ` +
+            `root ${expectedReal}`,
+        };
+      }
+    }
+  }
+  return { aligned: true, message: "execution directory is project-root aligned" };
+}
+
+/**
+ * Add the claim-time owner only after the existing shell decision allowed the
+ * command. The host wire format must emit `allow` with updated input, so this
+ * path is intentionally restricted by rewriteExactLifecycleCommand.
+ */
+function attachLifecycleIdentityRewrite(
+  input: HookDispatchInput,
+  toolName: string,
+  decision: HookDecision,
+  seams: HookPolicySeams,
+): HookDecision {
+  if (decision.verdict !== "allow") return decision;
+  const lifecycle = inspectExactLifecycleCommand(input.payload);
+  if (lifecycle === null) return decision;
+  if (!lifecycle.requiresOwner) return decision;
+  if (lifecycle.sessionIdStatus === "invalid") {
+    return deny(
+      input,
+      "occupancy-identity-conflict",
+      toolName,
+      `Directive denied exact lifecycle command ${lifecycle.verb}: ` +
+        "--session-id is empty, duplicated, or otherwise ambiguous.",
+    );
+  }
+  const identity = resolveHookHostIdentity(input.host, input.payload);
+  if (identity.status === "unsupported") return decision;
+  if (identity.status !== "ok" || identity.sessionId === null) {
+    const code: HookDecisionCode =
+      identity.status === "conflict"
+        ? "occupancy-identity-conflict"
+        : "occupancy-identity-unavailable";
+    return deny(
+      input,
+      code,
+      toolName,
+      `Directive denied exact lifecycle command ${lifecycle.verb}: ` +
+        `${identity.message ?? "host payload identity is unavailable"}. ` +
+        "Directive cannot bind the occupancy claim without a stable host owner; " +
+        "manual callers must pass --session-id explicitly outside the host rewrite path.",
+    );
+  }
+  const environmentId = (input.environ ?? process.env).DEFT_SESSION_ID?.trim();
+  if (
+    environmentId !== undefined &&
+    environmentId.length > 0 &&
+    environmentId !== identity.sessionId
+  ) {
+    return deny(
+      input,
+      "occupancy-identity-conflict",
+      toolName,
+      `Directive denied ${toolName}: host payload owner ${identity.sessionId} conflicts with ` +
+        `DEFT_SESSION_ID ${environmentId}; refusing an auto-approved lifecycle rewrite.`,
+    );
+  }
+  if (lifecycle.sessionIdStatus === "present" && lifecycle.sessionId !== identity.sessionId) {
+    return deny(
+      input,
+      "occupancy-identity-conflict",
+      toolName,
+      `Directive denied ${toolName}: lifecycle command ${lifecycle.verb} names ` +
+        `${lifecycle.sessionId ?? "<missing>"}, but the host payload owner is ` +
+        `${identity.sessionId}.`,
+    );
+  }
+  const sourceTask =
+    !lifecycle.task ||
+    (seams.runningInsideDeftRepo ?? runningInsideDeftRepo)(resolve(input.projectRoot));
+  const executionRoot = lifecycleExecutionRootCheck(
+    input.payload,
+    input.projectRoot,
+    seams.realpathLifecycleExecutionRoot ?? realpathSync,
+    seams.lifecycleExecutionPlatform ?? process.platform,
+  );
+  if (!executionRoot.aligned) {
+    return deny(
+      input,
+      "occupancy-identity-conflict",
+      toolName,
+      `Directive denied exact lifecycle command ${lifecycle.verb}: ${executionRoot.message}. ` +
+        "Run the lifecycle command from the hook project root so policy, lease, and ritual " +
+        "state target the same worktree.",
+    );
+  }
+  const rewriteAllowed = lifecycle.rewriteSafe && sourceTask;
+  if (lifecycle.sessionIdStatus === "absent" && !rewriteAllowed) {
+    let reason: string;
+    if (lifecycle.task && !sourceTask) {
+      reason = "Task lifecycle rewrites are only trusted in the Directive source repository";
+    } else {
+      reason = "this argument shape is outside the narrowly auto-approved rewrite surface";
+    }
+    return deny(
+      input,
+      "occupancy-identity-unavailable",
+      toolName,
+      `Directive denied exact lifecycle command ${lifecycle.verb}: ${reason}. ` +
+        `Re-run the command with --session-id=${identity.sessionId}; Directive will verify ` +
+        "that explicit owner without auto-approving or replacing the command.",
+    );
+  }
+  const rewrite = rewriteExactLifecycleCommand(input.payload, identity.sessionId);
+  if (rewrite === null) return decision;
+  if (rewrite.kind === "conflict") {
+    return deny(
+      input,
+      "occupancy-identity-conflict",
+      toolName,
+      `Directive denied ${toolName}: ${rewrite.message} Host payload owner is ` +
+        `${identity.sessionId}, but the command names ${rewrite.existingSessionId}.`,
+    );
+  }
+  return { ...decision, updatedInput: rewrite.updatedInput };
 }
 
 /** Decide a normalized event using only the P0 direct-write policy. */
@@ -1366,7 +1740,8 @@ export function decideHook(input: HookDispatchInput, seams: HookPolicySeams = {}
   // with Edit/Write (assist/scratch, proposed lifecycle, file_scope). Push/merge stay
   // on runtimeAuthority (#2711). Non-dest unclassifiable shell (git status) fail-open.
   if (isShellTool(toolName)) {
-    return decideShellDestFormsThenRuntimeAuthority(input, toolName, seams);
+    const decision = decideShellDestFormsThenRuntimeAuthority(input, toolName, seams);
+    return attachLifecycleIdentityRewrite(input, toolName, decision, seams);
   }
 
   // Classifiable MCP: enforce scopes.push / scopes.merge (#2711).
@@ -1426,6 +1801,24 @@ function softAgentsRebindWireText(decision: HookDecision): string | null {
  */
 export function renderHostDecision(host: HookHost, decision: HookDecision): string {
   if (decision.verdict === "allow") {
+    if (decision.event === "tool.before" && decision.updatedInput !== undefined) {
+      if (host === "cursor") {
+        return JSON.stringify({
+          permission: "allow",
+          code: decision.code,
+          updated_input: decision.updatedInput,
+        });
+      }
+      if (host === "claude" || host === "codex") {
+        return JSON.stringify({
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            permissionDecision: "allow",
+            updatedInput: decision.updatedInput,
+          },
+        });
+      }
+    }
     const soft = softAgentsRebindWireText(decision);
     if (host === "cursor") {
       if (decision.event === "session.start" && soft !== null) {

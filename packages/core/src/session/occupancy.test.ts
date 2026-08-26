@@ -68,7 +68,8 @@ describe("worktree occupancy lease (#3433)", () => {
     expect(denied.message).toContain("intent=swarm");
     expect(denied.message).toContain("heartbeat 300s ago");
     expect(denied.message).toContain("occupancy:request");
-    expect(denied.message).toContain("occupancy:steal --confirm");
+    expect(denied.message).toContain("session:start --steal --confirm");
+    expect(denied.message).not.toContain("or steal (`occupancy:steal --confirm`)");
     expect(readOccupancy(root)?.sessionId).toBe("owner");
   });
 
@@ -126,6 +127,12 @@ describe("worktree occupancy lease (#3433)", () => {
     expect(stolen.action).toBe("stolen");
     expect(stolen.message).toContain("claimed_at=2026-08-17T12:00:00Z");
     expect(stolen.message).toContain("heartbeat_at=2026-08-17T12:00:00Z");
+    expect(stolen.message).toContain("lease only");
+    expect(stolen.message).toContain("unless ritual state already names the same owner");
+    expect(stolen.message).toContain("session:start --rearm --session-id=<same-session-id>");
+    expect(stolen.message).toContain("session:start --session-id=<same-session-id>");
+    expect(stolen.message).toContain("when re-arm is eligible");
+    expect(stolen.message).not.toContain("--session-id=new");
     expect(readOccupancy(root)?.sessionId).toBe("new");
   });
 
@@ -648,7 +655,7 @@ describe("worktree occupancy lease (#3433)", () => {
     });
     vi.unstubAllEnvs();
     expect(live.exitCode).toBe(1);
-    expect(live.sweep?.errors.some((err) => err.includes("occupancy:steal"))).toBe(true);
+    expect(live.sweep?.errors.some((err) => err.includes("session:start --steal"))).toBe(true);
     expect(readOccupancy(root)?.sessionId).toBeTruthy();
   });
 });

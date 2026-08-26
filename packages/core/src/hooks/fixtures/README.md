@@ -21,6 +21,23 @@ Pure parse/classify lives under `packages/core/src/hooks/classify/`. Prefer:
 
 New host edge bugs should land as a fixture first, then the classifier (or policy) fix.
 
+## Cooperative host-session identity (#3611)
+
+Occupancy identity is cooperative routing, not authentication. Hook stdin and local owner IDs are forgeable by another same-user process. Supported host payloads are authoritative for normal hook events and resolve to `host:<provider>:v1:<base64url(raw-id)>`:
+
+| Host | Payload owner | Granularity |
+|------|---------------|-------------|
+| Codex | `session_id` | Parent session and its subagents share one owner. |
+| Claude Code | `session_id` | Session-family owner; `agent_id` is not substituted. |
+| Cursor | `conversation_id` | Conversation owner; simultaneous `session_id` must agree. Subagent granularity is not asserted without host verification. |
+| Grok | None assumed | Existing explicit `--session-id` / `DEFT_SESSION_ID` flow only. |
+
+No host-to-lease map or credential file is persisted; supported hooks re-derive the canonical owner from every payload.
+
+PreToolUse may add the canonical owner to exact, simple lifecycle commands only. Direct `deft` / `directive` spellings are `session:start`, `session:ready`, `session:end`, `occupancy:steal`, `occupancy:release`, and `swarm-launch`; source-repo Task uses `task <verb> [-- ...]`, with `swarm:launch` as the Task spelling. Path-bearing/destination flags, consumer-repo Task indirection, and compound, redirected, quoted, aliased, wrapped, or ambiguous shell commands are not auto-rewritten. Recognized forms outside that narrow surface must carry the explicit matching owner before normal host permission handling continues. Fixtures for this surface must cover identity resolution, conflicting fields, exact-command rewrite, ambiguous-command rewrite refusal, and the host-rendered updated-input field.
+
+An existing live UUID lease needs an explicit confirmed `session:start --steal` transition to the host owner. Bare `occupancy:steal` changes the lease only; writes remain denied unless ritual state already names that owner. When it does not, align the same ID with re-arm if eligible, or cold `session:start` otherwise. Heartbeat renewal is #3599; missing/drifted hook delivery is #3742; spawn occupancy bypass is #3755.
+
 ## Layout
 
 ```
@@ -30,7 +47,7 @@ fixtures/
   README.md         # this file (coupled surface + decision codes)
 ```
 
-Each case records: `id`, `host`, `os`, `tool`, `regression` (issue tags), `raw` or `payload`, and expected classification fields (`toolName`, `writeIntent`, `writeTargetPath`, optional stdin parse flags).
+Each case records: `id`, `host`, `os`, `tool`, `regression` (issue tags), `raw` or `payload`, and expected classification fields (`toolName`, `writeIntent`, `writeTargetPath`, optional stdin parse flags, optional `hostIdentity`, and optional lifecycle classification/rewrite fields).
 
 Import path (core + CLI tests):
 
@@ -61,6 +78,9 @@ Agents, host adapters, and tests **must** key permission outcomes off `HookDecis
 | `stdin-empty` | deny | Host closed stdin with zero bytes (#2864) |
 | `ritual-not-ready` | deny | Gated session ritual not fresh |
 | `occupancy-occupied` | deny | Product-path write while another live session occupies the worktree (#3433) |
+| `occupancy-identity-unavailable` | deny | A payload-supported host omitted/malformed its owner, or a recognized owner-requiring lifecycle form cannot be safely rewritten and lacks an explicit owner (#3611) |
+| `occupancy-identity-conflict` | deny | Payload owner, lifecycle owner syntax/duplicates, environment, or execution root conflict (#3611) |
+| `occupancy-ritual-mismatch` | deny | Live lease and exact verified ritual state name different owners (#3611) |
 | `scope-not-ready` | deny | No active running scope for in-root write |
 | `write-propose-ready` | allow | Write to proposed lifecycle path allowed |
 | `write-assist-scratch-ready` | allow | Allowlisted assist/scratch write without active xBRIEF (#1802) |

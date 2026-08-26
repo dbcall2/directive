@@ -937,6 +937,8 @@ function splitCsv(values: readonly string[]): string[] {
 }
 
 export interface LaunchArgs {
+  /** CLI parse failure carried into the core so later valid flags cannot erase it. */
+  parseError?: string | null;
   stories?: readonly string[];
   paths?: readonly string[];
   group?: string | null;
@@ -952,6 +954,8 @@ export interface LaunchArgs {
   enforceGatesFlag?: boolean;
   noAudit?: boolean;
   projectRoot?: string;
+  /** Explicit cooperative owner identity, including host-payload canonical IDs (#3611). */
+  sessionId?: string | null;
   preflightGate?: PreflightGateFn;
   readinessGate?: ReadinessGateFn;
   worktreeResolver?: WorktreeResolverFn;
@@ -974,7 +978,25 @@ export function swarmLaunch(args: LaunchArgs): {
   stdout: string;
   stderr: string;
 } {
+  if (args.parseError !== undefined && args.parseError !== null) {
+    return {
+      exitCode: EXIT_CONFIG_ERROR,
+      stdout: "",
+      stderr: `Error: ${args.parseError}\n`,
+    };
+  }
   const projectRoot = resolve(args.projectRoot ?? process.cwd());
+  if (
+    args.sessionId !== undefined &&
+    args.sessionId !== null &&
+    (args.sessionId.trim().length === 0 || args.sessionId.trim().startsWith("--"))
+  ) {
+    return {
+      exitCode: EXIT_CONFIG_ERROR,
+      stdout: "",
+      stderr: "Error: --session-id requires a non-empty owner identity.\n",
+    };
+  }
   const tokens = [...splitCsv(args.stories ?? []), ...splitCsv(args.paths ?? [])];
 
   if (tokens.length === 0) {
@@ -1078,6 +1100,7 @@ export function swarmLaunch(args: LaunchArgs): {
     `task swarm:launch (${args.autonomous ? "autonomous" : "interactive"})`;
 
   const occupancy = applyWorktreeOccupancy(projectRoot, {
+    sessionId: args.sessionId ?? undefined,
     env: args.environ ?? process.env,
     intent: "swarm",
   });
@@ -1098,7 +1121,9 @@ export function swarmLaunch(args: LaunchArgs): {
     if (newlyClaimed) {
       const recovery =
         "Occupancy release failed after this launch error; the lease may still be live. " +
-        "The occupant may release (occupancy:release / session:end), or steal (occupancy:steal --confirm).";
+        "The occupant may release (occupancy:release / session:end). A replacement owner must " +
+        "run session:start --steal --confirm --occupant <reported-session-id> " +
+        "--session-id=<your-session-id> to align lease and ritual state.";
       try {
         const release = args.releaseOccupancyFn ?? releaseOccupancy;
         const decision = release(projectRoot, {
@@ -1266,11 +1291,10 @@ export function swarmLaunch(args: LaunchArgs): {
         mode: "replace",
       });
     } catch (exc: unknown) {
-      return {
-        exitCode: EXIT_CONFIG_ERROR,
-        stdout: "",
-        stderr: `Error: could not write --output ${args.output}: ${String(exc)}\n`,
-      };
+      return failAfterClaim(
+        EXIT_CONFIG_ERROR,
+        `Error: could not write --output ${args.output}: ${String(exc)}\n`,
+      );
     }
   }
 

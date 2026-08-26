@@ -20,6 +20,7 @@ describe("session-start parseArgs", () => {
     steal: false,
     confirm: false,
     occupant: null,
+    sessionId: null,
   };
 
   it("defaults project root to cwd", () => {
@@ -99,6 +100,33 @@ describe("session-start parseArgs", () => {
       confirm: true,
       occupant: "abc",
     });
+  });
+
+  it("parses an explicit lifecycle session identity (#3611)", () => {
+    expect(parseArgs(["--session-id", "host:codex:v1:c2Vzc2lvbg"])).toMatchObject({
+      sessionId: "host:codex:v1:c2Vzc2lvbg",
+    });
+    expect(parseArgs(["--session-id=host:claude:v1:c2Vzc2lvbg"])).toMatchObject({
+      sessionId: "host:claude:v1:c2Vzc2lvbg",
+    });
+  });
+
+  it("rejects a missing or blank lifecycle session identity (#3611)", () => {
+    expect(parseArgs(["--session-id"]).error).toContain("expected one argument");
+    expect(parseArgs(["--session-id", "--read-only"]).error).toContain("expected one argument");
+    expect(parseArgs(["--session-id="]).error).toContain("non-empty");
+    expect(parseArgs(["--session-id=--read-only"]).error).toContain("non-empty");
+    expect(parseArgs(["--session-id", "   "]).error).toContain("non-empty");
+  });
+
+  it("does not let a preceding value flag swallow the explicit session ID", () => {
+    const sessionId = "--session-id=host:codex:v1:c2Vzc2lvbi1h";
+    expect(parseArgs(["--occupant", sessionId]).error).toContain(
+      "--occupant: expected one argument",
+    );
+    expect(parseArgs(["--project-root", sessionId]).error).toContain(
+      "--project-root: expected one argument",
+    );
   });
 
   it("parses --compact (#3286)", () => {

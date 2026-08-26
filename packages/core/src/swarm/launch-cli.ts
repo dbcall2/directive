@@ -18,55 +18,69 @@ export function parseLaunchArgv(argv: readonly string[]): Parameters<typeof swar
   let enforceGatesFlag = false;
   let noAudit = false;
   let projectRoot = ".";
+  let sessionId: string | null = null;
+  let parseError: string | null = null;
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    const next = argv[i + 1];
-    if (arg === "--stories" && next !== undefined) {
-      stories.push(next);
+    const takeValue = (): string | null => {
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith("--")) {
+        parseError ??= `argument ${arg}: expected one argument`;
+        return null;
+      }
       i += 1;
-    } else if (arg === "--paths" && next !== undefined) {
-      paths.push(next);
-      i += 1;
-    } else if (arg === "--group" && next !== undefined) {
-      group = next;
-      i += 1;
-    } else if (arg === "--worktree-map" && next !== undefined) {
-      worktreeMap = next;
-      i += 1;
-    } else if (arg === "--base-branch" && next !== undefined) {
-      baseBranch = next;
-      i += 1;
+      return value;
+    };
+    if (arg === "--stories") {
+      const value = takeValue();
+      if (value !== null) stories.push(value);
+    } else if (arg === "--paths") {
+      const value = takeValue();
+      if (value !== null) paths.push(value);
+    } else if (arg === "--group") {
+      group = takeValue();
+    } else if (arg === "--worktree-map") {
+      worktreeMap = takeValue();
+    } else if (arg === "--base-branch") {
+      baseBranch = takeValue() ?? baseBranch;
     } else if (arg === "--autonomous") {
       autonomous = true;
-    } else if (arg === "--allocation-plan-id" && next !== undefined) {
-      allocationPlanId = next;
-      i += 1;
-    } else if (arg === "--batching-rationale" && next !== undefined) {
-      batchingRationale = next;
-      i += 1;
-    } else if (arg === "--operator-approval" && next !== undefined) {
-      operatorApproval = next;
-      i += 1;
+    } else if (arg === "--allocation-plan-id") {
+      allocationPlanId = takeValue();
+    } else if (arg === "--batching-rationale") {
+      batchingRationale = takeValue();
+    } else if (arg === "--operator-approval") {
+      operatorApproval = takeValue();
     } else if (arg === "--no-create-worktrees") {
       noCreateWorktrees = true;
-    } else if (arg === "--output" && next !== undefined) {
-      output = next;
-      i += 1;
-    } else if (arg === "--gate-clearances" && next !== undefined) {
-      gateClearancesPath = next;
-      i += 1;
+    } else if (arg === "--output") {
+      output = takeValue();
+    } else if (arg === "--gate-clearances") {
+      gateClearancesPath = takeValue();
     } else if (arg === "--enforce-gates") {
       enforceGatesFlag = true;
     } else if (arg === "--no-audit") {
       noAudit = true;
-    } else if (arg === "--project-root" && next !== undefined) {
-      projectRoot = next;
-      i += 1;
+    } else if (arg === "--project-root") {
+      projectRoot = takeValue() ?? projectRoot;
+    } else if (arg === "--session-id") {
+      const value = takeValue();
+      if (value === null) {
+        // Keep an explicit invalid sentinel so swarmLaunch fails closed rather
+        // than falling back to ambient identity or minting a different owner.
+        sessionId = "";
+      } else {
+        sessionId = value;
+      }
+    } else if (arg?.startsWith("--session-id=") === true) {
+      const value = arg.slice("--session-id=".length);
+      sessionId = value.startsWith("--") ? "" : value;
     }
   }
 
   return {
+    parseError,
     stories,
     paths,
     group,
@@ -82,6 +96,7 @@ export function parseLaunchArgv(argv: readonly string[]): Parameters<typeof swar
     enforceGatesFlag,
     noAudit,
     projectRoot,
+    sessionId,
   };
 }
 

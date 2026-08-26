@@ -70,7 +70,7 @@ export interface ApplyOccupancyInput {
   readonly address?: string;
   readonly retainCapable?: boolean;
   readonly joinProtocol?: OccupancyJoinProtocol;
-  /** When false, evaluate only (no write). Steal still writes. */
+  /** When false, evaluate only (including confirmed steal) without writing. */
   readonly write?: boolean;
   /** Test seam for lock wait / timeout. */
   readonly lockDeps?: LockDeps;
@@ -105,7 +105,8 @@ export function formatOccupancyRemediation(
     `Worktree occupied by session ${record.sessionId} (intent=${record.intent}, heartbeat ${age}s ago, ` +
     `${occupancyClockLine(record)}).\n` +
     "Stay read-only (`session:start --read-only`), use another worktree,\n" +
-    "queue a join (`occupancy:request`), or steal (`occupancy:steal --confirm`).\n" +
+    "queue a join (`occupancy:request`), or run a confirmed owner transition " +
+    "(`session:start --steal --confirm --occupant <reported-session-id> --session-id=<your-session-id>`).\n" +
     "The occupant may release (`occupancy:release` / `session:end`)."
   );
 }
@@ -237,10 +238,11 @@ export function stealOccupancy(
 ): OccupancyDecision {
   const now = input.now ?? new Date();
   const path = occupancyPath(projectRoot);
+  const incoming = resolveOccupancySessionId(input);
   if (input.confirm !== true) {
     return {
       action: "denied",
-      sessionId: resolveOccupancySessionId(input),
+      sessionId: incoming,
       record: readOccupancy(projectRoot),
       path,
       message: "occupancy:steal requires --confirm after naming the occupant.",
@@ -251,7 +253,7 @@ export function stealOccupancy(
   if (named.length === 0) {
     return {
       action: "denied",
-      sessionId: resolveOccupancySessionId(input),
+      sessionId: incoming,
       record: readOccupancy(projectRoot),
       path,
       message: "occupancy:steal requires --occupant <session-id> to name the current occupant.",
@@ -263,13 +265,26 @@ export function stealOccupancy(
   if (live !== null && live.sessionId !== named) {
     return {
       action: "denied",
-      sessionId: resolveOccupancySessionId(input),
+      sessionId: incoming,
       record: live,
       path,
       message:
         `occupancy:steal named occupant ${named} does not match live occupant ${live.sessionId}.\n` +
         formatOccupancyRemediation(live, now),
       code: 1,
+    };
+  }
+  if (input.write === false) {
+    return {
+      action: "stolen",
+      sessionId: incoming,
+      record: live,
+      path,
+      message:
+        live === null
+          ? `occupancy steal preview: writer would be session ${incoming}`
+          : `occupancy steal preview: ${live.sessionId} would be replaced by session ${incoming}`,
+      code: 0,
     };
   }
   return withOccupancyLock(
@@ -281,7 +296,7 @@ export function stealOccupancy(
       if (liveLocked !== null && liveLocked.sessionId !== named) {
         return {
           action: "denied" as const,
-          sessionId: resolveOccupancySessionId(input),
+          sessionId: incoming,
           record: liveLocked,
           path,
           message:
@@ -290,7 +305,6 @@ export function stealOccupancy(
           code: 1,
         };
       }
-      const incoming = resolveOccupancySessionId(input);
       const priorClock = existingLocked !== null ? ` (${occupancyClockLine(existingLocked)})` : "";
       const record = writeOccupancyRecord(
         projectRoot,
@@ -312,7 +326,12 @@ export function stealOccupancy(
         sessionId: record.sessionId,
         record,
         path,
-        message: `occupancy stolen from ${named}${priorClock}; writer is now session ${record.sessionId}`,
+        message:
+          `occupancy stolen from ${named}${priorClock}; writer is now session ${record.sessionId}. ` +
+          "This command changes the lease only; direct writes remain denied unless ritual state already names the same owner. " +
+          "If the owners differ, run `deft session:start --rearm --session-id=<same-session-id>` " +
+          "when re-arm is eligible; otherwise run `deft session:start --session-id=<same-session-id>` " +
+          "for a cold ceremony, using the writer ID above.",
         code: 0,
       };
     },
@@ -443,7 +462,9 @@ export function releaseSwarmOccupancy(
       path: occupancyPath(projectRoot),
       message:
         "swarm close-out has no occupancy_session_id (manifest missing or predates the field) " +
-        "and DEFT_SESSION_ID is unset. Steal with occupancy:steal --confirm --occupant <id>.",
+        "and DEFT_SESSION_ID is unset. Re-establish an aligned owner with " +
+        "session:start --steal --confirm --occupant <reported-session-id> " +
+        "--session-id=<your-session-id>.",
       code: 1,
     };
   }

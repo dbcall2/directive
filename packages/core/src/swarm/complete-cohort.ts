@@ -557,6 +557,8 @@ export function completeCohort(args: {
   delivery?: CohortDeliveryContext | null;
   /** Optional launch allocation plan id so close-out reads this cohort's occupancy slot. */
   allocationPlanId?: string | null;
+  /** Test seam and explicit ambient-owner source for close-out corroboration. */
+  env?: NodeJS.ProcessEnv;
 }): { exitCode: number; stdout: string; stderr: string; sweep: SweepResult | null } {
   const projectRoot = resolve(args.projectRoot);
   if (!existsSync(projectRoot)) {
@@ -616,26 +618,35 @@ export function completeCohort(args: {
   result.errors.push(...errors);
 
   if (result.ok && args.dryRun !== true) {
-    const envSession = process.env.DEFT_SESSION_ID?.trim() ?? "";
-    let sessionId = envSession;
-    if (sessionId.length === 0) {
-      const resolved = resolveLaunchOccupancySessionId(projectRoot, {
-        allocationPlanId: args.allocationPlanId ?? null,
-        storyIds: paths.map(storyIdFromPath),
-      });
-      if (resolved.reason === "ok" && resolved.sessionId.length > 0) {
-        sessionId = resolved.sessionId;
-      } else if (readOccupancy(projectRoot) !== null) {
+    const env = args.env ?? process.env;
+    const envSession = env.DEFT_SESSION_ID?.trim() ?? "";
+    const liveOccupancy = readOccupancy(projectRoot);
+    const resolved = resolveLaunchOccupancySessionId(projectRoot, {
+      allocationPlanId: args.allocationPlanId ?? null,
+      storyIds: paths.map(storyIdFromPath),
+    });
+    let sessionId = "";
+    if (liveOccupancy !== null) {
+      if (resolved.reason !== "ok" || resolved.sessionId.length === 0) {
         result.ok = false;
         result.errors.push(
           "swarm close-out occupancy record is missing or belongs to a different cohort. " +
-            "Steal with occupancy:steal --confirm --occupant <id>.",
+            "Re-establish an aligned owner with session:start --steal --confirm " +
+            "--occupant <reported-session-id> --session-id=<your-session-id>.",
         );
+      } else if (envSession.length > 0 && envSession !== resolved.sessionId) {
+        result.ok = false;
+        result.errors.push(
+          `swarm close-out ambient owner ${envSession} conflicts with cohort owner ` +
+            `${resolved.sessionId}; refusing to release a later session's live lease.`,
+        );
+      } else {
+        sessionId = resolved.sessionId;
       }
     }
     if (result.ok && sessionId.length > 0) {
       const released = releaseSwarmOccupancy(projectRoot, {
-        env: process.env,
+        env,
         sessionId,
       });
       if (released.code !== 0) {

@@ -6,31 +6,62 @@ export function parseArgs(argv: readonly string[]): {
   projectRoot: string;
   confirm: boolean;
   occupant: string | null;
+  sessionId?: string;
   error?: string;
 } {
-  const parsed = { projectRoot: ".", confirm: false, occupant: null as string | null };
+  const parsed: {
+    projectRoot: string;
+    confirm: boolean;
+    occupant: string | null;
+    sessionId?: string;
+  } = { projectRoot: ".", confirm: false, occupant: null };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--confirm") {
       parsed.confirm = true;
     } else if (arg === "--occupant") {
       const value = argv[i + 1];
-      if (value === undefined) {
+      if (value === undefined || value.startsWith("--")) {
         return { ...parsed, error: "argument --occupant: expected one argument" };
       }
       parsed.occupant = value;
       i += 1;
     } else if (arg?.startsWith("--occupant=")) {
-      parsed.occupant = arg.slice("--occupant=".length);
+      const value = arg.slice("--occupant=".length);
+      if (value.length === 0 || value.startsWith("--")) {
+        return { ...parsed, error: "argument --occupant: expected one argument" };
+      }
+      parsed.occupant = value;
     } else if (arg === "--project-root") {
       const value = argv[i + 1];
-      if (value === undefined) {
+      if (value === undefined || value.startsWith("--")) {
         return { ...parsed, error: "argument --project-root: expected one argument" };
       }
       parsed.projectRoot = value;
       i += 1;
     } else if (arg?.startsWith("--project-root=")) {
-      parsed.projectRoot = arg.slice("--project-root=".length);
+      const value = arg.slice("--project-root=".length);
+      if (value.length === 0 || value.startsWith("--")) {
+        return { ...parsed, error: "argument --project-root: expected one argument" };
+      }
+      parsed.projectRoot = value;
+    } else if (arg === "--session-id") {
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith("--")) {
+        return { ...parsed, error: "argument --session-id: expected one argument" };
+      }
+      const sessionId = value.trim();
+      if (sessionId.length === 0 || sessionId.startsWith("--")) {
+        return { ...parsed, error: "argument --session-id: expected a non-empty value" };
+      }
+      parsed.sessionId = sessionId;
+      i += 1;
+    } else if (arg?.startsWith("--session-id=")) {
+      const sessionId = arg.slice("--session-id=".length).trim();
+      if (sessionId.length === 0 || sessionId.startsWith("--")) {
+        return { ...parsed, error: "argument --session-id: expected a non-empty value" };
+      }
+      parsed.sessionId = sessionId;
     } else {
       return { ...parsed, error: `unrecognized argument: ${arg}` };
     }
@@ -45,6 +76,7 @@ export function run(argv: readonly string[]): number {
     return 2;
   }
   const result = stealOccupancy(resolve(args.projectRoot), {
+    sessionId: args.sessionId,
     confirm: args.confirm,
     occupant: args.occupant ?? undefined,
     env: process.env,

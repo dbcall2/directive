@@ -7,7 +7,7 @@ vars:
 
 tasks:
   steal:
-    desc: "Supersede a live worktree occupancy lease (#3433). Flags: --confirm --occupant <id>"
+    desc: "Lease-only confirmed steal (#3433/#3611). Flags: --confirm --occupant <reported-session-id>; manual/Grok owner: --session-id <your-session-id> or DEFT_SESSION_ID. If ritual differs, align that ID with eligible re-arm or cold session:start. Prefer session:start --steal."
     dir: '{{.USER_WORKING_DIR}}'
     env:
       PYTHONUTF8: "1"
@@ -17,7 +17,7 @@ tasks:
           ENGINE_CMD: 'occupancy:steal --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
 
   release:
-    desc: "Release this worktree occupancy lease (#3604). Owner live or expired residue. Non-owner live denied."
+    desc: "Release this worktree occupancy lease (#3604/#3611). Manual/Grok owner: --session-id <id> or DEFT_SESSION_ID. Owner live or expired residue; non-owner live denied."
     dir: '{{.USER_WORKING_DIR}}'
     # Runtime/session dispatch: no engine:_ts-build / pnpm build (#2181).
     env:

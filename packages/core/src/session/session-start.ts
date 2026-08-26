@@ -92,6 +92,7 @@ import {
   type ApplyOccupancyInput,
   applyWorktreeOccupancy,
   type OccupancyDecision,
+  resolveOccupancySessionId,
 } from "./occupancy.js";
 import {
   type OrientationBundle,
@@ -252,6 +253,10 @@ export interface SessionStartOptions {
   readonly now?: Date;
   readonly writeHistory?: boolean;
   readonly runGit?: GitRunner;
+  /** Test seam for deterministic ritual persistence failures. */
+  readonly writeRitualState?: typeof writeRitualState;
+  /** Explicit lifecycle owner resolved by the host/session bridge (#3611). */
+  readonly sessionId?: string;
   readonly newSessionId?: () => string;
   /** #3433: steal the worktree occupancy lease. Requires confirm + occupant. */
   readonly steal?: boolean;
@@ -352,6 +357,16 @@ export interface SessionStartOptions {
    */
   readonly orientation?: OrientationBundle | null;
   readonly orientationOptions?: Partial<RunOrientationOptions>;
+}
+
+function ritualPersistenceTransitionError(cause: unknown, sessionId: string): Error {
+  const detail = cause instanceof Error ? cause.message : String(cause);
+  return new Error(
+    `Occupancy is now held by session ${sessionId}, but ritual-state persistence failed: ${detail}. ` +
+      "Direct writes remain fail-closed until both owners align. Re-run " +
+      "`deft session:start --rearm --session-id=<same-session-id>` when re-arm is eligible; " +
+      "otherwise run `deft session:start --session-id=<same-session-id>` for a cold ceremony.",
+  );
 }
 
 /** Format preferred `session:start` recovery command for cold vs re-arm (#2992). */
@@ -756,13 +771,14 @@ function resolveEffortBudget(options: SessionStartOptions): {
 
 function occupancyInput(
   options: SessionStartOptions,
+  sessionId: string,
   now: Date,
   write: boolean,
 ): ApplyOccupancyInput {
   return {
+    sessionId,
     env: options.env,
     now,
-    newSessionId: options.newSessionId,
     steal: options.steal,
     confirm: options.confirm,
     occupant: options.occupant,
@@ -774,11 +790,12 @@ function occupancyInput(
 function runOccupancy(
   projectRoot: string,
   options: SessionStartOptions,
+  sessionId: string,
   now: Date,
   write: boolean,
 ): OccupancyDecision {
   const apply = options.applyOccupancy ?? applyWorktreeOccupancy;
-  return apply(projectRoot, occupancyInput(options, now, write));
+  return apply(projectRoot, occupancyInput(options, sessionId, now, write));
 }
 
 function occupancyDeniedResult(
@@ -806,10 +823,11 @@ function occupancyDeniedResult(
 function persistOccupancyOrDeny(
   projectRoot: string,
   options: SessionStartOptions,
+  sessionId: string,
   now: Date,
   environment: EnvironmentContext,
 ): OccupancyDecision | SessionStartResult {
-  const occupancy = runOccupancy(projectRoot, options, now, true);
+  const occupancy = runOccupancy(projectRoot, options, sessionId, now, true);
   if (occupancy.code !== 0) return occupancyDeniedResult(occupancy, environment);
   return occupancy;
 }
@@ -874,6 +892,7 @@ function runReadOnlySessionStart(
 function runSessionRearm(
   projectRoot: string,
   options: SessionStartOptions,
+  sessionId: string,
   instant: Date,
   environment: EnvironmentContext,
 ): SessionStartResult {
@@ -908,7 +927,7 @@ function runSessionRearm(
     };
   }
 
-  const plannedOccupancy = runOccupancy(projectRoot, options, instant, options.steal === true);
+  const plannedOccupancy = runOccupancy(projectRoot, options, sessionId, instant, false);
   if (plannedOccupancy.code !== 0) {
     return occupancyDeniedResult(plannedOccupancy, environment);
   }
@@ -1018,7 +1037,13 @@ function runSessionRearm(
   const gatedSteps = restampSteps(eligibility.state.gatedSteps, instant);
 
   const writeStarted = performance.now();
-  const persistedOccupancy = persistOccupancyOrDeny(projectRoot, options, instant, environment);
+  const persistedOccupancy = persistOccupancyOrDeny(
+    projectRoot,
+    options,
+    sessionId,
+    instant,
+    environment,
+  );
   if ("payload" in persistedOccupancy) {
     return persistedOccupancy;
   }
@@ -1038,7 +1063,7 @@ function runSessionRearm(
   };
   let statePath: string;
   try {
-    statePath = writeRitualState(projectRoot, writePayload);
+    statePath = (options.writeRitualState ?? writeRitualState)(projectRoot, writePayload);
   } catch (cause) {
     // #2994: still record failed attempt when ritual-state write throws.
     emitSessionStartProcessCost(
@@ -1059,7 +1084,7 @@ function runSessionRearm(
       },
       { projectRoot },
     );
-    throw cause;
+    throw ritualPersistenceTransitionError(cause, rearmSessionId);
   }
   const stepTimings: SessionStartStepTiming[] = [
     { name: "alignment", duration_ms: 0 },
@@ -1233,9 +1258,17 @@ export function runSessionStart(
     return runReadOnlySessionStart(projectRoot, options, instant, environment);
   }
 
+  // #3611: resolve once per mutation invocation. Every occupancy evaluation,
+  // persistence write, and ritual-state payload below receives this exact ID.
+  const sessionId = resolveOccupancySessionId({
+    sessionId: options.sessionId,
+    env: options.env,
+    newSessionId: options.newSessionId,
+  });
+
   // #2992: re-arm path refreshes clock/bind without fat cold ceremony.
   if (ceremonyTier === REARM_CEREMONY_TIER) {
-    return runSessionRearm(projectRoot, options, instant, environment);
+    return runSessionRearm(projectRoot, options, sessionId, instant, environment);
   }
 
   const overallStarted = performance.now();
@@ -1305,7 +1338,7 @@ export function runSessionStart(
     };
   }
 
-  const plannedOccupancy = runOccupancy(projectRoot, options, instant, options.steal === true);
+  const plannedOccupancy = runOccupancy(projectRoot, options, sessionId, instant, false);
   if (plannedOccupancy.code !== 0) {
     return occupancyDeniedResult(plannedOccupancy, environment);
   }
@@ -1704,7 +1737,13 @@ export function runSessionStart(
   }
 
   const writeStarted = performance.now();
-  const persistedOccupancy = persistOccupancyOrDeny(projectRoot, options, instant, environment);
+  const persistedOccupancy = persistOccupancyOrDeny(
+    projectRoot,
+    options,
+    sessionId,
+    instant,
+    environment,
+  );
   if ("payload" in persistedOccupancy) {
     return persistedOccupancy;
   }
@@ -1739,7 +1778,7 @@ export function runSessionStart(
   };
   let statePath: string;
   try {
-    statePath = writeRitualState(projectRoot, payload);
+    statePath = (options.writeRitualState ?? writeRitualState)(projectRoot, payload);
   } catch (cause) {
     // #2994: still record failed attempt when ritual-state write throws.
     stepTimings.push({ name: "ritual_write", duration_ms: elapsedMs(writeStarted) });
@@ -1754,7 +1793,7 @@ export function runSessionStart(
       },
       { projectRoot },
     );
-    throw cause;
+    throw ritualPersistenceTransitionError(cause, coldSessionId);
   }
   stepTimings.push({ name: "ritual_write", duration_ms: elapsedMs(writeStarted) });
 

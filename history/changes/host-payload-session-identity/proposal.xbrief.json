@@ -1,0 +1,27 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "host-payload-session-identity",
+    "status": "approved",
+    "narratives": {
+      "Problem": "Host-managed write hooks execute in fresh processes and cannot inherit the occupancy session ID minted by a prior lifecycle shell command. The owner therefore self-denies while a live lease is active.",
+      "Change": "Derive a canonical owner from stable host hook payload identity, inject it into exact lifecycle commands as an explicit --session-id, and require host, lease, and verified ritual identity to agree.",
+      "Scope": "In scope: Codex, Claude Code, and Cursor payload extraction; exact lifecycle command rewriting; session start/ready/rearm/steal/release/end and swarm launch identity continuity; verified-state alignment; recovery diagnostics; documentation; host-shaped and child-process tests. Out of scope: heartbeat renewal, never-claimed sessions, missing hooks, spawn bypass, schema or TTL changes, and security-grade same-user authentication.",
+      "Impact": "Touches hook classification/dispatch/rendering, occupancy and ritual verification, CLI lifecycle parsing, session and swarm state machines, deposited host rules, operator remediation, tests, and release notes.",
+      "Risks": "Host input rewriting can auto-approve a command, so matching must be exact and independent denials must retain precedence. Lease and ritual rekeying spans two files and must fail closed if interrupted. Cursor subagent identity and Grok payload support cannot be assumed without verified host contracts.",
+      "Approach": "Canonicalize provider identity as host:<provider>:v1:<base64url>; resolve it once per lifecycle invocation; carry it through all nested operations; expose the exact verified ritual owner internally; perform confirmed steal once; and prove the complete claim-to-later-hook path in separate child processes.",
+      "Alternatives": "A persisted binding or secret file was rejected because it is replayable and unnecessary. Ritual-state fallback as the normal actor was rejected because ritual state is worktree-scoped and admits concurrent conversations. OS-authenticated IPC was rejected as disproportionate to the existing cooperative occupancy model.",
+      "Dependencies": "Stable documented hook payload identifiers and input-rewrite support on Codex, Claude Code, and Cursor; existing occupancy locking/fencing; gated ritual verification; lifecycle CLI parsing; and host codecs.",
+      "Confirmation": "Flynn explicitly approved the named change host-payload-session-identity on 2026-08-26."
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3611",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3611: occupancy lease self-denies host writes"
+      }
+    ]
+  }
+}
