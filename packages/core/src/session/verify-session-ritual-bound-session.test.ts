@@ -88,6 +88,7 @@ describe("verified ritual bound session identity (#3611)", () => {
     const result = verifySessionRitual(root, {
       posture: "mutation",
       now,
+      envSkip: "",
       runGit: fakeGit(root),
     });
 
@@ -104,6 +105,7 @@ describe("verified ritual bound session identity (#3611)", () => {
     const result = verifySessionRitual(root, {
       posture: "mutation",
       now,
+      envSkip: "",
       runGit: fakeGit(root),
     });
 
@@ -119,6 +121,7 @@ describe("verified ritual bound session identity (#3611)", () => {
     const missing = verifySessionRitual(root, {
       posture: "mutation",
       now,
+      envSkip: "",
       runGit: fakeGit(root),
     });
     expect(missing).not.toHaveProperty("boundSessionId");
@@ -130,6 +133,7 @@ describe("verified ritual bound session identity (#3611)", () => {
     const foreign = verifySessionRitual(root, {
       posture: "mutation",
       now,
+      envSkip: "",
       runGit: fakeGit(root),
     });
     expect(foreign.code).toBe(1);
@@ -181,6 +185,7 @@ describe("verified ritual bound session identity (#3611)", () => {
     const result = verifySessionRitual(root, {
       posture: "mutation",
       now,
+      envSkip: "",
       runGit: fakeGit(root),
     });
 
