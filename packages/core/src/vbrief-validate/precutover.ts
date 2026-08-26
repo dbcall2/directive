@@ -1,15 +1,12 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { resolveLifecycleLayout, resolveLifecycleRoot } from "../layout/resolve.js";
+import { GENERATED_SPEC_PURPOSE } from "../spec-authority/constants.js";
 import {
-  resolveLifecycleLayout,
-  resolveLifecycleRoot,
-  resolveSpecArtifactPath,
-} from "../layout/resolve.js";
-import {
-  contentHasGeneratedSpecSource,
-  GENERATED_SPEC_PURPOSE,
-} from "../spec-authority/constants.js";
-import { isFullSpecState, isGreenfieldSpecExport } from "../spec-authority/resolver.js";
+  contentHasResolvedSpecSource,
+  isFullSpecState,
+  isGreenfieldSpecExport,
+} from "../spec-authority/resolver.js";
 import { DEPRECATION_SENTINEL } from "../vbrief-build/constants.js";
 
 export { DEPRECATION_SENTINEL as DEPRECATED_REDIRECT_SENTINEL };
@@ -40,14 +37,10 @@ export function isDeprecationRedirect(content: string): boolean {
 
 /** Full-spec generated export (layout-resolved specification artifact source line). */
 export function isGeneratedSpecificationExport(projectRoot: string, content: string): boolean {
-  if (!content.includes(GENERATED_SPEC_PURPOSE) || !contentHasGeneratedSpecSource(content)) {
+  if (!content.includes(GENERATED_SPEC_PURPOSE)) {
     return false;
   }
-  try {
-    return existsSync(resolveSpecArtifactPath(projectRoot));
-  } catch {
-    return false;
-  }
+  return contentHasResolvedSpecSource(projectRoot, content);
 }
 
 /** Return true for a fully current generated spec export (full-spec or greenfield). */

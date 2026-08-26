@@ -347,6 +347,138 @@ describe("spec-authority resolver", () => {
     expect(isCurrentGeneratedSpecification(root)).toBe(true);
   });
 
+  it("recognizes an equivalent explicit spec through a normalized relative marker", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-spec-auth-relative-"));
+    roots.push(root);
+    const vbrief = join(root, "xbrief");
+    for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+      mkdirSync(join(vbrief, folder), { recursive: true });
+    }
+    writeProjectDef(vbrief, { Overview: "PD overview" });
+    const specification = {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "Relative explicit full spec",
+        status: "approved",
+        narratives: { Overview: "Spec overview" },
+        items: [],
+      },
+    };
+    writeJson(join(vbrief, "specification.xbrief.json"), specification);
+    mkdirSync(join(root, "inputs"), { recursive: true });
+    writeJson(join(root, "inputs", "custom-spec.json"), specification);
+    writeFileSync(
+      join(root, "SPECIFICATION.md"),
+      `${GENERATED_SPEC_PURPOSE}\n<!-- Source of truth: inputs/../inputs/custom-spec.json -->\n`,
+      "utf8",
+    );
+
+    expect(isFullSpecState(root)).toBe(true);
+    expect(isCurrentGeneratedSpecification(root)).toBe(true);
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "keeps unsafe explicit spec filename bytes reversible without breaking the banner",
+    () => {
+      const root = mkdtempSync(join(tmpdir(), "deft-spec-auth-encoded-"));
+      roots.push(root);
+      const vbrief = join(root, "xbrief");
+      for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+        mkdirSync(join(vbrief, folder), { recursive: true });
+      }
+      writeProjectDef(vbrief, { Overview: "PD overview" });
+      const specification = {
+        xBRIEFInfo: { version: "0.8" },
+        plan: {
+          title: "Encoded explicit full spec",
+          status: "approved",
+          narratives: { Overview: "Spec overview" },
+          items: [],
+        },
+      };
+      writeJson(join(vbrief, "specification.xbrief.json"), specification);
+      const explicitDir = join(root, "inputs");
+      mkdirSync(explicitDir, { recursive: true });
+      const explicitSpecPath = join(explicitDir, "custom\r\nspec-->alias\\name.json");
+      writeJson(explicitSpecPath, specification);
+
+      const out = join(root, "SPECIFICATION.md");
+      const [ok] = renderSpec(explicitSpecPath, out);
+      const sourceLine = readFileSync(out, "utf8")
+        .split("\n")
+        .find((line) => line.startsWith("<!-- Source of truth:"));
+
+      expect(ok).toBe(true);
+      expect(sourceLine).toContain("%0D%0A");
+      expect(sourceLine).toContain("--%3E");
+      expect(sourceLine).toContain("%5C");
+      expect(sourceLine?.match(/-->/g)).toHaveLength(1);
+      expect(isFullSpecState(root)).toBe(true);
+      expect(isCurrentGeneratedSpecification(root)).toBe(true);
+    },
+  );
+
+  it("rejects a generated source marker unrelated to the resolved spec artifact", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-spec-auth-unrelated-"));
+    roots.push(root);
+    const vbrief = join(root, "xbrief");
+    for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+      mkdirSync(join(vbrief, folder), { recursive: true });
+    }
+    writeProjectDef(vbrief, { Overview: "PD overview" });
+    writeJson(join(vbrief, "specification.xbrief.json"), {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "Resolved specification",
+        status: "approved",
+        narratives: { Overview: "Resolved overview" },
+        items: [],
+      },
+    });
+    const unrelatedPath = join(root, "inputs", "unrelated.json");
+    mkdirSync(join(root, "inputs"), { recursive: true });
+    writeJson(unrelatedPath, {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "Unrelated artifact",
+        status: "approved",
+        narratives: { Overview: "Different content" },
+        items: [],
+      },
+    });
+    writeFileSync(
+      join(root, "SPECIFICATION.md"),
+      `${GENERATED_SPEC_PURPOSE}\n<!-- Source of truth: ${unrelatedPath.replaceAll("\\", "/")} -->\n`,
+      "utf8",
+    );
+
+    expect(isFullSpecState(root)).toBe(false);
+    expect(isCurrentGeneratedSpecification(root)).toBe(false);
+  });
+
+  it("rejects a resolved source marker paired with the wrong purpose", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-spec-auth-purpose-"));
+    roots.push(root);
+    const vbrief = join(root, "xbrief");
+    for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+      mkdirSync(join(vbrief, folder), { recursive: true });
+    }
+    writeProjectDef(vbrief, { Overview: "PD overview" });
+    writeJson(join(vbrief, "specification.xbrief.json"), {
+      xBRIEFInfo: { version: "0.8" },
+      plan: { title: "Spec", status: "approved", narratives: {}, items: [] },
+    });
+    writeFileSync(
+      join(root, "SPECIFICATION.md"),
+      "<!-- Purpose: rendered roadmap -->\n" +
+        "<!-- Source of truth: xbrief/specification.xbrief.json -->\n",
+      "utf8",
+    );
+
+    expect(isFullSpecState(root)).toBe(false);
+    expect(isCurrentGeneratedSpecification(root)).toBe(false);
+  });
+
   it("parseExportSpecArgv rejects unknown flags", () => {
     const { errors } = parseExportSpecArgv(["--bogus-flag"]);
     expect(errors).toContain("Unknown flag: --bogus-flag");

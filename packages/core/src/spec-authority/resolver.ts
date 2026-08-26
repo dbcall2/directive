@@ -1,9 +1,11 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { isAbsolute, join, resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import {
   resolveLifecycleLayout,
   resolveLifecycleRoot,
   resolveProjectDefinitionPath,
+  resolveSpecArtifactPath,
 } from "../layout/resolve.js";
 import {
   buildExportSpecPdBanner,
@@ -11,6 +13,7 @@ import {
   contentHasGeneratedPdSource,
   contentHasGeneratedSpecSource,
   GENERATED_SPEC_PURPOSE,
+  generatedSpecSourcePaths,
 } from "./constants.js";
 
 export type SpecAuthorityKind = "full-spec" | "greenfield";
@@ -66,11 +69,60 @@ export function readSpecMarkdown(projectRoot: string): string {
   }
 }
 
+function sourcePathFromMarker(projectRoot: string, source: string): string {
+  return isAbsolute(source) ? source : resolve(projectRoot, source);
+}
+
+function contentMatchesResolvedSpecSource(
+  projectRoot: string,
+  content: string,
+  resolvedSourcePath: string,
+): boolean {
+  if (contentHasGeneratedSpecSource(content, resolvedSourcePath)) return true;
+
+  let resolvedSource: unknown;
+  try {
+    resolvedSource = JSON.parse(readFileSync(resolvedSourcePath, "utf8"));
+  } catch {
+    return false;
+  }
+
+  for (const source of generatedSpecSourcePaths(content)) {
+    try {
+      const candidate = sourcePathFromMarker(projectRoot, source);
+      if (!statSync(candidate).isFile()) continue;
+      // Explicit --spec paths remain valid aliases only when they identify the
+      // same JSON authority as the layout-resolved specification artifact.
+      if (isDeepStrictEqual(JSON.parse(readFileSync(candidate, "utf8")), resolvedSource)) {
+        return true;
+      }
+    } catch {
+      // Missing or unreadable explicit source markers are not resolved authority.
+    }
+  }
+  return false;
+}
+
+/** True when the markdown source marker resolves to the project's specification authority. */
+export function contentHasResolvedSpecSource(projectRoot: string, content: string): boolean {
+  let resolvedSourcePath: string;
+  try {
+    resolvedSourcePath = resolveSpecArtifactPath(projectRoot);
+  } catch {
+    return false;
+  }
+  if (!existsSync(resolvedSourcePath)) return false;
+  return contentMatchesResolvedSpecSource(projectRoot, content, resolvedSourcePath);
+}
+
 export function isFullSpecState(projectRoot: string): boolean {
   const authority = resolveSpecAuthority(projectRoot);
   if (authority?.kind !== "full-spec") return false;
   const specMd = readSpecMarkdown(projectRoot);
-  return specMd.includes(GENERATED_SPEC_PURPOSE) && contentHasGeneratedSpecSource(specMd);
+  return (
+    specMd.includes(GENERATED_SPEC_PURPOSE) &&
+    contentMatchesResolvedSpecSource(projectRoot, specMd, authority.sourcePath)
+  );
 }
 
 export function isGreenfieldSpecExport(projectRoot: string): boolean {

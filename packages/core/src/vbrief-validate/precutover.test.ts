@@ -104,6 +104,27 @@ describe("precutover helpers", () => {
     expect(isCurrentGeneratedSpecification(base, content)).toBe(true);
   });
 
+  it("isGeneratedSpecificationExport rejects an unrelated existing source artifact", () => {
+    const base = mkdtempSync(join(tmpdir(), "precutover-source-binding-"));
+    temps.push(base);
+    mkdirSync(join(base, "xbrief"), { recursive: true });
+    const resolvedSpec =
+      '{"xBRIEFInfo":{"version":"0.8"},"plan":{"title":"resolved","status":"running","narratives":{},"items":[]}}';
+    writeFileSync(join(base, "xbrief", "specification.xbrief.json"), resolvedSpec, "utf8");
+    mkdirSync(join(base, "inputs"), { recursive: true });
+    const unrelated = join(base, "inputs", "unrelated.json");
+    writeFileSync(
+      unrelated,
+      '{"xBRIEFInfo":{"version":"0.8"},"plan":{"title":"unrelated","status":"running","narratives":{},"items":[]}}',
+      "utf8",
+    );
+    const content =
+      "<!-- Purpose: rendered specification -->\n" +
+      `<!-- Source of truth: ${unrelated.replaceAll("\\", "/")} -->\n`;
+
+    expect(isGeneratedSpecificationExport(base, content)).toBe(false);
+  });
+
   it("detectPreCutover does not flag xbrief-migrated project with generated SPECIFICATION.md (#2205)", () => {
     const base = mkdtempSync(join(tmpdir(), "precutover-xbrief-clean-"));
     temps.push(base);
