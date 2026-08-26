@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.107.0] - 2026-08-26
+### Added
 - **Ordinary occupancy release (#3604).** A holder can drop a live lease with `occupancy:release` or `session:end`. A non-owner cannot clear a live lease. Expired leftover files are residue, not a blocked entry path; the same release path clears them. Steal stays confirm-gated for live occupants and prints existing `claimed_at` / `heartbeat_at`. Swarm close-out stays `releaseSwarmOccupancy` on complete-cohort. No `reap` verb. Closes #3604.
 - **Land leftover completed-tracked artifact for #3604 (#3264 / #1358).** The #3604 xBRIEF stayed untracked after squash of PR 3748. Moved to xbrief/completed/ via scope:complete. Does not reopen or recut that issue. Refs #2321, #3476.
 
@@ -5558,7 +5567,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.106.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.107.0...HEAD
+[0.107.0]: https://github.com/deftai/directive/compare/v0.106.0...v0.107.0
 [0.106.0]: https://github.com/deftai/directive/compare/v0.105.0...v0.106.0
 [0.105.0]: https://github.com/deftai/directive/compare/v0.104.0...v0.105.0
 [0.104.0]: https://github.com/deftai/directive/compare/v0.103.0...v0.104.0

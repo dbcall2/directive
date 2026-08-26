@@ -35,34 +35,40 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 - **#1299** -- When to use CRUD tool vs direct vBRIEF authoring (contributor doc) -- `[proposed]`
 - **#2651** -- ADR-002: Forge-provider Azure DevOps adoption gate (proposed) -- `[proposed]`
 - **#3014** -- research(deposit): opt-in minimal consumer AGENTS profile for app-bank / greenfield -- `[proposed]`
+- **#3598** -- BLOCKER: bug(setup,render): greenfield export handoff regressed after #1502 -- `[proposed]`
+- **#3599** -- fix(session): occupancy lease never heartbeats during active work, so a working session gets stolen (#3433) -- `[proposed]`
+- **#3718** -- bug(swarm): swarm:launch is unreachable for a freshly-triaged story -- readiness needs 15 hand-authored fields and file_scope collides with the provenance gate -- `[proposed]`
+- **#3729** -- bug(session): the occupancy lease is exclusion-only -- an agent that never claims is never gated -- `[proposed]`
+- **#3736** -- perf(hooks): every write re-runs the full gated ritual (~11s), and a merge makes the next write time out and fail closed -- `[proposed]`
+- **#3739** -- bug(hooks): nested hosts get a 5s budget the framework itself calls too small, and a killed hook renders identically to an allow -- `[proposed]`
 
 ## Completed
 
-_Showing 25 of 1300 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1330 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
-- **#3434** -- design-critique thin router skill (triggers + five pointer stops; no auto-dispatch) -- `[completed]`
-- **#3596** -- fix(authz): operator mint unreachable on Windows — CONIN$ probe opened read-only (#3110) -- `[completed]`
-- **#3434** -- design-critique v1 vehicle — locked decisions (discuss strategy, 2026-08-20) -- `[completed]`
-- **#3439** -- Work-selection commands in AGENTS.md and commands.md don't match the shipped CLI surface -- `[completed]`
-- **#3434** -- design-critique contract + brief template from disposed SoT (no skill) -- `[completed]`
-- **#3434** -- design-critique judgment gate (ADR-005) — marker, policy entry, clearance line; advisory only -- `[completed]`
-- **#3570** -- bug(hooks): agent-hook readiness probe fail-closes on a functional hook under concurrent load (fixed 1500ms budget) -- `[completed]`
-- **#3571** -- bug(hooks,policy): disabling hostHooks writes {} and strips guardrails with no capability-cost disclosure — and verify:agent-hooks recommends it -- `[completed]`
-- **#3572** -- bug(acceptance): literal-AC gate re-parses ingested narrative prose as shell commands, blocking scope:complete -- `[completed]`
-- **#3557** -- bug(strategies): shipped strategies still MUST-write vbrief/ (parent #3547) -- `[completed]`
-- **#3558** -- bug(banking): ac-pass bank writes regressed 0.104->0.105 and the serve path has never hit in the field (15/15 executed) - #3549 branch-1 fix; emit miss_reason on every executed walk -- `[completed]`
-- **#3556** -- bug(probe): strategy still mandates deleted probe_session.py (parent #3547) -- `[completed]`
-- **#3554** -- bug(swarm): finalize-cohort fetches master; fail-closed argv (parent #3547) -- `[completed]`
-- **#3559** -- bug(verify-ac): #3398 ambiguity-attestation enforcement inert in the field - stamp with no flag, no attestation, zero commands got verified-pass; re-filed open, release-targeted (split from #3550) -- `[completed]`
-- **#3555** -- bug(render): spec-validate still rejects v0.8 xBRIEF (parent #3547) -- `[completed]`
-- **#3545** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3529 UAT Shell residuals (rubyN/jruby/pypy/perl File::Slurp, dpkg -x, fromdos, emacsclient, degit, composer, ddrescue plant authz + kill-switch; approved-scope mint) -- `[completed]`
-- **#3505** -- feat(verify): detect when lifecycle paths are hidden by any ignore mechanism -- `[completed]`
-- **#3514** -- feat(verify): forward-coverage is new-file-existence only, not diff coverage — the compensating control for a lowered floor does not exist -- `[completed]`
-- **#3528** -- policy-changes.log holds two contradictory no-op conventions; 63 of 236 rows record nothing (#1250 vs typed-policy writers) -- `[completed]`
-- **#3508** -- feat(session,telemetry): #2994 process-cost events have no reader -- ceremony cost is write-only -- `[completed]`
-- **#3507** -- rfc(session,triage): scope-condition the cache_fresh drift probe on work selection -- without producing a deferred_reason -- `[completed]`
-- **#3529** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3459 UAT Shell residuals (xcopy/robocopy/move/bun/deno/php/BitsTransfer/Expand-Archive plant authz + kill-switch; approved-scope mint) -- `[completed]`
-- **#3527** -- Release authz gate is on the draft flip, not the npm-publishing tag push (#716 / #3110) -- `[completed]`
-- **#3504** -- bug(lifecycle): .git/info/exclude blanket-hides xbrief/active/ on this clone — lifecycle artifacts silently untrackable -- `[completed]`
-- **#3490** -- fix(release): build-dist packs untracked files — denylist model ships host-local state into the archive -- `[completed]`
+- **#3604** -- fix(session): occupancy leases are never released outside swarm completion (#3604) -- `[completed]`
+- **#3713** -- feat(feedback,scm): allow BLOCKER in the title for consumer hard-stops -- the one sanctioned title classification -- `[completed]`
+- **#3738** -- bug(hooks): cache_fresh is in the write gate's required set and does live forge I/O to satisfy it (80.4s measured on a clean cache) -- `[completed]`
+- **#3741** -- design-critique: post successor lean before operator verbs after critic EXIT -- `[completed]`
+- **#3666** -- bug(swarm): a sequential story has no launchable configuration -- the two readiness gates require opposite values -- `[completed]`
+- **#3679** -- fix(scope): completed/ accepts an unguarded write and there is no way to restamp it -- `[completed]`
+- **#3673** -- perf(lifecycle): verify:completed-tracked spawns one git show per terminal blob (1371) on the mandated DONE gate -- `[completed]`
+- **#3712** -- docs(agents): AGENTS.md wrongly says scope provenance is warn-only, and every agent reads it -- `[completed]`
+- **#3690** -- docs(scope): document CompletionProvenance as a historical audit snapshot -- `[completed]`
+- **#3721** -- bug(scope): a verb discussed in issue prose becomes a stated acceptance command and blocks scope:complete -- `[completed]`
+- **#3708** -- feat(triage): offer the design-critique decision at Accept -- `[completed]`
+- **#1351** -- feat(swarm,intake): dispatcher injects an identity-bound worker credential at spawn -- `[completed]`
+- **#3650** -- feat(scm,guidance): one canonical consumer-hard-blocker label, not a title token -- `[completed]`
+- **#3674** -- fix(skills): build skill instructs scope:complete before PR handoff, which a delivered story cannot satisfy -- `[completed]`
+- **#3672** -- design-critique: state why Stop 1 is outside the substantiation trigger, and formalize refutation-target -- `[completed]`
+- **#3665** -- fix(intake,swarm): prove the active GitHub credential is an approved worker principal -- `[completed]`
+- **#3661** -- fix(design-critique): land the decided critic method and rename the overloaded Stop 3 heading -- `[completed]`
+- **#3678** -- perf(ci): skip non-required jobs on artifact-only lifecycle diffs -- `[completed]`
+- **#3660** -- fix(design-critique): parallel critics must share one input ceiling; state the N=3 dual-stop reading and make the ceiling durable -- `[completed]`
+- **#3651** -- feat(design-critique): parent-side substantiation for evidence introduced while adjudicating; unaudited premises block bind -- `[completed]`
+- **#3657** -- fix(design-critique): variant table under-describes -- relax the panel conjunction, add a constrained-author trigger -- `[completed]`
+- **#3640** -- design-critique walk rename and auto-stamp when agents agree -- `[completed]`
+- **#3648** -- issue-eval Stage A: isolated validity, parent WIP census, value advice -- `[completed]`
+- **#3646** -- design-critique comment lead: model then role triage|critic|parent -- `[completed]`
+- **#3642** -- design-critique exclusive chip: remaining-set replace, last catalog chip wins -- `[completed]`
 
