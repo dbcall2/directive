@@ -1,0 +1,27 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "fix-3609-setup-policy",
+    "status": "approved",
+    "narratives": {
+      "Problem": "Setup Phase 2 teaches a bare plan.policy write that the same release's xBRIEF conformance gate rejects. Legacy-only policy input is migratable, but dual bare/namespaced blocks can remain shadowed and unsafe.",
+      "Change": "Route every setup track through the public deft policy:* writer, make setPolicy fail closed on any dual policy block under the shared mutation lock, and prove the literal consumer command path produces conformant namespaced storage.",
+      "Scope": "In scope: issue #3609; F1-F6 from the accepted adversarial critique; setPolicy shadow protection; setup pack source and generated skill; hermetic consumer-route and content contracts; operator docs; migration guidance; CHANGELOG. Out of scope: weakening conformance, a setup-only JSON writer, redesigning the policy registry, merging arbitrary dual blocks automatically, and hardening unrelated policy writers (F7 follow-up).",
+      "Impact": "Changes shared policy mutation behavior for the two branch-policy commands and changes setup's persisted branch-policy default for all tracks from implicit fallback to explicit namespaced false unless trunk-based is confirmed.",
+      "Risks": "A branch-value-only recovery could discard unrelated legacy keys; a check after the base write could destroy shadow evidence; handler-only tests could miss broken public argv; generated skill drift could reintroduce bare-key guidance.",
+      "Approach": "Inspect re-entry state before any Phase 2 write; inventory entire dual blocks and halt for explicit reconciliation; repeat the shadow assertion inside setPolicy's lock; invoke fixed literal deft policy:* command vectors after every confirmed base write; halt on nonzero; verify read-back and conformance; update canonical pack source and regenerate the skill; add five-state regressions and literal anti-pattern checks.",
+      "Alternatives": "Hand-writing the namespaced key was rejected because it bypasses locking, audit, and legacy migration. Relaxing conformance was rejected because the bare key is intentionally noncanonical. Auto-deleting equal branch values was rejected because equality must cover the entire policy block and may hide unrelated keys.",
+      "Dependencies": "Existing policy CLI routes, setPolicy mutation lock and audit path, shadow diagnostics, migrate:category-b legacy-only migration, pack renderer, xBRIEF conformance evaluator, and issue #3609's accepted successor lean.",
+      "Confirmation": "Flynn explicitly confirmed named change fix-3609-setup-policy with 'yes' on 2026-08-26."
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3609",
+        "type": "x-vbrief/github-issue",
+        "title": "Issue #3609 and accepted adversarial-critique successor lean"
+      }
+    ]
+  }
+}
