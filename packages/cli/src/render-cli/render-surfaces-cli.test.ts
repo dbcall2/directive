@@ -254,6 +254,21 @@ describe("deft-ts prd-render", () => {
     expect(content).toContain("spec.json -->");
   });
 
+  it("rejects a null specification root without a TypeError", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-cli-prd-null-root-"));
+    temps.push(root);
+    const specPath = join(root, "spec.json");
+    const outPath = join(root, "PRD.md");
+    writeFileSync(specPath, "null\n", "utf8");
+
+    const result = runDeftTs("prd-render", ["--spec", specPath, "--output", outPath]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(`${specPath} root must be a JSON object`);
+    expect(result.stderr).not.toContain("TypeError");
+    expect(existsSync(outPath)).toBe(false);
+  });
+
   it("resolves spec via --project-root on migrated xbrief tree (#2132)", () => {
     const root = mkdtempSync(join(tmpdir(), "deft-cli-prd-xbrief-"));
     temps.push(root);

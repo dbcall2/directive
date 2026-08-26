@@ -79,7 +79,12 @@ function loadTitleAndNarratives(sourcePath: string): {
   title: string;
   narratives: Record<string, unknown>;
 } {
-  const data = JSON.parse(readFileSync(sourcePath, "utf8")) as JsonObject;
+  const payload: unknown = JSON.parse(readFileSync(sourcePath, "utf8"));
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    process.stderr.write(`Error: ${sourcePath} root must be a JSON object\n`);
+    process.exit(1);
+  }
+  const data = payload as JsonObject;
   const plan = (data.plan ?? {}) as JsonObject;
   const narratives =
     typeof plan.narratives === "object" &&
