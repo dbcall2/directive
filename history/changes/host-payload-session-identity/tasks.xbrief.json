@@ -1,0 +1,40 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "host-payload-session-identity",
+    "status": "approved",
+    "items": [
+      {
+        "title": "Implement and test canonical provider-neutral host session identity",
+        "status": "pending"
+      },
+      {
+        "title": "Rewrite exact lifecycle commands without widening permission authority",
+        "status": "pending"
+      },
+      {
+        "title": "Align exact verified ritual, live lease, and host identity",
+        "status": "pending"
+      },
+      {
+        "title": "Carry one identity through session, steal, release, and swarm lifecycles",
+        "status": "pending"
+      },
+      {
+        "title": "Add child-process regressions and the host behavior matrix",
+        "status": "pending"
+      },
+      {
+        "title": "Update deposited guidance, recovery copy, and release notes",
+        "status": "pending"
+      },
+      {
+        "title": "Pass focused, acceptance, and full pre-PR quality gates",
+        "status": "pending"
+      }
+    ],
+    "edges": []
+  }
+}
