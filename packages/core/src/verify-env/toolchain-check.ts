@@ -1,10 +1,12 @@
 import * as childProcess from "node:child_process";
 import { win32 } from "node:path";
+import { pythonSplitlines } from "../encoding/text.js";
 import {
   type PackageManager,
   type PackageManagerResolutionSource,
   packageManagerSourceLabel,
   resolveProjectPackageManager,
+  sanitizeSingleLineDiagnostic,
 } from "../resolution/package-manager.js";
 import { resolveCommandOnPath } from "./command-spawn.js";
 import { nodeRuntimeRemediationLines } from "./node-runtime.js";
@@ -247,11 +249,12 @@ export function runToolchainCheck(
         lines.push(`  ${tool.name}: NOT FOUND`);
       } else {
         failed.push(tool.name);
-        lines.push(`  ${tool.name}: ERROR - ${result.message}`);
+        const diagnostic = firstSafeDiagnostic(result.message);
+        lines.push(`  ${tool.name}: ERROR${diagnostic === "" ? "" : ` - ${diagnostic}`}`);
       }
       continue;
     }
-    const version = (result.stdout || result.stderr).trim().split("\n")[0] ?? "";
+    const version = firstSafeOutputLine(result.stdout || result.stderr);
     if (result.returncode === 0) {
       lines.push(`  ${tool.name}: ${version}`);
     } else {
@@ -283,17 +286,14 @@ export function runToolchainCheck(
   };
 }
 
-function firstSafeDiagnostic(text: string): string {
-  const first = text
-    .split(/\r?\n/)
+function firstSafeOutputLine(text: string): string {
+  const first = pythonSplitlines(text)
     .map((line) => line.trim())
     .find((line) => line.length > 0);
-  if (first === undefined || /^[A-Z][A-Z0-9_]*=/.test(first)) return "";
-  const printable = [...first]
-    .filter((character) => {
-      const code = character.charCodeAt(0);
-      return code >= 32 && code !== 127;
-    })
-    .join("");
-  return printable.length > 240 ? `${printable.slice(0, 237)}...` : printable;
+  return first === undefined ? "" : sanitizeSingleLineDiagnostic(first);
+}
+
+function firstSafeDiagnostic(text: string): string {
+  const first = firstSafeOutputLine(text);
+  return /^[A-Z][A-Z0-9_]*=/.test(first) ? "" : first;
 }

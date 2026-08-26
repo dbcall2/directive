@@ -104,10 +104,11 @@ function unsupportedPackageManager(
       message: "Unsupported DEFT_PACKAGE_MANAGER value; supported managers are npm and pnpm.",
     };
   }
+  const safeValue = sanitizeSingleLineDiagnostic(JSON.stringify(value));
   return {
     ok: false,
     source,
-    message: `Unsupported package manager ${JSON.stringify(value)} from package.json#packageManager; supported managers are npm and pnpm.`,
+    message: `Unsupported package manager ${safeValue} from package.json#packageManager; supported managers are npm and pnpm.`,
   };
 }
 
@@ -185,6 +186,24 @@ function defaultIsFile(path: string): boolean {
   }
 }
 
+const UNSAFE_DIAGNOSTIC_CHARACTER = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+
+/** Render untrusted diagnostic text as one bounded terminal-safe line. */
+export function sanitizeSingleLineDiagnostic(text: string): string {
+  const printable = [...text]
+    .map((character) => (UNSAFE_DIAGNOSTIC_CHARACTER.test(character) ? " " : character))
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+  const codePoints = [...printable];
+  return codePoints.length > 240 ? `${codePoints.slice(0, 237).join("")}...` : printable;
+}
+
+function singleLineErrorDetail(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  return sanitizeSingleLineDiagnostic(raw) || "unknown error";
+}
+
 /** Resolve a consumer project's package manager from package.json and lockfile facts. */
 export function resolveProjectPackageManager(
   options: ResolveProjectPackageManagerOptions = {},
@@ -205,7 +224,7 @@ export function resolveProjectPackageManager(
   try {
     packageJsonText = readText(packageJsonPath);
   } catch (error: unknown) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = singleLineErrorDetail(error);
     return {
       ok: false,
       source: "package-json",
@@ -217,7 +236,7 @@ export function resolveProjectPackageManager(
     try {
       parsed = JSON.parse(packageJsonText);
     } catch (error: unknown) {
-      const detail = error instanceof Error ? error.message : String(error);
+      const detail = singleLineErrorDetail(error);
       return {
         ok: false,
         source: "package-json",
@@ -254,7 +273,7 @@ export function resolveProjectPackageManager(
   try {
     pnpmLockPresent = isFile(join(projectRoot, "pnpm-lock.yaml"));
   } catch (error: unknown) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = singleLineErrorDetail(error);
     return {
       ok: false,
       source: "project-filesystem",

@@ -51,6 +51,19 @@ describe("runToolchainCheck", () => {
     expect(result.lines.some((line) => line.includes("FAILED"))).toBe(true);
   });
 
+  it("sanitizes and bounds command-runner exception messages", () => {
+    const result = runToolchainCheck(() => ({
+      error: "exception",
+      message: `failure\u009b31mRED\u202eBIDI\u0085INJECTED_BLOCK${"x".repeat(300)}`,
+    }));
+    const errorLines = result.lines.filter((line) => line.includes(": ERROR"));
+    expect(errorLines.length).toBeGreaterThan(0);
+    expect(errorLines.every((line) => !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(line))).toBe(true);
+    expect(errorLines.every((line) => line.includes("failure 31mRED BIDI"))).toBe(true);
+    expect(errorLines.every((line) => !line.includes("INJECTED_BLOCK"))).toBe(true);
+    expect(errorLines.every((line) => line.length < 280)).toBe(true);
+  });
+
   it("emits node runtime remediation when node or pnpm is missing", () => {
     const result = runToolchainCheck((command) => {
       const name = command[0] ?? "";
@@ -203,6 +216,26 @@ describe("runToolchainCheck", () => {
     expect(result.lines.join("\n")).toMatch(
       /pnpm: FAILED \(exit 1\) - This project is configured to use npm/,
     );
+  });
+
+  it("renders command output without Unicode line, terminal, or bidi controls", () => {
+    const projectRoot = consumerFixture("pnpm@11.8.0");
+    const result = runToolchainCheck(
+      (command) =>
+        command[0] === "pnpm"
+          ? {
+              returncode: 1,
+              stdout: "",
+              stderr: "failure\u009b31mRED\u202eBIDI\u0085INJECTED_BLOCK",
+            }
+          : { returncode: 0, stdout: "ok\u009b0m\u202e\nINJECTED_SUCCESS", stderr: "" },
+      { consumer: true, projectRoot, env: {} },
+    );
+    const output = result.lines.join("\n");
+    expect(result.lines.every((line) => !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(line))).toBe(true);
+    expect(output).toContain("failure 31mRED BIDI");
+    expect(output).not.toContain("INJECTED_BLOCK");
+    expect(output).not.toContain("INJECTED_SUCCESS");
   });
 
   it.each(["darwin", "linux"] as const)("runs %s commands without a shell", (platform) => {

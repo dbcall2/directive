@@ -102,6 +102,16 @@ describe("resolution/package-manager strict project resolution (#3610)", () => {
     expect(result.message).toMatch(/unsupported.*yarn.*npm.*pnpm/i);
   });
 
+  it("bounds and sanitizes an unsupported packageManager declaration", () => {
+    const result = resolvePackageManager({
+      packageManagerField: `yarn\u0085C1\u009b31mRED\u202eBIDI${"x".repeat(300)}`,
+    });
+    expect(result).toMatchObject({ ok: false, source: "package-manager-field" });
+    expect(result.message).not.toMatch(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u);
+    expect(result.message).toContain("yarn C1 31mRED BIDI");
+    expect(result.message.length).toBeLessThan(360);
+  });
+
   it("does not echo raw environment override text in diagnostics", () => {
     const rawOverride = "yarn; echo should-not-appear";
     const result = resolvePackageManager({
@@ -203,6 +213,40 @@ describe("resolution/package-manager strict project resolution (#3610)", () => {
     const result = resolveProjectPackageManager({ projectRoot: root, env: {} });
     expect(result).toMatchObject({ ok: false, source: "package-json" });
     expect(result.message).toMatch(/parse.*package\.json/i);
+  });
+
+  it("keeps filesystem error details on one bounded control-free output line", () => {
+    const result = resolveProjectPackageManager({
+      projectRoot: "/consumer",
+      env: {},
+      readText: () => {
+        throw new Error(
+          `permission denied\nINJECTED_BLOCK\u0085C1\u009b31mRED\u009b0m\u202eBIDI${"x".repeat(300)}`,
+        );
+      },
+    });
+    expect(result).toMatchObject({ ok: false, source: "package-json" });
+    expect(result.message).not.toMatch(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u);
+    expect(result.message).toContain("permission denied INJECTED_BLOCK");
+    expect(result.message.length).toBeLessThan(320);
+  });
+
+  it("truncates diagnostic details without splitting astral characters", () => {
+    const result = resolveProjectPackageManager({
+      projectRoot: "/consumer",
+      env: {},
+      readText: () => {
+        throw new Error(`${"a".repeat(236)}😀${"z".repeat(10)}`);
+      },
+    });
+    expect(result).toMatchObject({ ok: false, source: "package-json" });
+    expect(result.message).toContain(`${"a".repeat(236)}😀...`);
+    expect(
+      [...result.message].some((character) => {
+        const codePoint = character.codePointAt(0) ?? 0;
+        return codePoint >= 0xd800 && codePoint <= 0xdfff;
+      }),
+    ).toBe(false);
   });
 
   it("fails clearly when the project lockfile cannot be inspected", () => {
