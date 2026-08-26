@@ -1,0 +1,32 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "3610-consumer-package-manager-toolchain",
+    "status": "approved",
+    "narratives": {
+      "Problem": "Consumer toolchain validation and session preflight hard-code pnpm even when package.json declares npm. Corepack then correctly refuses the pnpm shim, so a valid npm consumer fails and receives remediation that cannot work without changing the repository's package-manager contract. The consumer tool list also retains a go-task requirement after the CLI-native consumer-gate migration in #3335.",
+      "Change": "Resolve the consumer package manager from the existing typed package-manager detector, verify only that manager, remove maintainer-only pnpm and go-task requirements from the consumer toolchain check and preflight, and align diagnostics, task descriptions, and documentation with the selected manager.",
+      "Scope": "In scope: npm and pnpm consumer selection; DEFT_PACKAGE_MANAGER/packageManager/lockfile/user-agent precedence; --project-root CLI routing; consumer toolchain and session preflight behavior; manager-specific remediation; Corepack mismatch, unsupported-manager, POSIX, and Windows shim tests; removal of the stale consumer-toolchain go-task requirement; docs and release notes. Out of scope: adding yarn or bun support, changing maintainer pnpm requirements, changing install-time package-manager selection, changing the legacy session verify:tools inventory, changing uncached aggregate-check dispatch, or rewriting the general command-spawn subsystem.",
+      "Impact": "Touches the TypeScript package-manager resolver, consumer toolchain check, session preflight, runtime and named-cause diagnostics, CLI argument parsing, the Taskfile description, consumer guidance, focused tests, and CHANGELOG.md.",
+      "Risks": "Conflicting manager signals could select the wrong tool; unsupported packageManager values could be interpolated into shell execution; Windows .cmd/PATHEXT lookup could regress; removing go-task from consumers could expose a remaining non-CLI-native gate; and maintainer pnpm requirements could accidentally be weakened.",
+      "Approach": "Extend the existing pure detector with one filesystem-backed typed resolution result that reports manager and source. Preserve the #2197 precedence rules, reject explicit unsupported managers clearly, and map npm or pnpm to fixed argv. Pass project root through the CLI, derive the consumer tool list dynamically, reuse the same resolver in session preflight, generalize package-manager-dependent gate diagnostics, and prove behavior with fixtures before implementation changes.",
+      "Alternatives": "Always invoking pnpm through Corepack was rejected because Corepack must honor the consumer's npm declaration. Requiring consumers to migrate to pnpm was rejected because Directive already supports npm selection. Duplicating package-manager detection in each gate was rejected because it would preserve the current drift. Keeping go-task as a consumer prerequisite was rejected because #3335 made consumer gates CLI-native.",
+      "Dependencies": "The typed package-manager detector from #2197, fixed-argv execution hardening from #2761/#2765, CLI-native consumer gates from #3335, existing command-spawn platform behavior, and the current npm/pnpm toolchain fixtures.",
+      "Confirmation": "Flynn explicitly approved the named change 3610-consumer-package-manager-toolchain on 2026-08-26."
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3610",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3610: consumer check hard-requires pnpm when packageManager pins npm"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3335",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3335: CLI-native consumer gates"
+      }
+    ]
+  }
+}

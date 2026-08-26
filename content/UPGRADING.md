@@ -666,11 +666,13 @@ This complements (does not replace) `deft verify:forward-coverage` (#1310 / #351
 
 ## Node runtime (#1828 / #1530)
 
-After Wave 8, live deft gates run through the TypeScript engine. **Node.js and pnpm are required consumer runtimes** alongside Python (`uv`) — not optional extras for framework contributors only.
+After Wave 8, live deft gates run through the TypeScript engine. **The consumer toolchain probe requires Node.js and the package manager selected by the project (`npm` or `pnpm`).** That probe does not check Python, `uv`, or go-task; session and workflow gates keep their separately documented prerequisites.
 
 - Install **Node 20+** (the framework pins `.nvmrc`; currently Node 24).
-- Enable pnpm via Corepack: `corepack enable && corepack prepare pnpm@latest --activate`
-- Verify from your project root: `task toolchain:check` (or `deft toolchain:check`). When Node or pnpm is missing, the check exits non-zero and prints an actionable remediation line instead of failing later with an opaque stack trace.
+- If `package.json#packageManager` selects npm, use the npm bundled with Node. If it selects pnpm, enable pnpm via Corepack: `corepack enable && corepack prepare pnpm@latest --activate`.
+- Consumer selection precedence is `DEFT_PACKAGE_MANAGER`, `package.json#packageManager`, `pnpm-lock.yaml`, `npm_config_user_agent`, then npm. An explicit unsupported manager fails with a supported-manager diagnostic; its raw value is never executed.
+- Verify from your project root: `deft toolchain:check --consumer --project-root .`. The check probes the selected manager, names the selection source, and prints manager-specific remediation instead of failing later with an opaque stack trace.
+- Framework maintainers still run `task toolchain:check`; that source-repository check remains pnpm-based.
 
 ---
 

@@ -14,10 +14,10 @@ tasks:
           ENGINE_CMD: 'toolchain-check'
 
   check-consumer:
-    desc: Verify required consumer toolchain is installed (git, gh, node, pnpm, task) without Python/go/uv (#2022 Phase 3).
+    desc: Verify git, gh, node, and the consumer's selected npm or pnpm; this gate does not probe go-task/Python/go/uv (#3610/#3335).
     deps:
       - task: :engine:_ts-build
     cmds:
       - task: :engine:invoke
         vars:
-          ENGINE_CMD: 'toolchain-check --consumer'
+          ENGINE_CMD: 'toolchain-check --consumer --project-root "{{.USER_WORKING_DIR}}"'

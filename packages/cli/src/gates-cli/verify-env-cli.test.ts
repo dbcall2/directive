@@ -126,6 +126,36 @@ describe("deft-ts toolchain-check", () => {
     expect(maintainer).toBe(1);
     expect(consumer).toBe(0);
   });
+
+  it("threads --project-root into npm consumer package-manager selection", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-toolchain-cli-npm-"));
+    temps.push(root);
+    writeFileSync(
+      join(root, "package.json"),
+      `${JSON.stringify({ packageManager: "npm@11.16.0" })}\n`,
+      "utf8",
+    );
+    const seen: string[] = [];
+    const exitCode = runToolchainCheckCli(["--consumer", `--project-root=${root}`], {
+      env: {},
+      runner: (command) => {
+        seen.push(command[0] ?? "");
+        return { returncode: 0, stdout: "ok\n", stderr: "" };
+      },
+    });
+    expect(exitCode).toBe(0);
+    expect(seen).toContain("npm");
+    expect(seen).not.toContain("pnpm");
+    expect(seen).not.toContain("task");
+  });
+
+  it("rejects a flag-shaped missing --project-root value", () => {
+    expect(runToolchainCheckCli(["--project-root", "--consumer"], { runner: stubRunner })).toBe(2);
+  });
+
+  it("rejects unknown toolchain-check flags", () => {
+    expect(runToolchainCheckCli(["--bogus"], { runner: stubRunner })).toBe(2);
+  });
 });
 
 function encodingRepo(content: string): string {

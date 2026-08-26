@@ -17,7 +17,9 @@ afterEach(() => {
 
 function writeConsumerFramework(): { framework: string; project: string } {
   const framework = mkdtempSync(join(tmpdir(), "deft-3335-fw-"));
+  const project = mkdtempSync(join(tmpdir(), "deft-3335-project-"));
   tempDirs.push(framework);
+  tempDirs.push(project);
   mkdirSync(join(framework, "tasks"), { recursive: true });
   writeFileSync(
     join(framework, "Taskfile.yml"),
@@ -72,7 +74,7 @@ tasks:
     "version: '3'\ntasks:\n  validate:\n    cmds: [echo ok]\n",
     "utf8",
   );
-  return { framework, project: join(tmpdir(), "consumer-project-3335") };
+  return { framework, project };
 }
 
 describe("degraded skip report in check (#3282)", () => {
@@ -156,6 +158,114 @@ describe("degraded skip report in check (#3282)", () => {
     const msg = errWrite.mock.calls.map((c) => String(c[0])).join("");
     expect(msg).not.toMatch(/Install go-task|taskfile\.dev/i);
     expect(msg).not.toMatch(/skipping gate verify:ac/);
+  });
+
+  it("attributes a missing selected manager ahead of non-impacting go-task", () => {
+    const { framework, project } = writeConsumerFramework();
+    const errWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const code = dispatchCachedTaskCheck(framework, project, {
+      noCache: true,
+      emitRunSummary: false,
+      cliBin: "deft",
+      preflight: {
+        status: "degraded",
+        ok: false,
+        degraded: true,
+        findings: [
+          {
+            tool: "task",
+            present: false,
+            cause: "go-task absent; CLI-native gates dispatch via global deft/directive (#3335)",
+            remedy: null,
+            impact: "none",
+          },
+          {
+            tool: "npm",
+            present: false,
+            cause: "npm binary not found on PATH",
+            remedy: "Install or repair Node 20+ (npm is bundled)",
+          },
+        ],
+        lines: ["[deft preflight] toolchain status: degraded"],
+        skipGateIds: ["toolchain:check-consumer"],
+        packageManager: "npm",
+        packageManagerSource: "package-manager-field",
+      },
+      gateSpawnFn: () => ({ exitCode: 0, stdout: "", stderr: "" }),
+    });
+    expect(code).toBe(2);
+    const msg = errWrite.mock.calls.map((call) => String(call[0])).join("");
+    expect(msg).toMatch(/skipping gate toolchain:check-consumer.*npm binary not found/s);
+    expect(msg).not.toMatch(/skipping gate toolchain:check-consumer.*go-task/s);
+  });
+
+  it("attributes an all-gate skip to the missing CLI instead of advisory Git", () => {
+    const { framework, project } = writeConsumerFramework();
+    const errWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const code = dispatchCachedTaskCheck(framework, project, {
+      noCache: true,
+      emitRunSummary: false,
+      preflight: {
+        status: "degraded",
+        ok: false,
+        degraded: true,
+        findings: [
+          {
+            tool: "task",
+            present: false,
+            cause: "go-task absent and no global deft/directive CLI",
+            remedy: "Install the global Directive CLI",
+            impact: "none",
+          },
+          {
+            tool: "git",
+            present: false,
+            cause: "git binary not found on PATH",
+            remedy: "Install Git",
+          },
+          {
+            tool: "cli_dist",
+            present: false,
+            cause: "no global deft/directive on PATH",
+            remedy: "Install: npm i -g @deftai/directive@latest",
+          },
+        ],
+        lines: ["[deft preflight] toolchain status: degraded"],
+        skipGateIds: ["*"],
+        packageManager: "npm",
+        packageManagerSource: "package-manager-field",
+      },
+      gateSpawnFn: () => {
+        throw new Error("gates must not run when fully degraded");
+      },
+    });
+    expect(code).toBe(2);
+    const msg = errWrite.mock.calls.map((call) => String(call[0])).join("");
+    expect(msg).toMatch(/no global deft\/directive on PATH/);
+    expect(msg).not.toMatch(/skipping gate.*git binary not found/s);
+  });
+
+  it("threads an injected package-manager override into live preflight", () => {
+    const { framework, project } = writeConsumerFramework();
+    writeFileSync(
+      join(project, "package.json"),
+      `${JSON.stringify({ packageManager: "pnpm@11.8.0" })}\n`,
+      "utf8",
+    );
+    const probed: string[] = [];
+    const code = dispatchCachedTaskCheck(framework, project, {
+      noCache: true,
+      emitRunSummary: false,
+      env: { DEFT_PACKAGE_MANAGER: "npm" },
+      which: (name) => {
+        probed.push(name);
+        return name === "npm" ? null : `/bin/${name}`;
+      },
+      gateSpawnFn: () => ({ exitCode: 0, stdout: "", stderr: "" }),
+    });
+    expect(code).toBe(2);
+    expect(probed).toContain("npm");
+    expect(probed).not.toContain("pnpm");
   });
 
   it("prints named cause when a gate fails", () => {

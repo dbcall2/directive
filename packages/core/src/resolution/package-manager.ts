@@ -16,9 +16,13 @@
  *      gitignored / package-manager-invisible). Only the global, project-local,
  *      ephemeral, and upgrade command forms vary by package manager.
  *
- * Every function here is PURE (no I/O): detection consumes an injected fact-set
- * so the whole surface is unit-testable without touching the filesystem or env.
+ * Detection from an injected fact-set remains pure. The project resolver is the
+ * single filesystem boundary used by consumer gates so package.json and lockfile
+ * precedence cannot drift across callers (#3610).
  */
+
+import { readFileSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 export type PackageManager = "npm" | "pnpm";
 
@@ -38,11 +42,230 @@ export interface DetectPackageManagerInput {
   readonly pnpmLockPresent?: boolean;
 }
 
+export type PackageManagerResolutionSource =
+  | "env-override"
+  | "package-manager-field"
+  | "pnpm-lock"
+  | "user-agent"
+  | "default";
+
+export type PackageManagerResolutionErrorSource =
+  | "env-override"
+  | "package-manager-field"
+  | "package-json"
+  | "project-filesystem";
+
+export type PackageManagerResolution =
+  | {
+      readonly ok: true;
+      readonly packageManager: PackageManager;
+      readonly source: PackageManagerResolutionSource;
+    }
+  | {
+      readonly ok: false;
+      readonly source: PackageManagerResolutionErrorSource;
+      readonly message: string;
+    };
+
+export interface ResolveProjectPackageManagerOptions {
+  /** Consumer project root. Defaults to the current working directory. */
+  readonly projectRoot?: string;
+  /** Environment map used for override and user-agent precedence. */
+  readonly env?: NodeJS.ProcessEnv;
+  /** Text-read seam. `null` means the file is absent. */
+  readonly readText?: (path: string) => string | null;
+  /** File-existence seam used for pnpm-lock.yaml. */
+  readonly isFile?: (path: string) => boolean;
+}
+
+const EXPLICIT_PACKAGE_MANAGER_RE = /^(npm|pnpm)(?:@[0-9A-Za-z][0-9A-Za-z._+/=-]*)?$/i;
+
 function normalizePackageManager(value: string): PackageManager | null {
   const v = value.trim().toLowerCase();
   if (v.startsWith("pnpm")) return "pnpm";
   if (v.startsWith("npm")) return "npm";
   return null;
+}
+
+function normalizeExplicitPackageManager(value: string): PackageManager | null {
+  const match = EXPLICIT_PACKAGE_MANAGER_RE.exec(value.trim());
+  const name = match?.[1]?.toLowerCase();
+  return name === "npm" || name === "pnpm" ? name : null;
+}
+
+function unsupportedPackageManager(
+  value: string,
+  source: "env-override" | "package-manager-field",
+): PackageManagerResolution {
+  if (source === "env-override") {
+    return {
+      ok: false,
+      source,
+      message: "Unsupported DEFT_PACKAGE_MANAGER value; supported managers are npm and pnpm.",
+    };
+  }
+  return {
+    ok: false,
+    source,
+    message: `Unsupported package manager ${JSON.stringify(value)} from package.json#packageManager; supported managers are npm and pnpm.`,
+  };
+}
+
+/** Human-readable, non-executable label for a resolution source. */
+export function packageManagerSourceLabel(source: PackageManagerResolutionSource): string {
+  switch (source) {
+    case "env-override":
+      return "DEFT_PACKAGE_MANAGER override";
+    case "package-manager-field":
+      return "packageManager field";
+    case "pnpm-lock":
+      return "pnpm-lock.yaml";
+    case "user-agent":
+      return "npm_config_user_agent";
+    case "default":
+      return "default";
+  }
+}
+
+/**
+ * Strict package-manager resolution for execution boundaries.
+ *
+ * Explicit override/declaration values fail closed when unsupported. The
+ * returned manager is a closed union and callers map it to fixed argv; raw
+ * package.json or environment text is never executable (#2761/#2765/#3610).
+ */
+export function resolvePackageManager(
+  input: DetectPackageManagerInput = {},
+): PackageManagerResolution {
+  const env = input.env ?? {};
+  const override = env.DEFT_PACKAGE_MANAGER;
+  if (typeof override === "string" && override.trim() !== "") {
+    const packageManager = normalizeExplicitPackageManager(override);
+    if (packageManager === null) return unsupportedPackageManager(override, "env-override");
+    return { ok: true, packageManager, source: "env-override" };
+  }
+
+  const field = input.packageManagerField;
+  if (field != null && field.trim() !== "") {
+    const packageManager = normalizeExplicitPackageManager(field);
+    if (packageManager === null) return unsupportedPackageManager(field, "package-manager-field");
+    return { ok: true, packageManager, source: "package-manager-field" };
+  }
+
+  if (input.pnpmLockPresent) {
+    return { ok: true, packageManager: "pnpm", source: "pnpm-lock" };
+  }
+
+  const userAgent = env.npm_config_user_agent;
+  if (typeof userAgent === "string" && userAgent.trim() !== "") {
+    const packageManager = normalizePackageManager(userAgent);
+    if (packageManager !== null) {
+      return { ok: true, packageManager, source: "user-agent" };
+    }
+  }
+
+  return { ok: true, packageManager: DEFAULT_PACKAGE_MANAGER, source: "default" };
+}
+
+function defaultReadText(path: string): string | null {
+  try {
+    return readFileSync(path, "utf8");
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function defaultIsFile(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+/** Resolve a consumer project's package manager from package.json and lockfile facts. */
+export function resolveProjectPackageManager(
+  options: ResolveProjectPackageManagerOptions = {},
+): PackageManagerResolution {
+  const projectRoot = resolve(options.projectRoot ?? process.cwd());
+  const env = options.env ?? process.env;
+  const readText = options.readText ?? defaultReadText;
+  const isFile = options.isFile ?? defaultIsFile;
+  const packageJsonPath = join(projectRoot, "package.json");
+
+  const override = env.DEFT_PACKAGE_MANAGER;
+  if (typeof override === "string" && override.trim() !== "") {
+    return resolvePackageManager({ env });
+  }
+
+  let packageManagerField: string | null = null;
+  let packageJsonText: string | null;
+  try {
+    packageJsonText = readText(packageJsonPath);
+  } catch (error: unknown) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      source: "package-json",
+      message: `Could not read package.json for package-manager selection: ${detail}`,
+    };
+  }
+  if (packageJsonText !== null) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(packageJsonText);
+    } catch (error: unknown) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return {
+        ok: false,
+        source: "package-json",
+        message: `Could not parse package.json for package-manager selection: ${detail}`,
+      };
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return {
+        ok: false,
+        source: "package-json",
+        message:
+          "Could not parse package.json for package-manager selection: root must be an object.",
+      };
+    }
+    const packageRecord = parsed as Record<string, unknown>;
+    if (Object.hasOwn(packageRecord, "packageManager")) {
+      const field = packageRecord.packageManager;
+      if (typeof field !== "string" || field.trim() === "") {
+        return {
+          ok: false,
+          source: "package-manager-field",
+          message: "package.json#packageManager must be a non-empty string naming npm or pnpm.",
+        };
+      }
+      packageManagerField = field;
+    }
+  }
+
+  if (packageManagerField !== null) {
+    return resolvePackageManager({ env, packageManagerField });
+  }
+
+  let pnpmLockPresent: boolean;
+  try {
+    pnpmLockPresent = isFile(join(projectRoot, "pnpm-lock.yaml"));
+  } catch (error: unknown) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      source: "project-filesystem",
+      message: `Could not inspect pnpm-lock.yaml for package-manager selection: ${detail}`,
+    };
+  }
+
+  return resolvePackageManager({
+    env,
+    pnpmLockPresent,
+  });
 }
 
 /**

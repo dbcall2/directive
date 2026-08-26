@@ -10,7 +10,7 @@
  */
 
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
   allGatesCliDispatchable,
   GLOBAL_CLI_REMEDY,
@@ -24,9 +24,16 @@ import {
   FRAMEWORK_CHECK_GATES,
 } from "../check/gate-lists.js";
 import { defaultWhich } from "../doctor/which.js";
+import {
+  type PackageManager,
+  type PackageManagerResolutionSource,
+  packageManagerSourceLabel,
+  resolveProjectPackageManager,
+} from "../resolution/package-manager.js";
 
+/** Maintainer toolchain remains pnpm-based. Consumer tools are selected dynamically. */
 export const TOOLCHAIN_PREFLIGHT_TOOLS = ["task", "pnpm", "node", "git"] as const;
-export type ToolchainPreflightTool = (typeof TOOLCHAIN_PREFLIGHT_TOOLS)[number];
+export type ToolchainPreflightTool = "task" | PackageManager | "node" | "git";
 
 export type ToolchainPreflightStatus = "ok" | "missing" | "degraded";
 
@@ -34,7 +41,7 @@ export type ToolchainPreflightStatus = "ok" | "missing" | "degraded";
 export type ToolchainPreflightImpact = "none" | "degraded";
 
 export interface ToolchainPreflightFinding {
-  readonly tool: ToolchainPreflightTool | "cli_dist";
+  readonly tool: ToolchainPreflightTool | "package_manager" | "cli_dist";
   readonly present: boolean;
   /** Machine-stable cause code (never embeds env values). */
   readonly cause: string | null;
@@ -60,6 +67,10 @@ export interface ToolchainPreflightResult {
    * Product-ordering of remaining gates is owned by #3284.
    */
   readonly skipGateIds: readonly string[];
+  /** Closed manager selected for this project, or null on strict selection failure. */
+  readonly packageManager?: PackageManager | null;
+  /** Selection provenance; maintainer source is deliberately fixed to pnpm. */
+  readonly packageManagerSource?: PackageManagerResolutionSource | "maintainer" | null;
 }
 
 export interface ToolchainPreflightOptions {
@@ -82,17 +93,21 @@ export interface ToolchainPreflightOptions {
    * frameworkRoot vs projectRoot (#3335 / #3324).
    */
   readonly consumerDeposit?: boolean;
+  /** Environment map used for consumer package-manager precedence. */
+  readonly env?: NodeJS.ProcessEnv;
 }
 
 const REMEDY: Record<ToolchainPreflightTool, string> = {
   task: "Install go-task: https://taskfile.dev/installation/ (e.g. winget install Task.Task / brew install go-task)",
+  npm: "Install or repair Node 20+ (npm is bundled), then re-run the consumer check",
   pnpm: "Enable pnpm via corepack: corepack enable && corepack prepare pnpm@latest --activate",
-  node: "Install Node 20+ (see .nvmrc); then corepack enable",
+  node: "Install Node 20+ (see .nvmrc)",
   git: "Install Git: https://git-scm.com/downloads",
 };
 
 const CAUSE: Record<ToolchainPreflightTool, string> = {
   task: "go-task binary not found on PATH",
+  npm: "npm binary not found on PATH",
   pnpm: "pnpm binary not found on PATH",
   node: "node binary not found on PATH",
   git: "git binary not found on PATH",
@@ -103,11 +118,14 @@ const CAUSE: Record<ToolchainPreflightTool, string> = {
  * When task/node is missing, the orchestrator skips *all* scheduled gates
  * (dynamic from gate-lists), not this static list — avoids hardcode drift.
  */
-export const PNPM_DEPENDENT_GATE_IDS: readonly string[] = [
+export const PACKAGE_MANAGER_DEPENDENT_GATE_IDS: readonly string[] = [
   "toolchain:check",
   "toolchain:check-consumer",
   "ts:check-lane",
 ];
+
+/** @deprecated use PACKAGE_MANAGER_DEPENDENT_GATE_IDS. */
+export const PNPM_DEPENDENT_GATE_IDS = PACKAGE_MANAGER_DEPENDENT_GATE_IDS;
 
 /** Sentinel skip id meaning "every gate in the active check composition". */
 export const SKIP_ALL_GATES = "*";
@@ -115,13 +133,20 @@ export const SKIP_ALL_GATES = "*";
 function probeTool(
   tool: ToolchainPreflightTool,
   which: (name: string) => string | null,
+  packageManager: PackageManager | null,
 ): ToolchainPreflightFinding {
   const present = which(tool) !== null;
+  let remedy = REMEDY[tool];
+  if (tool === "node" && packageManager === "npm") {
+    remedy = "Install or repair Node 20+ (npm is bundled), then re-run the consumer check";
+  } else if (tool === "node" && packageManager === "pnpm") {
+    remedy = "Install Node 20+ (see .nvmrc); then enable pnpm with Corepack";
+  }
   return {
     tool,
     present,
     cause: present ? null : CAUSE[tool],
-    remedy: present ? null : REMEDY[tool],
+    remedy: present ? null : remedy,
   };
 }
 
@@ -160,7 +185,8 @@ function formatFindingLine(finding: ToolchainPreflightFinding): string {
   }
   if (finding.impact === "none") {
     const cause = finding.cause ?? "absent";
-    return `[deft preflight] ${finding.tool}: absent (impact: none) — ${cause}`;
+    const remedy = finding.remedy === null ? "" : `; remedy: ${finding.remedy}`;
+    return `[deft preflight] ${finding.tool}: absent (impact: none) — ${cause}${remedy}`;
   }
   const cause = finding.cause ?? "missing";
   const remedy = finding.remedy ?? "install the tool";
@@ -171,14 +197,18 @@ function inferConsumerDeposit(options: ToolchainPreflightOptions): boolean {
   if (options.consumerDeposit !== undefined) return options.consumerDeposit;
   const project = options.projectRoot;
   if (project === undefined) return false;
-  // Same-path roots are framework-source only when the tree is the source repo.
-  if (isFrameworkRepoRoot(project)) return false;
   const framework = options.frameworkRoot ?? project;
+  // session:start passes equal roots for both framework source and a consumer
+  // deposit. Equal roots identify maintainer mode only when the tree has the
+  // framework-source markers; otherwise this is the production consumer shape.
+  if (resolve(framework) === resolve(project)) {
+    return !isFrameworkRepoRoot(project);
+  }
   return !isFrameworkSourceContext(framework, project);
 }
 
 /**
- * Run done-gate toolchain preflight. Pure probe — never installs or builds.
+ * Run done-gate toolchain preflight. Read-only probe — never installs or builds.
  */
 export function runToolchainPreflight(
   options: ToolchainPreflightOptions = {},
@@ -190,9 +220,37 @@ export function runToolchainPreflight(
     options.composedGates ?? (consumerDeposit ? CONSUMER_CHECK_GATES : FRAMEWORK_CHECK_GATES);
   const allCli = allGatesCliDispatchable(composed);
   const findings: ToolchainPreflightFinding[] = [];
+  let packageManager: PackageManager | null = "pnpm";
+  let packageManagerSource: PackageManagerResolutionSource | "maintainer" | null = "maintainer";
+  let packageManagerSelectionFailed = false;
+  let selectedTools: readonly ToolchainPreflightTool[] = TOOLCHAIN_PREFLIGHT_TOOLS;
 
-  for (const tool of TOOLCHAIN_PREFLIGHT_TOOLS) {
-    findings.push(probeTool(tool, which));
+  if (consumerDeposit) {
+    const resolution = resolveProjectPackageManager({
+      projectRoot: options.projectRoot,
+      env: options.env,
+    });
+    if (resolution.ok) {
+      packageManager = resolution.packageManager;
+      packageManagerSource = resolution.source;
+      selectedTools = ["task", packageManager, "node", "git"];
+    } else {
+      packageManager = null;
+      packageManagerSource = null;
+      packageManagerSelectionFailed = true;
+      selectedTools = ["task", "node", "git"];
+      findings.push({
+        tool: "package_manager",
+        present: false,
+        cause: resolution.message,
+        remedy:
+          "Set package.json#packageManager (or DEFT_PACKAGE_MANAGER) to a supported npm or pnpm value",
+      });
+    }
+  }
+
+  for (const tool of selectedTools) {
+    findings.push(probeTool(tool, which, packageManager));
   }
 
   if (options.probeCliDist !== false) {
@@ -201,8 +259,10 @@ export function runToolchainPreflight(
 
   const cliPresent = findings.some((f) => f.tool === "cli_dist" && f.present);
   const taskMissing = findings.some((f) => f.tool === "task" && !f.present);
-  const pnpmMissing = findings.some((f) => f.tool === "pnpm" && !f.present);
   const nodeMissing = findings.some((f) => f.tool === "node" && !f.present);
+  const packageManagerMissing =
+    packageManagerSelectionFailed ||
+    (packageManager !== null && findings.some((f) => f.tool === packageManager && !f.present));
 
   // #3335: in a deposit whose composed gates are all CLI-dispatchable, a
   // missing task binary is impact none — no install-go-task remedy.
@@ -221,9 +281,30 @@ export function runToolchainPreflight(
     }
   }
 
+  // Keep finding impact aligned with the skip calculation. Git is advisory in
+  // this preflight, and a local CLI dist matters only when task is absent and
+  // every composed gate must dispatch through the CLI.
+  for (let index = 0; index < findings.length; index += 1) {
+    const finding = findings[index];
+    if (finding === undefined || finding.present) continue;
+    if (finding.tool === "git") {
+      findings[index] = { ...finding, impact: "none" };
+    } else if (finding.tool === "cli_dist") {
+      findings[index] = {
+        ...finding,
+        impact: taskMissing && allCli && !cliPresent ? "degraded" : "none",
+      };
+    }
+  }
+
   const missingCritical = findings.filter((f) => {
     if (f.present || f.impact === "none") return false;
-    return f.tool === "task" || f.tool === "pnpm" || f.tool === "node";
+    return (
+      f.tool === "task" ||
+      f.tool === "node" ||
+      f.tool === "package_manager" ||
+      f.tool === packageManager
+    );
   });
 
   const skip = new Set<string>();
@@ -240,8 +321,8 @@ export function runToolchainPreflight(
     }
   } else if (taskMissing && allCli && !cliPresent) {
     skip.add(SKIP_ALL_GATES);
-  } else if (pnpmMissing) {
-    for (const id of PNPM_DEPENDENT_GATE_IDS) {
+  } else if (packageManagerMissing) {
+    for (const id of PACKAGE_MANAGER_DEPENDENT_GATE_IDS) {
       skip.add(id);
     }
   }
@@ -252,6 +333,16 @@ export function runToolchainPreflight(
 
   const lines: string[] = [];
   lines.push(`[deft preflight] toolchain status: ${status}`);
+  if (
+    consumerDeposit &&
+    packageManager !== null &&
+    packageManagerSource !== null &&
+    packageManagerSource !== "maintainer"
+  ) {
+    lines.push(
+      `[deft preflight] package manager: ${packageManager} (${packageManagerSourceLabel(packageManagerSource)})`,
+    );
+  }
   for (const finding of findings) {
     if (!finding.present) {
       lines.push(formatFindingLine(finding));
@@ -260,8 +351,8 @@ export function runToolchainPreflight(
   if (ok) {
     lines.push(
       taskMissing && allCli
-        ? "[deft preflight] done-gate toolchain ready (CLI dispatch; go-task not required) (#3335)"
-        : "[deft preflight] done-gate toolchain ready (task, pnpm, node)",
+        ? `[deft preflight] done-gate toolchain ready (CLI dispatch; go-task not required; package manager: ${packageManager}) (#3335)`
+        : `[deft preflight] done-gate toolchain ready (task, ${packageManager}, node)`,
     );
   } else {
     lines.push(
@@ -282,6 +373,8 @@ export function runToolchainPreflight(
     findings,
     lines,
     skipGateIds: [...skip].sort(),
+    packageManager,
+    packageManagerSource,
   };
 }
 
@@ -293,6 +386,8 @@ export function toolchainPreflightToDict(
     status: result.status,
     ok: result.ok,
     degraded: result.degraded,
+    package_manager: result.packageManager ?? null,
+    package_manager_source: result.packageManagerSource ?? null,
     findings: result.findings.map((f) => ({
       tool: f.tool,
       present: f.present,

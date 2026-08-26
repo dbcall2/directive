@@ -28,7 +28,7 @@ const GATE_REMEDIES: Readonly<Record<string, string>> = {
   "toolchain:check":
     "Install missing maintainer tools reported by the gate (go, uv, git, gh, node, pnpm)",
   "toolchain:check-consumer":
-    "Install missing consumer tools: go-task, git, gh, node, pnpm (corepack enable && corepack prepare pnpm@latest --activate)",
+    "Install the missing consumer tool reported by the gate; use npm from Node or enable pnpm with Corepack as declared by package.json",
   "ts:check-lane": "Fix lint/type/test failures; re-run task ts:check-lane",
   "vbrief:validate": "Fix xBRIEF/vBRIEF schema errors reported by the gate",
   "verify-strategy-output":
@@ -83,6 +83,16 @@ export function extractGateCause(
     useful.push(line);
   }
   const gateHint = gateId?.trim() ?? "";
+  if (gateHint === "toolchain:check" || gateHint === "toolchain:check-consumer") {
+    const toolFailure = useful.find((line) =>
+      /^(?:package manager|go|uv|git|gh|node|npm|pnpm|task): (?:NOT FOUND|FAILED|ERROR)\b/i.test(
+        line,
+      ),
+    );
+    if (toolFailure !== undefined) {
+      return sanitizeCauseLine(toolFailure);
+    }
+  }
   if (gateHint.length > 0) {
     const named = useful.find((line) => line.includes(gateHint));
     if (named !== undefined) {
@@ -129,13 +139,24 @@ export function remedyForGate(gateId: string, cause: string): string {
     return CLI_SPAWN_ERROR_REMEDY;
   }
   if (/task binary not found|cannot spawn go-task/i.test(cause)) {
-    if (gateId.startsWith("verify:") || gateId.startsWith("verify-") || gateId === "doctor") {
+    if (
+      gateId.startsWith("verify:") ||
+      gateId.startsWith("verify-") ||
+      gateId === "doctor" ||
+      gateId === "toolchain:check-consumer"
+    ) {
       return CLI_SPAWN_ERROR_REMEDY;
     }
     return SPAWN_ERROR_REMEDY;
   }
-  if (/pnpm binary not found|pnpm: NOT FOUND/i.test(cause)) {
+  if (/Unsupported DEFT_PACKAGE_MANAGER value/i.test(cause)) {
+    return "Set DEFT_PACKAGE_MANAGER to npm or pnpm, or unset it to use package.json; then re-run the consumer check";
+  }
+  if (/\bpnpm(?: binary not found|: (?:NOT FOUND|FAILED|ERROR))/i.test(cause)) {
     return "Enable pnpm: corepack enable && corepack prepare pnpm@latest --activate";
+  }
+  if (/\bnpm(?: binary not found|: (?:NOT FOUND|FAILED|ERROR))/i.test(cause)) {
+    return "Install or repair Node 20+ (npm is bundled), then re-run the consumer check";
   }
   return (
     GATE_REMEDIES[gateId] ??

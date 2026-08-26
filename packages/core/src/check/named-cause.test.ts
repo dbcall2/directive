@@ -32,14 +32,50 @@ describe("named-cause gate failures (#3282)", () => {
     expect(msg.remedy).not.toMatch(/go-task|taskfile\.dev/i);
   });
 
-  it("names missing task binary from spawn errors", () => {
+  it("does not tell a CLI-native consumer gate to install go-task", () => {
     const msg = formatNamedCauseFailure({
       gateId: "toolchain:check-consumer",
       exitCode: 1,
       spawnError: "spawn task ENOENT",
     });
     expect(msg.cause).toMatch(/task binary not found/i);
-    expect(msg.remedy).toMatch(/taskfile\.dev|go-task/i);
+    expect(msg.remedy).toMatch(/@deftai\/directive/i);
+    expect(msg.remedy).not.toMatch(/taskfile\.dev|go-task/i);
+  });
+
+  it("provides npm-specific remediation for an npm consumer failure", () => {
+    const msg = formatNamedCauseFailure({
+      gateId: "toolchain:check-consumer",
+      exitCode: 1,
+      stderr: "  npm: NOT FOUND\nMissing tools: npm\n",
+    });
+    expect(msg.cause).toMatch(/npm: NOT FOUND/i);
+    expect(msg.remedy).toMatch(/npm|Node/i);
+    expect(msg.remedy).not.toMatch(/pnpm|corepack|go-task/i);
+  });
+
+  it("does not mistake a pnpm failure for npm", () => {
+    const msg = formatNamedCauseFailure({
+      gateId: "toolchain:check-consumer",
+      exitCode: 1,
+      stderr: "  pnpm: NOT FOUND\nMissing tools: pnpm\n",
+    });
+    expect(msg.cause).toMatch(/^pnpm: NOT FOUND$/i);
+    expect(msg.remedy).toMatch(/pnpm|corepack/i);
+    expect(msg.remedy).not.toMatch(/npm is bundled/i);
+  });
+
+  it("repairs the winning environment override when package-manager selection fails", () => {
+    const msg = formatNamedCauseFailure({
+      gateId: "toolchain:check-consumer",
+      exitCode: 1,
+      stderr:
+        "  package manager: ERROR - Unsupported DEFT_PACKAGE_MANAGER value; supported managers are npm and pnpm.\n",
+    });
+    expect(msg.cause).toMatch(/Unsupported DEFT_PACKAGE_MANAGER value/i);
+    expect(msg.remedy).toMatch(/Set DEFT_PACKAGE_MANAGER.*npm.*pnpm/i);
+    expect(msg.remedy).toMatch(/unset.*package\.json/i);
+    expect(msg.remedy).not.toMatch(/Install the missing consumer tool/i);
   });
 
   it("does not treat bare exit as empty cause", () => {
