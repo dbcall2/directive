@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #3598",
-    "updated": "2026-08-26T17:44:35Z"
+    "updated": "2026-08-26T20:20:04Z"
   },
   "plan": {
     "title": "BLOCKER: bug(setup,render): greenfield export handoff regressed after #1502",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "BLOCKER: bug(setup,render): greenfield export handoff regressed after #1502",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/3598",
@@ -15,55 +15,133 @@
     "items": [
       {
         "title": "On an xBRIEF-only greenfield fixture with no `specification.xbrief.json`, every export choice presented by `deft-directive-setup` has defined, truthful behavior.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/cli/src/render-cli/render-surfaces-cli.test.ts — \"runs setup's exact export and PRD command shapes without manufacturing a spec artifact\" (merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       },
       {
         "title": "The setup-documented internal export command includes proposed scopes under `## Scope outlook`.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/spec-authority/spec-authority.test.ts — \"renders proposed-only outlook for internal audience when scope selection is omitted\" (merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       },
       {
         "title": "Greenfield PRD export succeeds from current authority, or setup no longer offers `PRD.md` for that state and clearly documents the supported replacement.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/cli/src/render-cli/render-surfaces-cli.test.ts — \"runs setup's exact export and PRD command shapes without manufacturing a spec artifact\" (prd-render --project-root exit 0 and PRD assertions; merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       },
       {
         "title": "Generated xBRIEF exports carry `<!-- Source of truth: xbrief/PROJECT-DEFINITION.xbrief.json -->`.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/spec-authority/spec-authority.test.ts — \"export banner names the resolved xBRIEF PROJECT-DEFINITION source\" (merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       },
       {
         "title": "No workaround creates or dual-writes `xbrief/specification.xbrief.json` solely to satisfy export.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/cli/src/render-cli/render-surfaces-cli.test.ts — \"runs setup's exact export and PRD command shapes without manufacturing a spec artifact\"; packages/core/src/content-contracts/skills/phase3_export_prompt.test.ts — \"greenfield_export_does_not_manufacture_specification_artifact\" (merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       },
       {
         "title": "Consumer-task integration coverage invokes the exact setup command lines and checks output content, provenance, and exit status.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/cli/src/render-cli/render-surfaces-cli.test.ts — \"runs setup's exact export and PRD command shapes without manufacturing a spec artifact\" (command exit codes, content, provenance, and no-dual-write assertions; merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       },
       {
         "title": "The cost skill accepts PROJECT-DEFINITION plus lifecycle scopes for greenfield authority without requiring or creating `specification.xbrief.json`.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/content-contracts/skills/cost_phase.test.ts — \"cost_skill_resolves_full_spec_or_greenfield_authority\" (merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       },
       {
         "title": "Setup routes Continue to build through the required cost decision phase before build.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/content-contracts/skills/cost_phase.test.ts — \"setup_handoff_routes_through_cost_before_build\"; packages/core/src/content-contracts/skills/interview_always_structured.test.ts — \"setup_phase3_to_cost_then_build_transition_structured\" (merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       },
       {
         "title": "Build recognizes a current PROJECT-DEFINITION-backed greenfield export while retaining the cost-decision gate.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/content-contracts/skills/cost_phase.test.ts — \"build_skill_accepts_project_definition_backed_generated_spec\" and \"build_skill_cost_phase_gate_section\"; packages/core/src/spec-authority/spec-authority.test.ts — \"isCurrentGeneratedSpecification is true for greenfield export banner\" (merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       },
       {
         "title": "An end-to-end consumer fixture covers setup through internal export, cost decision, and build preflight on an xBRIEF-only greenfield tree.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/cli/src/render-cli/render-surfaces-cli.test.ts — \"runs setup's exact export and PRD command shapes without manufacturing a spec artifact\"; packages/core/src/content-contracts/skills/cost_phase.test.ts — \"setup_handoff_routes_through_cost_before_build\", \"cost_skill_resolves_full_spec_or_greenfield_authority\", and \"build_skill_accepts_project_definition_backed_generated_spec\" (split executable/content contract required by the locked plan; merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       },
       {
         "title": "For internal exports, omitted scope selection includes proposed scopes only; explicit current or all includes the requested lifecycle buckets plus proposed; explicit off or no-scopes suppresses all scopes.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/spec-authority/spec-authority.test.ts — \"renders proposed-only outlook for internal audience when scope selection is omitted\", \"applies explicit $mode scope selection for $audience audience\", and \"treats explicit scope-off value %s as a hard override for internal audience\" (merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       },
       {
         "title": "Stakeholder exports and PRD output remain compact and contain no scope outlook.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/spec-authority/spec-authority.test.ts — \"keeps stakeholder omitted scope selection compact\" and \"exportSpec retains compact default for stakeholder audience (#1566)\"; packages/cli/src/render-cli/render-surfaces-cli.test.ts — greenfield PRD no-scope assertions in the exact-command fixture (merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       },
       {
         "title": "Full-spec authority and explicit --spec compatibility retain existing behavior.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/spec-authority/spec-authority.test.ts — \"recognizes full-spec state with matching banner\" and \"recognizes a source-derived banner from an explicit spec path\"; packages/cli/src/render-cli/render-surfaces-cli.test.ts — \"writes PRD.md from specification narratives via --spec path\" (merged tree 6a306d0392eb9abf948ad08dc06fe77dde91cf90)",
+          "recorded_at": "2026-08-26T20:16:44Z",
+          "recorded_by": "Codex/Aristotle (issue_3598_merge_ready)"
+        }
       }
     ],
     "references": [
@@ -135,7 +213,32 @@
         ],
         "module_boundary": "Shared spec authority and renderer/CLI behavior, plus canonical skills-pack content and generated skill projections.",
         "cohesion_exemption": "CHANGELOG.md and the canonical skills-pack JSON are intentionally single generated or release-history documents; this change makes localized entries and regenerates the four affected skill projections rather than splitting those artifacts."
-      }
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 3775,
+        "prBase": null,
+        "mergeCommit": "6a306d0392eb9abf948ad08dc06fe77dde91cf90",
+        "deliveryBranch": "master",
+        "deliveryCommit": "6a306d0392eb9abf948ad08dc06fe77dde91cf90",
+        "verifiedAt": "2026-08-26T20:20:04Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "d65b5c80-12fe-4090-99fe-8ab21f5cb07d"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-08-26T20:20:04Z"
+      },
+      "completedAt": "2026-08-26T20:20:04Z",
+      "completedSessionId": "d65b5c80-12fe-4090-99fe-8ab21f5cb07d",
+      "capacityBucket": "new-capability"
     },
     "acceptance": {
       "commands": [
@@ -239,6 +342,6 @@
       ],
       "ambiguity_attestation": "none_found"
     },
-    "updated": "2026-08-26T17:44:35Z"
+    "updated": "2026-08-26T20:20:04Z"
   }
 }
