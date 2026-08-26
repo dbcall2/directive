@@ -5,18 +5,22 @@
  * Core tests and CLI hook-dispatch tests import this module (shared corpus collapse).
  */
 
+import type {
+  ExactLifecycleVerb,
+  HookHostIdentityStatus,
+} from "../classify/host-session-identity.js";
 import type { ClassifyHookHost, HookWriteIntent } from "../classify/types.js";
 
 export type FixtureOs = "win32" | "posix";
 
-export type FixtureToolFamily = "Write" | "ApplyPatch" | "Task" | "StrReplace" | "other";
+export type FixtureToolFamily = "Write" | "ApplyPatch" | "Task" | "StrReplace" | "Shell" | "other";
 
 export interface HookFixtureCase {
   readonly id: string;
   readonly host: ClassifyHookHost;
   readonly os: FixtureOs;
   readonly tool: FixtureToolFamily;
-  /** Closed-issue tags for the regression class this case freezes. */
+  /** Issue/regression tags for the behavior class this case freezes. */
   readonly regression: readonly string[];
   /** Structured payload when the host sends JSON. */
   readonly payload?: unknown;
@@ -29,6 +33,19 @@ export interface HookFixtureCase {
     /** When raw is set: after parseHookStdin. */
     readonly stdinEmpty?: boolean;
     readonly parseFailed?: boolean;
+    /** Cooperative payload owner resolution expected for #3611 cases. */
+    readonly hostIdentity?: {
+      readonly status: HookHostIdentityStatus;
+      readonly sessionId: string | null;
+    };
+    /** Exact lifecycle classification/rewrite expected for #3611 shell cases. */
+    readonly lifecycle?: {
+      readonly verb: ExactLifecycleVerb | null;
+      readonly requestedSessionId: string;
+      readonly resultKind: "rewrite" | "conflict" | null;
+      readonly rewrittenCommand?: string;
+      readonly updatedInput?: Readonly<Record<string, unknown>>;
+    };
   };
   readonly notes?: string;
 }
@@ -564,6 +581,150 @@ export const HOOK_FIXTURE_CASES: readonly HookFixtureCase[] = [
       toolName: "StrReplace",
       writeIntent: "direct-write",
       writeTargetPath: "C:\\Repos\\proj\\src\\edit-me.ts",
+    },
+  },
+
+  // --- Cooperative host-session identity and exact lifecycle rewrite (#3611) ---
+  {
+    id: "codex-posix-shell-lifecycle-rewrite",
+    host: "codex",
+    os: "posix",
+    tool: "Shell",
+    regression: ["#3611"],
+    payload: {
+      tool_name: "Bash",
+      session_id: "session-a",
+      tool_input: {
+        command: "deft session:start --rearm",
+        description: "Re-arm the mutation session",
+      },
+    },
+    expected: {
+      toolName: "Bash",
+      writeIntent: "shell",
+      writeTargetPath: null,
+      hostIdentity: {
+        status: "ok",
+        sessionId: "host:codex:v1:c2Vzc2lvbi1h",
+      },
+      lifecycle: {
+        verb: "session:start",
+        requestedSessionId: "host:codex:v1:c2Vzc2lvbi1h",
+        resultKind: "rewrite",
+        rewrittenCommand: "deft session:start --rearm --session-id=host:codex:v1:c2Vzc2lvbi1h",
+        updatedInput: {
+          command: "deft session:start --rearm --session-id=host:codex:v1:c2Vzc2lvbi1h",
+          description: "Re-arm the mutation session",
+        },
+      },
+    },
+  },
+  {
+    id: "codex-posix-shell-lifecycle-owner-conflict",
+    host: "codex",
+    os: "posix",
+    tool: "Shell",
+    regression: ["#3611"],
+    payload: {
+      tool_name: "Bash",
+      session_id: "session-a",
+      tool_input: {
+        command: "deft session:start --session-id=host:codex:v1:b3RoZXI",
+      },
+    },
+    expected: {
+      toolName: "Bash",
+      writeIntent: "shell",
+      writeTargetPath: null,
+      hostIdentity: {
+        status: "ok",
+        sessionId: "host:codex:v1:c2Vzc2lvbi1h",
+      },
+      lifecycle: {
+        verb: "session:start",
+        requestedSessionId: "host:codex:v1:c2Vzc2lvbi1h",
+        resultKind: "conflict",
+      },
+    },
+  },
+  {
+    id: "codex-posix-shell-lifecycle-ambiguous",
+    host: "codex",
+    os: "posix",
+    tool: "Shell",
+    regression: ["#3611"],
+    payload: {
+      tool_name: "Bash",
+      session_id: "session-a",
+      tool_input: { command: "deft session:start && echo unsafe" },
+    },
+    expected: {
+      toolName: "Bash",
+      writeIntent: "shell",
+      writeTargetPath: null,
+      hostIdentity: {
+        status: "ok",
+        sessionId: "host:codex:v1:c2Vzc2lvbi1h",
+      },
+      lifecycle: {
+        verb: null,
+        requestedSessionId: "host:codex:v1:c2Vzc2lvbi1h",
+        resultKind: null,
+      },
+    },
+  },
+  {
+    id: "cursor-posix-shell-identity-conflict",
+    host: "cursor",
+    os: "posix",
+    tool: "Shell",
+    regression: ["#3611"],
+    payload: {
+      tool_name: "Shell",
+      conversation_id: "conversation-a",
+      session_id: "conversation-b",
+      tool_input: { command: "task session:ready" },
+    },
+    expected: {
+      toolName: "Shell",
+      writeIntent: "shell",
+      writeTargetPath: null,
+      hostIdentity: { status: "conflict", sessionId: null },
+    },
+  },
+  {
+    id: "claude-posix-shell-identity-missing",
+    host: "claude",
+    os: "posix",
+    tool: "Shell",
+    regression: ["#3611"],
+    payload: {
+      tool_name: "Bash",
+      tool_input: { command: "deft occupancy:release" },
+    },
+    expected: {
+      toolName: "Bash",
+      writeIntent: "shell",
+      writeTargetPath: null,
+      hostIdentity: { status: "missing", sessionId: null },
+    },
+  },
+  {
+    id: "claude-posix-shell-identity-malformed",
+    host: "claude",
+    os: "posix",
+    tool: "Shell",
+    regression: ["#3611"],
+    payload: {
+      tool_name: "Bash",
+      session_id: " malformed ",
+      tool_input: { command: "deft occupancy:release" },
+    },
+    expected: {
+      toolName: "Bash",
+      writeIntent: "shell",
+      writeTargetPath: null,
+      hostIdentity: { status: "invalid", sessionId: null },
     },
   },
 

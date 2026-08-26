@@ -2,7 +2,7 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #3611",
-    "updated": "2026-08-26T12:24:56Z"
+    "updated": "2026-08-26T13:35:47Z"
   },
   "plan": {
     "title": "BLOCKER: bug(codex): occupancy lease self-denies direct writes after session:start",
@@ -15,7 +15,8 @@
       "LockedDecision": "Use a versioned host-payload session/conversation identity as the normal occupancy actor. Require that identity, the live lease owner, and the owner from the exact ritual state evaluated by gated verification agree while occupancy is active. Ritual state validates readiness and alignment but never supplies actor identity to an otherwise unpinned write. This is cooperative host-session routing, not same-user authentication.",
       "ImplementationPlan": "1. Add strict provider-neutral host identity extraction and canonical host:<provider>:v1:<base64url> encoding. 2. Rewrite only exact canonical lifecycle shell commands with an explicit --session-id while preserving independent denials. 3. Return the verified ritual owner internally from the exact evaluated state and align host, lease, and ritual without a second read. 4. Resolve identity once through session:start, session:ready, rearm, release/end, steal, and swarm:launch. 5. Fix the session:start --steal double mutation and provide deterministic legacy-lease recovery. 6. Add host-shaped unit fixtures plus a real child-process claim/write regression matrix. 7. Update operator-facing remediation, help, deposited rules, and release notes.",
       "Risks": "PreToolUse input rewriting requires an allow decision on supported hosts and can bypass a permission prompt if applied too broadly. Limit rewriting to exact simple lifecycle commands and prove unrelated policy denials still win. The lease and ritual files cannot be rekeyed transactionally; intermediate mismatch must deny and rerun safely. Cursor subagent identity and Grok payload support are not assumed without verified host contracts.",
-      "OutOfScope": "Heartbeat renewal (#3599), never-claimed session gating (#3729), missing or drifted hooks (#3742), lifecycle composition (#3754), spawn occupancy bypass (#3755), security-grade same-user authentication, occupancy schema migration, and lease-TTL changes."
+      "OutOfScope": "Heartbeat renewal (#3599), never-claimed session gating (#3729), missing or drifted hooks (#3742), lifecycle composition (#3754), spawn occupancy bypass (#3755), security-grade same-user authentication, occupancy schema migration, and lease-TTL changes.",
+      "Decisions": "- xbrief/decisions/2026-08-26-use-canonical-host-payload-identity-as-the-occupancy-actor-and-r.decision.json — Use canonical host-payload identity as the occupancy actor and require exact host, lease, and verified ritual alignment"
     },
     "items": [
       {
@@ -113,77 +114,77 @@
       "clauses": [
         {
           "id": 1,
-          "text": "A standard host-mediated mutation ceremony claims the lease and writes ritual state with the same canonical host session ID without relying on inherited `DEFT_SESSION_ID`.",
-          "artifact_path": null,
+          "text": "A standard host-mediated mutation ceremony claims the lease and writes ritual state with the same canonical host session ID without relying on inherited `DEFT_SESSION_ID`. Regression evidence exists in the bound test artifact.",
+          "artifact_path": "packages/cli/src/hook-host-identity-lifetime.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 2,
-          "text": "A later direct-write hook from the same host session is allowed with no environment ID.",
-          "artifact_path": null,
+          "text": "A later direct-write hook from the same host session is allowed with no environment ID. Regression evidence exists in the bound test artifact.",
+          "artifact_path": "packages/cli/src/hook-host-identity-lifetime.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 3,
-          "text": "A different concurrent host conversation is denied even when both can read the same worktree ritual state.",
-          "artifact_path": null,
+          "text": "A different concurrent host conversation is denied even when both can read the same worktree ritual state. Regression evidence exists in the bound test artifact.",
+          "artifact_path": "packages/core/src/hooks/dispatcher.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 4,
-          "text": "Missing, malformed, or conflicting payload identity fails closed when a live lease exists.",
-          "artifact_path": null,
+          "text": "Missing, malformed, or conflicting payload identity fails closed when a live lease exists. Regression evidence exists in the bound test artifact.",
+          "artifact_path": "packages/core/src/hooks/dispatcher.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 5,
-          "text": "The exact verified ritual owner, live lease owner, and canonical host owner must agree. A mismatch never allows a write.",
-          "artifact_path": null,
+          "text": "The exact verified ritual owner, live lease owner, and canonical host owner must agree. A mismatch never allows a write. Regression evidence exists in the bound test artifact.",
+          "artifact_path": "packages/core/src/hooks/dispatcher.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 6,
-          "text": "No persisted host-to-lease map, credential artifact, occupancy-derived caller identity, or schema migration is introduced.",
-          "artifact_path": null,
+          "text": "No persisted host-to-lease map, credential artifact, occupancy-derived caller identity, or schema migration is introduced. Regression evidence exists in the bound test artifact.",
+          "artifact_path": "packages/cli/src/hook-host-identity-lifetime.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 7,
-          "text": "Rearm, ready, release/end, confirmed steal, and swarm launch carry one resolved identity through their complete state machines.",
-          "artifact_path": null,
+          "text": "Rearm, ready, release/end, confirmed steal, and swarm launch carry one resolved identity through their complete state machines. Regression evidence exists in the bound test artifact.",
+          "artifact_path": "packages/cli/src/hook-host-identity-lifetime.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 8,
-          "text": "Confirmed `session:start --steal` steals once and establishes matching lease and ritual state. Bare steal reports explicit mismatch recovery.",
-          "artifact_path": null,
+          "text": "Confirmed `session:start --steal` steals once and establishes matching lease and ritual state. Bare steal reports explicit mismatch recovery. Regression evidence exists in the bound test artifact.",
+          "artifact_path": "packages/core/src/session/session-start-rearm.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 9,
-          "text": "Real child-process tests cover claim and later hook lifetimes with host-shaped payloads and parse the rendered verdict.",
-          "artifact_path": null,
+          "text": "Real child-process tests cover claim and later hook lifetimes with host-shaped payloads and parse the rendered verdict. Regression evidence exists in the bound test artifact.",
+          "artifact_path": "packages/cli/src/hook-host-identity-lifetime.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 10,
-          "text": "Existing expiry, locking/fencing, read-only, scope, runtime, assist-scratch, and separately tracked spawn behavior is preserved.",
-          "artifact_path": null,
+          "text": "Existing expiry, locking/fencing, read-only, scope, runtime, assist-scratch, and separately tracked spawn behavior is preserved. Regression evidence exists in the bound test artifact.",
+          "artifact_path": "packages/core/src/hooks/dispatcher.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         }
       ],
       "ambiguity_attestation": "none_found"
     },
-    "updated": "2026-08-26T12:24:56Z"
+    "updated": "2026-08-26T13:35:47Z"
   }
 }

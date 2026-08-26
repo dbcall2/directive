@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -66,6 +66,8 @@ function readySeams(overrides: Partial<HookPolicySeams> = {}): HookPolicySeams {
     ...(overrides.inspectRitual ? {} : { verifyRitual: () => READY_RITUAL }),
     inspectScope: () => READY_SCOPE,
     sessionStart: () => ({ code: 0, stdout: "", stderr: "" }),
+    runningInsideDeftRepo: () => true,
+    realpathLifecycleExecutionRoot: (path) => resolve(path),
     ...overrides,
   };
 }
@@ -171,6 +173,211 @@ describe("direct-write hook policy", () => {
     );
     expect(decision).toMatchObject({ verdict: "deny", code: "occupancy-occupied" });
     expect(decision.message).toContain("Also ritual-not-ready");
+  });
+
+  it("allows a payload-bound Codex owner when host, lease, and exact ritual state agree (#3611)", () => {
+    const root = mkdtempSync(join(tmpdir(), "hook-host-owner-"));
+    hookTemps.push(root);
+    const sessionId = "host:codex:v1:c2Vzc2lvbi1h";
+    applyWorktreeOccupancy(root, { sessionId });
+
+    const decision = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot: root,
+        payload: {
+          tool_name: "apply_patch",
+          session_id: "session-a",
+          tool_input: { file_path: join(root, "src", "app.ts") },
+        },
+        environ: {},
+      },
+      readySeams({
+        verifyRitual: () => ({ ...READY_RITUAL, boundSessionId: sessionId }),
+      }),
+    );
+
+    expect(decision).toMatchObject({ verdict: "allow", code: "write-ready" });
+  });
+
+  it("denies missing or conflicting host identity while a lease is live (#3611)", () => {
+    const root = mkdtempSync(join(tmpdir(), "hook-host-missing-"));
+    hookTemps.push(root);
+    const sessionId = "host:codex:v1:c2Vzc2lvbi1h";
+    applyWorktreeOccupancy(root, { sessionId });
+    const seams = readySeams({
+      verifyRitual: () => ({ ...READY_RITUAL, boundSessionId: sessionId }),
+    });
+    const base = {
+      host: "codex" as const,
+      event: "tool.before" as const,
+      projectRoot: root,
+      payload: {
+        tool_name: "apply_patch",
+        tool_input: { file_path: join(root, "src", "app.ts") },
+      },
+    };
+
+    expect(decideHook({ ...base, environ: {} }, seams)).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-unavailable",
+    });
+    expect(
+      decideHook(
+        {
+          ...base,
+          payload: { ...base.payload, session_id: "session-a" },
+          environ: { DEFT_SESSION_ID: "host:codex:v1:Zm9yZWlnbg" },
+        },
+        seams,
+      ),
+    ).toMatchObject({ verdict: "deny", code: "occupancy-identity-conflict" });
+    expect(
+      decideHook(
+        {
+          ...base,
+          payload: { ...base.payload, session_id: "session-b" },
+          environ: {},
+        },
+        seams,
+      ),
+    ).toMatchObject({ verdict: "deny", code: "occupancy-occupied" });
+  });
+
+  it("denies a verified ritual owner mismatch even when payload and lease agree (#3611)", () => {
+    const root = mkdtempSync(join(tmpdir(), "hook-host-ritual-mismatch-"));
+    hookTemps.push(root);
+    const sessionId = "host:claude:v1:c2Vzc2lvbi1h";
+    applyWorktreeOccupancy(root, { sessionId });
+
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: root,
+        payload: {
+          tool_name: "Write",
+          session_id: "session-a",
+          tool_input: { file_path: join(root, "src", "app.ts") },
+        },
+        environ: {},
+      },
+      readySeams({
+        verifyRitual: () => ({
+          ...READY_RITUAL,
+          boundSessionId: "host:claude:v1:c2Vzc2lvbi1i",
+        }),
+      }),
+    );
+
+    expect(decision).toMatchObject({ verdict: "deny", code: "occupancy-ritual-mismatch" });
+  });
+
+  it("reports ritual-not-ready for a stale matching owner instead of occupancy denial (#3611)", () => {
+    const root = mkdtempSync(join(tmpdir(), "hook-host-stale-"));
+    hookTemps.push(root);
+    const sessionId = "host:cursor:v1:Y29udmVyc2F0aW9uLWE";
+    applyWorktreeOccupancy(root, { sessionId });
+
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: root,
+        payload: {
+          tool_name: "Write",
+          conversation_id: "conversation-a",
+          tool_input: { file_path: join(root, "src", "app.ts") },
+        },
+        environ: {},
+      },
+      readySeams({
+        verifyRitual: () => ({
+          ...READY_RITUAL,
+          code: 1,
+          message: "ritual state is stale",
+          recoveryTier: "rearm",
+          boundSessionId: sessionId,
+        }),
+      }),
+    );
+
+    expect(decision).toMatchObject({ verdict: "deny", code: "ritual-not-ready" });
+  });
+
+  it("denies the old hook when ownership changes after its exact ritual state was evaluated (#3611)", () => {
+    const root = mkdtempSync(join(tmpdir(), "hook-host-owner-race-"));
+    hookTemps.push(root);
+    const ownerA = "host:codex:v1:c2Vzc2lvbi1h";
+    const ownerB = "host:codex:v1:c2Vzc2lvbi1i";
+    applyWorktreeOccupancy(root, { sessionId: ownerA });
+
+    const decision = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot: root,
+        payload: {
+          tool_name: "apply_patch",
+          session_id: "session-a",
+          tool_input: { file_path: join(root, "src", "app.ts") },
+        },
+        environ: {},
+      },
+      readySeams({
+        verifyRitual: () => {
+          const changed = applyWorktreeOccupancy(root, {
+            sessionId: ownerB,
+            steal: true,
+            confirm: true,
+            occupant: ownerA,
+          });
+          expect(changed.code).toBe(0);
+          return { ...READY_RITUAL, boundSessionId: ownerA };
+        },
+      }),
+    );
+
+    expect(decision).toMatchObject({ verdict: "deny", code: "occupancy-occupied" });
+  });
+
+  it("rechecks occupancy after scope/authz work before allowing the old owner (#3611)", () => {
+    const root = mkdtempSync(join(tmpdir(), "hook-host-final-owner-race-"));
+    hookTemps.push(root);
+    const ownerA = "host:codex:v1:c2Vzc2lvbi1h";
+    const ownerB = "host:codex:v1:c2Vzc2lvbi1i";
+    applyWorktreeOccupancy(root, { sessionId: ownerA });
+
+    const decision = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot: root,
+        payload: {
+          tool_name: "apply_patch",
+          session_id: "session-a",
+          tool_input: { file_path: join(root, "src", "app.ts") },
+        },
+        environ: {},
+      },
+      readySeams({
+        verifyRitual: () => ({ ...READY_RITUAL, boundSessionId: ownerA }),
+        inspectScope: () => {
+          const changed = applyWorktreeOccupancy(root, {
+            sessionId: ownerB,
+            steal: true,
+            confirm: true,
+            occupant: ownerA,
+          });
+          expect(changed.code).toBe(0);
+          return { ready: true, path: "xbrief/active/story.xbrief.json", message: "ready" };
+        },
+      }),
+    );
+
+    expect(decision).toMatchObject({ verdict: "deny", code: "occupancy-occupied" });
+    expect(decision.message).toContain("occupancy changed while mutation gates were running");
   });
 
   it("refreshes hook readiness at every mutation dispatch", () => {
@@ -2110,6 +2317,493 @@ describe("provider codecs", () => {
     expect(renderHostDecision("claude", allow)).toBe("");
     expect(renderHostDecision("grok", allow)).toBe("");
     expect(renderHostDecision("codex", allow)).toBe("");
+  });
+
+  it("rewrites an exact Codex lifecycle command and renders the required allow shape (#3611)", () => {
+    const decision = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Shell",
+          session_id: "session-a",
+          tool_input: { command: "deft session:start --rearm", timeout_ms: 10_000 },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+
+    expect(decision).toMatchObject({
+      verdict: "allow",
+      updatedInput: {
+        command: "deft session:start --rearm --session-id=host:codex:v1:c2Vzc2lvbi1h",
+        timeout_ms: 10_000,
+      },
+    });
+    expect(JSON.parse(renderHostDecision("codex", decision))).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "allow",
+        updatedInput: decision.updatedInput,
+      },
+    });
+  });
+
+  it("renders Cursor lifecycle rewrites with updated_input while preserving tool fields (#3611)", () => {
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Shell",
+          conversation_id: "conversation-a",
+          tool_input: { command: "task session:ready -- --json", timeout: 30 },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+
+    expect(decision.updatedInput).toMatchObject({
+      command: "task session:ready -- --json --session-id=host:cursor:v1:Y29udmVyc2F0aW9uLWE",
+      timeout: 30,
+    });
+    expect(JSON.parse(renderHostDecision("cursor", decision))).toEqual({
+      permission: "allow",
+      code: decision.code,
+      updated_input: decision.updatedInput,
+    });
+  });
+
+  it("fails closed when an exact supported-host lifecycle command cannot be payload-bound (#3611)", () => {
+    const missing = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Shell",
+          tool_input: { command: "deft session:start --rearm" },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(missing).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-unavailable",
+    });
+
+    const manual = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Shell",
+          tool_input: { command: "deft session:start --session-id=manual-owner" },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(manual).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-unavailable",
+    });
+
+    const grokManual = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Shell",
+          tool_input: { command: "deft session:start --session-id=manual-owner" },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(grokManual.verdict).toBe("allow");
+    expect(grokManual.updatedInput).toBeUndefined();
+  });
+
+  it("does not require host identity for non-claiming read-only session alignment (#3611)", () => {
+    const decision = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Shell",
+          tool_input: { command: "deft session:start --read-only" },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision.verdict).toBe("allow");
+    expect(decision.updatedInput).toBeUndefined();
+    expect(renderHostDecision("codex", decision)).toBe("");
+
+    const swallowed = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Shell",
+          tool_input: { command: "deft session:start --occupant --read-only" },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(swallowed).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-unavailable",
+    });
+  });
+
+  it("denies ambiguous lifecycle args and ambient conflict even when no rewrite is needed (#3611)", () => {
+    const invalid = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: { command: "deft session:start --session-id=" },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(invalid).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-conflict",
+    });
+
+    const conflict = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Shell",
+          session_id: "session-a",
+          tool_input: {
+            command: "deft session:start --session-id=host:codex:v1:c2Vzc2lvbi1h",
+          },
+        },
+        environ: { DEFT_SESSION_ID: "host:codex:v1:Zm9yZWln" },
+      },
+      readySeams(),
+    );
+    expect(conflict).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-conflict",
+    });
+  });
+
+  it("does not rewrite a compound lifecycle command or bypass an independent push denial (#3611)", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: { command: "deft session:start && git push origin main" },
+        },
+        environ: {},
+      },
+      readySeams({
+        loadRuntimeAuthority: () => ({
+          ...DEFAULT_RUNTIME_AUTHORITY_POLICY,
+          enabled: true,
+          scopes: { edits: true, push: false, merge: false },
+        }),
+      }),
+    );
+
+    expect(decision.verdict).toBe("deny");
+    expect(decision.updatedInput).toBeUndefined();
+    expect(JSON.parse(renderHostDecision("claude", decision))).toMatchObject({
+      hookSpecificOutput: { permissionDecision: "deny" },
+    });
+  });
+
+  it.each([
+    "deft session:start --project-root /tmp/other",
+    String.raw`deft session:start --project-root C:\repo`,
+    "deft swarm-launch --stories 3611 --output /tmp/auto-approved-write.json",
+    "deft swarm-launch --stories 3611 --gate-clearances /tmp/clearances.json",
+    "deft swarm-launch --paths xbrief/active/story.xbrief.json",
+    "deft swarm-launch --stories 3611 --no-audit",
+    "deft swarm-launch --stories 3611 --unknown-future-flag value",
+    String.raw`deft swarm-launch --stories xbrief\active\story.xbrief.json`,
+  ])("requires an explicit owner for non-rewrite lifecycle args: %s", (command) => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: { command },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+
+    expect(decision).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-unavailable",
+    });
+    expect(decision.updatedInput).toBeUndefined();
+    expect(decision.message).toContain("--session-id=host:claude:v1:c2Vzc2lvbi1h");
+    expect(JSON.parse(renderHostDecision("claude", decision))).toMatchObject({
+      hookSpecificOutput: { permissionDecision: "deny" },
+    });
+  });
+
+  it("keeps non-rewrite lifecycle args under normal permission once the explicit owner matches", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: {
+            command:
+              "deft swarm-launch --paths xbrief/active/story.xbrief.json " +
+              "--session-id=host:claude:v1:c2Vzc2lvbi1h",
+          },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+
+    expect(decision.verdict).toBe("allow");
+    expect(decision.updatedInput).toBeUndefined();
+    expect(renderHostDecision("claude", decision)).toBe("");
+  });
+
+  it("never auto-rewrites Task lifecycle aliases outside the Directive source repo", () => {
+    const base = {
+      host: "codex" as const,
+      event: "tool.before" as const,
+      projectRoot: "/consumer",
+      payload: {
+        tool_name: "Shell",
+        session_id: "session-a",
+        tool_input: { command: "task session:ready" },
+      },
+      environ: {},
+    };
+    expect(decideHook(base, readySeams({ runningInsideDeftRepo: () => false }))).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-unavailable",
+    });
+
+    const explicit = decideHook(
+      {
+        ...base,
+        payload: {
+          ...base.payload,
+          tool_input: {
+            command: "task session:ready -- --session-id=host:codex:v1:c2Vzc2lvbi1h",
+          },
+        },
+      },
+      readySeams({ runningInsideDeftRepo: () => false }),
+    );
+    expect(explicit.verdict).toBe("allow");
+    expect(explicit.updatedInput).toBeUndefined();
+  });
+
+  it.each([
+    ["nested cwd", {}, { cwd: "/other" }],
+    ["nested workdir", {}, { workdir: "subdir" }],
+    ["nested working_directory", {}, { working_directory: "/other" }],
+    ["top-level cwd", { cwd: "/other" }, {}],
+  ])("fails closed when lifecycle execution root differs via %s", (_label, top, nested) => {
+    const decision = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Shell",
+          session_id: "session-a",
+          ...top,
+          tool_input: { command: "deft session:start", ...nested },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-conflict",
+    });
+    expect(decision.updatedInput).toBeUndefined();
+    expect(decision.message).toContain("execution-directory field");
+  });
+
+  it("allows an explicitly project-root-aligned cwd and preserves it in the rewrite", () => {
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Shell",
+          conversation_id: "conversation-a",
+          tool_input: { command: "deft session:ready", cwd: "/project" },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({
+      verdict: "allow",
+      updatedInput: {
+        command: "deft session:ready --session-id=host:cursor:v1:Y29udmVyc2F0aW9uLWE",
+        cwd: "/project",
+      },
+    });
+  });
+
+  it("ignores Cursor's Windows drive-only cwd when the hook project root is concrete", () => {
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Shell",
+          conversation_id: "conversation-a",
+          cwd: "C:",
+          tool_input: { command: "deft session:ready" },
+        },
+        environ: {},
+      },
+      readySeams({ lifecycleExecutionPlatform: "win32" }),
+    );
+    expect(decision).toMatchObject({
+      verdict: "allow",
+      updatedInput: {
+        command: "deft session:ready --session-id=host:cursor:v1:Y29udmVyc2F0aW9uLWE",
+      },
+    });
+  });
+
+  it("does not ignore a drive-shaped relative cwd on POSIX", () => {
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Shell",
+          conversation_id: "conversation-a",
+          cwd: "C:",
+          tool_input: { command: "deft session:ready" },
+        },
+        environ: {},
+      },
+      readySeams({ lifecycleExecutionPlatform: "linux" }),
+    );
+    expect(decision).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-conflict",
+    });
+    expect(decision.updatedInput).toBeUndefined();
+  });
+
+  it("cannot use a foreign cwd to bypass the source-repo Task restriction", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: { command: "task session:start", workingDirectory: "/consumer" },
+        },
+        environ: {},
+      },
+      readySeams({ runningInsideDeftRepo: () => true }),
+    );
+    expect(decision).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-conflict",
+    });
+    expect(decision.updatedInput).toBeUndefined();
+  });
+
+  itSymlink("realpath-binds lifecycle cwd before granting an updated-input allow", () => {
+    const projectRoot = mkdtempSync(join(tmpdir(), "hook-lifecycle-cwd-project-"));
+    const foreignRoot = mkdtempSync(join(tmpdir(), "hook-lifecycle-cwd-foreign-"));
+    hookTemps.push(projectRoot, foreignRoot);
+    mkdirSync(join(foreignRoot, "subdir"), { recursive: true });
+    symlinkSync(join(foreignRoot, "subdir"), join(projectRoot, "link"), "dir");
+
+    const decision = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot,
+        payload: {
+          tool_name: "Shell",
+          session_id: "session-a",
+          tool_input: { command: "deft session:start", cwd: "link/.." },
+        },
+        environ: {},
+      },
+      readySeams({ realpathLifecycleExecutionRoot: realpathSync }),
+    );
+
+    expect(decision).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-conflict",
+    });
+    expect(decision.updatedInput).toBeUndefined();
+    expect(decision.message).toContain("parent traversal");
+
+    const directSymlink = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot,
+        payload: {
+          tool_name: "Shell",
+          session_id: "session-a",
+          tool_input: { command: "deft session:start", cwd: "link" },
+        },
+        environ: {},
+      },
+      readySeams({ realpathLifecycleExecutionRoot: realpathSync }),
+    );
+    expect(directSymlink).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-conflict",
+    });
+    expect(directSymlink.message).toContain(realpathSync(join(foreignRoot, "subdir")));
   });
 
   it("injects soft AGENTS re-bind on SessionStart for Claude/Codex/Grok/Cursor (#3171)", () => {

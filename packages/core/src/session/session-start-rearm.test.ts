@@ -1,10 +1,16 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { decideHook } from "../hooks/dispatcher.js";
 import type { EnvironmentContext } from "../platform/shell-context.js";
 import type { GitRunResult } from "./git.js";
+import {
+  type ApplyOccupancyInput,
+  applyWorktreeOccupancy,
+  type OccupancyDecision,
+  readOccupancy,
+} from "./occupancy.js";
 import {
   markRitualStaleAfterCompact,
   newRitualStatePayload,
@@ -198,6 +204,156 @@ describe("session re-arm vs cold ceremony tiers (#2992)", () => {
       runGit: fakeGit(root, { head }),
     });
     expect(inspect.code).toBe(0);
+  });
+
+  it("resolves one explicit identity for occupancy preview, persistence, and ritual (#3611)", () => {
+    const root = tempRoot();
+    const head = "abababababababababababababababababababab";
+    const started = new Date("2026-07-20T12:00:00Z");
+    const rearmAt = new Date("2026-07-20T12:30:00Z");
+    const sessionId = "host:codex:v1:c2Vzc2lvbg";
+    seedRitual(root, { head, startedAt: started });
+
+    const minted = vi
+      .fn<() => string>()
+      .mockReturnValueOnce("unexpected-preview-id")
+      .mockReturnValueOnce("unexpected-persist-id");
+    const occupancyInputs: ApplyOccupancyInput[] = [];
+    const applyOccupancy = vi.fn(
+      (_projectRoot: string, input: ApplyOccupancyInput): OccupancyDecision => {
+        occupancyInputs.push(input);
+        const resolved = input.sessionId ?? input.newSessionId?.() ?? "missing-session-id";
+        return {
+          action: input.write === false ? "claimed" : "heartbeat",
+          sessionId: resolved,
+          record: null,
+          path: join(root, ".deft", "occupancy.json"),
+          message: `occupancy ${input.write === false ? "preview" : "persist"} ${resolved}`,
+          code: 0,
+        };
+      },
+    );
+
+    const result = runSessionStart(root, {
+      ceremonyTier: REARM_CEREMONY_TIER,
+      now: rearmAt,
+      writeHistory: false,
+      runGit: fakeGit(root, { head }),
+      resolveUserMd: () => ({
+        path: join(root, "USER.md"),
+        rung: "workspace-local",
+        found: true,
+        diagnostic: "ok",
+        searched: [],
+      }),
+      probeEnvironment: () => environment,
+      sessionId,
+      newSessionId: minted,
+      applyOccupancy,
+    });
+
+    expect(result.code).toBe(0);
+    expect(minted).not.toHaveBeenCalled();
+    expect(occupancyInputs).toHaveLength(2);
+    expect(occupancyInputs.map((input) => input.sessionId)).toEqual([sessionId, sessionId]);
+    expect(occupancyInputs.map((input) => input.write)).toEqual([false, true]);
+    expect((result.payload.occupancy as { session_id: string }).session_id).toBe(sessionId);
+    expect(readRitualState(root)[0]?.sessionId).toBe(sessionId);
+  });
+
+  it("previews a confirmed steal without mutation, then steals once with the resolved ID (#3611)", () => {
+    const root = tempRoot();
+    const head = "bcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbc";
+    const started = new Date("2026-07-20T12:00:00Z");
+    const rearmAt = new Date("2026-07-20T12:30:00Z");
+    const legacySessionId = "legacy-session";
+    const sessionId = "host:claude:v1:c2Vzc2lvbg";
+    seedRitual(root, { head, startedAt: started });
+    expect(
+      applyWorktreeOccupancy(root, {
+        sessionId: legacySessionId,
+        now: new Date("2026-07-20T12:29:00Z"),
+      }).code,
+    ).toBe(0);
+
+    const ownersAfterApply: Array<string | null> = [];
+    const applyOccupancy = vi.fn(
+      (projectRoot: string, input: ApplyOccupancyInput): OccupancyDecision => {
+        const decision = applyWorktreeOccupancy(projectRoot, input);
+        ownersAfterApply.push(readOccupancy(projectRoot)?.sessionId ?? null);
+        return decision;
+      },
+    );
+
+    const result = runSessionStart(root, {
+      ceremonyTier: REARM_CEREMONY_TIER,
+      now: rearmAt,
+      writeHistory: false,
+      runGit: fakeGit(root, { head }),
+      resolveUserMd: () => ({
+        path: join(root, "USER.md"),
+        rung: "workspace-local",
+        found: true,
+        diagnostic: "ok",
+        searched: [],
+      }),
+      probeEnvironment: () => environment,
+      sessionId,
+      steal: true,
+      confirm: true,
+      occupant: legacySessionId,
+      applyOccupancy,
+    });
+
+    expect(result.code).toBe(0);
+    expect(applyOccupancy).toHaveBeenCalledTimes(2);
+    expect(applyOccupancy.mock.calls.map(([, input]) => input.write)).toEqual([false, true]);
+    expect(ownersAfterApply).toEqual([legacySessionId, sessionId]);
+    expect(readOccupancy(root)?.sessionId).toBe(sessionId);
+    expect(readRitualState(root)[0]?.sessionId).toBe(sessionId);
+  });
+
+  it("reports deterministic same-owner recovery when ritual persistence fails after steal (#3611)", () => {
+    const root = tempRoot();
+    const head = "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd";
+    const now = new Date("2026-07-20T12:30:00Z");
+    const legacySessionId = "legacy-session";
+    const sessionId = "host:claude:v1:cmVjb3Zlcnk";
+    seedRitual(root, {
+      head,
+      startedAt: new Date("2026-07-20T12:00:00Z"),
+    });
+    applyWorktreeOccupancy(root, {
+      sessionId: legacySessionId,
+      now: new Date("2026-07-20T12:29:00Z"),
+    });
+
+    expect(() =>
+      runSessionStart(root, {
+        ceremonyTier: REARM_CEREMONY_TIER,
+        now,
+        writeHistory: false,
+        runGit: fakeGit(root, { head }),
+        resolveUserMd: () => ({
+          path: join(root, "USER.md"),
+          rung: "workspace-local",
+          found: true,
+          diagnostic: "ok",
+          searched: [],
+        }),
+        probeEnvironment: () => environment,
+        sessionId,
+        steal: true,
+        confirm: true,
+        occupant: legacySessionId,
+        writeRitualState: () => {
+          throw new Error("injected ritual write failure");
+        },
+      }),
+    ).toThrow(/rearm --session-id=<same-session-id>.*otherwise.*cold ceremony/i);
+
+    expect(readOccupancy(root)?.sessionId).toBe(sessionId);
+    expect(readRitualState(root)[0]?.sessionId).toBe("seed-session");
   });
 
   it("re-arm refuses when ritual state is missing (cold required)", () => {

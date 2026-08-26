@@ -7,6 +7,23 @@
 
 export { classifyHookPayload } from "./classify.js";
 export {
+  EXACT_LIFECYCLE_VERBS,
+  type ExactLifecycleCommandConflict,
+  type ExactLifecycleCommandInspection,
+  type ExactLifecycleCommandResult,
+  type ExactLifecycleCommandRewrite,
+  type ExactLifecycleVerb,
+  exactLifecycleCommandVerb,
+  HOST_IDENTITY_PROVIDERS,
+  type HookHostIdentityProvider,
+  type HookHostIdentityResolution,
+  type HookHostIdentityStatus,
+  inspectExactLifecycleCommand,
+  MAX_HOOK_HOST_IDENTITY_UTF8_BYTES,
+  resolveHookHostIdentity,
+  rewriteExactLifecycleCommand,
+} from "./host-session-identity.js";
+export {
   hookMcpArgsText,
   hookPathSet,
   hookShellCommand,

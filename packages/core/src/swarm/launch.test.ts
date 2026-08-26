@@ -559,6 +559,26 @@ describe("swarmLaunch occupancy-before-create (#3649)", () => {
     expect(readOccupancy(project)).toBeNull();
   });
 
+  it("releases a newly claimed lease when the requested output write fails", () => {
+    const project = launchProject();
+    const outputDirectory = join(project, "existing-output-directory");
+    mkdirSync(outputDirectory, { recursive: true });
+    const result = swarmLaunch({
+      stories: ["3649"],
+      projectRoot: project,
+      autonomous: true,
+      output: outputDirectory,
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      environ: { CURSOR_AGENT: "1" },
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("could not write --output");
+    expect(readOccupancy(project)).toBeNull();
+  });
+
   it("keeps the original later-step error when occupancy release throws", () => {
     const project = launchProject();
     const mapPath = join(project, "worktree-map.json");
@@ -578,7 +598,8 @@ describe("swarmLaunch occupancy-before-create (#3649)", () => {
     });
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toMatch(/worktree-map|JSON array/i);
-    expect(result.stderr).toMatch(/occupancy:steal --confirm/);
+    expect(result.stderr).toMatch(/session:start --steal --confirm/);
+    expect(result.stderr).toMatch(/align lease and ritual state/);
     expect(result.stderr).toMatch(/lock compromised/);
     expect(existsSync(occupancyPath(project))).toBe(true);
   });
@@ -601,6 +622,72 @@ describe("swarmLaunch occupancy-before-create (#3649)", () => {
     expect(result.exitCode).not.toBe(0);
     expect(readOccupancy(project)?.sessionId).toBe("owner");
     expect(existsSync(occupancyPath(project))).toBe(true);
+  });
+
+  it("threads an explicit host session id through the launch claim without ambient env (#3611)", () => {
+    const project = launchProject();
+    const sessionId = "host:codex:v1:c2Vzc2lvbi1h";
+    applyWorktreeOccupancy(project, { sessionId, intent: "mutation" });
+    const mapPath = join(project, "worktree-map.json");
+    writeFileSync(mapPath, "{}\n");
+
+    const result = swarmLaunch({
+      stories: ["3649"],
+      projectRoot: project,
+      autonomous: true,
+      worktreeMap: mapPath,
+      sessionId,
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      environ: { CURSOR_AGENT: "1" },
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/worktree-map|JSON array/i);
+    expect(readOccupancy(project)?.sessionId).toBe(sessionId);
+  });
+
+  it("rejects an explicit foreign host session id before worktree creation (#3611)", () => {
+    const project = launchProject();
+    applyWorktreeOccupancy(project, {
+      sessionId: "host:codex:v1:b3duZXI",
+      intent: "mutation",
+    });
+    const missing = join(project, "wt-missing-explicit");
+    const mapPath = join(project, "worktree-map-explicit.json");
+    writeFileSync(
+      mapPath,
+      JSON.stringify([
+        {
+          story_id: "story-a",
+          worktree_path: missing.replace(/\\/g, "/"),
+          base_branch: "master",
+        },
+      ]),
+    );
+    let resolverCalls = 0;
+
+    const result = swarmLaunch({
+      stories: ["3649"],
+      projectRoot: project,
+      autonomous: true,
+      worktreeMap: mapPath,
+      sessionId: "host:codex:v1:Zm9yZWlnbg",
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      worktreeResolver: () => {
+        resolverCalls += 1;
+        throw new Error("worktree resolver must not run after occupancy deny");
+      },
+      environ: { CURSOR_AGENT: "1" },
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/occupied|occupancy/i);
+    expect(resolverCalls).toBe(0);
+    expect(existsSync(missing)).toBe(false);
   });
 });
 

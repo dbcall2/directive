@@ -368,10 +368,34 @@ describe("swarm launch deep coverage", () => {
       "--no-audit",
       "--project-root",
       "/tmp",
+      "--session-id=host:codex:v1:c2Vzc2lvbi1h",
     ]);
     expect(parsed.group).toBe("g");
     expect(parsed.autonomous).toBe(true);
     expect(parsed.enforceGatesFlag).toBe(true);
+    expect(parsed.sessionId).toBe("host:codex:v1:c2Vzc2lvbi1h");
+    expect(parseLaunchArgv(["--session-id", "manual-owner"]).sessionId).toBe("manual-owner");
+    expect(parseLaunchArgv(["--session-id"]).sessionId).toBe("");
+    expect(parseLaunchArgv(["--session-id="]).sessionId).toBe("");
+    expect(parseLaunchArgv(["--session-id", "--autonomous"]).sessionId).toBe("");
+    expect(parseLaunchArgv(["--session-id=--autonomous"]).sessionId).toBe("");
+    const swallowedOwner = parseLaunchArgv([
+      "--stories",
+      "3611",
+      "--operator-approval",
+      "--session-id=host:codex:v1:c2Vzc2lvbi1h",
+    ]);
+    expect(swallowedOwner.parseError).toContain("--operator-approval: expected one argument");
+    expect(swarmLaunch(swallowedOwner)).toMatchObject({
+      exitCode: 2,
+      stderr: expect.stringContaining("--operator-approval: expected one argument"),
+    });
+    const blankSession = swarmLaunch({ sessionId: "" });
+    expect(blankSession.exitCode).not.toBe(0);
+    expect(blankSession).toMatchObject({
+      stdout: "",
+      stderr: expect.stringContaining("--session-id requires a non-empty"),
+    });
     expect(typeof launchMain(["--stories", ""])).toBe("number");
   });
 });

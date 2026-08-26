@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { applyWorktreeOccupancy, readOccupancy } from "../session/occupancy.js";
 
 vi.mock("../scope/transition.js", () => ({
   runTransition: vi.fn((verb: string) => ({ ok: true, message: `${verb} ok` })),
@@ -10,6 +11,7 @@ vi.mock("../scope/transition.js", () => ({
 import { runTransition } from "../scope/transition.js";
 import { completeCohort, sweepCohort } from "./complete-cohort.js";
 import { completeCohortMain } from "./complete-cohort-cli.js";
+import { occupancyCohortKey, persistLaunchOccupancyRecord } from "./launch.js";
 
 function writeActiveStory(project: string, storyId: string): string {
   const full = join(project, "xbrief", "active", `${storyId}.xbrief.json`);
@@ -226,6 +228,32 @@ describe("complete cohort live sweep with mocked transition", () => {
     const result = completeCohort({ projectRoot: project, stories: [storyPath] });
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain("INCOMPLETE");
+    rmSync(project, { recursive: true, force: true });
+  });
+
+  it("never lets a later ambient owner release another cohort's lease (#3611)", () => {
+    const project = mkdtempSync(join(tmpdir(), "sw-close-owner-"));
+    const storyId = "cohort-a";
+    const storyPath = writeActiveStory(project, storyId);
+    const launchOwner = "host:codex:v1:bGF1bmNoLWE";
+    const laterOwner = "host:codex:v1:bGF0ZXItYg";
+    persistLaunchOccupancyRecord(project, {
+      allocation_plan_id: null,
+      occupancy_session_id: launchOwner,
+      story_ids: [storyId],
+      cohort_key: occupancyCohortKey(null, [storyId]),
+    });
+    applyWorktreeOccupancy(project, { sessionId: laterOwner, intent: "mutation" });
+
+    const result = completeCohort({
+      projectRoot: project,
+      stories: [storyPath],
+      env: { DEFT_SESSION_ID: laterOwner },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.sweep?.errors.join("\n")).toContain("conflicts with cohort owner");
+    expect(readOccupancy(project)?.sessionId).toBe(laterOwner);
     rmSync(project, { recursive: true, force: true });
   });
 });

@@ -14,6 +14,8 @@ export interface ParsedSessionReadyArgs {
   emitJson: boolean;
   withNetwork: boolean;
   repo: string | null;
+  /** #3611: explicit lifecycle owner injected by a host hook bridge. */
+  sessionId: string | null;
   error?: string;
 }
 
@@ -24,6 +26,7 @@ export function parseArgs(argv: readonly string[]): ParsedSessionReadyArgs {
     emitJson: false,
     withNetwork: false,
     repo: null,
+    sessionId: null,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -41,13 +44,13 @@ export function parseArgs(argv: readonly string[]): ParsedSessionReadyArgs {
       return {
         ...parsed,
         error:
-          "usage: session:ready [--project-root <path>] [--repo OWNER/NAME] [--with-network] [--json]\n" +
+          "usage: session:ready [--project-root <path>] [--repo OWNER/NAME] [--session-id <id>] [--with-network] [--json]\n" +
           "  One-shot recovery: session:start (if needed) + gated ritual + cache recovery (#2993).",
       };
     }
     if (arg === "--project-root") {
       const value = argv[i + 1];
-      if (value === undefined) {
+      if (value === undefined || value.startsWith("--")) {
         return { ...parsed, error: "argument --project-root: expected one argument" };
       }
       parsed.projectRoot = value;
@@ -55,12 +58,37 @@ export function parseArgs(argv: readonly string[]): ParsedSessionReadyArgs {
       continue;
     }
     if (arg.startsWith("--project-root=")) {
-      parsed.projectRoot = arg.slice("--project-root=".length);
+      const value = arg.slice("--project-root=".length);
+      if (value.length === 0 || value.startsWith("--")) {
+        return { ...parsed, error: "argument --project-root: expected one argument" };
+      }
+      parsed.projectRoot = value;
+      continue;
+    }
+    if (arg === "--session-id") {
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith("--")) {
+        return { ...parsed, error: "argument --session-id: expected one argument" };
+      }
+      const sessionId = value.trim();
+      if (sessionId.length === 0 || sessionId.startsWith("--")) {
+        return { ...parsed, error: "argument --session-id: expected a non-empty value" };
+      }
+      parsed.sessionId = sessionId;
+      i += 1;
+      continue;
+    }
+    if (arg.startsWith("--session-id=")) {
+      const sessionId = arg.slice("--session-id=".length).trim();
+      if (sessionId.length === 0 || sessionId.startsWith("--")) {
+        return { ...parsed, error: "argument --session-id: expected a non-empty value" };
+      }
+      parsed.sessionId = sessionId;
       continue;
     }
     if (arg === "--repo") {
       const value = argv[i + 1];
-      if (value === undefined) {
+      if (value === undefined || value.startsWith("--")) {
         return { ...parsed, error: "argument --repo: expected one argument" };
       }
       parsed.repo = value;
@@ -68,7 +96,11 @@ export function parseArgs(argv: readonly string[]): ParsedSessionReadyArgs {
       continue;
     }
     if (arg.startsWith("--repo=")) {
-      parsed.repo = arg.slice("--repo=".length);
+      const value = arg.slice("--repo=".length);
+      if (value.length === 0 || value.startsWith("--")) {
+        return { ...parsed, error: "argument --repo: expected one argument" };
+      }
+      parsed.repo = value;
       continue;
     }
     if (arg.startsWith("-")) {
@@ -90,6 +122,7 @@ export function run(argv: readonly string[] = process.argv.slice(2)): number {
   const projectRoot = resolve(args.projectRoot);
   const result = runSessionReady(projectRoot, {
     repo: args.repo,
+    sessionId: args.sessionId ?? undefined,
     sessionStartOptions: {
       allowOptionalNetwork: args.withNetwork ? true : undefined,
       writeHistory: false,
@@ -101,6 +134,7 @@ export function run(argv: readonly string[] = process.argv.slice(2)): number {
       `${JSON.stringify({
         ready: result.code === 0,
         exit_code: result.code,
+        session_id: result.sessionId,
         path: result.path,
         message: result.message,
         steps: result.steps,

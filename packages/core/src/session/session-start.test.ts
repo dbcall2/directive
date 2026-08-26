@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearRegistryCache, DEFAULT_EVENT_LOG, readEvents } from "../lifecycle/events.js";
 import type { EnvironmentContext } from "../platform/shell-context.js";
 import { selectCeremonyDepth } from "../policy/ceremony-dial.js";
@@ -10,6 +10,8 @@ import { ENV_RUN_SUMMARY_PATH, ENV_TOTAL_TOOL_TURNS } from "../run-summary/types
 import type { ResolveUserMdResult } from "../user-config/resolve-user-md.js";
 import { ENV_MAX_TURNS } from "./effort-budget.js";
 import type { GitRunResult } from "./git.js";
+import { applyWorktreeOccupancy, readOccupancy } from "./occupancy.js";
+import { readRitualState } from "./ritual-sentinel.js";
 import {
   ENV_SESSION_START_NETWORK,
   OPTIONAL_NETWORK_SKIPPED_MESSAGE,
@@ -179,6 +181,63 @@ describe("runSessionStart — USER.md auto-resolution (#2271)", () => {
     const payload = result.payload as { user_md: ResolveUserMdResult };
     expect(payload.user_md).toBeDefined();
     expect(typeof payload.user_md.path).toBe("string");
+  });
+});
+
+describe("runSessionStart — host owner transition failure recovery (#3611)", () => {
+  it("reports deterministic same-owner recovery when a cold steal cannot persist ritual state", () => {
+    const root = tempRoot();
+    const legacyOwner = "legacy-session";
+    const hostOwner = "host:codex:v1:Y29sZC1yZWNvdmVyeQ";
+    applyWorktreeOccupancy(root, { sessionId: legacyOwner });
+
+    expect(() =>
+      runSessionStart(root, {
+        ...baseOptions(root, () => userMdResult({ path: join(root, "USER.md") })),
+        sessionId: hostOwner,
+        steal: true,
+        confirm: true,
+        occupant: legacyOwner,
+        writeRitualState: () => {
+          throw new Error("injected cold ritual write failure");
+        },
+      }),
+    ).toThrow(/rearm --session-id=<same-session-id>.*otherwise.*cold ceremony/i);
+
+    expect(readOccupancy(root)?.sessionId).toBe(hostOwner);
+    expect(readRitualState(root)[0]).toBeNull();
+  });
+});
+
+describe("runSessionStart lifecycle identity (#3611)", () => {
+  it("uses one explicit owner for a cold lease and ritual without minting", () => {
+    const root = tempRoot();
+    const sessionId = "host:codex:v1:Y29sZC1zZXNzaW9u";
+    const newSessionId = vi.fn(() => "unexpected-minted-session");
+    const result = runSessionStart(root, {
+      ...baseOptions(root, () => userMdResult()),
+      sessionId,
+      newSessionId,
+      runStalenessTickler: () => ({ lines: [], prompted: false }),
+    });
+
+    expect(result.code).toBe(0);
+    expect(newSessionId).not.toHaveBeenCalled();
+    expect((result.payload.occupancy as { session_id: string }).session_id).toBe(sessionId);
+    expect(
+      (
+        JSON.parse(readFileSync(ritualStatePath(root), "utf8")) as {
+          session_id: string;
+        }
+      ).session_id,
+    ).toBe(sessionId);
+    expect(
+      (
+        JSON.parse(readFileSync(join(root, ".deft", "occupancy.json"), "utf8")) as {
+          session_id: string;
+        }
+      ).session_id,
+    ).toBe(sessionId);
   });
 });
 

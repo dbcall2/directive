@@ -146,6 +146,11 @@ export interface VerifyResult {
    * `rearm` when age/compact stale on an otherwise valid bind; `cold` otherwise.
    */
   readonly recoveryTier?: SessionCeremonyTier | null;
+  /**
+   * Internal owner from the exact ritual state evaluated for this verdict.
+   * Absent until worktree/HEAD binding succeeds; never projected by emitVerifyJson.
+   */
+  readonly boundSessionId?: string;
 }
 
 export type RitualRunner = (
@@ -278,6 +283,7 @@ type EvaluateLoadedResult = {
   code: number;
   message: string;
   recoveryTier: SessionCeremonyTier | null;
+  boundSessionId?: string;
 };
 
 function evaluateLoadedState(
@@ -343,6 +349,7 @@ function evaluateLoadedState(
       code: 2,
       message: staleness.error ?? "session ritual staleness policy is invalid",
       recoveryTier: "cold",
+      boundSessionId: state.sessionId,
     };
   }
   const maxAgeMs = staleness.hours * 60 * 60 * 1000;
@@ -358,6 +365,7 @@ function evaluateLoadedState(
         `session ritual state is stale (older than ${staleness.hours}h).${compactNote} ` +
         `Run \`${rearmCmd}\` to re-arm (or \`${coldCmd}\` for a full cold ceremony).`,
       recoveryTier: "rearm",
+      boundSessionId: state.sessionId,
     };
   }
   for (const stepName of QUICK_STEPS) {
@@ -367,6 +375,7 @@ function evaluateLoadedState(
         code: 1,
         message: failedStepMessage("quick", stepName, step),
         recoveryTier: "cold",
+        boundSessionId: state.sessionId,
       };
     }
   }
@@ -379,6 +388,7 @@ function evaluateLoadedState(
           code: 1,
           message: failedStepMessage("gated", stepName, step),
           recoveryTier: "cold",
+          boundSessionId: state.sessionId,
         };
       }
     }
@@ -387,6 +397,7 @@ function evaluateLoadedState(
     code: 0,
     message: `OK session ritual ${input.tier} tier is fresh.`,
     recoveryTier: null,
+    boundSessionId: state.sessionId,
   };
 }
 
@@ -539,6 +550,7 @@ export function inspectSessionRitual(
     posture,
     ritualStateRequired,
     recoveryTier: evaluated.recoveryTier,
+    ...(evaluated.boundSessionId === undefined ? {} : { boundSessionId: evaluated.boundSessionId }),
   };
 }
 
@@ -641,6 +653,9 @@ export function verifySessionRitual(
         posture,
         ritualStateRequired,
         recoveryTier: precheck.recoveryTier,
+        ...(precheck.boundSessionId === undefined
+          ? {}
+          : { boundSessionId: precheck.boundSessionId }),
       };
     }
 
@@ -759,6 +774,9 @@ export function verifySessionRitual(
       posture,
       ritualStateRequired,
       recoveryTier: evaluated.recoveryTier,
+      ...(evaluated.boundSessionId === undefined
+        ? {}
+        : { boundSessionId: evaluated.boundSessionId }),
     };
   }
   return {
@@ -771,6 +789,7 @@ export function verifySessionRitual(
     posture,
     ritualStateRequired,
     recoveryTier: evaluated.recoveryTier,
+    ...(evaluated.boundSessionId === undefined ? {} : { boundSessionId: evaluated.boundSessionId }),
   };
 }
 

@@ -12,6 +12,7 @@ describe("session-ready parseArgs", () => {
       emitJson: false,
       withNetwork: false,
       repo: null,
+      sessionId: null,
     });
   });
 
@@ -23,6 +24,7 @@ describe("session-ready parseArgs", () => {
       emitJson: true,
       withNetwork: true,
       repo: "o/r",
+      sessionId: null,
     });
   });
 
@@ -32,7 +34,33 @@ describe("session-ready parseArgs", () => {
       emitJson: false,
       withNetwork: false,
       repo: "a/b",
+      sessionId: null,
     });
+  });
+
+  it("parses an explicit lifecycle session identity (#3611)", () => {
+    expect(parseArgs(["--session-id", "host:codex:v1:c2Vzc2lvbg"])).toMatchObject({
+      sessionId: "host:codex:v1:c2Vzc2lvbg",
+    });
+    expect(parseArgs(["--session-id=host:cursor:v1:Y29udmVyc2F0aW9u"])).toMatchObject({
+      sessionId: "host:cursor:v1:Y29udmVyc2F0aW9u",
+    });
+  });
+
+  it("rejects a missing or blank lifecycle session identity (#3611)", () => {
+    expect(parseArgs(["--session-id"]).error).toContain("expected one argument");
+    expect(parseArgs(["--session-id", "--with-network"]).error).toContain("expected one argument");
+    expect(parseArgs(["--session-id="]).error).toContain("non-empty");
+    expect(parseArgs(["--session-id=--with-network"]).error).toContain("non-empty");
+    expect(parseArgs(["--session-id", "   "]).error).toContain("non-empty");
+  });
+
+  it("does not let repo or project-root swallow the explicit session ID", () => {
+    const sessionId = "--session-id=host:codex:v1:c2Vzc2lvbi1h";
+    expect(parseArgs(["--repo", sessionId]).error).toContain("--repo: expected one argument");
+    expect(parseArgs(["--project-root", sessionId]).error).toContain(
+      "--project-root: expected one argument",
+    );
   });
 
   it("rejects unknown flags", () => {

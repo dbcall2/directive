@@ -21,6 +21,7 @@ import {
   type ApplyOccupancyInput,
   applyWorktreeOccupancy,
   type OccupancyDecision,
+  resolveOccupancySessionId,
 } from "./occupancy.js";
 import {
   runSessionStart,
@@ -49,6 +50,8 @@ export type SessionReadyPath =
 
 export interface SessionReadyResult {
   readonly code: number;
+  /** One resolved owner carried through preview, verification, and claim (#3611). */
+  readonly sessionId: string;
   readonly message: string;
   readonly path: SessionReadyPath;
   readonly lines: readonly string[];
@@ -69,9 +72,11 @@ export interface SessionReadyOptions {
   readonly runGit?: GitRunner;
   readonly runner?: RitualRunner;
   readonly env?: NodeJS.ProcessEnv;
+  /** Explicit lifecycle owner resolved by the host/session bridge (#3611). */
+  readonly sessionId?: string;
   /** When set, overrides DEFT_TRIAGE_REPO / git remote inference for cache recovery. */
   readonly repo?: string | null;
-  readonly sessionStartOptions?: Omit<SessionStartOptions, "now" | "runGit" | "env">;
+  readonly sessionStartOptions?: Omit<SessionStartOptions, "now" | "runGit" | "env" | "sessionId">;
   readonly inspectRitual?: (
     projectRoot: string,
     options: InspectSessionRitualOptions,
@@ -172,6 +177,15 @@ export function runSessionReady(
   const env = options.env ?? process.env;
   const lines: string[] = [];
   const steps: string[] = [];
+  // #3611: resolve once before any occupancy preview or nested lifecycle call.
+  // A nested start must report the same persisted owner; adopting a different
+  // result would silently split the invocation's identity.
+  const sessionId = resolveOccupancySessionId({
+    sessionId: options.sessionId,
+    env,
+    newSessionId: options.sessionStartOptions?.newSessionId,
+  });
+  let nestedStartClaimedOccupancy = false;
 
   const inspect = options.inspectRitual ?? inspectSessionRitual;
   const verify = options.verifyRitual ?? verifySessionRitual;
@@ -179,22 +193,24 @@ export function runSessionReady(
   const fetchAll = options.fetchAll ?? cacheFetchAll;
   const inferRepo = options.inferRepo ?? ((root) => inferSessionReadyRepo(root, env));
   const applyOccupancy = options.applyOccupancy ?? applyWorktreeOccupancy;
-  const occupancyInput = (write: boolean): ApplyOccupancyInput => ({
+  const occupancyInput = (write: boolean, steal: boolean): ApplyOccupancyInput => ({
+    sessionId,
     env,
     now,
-    steal: options.sessionStartOptions?.steal,
+    steal,
     confirm: options.sessionStartOptions?.confirm,
     occupant: options.sessionStartOptions?.occupant,
-    newSessionId: options.sessionStartOptions?.newSessionId,
     intent: options.sessionStartOptions?.occupancyIntent ?? "mutation",
     write,
   });
-  const previewOccupancy = applyOccupancy(projectRoot, occupancyInput(false));
+  const requestedSteal = options.sessionStartOptions?.steal === true;
+  const previewOccupancy = applyOccupancy(projectRoot, occupancyInput(false, requestedSteal));
   if (previewOccupancy.code !== 0) {
     const message = previewOccupancy.message;
     lines.push(message);
     return {
       code: previewOccupancy.code,
+      sessionId,
       message,
       path: SESSION_READY_FAILED,
       lines,
@@ -202,14 +218,50 @@ export function runSessionReady(
       duration_ms: elapsedMs(started),
     };
   }
-  const claimOnSuccess = (): OccupancyDecision => applyOccupancy(projectRoot, occupancyInput(true));
+  const claimOnSuccess = (): OccupancyDecision =>
+    applyOccupancy(
+      projectRoot,
+      occupancyInput(true, nestedStartClaimedOccupancy ? false : requestedSteal),
+    );
   const finishReady = (path: SessionReadyPath, message: string): SessionReadyResult => {
     const claimed = claimOnSuccess();
     if (claimed.code !== 0) {
       lines.push(claimed.message);
       return {
         code: claimed.code,
+        sessionId,
         message: claimed.message,
+        path: SESSION_READY_FAILED,
+        lines,
+        steps,
+        duration_ms: elapsedMs(started),
+      };
+    }
+    // The verified ritual can change while the final occupancy claim is being
+    // persisted. Re-read only the exact bound ritual owner after the claim;
+    // never return success with a lease/ritual split (#3611). Files remain a
+    // cooperative gate, so this narrows rather than eliminates TOCTOU.
+    const postClaimRitual = inspect(projectRoot, {
+      tier: "gated",
+      posture: "mutation",
+      now,
+      runGit: options.runGit,
+    });
+    if (postClaimRitual.code !== 0 || postClaimRitual.boundSessionId !== sessionId) {
+      const actual = postClaimRitual.boundSessionId ?? "<unbound>";
+      const detail =
+        postClaimRitual.code === 0
+          ? `post-claim ritual owner ${actual}`
+          : `post-claim ritual inspection failed: ${postClaimRitual.message}`;
+      const failure =
+        `session:ready ${detail}, but occupancy is held by ${sessionId}. ` +
+        "Readiness remains fail-closed. Re-run session:start with the same explicit " +
+        "--session-id to align ritual and occupancy state.";
+      lines.push(failure);
+      return {
+        code: postClaimRitual.code === 0 ? 1 : postClaimRitual.code,
+        sessionId,
+        message: failure,
         path: SESSION_READY_FAILED,
         lines,
         steps,
@@ -219,8 +271,29 @@ export function runSessionReady(
     lines.push(message);
     return {
       code: 0,
+      sessionId,
       message,
       path,
+      lines,
+      steps,
+      duration_ms: elapsedMs(started),
+    };
+  };
+  const ownerAlignmentFailure = (
+    actualOwner: string | undefined,
+    context = "verified ritual",
+  ): SessionReadyResult => {
+    const actual = actualOwner ?? "<unbound>";
+    const message =
+      `session:ready ${context} owner ${actual}, but the resolved occupancy owner is ` +
+      `${sessionId}. Refusing to claim a mismatched lease. Re-run session:start with the ` +
+      "same explicit --session-id to align ritual and occupancy state.";
+    lines.push(message);
+    return {
+      code: 1,
+      sessionId,
+      message,
+      path: SESSION_READY_FAILED,
       lines,
       steps,
       duration_ms: elapsedMs(started),
@@ -243,7 +316,10 @@ export function runSessionReady(
     now,
     runGit: options.runGit,
   });
-  if (gatedInspect.code === 0) {
+  // A confirmed owner transition must also rewrite ritual state. Even a green
+  // legacy ritual cannot take the fast path, because stealing only in the
+  // final occupancy claim would leave lease and ritual owners mismatched.
+  if (gatedInspect.code === 0 && gatedInspect.boundSessionId === sessionId && !requestedSteal) {
     steps.push("verify:session-ritual:gated");
     const refreshed = verify(projectRoot, verifyOpts);
     if (!isGatedVerifyActuallyReady(refreshed)) {
@@ -254,12 +330,16 @@ export function runSessionReady(
       lines.push(message);
       return {
         code: refreshed.code === 0 ? 1 : refreshed.code,
+        sessionId,
         message,
         path: SESSION_READY_FAILED,
         lines,
         steps,
         duration_ms: elapsedMs(started),
       };
+    }
+    if (refreshed.boundSessionId !== sessionId) {
+      return ownerAlignmentFailure(refreshed.boundSessionId);
     }
     return finishReady(SESSION_READY_FAST_PATH, "OK session ready (gated ritual already fresh).");
   }
@@ -271,13 +351,14 @@ export function runSessionReady(
     now,
     runGit: options.runGit,
   });
-  if (quickInspect.code !== 0) {
+  if (quickInspect.code !== 0 || quickInspect.boundSessionId !== sessionId || requestedSteal) {
     steps.push("session:start");
     const startResult = start(projectRoot, {
       ...options.sessionStartOptions,
       now,
       runGit: options.runGit,
       env,
+      sessionId,
       writeHistory: options.sessionStartOptions?.writeHistory ?? false,
     });
     for (const line of startResult.lines) {
@@ -290,6 +371,7 @@ export function runSessionReady(
       lines.push(message);
       return {
         code: startResult.code,
+        sessionId,
         message,
         path: SESSION_READY_FAILED,
         lines,
@@ -297,12 +379,29 @@ export function runSessionReady(
         duration_ms: elapsedMs(started),
       };
     }
+    const startedOccupancy = startResult.payload.occupancy;
+    if (
+      startedOccupancy !== null &&
+      typeof startedOccupancy === "object" &&
+      !Array.isArray(startedOccupancy)
+    ) {
+      const persistedSessionId = (startedOccupancy as Record<string, unknown>).session_id;
+      if (typeof persistedSessionId === "string" && persistedSessionId.trim().length > 0) {
+        if (persistedSessionId.trim() !== sessionId) {
+          return ownerAlignmentFailure(persistedSessionId.trim(), "nested session:start");
+        }
+        nestedStartClaimedOccupancy = true;
+      }
+    }
   }
 
   // --- Gated verify (lazy doctor + cache_fresh) ---
   steps.push("verify:session-ritual:gated");
   let verifyResult = verify(projectRoot, verifyOpts);
   if (isGatedVerifyActuallyReady(verifyResult)) {
+    if (verifyResult.boundSessionId !== sessionId) {
+      return ownerAlignmentFailure(verifyResult.boundSessionId);
+    }
     return finishReady(SESSION_READY_VERIFIED, "OK session ready (gated ritual verified).");
   }
   if (verifyResult.code === 0 && verifyResult.bypassed) {
@@ -310,6 +409,7 @@ export function runSessionReady(
     lines.push(message);
     return {
       code: 1,
+      sessionId,
       message,
       path: SESSION_READY_FAILED,
       lines,
@@ -328,6 +428,7 @@ export function runSessionReady(
       lines.push(message);
       return {
         code: 1,
+        sessionId,
         message,
         path: SESSION_READY_FAILED,
         lines,
@@ -353,6 +454,7 @@ export function runSessionReady(
       lines.push(message);
       return {
         code: 1,
+        sessionId,
         message,
         path: SESSION_READY_FAILED,
         lines,
@@ -364,6 +466,9 @@ export function runSessionReady(
     steps.push("verify:session-ritual:gated:retry");
     verifyResult = verify(projectRoot, { ...verifyOpts, forceGatedSteps: [] });
     if (isGatedVerifyActuallyReady(verifyResult)) {
+      if (verifyResult.boundSessionId !== sessionId) {
+        return ownerAlignmentFailure(verifyResult.boundSessionId);
+      }
       return finishReady(
         SESSION_READY_RECOVERED,
         "OK session ready (recovered via cache refresh).",
@@ -374,6 +479,7 @@ export function runSessionReady(
       lines.push(message);
       return {
         code: 1,
+        sessionId,
         message,
         path: SESSION_READY_FAILED,
         lines,
@@ -390,6 +496,7 @@ export function runSessionReady(
   lines.push(message);
   return {
     code: verifyResult.code,
+    sessionId,
     message,
     path: SESSION_READY_FAILED,
     lines,

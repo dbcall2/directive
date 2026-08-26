@@ -117,6 +117,14 @@ describe("printHelp", () => {
     }
   });
 
+  it("surfaces #3611 owner alignment and lease-only steal remediation", () => {
+    const body = renderHelp();
+    expect(body).toContain("Claim occupancy and record ritual state for one session owner");
+    expect(body).toContain(
+      "Replace only the live lease; use session:start --steal to align ritual",
+    );
+  });
+
   it("lists deduplicated preferred names via directive commands (#2172)", () => {
     const body = renderCommands();
     expect(body).toContain("Registered commands:");

@@ -10,7 +10,7 @@ vars:
 
 tasks:
   start:
-    desc: "Run quick-tier session-start ritual and write .deft/ritual-state.json (#1348). Flags: --defer step=reason / --json"
+    desc: "Claim occupancy and run the quick-tier ritual for one owner (#1348/#3611). Flags: --session-id <id> / --steal --confirm --occupant <current-id> / --defer step=reason / --json"
     dir: '{{.USER_WORKING_DIR}}'
     # Runtime/session dispatch: no engine:_ts-build / pnpm build (#2181).
     env:
@@ -21,7 +21,7 @@ tasks:
           ENGINE_CMD: 'session:start --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
 
   ready:
-    desc: "One-shot mutation recovery to gated write-ready (#2993). Composes session:start + verify:session-ritual --tier=gated + cache fetch-all when needed. Flags: --json / --repo OWNER/NAME / --with-network"
+    desc: "One-shot mutation recovery to gated write-ready (#2993/#3611). Composes session:start + verify:session-ritual --tier=gated + cache fetch-all when needed. Flags: --session-id <id> / --json / --repo OWNER/NAME / --with-network"
     dir: '{{.USER_WORKING_DIR}}'
     # Runtime/session dispatch: no engine:_ts-build / pnpm build (#2181).
     env:
@@ -32,7 +32,7 @@ tasks:
           ENGINE_CMD: 'session:ready --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
 
   end:
-    desc: "End this mutation session by releasing occupancy (#3604). Same as occupancy:release."
+    desc: "End this mutation session by releasing occupancy (#3604/#3611). Manual/Grok owner: --session-id <id> or DEFT_SESSION_ID. Same as occupancy:release."
     dir: '{{.USER_WORKING_DIR}}'
     # Runtime/session dispatch: no engine:_ts-build / pnpm build (#2181).
     env:

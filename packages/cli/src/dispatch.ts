@@ -3029,14 +3029,17 @@ const CURATED_HELP_GROUPS: readonly HelpGroup[] = [
   {
     title: "Session & ritual",
     commands: [
-      { name: "session:start", summary: "Record session-start ritual state" },
+      {
+        name: "session:start",
+        summary: "Claim occupancy and record ritual state for one session owner",
+      },
       {
         name: "session:ready",
         summary: "One-shot recovery to gated write-ready (session + ritual + cache)",
       },
       {
         name: "occupancy:steal",
-        summary: "Supersede a live worktree occupancy lease (--confirm --occupant)",
+        summary: "Replace only the live lease; use session:start --steal to align ritual",
       },
       {
         name: "occupancy:release",
