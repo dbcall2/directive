@@ -74,9 +74,11 @@
           "content/commands.md",
           "content/UPGRADING.md",
           "CHANGELOG.md",
-          "history/changes/fix-3609-setup-policy/"
+          "history/changes/fix-3609-setup-policy/proposal.xbrief.json",
+          "history/changes/fix-3609-setup-policy/tasks.xbrief.json"
         ],
-        "module_boundary": "Policy mutation, consumer CLI routing, canonical setup guidance and its generated projection, focused contracts, and operator documentation only."
+        "module_boundary": "Policy mutation, consumer CLI routing, canonical setup guidance and its generated projection, focused contracts, and operator documentation only.",
+        "cohesion_exemption": "content/UPGRADING.md and CHANGELOG.md already exceed the review trigger; this slice adds only focused migration guidance and one Unreleased entry. Splitting either append-oriented document is outside issue #3609."
       }
     },
     "acceptance": {
