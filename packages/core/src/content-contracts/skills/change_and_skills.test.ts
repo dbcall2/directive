@@ -78,10 +78,11 @@ describe("test_change_and_skills", () => {
     }
   });
 
-  it("interview_skill_output_targets_xbrief", () => {
-    expect(readRepoFile("skills/deft-directive-interview/SKILL.md")).toContain(
-      "specification.xbrief.json",
-    );
+  it("interview_skill_greenfield_output_targets_project_authority", () => {
+    const text = readRepoFile("skills/deft-directive-interview/SKILL.md");
+    expect(text).toContain("xbrief/PROJECT-DEFINITION.xbrief.json");
+    expect(text).toContain("xbrief/proposed/");
+    expect(text).toContain("does not create `xbrief/specification.xbrief.json`");
   });
 
   it("interview_skill_has_selection_confirmation", () => {
@@ -105,11 +106,12 @@ describe("test_change_and_skills", () => {
     ).toBe(true);
   });
 
-  it("setup_skill_phase3_xbrief_draft_approval", () => {
+  it("setup_skill_phase3_approves_greenfield_authority_without_spec_artifact", () => {
     const text = readRepoFile("skills/deft-directive-setup/SKILL.md");
-    expect(text).toContain("specification.xbrief.json");
+    expect(text).toContain("PROJECT-DEFINITION.xbrief.json");
+    expect(text).toContain("scope xBRIEFs in `./xbrief/proposed/`");
+    expect(text).toContain("Neither greenfield path creates `xbrief/specification.xbrief.json`");
     expect(text.toLowerCase()).toContain("approval");
-    expect(text.toLowerCase()).toContain("xbrief");
   });
 
   it("setup_skill_phase3_no_authoritative_prd", () => {

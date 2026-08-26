@@ -1,0 +1,41 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "3598-greenfield-handoff-authority",
+    "status": "approved",
+    "items": [
+      {
+        "id": "scope-policy-provenance",
+        "title": "Implement omitted-versus-explicit scope policy and dynamic authority provenance",
+        "status": "pending",
+        "effort": "M"
+      },
+      {
+        "id": "greenfield-prd",
+        "title": "Make project-root PRD rendering use shared greenfield/full-spec authority without scopes",
+        "status": "pending",
+        "effort": "M"
+      },
+      {
+        "id": "journey-contracts",
+        "title": "Align setup, interview, cost, and build pack guidance and add executable/content contract coverage",
+        "status": "pending",
+        "effort": "L"
+      }
+    ],
+    "edges": [
+      {
+        "from": "scope-policy-provenance",
+        "to": "greenfield-prd",
+        "type": "blocks"
+      },
+      {
+        "from": "greenfield-prd",
+        "to": "journey-contracts",
+        "type": "blocks"
+      }
+    ]
+  }
+}

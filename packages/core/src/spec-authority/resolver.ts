@@ -5,11 +5,11 @@ import {
   resolveLifecycleRoot,
   resolveProjectDefinitionPath,
 } from "../layout/resolve.js";
-import { SPEC_RENDER_BANNER } from "../render/constants.js";
 import {
+  buildExportSpecPdBanner,
+  buildGeneratedArtifactBanner,
   contentHasGeneratedPdSource,
   contentHasGeneratedSpecSource,
-  EXPORT_SPEC_PD_BANNER,
   GENERATED_SPEC_PURPOSE,
 } from "./constants.js";
 
@@ -21,6 +21,7 @@ export interface ResolvedSpecAuthority {
   readonly vbriefDir: string;
   readonly projectDefPath: string;
   readonly specPath: string | null;
+  readonly sourcePath: string;
   readonly banner: string;
 }
 
@@ -40,7 +41,10 @@ export function resolveSpecAuthority(projectRoot: string): ResolvedSpecAuthority
   const specPath = join(vbriefDir, `specification${layout.artifactSuffix}`);
   const hasSpec = existsSync(specPath);
   const kind: SpecAuthorityKind = hasSpec ? "full-spec" : "greenfield";
-  const banner = kind === "full-spec" ? SPEC_RENDER_BANNER : EXPORT_SPEC_PD_BANNER;
+  const sourcePath = hasSpec ? specPath : projectDefPath;
+  const banner = hasSpec
+    ? buildGeneratedArtifactBanner("task spec:render", "rendered specification", sourcePath)
+    : buildExportSpecPdBanner(sourcePath);
 
   return {
     kind,
@@ -48,6 +52,7 @@ export function resolveSpecAuthority(projectRoot: string): ResolvedSpecAuthority
     vbriefDir,
     projectDefPath,
     specPath: hasSpec ? specPath : null,
+    sourcePath,
     banner,
   };
 }

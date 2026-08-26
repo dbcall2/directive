@@ -1,0 +1,32 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "3598-greenfield-handoff-authority",
+    "status": "approved",
+    "narratives": {
+      "Problem": "Greenfield setup, export, PRD, cost, and build use incompatible assumptions about whether authority is xbrief/specification.xbrief.json or xbrief/PROJECT-DEFINITION.xbrief.json plus lifecycle scopes. The mismatch hides proposed scopes, emits false provenance, breaks PRD rendering, and traps setup-to-build behind an impossible cost prerequisite.",
+      "Change": "Centralize two-path authority and dynamic provenance, preserve stakeholder and explicit no-scope compact output, default omitted internal scope selection to proposed-only, make PRD greenfield-aware without scope leakage, and align setup/interview/cost/build guidance through the canonical skills pack.",
+      "Scope": "In scope: #3598 runtime semantics, PRD authority resolution, generated provenance, exact-command CLI tests, canonical setup/interview/cost/build pack content, rendered skills, content-contract tests, and release notes. Out of scope: creating a greenfield specification artifact, weakening full-spec support, a path-only validator ban, or merging the PR.",
+      "Impact": "Touches the shared spec-authority resolver, spec and PRD renderers/CLIs, authority and render tests, the skills pack and rendered skill projections, content-contract tests, xBRIEF scope metadata, and CHANGELOG.md.",
+      "Risks": "Collapsing omitted scope selection into explicit off would break the locked override contract; broad internal defaults could leak pending or active work; reusing lifecycle scopes in PRD could leak planning state; naive strategy validation could reject valid full-spec projects; generated skill edits could drift from their pack source.",
+      "Approach": "Land three ordered slices in one PR: first distinguish omitted/off scope policy and emit source-path provenance; second route project-root PRD through shared authority while excluding lifecycle scopes; third update canonical skill-pack journey and split executable integration coverage from content contracts. Keep runtime support ahead of prose and run pack render/check, targeted tests, forward coverage, coverage hotspots, and task check.",
+      "Alternatives": "Teaching every caller extra flags was rejected because it leaves renderer semantics contradictory. Creating xbrief/specification.xbrief.json for greenfield was rejected because it restores the dual-write defect. Removing PRD from setup was rejected because shared authority can support it. A path-only validator prohibition was rejected because full-spec consumers are valid.",
+      "Dependencies": "Existing resolveSpecAuthority/resolveExportNarratives behavior, project export and PRD CLI surfaces, the canonical skills pack renderer, the #3598 consolidated plan, and the current xBRIEF lifecycle gates.",
+      "Confirmation": "Flynn explicitly approved the named change 3598-greenfield-handoff-authority on 2026-08-26."
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3598",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3598: greenfield export handoff authority regression"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3598#issuecomment-5428696921",
+        "type": "x-xbrief/github-comment",
+        "title": "Canonical consolidated implementation plan"
+      }
+    ]
+  }
+}

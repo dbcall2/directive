@@ -17,7 +17,12 @@ export {
   runFrameworkCommand,
 } from "./framework-commands.js";
 export * as prdRender from "./prd-render.js";
-export { main as prdRenderMain, parsePrdArgv, renderPrd } from "./prd-render.js";
+export {
+  main as prdRenderMain,
+  parsePrdArgv,
+  renderPrd,
+  renderProjectPrd,
+} from "./prd-render.js";
 export * as projectRender from "./project-render.js";
 export {
   acknowledgeProjectDefinitionStaleness,

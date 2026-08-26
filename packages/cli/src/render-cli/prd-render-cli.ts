@@ -1,13 +1,11 @@
 /**
  * Thin CLI wrapper for prd-render (mirrors ``scripts/prd_render.py``).
  *
- * Supports `--project-root <dir>` to resolve the spec artifact via the layout
- * resolver (#2132), preferring `xbrief/specification.xbrief.json` on migrated
- * trees and falling back to `vbrief/specification.vbrief.json` on legacy trees.
+ * Supports `--project-root <dir>` to resolve full-spec or greenfield authority
+ * through the shared authority resolver (#2132 / #3598).
  * When `--spec` is explicitly provided it takes precedence over `--project-root`.
  * Direct `--spec` / `--output` / `--force` flags are still accepted unchanged.
  */
-import { layout } from "@deftai/directive-core";
 import { parsePrdArgv, prdRenderMain } from "@deftai/directive-core/render";
 
 interface PrdRenderCliArgv {
@@ -35,12 +33,9 @@ function parsePrdRenderCliArgv(argv: readonly string[]): PrdRenderCliArgv {
 export function runPrdRenderCli(argv: readonly string[]): number {
   const { projectRoot, remaining } = parsePrdRenderCliArgv(argv);
   const parsedArgs = parsePrdArgv(remaining);
-  const spec =
-    parsedArgs.spec !== undefined
-      ? parsedArgs.spec
-      : projectRoot !== undefined
-        ? layout.resolveSpecArtifactPath(projectRoot)
-        : undefined;
-  prdRenderMain({ ...parsedArgs, spec });
+  prdRenderMain({
+    ...parsedArgs,
+    projectRoot: parsedArgs.spec === undefined ? projectRoot : undefined,
+  });
   return 0;
 }

@@ -24,8 +24,7 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 ## When to Use
 
-- After `skills/deft-directive-setup/SKILL.md` Phase 3 has produced an
-  approved `xbrief/specification.xbrief.json` (status `approved`)
+- After `skills/deft-directive-setup/SKILL.md` Phase 3 has produced either greenfield authority (`xbrief/PROJECT-DEFINITION.xbrief.json` plus lifecycle scopes) or an approved full-spec compatibility artifact
 - Before `skills/deft-directive-build/SKILL.md` kicks off
 - When the user says "cost", "budget", "pre-build cost", "how much will
   this cost", or asks to estimate cost before building
@@ -60,12 +59,9 @@ two skills agree on the user's preferences file.
 
 ## Inputs
 
-- ! `xbrief/specification.xbrief.json` MUST exist with `plan.status =
-  "approved"`. If the spec is not yet approved, stop and redirect to
-  `skills/deft-directive-setup/SKILL.md` Phase 3 / the spec approval
-  gate.
-- ~ `xbrief/PROJECT-DEFINITION.xbrief.json` (for tech-stack and
-  architecture narratives). Optional but improves the estimate.
+- ! Resolve the same two-path authority used by `task project:export-spec`: prefer an existing full-spec artifact, otherwise use `xbrief/PROJECT-DEFINITION.xbrief.json` plus lifecycle scopes.
+- ! For full-spec authority, require its existing approval contract. For greenfield authority, require the setup approval decision and at least one lifecycle scope; do not require `plan.status = "approved"` on PROJECT-DEFINITION.
+- ⊗ Require or create `xbrief/specification.xbrief.json` solely to estimate a greenfield project.
 - ~ `templates/COST-ESTIMATE.md` (canonical artifact body).
 - ~ `references/cost-models.md` (methodology).
 
@@ -73,8 +69,8 @@ two skills agree on the user's preferences file.
 
 ### Phase 1 -- Read the spec & detect categories
 
-- ! Read the approved spec and the project definition.
-- ! Walk the spec and identify which cost categories apply for this
+- ! Read the resolved authority: the full-spec artifact when present, otherwise PROJECT-DEFINITION plus relevant lifecycle scopes.
+- ! Walk the resolved narratives and scope requirements to identify which cost categories apply for this
   project: hosting / infrastructure, API / third-party fees, pre-flight
   account sign-ups, build & maintenance time. Drop categories that do
   not apply.
@@ -139,7 +135,7 @@ This is your project's cost estimate. Pick one.
   `skills/deft-directive-refinement/SKILL.md` to pull spec scope back,
   or the interview), then re-run this skill from Phase 1.
 - ! On `No-build`, write the decision to `COST-ESTIMATE.md`, mark the
-  spec scope xBRIEF accordingly, exit, and do NOT chain into the build
+  applicable lifecycle scope xBRIEFs accordingly, exit, and do NOT chain into the build
   skill.
 - ! On `Skip`, write the decision and skip reason to `COST-ESTIMATE.md`
   and proceed to the build kickoff.

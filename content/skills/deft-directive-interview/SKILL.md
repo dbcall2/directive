@@ -196,7 +196,7 @@ The answers map format:
 
 ## Output Targets
 
-Interview output writes to `specification.xbrief.json` `plan.narratives` — the xBRIEF draft is the sole authoritative output. PRD.md is never generated. All xBRIEFs target the canonical v0.6 schema (`xbrief/schemas/xbrief-core.schema.json`, strict `const: "0.6"`); see [`../../conventions/references.md`](../../conventions/references.md).
+Interview output writes to the authority selected by the calling skill. Greenfield setup writes project-level narratives to `xbrief/PROJECT-DEFINITION.xbrief.json` and implementation requirements to lifecycle scope xBRIEFs in `xbrief/proposed/`; it does not create `xbrief/specification.xbrief.json`. A caller that explicitly owns a full-spec workflow may target the compatibility specification artifact. PRD.md is never authoritative. New xBRIEFs target the current v0.8 schema; see [`../../conventions/references.md`](../../conventions/references.md).
 
 When the interview captures origin provenance (e.g. the user links to a GitHub issue or Jira ticket), include a `references` entry in the canonical form documented in [`../../conventions/references.md`](../../conventions/references.md):
 
@@ -212,7 +212,7 @@ When the interview captures origin provenance (e.g. the user links to a GitHub i
 
 ### Full Path Output
 
-! On the Full path, the interview populates `specification.xbrief.json` `plan.narratives` with `xBRIEFInfo.version: "0.6"`, `status: draft`, and rich keys:
+! On the greenfield Full path, the calling setup skill merges these rich keys into `PROJECT-DEFINITION.xbrief.json` and creates traceable proposed scope xBRIEFs:
 
 - `ProblemStatement`: What problem this project solves
 - `Goals`: High-level project goals
@@ -224,23 +224,23 @@ When the interview captures origin provenance (e.g. the user links to a GitHub i
 
 ! All narrative values MUST be plain strings — never objects or arrays.
 
-! The human approval gate reviews the xBRIEF draft narratives directly — reviewing the narratives IS the approval step. On approval, update `status` to `approved` and generate downstream scope xBRIEFs.
+! The human approval gate reviews the PROJECT-DEFINITION narratives and proposed scope plan directly. On approval, the calling setup skill records the decision and generates downstream scope xBRIEFs without manufacturing a specification artifact.
 
 ### Light Path Output
 
-! On the Light path, the interview populates `specification.xbrief.json` with `status: draft` and slim narratives:
+! On the greenfield Light path, the calling setup skill merges these slim narratives into `PROJECT-DEFINITION.xbrief.json`:
 
 - `Overview`: Brief project summary
 - `Architecture`: System design description
 
-! On approval, update `status` to `approved`. Scope xBRIEFs are then created in `xbrief/proposed/` for each identified work item.
+! On approval, the calling setup skill creates scope xBRIEFs in `xbrief/proposed/` for each identified work item; it does not create `specification.xbrief.json`.
 
 ### PRD.md (deprecated — never authoritative)
 
-PRD.md is not generated as part of the interview workflow on either path. The `specification.xbrief.json` xBRIEF draft is the sole source of truth.
+PRD.md is not generated as part of the interview workflow on either path. It is a read-only export from the resolved authority.
 
-- ? If stakeholders require a traditional PRD document, run `task prd:render` to export a read-only `PRD.md` from `plan.narratives`
-- ! PRD.md is never authoritative — `specification.xbrief.json` is the source of truth
+- ? If stakeholders require a traditional PRD document, run `task prd:render` to export a read-only `PRD.md` from the resolved project narratives
+- ! PRD.md is never authoritative — greenfield authority is PROJECT-DEFINITION plus lifecycle scopes; full-spec compatibility authority remains supported when present
 - ⊗ Generate an authoritative PRD.md during the interview process
 - ⊗ Treat PRD.md as a source of truth — it is a generated export artifact
 
@@ -375,7 +375,7 @@ Tatooine), branded characters (Mickey Mouse, Spider-Man), sports leagues
 2. ! Emit the plain-English risk summary from
    `scripts/ip_risk.py:plain_risk_summary(hits, intent)` into the
    interview output AND into an `IPRisk` narrative on the
-   `specification.xbrief.json` draft. The summary opens with `not legal
+   authoritative interview output selected by the calling skill. The summary opens with `not legal
    advice`, names the detected categories, and (for commercial intent)
    states explicitly that lawyer consultation is **not optional output**
    from this interview.
@@ -513,7 +513,7 @@ for it.
 - ⊗ Skip the depth gate and generate artifacts with known ambiguity remaining
 - ⊗ Exit the interview without producing a structured answers map for the calling skill
 - ⊗ Combine interview questions with artifact generation in the same message
-- ⊗ Generate an authoritative PRD.md — interview output targets `specification.xbrief.json` narratives only
+- ⊗ Generate an authoritative PRD.md — interview output targets the calling skill's resolved xBRIEF authority
 - ⊗ Treat PRD.md as a source of truth — it is a read-only export via `task prd:render`
 - ⊗ Auto-advance to the next question on number press without echoing the selection and waiting for confirmation
 - ⊗ Refuse backward navigation during the interview -- the user must be able to revisit previous answers

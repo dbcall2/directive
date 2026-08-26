@@ -117,13 +117,18 @@ describe("test_interview_always_structured", () => {
     expect(block).toContain("Emit a structured-tool question");
     expect(block).toContain("Phase 3");
   });
-  it("setup_phase3_to_build_transition_structured", () => {
+  it("setup_phase3_to_cost_then_build_transition_structured", () => {
     const handoff_start = setup_text.indexOf("### Handoff to deft-directive-build");
     expect(handoff_start).not.toBe(-1);
     const block = setup_text.slice(handoff_start, handoff_start + 2000);
     expect(block).toContain("Emit a structured-tool question");
     expect(block).toContain("build phase");
-    expect(block).toContain("Yes (continue)");
+    expect(block).toContain("Yes (run cost phase)");
+    expect(block).toContain("skills/deft-directive-cost/SKILL.md");
+    expect(block).toContain("skills/deft-directive-build/SKILL.md");
+    expect(block.indexOf("deft-directive-cost")).toBeLessThan(
+      block.indexOf("deft-directive-build", block.indexOf("deft-directive-cost") + 1),
+    );
     expect(block).toContain("Back (revisit previous phase)");
     expect(block).not.toContain("Yes (start building now)");
     expect(block).not.toContain("Back (revisit the spec)");

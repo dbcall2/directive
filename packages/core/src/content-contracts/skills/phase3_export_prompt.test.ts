@@ -49,5 +49,17 @@ describe("test_phase3_export_prompt", () => {
     it("prompt_references_project_export_spec", () => {
       expect(setupText).toContain("task project:export-spec");
     });
+
+    it("internal_handoff_uses_internal_audience_and_promises_proposed_scopes", () => {
+      expect(setupText).toContain("task project:export-spec -- --audience=internal");
+      expect(setupText).toContain("includes proposed scopes under `## Scope outlook`");
+    });
+
+    it("greenfield_export_does_not_manufacture_specification_artifact", () => {
+      expect(setupText).toContain(
+        "Create `specification.xbrief.json` on a greenfield Light or Full path",
+      );
+      expect(setupText).toContain("task prd:render");
+    });
   });
 });
