@@ -69,6 +69,7 @@ export interface ToolchainExecFileOptions {
   readonly timeout: number;
   readonly stdio: ["ignore", "pipe", "pipe"];
   readonly shell: boolean;
+  readonly windowsVerbatimArguments?: boolean;
   readonly cwd?: string;
   readonly env?: NodeJS.ProcessEnv;
 }
@@ -168,11 +169,15 @@ export function defaultCommandRunner(
     }
     const isCommandShim = /\.(?:cmd|bat)$/i.test(resolvedBin);
     const executable = isCommandShim ? windowsCommandInterpreter(env) : resolvedBin;
-    const executableArgs = isCommandShim
-      ? ["/d", "/s", "/c", `${quoteWindowsCommandPath(resolvedBin)} --version`]
-      : args;
+    const commandLine = `${quoteWindowsCommandPath(resolvedBin)} --version`;
+    const executableArgs = isCommandShim ? ["/d", "/s", "/c", `"${commandLine}"`] : args;
+    // Mirror Node's cmd.exe shell plan: the outer command quote satisfies /s,
+    // while verbatim arguments prevent libuv from re-escaping the command line.
+    const commandOptions = isCommandShim
+      ? { ...execOptions, windowsVerbatimArguments: true }
+      : execOptions;
     try {
-      const stdout = execFileSync(executable, executableArgs, execOptions);
+      const stdout = execFileSync(executable, executableArgs, commandOptions);
       return { returncode: 0, stdout: typeof stdout === "string" ? stdout : "", stderr: "" };
     } catch (error: unknown) {
       if (windowsShellReportsMissing(error)) {

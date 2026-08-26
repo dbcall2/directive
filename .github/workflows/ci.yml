@@ -687,6 +687,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Windows package-manager shim probe (#3610)
+        run: pnpm exec vitest run packages/core/src/verify-env/toolchain-check.test.ts
+
       - name: task deft:verify:cache-fresh consumer smoke (#2120)
         shell: pwsh
         run: |

@@ -252,15 +252,27 @@ describe("runToolchainCheck", () => {
   });
 
   it("runs a trusted absolute Windows .cmd/PATHEXT shim through system cmd.exe", () => {
-    const calls: Array<{ bin: string; args: readonly string[]; shell: boolean; cwd?: string }> = [];
-    const managerPath = "C:\\trusted\\npm.CMD";
+    const calls: Array<{
+      bin: string;
+      args: readonly string[];
+      shell: boolean;
+      windowsVerbatimArguments?: boolean;
+      cwd?: string;
+    }> = [];
+    const managerPath = "C:\\Program Files\\nodejs\\npm.CMD";
     const result = defaultCommandRunner(["npm", "--version"], 1_000, {
       platform: "win32",
       cwd: "C:\\consumer",
-      env: { Path: "C:\\trusted", PATHEXT: ".CMD", SystemRoot: "C:\\Windows" },
+      env: { Path: "C:\\Program Files\\nodejs", PATHEXT: ".CMD", SystemRoot: "C:\\Windows" },
       exists: (path) => path === managerPath,
       execFileSync: (bin, args, options) => {
-        calls.push({ bin, args, shell: options.shell, cwd: options.cwd });
+        calls.push({
+          bin,
+          args,
+          shell: options.shell,
+          windowsVerbatimArguments: options.windowsVerbatimArguments,
+          cwd: options.cwd,
+        });
         return "11.16.0\r\n";
       },
     });
@@ -268,13 +280,37 @@ describe("runToolchainCheck", () => {
     expect(calls).toEqual([
       {
         bin: "C:\\Windows\\System32\\cmd.exe",
-        args: ["/d", "/s", "/c", '"C:\\trusted\\npm.CMD" --version'],
+        args: ["/d", "/s", "/c", '""C:\\Program Files\\nodejs\\npm.CMD" --version"'],
         shell: false,
+        windowsVerbatimArguments: true,
         cwd: "C:\\consumer",
       },
     ]);
     expect(calls[0]?.args.join(" ")).not.toContain("C:\\consumer\\npm");
   });
+
+  it.runIf(process.platform === "win32")(
+    "executes a real Windows .cmd shim from a spaced PATH directory",
+    () => {
+      const shimRoot = mkdtempSync(join(tmpdir(), "deft toolchain shim-"));
+      fixtureRoots.push(shimRoot);
+      writeFileSync(join(shimRoot, "npm.cmd"), "@echo off\r\necho 11.16.0\r\n", "utf8");
+
+      const result = defaultCommandRunner(["npm", "--version"], 1_000, {
+        cwd: shimRoot,
+        env: {
+          ...process.env,
+          PATH: shimRoot,
+          Path: shimRoot,
+          PATHEXT: ".CMD",
+        },
+      });
+
+      expect(shimRoot).toContain(" ");
+      expect(result).toMatchObject({ returncode: 0 });
+      expect("stdout" in result ? result.stdout.trim() : "").toBe("11.16.0");
+    },
+  );
 
   it("never shell-retries arbitrary Windows argv", () => {
     const shells: boolean[] = [];
