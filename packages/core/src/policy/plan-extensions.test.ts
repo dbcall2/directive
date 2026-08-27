@@ -175,6 +175,8 @@ describe("plan-extension shadow detection (#2301)", () => {
         shadowedSubKeys: [],
       },
     );
+    expect(shadow?.shadowedSubKeys).toContain(hostile);
+    expect(shadow?.shadowedSubKeys).not.toContain(`<redacted-key length=${[...hostile].length}>`);
     expect(message).toContain(`<redacted-key length=${[...hostile].length}>`);
     expect(message).toContain("more keys");
     expect(message).not.toContain("api-token");

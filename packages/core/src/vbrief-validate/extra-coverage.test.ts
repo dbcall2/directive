@@ -414,6 +414,33 @@ describe("vbrief-validate extra coverage", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  it("keeps hostile valid-JSON keys semantic while bounding their diagnostics (#3609)", () => {
+    const root = mkdtempSync(join(tmpdir(), "vb-conf-hostile-key-"));
+    const hostileKey = `secret-token\n\u001b[31m${"k".repeat(2_000)}`;
+    mkdirSync(join(root, "xbrief"), { recursive: true });
+    execSync("git init", { cwd: root, stdio: "ignore" });
+    const configuredPath = join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json");
+    writeFileSync(
+      configuredPath,
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8" },
+        plan: { title: "T", status: "running", items: [], [hostileKey]: true },
+      }),
+      "utf8",
+    );
+    execSync("git add -A", { cwd: root, stdio: "ignore" });
+
+    const result = evaluateConformance(root, { projectDefinitionPath: configuredPath });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.findings[0]?.key).toBe(hostileKey);
+    expect(result.message).toContain(`<redacted-key length=${[...hostileKey].length}>`);
+    expect(result.message).not.toContain("secret-token");
+    expect(result.message).not.toContain("\u001b");
+    expect(result.message.length).toBeLessThan(1_000);
+    rmSync(root, { recursive: true, force: true });
+  });
+
   it("covers validate CLI success summary paths", () => {
     const root = mkdtempSync(join(tmpdir(), "vb-cli-ok-"));
     const vbrief = join(root, "xbrief");

@@ -1,5 +1,14 @@
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -92,7 +101,53 @@ describe("projectDefinitionIO", () => {
     }
   });
 
-  it("serializes separate processes through the mutation sidecar (#3609)", async () => {
+  it("binds a configured symlink to one artifact identity through the lock callback (#3609)", () => {
+    const root = mkdtempSync(join(tmpdir(), "vb-pd-symlink-retarget-"));
+    const targetA = join(root, "target-a.xbrief.json");
+    const targetB = join(root, "target-b.xbrief.json");
+    const configuredLink = join(root, "configured.xbrief.json");
+    const previous = process.env.DEFT_PROJECT_PATH;
+    process.env.DEFT_PROJECT_PATH = configuredLink;
+    try {
+      for (const [path, title] of [
+        [targetA, "A"],
+        [targetB, "B"],
+      ] as const) {
+        writeFileSync(
+          path,
+          pythonJsonPretty({
+            xBRIEFInfo: { version: "0.8" },
+            plan: { title, status: "running", items: [] },
+          }),
+          "utf8",
+        );
+      }
+      symlinkSync(targetA, configuredLink);
+      const boundTarget = projectDefinitionPath(root);
+
+      projectDefinitionMutationLock(root, (lockedPath) => {
+        expect(lockedPath).toBe(boundTarget);
+        unlinkSync(configuredLink);
+        symlinkSync(targetB, configuredLink);
+        const data = JSON.parse(readFileSync(lockedPath, "utf8")) as Record<string, unknown>;
+        (data.plan as Record<string, unknown>).title = "A-updated";
+        atomicWriteProjectDefinition(lockedPath, data);
+      });
+
+      const a = JSON.parse(readFileSync(targetA, "utf8")) as { plan: { title: string } };
+      const b = JSON.parse(readFileSync(targetB, "utf8")) as { plan: { title: string } };
+      expect(a.plan.title).toBe("A-updated");
+      expect(b.plan.title).toBe("B");
+      expect(existsSync(`${targetA}.lock`)).toBe(false);
+      expect(existsSync(`${targetB}.lock`)).toBe(false);
+    } finally {
+      if (previous === undefined) delete process.env.DEFT_PROJECT_PATH;
+      else process.env.DEFT_PROJECT_PATH = previous;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("serializes separate processes including two stale reapers (#3609)", async () => {
     const root = mkdtempSync(join(tmpdir(), "vb-pd-multiprocess-"));
     const logPath = join(root, "critical-sections.log");
     const workerPath = join(root, "lock-worker.mjs");
@@ -100,10 +155,17 @@ describe("projectDefinitionIO", () => {
     const moduleUrl = new URL("./project-definition-io.ts", import.meta.url).href;
     writeFileSync(
       workerPath,
-      `import { appendFileSync, existsSync } from "node:fs";\n` +
+      `import { appendFileSync, existsSync, writeFileSync } from "node:fs";\n` +
         `import { join } from "node:path";\n` +
         `import { projectDefinitionMutationLock } from ${JSON.stringify(moduleUrl)};\n` +
-        `const [root, logPath, label, holdRaw] = process.argv.slice(2);\n` +
+        `const [root, logPath, label, holdRaw, barrierDir] = process.argv.slice(2);\n` +
+        `const waitCell = new Int32Array(new SharedArrayBuffer(4));\n` +
+        `const deps = barrierDir === "-" ? {} : { isProcessAlive: (pid) => pid !== 2147483647, beforeStaleReap: () => {\n` +
+        `  writeFileSync(join(barrierDir, label), "ready");\n` +
+        `  while (!existsSync(join(barrierDir, label === "a" ? "b" : "a"))) {\n` +
+        `    Atomics.wait(waitCell, 0, 0, 5);\n` +
+        `  }\n` +
+        `} };\n` +
         `projectDefinitionMutationLock(root, () => {\n` +
         `  const expectedLock = join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json.lock");\n` +
         `  if (!existsSync(expectedLock)) throw new Error("temp fixture lock was not acquired");\n` +
@@ -111,15 +173,15 @@ describe("projectDefinitionIO", () => {
         `  const until = Date.now() + Number(holdRaw);\n` +
         `  while (Date.now() < until) {}\n` +
         `  appendFileSync(logPath, label + ":exit:" + Date.now() + "\\n");\n` +
-        `});\n`,
+        `}, deps);\n`,
       "utf8",
     );
 
-    const runWorker = (label: string): Promise<void> =>
+    const runWorker = (label: string, barrierDir = "-"): Promise<void> =>
       new Promise((resolveWorker, rejectWorker) => {
         const child = spawn(
           process.execPath,
-          ["--import", "tsx", workerPath, root, logPath, label, "200"],
+          ["--import", "tsx", workerPath, root, logPath, label, "200", barrierDir],
           {
             env: { ...process.env, DEFT_PROJECT_PATH: "" },
             stdio: ["ignore", "ignore", "pipe"],
@@ -137,8 +199,7 @@ describe("projectDefinitionIO", () => {
         });
       });
 
-    try {
-      await Promise.all([runWorker("a"), runWorker("b")]);
+    const expectSerializedEvents = (): void => {
       const events = readFileSync(logPath, "utf8")
         .trim()
         .split("\n")
@@ -154,6 +215,25 @@ describe("projectDefinitionIO", () => {
       const b = { enter: eventTime("b", "enter"), exit: eventTime("b", "exit") };
       expect(a.exit <= b.enter || b.exit <= a.enter).toBe(true);
       expect(existsSync(join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json.lock"))).toBe(false);
+    };
+
+    try {
+      await Promise.all([runWorker("a"), runWorker("b")]);
+      expectSerializedEvents();
+
+      rmSync(logPath, { force: true });
+      const lockPath = join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json.lock");
+      const barrierDir = join(root, "reap-barrier");
+      mkdirSync(lockPath);
+      mkdirSync(barrierDir);
+      writeFileSync(
+        join(lockPath, `${2_147_483_647}-${"a".repeat(32)}`),
+        `${JSON.stringify({ pid: 2_147_483_647, token: "a".repeat(32) })}\n`,
+        "utf8",
+      );
+
+      await Promise.all([runWorker("a", barrierDir), runWorker("b", barrierDir)]);
+      expectSerializedEvents();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

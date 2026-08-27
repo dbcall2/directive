@@ -61,12 +61,15 @@ export function projectDefinitionPath(projectRoot: string): string {
   const root = pathResolve(projectRoot);
   try {
     return resolveProjectDefinitionArtifactPath(root);
-  } catch {
+  } catch (err: unknown) {
     // Policy reads remain fail-closed on pre-migration trees. The shared resolver
     // intentionally throws for legacy-only lifecycle layouts, but policy callers
     // need a predictable missing canonical path rather than an exception while
     // init/update is still responsible for reporting the migration requirement.
-    return join(root, PROJECT_DEFINITION_REL_PATH);
+    if (err instanceof Error && err.message.startsWith("No xbrief/ layout found at ")) {
+      return join(root, PROJECT_DEFINITION_REL_PATH);
+    }
+    throw err;
   }
 }
 
@@ -331,15 +334,16 @@ export function setPolicy(
   },
 ): { changed: boolean; auditEntry: string } {
   const { allowDirectCommits, actor = "agent", note = "" } = options;
-  const path = projectDefinitionPath(projectRoot);
-  if (!existsSync(path)) {
-    throw new Error(`PROJECT-DEFINITION not found at ${path}`);
-  }
 
   // Serialise the read-modify-write + audit-log append behind the shared
   // PROJECT-DEFINITION mutation lock so a concurrent policy/ritual mutator
   // cannot lose this update or desync the typed flag from the audit row (#1260).
-  return projectDefinitionMutationLock(projectRoot, () => {
+  // The lock preserves the same artifact identity through mutation; do not resolve
+  // DEFT_PROJECT_PATH again after acquisition because a symlink can retarget.
+  return projectDefinitionMutationLock(projectRoot, (path) => {
+    if (!existsSync(path)) {
+      throw new Error(`PROJECT-DEFINITION not found at ${path}`);
+    }
     const parsed: unknown = JSON.parse(readFileSync(path, { encoding: "utf8" }));
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
       throw new Error(`PROJECT-DEFINITION at ${path} top-level value is not a JSON object`);

@@ -1,0 +1,128 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "xBRIEF scope artifact (on-demand create)",
+    "created": "2026-08-27T02:50:34Z",
+    "updated": "2026-08-27T02:59:38Z"
+  },
+  "plan": {
+    "title": "Harden #3609 project-definition locking and diagnostics",
+    "status": "running",
+    "narratives": {
+      "Overview": "Post-merge hardening for issue #3609 after PR #3786 was externally merged before the final independent adversarial findings could be applied. The original setup-policy fix is delivered at merge commit e2b6221721ca60ccb5241d4ddb75a000bff52a11. This follow-up does not claim those later findings are delivered: it binds the remaining shared PROJECT-DEFINITION locking, configured-path, conformance-diagnostic, and machine-semantics fixes to one focused PR.",
+      "Description": "Flynn explicitly authorized this follow-up after the external merge of PR #3786. Scott's separate commit 6bf4e67cb628558cc6aa4bb388825e67b98d391f records lifecycle intent only and contains no production fixes; its valid acceptance intent is represented by the completed original #3609 xBRIEF, while this scope records the undelivered hardening.\n\nBinding findings:\n1. P1 stale-reap ABA: use a replacement-safe compare-and-remove protocol so two reapers cannot delete a newly acquired lock; cover the two-reaper race and keep the protocol POSIX/Windows safe.\n2. P1 legacy/malformed sidecars: recover real legacy NUL, empty, partial, and malformed owner metadata without stealing a live lock; clean a failed or short owner-metadata creation's own inode.\n3. P2 path binding: resolve the configured artifact target once and bind the same identity through lock, read, and atomic write; narrow fallback to the intended missing-layout condition; cover a configured symlink retarget race.\n4. P2 conformance hostile keys: keep the semantic finding separate from a bounded, redacted, control-safe presentation for valid-JSON hostile keys.\n5. P3 ShadowedPlanExtension semantics: preserve the true raw semantic key inventory in the exported field and provide a separate bounded/redacted display summary.\n\nOut of scope: broader policy-registry cleanup, a second setup writer, weakening conformance, or changes unrelated to PROJECT-DEFINITION mutation/path identity and the two diagnostic surfaces."
+    },
+    "items": [
+      {
+        "title": "The mutation lock uses replacement-safe stale-owner recovery and handles legacy, empty, partial, malformed, short-write, and two-reaper cases without stealing a live lock.",
+        "status": "proposed"
+      },
+      {
+        "title": "Configured PROJECT-DEFINITION paths resolve once so lock, read, and write share one artifact identity across symlink retargeting.",
+        "status": "proposed"
+      },
+      {
+        "title": "Configured-path conformance fails closed for missing, unreadable, malformed, and hostile-key artifacts with bounded redacted diagnostics.",
+        "status": "proposed"
+      },
+      {
+        "title": "ShadowedPlanExtension retains raw semantic key inventory and exposes a separate bounded redacted display summary.",
+        "status": "proposed"
+      },
+      {
+        "title": "The original #3609 xBRIEF is completed with verified acceptance evidence for merged PR #3786, without claiming this follow-up as delivered.",
+        "status": "proposed"
+      }
+    ],
+    "references": [],
+    "metadata": {
+      "kind": "scope",
+      "xbriefCreate": true,
+      "swarm": {
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/vbrief-build/project-definition-io.mock.test.ts packages/core/src/vbrief-build/project-definition-io.test.ts packages/core/src/vbrief-build/project-definition-mutation-lock.concurrency.test.ts packages/core/src/policy/plan-extensions.test.ts packages/core/src/policy/resolve.test.ts packages/core/src/vbrief-validate/extra-coverage.test.ts"
+        ]
+      },
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [
+          "xbrief/active/2026-08-27-3609-post-merge-hardening.xbrief.json",
+          "packages/core/src/vbrief-build/project-definition-io.ts",
+          "packages/core/src/vbrief-build/project-definition-io.mock.test.ts",
+          "packages/core/src/vbrief-build/project-definition-io.test.ts",
+          "packages/core/src/vbrief-build/project-definition-mutation-lock.concurrency.test.ts",
+          "packages/core/src/policy/resolve.ts",
+          "packages/core/src/policy/plan-extensions.ts",
+          "packages/core/src/policy/plan-extensions.test.ts",
+          "packages/core/src/vbrief-validate/conformance.ts",
+          "packages/core/src/vbrief-validate/extra-coverage.test.ts",
+          "CHANGELOG.md"
+        ],
+        "module_boundary": "Shared PROJECT-DEFINITION path identity, mutation locking, policy shadow diagnostics, configured-path conformance diagnostics, their focused regressions, the follow-up lifecycle record, and one Unreleased note only.",
+        "cohesion_exemption": "The configured-path and diagnostic files are required by the five binding post-merge findings and preserve one artifact identity from policy mutation through conformance. Upstream's canonical completed lifecycle record attests only PR #3786; the new active record governs this follow-up."
+      },
+      "deliveryContext": {
+        "originalPr": 3786,
+        "originalMergeCommit": "e2b6221721ca60ccb5241d4ddb75a000bff52a11",
+        "unmergedAttestationOnlyCommit": "6bf4e67cb628558cc6aa4bb388825e67b98d391f",
+        "followupDelivered": false,
+        "authorization": "Flynn live instruction after external merge"
+      }
+    },
+    "id": "3609-post-merge-hardening",
+    "acceptance": {
+      "commands": [
+        "pnpm exec vitest run packages/core/src/vbrief-build/project-definition-io.mock.test.ts packages/core/src/vbrief-build/project-definition-io.test.ts packages/core/src/vbrief-build/project-definition-mutation-lock.concurrency.test.ts packages/core/src/policy/plan-extensions.test.ts packages/core/src/policy/resolve.test.ts packages/core/src/vbrief-validate/extra-coverage.test.ts"
+      ],
+      "none_stated": false,
+      "source_rung": "derived",
+      "derived_reason": "focused non-recursive oracle for the five binding post-merge findings; broader build, conformance, full-suite, pre-PR, and review-cycle gates run separately",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "The lock regression suite proves \"two stale reapers\" do not overlap critical sections.",
+          "artifact_path": "packages/core/src/vbrief-build/project-definition-io.test.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "The I/O mock suite covers \"legacy NUL\" and malformed or partial owner metadata.",
+          "artifact_path": "packages/core/src/vbrief-build/project-definition-io.mock.test.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "Policy mutation keeps the \"same artifact identity\" through lock, read, and write.",
+          "artifact_path": "packages/core/src/policy/resolve.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "Configured-path validation renders a \"bounded diagnostic\" for hostile semantic keys.",
+          "artifact_path": "packages/core/src/vbrief-validate/conformance.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 5,
+          "text": "Shadow diagnostics preserve the \"raw semantic key inventory\" separately from display summaries.",
+          "artifact_path": "packages/core/src/policy/plan-extensions.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 6,
+          "text": "The original lifecycle record identifies merged PR #3786 as \"delivered\" without attributing the follow-up fixes to it.",
+          "artifact_path": "xbrief/completed/2026-08-26-3609-blocker-bugsetup-phase-2-emits-bare-planpolicy-that-vbrief-c.xbrief.json",
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found"
+    },
+    "updated": "2026-08-27T02:59:38Z"
+  }
+}

@@ -110,7 +110,8 @@ const SAFE_DIAGNOSTIC_KEY = /^[A-Za-z][A-Za-z0-9._/-]{0,31}$/;
 const SENSITIVE_DIAGNOSTIC_KEY = /(?:auth|credential|password|private|secret|token|api.?key)/i;
 const MAX_DIAGNOSTIC_KEYS = 8;
 
-function boundedKeySummary(keys: readonly string[]): string[] {
+/** Bounded/redacted presentation; callers retain the raw semantic key inventory. */
+export function summarizeShadowedPlanSubKeys(keys: readonly string[]): string[] {
   const ordered = [...keys].sort();
   const summary = ordered
     .slice(0, MAX_DIAGNOSTIC_KEYS)
@@ -145,7 +146,7 @@ export function detectShadowedPlanExtensions(plan: unknown): ShadowedPlanExtensi
     const legacyValue = planObj[legacyKey];
     const shadowedSubKeys =
       typeof legacyValue === "object" && legacyValue !== null && !Array.isArray(legacyValue)
-        ? boundedKeySummary(Object.keys(legacyValue as Record<string, unknown>))
+        ? Object.keys(legacyValue as Record<string, unknown>).sort()
         : [];
     shadows.push({ namespacedKey, legacyKey, shadowedSubKeys });
   }
@@ -158,9 +159,10 @@ export function detectShadowedPlanExtensions(plan: unknown): ShadowedPlanExtensi
  * prefix it (`[policy:show]`, a doctor finding, ...).
  */
 export function describeShadowedPlanExtension(shadow: ShadowedPlanExtension): string {
+  const displaySubKeys = summarizeShadowedPlanSubKeys(shadow.shadowedSubKeys);
   const subKeys =
-    shadow.shadowedSubKeys.length > 0
-      ? ` Shadowed field(s): ${shadow.shadowedSubKeys
+    displaySubKeys.length > 0
+      ? ` Shadowed field(s): ${displaySubKeys
           .map((k) => `plan.${shadow.legacyKey}.${k}`)
           .join(", ")}.`
       : "";
