@@ -1,10 +1,21 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { hasArtifactSuffix, resolveLifecycleRoot } from "../layout/resolve.js";
-import { defaultRunGh } from "../pr-protected-issues/gh.js";
 import type { RunGhFn } from "../pr-protected-issues/types.js";
-import { CACHE_DIR_NAME, CACHE_SOURCE_GITHUB_ISSUE } from "../triage/queue/constants.js";
 import { resolveRepo } from "../triage/queue/repo.js";
+import {
+  AGGREGATE_LATENCY_BUDGET_MS,
+  formatAge,
+  type GateRunner,
+  type IssueState,
+  makeGateRunner,
+  OpenIssueInventory,
+  type ResolveContext,
+  resolveIssueStateAggregate,
+  resolveIssueStateScoped,
+  SCOPED_LATENCY_BUDGET_MS,
+  type StateResolution,
+} from "./issue-state.js";
 import { collectGithubRefs, type IssueRef, type PrRef } from "./refs.js";
 
 export type OutputStream = "stdout" | "stderr" | "none";
@@ -17,11 +28,29 @@ export interface OrphanActiveBrief {
   readonly kind: OrphanKind;
 }
 
+/**
+ * How the run's issue-state verdicts were reached (#3767). A pass with
+ * `unverified > 0` is not evidence that the tree is clean.
+ */
+export interface OrphanActiveBasis {
+  readonly inventory: number;
+  readonly live: number;
+  readonly cache: number;
+  readonly unverified: number;
+  /** Oldest cache entry that produced a verdict, in ms. */
+  readonly maxCacheAgeMs: number | null;
+  /** True when reads resolved through `ghx`, a cached GET proxy. */
+  readonly proxied: boolean;
+  readonly elapsedMs: number;
+  readonly budgetMs: number;
+}
+
 export interface EvaluateResult {
   readonly code: 0 | 1 | 2;
   readonly message: string;
   readonly stream: OutputStream;
   readonly orphans: readonly OrphanActiveBrief[];
+  readonly basis: OrphanActiveBasis;
 }
 
 export interface EvaluateOptions {
@@ -31,6 +60,8 @@ export interface EvaluateOptions {
   readonly skipGh?: boolean;
   /** When set, scan only active/running briefs that reference this issue (#3429). */
   readonly issue?: number | null;
+  /** Monotonic clock seam so basis ages and budget checks are testable. */
+  readonly nowMs?: () => number;
 }
 
 interface ActiveBrief {
@@ -95,75 +126,71 @@ function listActiveRunningBriefs(projectRoot: string): ActiveBrief[] {
   return out.sort((a, b) => a.path.localeCompare(b.path));
 }
 
-function readCachedIssueState(projectRoot: string, ref: IssueRef): "open" | "closed" | null {
-  const [owner, name] = ref.repo.split("/", 2);
-  if (!owner || !name) {
-    return null;
-  }
-  const rawPath = join(
-    projectRoot,
-    CACHE_DIR_NAME,
-    CACHE_SOURCE_GITHUB_ISSUE,
-    owner,
-    name,
-    String(ref.number),
-    "raw.json",
-  );
-  if (!existsSync(rawPath)) {
-    return null;
-  }
-  const raw = readJson(rawPath);
-  if (raw === null) {
-    return null;
-  }
-  const state = typeof raw.state === "string" ? raw.state.toLowerCase() : "";
-  if (state === "closed") {
-    return "closed";
-  }
-  if (state === "open") {
-    return "open";
-  }
-  return null;
-}
+/**
+ * Records how each verdict was reached so the summary can distinguish a
+ * verified pass from an unverified one (#3767).
+ */
+class BasisTally {
+  inventory = 0;
+  live = 0;
+  cache = 0;
+  maxCacheAgeMs = 0;
+  readonly unverifiedReasons: string[] = [];
 
-function fetchIssueStateLive(ref: IssueRef, runGh: RunGhFn): "open" | "closed" | null {
-  const path = `repos/${ref.repo}/issues/${ref.number}`;
-  const result = runGh(["gh", "api", path]);
-  if (result.returncode !== 0) {
-    return null;
+  record(ref: IssueRef, resolution: StateResolution): void {
+    switch (resolution.basis) {
+      case "inventory":
+        this.inventory += 1;
+        break;
+      case "live":
+        this.live += 1;
+        break;
+      case "cache":
+        this.cache += 1;
+        this.maxCacheAgeMs = Math.max(this.maxCacheAgeMs, resolution.cacheAgeMs);
+        break;
+      default: {
+        const line = `#${ref.number} (${resolution.detail})`;
+        if (!this.unverifiedReasons.includes(line)) {
+          this.unverifiedReasons.push(line);
+        }
+      }
+    }
   }
-  try {
-    const payload = JSON.parse(result.stdout) as unknown;
-    if (payload === null || typeof payload !== "object") {
-      return null;
+
+  get unverified(): number {
+    return this.unverifiedReasons.length;
+  }
+
+  summary(): string {
+    const parts: string[] = [];
+    if (this.inventory > 0) {
+      parts.push(`inventory ${this.inventory}`);
     }
-    const state = (payload as Record<string, unknown>).state;
-    if (state === "closed") {
-      return "closed";
+    if (this.live > 0) {
+      parts.push(`live ${this.live}`);
     }
-    if (state === "open") {
-      return "open";
+    if (this.cache > 0) {
+      parts.push(`cache ${this.cache} (max age ${formatAge(this.maxCacheAgeMs)})`);
     }
-    return null;
-  } catch {
-    return null;
+    if (this.unverified > 0) {
+      parts.push(`unverified ${this.unverified}`);
+    }
+    return parts.length === 0 ? "no GitHub lookups" : parts.join(", ");
   }
 }
 
 function resolveIssueState(
   ref: IssueRef,
-  projectRoot: string,
-  runGh: RunGhFn,
-  skipGh: boolean,
-): "open" | "closed" | null {
-  const cached = readCachedIssueState(projectRoot, ref);
-  if (cached !== null) {
-    return cached;
-  }
-  if (skipGh) {
-    return null;
-  }
-  return fetchIssueStateLive(ref, runGh);
+  ctx: ResolveContext,
+  scoped: boolean,
+  tally: BasisTally,
+): IssueState | null {
+  const resolution = scoped
+    ? resolveIssueStateScoped(ref, ctx)
+    : resolveIssueStateAggregate(ref, ctx);
+  tally.record(ref, resolution);
+  return resolution.state;
 }
 
 function fetchPrMerged(ref: PrRef, runGh: RunGhFn): boolean | null {
@@ -206,16 +233,21 @@ function unresolved(reason: string): OrphanAssessment {
 function assessOrphanSignature(
   issueRefs: readonly IssueRef[],
   prRefs: readonly PrRef[],
-  projectRoot: string,
-  runGh: RunGhFn,
-  skipGh: boolean,
+  ctx: ResolveContext,
   selectedIssue: number | null,
+  tally: BasisTally,
 ): OrphanAssessment {
+  const runGh = ctx.runGh;
+  const skipGh = ctx.skipGh;
+  const scoped = selectedIssue !== null;
   if (selectedIssue !== null) {
-    // Confirmed closed origin is shipped even if a linked PR lookup fails.
     const selectedRef = issueRefs.find((ref) => ref.number === selectedIssue);
-    const selectedState =
-      selectedRef === undefined ? null : resolveIssueState(selectedRef, projectRoot, runGh, skipGh);
+    if (selectedRef === undefined) {
+      // evaluate() only reaches here for briefs that name the issue.
+      return PASS;
+    }
+    // Confirmed closed origin is shipped even if a linked PR lookup fails.
+    const selectedState = resolveIssueState(selectedRef, ctx, scoped, tally);
     if (selectedState === "closed") {
       return shipped(`issue #${selectedIssue} is closed`);
     }
@@ -232,25 +264,8 @@ function assessOrphanSignature(
       }
     }
     // --issue N is one origin: sibling open/unknown must not mask it (#3429).
-    if (selectedRef !== undefined) {
-      if (selectedState === null) {
-        return unresolved(`issue #${selectedIssue} state could not be resolved`);
-      }
-      return PASS;
-    }
-    const issueStates = issueRefs.map((ref) => ({
-      ref,
-      state: resolveIssueState(ref, projectRoot, runGh, skipGh),
-    }));
-    const unknownIssue = issueStates.find((row) => row.state === null);
-    if (unknownIssue !== undefined) {
-      return unresolved(`issue #${unknownIssue.ref.number} state could not be resolved`);
-    }
-    if (issueStates.some((row) => row.state === "closed")) {
-      return shipped("all referenced issues are closed");
-    }
-    if (prRefs.length > 0 && skipGh) {
-      return unresolved(`linked PR #${prRefs[0]?.number} state could not be resolved`);
+    if (selectedState === null) {
+      return unresolved(`issue #${selectedIssue} state could not be resolved`);
     }
     return PASS;
   }
@@ -269,32 +284,53 @@ function assessOrphanSignature(
     return PASS;
   }
 
-  let resolved = 0;
   for (const ref of issueRefs) {
-    const state = resolveIssueState(ref, projectRoot, runGh, skipGh);
-    if (state === null) {
-      return PASS;
-    }
-    resolved += 1;
+    const state = resolveIssueState(ref, ctx, scoped, tally);
+    // Unknown keeps the sweep fail-open so offline work is not network-authorized;
+    // the unverified basis line stops the pass reading as verified evidence (#3767).
     if (state !== "closed") {
       return PASS;
     }
   }
-
-  if (resolved > 0) {
-    return shipped("all referenced issues are closed");
-  }
-  return PASS;
+  return shipped("all referenced issues are closed");
 }
 
 function briefReferencesIssue(issues: readonly IssueRef[], issue: number): boolean {
   return issues.some((ref) => ref.number === issue);
 }
 
+/** Basis, ghx caveat, and budget lines shared by the pass and refusal messages (#3767). */
+function basisLines(tally: BasisTally, basis: OrphanActiveBasis): string[] {
+  const lines = [`  Basis: ${tally.summary()}.`];
+  if (tally.unverified > 0) {
+    lines.push(
+      "  UNVERIFIED: state could not be established for the references below, so this run is",
+      "  not evidence that they are unshipped:",
+    );
+    for (const reason of tally.unverifiedReasons) {
+      lines.push(`    - ${reason}`);
+    }
+  }
+  if (basis.proxied) {
+    lines.push(
+      "  Note: reads resolved through `ghx`, a cached GET proxy; freshness is bounded by that",
+      "  proxy, which this gate cannot inspect (#3737).",
+    );
+  }
+  if (basis.elapsedMs > basis.budgetMs) {
+    lines.push(
+      `  Budget: took ${formatAge(basis.elapsedMs)} against a ${formatAge(basis.budgetMs)} budget (#3767).`,
+    );
+  }
+  return lines;
+}
+
 function formatRefusal(
   orphans: readonly OrphanActiveBrief[],
   projectRoot: string,
   issueFilter: number | null,
+  tally: BasisTally,
+  basis: OrphanActiveBasis,
 ): string {
   const shippedOrphans = orphans.filter((orphan) => orphan.kind === "shipped");
   const unresolvedOrphans = orphans.filter((orphan) => orphan.kind === "unresolved");
@@ -341,7 +377,21 @@ function formatRefusal(
   for (const orphan of orphans) {
     lines.push(`    - ${orphan.path} (${orphan.reason})`);
   }
+  lines.push(...basisLines(tally, basis));
   return lines.join("\n");
+}
+
+function emptyBasis(budgetMs: number): OrphanActiveBasis {
+  return {
+    inventory: 0,
+    live: 0,
+    cache: 0,
+    unverified: 0,
+    maxCacheAgeMs: null,
+    proxied: false,
+    elapsedMs: 0,
+    budgetMs,
+  };
 }
 
 /**
@@ -350,13 +400,21 @@ function formatRefusal(
  * issues and/or a merged PR — the stop-at:pr-open orphan signature.
  * Pass `issue` to scan one origin after merge. Confirmed shipped prints
  * scope:complete; unresolved lookup still exits 1 with a retry remediation.
+ *
+ * Issue state resolves by query shape (#3767): scoped `--issue N` takes an
+ * authoritative read and stays fail-closed on unknown; the unscoped sweep uses
+ * one complete, fail-closed open-issue inventory and stays fail-open on
+ * unknown so offline work is not network-authorized. A cache hit is honoured
+ * only inside `ISSUE_CACHE_MAX_AGE_MS`, and every verdict reports its basis.
  */
 export function evaluate(projectRoot: string, options: EvaluateOptions = {}): EvaluateResult {
   const root = resolve(projectRoot);
   const quiet = options.quiet ?? false;
   const skipGh = options.skipGh ?? false;
-  const runGh = options.runGh ?? defaultRunGh;
-  const defaultRepo = resolveRepo(options.repo, root);
+  const issueFilter = options.issue ?? null;
+  const budgetMs = issueFilter === null ? AGGREGATE_LATENCY_BUDGET_MS : SCOPED_LATENCY_BUDGET_MS;
+  const clock = options.nowMs ?? Date.now;
+  const startedMs = clock();
 
   if (!existsSync(root)) {
     return {
@@ -364,6 +422,7 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
       message: `verify:orphan-active: project root does not exist: ${root}`,
       stream: "stderr",
       orphans: [],
+      basis: emptyBasis(budgetMs),
     };
   }
 
@@ -375,14 +434,12 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
     // Consumer/greenfield fixtures may still use legacy vbrief/ only (#2112).
     // Orphan detection applies only to xbrief/active/ — skip cleanly, not config fail.
     if (message.includes("No xbrief/ layout found")) {
-      if (quiet) {
-        return { code: 0, message: "", stream: "none", orphans: [] };
-      }
       return {
         code: 0,
-        message: "verify:orphan-active: no xbrief/ lifecycle root; nothing to scan.",
-        stream: "stdout",
+        message: quiet ? "" : "verify:orphan-active: no xbrief/ lifecycle root; nothing to scan.",
+        stream: quiet ? "none" : "stdout",
         orphans: [],
+        basis: emptyBasis(budgetMs),
       };
     }
     return {
@@ -390,24 +447,42 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
       message: `verify:orphan-active: ${message}`,
       stream: "stderr",
       orphans: [],
+      basis: emptyBasis(budgetMs),
     };
   }
 
   if (!existsSync(lifecycleRoot)) {
-    if (quiet) {
-      return { code: 0, message: "", stream: "none", orphans: [] };
-    }
     return {
       code: 0,
-      message: "verify:orphan-active: no xbrief/ lifecycle root; nothing to scan.",
-      stream: "stdout",
+      message: quiet ? "" : "verify:orphan-active: no xbrief/ lifecycle root; nothing to scan.",
+      stream: quiet ? "none" : "stdout",
       orphans: [],
+      basis: emptyBasis(budgetMs),
     };
   }
 
-  const issueFilter = options.issue ?? null;
+  const defaultRepo = resolveRepo(options.repo, root);
+  // Resolve the SCM binary lazily: an offline `--skip-gh` run or an empty
+  // active/ must not pay for (or fail on) binary resolution it never uses.
+  let runner: GateRunner | null =
+    options.runGh === undefined ? null : { runGh: options.runGh, proxied: false };
+  const runGh: RunGhFn = (cmd) => {
+    runner ??= makeGateRunner();
+    return runner.runGh(cmd);
+  };
+  const tally = new BasisTally();
+  const ctx: ResolveContext = {
+    projectRoot: root,
+    runGh,
+    skipGh,
+    nowMs: clock(),
+    inventory: new OpenIssueInventory(runGh),
+  };
+
   const orphans: OrphanActiveBrief[] = [];
+  let scanned = 0;
   for (const brief of listActiveRunningBriefs(root)) {
+    scanned += 1;
     const { issues, prs } = collectGithubRefs(brief.plan, defaultRepo);
     // --issue N is one origin: briefs that name that issue. PR-only briefs stay on the unscoped scan (#3429).
     if (issueFilter !== null && !briefReferencesIssue(issues, issueFilter)) {
@@ -416,7 +491,7 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
     if (issues.length === 0 && prs.length === 0) {
       continue;
     }
-    const assessment = assessOrphanSignature(issues, prs, root, runGh, skipGh, issueFilter);
+    const assessment = assessOrphanSignature(issues, prs, ctx, issueFilter, tally);
     if (assessment.orphaned && assessment.reason !== null && assessment.kind !== null) {
       orphans.push({
         path: relBriefPath(brief.path, root),
@@ -426,27 +501,40 @@ export function evaluate(projectRoot: string, options: EvaluateOptions = {}): Ev
     }
   }
 
+  const basis: OrphanActiveBasis = {
+    inventory: tally.inventory,
+    live: tally.live,
+    cache: tally.cache,
+    unverified: tally.unverified,
+    maxCacheAgeMs: tally.cache > 0 ? tally.maxCacheAgeMs : null,
+    proxied: runner?.proxied ?? false,
+    elapsedMs: Math.max(0, clock() - startedMs),
+    budgetMs,
+  };
+
   if (orphans.length > 0) {
     return {
       code: 1,
-      message: formatRefusal(orphans, root, issueFilter),
+      message: formatRefusal(orphans, root, issueFilter, tally, basis),
       stream: "stderr",
       orphans,
+      basis,
     };
   }
 
   if (quiet) {
-    return { code: 0, message: "", stream: "none", orphans: [] };
+    return { code: 0, message: "", stream: "none", orphans: [], basis };
   }
 
-  const scanned = listActiveRunningBriefs(root).length;
   const issueNote = issueFilter === null ? "" : ` for issue #${issueFilter}`;
+  const headline =
+    `verify:orphan-active: no orphaned active/running xBRIEFs${issueNote} ` +
+    `(scanned ${scanned} running brief${scanned === 1 ? "" : "s"} in active/).`;
   return {
     code: 0,
-    message:
-      `verify:orphan-active: no orphaned active/running xBRIEFs${issueNote} ` +
-      `(scanned ${scanned} running brief${scanned === 1 ? "" : "s"} in active/).`,
+    message: [headline, ...basisLines(tally, basis)].join("\n"),
     stream: "stdout",
     orphans: [],
+    basis,
   };
 }
