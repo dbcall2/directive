@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -69,6 +69,9 @@ describe("projectDefinitionIO mocked fs branches", () => {
       ),
     );
     const root = mkdtempSync(join(tmpdir(), "vb-lock-mock-"));
+    const lockPath = join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json.lock");
+    mkdirSync(join(root, "xbrief"), { recursive: true });
+    writeFileSync(lockPath, "another-owner\n", "utf8");
     let tick = 0;
     expect(() =>
       projectDefinitionMutationLock(root, () => undefined, {
@@ -79,6 +82,7 @@ describe("projectDefinitionIO mocked fs branches", () => {
         },
       }),
     ).toThrow("timed out waiting for project definition mutation lock");
+    expect(existsSync(lockPath)).toBe(true);
     rmSync(root, { recursive: true, force: true });
   });
 

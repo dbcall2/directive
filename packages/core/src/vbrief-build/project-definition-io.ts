@@ -92,16 +92,19 @@ export function projectDefinitionMutationLock<T>(
     return fn();
   } finally {
     if (fd !== undefined) {
-      closeSync(fd);
+      try {
+        closeSync(fd);
+      } finally {
+        try {
+          if (existsSync(lockPath)) {
+            unlinkSync(lockPath);
+          }
+        } catch {
+          /* best-effort */
+        }
+      }
     }
     mutationThreadLock.held = false;
-    try {
-      if (existsSync(lockPath)) {
-        unlinkSync(lockPath);
-      }
-    } catch {
-      /* best-effort */
-    }
   }
 }
 
