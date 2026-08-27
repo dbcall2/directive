@@ -1,7 +1,8 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { runDeftTs } from "./gates-cli/_helpers.js";
 import { parseArgs, parseShowArgs, run } from "./policy.js";
 import { diffCase, normalizeOutput, PARITY_CASES, renderReport } from "./policy-fixtures.js";
 
@@ -456,5 +457,119 @@ describe("policy-parity helpers", () => {
         ],
       }),
     ).toContain("DIVERGENCE");
+  });
+});
+
+describe("setup policy commands through the built colon router (#3609)", () => {
+  const roots: string[] = [];
+  afterEach(() => {
+    for (const root of roots) rmSync(root, { recursive: true, force: true });
+  });
+
+  function project(planPolicy?: {
+    namespaced?: Record<string, unknown>;
+    legacy?: Record<string, unknown>;
+  }): string {
+    const root = mkdtempSync(join(tmpdir(), "deft-setup-policy-cli-"));
+    roots.push(root);
+    mkdirSync(join(root, "xbrief"), { recursive: true });
+    const plan: Record<string, unknown> = {
+      title: "Setup policy fixture",
+      status: "running",
+      narratives: {
+        Overview: "Fixture project",
+        TechStack: "TypeScript library",
+      },
+      items: [],
+    };
+    if (planPolicy?.namespaced !== undefined) {
+      plan["x-directive/policy"] = planPolicy.namespaced;
+    }
+    if (planPolicy?.legacy !== undefined) {
+      plan.policy = planPolicy.legacy;
+    }
+    writeFileSync(
+      join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
+      `${JSON.stringify({ xBRIEFInfo: { version: "0.8" }, plan }, null, 2)}\n`,
+      "utf8",
+    );
+    return root;
+  }
+
+  function planAt(root: string): Record<string, unknown> {
+    return (
+      JSON.parse(readFileSync(join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json"), "utf8")) as {
+        plan: Record<string, unknown>;
+      }
+    ).plan;
+  }
+
+  it("persists branch-based default false in the namespaced block", () => {
+    const root = project();
+    const result = runDeftTs("policy:enforce-branches", [
+      "--project-root",
+      root,
+      "--actor",
+      "agent:deft-directive-setup",
+    ]);
+    expect(result.exitCode, result.stderr).toBe(0);
+    const plan = planAt(root);
+    expect(plan.policy).toBeUndefined();
+    expect(plan["x-directive/policy"]).toMatchObject({ allowDirectCommitsToMaster: false });
+  });
+
+  it("persists confirmed trunk true and remains conformant", () => {
+    const root = project();
+    const result = runDeftTs("policy:allow-direct-commits", [
+      "--confirm",
+      "--project-root",
+      root,
+      "--actor",
+      "agent:deft-directive-setup",
+    ]);
+    expect(result.exitCode, result.stderr).toBe(0);
+    const plan = planAt(root);
+    expect(plan.policy).toBeUndefined();
+    expect(plan["x-directive/policy"]).toMatchObject({ allowDirectCommitsToMaster: true });
+    const conformance = runDeftTs("verify:vbrief-conformance", ["--project-root", root]);
+    expect(conformance.exitCode, conformance.stderr || conformance.stdout).toBe(0);
+  });
+
+  it("keeps namespaced state as a no-op and migrates legacy-only state", () => {
+    const namespacedRoot = project({
+      namespaced: { allowDirectCommitsToMaster: false, wipCap: 8 },
+    });
+    const keep = runDeftTs("policy:enforce-branches", ["--project-root", namespacedRoot]);
+    expect(keep.exitCode, keep.stderr).toBe(0);
+    expect(keep.stdout).toContain("no-op");
+    expect(existsSync(join(namespacedRoot, "meta", "policy-changes.log"))).toBe(false);
+
+    const legacyRoot = project({ legacy: { allowDirectCommitsToMaster: false, wipCap: 6 } });
+    const migrate = runDeftTs("policy:enforce-branches", ["--project-root", legacyRoot]);
+    expect(migrate.exitCode, migrate.stderr).toBe(0);
+    const migratedPlan = planAt(legacyRoot);
+    expect(migratedPlan.policy).toBeUndefined();
+    expect(migratedPlan["x-directive/policy"]).toMatchObject({
+      allowDirectCommitsToMaster: false,
+      wipCap: 6,
+    });
+  });
+
+  it("returns config error and preserves bytes for every dual-block state", () => {
+    for (const legacyValue of [false, true]) {
+      const root = project({
+        namespaced: { allowDirectCommitsToMaster: false, wipCap: 8 },
+        legacy: { allowDirectCommitsToMaster: legacyValue, triageScope: [] },
+      });
+      const definitionPath = join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json");
+      const before = readFileSync(definitionPath, "utf8");
+      const result = runDeftTs("policy:enforce-branches", ["--project-root", root]);
+      expect(result.exitCode).toBe(2);
+      expect(result.stderr).toContain("Config error");
+      expect(result.stderr).toContain("explicitly resolve every collision");
+      expect(result.stderr).toContain("delete `plan.policy`");
+      expect(readFileSync(definitionPath, "utf8")).toBe(before);
+      expect(existsSync(join(root, "meta", "policy-changes.log"))).toBe(false);
+    }
   });
 });

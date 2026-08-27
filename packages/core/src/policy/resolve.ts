@@ -6,7 +6,14 @@ import {
   atomicWriteProjectDefinition,
   projectDefinitionMutationLock,
 } from "../vbrief-build/project-definition-io.js";
-import { migrateLegacyPolicyKey, PLAN_POLICY_KEY, readPlanPolicy } from "./plan-extensions.js";
+import {
+  describeShadowedPlanExtension,
+  detectShadowedPlanExtensions,
+  LEGACY_PLAN_POLICY_KEY,
+  migrateLegacyPolicyKey,
+  PLAN_POLICY_KEY,
+  readPlanPolicy,
+} from "./plan-extensions.js";
 import { policyColonInvocation } from "./policy-invocation.js";
 
 /** Filesystem-relative location of the project-definition xBRIEF (display/back-compat). */
@@ -82,6 +89,54 @@ function pythonRepr(value: unknown): string {
   if (value === null) return "None";
   if (typeof value === "boolean") return value ? "True" : "False";
   return String(value);
+}
+
+function objectKeys(value: unknown): string[] {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return [];
+  }
+  return Object.keys(value as Record<string, unknown>).sort();
+}
+
+function branchPolicyValue(value: unknown): string {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return pythonRepr(value);
+  }
+  return pythonRepr((value as Record<string, unknown>).allowDirectCommitsToMaster);
+}
+
+/**
+ * Refuse a policy write when the legacy and namespaced blocks coexist (#3609).
+ *
+ * A writer cannot safely decide how to combine arbitrary policy keys or resolve
+ * collisions. The diagnostic therefore inventories keys, exposes only the one
+ * value this writer owns, and gives the operator a lossless recovery sequence.
+ */
+function assertPolicyBlockIsUnambiguous(plan: Record<string, unknown>): void {
+  const shadow = detectShadowedPlanExtensions(plan).find(
+    (candidate) => candidate.namespacedKey === PLAN_POLICY_KEY,
+  );
+  if (shadow === undefined) {
+    return;
+  }
+
+  const namespaced = plan[PLAN_POLICY_KEY];
+  const legacy = plan[LEGACY_PLAN_POLICY_KEY];
+  const namespacedKeys = objectKeys(namespaced);
+  const legacyKeys = objectKeys(legacy);
+  const namespacedKeySet = new Set(namespacedKeys);
+  const collisions = legacyKeys.filter((key) => namespacedKeySet.has(key));
+
+  throw new Error(
+    `${describeShadowedPlanExtension(shadow)} ` +
+      `Key inventory: namespaced=${JSON.stringify(namespacedKeys)}; ` +
+      `bare=${JSON.stringify(legacyKeys)}; collisions=${JSON.stringify(collisions)}. ` +
+      `Relevant branch-policy values: namespaced=${branchPolicyValue(namespaced)}; ` +
+      `bare=${branchPolicyValue(legacy)}. ` +
+      `Recovery: inventory both blocks; fold every bare-only key into ` +
+      `\`plan.${PLAN_POLICY_KEY}\`; explicitly resolve every collision; delete ` +
+      `\`plan.${LEGACY_PLAN_POLICY_KEY}\`; then rerun the policy command. No changes were written.`,
+  );
 }
 
 /** Best-effort coerce a legacy narrative value to a boolean. */
@@ -279,6 +334,9 @@ export function setPolicy(
       }
     }
     const plan = data.plan as Record<string, unknown>;
+    // Repeat the shadow check inside the mutation lock so a concurrent writer
+    // cannot create a dual-block state between validation and persistence.
+    assertPolicyBlockIsUnambiguous(plan);
     const legacyKeyMigrated = migrateLegacyPolicyKey(plan);
     const existingPolicy = plan[PLAN_POLICY_KEY];
     if (

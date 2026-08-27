@@ -418,6 +418,15 @@ for project-scoped settings (strategy, coverage).
 - ~ Skip if `./xbrief/PROJECT-DEFINITION.xbrief.json` exists (or `$DEFT_PROJECT_PATH` if set) and user doesn't want to replace
 - ⊗ Count `./deft/PROJECT-DEFINITION.xbrief.json` or `./deft/core/project.md` as the user's project config — those are framework-internal
 
+### Re-entry shadow guard (#3609)
+
+! Before any Phase 2 confirmation or file mutation when PROJECT-DEFINITION already exists, run `deft policy:show --field=plan.policy.allowDirectCommitsToMaster` and inspect **stderr as well as the exit code**. The inspector intentionally exits 0 when it can still read the namespaced value, so a warning that bare `plan.policy` coexists with `plan["x-directive/policy"]` is a hard stop even when the command succeeds.
+
+! On that warning, do not regenerate, overwrite, or run a policy writer. Inventory the keys in both blocks; fold every bare-only key into `plan["x-directive/policy"]`; resolve every collision explicitly; delete bare `plan.policy`; then rerun the inspector. Preserve all unrelated PROJECT-DEFINITION content. Resume only when exactly one policy block remains.
+
+⊗ Treat matching `allowDirectCommitsToMaster` values as safe while other keys may still be stranded in the shadowed block
+⊗ Copy arbitrary policy values into a diagnostic or silently choose one side of a collision
+
 ### Inference
 
 - ! Before asking, infer from codebase — look for `package.json`, `go.mod`, `requirements.txt`, `Cargo.toml`, `pyproject.toml`, `*.csproj`
@@ -491,21 +500,21 @@ apply here too. Do not combine questions. See `skills/deft-directive-interview/S
   ! **Capability-cost disclosure (#746):** When the user picks option 2 (trunk-based), the agent MUST present the capability-cost disclosure verbatim BEFORE writing the typed flag, then re-prompt for explicit confirmation:
 
   > "Capability-cost disclosure -- enabling direct commits to the default branch turns OFF the deft branch-protection policy. The pre-commit + pre-push hooks will no longer block default-branch commits, `task verify:branch` will pass on the default branch, and the skill-level guards in deft-directive-{swarm,review-cycle,pre-pr,release} will not halt for default-branch work. The change is reversible (`task policy:enforce-branches`) and is recorded to meta/policy-changes.log for auditability. The CI sanity check (head_ref != base_ref) remains independent and will continue to flag master->master PRs. Are you sure?"
-  > 1. Yes, opt out -- write `plan.policy.allowDirectCommitsToMaster = true`
-  > 2. No, keep branch-protection enforced -- write `plan.policy.allowDirectCommitsToMaster = false`
+  > 1. Yes, opt out -- persist `allowDirectCommitsToMaster=true` through the policy writer
+  > 2. No, keep branch-protection enforced -- persist `allowDirectCommitsToMaster=false` through the policy writer
   > 3. Discuss
   > 4. Back
 
   ! Default to option 2 (enforce). Explicit affirmative on option 1 is required to opt out -- a broad `proceed` does NOT satisfy this gate. The same affirmative-only rule applies as in `/deft:change` (`yes`, `confirmed`, `approve`).
 
-  ! Write the answer to `plan.policy.allowDirectCommitsToMaster` (typed boolean) on the PROJECT-DEFINITION xBRIEF. Default `false` (enforce branches) when the user picks option 2 OR omits the question entirely. Writing this typed surface is what the framework reads going forward; agents MUST NOT write the legacy free-form `Allow direct commits to master:` narrative key (#746 part A migrates the legacy narrative away).
+  ! Record the answer as the logical field `plan.policy.allowDirectCommitsToMaster`, but do not hand-write either policy block. The common Output Path gate below invokes the only writer and stores the boolean under `plan["x-directive/policy"].allowDirectCommitsToMaster`. Default `false` (enforce branches) when the user picks option 2 OR omits the question entirely. Agents MUST NOT write bare `plan.policy` or the legacy free-form `Allow direct commits to master:` narrative key.
 
-  ! **Re-running the interview detects the existing flag (#746 part G2):** If `xbrief/PROJECT-DEFINITION.xbrief.json` already exists and has `plan.policy.allowDirectCommitsToMaster` set, the interview MUST surface the current value (e.g. "Current setting: `allowDirectCommitsToMaster=false` (branch-protection ON)") and ask whether to keep it or change it before re-prompting. Do not silently overwrite an existing typed value.
+  ! **Re-running the interview detects the existing flag (#746 part G2):** After the Re-entry shadow guard passes, surface the resolved current value (e.g. "Current setting: `allowDirectCommitsToMaster=false` (branch-protection ON)") and ask whether to keep it or change it before re-prompting. A keep choice still runs the selected writer so legacy-only storage is migrated; an already-namespaced match is a no-op with no audit append.
 
-  ! **Slash-command alternatives (#746 part G2):** Once the project is set up, the typed flag can also be flipped via slash commands wrapping `task policy:*`:
-  - `/deft:policy:show` -- display the current resolved policy and source
-  - `/deft:policy:enforce-branches` -- set `allowDirectCommitsToMaster=false`
-  - `/deft:policy:allow-direct-commits` -- set `allowDirectCommitsToMaster=true` (requires `--confirm` to apply)
+  ! **Consumer command alternatives (#746 part G2):** Once the project is set up, use the public CLI directly:
+  - `deft policy:show --field=plan.policy.allowDirectCommitsToMaster` -- display the current resolved policy and source
+  - `deft policy:enforce-branches --actor agent:deft-directive-setup` -- set `allowDirectCommitsToMaster=false`
+  - `deft policy:allow-direct-commits --confirm --actor agent:deft-directive-setup` -- set `allowDirectCommitsToMaster=true`
 
   Each transition is recorded to `meta/policy-changes.log` for auditability.
 
@@ -515,14 +524,30 @@ apply here too. Do not combine questions. See `skills/deft-directive-interview/S
 - Step 3: Ask languages (show detected, confirm or adjust; if none detected, infer from type and ask)
 - Step 4: Ask strategy (default to USER.md Defaults; ask if this project needs different — show Available Strategies numbered list with descriptions and recommended marker)
 - Default coverage to USER.md Defaults without asking
+- ! Do not ask a branching question. The common Output Path gate persists `allowDirectCommitsToMaster=false` unless an existing setting is explicitly kept or changed through the Track 1 disclosure gate.
 
 **Track 3 (non-technical) — 1 step:**
 - Step 1: Present summary of inferences: "Based on your project: {name} ({type}), built with {stack}. Look right?"
 - ⊗ Ask about strategy or coverage — use Phase 1 defaults
+- ! Do not ask a branching question. The common Output Path gate persists `allowDirectCommitsToMaster=false` unless an existing setting is explicitly kept or changed through the Track 1 disclosure gate.
 
 ### Output Path
 
 `./xbrief/PROJECT-DEFINITION.xbrief.json` (or `$DEFT_PROJECT_PATH` if set). Create `./xbrief/` directory and lifecycle subfolders (`proposed/`, `pending/`, `active/`, `completed/`, `cancelled/`) if they don't exist.
+
+### Branch-policy persistence gate (#3609)
+
+! This gate applies to **every track**, including default/greenfield and keep/re-entry paths. First write or merge the confirmed PROJECT-DEFINITION base **without** bare `plan.policy` and without a hand-authored policy block. Preserve an existing namespaced block on re-entry. Then invoke exactly one public writer:
+
+- Branch-based/default/keep-false: `deft policy:enforce-branches --actor agent:deft-directive-setup`
+- Explicitly confirmed trunk-based/keep-true: `deft policy:allow-direct-commits --confirm --actor agent:deft-directive-setup`
+
+! A nonzero writer exit halts Phase 2 immediately. Do not print a completion claim and do not retry by hand-editing JSON. Resolve the reported configuration problem, rerun the Re-entry shadow guard, and invoke the writer again.
+
+! Before Phase 2 can complete, re-read PROJECT-DEFINITION and verify all three postconditions: `plan["x-directive/policy"].allowDirectCommitsToMaster` is the selected boolean; bare `plan.policy` is absent; and `deft verify:vbrief-conformance --project-root .` exits 0. Also run `deft policy:show --field=plan.policy.allowDirectCommitsToMaster` and confirm its resolved value matches the selection. Any mismatch is a hard stop.
+
+⊗ Finish Phase 2 after writing only the narrative template
+⊗ Add a setup-specific policy writer or weaken conformance to permit bare `plan.policy`
 
 ### GitHub PR Template Scaffolding (#531)
 
@@ -579,7 +604,7 @@ omit = [
       "Strategy": "Use {strategy name} for this project",
       "Quality": "Run task check before every commit. Achieve >= {coverage}% coverage overall + per-module. Store secrets in secrets/ dir.",
       "ProjectRules": "{Any rules the user specified, or 'No project-specific rules defined.'}",
-      "Branching": "{If trunk-based: 'Allow direct commits to master: true', else omit or 'Branch-based workflow (default)'}",
+      "Branching": "{If confirmed trunk-based: 'Trunk-based workflow', otherwise 'Branch-based workflow (default)'}",
       "DeftVersion": "0.20.0"
     },
     "items": []

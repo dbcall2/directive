@@ -60,10 +60,20 @@
           "sourceSpan": "inline@L26"
         }
       ],
-      "swarm": {},
+      "literal_acceptance_not_commands": [
+        "task verify:vbrief-conformance",
+        "task verify:forward-coverage",
+        "task check"
+      ],
+      "swarm": {
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/policy/resolve.test.ts packages/cli/src/policy.test.ts packages/cli/src/cli-router/route-argv.test.ts packages/core/src/content-contracts/skills/setup_revisit_experimental_rules.test.ts"
+        ]
+      },
       "intended_placement": {
         "schema": "deft.scope.intended_placement.v1",
         "files": [
+          "xbrief/active/2026-08-26-3609-blocker-bugsetup-phase-2-emits-bare-planpolicy-that-vbrief-c.xbrief.json",
           "packages/core/src/policy/resolve.ts",
           "packages/core/src/policy/resolve.test.ts",
           "packages/cli/src/policy.test.ts",
@@ -82,49 +92,51 @@
       }
     },
     "acceptance": {
-      "commands": [],
-      "none_stated": true,
+      "commands": [
+        "pnpm exec vitest run packages/core/src/policy/resolve.test.ts packages/cli/src/policy.test.ts packages/cli/src/cli-router/route-argv.test.ts packages/core/src/content-contracts/skills/setup_revisit_experimental_rules.test.ts"
+      ],
+      "none_stated": false,
       "source_rung": "derived",
-      "derived_reason": "derived 5 independently testable clauses from the task statement before product edit (#3323)",
+      "derived_reason": "focused non-recursive product oracle; broad conformance, forward-coverage, and task check gates run separately (#3334)",
       "clauses": [
         {
           "id": 1,
-          "text": "Setup writes `plan[\"x-directive/policy\"].allowDirectCommitsToMaster`.",
-          "artifact_path": "plan[\"x-directive/policy\"].allowDirectCommitsToMaster",
+          "text": "The setup contract \"stores the boolean\" through the canonical namespaced writer.",
+          "artifact_path": "content/skills/deft-directive-setup/SKILL.md",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 2,
-          "text": "Setup re-entry handles namespaced-only, legacy-only, and conflicting dual-key inputs safely.",
-          "artifact_path": null,
+          "text": "The policy unit suite contains \"dual policy blocks\" fail-closed coverage.",
+          "artifact_path": "packages/core/src/policy/resolve.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 3,
-          "text": "A greenfield setup integration fixture runs `verify:vbrief-conformance` successfully.",
-          "artifact_path": null,
+          "text": "The greenfield integration fixture invokes \"verify:vbrief-conformance\".",
+          "artifact_path": "packages/cli/src/policy.test.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 4,
-          "text": "Documentation distinguishes the operator-facing `plan.policy.*` name from the stored namespaced extension key where necessary.",
-          "artifact_path": null,
+          "text": "Command documentation names the \"logical field\" distinction.",
+          "artifact_path": "content/commands.md",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 5,
-          "text": "Existing legacy consumers retain an explicit migration path.",
-          "artifact_path": null,
+          "text": "Upgrade guidance states \"Legacy-only projects remain supported\".",
+          "artifact_path": "content/UPGRADING.md",
           "ambiguous": false,
           "provenance": "statement"
         }
       ],
       "ambiguity_attestation": "none_found"
     },
-    "updated": "2026-08-26T23:50:52Z"
+    "updated": "2026-08-27T00:11:04Z"
   }
 }

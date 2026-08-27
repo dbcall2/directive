@@ -311,6 +311,65 @@ describe("setPolicy", () => {
       true,
     );
   });
+
+  it("fails closed without writes when dual policy blocks agree (#3609)", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-dual-equal-"));
+    roots.push(r);
+    writeProjectDef(r, {
+      "x-directive/policy": { allowDirectCommitsToMaster: false, wipCap: 8 },
+      policy: { allowDirectCommitsToMaster: false, triageScope: [{ rule: "all-open" }] },
+    });
+    const definitionPath = join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json");
+    const before = readFileSync(definitionPath, "utf8");
+
+    expect(() => setPolicy(r, { allowDirectCommits: false, actor: "test" })).toThrowError(
+      /Key inventory: namespaced=\["allowDirectCommitsToMaster","wipCap"\].*bare=\["allowDirectCommitsToMaster","triageScope"\].*collisions=\["allowDirectCommitsToMaster"\]/,
+    );
+    expect(readFileSync(definitionPath, "utf8")).toBe(before);
+    expect(existsSync(join(r, "meta", "policy-changes.log"))).toBe(false);
+  });
+
+  it("fails closed with bounded recovery detail when dual policy values conflict (#3609)", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-dual-conflict-"));
+    roots.push(r);
+    writeProjectDef(r, {
+      "x-directive/policy": { allowDirectCommitsToMaster: true },
+      policy: { allowDirectCommitsToMaster: false, wipCap: 4 },
+    });
+    const definitionPath = join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json");
+    const before = readFileSync(definitionPath, "utf8");
+
+    let message = "";
+    try {
+      setPolicy(r, { allowDirectCommits: false, actor: "test" });
+    } catch (error: unknown) {
+      message = String(error);
+    }
+    expect(message).toContain("Relevant branch-policy values: namespaced=True; bare=False");
+    expect(message).toContain("fold every bare-only key");
+    expect(message).toContain("explicitly resolve every collision");
+    expect(message).toContain("delete `plan.policy`");
+    expect(message).toContain("No changes were written");
+    expect(readFileSync(definitionPath, "utf8")).toBe(before);
+    expect(existsSync(join(r, "meta", "policy-changes.log"))).toBe(false);
+  });
+
+  it("bounds diagnostics when a coexisting policy block is malformed (#3609)", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-dual-malformed-"));
+    roots.push(r);
+    writeProjectDef(r, {
+      "x-directive/policy": "invalid",
+      policy: { allowDirectCommitsToMaster: false },
+    });
+    const definitionPath = join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json");
+    const before = readFileSync(definitionPath, "utf8");
+
+    expect(() => setPolicy(r, { allowDirectCommits: false, actor: "test" })).toThrowError(
+      /Key inventory: namespaced=\[\].*Relevant branch-policy values: namespaced='invalid'; bare=False/,
+    );
+    expect(readFileSync(definitionPath, "utf8")).toBe(before);
+    expect(existsSync(join(r, "meta", "policy-changes.log"))).toBe(false);
+  });
 });
 
 describe("appendAuditLog (#3528)", () => {
