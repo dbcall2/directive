@@ -34,7 +34,13 @@
         "status": "proposed"
       }
     ],
-    "references": [],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/pull/3793",
+        "type": "x-xbrief/github-pr",
+        "title": "Follow-up PR #3793"
+      }
+    ],
     "metadata": {
       "kind": "scope",
       "xbriefCreate": true,
