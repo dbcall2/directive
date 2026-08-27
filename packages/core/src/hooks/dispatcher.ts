@@ -50,8 +50,11 @@ import {
 import {
   defaultGitRunner,
   detectBranch,
+  existingAncestorDir,
   type GitRunner,
+  gitCommonDir,
   memoizeGitRunner,
+  worktreePathOrNull,
 } from "../session/git.js";
 import { evaluateOccupancyWriteGate } from "../session/occupancy.js";
 import { emitSessionRitualBlockedProcessCost } from "../session/process-cost.js";
@@ -68,6 +71,7 @@ import {
 import {
   type HookPayloadContext,
   hookMcpArgsText,
+  hookMutationTargetPaths,
   hookShellCommand,
   hookToolName,
   hookWriteTargetPath,
@@ -151,6 +155,8 @@ export type HookDecisionCode =
   | "occupancy-identity-conflict"
   /** Live lease and exact verified ritual state name different owners (#3611). */
   | "occupancy-ritual-mismatch"
+  /** Write target resolved to a Git repository that does not share git-common-dir (#3794). */
+  | "foreign-repository-deny"
   | "scope-not-ready"
   | "write-propose-ready"
   /** Allowlisted assist/scratch write without active xBRIEF (#1802). */
@@ -486,6 +492,103 @@ export function projectRootFromHookPayload(payload: unknown, fallback: string): 
   return fallbackResolved;
 }
 
+/** Interpolate both roots so a deny names the tree that was judged (#3794). */
+export function formatHookRootNote(payloadRoot: string, effectiveRoot: string): string {
+  return `payloadRoot=${payloadRoot} effectiveRoot=${effectiveRoot}`;
+}
+
+/** Why a mutation target was refused, so the deny message can be specific (#3794). */
+export type EffectiveHookRootRefusal =
+  /** Both common-dirs resolved and differ: a proven separate repository. */
+  | "foreign-repository"
+  /** `payloadRoot` is a repository but the target's identity could not be read. */
+  | "unproven-identity"
+  /** Members of one mutation resolved to two admitted worktrees. */
+  | "worktree-span";
+
+export interface EffectiveHookRootAdmission {
+  readonly root: string;
+  /** True when the target was refused and the dispatcher must deny (#3794). */
+  readonly foreign: boolean;
+  readonly candidate: string | null;
+  readonly refusal: EffectiveHookRootRefusal | null;
+}
+
+function admitPayload(payload: string, candidate: string | null): EffectiveHookRootAdmission {
+  return { root: payload, foreign: false, candidate, refusal: null };
+}
+
+/**
+ * Admit the Git toplevel of the write target only when it shares
+ * `--git-common-dir` with `payloadRoot`.
+ *
+ * Identity resolves to one of three outcomes, not two. A `payloadRoot` that is
+ * not a Git repository never posed a containment question, so it keeps today's
+ * payloadRoot gating. A `payloadRoot` that *is* a repository, paired with a
+ * target that resolved to some other toplevel whose identity cannot be read, is
+ * a question asked and left unanswered — that fails closed rather than
+ * inheriting payloadRoot's occupancy and ritual state (#3794).
+ */
+export function admitEffectiveHookRoot(
+  payloadRoot: string,
+  writeTarget: string | null,
+  runGit: GitRunner,
+): EffectiveHookRootAdmission {
+  const payload = normalizeHookProjectRoot(payloadRoot);
+  if (writeTarget === null) return admitPayload(payload, null);
+  const ancestor = existingAncestorDir(writeTarget);
+  if (ancestor === null) return admitPayload(payload, null);
+  const candidateRaw = worktreePathOrNull(ancestor, runGit);
+  if (candidateRaw === null) return admitPayload(payload, null);
+  const candidate = normalizeHookProjectRoot(candidateRaw);
+  if (candidate === payload) return admitPayload(payload, candidate);
+  const payloadCommon = gitCommonDir(payload, runGit);
+  if (payloadCommon === null) {
+    // No containment question exists: payloadRoot is not a repository, so there
+    // is no boundary for the target to be inside or outside of. Denying here
+    // would invent a class this defect never had.
+    return admitPayload(payload, candidate);
+  }
+  const candidateCommon = gitCommonDir(candidate, runGit);
+  if (candidateCommon === null) {
+    return { root: payload, foreign: true, candidate, refusal: "unproven-identity" };
+  }
+  if (normalizeHookProjectRoot(payloadCommon) === normalizeHookProjectRoot(candidateCommon)) {
+    return { root: candidate, foreign: false, candidate, refusal: null };
+  }
+  return { root: payload, foreign: true, candidate, refusal: "foreign-repository" };
+}
+
+/**
+ * Admit every mutation target and require one effectiveRoot. A refused member
+ * short-circuits; a span of two admitted worktrees is also refused so
+ * occupancy/ritual cannot follow only the declared ApplyPatch path (#3794).
+ */
+export function admitMutationTargetSet(
+  payloadRoot: string,
+  targets: readonly string[],
+  runGit: GitRunner,
+): EffectiveHookRootAdmission {
+  const payload = normalizeHookProjectRoot(payloadRoot);
+  if (targets.length === 0) return admitPayload(payload, null);
+  const admitted: EffectiveHookRootAdmission[] = [];
+  for (const target of targets) {
+    const next = admitEffectiveHookRoot(payload, target, runGit);
+    if (next.foreign) return next;
+    admitted.push(next);
+  }
+  const roots = [...new Set(admitted.map((item) => item.root))];
+  if (roots.length > 1) {
+    return {
+      root: payload,
+      foreign: true,
+      candidate: roots.join(" | "),
+      refusal: "worktree-span",
+    };
+  }
+  return admitted[0] ?? admitPayload(payload, null);
+}
+
 export function isHookHost(value: string): value is HookHost {
   return (HOOK_HOSTS as readonly string[]).includes(value);
 }
@@ -715,6 +818,8 @@ function authzForMutation(
     runGit?: GitRunner;
   },
 ): HookDecision | null {
+  // #3794: grant scoping and the authz audit trail stay on payloadRoot.
+  // Re-pointing would break exact-string UAT grants and shard the audit file.
   const projectRoot = resolve(input.projectRoot);
   let state: AuthzState;
   let grants: readonly HumanOriginGrant[];
@@ -926,9 +1031,35 @@ function inspectMutationGates(
   seams: HookPolicySeams,
   options: { proposedLifecycleExempt: boolean },
 ): HookDecision {
-  const projectRoot = resolve(input.projectRoot);
+  // payloadRoot stays authoritative for authz, audit trail, kill-switch,
+  // #2885 outside-root, file_scope (commit 2), and deny().projectRoot.
+  const payloadRoot = resolve(input.projectRoot);
+  const projectRoot = payloadRoot;
   const environ = input.environ ?? process.env;
   const dispatchGit = memoizeGitRunner(seams.ritualRunGit ?? defaultGitRunner);
+  const mutationTargets = isSpawnTool(toolName) ? [] : hookMutationTargetPaths(input.payload);
+  const admission: EffectiveHookRootAdmission = isSpawnTool(toolName)
+    ? { root: payloadRoot, foreign: false, candidate: null, refusal: null }
+    : admitMutationTargetSet(payloadRoot, mutationTargets, dispatchGit);
+  const effectiveRoot = admission.root;
+  const rootsNote = ` ${formatHookRootNote(payloadRoot, effectiveRoot)}`;
+  if (admission.foreign) {
+    const candidate = admission.candidate ?? "<none>";
+    const reason =
+      admission.refusal === "worktree-span"
+        ? `write targets span more than one Git worktree (candidate=${candidate}).`
+        : admission.refusal === "unproven-identity"
+          ? `write target resolved to a separate Git working tree whose repository ` +
+            `identity could not be read, so containment is unproven (candidate=${candidate}).`
+          : `write target is in a different Git repository ` +
+            `than the hook payload root (candidate=${candidate}).`;
+    return deny(
+      input,
+      "foreign-repository-deny",
+      toolName,
+      `Directive denied ${toolName}: ${reason}${rootsNote}`,
+    );
+  }
 
   // Assist/scratch low-ceremony writes (#1802): allowlisted gitignored roots under
   // assist/ephemeral classification skip ritual + active-scope (no fake scope:activate).
@@ -985,7 +1116,7 @@ function inspectMutationGates(
             runGit: dispatchGit,
           }),
         ))
-    )(projectRoot);
+    )(effectiveRoot);
   } catch (cause) {
     // #2994: best-effort local process-cost; never changes deny verdict.
     emitSessionRitualBlockedProcessCost(
@@ -1002,13 +1133,14 @@ function inspectMutationGates(
       "ritual-not-ready",
       toolName,
       `Directive could not inspect the gated session ritual: ${String(cause)}. ` +
-        formatRitualRecoveryInstruction("cold"),
+        formatRitualRecoveryInstruction("cold") +
+        rootsNote,
     );
   }
   const actor = isSpawnTool(toolName) ? null : resolveMutationActor(input, environ);
   const occupancyGate = isSpawnTool(toolName)
     ? { allow: true, message: null as string | null, occupant: null }
-    : evaluateOccupancyWriteGate(projectRoot, {
+    : evaluateOccupancyWriteGate(effectiveRoot, {
         sessionId: actor?.sessionId,
         // Payload-supported hosts must not fall back to a stale ambient owner.
         env: actor?.payloadAuthoritative === true ? {} : environ,
@@ -1034,7 +1166,8 @@ function inspectMutationGates(
       toolName,
       `Directive denied ${toolName}: ${detail} A live occupancy lease exists for ` +
         `session ${occupancyGate.occupant.sessionId}; use an exact host-mediated lifecycle ` +
-        "command or pass the matching --session-id explicitly.",
+        "command or pass the matching --session-id explicitly." +
+        rootsNote,
     );
   }
   if (!occupancyGate.allow && occupancyGate.message !== null) {
@@ -1052,7 +1185,7 @@ function inspectMutationGates(
       input,
       "occupancy-occupied",
       toolName,
-      `Directive denied ${toolName}: ${occupancyGate.message}${ritualNote}`,
+      `Directive denied ${toolName}: ${occupancyGate.message}${ritualNote}${rootsNote}`,
     );
   }
   if (occupancyGate.occupant !== null && actor !== null) {
@@ -1081,7 +1214,8 @@ function inspectMutationGates(
         toolName,
         `Directive denied ${toolName}: ${detail}. ` +
           "Run the canonical session recovery with the same explicit --session-id; " +
-          "intermediate lease/ritual mismatches fail closed.",
+          "intermediate lease/ritual mismatches fail closed." +
+          rootsNote,
       );
     }
   }
@@ -1102,7 +1236,8 @@ function inspectMutationGates(
       input,
       "ritual-not-ready",
       toolName,
-      `Directive denied ${toolName}: ${ritual.message} ${formatRitualRecoveryInstruction(recoveryTier)}`,
+      `Directive denied ${toolName}: ${ritual.message} ${formatRitualRecoveryInstruction(recoveryTier)}` +
+        rootsNote,
     );
   }
 
@@ -1115,7 +1250,7 @@ function inspectMutationGates(
   let occupancyWarning: string | null = null;
   const recheckOccupancyBeforeWriteAllow = (): HookDecision | null => {
     if (actor === null) return null;
-    const finalOccupancy = evaluateOccupancyWriteGate(projectRoot, {
+    const finalOccupancy = evaluateOccupancyWriteGate(effectiveRoot, {
       sessionId: actor.sessionId,
       env: actor.payloadAuthoritative ? {} : environ,
       refresh: true,
@@ -1129,7 +1264,8 @@ function inspectMutationGates(
           : "occupancy-identity-unavailable",
         toolName,
         `Directive denied ${toolName}: the live occupancy owner changed while mutation ` +
-          "gates were running, and this hook has no unambiguous matching actor identity.",
+          "gates were running, and this hook has no unambiguous matching actor identity." +
+          rootsNote,
       );
     }
     if (!finalOccupancy.allow && finalOccupancy.message !== null) {
@@ -1138,7 +1274,8 @@ function inspectMutationGates(
         "occupancy-occupied",
         toolName,
         `Directive denied ${toolName}: occupancy changed while mutation gates were running. ` +
-          finalOccupancy.message,
+          finalOccupancy.message +
+          rootsNote,
       );
     }
     if (
@@ -1151,7 +1288,8 @@ function inspectMutationGates(
         "occupancy-ritual-mismatch",
         toolName,
         `Directive denied ${toolName}: final lease owner ${actor.sessionId} does not match ` +
-          `the exact verified ritual owner ${ritual.boundSessionId ?? "<unbound>"}.`,
+          `the exact verified ritual owner ${ritual.boundSessionId ?? "<unbound>"}.` +
+          rootsNote,
       );
     }
     return null;
@@ -1551,6 +1689,8 @@ export function decideHook(input: HookDispatchInput, seams: HookPolicySeams = {}
   // short-circuit (SessionStart / compact / PreToolUse). Deposit may remain.
   // Tracked/committed flags do NOT bypass gates (repo-controlled content must
   // not disable enforcement for clones) — doctor warns instead.
+  // #3794: the kill-switch is pinned to payloadRoot. The flag is untracked, so
+  // linked worktrees do not carry it; re-pointing would silently re-arm.
   {
     const detectKill = seams.detectDeftDirectiveDisable ?? detectDeftDirectiveDisable;
     const kill = detectKill(projectRoot);
