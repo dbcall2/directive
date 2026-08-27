@@ -135,23 +135,44 @@ export function packageManagerSourceLabel(source: PackageManagerResolutionSource
  * returned manager is a closed union and callers map it to fixed argv; raw
  * package.json or environment text is never executable (#2761/#2765/#3610).
  */
+function packageManagerConflictResolution(): PackageManagerResolution {
+  return {
+    ok: false,
+    source: "env-override",
+    message:
+      "DEFT_PACKAGE_MANAGER conflicts with package.json#packageManager; the declaration is authoritative.",
+  };
+}
+
+function resolveExplicitOverride(override: string): PackageManagerResolution | null {
+  if (override.trim() === "") return null;
+  const packageManager = normalizeExplicitPackageManager(override);
+  if (packageManager === null) return unsupportedPackageManager(override, "env-override");
+  return { ok: true, packageManager, source: "env-override" };
+}
+
 export function resolvePackageManager(
   input: DetectPackageManagerInput = {},
 ): PackageManagerResolution {
   const env = input.env ?? {};
   const override = env.DEFT_PACKAGE_MANAGER;
-  if (typeof override === "string" && override.trim() !== "") {
-    const packageManager = normalizeExplicitPackageManager(override);
-    if (packageManager === null) return unsupportedPackageManager(override, "env-override");
-    return { ok: true, packageManager, source: "env-override" };
+  const overrideText = typeof override === "string" ? override : "";
+  const field = input.packageManagerField;
+
+  if (field != null && field.trim() !== "") {
+    const declared = normalizeExplicitPackageManager(field);
+    if (declared === null) return unsupportedPackageManager(field, "package-manager-field");
+    if (overrideText.trim() !== "") {
+      const overridden = normalizeExplicitPackageManager(overrideText);
+      if (overridden !== null && overridden !== declared) {
+        return packageManagerConflictResolution();
+      }
+    }
+    return { ok: true, packageManager: declared, source: "package-manager-field" };
   }
 
-  const field = input.packageManagerField;
-  if (field != null && field.trim() !== "") {
-    const packageManager = normalizeExplicitPackageManager(field);
-    if (packageManager === null) return unsupportedPackageManager(field, "package-manager-field");
-    return { ok: true, packageManager, source: "package-manager-field" };
-  }
+  const overrideResolution = resolveExplicitOverride(overrideText);
+  if (overrideResolution !== null) return overrideResolution;
 
   if (input.pnpmLockPresent) {
     return { ok: true, packageManager: "pnpm", source: "pnpm-lock" };
@@ -213,11 +234,6 @@ export function resolveProjectPackageManager(
   const readText = options.readText ?? defaultReadText;
   const isFile = options.isFile ?? defaultIsFile;
   const packageJsonPath = join(projectRoot, "package.json");
-
-  const override = env.DEFT_PACKAGE_MANAGER;
-  if (typeof override === "string" && override.trim() !== "") {
-    return resolvePackageManager({ env });
-  }
 
   let packageManagerField: string | null = null;
   let packageJsonText: string | null;
@@ -289,8 +305,8 @@ export function resolveProjectPackageManager(
 
 /**
  * Detect the active package manager. Precedence (first match wins):
- *   1. `DEFT_PACKAGE_MANAGER` env override
- *   2. `packageManager` field / Corepack shim
+ *   1. `packageManager` field / Corepack shim (authoritative when present)
+ *   2. `DEFT_PACKAGE_MANAGER` env override
  *   3. `pnpm-lock.yaml` present
  *   4. `npm_config_user_agent` (set by the manager that spawned the process)
  *   5. default: npm
@@ -298,14 +314,14 @@ export function resolveProjectPackageManager(
 export function detectPackageManager(input: DetectPackageManagerInput = {}): PackageManager {
   const env = input.env ?? {};
 
-  const override = env.DEFT_PACKAGE_MANAGER;
-  if (typeof override === "string" && override.trim() !== "") {
-    const pm = normalizePackageManager(override);
+  if (input.packageManagerField != null && input.packageManagerField.trim() !== "") {
+    const pm = normalizePackageManager(input.packageManagerField);
     if (pm) return pm;
   }
 
-  if (input.packageManagerField != null && input.packageManagerField.trim() !== "") {
-    const pm = normalizePackageManager(input.packageManagerField);
+  const override = env.DEFT_PACKAGE_MANAGER;
+  if (typeof override === "string" && override.trim() !== "") {
+    const pm = normalizePackageManager(override);
     if (pm) return pm;
   }
 

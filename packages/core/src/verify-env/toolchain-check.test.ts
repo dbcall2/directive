@@ -4,7 +4,13 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { formatNamedCauseFailure } from "../check/named-cause.js";
 import { NODE_RUNTIME_REMEDIATION, NPM_RUNTIME_REMEDIATION } from "./node-runtime.js";
-import { CONSUMER_TOOLS, defaultCommandRunner, runToolchainCheck } from "./toolchain-check.js";
+import {
+  CONSUMER_TOOLS,
+  RESOLVED_PACKAGE_MANAGER_SHIM_ENV,
+  childEnvWithResolvedPackageManagerShim,
+  defaultCommandRunner,
+  runToolchainCheck,
+} from "./toolchain-check.js";
 
 const fixtureRoots: string[] = [];
 
@@ -251,13 +257,14 @@ describe("runToolchainCheck", () => {
     expect(shells).toEqual([false]);
   });
 
-  it("runs a trusted absolute Windows .cmd/PATHEXT shim through system cmd.exe", () => {
+  it("runs a trusted absolute Windows .cmd/PATHEXT shim through child-env transport", () => {
     const calls: Array<{
       bin: string;
       args: readonly string[];
       shell: boolean;
       windowsVerbatimArguments?: boolean;
       cwd?: string;
+      env?: NodeJS.ProcessEnv;
     }> = [];
     const managerPath = "C:\\Program Files\\nodejs\\npm.CMD";
     const result = defaultCommandRunner(["npm", "--version"], 1_000, {
@@ -272,6 +279,7 @@ describe("runToolchainCheck", () => {
           shell: options.shell,
           windowsVerbatimArguments: options.windowsVerbatimArguments,
           cwd: options.cwd,
+          env: options.env,
         });
         return "11.16.0\r\n";
       },
@@ -280,13 +288,53 @@ describe("runToolchainCheck", () => {
     expect(calls).toEqual([
       {
         bin: "C:\\Windows\\System32\\cmd.exe",
-        args: ["/d", "/s", "/c", '""C:\\Program Files\\nodejs\\npm.CMD" --version"'],
+        args: ["/d", "/s", "/c", '""%DEFT_RESOLVED_PACKAGE_MANAGER_SHIM%" --version"'],
         shell: false,
         windowsVerbatimArguments: true,
         cwd: "C:\\consumer",
+        env: childEnvWithResolvedPackageManagerShim(
+          { Path: "C:\\Program Files\\nodejs", PATHEXT: ".CMD", SystemRoot: "C:\\Windows" },
+          managerPath,
+        ),
       },
     ]);
+    expect(calls[0]?.env?.[RESOLVED_PACKAGE_MANAGER_SHIM_ENV]).toBe(managerPath);
     expect(calls[0]?.args.join(" ")).not.toContain("C:\\consumer\\npm");
+  });
+
+  it("transports percent-containing shim paths without cmd expansion", () => {
+    const managerPath = "C:\\Users\\50%off\\npm.CMD";
+    const result = defaultCommandRunner(["npm", "--version"], 1_000, {
+      platform: "win32",
+      cwd: "C:\\consumer",
+      env: { Path: "C:\\Users\\50%off", PATHEXT: ".CMD", SystemRoot: "C:\\Windows" },
+      exists: (path) => path === managerPath,
+      execFileSync: (_bin, _args, options) => {
+        expect(options.env?.[RESOLVED_PACKAGE_MANAGER_SHIM_ENV]).toBe(managerPath);
+        return "11.16.0\r\n";
+      },
+    });
+    expect(result).toMatchObject({ returncode: 0 });
+  });
+
+  it("clears inherited case-insensitive shim transport env keys before setting", () => {
+    const managerPath = "C:\\trusted\\npm.CMD";
+    const evilPath = "C:\\evil\\npm.CMD";
+    defaultCommandRunner(["npm", "--version"], 1_000, {
+      platform: "win32",
+      env: {
+        Path: "C:\\trusted",
+        PATHEXT: ".CMD",
+        SystemRoot: "C:\\Windows",
+        deft_resolved_package_manager_shim: evilPath,
+      },
+      exists: (path) => path === managerPath,
+      execFileSync: (_bin, _args, options) => {
+        expect(options.env?.[RESOLVED_PACKAGE_MANAGER_SHIM_ENV]).toBe(managerPath);
+        expect(options.env?.deft_resolved_package_manager_shim).toBeUndefined();
+        return "11.16.0\r\n";
+      },
+    });
   });
 
   it.runIf(process.platform === "win32")(

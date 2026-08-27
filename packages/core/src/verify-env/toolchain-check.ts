@@ -122,8 +122,22 @@ function isFixedWindowsPackageManagerProbe(bin: string, args: readonly string[])
   return (bin === "npm" || bin === "pnpm") && args.length === 1 && args[0] === "--version";
 }
 
-function quoteWindowsCommandPath(path: string): string {
-  return `"${path.replace(/%/g, "%%").replace(/"/g, '""')}"`;
+/** Child-env transport for Windows shim paths (#3814 option F). */
+export const RESOLVED_PACKAGE_MANAGER_SHIM_ENV = "DEFT_RESOLVED_PACKAGE_MANAGER_SHIM";
+
+export function childEnvWithResolvedPackageManagerShim(
+  baseEnv: NodeJS.ProcessEnv,
+  shimPath: string,
+): NodeJS.ProcessEnv {
+  const childEnv = { ...baseEnv };
+  const targetLower = RESOLVED_PACKAGE_MANAGER_SHIM_ENV.toLowerCase();
+  for (const key of Object.keys(childEnv)) {
+    if (key.toLowerCase() === targetLower) {
+      delete childEnv[key];
+    }
+  }
+  childEnv[RESOLVED_PACKAGE_MANAGER_SHIM_ENV] = shimPath;
+  return childEnv;
 }
 
 function windowsCommandInterpreter(env: NodeJS.ProcessEnv): string {
@@ -169,12 +183,13 @@ export function defaultCommandRunner(
     }
     const isCommandShim = /\.(?:cmd|bat)$/i.test(resolvedBin);
     const executable = isCommandShim ? windowsCommandInterpreter(env) : resolvedBin;
-    const commandLine = `${quoteWindowsCommandPath(resolvedBin)} --version`;
+    const shimEnv = isCommandShim ? childEnvWithResolvedPackageManagerShim(env, resolvedBin) : env;
+    const commandLine = `"%${RESOLVED_PACKAGE_MANAGER_SHIM_ENV}%" --version`;
     const executableArgs = isCommandShim ? ["/d", "/s", "/c", `"${commandLine}"`] : args;
     // Mirror Node's cmd.exe shell plan: the outer command quote satisfies /s,
     // while verbatim arguments prevent libuv from re-escaping the command line.
     const commandOptions = isCommandShim
-      ? { ...execOptions, windowsVerbatimArguments: true }
+      ? { ...execOptions, env: shimEnv, windowsVerbatimArguments: true }
       : execOptions;
     try {
       const stdout = execFileSync(executable, executableArgs, commandOptions);

@@ -717,6 +717,12 @@ jobs:
           ) -join [Environment]::NewLine
           [System.IO.File]::WriteAllText((Join-Path $consumer 'Taskfile.yml'), $consumerTaskfile, (New-Object System.Text.UTF8Encoding $false))
 
+          $consumerPackageJson = @{
+            packageManager = 'npm@11.16.0'
+            deftConsumerDeposit = $true
+          } | ConvertTo-Json -Compress
+          [System.IO.File]::WriteAllText((Join-Path $consumer 'package.json'), $consumerPackageJson, (New-Object System.Text.UTF8Encoding $false))
+
           $cmdShim = Join-Path $shimDir 'deft.cmd'
           $cmdBody = "@echo off`r`nnode `"$env:GITHUB_WORKSPACE\packages\cli\dist\bin.js`" %*`r`n"
           [System.IO.File]::WriteAllText($cmdShim, $cmdBody, (New-Object System.Text.UTF8Encoding $false))
@@ -751,6 +757,19 @@ jobs:
             if ($LASTEXITCODE -ne 0) {
               throw "task deft:verify:cache-fresh exited $LASTEXITCODE"
             }
+            $toolchainOutput = deft toolchain-check --consumer --project-root . 2>&1 | Out-String
+            Write-Host "--- deft toolchain-check --consumer ---"
+            Write-Host $toolchainOutput
+            if ($LASTEXITCODE -ne 0) {
+              throw "deft toolchain-check --consumer exited $LASTEXITCODE (#3610)"
+            }
+            if ($toolchainOutput -match 'pnpm:') {
+              throw "npm-pinned consumer fixture must not probe pnpm (#3610)"
+            }
+            if ($toolchainOutput -notmatch 'package manager: npm') {
+              throw "consumer toolchain check must select npm for npm-pinned fixture (#3610)"
+            }
+
             if ($taskOutput -match 'engine:_ts-build|pnpm\s+.*run build') {
               throw "task deft:verify:cache-fresh reached a build path on a consumer deposit (#2120)"
             }

@@ -45,17 +45,16 @@ describe("resolution/package-manager detectPackageManager (#2197)", () => {
     expect(detectPackageManager({ env: {} })).toBe(DEFAULT_PACKAGE_MANAGER);
   });
 
-  it("honors the DEFT_PACKAGE_MANAGER env override first", () => {
+  it("honors packageManager before DEFT_PACKAGE_MANAGER", () => {
     expect(detectPackageManager({ env: { DEFT_PACKAGE_MANAGER: "pnpm" } })).toBe("pnpm");
     expect(detectPackageManager({ env: { DEFT_PACKAGE_MANAGER: "npm" } })).toBe("npm");
-    // Override beats every lower-precedence signal.
     expect(
       detectPackageManager({
         env: { DEFT_PACKAGE_MANAGER: "npm", npm_config_user_agent: "pnpm/9.0.0" },
         pnpmLockPresent: true,
         packageManagerField: "pnpm@9.0.0",
       }),
-    ).toBe("npm");
+    ).toBe("pnpm");
   });
 
   it("reads the packageManager / corepack field before the lockfile", () => {
@@ -83,14 +82,20 @@ describe("resolution/package-manager detectPackageManager (#2197)", () => {
 });
 
 describe("resolution/package-manager strict project resolution (#3610)", () => {
-  it("reports the winning manager and precedence source", () => {
+  it("rejects a conflicting DEFT_PACKAGE_MANAGER when packageManager is declared", () => {
     expect(
       resolvePackageManager({
         env: { DEFT_PACKAGE_MANAGER: "npm", npm_config_user_agent: "pnpm/11.8.0" },
         packageManagerField: "pnpm@11.8.0",
         pnpmLockPresent: true,
       }),
-    ).toEqual({ ok: true, packageManager: "npm", source: "env-override" });
+    ).toMatchObject({ ok: false, source: "env-override" });
+    expect(
+      resolvePackageManager({
+        env: { DEFT_PACKAGE_MANAGER: "pnpm" },
+        packageManagerField: "npm@11.16.0",
+      }).message,
+    ).toMatch(/conflicts with package.json#packageManager/i);
   });
 
   it("rejects unsupported explicit managers instead of falling through", () => {
@@ -148,16 +153,22 @@ describe("resolution/package-manager strict project resolution (#3610)", () => {
     expect(result.message).toMatch(/non-empty string.*npm.*pnpm/i);
   });
 
-  it("stops at an environment override before reading lower-priority project files", () => {
+  it("rejects a conflicting override after reading packageManager from project files", () => {
     const result = resolveProjectPackageManager({
       projectRoot: "/consumer",
       env: { DEFT_PACKAGE_MANAGER: "npm" },
-      readText: () => {
-        throw new Error("package.json should not be read");
-      },
-      isFile: () => {
-        throw new Error("lockfile should not be inspected");
-      },
+      readText: () => JSON.stringify({ packageManager: "pnpm@11.8.0" }),
+      isFile: () => false,
+    });
+    expect(result).toMatchObject({ ok: false, source: "env-override" });
+  });
+
+  it("uses an environment override only when no packageManager declaration exists", () => {
+    const result = resolveProjectPackageManager({
+      projectRoot: "/consumer",
+      env: { DEFT_PACKAGE_MANAGER: "npm" },
+      readText: () => JSON.stringify({ name: "consumer" }),
+      isFile: () => false,
     });
     expect(result).toEqual({
       ok: true,
@@ -197,12 +208,21 @@ describe("resolution/package-manager strict project resolution (#3610)", () => {
     });
   });
 
-  it("inherits the process environment when no environment seam is supplied", () => {
+  it("inherits the process environment override when no declaration exists", () => {
     vi.stubEnv("DEFT_PACKAGE_MANAGER", "pnpm");
     const root = packageManagerFixture({});
     expect(resolveProjectPackageManager({ projectRoot: root })).toEqual({
       ok: true,
       packageManager: "pnpm",
+      source: "env-override",
+    });
+  });
+
+  it("rejects an inherited override that conflicts with a declared packageManager", () => {
+    vi.stubEnv("DEFT_PACKAGE_MANAGER", "pnpm");
+    const root = packageManagerFixture({ packageManager: "npm@11.16.0" });
+    expect(resolveProjectPackageManager({ projectRoot: root })).toMatchObject({
+      ok: false,
       source: "env-override",
     });
   });
