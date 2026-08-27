@@ -99,9 +99,7 @@ describe("setup namespaced branch-policy contract (#3609)", () => {
       expect(text).toContain("A nonzero writer exit halts Phase 2 immediately");
       expect(text).toContain('plan["x-directive/policy"].allowDirectCommitsToMaster');
       expect(text).toContain("bare `plan.policy` is absent");
-      expect(text).toContain(
-        "deft verify:vbrief-conformance --project-root <policy-project-root>",
-      );
+      expect(text).toContain("deft verify:vbrief-conformance --project-root <policy-project-root>");
     });
 
     it(`${surface} setup contains no legacy branch-policy output recipe`, () => {
