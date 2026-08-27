@@ -76,6 +76,13 @@
           "xbrief/active/2026-08-26-3609-blocker-bugsetup-phase-2-emits-bare-planpolicy-that-vbrief-c.xbrief.json",
           "packages/core/src/policy/resolve.ts",
           "packages/core/src/policy/resolve.test.ts",
+          "packages/core/src/vbrief-build/project-definition-io.ts",
+          "packages/core/src/vbrief-build/project-definition-io.test.ts",
+          "packages/core/src/vbrief-build/project-definition-io.mock.test.ts",
+          "packages/core/src/vbrief-build/branches.test.ts",
+          "packages/core/src/vbrief-validate/conformance.ts",
+          "packages/core/src/vbrief-validate/main.ts",
+          "packages/cli/src/dispatch.ts",
           "packages/cli/src/policy.test.ts",
           "packages/cli/src/cli-router/route-argv.test.ts",
           "content/packs/skills/skills-pack-0.1.json",
@@ -87,8 +94,8 @@
           "history/changes/fix-3609-setup-policy/proposal.xbrief.json",
           "history/changes/fix-3609-setup-policy/tasks.xbrief.json"
         ],
-        "module_boundary": "Policy mutation, consumer CLI routing, canonical setup guidance and its generated projection, focused contracts, and operator documentation only.",
-        "cohesion_exemption": "content/UPGRADING.md and CHANGELOG.md already exceed the review trigger; this slice adds only focused migration guidance and one Unreleased entry. Splitting either append-oriented document is outside issue #3609."
+        "module_boundary": "Policy mutation, shared PROJECT-DEFINITION path and lock resolution, conformance of the configured PROJECT-DEFINITION path, consumer CLI routing, canonical setup guidance and its generated projection, focused contracts, and operator documentation only.",
+        "cohesion_exemption": "The inherited DEFT_PROJECT_PATH setup contract permits a noncanonical PROJECT-DEFINITION path. The shared I/O/lock, conformance files, and dispatcher alias handoff are required to preserve that override while still routing setup through the exact canonical writer and verifier; no other policy writer cleanup is included. content/UPGRADING.md and CHANGELOG.md already exceed the review trigger; this slice adds only focused migration guidance and one Unreleased entry. Splitting either append-oriented document is outside issue #3609."
       }
     },
     "acceptance": {

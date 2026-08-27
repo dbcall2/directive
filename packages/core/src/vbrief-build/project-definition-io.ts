@@ -18,6 +18,9 @@ import { ProjectDefinitionIOError } from "./types.js";
 
 const mutationThreadLock = { held: false };
 
+/** Setup override for a noncanonical PROJECT-DEFINITION path. */
+export const ENV_PROJECT_PATH = "DEFT_PROJECT_PATH";
+
 /**
  * Absolute path to the PROJECT-DEFINITION artifact. Layout-aware (#2302):
  * resolves `xbrief/PROJECT-DEFINITION.xbrief.json` on a migrated tree, else the
@@ -25,6 +28,10 @@ const mutationThreadLock = { held: false };
  * name the path that actually applies to the project's layout.
  */
 export function projectDefinitionPath(projectRoot: string): string {
+  const override = process.env[ENV_PROJECT_PATH]?.trim();
+  if (override) {
+    return resolve(projectRoot, override);
+  }
   return resolveProjectDefinitionPath(resolve(projectRoot));
 }
 
@@ -52,7 +59,7 @@ export function projectDefinitionMutationLock<T>(
   // path (xbrief/ when migrated, else vbrief/) so the lock lives next to the real
   // artifact and every mutator sharing a project root contends on the same lock,
   // instead of the constant vbrief/ path which would strand a stray lock (#1260).
-  const path = resolveProjectDefinitionPath(resolve(projectRoot));
+  const path = projectDefinitionPath(projectRoot);
   const lockPath = `${path}.lock`;
   mkdirSync(dirname(lockPath), { recursive: true });
 
@@ -65,19 +72,19 @@ export function projectDefinitionMutationLock<T>(
     const deadline = now() + 30_000;
     while (true) {
       try {
-        fd = openSync(lockPath, "a+");
-        const existing = readFileSync(lockPath);
-        if (existing.length === 0) {
-          writeSync(fd, Buffer.from("\0"));
-        }
+        // `wx` maps to O_CREAT|O_EXCL, so only one process can acquire this
+        // sidecar. The prior `a+` open serialized threads but allowed separate
+        // CLI processes to enter the same read-modify-write section (#3609).
+        fd = openSync(lockPath, "wx");
+        writeSync(fd, `${process.pid}\n`);
         break;
       } catch (err: unknown) {
         const code = (err as NodeJS.ErrnoException).code;
-        if (code !== "EACCES" && code !== "EBUSY") {
+        if (code !== "EEXIST" && code !== "EACCES" && code !== "EBUSY") {
           throw err;
         }
         if (now() > deadline) {
-          throw err;
+          throw new Error(`timed out waiting for project definition mutation lock at ${lockPath}`);
         }
         sleepMs(20);
       }

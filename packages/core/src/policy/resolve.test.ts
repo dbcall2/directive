@@ -72,11 +72,16 @@ describe("resolvePolicy", () => {
 
   it("fails closed on invalid typed value", () => {
     const r = root();
-    writeProjectDef(r, { policy: { allowDirectCommitsToMaster: "yes" } });
+    const secret = `secret-token\n\u001b[31m${"x".repeat(500)}`;
+    writeProjectDef(r, { policy: { allowDirectCommitsToMaster: secret } });
     const result = resolvePolicy(r);
     expect(result.allowDirectCommits).toBe(false);
     expect(result.source).toBe("default-fail-closed");
     expect(result.error).toContain("must be a boolean");
+    expect(result.error).toContain("<string length=518>");
+    expect(result.error).not.toContain("secret-token");
+    expect(result.error).not.toContain("\n");
+    expect(result.error).not.toContain("\u001b");
   });
 
   it("falls back to legacy narrative", () => {
@@ -365,10 +370,32 @@ describe("setPolicy", () => {
     const before = readFileSync(definitionPath, "utf8");
 
     expect(() => setPolicy(r, { allowDirectCommits: false, actor: "test" })).toThrowError(
-      /Key inventory: namespaced=\[\].*Relevant branch-policy values: namespaced='invalid'; bare=False/,
+      /Key inventory: namespaced=\[\].*Relevant branch-policy values: namespaced=<string length=7>; bare=False/,
     );
     expect(readFileSync(definitionPath, "utf8")).toBe(before);
     expect(existsSync(join(r, "meta", "policy-changes.log"))).toBe(false);
+  });
+
+  it("does not leak long or control-bearing values in dual-block diagnostics (#3609)", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-dual-secret-"));
+    roots.push(r);
+    const secret = `credential=do-not-print\n\u001b[31m${"z".repeat(2_000)}`;
+    writeProjectDef(r, {
+      "x-directive/policy": { allowDirectCommitsToMaster: secret },
+      policy: { allowDirectCommitsToMaster: false },
+    });
+
+    let message = "";
+    try {
+      setPolicy(r, { allowDirectCommits: false, actor: "test" });
+    } catch (error: unknown) {
+      message = String(error);
+    }
+    expect(message).toContain("namespaced=<string length=2029>");
+    expect(message).not.toContain("credential=do-not-print");
+    expect(message).not.toContain("\n");
+    expect(message).not.toContain("\u001b");
+    expect(message.length).toBeLessThan(1_000);
   });
 });
 

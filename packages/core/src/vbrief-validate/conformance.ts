@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import {
   GitCommandError,
   GitNotFoundError,
@@ -223,7 +223,11 @@ export interface ConformanceEvaluateResult {
 /** Pure driver returning exit code, findings, and human message. */
 export function evaluateConformance(
   projectRoot: string,
-  options: { mode?: ConformanceMode; allowListPath?: string | null } = {},
+  options: {
+    mode?: ConformanceMode;
+    allowListPath?: string | null;
+    projectDefinitionPath?: string | null;
+  } = {},
 ): ConformanceEvaluateResult {
   const mode = options.mode ?? "all";
   const root = resolve(projectRoot);
@@ -295,19 +299,28 @@ export function evaluateConformance(
 
   const candidates = relPaths
     .map((p) => p.replace(/\\/g, "/"))
-    .filter((posix) => isVbriefPath(posix) && !isAllowListed(posix, customGlobs));
+    .filter((posix) => isVbriefPath(posix) && !isAllowListed(posix, customGlobs))
+    .map((posix) => ({ displayPath: posix, fullPath: join(root, posix) }));
+
+  const configuredPath = options.projectDefinitionPath?.trim();
+  if (configuredPath) {
+    const fullPath = resolve(root, configuredPath);
+    if (existsSync(fullPath) && !candidates.some((candidate) => candidate.fullPath === fullPath)) {
+      const relPath = relative(root, fullPath).replace(/\\/g, "/");
+      candidates.push({ displayPath: relPath || fullPath, fullPath });
+    }
+  }
 
   const findings: ConformanceFinding[] = [];
-  for (const posix of candidates) {
-    const full = join(root, posix);
+  for (const candidate of candidates) {
     let text: string;
     try {
-      text = readFileSync(full, "utf8");
+      text = readFileSync(candidate.fullPath, "utf8");
     } catch {
       continue;
     }
     try {
-      findings.push(...scanVbrief(posix, JSON.parse(text)));
+      findings.push(...scanVbrief(candidate.displayPath, JSON.parse(text)));
     } catch {}
   }
 

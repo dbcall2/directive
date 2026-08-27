@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -78,7 +78,7 @@ describe("projectDefinitionIO mocked fs branches", () => {
           return tick;
         },
       }),
-    ).toThrow("busy");
+    ).toThrow("timed out waiting for project definition mutation lock");
     rmSync(root, { recursive: true, force: true });
   });
 
@@ -100,20 +100,29 @@ describe("projectDefinitionIO mocked fs branches", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("acquires lock when file already has content", () => {
+  it("retries exclusive creation after EEXIST", () => {
+    let calls = 0;
     hoisted.existsSyncMock.mockImplementation((path) => actualFs().existsSync(path));
-    hoisted.openSyncMock.mockImplementation((...args) => actualFs().openSync(...args));
+    hoisted.openSyncMock.mockImplementation((...args) => {
+      calls += 1;
+      if (calls === 1) {
+        const err = new Error("locked") as NodeJS.ErrnoException;
+        err.code = "EEXIST";
+        throw err;
+      }
+      return actualFs().openSync(...args);
+    });
     hoisted.readFileSyncMock.mockImplementation((path, ...args) =>
       actualFs().readFileSync(
         path,
         ...(args as [Parameters<typeof import("node:fs").readFileSync>[1]?]),
       ),
     );
-    const root = mkdtempSync(join(tmpdir(), "vb-lock-existing-"));
-    const lockDir = join(root, "xbrief");
-    mkdirSync(lockDir, { recursive: true });
-    writeFileSync(join(lockDir, "PROJECT-DEFINITION.xbrief.json.lock"), "\0", "utf8");
-    expect(projectDefinitionMutationLock(root, () => "ok")).toBe("ok");
+    const root = mkdtempSync(join(tmpdir(), "vb-lock-retry-"));
+    expect(projectDefinitionMutationLock(root, () => "ok", { sleepMs: () => undefined })).toBe(
+      "ok",
+    );
+    expect(calls).toBe(2);
     rmSync(root, { recursive: true, force: true });
   });
 

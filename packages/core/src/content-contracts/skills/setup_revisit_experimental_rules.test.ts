@@ -86,10 +86,17 @@ describe("setup namespaced branch-policy contract (#3609)", () => {
       );
       expect(text).toContain("Default `false` (enforce branches)");
       expect(text).toContain("A keep choice still runs the selected writer");
+      expect(text).toContain(
+        "keep a legacy-only bare `plan.policy` intact until the shared writer",
+      );
+      expect(text).toContain("Never delete or reconstruct a legacy-only block before the writer");
     });
 
     it(`${surface} setup preserves re-entry true and binds commands to the selected root`, () => {
       expect(text).toContain("Pass `--project-root <policy-project-root>` to every Phase 2 policy");
+      expect(text).toContain("public policy writer, inspector, lock, and conformance gate honor");
+      expect(text).toContain("Do not unset or rewrite `$DEFT_PROJECT_PATH`");
+      expect(text).not.toContain("Halt when the override is outside that canonical layout");
       expect(text).toContain("Never replace an existing `true`");
       expect(text).toContain("Track 2 or 3 existing-true");
       expect(text).toContain("--project-root <policy-project-root>");

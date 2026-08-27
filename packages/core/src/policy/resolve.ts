@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve as pathResolve } from "node:path";
 import { containedWrite } from "../fs/contained-write.js";
-import { resolveProjectDefinitionPath } from "../layout/resolve.js";
 import {
   atomicWriteProjectDefinition,
   projectDefinitionMutationLock,
+  projectDefinitionPath as resolveProjectDefinitionArtifactPath,
 } from "../vbrief-build/project-definition-io.js";
 import {
   describeShadowedPlanExtension,
@@ -58,14 +58,7 @@ export interface PolicyResult {
  * else PROJECT-DEFINITION.vbrief.json (unchanged on today's tree).
  */
 export function projectDefinitionPath(projectRoot: string): string {
-  const root = pathResolve(projectRoot);
-  try {
-    return resolveProjectDefinitionPath(root);
-  } catch {
-    // No xbrief/ layout; return canonical xbrief path so callers get a predictable
-    // "not found" result rather than a thrown error.
-    return join(root, PROJECT_DEFINITION_REL_PATH);
-  }
+  return resolveProjectDefinitionArtifactPath(projectRoot);
 }
 
 function envBypassActive(): boolean {
@@ -91,6 +84,17 @@ function pythonRepr(value: unknown): string {
   return String(value);
 }
 
+/** Render configuration values without exposing arbitrary string/object content. */
+function diagnosticValue(value: unknown): string {
+  if (value === undefined || value === null) return "None";
+  if (typeof value === "boolean") return value ? "True" : "False";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "<number>";
+  if (typeof value === "string") return `<string length=${[...value].length}>`;
+  if (Array.isArray(value)) return `<list length=${value.length}>`;
+  if (typeof value === "object") return `<dict keys=${Object.keys(value).length}>`;
+  return `<${typeof value}>`;
+}
+
 function objectKeys(value: unknown): string[] {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return [];
@@ -100,9 +104,9 @@ function objectKeys(value: unknown): string[] {
 
 function branchPolicyValue(value: unknown): string {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return pythonRepr(value);
+    return diagnosticValue(value);
   }
-  return pythonRepr((value as Record<string, unknown>).allowDirectCommitsToMaster);
+  return diagnosticValue((value as Record<string, unknown>).allowDirectCommitsToMaster);
 }
 
 /**
@@ -224,7 +228,7 @@ export function resolvePolicy(projectRoot: string): PolicyResult {
         allowDirectCommits: false,
         source: "default-fail-closed",
         deprecationWarning: null,
-        error: `plan.policy.allowDirectCommitsToMaster must be a boolean; got ${pythonTypeName(raw)} (${pythonRepr(raw)})`,
+        error: `plan.policy.allowDirectCommitsToMaster must be a boolean; got ${pythonTypeName(raw)} (${diagnosticValue(raw)})`,
       };
     }
     return {
@@ -247,7 +251,7 @@ export function resolvePolicy(projectRoot: string): PolicyResult {
     );
     const warn =
       `DEPRECATED: PROJECT-DEFINITION uses the legacy narrative key ` +
-      `'${LEGACY_NARRATIVE_KEY}' (${pythonRepr(raw)}). Migrate to typed ` +
+      `'${LEGACY_NARRATIVE_KEY}' (${diagnosticValue(raw)}). Migrate to typed ` +
       `plan.policy.allowDirectCommitsToMaster (#746). Run ` +
       `\`${policyColonInvocation("enforce-branches")}\` or ` +
       `\`${policyColonInvocation("allow-direct-commits", " -- --confirm")}\` ` +
@@ -371,7 +375,7 @@ export function setPolicy(
     const parts = [
       `actor=${actor}`,
       `allowDirectCommitsToMaster=${allowDirectCommits ? "true" : "false"}`,
-      `previous=${pythonRepr(previous)}`,
+      `previous=${diagnosticValue(previous)}`,
     ];
     if (legacyDropped) {
       parts.push("legacy-narrative-migrated=true");

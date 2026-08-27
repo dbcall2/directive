@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { resolveLifecycleLayout } from "../layout/resolve.js";
+import { ENV_PROJECT_PATH } from "../vbrief-build/project-definition-io.js";
 import { evaluateConformance } from "./conformance.js";
 import { USAGE } from "./constants.js";
 import { validateAll } from "./validate-all.js";
@@ -147,6 +148,7 @@ export function runConformance(argv: string[]): number {
   const { exitCode, message } = evaluateConformance(resolve(projectRoot), {
     mode,
     allowListPath,
+    projectDefinitionPath: process.env[ENV_PROJECT_PATH] ?? null,
   });
 
   if (exitCode === 0) {

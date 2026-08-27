@@ -127,8 +127,8 @@ When guiding an operator through migration on the pinned release, mention the mi
 - ! If `$DEFT_USER_PATH` is set, it takes precedence on any platform
 - ! Create parent directories as needed when writing USER.md
 - ~ `$DEFT_PROJECT_PATH` overrides the default project config path (`./xbrief/PROJECT-DEFINITION.xbrief.json`) if set
-- ! Resolve one `<policy-project-root>` before Phase 2: `.` for the default path; when `$DEFT_PROJECT_PATH` is set, its resolved path MUST be `<policy-project-root>/xbrief/PROJECT-DEFINITION.xbrief.json`. Halt when the override is outside that canonical layout because the public policy and conformance commands cannot address an arbitrary standalone file.
-- ! Pass `--project-root <policy-project-root>` to every Phase 2 policy inspector, writer, and conformance command. Do not let those commands fall back to the current directory when `$DEFT_PROJECT_PATH` targets another project root.
+- ! Resolve `<policy-project-root>` to the user's working directory at skill entry. When `$DEFT_PROJECT_PATH` is set, resolve it relative to that root and preserve the environment variable for every Phase 2 command; the public policy writer, inspector, lock, and conformance gate honor the configured file even when it is outside the canonical `xbrief/` path.
+- ! Pass `--project-root <policy-project-root>` to every Phase 2 policy inspector, writer, and conformance command. Do not unset or rewrite `$DEFT_PROJECT_PATH`, and do not let those commands fall back to a different working directory.
 
 ## Agent Behavior
 
@@ -535,11 +535,11 @@ apply here too. Do not combine questions. See `skills/deft-directive-interview/S
 
 ### Output Path
 
-`./xbrief/PROJECT-DEFINITION.xbrief.json` (or `$DEFT_PROJECT_PATH` if set). Create the selected `<policy-project-root>/xbrief/` directory and lifecycle subfolders (`proposed/`, `pending/`, `active/`, `completed/`, `cancelled/`) if they don't exist.
+`./xbrief/PROJECT-DEFINITION.xbrief.json` (or the resolved `$DEFT_PROJECT_PATH` if set). Create `<policy-project-root>/xbrief/` and its lifecycle subfolders (`proposed/`, `pending/`, `active/`, `completed/`, `cancelled/`) if they don't exist. A configured PROJECT-DEFINITION may live elsewhere; the lifecycle root remains under `<policy-project-root>`.
 
 ### Branch-policy persistence gate (#3609)
 
-! This gate applies to **every track**, including default/greenfield and keep/re-entry paths. First write or merge the confirmed PROJECT-DEFINITION base **without** bare `plan.policy` and without a hand-authored policy block. Preserve an existing namespaced block and its resolved boolean on re-entry. Then invoke exactly one public writer:
+! This gate applies to **every track**, including default/greenfield and keep/re-entry paths. For greenfield setup, first write the confirmed PROJECT-DEFINITION base without any hand-authored policy block. On re-entry, merge base changes while preserving the existing policy block byte-for-byte: keep a legacy-only bare `plan.policy` intact until the shared writer migrates the whole block, and keep a namespaced block intact until that writer updates it. Never delete or reconstruct a legacy-only block before the writer because it may contain unrelated keys such as `wipCap`. Then invoke exactly one public writer:
 
 - Branch-based/greenfield-default/keep-false: `deft policy:enforce-branches --actor agent:deft-directive-setup --project-root <policy-project-root>`
 - Explicitly confirmed trunk-based/keep-true/Track 2 or 3 existing-true: `deft policy:allow-direct-commits --confirm --actor agent:deft-directive-setup --project-root <policy-project-root>`

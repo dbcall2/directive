@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { runDeftTs } from "./gates-cli/_helpers.js";
+import { initGitRepo, runDeftTs } from "./gates-cli/_helpers.js";
 import { parseArgs, parseShowArgs, run } from "./policy.js";
 import { diffCase, normalizeOutput, PARITY_CASES, renderReport } from "./policy-fixtures.js";
 
@@ -504,6 +504,10 @@ describe("setup policy commands through the built colon router (#3609)", () => {
     ).plan;
   }
 
+  function planAtPath(path: string): Record<string, unknown> {
+    return (JSON.parse(readFileSync(path, "utf8")) as { plan: Record<string, unknown> }).plan;
+  }
+
   it("persists branch-based default false in the namespaced block", () => {
     const root = project();
     const result = runDeftTs("policy:enforce-branches", [
@@ -531,7 +535,59 @@ describe("setup policy commands through the built colon router (#3609)", () => {
     const plan = planAt(root);
     expect(plan.policy).toBeUndefined();
     expect(plan["x-directive/policy"]).toMatchObject({ allowDirectCommitsToMaster: true });
+    initGitRepo(root);
     const conformance = runDeftTs("verify:vbrief-conformance", ["--project-root", root]);
+    expect(conformance.exitCode, conformance.stderr || conformance.stdout).toBe(0);
+  });
+
+  it("honors a noncanonical DEFT_PROJECT_PATH through writer and conformance", () => {
+    const root = project();
+    const configuredPath = join(root, "config", "custom-project.xbrief.json");
+    mkdirSync(join(root, "config"), { recursive: true });
+    writeFileSync(
+      configuredPath,
+      `${JSON.stringify(
+        {
+          xBRIEFInfo: { version: "0.8" },
+          plan: {
+            title: "Configured setup policy fixture",
+            status: "running",
+            narratives: { Overview: "Fixture project", TechStack: "TypeScript library" },
+            items: [],
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    initGitRepo(root);
+    const env = { DEFT_PROJECT_PATH: configuredPath };
+    const result = runDeftTs(
+      "policy:enforce-branches",
+      ["--project-root", root, "--actor", "agent:deft-directive-setup"],
+      { env },
+    );
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(planAtPath(configuredPath)["x-directive/policy"]).toMatchObject({
+      allowDirectCommitsToMaster: false,
+    });
+    expect(
+      planAtPath(join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json"))["x-directive/policy"],
+    ).toBeUndefined();
+
+    const configured = JSON.parse(readFileSync(configuredPath, "utf8")) as {
+      plan: Record<string, unknown>;
+    };
+    configured.plan.rogue = true;
+    writeFileSync(configuredPath, `${JSON.stringify(configured, null, 2)}\n`, "utf8");
+    const rejected = runDeftTs("verify:vbrief-conformance", ["--project-root", root], { env });
+    expect(rejected.exitCode).toBe(1);
+    expect(rejected.stderr).toContain("bare key 'rogue'");
+
+    delete configured.plan.rogue;
+    writeFileSync(configuredPath, `${JSON.stringify(configured, null, 2)}\n`, "utf8");
+    const conformance = runDeftTs("verify:vbrief-conformance", ["--project-root", root], { env });
     expect(conformance.exitCode, conformance.stderr || conformance.stdout).toBe(0);
   });
 
@@ -545,6 +601,16 @@ describe("setup policy commands through the built colon router (#3609)", () => {
     expect(existsSync(join(namespacedRoot, "meta", "policy-changes.log"))).toBe(false);
 
     const legacyRoot = project({ legacy: { allowDirectCommitsToMaster: false, wipCap: 6 } });
+    const legacyPath = join(legacyRoot, "xbrief", "PROJECT-DEFINITION.xbrief.json");
+    const baseMerge = JSON.parse(readFileSync(legacyPath, "utf8")) as {
+      plan: Record<string, unknown>;
+    };
+    (baseMerge.plan.narratives as Record<string, unknown>).Overview = "Confirmed setup update";
+    writeFileSync(legacyPath, `${JSON.stringify(baseMerge, null, 2)}\n`, "utf8");
+    expect(planAt(legacyRoot).policy).toEqual({
+      allowDirectCommitsToMaster: false,
+      wipCap: 6,
+    });
     const migrate = runDeftTs("policy:enforce-branches", ["--project-root", legacyRoot]);
     expect(migrate.exitCode, migrate.stderr).toBe(0);
     const migratedPlan = planAt(legacyRoot);
