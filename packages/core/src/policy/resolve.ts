@@ -58,7 +58,16 @@ export interface PolicyResult {
  * else PROJECT-DEFINITION.vbrief.json (unchanged on today's tree).
  */
 export function projectDefinitionPath(projectRoot: string): string {
-  return resolveProjectDefinitionArtifactPath(projectRoot);
+  const root = pathResolve(projectRoot);
+  try {
+    return resolveProjectDefinitionArtifactPath(root);
+  } catch {
+    // Policy reads remain fail-closed on pre-migration trees. The shared resolver
+    // intentionally throws for legacy-only lifecycle layouts, but policy callers
+    // need a predictable missing canonical path rather than an exception while
+    // init/update is still responsible for reporting the migration requirement.
+    return join(root, PROJECT_DEFINITION_REL_PATH);
+  }
 }
 
 function envBypassActive(): boolean {

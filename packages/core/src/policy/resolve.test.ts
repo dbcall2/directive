@@ -100,6 +100,18 @@ describe("resolvePolicy", () => {
     expect(result.error).toContain("not found");
   });
 
+  it("defaults fail-closed instead of throwing on a legacy-only layout", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-legacy-only-"));
+    roots.push(r);
+    mkdirSync(join(r, "vbrief", "active"), { recursive: true });
+
+    const result = resolvePolicy(r);
+
+    expect(result.allowDirectCommits).toBe(false);
+    expect(result.source).toBe("default-fail-closed");
+    expect(result.error).toContain(join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"));
+  });
+
   it("falls back to legacy narrative false", () => {
     const r = root();
     writeProjectDef(r, {
