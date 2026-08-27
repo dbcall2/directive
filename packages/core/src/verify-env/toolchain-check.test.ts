@@ -6,9 +6,9 @@ import { formatNamedCauseFailure } from "../check/named-cause.js";
 import { NODE_RUNTIME_REMEDIATION, NPM_RUNTIME_REMEDIATION } from "./node-runtime.js";
 import {
   CONSUMER_TOOLS,
-  RESOLVED_PACKAGE_MANAGER_SHIM_ENV,
   childEnvWithResolvedPackageManagerShim,
   defaultCommandRunner,
+  RESOLVED_PACKAGE_MANAGER_SHIM_ENV,
   runToolchainCheck,
 } from "./toolchain-check.js";
 
