@@ -6,6 +6,15 @@ import { readRepoFile } from "./helpers.js";
 
 const SETUP_SKILL = "skills/deft-directive-setup/SKILL.md";
 
+function packedSetupBody(): string {
+  const pack = JSON.parse(readRepoFile("packs/skills/skills-pack-0.1.json")) as {
+    skills: Array<{ id: string; body: string }>;
+  };
+  const setup = pack.skills.find((skill) => skill.id === "deft-directive-setup");
+  if (setup === undefined) throw new Error("deft-directive-setup pack entry missing");
+  return setup.body;
+}
+
 describe("setup revisit experimental rules (#46)", () => {
   const text = readRepoFile(SETUP_SKILL);
 
@@ -51,4 +60,59 @@ describe("setup revisit experimental rules (#46)", () => {
     expect(revisit).toBeGreaterThan(0);
     expect(phase2).toBeGreaterThan(revisit);
   });
+});
+
+describe("setup namespaced branch-policy contract (#3609)", () => {
+  const rendered = readRepoFile(SETUP_SKILL);
+  const packed = packedSetupBody();
+
+  for (const [surface, text] of [
+    ["packed", packed],
+    ["rendered", rendered],
+  ] as const) {
+    it(`${surface} setup checks re-entry shadow state before mutation`, () => {
+      expect(text).toContain("### Re-entry shadow guard (#3609)");
+      expect(text).toContain("deft policy:show --field=plan.policy.allowDirectCommitsToMaster");
+      expect(text).toContain("inspect **stderr as well as the exit code**");
+      expect(text).toContain("resolve every collision explicitly");
+      expect(text).toContain("delete bare `plan.policy`");
+    });
+
+    it(`${surface} setup invokes the exact public writer commands on every track`, () => {
+      expect(text).toContain("This gate applies to **every track**");
+      expect(text).toContain("deft policy:enforce-branches --actor agent:deft-directive-setup");
+      expect(text).toContain(
+        "deft policy:allow-direct-commits --confirm --actor agent:deft-directive-setup",
+      );
+      expect(text).toContain("Default `false` (enforce branches)");
+      expect(text).toContain("A keep choice still runs the selected writer");
+      expect(text).toContain(
+        "keep a legacy-only bare `plan.policy` intact until the shared writer",
+      );
+      expect(text).toContain("Never delete or reconstruct a legacy-only block before the writer");
+    });
+
+    it(`${surface} setup preserves re-entry true and binds commands to the selected root`, () => {
+      expect(text).toContain("Pass `--project-root <policy-project-root>` to every Phase 2 policy");
+      expect(text).toContain("public policy writer, inspector, lock, and conformance gate honor");
+      expect(text).toContain("Do not unset or rewrite `$DEFT_PROJECT_PATH`");
+      expect(text).not.toContain("Halt when the override is outside that canonical layout");
+      expect(text).toContain("Never replace an existing `true`");
+      expect(text).toContain("Track 2 or 3 existing-true");
+      expect(text).toContain("--project-root <policy-project-root>");
+    });
+
+    it(`${surface} setup blocks completion until namespaced read-back and conformance`, () => {
+      expect(text).toContain("A nonzero writer exit halts Phase 2 immediately");
+      expect(text).toContain('plan["x-directive/policy"].allowDirectCommitsToMaster');
+      expect(text).toContain("bare `plan.policy` is absent");
+      expect(text).toContain("deft verify:vbrief-conformance --project-root <policy-project-root>");
+    });
+
+    it(`${surface} setup contains no legacy branch-policy output recipe`, () => {
+      expect(text).not.toContain("Allow direct commits to master: true");
+      expect(text).not.toContain("write `plan.policy.allowDirectCommitsToMaster");
+      expect(text).not.toContain("plan.ProjectConfig.policy");
+    });
+  }
 });

@@ -5,6 +5,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  realpathSync,
   renameSync,
   unlinkSync,
   writeSync,
@@ -18,6 +19,9 @@ import { ProjectDefinitionIOError } from "./types.js";
 
 const mutationThreadLock = { held: false };
 
+/** Setup override for a noncanonical PROJECT-DEFINITION path. */
+export const ENV_PROJECT_PATH = "DEFT_PROJECT_PATH";
+
 /**
  * Absolute path to the PROJECT-DEFINITION artifact. Layout-aware (#2302):
  * resolves `xbrief/PROJECT-DEFINITION.xbrief.json` on a migrated tree, else the
@@ -25,19 +29,88 @@ const mutationThreadLock = { held: false };
  * name the path that actually applies to the project's layout.
  */
 export function projectDefinitionPath(projectRoot: string): string {
+  const override = process.env[ENV_PROJECT_PATH]?.trim();
+  if (override) {
+    const configuredPath = resolve(projectRoot, override);
+    return existsSync(configuredPath) ? realpathSync(configuredPath) : configuredPath;
+  }
   return resolveProjectDefinitionPath(resolve(projectRoot));
 }
 
+const sleepCell = new Int32Array(new SharedArrayBuffer(4));
+
 function defaultSleep(ms: number): void {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    /* spin */
-  }
+  Atomics.wait(sleepCell, 0, 0, ms);
 }
 
 export interface MutationLockDeps {
   readonly sleepMs?: (ms: number) => void;
   readonly now?: () => number;
+  readonly isProcessAlive?: (pid: number) => boolean;
+}
+
+interface LockOwner {
+  readonly pid: number;
+  readonly token: string | null;
+  readonly raw: string;
+}
+
+function defaultIsProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err: unknown) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ESRCH") return false;
+    if (code === "EPERM") return true;
+    throw err;
+  }
+}
+
+function readLockOwner(lockPath: string): LockOwner | null {
+  let raw: string;
+  try {
+    raw = readFileSync(lockPath, "utf8");
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw err;
+  }
+  try {
+    const parsed = JSON.parse(raw) as { pid?: unknown; token?: unknown };
+    if (
+      typeof parsed.pid === "number" &&
+      Number.isSafeInteger(parsed.pid) &&
+      parsed.pid > 0 &&
+      (typeof parsed.token === "string" || parsed.token === undefined)
+    ) {
+      return { pid: parsed.pid, token: parsed.token ?? null, raw };
+    }
+  } catch {
+    /* fall through to the legacy numeric-PID format */
+  }
+  const pid = Number(raw.trim());
+  if (Number.isSafeInteger(pid) && pid > 0) {
+    return { pid, token: null, raw };
+  }
+  return null;
+}
+
+function reapDeadOwner(lockPath: string, owner: LockOwner): boolean {
+  let current: string;
+  try {
+    current = readFileSync(lockPath, "utf8");
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return true;
+    throw err;
+  }
+  if (current !== owner.raw) return false;
+  try {
+    unlinkSync(lockPath);
+    return true;
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return true;
+    throw err;
+  }
 }
 
 /** Serialise PROJECT-DEFINITION read-modify-write critical sections. */
@@ -48,11 +121,12 @@ export function projectDefinitionMutationLock<T>(
 ): T {
   const sleepMs = deps.sleepMs ?? defaultSleep;
   const now = deps.now ?? Date.now;
+  const isProcessAlive = deps.isProcessAlive ?? defaultIsProcessAlive;
   // Derive the sidecar lock path from the layout-aware resolved PROJECT-DEFINITION
   // path (xbrief/ when migrated, else vbrief/) so the lock lives next to the real
   // artifact and every mutator sharing a project root contends on the same lock,
   // instead of the constant vbrief/ path which would strand a stray lock (#1260).
-  const path = resolveProjectDefinitionPath(resolve(projectRoot));
+  const path = projectDefinitionPath(projectRoot);
   const lockPath = `${path}.lock`;
   mkdirSync(dirname(lockPath), { recursive: true });
 
@@ -61,39 +135,61 @@ export function projectDefinitionMutationLock<T>(
   }
   mutationThreadLock.held = true;
   let fd: number | undefined;
+  let ownerToken: string | undefined;
   try {
     const deadline = now() + 30_000;
     while (true) {
       try {
-        fd = openSync(lockPath, "a+");
-        const existing = readFileSync(lockPath);
-        if (existing.length === 0) {
-          writeSync(fd, Buffer.from("\0"));
-        }
+        // `wx` maps to O_CREAT|O_EXCL, so only one process can acquire this
+        // sidecar. The prior `a+` open serialized threads but allowed separate
+        // CLI processes to enter the same read-modify-write section (#3609).
+        fd = openSync(lockPath, "wx");
+        ownerToken = randomBytes(16).toString("hex");
+        writeSync(fd, `${JSON.stringify({ pid: process.pid, token: ownerToken })}\n`);
         break;
       } catch (err: unknown) {
         const code = (err as NodeJS.ErrnoException).code;
-        if (code !== "EACCES" && code !== "EBUSY") {
+        if (code !== "EEXIST") {
           throw err;
         }
+        const owner = readLockOwner(lockPath);
+        if (owner === null) {
+          if (now() > deadline) {
+            throw new Error(
+              `timed out waiting for project definition mutation lock at ${lockPath}`,
+            );
+          }
+          sleepMs(20);
+          continue;
+        }
+        if (!isProcessAlive(owner.pid) && reapDeadOwner(lockPath, owner)) {
+          continue;
+        }
         if (now() > deadline) {
-          throw err;
+          throw new Error(`timed out waiting for project definition mutation lock at ${lockPath}`);
         }
         sleepMs(20);
       }
     }
     return fn();
   } finally {
-    if (fd !== undefined) {
-      closeSync(fd);
-    }
-    mutationThreadLock.held = false;
     try {
-      if (existsSync(lockPath)) {
-        unlinkSync(lockPath);
+      if (fd !== undefined) {
+        try {
+          closeSync(fd);
+        } finally {
+          try {
+            const current = readLockOwner(lockPath);
+            if (ownerToken === undefined || current?.token === ownerToken) {
+              unlinkSync(lockPath);
+            }
+          } catch {
+            /* best-effort */
+          }
+        }
       }
-    } catch {
-      /* best-effort */
+    } finally {
+      mutationThreadLock.held = false;
     }
   }
 }

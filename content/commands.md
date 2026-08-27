@@ -189,6 +189,20 @@ flowchart TD
 
 ---
 
+## Branch-policy commands (#3609)
+
+Directive exposes the logical field as `plan.policy.allowDirectCommitsToMaster`, but the writer stores it under `plan["x-directive/policy"]`. Use the public commands; do not hand-write bare `plan.policy`:
+
+- Inspect: `deft policy:show --field=plan.policy.allowDirectCommitsToMaster`
+- Enforce feature branches: `deft policy:enforce-branches --actor <actor>`
+- Allow confirmed trunk work: `deft policy:allow-direct-commits --confirm --actor <actor>`
+
+Every policy writer fails with config exit 2 when bare `plan.policy` and namespaced `plan["x-directive/policy"]` coexist, including when their branch values match. Recovery is lossless and manual: inventory both blocks, fold every bare-only key into the namespaced block, explicitly resolve each collision, delete bare `plan.policy`, then rerun the command. The failure writes neither PROJECT-DEFINITION nor `meta/policy-changes.log`.
+
+Legacy-only projects may migrate through the next policy write or through corpus-wide `deft migrate:category-b`. The migration command also fails closed on coexistence; it is not a dual-block healer.
+
+Setup uses these same commands for every interview track. Branch-based is persisted as explicit `false` unless the operator passes the trunk capability-cost confirmation; before reporting Phase 2 complete, setup reads the selected boolean back, confirms bare `plan.policy` is absent, and runs `deft verify:vbrief-conformance --project-root .`.
+
 ## Default-branch sync (`scm:sync-default`, #3391)
 
 Open dest-targeted sync PRs from typed `baseBranch` to `deliveryBranch`. Consumes the shared detector (#3388) and `syncMaxFiles` (#3390).

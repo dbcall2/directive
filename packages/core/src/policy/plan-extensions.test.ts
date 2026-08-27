@@ -158,4 +158,28 @@ describe("plan-extension shadow detection (#2301)", () => {
     expect(message).toContain("plan.policy.triageScope");
     expect(message).toContain("Fold");
   });
+
+  it("redacts and bounds hostile shadowed sub-key names", () => {
+    const hostile = `api-token\n\u001b[31m${"z".repeat(2_000)}`;
+    const [shadow] = detectShadowedPlanExtensions({
+      [PLAN_POLICY_KEY]: {},
+      policy: Object.fromEntries([
+        [hostile, true],
+        ...Array.from({ length: 12 }, (_, index) => [`safeKey${index}`, index]),
+      ]),
+    });
+    const message = describeShadowedPlanExtension(
+      shadow ?? {
+        namespacedKey: PLAN_POLICY_KEY,
+        legacyKey: LEGACY_PLAN_POLICY_KEY,
+        shadowedSubKeys: [],
+      },
+    );
+    expect(message).toContain(`<redacted-key length=${[...hostile].length}>`);
+    expect(message).toContain("more keys");
+    expect(message).not.toContain("api-token");
+    expect(message).not.toContain("\n");
+    expect(message).not.toContain("\u001b");
+    expect(message.length).toBeLessThan(1_000);
+  });
 });

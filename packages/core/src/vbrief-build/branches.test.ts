@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -144,7 +144,7 @@ describe("branch coverage helpers", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("covers project-definition lock sidecar and atomic write", () => {
+  it("covers exclusive project-definition lock sidecar and atomic write", () => {
     const root = mkdtempSync(join(tmpdir(), "vb-br-pd-"));
     mkdirSync(join(root, "xbrief"), { recursive: true });
     writeFileSync(join(root, "xbrief", "seed.xbrief.json"), "{}", { encoding: "utf8" });
@@ -154,11 +154,11 @@ describe("branch coverage helpers", () => {
       pythonJsonPretty({ xBRIEFInfo: { version: "0.8" }, plan: { title: "T", items: [] } }),
       "utf8",
     );
-    writeFileSync(`${path}.lock`, "\0", "utf8");
     projectDefinitionMutationLock(root, () => {
       const [data, pdPath] = loadProjectDefinitionForMutation(root);
       atomicWriteProjectDefinition(pdPath, data);
     });
+    expect(existsSync(`${path}.lock`)).toBe(false);
     expect(readFileSync(path, "utf8")).toContain('"title": "T"');
     rmSync(root, { recursive: true, force: true });
   });

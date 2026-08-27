@@ -3236,6 +3236,10 @@ export async function dispatch(argv: string[], io: DispatchIo = defaultIo()): Pr
     const productSignalSubcommand =
       verb !== undefined ? PRODUCT_SIGNAL_ALIAS_SUBCOMMANDS[verb] : undefined;
     const freshnessSubcommand = verb !== undefined ? FRESHNESS_ALIAS_SUBCOMMANDS[verb] : undefined;
+    const vbriefValidateSubcommand =
+      verb === "verify:vbrief-conformance" && canonical === "vbrief-validate"
+        ? "conformance"
+        : undefined;
     const handlerArgv =
       canonical === "framework-commands" && verb !== undefined && verb !== canonical
         ? [verb, ...rest]
@@ -3253,7 +3257,9 @@ export async function dispatch(argv: string[], io: DispatchIo = defaultIo()): Pr
                     ? [productSignalSubcommand, ...rest]
                     : freshnessSubcommand !== undefined && canonical === "freshness-report"
                       ? [freshnessSubcommand, ...rest]
-                      : rest;
+                      : vbriefValidateSubcommand !== undefined
+                        ? [vbriefValidateSubcommand, ...rest]
+                        : rest;
     return await invokeHandler(handler, handlerArgv);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

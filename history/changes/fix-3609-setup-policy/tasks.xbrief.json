@@ -1,0 +1,36 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "fix-3609-setup-policy",
+    "status": "approved",
+    "items": [
+      {
+        "title": "Reject any dual bare/namespaced policy block before setPolicy mutation or audit and repeat the check under the shared lock",
+        "status": "proposed"
+      },
+      {
+        "title": "Teach every setup track the literal public deft policy:* commands, pre-write shadow halt, nonzero halt, read-back, and conformance postcondition",
+        "status": "proposed"
+      },
+      {
+        "title": "Add hermetic consumer-route fixtures for greenfield, namespaced-only, legacy-only, and dual-key states including unrelated legacy keys",
+        "status": "proposed"
+      },
+      {
+        "title": "Regenerate the setup skill from its canonical pack and pin literal anti-pattern contracts",
+        "status": "proposed"
+      },
+      {
+        "title": "Update command and upgrade guidance plus CHANGELOG, then pass targeted, pack, conformance, coverage, and full checks",
+        "status": "proposed"
+      },
+      {
+        "title": "Push the feature branch, open one focused PR, and resolve review findings to the repository's configured confidence floor",
+        "status": "proposed"
+      }
+    ],
+    "edges": []
+  }
+}

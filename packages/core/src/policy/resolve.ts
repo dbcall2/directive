@@ -1,12 +1,19 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve as pathResolve } from "node:path";
 import { containedWrite } from "../fs/contained-write.js";
-import { resolveProjectDefinitionPath } from "../layout/resolve.js";
 import {
   atomicWriteProjectDefinition,
   projectDefinitionMutationLock,
+  projectDefinitionPath as resolveProjectDefinitionArtifactPath,
 } from "../vbrief-build/project-definition-io.js";
-import { migrateLegacyPolicyKey, PLAN_POLICY_KEY, readPlanPolicy } from "./plan-extensions.js";
+import {
+  describeShadowedPlanExtension,
+  detectShadowedPlanExtensions,
+  LEGACY_PLAN_POLICY_KEY,
+  migrateLegacyPolicyKey,
+  PLAN_POLICY_KEY,
+  readPlanPolicy,
+} from "./plan-extensions.js";
 import { policyColonInvocation } from "./policy-invocation.js";
 
 /** Filesystem-relative location of the project-definition xBRIEF (display/back-compat). */
@@ -53,10 +60,12 @@ export interface PolicyResult {
 export function projectDefinitionPath(projectRoot: string): string {
   const root = pathResolve(projectRoot);
   try {
-    return resolveProjectDefinitionPath(root);
+    return resolveProjectDefinitionArtifactPath(root);
   } catch {
-    // No xbrief/ layout; return canonical xbrief path so callers get a predictable
-    // "not found" result rather than a thrown error.
+    // Policy reads remain fail-closed on pre-migration trees. The shared resolver
+    // intentionally throws for legacy-only lifecycle layouts, but policy callers
+    // need a predictable missing canonical path rather than an exception while
+    // init/update is still responsible for reporting the migration requirement.
     return join(root, PROJECT_DEFINITION_REL_PATH);
   }
 }
@@ -82,6 +91,71 @@ function pythonRepr(value: unknown): string {
   if (value === null) return "None";
   if (typeof value === "boolean") return value ? "True" : "False";
   return String(value);
+}
+
+/** Render configuration values without exposing arbitrary string/object content. */
+function diagnosticValue(value: unknown): string {
+  if (value === undefined || value === null) return "None";
+  if (typeof value === "boolean") return value ? "True" : "False";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "<number>";
+  if (typeof value === "string") return `<string length=${[...value].length}>`;
+  if (Array.isArray(value)) return `<list length=${value.length}>`;
+  if (typeof value === "object") return `<dict keys=${Object.keys(value).length}>`;
+  return `<${typeof value}>`;
+}
+
+function objectKeys(value: unknown): string[] {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return [];
+  }
+  return Object.keys(value as Record<string, unknown>).sort();
+}
+
+function keyInventory(value: unknown): string {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? `<dict keys=${Object.keys(value as Record<string, unknown>).length}>`
+    : diagnosticValue(value);
+}
+
+function branchPolicyValue(value: unknown): string {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return diagnosticValue(value);
+  }
+  return diagnosticValue((value as Record<string, unknown>).allowDirectCommitsToMaster);
+}
+
+/**
+ * Refuse a policy write when the legacy and namespaced blocks coexist (#3609).
+ *
+ * A writer cannot safely decide how to combine arbitrary policy keys or resolve
+ * collisions. The diagnostic therefore inventories keys, exposes only the one
+ * value this writer owns, and gives the operator a lossless recovery sequence.
+ */
+function assertPolicyBlockIsUnambiguous(plan: Record<string, unknown>): void {
+  const shadow = detectShadowedPlanExtensions(plan).find(
+    (candidate) => candidate.namespacedKey === PLAN_POLICY_KEY,
+  );
+  if (shadow === undefined) {
+    return;
+  }
+
+  const namespaced = plan[PLAN_POLICY_KEY];
+  const legacy = plan[LEGACY_PLAN_POLICY_KEY];
+  const namespacedKeys = objectKeys(namespaced);
+  const legacyKeys = objectKeys(legacy);
+  const namespacedKeySet = new Set(namespacedKeys);
+  const collisions = legacyKeys.filter((key) => namespacedKeySet.has(key));
+
+  throw new Error(
+    `${describeShadowedPlanExtension(shadow)} ` +
+      `Key inventory: namespaced=${keyInventory(namespaced)}; ` +
+      `bare=${keyInventory(legacy)}; collisions=<list length=${collisions.length}>. ` +
+      `Relevant branch-policy values: namespaced=${branchPolicyValue(namespaced)}; ` +
+      `bare=${branchPolicyValue(legacy)}. ` +
+      `Recovery: inventory both blocks; fold every bare-only key into ` +
+      `\`plan.${PLAN_POLICY_KEY}\`; explicitly resolve every collision; delete ` +
+      `\`plan.${LEGACY_PLAN_POLICY_KEY}\`; then rerun the policy command. No changes were written.`,
+  );
 }
 
 /** Best-effort coerce a legacy narrative value to a boolean. */
@@ -169,7 +243,7 @@ export function resolvePolicy(projectRoot: string): PolicyResult {
         allowDirectCommits: false,
         source: "default-fail-closed",
         deprecationWarning: null,
-        error: `plan.policy.allowDirectCommitsToMaster must be a boolean; got ${pythonTypeName(raw)} (${pythonRepr(raw)})`,
+        error: `plan.policy.allowDirectCommitsToMaster must be a boolean; got ${pythonTypeName(raw)} (${diagnosticValue(raw)})`,
       };
     }
     return {
@@ -192,7 +266,7 @@ export function resolvePolicy(projectRoot: string): PolicyResult {
     );
     const warn =
       `DEPRECATED: PROJECT-DEFINITION uses the legacy narrative key ` +
-      `'${LEGACY_NARRATIVE_KEY}' (${pythonRepr(raw)}). Migrate to typed ` +
+      `'${LEGACY_NARRATIVE_KEY}' (${diagnosticValue(raw)}). Migrate to typed ` +
       `plan.policy.allowDirectCommitsToMaster (#746). Run ` +
       `\`${policyColonInvocation("enforce-branches")}\` or ` +
       `\`${policyColonInvocation("allow-direct-commits", " -- --confirm")}\` ` +
@@ -279,6 +353,9 @@ export function setPolicy(
       }
     }
     const plan = data.plan as Record<string, unknown>;
+    // Repeat the shadow check inside the mutation lock so a concurrent writer
+    // cannot create a dual-block state between validation and persistence.
+    assertPolicyBlockIsUnambiguous(plan);
     const legacyKeyMigrated = migrateLegacyPolicyKey(plan);
     const existingPolicy = plan[PLAN_POLICY_KEY];
     if (
@@ -313,7 +390,7 @@ export function setPolicy(
     const parts = [
       `actor=${actor}`,
       `allowDirectCommitsToMaster=${allowDirectCommits ? "true" : "false"}`,
-      `previous=${pythonRepr(previous)}`,
+      `previous=${diagnosticValue(previous)}`,
     ];
     if (legacyDropped) {
       parts.push("legacy-narrative-migrated=true");

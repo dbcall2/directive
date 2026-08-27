@@ -30,3 +30,35 @@ describe("route-argv: migrate top-level verb (#1941)", () => {
     }
   });
 });
+
+describe("route-argv: setup branch-policy colon verbs (#3609)", () => {
+  it("routes the exact setup writer argv without a task-wrapper separator", () => {
+    expect(
+      routeArgv(["policy:enforce-branches", "--actor", "agent:deft-directive-setup"]).argv,
+    ).toEqual(["policy:enforce-branches", "--actor", "agent:deft-directive-setup"]);
+    expect(
+      routeArgv([
+        "policy:allow-direct-commits",
+        "--confirm",
+        "--actor",
+        "agent:deft-directive-setup",
+      ]).argv,
+    ).toEqual([
+      "policy:allow-direct-commits",
+      "--confirm",
+      "--actor",
+      "agent:deft-directive-setup",
+    ]);
+  });
+
+  it("routes the exact setup read-back and conformance argv", () => {
+    expect(
+      routeArgv(["policy:show", "--field=plan.policy.allowDirectCommitsToMaster"]).argv,
+    ).toEqual(["policy:show", "--field=plan.policy.allowDirectCommitsToMaster"]);
+    expect(routeArgv(["verify:vbrief-conformance", "--project-root", "."]).argv).toEqual([
+      "verify:vbrief-conformance",
+      "--project-root",
+      ".",
+    ]);
+  });
+});

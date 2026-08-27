@@ -106,6 +106,25 @@ export interface ShadowedPlanExtension {
   readonly shadowedSubKeys: readonly string[];
 }
 
+const SAFE_DIAGNOSTIC_KEY = /^[A-Za-z][A-Za-z0-9._/-]{0,31}$/;
+const SENSITIVE_DIAGNOSTIC_KEY = /(?:auth|credential|password|private|secret|token|api.?key)/i;
+const MAX_DIAGNOSTIC_KEYS = 8;
+
+function boundedKeySummary(keys: readonly string[]): string[] {
+  const ordered = [...keys].sort();
+  const summary = ordered
+    .slice(0, MAX_DIAGNOSTIC_KEYS)
+    .map((key) =>
+      SAFE_DIAGNOSTIC_KEY.test(key) && !SENSITIVE_DIAGNOSTIC_KEY.test(key)
+        ? key
+        : `<redacted-key length=${[...key].length}>`,
+    );
+  if (ordered.length > MAX_DIAGNOSTIC_KEYS) {
+    summary.push(`<${ordered.length - MAX_DIAGNOSTIC_KEYS} more keys>`);
+  }
+  return summary;
+}
+
 /**
  * Detect every plan-extension key where a bare (legacy) block coexists with the
  * namespaced form (#2301). Because `readPlanExtension` is namespace-first, the
@@ -126,7 +145,7 @@ export function detectShadowedPlanExtensions(plan: unknown): ShadowedPlanExtensi
     const legacyValue = planObj[legacyKey];
     const shadowedSubKeys =
       typeof legacyValue === "object" && legacyValue !== null && !Array.isArray(legacyValue)
-        ? Object.keys(legacyValue as Record<string, unknown>)
+        ? boundedKeySummary(Object.keys(legacyValue as Record<string, unknown>))
         : [];
     shadows.push({ namespacedKey, legacyKey, shadowedSubKeys });
   }

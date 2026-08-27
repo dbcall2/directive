@@ -72,11 +72,16 @@ describe("resolvePolicy", () => {
 
   it("fails closed on invalid typed value", () => {
     const r = root();
-    writeProjectDef(r, { policy: { allowDirectCommitsToMaster: "yes" } });
+    const secret = `secret-token\n\u001b[31m${"x".repeat(500)}`;
+    writeProjectDef(r, { policy: { allowDirectCommitsToMaster: secret } });
     const result = resolvePolicy(r);
     expect(result.allowDirectCommits).toBe(false);
     expect(result.source).toBe("default-fail-closed");
     expect(result.error).toContain("must be a boolean");
+    expect(result.error).toContain("<string length=518>");
+    expect(result.error).not.toContain("secret-token");
+    expect(result.error).not.toContain("\n");
+    expect(result.error).not.toContain("\u001b");
   });
 
   it("falls back to legacy narrative", () => {
@@ -93,6 +98,18 @@ describe("resolvePolicy", () => {
     const result = resolvePolicy(r);
     expect(result.allowDirectCommits).toBe(false);
     expect(result.error).toContain("not found");
+  });
+
+  it("defaults fail-closed instead of throwing on a legacy-only layout", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-legacy-only-"));
+    roots.push(r);
+    mkdirSync(join(r, "vbrief", "active"), { recursive: true });
+
+    const result = resolvePolicy(r);
+
+    expect(result.allowDirectCommits).toBe(false);
+    expect(result.source).toBe("default-fail-closed");
+    expect(result.error).toContain(join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"));
   });
 
   it("falls back to legacy narrative false", () => {
@@ -310,6 +327,109 @@ describe("setPolicy", () => {
     expect((plan["x-directive/policy"] as Record<string, unknown>).allowDirectCommitsToMaster).toBe(
       true,
     );
+  });
+
+  it("fails closed without writes when dual policy blocks agree (#3609)", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-dual-equal-"));
+    roots.push(r);
+    writeProjectDef(r, {
+      "x-directive/policy": { allowDirectCommitsToMaster: false, wipCap: 8 },
+      policy: { allowDirectCommitsToMaster: false, triageScope: [{ rule: "all-open" }] },
+    });
+    const definitionPath = join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json");
+    const before = readFileSync(definitionPath, "utf8");
+
+    expect(() => setPolicy(r, { allowDirectCommits: false, actor: "test" })).toThrowError(
+      /Key inventory: namespaced=<dict keys=2>.*bare=<dict keys=2>.*collisions=<list length=1>/,
+    );
+    expect(readFileSync(definitionPath, "utf8")).toBe(before);
+    expect(existsSync(join(r, "meta", "policy-changes.log"))).toBe(false);
+  });
+
+  it("fails closed with bounded recovery detail when dual policy values conflict (#3609)", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-dual-conflict-"));
+    roots.push(r);
+    writeProjectDef(r, {
+      "x-directive/policy": { allowDirectCommitsToMaster: true },
+      policy: { allowDirectCommitsToMaster: false, wipCap: 4 },
+    });
+    const definitionPath = join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json");
+    const before = readFileSync(definitionPath, "utf8");
+
+    let message = "";
+    try {
+      setPolicy(r, { allowDirectCommits: false, actor: "test" });
+    } catch (error: unknown) {
+      message = String(error);
+    }
+    expect(message).toContain("Relevant branch-policy values: namespaced=True; bare=False");
+    expect(message).toContain("fold every bare-only key");
+    expect(message).toContain("explicitly resolve every collision");
+    expect(message).toContain("delete `plan.policy`");
+    expect(message).toContain("No changes were written");
+    expect(readFileSync(definitionPath, "utf8")).toBe(before);
+    expect(existsSync(join(r, "meta", "policy-changes.log"))).toBe(false);
+  });
+
+  it("bounds diagnostics when a coexisting policy block is malformed (#3609)", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-dual-malformed-"));
+    roots.push(r);
+    writeProjectDef(r, {
+      "x-directive/policy": "invalid",
+      policy: { allowDirectCommitsToMaster: false },
+    });
+    const definitionPath = join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json");
+    const before = readFileSync(definitionPath, "utf8");
+
+    expect(() => setPolicy(r, { allowDirectCommits: false, actor: "test" })).toThrowError(
+      /Key inventory: namespaced=<string length=7>.*Relevant branch-policy values: namespaced=<string length=7>; bare=False/,
+    );
+    expect(readFileSync(definitionPath, "utf8")).toBe(before);
+    expect(existsSync(join(r, "meta", "policy-changes.log"))).toBe(false);
+  });
+
+  it("does not leak long or control-bearing values in dual-block diagnostics (#3609)", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-dual-secret-"));
+    roots.push(r);
+    const secret = `credential=do-not-print\n\u001b[31m${"z".repeat(2_000)}`;
+    writeProjectDef(r, {
+      "x-directive/policy": { allowDirectCommitsToMaster: secret },
+      policy: { allowDirectCommitsToMaster: false },
+    });
+
+    let message = "";
+    try {
+      setPolicy(r, { allowDirectCommits: false, actor: "test" });
+    } catch (error: unknown) {
+      message = String(error);
+    }
+    expect(message).toContain("namespaced=<string length=2029>");
+    expect(message).not.toContain("credential=do-not-print");
+    expect(message).not.toContain("\n");
+    expect(message).not.toContain("\u001b");
+    expect(message.length).toBeLessThan(1_000);
+  });
+
+  it("redacts hostile policy key names from bounded dual-block diagnostics (#3609)", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-dual-hostile-key-"));
+    roots.push(r);
+    const hostileKey = `secret-token\n\u001b[31m${"k".repeat(2_000)}`;
+    writeProjectDef(r, {
+      "x-directive/policy": { allowDirectCommitsToMaster: false },
+      policy: { allowDirectCommitsToMaster: false, [hostileKey]: true },
+    });
+
+    let message = "";
+    try {
+      setPolicy(r, { allowDirectCommits: false, actor: "test" });
+    } catch (error: unknown) {
+      message = String(error);
+    }
+    expect(message).toContain(`<redacted-key length=${[...hostileKey].length}>`);
+    expect(message).not.toContain("secret-token");
+    expect(message).not.toContain("\n");
+    expect(message).not.toContain("\u001b");
+    expect(message.length).toBeLessThan(1_000);
   });
 });
 

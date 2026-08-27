@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
@@ -56,6 +57,106 @@ describe("projectDefinitionIO", () => {
       projectDefinitionPath(migratedRoot).endsWith(`xbrief${sep}PROJECT-DEFINITION.xbrief.json`),
     ).toBe(true);
     rmSync(migratedRoot, { recursive: true, force: true });
+  });
+
+  it("uses DEFT_PROJECT_PATH for both mutation and locking (#3609)", () => {
+    const root = mkdtempSync(join(tmpdir(), "vb-pd-override-"));
+    const configuredPath = join(root, "config", "custom-project.xbrief.json");
+    const previous = process.env.DEFT_PROJECT_PATH;
+    process.env.DEFT_PROJECT_PATH = join("config", "custom-project.xbrief.json");
+    try {
+      mkdirSync(join(root, "config"), { recursive: true });
+      writeFileSync(
+        configuredPath,
+        pythonJsonPretty({
+          xBRIEFInfo: { version: "0.8" },
+          plan: { title: "T", status: "running", items: [] },
+        }),
+        "utf8",
+      );
+      expect(projectDefinitionPath(root)).toBe(configuredPath);
+      projectDefinitionMutationLock(root, () => {
+        const [data, path] = loadProjectDefinitionForMutation(root);
+        (data.plan as Record<string, unknown>).title = "Updated";
+        atomicWriteProjectDefinition(path, data);
+      });
+      expect(existsSync(`${configuredPath}.lock`)).toBe(false);
+      const roundtrip = JSON.parse(readFileSync(configuredPath, "utf8")) as {
+        plan: { title: string };
+      };
+      expect(roundtrip.plan.title).toBe("Updated");
+    } finally {
+      if (previous === undefined) delete process.env.DEFT_PROJECT_PATH;
+      else process.env.DEFT_PROJECT_PATH = previous;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("serializes separate processes through the mutation sidecar (#3609)", async () => {
+    const root = mkdtempSync(join(tmpdir(), "vb-pd-multiprocess-"));
+    const logPath = join(root, "critical-sections.log");
+    const workerPath = join(root, "lock-worker.mjs");
+    mkdirSync(join(root, "xbrief"), { recursive: true });
+    const moduleUrl = new URL("./project-definition-io.ts", import.meta.url).href;
+    writeFileSync(
+      workerPath,
+      `import { appendFileSync, existsSync } from "node:fs";\n` +
+        `import { join } from "node:path";\n` +
+        `import { projectDefinitionMutationLock } from ${JSON.stringify(moduleUrl)};\n` +
+        `const [root, logPath, label, holdRaw] = process.argv.slice(2);\n` +
+        `projectDefinitionMutationLock(root, () => {\n` +
+        `  const expectedLock = join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json.lock");\n` +
+        `  if (!existsSync(expectedLock)) throw new Error("temp fixture lock was not acquired");\n` +
+        `  appendFileSync(logPath, label + ":enter:" + Date.now() + "\\n");\n` +
+        `  const until = Date.now() + Number(holdRaw);\n` +
+        `  while (Date.now() < until) {}\n` +
+        `  appendFileSync(logPath, label + ":exit:" + Date.now() + "\\n");\n` +
+        `});\n`,
+      "utf8",
+    );
+
+    const runWorker = (label: string): Promise<void> =>
+      new Promise((resolveWorker, rejectWorker) => {
+        const child = spawn(
+          process.execPath,
+          ["--import", "tsx", workerPath, root, logPath, label, "200"],
+          {
+            env: { ...process.env, DEFT_PROJECT_PATH: "" },
+            stdio: ["ignore", "ignore", "pipe"],
+          },
+        );
+        let stderr = "";
+        child.stderr.setEncoding("utf8");
+        child.stderr.on("data", (chunk) => {
+          stderr += String(chunk);
+        });
+        child.on("error", rejectWorker);
+        child.on("exit", (code) => {
+          if (code === 0) resolveWorker();
+          else rejectWorker(new Error(`${label} exited ${code}: ${stderr}`));
+        });
+      });
+
+    try {
+      await Promise.all([runWorker("a"), runWorker("b")]);
+      const events = readFileSync(logPath, "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => line.split(":"))
+        .map(([label, event, rawTime]) => ({ label, event, time: Number(rawTime) }));
+      expect(events).toHaveLength(4);
+      const eventTime = (label: string, event: string): number => {
+        const match = events.find((entry) => entry.label === label && entry.event === event);
+        if (match === undefined) throw new Error(`missing ${label}:${event}`);
+        return match.time;
+      };
+      const a = { enter: eventTime("a", "enter"), exit: eventTime("a", "exit") };
+      const b = { enter: eventTime("b", "enter"), exit: eventTime("b", "exit") };
+      expect(a.exit <= b.enter || b.exit <= a.enter).toBe(true);
+      expect(existsSync(join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json.lock"))).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("names the resolved xbrief path in the not-found error on a migrated tree (#2302)", () => {

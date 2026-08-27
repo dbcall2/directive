@@ -8,6 +8,23 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 <!-- xbrief-backcompat-2111 -->
 
+## Dual policy block recovery (#3609)
+
+- **Applies when:** PROJECT-DEFINITION contains both legacy bare `plan.policy` and namespaced `plan["x-directive/policy"]`. The namespaced block wins reads, so the bare block is shadowed even when one or more values match.
+- **Safe to auto-run:** No. A generic writer cannot know how to combine unrelated keys or resolve collisions without data loss.
+- **Restart required:** No.
+- **Recovery:**
+  1. Run `deft policy:show --field=plan.policy.allowDirectCommitsToMaster` and inspect stderr; the inspector warns but remains read-only and may exit 0.
+  2. Inventory the keys in both blocks.
+  3. Move every bare-only key into `plan["x-directive/policy"]`.
+  4. Resolve every key present in both blocks explicitly.
+  5. Delete bare `plan.policy`.
+  6. Run the selected writer (`deft policy:enforce-branches --actor <actor>` or confirmed `deft policy:allow-direct-commits --confirm --actor <actor>`) and `deft verify:vbrief-conformance --project-root .`.
+
+Policy writers now fail with config exit 2 before changing PROJECT-DEFINITION or the policy audit log while both blocks coexist. Legacy-only projects remain supported: the next policy write migrates the complete legacy block to the namespaced key. For corpus-wide legacy-only cleanup, run `deft migrate:category-b`; it also fails closed on coexistence and is not a dual-block healer. Namespaced-only matching writes remain no-ops.
+
+---
+
 ## npm v12 install-time security defaults
 
 npm v12 flips three install defaults from "on" to opt-in. The same features shipped on **npm 11.16.0+** with warnings so you can migrate before enforcement.
