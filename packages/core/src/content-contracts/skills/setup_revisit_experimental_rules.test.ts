@@ -112,6 +112,7 @@ describe("setup namespaced branch-policy contract (#3609)", () => {
     it(`${surface} setup contains no legacy branch-policy output recipe`, () => {
       expect(text).not.toContain("Allow direct commits to master: true");
       expect(text).not.toContain("write `plan.policy.allowDirectCommitsToMaster");
+      expect(text).not.toContain("plan.ProjectConfig.policy");
     });
   }
 });
