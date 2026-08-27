@@ -16,21 +16,18 @@ Before the mechanics below, it helps to see the whole loop. Directive is two con
 
 ## Prerequisites
 
-- **Node 20+** and **pnpm** for live gates and the npm distribution channel (see `.nvmrc` in the framework payload).
+- **Node 20+** and the package manager declared by the project (`npm` or `pnpm`) for live consumer gates and the npm distribution channel (see `.nvmrc` in the framework payload). npm is bundled with Node; a pnpm-pinned project enables pnpm through Corepack.
+- **Git** and **GitHub CLI (`gh`)** are also checked by the consumer toolchain gate.
 - **Go 1.22+** only if you use the bootstrap Go installer or build from source.
-- **Python 3.11+**, **uv**, **task**, **git**, and **gh** for full framework workflows — run `directive toolchain:check` (or `deft toolchain:check`) after install.
+- **Python 3.11+**, **uv**, and **task** for the framework-maintainer and session workflows that name them. The consumer toolchain probe itself does not check those tools. Run `directive toolchain:check --consumer --project-root .` after install.
 
 ---
 
 ## Installation
 
-### npm (coming soon — not yet published)
+### npm (canonical)
 
-> ⚠️ **The `@deftai/directive` npm package is not yet published** to the registry (provisioning tracked by [#1909](https://github.com/deftai/directive/issues/1909)). **Until it goes live, install via the [Go installer](#go-installer-bootstrap) below.** The commands shown here are what the install will become once the package is published.
-
-<!-- TODO(#1909): flip to npm-canonical and remove this "coming soon" notice when @deftai/directive is published -->
-
-Once published, when Node is already available you will install Directive globally:
+With Node already available, install Directive globally from npm:
 
 ```bash
 npm i -g @deftai/directive
@@ -38,16 +35,18 @@ directive --version    # primary command
 deft --version         # alias — same binary
 ```
 
-One-shot without a global install (also once published):
+One-shot without a global install:
 
 ```bash
 npx @deftai/directive doctor
 npx @deftai/directive session:start
 ```
 
-This npm path is the emerging primary distribution channel under `@deftai/directive` ([#11](https://github.com/deftai/directive/issues/11)); the Go installer below remains the install/bootstrap option today and during the staged retire window.
+This npm path has been the canonical distribution channel since v0.55.1. A pnpm-managed repository can install the same package with `pnpm add -g @deftai/directive` or project-locally with `pnpm add -D @deftai/directive`.
 
-### Go installer (bootstrap)
+### Go installer (legacy bridge)
+
+The Go installer is a frozen legacy bridge for older installs and source-oriented recovery. New consumer installs should use npm above; see [UPGRADING.md](../UPGRADING.md#one-time-migration-from-the-go-installer-legacy--npm) when migrating an existing Go-installer layout.
 
 Download a platform installer from the [Directive release page](https://github.com/deftai/directive/releases) and run it from the project you want to adopt:
 

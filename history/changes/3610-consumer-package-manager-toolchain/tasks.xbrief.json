@@ -1,0 +1,44 @@
+{
+  "vBRIEFInfo": {
+    "version": "0.6"
+  },
+  "plan": {
+    "title": "3610-consumer-package-manager-toolchain",
+    "status": "approved",
+    "items": [
+      {
+        "title": "Add failing npm, pnpm, precedence, unsupported-manager, and Corepack-mismatch tests",
+        "status": "completed"
+      },
+      {
+        "title": "Implement one filesystem-backed typed consumer package-manager resolution result",
+        "status": "completed"
+      },
+      {
+        "title": "Make consumer toolchain validation manager-aware and remove stale go-task leakage",
+        "status": "completed"
+      },
+      {
+        "title": "Align session preflight and package-manager-dependent gate remediation",
+        "status": "completed"
+      },
+      {
+        "title": "Cover POSIX and Windows command shims without raw packageManager execution",
+        "status": "completed"
+      },
+      {
+        "title": "Update consumer task descriptions, guidance, and release notes",
+        "status": "completed"
+      },
+      {
+        "title": "Pass focused, forward-coverage, hotspot, acceptance, and full quality gates",
+        "status": "completed"
+      },
+      {
+        "title": "Perform the PR attestation after fresh current-HEAD evidence shows 5/5 confidence and zero unresolved review conversations",
+        "status": "pending"
+      }
+    ],
+    "edges": []
+  }
+}

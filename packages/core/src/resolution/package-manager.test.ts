@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_PACKAGE_MANAGER,
   detectPackageManager,
@@ -8,7 +11,33 @@ import {
   renderGlobalInstall,
   renderPackageManagerCommands,
   renderProjectInstall,
+  resolvePackageManager,
+  resolveProjectPackageManager,
 } from "./package-manager.js";
+
+const fixtureRoots: string[] = [];
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  for (const root of fixtureRoots.splice(0)) {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function packageManagerFixture(
+  packageJson?: Readonly<Record<string, unknown>>,
+  pnpmLockPresent = false,
+): string {
+  const root = mkdtempSync(join(tmpdir(), "deft-package-manager-"));
+  fixtureRoots.push(root);
+  if (packageJson !== undefined) {
+    writeFileSync(join(root, "package.json"), `${JSON.stringify(packageJson)}\n`, "utf8");
+  }
+  if (pnpmLockPresent) {
+    writeFileSync(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n", "utf8");
+  }
+  return root;
+}
 
 describe("resolution/package-manager detectPackageManager (#2197)", () => {
   it("defaults to npm with no signals", () => {
@@ -16,17 +45,16 @@ describe("resolution/package-manager detectPackageManager (#2197)", () => {
     expect(detectPackageManager({ env: {} })).toBe(DEFAULT_PACKAGE_MANAGER);
   });
 
-  it("honors the DEFT_PACKAGE_MANAGER env override first", () => {
+  it("honors packageManager before DEFT_PACKAGE_MANAGER", () => {
     expect(detectPackageManager({ env: { DEFT_PACKAGE_MANAGER: "pnpm" } })).toBe("pnpm");
     expect(detectPackageManager({ env: { DEFT_PACKAGE_MANAGER: "npm" } })).toBe("npm");
-    // Override beats every lower-precedence signal.
     expect(
       detectPackageManager({
         env: { DEFT_PACKAGE_MANAGER: "npm", npm_config_user_agent: "pnpm/9.0.0" },
         pnpmLockPresent: true,
         packageManagerField: "pnpm@9.0.0",
       }),
-    ).toBe("npm");
+    ).toBe("pnpm");
   });
 
   it("reads the packageManager / corepack field before the lockfile", () => {
@@ -50,6 +78,208 @@ describe("resolution/package-manager detectPackageManager (#2197)", () => {
   it("ignores blank / unrecognized override values", () => {
     expect(detectPackageManager({ env: { DEFT_PACKAGE_MANAGER: "   " } })).toBe("npm");
     expect(detectPackageManager({ env: { DEFT_PACKAGE_MANAGER: "yarn" } })).toBe("npm");
+  });
+});
+
+describe("resolution/package-manager strict project resolution (#3610)", () => {
+  it("rejects a conflicting DEFT_PACKAGE_MANAGER when packageManager is declared", () => {
+    expect(
+      resolvePackageManager({
+        env: { DEFT_PACKAGE_MANAGER: "npm", npm_config_user_agent: "pnpm/11.8.0" },
+        packageManagerField: "pnpm@11.8.0",
+        pnpmLockPresent: true,
+      }),
+    ).toMatchObject({ ok: false, source: "env-override" });
+    expect(
+      resolvePackageManager({
+        env: { DEFT_PACKAGE_MANAGER: "pnpm" },
+        packageManagerField: "npm@11.16.0",
+      }).message,
+    ).toMatch(/conflicts with package.json#packageManager/i);
+  });
+
+  it("rejects unsupported explicit managers instead of falling through", () => {
+    const result = resolvePackageManager({
+      packageManagerField: "yarn@4.9.2",
+      pnpmLockPresent: true,
+    });
+    expect(result).toMatchObject({ ok: false, source: "package-manager-field" });
+    expect(result.message).toMatch(/unsupported.*yarn.*npm.*pnpm/i);
+  });
+
+  it("bounds and sanitizes an unsupported packageManager declaration", () => {
+    const result = resolvePackageManager({
+      packageManagerField: `yarn\u0085C1\u009b31mRED\u202eBIDI${"x".repeat(300)}`,
+    });
+    expect(result).toMatchObject({ ok: false, source: "package-manager-field" });
+    expect(result.message).not.toMatch(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u);
+    expect(result.message).toContain("yarn C1 31mRED BIDI");
+    expect(result.message.length).toBeLessThan(360);
+  });
+
+  it("does not echo raw environment override text in diagnostics", () => {
+    const rawOverride = "yarn; echo should-not-appear";
+    const result = resolvePackageManager({
+      env: { DEFT_PACKAGE_MANAGER: rawOverride },
+    });
+    expect(result).toMatchObject({ ok: false, source: "env-override" });
+    expect(result.message).not.toContain(rawOverride);
+  });
+
+  it("rejects instruction-shaped packageManager values", () => {
+    const result = resolvePackageManager({
+      packageManagerField: "pnpm@11.8.0; touch should-not-run",
+    });
+    expect(result).toMatchObject({ ok: false, source: "package-manager-field" });
+  });
+
+  it("reads an npm declaration before a conflicting pnpm lockfile", () => {
+    const root = packageManagerFixture({ packageManager: "npm@11.16.0" }, true);
+    expect(resolveProjectPackageManager({ projectRoot: root, env: {} })).toEqual({
+      ok: true,
+      packageManager: "npm",
+      source: "package-manager-field",
+    });
+  });
+
+  it.each([
+    "",
+    "   ",
+    null,
+  ])("rejects an explicit malformed packageManager value %j before lockfile fallback", (packageManager) => {
+    const root = packageManagerFixture({ packageManager }, true);
+    const result = resolveProjectPackageManager({ projectRoot: root, env: {} });
+    expect(result).toMatchObject({ ok: false, source: "package-manager-field" });
+    expect(result.message).toMatch(/non-empty string.*npm.*pnpm/i);
+  });
+
+  it("rejects a conflicting override after reading packageManager from project files", () => {
+    const result = resolveProjectPackageManager({
+      projectRoot: "/consumer",
+      env: { DEFT_PACKAGE_MANAGER: "npm" },
+      readText: () => JSON.stringify({ packageManager: "pnpm@11.8.0" }),
+      isFile: () => false,
+    });
+    expect(result).toMatchObject({ ok: false, source: "env-override" });
+  });
+
+  it("uses an environment override only when no packageManager declaration exists", () => {
+    const result = resolveProjectPackageManager({
+      projectRoot: "/consumer",
+      env: { DEFT_PACKAGE_MANAGER: "npm" },
+      readText: () => JSON.stringify({ name: "consumer" }),
+      isFile: () => false,
+    });
+    expect(result).toEqual({
+      ok: true,
+      packageManager: "npm",
+      source: "env-override",
+    });
+  });
+
+  it("stops at packageManager before inspecting a lower-priority lockfile", () => {
+    const result = resolveProjectPackageManager({
+      projectRoot: "/consumer",
+      env: {},
+      readText: () => JSON.stringify({ packageManager: "pnpm@11.8.0" }),
+      isFile: () => {
+        throw new Error("lockfile should not be inspected");
+      },
+    });
+    expect(result).toEqual({
+      ok: true,
+      packageManager: "pnpm",
+      source: "package-manager-field",
+    });
+  });
+
+  it("uses the pnpm lockfile and then the npm default when no declaration exists", () => {
+    const pnpmRoot = packageManagerFixture({}, true);
+    const npmRoot = packageManagerFixture({});
+    expect(resolveProjectPackageManager({ projectRoot: pnpmRoot, env: {} })).toEqual({
+      ok: true,
+      packageManager: "pnpm",
+      source: "pnpm-lock",
+    });
+    expect(resolveProjectPackageManager({ projectRoot: npmRoot, env: {} })).toEqual({
+      ok: true,
+      packageManager: "npm",
+      source: "default",
+    });
+  });
+
+  it("inherits the process environment override when no declaration exists", () => {
+    vi.stubEnv("DEFT_PACKAGE_MANAGER", "pnpm");
+    const root = packageManagerFixture({});
+    expect(resolveProjectPackageManager({ projectRoot: root })).toEqual({
+      ok: true,
+      packageManager: "pnpm",
+      source: "env-override",
+    });
+  });
+
+  it("rejects an inherited override that conflicts with a declared packageManager", () => {
+    vi.stubEnv("DEFT_PACKAGE_MANAGER", "pnpm");
+    const root = packageManagerFixture({ packageManager: "npm@11.16.0" });
+    expect(resolveProjectPackageManager({ projectRoot: root })).toMatchObject({
+      ok: false,
+      source: "env-override",
+    });
+  });
+
+  it("fails clearly when package.json is malformed", () => {
+    const root = packageManagerFixture();
+    writeFileSync(join(root, "package.json"), "{not-json\n", "utf8");
+    const result = resolveProjectPackageManager({ projectRoot: root, env: {} });
+    expect(result).toMatchObject({ ok: false, source: "package-json" });
+    expect(result.message).toMatch(/parse.*package\.json/i);
+  });
+
+  it("keeps filesystem error details on one bounded control-free output line", () => {
+    const result = resolveProjectPackageManager({
+      projectRoot: "/consumer",
+      env: {},
+      readText: () => {
+        throw new Error(
+          `permission denied\nINJECTED_BLOCK\u0085C1\u009b31mRED\u009b0m\u202eBIDI${"x".repeat(300)}`,
+        );
+      },
+    });
+    expect(result).toMatchObject({ ok: false, source: "package-json" });
+    expect(result.message).not.toMatch(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u);
+    expect(result.message).toContain("permission denied INJECTED_BLOCK");
+    expect(result.message.length).toBeLessThan(320);
+  });
+
+  it("truncates diagnostic details without splitting astral characters", () => {
+    const result = resolveProjectPackageManager({
+      projectRoot: "/consumer",
+      env: {},
+      readText: () => {
+        throw new Error(`${"a".repeat(236)}😀${"z".repeat(10)}`);
+      },
+    });
+    expect(result).toMatchObject({ ok: false, source: "package-json" });
+    expect(result.message).toContain(`${"a".repeat(236)}😀...`);
+    expect(
+      [...result.message].some((character) => {
+        const codePoint = character.codePointAt(0) ?? 0;
+        return codePoint >= 0xd800 && codePoint <= 0xdfff;
+      }),
+    ).toBe(false);
+  });
+
+  it("fails clearly when the project lockfile cannot be inspected", () => {
+    const result = resolveProjectPackageManager({
+      projectRoot: "/consumer",
+      env: {},
+      readText: () => null,
+      isFile: () => {
+        throw new Error("permission denied");
+      },
+    });
+    expect(result).toMatchObject({ ok: false, source: "project-filesystem" });
+    expect(result.message).toMatch(/inspect.*pnpm-lock\.yaml.*permission denied/i);
   });
 });
 

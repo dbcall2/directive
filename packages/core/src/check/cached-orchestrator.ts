@@ -103,6 +103,28 @@ function writeLines(lines: readonly string[], stream: "stdout" | "stderr" = "std
   }
 }
 
+function firstImpactingMissingFinding(
+  preflight: ToolchainPreflightResult | null,
+): ToolchainPreflightResult["findings"][number] | undefined {
+  const missing = preflight?.findings.filter((finding) => !finding.present) ?? [];
+  const impacting = missing.filter((finding) => finding.impact !== "none");
+  const priority = [
+    "node",
+    "task",
+    "cli_dist",
+    "package_manager",
+    preflight?.packageManager,
+    "npm",
+    "pnpm",
+  ];
+  for (const tool of priority) {
+    if (tool === null || tool === undefined) continue;
+    const finding = impacting.find((candidate) => candidate.tool === tool);
+    if (finding !== undefined) return finding;
+  }
+  return impacting[0] ?? missing[0];
+}
+
 /**
  * Run check gates sequentially with content-hash caching (#1713).
  * Falls back to fail-open execution for undeclared / non-cacheable gates.
@@ -211,6 +233,7 @@ export function dispatchCachedTaskCheck(
           composedGates: gates,
           consumerDeposit: target === "check:consumer",
           which,
+          env: options.env,
         })
       : options.preflight;
   const taskPresent =
@@ -244,10 +267,9 @@ export function dispatchCachedTaskCheck(
     if (allSkipped) {
       const skipped = gates.map((g) => {
         const id = checkGateId(g);
-        const cause =
-          preflight?.findings.find((f) => !f.present)?.cause ?? "toolchain preflight degraded";
-        const remedy =
-          preflight?.findings.find((f) => !f.present)?.remedy ?? remedyForGate(id, cause);
+        const missing = firstImpactingMissingFinding(preflight);
+        const cause = missing?.cause ?? "toolchain preflight degraded";
+        const remedy = missing?.remedy ?? remedyForGate(id, cause);
         gateOutcomes.push({ id, status: "skipped", cause, remedy });
         return { id, cause, remedy };
       });
@@ -268,7 +290,7 @@ export function dispatchCachedTaskCheck(
 
     // #3282: skip gates that require missing tools (e.g. pnpm-only suite).
     if (skipSet.has(gateId)) {
-      const missing = preflight?.findings.find((f) => !f.present);
+      const missing = firstImpactingMissingFinding(preflight);
       const cause = missing?.cause ?? "toolchain preflight marked gate skippable";
       const remedy = missing?.remedy ?? remedyForGate(gateId, cause);
       process.stderr.write(
