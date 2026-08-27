@@ -2,6 +2,11 @@ import { lstatSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSyn
 import { basename, dirname, join, resolve } from "node:path";
 import { cacheGet } from "../cache/operations.js";
 import { type ScanFlag, scan } from "../cache/scanner.js";
+import {
+  assertCompletedArcAllowsIngest,
+  DesignCritiqueIngestBlockedError,
+  type ThreadComment,
+} from "../design-critique/completed-arc-record.js";
 import { assertWriteTargetSafe, ProjectionContainmentError } from "../fs/projection-containment.js";
 import { hasArtifactSuffix, resolveLifecycleRoot } from "../layout/resolve.js";
 import { captureAndAttachLiteralAcceptance } from "../literal-acceptance/index.js";
@@ -891,6 +896,38 @@ function resolveIngestProjectRoot(
   return null;
 }
 
+function issueLabelNames(issue: Record<string, unknown>): string[] {
+  const labels = issue.labels;
+  if (!Array.isArray(labels)) return [];
+  const names: string[] = [];
+  for (const lbl of labels) {
+    if (typeof lbl === "string") {
+      names.push(lbl);
+      continue;
+    }
+    if (lbl !== null && typeof lbl === "object" && !Array.isArray(lbl)) {
+      const name = (lbl as Record<string, unknown>).name;
+      if (typeof name === "string") names.push(name);
+    }
+  }
+  return names;
+}
+
+function threadCommentsFromIssue(issue: Record<string, unknown>): ThreadComment[] {
+  const raw = issue[ISSUE_COMMENT_THREAD_KEY];
+  if (!Array.isArray(raw)) return [];
+  const out: ThreadComment[] = [];
+  for (const entry of raw) {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const rec = entry as Record<string, unknown>;
+    const id = Number(rec.id);
+    if (!Number.isSafeInteger(id) || id <= 0) continue;
+    const body = typeof rec.body === "string" ? rec.body : "";
+    out.push({ id, body });
+  }
+  return out;
+}
+
 export function ingestOne(
   issue: Record<string, unknown>,
   options: {
@@ -919,6 +956,11 @@ export function ingestOne(
     scmCall: options.scmCall,
     cwd: options.cwd,
     cacheRoot: options.cacheRoot,
+  });
+  assertCompletedArcAllowsIngest({
+    issueNumber: number,
+    labels: issueLabelNames(enriched),
+    comments: threadCommentsFromIssue(enriched),
   });
   const emissionLayout = resolveIngestEmissionLayout(options.vbriefDir);
   const [vbrief, folder] = buildIssueVbrief(enriched, options.status, options.repoUrl, {
@@ -996,6 +1038,7 @@ export function ingestBulk(
     duplicate: [],
     dryrun: [],
     failed: [],
+    blocked: [],
     notices: [],
   };
 
@@ -1009,6 +1052,11 @@ export function ingestBulk(
       // upstream via the `failed` bucket.
       if (exc instanceof ScannerHardFailError) {
         (summary.failed as string[]).push(`#${exc.issueNumber}`);
+        process.stderr.write(`${exc.message}\n`);
+        continue;
+      }
+      if (exc instanceof DesignCritiqueIngestBlockedError) {
+        (summary.blocked as string[]).push(`#${exc.issueNumber}`);
         process.stderr.write(`${exc.message}\n`);
         continue;
       }
@@ -1100,8 +1148,9 @@ export function issueIngestMain(args: IssueIngestCliArgs): number {
     const duplicate = summary.duplicate as string[];
     const dryrun = summary.dryrun as string[];
     const failed = (summary.failed as string[] | undefined) ?? [];
+    const blocked = (summary.blocked as string[] | undefined) ?? [];
     process.stdout.write(
-      `issue:ingest bulk summary: ${created.length} created, ${duplicate.length} duplicate, ${dryrun.length} dry-run, ${failed.length} refused (total considered: ${summary.total})\n`,
+      `issue:ingest bulk summary: ${created.length} created, ${duplicate.length} duplicate, ${dryrun.length} dry-run, ${failed.length} refused, ${blocked.length} blocked (total considered: ${summary.total})\n`,
     );
     for (const entry of created) {
       process.stdout.write(`  CREATED ${entry}\n`);
@@ -1118,8 +1167,16 @@ export function issueIngestMain(args: IssueIngestCliArgs): number {
     for (const entry of failed) {
       process.stdout.write(`  REFUSED ${entry} (quarantine scanner hard-fail; nothing written)\n`);
     }
+    for (const entry of blocked) {
+      process.stdout.write(
+        `  BLOCKED ${entry} (design-critique completed-arc record; nothing written)\n`,
+      );
+    }
     // #2306: fail closed on any quarantine hard-fail in the batch.
-    return failed.length > 0 ? 2 : 0;
+    // Design-critique protocol holds are exit 1, not the scanner fatal path.
+    if (failed.length > 0) return 2;
+    if (blocked.length > 0) return 1;
+    return 0;
   }
 
   const issue = fetchIssue(repo, args.number as number, { cwd: projectRoot });
@@ -1141,6 +1198,10 @@ export function issueIngestMain(args: IssueIngestCliArgs): number {
     if (exc instanceof ScannerHardFailError) {
       process.stderr.write(`${exc.message}\n`);
       return 2;
+    }
+    if (exc instanceof DesignCritiqueIngestBlockedError) {
+      process.stderr.write(`${exc.message}\n`);
+      return 1;
     }
     throw exc;
   }
