@@ -245,7 +245,7 @@ describe("degraded skip report in check (#3282)", () => {
     expect(msg).not.toMatch(/skipping gate.*git binary not found/s);
   });
 
-  it("threads an injected package-manager override into live preflight", () => {
+  it("rejects a conflicting package-manager override in live preflight", () => {
     const { framework, project } = writeConsumerFramework();
     writeFileSync(
       join(project, "package.json"),
@@ -259,12 +259,12 @@ describe("degraded skip report in check (#3282)", () => {
       env: { DEFT_PACKAGE_MANAGER: "npm" },
       which: (name) => {
         probed.push(name);
-        return name === "npm" ? null : `/bin/${name}`;
+        return `/bin/${name}`;
       },
       gateSpawnFn: () => ({ exitCode: 0, stdout: "", stderr: "" }),
     });
     expect(code).toBe(2);
-    expect(probed).toContain("npm");
+    expect(probed).not.toContain("npm");
     expect(probed).not.toContain("pnpm");
   });
 
