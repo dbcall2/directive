@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -589,6 +598,73 @@ describe("setup policy commands through the built colon router (#3609)", () => {
     writeFileSync(configuredPath, `${JSON.stringify(configured, null, 2)}\n`, "utf8");
     const conformance = runDeftTs("verify:vbrief-conformance", ["--project-root", root], { env });
     expect(conformance.exitCode, conformance.stderr || conformance.stdout).toBe(0);
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "preserves a configured symlink and shares its canonical writer/conformance identity",
+    () => {
+      const root = project();
+      const realPath = join(root, "config", "real-project.xbrief.json");
+      const symlinkPath = join(root, "config", "configured-project.xbrief.json");
+      mkdirSync(join(root, "config"), { recursive: true });
+      writeFileSync(
+        realPath,
+        `${JSON.stringify(
+          {
+            xBRIEFInfo: { version: "0.8" },
+            plan: { title: "Symlink fixture", status: "running", items: [] },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf8",
+      );
+      symlinkSync(realPath, symlinkPath);
+      initGitRepo(root);
+      const env = { DEFT_PROJECT_PATH: symlinkPath };
+
+      const result = runDeftTs("policy:enforce-branches", ["--project-root", root], { env });
+      expect(result.exitCode, result.stderr).toBe(0);
+      expect(lstatSync(symlinkPath).isSymbolicLink()).toBe(true);
+      expect(planAtPath(realPath)["x-directive/policy"]).toMatchObject({
+        allowDirectCommitsToMaster: false,
+      });
+      const conformance = runDeftTs("verify:vbrief-conformance", ["--project-root", root], {
+        env,
+      });
+      expect(conformance.exitCode, conformance.stderr || conformance.stdout).toBe(0);
+    },
+  );
+
+  it("fails conformance closed for missing, unreadable, and malformed configured artifacts", () => {
+    const root = project();
+    initGitRepo(root);
+    const missingSecretPath = join(root, `secret-token\n\u001b[31m${"x".repeat(500)}`);
+    const missing = runDeftTs("verify:vbrief-conformance", ["--project-root", root], {
+      env: { DEFT_PROJECT_PATH: missingSecretPath },
+    });
+    expect(missing.exitCode).toBe(2);
+    expect(missing.stderr).toContain("configured PROJECT-DEFINITION does not exist");
+    expect(missing.stderr).not.toContain("secret-token");
+    expect(missing.stderr.length).toBeLessThan(1_000);
+
+    const unreadablePath = join(root, "config", "directory-not-file");
+    mkdirSync(unreadablePath, { recursive: true });
+    const unreadable = runDeftTs("verify:vbrief-conformance", ["--project-root", root], {
+      env: { DEFT_PROJECT_PATH: unreadablePath },
+    });
+    expect(unreadable.exitCode).toBe(2);
+    expect(unreadable.stderr).toContain("configured PROJECT-DEFINITION is unreadable");
+
+    const malformedPath = join(root, "config", "malformed-project.xbrief.json");
+    writeFileSync(malformedPath, '{"secret-token":"do-not-print"', "utf8");
+    const malformed = runDeftTs("verify:vbrief-conformance", ["--project-root", root], {
+      env: { DEFT_PROJECT_PATH: malformedPath },
+    });
+    expect(malformed.exitCode).toBe(2);
+    expect(malformed.stderr).toContain("configured PROJECT-DEFINITION is not valid JSON");
+    expect(malformed.stderr).not.toContain("secret-token");
+    expect(malformed.stderr.length).toBeLessThan(1_000);
   });
 
   it("keeps namespaced state as a no-op and migrates legacy-only state", () => {

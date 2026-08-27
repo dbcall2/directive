@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { join, resolve } from "node:path";
 import {
   GitCommandError,
   GitNotFoundError,
@@ -297,17 +297,52 @@ export function evaluateConformance(
     throw err;
   }
 
-  const candidates = relPaths
+  const candidates: Array<{ displayPath: string; fullPath: string; configured: boolean }> = relPaths
     .map((p) => p.replace(/\\/g, "/"))
     .filter((posix) => isVbriefPath(posix) && !isAllowListed(posix, customGlobs))
-    .map((posix) => ({ displayPath: posix, fullPath: join(root, posix) }));
+    .map((posix) => ({ displayPath: posix, fullPath: join(root, posix), configured: false }));
 
   const configuredPath = options.projectDefinitionPath?.trim();
   if (configuredPath) {
-    const fullPath = resolve(root, configuredPath);
-    if (existsSync(fullPath) && !candidates.some((candidate) => candidate.fullPath === fullPath)) {
-      const relPath = relative(root, fullPath).replace(/\\/g, "/");
-      candidates.push({ displayPath: relPath || fullPath, fullPath });
+    const lexicalPath = resolve(root, configuredPath);
+    if (!existsSync(lexicalPath)) {
+      return {
+        exitCode: 2,
+        findings: [],
+        message:
+          "❌ verify_vbrief_conformance: configured PROJECT-DEFINITION does not exist.\n" +
+          "  Recovery: fix or unset DEFT_PROJECT_PATH, then rerun conformance.",
+      };
+    }
+    let fullPath: string;
+    try {
+      fullPath = realpathSync(lexicalPath);
+    } catch {
+      return {
+        exitCode: 2,
+        findings: [],
+        message:
+          "❌ verify_vbrief_conformance: configured PROJECT-DEFINITION is unreadable.\n" +
+          "  Recovery: fix its permissions or DEFT_PROJECT_PATH, then rerun conformance.",
+      };
+    }
+    const existing = candidates.find((candidate) => {
+      try {
+        return realpathSync(candidate.fullPath) === fullPath;
+      } catch {
+        return resolve(candidate.fullPath) === fullPath;
+      }
+    });
+    if (existing === undefined) {
+      candidates.push({
+        displayPath: "<configured PROJECT-DEFINITION>",
+        fullPath,
+        configured: true,
+      });
+    } else {
+      existing.displayPath = "<configured PROJECT-DEFINITION>";
+      existing.fullPath = fullPath;
+      existing.configured = true;
     }
   }
 
@@ -317,11 +352,33 @@ export function evaluateConformance(
     try {
       text = readFileSync(candidate.fullPath, "utf8");
     } catch {
+      if (candidate.configured) {
+        return {
+          exitCode: 2,
+          findings,
+          message:
+            "❌ verify_vbrief_conformance: configured PROJECT-DEFINITION is unreadable.\n" +
+            "  Recovery: fix its permissions or DEFT_PROJECT_PATH, then rerun conformance.",
+        };
+      }
       continue;
     }
+    let data: unknown;
     try {
-      findings.push(...scanVbrief(candidate.displayPath, JSON.parse(text)));
-    } catch {}
+      data = JSON.parse(text);
+    } catch {
+      if (candidate.configured) {
+        return {
+          exitCode: 2,
+          findings,
+          message:
+            "❌ verify_vbrief_conformance: configured PROJECT-DEFINITION is not valid JSON.\n" +
+            "  Recovery: repair the JSON, then rerun conformance.",
+        };
+      }
+      continue;
+    }
+    findings.push(...scanVbrief(candidate.displayPath, data));
   }
 
   if (findings.length > 0) {

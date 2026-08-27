@@ -111,6 +111,12 @@ function objectKeys(value: unknown): string[] {
   return Object.keys(value as Record<string, unknown>).sort();
 }
 
+function keyInventory(value: unknown): string {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? `<dict keys=${Object.keys(value as Record<string, unknown>).length}>`
+    : diagnosticValue(value);
+}
+
 function branchPolicyValue(value: unknown): string {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return diagnosticValue(value);
@@ -142,8 +148,8 @@ function assertPolicyBlockIsUnambiguous(plan: Record<string, unknown>): void {
 
   throw new Error(
     `${describeShadowedPlanExtension(shadow)} ` +
-      `Key inventory: namespaced=${JSON.stringify(namespacedKeys)}; ` +
-      `bare=${JSON.stringify(legacyKeys)}; collisions=${JSON.stringify(collisions)}. ` +
+      `Key inventory: namespaced=${keyInventory(namespaced)}; ` +
+      `bare=${keyInventory(legacy)}; collisions=<list length=${collisions.length}>. ` +
       `Relevant branch-policy values: namespaced=${branchPolicyValue(namespaced)}; ` +
       `bare=${branchPolicyValue(legacy)}. ` +
       `Recovery: inventory both blocks; fold every bare-only key into ` +

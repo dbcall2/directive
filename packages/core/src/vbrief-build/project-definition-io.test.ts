@@ -100,10 +100,13 @@ describe("projectDefinitionIO", () => {
     const moduleUrl = new URL("./project-definition-io.ts", import.meta.url).href;
     writeFileSync(
       workerPath,
-      `import { appendFileSync } from "node:fs";\n` +
+      `import { appendFileSync, existsSync } from "node:fs";\n` +
+        `import { join } from "node:path";\n` +
         `import { projectDefinitionMutationLock } from ${JSON.stringify(moduleUrl)};\n` +
         `const [root, logPath, label, holdRaw] = process.argv.slice(2);\n` +
         `projectDefinitionMutationLock(root, () => {\n` +
+        `  const expectedLock = join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json.lock");\n` +
+        `  if (!existsSync(expectedLock)) throw new Error("temp fixture lock was not acquired");\n` +
         `  appendFileSync(logPath, label + ":enter:" + Date.now() + "\\n");\n` +
         `  const until = Date.now() + Number(holdRaw);\n` +
         `  while (Date.now() < until) {}\n` +
@@ -117,7 +120,10 @@ describe("projectDefinitionIO", () => {
         const child = spawn(
           process.execPath,
           ["--import", "tsx", workerPath, root, logPath, label, "200"],
-          { stdio: ["ignore", "ignore", "pipe"] },
+          {
+            env: { ...process.env, DEFT_PROJECT_PATH: "" },
+            stdio: ["ignore", "ignore", "pipe"],
+          },
         );
         let stderr = "";
         child.stderr.setEncoding("utf8");

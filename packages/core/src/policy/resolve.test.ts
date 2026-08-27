@@ -340,7 +340,7 @@ describe("setPolicy", () => {
     const before = readFileSync(definitionPath, "utf8");
 
     expect(() => setPolicy(r, { allowDirectCommits: false, actor: "test" })).toThrowError(
-      /Key inventory: namespaced=\["allowDirectCommitsToMaster","wipCap"\].*bare=\["allowDirectCommitsToMaster","triageScope"\].*collisions=\["allowDirectCommitsToMaster"\]/,
+      /Key inventory: namespaced=<dict keys=2>.*bare=<dict keys=2>.*collisions=<list length=1>/,
     );
     expect(readFileSync(definitionPath, "utf8")).toBe(before);
     expect(existsSync(join(r, "meta", "policy-changes.log"))).toBe(false);
@@ -382,7 +382,7 @@ describe("setPolicy", () => {
     const before = readFileSync(definitionPath, "utf8");
 
     expect(() => setPolicy(r, { allowDirectCommits: false, actor: "test" })).toThrowError(
-      /Key inventory: namespaced=\[\].*Relevant branch-policy values: namespaced=<string length=7>; bare=False/,
+      /Key inventory: namespaced=<string length=7>.*Relevant branch-policy values: namespaced=<string length=7>; bare=False/,
     );
     expect(readFileSync(definitionPath, "utf8")).toBe(before);
     expect(existsSync(join(r, "meta", "policy-changes.log"))).toBe(false);
@@ -405,6 +405,28 @@ describe("setPolicy", () => {
     }
     expect(message).toContain("namespaced=<string length=2029>");
     expect(message).not.toContain("credential=do-not-print");
+    expect(message).not.toContain("\n");
+    expect(message).not.toContain("\u001b");
+    expect(message.length).toBeLessThan(1_000);
+  });
+
+  it("redacts hostile policy key names from bounded dual-block diagnostics (#3609)", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-dual-hostile-key-"));
+    roots.push(r);
+    const hostileKey = `secret-token\n\u001b[31m${"k".repeat(2_000)}`;
+    writeProjectDef(r, {
+      "x-directive/policy": { allowDirectCommitsToMaster: false },
+      policy: { allowDirectCommitsToMaster: false, [hostileKey]: true },
+    });
+
+    let message = "";
+    try {
+      setPolicy(r, { allowDirectCommits: false, actor: "test" });
+    } catch (error: unknown) {
+      message = String(error);
+    }
+    expect(message).toContain(`<redacted-key length=${[...hostileKey].length}>`);
+    expect(message).not.toContain("secret-token");
     expect(message).not.toContain("\n");
     expect(message).not.toContain("\u001b");
     expect(message.length).toBeLessThan(1_000);
