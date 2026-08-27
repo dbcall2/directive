@@ -88,11 +88,20 @@ describe("setup namespaced branch-policy contract (#3609)", () => {
       expect(text).toContain("A keep choice still runs the selected writer");
     });
 
+    it(`${surface} setup preserves re-entry true and binds commands to the selected root`, () => {
+      expect(text).toContain("Pass `--project-root <policy-project-root>` to every Phase 2 policy");
+      expect(text).toContain("Never replace an existing `true`");
+      expect(text).toContain("Track 2 or 3 existing-true");
+      expect(text).toContain("--project-root <policy-project-root>");
+    });
+
     it(`${surface} setup blocks completion until namespaced read-back and conformance`, () => {
       expect(text).toContain("A nonzero writer exit halts Phase 2 immediately");
       expect(text).toContain('plan["x-directive/policy"].allowDirectCommitsToMaster');
       expect(text).toContain("bare `plan.policy` is absent");
-      expect(text).toContain("deft verify:vbrief-conformance --project-root .");
+      expect(text).toContain(
+        "deft verify:vbrief-conformance --project-root <policy-project-root>",
+      );
     });
 
     it(`${surface} setup contains no legacy branch-policy output recipe`, () => {

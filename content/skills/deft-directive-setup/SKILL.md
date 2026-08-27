@@ -127,6 +127,8 @@ When guiding an operator through migration on the pinned release, mention the mi
 - ! If `$DEFT_USER_PATH` is set, it takes precedence on any platform
 - ! Create parent directories as needed when writing USER.md
 - ~ `$DEFT_PROJECT_PATH` overrides the default project config path (`./xbrief/PROJECT-DEFINITION.xbrief.json`) if set
+- ! Resolve one `<policy-project-root>` before Phase 2: `.` for the default path; when `$DEFT_PROJECT_PATH` is set, its resolved path MUST be `<policy-project-root>/xbrief/PROJECT-DEFINITION.xbrief.json`. Halt when the override is outside that canonical layout because the public policy and conformance commands cannot address an arbitrary standalone file.
+- ! Pass `--project-root <policy-project-root>` to every Phase 2 policy inspector, writer, and conformance command. Do not let those commands fall back to the current directory when `$DEFT_PROJECT_PATH` targets another project root.
 
 ## Agent Behavior
 
@@ -420,7 +422,7 @@ for project-scoped settings (strategy, coverage).
 
 ### Re-entry shadow guard (#3609)
 
-! Before any Phase 2 confirmation or file mutation when PROJECT-DEFINITION already exists, run `deft policy:show --field=plan.policy.allowDirectCommitsToMaster` and inspect **stderr as well as the exit code**. The inspector intentionally exits 0 when it can still read the namespaced value, so a warning that bare `plan.policy` coexists with `plan["x-directive/policy"]` is a hard stop even when the command succeeds.
+! Before any Phase 2 confirmation or file mutation when PROJECT-DEFINITION already exists, run `deft policy:show --field=plan.policy.allowDirectCommitsToMaster --project-root <policy-project-root>` and inspect **stderr as well as the exit code**. The inspector intentionally exits 0 when it can still read the namespaced value, so a warning that bare `plan.policy` coexists with `plan["x-directive/policy"]` is a hard stop even when the command succeeds.
 
 ! On that warning, do not regenerate, overwrite, or run a policy writer. Inventory the keys in both blocks; fold every bare-only key into `plan["x-directive/policy"]`; resolve every collision explicitly; delete bare `plan.policy`; then rerun the inspector. Preserve all unrelated PROJECT-DEFINITION content. Resume only when exactly one policy block remains.
 
@@ -509,12 +511,12 @@ apply here too. Do not combine questions. See `skills/deft-directive-interview/S
 
   ! Record the answer as the logical field `plan.policy.allowDirectCommitsToMaster`, but do not hand-write either policy block. The common Output Path gate below invokes the only writer and stores the boolean under `plan["x-directive/policy"].allowDirectCommitsToMaster`. Default `false` (enforce branches) when the user picks option 2 OR omits the question entirely. Agents MUST NOT write bare `plan.policy` or the legacy free-form `Allow direct commits to master:` narrative key.
 
-  ! **Re-running the interview detects the existing flag (#746 part G2):** After the Re-entry shadow guard passes, surface the resolved current value (e.g. "Current setting: `allowDirectCommitsToMaster=false` (branch-protection ON)") and ask whether to keep it or change it before re-prompting. A keep choice still runs the selected writer so legacy-only storage is migrated; an already-namespaced match is a no-op with no audit append.
+  ! **Re-running the interview detects the existing flag (#746 part G2):** After the Re-entry shadow guard passes, surface the resolved current value (e.g. "Current setting: `allowDirectCommitsToMaster=false` (branch-protection ON)") and ask whether to keep it or change it before re-prompting. A keep choice still runs the selected writer so legacy-only storage is migrated; an already-namespaced match is a no-op with no audit append. On Track 2 or 3, preserve an existing resolved boolean by default without asking a new branching question. Never replace an existing `true` with the greenfield `false` default unless the operator explicitly chooses the Track 1 change flow.
 
   ! **Consumer command alternatives (#746 part G2):** Once the project is set up, use the public CLI directly:
-  - `deft policy:show --field=plan.policy.allowDirectCommitsToMaster` -- display the current resolved policy and source
-  - `deft policy:enforce-branches --actor agent:deft-directive-setup` -- set `allowDirectCommitsToMaster=false`
-  - `deft policy:allow-direct-commits --confirm --actor agent:deft-directive-setup` -- set `allowDirectCommitsToMaster=true`
+  - `deft policy:show --field=plan.policy.allowDirectCommitsToMaster --project-root <policy-project-root>` -- display the current resolved policy and source
+  - `deft policy:enforce-branches --actor agent:deft-directive-setup --project-root <policy-project-root>` -- set `allowDirectCommitsToMaster=false`
+  - `deft policy:allow-direct-commits --confirm --actor agent:deft-directive-setup --project-root <policy-project-root>` -- set `allowDirectCommitsToMaster=true`
 
   Each transition is recorded to `meta/policy-changes.log` for auditability.
 
@@ -524,27 +526,27 @@ apply here too. Do not combine questions. See `skills/deft-directive-interview/S
 - Step 3: Ask languages (show detected, confirm or adjust; if none detected, infer from type and ask)
 - Step 4: Ask strategy (default to USER.md Defaults; ask if this project needs different — show Available Strategies numbered list with descriptions and recommended marker)
 - Default coverage to USER.md Defaults without asking
-- ! Do not ask a branching question. The common Output Path gate persists `allowDirectCommitsToMaster=false` unless an existing setting is explicitly kept or changed through the Track 1 disclosure gate.
+- ! Do not ask a branching question. For greenfield or absent policy, the common Output Path gate persists `allowDirectCommitsToMaster=false`. On re-entry it preserves the resolved existing boolean, including `true`; change it only through the Track 1 disclosure gate.
 
 **Track 3 (non-technical) — 1 step:**
 - Step 1: Present summary of inferences: "Based on your project: {name} ({type}), built with {stack}. Look right?"
 - ⊗ Ask about strategy or coverage — use Phase 1 defaults
-- ! Do not ask a branching question. The common Output Path gate persists `allowDirectCommitsToMaster=false` unless an existing setting is explicitly kept or changed through the Track 1 disclosure gate.
+- ! Do not ask a branching question. For greenfield or absent policy, the common Output Path gate persists `allowDirectCommitsToMaster=false`. On re-entry it preserves the resolved existing boolean, including `true`; change it only through the Track 1 disclosure gate.
 
 ### Output Path
 
-`./xbrief/PROJECT-DEFINITION.xbrief.json` (or `$DEFT_PROJECT_PATH` if set). Create `./xbrief/` directory and lifecycle subfolders (`proposed/`, `pending/`, `active/`, `completed/`, `cancelled/`) if they don't exist.
+`./xbrief/PROJECT-DEFINITION.xbrief.json` (or `$DEFT_PROJECT_PATH` if set). Create the selected `<policy-project-root>/xbrief/` directory and lifecycle subfolders (`proposed/`, `pending/`, `active/`, `completed/`, `cancelled/`) if they don't exist.
 
 ### Branch-policy persistence gate (#3609)
 
-! This gate applies to **every track**, including default/greenfield and keep/re-entry paths. First write or merge the confirmed PROJECT-DEFINITION base **without** bare `plan.policy` and without a hand-authored policy block. Preserve an existing namespaced block on re-entry. Then invoke exactly one public writer:
+! This gate applies to **every track**, including default/greenfield and keep/re-entry paths. First write or merge the confirmed PROJECT-DEFINITION base **without** bare `plan.policy` and without a hand-authored policy block. Preserve an existing namespaced block and its resolved boolean on re-entry. Then invoke exactly one public writer:
 
-- Branch-based/default/keep-false: `deft policy:enforce-branches --actor agent:deft-directive-setup`
-- Explicitly confirmed trunk-based/keep-true: `deft policy:allow-direct-commits --confirm --actor agent:deft-directive-setup`
+- Branch-based/greenfield-default/keep-false: `deft policy:enforce-branches --actor agent:deft-directive-setup --project-root <policy-project-root>`
+- Explicitly confirmed trunk-based/keep-true/Track 2 or 3 existing-true: `deft policy:allow-direct-commits --confirm --actor agent:deft-directive-setup --project-root <policy-project-root>`
 
 ! A nonzero writer exit halts Phase 2 immediately. Do not print a completion claim and do not retry by hand-editing JSON. Resolve the reported configuration problem, rerun the Re-entry shadow guard, and invoke the writer again.
 
-! Before Phase 2 can complete, re-read PROJECT-DEFINITION and verify all three postconditions: `plan["x-directive/policy"].allowDirectCommitsToMaster` is the selected boolean; bare `plan.policy` is absent; and `deft verify:vbrief-conformance --project-root .` exits 0. Also run `deft policy:show --field=plan.policy.allowDirectCommitsToMaster` and confirm its resolved value matches the selection. Any mismatch is a hard stop.
+! Before Phase 2 can complete, re-read PROJECT-DEFINITION and verify all three postconditions: `plan["x-directive/policy"].allowDirectCommitsToMaster` is the selected boolean; bare `plan.policy` is absent; and `deft verify:vbrief-conformance --project-root <policy-project-root>` exits 0. Also run `deft policy:show --field=plan.policy.allowDirectCommitsToMaster --project-root <policy-project-root>` and confirm its resolved value matches the selection. Any mismatch is a hard stop.
 
 ⊗ Finish Phase 2 after writing only the narrative template
 ⊗ Add a setup-specific policy writer or weaken conformance to permit bare `plan.policy`
