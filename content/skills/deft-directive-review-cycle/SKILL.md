@@ -624,6 +624,39 @@ Cross-links: swarm decision tree `skills/deft-directive-swarm/references/core-ph
 6. ! On register conflict when the prior owner is **still alive**: attach to the existing owner or stop — do not parallel-fix.
 7. ⊗ Refuse replacement of a dead owner solely because the 30-minute lease has not expired without attempting force takeover (#3044).
 
+### Advisory pass-open mark on issue threads (#3607)
+
+! **Advisory, not a lock.** On an **issue** thread the same `<!-- deft:review-owner -->` marker carries `kind: pass` to say a structured pass (triage, design-critique, review-response) is open: pass kind, owner, declared ceiling, and `expires_at`. An arriving agent **reads and is informed**; nothing is held and no write is blocked. A pass has N+1 writers by construction (parent plus panel), so an exclusive hold names no actual actor — blocking was refuted 3/3 by the #3607 panel.
+
+! **Read before writing into an open pass.** Fetch the mark (`fetchActivePassMarker`, or `gh api repos/<owner>/<repo>/issues/<N>/comments` filtered on the marker). When a mark is open, prefer flagging your comment as post-ceiling, or hold voluntarily — your call, not a gate.
+
+! **The lifecycle runs on the issue thread itself — there is no separate verb.** Open the mark by posting a comment whose body is the marker block; clear it at synthesis by editing that same comment to carry `ended_at`. Engine callers use `openPassMarker` / `closePassMarker` / `fetchActivePassMarker` (`packages/core/src/review-monitor/github-lease.ts`); an agent without those bindings posts the identical block through the safe-body verbs, exactly as the #2878 gh-only lease fallback does.
+
+```text
+<!-- deft:review-owner -->
+kind: pass
+pass_kind: design-critique
+owner: <github-login>
+agent_id: <pass owner agent id>
+ceiling: <declared ceiling comment id>
+started_at: 2026-08-28T19:48:24Z
+expires_at: 2026-08-28T20:48:24Z
+<!-- /deft:review-owner -->
+```
+
+1. ! **Open** at pass start with a **new** comment, and keep the comment id it returns: `task scm:body:comment:create -- --repo <owner>/<repo> --issue <N> --body-file <file>`.
+2. ! **Read** on arrival: `gh api repos/<owner>/<repo>/issues/<N>/comments`, then take the **oldest unexpired** `kind: pass` block. A mark already open means you were informed, not stopped.
+3. ! **Refresh or clear** only the comment id your own open returned: `task scm:body:comment:edit -- --repo <owner>/<repo> --comment <id> --body-file <file>`, adding `ended_at: <now>` at synthesis.
+
+⊗ Edit a marker comment you did not open, including one carrying your own login from another pass — a comment belongs to the pass that created it. Editing another author's comment is also a 403 for a non-maintainer. Open your own and let oldest-comment-id-wins settle which mark arrivals honour.
+
+! **Expiry is the release.** A mark self-clears on read once `expires_at` passes, and the owner clears it at synthesis (`ended_at`), so an abandoned pass never marks a thread forever and no heartbeat is needed. Concurrent marks resolve **oldest comment id wins**, matching the lease; the later mark is removed and its author is told which mark stands.
+
+! **Trust boundary.** Pass marks are read from **any** author association, including `CONTRIBUTOR`, because they inform rather than gate. Ownership leases stay maintainer-authored (`OWNER` / `MEMBER` / `COLLABORATOR`, #2307) because `verify:review-monitor` / `verify:l4-owner` exit 0 on a live lease.
+
+⊗ Treat a pass mark as permission to hold, block, or gate another actor's write.
+⊗ Read a `kind: pass` mark as a review-owner lease — a pass mark never satisfies `verify:review-monitor` / `verify:l4-owner`.
+
 ### Required non-empty monitor handback (#3044)
 
 ! Approach 1 review-monitor prompts (including `templates/swarm-greptile-poller-prompt.md` and any host-filled spawn prompt) MUST require a **non-empty** final handback with these fields:
