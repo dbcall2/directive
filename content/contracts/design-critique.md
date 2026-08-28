@@ -328,6 +328,7 @@ Closed catalog (last chip wins): `design-critique:mechanism-shaped` (in-flight, 
 - ⊗ General-purpose labels CLI.
 - ! After the completed-arc record is present, `triage:accept` / `scope:promote` / `issue:ingest` / build may proceed. Any identity may run those verbs. Same-session parent continuation is not required. GitHub Triage on the implementer is not required. They read the accepted verified synthesis (latest successor lean plus the verified-claims table).
 - ! Ingest clearance cites the latest successor lean. An older completed-arc record does not clear a later recut lean. A panel-deposit is in-flight even when the catalog chip missed and no critic has posted.
+- ! The lexical form of that citation, and the requirement that the occurrence be affirmative, are published in `## Citation grammar`. Ingest reads that grammar, not prose intent.
 - ! Keep `plan.policy.judgmentGates` matching only `design-critique:mechanism-shaped`. After `triage-ready` replaces it, the issue leaves the gate match.
 - ! Chip is list-visible state, not consent. Do not drop `mechanism-shaped` without the synthesis-accepted line (or the #3640 empty-disagreement path).
 - ⊗ Treat `design-critique:triage-ready` as ingest clearance.
@@ -342,6 +343,58 @@ Closed catalog (last chip wins): `design-critique:mechanism-shaped` (in-flight, 
 - ⊗ DELETE-then-POST the chip (unchipped window if POST fails).
 - ⊗ PUT a naive full wipe of every label.
 - ⊗ Classify-mirror this facet.
+
+## Citation grammar
+
+Closed set (#3831). The completed-arc record clears ingest only when a citation matches an accepted form **and** the occurrence is affirmative. `evaluateCompletedArcRecord` reads both through one parser, `scanCitations` (`packages/core/src/design-critique/citation-grammar.ts`). Nothing else parses citations.
+
+Citation keywords are `successor lean`, `lean`, `verified-claims table`, and `comment`. The id follows the keyword immediately: a colon and horizontal whitespace are the only things allowed between them.
+
+Accepted forms, and nothing else:
+
+1. bare decimal — `successor lean 12345678`
+2. colon, following space optional — `successor lean: 12345678`, `successor lean:12345678`
+3. balanced single-backtick decimal — `` successor lean `12345678` ``
+4. emphasised keyword, `*` or `**`, with either id form — `**successor lean:** 12345678`
+5. canonical comment permalink fragment — `#issuecomment-12345678`
+6. canonical comment permalink path — `/issues/comments/12345678`
+
+- ! Publish a form in this list before the parser accepts it. An unpublished spelling is not a citation.
+- ⊗ Widen the accept set with `.*`, arbitrary decoration, or an open decorator class.
+- ⊗ Accept a bold, italic, underscore, hash-prefixed, parenthesised, quoted, HTML-tagged, or display-text-link id. Those sit outside the closed set, and the refusal names the accepted forms.
+- ⊗ Count every 8-or-more digit run in the body as a citation. Keyword adjacency and the two permalink targets are the whole anchor.
+
+### Position predicate
+
+Accepting an id is not accepting a citation. A match is classified by where it landed, and an occurrence that is not affirmative does not clear:
+
+- inside a fenced code block, including a fence indented up to three spaces — prose that shows the form
+- keyword inside an inline code span, including a span that opened on an earlier line — `` the parser wants `successor lean 12345678` shaped text ``
+- in a blockquote, including an unmarked lazy-continuation line — `> they wrote: successor lean 12345678`
+- struck through — `~~successor lean 12345678~~`
+- explicitly negated within three words of the keyword — `do not use successor lean 12345678`
+
+Those five are the whole refused set. An indented code block and an HTML comment are deliberately outside it: a four-space indent is also ordinary list-continuation content, so refusing it would block valid records more often than it would catch example text. Widening the refused set is a contract change, not an implementation detail.
+
+- ! Classify the position of a match. Prior art is `classifyHit` (`packages/core/src/pr-closing-keywords/detect.ts`), which records where a hit landed.
+- ! Read the enclosing block, not one physical line. A code span, a strikethrough run, and a blockquote all carry across a newline, and they end at the blank line.
+- ! A quote block also ends at a fence delimiter, and a `>` line inside an open fence is example text rather than a marker. A quoted line in a fenced example does not refuse the citation that follows the closing fence.
+- ! The negation form is explicit: `cannot`, `never`, `no longer`, an auxiliary plus `not`, or an auxiliary contraction ending in `n't`, closing within three plain words of the citation keyword and inside the same sentence.
+- ! A negated verb of denial affirms the citation instead of refusing it, because the negation binds the verb and the citation sits in the complement clause. The verb set is closed: `deny`, `doubt`, `dispute`, `contest`, `question`. `we cannot deny that successor lean 12345678 binds` cites.
+- ! That carve-out suspends a negation that already fired; it never refuses on its own, and it does not accept the citation outright. The complement clause carries the claim, so a negation anywhere in the rest of that sentence keeps the refusal: `we do not doubt that successor lean 12345678 does not bind` says the lean does not bind.
+- ⊗ Read a trailing `that` as the complement-clause signal on its own. `that` is also a determiner, so `do not use that successor lean 12345678` and the cleft `the record is not that successor lean 12345678` stay refused, and a second negation before the keyword still binds.
+- ⊗ Refuse on a negation word anywhere in the sentence prefix. `without a doubt, successor lean 12345678 is accepted` and `not only successor lean 12345678 but also the table` are affirmative citations, and refusing them blocks a valid record.
+- ⊗ Strip the span instead. The established markdown scanners delete a code span with its contents, which destroys the digits.
+
+### Which code-span convention governs
+
+The intake cross-ref scanners (`packages/core/src/intake/markdown-scanners.ts`) delete code spans, so for them a backticked id is an example and never a reference. The citation scan takes the opposite polarity for the **id token only**: a balanced single-backtick id is an accepted citation, because arc comments are hand-written prose and the mandated lean heading is itself `**Lean:**`. A keyword inside a code span, and anything inside a fence, stays an example in both layers. The two conventions differ deliberately, and this paragraph is the record of which governs where.
+
+### One parser, set membership, observed diagnostics
+
+- ! Citation extraction and the verified-claims-table claim read the same parse. Two regexes answering one question let a decorated table id waive the table requirement and return `complete` with a null table id.
+- ! Clearance is set membership: the record clears when the cited set contains the latest successor lean id. Position in the body does not select the lean, so citing the prior lean that `## Successor lean` requires cannot block.
+- ! A block detail reports what was scanned, what was found, and the accepted forms. ⊗ Guess at a cause. A guessed detail sends the operator back to re-post the same body and reproduce the refusal.
 
 ## Failure and budget stop
 
@@ -358,4 +411,4 @@ This motion ingests untrusted issue threads by design.
 
 ## Test surface
 
-`packages/core/src/content-contracts/standards/design_critique_contract.test.ts` locks required pointer strings, the scaffolds framing, the comment-lead field as model then role from the closed set (not an issue label), the operator-gated loop (successor lean, operator verbs including walk / walk all, dual stop, halt line, exclusive remaining-set replace of the two catalog chips, #3640 auto-stamp on a non-empty all-accept map and no-stamp on stubs, first-lean recording obligation after critic EXIT), the parent-side substantiation token and independence rules, the Stop 1 exclusion (pre-critic premises outside the trigger) and `refutation-target:` field tokens rather than full body sentences, the composed auto-bind conjunct (all-accept map AND zero unresolved audit markers) at Operator verbs and Bind path 1, the variant-table evaluation rule (charter selection and spend permission evaluated independently), the critic-method heading and distinctive obligation tokens (exact class tokens, citations-are-claims, existing mechanisms, injection / swarm trigger nouns, failed-reviewer phrase, finding anatomy) rather than full body sentences, the brief-template forbidden-inputs list, and the thin router skill (existence, line cap, pointer resolution, no-normative-content). `evaluateParentAudit` locks the omission failure modes. This suite locks the SoT MUST and the thin skill pointer for the first-lean recording obligation, including the auto-stamp operator-confirm conjunct and the no-bind-while-unposted-same-round-siblings rule. `evaluateCompletedArcRecord` locks ingest on the completed-arc record rather than a catalog chip. It does not fail-close live parent turns. Runtime parent-turn detection only if `evaluateParentAudit` is extended; that extension is not required to ship the recording obligation.
+`packages/core/src/content-contracts/standards/design_critique_contract.test.ts` locks required pointer strings, the scaffolds framing, the comment-lead field as model then role from the closed set (not an issue label), the operator-gated loop (successor lean, operator verbs including walk / walk all, dual stop, halt line, exclusive remaining-set replace of the two catalog chips, #3640 auto-stamp on a non-empty all-accept map and no-stamp on stubs, first-lean recording obligation after critic EXIT), the parent-side substantiation token and independence rules, the Stop 1 exclusion (pre-critic premises outside the trigger) and `refutation-target:` field tokens rather than full body sentences, the composed auto-bind conjunct (all-accept map AND zero unresolved audit markers) at Operator verbs and Bind path 1, the variant-table evaluation rule (charter selection and spend permission evaluated independently), the critic-method heading and distinctive obligation tokens (exact class tokens, citations-are-claims, existing mechanisms, injection / swarm trigger nouns, failed-reviewer phrase, finding anatomy) rather than full body sentences, the brief-template forbidden-inputs list, and the thin router skill (existence, line cap, pointer resolution, no-normative-content). `evaluateParentAudit` locks the omission failure modes. This suite locks the SoT MUST and the thin skill pointer for the first-lean recording obligation, including the auto-stamp operator-confirm conjunct and the no-bind-while-unposted-same-round-siblings rule. `evaluateCompletedArcRecord` locks ingest on the completed-arc record rather than a catalog chip. It does not fail-close live parent turns. `packages/core/src/design-critique/citation-grammar.test.ts` locks the `## Citation grammar` closed set, the refused positions, and the diagnostics surface; `packages/core/src/design-critique/completed-arc-record.test.ts` locks one parser for both questions, set membership against the latest lean, and the observation-echoing block details (#3831). Runtime parent-turn detection only if `evaluateParentAudit` is extended; that extension is not required to ship the recording obligation.
