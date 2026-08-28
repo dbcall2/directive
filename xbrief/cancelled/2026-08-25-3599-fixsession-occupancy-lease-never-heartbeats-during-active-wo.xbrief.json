@@ -1,11 +1,12 @@
 {
   "xBRIEFInfo": {
     "version": "0.8",
-    "description": "Scope xBRIEF ingested from GitHub issue #3599"
+    "description": "Scope xBRIEF ingested from GitHub issue #3599",
+    "updated": "2026-08-28T23:37:01Z"
   },
   "plan": {
     "title": "fix(session): occupancy lease never heartbeats during active work, so a working session gets stolen (#3433)",
-    "status": "proposed",
+    "status": "cancelled",
     "narratives": {
       "Description": "fix(session): occupancy lease never heartbeats during active work, so a working session gets stolen (#3433)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/3599",
@@ -15,23 +16,23 @@
     "items": [
       {
         "title": "Re-stamp `heartbeat_at` in `evaluateOccupancyWriteGate`'s same-session branch (guard",
-        "status": "proposed"
+        "status": "cancelled"
       },
       {
         "title": "Expose `occupancy:heartbeat` (or `occupancy:renew`) as a task/CLI verb so refresh is",
-        "status": "proposed"
+        "status": "cancelled"
       },
       {
         "title": "Document the refresh path in `.deft/core/commands.md` § Session routing alongside",
-        "status": "proposed"
+        "status": "cancelled"
       },
       {
         "title": "Warn the holder when its own lease is within the staleness window rather than letting it",
-        "status": "proposed"
+        "status": "cancelled"
       },
       {
         "title": "Consider requiring `occupancy:steal --confirm` to report the occupant's last *write*",
-        "status": "proposed"
+        "status": "cancelled"
       }
     ],
     "tags": [
@@ -339,6 +340,7 @@
           "provenance": "statement"
         }
       ]
-    }
+    },
+    "updated": "2026-08-28T23:37:01Z"
   }
 }

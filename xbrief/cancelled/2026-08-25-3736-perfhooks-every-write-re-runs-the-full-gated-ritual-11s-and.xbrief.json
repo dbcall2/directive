@@ -1,11 +1,12 @@
 {
   "xBRIEFInfo": {
     "version": "0.8",
-    "description": "Scope xBRIEF ingested from GitHub issue #3736"
+    "description": "Scope xBRIEF ingested from GitHub issue #3736",
+    "updated": "2026-08-28T23:37:16Z"
   },
   "plan": {
     "title": "perf(hooks): every write re-runs the full gated ritual (~11s), and a merge makes the next write time out and fail closed",
-    "status": "proposed",
+    "status": "cancelled",
     "narratives": {
       "Description": "perf(hooks): every write re-runs the full gated ritual (~11s), and a merge makes the next write time out and fail closed",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/3736",
@@ -45,6 +46,7 @@
       "none_stated": true,
       "source_rung": "project_floor",
       "derived_reason": "no shell acceptance commands stated in task text; floor until agent derives AC (#3284 ladder)"
-    }
+    },
+    "updated": "2026-08-28T23:37:16Z"
   }
 }
