@@ -28,6 +28,7 @@ import {
   withUnitLock,
 } from "../delivery-attempt/index.js";
 import { EXIT_CONFIG_ERROR, EXIT_GATE_FAILED, EXIT_OK } from "./constants.js";
+import { ensureSubagentStatusDir, looksLikeWorktreeDir } from "./subagent-status-dir.js";
 import { runText } from "./subprocess.js";
 
 /** Default workflow id for drive-to:merge-ready implement leaves. */
@@ -248,6 +249,14 @@ function runBegin(input: SwarmPreDispatchInput): SwarmPreDispatchResult {
   const { scopeId, targetId, workflowId } = unitFields(input);
   const sourceRevision = resolveSourceRevision(input.projectRoot, input.sourceRevision);
   const trigger: AttemptTrigger = input.trigger ?? "automatic";
+  // Arm heartbeat scratch so verify:subagent-alive can return REDISPATCH_OK
+  // instead of exit 2 ("scratch dir does not exist") after a host-kill (#3730).
+  // A bare relative worktree name (`b3730`) is opaque to the branch-vs-path
+  // heuristic, so accept an on-disk worktree as the second arming signal.
+  const armTarget = resolve(input.projectRoot, input.targetId.trim());
+  if (looksLikeFilesystemTarget(input.targetId) || looksLikeWorktreeDir(armTarget)) {
+    ensureSubagentStatusDir(armTarget);
+  }
 
   // Exclusive lock → reload → evaluate → begin+save (same decision under lock;
   // no stale preview decision on the success path).
@@ -462,7 +471,9 @@ export function formatPreDispatchReport(result: SwarmPreDispatchResult): string 
   }
   if (result.exitCode === EXIT_GATE_FAILED && result.decision === "DENY_DUPLICATE_ACTIVE") {
     lines.push(
-      "  hint: do not spawn; resume the live leaf, or takeover = cancel then pre-dispatch begin",
+      "  hint: do not spawn; a killed worker stays running until cancelled.",
+      "  Takeover: task swarm:pre-dispatch -- --scope-id <id> --target-id <target> --action cancel",
+      "  then the same command without --action (begin). REDISPATCH_OK does not lift DENY_DUPLICATE_ACTIVE.",
     );
   }
   return lines.join("\n");

@@ -5,6 +5,7 @@ import {
   ProjectionContainmentError,
 } from "../fs/projection-containment.js";
 import { C3_FIELDS } from "./constants.js";
+import { ensureSubagentStatusDir } from "./subagent-status-dir.js";
 import { runText, type TextCaptureResult } from "./subprocess.js";
 
 export class WorktreeMapError extends Error {
@@ -279,6 +280,7 @@ export function resolveWorktreeMap(
             `this is a snapshot check at resolution time, not a pin on the worker's start revision`,
         );
       }
+      ensureSubagentStatusDir(entry._abs);
       continue;
     }
     if (!createMissing) {
@@ -287,6 +289,7 @@ export function resolveWorktreeMap(
       );
     }
     createWorktree(root, entry._abs, trimmedBase, git);
+    ensureSubagentStatusDir(entry._abs);
   }
 
   return resolved.map(({ story_id, worktree_path, base_branch }) => ({

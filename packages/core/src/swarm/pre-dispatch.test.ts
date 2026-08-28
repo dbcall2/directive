@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -229,6 +229,54 @@ describe("swarmPreDispatch (#3228)", () => {
     const report = formatPreDispatchReport(denied);
     expect(report).toContain("DENY_DUPLICATE_ACTIVE");
     expect(report).toContain("do not spawn");
+    expect(report).toContain("--action cancel");
+  });
+
+  it("begin on an existing worktree path mkdirs subagent-status (#3730)", () => {
+    const root = tempRoot();
+    const rel = ".deft-scratch/worktrees/3730-arm";
+    mkdirSync(join(root, rel), { recursive: true });
+    const begun = swarmPreDispatch({
+      projectRoot: root,
+      scopeId: "3730",
+      targetId: rel,
+      action: "begin",
+      sourceRevision: "r1",
+    });
+    expect(begun.exitCode).toBe(0);
+    expect(existsSync(join(root, rel, ".deft-scratch", "subagent-status"))).toBe(true);
+  });
+
+  it("begin on a bare relative worktree name mkdirs subagent-status (#3730)", () => {
+    const root = tempRoot();
+    // `wt-bare` carries no separator and no `.deft-scratch/` segment, so the
+    // branch-vs-path heuristic reads it as opaque; the `.git` marker is what
+    // proves it is a worktree and arms heartbeats.
+    mkdirSync(join(root, "wt-bare"), { recursive: true });
+    writeFileSync(join(root, "wt-bare", ".git"), "gitdir: /repo/.git/worktrees/wt-bare\n", "utf8");
+    const begun = swarmPreDispatch({
+      projectRoot: root,
+      scopeId: "3730",
+      targetId: "wt-bare",
+      action: "begin",
+      sourceRevision: "r1",
+    });
+    expect(begun.exitCode).toBe(0);
+    expect(existsSync(join(root, "wt-bare", ".deft-scratch", "subagent-status"))).toBe(true);
+  });
+
+  it("begin on a branch name colliding with a source dir does not mkdir there (#3730)", () => {
+    const root = tempRoot();
+    mkdirSync(join(root, "docs"), { recursive: true });
+    const begun = swarmPreDispatch({
+      projectRoot: root,
+      scopeId: "3730",
+      targetId: "docs",
+      action: "begin",
+      sourceRevision: "r1",
+    });
+    expect(begun.exitCode).toBe(0);
+    expect(existsSync(join(root, "docs", ".deft-scratch"))).toBe(false);
   });
 
   it("equivalent worktree path forms share one unit key (deny peer)", () => {
