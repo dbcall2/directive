@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed: local Cursor sessions no longer misread as cloud, so SCM-dependent gates stop silently skipping when a healthy gh login is available. Cursor-managed VMs are now denied host credentials by a positive agent/runtime=managed metadata read that still lands if an earlier probe failed, an ambiguous Cursor runtime requires an explicit DEFT_GITHUB_AUTH_MODE=host-gh opt-in, and skipped gates now report why (#3859).
+
 ### Added
 - **Land completed-tracked artifact for #3850 (#3264 / #1358).** The #3850 xBRIEF stayed in `active/` after squash of PR 3856. Moved to `xbrief/completed/` via scope:complete. Does not reopen or recut that issue. Refs #2321, #3476.
 - **Pass-open advisory marker on issue threads (#3607).** A structured pass (triage, design-critique, review-response) can now mark its issue thread as open by extending the `<!-- deft:review-owner -->` lease with `kind: pass`. The mark carries the pass kind, owner, declared ceiling and `expires_at`; it self-clears on read once expired and is cleared at synthesis. Arriving agents are informed, never blocked — nothing holds or gates a write. Concurrent marks resolve oldest-comment-id-wins. Pass marks are readable from any author association, including `CONTRIBUTOR`; ownership leases stay maintainer-authored (#2307). Refs #3613, #3780.
