@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { contentRoot } from "../content-root.js";
 import { resolveProjectDefinitionPath } from "../layout/resolve.js";
 import { readPlanPolicy } from "../policy/plan-extensions.js";
+import { resolveCaptureFailureStderr, SUBPROCESS_MAX_BUFFER } from "../subprocess/max-buffer.js";
 import { loadJsonFile } from "../verify-source/code-structure-validate.js";
 import { CODEBASE_MAP_SCHEMA_PATH } from "./constants.js";
 import {
@@ -665,6 +666,7 @@ function runProviderCommand(
       cwd,
       encoding: "utf8",
       timeout: 60_000,
+      maxBuffer: SUBPROCESS_MAX_BUFFER,
       stdio: ["ignore", "pipe", "pipe"],
     });
     return { returncode: 0, stdout, stderr: "" };
@@ -673,7 +675,11 @@ function runProviderCommand(
     return {
       returncode: typeof e.status === "number" ? e.status : 1,
       stdout: typeof e.stdout === "string" ? e.stdout : "",
-      stderr: typeof e.stderr === "string" ? e.stderr : String(e.message ?? err),
+      stderr: resolveCaptureFailureStderr({
+        captured: typeof e.stderr === "string" ? e.stderr : "",
+        status: e.status,
+        message: e.message ?? String(err),
+      }),
     };
   }
 }
