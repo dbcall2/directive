@@ -5,6 +5,10 @@
 
 # Roadmap
 
+## Active
+
+- **#3785** -- bug(hooks): warn when a fail-closed hook registration travels without a hostable runtime -- `[running]`
+
 ## Proposed
 
 _Scopes not yet promoted to pending. Orientation only — not a substitute for `task triage:queue`._
@@ -35,40 +39,37 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 - **#1299** -- When to use CRUD tool vs direct vBRIEF authoring (contributor doc) -- `[proposed]`
 - **#2651** -- ADR-002: Forge-provider Azure DevOps adoption gate (proposed) -- `[proposed]`
 - **#3014** -- research(deposit): opt-in minimal consumer AGENTS profile for app-bank / greenfield -- `[proposed]`
-- **#3598** -- BLOCKER: bug(setup,render): greenfield export handoff regressed after #1502 -- `[proposed]`
-- **#3599** -- fix(session): occupancy lease never heartbeats during active work, so a working session gets stolen (#3433) -- `[proposed]`
 - **#3718** -- bug(swarm): swarm:launch is unreachable for a freshly-triaged story -- readiness needs 15 hand-authored fields and file_scope collides with the provenance gate -- `[proposed]`
 - **#3729** -- bug(session): the occupancy lease is exclusion-only -- an agent that never claims is never gated -- `[proposed]`
-- **#3736** -- perf(hooks): every write re-runs the full gated ritual (~11s), and a merge makes the next write time out and fail closed -- `[proposed]`
 - **#3739** -- bug(hooks): nested hosts get a 5s budget the framework itself calls too small, and a killed hook renders identically to an allow -- `[proposed]`
 
 ## Completed
 
-_Showing 25 of 1330 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1361 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
-- **#3604** -- fix(session): occupancy leases are never released outside swarm completion (#3604) -- `[completed]`
-- **#3713** -- feat(feedback,scm): allow BLOCKER in the title for consumer hard-stops -- the one sanctioned title classification -- `[completed]`
-- **#3738** -- bug(hooks): cache_fresh is in the write gate's required set and does live forge I/O to satisfy it (80.4s measured on a clean cache) -- `[completed]`
-- **#3741** -- design-critique: post successor lean before operator verbs after critic EXIT -- `[completed]`
-- **#3666** -- bug(swarm): a sequential story has no launchable configuration -- the two readiness gates require opposite values -- `[completed]`
-- **#3679** -- fix(scope): completed/ accepts an unguarded write and there is no way to restamp it -- `[completed]`
-- **#3673** -- perf(lifecycle): verify:completed-tracked spawns one git show per terminal blob (1371) on the mandated DONE gate -- `[completed]`
-- **#3712** -- docs(agents): AGENTS.md wrongly says scope provenance is warn-only, and every agent reads it -- `[completed]`
-- **#3690** -- docs(scope): document CompletionProvenance as a historical audit snapshot -- `[completed]`
-- **#3721** -- bug(scope): a verb discussed in issue prose becomes a stated acceptance command and blocks scope:complete -- `[completed]`
-- **#3708** -- feat(triage): offer the design-critique decision at Accept -- `[completed]`
-- **#1351** -- feat(swarm,intake): dispatcher injects an identity-bound worker credential at spawn -- `[completed]`
-- **#3650** -- feat(scm,guidance): one canonical consumer-hard-blocker label, not a title token -- `[completed]`
-- **#3674** -- fix(skills): build skill instructs scope:complete before PR handoff, which a delivered story cannot satisfy -- `[completed]`
-- **#3672** -- design-critique: state why Stop 1 is outside the substantiation trigger, and formalize refutation-target -- `[completed]`
-- **#3665** -- fix(intake,swarm): prove the active GitHub credential is an approved worker principal -- `[completed]`
-- **#3661** -- fix(design-critique): land the decided critic method and rename the overloaded Stop 3 heading -- `[completed]`
-- **#3678** -- perf(ci): skip non-required jobs on artifact-only lifecycle diffs -- `[completed]`
-- **#3660** -- fix(design-critique): parallel critics must share one input ceiling; state the N=3 dual-stop reading and make the ceiling durable -- `[completed]`
-- **#3651** -- feat(design-critique): parent-side substantiation for evidence introduced while adjudicating; unaudited premises block bind -- `[completed]`
-- **#3657** -- fix(design-critique): variant table under-describes -- relax the panel conjunction, add a constrained-author trigger -- `[completed]`
-- **#3640** -- design-critique walk rename and auto-stamp when agents agree -- `[completed]`
-- **#3648** -- issue-eval Stage A: isolated validity, parent WIP census, value advice -- `[completed]`
-- **#3646** -- design-critique comment lead: model then role triage|critic|parent -- `[completed]`
-- **#3642** -- design-critique exclusive chip: remaining-set replace, last catalog chip wins -- `[completed]`
+- **#3903** -- bug(scm,release): release Step 3 fails with an empty-stderr exit 1 once the open-issue inventory exceeds 1 MB (ENOBUFS in scm call) -- `[completed]`
+- **#3797** -- docs(contracts): design-critique uses 'arc' as its unit without defining it, and the variant table cannot express two proven shapes -- `[completed]`
+- **#3794** -- bug(hooks,session): linked-worktree writes are gated against the parent checkout lease -- `[completed]`
+- **#3755** -- explicit lease membership replaces bearer-string possession -- `[completed]`
+- **#3835** -- BLOCKER: security(verify-ac): untrusted issue prose selects an in-root file to read and the needle to match, and the gate reports the answer -- `[completed]`
+- **#3859** -- bug(scm,platform): CURSOR_AGENT treated as proof of cloud on local desktop, silently skipping every SCM gate -- `[completed]`
+- **#3607** -- pass-open advisory marker on issue threads via the review-owner lease -- `[completed]`
+- **#3768** -- chore(freshness): bind filenames embed a recoverable 32-char prefix of the session id -- `[completed]`
+- **#3769** -- occupancy-first ritual writes, and a fail-open compact stale-mark -- `[completed]`
+- **#3828** -- bug(lifecycle): the D12 stale-origin gate denies its own named remedy and blocks every linked worktree -- `[completed]`
+- **#3850** -- bug(design-critique): the panel-deposit guards are inconsistent prose, and panel completeness has no executable consumer -- `[completed]`
+- **#3848** -- bug(skills): the design-critique router conveys its prohibitions but not its structure, and its EXIT line invites self-dispatch -- `[completed]`
+- **#3831** -- bug(design-critique): the completed-arc citation grammar is unpublished, too narrow and too wide at once, and split across two parsers -- `[completed]`
+- **#3826** -- bug(intake): clause derivation falls through to thread-scraping while an acceptance surface sits unread in item.title -- `[completed]`
+- **#3824** -- fix(design-critique): the model slug has no verifier, so the contract must stop offering a real one to copy -- `[completed]`
+- **#3796** -- Harden PROJECT-DEFINITION mutation identity and mixed-version locking -- `[completed]`
+- **#3730** -- fix(swarm): the shipped subagent-heartbeat path is unarmed and a killed worker blocks its own resume -- `[completed]`
+- **#3610** -- BLOCKER: bug(toolchain): consumer check hard-requires pnpm when packageManager pins npm -- `[completed]`
+- **#3806** -- bug(design-critique,scm): catalog chips are load-bearing so an external parent cannot ingest after accepted critique -- `[completed]`
+- **#3774** -- bug(lifecycle): verify:orphan-active reaches its config exit code through a catch-all instead of handling ScmStubError -- `[completed]`
+- **#3781** -- bug(lifecycle): a PR can merge while closing an issue whose brief is left running and unattested -- `[completed]`
+- **#3599** -- fix(session): occupancy lease never heartbeats during active work, so a working session gets stolen (#3433) -- `[completed]`
+- **#3767** -- bug(lifecycle): verify:orphan-active prefers a stale cached issue state over the live read that would correct it -- `[completed]`
+- **#3609** -- BLOCKER: bug(setup): Phase 2 emits bare plan.policy that vBRIEF conformance rejects -- `[completed]`
+- **#3736** -- perf(hooks): the write path spends 5.8s on a duplicate forge call and 11s on redundant git spawns, and the host kills it -- `[completed]`
 

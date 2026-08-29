@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.108.0] - 2026-08-29
+
+> Worktree leases admit named child sessions, a missing hook runtime is now recoverable instead of an opaque lockout, and lifecycle gates stop trusting stale issue state.
+
 - Fixed: local Cursor sessions no longer misread as cloud, so SCM-dependent gates stop silently skipping when a healthy gh login is available. Cursor-managed VMs are now denied host credentials by a positive agent/runtime=managed metadata read that still lands if an earlier probe failed, an ambiguous Cursor runtime requires an explicit DEFT_GITHUB_AUTH_MODE=host-gh opt-in, and skipped gates now report why (#3859).
 
 ### Added
@@ -5626,7 +5638,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.107.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.108.0...HEAD
+[0.108.0]: https://github.com/deftai/directive/compare/v0.107.0...v0.108.0
 [0.107.0]: https://github.com/deftai/directive/compare/v0.106.0...v0.107.0
 [0.106.0]: https://github.com/deftai/directive/compare/v0.105.0...v0.106.0
 [0.105.0]: https://github.com/deftai/directive/compare/v0.104.0...v0.105.0
