@@ -39,7 +39,7 @@ Same as managed below; substitute `task` for `deft` (`task scope:promote`, `task
 
 ## xBRIEF layout (#2034 / #2110)
 
-Legacy `vbrief/` read-accepted; `deft migrate:xbrief` (#2034 / #2110).
+Legacy `vbrief/` read-accepted; `deft migrate:xbrief` (#2034 / #2110). New writes use xBRIEF 0.8 (setup write). 0.6 is legacy/read/migration only. Depth: main.md (#3600).
 
 ## Skill Completion Gate
 
@@ -160,7 +160,7 @@ Same `!` / `⊗` rules as managed below; `task issue:ingest` (#2143).
 
 Note: root-relative paths (this repo IS deft/); run `task agents:refresh` after agents-entry edits (#1309).
 
-<!-- deft:managed-section v3 sha=795181f9abba refreshed=2026-08-30T16:02:08Z session=311ea6792b8f -->
+<!-- deft:managed-section v3 sha=cc24e16b768d refreshed=2026-08-30T16:48:40Z session=06a06d183225 -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
@@ -191,7 +191,7 @@ Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
 
 ## xBRIEF layout (#2034 / #2110)
 
-Legacy `vbrief/` read-accepted; `deft migrate:xbrief` for `xbrief/` (v0.6→v0.8). `x-vbrief/` tokens read-accepted until migrated.
+Legacy `vbrief/`; `deft migrate:xbrief` (v0.6→v0.8). New writes `"version": "0.8"`. Depth: `main.md` (#3600).
 ! Completed xBRIEFs are record of *what is*, zero authority over *what to build next* (#3383). Current contract = active xBRIEF + human operator live instruction. Depth: `main.md` Persistence; build skill declare-the-contract / halt-and-ask.
 ⊗ Treat a completed xBRIEF as the next-build contract.
 
