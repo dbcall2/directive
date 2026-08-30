@@ -116,6 +116,8 @@ const REQUIRED_CONTRACT_POINTERS = [
   "/issues/comments/12345678",
   "classifyHit",
   "set membership",
+  "## Plain-language summary",
+  "## In plain English",
 ];
 
 const REQUIRED_TEMPLATE_POINTERS = [
@@ -929,6 +931,66 @@ describe("design-critique contract + brief template + thin skill (#3434)", () =>
     expect(skill).not.toContain("#issuecomment-12345678");
   });
 
+  it("locks the plain-language summary, its token, and the line-start matrix (#3929)", () => {
+    const text = readText(CONTRACT);
+    const summary = markdownSection(text, "## Plain-language summary");
+    expect(summary, "plain-language-summary section missing").toContain(
+      "## Plain-language summary",
+    );
+    expect(summary).toContain("one fixed heading token: `## In plain English`.");
+    expect(summary).toContain("Read the token as placement only.");
+    expect(summary).toContain("⊗ Justify the token as presence checkable later.");
+    expect(summary).toContain("author-blindness is a locked test");
+    expect(summary).toContain("no selector could pick a canonical one");
+    expect(summary).toContain("### Why MUST and not SHOULD");
+    expect(summary).toContain("does not rest on exemplar count");
+    expect(summary).toContain("identical on every arc by construction");
+    expect(summary).toContain(
+      "They introduce no ADR-006 premise and record no substantiation token.",
+    );
+    expect(summary).toContain("would silently become a two-critic motion");
+    expect(summary).toContain(
+      "A summary claim that is not a reading of a recorded take or an accepted finding is a new load-bearing premise",
+    );
+    expect(summary).toContain("### Non-normative for downstream agents");
+    expect(summary).toContain("composeOverviewWithComments");
+    expect(summary).toContain("Security context (#480)");
+    expect(summary).toContain(
+      "⊗ Mandate a next-step or recommended-action field on either artifact.",
+    );
+    expect(summary).toContain("### Reserved line-starts");
+    expect(summary).toContain("| Reserved line-start | In a successor lean | In a synthesis |");
+    expect(summary).toContain("nine spellings");
+    expect(summary).toContain("`## Verified-claims table`");
+    expect(summary).toContain("the fixed accepted sentence");
+    expect(summary).toContain("#3932");
+    expect(summary).toContain("A fence does not help.");
+    expect(summary).toContain("no one quoting convention is safe for both parsers");
+    expect(summary).toContain("⊗ Read the inert cell as licence.");
+    expect(summary).toContain("Nothing observes this section.");
+    expect(summary).toContain("do not add a prose-quality parser");
+
+    // Both artifact-local MUSTs name the token, not the section heading.
+    const lean = markdownSection(text, "## Successor lean");
+    expect(lean).toContain(
+      "- ! Lead that lean with the plain-language summary under the `## In plain English` token.",
+    );
+    const stop5 = markdownSection(text, "## Stop 5 \u2014 Verified synthesis");
+    expect(stop5).toContain(
+      "- ! Lead the synthesis with the plain-language summary under the `## In plain English` token,",
+    );
+    expect(summary).toContain("The ghost-table half of the middle cell is the #3932 defect");
+    expect(stop5).toContain(
+      "The #3640 auto-posted synthesis-accepted comment carries that summary too.",
+    );
+    const testSurface = markdownSection(text, "## Test surface");
+    expect(testSurface).toContain("reserved-line-starts.test.ts");
+    expect(testSurface).toContain("No predicate observes a summary on a live arc (#3929).");
+
+    const skill = readText(SKILL_REL);
+    expect(skill).not.toContain("## In plain English");
+    expect(skill).not.toContain("Reserved line-starts");
+  });
   it("pins Stop 1 exclusion and refutation-target tokens by content (#3672)", () => {
     const text = readText(CONTRACT);
     const substantiation = markdownSection(text, "## Parent-side substantiation");
