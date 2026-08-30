@@ -11,6 +11,7 @@ import { homedir, platform } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { assertDepositContained } from "../deposit/contain.js";
 import { copyTree } from "../deposit/copy-tree.js";
+import { assertLiveProcedureDepositClean } from "../deposit/live-procedure-targets.js";
 import { prunePythonArtifactsFromDeposit } from "../deposit/python-free.js";
 import { resolveInstalledContentRoot } from "../deposit/resolve-content.js";
 import { readCorePackageVersion } from "../engine-version.js";
@@ -251,8 +252,10 @@ export async function runInitDeposit(
   const copyContent = seams.copyContent ?? copyTree;
 
   const contentRoot = await resolveContent();
+  assertLiveProcedureDepositClean(contentRoot);
   await reconstituteDepositFromContent(contentRoot, deftDir, copyContent);
   await prunePythonArtifactsFromDeposit(deftDir, projectDir, io);
+  assertLiveProcedureDepositClean(deftDir);
   ensureInitGitignoreLines(projectDir, io);
   ensurePrettierIgnoreLines(projectDir, io);
 

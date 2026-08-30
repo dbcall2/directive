@@ -23,7 +23,7 @@ triggers:
 
 Session-start framework sync and upgrade handoff -- refresh the framework deposit via npm + `directive update` / `deft update`, validate xBRIEF lifecycle structure, detect stale origins (RFC D12), then finish SCM release handoff in a named terminal state (#1604).
 
-> **Canonical bootstrap / update path (#761 / #1604):** Install and upgrade via npm: `npm i -g @deftai/directive` (install) or `npm i -g @deftai/directive@latest` (upgrade); Node >= 20 is required. Then from the project root run `directive update` (or `deft update`) to refresh `.deft/core/`, optionally `deft migrate` for npm provenance, and `directive doctor` / `deft doctor` / `task doctor` to confirm deposit health. For machines without Node, the frozen legacy Go installer (`deft-install` / platform-specific `install-*` from GitHub Releases) is a no-Node bootstrap bridge (#1912) -- migrate to npm once Node is available. Legacy `run upgrade` / `task upgrade` are metadata-only acknowledgment (they do NOT replace the payload). **Git-submodule / `task framework:doctor` paths are back-compat only** -- Phases 1-2 below are the legacy update flow, de-emphasized in UPGRADING.md / README. Deposit success is not upgrade released; Phase 8 records one terminal state: `released` | `pr-open` | `blocked:<reason>`. See UPGRADING.md and #761 / #1912 / #1604.
+> **Canonical bootstrap / update path (#761 / #1604):** Install and upgrade via npm: `npm i -g @deftai/directive` (install) or `npm i -g @deftai/directive@latest` (upgrade); Node >= 20 is required. Then from the project root run `directive update` (or `deft update`) to refresh `.deft/core/`, optionally `deft migrate` for npm provenance, and `directive doctor` / `deft doctor` / `task doctor` to confirm deposit health. For machines without Node, the frozen legacy Go installer (`deft-install` / platform-specific `install-*` from GitHub Releases) is a no-Node bootstrap bridge (#1912) -- migrate to npm once Node is available. Legacy Python-launcher upgrade / `task upgrade` are metadata-only acknowledgment (they do NOT replace the payload). **Git-submodule / `task framework:doctor` paths are back-compat only** -- Phases 1-2 below are the legacy update flow, de-emphasized in UPGRADING.md / README. Deposit success is not upgrade released; Phase 8 records one terminal state: `released` | `pr-open` | `blocked:<reason>`. See UPGRADING.md and #761 / #1912 / #1604.
 
 Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
@@ -59,11 +59,11 @@ npm i -g @deftai/directive@latest
 
 ## Framework Events Emitted Here
 
-! When this skill responds to a context-window shift or an explicit "are you using Deft?" probe (per AGENTS.md Deft Alignment Confirmation), emit the paired `session:interrupted` -> `session:resumed` framework events via `scripts/_events.py` so observability of agent-runtime state transitions is structural, not prose-only:
+! When this skill responds to a context-window shift or an explicit "are you using Deft?" probe (per AGENTS.md Deft Alignment Confirmation), emit the paired `session:interrupted` -> `session:resumed` framework events via `task lifecycle:event` so observability of agent-runtime state transitions is structural, not prose-only:
 
-- ! Before re-confirming alignment: `python -m scripts._events emit session:interrupted --session-id <id> --reason context-window-shift`
-- ! Immediately after the alignment confirmation line: `python -m scripts._events emit session:resumed --session-id <id> --interrupted-id <id-from-prior-emit>`
-- ⊗ Emit a `session:resumed` whose `interrupted_id` does not reference a prior `session:interrupted` -- such records are orphan and rejected by `scripts._events.validate_pairing` (#635 events behavioral wiring)
+- ! Before re-confirming alignment: `task lifecycle:event -- emit session:interrupted --session-id <id> --reason <enum>`
+- ! Immediately after the alignment confirmation line: `task lifecycle:event -- emit session:resumed --session-id <id> --interrupted-id <id-from-prior-emit>`
+- ⊗ Emit a `session:resumed` whose `interrupted_id` does not reference a prior `session:interrupted` -- such records are orphan and rejected by `task lifecycle:event -- validate-pairing` (#635 events behavioral wiring)
 
 ## Pre-Cutover Detection Guard
 
@@ -71,7 +71,7 @@ npm i -g @deftai/directive@latest
 
 ### Detection Criteria
 
-A project is **pre-cutover** if ANY of the following are true. This prose mirrors the executable helper in `scripts/_precutover.py`; when in doubt, the helper is canonical.
+A project is **pre-cutover** if ANY of the following are true. This prose mirrors the executable helper in `task migrate:preflight`; when in doubt, the helper is canonical.
 
 1. `SPECIFICATION.md` exists and is neither a deprecation redirect nor a current generated spec export. A current generated spec export contains `<!-- Purpose: rendered specification -->` and `<!-- Source of truth: xbrief/specification.xbrief.json -->`, and `xbrief/specification.xbrief.json` plus all five lifecycle folders exist.
 2. `PROJECT.md` exists and contains neither the legacy `<!-- deft:deprecated-redirect -->` sentinel NOR the current `Purpose: deprecation redirect` canonical-banner marker (real content, not a deprecation redirect)

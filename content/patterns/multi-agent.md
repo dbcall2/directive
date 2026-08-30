@@ -81,7 +81,7 @@ blast radius. Those require partitioning the identity itself.
 | Maintainer GraphQL   | Maintainer PAT       | Human review, PR open/merge/ready, manual triage   |
 | Maintainer core REST | Maintainer PAT       | `gh api` reads outside swarm context               |
 | Worker GraphQL       | Bot account / App    | `markPullRequestReadyForReview`, `addPullRequestReview` (the only GraphQL surfaces a worker should hit; see #976 + #961) |
-| Worker core REST     | Bot account / App    | All other reads / mutations via `gh_rest.py` REST helpers |
+| Worker core REST     | Bot account / App    | All other reads / mutations via `gh api` REST helpers |
 
 Each bucket is 5,000 req/hr (REST `core` and GraphQL each). With
 identity separation the maintainer's two buckets are untouched by
@@ -192,7 +192,7 @@ into the worker's env:
 
 ```pwsh path=null start=null
 # Option A (GitHub App): mint installation token at dispatch time.
-$jwt = uv run python scripts/swarm_mint_jwt.py --app-id $env:DEFT_SWARM_APP_ID --pem secrets/swarm-app.pem
+$jwt = <operator-supplied GitHub App JWT>  # Directive does not ship a mint helper in v1 (#983)
 $inst_token = (gh api -X POST "/app/installations/$env:DEFT_SWARM_INSTALLATION_ID/access_tokens" -H "Authorization: Bearer $jwt" --jq .token)
 start_agent ... -e GH_TOKEN=$inst_token
 
@@ -201,7 +201,7 @@ $bot_token = (Get-Content secrets/swarm-bot.env | Where-Object { $_ -like 'SWARM
 start_agent ... -e GH_TOKEN=$bot_token
 ```
 
-Token-mint plumbing (`scripts/swarm_mint_jwt.py`) is intentionally not
+Token-mint plumbing is intentionally not
 shipped in v1 -- the runbook above is operator-facing guidance, not
 deft-supplied automation. v1 is documentation-only per #983 non-goals.
 Operators MAY automate token minting in their own dispatcher; the
@@ -241,7 +241,7 @@ the blast-radius problem this pattern solves.
 
 ## Cross-references
 
-- #976 -- remaining GraphQL drain in `scripts/scm.py` + smoke (the
+- #976 -- remaining GraphQL drain in `task scm:body` + smoke (the
   REST-migration track this pattern complements; this pattern was
   carved out of #976's "Complementary mitigation" section)
 - #588 -- agent identity pattern (distinct attestable identity per

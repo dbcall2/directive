@@ -15,6 +15,7 @@ import { join, resolve } from "node:path";
 import type { ResolutionFacts, ResolutionPlan } from "@deftai/directive-types";
 import { assertDepositContained } from "../deposit/contain.js";
 import { replaceTree } from "../deposit/copy-tree.js";
+import { assertLiveProcedureDepositClean } from "../deposit/live-procedure-targets.js";
 import { prunePythonArtifactsFromDeposit } from "../deposit/python-free.js";
 import { resolveInstalledContentRoot } from "../deposit/resolve-content.js";
 import { manifestTagToVersion, parseInstallManifest } from "../doctor/manifest.js";
@@ -724,9 +725,12 @@ export async function runRefreshDeposit(
 
   if (alreadyCurrent) {
     io.printf("[deft update] Framework payload already current; skipping payload copy.\n");
+    // C3 even when VERSION matches: skip-copy is not skip-validation (#3602).
+    assertLiveProcedureDepositClean(contentRoot);
     // #2913: still fail-closed reconcile so dst-only leftovers cannot linger when
     // VERSION already matches (e.g. pre-#2804 additive deposits). Does not re-stamp.
     await reconcileDepositToContentPackage(deftDir, contentRoot, io);
+    assertLiveProcedureDepositClean(deftDir);
     migrateLegacyInstallManifest(projectDir, join(deftDir, "VERSION"));
     // #3117: ensure a readable live generation token exists without advancing
     // when the payload did not swap (already-current). stampLiveGeneration is a
@@ -751,8 +755,11 @@ export async function runRefreshDeposit(
     }
   } else {
     // Full-tree replace (or injected seam). Additive copy is no longer the default.
+    // C3 the incoming package BEFORE replace so a reject cannot leave a broken deposit.
+    assertLiveProcedureDepositClean(contentRoot);
     await copyContent(contentRoot, deftDir);
     await prunePythonArtifactsFromDeposit(deftDir, projectDir, io);
+    assertLiveProcedureDepositClean(deftDir);
     // #2913 / #2804 / #2347: fail-closed delete-not-in-source BEFORE VERSION stamp.
     // replaceTree already drops dst-only paths; reconcile verifies and covers
     // additive seams. Throws => no VERSION rewrite (refuse stamp until clean).

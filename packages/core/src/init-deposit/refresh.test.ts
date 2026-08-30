@@ -307,6 +307,76 @@ describe("runRefreshDeposit", () => {
     expect(readFileSync(join(project, ".codex", "config.toml"), "utf8")).toBe('model = "gpt-5"\n');
   });
 
+  it("refuses refresh file-swap when a live procedure names a pruned Python helper (#3602 C3)", async () => {
+    const project = freshRoot("refresh-c3-mut-");
+    const contentRoot = installFakeContentPackage(project, "0.62.0");
+    mkdirSync(join(contentRoot, "skills", "demo"), { recursive: true });
+    writeFileSync(
+      join(contentRoot, "skills", "demo", "SKILL.md"),
+      "! Agents MUST run `.deft/core/run bootstrap`.\n",
+      "utf8",
+    );
+    const deftDir = join(project, ".deft", "core");
+    mkdirSync(deftDir, { recursive: true });
+    writeFileSync(
+      join(deftDir, "VERSION"),
+      "tag: 'v0.61.0'\nsha: old\ninstall_root: '.deft/core'\n",
+      "utf8",
+    );
+    writeFileSync(join(deftDir, "main.md"), "prior working deposit\n", "utf8");
+    const copyContent = vi.fn(async () => {
+      throw new Error("copyContent must not run when incoming C3 fails");
+    });
+    await expect(
+      runRefreshDeposit(
+        { projectDir: project, jsonOut: false, nonInteractive: true, upgrade: true },
+        { printf: () => {} },
+        {
+          resolveContentRoot: async () => contentRoot,
+          readEngineVersion: () => "0.62.0",
+          nowIso: () => "2026-08-30T12:00:00Z",
+          gitPorcelain: () => "",
+          copyContent,
+        },
+      ),
+    ).rejects.toThrow(/unique live-invalid helper target/);
+    expect(copyContent).not.toHaveBeenCalled();
+    expect(readFileSync(join(deftDir, "VERSION"), "utf8")).toContain("v0.61.0");
+    expect(readFileSync(join(deftDir, "main.md"), "utf8")).toBe("prior working deposit\n");
+  });
+
+  it("refuses already-current refresh when live procedures name a pruned helper (#3602 C3)", async () => {
+    const project = freshRoot("refresh-c3-current-");
+    const contentRoot = installFakeContentPackage(project, "0.62.0");
+    mkdirSync(join(contentRoot, "skills", "demo"), { recursive: true });
+    writeFileSync(
+      join(contentRoot, "skills", "demo", "SKILL.md"),
+      "! Agents MUST run `scripts/missing.py`.\n",
+      "utf8",
+    );
+    const deftDir = join(project, ".deft", "core");
+    mkdirSync(deftDir, { recursive: true });
+    writeFileSync(
+      join(deftDir, "VERSION"),
+      "tag: 'v0.62.0'\nsha: old\ninstall_root: '.deft/core'\n",
+      "utf8",
+    );
+    writeFileSync(join(deftDir, "main.md"), "prior working deposit\n", "utf8");
+    await expect(
+      runRefreshDeposit(
+        { projectDir: project, jsonOut: false, nonInteractive: true, upgrade: true },
+        { printf: () => {} },
+        {
+          resolveContentRoot: async () => contentRoot,
+          readEngineVersion: () => "0.62.0",
+          nowIso: () => "2026-08-30T12:00:00Z",
+          gitPorcelain: () => "",
+        },
+      ),
+    ).rejects.toThrow(/unique live-invalid helper target/);
+    expect(readFileSync(join(deftDir, "main.md"), "utf8")).toBe("prior working deposit\n");
+  });
+
   it("is idempotent on a second run (no AGENTS.md rewrite)", async () => {
     const project = freshRoot("refresh-idem-");
     const contentRoot = installFakeContentPackage(project);

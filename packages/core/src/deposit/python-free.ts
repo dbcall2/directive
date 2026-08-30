@@ -14,6 +14,24 @@ import { containedRemove } from "../fs/contained-write.js";
 const PY_SUFFIX = ".py";
 const PYC_SUFFIX = ".pyc";
 
+/** True when a named helper path is a Python artifact the deposit prunes (#3602 C3). */
+export function isPythonHelperPath(relPath: string): boolean {
+  const posix = relPath.replace(/\\/g, "/");
+  const base = posix.split("/").pop() ?? posix;
+  return base.endsWith(PY_SUFFIX) || base.endsWith(PYC_SUFFIX);
+}
+
+/** Path spellings of the Python `run` launcher python-free removes (#3602 C3). */
+export function isPythonRunShimPath(relPath: string): boolean {
+  const posix = relPath.replace(/\\/g, "/").replace(/^\.\//, "");
+  return posix === "run" || posix === ".deft/core/run" || posix === "deft/run";
+}
+
+/** True when C3 should treat a named path as a pruned Python deposit helper. */
+export function isPrunedPythonArtifactPath(relPath: string): boolean {
+  return isPythonHelperPath(relPath) || isPythonRunShimPath(relPath);
+}
+
 export interface PythonArtifact {
   readonly path: string;
   readonly kind: "py-file" | "scripts-tree" | "run-shim";
