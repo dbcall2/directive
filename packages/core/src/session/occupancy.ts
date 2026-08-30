@@ -41,6 +41,7 @@ import { containedRemove, containedWrite } from "../fs/contained-write.js";
 import { assertWriteTargetSafe } from "../fs/projection-containment.js";
 import { assertAppendLockOwned, type LockDeps, withAppendLock } from "../slice/lock.js";
 import { SWARM_WORKER_ROLES, type SwarmWorkerRole } from "../swarm/routing.js";
+import { ambientHostSessionOwner } from "./host-session-owner.js";
 import { stableJson } from "./json.js";
 import { parseTimestamp, timestampIso } from "./time.js";
 
@@ -304,6 +305,21 @@ export function occupancyAdmission(
   return occupancyGrantFor(record, presented, now) === null ? "stranger" : "member";
 }
 
+// Session ids reach remediation text from operator flags, host environments and
+// whatever a peer wrote into the lease, so a value can carry whitespace or shell
+// metacharacters. Only a value a shell would take as one bare token is inlined
+// into a printed command; anything else keeps its placeholder, because the right
+// quoting differs per shell and a mis-parsed copyable command is worse than one
+// the reader has to fill in. The id itself is still named in the prose above.
+// A leading dash is excluded as well: every CLI parser here reads such a value
+// as another option, so `--occupant --weird-id` fails argument parsing even
+// though the shell itself would have passed the token through intact.
+const SHELL_SAFE_SESSION_ID = /^(?!-)[A-Za-z0-9_.:+=,/-]+$/;
+
+function commandSessionId(sessionId: string, placeholder: string): string {
+  return SHELL_SAFE_SESSION_ID.test(sessionId) ? sessionId : placeholder;
+}
+
 function occupancyClockLine(record: OccupancyRecord): string {
   const lastWrite =
     record.lastWriteAt === null ? "" : ` last_write_at=${timestampIso(record.lastWriteAt)}`;
@@ -323,7 +339,7 @@ export function formatOccupancyStaleWarning(
   return (
     `Occupancy lease for session ${record.sessionId} has not beaten for ${age}s of its ` +
     `${Math.round(ttlMs / 1000)}s window; another session may read it as abandoned. ` +
-    `Refresh it with \`deft occupancy:heartbeat --session-id=${record.sessionId}\`.`
+    `Refresh it with \`deft occupancy:heartbeat --session-id=${commandSessionId(record.sessionId, "<your-session-id>")}\`.`
   );
 }
 
@@ -343,23 +359,59 @@ export function formatOccupancyAgeCapRemediation(
     `(claimed ${leaseAgeSeconds(record, now)}s ago, ${occupancyClockLine(record)}), so this ` +
     "worktree is no longer held and a peer may claim it at any moment. Heartbeats cannot " +
     "extend a capped lease — re-claim the worktree with " +
-    `\`deft session:start --session-id=${record.sessionId}\` before writing again.`
+    `\`deft session:start --session-id=${commandSessionId(record.sessionId, "<your-session-id>")}\` before writing again.`
   );
 }
 
+/**
+ * Tell a refused caller who holds the lease and what it can actually run.
+ *
+ * `presented` is the id the refused caller offered (#3873). Without it the
+ * message can only print `<your-session-id>` placeholders, which is fine for a
+ * CLI caller that passed its own `--session-id` and useless to a hook process,
+ * which does not know what identity it presented. Passing it also keeps the
+ * message honest when there is none: a grant cannot name an empty child --
+ * `occupancy:grant --child-session-id=` is refused at parse and at membership --
+ * so that remediation is not printed to a caller who could never run it.
+ */
 export function formatOccupancyRemediation(
   record: OccupancyRecord,
   now: Date = new Date(),
+  presented?: string,
 ): string {
   const age = heartbeatAgeSeconds(record, now);
-  return (
+  const header =
     `Worktree occupied by session ${record.sessionId} (intent=${record.intent}, heartbeat ${age}s ago, ` +
-    `${formatLastWritePhrase(record, now)}, ${occupancyClockLine(record)}).\n` +
+    `${formatLastWritePhrase(record, now)}, ${occupancyClockLine(record)}).\n`;
+  const tail = "\nThe occupant may release (`occupancy:release` / `session:end`).";
+
+  if (presented === undefined) {
+    return (
+      `${header}Stay read-only (\`session:start --read-only\`), use another worktree,\n` +
+      "ask the occupant for a write grant (`occupancy:grant --child-session-id=<your-session-id> " +
+      "--role <worker-role>`, run by the occupant), or run a confirmed owner transition " +
+      `(\`session:start --steal --confirm --occupant <reported-session-id> --session-id=<your-session-id>\`).${tail}`
+    );
+  }
+
+  const actor = presented.trim();
+  const occupantArg = commandSessionId(record.sessionId, "<reported-session-id>");
+  if (actor.length === 0) {
+    return (
+      `${header}This process presented no session identity, so a write grant cannot name it ` +
+      "and an owner transition would not be recognised on its next write.\n" +
+      "Stay read-only (`session:start --read-only`), use another worktree, or ask the occupant " +
+      `to release the lease (\`occupancy:release --session-id=${occupantArg}\` / \`session:end\`).${tail}`
+    );
+  }
+  const actorArg = commandSessionId(actor, "<your-session-id>");
+  return (
+    `${header}This process presented session ${actor}, which neither holds that lease nor has a ` +
+    "write grant on it.\n" +
     "Stay read-only (`session:start --read-only`), use another worktree,\n" +
-    "ask the occupant for a write grant (`occupancy:grant --child-session-id=<your-session-id> " +
+    `ask the occupant for a write grant (\`occupancy:grant --child-session-id=${actorArg} ` +
     "--role <worker-role>`, run by the occupant), or run a confirmed owner transition " +
-    "(`session:start --steal --confirm --occupant <reported-session-id> --session-id=<your-session-id>`).\n" +
-    "The occupant may release (`occupancy:release` / `session:end`)."
+    `(\`session:start --steal --confirm --occupant ${occupantArg} --session-id=${actorArg}\`).${tail}`
   );
 }
 
@@ -382,11 +434,23 @@ export function formatOccupancyMemberAdministrationRefusal(
   );
 }
 
+/**
+ * The owner a claim is made under: an explicit id, then `DEFT_SESSION_ID`, then
+ * the id the running host published, then a mint.
+ *
+ * The host step is what makes an identified host's claim reachable (#3873).
+ * Minting instead binds the lease to an id no later hook process can present,
+ * so the session that claimed the worktree is refused by its own lease. The
+ * mint stays as the last resort for hosts that publish nothing.
+ */
 export function resolveOccupancySessionId(input: ApplyOccupancyInput = {}): string {
   const explicit = input.sessionId?.trim();
   if (explicit) return explicit;
-  const envId = (input.env ?? process.env).DEFT_SESSION_ID?.trim();
+  const env = input.env ?? process.env;
+  const envId = env.DEFT_SESSION_ID?.trim();
   if (envId) return envId;
+  const hostOwner = ambientHostSessionOwner(env);
+  if (hostOwner !== null) return hostOwner;
   return (input.newSessionId ?? randomUUID)();
 }
 
@@ -857,7 +921,7 @@ export function grantOccupancyMembership(
             capped && current !== null
               ? formatOccupancyAgeCapRemediation(current, now)
               : "occupancy:grant found no live lease to grant on. A grant is derived authority, " +
-                `so claim the worktree first with \`deft session:start --session-id=${owner}\`.`,
+                `so claim the worktree first with \`deft session:start --session-id=${commandSessionId(owner, "<your-session-id>")}\`.`,
           code: 1,
         };
       }
@@ -1128,7 +1192,10 @@ export function evaluateOccupancyWriteGate(
   if (admission === "stranger") {
     return {
       allow: false,
-      message: formatOccupancyRemediation(live, now),
+      // The refused caller is told what identity it actually presented (#3873).
+      // A hook process cannot otherwise know, and the grant this message offers
+      // is only runnable when the occupant can name a non-empty child.
+      message: formatOccupancyRemediation(live, now, incoming),
       occupant: live,
       refreshed: false,
       warning: null,
@@ -1336,7 +1403,7 @@ export function heartbeatOccupancy(
         capped && existing !== null
           ? formatOccupancyAgeCapRemediation(existing, now)
           : "occupancy:heartbeat found no live lease to refresh. Claim one with " +
-            `\`deft session:start --session-id=${caller}\`.`,
+            `\`deft session:start --session-id=${commandSessionId(caller, "<your-session-id>")}\`.`,
       code: 1,
     };
   }
