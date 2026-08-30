@@ -25,6 +25,24 @@ export const PRODUCT_FIRST_AC_GATE: CheckGateSpec = {
   args: ["--soft-missing-xbrief"],
 };
 
+/**
+ * Candidate-scoped orphan-active for check aggregates (#3893).
+ *
+ * The unscoped sweep on the merge chokepoint gave a brief stranded by one
+ * merge authority over every other open PR, and N stranded briefs made N
+ * single-brief lifecycle PRs mutually unmergeable. It was never preventive for
+ * the candidate either: that candidate's linked PR still reads
+ * `merged_at: null` while its own gate runs.
+ *
+ * Bare `verify:orphan-active` stays repo-wide for `deft doctor`, manual runs,
+ * swarm finalize, and the after-merge `--issue N` DONE gate (#3429); the
+ * scoped form still falls back to the full sweep at the delivery tip.
+ */
+export const ORPHAN_ACTIVE_MERGE_GATE: CheckGateSpec = {
+  task: "verify:orphan-active",
+  args: ["--changed-only"],
+};
+
 export function checkGateId(spec: CheckGateSpec): string {
   return typeof spec === "string" ? spec : spec.task;
 }
@@ -83,7 +101,7 @@ export const FRAMEWORK_CHECK_GATES: readonly CheckGateSpec[] = [
   "verify:branch",
   "verify:encoding",
   "verify:cache-fresh",
-  "verify:orphan-active",
+  ORPHAN_ACTIVE_MERGE_GATE,
   "verify:completed-write-guard",
   "verify:license-sync",
   "verify:contract-drift",
@@ -102,7 +120,9 @@ export const FRAMEWORK_CHECK_GATES: readonly CheckGateSpec[] = [
   // #3145: test/source boundary + approved-scope provenance + consumer gate composition
   "verify:test-boundary",
   "verify:scope-provenance",
-  "verify:consumer-check-contract",
+  // #3893: fail-closed on merge-chokepoint gate scoping for the composition
+  // this repo owns; consumer deposits stay warn-only until `deft update`.
+  { task: "verify:consumer-check-contract", args: ["--framework-source"] },
   // #3362: dead-surface detector (warn-only this release; no --enforce)
   "verify:telemetry-coverage",
   "verify:vbrief-conformance",
@@ -132,7 +152,7 @@ export const CONSUMER_CHECK_GATES: readonly CheckGateSpec[] = [
   "verify:branch",
   "verify:cache-fresh",
   "verify:wip-cap",
-  "verify:orphan-active",
+  ORPHAN_ACTIVE_MERGE_GATE,
   "verify:completed-write-guard",
   "doctor",
   "toolchain:check-consumer",

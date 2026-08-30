@@ -20,6 +20,23 @@ export const REQUIRED_CONSUMER_ENFORCEMENT_GATES: readonly string[] = [
   "verify:consumer-check-contract",
 ];
 
+/**
+ * Gates whose composition on a check aggregate must carry a scoping argument
+ * (#3893).
+ *
+ * `verify:orphan-active` is repo-wide by default. Composed unscoped on a merge
+ * chokepoint it fails a candidate for residue another merge stranded, and N
+ * stranded briefs make N single-brief lifecycle PRs mutually unmergeable. It is
+ * not preventive for the candidate either: that candidate's linked PR still
+ * reads `merged_at: null` while its own gate runs.
+ *
+ * Fail-closed under `--framework-source`, where this repo owns the composition;
+ * a warning elsewhere while `deft update` re-deposits the Taskfile.
+ */
+export const MERGE_CHOKEPOINT_SCOPED_GATE_ARGS: ReadonlyMap<string, string> = new Map([
+  ["verify:orphan-active", "--changed-only"],
+]);
+
 export interface ConsumerCheckContractFinding {
   readonly gateId: string;
   readonly surface: "check-task" | "ci-workflow" | "verify-taskfile";
@@ -617,17 +634,25 @@ export function taskfileInvokesCheckOrchestrator(text: string): boolean {
   return false;
 }
 
+/** One `deps:` entry plus the YAML nested under it (`vars:` and friends). */
+export interface CheckDepEntry {
+  readonly name: string;
+  readonly body: string;
+}
+
 /**
- * Extract dependency task names from a go-task task definition body snippet.
- * Best-effort line parser for `deps:` list entries.
+ * Extract `deps:` entries from a go-task task definition, keeping each entry's
+ * nested body so an argument-carrying dep (#3893) is distinguishable from a
+ * bare one. Best-effort line parser.
  */
-export function extractCheckDeps(taskfileText: string, taskName: string): string[] {
+export function extractCheckDepEntries(taskfileText: string, taskName: string): CheckDepEntry[] {
   const lines = taskfileText.replace(/\r\n/g, "\n").split("\n");
-  const deps: string[] = [];
+  const entries: { name: string; lines: string[] }[] = [];
   let inTask = false;
   let taskIndent = 0;
   let inDeps = false;
   let depsIndent = 0;
+  let current: { name: string; lines: string[] } | null = null;
   const taskRe = new RegExp(`^${escapeRegExp(taskName)}\\s*:`);
 
   for (const raw of lines) {
@@ -650,24 +675,147 @@ export function extractCheckDeps(taskfileText: string, taskName: string): string
     if (/^deps\s*:/.test(stripped)) {
       inDeps = true;
       depsIndent = indent;
+      current = null;
       continue;
     }
 
-    if (inDeps) {
-      if (indent <= depsIndent && !stripped.startsWith("-")) {
-        inDeps = false;
-      } else if (stripped.startsWith("-")) {
-        // - verify:branch  OR  - task: verify:branch
-        const m =
-          stripped.match(/^-\s+task:\s*["']?([^"'#]+?)["']?\s*(?:#.*)?$/) ??
-          stripped.match(/^-\s+["']?([^"'#]+?)["']?\s*(?:#.*)?$/);
-        if (m?.[1]) {
-          deps.push(m[1].trim());
-        }
+    if (!inDeps) continue;
+
+    if (indent <= depsIndent && !stripped.startsWith("-")) {
+      inDeps = false;
+      current = null;
+    } else if (stripped.startsWith("-")) {
+      // - verify:branch  OR  - task: verify:branch
+      const m =
+        stripped.match(/^-\s+task:\s*["']?([^"'#]+?)["']?\s*(?:#.*)?$/) ??
+        stripped.match(/^-\s+["']?([^"'#]+?)["']?\s*(?:#.*)?$/);
+      current = m?.[1] === undefined ? null : { name: m[1].trim(), lines: [] };
+      if (current !== null) {
+        entries.push(current);
       }
+    } else if (current !== null) {
+      // Keep indentation: the scoping check below needs to tell an immediate
+      // `vars:` property from deeper YAML (#3893).
+      current.lines.push(raw);
     }
   }
-  return deps;
+  return entries.map((entry) => ({ name: entry.name, body: entry.lines.join("\n") }));
+}
+
+/**
+ * Extract dependency task names from a go-task task definition body snippet.
+ * Best-effort line parser for `deps:` list entries.
+ */
+export function extractCheckDeps(taskfileText: string, taskName: string): string[] {
+  return extractCheckDepEntries(taskfileText, taskName).map((entry) => entry.name);
+}
+
+/**
+ * Drop a YAML trailing comment and surrounding quotes from a scalar value.
+ * Honours double-quoted `\\"` escapes and single-quoted `''` doubling, so a
+ * value carrying a quote is not truncated before the argument that follows.
+ */
+export function parseYamlScalar(raw: string): string {
+  const text = raw.trim();
+  if (text.startsWith('"')) {
+    let out = "";
+    for (let i = 1; i < text.length; i += 1) {
+      const ch = text[i];
+      if (ch === "\\" && i + 1 < text.length) {
+        out += text[i + 1];
+        i += 1;
+        continue;
+      }
+      if (ch === '"') return out;
+      out += ch;
+    }
+    return out;
+  }
+  if (text.startsWith("'")) {
+    let out = "";
+    for (let i = 1; i < text.length; i += 1) {
+      const ch = text[i];
+      if (ch === "'") {
+        if (text[i + 1] === "'") {
+          out += "'";
+          i += 1;
+          continue;
+        }
+        return out;
+      }
+      out += ch;
+    }
+    return out;
+  }
+  const comment = text.indexOf(" #");
+  return (comment === -1 ? text : text.slice(0, comment)).trim();
+}
+
+/**
+ * Inline-flow `vars: { CLI_ARGS: ... }` scalar. Quote escapes are honoured so a
+ * value carrying a quote is not truncated before the argument that follows.
+ */
+const INLINE_CLI_ARGS_RE = /CLI_ARGS\s*:\s*("(?:\\.|[^"\\])*"|'(?:''|[^'])*'|[^,}]*)/;
+
+/**
+ * Effective `CLI_ARGS` value for a `deps:` entry, or null when it sets none.
+ *
+ * Reads the key itself rather than the entry text, so the required argument
+ * appearing in a comment, a sibling variable, or a descriptive value cannot
+ * stand in for the argument the gate actually receives (#3893).
+ */
+export function depEntryCliArgs(body: string): string | null {
+  let varsIndent: number | null = null;
+  let propIndent: number | null = null;
+  let value: string | null = null;
+
+  for (const rawLine of body.split("\n")) {
+    const line = rawLine.trim();
+    if (line.length === 0 || line.startsWith("#")) continue;
+    const indent = rawLine.length - rawLine.trimStart().length;
+
+    if (varsIndent !== null && indent <= varsIndent) {
+      varsIndent = null;
+      propIndent = null;
+    }
+
+    const varsBlock = /^vars\s*:\s*(.*)$/.exec(line);
+    if (varsBlock !== null) {
+      varsIndent = indent;
+      propIndent = null;
+      // Inline flow form: vars: { CLI_ARGS: "--changed-only" }
+      const inline = INLINE_CLI_ARGS_RE.exec(varsBlock[1] ?? "");
+      if (inline !== null) {
+        value = parseYamlScalar(inline[1] ?? "");
+      }
+      continue;
+    }
+
+    if (varsIndent === null) continue;
+    propIndent ??= indent;
+    if (indent !== propIndent) continue;
+
+    const cliArgs = /^CLI_ARGS\s*:\s*(.*)$/.exec(line);
+    if (cliArgs !== null) {
+      value = parseYamlScalar(cliArgs[1] ?? "");
+    }
+  }
+  return value;
+}
+
+/**
+ * True when the effective `CLI_ARGS` token list carries `requiredArg`.
+ *
+ * Exact token only: the guarded verbs accept the bare flag, so an equals form
+ * like `--changed-only=0` would exit 2 on an unrecognized argument while the
+ * contract reported the composition healthy.
+ */
+export function cliArgsCarry(cliArgs: string | null, requiredArg: string): boolean {
+  if (cliArgs === null) return false;
+  return cliArgs
+    .split(/\s+/)
+    .filter((token) => token.length > 0)
+    .some((token) => token === requiredArg);
 }
 
 function remediationForMissing(gateId: string, surface: string): string {
@@ -780,11 +928,40 @@ export function evaluateConsumerCheckContract(
 
   let anyAggregateDefined = false;
   for (const target of checkTargets) {
-    const deps = extractCheckDeps(rootTaskfile, target);
+    const entries = extractCheckDepEntries(rootTaskfile, target);
+    const deps = entries.map((entry) => entry.name);
     const body = extractTaskBody(rootTaskfile, target);
     const defined = deps.length > 0 || body.trim().length > 0;
     if (!defined) continue;
     anyAggregateDefined = true;
+
+    // Checked even on a trusted orchestrator body: a listed dep still runs, and
+    // unscoped on a merge chokepoint is the #3893 defect.
+    for (const [gateId, requiredArg] of MERGE_CHOKEPOINT_SCOPED_GATE_ARGS) {
+      // Every occurrence must carry the argument: a scoped entry followed by a
+      // bare duplicate still runs the repo-wide scan (#3893).
+      const listed = entries.filter((row) => row.name === gateId);
+      if (listed.length === 0) continue;
+      if (listed.every((row) => cliArgsCarry(depEntryCliArgs(row.body), requiredArg))) continue;
+      const finding: ConsumerCheckContractFinding = {
+        gateId,
+        surface: "check-task",
+        detail:
+          `aggregate '${target}' composes ${gateId} without ${requiredArg}: an unscoped ` +
+          "repo-wide lifecycle scan on a merge chokepoint fails a candidate for residue " +
+          "another merge stranded (#3893)",
+        remediation:
+          `Pass ${requiredArg} to ${gateId} in the '${target}' deps (go-task object form, ` +
+          `vars: CLI_ARGS: "${requiredArg}"). Bare ${gateId} stays repo-wide for doctor, ` +
+          "manual runs, and the after-merge --issue N run. " +
+          "See content/docs/consumer-check-contract.md (#3893).",
+      };
+      if (options.frameworkSource === true) {
+        findings.push(finding);
+      } else {
+        soft.push(finding);
+      }
+    }
 
     const trustThis = taskInvokesOrchestrator(target) && verifyDefinesRequired;
     if (trustThis) continue;
