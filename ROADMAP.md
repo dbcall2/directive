@@ -8,6 +8,7 @@
 ## Active
 
 - **#3785** -- bug(hooks): warn when a fail-closed hook registration travels without a hostable runtime -- `[running]`
+- **#3819** -- bug(lifecycle): the completed-artifact guard checks that a transition stamp exists, not that its disposition is valid -- `[running]`
 
 ## Proposed
 
@@ -45,8 +46,26 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1363 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1381 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#3983** -- Close the PreToolUse shell reissue hole and evaluate elapsed on an in-flight delivery attempt -- `[completed]`
+- **#3969** -- bug(release): close the unrecorded Closes bypass, fix census input, wire the existing closing-keyword detector -- `[completed]`
+- **#3737** -- BLOCKER: bug(scm): resolveBinary prefers ghx on presence alone, so a broken ghx silently kills triage, ingest, cache and pr:watch -- `[completed]`
+- **#3615** -- bug(verify-ac): safety-refused commands must not enter product-oracle history -- `[completed]`
+- **#3614** -- BLOCKER: authorize every apply_patch mutation path, not only the declared write target -- `[completed]`
+- **#3612** -- BLOCKER: bug(init): acceptance lifecycle writes unignored .deft runtime state -- `[completed]`
+- **#3602** -- BLOCKER: live procedures name Python helpers pruned from consumer deposits -- `[completed]`
+- **#3917** -- bug(harness): scope evaluator worktree prune and fail-close destructive git at the write fence -- `[completed]`
+- **#3937** -- BLOCKER: bug(packaging,content): shipped main.md has 49 of 51 link targets dead in a consumer deposit -- `[completed]`
+- **#3900** -- feat(release): consumer-readiness pack verifiers (#3900 recut) -- `[completed]`
+- **#3600** -- BLOCKER: bug(build,canon): build and main still mandate xBRIEF 0.6 after #2971 -- `[completed]`
+- **#3601** -- Consumer Skills Index points at packs:slice; C1 declared deposit closure -- `[completed]`
+- **#3873** -- bug(hooks): transport a real Grok host identity so the occupancy write gate admits the lease holder -- `[completed]`
+- **#3932** -- fix(design-critique): a typed verified-claims-table claim decides table resolution and cannot be masked by a generic citation -- `[completed]`
+- **#3893** -- bug(gates): a brief stranded in active/ by one merge reddens the merge gate on every other open PR -- `[completed]`
+- **#3929** -- docs(design-critique): plain-language summary on both operator-facing artifacts, with a per-artifact reserved line-start matrix -- `[completed]`
+- **#3934** -- fix(umbrella-current-shape): report a reason on the selected-null path at the three silent cache-side callers -- `[completed]`
+- **#3901** -- bug(test,windows): the --with-network session:start case makes a real npm registry request under a 20s budget and is load-flaky -- `[completed]`
 - **#3933** -- bug(lifecycle): xbrief:activate / vbrief:activate manufacture a version-less vBRIEFInfo on a v0.8 brief, which then fails validation -- `[completed]`
 - **#3930** -- bug(ci,contracts): master task check is red -- a content contract pins `Closes #3755` to `[Unreleased]` and the v0.108.0 cut moved it -- `[completed]`
 - **#3903** -- bug(scm,release): release Step 3 fails with an empty-stderr exit 1 once the open-issue inventory exceeds 1 MB (ENOBUFS in scm call) -- `[completed]`
@@ -54,22 +73,4 @@ _Showing 25 of 1363 completed scopes (newest first). Full history: lifecycle `co
 - **#3794** -- bug(hooks,session): linked-worktree writes are gated against the parent checkout lease -- `[completed]`
 - **#3755** -- explicit lease membership replaces bearer-string possession -- `[completed]`
 - **#3835** -- BLOCKER: security(verify-ac): untrusted issue prose selects an in-root file to read and the needle to match, and the gate reports the answer -- `[completed]`
-- **#3859** -- bug(scm,platform): CURSOR_AGENT treated as proof of cloud on local desktop, silently skipping every SCM gate -- `[completed]`
-- **#3607** -- pass-open advisory marker on issue threads via the review-owner lease -- `[completed]`
-- **#3768** -- chore(freshness): bind filenames embed a recoverable 32-char prefix of the session id -- `[completed]`
-- **#3769** -- occupancy-first ritual writes, and a fail-open compact stale-mark -- `[completed]`
-- **#3828** -- bug(lifecycle): the D12 stale-origin gate denies its own named remedy and blocks every linked worktree -- `[completed]`
-- **#3850** -- bug(design-critique): the panel-deposit guards are inconsistent prose, and panel completeness has no executable consumer -- `[completed]`
-- **#3848** -- bug(skills): the design-critique router conveys its prohibitions but not its structure, and its EXIT line invites self-dispatch -- `[completed]`
-- **#3831** -- bug(design-critique): the completed-arc citation grammar is unpublished, too narrow and too wide at once, and split across two parsers -- `[completed]`
-- **#3826** -- bug(intake): clause derivation falls through to thread-scraping while an acceptance surface sits unread in item.title -- `[completed]`
-- **#3824** -- fix(design-critique): the model slug has no verifier, so the contract must stop offering a real one to copy -- `[completed]`
-- **#3796** -- Harden PROJECT-DEFINITION mutation identity and mixed-version locking -- `[completed]`
-- **#3730** -- fix(swarm): the shipped subagent-heartbeat path is unarmed and a killed worker blocks its own resume -- `[completed]`
-- **#3610** -- BLOCKER: bug(toolchain): consumer check hard-requires pnpm when packageManager pins npm -- `[completed]`
-- **#3806** -- bug(design-critique,scm): catalog chips are load-bearing so an external parent cannot ingest after accepted critique -- `[completed]`
-- **#3774** -- bug(lifecycle): verify:orphan-active reaches its config exit code through a catch-all instead of handling ScmStubError -- `[completed]`
-- **#3781** -- bug(lifecycle): a PR can merge while closing an issue whose brief is left running and unattested -- `[completed]`
-- **#3599** -- fix(session): occupancy lease never heartbeats during active work, so a working session gets stolen (#3433) -- `[completed]`
-- **#3767** -- bug(lifecycle): verify:orphan-active prefers a stale cached issue state over the live read that would correct it -- `[completed]`
 

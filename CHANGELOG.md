@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.109.0] - 2026-08-31
+
+> On Grok, the worktree lease no longer denies the session holding it, and two write-gate bypasses close: patch-declared paths and a fenced release census.
+
+### Added
 - **Recorded a routing decision against `gpt-5.3-codex` for subagent dispatch (#3979).** Two dispatches reported success while naming GitHub comment ids that did not exist, one of them after making zero tool calls, while sibling agents given the identical instructions did the work and posted real results. A decision record now captures the evidence, the alternatives weighed, and the conditions under which the choice should be reopened. Refs #3961, #3974.
 - **Pack-versus-guidance checks are fail-closed verifiers, not a skill (#3900).** Check 1 (`task verify:deposit-closure`) resolves the C1 declared required-path set against a staged pack root and reuses `evaluateDepositClosure`; a mutated staged tree fails. Check 3 is C2 `task verify:semantic-single-source` (already on master). Check 2 is C3 live-procedure targets (PR #3957 / #3602) -- composed, not rebuilt. Check 4 (`task verify:consumer-hard-stops`) enumerates open consumer hard-stops by BLOCKER title classification and the adoption-blocker label only and never reads issue bodies (#3713). Checks 5 and 6 print new-refusal and net-posture disclosure at the release decision point and do not auto-block a tag. Wired into `task check` (check 1 + C2) and release pre-flight. Closes #3900. Refs #3899, #3601, #3713, #3156.
 - **C2 semantic single-source conformance for the xBRIEF write version (#3600 / #3899).** Shipped authoring surfaces must name exactly one current write version, and it must be the version setup writes. Pointer resolution cannot see this class: the 0.6-versus-0.8 defect lived in files that already resolved. `task verify:semantic-single-source` evaluates a staged pack root (or the source tree), and a mutation fixture reverts a shipped file to stale 0.6 to prove the gate is not vacuous. Mixed MUST lines still fail when the envelope or a bare quoted write mandate is mutated to 0.6 beside a legacy qualifier, and an unreadable resolved surface is config-fail rather than a silent pass. The consumer agents-entry template names 0.8 as the new-write default. Does not close #3899.
@@ -5678,7 +5690,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.108.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.109.0...HEAD
+[0.109.0]: https://github.com/deftai/directive/compare/v0.108.0...v0.109.0
 [0.108.0]: https://github.com/deftai/directive/compare/v0.107.0...v0.108.0
 [0.107.0]: https://github.com/deftai/directive/compare/v0.106.0...v0.107.0
 [0.106.0]: https://github.com/deftai/directive/compare/v0.105.0...v0.106.0
