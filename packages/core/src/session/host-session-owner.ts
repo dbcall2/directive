@@ -33,6 +33,35 @@ const HOST_IDENTITY_SOURCES: Readonly<Record<HookHostIdentityProvider, HookHostI
   grok: { kind: "host-env", variable: "GROK_SESSION_ID" },
 };
 
+/**
+ * The `host-env` half of the table above, resolved once.
+ *
+ * `ambientHostSessionOwner` reads it to build the owner list, and
+ * `HOST_ENV_IDENTITY_VARIABLES` projects the variable names out of the same
+ * entries, so the production scan and the surface a caller scrubs cannot name
+ * different providers (#3954).
+ */
+const HOST_ENV_IDENTITY_ENTRIES: readonly {
+  readonly provider: HookHostIdentityProvider;
+  readonly variable: string;
+}[] = HOST_IDENTITY_PROVIDERS.flatMap((provider) => {
+  const source = HOST_IDENTITY_SOURCES[provider];
+  return source.kind === "host-env" ? [{ provider, variable: source.variable }] : [];
+});
+
+/**
+ * Every variable a `host-env` provider publishes.
+ *
+ * Exported because the ambient step is now read by the CLI occupancy surfaces
+ * as well as the hook, so callers that must control the whole ambient identity
+ * surface — a hermetic test process, a dispatcher scrubbing a child's
+ * environment — need the list rather than the one variable its author knew
+ * about (#3954).
+ */
+export const HOST_ENV_IDENTITY_VARIABLES: readonly string[] = HOST_ENV_IDENTITY_ENTRIES.map(
+  (entry) => entry.variable,
+);
+
 /** The identity source for a host, or null when the host has no contract. */
 export function hookHostIdentitySource(host: string): HookHostIdentitySource | null {
   return (
@@ -81,6 +110,53 @@ export function canonicalHostSessionId(
   return `host:${provider}:v1:${encoded}`;
 }
 
+/**
+ * The canonical owner form, derived from the provider list so every surface
+ * that checks it moves when a provider is added: the lifecycle-rewrite bridge
+ * and grant-time child validation both read this one pattern (#3873 / #3954).
+ * Provider ids are lowercase ASCII words, so the alternation needs no escaping.
+ */
+export const CANONICAL_OWNER_PATTERN = new RegExp(
+  `^host:(?:${HOST_IDENTITY_PROVIDERS.join("|")}):v1:[A-Za-z0-9_-]+$`,
+);
+
+/**
+ * True when a value claims the canonical owner shape, well-formed or not.
+ *
+ * The `host:` prefix is reserved for host-published identity, so a value under
+ * it that is not canonical is a malformed owner rather than an opaque id some
+ * session could present (#3954).
+ */
+export function claimsHostSessionIdShape(value: string): boolean {
+  return value.startsWith("host:");
+}
+
+export interface HostSessionIdParts {
+  readonly provider: HookHostIdentityProvider;
+  readonly rawSessionId: string;
+}
+
+/**
+ * Split a canonical owner back into the provider and the raw id the host
+ * published, or null when the value is not canonical.
+ *
+ * The round-trip check is the point: `host:grok:v1:Z3Jvay1zZXNzaW9uLWF` decodes
+ * to the same raw id as `...LWE` does, so without it one session would have two
+ * canonical strings and a grant could name the one it never presents (#3954).
+ * The raw id is held to the same bound the identity surface applies, so a
+ * payload the host could not have published is not accepted here either.
+ */
+export function parseCanonicalHostSessionId(value: string): HostSessionIdParts | null {
+  if (!CANONICAL_OWNER_PATTERN.test(value)) return null;
+  const segments = value.split(":");
+  const provider = segments[1] as HookHostIdentityProvider;
+  const encoded = segments[3] ?? "";
+  const rawSessionId = Buffer.from(encoded, "base64url").toString("utf8");
+  if (!isUsableHostSessionId(rawSessionId)) return null;
+  if (canonicalHostSessionId(provider, rawSessionId) !== value) return null;
+  return { provider, rawSessionId };
+}
+
 export type HostEnvIdentityStatus = "ok" | "missing" | "invalid";
 
 export type HostEnvIdentityResolution =
@@ -110,10 +186,8 @@ export function readHostEnvIdentity(
  */
 export function ambientHostSessionOwner(environ: NodeJS.ProcessEnv = process.env): string | null {
   const resolved: string[] = [];
-  for (const provider of HOST_IDENTITY_PROVIDERS) {
-    const source = HOST_IDENTITY_SOURCES[provider];
-    if (source.kind !== "host-env") continue;
-    const value = readHostEnvIdentity(environ, source.variable);
+  for (const { provider, variable } of HOST_ENV_IDENTITY_ENTRIES) {
+    const value = readHostEnvIdentity(environ, variable);
     if (value.status === "ok") resolved.push(canonicalHostSessionId(provider, value.rawSessionId));
   }
   return resolved.length === 1 ? (resolved[0] as string) : null;
