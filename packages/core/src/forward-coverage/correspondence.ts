@@ -1,0 +1,344 @@
+/**
+ * Source-to-test correspondence for verify:forward-coverage (#4009 / #1310).
+ *
+ * Path-relative candidates, not bare stems. Candidate locations come from
+ * colocated files, a sibling `__tests__/` directory, and directory-shaped
+ * roots on the existing test-boundary policy (#3145) -- this module does not
+ * invent a second testRoots config.
+ */
+
+import { basename } from "node:path";
+import { matchPolicyGlob } from "../test-boundary/evaluate.js";
+import type { TestBoundaryPolicy } from "../test-boundary/policy.js";
+
+/** Source-file extensions in scope for v1. */
+const SOURCE_EXTENSIONS: ReadonlySet<string> = new Set([".py", ".go", ".ts", ".tsx"]);
+
+/** Return the final `.ext` (lowercased) of a path, or empty when none. */
+function extOf(pathStr: string): string {
+  const b = basename(pathStr);
+  const dot = b.lastIndexOf(".");
+  return dot > 0 ? b.slice(dot).toLowerCase() : "";
+}
+
+function posix(pathStr: string): string {
+  return pathStr.replace(/\\/g, "/");
+}
+
+function trimSlashes(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value.charAt(start) === "/") {
+    start += 1;
+  }
+  while (end > start && value.charAt(end - 1) === "/") {
+    end -= 1;
+  }
+  return value.slice(start, end);
+}
+
+function joinPosix(...parts: string[]): string {
+  const cleaned: string[] = [];
+  for (const part of parts) {
+    const trimmed = trimSlashes(posix(part));
+    if (trimmed.length > 0) {
+      cleaned.push(trimmed);
+    }
+  }
+  return cleaned.join("/");
+}
+
+function dirOf(rel: string): string {
+  const i = rel.lastIndexOf("/");
+  return i === -1 ? "" : rel.slice(0, i);
+}
+
+/**
+ * True when `relPath` is a test file (excluded from the needs-coverage set
+ * AND counted as available coverage). Covers the co-located TS/TSX
+ * `.test` / `.spec` convention, Go `*_test.go`, and Python `test_*.py` /
+ * `*_test.py`.
+ */
+export function isTestFile(relPath: string): boolean {
+  const b = basename(relPath).toLowerCase();
+  if (
+    b.endsWith(".test.ts") ||
+    b.endsWith(".test.tsx") ||
+    b.endsWith(".spec.ts") ||
+    b.endsWith(".spec.tsx")
+  ) {
+    return true;
+  }
+  if (b.endsWith("_test.go")) {
+    return true;
+  }
+  if (b.endsWith(".py") && (b.startsWith("test_") || b.endsWith("_test.py"))) {
+    return true;
+  }
+  return false;
+}
+
+/** True when `relPath` is an in-scope, non-test, non-`.d.ts` source file. */
+export function isSourceFile(relPath: string): boolean {
+  const b = basename(relPath).toLowerCase();
+  if (b.endsWith(".d.ts")) {
+    return false;
+  }
+  if (!SOURCE_EXTENSIONS.has(extOf(b))) {
+    return false;
+  }
+  return !isTestFile(relPath);
+}
+
+/**
+ * Candidate test-file basenames for a source file, keyed on extension + stem.
+ * Used to name the file at each searched path; matching is not by basename
+ * alone (#4009).
+ */
+export function expectedTestBasenames(sourcePath: string): string[] {
+  const b = basename(sourcePath);
+  const ext = extOf(b);
+  const stem = b.slice(0, b.length - ext.length);
+  switch (ext) {
+    case ".ts":
+      return [`${stem}.test.ts`, `${stem}.spec.ts`];
+    case ".tsx":
+      return [`${stem}.test.tsx`, `${stem}.spec.tsx`, `${stem}.test.ts`, `${stem}.spec.ts`];
+    case ".py":
+      return [`test_${stem}.py`, `${stem}_test.py`];
+    case ".go":
+      return [`${stem}_test.go`];
+    default:
+      return [];
+  }
+}
+
+/** Strip trailing globstars so a root glob becomes a prefix template. */
+function rootPrefixTemplate(glob: string): string {
+  let g = posix(glob);
+  while (g.endsWith("/**")) {
+    g = g.slice(0, -3);
+  }
+  while (g.endsWith("**")) {
+    g = g.slice(0, -2);
+    if (g.endsWith("/")) {
+      g = g.slice(0, -1);
+    }
+  }
+  return g;
+}
+
+/** File-shaped roots (`*.test.ts`, `*_test.go`) are not placement directories. */
+export function isDirectoryShapedRoot(glob: string): boolean {
+  const g = posix(glob);
+  if (/\*\.[A-Za-z0-9*]+/.test(g)) {
+    return false;
+  }
+  if (/_test\.[A-Za-z0-9]+/.test(g) || /\.test\./.test(g) || /\.spec\./.test(g)) {
+    return false;
+  }
+  return true;
+}
+
+export interface SourceRootStrip {
+  /** Path after the matched source-root prefix, including the filename. */
+  readonly remainder: string;
+  /** Values captured by star, double-star, and partial-segment wildcard slots. */
+  readonly captures: readonly string[];
+  /** Path segments consumed from the source path (for longest-match). */
+  readonly consumed: number;
+}
+
+/**
+ * Match posixPath against a source-root glob such as src/** or packages star-src/**.
+ * Returns the remainder after the prefix, plus `*` captures, or null.
+ * Mid-path double-star backtracks; it does not commit to the first later-segment match.
+ */
+export function stripSourceRoot(posixPath: string, sourceRoot: string): SourceRootStrip | null {
+  const pathParts = posix(posixPath)
+    .split("/")
+    .filter((part) => part.length > 0);
+  const prefix = rootPrefixTemplate(sourceRoot);
+  if (prefix.length === 0) {
+    return { remainder: posix(posixPath), captures: [], consumed: 0 };
+  }
+  const globParts = prefix.split("/").filter((part) => part.length > 0);
+  return matchStrip(globParts, 0, pathParts, 0, []);
+}
+
+function matchStrip(
+  globParts: readonly string[],
+  gi: number,
+  pathParts: readonly string[],
+  i: number,
+  captures: readonly string[],
+): SourceRootStrip | null {
+  if (gi >= globParts.length) {
+    const remainderParts = pathParts.slice(i);
+    if (remainderParts.length === 0) {
+      return null;
+    }
+    return {
+      remainder: remainderParts.join("/"),
+      captures,
+      consumed: i,
+    };
+  }
+  const g = globParts[gi] ?? "";
+  if (g === "**") {
+    const next = globParts[gi + 1];
+    if (next === undefined) {
+      return matchStrip(globParts, gi + 1, pathParts, pathParts.length, [
+        ...captures,
+        pathParts.slice(i).join("/"),
+      ]);
+    }
+    // Prefer a non-empty split when the next slot is also ** so
+    // packages/**/**/src pairs with packages/*/*/test instead of ["", "foo/bar"].
+    const firstJ = next === "**" ? i + 1 : i;
+    for (let j = firstJ; j <= pathParts.length; j += 1) {
+      const result = matchStrip(globParts, gi + 1, pathParts, j, [
+        ...captures,
+        pathParts.slice(i, j).join("/"),
+      ]);
+      if (result !== null) {
+        return result;
+      }
+    }
+    if (next === "**" && firstJ > i) {
+      const empty = matchStrip(globParts, gi + 1, pathParts, i, [...captures, ""]);
+      if (empty !== null) {
+        return empty;
+      }
+    }
+    return null;
+  }
+  if (i >= pathParts.length) {
+    return null;
+  }
+  if (g === "*") {
+    return matchStrip(globParts, gi + 1, pathParts, i + 1, [...captures, pathParts[i] ?? ""]);
+  }
+  const seg = pathParts[i] ?? "";
+  if (seg !== g && !matchPolicyGlob(seg, g)) {
+    return null;
+  }
+  const nextCaptures = isPartialWildcardSlot(g) ? [...captures, seg] : captures;
+  return matchStrip(globParts, gi + 1, pathParts, i + 1, nextCaptures);
+}
+
+/** True when a glob segment is a capture slot (star, double-star, question-mark, or class). */
+function isWildcardSlot(part: string): boolean {
+  return part === "*" || part === "**" || isPartialWildcardSlot(part);
+}
+
+/** True when a segment is a partial-segment wildcard (c?re, character class, c*e). */
+function isPartialWildcardSlot(part: string): boolean {
+  if (part === "*" || part === "**") {
+    return false;
+  }
+  return part.includes("?") || part.includes("*") || part.includes("[");
+}
+
+function wildcardCount(template: string): number {
+  return template.split("/").filter((part) => isWildcardSlot(part)).length;
+}
+
+/** Fill a packages star-test root from packages star-src captures. Null if star counts differ. */
+export function fillRootTemplate(testRoot: string, captures: readonly string[]): string | null {
+  const template = rootPrefixTemplate(testRoot);
+  if (wildcardCount(template) !== captures.length) {
+    return null;
+  }
+  const parts = template.split("/").filter((part) => part.length > 0);
+  const out: string[] = [];
+  let cap = 0;
+  for (const g of parts) {
+    if (isWildcardSlot(g)) {
+      const value = captures[cap];
+      if (value === undefined) {
+        return null;
+      }
+      if (g !== "**" && (value.length === 0 || value.includes("/"))) {
+        return null;
+      }
+      if (isPartialWildcardSlot(g) && !matchPolicyGlob(value, g)) {
+        return null;
+      }
+      if (value.length > 0) {
+        for (const seg of value.split("/")) {
+          if (seg.length > 0) {
+            out.push(seg);
+          }
+        }
+      }
+      cap += 1;
+      continue;
+    }
+    out.push(g);
+  }
+  return out.join("/");
+}
+
+function addNamed(out: Set<string>, directory: string, names: readonly string[]): void {
+  for (const name of names) {
+    out.add(directory.length === 0 ? name : joinPosix(directory, name));
+  }
+}
+
+/**
+ * Repo-relative candidate test paths for `sourcePath` under `policy`.
+ *
+ * Always includes colocated and sibling `__tests__/` names. Directory-shaped
+ * `testRoots` receive the source-relative remainder when the source sits under
+ * a `sourceRoots` glob (or the full path when it does not). Star captures on
+ * the source root (packages star src) pair only with test roots that have the
+ * same number of star segments (packages star test).
+ */
+export function expectedTestPaths(sourcePath: string, policy: TestBoundaryPolicy): string[] {
+  const rel = posix(sourcePath);
+  const names = expectedTestBasenames(rel);
+  if (names.length === 0) {
+    return [];
+  }
+  const sourceDir = dirOf(rel);
+  const out = new Set<string>();
+  addNamed(out, sourceDir, names);
+  addNamed(out, joinPosix(sourceDir, "__tests__"), names);
+
+  const strips: SourceRootStrip[] = [];
+  for (const root of policy.sourceRoots) {
+    const stripped = stripSourceRoot(rel, root);
+    if (stripped !== null) {
+      strips.push(stripped);
+    }
+  }
+  if (strips.length === 0) {
+    strips.push({ remainder: rel, captures: [], consumed: 0 });
+  }
+
+  for (const stripped of strips) {
+    const remainderDir = dirOf(stripped.remainder);
+    for (const testRoot of policy.testRoots) {
+      if (!isDirectoryShapedRoot(testRoot)) {
+        continue;
+      }
+      const template = rootPrefixTemplate(testRoot);
+      if (template === "**/__tests__" || template.endsWith("**/__tests__")) {
+        addNamed(out, joinPosix("__tests__", remainderDir), names);
+        continue;
+      }
+      if (wildcardCount(template) === 0) {
+        addNamed(out, joinPosix(template, remainderDir), names);
+        continue;
+      }
+      const filled = fillRootTemplate(testRoot, stripped.captures);
+      if (filled === null) {
+        continue;
+      }
+      addNamed(out, joinPosix(filled, remainderDir), names);
+    }
+  }
+
+  return [...out].sort();
+}
