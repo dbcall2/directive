@@ -8,7 +8,7 @@
 
 export const LIFECYCLE_WRITE_KEY = "lifecycleWrite" as const;
 
-export type LifecycleWriteAction = "complete" | "fail";
+export type LifecycleWriteAction = "complete" | "fail" | "cancel";
 
 export interface LifecycleWriteStamp {
   readonly action: LifecycleWriteAction;
@@ -39,7 +39,7 @@ function metadataRecord(plan: Record<string, unknown>): Record<string, unknown> 
   return created;
 }
 
-/** Stamp that runTransition wrote this plan into completed/. */
+/** Stamp that runTransition wrote this plan into completed/ or cancelled/. */
 export function stampLifecycleWrite(
   plan: Record<string, unknown>,
   action: LifecycleWriteAction,
@@ -61,7 +61,7 @@ function hasLifecycleWriteStamp(plan: Record<string, unknown>): boolean {
   const action = stamp.action;
   const writtenAt = stamp.writtenAt;
   return (
-    (action === "complete" || action === "fail") &&
+    (action === "complete" || action === "fail" || action === "cancel") &&
     typeof writtenAt === "string" &&
     writtenAt.trim().length > 0
   );
@@ -81,4 +81,31 @@ export function hasTransitionWrite(plan: Record<string, unknown>): boolean {
     return true;
   }
   return String(plan.status ?? "") === "failed";
+}
+
+function stampAction(plan: Record<string, unknown>): string | null {
+  const meta = asRecord(plan.metadata);
+  if (meta === null) {
+    return null;
+  }
+  const stamp = asRecord(meta[LIFECYCLE_WRITE_KEY]);
+  if (stamp === null) {
+    return null;
+  }
+  const action = stamp.action;
+  return typeof action === "string" ? action : null;
+}
+
+/** Folder-aware stamp: cancel stamps do not authorize completed/, and vice versa. */
+export function transitionWriteFitsFolder(
+  plan: Record<string, unknown>,
+  folder: "completed" | "cancelled",
+): boolean {
+  if (folder === "cancelled") {
+    return hasLifecycleWriteStamp(plan) && stampAction(plan) === "cancel";
+  }
+  if (stampAction(plan) === "cancel") {
+    return false;
+  }
+  return hasTransitionWrite(plan);
 }
