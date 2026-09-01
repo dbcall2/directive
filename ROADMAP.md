@@ -8,7 +8,6 @@
 ## Active
 
 - **#3785** -- bug(hooks): warn when a fail-closed hook registration travels without a hostable runtime -- `[running]`
-- **#3987** -- SECURITY: the PreToolUse write gate does not match Grok Build's shell tool, so a denied write succeeds through run_terminal_command -- `[running]`
 
 ## Proposed
 
@@ -45,8 +44,13 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1383 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1388 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#3877** -- bug(session,tests): mint-path session fixtures read ambient DEFT_SESSION_ID, reddening the suites and scope:complete -- `[completed]`
+- **#3999** -- bug(session,swarm): a dispatched subagent claims the occupancy lease and exits without releasing it, stranding the parent's worktree -- `[completed]`
+- **#3954** -- bug(session,hooks): claim, release and grant resolve the occupancy actor by three different rules, so the printed recovery is unreachable and a parent locks out its own children -- `[completed]`
+- **#4013** -- bug(hooks): a write to a target outside every worktree is gated by the payload root's occupancy lease -- `[completed]`
+- **#3987** -- SECURITY: the PreToolUse write gate does not match Grok Build's shell tool, so a denied write succeeds through run_terminal_command -- `[completed]`
 - **#3942** -- bug(design-critique): the verified-claims table shape token is unpublished, and the refusal blames the citation instead of the missing heading -- `[completed]`
 - **#3915** -- chore(triage): close 25 implemented, superseded, or obsolete issues from the >30-day audit -- `[completed]`
 - **#3983** -- Close the PreToolUse shell reissue hole and evaluate elapsed on an in-flight delivery attempt -- `[completed]`
@@ -67,9 +71,4 @@ _Showing 25 of 1383 completed scopes (newest first). Full history: lifecycle `co
 - **#3929** -- docs(design-critique): plain-language summary on both operator-facing artifacts, with a per-artifact reserved line-start matrix -- `[completed]`
 - **#3934** -- fix(umbrella-current-shape): report a reason on the selected-null path at the three silent cache-side callers -- `[completed]`
 - **#3901** -- bug(test,windows): the --with-network session:start case makes a real npm registry request under a 20s budget and is load-flaky -- `[completed]`
-- **#3933** -- bug(lifecycle): xbrief:activate / vbrief:activate manufacture a version-less vBRIEFInfo on a v0.8 brief, which then fails validation -- `[completed]`
-- **#3930** -- bug(ci,contracts): master task check is red -- a content contract pins `Closes #3755` to `[Unreleased]` and the v0.108.0 cut moved it -- `[completed]`
-- **#3903** -- bug(scm,release): release Step 3 fails with an empty-stderr exit 1 once the open-issue inventory exceeds 1 MB (ENOBUFS in scm call) -- `[completed]`
-- **#3797** -- docs(contracts): design-critique uses 'arc' as its unit without defining it, and the variant table cannot express two proven shapes -- `[completed]`
-- **#3794** -- bug(hooks,session): linked-worktree writes are gated against the parent checkout lease -- `[completed]`
 
