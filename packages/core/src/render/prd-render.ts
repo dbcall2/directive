@@ -47,6 +47,16 @@ function writePrd(
     process.stderr.write(`Warning: no narratives found in ${sourcePath}\n`);
   }
 
+  writeFileSync(outputPath, buildPrdMarkdown(title, narratives, sourcePath), "utf8");
+  process.stdout.write(`PRD.md written to ${outputPath}\n`);
+}
+
+/** Render a PRD markdown buffer from title, narratives, and the resolved source path. */
+export function buildPrdMarkdown(
+  title: string,
+  narratives: Record<string, unknown>,
+  sourcePath: string,
+): string {
   const lines: string[] = [
     buildPrdBanner(sourcePath),
     `# ${title} -- Product Requirements Document\n`,
@@ -71,8 +81,7 @@ function writePrd(
       "via `task prd:render`. Do not edit directly.*\n",
   );
 
-  writeFileSync(outputPath, lines.join("\n"), "utf8");
-  process.stdout.write(`PRD.md written to ${outputPath}\n`);
+  return lines.join("\n");
 }
 
 function loadTitleAndNarratives(sourcePath: string): {
@@ -170,7 +179,7 @@ export function main(args: PrdCliArgs = {}): void {
   } else if (args.projectRoot !== undefined) {
     renderProjectPrd(args.projectRoot, outputPath, options);
   } else {
-    renderPrd("vbrief/specification.vbrief.json", outputPath, options);
+    renderPrd("xbrief/specification.xbrief.json", outputPath, options);
   }
 }
 

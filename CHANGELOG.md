@@ -15,9 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Fail-closed SPECIFICATION.md / PRD.md render freshness (`task verify:spec-prd-fresh`) (#4086).** Re-renders to a buffer and fails on banner or projection diff, wired into `check:framework-source`. Banner canon and full projection freshness are separate assertions. Closes #4086.
 - **Design-critique front door is a run-posture field, not a second ingest switch (#4072).** Stop 1 records `arc-mode: direct` or `arc-mode: checkout`. Direct is `session:start --read-only` (or release), GitHub comments via `gh issue comment --body-file -`, SHA-pinned reads, and family CLIs without worktrees. Missing token, including yolo, asks. Ingest stays a later verb after the completed-arc record. Closes #4072. Refs #4020, #4066, #4067.
 
 ### Changed
+- **Current xBRIEF sources no longer teach leftover vBRIEF authority (#4086).** Root `specification`/`plan` envelopes are `xBRIEFInfo` 0.8 (NFR-2 stays on #1567). `main.md` Persistence/Context Awareness and `PROJECT.md` See-instead name `xbrief/` write paths; frozen `migrate:vbrief` prose is labeled, not rewritten. `verify:xbrief-drift` fails a legacy envelope on correctly named `*.xbrief.json` outside lifecycle folders and `BUILTIN_ALLOW_LIST`. Frozen Go `gate.go` stays on #1979. Closes #4086. Refs #4085, #1567, #2907.
 
 ### Fixed
 - **Land completed-tracked artifact for #4060 (#3264 / #1358).** The #4060 xBRIEF stayed untracked after squash of PR 4124 (0d5da1e7). Moved to xbrief/completed/ via scope:complete. Does not recut that issue. Refs #2321, #3476.
