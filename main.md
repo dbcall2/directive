@@ -388,4 +388,4 @@ See [commands.md](./content/commands.md) for full workflow details.
 
 **Context Engineering:**
 - ~ See [context/context.md](./content/context/context.md) for strategies on managing context budget
-- ~ Use vBRIEF ([vbrief.org](https://vbrief.org)) for structured task plans, scratchpads, and checkpoints
+- ~ Use xBRIEF for structured task plans, scratchpads, and checkpoints
