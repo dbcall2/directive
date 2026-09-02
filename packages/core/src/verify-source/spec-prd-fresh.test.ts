@@ -41,7 +41,7 @@ describe("evaluateSpecPrdFresh", () => {
     const specPath = writeSpec(root);
     const specRender = renderSpecMarkdown(specPath, {
       includeScopes: "off",
-      includeLegacyArtifacts: true,
+      includeLegacyArtifacts: false,
     });
     expect(specRender.ok).toBe(true);
     if (!specRender.ok) return;
@@ -54,6 +54,55 @@ describe("evaluateSpecPrdFresh", () => {
     const result = evaluateSpecPrdFresh(root);
     expect(result.code).toBe(0);
     expect(result.findings).toHaveLength(0);
+  });
+
+  it("ignores LegacyArtifacts when matching compact task spec:render (#4086)", () => {
+    const root = project();
+    const xbrief = join(root, "xbrief");
+    mkdirSync(xbrief, { recursive: true });
+    const specPath = join(xbrief, "specification.xbrief.json");
+    writeFileSync(
+      specPath,
+      JSON.stringify(
+        {
+          xBRIEFInfo: { version: "0.8" },
+          plan: {
+            title: "Freshness Fixture",
+            status: "approved",
+            narratives: {
+              Overview: "Hello freshness.",
+              LegacyArtifacts: "Preserved migration section",
+            },
+            items: [],
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    const compact = renderSpecMarkdown(specPath, {
+      includeScopes: "off",
+      includeLegacyArtifacts: false,
+    });
+    expect(compact.ok).toBe(true);
+    if (!compact.ok) return;
+    expect(compact.markdown).not.toContain("Preserved migration section");
+    const withLegacy = renderSpecMarkdown(specPath, {
+      includeScopes: "off",
+      includeLegacyArtifacts: true,
+    });
+    expect(withLegacy.ok).toBe(true);
+    if (!withLegacy.ok) return;
+    expect(withLegacy.markdown).toContain("Preserved migration section");
+    writeFileSync(
+      join(root, "SPECIFICATION.md"),
+      `${withLegacy.markdown.replace(/\n+$/u, "")}\n\n## Scope outlook\n\n### Historical dump\n`,
+      "utf8",
+    );
+    const result = evaluateSpecPrdFresh(root);
+    expect(result.code).toBe(0);
+    expect(result.findings.filter((f) => f.artifact === "SPECIFICATION.md")).toEqual([]);
   });
 
   it("fails banner-canon when SPECIFICATION.md still names the legacy source", () => {
@@ -89,7 +138,7 @@ describe("evaluateSpecPrdFresh", () => {
     const specPath = writeSpec(root);
     const specRender = renderSpecMarkdown(specPath, {
       includeScopes: "off",
-      includeLegacyArtifacts: true,
+      includeLegacyArtifacts: false,
     });
     expect(specRender.ok).toBe(true);
     if (!specRender.ok) return;

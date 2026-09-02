@@ -33,10 +33,33 @@ function committedBanner(content: string): string {
   return content.split("\n").slice(0, 4).join("\n");
 }
 
+/** Drop `## LegacyArtifacts` so the gate matches compact `task spec:render` (#1566 / #4086). */
+function stripLegacyArtifactsSection(content: string): string {
+  const lines = content.split("\n");
+  const out: string[] = [];
+  let skipping = false;
+  for (const line of lines) {
+    if (!skipping) {
+      if (line === "## LegacyArtifacts" || line.startsWith("## LegacyArtifacts ")) {
+        skipping = true;
+        continue;
+      }
+      out.push(line);
+      continue;
+    }
+    if (line.startsWith("## ")) {
+      skipping = false;
+      out.push(line);
+    }
+  }
+  return out.join("\n");
+}
+
 function specProductPrefix(content: string): string {
+  const withoutLegacy = stripLegacyArtifactsSection(content);
   const marker = "\n## Scope outlook";
-  const idx = content.indexOf(marker);
-  const prefix = idx === -1 ? content : content.slice(0, idx);
+  const idx = withoutLegacy.indexOf(marker);
+  const prefix = idx === -1 ? withoutLegacy : withoutLegacy.slice(0, idx);
   return `${prefix.replace(/[ \t]+$/gmu, "").replace(/\n+$/u, "")}\n`;
 }
 
@@ -111,7 +134,7 @@ export function evaluateSpecPrdFresh(projectRoot: string): SpecPrdFreshResult {
     }
     const rendered = renderSpecMarkdown(specPath, {
       includeScopes: "off",
-      includeLegacyArtifacts: true,
+      includeLegacyArtifacts: false,
     });
     if (!rendered.ok) {
       findings.push({
@@ -132,7 +155,7 @@ export function evaluateSpecPrdFresh(projectRoot: string): SpecPrdFreshResult {
             "product-narrative prefix is stale versus a compact `task spec:render` buffer (scope outlook is owned by #1567 and is not compared)",
         });
       }
-    } else if (rendered.markdown !== committed) {
+    } else if (specProductPrefix(rendered.markdown) !== specProductPrefix(committed)) {
       findings.push({
         artifact: "SPECIFICATION.md",
         assertion: "projection-fresh",
