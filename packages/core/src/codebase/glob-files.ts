@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, globSync, type Stats, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { NON_PRODUCT_DIRS } from "../fs/non-product-dirs.js";
 
 /**
@@ -20,8 +20,18 @@ function posixPath(path: string): string {
   return path.replace(/\\/g, "/");
 }
 
-function hasGitMetadata(projectRoot: string): boolean {
-  return existsSync(join(projectRoot, ".git"));
+function hasGitMetadata(start: string): boolean {
+  let dir = start;
+  for (;;) {
+    if (existsSync(join(dir, ".git"))) {
+      return true;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      return false;
+    }
+    dir = parent;
+  }
 }
 
 /**

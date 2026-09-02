@@ -44,6 +44,17 @@ describe("expandModuleGlobs", () => {
     expect(expansion.unmatched).toEqual(["*.md"]);
   });
 
+  it("does not admit untracked files when git ls-files fails in a nested root under a git worktree", () => {
+    root = mkdtempSync(join(tmpdir(), "glob-git-nested-"));
+    mkdirSync(join(root, ".git"), { recursive: true });
+    const nested = join(root, "nested", "project");
+    mkdirSync(nested, { recursive: true });
+    writeFileSync(join(nested, "untracked.md"), "scratch\n", "utf8");
+    const expansion = expandModuleGlobs(nested, ["*.md"]);
+    expect(expansion.files).toEqual([]);
+    expect(expansion.unmatched).toEqual(["*.md"]);
+  });
+
   it("prefers tracked truth over untracked working-tree hits", () => {
     root = mkdtempSync(join(tmpdir(), "glob-tracked-"));
     writeFileSync(join(root, "tracked.md"), "tracked\n", "utf8");
