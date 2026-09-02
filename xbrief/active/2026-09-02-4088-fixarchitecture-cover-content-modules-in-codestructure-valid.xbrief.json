@@ -73,10 +73,7 @@
     "acceptance": {
       "commands": [
         {
-          "command": "pnpm exec vitest run packages/core/src/verify-source/code-structure-validate.test.ts packages/core/src/codebase/default-extractor.test.ts"
-        },
-        {
-          "command": "task codebase:validate-structure"
+          "command": "pnpm exec vitest run packages/core/src/verify-source/code-structure-validate.test.ts packages/core/src/codebase/default-extractor.test.ts packages/core/src/codebase/glob-files.test.ts"
         }
       ],
       "none_stated": false,
@@ -138,8 +135,7 @@
           "packages/core/src/codebase/default-extractor.test.ts"
         ],
         "verify_commands": [
-          "pnpm exec vitest run packages/core/src/verify-source/code-structure-validate.test.ts packages/core/src/codebase/default-extractor.test.ts",
-          "task codebase:validate-structure"
+          "pnpm exec vitest run packages/core/src/verify-source/code-structure-validate.test.ts packages/core/src/codebase/default-extractor.test.ts packages/core/src/codebase/glob-files.test.ts"
         ],
         "expected_outputs": [
           "content-packs matches tracked JSON under content/packs",
