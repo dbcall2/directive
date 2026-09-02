@@ -35,6 +35,15 @@ describe("expandModuleGlobs", () => {
     expect(expansion.files).toEqual(["keep.ts"]);
   });
 
+  it("does not admit untracked files when git ls-files fails inside a git worktree", () => {
+    root = mkdtempSync(join(tmpdir(), "glob-git-fail-"));
+    mkdirSync(join(root, ".git"), { recursive: true });
+    writeFileSync(join(root, "untracked.md"), "scratch\n", "utf8");
+    const expansion = expandModuleGlobs(root, ["*.md"]);
+    expect(expansion.files).toEqual([]);
+    expect(expansion.unmatched).toEqual(["*.md"]);
+  });
+
   it("prefers tracked truth over untracked working-tree hits", () => {
     root = mkdtempSync(join(tmpdir(), "glob-tracked-"));
     writeFileSync(join(root, "tracked.md"), "tracked\n", "utf8");

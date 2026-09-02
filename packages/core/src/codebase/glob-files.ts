@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { globSync, type Stats, statSync } from "node:fs";
+import { existsSync, globSync, type Stats, statSync } from "node:fs";
 import { join } from "node:path";
 import { NON_PRODUCT_DIRS } from "../fs/non-product-dirs.js";
 
@@ -20,9 +20,16 @@ function posixPath(path: string): string {
   return path.replace(/\\/g, "/");
 }
 
+function hasGitMetadata(projectRoot: string): boolean {
+  return existsSync(join(projectRoot, ".git"));
+}
+
 /**
  * Tracked files relative to `projectRoot`, or `null` when git is unavailable
  * so callers fall back to the working-tree glob walk.
+ *
+ * A `.git` worktree whose `git ls-files` fails returns `[]` (fail closed)
+ * rather than `null`, so untracked files cannot satisfy a required glob.
  */
 export function listTrackedFiles(projectRoot: string): string[] | null {
   try {
@@ -34,6 +41,9 @@ export function listTrackedFiles(projectRoot: string): string[] | null {
     });
     return stdout.split("\0").filter((line) => line.length > 0);
   } catch {
+    if (hasGitMetadata(projectRoot)) {
+      return [];
+    }
     return null;
   }
 }
