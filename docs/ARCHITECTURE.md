@@ -141,7 +141,8 @@ These are separate lanes. Do not collapse them into "Taskfile-first runtime."
 | TypeScript packages | `packages/` | Implementation and runtime owner |
 | Taskfile | `Taskfile.yml`, `tasks/*.yml` | Repository command facade for maintainers, agents, and CI in this checkout |
 | Installed consumer CLI | `deft` / `directive` | What consumer projects run after `npm i -g @deftai/directive` |
-| Host / Git-hook entrypoints | `deft-hook`, native CLI verbs (`verify:branch`, `verify:encoding`, `preflight-gh`, ...) | What `.githooks/` and host integrations invoke |
+| Git-hook entrypoints | `.githooks/_deft-run.sh` → `deft` / native CLI verbs (`verify:branch`, `verify:encoding`, `preflight-gh`, ...) | What tracked `.githooks/` invoke |
+| Host integrations | `deft-hook` | Agent-host hook runtime; not the Git-hook resolver |
 
 The command graph is broad; use `task --list` for the exact current surface. The important architectural groups are:
 
@@ -155,7 +156,7 @@ The command graph is broad; use `task --list` for the exact current surface. The
 - `task pr:*`, `task release:*`, and `task swarm:*` for PR readiness, release operations, and multi-agent orchestration.
 - `task policy:*`, `task capacity:*`, and `task scm:*` for project policy, work allocation, and SCM helpers.
 
-New deterministic automation should enter through Taskfile in this checkout, or through `deft` / `directive` in a consumer install. Git hooks invoke `deft-hook` / native CLI verbs, not Python launchers.
+New deterministic automation should enter through Taskfile in this checkout, or through `deft` / `directive` in a consumer install. Tracked Git hooks invoke native CLI verbs through `.githooks/_deft-run.sh` (the `deft` resolver), not `deft-hook` and not Python launchers. `deft-hook` is the agent-host integration binary.
 
 ## Session Ritual And Gate Stack
 

@@ -56,7 +56,6 @@ function retiredLauncherHits(markdown: string, rel: string): string[] {
       skipQuote = false;
     }
     if (skipHeading) continue;
-    if (HISTORICAL.test(line)) continue;
     if (RETIRED_LAUNCHER.test(line)) {
       hits.push(`${rel}:${i + 1}: ${line.trim().slice(0, 160)}`);
     }
@@ -78,6 +77,15 @@ describe("docs orientation current-tense (#4087 Wave 1a) — FAIL-CLOSED", () =>
         "docs/ARCHITECTURE.md",
       ),
     ).toEqual([]);
+  });
+
+  it("mixed current prose with a historical keyword still hits run.py", () => {
+    expect(
+      retiredLauncherHits(
+        "Do not invoke the legacy `run.py` launcher from current hooks.\n",
+        "docs/ARCHITECTURE.md",
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("covered orientation files exist", () => {
@@ -109,5 +117,7 @@ describe("docs orientation current-tense (#4087 Wave 1a) — FAIL-CLOSED", () =>
     expect(arch).toMatch(/installed consumer CLI/i);
     expect(arch).toMatch(/deft-hook/);
     expect(arch).toMatch(/Git-hook/i);
+    expect(arch).toMatch(/_deft-run\.sh/);
+    expect(arch).toMatch(/agent-host/i);
   });
 });
