@@ -10,8 +10,10 @@ import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ENV_RUN_SUMMARY_PATH } from "../run-summary/index.js";
 import { evaluateScopeCompleteAcceptanceWalk } from "../scope/acceptance-evidence.js";
+import { runTransition } from "../scope/transition.js";
 import { acPassBankPath, maybeBankOnAcPass } from "../session/ac-pass-banking.js";
 import { hashProductState } from "../session/product-state-hash.js";
+import { acceptanceLedgersEqual, readAcceptanceLedger } from "./acceptance-resolver.js";
 import { evaluateVerifyAcFromPath, evaluateVerifyAcFromPlan } from "./evaluate.js";
 
 function writeBrief(root: string, plan: Record<string, unknown>): string {
@@ -19,6 +21,17 @@ function writeBrief(root: string, plan: Record<string, unknown>): string {
   const path = join(root, "xbrief", "active", "story.xbrief.json");
   writeFileSync(path, JSON.stringify({ xBRIEFInfo: { version: "0.8" }, plan }, null, 2), "utf8");
   return path;
+}
+
+function statedLedger(
+  commands: string[],
+): { command: string; cwd: null; expectedExitCode: number; expectedStdout: null }[] {
+  return commands.map((command) => ({
+    command,
+    cwd: null,
+    expectedExitCode: 0,
+    expectedStdout: null,
+  }));
 }
 
 function parseJsonl(path: string): { event: string; payload: Record<string, unknown> }[] {
@@ -442,7 +455,12 @@ describe("bank-aware complete walk (#3387)", () => {
       metadata: { swarm: { file_scope: ["src"] } },
     };
     const productPaths = ["src/product.txt"];
-    const hashed = hashProductState({ projectRoot: root, plan, productPaths });
+    const hashed = hashProductState({
+      projectRoot: root,
+      plan,
+      productPaths,
+      resolvedAcceptanceContract: statedLedger(["task check"]),
+    });
     const bankPath = acPassBankPath(root, "3993-v1-bank");
     mkdirSync(dirname(bankPath), { recursive: true });
     writeFileSync(
@@ -514,7 +532,12 @@ describe("bank-aware complete walk (#3387)", () => {
       metadata: { swarm: { file_scope: ["src"] } },
     };
     const productPaths = ["src/product.txt"];
-    const hashed = hashProductState({ projectRoot: root, plan, productPaths });
+    const hashed = hashProductState({
+      projectRoot: root,
+      plan,
+      productPaths,
+      resolvedAcceptanceContract: statedLedger(["task check"]),
+    });
     const banked = maybeBankOnAcPass({
       projectRoot: root,
       scopeId: "3993-zero-run",
@@ -541,5 +564,469 @@ describe("bank-aware complete walk (#3387)", () => {
     expect(complete.message).toMatch(/clause-walk-failed/);
     expect(complete.message).toMatch(/0 run\(s\)/);
     expect(complete.message).toMatch(/served_from=bank/);
+  });
+});
+
+function swarmOnlyPlan(id: string, commands: string[]): Record<string, unknown> {
+  return {
+    id,
+    title: id,
+    status: "running",
+    acceptance: {
+      commands: [],
+      none_stated: true,
+      source_rung: "derived",
+      ambiguity_attestation: "none_found",
+      clauses: [
+        {
+          id: 1,
+          text: "behavioral contract with no machine check against product.txt",
+          artifact_path: "src/product.txt",
+          ambiguous: false,
+          provenance: "statement",
+        },
+        {
+          id: 2,
+          text: "another unquoted behavioral claim against the shipped product",
+          artifact_path: "src/product.txt",
+          ambiguous: false,
+          provenance: "statement",
+        },
+      ],
+    },
+    metadata: { swarm: { verify_commands: commands } },
+    items: [
+      {
+        title: "criterion",
+        status: "pending",
+        "x-directive/evidence": {
+          kind: "test",
+          pointer: "vitest",
+          recorded_at: "2026-09-02T00:00:00Z",
+          recorded_by: "vitest",
+        },
+      },
+    ],
+    references: [
+      {
+        uri: "https://github.com/deftai/directive/issues/4060",
+        type: "x-xbrief/github-issue",
+      },
+    ],
+  };
+}
+
+describe("one-path complete recut (#4060)", () => {
+  it("acceptanceLedgersEqual requires non-empty equal ledgers", () => {
+    expect(acceptanceLedgersEqual([], [])).toBe(false);
+    expect(acceptanceLedgersEqual([{ command: "task check" }], [{ command: "task check" }])).toBe(
+      true,
+    );
+    expect(acceptanceLedgersEqual([{ command: "task check" }], [{ command: "task doctor" }])).toBe(
+      false,
+    );
+    expect(readAcceptanceLedger(["task check"])).toEqual([
+      { command: "task check", cwd: null, expectedExitCode: 0, expectedStdout: null },
+    ]);
+    expect(
+      acceptanceLedgersEqual(
+        [{ command: "task check", expectedStdout: "ok" }],
+        [{ command: "task check", expectedStdout: "other" }],
+      ),
+    ).toBe(false);
+  });
+
+  it("matching swarm-only bank serves complete with zero new invocations", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4060-swarm-hit-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "product.txt"), "v1\n", "utf8");
+    const plan = swarmOnlyPlan("4060-swarm-hit", ["task check"]);
+    const brief = writeBrief(root, plan);
+    let executions = 0;
+    const runner = () => {
+      executions += 1;
+      return { exitCode: 0, stdout: "ok", stderr: "" };
+    };
+    const productPaths = ["src/product.txt"];
+    const verified = evaluateVerifyAcFromPath(brief, {
+      projectRoot: root,
+      captureFromNarratives: false,
+      runner,
+      productPaths,
+      hasSuiteFloor: true,
+    });
+    expect(verified.ok).toBe(true);
+    expect(verified.servedFrom).toBe("executed");
+    expect(executions).toBe(1);
+    const complete = evaluateScopeCompleteAcceptanceWalk(plan, {
+      projectRoot: root,
+      captureFromNarratives: false,
+      runner,
+      productPaths,
+      hasSuiteFloor: true,
+    });
+    expect(complete.ok).toBe(true);
+    expect(complete.servedFrom).toBe("bank");
+    expect(executions).toBe(1);
+    expect(complete.message).toMatch(/served_from=bank/);
+  });
+
+  it("without a bank, each swarm command runs exactly once", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4060-swarm-miss-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "product.txt"), "v1\n", "utf8");
+    const plan = swarmOnlyPlan("4060-swarm-miss", ["task check", "task doctor"]);
+    let executions = 0;
+    const missing = evaluateScopeCompleteAcceptanceWalk(plan, {
+      projectRoot: root,
+      captureFromNarratives: false,
+      productPaths: ["src/product.txt"],
+      hasSuiteFloor: true,
+      runner: () => {
+        executions += 1;
+        return { exitCode: 0, stdout: "", stderr: "" };
+      },
+    });
+    expect(missing.ok).toBe(true);
+    expect(missing.servedFrom).toBe("executed");
+    expect(executions).toBe(2);
+  });
+
+  it("changed swarm ledger refuses reuse and executes at most once", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4060-swarm-changed-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "product.txt"), "v1\n", "utf8");
+    const plan = swarmOnlyPlan("4060-swarm-changed", ["task check"]);
+    const brief = writeBrief(root, plan);
+    let executions = 0;
+    const runner = () => {
+      executions += 1;
+      return { exitCode: 0, stdout: "ok", stderr: "" };
+    };
+    const productPaths = ["src/product.txt"];
+    expect(
+      evaluateVerifyAcFromPath(brief, {
+        projectRoot: root,
+        captureFromNarratives: false,
+        runner,
+        productPaths,
+        hasSuiteFloor: true,
+      }).ok,
+    ).toBe(true);
+    expect(executions).toBe(1);
+    const changed = swarmOnlyPlan("4060-swarm-changed", ["task doctor"]);
+    const walk = evaluateScopeCompleteAcceptanceWalk(changed, {
+      projectRoot: root,
+      captureFromNarratives: false,
+      runner,
+      productPaths,
+      hasSuiteFloor: true,
+    });
+    expect(walk.servedFrom).toBe("executed");
+    expect(executions).toBe(2);
+    expect(walk.ok).toBe(true);
+  });
+
+  it("hashProductState changes when swarm.verify_commands change", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4060-hash-swarm-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "product.txt"), "a\n", "utf8");
+    const productPaths = ["src/product.txt"];
+    const first = hashProductState({
+      projectRoot: root,
+      plan: swarmOnlyPlan("4060-hash", ["task check"]),
+      productPaths,
+    });
+    const second = hashProductState({
+      projectRoot: root,
+      plan: swarmOnlyPlan("4060-hash", ["task doctor"]),
+      productPaths,
+    });
+    expect(first.complete).toBe(true);
+    expect(second.digest).not.toBe(first.digest);
+  });
+
+  it("runTransition complete reuses a matching swarm-only bank with zero new invocations", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4060-runtransition-hit-"));
+    for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+      mkdirSync(join(root, "xbrief", folder), { recursive: true });
+    }
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "product.txt"), "v1\n", "utf8");
+    const plan = swarmOnlyPlan("4060-rt-hit", ["task check"]);
+    const brief = writeBrief(root, plan);
+    let executions = 0;
+    const runner = () => {
+      executions += 1;
+      return { exitCode: 0, stdout: "ok", stderr: "" };
+    };
+    const productPaths = ["src/product.txt"];
+    expect(
+      evaluateVerifyAcFromPath(brief, {
+        projectRoot: root,
+        captureFromNarratives: false,
+        runner,
+        productPaths,
+        hasSuiteFloor: true,
+      }).ok,
+    ).toBe(true);
+    expect(executions).toBe(1);
+    const result = runTransition("complete", brief, new Date("2026-09-02T12:00:00.000Z"), {
+      deliveryEvidence: {
+        mergeCommit: "abc1234deadbeef",
+        mergedAt: "2026-09-02T11:00:00Z",
+        prNumber: 1,
+      },
+      assumeEvidenceValidated: true,
+      acceptanceRunner: runner,
+    });
+    expect(result.ok).toBe(true);
+    expect(executions).toBe(1);
+  });
+
+  it("runTransition complete without a bank runs each swarm command once", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4060-runtransition-miss-"));
+    for (const folder of ["proposed", "pending", "active", "completed", "cancelled"]) {
+      mkdirSync(join(root, "xbrief", folder), { recursive: true });
+    }
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "product.txt"), "v1\n", "utf8");
+    const plan = swarmOnlyPlan("4060-rt-miss", ["task check"]);
+    const brief = writeBrief(root, plan);
+    let executions = 0;
+    const result = runTransition("complete", brief, new Date("2026-09-02T12:00:00.000Z"), {
+      deliveryEvidence: {
+        mergeCommit: "abc1234deadbeef",
+        mergedAt: "2026-09-02T11:00:00Z",
+        prNumber: 1,
+      },
+      assumeEvidenceValidated: true,
+      acceptanceRunner: () => {
+        executions += 1;
+        return { exitCode: 0, stdout: "ok", stderr: "" };
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(executions).toBe(1);
+  });
+
+  it("newly captured command ledger refuses reuse and executes at most once", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4060-captured-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "product.txt"), "v1\n", "utf8");
+    const plan = swarmOnlyPlan("4060-captured", ["task check"]);
+    const brief = writeBrief(root, plan);
+    let executions = 0;
+    const runner = () => {
+      executions += 1;
+      return { exitCode: 0, stdout: "ok", stderr: "" };
+    };
+    const productPaths = ["src/product.txt"];
+    expect(
+      evaluateVerifyAcFromPath(brief, {
+        projectRoot: root,
+        captureFromNarratives: false,
+        runner,
+        productPaths,
+        hasSuiteFloor: true,
+      }).ok,
+    ).toBe(true);
+    expect(executions).toBe(1);
+    const captured = {
+      ...plan,
+      metadata: {
+        swarm: { verify_commands: ["task check"] },
+        literal_acceptance_commands: [{ command: "task doctor", source: "explicit" }],
+      },
+    };
+    const walk = evaluateScopeCompleteAcceptanceWalk(captured, {
+      projectRoot: root,
+      captureFromNarratives: false,
+      runner,
+      productPaths,
+      hasSuiteFloor: true,
+    });
+    expect(walk.servedFrom).toBe("executed");
+    expect(executions).toBe(3);
+  });
+
+  it("hashProductState changes when resolvedAcceptanceContract changes", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4060-hash-resolved-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "product.txt"), "a\n", "utf8");
+    const productPaths = ["src/product.txt"];
+    const plan = swarmOnlyPlan("4060-hash-resolved", ["task check"]);
+    const first = hashProductState({
+      projectRoot: root,
+      plan,
+      productPaths,
+      resolvedAcceptanceContract: statedLedger(["task check"]),
+    });
+    const second = hashProductState({
+      projectRoot: root,
+      plan,
+      productPaths,
+      resolvedAcceptanceContract: statedLedger(["task doctor"]),
+    });
+    expect(first.complete).toBe(true);
+    expect(second.digest).not.toBe(first.digest);
+  });
+
+  it("narrative-only contract change invalidates a matching-product-hash legacy bank", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4060-narrative-legacy-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "product.txt"), "v1\n", "utf8");
+    const clauses = [
+      {
+        id: 1,
+        text: "behavioral contract with no machine check against product.txt",
+        artifact_path: "src/product.txt",
+        ambiguous: false,
+        provenance: "statement",
+      },
+      {
+        id: 2,
+        text: "another unquoted behavioral claim against the shipped product",
+        artifact_path: "src/product.txt",
+        ambiguous: false,
+        provenance: "statement",
+      },
+    ];
+    const basePlan: Record<string, unknown> = {
+      id: "4060-narrative-legacy",
+      title: "narrative-legacy",
+      status: "running",
+      acceptance: {
+        commands: [{ command: "task check" }],
+        none_stated: true,
+        source_rung: "derived",
+        ambiguity_attestation: "none_found",
+        clauses,
+      },
+      metadata: { swarm: { file_scope: ["src"] } },
+    };
+    const mintPlan = { ...basePlan, narratives: { Overview: "verify: task check" } };
+    const reusePlan = { ...basePlan, narratives: { Overview: "verify: task doctor" } };
+    const productPaths = ["src/product.txt"];
+    const hashed = hashProductState({
+      projectRoot: root,
+      plan: mintPlan,
+      productPaths,
+      resolvedAcceptanceContract: statedLedger(["task check"]),
+    });
+    const bankPath = acPassBankPath(root, "4060-narrative-legacy");
+    mkdirSync(dirname(bankPath), { recursive: true });
+    writeFileSync(
+      bankPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        scopeId: "4060-narrative-legacy",
+        bankedAt: "2026-09-02T00:00:00Z",
+        headSha: null,
+        productStateHash: hashed.digest,
+        remainingTurns: null,
+        remainingBudget: null,
+        maxTurns: null,
+        maxBudget: null,
+        surplusThreshold: 0.2,
+        hadSurplus: true,
+        nextAction: "finalize_and_ship",
+        postBankFindings: [],
+        runs: [{ command: "task check", ok: true, exitCode: 0, stdout: "ok", stderr: "" }],
+      }),
+      "utf8",
+    );
+    let executions = 0;
+    const walk = evaluateScopeCompleteAcceptanceWalk(reusePlan, {
+      projectRoot: root,
+      captureFromNarratives: true,
+      runner: () => {
+        executions += 1;
+        return { exitCode: 0, stdout: "ok", stderr: "" };
+      },
+      productPaths,
+      hasSuiteFloor: true,
+    });
+    expect(walk.servedFrom).toBe("executed");
+    expect(executions).toBeGreaterThan(0);
+  });
+
+  it("expectedStdout-only swarm literal change refuses reuse", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4060-stdout-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "product.txt"), "v1\n", "utf8");
+    const clauses = [
+      {
+        id: 1,
+        text: "behavioral contract with no machine check against product.txt",
+        artifact_path: "src/product.txt",
+        ambiguous: false,
+        provenance: "statement",
+      },
+      {
+        id: 2,
+        text: "another unquoted behavioral claim against the shipped product",
+        artifact_path: "src/product.txt",
+        ambiguous: false,
+        provenance: "statement",
+      },
+    ];
+    const mintPlan: Record<string, unknown> = {
+      id: "4060-stdout",
+      title: "stdout",
+      status: "running",
+      acceptance: {
+        commands: [],
+        none_stated: true,
+        source_rung: "derived",
+        ambiguity_attestation: "none_found",
+        clauses,
+      },
+      metadata: {
+        swarm: {
+          verify_commands: [],
+          literal_acceptance_commands: [
+            { command: "task check", expectedStdout: "ok", source: "explicit" },
+          ],
+        },
+      },
+    };
+    const brief = writeBrief(root, mintPlan);
+    let executions = 0;
+    const runner = (cmd: { command: string }) => {
+      executions += 1;
+      return { exitCode: 0, stdout: cmd.command === "task check" ? "ok" : "other", stderr: "" };
+    };
+    const productPaths = ["src/product.txt"];
+    expect(
+      evaluateVerifyAcFromPath(brief, {
+        projectRoot: root,
+        captureFromNarratives: false,
+        runner,
+        productPaths,
+        hasSuiteFloor: true,
+      }).ok,
+    ).toBe(true);
+    expect(executions).toBe(1);
+    const changed: Record<string, unknown> = {
+      ...mintPlan,
+      metadata: {
+        swarm: {
+          verify_commands: [],
+          literal_acceptance_commands: [
+            { command: "task check", expectedStdout: "other", source: "explicit" },
+          ],
+        },
+      },
+    };
+    const walk = evaluateScopeCompleteAcceptanceWalk(changed, {
+      projectRoot: root,
+      captureFromNarratives: false,
+      runner,
+      productPaths,
+      hasSuiteFloor: true,
+    });
+    expect(walk.servedFrom).toBe("executed");
+    expect(executions).toBe(2);
   });
 });

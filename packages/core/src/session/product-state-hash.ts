@@ -32,6 +32,12 @@ export interface HashProductStateInput {
   /** Explicit product files (tests / callers). Relative to projectRoot. */
   readonly productPaths?: readonly string[];
   readonly runGit?: GitRunner;
+  /**
+   * Resolved literal+swarm+narrative command identities (#4060).
+   * Included in the digest (null when omitted) so narrative-only contract
+   * changes invalidate a matching structured-fields + product-files hash.
+   */
+  readonly resolvedAcceptanceContract?: readonly unknown[] | null;
 }
 
 export interface ProductStateHash {
@@ -46,6 +52,25 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     return value as Record<string, unknown>;
   }
   return null;
+}
+
+/** Structured acceptance fields that hashProductState previously omitted (#4060). */
+function structuredAcceptanceContract(plan: Record<string, unknown>): {
+  readonly acceptance: unknown;
+  readonly swarmVerifyCommands: unknown;
+  readonly literalAcceptanceCommands: unknown;
+  readonly swarmLiteralAcceptanceCommands: unknown;
+} {
+  const meta = asRecord(plan.metadata);
+  const swarm = asRecord(meta?.swarm);
+  return {
+    acceptance: plan.acceptance ?? null,
+    swarmVerifyCommands: swarm?.verify_commands ?? null,
+    literalAcceptanceCommands:
+      meta?.literal_acceptance_commands ?? meta?.literalAcceptanceCommands ?? null,
+    swarmLiteralAcceptanceCommands:
+      swarm?.literal_acceptance_commands ?? swarm?.literalAcceptanceCommands ?? null,
+  };
 }
 
 function stableJson(value: unknown): string {
@@ -679,7 +704,8 @@ export function hashProductState(input: HashProductStateInput): ProductStateHash
   const digest = createHash("sha256")
     .update(
       stableJson({
-        acceptance: input.plan.acceptance ?? null,
+        ...structuredAcceptanceContract(input.plan),
+        resolvedAcceptanceContract: input.resolvedAcceptanceContract ?? null,
         head,
         files: fileHashes,
       }),
