@@ -14,6 +14,7 @@ import {
   contentHasGeneratedSpecSource,
   GENERATED_SPEC_PURPOSE,
   generatedSpecSourcePaths,
+  LEGACY_GENERATED_SPEC_SOURCE_MARKERS,
 } from "./constants.js";
 
 export type SpecAuthorityKind = "full-spec" | "greenfield";
@@ -73,12 +74,35 @@ function sourcePathFromMarker(projectRoot: string, source: string): string {
   return isAbsolute(source) ? source : resolve(projectRoot, source);
 }
 
+function relativePathFromSourceMarker(marker: string): string {
+  const prefix = "<!-- Source of truth: ";
+  const suffix = " -->";
+  return marker.slice(prefix.length, marker.length - suffix.length);
+}
+
+function contentHasAbsentLegacyGeneratedSource(projectRoot: string, content: string): boolean {
+  for (const marker of LEGACY_GENERATED_SPEC_SOURCE_MARKERS) {
+    if (!content.includes(marker)) continue;
+    const relative = relativePathFromSourceMarker(marker);
+    try {
+      statSync(sourcePathFromMarker(projectRoot, relative));
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      // Only a missing path is absence. Existing files, directories, and
+      // permission errors stay fail-closed (#4117).
+      if (code === "ENOENT" || code === "ENOTDIR") return true;
+    }
+  }
+  return false;
+}
+
 function contentMatchesResolvedSpecSource(
   projectRoot: string,
   content: string,
   resolvedSourcePath: string,
 ): boolean {
   if (contentHasGeneratedSpecSource(content, resolvedSourcePath)) return true;
+  if (contentHasAbsentLegacyGeneratedSource(projectRoot, content)) return true;
 
   let resolvedSource: unknown;
   try {
