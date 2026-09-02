@@ -237,7 +237,7 @@ export function runHelp(argv: readonly string[]): number {
     if (REGISTRY[verb] === undefined) {
       process.stderr.write(
         `triage-help: unknown verb ${JSON.stringify(verb)}. ` +
-          "Run `task triage-help list` to see all registered verbs.\n",
+          "Run `deft triage-help list` to see all registered verbs.\n",
       );
       return 2;
     }
