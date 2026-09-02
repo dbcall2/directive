@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Design-critique front door is a run-posture field, not a second ingest switch (#4072).** Stop 1 records `arc-mode: direct` or `arc-mode: checkout`. Direct is `session:start --read-only` (or release), GitHub comments via `gh issue comment --body-file -`, SHA-pinned reads, and family CLIs without worktrees. Missing token, including yolo, asks. Ingest stays a later verb after the completed-arc record. Closes #4072. Refs #4020, #4066, #4067.
 
 ### Changed
+- **Maintainer CONTRIBUTING recipe uses TypeScript CLI paths (#4091).** Adding a triage or scope verb now names both dispatch topologies, the in-place help registry, `engine:invoke` dist, and the live SCM-boundary slot. Live `--help` recovery no longer points at deleted Python helpers. Closes #4091. Refs #4085.
 
 ### Fixed
 - **Land completed-tracked artifact for #4060 (#3264 / #1358).** The #4060 xBRIEF stayed untracked after squash of PR 4124 (0d5da1e7). Moved to xbrief/completed/ via scope:complete. Does not recut that issue. Refs #2321, #3476.

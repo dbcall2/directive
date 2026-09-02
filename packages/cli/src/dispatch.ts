@@ -19,6 +19,7 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { engineInfo, userConfig } from "@deftai/directive-core";
+import { interceptHelp } from "@deftai/directive-core/dist/triage/help/index.js";
 import { parseInitArgv, runInitDepositCli } from "@deftai/directive-core/init-deposit";
 import {
   appendAuditLog,
@@ -3256,7 +3257,6 @@ export async function dispatch(argv: string[], io: DispatchIo = defaultIo()): Pr
   }
 
   try {
-    const handler = await loadHandler(canonical, io);
     const triageSubcommand = verb !== undefined ? TRIAGE_ACTION_ALIAS_SUBCOMMANDS[verb] : undefined;
     const policySubcommand = verb !== undefined ? POLICY_ACTION_ALIAS_SUBCOMMANDS[verb] : undefined;
     const authzSubcommand = verb !== undefined ? AUTHZ_ACTION_ALIAS_SUBCOMMANDS[verb] : undefined;
@@ -3291,6 +3291,13 @@ export async function dispatch(argv: string[], io: DispatchIo = defaultIo()): Pr
                       : vbriefValidateSubcommand !== undefined
                         ? [vbriefValidateSubcommand, ...rest]
                         : rest;
+    const helpRc = interceptHelp(canonical.replaceAll("-", "_"), handlerArgv, {
+      write: io.writeOut,
+    });
+    if (helpRc !== null) {
+      return helpRc;
+    }
+    const handler = await loadHandler(canonical, io);
     return await invokeHandler(handler, handlerArgv);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
