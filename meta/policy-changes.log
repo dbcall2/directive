@@ -245,3 +245,4 @@
 2026-08-31T03:07:17Z actor=deft policy:enforce-branches allowDirectCommitsToMaster=false previous=True changed=true
 2026-09-01T00:46:47Z actor=deft policy:allow-direct-commits allowDirectCommitsToMaster=true previous=False changed=true
 2026-09-01T01:13:46Z actor=deft policy:enforce-branches allowDirectCommitsToMaster=false previous=True changed=true
+2026-09-02T01:31:01Z actor=deft policy:allow-direct-commits allowDirectCommitsToMaster=true previous=False changed=true
