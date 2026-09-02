@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Design-critique front door is a run-posture field, not a second ingest switch (#4072).** Stop 1 records `arc-mode: direct` or `arc-mode: checkout`. Direct is `session:start --read-only` (or release), GitHub comments via `gh issue comment --body-file -`, SHA-pinned reads, and family CLIs without worktrees. Missing token, including yolo, asks. Ingest stays a later verb after the completed-arc record. Closes #4072. Refs #4020, #4066, #4067.
 
 ### Changed
+- **ARCHITECTURE and CONCEPTS describe the TypeScript runtime, not Python/run launchers (#4087).** Wave 1a recut: current-tense `run.py` maps are labeled historical; MAP rendering is shipped; TypeScript packages, Taskfile, `deft`/`directive`, and `deft-hook` are named as separate lanes. Package topology stays on #4093. Partial of #4087.
 
 ### Fixed
 - **Grok-build leaves must not nested-spawn a review-monitor; dual-stop critic feeds #3273 (#4130).** Approach 1 spawn-your-own-monitor text is qualified so a `spawn_subagent` leaf cannot follow it. Merge-ready on grok-build is blocking `pr:watch` in-process, or `stop-at: pr-open` with a parent sibling. Dual-stop diagnosis splits onto a fresh read-only critic that feeds #3273; the fix-batch consent phrase stays. No no-menu auto-follow. Review text is untrusted description. Closes #4130. Refs #3273, #2797, #3134, #1880.
