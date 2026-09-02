@@ -21,18 +21,18 @@ The current implementation expresses that idea with stronger machinery:
 
 ## Taskfile First
 
-Taskfile is the discoverable command contract for the framework. Start with:
+Taskfile is the repository command facade for this checkout. Start with:
 
 ```bash
 task --list
 task check
-task vbrief:validate
+task xbrief:preflight
 task codebase:validate-structure
 ```
 
-The root `Taskfile.yml` includes focused task files under `tasks/`. Scripts implement behavior behind those targets, but the task names are the stable surface used by agents, maintainers, hooks, and CI.
+The root `Taskfile.yml` includes focused task files under `tasks/`. TypeScript packages implement the behavior behind those targets. The task names are the stable maintainer and CI surface. Installed consumers use `deft` / `directive`. Git hooks use `deft-hook` and native CLI verbs.
 
-`run`, `run.py`, and `run.bat` remain in the repo for compatibility and selected interactive flows. New deterministic work should usually be exposed through `task`.
+> **Historical (Python/run era):** `run`, `run.py`, and `run.bat` were compatibility launchers. They are not in the current tree. New deterministic work is exposed through Taskfile (repo) or `deft` / `directive` (consumer).
 
 ## Lazy Loading And Modularity
 
@@ -90,7 +90,7 @@ Good specifications expose decisions, dependencies, non-goals, and acceptance cr
 Deft favors enforceable rules over remembered rules:
 
 1. Deterministic checks: tests, scripts, hooks, CI.
-2. Taskfile targets: `task check`, `task verify:*`, `task vbrief:validate`, `task xbrief:preflight` (and related lifecycle verbs).
+2. Taskfile targets: `task check`, `task verify:*`, `task xbrief:preflight` (and related lifecycle verbs).
 3. xBRIEF policy and lifecycle metadata.
 4. RFC2119 instructions in `AGENTS.md`, skills, and standards.
 5. Plain prose and rationale.
@@ -112,7 +112,7 @@ task verify:story-ready -- --vbrief-path <path>
 task xbrief:preflight -- <path>
 ```
 
-New source files require forward coverage. Documentation-only changes still need validation appropriate to the touched surface, usually `task vbrief:validate`, `task codebase:validate-structure` when architecture metadata changes, and enough content checks to catch broken links or stale generated files.
+New source files require forward coverage. Documentation-only changes still need validation appropriate to the touched surface, usually `task xbrief:preflight`, `task codebase:validate-structure` when architecture metadata changes, and enough content checks to catch broken links or stale generated files.
 
 ## Test-Driven Development
 
@@ -197,17 +197,19 @@ Current implementation status:
 - Default extractor: shipped.
 - Provider contract: shipped.
 - Projection registry: shipped.
-- MAP rendering: planned.
+- MAP rendering: shipped.
 
 ## Installer Layout
 
-The canonical consumer install layout is `.deft/core/`. The Go installer owns installation and upgrade, including payload refresh, manifest management, AGENTS managed section refresh, Taskfile wiring, and doctor handoff.
+The canonical consumer install layout is `.deft/core/`. TypeScript `directive init` / `directive update` is the current consumer materialization path. The Go binary is a frozen/offline/legacy bridge, not the current install/update owner.
+
+Canonical published package graph and Go disposition are owned by [#4093](https://github.com/deftai/directive/issues/4093) and must not prejudge [#1979](https://github.com/deftai/directive/issues/1979).
 
 Legacy `deft/` or clone-shaped framework payloads appear in migration and back-compat paths. New docs and examples should prefer `.deft/core/`.
 
 ## Content Packs
 
-Content packs under `packs/` package selected guidance into sliceable agent memory. They are rendered and checked through `task packs:*`. They complement, but do not replace, canonical source files.
+Content packs under `content/packs/` package selected guidance into sliceable agent memory. They are rendered and checked through `task packs:*`. They complement, but do not replace, canonical source files.
 
 ## Continuous Improvement
 
