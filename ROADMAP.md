@@ -44,8 +44,22 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1388 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1402 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4070** -- chore(triage): withdraw the classify skill and strip triaged / triage:* chips -- `[completed]`
+- **#4067** -- bug(design-critique): N=3 panel dispatch does not bind cross-family seats, and a Grok parent with claude/codex CLIs still paste-readies -- `[completed]`
+- **#4059** -- [framework-gap] scope:provenance rejects canonical scope:complete evidence as intent drift -- `[completed]`
+- **#4009** -- [framework-gap] verify:forward-coverage ignores configured testRoots and matches on a bare filename stem -- `[completed]`
+- **#4057** -- rfc(intake,design-critique): set-level bind does not change ingest — sisters mint harvest xbriefs and superseded threads stay blocked -- `[completed]`
+- **#3874** -- bug(scope,swarm): the scope-provenance remediation string teaches agents to drop file_scope, and declaration fell 94% to 6% in four days -- `[completed]`
+- **#3872** -- bug(session,reliability): ritual-state ownership checks are non-atomic and need a serialized write path -- `[completed]`
+- **#4007** -- Write fence binds the dispatched story, not the first-sorted active brief (#4007) -- `[completed]`
+- **#3997** -- rfc(hooks,security): the shell write gate is fail-open on destinations it cannot statically recover, so review does not converge -- `[completed]`
+- **#4010** -- [framework-gap] verify:lifecycle-visible reads a blank .gitignore line as a match-all pattern -- `[completed]`
+- **#4008** -- [framework-gap] a derived acceptance clause is never bound to a declared file_scope path at promote, so the clause walk has no adjudicable oracle -- `[completed]`
+- **#3926** -- bug(occupancy): fresh single-session containers report an occupied lease, the steal succeeds, and session:start still reports occupied (#3433 friction; candidate root shared with #3921) -- `[completed]`
+- **#4027** -- bug(design-critique): N>=3 lean-after-each-EXIT talks at 1 of 3 -- `[completed]`
+- **#4035** -- docs(guidance): Grok Build subscription-only setup playbook for a new maintainer agent -- `[completed]`
 - **#3877** -- bug(session,tests): mint-path session fixtures read ambient DEFT_SESSION_ID, reddening the suites and scope:complete -- `[completed]`
 - **#3999** -- bug(session,swarm): a dispatched subagent claims the occupancy lease and exits without releasing it, stranding the parent's worktree -- `[completed]`
 - **#3954** -- bug(session,hooks): claim, release and grant resolve the occupancy actor by three different rules, so the printed recovery is unreachable and a parent locks out its own children -- `[completed]`
@@ -57,18 +71,4 @@ _Showing 25 of 1388 completed scopes (newest first). Full history: lifecycle `co
 - **#3969** -- bug(release): close the unrecorded Closes bypass, fix census input, wire the existing closing-keyword detector -- `[completed]`
 - **#3737** -- BLOCKER: bug(scm): resolveBinary prefers ghx on presence alone, so a broken ghx silently kills triage, ingest, cache and pr:watch -- `[completed]`
 - **#3615** -- bug(verify-ac): safety-refused commands must not enter product-oracle history -- `[completed]`
-- **#3614** -- BLOCKER: authorize every apply_patch mutation path, not only the declared write target -- `[completed]`
-- **#3612** -- BLOCKER: bug(init): acceptance lifecycle writes unignored .deft runtime state -- `[completed]`
-- **#3602** -- BLOCKER: live procedures name Python helpers pruned from consumer deposits -- `[completed]`
-- **#3917** -- bug(harness): scope evaluator worktree prune and fail-close destructive git at the write fence -- `[completed]`
-- **#3937** -- BLOCKER: bug(packaging,content): shipped main.md has 49 of 51 link targets dead in a consumer deposit -- `[completed]`
-- **#3900** -- feat(release): consumer-readiness pack verifiers (#3900 recut) -- `[completed]`
-- **#3600** -- BLOCKER: bug(build,canon): build and main still mandate xBRIEF 0.6 after #2971 -- `[completed]`
-- **#3601** -- Consumer Skills Index points at packs:slice; C1 declared deposit closure -- `[completed]`
-- **#3873** -- bug(hooks): transport a real Grok host identity so the occupancy write gate admits the lease holder -- `[completed]`
-- **#3932** -- fix(design-critique): a typed verified-claims-table claim decides table resolution and cannot be masked by a generic citation -- `[completed]`
-- **#3893** -- bug(gates): a brief stranded in active/ by one merge reddens the merge gate on every other open PR -- `[completed]`
-- **#3929** -- docs(design-critique): plain-language summary on both operator-facing artifacts, with a per-artifact reserved line-start matrix -- `[completed]`
-- **#3934** -- fix(umbrella-current-shape): report a reason on the selected-null path at the three silent cache-side callers -- `[completed]`
-- **#3901** -- bug(test,windows): the --with-network session:start case makes a real npm registry request under a 20s budget and is load-flaky -- `[completed]`
 
