@@ -923,17 +923,34 @@ function maybeFetchBase(repoRoot: string, spec: string): void {
   gitOut(repoRoot, ["fetch", "--depth", "1", "origin", token]);
 }
 
+function headSha(repoRoot: string): string {
+  return gitOut(repoRoot, ["rev-parse", "HEAD"]).trim();
+}
+
 function diffAgainstBase(repoRoot: string, base: string, files: readonly string[]): string | null {
   maybeFetchBase(repoRoot, base);
+  const head = headSha(repoRoot);
   const mergeBase = gitOut(repoRoot, ["merge-base", "HEAD", base]).trim();
   if (mergeBase.length > 0) {
+    // Depth-one clones point origin/<default> at HEAD, so merge-base==HEAD is
+    // not a PR base and would hide earlier commits as an empty range.
+    if (isShallowRepo(repoRoot) && mergeBase === head) return null;
     return gitOut(repoRoot, ["diff", `${mergeBase}...HEAD`, "--", ...files]);
   }
   if (commitExists(repoRoot, base)) {
+    const baseSha = gitOut(repoRoot, ["rev-parse", `${base}^{commit}`]).trim();
+    if (isShallowRepo(repoRoot) && baseSha === head) return null;
     return gitOut(repoRoot, ["diff", base, "HEAD", "--", ...files]);
   }
   return null;
 }
+
+function isShallowRepo(repoRoot: string): boolean {
+  return gitOut(repoRoot, ["rev-parse", "--is-shallow-repository"]).trim() === "true";
+}
+
+/** Sentinel: depth-one checkout could not obtain a usable base-range diff. */
+export const UNRESOLVED_SHALLOW_CANDIDATE_DIFF = "UNRESOLVED_SHALLOW_CANDIDATE_DIFF";
 
 /** Candidate diff for same-diff exemption ownership. */
 export function readCommandSnippetCandidateDiff(repoRoot: string): string {
@@ -953,7 +970,9 @@ export function readCommandSnippetCandidateDiff(repoRoot: string): string {
     const ranged = diffAgainstBase(repoRoot, base, files);
     if (ranged !== null) return ranged;
   }
-  // Last resort: per-commit log. Depth-1 HEAD-only clones may miss earlier PR commits.
+  // Depth-one clones only have HEAD. A `git log -p` fallback would hide
+  // exemption + snippet additions from earlier PR commits (fail-open).
+  if (isShallowRepo(repoRoot)) return `${UNRESOLVED_SHALLOW_CANDIDATE_DIFF}\n`;
   return gitOut(repoRoot, ["log", "-p", "-n", "50", "--", ...files]);
 }
 
@@ -984,7 +1003,21 @@ export function evaluateCommandSnippets(options: {
     options.diffText !== undefined
       ? options.diffText
       : readCommandSnippetCandidateDiff(options.repoRoot);
-  if (diffText.length > 0) {
+  if (diffText.trim() === UNRESOLVED_SHALLOW_CANDIDATE_DIFF) {
+    findings.push({
+      snippet: {
+        file: "packages/core/src/deposit/live-procedure-targets.ts",
+        line: 0,
+        family: "task",
+        verb: "candidate-diff",
+        raw: "unresolved-shallow candidate-diff: depth-one checkout has no usable base range",
+        span: "backtick",
+        classification: "current",
+        audience: "maintainer",
+      },
+      resolution: { kind: "absent", publicCurrent: false },
+    });
+  } else if (diffText.length > 0) {
     for (const violation of sameDiffExemptionViolations(diffText)) {
       findings.push({
         snippet: {

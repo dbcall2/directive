@@ -21,6 +21,7 @@ import {
   readCommandSnippetCandidateDiff,
   resolveCommandSnippet,
   sameDiffExemptionViolations,
+  UNRESOLVED_SHALLOW_CANDIDATE_DIFF,
 } from "../../deposit/live-procedure-targets.js";
 
 const MAINTAINER_CURRENT: CommandSnippetCorpusEntry = {
@@ -428,6 +429,77 @@ describe("command snippet contract (#4094)", () => {
     } finally {
       if (prev === undefined) delete process.env.GITHUB_BASE_SHA;
       else process.env.GITHUB_BASE_SHA = prev;
+    }
+  });
+
+  it("shallow clone without a usable base fails closed instead of HEAD-only git log", () => {
+    const origin = mkdtempSync(join(tmpdir(), "cmd-snippet-origin-"));
+    const shallow = join(tmpdir(), `cmd-snippet-shallow-nobase-${process.pid}`);
+    created.push(origin, shallow);
+    const git = (cwd: string, args: readonly string[]): string =>
+      execFileSync("git", args, { cwd, encoding: "utf8" });
+    git(origin, ["init"]);
+    git(origin, ["config", "user.email", "t@example.test"]);
+    git(origin, ["config", "user.name", "t"]);
+    const resolverRel = "packages/core/src/deposit/live-procedure-targets.ts";
+    mkdirSync(join(origin, "packages/core/src/deposit"), { recursive: true });
+    mkdirSync(join(origin, "content"), { recursive: true });
+    writeFileSync(join(origin, resolverRel), "export const start = true;\n");
+    writeFileSync(join(origin, "content/commands.md"), "# Commands\n");
+    git(origin, ["add", "."]);
+    git(origin, ["commit", "-m", "base"]);
+    writeFileSync(
+      join(origin, resolverRel),
+      [
+        "export const COMMAND_SNIPPET_EXEMPTIONS = [",
+        "  {",
+        '    family: "task",',
+        '    verb: "check:slow",',
+        '    path: "content/commands.md",',
+        '    classification: "illustrative",',
+        '    reason: "waive",',
+        "  },",
+        "];",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(origin, "content/commands.md"),
+      "- `task check:slow` -- slower/full checks.\n",
+    );
+    git(origin, ["add", "."]);
+    git(origin, ["commit", "-m", "same-diff exemption"]);
+    execFileSync("git", ["clone", "--depth", "1", `file://${origin}`, shallow], {
+      encoding: "utf8",
+    });
+    expect(git(shallow, ["rev-parse", "--is-shallow-repository"]).trim()).toBe("true");
+    const prevSha = process.env.GITHUB_BASE_SHA;
+    const prevRef = process.env.GITHUB_BASE_REF;
+    const prevActions = process.env.GITHUB_ACTIONS;
+    delete process.env.GITHUB_BASE_SHA;
+    delete process.env.GITHUB_BASE_REF;
+    delete process.env.GITHUB_ACTIONS;
+    try {
+      const diff = readCommandSnippetCandidateDiff(shallow);
+      expect(diff).toContain(UNRESOLVED_SHALLOW_CANDIDATE_DIFF);
+      expect(sameDiffExemptionViolations(diff)).toEqual([]);
+      const result = evaluateCommandSnippets({
+        repoRoot,
+        corpus: [MAINTAINER_CURRENT],
+        diffText: diff,
+      });
+      expect(
+        result.findings.some((finding) =>
+          finding.snippet.raw.includes("unresolved-shallow candidate-diff"),
+        ),
+      ).toBe(true);
+    } finally {
+      if (prevSha === undefined) delete process.env.GITHUB_BASE_SHA;
+      else process.env.GITHUB_BASE_SHA = prevSha;
+      if (prevRef === undefined) delete process.env.GITHUB_BASE_REF;
+      else process.env.GITHUB_BASE_REF = prevRef;
+      if (prevActions === undefined) delete process.env.GITHUB_ACTIONS;
+      else process.env.GITHUB_ACTIONS = prevActions;
     }
   });
 

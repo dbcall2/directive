@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Shallow candidate-diff fallback fails closed when no usable base range exists (#4094).** A depth-one checkout no longer treats HEAD-only `git log -p` as the pull-request diff. Unresolved base fetch is a contract finding. Refs #4085.
 - **Same-diff exemption check keeps every candidate patch, not the oldest `git log -p` entry (#4094).** `splitUnifiedDiff` concatenates repeated path patches. Candidate diff prefers working-tree then merge-base, and only then the shallow log fallback. `git log -p` is scored per commit so historical patches are not one candidate. Shallow CI fetches `GITHUB_BASE_SHA` and two-dot diffs when merge-base is missing. Refs #4085.
 - **Command-snippet extraction skips runner flags after the launcher (#4094).** `task -t … verb` is no longer dropped before registry lookup. Refs #4085.
 
