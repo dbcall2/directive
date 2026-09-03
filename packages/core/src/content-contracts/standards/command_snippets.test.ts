@@ -17,6 +17,7 @@ import {
   formatCommandSnippetFailure,
   frameworkRepoRoot,
   loadCommandRegistries,
+  readCommandSnippetCandidateDiff,
   resolveCommandSnippet,
   sameDiffExemptionViolations,
 } from "../../deposit/live-procedure-targets.js";
@@ -284,6 +285,11 @@ describe("command snippet contract (#4094)", () => {
     const after = createHash("sha256").update(readFileSync(taskfile)).digest("hex");
     expect(after).toBe(before);
     expect(COMMAND_SNIPPET_EXEMPTIONS).toEqual([]);
+  });
+
+  it("candidate diff is non-empty so same-diff cannot vanish in git checkouts", () => {
+    const diff = readCommandSnippetCandidateDiff(repoRoot);
+    expect(diff.includes("diff --git")).toBe(true);
   });
 
   it("fail-closed commands.md current snippets resolve on the named registries", () => {

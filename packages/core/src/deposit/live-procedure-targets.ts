@@ -889,16 +889,26 @@ function gitOut(repoRoot: string, args: readonly string[]): string {
   }
 }
 
-/** Candidate diff for same-diff exemption ownership (working tree + merge-base). */
+/** Candidate diff for same-diff exemption ownership. */
 export function readCommandSnippetCandidateDiff(repoRoot: string): string {
   const files = [...COMMAND_SNIPPET_DIFF_PATHS];
   const parts = [
     gitOut(repoRoot, ["diff", "HEAD", "--", ...files]),
     gitOut(repoRoot, ["diff", "--cached", "--", ...files]),
+    // Shallow CI checkouts often lack origin/master; log -p still has PR commits.
+    gitOut(repoRoot, ["log", "-p", "-n", "50", "--", ...files]),
   ];
-  const mergeBase = gitOut(repoRoot, ["merge-base", "HEAD", "origin/master"]).trim();
-  if (mergeBase.length > 0) {
+  const bases = [
+    process.env.GITHUB_BASE_SHA?.trim() ?? "",
+    process.env.GITHUB_BASE_REF?.trim() ? `origin/${process.env.GITHUB_BASE_REF.trim()}` : "",
+    "origin/master",
+    "origin/main",
+  ].filter((base) => base.length > 0);
+  for (const base of bases) {
+    const mergeBase = gitOut(repoRoot, ["merge-base", "HEAD", base]).trim();
+    if (mergeBase.length === 0) continue;
     parts.push(gitOut(repoRoot, ["diff", `${mergeBase}...HEAD`, "--", ...files]));
+    break;
   }
   return parts.join("\n");
 }
