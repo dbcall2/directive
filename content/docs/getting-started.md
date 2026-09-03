@@ -156,6 +156,13 @@ Promote moves proposed → pending. Activate moves pending → `xbrief/active/` 
 
 **Success:** the file is in `xbrief/active/` with `plan.status` `running`. **Recovery:** `directive doctor`. If activate says the file must be in `pending/`, run promote first.
 
+Promote and activate move a tracked xBRIEF. Commit that change before story-ready. A dirty tree fails the next gate.
+
+```bash
+git add xbrief
+git commit -m "chore: activate first scope"
+```
+
 ### 8. Story-ready and preflight
 
 ```bash

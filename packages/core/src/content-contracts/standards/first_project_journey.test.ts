@@ -84,6 +84,7 @@ const CORE_JOURNEY = [
   "xbrief/proposed/",
   "deft scope:promote",
   "deft scope:activate",
+  "git commit",
   "deft verify:story-ready",
   "deft xbrief:preflight",
   "deft check",
