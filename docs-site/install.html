@@ -41,7 +41,8 @@
         </div>
         <h1>Install</h1>
         <p class="lede">
-          Node ≥ 20 is required to run Directive. The canonical channel is the
+          Node ≥ 20, Git, and GitHub CLI (<code>gh</code>) are required to
+          confirm a consumer install. The canonical channel is the
           published npm package <code>@deftai/directive</code>.
           The three commands remain <code>init</code>, <code>update</code>,
           and <code>doctor</code>; first-run also confirms the consumer toolchain.
@@ -81,7 +82,7 @@ directive init</code></pre>
           <strong>Confirm the consumer toolchain</strong>
           <pre><code>directive toolchain:check --consumer</code></pre>
           <p class="muted" style="margin: 0.6rem 0 0">
-            Consumer probe: Node, git, gh, and the selected package manager.
+            Always probes Node, git, gh, and the selected package manager.
             It does not require pnpm, Python, uv, Go, or Task.
           </p>
         </li>
