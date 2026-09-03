@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildPrdMarkdown } from "../render/prd-render.js";
+import { buildExpectedPrdMarkdown, buildPrdMarkdown } from "../render/prd-render.js";
 import { renderSpecMarkdown } from "../render/spec-render.js";
 import { evaluateSpecPrdFresh, runSpecPrdFreshCli } from "./spec-prd-fresh.js";
 
@@ -130,6 +130,74 @@ describe("evaluateSpecPrdFresh", () => {
     expect(result.code).toBe(1);
     expect(
       result.findings.some((f) => f.artifact === "PRD.md" && f.assertion === "projection-fresh"),
+    ).toBe(true);
+  });
+
+  it("matches task prd:render authority-aware narratives, not raw spec ProjectConfig (#4086)", () => {
+    const root = project();
+    const xbrief = join(root, "xbrief");
+    mkdirSync(xbrief, { recursive: true });
+    writeFileSync(
+      join(xbrief, "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify(
+        {
+          xBRIEFInfo: { version: "0.8" },
+          plan: {
+            title: "Authority Fixture",
+            status: "running",
+            narratives: {
+              Overview: "PD overview identity.",
+              ProjectConfig: "secret config",
+            },
+            items: [],
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    const specPath = join(xbrief, "specification.xbrief.json");
+    writeFileSync(
+      specPath,
+      JSON.stringify(
+        {
+          xBRIEFInfo: { version: "0.8" },
+          plan: {
+            title: "Freshness Fixture",
+            status: "approved",
+            narratives: {
+              Goals: "Ship freshness.",
+              ProjectConfig: "must not appear in PRD",
+            },
+            items: [],
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    const expected = buildExpectedPrdMarkdown(root);
+    expect(expected.ok).toBe(true);
+    if (!expected.ok) return;
+    expect(expected.markdown).toContain("PD overview identity.");
+    expect(expected.markdown).toContain("Ship freshness.");
+    expect(expected.markdown).not.toContain("must not appear in PRD");
+    const raw = buildPrdMarkdown(
+      "Freshness Fixture",
+      { Goals: "Ship freshness.", ProjectConfig: "must not appear in PRD" },
+      specPath,
+    );
+    expect(raw).toContain("must not appear in PRD");
+    writeFileSync(join(root, "PRD.md"), expected.markdown, "utf8");
+    const pass = evaluateSpecPrdFresh(root);
+    expect(pass.code).toBe(0);
+    writeFileSync(join(root, "PRD.md"), raw, "utf8");
+    const fail = evaluateSpecPrdFresh(root);
+    expect(fail.code).toBe(1);
+    expect(
+      fail.findings.some((f) => f.artifact === "PRD.md" && f.assertion === "projection-fresh"),
     ).toBe(true);
   });
 

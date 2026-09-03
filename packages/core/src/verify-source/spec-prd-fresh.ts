@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import { resolveSpecArtifactPath } from "../layout/resolve.js";
 import { buildPrdBanner, buildSpecRenderBanner } from "../render/constants.js";
-import { buildPrdMarkdown } from "../render/prd-render.js";
+import { buildExpectedPrdMarkdown } from "../render/prd-render.js";
 import { renderSpecMarkdown } from "../render/spec-render.js";
 
 export interface SpecPrdFreshFinding {
@@ -61,28 +61,6 @@ function specProductPrefix(content: string): string {
   const idx = withoutLegacy.indexOf(marker);
   const prefix = idx === -1 ? withoutLegacy : withoutLegacy.slice(0, idx);
   return `${prefix.replace(/[ \t]+$/gmu, "").replace(/\n+$/u, "")}\n`;
-}
-
-function loadTitleAndNarratives(sourcePath: string): {
-  title: string;
-  narratives: Record<string, unknown>;
-} {
-  const payload: unknown = JSON.parse(readFileSync(sourcePath, "utf8"));
-  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
-    return { title: "Project", narratives: {} };
-  }
-  const data = payload as Record<string, unknown>;
-  const plan =
-    typeof data.plan === "object" && data.plan !== null && !Array.isArray(data.plan)
-      ? (data.plan as Record<string, unknown>)
-      : {};
-  const narratives =
-    typeof plan.narratives === "object" &&
-    plan.narratives !== null &&
-    !Array.isArray(plan.narratives)
-      ? (plan.narratives as Record<string, unknown>)
-      : {};
-  return { title: String(plan.title ?? "Project"), narratives };
 }
 
 /** Fail-closed SPECIFICATION.md / PRD.md freshness (#4086). Banner canon and projection are separate. */
@@ -183,9 +161,14 @@ export function evaluateSpecPrdFresh(projectRoot: string): SpecPrdFreshResult {
           "banner does not match `buildGeneratedArtifactBanner` from the resolved specification path; run `task prd:render`",
       });
     }
-    const { title, narratives } = loadTitleAndNarratives(specPath);
-    const expectedPrd = buildPrdMarkdown(title, narratives, specPath);
-    if (expectedPrd !== committed) {
+    const expectedPrd = buildExpectedPrdMarkdown(root);
+    if (!expectedPrd.ok) {
+      findings.push({
+        artifact: "PRD.md",
+        assertion: "projection-fresh",
+        detail: `re-render failed: ${expectedPrd.message}`,
+      });
+    } else if (expectedPrd.markdown !== committed) {
       findings.push({
         artifact: "PRD.md",
         assertion: "projection-fresh",
