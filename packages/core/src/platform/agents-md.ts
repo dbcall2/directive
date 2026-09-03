@@ -161,6 +161,7 @@ export interface ManagedOpenCandidate {
   readonly end: number;
   readonly version: number | null;
   readonly recognized: boolean;
+  readonly truncatedOpen: boolean;
 }
 
 const MANAGED_SECTION_TOKEN = "deft:managed-section";
@@ -205,13 +206,14 @@ export function scanManagedOpenCandidates(text: string, from = 0): ManagedOpenCa
         end: text.length,
         version: digits ? Number(digits) : null,
         recognized: false,
+        truncatedOpen: true,
       });
       break;
     }
     const end = i + 3;
     const version = digits ? Number(digits) : null;
     const recognized = version !== null && digits.length === 1 && version >= 1 && version <= 3;
-    results.push({ start: idx, end, version, recognized });
+    results.push({ start: idx, end, version, recognized, truncatedOpen: false });
     pos = end;
   }
   return results;
@@ -226,6 +228,9 @@ export function classifyManagedMarkerIntegrity(
 ): ManagedMarkerIntegrity {
   const candidates = scanManagedOpenCandidates(text);
   for (const candidate of candidates) {
+    if (candidate.truncatedOpen) {
+      return "truncated-close";
+    }
     if (candidate.version !== null && candidate.version > currentVersion) {
       return "unsupported-future";
     }

@@ -57,6 +57,17 @@ describe("recovery ladder (#4090)", () => {
     expect(plan.existing).toBe(truncated);
   });
 
+  it("classifies a truncated current-version opener as truncated-close, not future", () => {
+    const truncatedOpen = "<!-- deft:managed-section v3";
+    const plan = agentsRefreshPlan("/proj", { ...SEAMS, readAgents: () => truncatedOpen });
+    expect(plan.state).toBe("unreadable");
+    expect(plan.reason).toBe("truncated-close");
+    expect(plan.new_content).toBeNull();
+    expect(unreadableAgentsRecovery("truncated-close").suggested_fix).not.toBe(
+      RECOVERY_LADDER_UPDATE,
+    );
+  });
+
   it("refuses to write on an unsupported future marker", () => {
     const future = `<!-- deft:managed-section v4 -->\n# Deft\n${CLOSE}`;
     const plan = agentsRefreshPlan("/proj", { ...SEAMS, readAgents: () => future });
