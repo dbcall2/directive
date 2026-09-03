@@ -468,6 +468,7 @@ tasks:
         vars:
           CLI_ARGS: "--enforce"
       - verify:codebase-map-fresh
+      - verify:spec-prd-fresh
       - verify-strategy-output
       # #2980 residual: fail-closed product raw-write inventory (allowlist primitives + temporary residual).
       - verify-contained-writes-enforce
