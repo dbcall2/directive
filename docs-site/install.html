@@ -39,10 +39,13 @@
             />
           </a>
         </div>
-        <h1>Install (three commands)</h1>
+        <h1>Install</h1>
         <p class="lede">
-          Node ≥ 20 is required to run Directive. The canonical channel is the
+          Node ≥ 20, Git, and GitHub CLI (<code>gh</code>) are required to
+          confirm a consumer install. The canonical channel is the
           published npm package <code>@deftai/directive</code>.
+          The three commands remain <code>init</code>, <code>update</code>,
+          and <code>doctor</code>; first-run also confirms the consumer toolchain.
         </p>
       </section>
 
@@ -75,6 +78,15 @@ directive init</code></pre>
             Read-only diagnosis. Prints exactly one recommended next step.
           </p>
         </li>
+        <li>
+          <strong>Confirm the consumer toolchain</strong>
+          <pre><code>directive toolchain:check --consumer</code></pre>
+          <p class="muted" style="margin: 0.6rem 0 0">
+            Always probes Node, git, gh, and the selected package manager
+            (<code>npm</code> or <code>pnpm</code>). It does not require
+            Python, uv, Go, or Task.
+          </p>
+        </li>
       </ol>
 
       <h2>When to use each command</h2>
@@ -97,6 +109,10 @@ directive init</code></pre>
           <tr>
             <td><code>directive doctor</code></td>
             <td>Any time you need a safe “where am I?” probe.</td>
+          </tr>
+          <tr>
+            <td><code>directive toolchain:check --consumer</code></td>
+            <td>Confirm Node and the selected package manager after install.</td>
           </tr>
         </tbody>
       </table>

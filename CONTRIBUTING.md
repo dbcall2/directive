@@ -8,7 +8,7 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 The following tools must be installed before working on Deft:
 
-- **Node.js 24+** and **pnpm** — required for the TypeScript CLI (`packages/cli`) and test suite
+- **Node.js 24** (`.nvmrc` and root `engines.node`) and **pnpm** — required for the TypeScript CLI (`packages/cli`), test suite, and publish jobs in this repository. Consumer installs of `@deftai/directive` stay on a separate Node 20+ floor.
 - **Go 1.22+** — required for building the installer (`cmd/deft-install/`)
 - **task** — Taskfile runner ([taskfile.dev](https://taskfile.dev))
 

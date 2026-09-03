@@ -85,6 +85,7 @@ Then `cd` into your project and run the universal entrypoint:
 ```bash
 directive init      # classify this directory and set up (or route) accordingly
 directive doctor    # confirm the install and print your one next step
+directive toolchain:check --consumer
 ```
 
 `directive` (the `deft` alias also works) runs any verb; `npx @deftai/directive <verb>` (npm) or `pnpm dlx @deftai/directive <verb>` (pnpm) runs one without a global install.
@@ -105,7 +106,7 @@ opkg install /path/to/directive/packaging/openpackage/deft-directive-skills --pl
 
 **What gets tracked vs ignored:** `init` and `update` add Directive's local-only artifacts to your `.gitignore` — the reconstitutable deposit `.deft/core/`, the per-platform engine cache `.deft/.cli/`, session/ritual state such as `.deft/ritual-state.json`, and the `.deft-cache/` content cache. Your committed `package.json` pin is **never** ignored: it is the anchor that lets `directive init` / `directive update` reconstitute `.deft/core/` on a fresh clone, so it stays tracked in version control.
 
-**Node runtime (required):** Live deft gates run through the TypeScript engine. Install **Node 20+** (see `.nvmrc` in the framework payload) and **pnpm** (`corepack enable && corepack prepare pnpm@latest --activate`). Run `task toolchain:check` to confirm Node, pnpm, Python (`uv`), git, and gh are on PATH. See [UPGRADING.md § Node runtime](./content/UPGRADING.md#node-runtime-1828--1530) for details.
+**Node runtime (required):** Live deft gates run through the TypeScript engine. Install **Node 20+**, **Git**, **GitHub CLI (`gh`)**, and the package manager you use to install Directive (`npm` is bundled with Node; pnpm is an alternative, not a requirement). After `directive init`, confirm with `directive doctor` and `directive toolchain:check --consumer`. That consumer probe always checks Node, git, gh, and the selected manager (`npm` or `pnpm`). It does not require Python, uv, Go, or Task. Framework maintainers building this repository use a separate Node 24 pin plus pnpm, Go, and Task; see [CONTRIBUTING.md](./CONTRIBUTING.md). See [UPGRADING.md § Node runtime](./content/UPGRADING.md#node-runtime-1828--1530) for details.
 
 > **🔄 Upgrading an existing Directive project?** The ordinary path is `directive update` from your project root (after `npm i -g @deftai/directive@latest`, or `pnpm add -g @deftai/directive@latest` on pnpm). See [UPGRADING.md](./content/UPGRADING.md) for the canonical steps and the advanced/big-jump detail. On **npm v12**, install scripts and non-registry sources are opt-in — [UPGRADING.md § npm v12 install-time security defaults](./content/UPGRADING.md#npm-v12-install-time-security-defaults) (Directive packages need no allowlist; app trees may). **Agents:** ! Read [UPGRADING.md](./content/UPGRADING.md) on the first session after a framework update.
 
@@ -157,6 +158,8 @@ npm i -g @deftai/directive
 ```
 
 Node 20+ is required to run Deft (see the note above). For **offline / air-gapped** deposits or **migrating a legacy on-disk layout**, the Go-installer binaries remain available from [GitHub Releases](https://github.com/deftai/directive/releases/latest) (see the [Legacy and offline install](#legacy-and-offline-install-go-installer-1912) section above) — Node is still required to run the framework afterward.
+
+#### Framework maintainers (this repository)
 
 **Building from source (developers only):** requires Go 1.22+
 
