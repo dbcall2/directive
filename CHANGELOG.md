@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Consumer install copy keeps a Node 20+ floor separate from the maintainer Node 24 pin (#4089).** README and the public install pages no longer cite `.nvmrc` or send npm consumers through Corepack, Python, uv, Go, or `task toolchain:check`. Consumer confirmation is `directive toolchain:check --consumer`. CLI/doctor remedies stay on the consumer floor. CONTRIBUTING names Node 24 and pnpm for this repository. Does not add `engines` to `@deftai/directive`. Closes #4089. Refs #4085, #3610.
 - **Orientation file map matches the current checkout (#4087).** Labeled-current directory trees no longer teach deleted Python launchers or root guidance paths. Skills and consumer state use `content/skills/` and `xbrief/`. A fail-closed content-contract pin covers those trees. Partial of #4087. Refs #4085.
 
 ### Fixed
