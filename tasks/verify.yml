@@ -414,7 +414,7 @@ tasks:
           ENGINE_CMD: 'verify:tools {{.CLI_ARGS}}'
 
   scm-boundary:
-    desc: "Detection-bound gate against raw `gh` / `ghx` subprocess calls outside `scripts/scm.py` (#1145 / N5). Scans verb-layer Python files (`scripts/triage_*.py`, `scripts/scope_*.py`, `scripts/slice_*.py`, `scripts/_triage_*.py`, `scripts/_scope_*.py`, `scripts/resume_conditions.py`, `scripts/issue_ingest.py`) and fails loud when any of them invoke `gh` directly instead of going through `scm.call(source, verb, args)`. Three-state exit (0 clean / 1 violations / 2 config error). Document an exception via `--allow-list <path>` (file with newline-separated glob patterns)."
+    desc: "Detection-bound gate against raw `gh` / `ghx` subprocess calls (#1145 / N5). TypeScript verbs route through packages/core/src/scm/call.ts. The scanner still globs retired scripts/triage_*.py paths (vacuous; owner packages/core/src/verify-source/scm-boundary.ts SCOPE_GLOBS). Three-state exit (0 clean / 1 violations / 2 config error). Document an exception via `--allow-list <path>`."
     dir: '{{.USER_WORKING_DIR}}'
     deps:
       - task: :engine:_ts-build
