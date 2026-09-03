@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { extractManagedSection as extractPlatformManagedSection } from "../platform/agents-md.js";
+import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
+import { findManagedOpenMarker } from "../platform/linear-scan.js";
 import { parseManifestKeyValueLine, stripEdgeQuotes } from "../text/redos-safe.js";
 import { readTextSafe } from "./paths.js";
 
@@ -131,8 +132,25 @@ export function parseInstallRootFromAgentsMd(text: string): string | null {
   return null;
 }
 
+/**
+ * Canonical v2/v3 managed section for layout detect (#1912 / #4090).
+ * Uses the platform linear scanner; v1 is pre-v0.27 (Go-bridge), not a
+ * writable npm section. Freshness classification stays on agentsRefreshPlan.
+ */
 export function extractManagedSection(text: string): string | null {
-  return extractPlatformManagedSection(text);
+  const normalised = text.replace(/\r\n/g, "\n");
+  let pos = 0;
+  while (pos < normalised.length) {
+    const open = findManagedOpenMarker(normalised, pos);
+    if (open === null) return null;
+    if (open.version >= 2) {
+      const closeIdx = normalised.indexOf(AGENTS_MANAGED_CLOSE, open.end);
+      if (closeIdx < 0) return null;
+      return normalised.slice(open.start, closeIdx + AGENTS_MANAGED_CLOSE.length);
+    }
+    pos = open.end;
+  }
+  return null;
 }
 
 export function isDeprecationRedirectStub(text: string): boolean {

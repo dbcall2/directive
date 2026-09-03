@@ -57,6 +57,32 @@ export function recoveryLadderProse(primary: RecoveryLadderPrimary): string {
   );
 }
 
+/** Doctor remediation when the classifier refuses to write (#4090 P1). */
+export const RECOVERY_LADDER_UNREADABLE_TRUNCATED =
+  "Restore a matching <!-- /deft:managed-section --> close in AGENTS.md; deft agents:refresh refuses this unreadable state and will not write";
+
+export function unreadableAgentsRecovery(reason: string): {
+  readonly message: string;
+  readonly suggested_fix: string;
+} {
+  if (reason === "unsupported-future") {
+    return {
+      message:
+        `AGENTS.md managed section is unreadable (${reason}) -- refuse to write. ` +
+        `Upgrade the CLI/payload (\`${RECOVERY_LADDER_UPDATE}\` or \`${RECOVERY_LADDER_NPM_GLOBAL}\`), then re-run doctor. ` +
+        `\`${RECOVERY_LADDER_AGENTS_REFRESH}\` will not write this state.`,
+      suggested_fix: RECOVERY_LADDER_UPDATE,
+    };
+  }
+  return {
+    message:
+      `AGENTS.md managed section is unreadable (${reason}) -- refuse to write. ` +
+      `Restore a matching close marker \`<!-- /deft:managed-section -->\` in AGENTS.md. ` +
+      `\`${RECOVERY_LADDER_AGENTS_REFRESH}\` will not write this state.`,
+    suggested_fix: RECOVERY_LADDER_UNREADABLE_TRUNCATED,
+  };
+}
+
 export const AGENTS_MANAGED_CLOSE = "<!-- /deft:managed-section -->";
 
 export const DEPRECATED_REDIRECT_SENTINEL = "<!-- deft:deprecated-redirect -->";

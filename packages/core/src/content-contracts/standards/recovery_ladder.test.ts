@@ -9,9 +9,12 @@ import {
 import {
   RECOVERY_LADDER_AGENTS_REFRESH,
   RECOVERY_LADDER_NPM_GLOBAL,
+  RECOVERY_LADDER_UNREADABLE_TRUNCATED,
   RECOVERY_LADDER_UPDATE,
   recoveryLadderFields,
+  unreadableAgentsRecovery,
 } from "../../doctor/constants.js";
+import { extractManagedSection } from "../../doctor/manifest.js";
 import { agentsRefreshPlan } from "../../platform/agents-md.js";
 import { readText, repoRoot } from "./_helpers.js";
 
@@ -97,6 +100,28 @@ describe("recovery ladder (#4090)", () => {
     expect(dispatch).toContain('"agents:refresh": "agents-refresh"');
     expect(dispatch).toContain('"agents-refresh"');
     expect(dispatch).toMatch(/upgrade:\s*"install-upgrade"/);
+  });
+
+  it("layout extract treats v1 as pre-canonical, not a writable v3 section", () => {
+    const v1 =
+      "# Project\n<!-- deft:managed-section v1 -->\nold body\n<!-- /deft:managed-section -->\n";
+    expect(extractManagedSection(v1)).toBeNull();
+    expect(
+      extractManagedSection(
+        "<!-- deft:managed-section v3 -->\nbody\n<!-- /deft:managed-section -->",
+      ),
+    ).toContain("v3");
+  });
+
+  it("unreadable doctor remediation is not a no-op refresh", () => {
+    const truncated = unreadableAgentsRecovery("truncated-close");
+    expect(truncated.suggested_fix).toBe(RECOVERY_LADDER_UNREADABLE_TRUNCATED);
+    expect(truncated.suggested_fix).not.toBe(RECOVERY_LADDER_AGENTS_REFRESH);
+    expect(truncated.message).toContain("will not write");
+    const future = unreadableAgentsRecovery("unsupported-future");
+    expect(future.suggested_fix).toBe(RECOVERY_LADDER_UPDATE);
+    expect(future.suggested_fix).not.toBe(RECOVERY_LADDER_AGENTS_REFRESH);
+    expect(future.message).toContain("will not write");
   });
 
   it("QUICK-START is not a second parser and does not append Case G", () => {

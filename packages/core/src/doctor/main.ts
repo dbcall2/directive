@@ -56,6 +56,7 @@ import {
   recoveryLadderProse,
   TASKFILE_INCLUDE_SNIPPET,
   UV_INSTALL_URL,
+  unreadableAgentsRecovery,
 } from "./constants.js";
 import {
   decideThrottle,
@@ -953,16 +954,14 @@ function runAgentsMdFreshnessCheck(
     }
     if (state === "unreadable") {
       const reason = String(plan.reason ?? "unreadable");
-      const message =
-        `AGENTS.md managed section is unreadable (${reason}) -- refuse to write. ` +
-        recoveryLadderProse("agents-refresh");
-      sink.warn(message);
+      const recovery = unreadableAgentsRecovery(reason);
+      sink.warn(recovery.message);
       addFinding({
         severity: "warning",
-        message,
+        message: recovery.message,
         check: checkName,
         status: state,
-        suggestion: recoveryLadderFields("agents-refresh").suggested_fix,
+        suggestion: recovery.suggested_fix,
       });
       return;
     }

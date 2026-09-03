@@ -299,6 +299,12 @@ describe("install integrity and agents paths", () => {
 
   it("agents freshness unreadable state", () => {
     const root = mkdtempSync(join(tmpdir(), "deft-doc-"));
+    const lines: string[] = [];
+    const orig = process.stdout.write.bind(process.stdout);
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      lines.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write;
     try {
       writeFileSync(
         join(root, "AGENTS.md"),
@@ -309,12 +315,20 @@ describe("install integrity and agents paths", () => {
         cmdDoctor(["--full", "--json", "--project-root", root], {
           whichFn: () => "/bin/x",
           isDir: (p) => p === root,
-          // Agents-md probe only — exclude invented xBRIEF live paths (#3243).
-          isFile: (p) => !p.includes("xbrief") && !p.endsWith(".xbrief.json"),
-          agentsRefreshPlan: () => ({ state: "unreadable" }),
+          isFile: (p) => p.endsWith("AGENTS.md"),
+          readText: (p) =>
+            p.endsWith("AGENTS.md") ? "<!-- deft:managed-section v3 -->\nunclosed\n" : null,
+          agentsRefreshPlan: () => ({ state: "unreadable", reason: "truncated-close" }),
         }),
       ).toBe(0);
+      const dumped = JSON.parse(lines.join("")) as {
+        findings?: Array<{ check?: string; suggestion?: string }>;
+      };
+      const fresh = dumped.findings?.find((f) => f.check === "agents-md-managed-section-fresh");
+      expect(fresh?.suggestion).toBeTruthy();
+      expect(fresh?.suggestion).not.toBe("deft agents:refresh");
     } finally {
+      process.stdout.write = orig;
       rmSync(root, { recursive: true, force: true });
     }
   });
@@ -492,6 +506,11 @@ describe("helpers branch sweep", () => {
       extractManagedSection("<!-- deft:managed-section v3 -->\n<!-- /deft:managed-section -->"),
     ).toBeTruthy();
     expect(extractManagedSection("nope")).toBeNull();
+    expect(
+      extractManagedSection(
+        "# Project\n<!-- deft:managed-section v1 -->\nold body\n<!-- /deft:managed-section -->\n",
+      ),
+    ).toBeNull();
   });
 
   it("readManifestAt null path", () => {
