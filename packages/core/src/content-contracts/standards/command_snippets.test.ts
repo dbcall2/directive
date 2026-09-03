@@ -169,6 +169,23 @@ describe("command snippet contract (#4094)", () => {
     expect(resolveCommandSnippet(policy, registries).kind).toBe("skipped");
   });
 
+  it("extracts the verb after runner flags that follow the launcher", () => {
+    const text = [
+      "`task -t Taskfile.yml check:slow`",
+      "`task --verbose check`",
+      "`FOO=1 task -d . verify:branch`",
+    ].join("\n");
+    const snippets = extractCommandSnippets(text, "fixture.md", MAINTAINER_CURRENT);
+    expect(snippets.map((s) => s.verb).sort()).toEqual(["check", "check:slow", "verify:branch"]);
+    const gated = evaluateMarkdownCommandSnippets({
+      text: "`task -t Taskfile.yml check:slow`\n",
+      file: "content/commands.md",
+      entry: MAINTAINER_CURRENT,
+      registries,
+    });
+    expect(gated.findings.some((f) => f.snippet.verb === "check:slow")).toBe(true);
+  });
+
   it("does not execute extracted fences", () => {
     const root = mkdtempSync(join(tmpdir(), "cmd-snippet-fence-"));
     created.push(root);
@@ -276,6 +293,50 @@ describe("command snippet contract (#4094)", () => {
       diffText: sameDiff,
     });
     expect(gated.findings.some((f) => f.snippet.raw.includes("same-diff exemption"))).toBe(true);
+  });
+
+  it("same-diff keeps the newest git log -p patch instead of the oldest overwrite", () => {
+    const newestFirstLog = [
+      "commit 111newest",
+      "Author: test",
+      "",
+      "    add exemption and snippet",
+      "",
+      "diff --git a/packages/core/src/deposit/live-procedure-targets.ts b/packages/core/src/deposit/live-procedure-targets.ts",
+      "--- a/packages/core/src/deposit/live-procedure-targets.ts",
+      "+++ b/packages/core/src/deposit/live-procedure-targets.ts",
+      "@@ -1,0 +1,6 @@",
+      "+  {",
+      '+    family: "task",',
+      '+    verb: "check:slow",',
+      '+    path: "content/commands.md",',
+      '+    classification: "illustrative",',
+      '+    reason: "waive",',
+      "+  },",
+      "diff --git a/content/commands.md b/content/commands.md",
+      "--- a/content/commands.md",
+      "+++ b/content/commands.md",
+      "@@ -1,0 +1,1 @@",
+      "+- `task check:slow` -- slower/full checks.",
+      "commit 000oldest",
+      "Author: test",
+      "",
+      "    earlier unrelated edit",
+      "",
+      "diff --git a/packages/core/src/deposit/live-procedure-targets.ts b/packages/core/src/deposit/live-procedure-targets.ts",
+      "--- a/packages/core/src/deposit/live-procedure-targets.ts",
+      "+++ b/packages/core/src/deposit/live-procedure-targets.ts",
+      "@@ -1,0 +1,1 @@",
+      "+export const unrelated = true;",
+      "diff --git a/content/commands.md b/content/commands.md",
+      "--- a/content/commands.md",
+      "+++ b/content/commands.md",
+      "@@ -1,0 +1,1 @@",
+      "+# Commands",
+    ].join("\n");
+    expect(sameDiffExemptionViolations(newestFirstLog)).toEqual([
+      { verb: "check:slow", path: "content/commands.md", family: "task" },
+    ]);
   });
 
   it("does not rewrite Taskfile descriptions as a side effect", () => {

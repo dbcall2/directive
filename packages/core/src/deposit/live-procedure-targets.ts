@@ -638,7 +638,6 @@ export function loadCommandRegistries(repoRoot: string): CommandRegistries {
 }
 
 function skipRunnerPrefix(parts: readonly string[]): string[] {
-  const out: string[] = [];
   let i = 0;
   while (i < parts.length) {
     const token = parts[i];
@@ -647,6 +646,16 @@ function skipRunnerPrefix(parts: readonly string[]): string[] {
       i += 1;
       continue;
     }
+    break;
+  }
+  const launcher = parts[i];
+  if (launcher !== "task" && launcher !== "deft" && launcher !== "directive") {
+    return parts.slice(i);
+  }
+  i += 1;
+  while (i < parts.length) {
+    const token = parts[i];
+    if (token === undefined) break;
     if (token === "--") {
       i += 1;
       break;
@@ -655,10 +664,9 @@ function skipRunnerPrefix(parts: readonly string[]): string[] {
       i += TASK_RUNNER_FLAGS_WITH_ARG.has(token) ? 2 : 1;
       continue;
     }
-    out.push(...parts.slice(i));
     break;
   }
-  return out;
+  return [launcher, ...parts.slice(i)];
 }
 
 function shouldSkipVerb(verb: string): boolean {
@@ -892,12 +900,11 @@ function gitOut(repoRoot: string, args: readonly string[]): string {
 /** Candidate diff for same-diff exemption ownership. */
 export function readCommandSnippetCandidateDiff(repoRoot: string): string {
   const files = [...COMMAND_SNIPPET_DIFF_PATHS];
-  const parts = [
+  const working = [
     gitOut(repoRoot, ["diff", "HEAD", "--", ...files]),
     gitOut(repoRoot, ["diff", "--cached", "--", ...files]),
-    // Shallow CI checkouts often lack origin/master; log -p still has PR commits.
-    gitOut(repoRoot, ["log", "-p", "-n", "50", "--", ...files]),
-  ];
+  ].join("\n");
+  if (working.includes("diff --git")) return working;
   const bases = [
     process.env.GITHUB_BASE_SHA?.trim() ?? "",
     process.env.GITHUB_BASE_REF?.trim() ? `origin/${process.env.GITHUB_BASE_REF.trim()}` : "",
@@ -907,10 +914,10 @@ export function readCommandSnippetCandidateDiff(repoRoot: string): string {
   for (const base of bases) {
     const mergeBase = gitOut(repoRoot, ["merge-base", "HEAD", base]).trim();
     if (mergeBase.length === 0) continue;
-    parts.push(gitOut(repoRoot, ["diff", `${mergeBase}...HEAD`, "--", ...files]));
-    break;
+    return gitOut(repoRoot, ["diff", `${mergeBase}...HEAD`, "--", ...files]);
   }
-  return parts.join("\n");
+  // Shallow CI: no merge-base. Per-commit patches are combined in splitUnifiedDiff.
+  return gitOut(repoRoot, ["log", "-p", "-n", "50", "--", ...files]);
 }
 
 export function evaluateCommandSnippets(options: {
@@ -973,7 +980,8 @@ function splitUnifiedDiff(diffText: string): Map<string, string> {
     const header = /^(?:a\/)?(\S+)\s+b\/(\S+)/.exec(part);
     const path = header?.[2]?.replace(/^b\//, "");
     if (!path) continue;
-    files.set(path, part);
+    const existing = files.get(path);
+    files.set(path, existing === undefined ? part : `${existing}\n${part}`);
   }
   return files;
 }
