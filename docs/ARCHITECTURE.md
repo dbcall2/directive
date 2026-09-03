@@ -15,7 +15,7 @@ Deft Directive is a self-dogfooded framework for AI-assisted software work. It i
 - Taskfile as the repository command facade (`task --list`, `task check`, `task verify:*`).
 - `deft` / `directive` as the installed consumer CLI.
 - `deft-hook` and native CLI verbs as host and Git-hook entrypoints.
-- npm packages (`@deftai/directive` + `@deftai/directive-content`) with TS-native `directive init` / `directive update` resolve-and-copy deposit into gitignored `.deft/core/`, plus a frozen Go binary retained only as a legacy layout bridge and node-independent health gate. Canonical published package graph and install topology are owned by [#4093](https://github.com/deftai/directive/issues/4093); this document does not author that graph and must not be read as prejudging [#1979](https://github.com/deftai/directive/issues/1979).
+- Four published npm packages (`@deftai/directive-types`, `@deftai/directive-core`, `@deftai/directive-content`, `@deftai/directive`). TypeScript `directive init` / `directive update` is the happy-path consumer materialization into gitignored `.deft/core/`. A frozen Go installer remains a bounded networked-deposit bridge (not the happy path, not deleted). Package graph, publish sequence, and install topology are in [npm-Native Distribution](#npm-native-distribution-current). This document does not prejudge [#1979](https://github.com/deftai/directive/issues/1979).
 - xBRIEF files as durable project, specification, lifecycle, policy, and architecture metadata.
 - Local cache/audit surfaces for backlog triage and GitHub issue ingestion.
 - PR, release, swarm, branch-policy, and verification gates.
@@ -52,7 +52,7 @@ The loop is deliberate. Guidance tells agents how to behave, tasks make that beh
 - `~/.config/deft/USER.md` stores personal preferences, with its Personal section taking precedence for user-defined preferences.
 - `xbrief/PROJECT-DEFINITION.xbrief.json` stores project identity, policy, lifecycle registry, and authored architecture metadata.
 
-Consumer installs point agents at `.deft/core/main.md`. The canonical path is `npm i -g @deftai/directive` followed by `directive init` (greenfield) or `directive update` (refresh) — both resolve the locally installed `@deftai/directive-content` package and copy it into gitignored `.deft/core/`. Legacy Go-installer and git-clone layouts are migration inputs, not the preferred target state.
+Consumer installs point agents at `.deft/core/main.md`. TypeScript `directive init` (greenfield) or `directive update` (refresh) is the happy-path materialization: both resolve the locally installed `@deftai/directive-content` package and copy it into gitignored `.deft/core/`. Global and project-local npm installs are both current; install commands live in [README.md](../README.md). Legacy Go-installer and git-clone layouts are migration inputs, not the preferred target state.
 
 ## Rule Authority
 
@@ -98,7 +98,7 @@ flowchart LR
 | Framework content | `AGENTS.md`, `main.md`, `content/`, `docs/` | Agent guidance, skills, standards, and documentation. Shipped guidance lives under `content/`; `docs/` is repo-dev orientation. |
 | Task runner | `Taskfile.yml`, `tasks/*.yml` | Repository command facade: deterministic command contract and composable namespaces. |
 | TypeScript packages | `packages/`, `package.json`, `pnpm-workspace.yaml`, `tsconfig*.json`, `vitest.config.ts` | Implementation and runtime owner for gates, the `deft` / `directive` CLI, and `deft-hook`. |
-| Go installer (legacy bridge) | `cmd/deft-install/`, `go.mod` | Frozen cross-platform tarball deposit for offline/air-gapped and legacy layout migration; superseded by TS-native `directive init` / `directive update` for normal installs (#1942). |
+| Go installer (frozen bridge) | `cmd/deft-install/`, `go.mod` | Frozen GitHub-release binary: `deft-install gate`, legacy-layout reshape for inputs TypeScript init/update refuse, and networked tarball deposit. Not the happy-path consumer path. Not bundled in the npm package. Not deleted. [#1979](https://github.com/deftai/directive/issues/1979) is open. |
 | xBRIEF metadata | `xbrief/**/*.json`, `xbrief/**/*.md` | Project identity, scope lifecycle, schemas, policy, specification source, and authored `codeStructure`. |
 | Content packs | `content/packs/` | Curated agent memory packs rendered and checked through `task packs:*`. |
 | CI/release automation | `.github/`, `.githooks/`, `tasks/pr.yml` | Branch policy, PR readiness, release, publish, rollback, and local hook enforcement. |
@@ -108,29 +108,76 @@ flowchart LR
 
 ## npm-Native Distribution (current)
 
-Canonical published package graph, init/update ownership, and Go disposition are owned by [#4093](https://github.com/deftai/directive/issues/4093) and must not prejudge [#1979](https://github.com/deftai/directive/issues/1979). The sketch below is orientation, not the topology source of truth.
+This section is the canonical package and installation topology. Two labeled facts stay separate: **workspace dependency edges** come from `packages/*/package.json`; **publish sequence** comes from `.github/workflows/npm-publish.yml` and is an ordered list, not those edges. The sequence is not a topological sort of the workspace graph (core publishes before content, which it depends on). This document records the observed sequence; it does not change the workflow. Install commands live in [README.md](../README.md) (#1912). This topology does not prejudge [#1979](https://github.com/deftai/directive/issues/1979). Node run requirements for consumers versus maintainers are not this topology.
 
-Distribution splits into two npm packages and a thin local materialization step. Shipped in Wave 5 ([#1669](https://github.com/deftai/directive/issues/1669), [#1942](https://github.com/deftai/directive/issues/1942)); the frozen Go binary role is further constrained by [#1933](https://github.com/deftai/directive/issues/1933) and [#1912](https://github.com/deftai/directive/issues/1912).
+The repository publishes four npm packages. `@deftai/directive-types` is the supported public contract. `@deftai/directive-core` is published for npm dependency resolution but is not a supported library. `@deftai/directive-content` is the deposit payload. `@deftai/directive` is the consumer CLI (`directive`, `deft`).
 
-- **`@deftai/directive`** — the engine/CLI (Node 20+ required to *run* Deft). Binaries: `directive`, `deft`.
-- **`@deftai/directive-content`** — the framework content (skills, templates, schemas, standards) shipped from the repo `content/` tree via the content package prepack. It is a **dependency** of the engine, so npm resolves a version-coherent pair at install time.
+### Published workspace (manifest edges)
+
+| Package | Role | Support | Workspace dependencies |
+| --- | --- | --- | --- |
+| `@deftai/directive-types` | public contract | supported | (none) |
+| `@deftai/directive-content` | deposit payload | supported install material | (none) |
+| `@deftai/directive-core` | engine library | published, not a supported library | `@deftai/directive-types`, `@deftai/directive-content` |
+| `@deftai/directive` | consumer CLI | supported | `@deftai/directive-core`, `@deftai/directive-content` |
+
+Workspace dependency edges (from `packages/*/package.json`):
+
+- `@deftai/directive-types` -> `@deftai/directive-core`
+- `@deftai/directive-content` -> `@deftai/directive-core`
+- `@deftai/directive-content` -> `@deftai/directive`
+- `@deftai/directive-core` -> `@deftai/directive`
 
 ```mermaid
 flowchart LR
-    npm["npm i -g @deftai/directive"] --> Global["Global npm tree<br/>node_modules/@deftai/directive + @deftai/directive-content"]
-    Global -->|"directive init / update<br/>resolve-and-copy (no re-download)"| Proj["Project ./.deft/core/<br/>+ AGENTS.md, xbrief/, .githooks/"]
-    Global --> Gate["Frozen Go gate (bundled)<br/>node-independent pre-engine health probe"]
-    Gate -->|"health probe / legacy layout reshape"| Proj
+    Types["@deftai/directive-types"]
+    Content["@deftai/directive-content"]
+    Core["@deftai/directive-core"]
+    Cli["@deftai/directive"]
+    Types --> Core
+    Content --> Core
+    Content --> Cli
+    Core --> Cli
 ```
 
-Key properties of the current model:
+### Observed publish sequence
 
-- **Global install ≠ project deposit.** `npm i -g` only places versioned files in the global npm tree; it never touches a project directory. `directive init` is the materialization step that **resolves the locally-installed `@deftai/directive-content` and copies its tree** into this project's `./.deft/core/`, then renders `AGENTS.md`, scaffolds `xbrief/`, wires `.githooks/` when present in the content tree, deposits #1430 neutralization, and stamps provenance. `directive update` refreshes the same way. This is **resolve-and-copy, not re-download** — the on-machine content package is the source (the `node_modules` model).
+Observed publish sequence from `.github/workflows/npm-publish.yml` (ordered list, not dependency order, not a topological sort of the workspace graph):
+
+1. `@deftai/directive-types`
+2. `@deftai/directive-core`
+3. `@deftai/directive-content`
+4. `@deftai/directive`
+
+### Consumer install and deposit path
+
+TypeScript `directive init` / `directive update` is the happy-path consumer materialization. After `@deftai/directive` is installed (global or project-local; commands in README), those verbs resolve the locally installed `@deftai/directive-content` package and copy it into gitignored `./.deft/core/`. Types and core are transitive. Core is not a supported library. This is resolve-and-copy, not a re-download.
+
+```mermaid
+flowchart LR
+    Install["Install @deftai/directive<br/>global or project-local"] --> Tree["npm tree<br/>CLI + content; types and core transitive"]
+    Tree -->|"directive init / update<br/>resolve-and-copy"| Deposit["Project ./.deft/core/"]
+```
+
+Key properties:
+
+- **Global install ≠ project deposit.** Installing the CLI only places versioned files in the npm tree. `directive init` materializes `./.deft/core/`, then renders `AGENTS.md`, scaffolds `xbrief/`, wires `.githooks/` when present, deposits #1430 neutralization, and stamps provenance. `directive update` refreshes the same way.
 - **`.deft/core/` is gitignored** on greenfield installs and is reconstituted by `directive init` on fresh checkouts (like `node_modules`). Existing tracked deposits are migrated to hybrid by [#1941](https://github.com/deftai/directive/issues/1941).
 - **Per-project version pinning** via `devDependencies` + `npx` gives teams/CI a reproducible engine↔content pair.
-- **Frozen Go binary** stays bundled per-platform inside the npm package, but only as a **node-independent, read-only health gate** (every-session pre-engine probe) and a **legacy on-disk-layout reshaper**. It no longer fetches payloads or performs first-start installs (#1933).
-- **Offline** = sideload both package tarballs, then `directive init` copies locally — no network in the happy path.
-- **No surface bakes an install/upgrade command.** The engine, the Go gate, and `deft doctor` all point to the canonical install anchor in `README.md` rather than emitting a command that can go stale (#1912).
+- **Sideload** of the npm package tarballs still works: `directive init` copies locally with no extra network in that happy path.
+- **No surface bakes an install/upgrade command.** The engine, the frozen Go bridge, and `deft doctor` point at README rather than emitting a command that can go stale (#1912).
+
+### Frozen Go bridge
+
+The frozen Go binary is a **separate GitHub release asset**, not a file inside the `@deftai/directive` npm tarball. It is a bounded networked-deposit bridge, not the happy path, and not deleted. It is not an offline capability: deposit still fetches a release tarball. [#1979](https://github.com/deftai/directive/issues/1979) (whether to delete the Go source and build matrix) stays open.
+
+Current Go jobs:
+
+1. `deft-install gate` — node-independent health probe.
+2. Legacy-layout stage-1 reshape for on-disk layouts that TypeScript `directive init` / `directive update` refuse.
+3. Networked tarball deposit/migration — retained on the binary, not the happy-path consumer update.
+
+Shipped in Wave 5 ([#1669](https://github.com/deftai/directive/issues/1669), [#1942](https://github.com/deftai/directive/issues/1942)); freeze constraints: [#1933](https://github.com/deftai/directive/issues/1933), [#1912](https://github.com/deftai/directive/issues/1912).
 
 ## Command Surface
 
