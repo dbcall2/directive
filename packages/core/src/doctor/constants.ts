@@ -60,6 +60,8 @@ export function recoveryLadderProse(primary: RecoveryLadderPrimary): string {
 /** Doctor remediation when the classifier refuses to write (#4090 P1). */
 export const RECOVERY_LADDER_UNREADABLE_TRUNCATED =
   "Restore a matching <!-- /deft:managed-section --> close in AGENTS.md; deft agents:refresh refuses this unreadable state and will not write";
+export const RECOVERY_LADDER_UNREADABLE_TRUNCATED_OPEN =
+  "Complete the managed-section opener through --> in AGENTS.md (example: <!-- deft:managed-section v3 -->), then restore a matching close; deft agents:refresh refuses this unreadable state and will not write";
 
 export function unreadableAgentsRecovery(reason: string): {
   readonly message: string;
@@ -72,6 +74,15 @@ export function unreadableAgentsRecovery(reason: string): {
         `Upgrade the CLI/payload (\`${RECOVERY_LADDER_UPDATE}\` or \`${RECOVERY_LADDER_NPM_GLOBAL}\`), then re-run doctor. ` +
         `\`${RECOVERY_LADDER_AGENTS_REFRESH}\` will not write this state.`,
       suggested_fix: RECOVERY_LADDER_UPDATE,
+    };
+  }
+  if (reason === "truncated-open") {
+    return {
+      message:
+        `AGENTS.md managed section is unreadable (${reason}) -- refuse to write. ` +
+        `Complete the opener through \`-->\` (example: \`<!-- deft:managed-section v3 -->\`) and restore a matching close. ` +
+        `\`${RECOVERY_LADDER_AGENTS_REFRESH}\` will not write this state.`,
+      suggested_fix: RECOVERY_LADDER_UNREADABLE_TRUNCATED_OPEN,
     };
   }
   return {

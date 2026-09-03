@@ -10,6 +10,7 @@ import {
   RECOVERY_LADDER_AGENTS_REFRESH,
   RECOVERY_LADDER_NPM_GLOBAL,
   RECOVERY_LADDER_UNREADABLE_TRUNCATED,
+  RECOVERY_LADDER_UNREADABLE_TRUNCATED_OPEN,
   RECOVERY_LADDER_UPDATE,
   recoveryLadderFields,
   unreadableAgentsRecovery,
@@ -57,15 +58,17 @@ describe("recovery ladder (#4090)", () => {
     expect(plan.existing).toBe(truncated);
   });
 
-  it("classifies a truncated current-version opener as truncated-close, not future", () => {
+  it("classifies a truncated current-version opener as truncated-open with opener repair", () => {
     const truncatedOpen = "<!-- deft:managed-section v3";
     const plan = agentsRefreshPlan("/proj", { ...SEAMS, readAgents: () => truncatedOpen });
     expect(plan.state).toBe("unreadable");
-    expect(plan.reason).toBe("truncated-close");
+    expect(plan.reason).toBe("truncated-open");
     expect(plan.new_content).toBeNull();
-    expect(unreadableAgentsRecovery("truncated-close").suggested_fix).not.toBe(
-      RECOVERY_LADDER_UPDATE,
-    );
+    const recovery = unreadableAgentsRecovery("truncated-open");
+    expect(recovery.suggested_fix).toBe(RECOVERY_LADDER_UNREADABLE_TRUNCATED_OPEN);
+    expect(recovery.suggested_fix).not.toBe(RECOVERY_LADDER_UPDATE);
+    expect(recovery.suggested_fix).not.toBe(RECOVERY_LADDER_UNREADABLE_TRUNCATED);
+    expect(recovery.suggested_fix).toContain("-->");
   });
 
   it("refuses to write on an unsupported future marker", () => {

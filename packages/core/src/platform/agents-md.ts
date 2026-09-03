@@ -219,7 +219,11 @@ export function scanManagedOpenCandidates(text: string, from = 0): ManagedOpenCa
   return results;
 }
 
-export type ManagedMarkerIntegrity = "ok" | "truncated-close" | "unsupported-future";
+export type ManagedMarkerIntegrity =
+  | "ok"
+  | "truncated-close"
+  | "truncated-open"
+  | "unsupported-future";
 
 /** Classify unbalanced or future managed markers. Current version comes from the template. */
 export function classifyManagedMarkerIntegrity(
@@ -229,7 +233,7 @@ export function classifyManagedMarkerIntegrity(
   const candidates = scanManagedOpenCandidates(text);
   for (const candidate of candidates) {
     if (candidate.truncatedOpen) {
-      return "truncated-close";
+      return "truncated-open";
     }
     if (candidate.version !== null && candidate.version > currentVersion) {
       return "unsupported-future";
@@ -353,7 +357,11 @@ export function agentsRefreshPlan(
   }
   const normalised = existing.replace(/\r\n/g, "\n");
   const integrity = classifyManagedMarkerIntegrity(normalised, templateVersion);
-  if (integrity === "truncated-close" || integrity === "unsupported-future") {
+  if (
+    integrity === "truncated-close" ||
+    integrity === "truncated-open" ||
+    integrity === "unsupported-future"
+  ) {
     return {
       state: "unreadable",
       reason: integrity,
