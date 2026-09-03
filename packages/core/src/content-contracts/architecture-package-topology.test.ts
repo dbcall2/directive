@@ -91,6 +91,31 @@ export function parseDocumentedEdges(markdown: string): Array<[string, string]> 
   return edges.sort((a, b) => `${a[0]}>${a[1]}`.localeCompare(`${b[0]}>${b[1]}`));
 }
 
+export function parseMermaidWorkspaceEdges(markdown: string): Array<[string, string]> {
+  const blockStart = markdown.indexOf("Workspace dependency edges");
+  if (blockStart < 0) return [];
+  const fence = markdown.indexOf("```mermaid", blockStart);
+  if (fence < 0) return [];
+  const start = markdown.indexOf("\n", fence);
+  const end = markdown.indexOf("```", start + 1);
+  const body = markdown.slice(start < 0 ? fence : start, end < 0 ? undefined : end);
+  const idToName = new Map<string, string>();
+  const nodeRe = /([A-Za-z][A-Za-z0-9_]*)\["(@deftai\/[^"]+)"\]/g;
+  for (const m of body.matchAll(nodeRe)) {
+    const id = m[1];
+    const name = m[2];
+    if (id && name) idToName.set(id, name);
+  }
+  const edges: Array<[string, string]> = [];
+  const edgeRe = /^[ \t]*([A-Za-z][A-Za-z0-9_]*)\s*-->\s*([A-Za-z][A-Za-z0-9_]*)/gm;
+  for (const m of body.matchAll(edgeRe)) {
+    const from = idToName.get(m[1] ?? "");
+    const to = idToName.get(m[2] ?? "");
+    if (from && to) edges.push([from, to]);
+  }
+  return edges.sort((a, b) => `${a[0]}>${a[1]}`.localeCompare(`${b[0]}>${b[1]}`));
+}
+
 export function parseDocumentedPublishSequence(markdown: string): string[] {
   const heading = markdown.indexOf("### Observed publish sequence");
   if (heading < 0) return [];
@@ -148,6 +173,19 @@ describe("architecture package topology (#4093)", () => {
       ].join("\n"),
     );
     expect(edges).toEqual([["@deftai/directive-types", "@deftai/directive-core"]]);
+    const mermaid = parseMermaidWorkspaceEdges(
+      [
+        "Workspace dependency edges",
+        "",
+        "```mermaid",
+        "flowchart LR",
+        '    Types["@deftai/directive-types"]',
+        '    Core["@deftai/directive-core"]',
+        "    Types --> Core",
+        "```",
+      ].join("\n"),
+    );
+    expect(mermaid).toEqual([["@deftai/directive-types", "@deftai/directive-core"]]);
   });
 
   it("workspace manifests are the four public @deftai packages", () => {
@@ -180,6 +218,7 @@ describe("architecture package topology (#4093)", () => {
     const expected = workspaceEdges(pkgs);
     const documented = parseDocumentedEdges(architecture());
     expect(documented).toEqual(expected);
+    expect(parseMermaidWorkspaceEdges(architecture())).toEqual(expected);
     expect(expected).toEqual([
       ["@deftai/directive-content", "@deftai/directive"],
       ["@deftai/directive-content", "@deftai/directive-core"],
