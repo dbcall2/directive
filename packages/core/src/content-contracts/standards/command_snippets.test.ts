@@ -297,7 +297,7 @@ describe("command snippet contract (#4094)", () => {
 
   it("same-diff keeps the newest git log -p patch instead of the oldest overwrite", () => {
     const newestFirstLog = [
-      "commit 111newest",
+      "commit 1111111111111111111111111111111111111111",
       "Author: test",
       "",
       "    add exemption and snippet",
@@ -318,7 +318,7 @@ describe("command snippet contract (#4094)", () => {
       "+++ b/content/commands.md",
       "@@ -1,0 +1,1 @@",
       "+- `task check:slow` -- slower/full checks.",
-      "commit 000oldest",
+      "commit 0000000000000000000000000000000000000000",
       "Author: test",
       "",
       "    earlier unrelated edit",
@@ -337,6 +337,38 @@ describe("command snippet contract (#4094)", () => {
     expect(sameDiffExemptionViolations(newestFirstLog)).toEqual([
       { verb: "check:slow", path: "content/commands.md", family: "task" },
     ]);
+  });
+
+  it("same-diff does not combine an exemption and snippet from different git log commits", () => {
+    const splitAcrossCommits = [
+      "commit 1111111111111111111111111111111111111111",
+      "Author: test",
+      "",
+      "    add snippet only",
+      "",
+      "diff --git a/content/commands.md b/content/commands.md",
+      "--- a/content/commands.md",
+      "+++ b/content/commands.md",
+      "@@ -1,0 +1,1 @@",
+      "+- `task check:slow` -- slower/full checks.",
+      "commit 0000000000000000000000000000000000000000",
+      "Author: test",
+      "",
+      "    add exemption only",
+      "",
+      "diff --git a/packages/core/src/deposit/live-procedure-targets.ts b/packages/core/src/deposit/live-procedure-targets.ts",
+      "--- a/packages/core/src/deposit/live-procedure-targets.ts",
+      "+++ b/packages/core/src/deposit/live-procedure-targets.ts",
+      "@@ -1,0 +1,6 @@",
+      "+  {",
+      '+    family: "task",',
+      '+    verb: "check:slow",',
+      '+    path: "content/commands.md",',
+      '+    classification: "illustrative",',
+      '+    reason: "waive",',
+      "+  },",
+    ].join("\n");
+    expect(sameDiffExemptionViolations(splitAcrossCommits)).toEqual([]);
   });
 
   it("does not rewrite Taskfile descriptions as a side effect", () => {

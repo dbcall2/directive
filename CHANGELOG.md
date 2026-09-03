@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Same-diff exemption check keeps every candidate patch, not the oldest `git log -p` entry (#4094).** `splitUnifiedDiff` concatenates repeated path patches. Candidate diff prefers working-tree then merge-base, and only then the shallow log fallback. Refs #4085.
+- **Same-diff exemption check keeps every candidate patch, not the oldest `git log -p` entry (#4094).** `splitUnifiedDiff` concatenates repeated path patches. Candidate diff prefers working-tree then merge-base, and only then the shallow log fallback. `git log -p` is scored per commit so historical patches are not one candidate. Refs #4085.
 - **Command-snippet extraction skips runner flags after the launcher (#4094).** `task -t … verb` is no longer dropped before registry lookup. Refs #4085.
 
 ### Removed

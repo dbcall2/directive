@@ -916,7 +916,7 @@ export function readCommandSnippetCandidateDiff(repoRoot: string): string {
     if (mergeBase.length === 0) continue;
     return gitOut(repoRoot, ["diff", `${mergeBase}...HEAD`, "--", ...files]);
   }
-  // Shallow CI: no merge-base. Per-commit patches are combined in splitUnifiedDiff.
+  // Shallow CI: no merge-base. sameDiffExemptionViolations splits git-log commits.
   return gitOut(repoRoot, ["log", "-p", "-n", "50", "--", ...files]);
 }
 
@@ -993,13 +993,28 @@ function addedLines(fileDiff: string): string[] {
     .map((line) => line.slice(1));
 }
 
-/**
- * Same-diff exemption ownership (#4094): adding an allowlist row in the same
- * diff as the snippet it exempts fails.
- */
-export function sameDiffExemptionViolations(
-  diffText: string,
-): readonly SameDiffExemptionViolation[] {
+const GIT_LOG_COMMIT_RE = /^commit [0-9a-f]{7,40}\b/;
+
+/** Split `git log -p` into per-commit patches. Range/working diffs stay one chunk. */
+function candidateDiffChunks(diffText: string): string[] {
+  const lines = diffText.split("\n");
+  const hasCommit = lines.some((line) => GIT_LOG_COMMIT_RE.test(line));
+  if (!hasCommit) return [diffText];
+  const chunks: string[] = [];
+  let current: string[] = [];
+  for (const line of lines) {
+    if (GIT_LOG_COMMIT_RE.test(line) && current.length > 0) {
+      chunks.push(current.join("\n"));
+      current = [line];
+    } else {
+      current.push(line);
+    }
+  }
+  if (current.length > 0) chunks.push(current.join("\n"));
+  return chunks;
+}
+
+function sameDiffExemptionViolationsOne(diffText: string): readonly SameDiffExemptionViolation[] {
   const files = splitUnifiedDiff(diffText);
   const resolverDiff = files.get("packages/core/src/deposit/live-procedure-targets.ts") ?? "";
   const added = addedLines(resolverDiff).join("\n");
@@ -1022,6 +1037,26 @@ export function sameDiffExemptionViolations(
     );
     if (snippetAdded) {
       violations.push({ verb, path, family });
+    }
+  }
+  return violations;
+}
+
+/**
+ * Same-diff exemption ownership (#4094): adding an allowlist row in the same
+ * diff as the snippet it exempts fails. `git log -p` is scored per commit.
+ */
+export function sameDiffExemptionViolations(
+  diffText: string,
+): readonly SameDiffExemptionViolation[] {
+  const seen = new Set<string>();
+  const violations: SameDiffExemptionViolation[] = [];
+  for (const chunk of candidateDiffChunks(diffText)) {
+    for (const violation of sameDiffExemptionViolationsOne(chunk)) {
+      const key = `${violation.family}\0${violation.verb}\0${violation.path}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      violations.push(violation);
     }
   }
   return violations;
