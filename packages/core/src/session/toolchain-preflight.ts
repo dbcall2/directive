@@ -101,7 +101,7 @@ const REMEDY: Record<ToolchainPreflightTool, string> = {
   task: "Install go-task: https://taskfile.dev/installation/ (e.g. winget install Task.Task / brew install go-task)",
   npm: "Install or repair Node 20+ (npm is bundled), then re-run the consumer check",
   pnpm: "Enable pnpm via corepack: corepack enable && corepack prepare pnpm@latest --activate",
-  node: "Install Node 20+ (see .nvmrc)",
+  node: "Install Node 20+",
   git: "Install Git: https://git-scm.com/downloads",
 };
 
@@ -140,7 +140,7 @@ function probeTool(
   if (tool === "node" && packageManager === "npm") {
     remedy = "Install or repair Node 20+ (npm is bundled), then re-run the consumer check";
   } else if (tool === "node" && packageManager === "pnpm") {
-    remedy = "Install Node 20+ (see .nvmrc); then enable pnpm with Corepack";
+    remedy = "Install Node 20+, then enable pnpm with Corepack";
   }
   return {
     tool,

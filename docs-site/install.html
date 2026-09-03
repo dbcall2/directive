@@ -75,6 +75,14 @@ directive init</code></pre>
             Read-only diagnosis. Prints exactly one recommended next step.
           </p>
         </li>
+        <li>
+          <strong>Confirm the consumer toolchain</strong>
+          <pre><code>directive toolchain:check --consumer</code></pre>
+          <p class="muted" style="margin: 0.6rem 0 0">
+            Consumer probe: Node, git/gh when applicable, and the selected
+            package manager. It does not require pnpm, Python, uv, Go, or Task.
+          </p>
+        </li>
       </ol>
 
       <h2>When to use each command</h2>
@@ -97,6 +105,10 @@ directive init</code></pre>
           <tr>
             <td><code>directive doctor</code></td>
             <td>Any time you need a safe “where am I?” probe.</td>
+          </tr>
+          <tr>
+            <td><code>directive toolchain:check --consumer</code></td>
+            <td>Confirm Node and the selected package manager after install.</td>
           </tr>
         </tbody>
       </table>
