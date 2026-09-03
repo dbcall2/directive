@@ -682,8 +682,8 @@ function classifyByHeadings(
   state: { historical: boolean },
 ): CommandSnippetClassification {
   const trimmed = line.trim();
-  if (trimmed.startsWith("#") && historicalPrefixes.some((prefix) => trimmed.startsWith(prefix))) {
-    state.historical = true;
+  if (trimmed.startsWith("## ")) {
+    state.historical = historicalPrefixes.some((prefix) => trimmed.startsWith(prefix));
   }
   if (state.historical) return "historical";
   return defaultClassification;
@@ -879,6 +879,7 @@ export function evaluateCommandSnippets(options: {
   readonly repoRoot: string;
   readonly corpus?: readonly CommandSnippetCorpusEntry[];
   readonly exemptions?: readonly CommandSnippetExemption[];
+  readonly diffText?: string;
 }): CommandSnippetEvaluation {
   const registries = loadCommandRegistries(options.repoRoot);
   const snippets: CommandSnippet[] = [];
@@ -896,6 +897,23 @@ export function evaluateCommandSnippets(options: {
     });
     snippets.push(...result.snippets);
     findings.push(...result.findings);
+  }
+  if (options.diffText !== undefined && options.diffText.length > 0) {
+    for (const violation of sameDiffExemptionViolations(options.diffText)) {
+      findings.push({
+        snippet: {
+          file: violation.path,
+          line: 0,
+          family: violation.family,
+          verb: violation.verb,
+          raw: `same-diff exemption ${violation.family} ${violation.verb}`,
+          span: "backtick",
+          classification: "current",
+          audience: "maintainer",
+        },
+        resolution: { kind: "absent", publicCurrent: false },
+      });
+    }
   }
   return { snippets, findings };
 }

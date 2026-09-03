@@ -199,6 +199,27 @@ describe("command snippet contract (#4094)", () => {
     expect(snippets.find((s) => s.verb === "check")?.classification).toBe("current");
   });
 
+  it("resets historical classification on a later current heading", () => {
+    const text = [
+      "`task check`",
+      "## Command Lifecycle: retired Python launcher vs `task`",
+      "`task doctor`",
+      "## Anti-Patterns",
+      "`task check`",
+      "`task check:slow`",
+    ].join("\n");
+    const snippets = extractCommandSnippets(text, "content/commands.md", MAINTAINER_CURRENT);
+    const slow = snippets.find((s) => s.verb === "check:slow");
+    expect(slow?.classification).toBe("current");
+    const result = evaluateMarkdownCommandSnippets({
+      text,
+      file: "content/commands.md",
+      entry: MAINTAINER_CURRENT,
+      registries,
+    });
+    expect(result.findings.some((f) => f.snippet.verb === "check:slow")).toBe(true);
+  });
+
   it("fails a current snippet that names a retired verb", () => {
     const result = evaluateMarkdownCommandSnippets({
       text: "Run `task check:slow` now.\n",
@@ -248,6 +269,12 @@ describe("command snippet contract (#4094)", () => {
       "+  },",
     ].join("\n");
     expect(sameDiffExemptionViolations(exemptionOnly)).toEqual([]);
+    const gated = evaluateCommandSnippets({
+      repoRoot,
+      corpus: [MAINTAINER_CURRENT],
+      diffText: sameDiff,
+    });
+    expect(gated.findings.some((f) => f.snippet.raw.includes("same-diff exemption"))).toBe(true);
   });
 
   it("does not rewrite Taskfile descriptions as a side effect", () => {
