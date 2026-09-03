@@ -201,6 +201,64 @@ describe("evaluateSpecPrdFresh", () => {
     ).toBe(true);
   });
 
+  it("fails PRD freshness when canonical prd:render would refuse the authority (#4086)", () => {
+    const root = project();
+    const xbrief = join(root, "xbrief");
+    mkdirSync(xbrief, { recursive: true });
+    writeFileSync(
+      join(xbrief, "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify(
+        {
+          xBRIEFInfo: { version: "0.8" },
+          plan: {
+            title: "Authority Fixture",
+            status: "running",
+            narratives: { Overview: "PD overview identity." },
+            items: [],
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    const specPath = join(xbrief, "specification.xbrief.json");
+    writeFileSync(
+      specPath,
+      JSON.stringify(
+        {
+          xBRIEFInfo: { version: "0.8" },
+          plan: {
+            title: "Freshness Fixture",
+            status: "approved",
+            narratives: { Overview: 1 },
+            items: [],
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    const expected = buildExpectedPrdMarkdown(root);
+    expect(expected.ok).toBe(false);
+    writeFileSync(
+      join(root, "PRD.md"),
+      buildPrdMarkdown("Freshness Fixture", { Overview: "stale" }, specPath),
+      "utf8",
+    );
+    const result = evaluateSpecPrdFresh(root);
+    expect(result.code).toBe(1);
+    expect(
+      result.findings.some(
+        (f) =>
+          f.artifact === "PRD.md" &&
+          f.assertion === "projection-fresh" &&
+          f.detail.includes("re-render failed"),
+      ),
+    ).toBe(true);
+  });
+
   it("does not recut scope outlook: prefix match is enough for SPECIFICATION.md", () => {
     const root = project();
     const specPath = writeSpec(root);

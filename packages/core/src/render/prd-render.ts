@@ -153,6 +153,15 @@ export function buildExpectedPrdMarkdown(projectRoot: string): ExpectedPrdMarkdo
       message: "xbrief/PROJECT-DEFINITION.xbrief.json not found; PRD authority is unavailable.",
     };
   }
+  if (authority.kind === "full-spec" && authority.specPath) {
+    const [ok, message] = validateSpec(authority.specPath);
+    if (!ok) return { ok: false, message };
+  } else if (!greenfieldOverviewNonEmpty(authority)) {
+    return {
+      ok: false,
+      message: "PROJECT-DEFINITION.xbrief.json Overview narrative is empty; cannot render PRD.",
+    };
+  }
   const loaded = tryLoadTitleAndNarratives(authority.sourcePath);
   if (!loaded.ok) return loaded;
   return {
