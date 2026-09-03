@@ -23,7 +23,9 @@ tasks:
           ENGINE_CMD: 'migrate-preflight --project-root "{{.USER_WORKING_DIR}}" --deft-root "{{.DEFT_ROOT}}" {{.CLI_ARGS}}'
 
   xbrief:
-    desc: "Migrate consumer vbrief/ layout to xbrief/ with semantic v0.6->v0.8 transforms (#2110 / #2034)."
+    # Hop 2 on current npm (#4092). Hop 1 (`migrate:vbrief`) is frozen on the
+    # v0.59.0 tag only — current deposits must not ship that target.
+    desc: "Migrate consumer vbrief/ layout to xbrief/ with semantic v0.6->v0.8 transforms (#2110 / #2034). Hop 2 of the frozen two-hop path (#4092)."
     dir: '{{.USER_WORKING_DIR}}'
     deps:
       - task: :engine:_ts-build

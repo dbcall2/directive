@@ -97,7 +97,8 @@ Install source of truth for this repo is **pnpm** (`packageManager` field; CI us
 | `*.vbrief.json` | `*.xbrief.json` |
 | `vBRIEF` / “scope vBRIEF” in guidance | `xBRIEF` / “scope xBRIEF” |
 | `x-vbrief/*` reference tokens | `x-xbrief/*` (and migrate-accepted legacy tokens) |
-| `task vbrief:*` / `migrate:vbrief` aliases | Prefer `task xbrief:*` / `deft migrate:xbrief`; keep `vbrief:*` only as deprecated aliases when required for back-compat |
+| `task vbrief:*` aliases | Prefer `task xbrief:*`; keep `vbrief:*` only as deprecated aliases when required for back-compat |
+| Frozen `task migrate:vbrief` (v0.59.0 hop 1 only) | Current hop 2 is `deft migrate:xbrief` / `task migrate:xbrief`. Frozen hop 1 is **not** a current alias of hop 2. |
 | Envelope keys `vBRIEFInfo` | `xBRIEFInfo` (legacy keys still read-accepted on unmigrated files) |
 
 **Why two names existed:** consumer layout and disk SoT moved to `xbrief/` while docs, glossary, and marketing still taught vBRIEF as current. That dual present-day naming is retired (#2907). Schema lineage, fixtures, migrate paths, changelog history, and archive prose may still say vBRIEF — always as **legacy/historical**, never as competing current guidance.
@@ -357,6 +358,8 @@ Non-native-skill harnesses (Codex CLI, OpenCode) report 0 B frontmatter; set `ha
 
 ## xBRIEF layout migration (#2034 / #2110)
 
+This section is **hop 2** for projects already on vBRIEF 0.6 (`vbrief/` lifecycle). Already-current xBRIEF 0.8: skip. Flat pre-v0.20 root docs: start at hop 1 in [Frozen pre-v0.20 document-model migration](#frozen-pre-v020-document-model-migration-2068). ⊗ Pin v0.59.0 or run frozen `migrate:vbrief` for this hop.
+
 After upgrading to a release that ships the xbrief rename, convert legacy on-disk layout if `deft doctor` reports a `vbrief/` tree or `x-vbrief/` reference tokens:
 
 ```bash
@@ -423,44 +426,67 @@ import schema from "@deftai/directive-types/schemas/xbrief-core-0.8.schema.json"
 
 ### `deft migrate` vs pre-v0.20 document-model migration
 
-These commands are unrelated — do not confuse them:
+These three commands are unrelated — do not confuse them:
 
-| Command | When to use | What it does |
-| --- | --- | --- |
-| `deft migrate` / `directive migrate` | Canonical-vendored `.deft/core/` deposit after npm upgrade (#1941) | Stamps `managed_by: npm` into the install manifest. Idempotent; never downloads payload. |
-| Pre-v0.20 document-model migration | Legacy authoritative `SPECIFICATION.md` / `PROJECT.md` only | **Not shipped on current npm releases (#2068).** Use the [frozen-release path](#frozen-pre-v020-document-model-migration-2068) below. |
+| Command | Runtime | When to use | What it does |
+| --- | --- | --- | --- |
+| `deft migrate` / `directive migrate` | Current npm | Canonical-vendored `.deft/core/` deposit after npm upgrade (#1941) | Stamps `managed_by: npm` into the install manifest. Idempotent; never downloads payload. **Not** document-model migration. |
+| `deft migrate:xbrief` / `task migrate:xbrief` | Current npm | Hop 2: vBRIEF 0.6 (`vbrief/`) → xBRIEF 0.8 (`xbrief/`) | Layout + envelope migration. Current Taskfiles ship this as `migrate:xbrief`. |
+| Frozen `task migrate:vbrief` | **v0.59.0 only** | Hop 1: pre-v0.20 flat `SPECIFICATION.md` / `PROJECT.md` → vBRIEF 0.6 | Python migrator. **Not shipped on current npm.** Current Taskfiles have no `migrate:vbrief` target. |
 
 ### Frozen pre-v0.20 document-model migration (#2068)
 
-Current `@deftai/directive` npm releases no longer ship `task migrate:vbrief` or `scripts/migrate_vbrief.py` on the consumer deposit path (#2022 Phase 3). If your project still uses the pre-v0.20 flat document model (authoritative root `SPECIFICATION.md` / `PROJECT.md` without vBRIEF lifecycle folders), migrate **once** on a pinned release that still bundles the Python migrator, then join the normal npm upgrade path.
+Current `@deftai/directive` npm releases no longer ship `task migrate:vbrief` or `scripts/migrate_vbrief.py` on the consumer deposit path (#2022 Phase 3).
 
-> **Durability & support horizon (#2297).** This is a **best-effort** path for a document model that predates v0.20. The permanence anchor is the **`v0.59.0` git tag** — GitHub serves a source tarball for any tag on demand (`https://github.com/deftai/directive/archive/refs/tags/v0.59.0.tar.gz`), so recovery does **not** depend on any uploaded release asset staying attached. As long as the tag exists, the migrator is reachable. If you cannot reach the frozen payload at all, use the **[Fresh-start fallback](#fresh-start-fallback-2297)** below.
+**This is a two-hop chain.** The pre-v0.20 flat model does not migrate straight to the current layout:
 
-**Applies when:** `deft doctor` reports `Pre-cutover: migration needed`, or `task migrate:preflight` exits non-zero with a `document-model` FAIL line.
+- **Hop 1** — pin **v0.59.0**, run frozen `task migrate:vbrief` (flat → vBRIEF v0.6).
+- **Hop 2** — on **current npm**, run `deft migrate:xbrief` (vBRIEF v0.6 → xBRIEF v0.8). Not `deft migrate`.
+
+This file owns the numbered hop commands. [docs/BROWNFIELD.md](./docs/BROWNFIELD.md) should point here rather than restate a second procedure. Live `frozenPreCutoverMigrationGuidance()`, QUICK-START Case H, and README are other envelopes.
+
+#### Who runs which hop
+
+| Starting layout | Next step |
+| --- | --- |
+| Flat authoritative root `SPECIFICATION.md` / `PROJECT.md` (no vBRIEF/xBRIEF lifecycle) | Hop 1, then hop 2 |
+| Valid vBRIEF 0.6 (`vbrief/` lifecycle) | Hop 2 only — do not pin v0.59.0 |
+| xBRIEF 0.8 with incomplete lifecycle folders | Current repair/validation only. Not hop 1. |
+| Complete xBRIEF 0.8 | No document-model migration |
+
+⊗ Pin v0.59.0 or run frozen `migrate:vbrief` on an already-current xBRIEF 0.8 project. Incomplete `xbrief/` is not hop-1 input.
+
+`deft doctor` / current `task migrate:preflight` may still print `Pre-cutover: migration needed` for a missing lifecycle folder on an otherwise current tree (runtime `detectPreCutover`). That predicate is not this docs slice. Hop 1 in **this** numbered list is only for flat authoritative root docs.
+
+> **Durability & support horizon (#2297).** This is a **best-effort** path for a document model that predates v0.20. The permanence anchor is the **`v0.59.0` git tag** — GitHub serves a source tarball for any tag on demand (`https://github.com/deftai/directive/archive/refs/tags/v0.59.0.tar.gz`), so recovery does **not** depend on any uploaded release asset staying attached. Verify the checkout SHA before hop 1: tag `v0.59.0` currently names commit `e8bfd5aa21511a38e4b45b3d5b80edb30e9e2dd0` (a tag is a movable ref). If you cannot reach the frozen payload at all, use the **[Fresh-start fallback](#fresh-start-fallback-2297)** below.
+
+**Applies when:** the project still has authoritative pre-v0.20 root `SPECIFICATION.md` / `PROJECT.md` (no `<!-- deft:deprecated-redirect -->` sentinel, and no `vbrief/` or `xbrief/` lifecycle).
 
 **Pinned tag:** `v0.59.0` — the last release before the Python-free npm deposit; the tagged tree includes `scripts/migrate_vbrief.py`.
 
-**This is a two-hop chain.** The pre-v0.20 flat model does not migrate straight to the current layout: hop 1 is `task migrate:vbrief` on **v0.59.0** (flat → vBRIEF v0.6); hop 2 is `deft migrate:xbrief` on **current npm** (vBRIEF v0.6 → xBRIEF v0.8). Steps 5–6 below cover hop 2.
+**Trust:** run hop 1 only against a **trusted** project checkout. The frozen Python migrator writes under repo-controlled paths (it replaces root docs with redirect stubs). Do not point it at an untrusted tree.
 
 **Steps:**
 
-1. Install **Python 3.11+** and **[uv](https://docs.astral.sh/uv/)** on the migration machine.
-2. Deposit framework **v0.59.0** using one of (git-tag methods first — they survive even if release assets are removed):
-   - **Source tarball from the tag:** `curl -fsSL https://github.com/deftai/directive/archive/refs/tags/v0.59.0.tar.gz | tar xz` (full source tree including the migrator), or
-   - **Git clone / submodule:** `git checkout v0.59.0` in your framework checkout, or
+1. Confirm the starting layout in the table above. Already-current xBRIEF 0.8: stop. Valid vBRIEF 0.6: skip to hop 2 (step 7).
+2. Install **Python 3.11+** and **[uv](https://docs.astral.sh/uv/)** on the migration machine.
+3. Fetch framework **v0.59.0** and verify SHA `e8bfd5aa21511a38e4b45b3d5b80edb30e9e2dd0` (git-tag methods first — they survive even if release assets are removed):
+   - **Git clone (preferred):** `git clone --branch v0.59.0 https://github.com/deftai/directive.git deft-v0.59.0`, then `git -C deft-v0.59.0 rev-parse HEAD` must equal that SHA, or
+   - **Source tarball from the tag:** download `https://github.com/deftai/directive/archive/refs/tags/v0.59.0.tar.gz`, extract to a directory, then confirm the tree matches the SHA, or
    - **Frozen Go installer** at [GitHub Releases tag v0.59.0](https://github.com/deftai/directive/releases/tag/v0.59.0) (legacy bridge; relies on the uploaded asset, so prefer a git-tag method above for durability).
-3. From the project root, preview then apply:
+4. From the **consumer project root** (working directory = the project being migrated), run hop 1 against the **pinned** Taskfile — not the current deposit:
    ```bash
-   task migrate:preflight
-   task migrate:vbrief -- --dry-run
-   task migrate:vbrief
+   task -t /path/to/deft-v0.59.0/Taskfile.yml migrate:vbrief -- --dry-run
+   task -t /path/to/deft-v0.59.0/Taskfile.yml migrate:vbrief
    ```
-   Fallback when the consumer Taskfile has no deft include: `task -t ./.deft/core/Taskfile.yml migrate:vbrief`.
-4. Regenerate exports once: `task roadmap:render`, `task project:render`, and `task prd:render -- --force` when you maintain a `PRD.md`.
-5. Upgrade to current npm: `npm i -g @deftai/directive@latest`, then `deft update`, `deft migrate`, `deft doctor`.
-6. Start a **new agent session** so refreshed AGENTS.md and skills load from a clean context.
+   Frozen `migrate:vbrief` self-invokes `migrate:preflight` on that same pinned Taskfile. Do not run current-npm `task migrate:preflight` as the hop-1 gate. Current deposits have no `migrate:vbrief` target — `task -t ./.deft/core/Taskfile.yml migrate:vbrief` is a dead fallback.
+5. **Hop 1 postcondition** (frozen runtime, not current `deft doctor`): the migrator exits 0, and the project has `vbrief/specification.vbrief.json`, `vbrief/PROJECT-DEFINITION.vbrief.json`, and `vbrief/{proposed,pending,active,completed,cancelled}/`. Root `SPECIFICATION.md` / `PROJECT.md` are deprecation redirects. This is vBRIEF 0.6, not xBRIEF.
+6. Upgrade to current npm: `npm i -g @deftai/directive@latest`, then `deft update` from the project root. Optional: regenerate exports with `task roadmap:render`, `task project:render`, and `task prd:render -- --force` when you maintain a `PRD.md` (frozen-payload renderers; hop 2 will rewrite layout).
+7. **Hop 2:** `deft migrate:xbrief` (or `task migrate:xbrief` from a maintainer checkout). Requires a clean working tree unless `--force`.
+8. **Hop 2 postcondition** (current npm): `deft migrate:xbrief` reports migrated or already done; `xbrief/` exists with `xBRIEFInfo.version` `0.8`; and the xBRIEF signpost is `xBrief migration: none` (or `converged`). A `vbrief/`-only tree must fail this proof. Do not treat `deft doctor` exit 0 as hop-2 proof. `deft migrate` (provenance stamp) is a separate npm-channel step — run it after hop 2 if needed, never instead of hop 2.
+9. Start a **new agent session** so refreshed AGENTS.md and skills load from a clean context.
 
-⊗ Run `npm i -g @deftai/directive@latest` / `deft update` on a project that still has authoritative pre-v0.20 root docs — the current deposit cannot run the migrator; follow the frozen path first.
+⊗ Run `npm i -g @deftai/directive@latest` / `deft update` on a project that still has authoritative pre-v0.20 root docs — the current deposit cannot run hop 1; follow the frozen path first.
 
 #### Fresh-start fallback (#2297)
 
@@ -1030,7 +1056,7 @@ The contract is byte-stable by construction:
 
 ## From any pre-v0.20 version → v0.20.0 (historical; use frozen path)
 
-> **Current releases (#2068):** follow [Frozen pre-v0.20 document-model migration](#frozen-pre-v020-document-model-migration-2068) instead of upgrading straight to latest npm. The section below documents what the v0.20 cutover changed; commands assume framework **v0.59.0** (or another pinned release that still ships `migrate_vbrief.py`).
+> **History.** This From-X-to-Y list records the v0.20.0 cutover. It is **not** the current hop-2 instruction. Current hop 2 is `deft migrate:xbrief` in [Frozen pre-v0.20 document-model migration](#frozen-pre-v020-document-model-migration-2068). Commands below assume pinned **v0.59.0** (hop 1 payload only).
 
 - **Applies when:** `deft doctor` / `task migrate:preflight` reports pre-cutover state. Legacy `SPECIFICATION.md` / `PROJECT.md` without the `<!-- deft:deprecated-redirect -->` sentinel is the canonical signal.
 - **Safe to auto-run:** No — `task migrate:vbrief` on the pinned release rewrites `SPECIFICATION.md` and `PROJECT.md` into deprecation-redirect stubs and creates lifecycle folders; review `--dry-run` first.

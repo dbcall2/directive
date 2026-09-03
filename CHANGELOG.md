@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Frozen two-hop migration runs `deft migrate:xbrief` as hop 2 (#4092).** UPGRADING no longer puts the unrelated `deft migrate` provenance stamp in that slot. Already-current xBRIEF 0.8 projects are told not to pin v0.59.0. Historical From-X-to-Y lists stay history. Closes #4092. Refs #4085, #2068, #2297.
 - **Consumer install copy keeps a Node 20+ floor separate from the maintainer Node 24 pin (#4089).** README and the public install pages no longer cite `.nvmrc` or send npm consumers through Corepack, Python, uv, Go, or `task toolchain:check`. Consumer confirmation is `directive toolchain:check --consumer`. CLI/doctor remedies stay on the consumer floor. CONTRIBUTING names Node 24 and pnpm for this repository. Does not add `engines` to `@deftai/directive`. Closes #4089. Refs #4085, #3610.
 - **Orientation file map matches the current checkout (#4087).** Labeled-current directory trees no longer teach deleted Python launchers or root guidance paths. Skills and consumer state use `content/skills/` and `xbrief/`. A fail-closed content-contract pin covers those trees. Partial of #4087. Refs #4085.
 
