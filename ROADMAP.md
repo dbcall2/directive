@@ -44,31 +44,31 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1402 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1422 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4119** -- bug(intake,lifecycle): issue:ingest omits stable plan.id and transitions admit it -- `[completed]`
+- **#4066** -- rfc(session,swarm): spawned work takes its own worktree; master occupancy is the exception and must be released -- `[completed]`
+- **#4086** -- docs(canon): remove residual legacy authority from current xBRIEF sources -- `[completed]`
+- **#4005** -- security: gate destination-visible empty-op Shell mutations under active UAT -- `[completed]`
+- **#4091** -- docs(contributing): replace retired Python extension procedures with TypeScript paths -- `[completed]`
+- **#4088** -- fix(architecture): cover content modules in codeStructure validation -- `[completed]`
+- **#4116** -- bug(update,gitignore): canonical gitignore ignores .deft/approved-scope/ which provenance requires on the merge base -- `[completed]`
+- **#4130** -- bug(review-cycle,swarm): dual-stop max-out needs a parent-owned fresh critic; grok leaf must not nest -- `[completed]`
+- **#4117** -- bug(update): generated SPECIFICATION.md with stale vbrief banner hard-blocks npm deposit refresh -- `[completed]`
+- **#4118** -- bug(session): session:start prints git fatal twice then succeeds on an npm deposit -- `[completed]`
+- **#4060** -- bug(lifecycle): scope:complete one bank-aware path for swarm-only banks -- `[completed]`
+- **#3914** -- bug(session): session:start skips --; own-git-root SHA; drop Task-only parenthetical -- `[completed]`
+- **#4041** -- sec(authz,hooks): classifyHookAuthzOps uses isShellTool so Grok monitor is UAT-denied -- `[completed]`
+- **#3993** -- bug(lifecycle): AC-pass bank loses green-run evidence and reintroduces #3497 -- `[completed]`
+- **#4103** -- bug(verify-ac): extractExpectedTokens quote-class pairing false-FAILS clauses with two+ apostrophes -- `[completed]`
+- **#4081** -- BLOCKER: bug(validate-links): C3 exclusions fail from a consumer root -- `[completed]`
+- **#4072** -- feat(design-critique): front-door direct vs ingest — GitHub-only arcs skip occupancy, worktrees, and ingest -- `[completed]`
+- **#4083** -- bug(issue-eval,windows): triage:evaluate session:start --read-only ENOENTs on npm .cmd shims -- `[completed]`
+- **#4079** -- bug(release): v0.110.0 cut still requires a mid-flow TTY mint, and the skill names a Task verb that does not exist -- `[completed]`
+- **#4000** -- bug(release): release:e2e is denied at the Step 10 closed-verb gate, so the rehearsal never reaches the npm phase -- `[completed]`
 - **#4070** -- chore(triage): withdraw the classify skill and strip triaged / triage:* chips -- `[completed]`
 - **#4067** -- bug(design-critique): N=3 panel dispatch does not bind cross-family seats, and a Grok parent with claude/codex CLIs still paste-readies -- `[completed]`
 - **#4059** -- [framework-gap] scope:provenance rejects canonical scope:complete evidence as intent drift -- `[completed]`
 - **#4009** -- [framework-gap] verify:forward-coverage ignores configured testRoots and matches on a bare filename stem -- `[completed]`
 - **#4057** -- rfc(intake,design-critique): set-level bind does not change ingest — sisters mint harvest xbriefs and superseded threads stay blocked -- `[completed]`
-- **#3874** -- bug(scope,swarm): the scope-provenance remediation string teaches agents to drop file_scope, and declaration fell 94% to 6% in four days -- `[completed]`
-- **#3872** -- bug(session,reliability): ritual-state ownership checks are non-atomic and need a serialized write path -- `[completed]`
-- **#4007** -- Write fence binds the dispatched story, not the first-sorted active brief (#4007) -- `[completed]`
-- **#3997** -- rfc(hooks,security): the shell write gate is fail-open on destinations it cannot statically recover, so review does not converge -- `[completed]`
-- **#4010** -- [framework-gap] verify:lifecycle-visible reads a blank .gitignore line as a match-all pattern -- `[completed]`
-- **#4008** -- [framework-gap] a derived acceptance clause is never bound to a declared file_scope path at promote, so the clause walk has no adjudicable oracle -- `[completed]`
-- **#3926** -- bug(occupancy): fresh single-session containers report an occupied lease, the steal succeeds, and session:start still reports occupied (#3433 friction; candidate root shared with #3921) -- `[completed]`
-- **#4027** -- bug(design-critique): N>=3 lean-after-each-EXIT talks at 1 of 3 -- `[completed]`
-- **#4035** -- docs(guidance): Grok Build subscription-only setup playbook for a new maintainer agent -- `[completed]`
-- **#3877** -- bug(session,tests): mint-path session fixtures read ambient DEFT_SESSION_ID, reddening the suites and scope:complete -- `[completed]`
-- **#3999** -- bug(session,swarm): a dispatched subagent claims the occupancy lease and exits without releasing it, stranding the parent's worktree -- `[completed]`
-- **#3954** -- bug(session,hooks): claim, release and grant resolve the occupancy actor by three different rules, so the printed recovery is unreachable and a parent locks out its own children -- `[completed]`
-- **#4013** -- bug(hooks): a write to a target outside every worktree is gated by the payload root's occupancy lease -- `[completed]`
-- **#3987** -- SECURITY: the PreToolUse write gate does not match Grok Build's shell tool, so a denied write succeeds through run_terminal_command -- `[completed]`
-- **#3942** -- bug(design-critique): the verified-claims table shape token is unpublished, and the refusal blames the citation instead of the missing heading -- `[completed]`
-- **#3915** -- chore(triage): close 25 implemented, superseded, or obsolete issues from the >30-day audit -- `[completed]`
-- **#3983** -- Close the PreToolUse shell reissue hole and evaluate elapsed on an in-flight delivery attempt -- `[completed]`
-- **#3969** -- bug(release): close the unrecorded Closes bypass, fix census input, wire the existing closing-keyword detector -- `[completed]`
-- **#3737** -- BLOCKER: bug(scm): resolveBinary prefers ghx on presence alone, so a broken ghx silently kills triage, ingest, cache and pr:watch -- `[completed]`
-- **#3615** -- bug(verify-ac): safety-refused commands must not enter product-oracle history -- `[completed]`
 

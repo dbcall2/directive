@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.111.0] - 2026-09-03
+
+> Stable ingest plan.id, spawned worktrees, design-critique front door, spec/PRD freshness, and session/authz/lifecycle fixes.
+
+### Added
 - **Fail-closed SPECIFICATION.md / PRD.md render freshness (`task verify:spec-prd-fresh`) (#4086).** Re-renders to a buffer and fails on banner or projection diff, wired into `check:framework-source`. Banner canon and full projection freshness are separate assertions. Closes #4086.
 - **Design-critique front door is a run-posture field, not a second ingest switch (#4072).** Stop 1 records `arc-mode: direct` or `arc-mode: checkout`. Direct is `session:start --read-only` (or release), GitHub comments via `gh issue comment --body-file -`, SHA-pinned reads, and family CLIs without worktrees. Missing token, including yolo, asks. Ingest stays a later verb after the completed-arc record. Closes #4072. Refs #4020, #4066, #4067.
 
@@ -5798,7 +5810,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.110.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.111.0...HEAD
+[0.111.0]: https://github.com/deftai/directive/compare/v0.110.0...v0.111.0
 [0.110.0]: https://github.com/deftai/directive/compare/v0.109.1...v0.110.0
 [0.109.1]: https://github.com/deftai/directive/compare/v0.109.0...v0.109.1
 [0.109.0]: https://github.com/deftai/directive/compare/v0.108.0...v0.109.0
