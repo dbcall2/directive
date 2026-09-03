@@ -476,9 +476,11 @@ describe("command snippet contract (#4094)", () => {
     const prevSha = process.env.GITHUB_BASE_SHA;
     const prevRef = process.env.GITHUB_BASE_REF;
     const prevActions = process.env.GITHUB_ACTIONS;
+    const prevEvent = process.env.GITHUB_EVENT_NAME;
     delete process.env.GITHUB_BASE_SHA;
     delete process.env.GITHUB_BASE_REF;
     delete process.env.GITHUB_ACTIONS;
+    process.env.GITHUB_EVENT_NAME = "pull_request";
     try {
       const diff = readCommandSnippetCandidateDiff(shallow);
       expect(diff).toContain(UNRESOLVED_SHALLOW_CANDIDATE_DIFF);
@@ -500,6 +502,56 @@ describe("command snippet contract (#4094)", () => {
       else process.env.GITHUB_BASE_REF = prevRef;
       if (prevActions === undefined) delete process.env.GITHUB_ACTIONS;
       else process.env.GITHUB_ACTIONS = prevActions;
+      if (prevEvent === undefined) delete process.env.GITHUB_EVENT_NAME;
+      else process.env.GITHUB_EVENT_NAME = prevEvent;
+    }
+  });
+
+  it("shallow push-to-master does not emit the unresolved-shallow sentinel", () => {
+    const origin = mkdtempSync(join(tmpdir(), "cmd-snippet-origin-"));
+    const shallow = join(tmpdir(), `cmd-snippet-shallow-push-${process.pid}`);
+    created.push(origin, shallow);
+    const git = (cwd: string, args: readonly string[]): string =>
+      execFileSync("git", args, { cwd, encoding: "utf8" });
+    git(origin, ["init"]);
+    git(origin, ["config", "user.email", "t@example.test"]);
+    git(origin, ["config", "user.name", "t"]);
+    const resolverRel = "packages/core/src/deposit/live-procedure-targets.ts";
+    mkdirSync(join(origin, "packages/core/src/deposit"), { recursive: true });
+    mkdirSync(join(origin, "content"), { recursive: true });
+    writeFileSync(join(origin, resolverRel), "export const start = true;\n");
+    writeFileSync(join(origin, "content/commands.md"), "# Commands\n");
+    git(origin, ["add", "."]);
+    git(origin, ["commit", "-m", "head"]);
+    execFileSync("git", ["clone", "--depth", "1", `file://${origin}`, shallow], {
+      encoding: "utf8",
+    });
+    const prevSha = process.env.GITHUB_BASE_SHA;
+    const prevRef = process.env.GITHUB_BASE_REF;
+    const prevEvent = process.env.GITHUB_EVENT_NAME;
+    delete process.env.GITHUB_BASE_SHA;
+    delete process.env.GITHUB_BASE_REF;
+    process.env.GITHUB_EVENT_NAME = "push";
+    try {
+      const diff = readCommandSnippetCandidateDiff(shallow);
+      expect(diff).not.toContain(UNRESOLVED_SHALLOW_CANDIDATE_DIFF);
+      const result = evaluateCommandSnippets({
+        repoRoot,
+        corpus: [MAINTAINER_CURRENT],
+        diffText: diff,
+      });
+      expect(
+        result.findings.some((finding) =>
+          finding.snippet.raw.includes("unresolved-shallow candidate-diff"),
+        ),
+      ).toBe(false);
+    } finally {
+      if (prevSha === undefined) delete process.env.GITHUB_BASE_SHA;
+      else process.env.GITHUB_BASE_SHA = prevSha;
+      if (prevRef === undefined) delete process.env.GITHUB_BASE_REF;
+      else process.env.GITHUB_BASE_REF = prevRef;
+      if (prevEvent === undefined) delete process.env.GITHUB_EVENT_NAME;
+      else process.env.GITHUB_EVENT_NAME = prevEvent;
     }
   });
 

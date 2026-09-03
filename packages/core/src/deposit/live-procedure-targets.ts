@@ -970,9 +970,16 @@ export function readCommandSnippetCandidateDiff(repoRoot: string): string {
     const ranged = diffAgainstBase(repoRoot, base, files);
     if (ranged !== null) return ranged;
   }
-  // Depth-one clones only have HEAD. A `git log -p` fallback would hide
+  // Depth-one PR checkouts only have HEAD. A `git log -p` fallback would hide
   // exemption + snippet additions from earlier PR commits (fail-open).
-  if (isShallowRepo(repoRoot)) return `${UNRESOLVED_SHALLOW_CANDIDATE_DIFF}\n`;
+  // Push-to-master CI also has origin/<default>==HEAD and no PR base metadata;
+  // failing closed there would red the live command-snippet tests on every push.
+  if (isShallowRepo(repoRoot)) {
+    if (process.env.GITHUB_EVENT_NAME?.trim() === "push") {
+      return gitOut(repoRoot, ["log", "-p", "-n", "50", "--", ...files]);
+    }
+    return `${UNRESOLVED_SHALLOW_CANDIDATE_DIFF}\n`;
+  }
   return gitOut(repoRoot, ["log", "-p", "-n", "50", "--", ...files]);
 }
 
