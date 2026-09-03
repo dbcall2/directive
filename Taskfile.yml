@@ -464,7 +464,9 @@ tasks:
       - verify-eval-health-relocation-framework-check
       - verify-eval-triggers-relocation-framework-check
       - vbrief:validate
-      - codebase:validate-structure
+      - task: codebase:validate-structure
+        vars:
+          CLI_ARGS: "--enforce"
       - verify:codebase-map-fresh
       - verify-strategy-output
       # #2980 residual: fail-closed product raw-write inventory (allowlist primitives + temporary residual).

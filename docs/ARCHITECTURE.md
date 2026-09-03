@@ -11,16 +11,20 @@ How the Deft framework is wired today: authority layers, command surfaces, xBRIE
 Deft Directive is a self-dogfooded framework for AI-assisted software work. It is not just Markdown guidance and not just a CLI. The implemented system combines:
 
 - Agent-consumed rules, skills, standards, strategies, and templates.
-- A Taskfile-first deterministic command graph.
-- Python tooling plus the TypeScript package engine for validation, rendering, lifecycle movement, cache/triage/scope automation, doctor checks, release support, codebase extraction contracts, CLI shims, and parity harnesses.
-- npm packages (`@deftai/directive` + `@deftai/directive-content`) with TS-native `directive init` / `directive update` resolve-and-copy deposit into gitignored `.deft/core/`, plus a frozen Go binary retained only as a legacy layout bridge and node-independent health gate.
+- TypeScript packages under `packages/` as the implementation and runtime owner (validation, rendering, lifecycle, cache/triage/scope, doctor, release support, CLI).
+- Taskfile as the repository command facade (`task --list`, `task check`, `task verify:*`).
+- `deft` / `directive` as the installed consumer CLI.
+- `deft-hook` and native CLI verbs as host and Git-hook entrypoints.
+- npm packages (`@deftai/directive` + `@deftai/directive-content`) with TS-native `directive init` / `directive update` resolve-and-copy deposit into gitignored `.deft/core/`, plus a frozen Go binary retained only as a legacy layout bridge and node-independent health gate. Canonical published package graph and install topology are owned by [#4093](https://github.com/deftai/directive/issues/4093); this document does not author that graph and must not be read as prejudging [#1979](https://github.com/deftai/directive/issues/1979).
 - xBRIEF files as durable project, specification, lifecycle, policy, and architecture metadata.
 - Local cache/audit surfaces for backlog triage and GitHub issue ingestion.
 - PR, release, swarm, branch-policy, and verification gates.
 - Content packs for sliceable agent memory.
 - Tests, hooks, and CI workflows that enforce the stronger rules.
 
-`task --list` is the primary command discovery surface. `run`, `run.py`, and `run.bat` still exist for compatibility and selected interactive flows, but they are no longer the central architecture owner.
+`task --list` is the repository command discovery surface. New deterministic automation enters through Taskfile, which dispatches the TypeScript CLI in this checkout.
+
+> **Historical (Python/run era):** root `run`, `run.py`, and `run.bat` launchers, plus `scripts/*.py` validators, were the previous automation layer. They are removed from the current tree. Do not add work there.
 
 The original Deft intent still matters: move from one-off, vibe-level agent prompting toward a repeatable practice where standards are modular, context is loaded on demand, work is specified before implementation, tests anchor behavior, and the framework improves from its own lessons.
 
@@ -30,7 +34,7 @@ The original Deft intent still matters: move from one-off, vibe-level agent prom
 flowchart LR
     A["Agent entry<br/>AGENTS.md, SKILL.md, main.md"] --> B["Guidance layer<br/>skills, standards, strategies, templates"]
     B --> C["Taskfile command graph<br/>task --list, task check, task verify:*"]
-    C --> D["Automation layer<br/>scripts/*.py, packages/, run compatibility, Go installer"]
+    C --> D["Automation layer<br/>packages/ TypeScript runtime, Taskfile engine, frozen Go bridge"]
     D --> E["Durable state<br/>PROJECT-DEFINITION, specification, scope xBRIEFs"]
     E --> F["Generated views<br/>SPECIFICATION.md, PRD.md, ROADMAP.md, MAP.md"]
     E --> C
@@ -56,7 +60,7 @@ Rules use the strongest applicable layer:
 
 ```mermaid
 flowchart TD
-    D["Deterministic checks<br/>tests, scripts, hooks, CI"] --> T["Taskfile targets<br/>task check, verify:*, vbrief:validate, xbrief:preflight"]
+    D["Deterministic checks<br/>tests, scripts, hooks, CI"] --> T["Taskfile targets<br/>task check, verify:*, xbrief:preflight"]
     T --> V["xBRIEF metadata<br/>project policy, lifecycle state"]
     V --> R["RFC2119 rules<br/>AGENTS.md, main.md, skills"]
     R --> P["Plain prose<br/>explanation and rationale"]
@@ -91,17 +95,20 @@ flowchart LR
 
 | Area | Primary paths | Current responsibility |
 | --- | --- | --- |
-| Framework content | `AGENTS.md`, `main.md`, `coding/`, `contracts/`, `conventions/`, `docs/`, `interfaces/`, `languages/`, `meta/`, `patterns/`, `resilience/`, `scm/`, `skills/`, `strategies/`, `swarm/`, `templates/`, `tools/`, `verification/` | Agent guidance, skills, standards, and documentation. |
-| Task runner | `Taskfile.yml`, `tasks/*.yml` | Deterministic command contract and composable command namespaces. |
-| Python tooling | `scripts/*.py`, `run`, `run.py`, `run.bat` | Validators, renderers, lifecycle tools, issue/cache/triage automation, doctor/session gates, codebase provider contracts, and compatibility routing. |
-| TypeScript engine | `packages/`, `package.json`, `pnpm-workspace.yaml`, `tsconfig*.json`, `vitest.config.ts` | Migrated deterministic gates, CLI shims, and Python-oracle parity harnesses for the #1530 engine migration. |
+| Framework content | `AGENTS.md`, `main.md`, `content/`, `docs/` | Agent guidance, skills, standards, and documentation. Shipped guidance lives under `content/`; `docs/` is repo-dev orientation. |
+| Task runner | `Taskfile.yml`, `tasks/*.yml` | Repository command facade: deterministic command contract and composable namespaces. |
+| TypeScript packages | `packages/`, `package.json`, `pnpm-workspace.yaml`, `tsconfig*.json`, `vitest.config.ts` | Implementation and runtime owner for gates, the `deft` / `directive` CLI, and `deft-hook`. |
 | Go installer (legacy bridge) | `cmd/deft-install/`, `go.mod` | Frozen cross-platform tarball deposit for offline/air-gapped and legacy layout migration; superseded by TS-native `directive init` / `directive update` for normal installs (#1942). |
 | xBRIEF metadata | `xbrief/**/*.json`, `xbrief/**/*.md` | Project identity, scope lifecycle, schemas, policy, specification source, and authored `codeStructure`. |
-| Content packs | `packs/` | Curated agent memory packs rendered and checked through `task packs:*`. |
-| CI/release automation | `.github/`, `.githooks/`, `tasks/pr.yml`, `tasks/release.yml`, release scripts | Branch policy, PR readiness, release, publish, rollback, and local hook enforcement. |
-| Tests | `tests/` | CLI, content, contract, lifecycle, and regression coverage. |
+| Content packs | `content/packs/` | Curated agent memory packs rendered and checked through `task packs:*`. |
+| CI/release automation | `.github/`, `.githooks/`, `tasks/pr.yml` | Branch policy, PR readiness, release, publish, rollback, and local hook enforcement. |
+| Tests | `tests/`, `packages/*/src/**/*.test.ts` | CLI, content, contract, lifecycle, and regression coverage. |
+
+> **Historical (Python/run era):** `scripts/*.py`, `run`, `run.py`, and `run.bat` used to own validators and compatibility routing. They are not current modules.
 
 ## npm-Native Distribution (current)
+
+Canonical published package graph, init/update ownership, and Go disposition are owned by [#4093](https://github.com/deftai/directive/issues/4093) and must not prejudge [#1979](https://github.com/deftai/directive/issues/1979). The sketch below is orientation, not the topology source of truth.
 
 Distribution splits into two npm packages and a thin local materialization step. Shipped in Wave 5 ([#1669](https://github.com/deftai/directive/issues/1669), [#1942](https://github.com/deftai/directive/issues/1942)); the frozen Go binary role is further constrained by [#1933](https://github.com/deftai/directive/issues/1933) and [#1912](https://github.com/deftai/directive/issues/1912).
 
@@ -127,6 +134,16 @@ Key properties of the current model:
 
 ## Command Surface
 
+These are separate lanes. Do not collapse them into "Taskfile-first runtime."
+
+| Lane | Owner | Role |
+| --- | --- | --- |
+| TypeScript packages | `packages/` | Implementation and runtime owner |
+| Taskfile | `Taskfile.yml`, `tasks/*.yml` | Repository command facade for maintainers, agents, and CI in this checkout |
+| Installed consumer CLI | `deft` / `directive` | What consumer projects run after `npm i -g @deftai/directive` |
+| Git-hook entrypoints | `.githooks/_deft-run.sh` → `deft` / native CLI verbs (`verify:branch`, `verify:encoding`, `preflight-gh`, ...) | What tracked `.githooks/` invoke |
+| Host integrations | `deft-hook` | Agent-host hook runtime; not the Git-hook resolver |
+
 The command graph is broad; use `task --list` for the exact current surface. The important architectural groups are:
 
 - `task check`, `task check:framework-source`, `task check:consumer`, `task check:slow` for quality gates.
@@ -139,7 +156,7 @@ The command graph is broad; use `task --list` for the exact current surface. The
 - `task pr:*`, `task release:*`, and `task swarm:*` for PR readiness, release operations, and multi-agent orchestration.
 - `task policy:*`, `task capacity:*`, and `task scm:*` for project policy, work allocation, and SCM helpers.
 
-`run` remains useful for compatibility and selected interactive commands such as `.deft/core/run bootstrap`, `.deft/core/run spec`, `.deft/core/run validate`, and `.deft/core/run doctor`. New deterministic automation should usually enter through Taskfile.
+New deterministic automation should enter through Taskfile in this checkout, or through `deft` / `directive` in a consumer install. Tracked Git hooks invoke native CLI verbs through `.githooks/_deft-run.sh` (the `deft` resolver), not `deft-hook` and not Python launchers. `deft-hook` is the agent-host integration binary.
 
 ## Session Ritual And Gate Stack
 
