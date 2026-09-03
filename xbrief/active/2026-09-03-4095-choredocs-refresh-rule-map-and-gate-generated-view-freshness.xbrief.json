@@ -22,7 +22,7 @@
         "status": "proposed",
         "effort": "M",
         "narrative": {
-          "Acceptance": "When task docs:rule-map:check runs against the committed RULE-MAP, then it passes."
+          "Acceptance": "When task verify:rule-map-fresh runs against the committed RULE-MAP, then it passes."
         }
       },
       {
@@ -62,7 +62,7 @@
     "acceptance": {
       "commands": [
         {
-          "command": "task docs:rule-map:check"
+          "command": "task verify:rule-map-fresh"
         },
         {
           "command": "task verify:encoding"
@@ -73,7 +73,7 @@
       "clauses": [
         {
           "id": 1,
-          "text": "When task docs:rule-map:check runs against the committed RULE-MAP, then it passes.",
+          "text": "When task verify:rule-map-fresh runs against the committed RULE-MAP, then it passes.",
           "artifact_path": "docs/RULE-MAP.md",
           "ambiguous": false,
           "provenance": "statement"
@@ -120,7 +120,7 @@
           "ROADMAP.md"
         ],
         "verify_commands": [
-          "task docs:rule-map:check",
+          "task verify:rule-map-fresh",
           "task verify:encoding"
         ],
         "expected_outputs": [
