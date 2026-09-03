@@ -15,6 +15,7 @@
  * only — extracted fences are never executed.
  */
 
+import { execFileSync } from "node:child_process";
 import { type Dirent, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -875,6 +876,33 @@ export function evaluateMarkdownCommandSnippets(options: {
   return { snippets, findings };
 }
 
+const COMMAND_SNIPPET_DIFF_PATHS = [
+  "packages/core/src/deposit/live-procedure-targets.ts",
+  "content/commands.md",
+] as const;
+
+function gitOut(repoRoot: string, args: readonly string[]): string {
+  try {
+    return execFileSync("git", args, { cwd: repoRoot, encoding: "utf8" });
+  } catch {
+    return "";
+  }
+}
+
+/** Candidate diff for same-diff exemption ownership (working tree + merge-base). */
+export function readCommandSnippetCandidateDiff(repoRoot: string): string {
+  const files = [...COMMAND_SNIPPET_DIFF_PATHS];
+  const parts = [
+    gitOut(repoRoot, ["diff", "HEAD", "--", ...files]),
+    gitOut(repoRoot, ["diff", "--cached", "--", ...files]),
+  ];
+  const mergeBase = gitOut(repoRoot, ["merge-base", "HEAD", "origin/master"]).trim();
+  if (mergeBase.length > 0) {
+    parts.push(gitOut(repoRoot, ["diff", `${mergeBase}...HEAD`, "--", ...files]));
+  }
+  return parts.join("\n");
+}
+
 export function evaluateCommandSnippets(options: {
   readonly repoRoot: string;
   readonly corpus?: readonly CommandSnippetCorpusEntry[];
@@ -898,8 +926,12 @@ export function evaluateCommandSnippets(options: {
     snippets.push(...result.snippets);
     findings.push(...result.findings);
   }
-  if (options.diffText !== undefined && options.diffText.length > 0) {
-    for (const violation of sameDiffExemptionViolations(options.diffText)) {
+  const diffText =
+    options.diffText !== undefined
+      ? options.diffText
+      : readCommandSnippetCandidateDiff(options.repoRoot);
+  if (diffText.length > 0) {
+    for (const violation of sameDiffExemptionViolations(diffText)) {
       findings.push({
         snippet: {
           file: violation.path,
