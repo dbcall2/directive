@@ -55,11 +55,13 @@ Shipped guidance lives under `content/`. Root `docs/`, `meta/`, and `incidents/`
 ```text
 content/
 ├── coding/        # Coding, testing, hygiene, toolchain, and build-output rules
+├── ci-cd/         # CI/CD runner notes
 ├── context/       # Context management patterns and spec-delta guidance
 ├── contracts/     # Boundary maps, hierarchy, deterministic question contracts
 ├── conventions/   # Cross-cutting conventions such as references and banners
 ├── deployments/   # Platform deployment guides
 ├── docs/          # Shipped user, maintainer, and process docs
+├── doctor/        # Doctor session-coda payload
 ├── events/        # Event registry and schemas
 ├── incidents/     # Incident templates
 ├── interfaces/    # CLI, REST, TUI, and web interface guidance
@@ -70,6 +72,7 @@ content/
 ├── references/    # External/reference material
 ├── resilience/    # Continue-here and context-pruning protocols
 ├── scm/           # Git, GitHub, and changelog guidance
+├── secrets/       # Secrets placeholders
 ├── skills/        # Current skill directories (see Skills)
 ├── strategies/    # Interview, map, research, speckit, yolo, and related strategies
 ├── swarm/         # Multi-agent coordination reference
@@ -79,6 +82,7 @@ content/
 ├── packs/         # Content-pack JSON sources
 ├── vbrief/        # Schemas and vBRIEF usage reference (legacy name on disk)
 ├── commands.md    # Command lifecycle and task references
+├── glossary.md    # Glossary
 ├── QUICK-START.md # Manual bootstrap pointer
 ├── UPGRADING.md   # Upgrade and installer-state guidance
 └── LICENSE.md     # Content-tree license copy; repo license is LICENSE
