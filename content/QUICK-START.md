@@ -51,17 +51,20 @@ Run these deterministic checks, in order:
 
 ### 1b. Does `../AGENTS.md`'s managed section match the current template? Do referenced paths resolve?
 
+Do **not** parse managed-section markers, byte-compare an attributed block against the template, or locate a hardcoded v2 managed-section marker. Detection is the four-state classifier (`current | stale | missing | absent`) from `deft agents:refresh --check` — the same plan `deft doctor` uses. v1/v2 markers are force-stale. Truncated or future markers are unreadable (do not append).
+
 Three checks here, in this order. The first match wins; later checks only run when earlier checks pass.
 
-1. **Template-content byte comparison (Case G gate).** Locate the managed section in `../AGENTS.md` (the block bounded by the `<!-- deft:managed-section v2 -->` and `<!-- /deft:managed-section -->` markers). Compare those bytes against the current `./templates/agents-entry.md` rendered managed-section output.
-   - ! If the managed section is **byte-different** from the current template render (or the markers are absent in `../AGENTS.md`), treat as **stale content** -- jump to Case G ("Stale AGENTS.md") in Step 2. Case G is the right remediation for byte-different staleness because the refresh actually rewrites the content.
-2. **Install-path resolution (Case K gate -- #1046 PR-A).** When the managed section IS byte-current, parse the section for its install-path declaration (`Full guidelines: <root>/main.md`, e.g. `.deft/core/main.md` for the canonical install layout or `deft/main.md` for the legacy install layout). Verify that `../<root>/main.md` exists on disk.
-   - ! If the managed section is **byte-identical** to the current template render BUT the declared install path does NOT resolve, jump to **Case K ("Install location mismatch")** in Step 2. Refreshing the managed section is a documented no-op when the content already matches -- Case K is a different failure class than Case G and demands a different remediation (#1046 finding #2).
+1. **Classifier (Case G gate).** Run `deft agents:refresh --check` (or `deft doctor`). If the CLI is not on PATH, run `npx @deftai/directive agents:refresh --check` or `npm i -g @deftai/directive` then the same verb. If the payload is missing, run `deft update`. Pre-canonical layout: frozen Go bridge (see UPGRADING.md / GitHub releases).
+   - ! If state is **stale**, **missing**, **absent**, or **unreadable**, treat as **stale content** -- jump to Case G ("Stale AGENTS.md") in Step 2. Case G remediates with the registered rewrite, not a hand-append.
+   - If state is **current**, continue to the install-path check below.
+2. **Install-path resolution (Case K gate -- #1046 PR-A).** When the classifier reports **current**, parse the section for its install-path declaration (`Full guidelines: <root>/main.md`, e.g. `.deft/core/main.md` for the canonical install layout or `deft/main.md` for the legacy install layout). Verify that `../<root>/main.md` exists on disk.
+   - ! If the classifier reports **current** BUT the declared install path does NOT resolve, jump to **Case K ("Install location mismatch")** in Step 2. Refreshing the managed section is a documented no-op when the content already matches -- Case K is a different failure class than Case G and demands a different remediation (#1046 finding #2).
 3. **Legacy skill-path resolution (v0.19 AGENTS.md backstop).** Parse `../AGENTS.md` for any token matching `deft/skills/<name>/SKILL.md` (the legacy v0.19 path shape) and verify the file exists under `./skills/<name>/SKILL.md` (relative to this QUICK-START.md).
    - ! If any referenced path does not exist on disk, treat `../AGENTS.md` as **stale** -- jump to Case G in Step 2.
    - If all referenced paths exist, continue to 1c.
 
-Priority ordering: Case G (byte-different content) always wins over Case K (install-path mismatch) because the refresh path is the higher-priority remediation -- when the template content has moved on, the refresh closes BOTH the content drift and any incidental install-path mismatch that the new content might re-introduce. Case K only fires when the content is byte-current AND the path is unresolved -- the exact "refresh would be a no-op" failure class issue #1046 documents.
+Priority ordering: Case G (classifier not current) always wins over Case K (install-path mismatch) because the registered refresh is the higher-priority remediation -- when the template content has moved on, the refresh closes BOTH the content drift and any incidental install-path mismatch that the new content might re-introduce. Case K only fires when the classifier is current AND the path is unresolved -- the exact "refresh would be a no-op" failure class issue #1046 documents.
 
 **Big-jump joint check (Case G+H gate).** Before acting on ANY Case G routing above (a byte-different managed section, or an unresolved legacy skill path), first ALSO evaluate the 1c pre-cutover check below against `../`. ! If 1c ALSO holds (real pre-v0.20 `SPECIFICATION.md` / `PROJECT.md` present), the project is in the **joint big-jump state** where both the AGENTS.md refresh (Case G) and the pre-cutover migration (Case H) are due — jump to **Case G+H** (combined single-session remediation) in Step 2 instead of Case G. The combined path runs the refresh and the migration in one session and emits a single restart, avoiding the wasted Case G → restart → Case H round-trip. If 1c does not hold, route to Case G as usual.
 
@@ -90,16 +93,15 @@ Pick exactly one case from Step 1 and follow its instructions. Do not mix cases.
 
 ### Case F — No AGENTS.md (fresh install)
 
-1. Read `./templates/agents-entry.md` (this directory).
-2. Write that content to `../AGENTS.md`.
-3. Tell the user: "✓ Created AGENTS.md at your project root."
-4. Continue to Step 3.
+1. ! Run `deft agents:refresh` (the registered rewrite for classifier state `absent`). ⊗ Do not copy `templates/agents-entry.md` by hand. If the CLI is not on PATH: `npx @deftai/directive agents:refresh` or `npm i -g @deftai/directive`, then the same verb. Payload missing: `deft update`. Pre-canonical layout: frozen Go bridge (UPGRADING.md / GitHub releases).
+2. Tell the user: "✓ Created AGENTS.md at your project root."
+3. Continue to Step 3.
 
 ### Case G — Stale AGENTS.md (v0.19 → v0.20 upgrade)
 
-1. Read `../AGENTS.md` and identify the **Deft-managed section** — bounded by the `deft/main.md` sentinel marker.
-2. If the `deft/main.md` sentinel is **absent**, treat the entire existing file as user-authored and do NOT rewrite it. Instead, read `./templates/agents-entry.md` and **append** its content to `../AGENTS.md` with two blank lines between the existing content and the appended block. This matches the idempotent append behavior documented in `setup.go::WriteAgentsMD` for brownfield projects with a pre-existing AGENTS.md.
-3. If the `deft/main.md` sentinel is **present**, replace only the sentinel-bounded section with the current content of `./templates/agents-entry.md`. Preserve everything outside that region verbatim.
+1. ⊗ Do not locate the `deft/main.md` sentinel, do not append `templates/agents-entry.md`, and do not hand-rewrite markers. QUICK-START is not a second parser.
+2. ! Run `deft agents:refresh`. That command is the four-state plan (`current | stale | missing | absent`; v1/v2 force-stale). Truncated close refuses to write a second section.
+3. If the CLI is not on PATH: `npx @deftai/directive agents:refresh` or `npm i -g @deftai/directive`, then the same verb. Payload missing or drifted: `deft update`. Pre-canonical layout: frozen Go bridge (UPGRADING.md / GitHub releases).
 4. Tell the user: "✓ Refreshed Deft-managed section of AGENTS.md. Your existing additions outside that region were preserved."
 5. ! Instruct the user: **"Framework updated. Start a new agent session to pick up the changes. The current session has stale context."** Do not continue past this instruction in the current session.
 
@@ -117,7 +119,7 @@ Reached only via the **Big-jump joint check** in 1b: the managed section in `../
 
 ! Run the two remediations in this exact order — **AGENTS.md refresh first, frozen migration guidance second** — then emit a **single** restart instruction at the very end:
 
-1. **Refresh AGENTS.md first (Case G work).** Perform Case G steps 1-4 verbatim: identify the managed section, append when the sentinel is absent or byte-replace it when present, and preserve everything outside the managed region. ⊗ Do NOT emit the Case G step-5 restart instruction here — the combined path defers the single restart to step 3.
+1. **Refresh AGENTS.md first (Case G work).** Perform Case G steps 1-4: run `deft agents:refresh` (registered rewrite). ⊗ Do not append. ⊗ Do NOT emit the Case G step-5 restart instruction here — the combined path defers the single restart to step 3.
 2. **Surface frozen migration path second (Case H work).** Perform Case H steps 1-3 verbatim: explain the v0.59.0 pinned migrator path (#2068), run `task migrate:preflight`, and point at UPGRADING.md. The operator (or a machine with v0.59.0 deposited) runs `task migrate:vbrief` outside the current npm deposit. ⊗ Do NOT perform Case H steps 4-5 until migration has completed on the pinned release and the operator has upgraded to current npm.
 3. **Single restart, exactly once.** Only after BOTH the refresh and the operator-confirmed migration + npm upgrade have completed, ! instruct the user EXACTLY ONCE: **"Framework updated and project migrated. Start a new agent session to pick up the changes. The current session has stale context."** ⊗ Do NOT emit a second restart instruction.
 
@@ -139,7 +141,7 @@ For the version-by-version context of a big jump, see the [big-jump triage entry
 The managed section in `../AGENTS.md` is byte-identical to the current `./templates/agents-entry.md` render, BUT the install path the managed section declares (e.g. `.deft/core/main.md`) does NOT resolve on disk. This is the failure class issue #1046 finding #2 documents: Case G's "refresh the managed section" prescription is a byte-for-byte no-op against the current template, so re-running just re-detects the same staleness next session.
 
 1. Tell the user (verbatim phrasing, naming the unresolved path): "AGENTS.md's managed section is byte-identical to the current template, but the install path it declares (`<declared-path>`) does NOT exist on disk. Refreshing the managed section would be a no-op -- Case G's remediation does not fix install-location mismatches."
-2. ! Direct the user to run `task framework:doctor` (forthcoming in PR-B of the #1046 cohort -- the diagnostic + remediation surface that owns Case K's fix path) OR to manually verify that the install path AGENTS.md claims actually exists on disk. Until PR-B merges, the manual check is the operator's only path: confirm the framework is deposited at the path AGENTS.md declares, OR re-run the installer / relocator to deposit at that path, OR hand-edit AGENTS.md to point at the path where the framework actually lives.
+2. ! Direct the user to run `deft doctor` (the diagnostic + remediation surface that owns Case K's fix path) OR to manually verify that the install path AGENTS.md claims actually exists on disk. Confirm the framework is deposited at the path AGENTS.md declares, OR run `deft update` / `npx @deftai/directive update` to deposit at that path, OR hand-edit AGENTS.md to point at the path where the framework actually lives. Pre-canonical layout: frozen Go bridge (UPGRADING.md / GitHub releases).
 3. ⊗ Run a Case G refresh -- it is a documented no-op for Case K. The managed section already byte-matches the current template; refreshing the bytes back to the same bytes does not change which install path is declared.
 4. ! Instruct the user: **"Stop here. Do not continue to Step 3 until the install-path mismatch is resolved -- subsequent sessions will re-enter Case K until then."**
 

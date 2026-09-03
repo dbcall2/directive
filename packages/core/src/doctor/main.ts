@@ -38,7 +38,7 @@ import {
 import { type ResolveUserMdResult, resolveUserMdPath } from "../user-config/resolve-user-md.js";
 import { evaluateAgentHooks } from "../verify-env/agent-hooks.js";
 import { probeAgentHooksLive } from "../verify-env/agent-hooks-live-probe.js";
-import { agentsRefreshPlan, hasV3ManagedMarker } from "./agents-md.js";
+import { agentsRefreshPlan, hasManagedSectionMarker, hasV3ManagedMarker } from "./agents-md.js";
 import {
   checkXbriefEnvelopeMajorVersion,
   DOCTOR_ADVISORY_FAIL_CHECKS,
@@ -52,6 +52,8 @@ import {
   EXPECTED_FRAMEWORK_DIRS,
   NETWORK_DISCLOSURE_LINE,
   PAYLOAD_STALENESS_OFFLINE_SKIP_MESSAGE,
+  recoveryLadderFields,
+  recoveryLadderProse,
   TASKFILE_INCLUDE_SNIPPET,
   UV_INSTALL_URL,
 } from "./constants.js";
@@ -922,7 +924,7 @@ function runAgentsMdFreshnessCheck(
   const checkName = "agents-md-managed-section-fresh";
   if (
     runningInsideDeftRepo(projectRoot, seams) ||
-    !hasV3ManagedMarker(projectRoot, seams.readText)
+    !hasManagedSectionMarker(projectRoot, seams.readText)
   ) {
     const skipReason = "no managed-section markers (likely maintainer repo)";
     sink.info(`${checkName}: skip -- ${skipReason}`);
@@ -938,14 +940,29 @@ function runAgentsMdFreshnessCheck(
       return;
     }
     if (state === "stale" || state === "missing" || state === "absent") {
-      const message = `AGENTS.md managed section is ${state} -- run \`deft agents:refresh\` to bring it to the current template.`;
+      const message = `AGENTS.md managed section is ${state} -- ${recoveryLadderProse("agents-refresh")}`;
       sink.warn(message);
       addFinding({
         severity: "warning",
         message,
         check: checkName,
         status: state,
-        suggestion: "deft agents:refresh",
+        suggestion: recoveryLadderFields("agents-refresh").suggested_fix,
+      });
+      return;
+    }
+    if (state === "unreadable") {
+      const reason = String(plan.reason ?? "unreadable");
+      const message =
+        `AGENTS.md managed section is unreadable (${reason}) -- refuse to write. ` +
+        recoveryLadderProse("agents-refresh");
+      sink.warn(message);
+      addFinding({
+        severity: "warning",
+        message,
+        check: checkName,
+        status: state,
+        suggestion: recoveryLadderFields("agents-refresh").suggested_fix,
       });
       return;
     }

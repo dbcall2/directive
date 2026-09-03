@@ -136,13 +136,15 @@ describe("agents-md extra branches", () => {
     }
   });
 
-  it("stops iterManagedSections when close marker missing mid-file", () => {
+  it("refuses to write when close marker missing mid-file", () => {
     const existing = "<!-- deft:managed-section v3 -->\nunclosed\n";
     const plan = agentsRefreshPlan("/tmp", {
       readTemplate: () => MANAGED,
       readAgents: () => existing,
       resolveSha: () => "sha1",
     });
-    expect(plan.state).toBe("missing");
+    expect(plan.state).toBe("unreadable");
+    expect(plan.reason).toBe("truncated-close");
+    expect(plan.new_content).toBeNull();
   });
 });

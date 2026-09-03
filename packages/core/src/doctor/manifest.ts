@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { extractManagedSection as extractPlatformManagedSection } from "../platform/agents-md.js";
 import { parseManifestKeyValueLine, stripEdgeQuotes } from "../text/redos-safe.js";
 import { readTextSafe } from "./paths.js";
 
@@ -130,24 +131,8 @@ export function parseInstallRootFromAgentsMd(text: string): string | null {
   return null;
 }
 
-const AGENTS_MANAGED_OPEN_RE = /<!--\s*deft:managed-section\s+v(2|3)(?:\s+([^>]*?))?\s*-->/;
-
 export function extractManagedSection(text: string): string | null {
-  const normalised = text.replace(/\r\n/g, "\n");
-  const openMatch = AGENTS_MANAGED_OPEN_RE.exec(normalised);
-  if (!openMatch) {
-    return null;
-  }
-  const openIdx = openMatch.index;
-  const closeIdx = normalised.indexOf(
-    "<!-- /deft:managed-section -->",
-    openMatch.index + openMatch[0].length,
-  );
-  if (closeIdx < 0) {
-    return null;
-  }
-  const end = closeIdx + "<!-- /deft:managed-section -->".length;
-  return normalised.slice(openIdx, end);
+  return extractPlatformManagedSection(text);
 }
 
 export function isDeprecationRedirectStub(text: string): boolean {
