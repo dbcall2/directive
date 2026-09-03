@@ -278,6 +278,45 @@ describe("evaluateSpecPrdFresh", () => {
     expect(result.code).toBe(0);
   });
 
+  it("exits 0 for greenfield PRD when PROJECT-DEFINITION exists and spec does not (#4086)", () => {
+    const root = project();
+    const xbrief = join(root, "xbrief");
+    mkdirSync(xbrief, { recursive: true });
+    writeFileSync(
+      join(xbrief, "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify(
+        {
+          xBRIEFInfo: { version: "0.8" },
+          plan: {
+            title: "Greenfield Fixture",
+            status: "running",
+            narratives: { Overview: "Greenfield overview identity." },
+            items: [],
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    const expected = buildExpectedPrdMarkdown(root);
+    expect(expected.ok).toBe(true);
+    if (!expected.ok) return;
+    writeFileSync(join(root, "PRD.md"), expected.markdown, "utf8");
+    const result = evaluateSpecPrdFresh(root);
+    expect(result.code).toBe(0);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it("exits 2 when PRD.md exists but neither spec nor PROJECT-DEFINITION is present", () => {
+    const root = project();
+    mkdirSync(join(root, "xbrief"), { recursive: true });
+    writeFileSync(join(root, "PRD.md"), "# stale\n", "utf8");
+    const result = evaluateSpecPrdFresh(root);
+    expect(result.code).toBe(2);
+    expect(result.message).toMatch(/PROJECT-DEFINITION|specification source/i);
+  });
+
   it("exits 2 when --project-root is missing its argument", () => {
     const cli = runSpecPrdFreshCli(["--project-root"]);
     expect(cli.exitCode).toBe(2);

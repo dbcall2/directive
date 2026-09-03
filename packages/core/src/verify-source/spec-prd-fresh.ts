@@ -63,37 +63,26 @@ function specProductPrefix(content: string): string {
   return `${prefix.replace(/[ \t]+$/gmu, "").replace(/\n+$/u, "")}\n`;
 }
 
+function tryResolveExistingSpecPath(root: string): string | null {
+  try {
+    const specPath = resolveSpecArtifactPath(root);
+    return existsSync(specPath) ? specPath : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Fail-closed SPECIFICATION.md / PRD.md freshness (#4086). Banner canon and projection are separate. */
 export function evaluateSpecPrdFresh(projectRoot: string): SpecPrdFreshResult {
   const root = resolve(projectRoot);
-  let specPath: string;
-  try {
-    specPath = resolveSpecArtifactPath(root);
-  } catch (err) {
-    return {
-      code: 2,
-      findings: [],
-      message:
-        `verify_spec_prd_fresh: cannot resolve specification source: ${err instanceof Error ? err.message : String(err)}\n` +
-        "  Recovery: run `deft migrate:xbrief` or pass a project with `xbrief/specification.xbrief.json`.",
-    };
-  }
-  if (!existsSync(specPath)) {
-    return {
-      code: 2,
-      findings: [],
-      message:
-        `verify_spec_prd_fresh: specification source missing: ${specPath}\n` +
-        "  Recovery: restore `xbrief/specification.xbrief.json`.",
-    };
-  }
+  const specPath = tryResolveExistingSpecPath(root);
 
   const findings: SpecPrdFreshFinding[] = [];
-  const expectedSpecBanner = bannerBlock(buildSpecRenderBanner(specPath));
-  const expectedPrdBanner = bannerBlock(buildPrdBanner(specPath));
+  const expectedSpecBanner =
+    specPath === null ? null : bannerBlock(buildSpecRenderBanner(specPath));
 
   const specMdPath = join(root, "SPECIFICATION.md");
-  if (existsSync(specMdPath)) {
+  if (specPath !== null && expectedSpecBanner !== null && existsSync(specMdPath)) {
     const committed = readText(specMdPath);
     if (typeof committed !== "string") {
       return {
@@ -153,28 +142,47 @@ export function evaluateSpecPrdFresh(projectRoot: string): SpecPrdFreshResult {
         message: `verify_spec_prd_fresh: PRD.md unreadable: ${committed.error}`,
       };
     }
-    if (committedBanner(committed) !== expectedPrdBanner) {
-      findings.push({
-        artifact: "PRD.md",
-        assertion: "banner-canon",
-        detail:
-          "banner does not match `buildGeneratedArtifactBanner` from the resolved specification path; run `task prd:render`",
-      });
-    }
     const expectedPrd = buildExpectedPrdMarkdown(root);
     if (!expectedPrd.ok) {
+      if (specPath === null) {
+        return {
+          code: 2,
+          findings: [],
+          message:
+            `verify_spec_prd_fresh: ${expectedPrd.message}\n` +
+            "  Recovery: restore `xbrief/specification.xbrief.json` or `xbrief/PROJECT-DEFINITION.xbrief.json`.",
+        };
+      }
       findings.push({
         artifact: "PRD.md",
         assertion: "projection-fresh",
         detail: `re-render failed: ${expectedPrd.message}`,
       });
-    } else if (expectedPrd.markdown !== committed) {
-      findings.push({
-        artifact: "PRD.md",
-        assertion: "projection-fresh",
-        detail: "PRD.md differs from a fresh `task prd:render` buffer; run `task prd:render`",
-      });
+    } else {
+      if (committedBanner(committed) !== bannerBlock(buildPrdBanner(expectedPrd.sourcePath))) {
+        findings.push({
+          artifact: "PRD.md",
+          assertion: "banner-canon",
+          detail:
+            "banner does not match `buildGeneratedArtifactBanner` from the resolved PRD source path; run `task prd:render`",
+        });
+      }
+      if (expectedPrd.markdown !== committed) {
+        findings.push({
+          artifact: "PRD.md",
+          assertion: "projection-fresh",
+          detail: "PRD.md differs from a fresh `task prd:render` buffer; run `task prd:render`",
+        });
+      }
     }
+  } else if (specPath === null) {
+    return {
+      code: 2,
+      findings: [],
+      message:
+        "verify_spec_prd_fresh: specification source missing and no PRD.md to check via PROJECT-DEFINITION.\n" +
+        "  Recovery: restore `xbrief/specification.xbrief.json` or pass a greenfield tree with `xbrief/PROJECT-DEFINITION.xbrief.json` and PRD.md.",
+    };
   }
 
   if (findings.length > 0) {
