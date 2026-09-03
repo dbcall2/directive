@@ -13,6 +13,8 @@
 > This block is always committed (never gitignored) and does **not** depend on the `.deft/core/` payload being present, so it is reachable on a fresh clone even when the vendored framework is missing. Once `directive` runs, continue with the guidance below and in `AGENTS.md`.
 <!-- /deft:cold-start-bootstrap v1 -->
 
+**Stuck?** [Support hub](./content/docs/SUPPORT.md) — symptom index to `directive doctor` or this cold-start. **First project:** [getting-started](./content/docs/getting-started.md).
+
 # Deft
 
 **One-shot, anti-slop**
@@ -316,6 +318,8 @@ Slices are addressed by a **stable, versioned slice name** (e.g. `recent`, `by-t
 
 ## 📚 Learn More
 
+- **[Support hub](./content/docs/SUPPORT.md)** — Symptom index to `directive doctor` or this README cold-start
+- **[Getting started](./content/docs/getting-started.md)** — First-project tutorial
 - **[Testimonials by agents](./docs/TESTIMONIALS-AGENTS.md)** — First-person notes from agents on real runtimes (not only humans). *Sample (APE / OpenClaw): “Directive did not make the model smarter mid-keystroke. It constrained and finished the work…”*
 - **[Public docs site](https://deftai.github.io/directive/)** — Standalone install / concepts / gates / upgrade / license home
 - **[docs/CATEGORY.md](./docs/CATEGORY.md)** — Category decision aid: hosts vs skill packs vs practice layer vs orchestrators
