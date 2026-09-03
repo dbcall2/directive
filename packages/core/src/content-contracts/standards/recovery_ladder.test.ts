@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { hasManagedSectionMarker as doctorHasManagedSectionMarker } from "../../doctor/agents-md.js";
 import {
   checkQuickStartResolves,
   checkSkillPathsResolve,
@@ -16,7 +17,11 @@ import {
   unreadableAgentsRecovery,
 } from "../../doctor/constants.js";
 import { extractManagedSection } from "../../doctor/manifest.js";
-import { agentsRefreshPlan } from "../../platform/agents-md.js";
+import {
+  agentsRefreshPlan,
+  attributeRenderManagedSection,
+  hasManagedSectionMarker as platformHasManagedSectionMarker,
+} from "../../platform/agents-md.js";
 import { readText, repoRoot } from "./_helpers.js";
 
 const CLOSE = "<!-- /deft:managed-section -->";
@@ -107,6 +112,40 @@ describe("recovery ladder (#4090)", () => {
     expect(present?.status).toBe("fail");
     expect(present?.detail).not.toContain(".deft/core/run");
     expect(present?.data?.suggested_fix).toBe(RECOVERY_LADDER_AGENTS_REFRESH);
+    expect(present?.data?.suggested_fix).toBe("deft agents:refresh");
+  });
+
+  it("exports hasManagedSectionMarker from doctor and platform classifiers", () => {
+    expect(doctorHasManagedSectionMarker).toBe(platformHasManagedSectionMarker);
+    expect(typeof doctorHasManagedSectionMarker).toBe("function");
+    expect(doctorHasManagedSectionMarker("/proj", () => "<!-- deft:managed-section v3 -->\n")).toBe(
+      true,
+    );
+    expect(doctorHasManagedSectionMarker("/proj", () => "# no markers\n")).toBe(false);
+  });
+
+  it("attributes the template-keyed opener, never a silent v2 write", () => {
+    const absent = agentsRefreshPlan("/proj", { ...SEAMS, readAgents: () => null });
+    const greenfield = String(absent.new_content);
+    expect(greenfield).toMatch(/<!-- deft:managed-section v3 sha=/);
+    expect(greenfield).not.toMatch(/<!-- deft:managed-section v2(\s|>)/);
+
+    const v2Existing = `<!-- deft:managed-section v2 -->\nold\n${CLOSE}`;
+    const stale = agentsRefreshPlan("/proj", { ...SEAMS, readAgents: () => v2Existing });
+    expect(stale.state).toBe("stale");
+    const rewritten = String(stale.new_content);
+    expect(rewritten).toMatch(/<!-- deft:managed-section v3 sha=/);
+    expect(rewritten).not.toMatch(/<!-- deft:managed-section v2(\s|>)/);
+
+    const attributed = attributeRenderManagedSection(TEMPLATE, {
+      frameworkSha: "sha$&dollar",
+      refreshed: "2026-09-03T00:00:00Z",
+      sessionId: "sess$`id",
+      version: 3,
+    });
+    expect(attributed).toContain("sha=sha$&dollar");
+    expect(attributed).toContain("session=sess$`id");
+    expect(attributed).not.toContain("<!-- deft:managed-section v2");
   });
 
   it("ladder verbs resolve in dispatch.ts", () => {

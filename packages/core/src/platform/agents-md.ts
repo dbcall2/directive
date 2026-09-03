@@ -115,10 +115,16 @@ export function parseManagedSectionAttrs(extracted: string): ManagedSectionAttrs
   return result;
 }
 
+function managedOpenLiteral(version: number): string {
+  return version === 3
+    ? AGENTS_MANAGED_OPEN_V3_LITERAL
+    : `<!-- deft:managed-section v${version} -->`;
+}
+
 export function stripManagedSectionAttrs(section: string): string {
   const open = findManagedOpenMarker(section, 0);
   if (open === null) return section;
-  return section.slice(0, open.start) + AGENTS_MANAGED_OPEN_V3_LITERAL + section.slice(open.end);
+  return section.slice(0, open.start) + managedOpenLiteral(open.version) + section.slice(open.end);
 }
 
 export function renderManagedSection(templateText: string): string | null {
@@ -263,11 +269,12 @@ export function attributeRenderManagedSection(
   rendered: string,
   attrs: { frameworkSha: string; refreshed: string; sessionId: string; version?: number },
 ): string {
-  const version = attrs.version ?? 3;
-  const openLiteral = `<!-- deft:managed-section v${version} -->`;
+  const open = findManagedOpenMarker(rendered, 0);
+  if (open === null) return rendered;
+  const version = attrs.version ?? open.version;
   const attrString = `v${version} sha=${attrs.frameworkSha} refreshed=${attrs.refreshed} session=${attrs.sessionId}`;
   const attributedOpen = `<!-- deft:managed-section ${attrString} -->`;
-  return rendered.replace(openLiteral, attributedOpen);
+  return rendered.slice(0, open.start) + attributedOpen + rendered.slice(open.end);
 }
 
 function wrapLegacyInMarkers(existing: string, rendered: string): string {
@@ -319,7 +326,8 @@ export function agentsRefreshPlan(
   const frameworkSha = resolveSha();
   const refreshed = nowIso();
   const sessionId = newSession();
-  const templateVersion = findManagedOpenMarker(templateText.replace(/\r\n/g, "\n"))?.version ?? 3;
+  const templateOpen = findManagedOpenMarker(templateText.replace(/\r\n/g, "\n"));
+  const templateVersion = templateOpen?.version ?? 3;
   const attributedRendered = attributeRenderManagedSection(rendered, {
     frameworkSha,
     refreshed,
@@ -407,6 +415,8 @@ export function agentsRefreshPlan(
     };
   }
   const extracted = blocks[0]?.[2] ?? "";
+  const extractedStart = blocks[0]?.[0] ?? 0;
+  const extractedEnd = blocks[0]?.[1] ?? 0;
   const extractedAttrs = parseManagedSectionAttrs(extracted);
   const isLegacyMarker = extractedAttrs !== null && [1, 2].includes(extractedAttrs.version);
   if (!isLegacyMarker && stripManagedSectionAttrs(extracted) === rendered) {
@@ -419,7 +429,8 @@ export function agentsRefreshPlan(
       sha: frameworkSha,
     };
   }
-  const newContent = normalised.replace(extracted, attributedRendered);
+  const newContent =
+    normalised.slice(0, extractedStart) + attributedRendered + normalised.slice(extractedEnd);
   return {
     state: "stale",
     path: agentsMd,

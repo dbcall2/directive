@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { agentsRefreshPlan, hasV3ManagedMarker } from "./agents-md.js";
+import { agentsRefreshPlan, hasManagedSectionMarker, hasV3ManagedMarker } from "./agents-md.js";
 
 const MANAGED = "<!-- deft:managed-section v3 -->\nbody\n<!-- /deft:managed-section -->";
 
@@ -107,6 +107,14 @@ describe("agents-md extra branches", () => {
 
   it("hasV3ManagedMarker false for missing file via default reader", () => {
     expect(hasV3ManagedMarker("/nonexistent/path/xyz")).toBe(false);
+  });
+
+  it("hasManagedSectionMarker is exported and true for any recognized opener", () => {
+    expect(typeof hasManagedSectionMarker).toBe("function");
+    expect(hasManagedSectionMarker("/tmp", () => MANAGED)).toBe(true);
+    expect(hasManagedSectionMarker("/tmp", () => "<!-- deft:managed-section v2 -->\n")).toBe(true);
+    expect(hasManagedSectionMarker("/tmp", () => "# user header\n")).toBe(false);
+    expect(hasManagedSectionMarker("/tmp", () => null)).toBe(false);
   });
 
   it("uses default readTemplate when seam omitted and template missing", () => {

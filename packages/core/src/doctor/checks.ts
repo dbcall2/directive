@@ -36,6 +36,7 @@ import { readDeclaredArtifactVersion } from "../xbrief-migrate/transforms.js";
 import {
   CANONICAL_UPGRADE_COMMAND,
   GO_BRIDGE_RELEASES_URL,
+  RECOVERY_LADDER_AGENTS_REFRESH,
   recoveryLadderFields,
   recoveryLadderProse,
   UPGRADING_DOC_URL,
@@ -523,6 +524,7 @@ export function checkQuickStartResolves(
       path: qsPath,
       install_root: installRoot,
       ...recoveryLadderFields("agents-refresh"),
+      suggested_fix: RECOVERY_LADDER_AGENTS_REFRESH,
     },
   };
 }
@@ -582,6 +584,7 @@ export function checkSkillPathsResolve(
       missing,
       redirect_stubs: redirectStubs,
       ...recoveryLadderFields("agents-refresh"),
+      suggested_fix: RECOVERY_LADDER_AGENTS_REFRESH,
     },
   };
 }
@@ -766,6 +769,7 @@ export function checkInstallPathConsistency(
         claimed_dir_exists: false,
         fallback_info_note: fallbackInfoNote || null,
         ...recoveryLadderFields("agents-refresh"),
+        suggested_fix: RECOVERY_LADDER_AGENTS_REFRESH,
       },
     };
   }
@@ -1475,7 +1479,11 @@ export function runChecksImpl(
       name: "agents-md-present",
       status: "fail",
       detail: `AGENTS.md not found at project root -- ${recoveryLadderProse("agents-refresh")}`,
-      data: { agents_md_path: agentsMdPath, ...recoveryLadderFields("agents-refresh") },
+      data: {
+        agents_md_path: agentsMdPath,
+        ...recoveryLadderFields("agents-refresh"),
+        suggested_fix: RECOVERY_LADDER_AGENTS_REFRESH,
+      },
     });
     checks.push(checkManifestAgreement(projectRoot, null, seams));
     checks.push(checkManifestVersionReportable(projectRoot, null, seams));
