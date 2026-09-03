@@ -11,7 +11,7 @@
 //
 // Node standard library only — no external dependencies, no CDN, no network.
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertWriteTargetSafe } from "../fs/projection-containment.js";
 import { TEMPLATE } from "./rule-map-template.js";
@@ -56,7 +56,22 @@ const GROUP_PURPOSE: Record<string, string> = {
   meta: "The framework's own philosophy, morals, and self-governance docs.",
   templates: "Reusable document/scaffold templates.",
   docs: "Explanatory docs and the framework glossary.",
+  "ci-cd": "CI runner and pipeline guidance, loaded when migrating or configuring CI.",
+  doctor: "Session doctor, ritual diagnostics, and host health.",
 };
+
+/** Pack JSON arrays counted as compiled entries (#4095 named denominator). */
+const PACK_ENTRY_KEYS = [
+  "rules",
+  "lessons",
+  "patterns",
+  "skills",
+  "strategies",
+  "entries",
+] as const;
+
+const CHECK_OK =
+  "ok: docs/RULE-MAP.md is up to date (byte-identical renderer output; grouping purposes filled; pack entries from rules|lessons|patterns|skills|strategies|entries; task counts are Taskfile declarations)";
 const NS_PURPOSE: Record<string, string> = {
   scm: "Source-control / Git workflow tasks.",
   commit: "Commit-creation and message-discipline tasks.",
@@ -134,11 +149,14 @@ interface Model {
 
 const LIFECYCLE = {
   summary:
-    "Directive turns a coding agent into an auditable process: load only the guidance a task needs, enforce it with Taskfile gates, keep durable state in vBRIEF, and move work through a small reversible scope lifecycle.",
+    "Directive turns a coding agent into an auditable process: load only the guidance a task needs, enforce it with Taskfile gates, keep durable state in xBRIEF, and move work through a small reversible scope lifecycle.",
   rule_strength: [
     { level: "Deterministic checks", detail: "tests, scripts, hooks, CI" },
-    { level: "Taskfile targets", detail: "task check, task verify:*, task vbrief:*" },
-    { level: "vBRIEF policy", detail: "lifecycle metadata" },
+    {
+      level: "Taskfile targets",
+      detail: "task check, task verify:*, task xbrief:* / task vbrief:*",
+    },
+    { level: "xBRIEF policy", detail: "lifecycle metadata" },
     { level: "RFC2119 instructions", detail: "AGENTS.md, skills, standards" },
     { level: "Plain prose", detail: "rationale only" },
   ],
@@ -150,10 +168,10 @@ const LIFECYCLE = {
     { state: "cancelled", via: "scope:cancel / scope:fail" },
   ],
   vbrief_files: [
-    { file: "PROJECT-DEFINITION.vbrief.json", role: "project identity, policy, scope registry" },
-    { file: "specification.vbrief.json", role: "project specification source" },
-    { file: "plan.vbrief.json", role: "tactical session plan" },
-    { file: "continue.vbrief.json", role: "interruption recovery checkpoint" },
+    { file: "PROJECT-DEFINITION.xbrief.json", role: "project identity, policy, scope registry" },
+    { file: "specification.xbrief.json", role: "project specification source" },
+    { file: "plan.xbrief.json", role: "tactical session plan" },
+    { file: "continue.xbrief.json", role: "interruption recovery checkpoint" },
   ],
   gates: [
     "task check",
@@ -234,6 +252,31 @@ function markers(t: string): Record<string, number> {
 function normRel(p: string): string {
   return p.split("\\").join("/");
 }
+
+/**
+ * Rebase source-relative Markdown links so they resolve from `docs/RULE-MAP.md`.
+ * Missing targets become plain text so the generated map does not emit unresolved hrefs.
+ */
+function rebaseMdLinks(text: string, sourceRel: string, repo: string): string {
+  return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (full, label: string, url: string) => {
+    const trimmed = url.trim();
+    const hrefMatch = trimmed.match(/^<?([^>\s]+)(?:\s+"[^"]*")?>?$/);
+    if (hrefMatch === null) return full;
+    const href = hrefMatch[1] ?? trimmed;
+    if (/^(https?:|mailto:|#)/i.test(href) || href.startsWith("/")) return full;
+    const hashIdx = href.indexOf("#");
+    const pathPart = hashIdx >= 0 ? href.slice(0, hashIdx) : href;
+    const frag = hashIdx >= 0 ? href.slice(hashIdx) : "";
+    if (pathPart === "") return full;
+    const sourceDir = posix.dirname(normRel(sourceRel));
+    const absFromRepo = posix.normalize(posix.join(sourceDir, pathPart));
+    if (absFromRepo.startsWith("../") || absFromRepo === "..") return label;
+    const disk = join(repo, ...absFromRepo.split("/"));
+    if (!existsSync(disk)) return label;
+    const fromDocs = posix.normalize(posix.relative("docs", absFromRepo));
+    return `[${label}](${fromDocs}${frag})`;
+  });
+}
 function walkMd(dir: string): string[] {
   const out: string[] = [];
   for (const e of readdirSync(dir).sort()) {
@@ -262,7 +305,7 @@ function summarizeFile(repo: string, rel: string, withBody = true): FileItem {
     kind: "file",
     name: basename(path),
     title: h1(t) || basename(path),
-    summary: firstPara(t),
+    summary: rebaseMdLinks(firstPara(t), path, repo),
     sections: sections(t),
     markers: markers(t),
     generated: isGenerated(t),
@@ -335,6 +378,7 @@ function buildGroupings(repo: string): Grouping[] {
       (a, it) => a + (it.kind === "file" ? 1 : it.count + (it.readme ? 1 : 0)),
       0,
     );
+    if (docCount === 0) continue;
     groups.push({
       name,
       purpose: GROUP_PURPOSE[name] ?? "",
@@ -517,11 +561,18 @@ function buildPacks(repo: string): Pack[] {
       name: (d.pack as string) ?? basename(pj),
       version: (d.version as string) ?? "",
     };
-    const rules = d.rules;
-    if (Array.isArray(rules)) {
-      info.rule_count = rules.length;
-      info.tiers = counter(rules.map((r) => (r as { tier?: string }).tier));
-      info.domains = counter(rules.map((r) => (r as { domain?: string }).domain));
+    let entries: unknown[] | undefined;
+    for (const key of PACK_ENTRY_KEYS) {
+      const candidate = d[key];
+      if (Array.isArray(candidate)) {
+        entries = candidate;
+        break;
+      }
+    }
+    if (entries !== undefined) {
+      info.rule_count = entries.length;
+      info.tiers = counter(entries.map((r) => (r as { tier?: string }).tier));
+      info.domains = counter(entries.map((r) => (r as { domain?: string }).domain));
     }
     packs.push(info);
   }
@@ -545,6 +596,18 @@ function buildModel(repo: string, withBodies: boolean): Model {
     }
   }
   return { lifecycle: LIFECYCLE, groupings: g, tasks: buildTasks(repo), packs: buildPacks(repo) };
+}
+
+function modelAssertionErrors(model: Model): string[] {
+  const errors: string[] = [];
+  for (const grouping of model.groupings) {
+    if (grouping.purpose.trim() === "") {
+      errors.push(
+        `empty grouping purpose: ${grouping.name} — add GROUP_PURPOSE in packages/core/src/render/rule-map.ts`,
+      );
+    }
+  }
+  return errors;
 }
 
 // --------------------------------------------------------------- MD rendering
@@ -585,10 +648,14 @@ function renderMd(model: Model): string {
   L.push("## Overview");
   L.push("");
   L.push(`- **Rules:** ${g.length} groupings, ${totalDocs} documents`);
-  L.push(`- **Tasks:** ${tk.length} namespaces, ${totalTasks} tasks`);
+  L.push(
+    `- **Tasks:** ${tk.length} namespaces, ${totalTasks} Taskfile declarations (includes + unlisted tasks/*.yml, not \`task --list\`)`,
+  );
   if (packs.length) {
     const compiled = packs.reduce((a, p) => a + (p.rule_count ?? 0), 0);
-    L.push(`- **Packs:** ${packs.length} source-of-truth packs (${compiled} compiled rules)`);
+    L.push(
+      `- **Packs:** ${packs.length} source-of-truth packs (${compiled} entries from rules|lessons|patterns|skills|strategies|entries)`,
+    );
   }
   L.push("");
   L.push(
@@ -734,6 +801,7 @@ export function main(argv: readonly string[]): number {
 
   const model = buildModel(repo, false);
   const md = renderMd(model);
+  const assertionErrors = modelAssertionErrors(model);
 
   if (check) {
     const current = existsSync(mdPath) ? readFileSync(mdPath, "utf8") : "";
@@ -742,8 +810,17 @@ export function main(argv: readonly string[]): number {
       process.stderr.write("STALE: docs/RULE-MAP.md is out of date — run `task docs:rule-map`\n");
       return 1;
     }
-    process.stdout.write("ok: docs/RULE-MAP.md is up to date\n");
+    if (assertionErrors.length > 0) {
+      process.stderr.write(`${assertionErrors.join("\n")}\n`);
+      return 1;
+    }
+    process.stdout.write(`${CHECK_OK}\n`);
     return 0;
+  }
+
+  if (assertionErrors.length > 0) {
+    process.stderr.write(`${assertionErrors.join("\n")}\n`);
+    return 1;
   }
 
   // Preflight both destinations before either write so a later HTML refusal
