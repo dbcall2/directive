@@ -382,6 +382,16 @@ tasks:
         vars:
           ENGINE_CMD: 'verify:spec-prd-fresh --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
 
+  rule-map-fresh:
+    desc: "Fail-closed docs/RULE-MAP.md renderer freshness (#4095). Alias for docs:rule-map:check. Asserts byte-identical renderer output, filled grouping purposes, pack entries from named arrays, and Taskfile declaration counts. Not a consumer gate."
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - task: :docs:rule-map:check
+        vars:
+          CLI_ARGS: "{{.CLI_ARGS}}"
+
   session-ritual:
     desc: "Fail-closed session ritual verifier (#1348). Flags: --tier quick|gated / --json. Set DEFT_SESSION_RITUAL_SKIP=1 for headless workers and CI."
     dir: '{{.USER_WORKING_DIR}}'

@@ -145,6 +145,8 @@ export const FRAMEWORK_CHECK_GATES: readonly CheckGateSpec[] = [
   "codebase:validate-structure",
   "verify:codebase-map-fresh",
   "verify:spec-prd-fresh",
+  // #4095: committed RULE-MAP byte-identical to renderer (framework-only).
+  "docs:rule-map:check",
   "verify-strategy-output",
   // --- Suite last: vitest + coverage via ts:check-lane (#3188) ---
   "ts:check-lane",

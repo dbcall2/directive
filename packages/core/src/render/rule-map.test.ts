@@ -8,10 +8,19 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  CONSUMER_CHECK_GATES,
+  checkGateId,
+  FRAMEWORK_CHECK_GATES,
+  gatesForCheckTarget,
+} from "../check/gate-lists.js";
 import { ProjectionContainmentError } from "../fs/projection-containment.js";
 import { main as ruleMapMain } from "./rule-map.js";
+
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
 
 const itSymlink = it.skipIf(process.platform === "win32");
 
@@ -93,6 +102,22 @@ const PACK_JSON = JSON.stringify({
   ],
 });
 
+const LESSONS_PACK_JSON = JSON.stringify({
+  pack: "lessons-pack-0.1",
+  version: "0.1.0",
+  lessons: [{ id: "one" }, { id: "two" }, { id: "three" }],
+});
+
+const DOCS_MD = `# Scope provenance
+
+See [gate integrity](./gate-integrity.md) and [missing](./no-such.md).
+`;
+
+const GATE_INTEGRITY_MD = `# Gate integrity
+
+Integrity rules.
+`;
+
 function makeRepo(): string {
   const root = mkdtempSync(join(tmpdir(), "deft-rule-map-"));
   temps.push(root);
@@ -115,6 +140,16 @@ function makeRepo(): string {
   const packs = join(root, "content", "packs");
   mkdirSync(packs, { recursive: true });
   writeFileSync(join(packs, "core.pack.json"), PACK_JSON, "utf8");
+  mkdirSync(join(packs, "lessons"), { recursive: true });
+  writeFileSync(join(packs, "lessons", "lessons-pack-0.1.json"), LESSONS_PACK_JSON, "utf8");
+
+  const docs = join(root, "content", "docs");
+  mkdirSync(docs, { recursive: true });
+  writeFileSync(join(docs, "scope-provenance.md"), DOCS_MD, "utf8");
+  writeFileSync(join(docs, "gate-integrity.md"), GATE_INTEGRITY_MD, "utf8");
+
+  mkdirSync(join(root, "content", "doctor"), { recursive: true });
+  writeFileSync(join(root, "content", "doctor", "session-coda.json"), "{}" + "\n", "utf8");
 
   return root;
 }
@@ -312,5 +347,83 @@ describe("rule-map projection containment (#2839)", () => {
     expect(readFileSync(escapeFile, "utf8")).toBe("victim\n");
     // Preflight both sinks first — Markdown must not be left updated when HTML refuses.
     expect(existsSync(mdPathOf(root))).toBe(false);
+  });
+});
+
+describe("rule-map generated-view freshness (#4095)", () => {
+  it("rebases surviving relative links from docs/RULE-MAP.md and omits missing targets", () => {
+    const root = makeRepo();
+    expect(ruleMapMain(["--project-root", root])).toBe(0);
+    const md = readFileSync(mdPathOf(root), "utf8");
+    expect(md).toContain("[gate integrity](../content/docs/gate-integrity.md)");
+    expect(md).not.toContain("./gate-integrity.md");
+    expect(md).toContain("and missing.");
+    expect(md).not.toContain("./no-such.md");
+  });
+
+  it("counts pack lessons as compiled entries and names the Taskfile declaration denominator", () => {
+    const root = makeRepo();
+    expect(ruleMapMain(["--project-root", root])).toBe(0);
+    const md = readFileSync(mdPathOf(root), "utf8");
+    expect(md).toContain("5 entries from rules|lessons|patterns|skills|strategies|entries");
+    expect(md).toContain(
+      "Taskfile declarations (includes + unlisted tasks/*.yml, not `task --list`)",
+    );
+    expect(md).toContain("lessons-pack-0.1.json");
+  });
+
+  it("omits markdown-empty groupings such as doctor", () => {
+    const root = makeRepo();
+    expect(ruleMapMain(["--project-root", root])).toBe(0);
+    const md = readFileSync(mdPathOf(root), "utf8");
+    expect(md).not.toMatch(/\| doctor \|/);
+    expect(md).not.toContain("### doctor");
+  });
+
+  it("refuses to write a grouping with an empty purpose", () => {
+    const root = makeRepo();
+    const unknown = join(root, "content", "brand-new-group");
+    mkdirSync(unknown, { recursive: true });
+    writeFileSync(
+      join(unknown, "note.md"),
+      "# Note\n\nA grouping without GROUP_PURPOSE.\n",
+      "utf8",
+    );
+    expect(ruleMapMain(["--project-root", root])).toBe(1);
+    expect(existsSync(mdPathOf(root))).toBe(false);
+  });
+
+  it("names the assertions when --check passes", () => {
+    const root = makeRepo();
+    expect(ruleMapMain(["--project-root", root])).toBe(0);
+    expect(ruleMapMain(["--project-root", root, "--check"])).toBe(0);
+  });
+
+  it("wires docs:rule-map:check into FRAMEWORK_CHECK_GATES only", () => {
+    expect(FRAMEWORK_CHECK_GATES.map(checkGateId)).toContain("docs:rule-map:check");
+    expect(CONSUMER_CHECK_GATES.map(checkGateId)).not.toContain("docs:rule-map:check");
+    expect(gatesForCheckTarget("check:framework-source").map(checkGateId)).toContain(
+      "docs:rule-map:check",
+    );
+  });
+
+  it("Taskfile check:framework-source lists docs:rule-map:check", () => {
+    const taskfile = readFileSync(join(REPO_ROOT, "Taskfile.yml"), "utf8");
+    const start = taskfile.indexOf("check:framework-source:");
+    expect(start).toBeGreaterThan(-1);
+    const rest = taskfile.slice(start);
+    const cmds = rest.indexOf("cmds:");
+    const deps = cmds === -1 ? rest : rest.slice(0, cmds);
+    expect(deps).toContain("- docs:rule-map:check");
+    const consumerStart = taskfile.indexOf("check:consumer:");
+    expect(consumerStart).toBeGreaterThan(-1);
+    const consumerRest = taskfile.slice(consumerStart);
+    const consumerCmds = consumerRest.indexOf("cmds:");
+    const consumerDeps = consumerCmds === -1 ? consumerRest : consumerRest.slice(0, consumerCmds);
+    expect(consumerDeps).not.toContain("docs:rule-map:check");
+  });
+
+  it("live-repo --check matches committed docs/RULE-MAP.md", () => {
+    expect(ruleMapMain(["--project-root", REPO_ROOT, "--check"])).toBe(0);
   });
 });

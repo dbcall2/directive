@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RULE-MAP freshness fails closed on `task check` (#4095).** Regenerates `docs/RULE-MAP.md`. `task docs:rule-map:check` is wired into `FRAMEWORK_CHECK_GATES` and `check:framework-source`. The gate asserts byte-identical renderer output, filled grouping purposes, pack entries from named arrays, and Taskfile declaration counts. ROADMAP stays on `task roadmap:check` (residual [#4164](https://github.com/deftai/directive/issues/4164)). Closes #4095.
+
 ### Changed
 
 - **Orientation file map matches the current checkout (#4087).** Labeled-current directory trees no longer teach deleted Python launchers or root guidance paths. Skills and consumer state use `content/skills/` and `xbrief/`. A fail-closed content-contract pin covers those trees. Partial of #4087. Refs #4085.

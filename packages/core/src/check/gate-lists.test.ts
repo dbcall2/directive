@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   CONSUMER_CHECK_GATES,
@@ -120,6 +123,31 @@ describe("gate-lists (#2791)", () => {
   it("includes verify:closing-keywords on the framework list only (#3969)", () => {
     expect(FRAMEWORK_CHECK_GATES.map(checkGateId)).toContain("verify:closing-keywords");
     expect(CONSUMER_CHECK_GATES.map(checkGateId)).not.toContain("verify:closing-keywords");
+  });
+
+  it("wires docs:rule-map:check into framework composition only (#4095)", () => {
+    expect(FRAMEWORK_CHECK_GATES.map(checkGateId)).toContain("docs:rule-map:check");
+    expect(CONSUMER_CHECK_GATES.map(checkGateId)).not.toContain("docs:rule-map:check");
+    expect(gatesForCheckTarget("check:framework-source").map(checkGateId)).toContain(
+      "docs:rule-map:check",
+    );
+  });
+
+  it("Taskfile check:framework-source lists docs:rule-map:check (#4095)", () => {
+    const here = fileURLToPath(new URL(".", import.meta.url));
+    const taskfile = readFileSync(join(resolve(here, "../../../../"), "Taskfile.yml"), "utf8");
+    const start = taskfile.indexOf("check:framework-source:");
+    expect(start).toBeGreaterThan(-1);
+    const rest = taskfile.slice(start);
+    const cmds = rest.indexOf("cmds:");
+    const deps = cmds === -1 ? rest : rest.slice(0, cmds);
+    expect(deps).toContain("- docs:rule-map:check");
+    const consumerStart = taskfile.indexOf("check:consumer:");
+    expect(consumerStart).toBeGreaterThan(-1);
+    const consumerRest = taskfile.slice(consumerStart);
+    const consumerCmds = consumerRest.indexOf("cmds:");
+    const consumerDeps = consumerCmds === -1 ? consumerRest : consumerRest.slice(0, consumerCmds);
+    expect(consumerDeps).not.toContain("docs:rule-map:check");
   });
 
   it("includes #3145 enforcement gates on framework and consumer lists", () => {
