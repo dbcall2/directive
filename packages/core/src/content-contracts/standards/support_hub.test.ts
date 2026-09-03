@@ -31,7 +31,7 @@ const FORBIDDEN_RECOVERY_BYTES = [
   "doctor --redact",
 ] as const;
 
-function hub(): string {
+function supportHubMarkdown(): string {
   return readText(HUB);
 }
 
@@ -48,7 +48,7 @@ function tableDataRows(text: string): string[] {
   });
 }
 
-describe("support hub (#4098 / lean 5514459336)", () => {
+describe("support hub for #4098 / lean 5514459336", () => {
   it("fails when the canonical deposited hub is missing", () => {
     expect(isFile(HUB), "content/docs/SUPPORT.md must exist").toBe(true);
   });
@@ -76,7 +76,7 @@ describe("support hub (#4098 / lean 5514459336)", () => {
   });
 
   it("indexes symptoms to doctor --full or README cold-start without a second ladder", () => {
-    const text = hub();
+    const text = supportHubMarkdown();
     expect(text).toContain("directive doctor --full");
     expect(text.toLowerCase()).toContain("cold-start");
     expect(text).toContain("Next command:");
@@ -100,7 +100,7 @@ describe("support hub (#4098 / lean 5514459336)", () => {
   });
 
   it("routes hook-runtime and corporate-registry to owners without restating them", () => {
-    const text = hub();
+    const text = supportHubMarkdown();
     expect(text).toContain("hook-runtime-unavailable.md");
     expect(text).toContain("templates/agents-entry.md");
     expect(text).toContain("UPGRADING.md#corporate-or-mirrored-npm-registry");
@@ -108,7 +108,7 @@ describe("support hub (#4098 / lean 5514459336)", () => {
   });
 
   it("does not use paste-JSON or a doctor --redact verb as the capture control", () => {
-    const text = hub();
+    const text = supportHubMarkdown();
     expect(text).toMatch(/do not paste/i);
     expect(text).toContain("Next command:");
     expect(text).not.toContain("doctor --redact");
@@ -116,7 +116,7 @@ describe("support hub (#4098 / lean 5514459336)", () => {
   });
 
   it("splits ordinary issues from root SECURITY.md", () => {
-    const text = hub();
+    const text = supportHubMarkdown();
     expect(text).toContain("SECURITY.md");
     expect(text).not.toContain("docs/security.md");
   });
