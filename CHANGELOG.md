@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Orientation file map matches the current checkout (#4087).** Labeled-current directory trees no longer teach deleted Python launchers or root guidance paths. Skills and consumer state use `content/skills/` and `xbrief/`. A fail-closed content-contract pin covers those trees. Partial of #4087. Refs #4085.
+
 ### Fixed
 
 ### Removed
