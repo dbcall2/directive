@@ -1,5 +1,6 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -369,6 +370,65 @@ describe("command snippet contract (#4094)", () => {
       "+  },",
     ].join("\n");
     expect(sameDiffExemptionViolations(splitAcrossCommits)).toEqual([]);
+  });
+
+  it("shallow clone fetches GITHUB_BASE_SHA so same-diff still sees earlier PR commits", () => {
+    const origin = mkdtempSync(join(tmpdir(), "cmd-snippet-origin-"));
+    const shallow = join(tmpdir(), `cmd-snippet-shallow-${process.pid}`);
+    created.push(origin, shallow);
+    const git = (cwd: string, args: readonly string[]): string =>
+      execFileSync("git", args, { cwd, encoding: "utf8" });
+    git(origin, ["init"]);
+    git(origin, ["config", "user.email", "t@example.test"]);
+    git(origin, ["config", "user.name", "t"]);
+    const resolverRel = "packages/core/src/deposit/live-procedure-targets.ts";
+    mkdirSync(join(origin, "packages/core/src/deposit"), { recursive: true });
+    mkdirSync(join(origin, "content"), { recursive: true });
+    writeFileSync(join(origin, resolverRel), "export const start = true;\n");
+    writeFileSync(join(origin, "content/commands.md"), "# Commands\n");
+    git(origin, ["add", "."]);
+    git(origin, ["commit", "-m", "base"]);
+    const baseSha = git(origin, ["rev-parse", "HEAD"]).trim();
+    writeFileSync(
+      join(origin, resolverRel),
+      [
+        "export const COMMAND_SNIPPET_EXEMPTIONS = [",
+        "  {",
+        '    family: "task",',
+        '    verb: "check:slow",',
+        '    path: "content/commands.md",',
+        '    classification: "illustrative",',
+        '    reason: "waive",',
+        "  },",
+        "];",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(origin, "content/commands.md"),
+      "- `task check:slow` -- slower/full checks.\n",
+    );
+    git(origin, ["add", "."]);
+    git(origin, ["commit", "-m", "same-diff exemption"]);
+    writeFileSync(join(origin, "CHANGELOG.md"), "note\n");
+    git(origin, ["add", "."]);
+    git(origin, ["commit", "-m", "changelog only"]);
+    execFileSync("git", ["clone", "--depth", "1", `file://${origin}`, shallow], {
+      encoding: "utf8",
+    });
+    expect(git(shallow, ["rev-parse", "--is-shallow-repository"]).trim()).toBe("true");
+    expect(git(shallow, ["rev-list", "--count", "HEAD"]).trim()).toBe("1");
+    const prev = process.env.GITHUB_BASE_SHA;
+    process.env.GITHUB_BASE_SHA = baseSha;
+    try {
+      const diff = readCommandSnippetCandidateDiff(shallow);
+      expect(sameDiffExemptionViolations(diff)).toEqual([
+        { verb: "check:slow", path: "content/commands.md", family: "task" },
+      ]);
+    } finally {
+      if (prev === undefined) delete process.env.GITHUB_BASE_SHA;
+      else process.env.GITHUB_BASE_SHA = prev;
+    }
   });
 
   it("does not rewrite Taskfile descriptions as a side effect", () => {

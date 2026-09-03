@@ -897,6 +897,44 @@ function gitOut(repoRoot: string, args: readonly string[]): string {
   }
 }
 
+function gitOk(repoRoot: string, args: readonly string[]): boolean {
+  try {
+    execFileSync("git", args, {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function commitExists(repoRoot: string, spec: string): boolean {
+  return gitOk(repoRoot, ["cat-file", "-e", `${spec}^{commit}`]);
+}
+
+function maybeFetchBase(repoRoot: string, spec: string): void {
+  if (commitExists(repoRoot, spec)) return;
+  const ci = process.env.GITHUB_ACTIONS === "true" || Boolean(process.env.GITHUB_BASE_SHA?.trim());
+  if (!ci) return;
+  const token = spec.replace(/^origin\//, "");
+  if (token.length === 0) return;
+  gitOut(repoRoot, ["fetch", "--depth", "1", "origin", token]);
+}
+
+function diffAgainstBase(repoRoot: string, base: string, files: readonly string[]): string | null {
+  maybeFetchBase(repoRoot, base);
+  const mergeBase = gitOut(repoRoot, ["merge-base", "HEAD", base]).trim();
+  if (mergeBase.length > 0) {
+    return gitOut(repoRoot, ["diff", `${mergeBase}...HEAD`, "--", ...files]);
+  }
+  if (commitExists(repoRoot, base)) {
+    return gitOut(repoRoot, ["diff", base, "HEAD", "--", ...files]);
+  }
+  return null;
+}
+
 /** Candidate diff for same-diff exemption ownership. */
 export function readCommandSnippetCandidateDiff(repoRoot: string): string {
   const files = [...COMMAND_SNIPPET_DIFF_PATHS];
@@ -912,11 +950,10 @@ export function readCommandSnippetCandidateDiff(repoRoot: string): string {
     "origin/main",
   ].filter((base) => base.length > 0);
   for (const base of bases) {
-    const mergeBase = gitOut(repoRoot, ["merge-base", "HEAD", base]).trim();
-    if (mergeBase.length === 0) continue;
-    return gitOut(repoRoot, ["diff", `${mergeBase}...HEAD`, "--", ...files]);
+    const ranged = diffAgainstBase(repoRoot, base, files);
+    if (ranged !== null) return ranged;
   }
-  // Shallow CI: no merge-base. sameDiffExemptionViolations splits git-log commits.
+  // Last resort: per-commit log. Depth-1 HEAD-only clones may miss earlier PR commits.
   return gitOut(repoRoot, ["log", "-p", "-n", "50", "--", ...files]);
 }
 
