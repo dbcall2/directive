@@ -63,6 +63,17 @@ describe("recovery ladder (#4090)", () => {
     expect(plan.existing).toBe(truncated);
   });
 
+  it("classifies a truncated opener followed by an existing close as truncated-open", () => {
+    const truncatedThenClose = `<!-- deft:managed-section v3\nbody\n${CLOSE}\n`;
+    const plan = agentsRefreshPlan("/proj", { ...SEAMS, readAgents: () => truncatedThenClose });
+    expect(plan.state).toBe("unreadable");
+    expect(plan.reason).toBe("truncated-open");
+    expect(plan.new_content).toBeNull();
+    expect(unreadableAgentsRecovery("truncated-open").suggested_fix).toBe(
+      RECOVERY_LADDER_UNREADABLE_TRUNCATED_OPEN,
+    );
+  });
+
   it("classifies a truncated current-version opener as truncated-open with opener repair", () => {
     const truncatedOpen = "<!-- deft:managed-section v3";
     const plan = agentsRefreshPlan("/proj", { ...SEAMS, readAgents: () => truncatedOpen });

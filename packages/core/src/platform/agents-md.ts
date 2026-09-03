@@ -115,16 +115,10 @@ export function parseManagedSectionAttrs(extracted: string): ManagedSectionAttrs
   return result;
 }
 
-function managedOpenLiteral(version: number): string {
-  return version === 3
-    ? AGENTS_MANAGED_OPEN_V3_LITERAL
-    : `<!-- deft:managed-section v${version} -->`;
-}
-
 export function stripManagedSectionAttrs(section: string): string {
   const open = findManagedOpenMarker(section, 0);
   if (open === null) return section;
-  return section.slice(0, open.start) + managedOpenLiteral(open.version) + section.slice(open.end);
+  return section.slice(0, open.start) + AGENTS_MANAGED_OPEN_V3_LITERAL + section.slice(open.end);
 }
 
 export function renderManagedSection(templateText: string): string | null {
@@ -203,18 +197,25 @@ export function scanManagedOpenCandidates(text: string, from = 0): ManagedOpenCa
       digits += ch;
       i += 1;
     }
+    let truncatedOpen = false;
     while (i < text.length && !(text[i] === "-" && text[i + 1] === "-" && text[i + 2] === ">")) {
+      if (text[i] === "<" && text[i + 1] === "!" && text[i + 2] === "-" && text[i + 3] === "-") {
+        truncatedOpen = true;
+        break;
+      }
       i += 1;
     }
-    if (i >= text.length) {
+    if (i >= text.length || truncatedOpen) {
       results.push({
         start: idx,
-        end: text.length,
+        end: i >= text.length ? text.length : i,
         version: digits ? Number(digits) : null,
         recognized: false,
         truncatedOpen: true,
       });
-      break;
+      if (i >= text.length) break;
+      pos = i;
+      continue;
     }
     const end = i + 3;
     const version = digits ? Number(digits) : null;
