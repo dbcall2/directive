@@ -1,5 +1,6 @@
 /**
- * C3 live-procedure target validation (#3602 / #3899).
+ * C3 live-procedure target validation (#3602 / #3899) and command-snippet
+ * registry lookup (#4094).
  *
  * A shipped live procedure must not name a helper the deposit does not
  * contain. Python helpers are identified via python-free; markdown is
@@ -8,10 +9,19 @@
  *
  * Metric: unique live-invalid helper targets (not occurrences, not matching
  * lines). Prefer a zero unique-target assertion; do not freeze raw counts.
+ *
+ * Command snippets reuse this markdown walker (backticks + fences). Registry
+ * lookup is static Taskfile parse plus dispatch.ts / CLI help. Verb/namespace
+ * only — extracted fences are never executed.
  */
 
 import { type Dirent, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  parseTaskfileIncludes,
+  taskDefinedInTaskfileYaml,
+} from "../check/consumer-gate-integrity.js";
 import { NON_PRODUCT_DIRS } from "../fs/non-product-dirs.js";
 import { extractLinkTargets, shouldSkipLinkTarget } from "../validate-content/link-parser.js";
 import { isDeclaredLiveProcedureExclusion } from "./live-procedure-exclusions.js";
@@ -132,6 +142,18 @@ function isPathChar(ch: string | undefined): boolean {
   return PATH_CHAR.test(ch) || ch === "/" || ch === "\\";
 }
 
+function forEachBacktickSpan(line: string, visit: (inner: string) => void): void {
+  let tick = 0;
+  while (tick < line.length) {
+    const open = line.indexOf("`", tick);
+    if (open < 0) break;
+    const close = line.indexOf("`", open + 1);
+    if (close < 0) break;
+    visit(line.slice(open + 1, close).trim());
+    tick = close + 1;
+  }
+}
+
 function extractBacktickPythonHelpers(line: string): string[] {
   const out: string[] = [];
   const suffixes = [".pyc", ".py"] as const;
@@ -159,13 +181,7 @@ function extractBacktickPythonHelpers(line: string): string[] {
       if (normalized) out.push(normalized);
     }
   }
-  let tick = 0;
-  while (tick < line.length) {
-    const open = line.indexOf("`", tick);
-    if (open < 0) break;
-    const close = line.indexOf("`", open + 1);
-    if (close < 0) break;
-    const inner = line.slice(open + 1, close).trim();
+  forEachBacktickSpan(line, (inner) => {
     const parts = inner.split(/\s+/).filter((p) => p.length > 0);
     const first = (parts[0] ?? "").replace(/^\.\//, "");
     const arg = parts[1];
@@ -183,8 +199,7 @@ function extractBacktickPythonHelpers(line: string): string[] {
       const normalized = normalizePythonHelperTarget("run");
       if (normalized) out.push(normalized);
     }
-    tick = close + 1;
-  }
+  });
   return out;
 }
 
@@ -287,6 +302,675 @@ export function formatLiveProcedureFailure(result: LiveProcedureEvaluation): str
   }
   if (result.hits.length > 40) {
     lines.push(`  ... ${result.hits.length - 40} more occurrence(s)`);
+  }
+  return lines.join("\n");
+}
+
+/** Closed classification set for command snippets (#4094). */
+export const COMMAND_SNIPPET_CLASSIFICATIONS = [
+  "current",
+  "historical",
+  "frozen",
+  "template",
+  "illustrative",
+] as const;
+
+export type CommandSnippetClassification = (typeof COMMAND_SNIPPET_CLASSIFICATIONS)[number];
+
+/** Audience/context key: which registry a snippet is judged against (#4094). */
+export const COMMAND_SNIPPET_AUDIENCES = ["consumer", "maintainer", "frozen"] as const;
+
+export type CommandSnippetAudience = (typeof COMMAND_SNIPPET_AUDIENCES)[number];
+
+export type CommandSnippetFamily = "task" | "cli";
+
+export type CommandSnippetSpan = "backtick" | "fence";
+
+export type CommandSnippetRegistryKind =
+  | "taskfile-public"
+  | "taskfile-internal"
+  | "cli-preferred"
+  | "cli-registered"
+  | "cli-deferred"
+  | "cli-stubbed"
+  | "cli-help"
+  | "skipped"
+  | "absent";
+
+export interface CommandSnippetCorpusEntry {
+  readonly path: string;
+  readonly audience: CommandSnippetAudience;
+  readonly defaultClassification: CommandSnippetClassification;
+  readonly failClosed: boolean;
+  readonly historicalHeadingPrefixes?: readonly string[];
+}
+
+/**
+ * Enumerated corpus (#4094). failClosed is this story's commands.md surface.
+ * Sibling owners (README, QUICK-START, getting-started, doctor) are named
+ * and not fail-closed here. Historical trees are default-historical by path.
+ */
+export const COMMAND_SNIPPET_CORPUS: readonly CommandSnippetCorpusEntry[] = [
+  {
+    path: "content/commands.md",
+    audience: "maintainer",
+    defaultClassification: "current",
+    failClosed: true,
+    historicalHeadingPrefixes: ["## Command Lifecycle:", "## Historical "],
+  },
+  {
+    path: "README.md",
+    audience: "consumer",
+    defaultClassification: "current",
+    failClosed: false,
+  },
+  {
+    path: "content/QUICK-START.md",
+    audience: "consumer",
+    defaultClassification: "current",
+    failClosed: false,
+  },
+  {
+    path: "content/docs/getting-started.md",
+    audience: "consumer",
+    defaultClassification: "current",
+    failClosed: false,
+  },
+  {
+    path: "CHANGELOG.md",
+    audience: "frozen",
+    defaultClassification: "historical",
+    failClosed: false,
+  },
+  {
+    path: "SPECIFICATION.md",
+    audience: "frozen",
+    defaultClassification: "historical",
+    failClosed: false,
+  },
+];
+
+/** Path prefixes that are historical without per-snippet annotation. */
+export const COMMAND_SNIPPET_HISTORICAL_PREFIXES = [
+  "history/",
+  "docs/analysis/",
+  "xbrief/completed/",
+] as const;
+
+/** Retired verbs kept as regression fixtures; they must not resolve public. */
+export const COMMAND_SNIPPET_KNOWN_FALSE_TASK_VERBS = [
+  "check:slow",
+  "verify:xbrief-conformance",
+  "ci:local",
+  "validate-links",
+] as const;
+
+/** Live verbs that current guidance may name only as frozen, never as public-current. */
+export const COMMAND_SNIPPET_FROZEN_TASK_VERBS = new Set(["migrate:vbrief"]);
+
+export interface CommandSnippetExemption {
+  readonly family: CommandSnippetFamily;
+  readonly verb: string;
+  readonly path: string;
+  readonly classification: Exclude<CommandSnippetClassification, "current">;
+  readonly reason: string;
+}
+
+/**
+ * Closed exemption allowlist. Empty at first ship. An addition in the same
+ * diff as the snippet it exempts fails (#4094).
+ */
+export const COMMAND_SNIPPET_EXEMPTIONS: readonly CommandSnippetExemption[] = [];
+
+export interface CommandSnippet {
+  readonly file: string;
+  readonly line: number;
+  readonly family: CommandSnippetFamily;
+  readonly verb: string;
+  readonly raw: string;
+  readonly span: CommandSnippetSpan;
+  readonly classification: CommandSnippetClassification;
+  readonly audience: CommandSnippetAudience;
+}
+
+export interface CommandSnippetResolution {
+  readonly kind: CommandSnippetRegistryKind;
+  readonly publicCurrent: boolean;
+}
+
+export interface CommandSnippetFinding {
+  readonly snippet: CommandSnippet;
+  readonly resolution: CommandSnippetResolution;
+}
+
+export interface CommandSnippetEvaluation {
+  readonly snippets: readonly CommandSnippet[];
+  readonly findings: readonly CommandSnippetFinding[];
+}
+
+export interface CommandRegistries {
+  readonly publicTasks: ReadonlySet<string>;
+  readonly internalTasks: ReadonlySet<string>;
+  readonly includeNamespaces: ReadonlySet<string>;
+  readonly preferredCli: ReadonlySet<string>;
+  readonly registeredCli: ReadonlySet<string>;
+  readonly helpCli: ReadonlySet<string>;
+  readonly deferredCli: ReadonlySet<string>;
+  readonly stubbedCli: ReadonlySet<string>;
+}
+
+const TASK_RUNNER_FLAGS_WITH_ARG = new Set([
+  "-t",
+  "--taskfile",
+  "-d",
+  "--dir",
+  "-o",
+  "--output",
+  "--concurrency",
+]);
+
+const CONSUMER_INCLUDE_PREFIX = "deft:";
+
+export function frameworkRepoRoot(): string {
+  return resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
+}
+
+function normalizeYaml(text: string): string {
+  return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
+function taskBlockIsInternal(text: string, localName: string): boolean {
+  const escaped = localName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const header = new RegExp(`^ {2}${escaped}\\s*:`, "m");
+  const match = header.exec(text);
+  if (match === null || match.index === undefined) return false;
+  const after = text.slice(match.index + match[0].length);
+  const next = after.search(/^ {2}[A-Za-z_][\w:-]*\s*:/m);
+  const body = next < 0 ? after : after.slice(0, next);
+  return /^\s+internal:\s*true\s*$/m.test(body);
+}
+
+function collectTaskKeys(text: string): string[] {
+  const keys: string[] = [];
+  const lines = normalizeYaml(text).split("\n");
+  let inTasks = false;
+  for (const line of lines) {
+    if (line.startsWith("tasks:")) {
+      inTasks = true;
+      continue;
+    }
+    if (inTasks && line.length > 0 && !line.startsWith(" ") && line.trim() !== "tasks:") {
+      inTasks = false;
+    }
+    if (!inTasks) continue;
+    const m = /^ {2}([A-Za-z_][\w:-]*)\s*:/.exec(line);
+    if (m?.[1]) keys.push(m[1]);
+  }
+  return keys;
+}
+
+function quotedStrings(block: string): string[] {
+  return [...block.matchAll(/"([^"]+)"/g)]
+    .map((m) => m[1])
+    .filter((s): s is string => s !== undefined);
+}
+
+function sliceAssignment(source: string, name: string): string {
+  const match = new RegExp(`(?:export )?const ${name}\\b[^=]*=`).exec(source);
+  if (match === null || match.index === undefined) return "";
+  const after = source.slice(match.index + match[0].length);
+  const openRel = after.search(/[[{]/);
+  if (openRel < 0) return "";
+  const origin = match.index + match[0].length + openRel;
+  const openCh = source[origin];
+  const closeCh = openCh === "[" ? "]" : "}";
+  let depth = 0;
+  let inString: string | null = null;
+  for (let i = origin; i < source.length; i += 1) {
+    const ch = source[i];
+    const prev = i > 0 ? source[i - 1] : "";
+    if (inString !== null) {
+      if (ch === inString && prev !== "\\") inString = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      inString = ch;
+      continue;
+    }
+    if (ch === openCh) depth += 1;
+    else if (ch === closeCh) {
+      depth -= 1;
+      if (depth === 0) return source.slice(origin, i + 1);
+    }
+  }
+  return "";
+}
+
+function parseStringArrayExport(source: string, name: string): string[] {
+  return quotedStrings(sliceAssignment(source, name));
+}
+
+function parseRecordKeys(source: string, name: string): string[] {
+  return [...sliceAssignment(source, name).matchAll(/"([^"]+)"\s*:/g)]
+    .map((m) => m[1])
+    .filter((s): s is string => s !== undefined);
+}
+
+export function loadCommandRegistries(repoRoot: string): CommandRegistries {
+  const rootText = normalizeYaml(readFileSync(join(repoRoot, "Taskfile.yml"), "utf8"));
+  const publicTasks = new Set<string>();
+  const internalTasks = new Set<string>();
+  for (const key of collectTaskKeys(rootText)) {
+    if (!taskDefinedInTaskfileYaml(rootText, key)) continue;
+    if (taskBlockIsInternal(rootText, key)) internalTasks.add(key);
+    else publicTasks.add(key);
+  }
+  const includes = parseTaskfileIncludes(rootText);
+  const includeNamespaces = new Set(includes.keys());
+  for (const [namespace, include] of includes) {
+    const includePath = resolve(repoRoot, include.taskfile);
+    if (!existsSync(includePath)) continue;
+    const fragment = normalizeYaml(readFileSync(includePath, "utf8"));
+    for (const local of collectTaskKeys(fragment)) {
+      if (!taskDefinedInTaskfileYaml(fragment, local)) continue;
+      const full = `${namespace}:${local}`;
+      if (taskBlockIsInternal(fragment, local)) internalTasks.add(full);
+      else publicTasks.add(full);
+    }
+  }
+
+  const dispatch = readFileSync(join(repoRoot, "packages/cli/src/dispatch.ts"), "utf8");
+  const router = readFileSync(join(repoRoot, "packages/cli/src/cli-router/route-argv.ts"), "utf8");
+  const moduleVerbs = parseStringArrayExport(dispatch, "CLI_MODULE_VERBS");
+  const coreVerbs = parseStringArrayExport(dispatch, "CORE_MODULE_VERBS");
+  const aliasKeys = parseRecordKeys(dispatch, "VERB_ALIASES");
+  const aliasValues = [...sliceAssignment(dispatch, "VERB_ALIASES").matchAll(/:\s*"([^"]+)"/g)].map(
+    (m) => m[1],
+  );
+  const colonAliasKeys = [
+    ...parseRecordKeys(dispatch, "TRIAGE_ACTION_ALIAS_SUBCOMMANDS"),
+    ...parseRecordKeys(dispatch, "POLICY_ACTION_ALIAS_SUBCOMMANDS"),
+    ...parseRecordKeys(dispatch, "AUTHZ_ACTION_ALIAS_SUBCOMMANDS"),
+    ...parseRecordKeys(dispatch, "ESCALATION_ACTION_ALIAS_SUBCOMMANDS"),
+    ...parseRecordKeys(dispatch, "PLAN_SEQUENCE_ALIAS_SUBCOMMANDS"),
+    ...parseRecordKeys(dispatch, "PRODUCT_SIGNAL_ALIAS_SUBCOMMANDS"),
+    ...parseRecordKeys(dispatch, "FRESHNESS_ALIAS_SUBCOMMANDS"),
+  ];
+  const helpCli = new Set(
+    [...sliceAssignment(dispatch, "CURATED_HELP_GROUPS").matchAll(/name:\s*"([^"]+)"/g)]
+      .map((m) => m[1])
+      .filter((s): s is string => s !== undefined),
+  );
+  const topLevel = parseStringArrayExport(router, "TOP_LEVEL_UX_VERBS");
+  const deferredCli = new Set(quotedStrings(sliceAssignment(router, "DEFERRED_TOP_LEVEL_VERBS")));
+  const stubbedCli = new Set(quotedStrings(sliceAssignment(router, "STUBBED_TOP_LEVEL_VERBS")));
+  const scopeLocals = quotedStrings(sliceAssignment(router, "SCOPE_LIFECYCLE_VERBS"));
+  const aliasedCanonicals = new Set(aliasValues.filter((s): s is string => s !== undefined));
+  const registeredCli = new Set<string>([
+    ...moduleVerbs,
+    ...coreVerbs,
+    ...aliasKeys,
+    ...colonAliasKeys,
+    ...topLevel,
+    ...scopeLocals.map((local) => `scope:${local}`),
+    ...helpCli,
+  ]);
+  const preferredCli = new Set<string>([
+    ...topLevel.filter((verb) => !deferredCli.has(verb) && !stubbedCli.has(verb)),
+    ...aliasKeys,
+    ...colonAliasKeys,
+    ...[...moduleVerbs, ...coreVerbs].filter((verb) => !aliasedCanonicals.has(verb)),
+    ...scopeLocals.map((local) => `scope:${local}`),
+    ...[...helpCli].filter((name) => registeredCli.has(name) && !deferredCli.has(name)),
+  ]);
+
+  return {
+    publicTasks,
+    internalTasks,
+    includeNamespaces,
+    preferredCli,
+    registeredCli,
+    helpCli,
+    deferredCli,
+    stubbedCli,
+  };
+}
+
+function skipRunnerPrefix(parts: readonly string[]): string[] {
+  const out: string[] = [];
+  let i = 0;
+  while (i < parts.length) {
+    const token = parts[i];
+    if (token === undefined) break;
+    if (/^[A-Za-z_][\w]*=/.test(token) && !token.includes(":")) {
+      i += 1;
+      continue;
+    }
+    if (token === "--") {
+      i += 1;
+      break;
+    }
+    if (token.startsWith("-")) {
+      i += TASK_RUNNER_FLAGS_WITH_ARG.has(token) ? 2 : 1;
+      continue;
+    }
+    out.push(...parts.slice(i));
+    break;
+  }
+  return out;
+}
+
+function shouldSkipVerb(verb: string): boolean {
+  if (verb.length === 0) return true;
+  if (verb.startsWith("-")) return true;
+  if (
+    verb.endsWith(":") ||
+    verb.includes("*") ||
+    verb.includes("|") ||
+    verb.includes("<") ||
+    verb.includes(">")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function classifyByHeadings(
+  line: string,
+  defaultClassification: CommandSnippetClassification,
+  historicalPrefixes: readonly string[],
+  state: { historical: boolean },
+): CommandSnippetClassification {
+  const trimmed = line.trim();
+  if (trimmed.startsWith("#") && historicalPrefixes.some((prefix) => trimmed.startsWith(prefix))) {
+    state.historical = true;
+  }
+  if (state.historical) return "historical";
+  return defaultClassification;
+}
+
+function exemptionFor(
+  file: string,
+  family: CommandSnippetFamily,
+  verb: string,
+  exemptions: readonly CommandSnippetExemption[],
+): CommandSnippetExemption | undefined {
+  return exemptions.find(
+    (entry) => entry.path === file && entry.family === family && entry.verb === verb,
+  );
+}
+
+interface ExtractedCommand {
+  readonly family: CommandSnippetFamily;
+  readonly verb: string;
+  readonly raw: string;
+}
+
+function commandsFromTokens(parts: readonly string[]): ExtractedCommand[] {
+  const found: ExtractedCommand[] = [];
+  const rest = skipRunnerPrefix(parts);
+  const launcher = rest[0];
+  if (launcher !== "task" && launcher !== "deft" && launcher !== "directive") return found;
+  const verbToken = rest[1];
+  if (verbToken === undefined) return found;
+  let verb = verbToken;
+  if (launcher === "task" && verb.startsWith(CONSUMER_INCLUDE_PREFIX)) {
+    verb = verb.slice(CONSUMER_INCLUDE_PREFIX.length);
+  }
+  if (shouldSkipVerb(verb)) return found;
+  if (launcher === "task") {
+    found.push({ family: "task", verb, raw: `task ${verbToken}` });
+  } else {
+    found.push({ family: "cli", verb, raw: `${launcher} ${verbToken}` });
+  }
+  return found;
+}
+
+/**
+ * Extract `task` / `deft` / `directive` verbs from backtick spans and fenced
+ * lines. Same walker as C3 backticks; fences are parsed, never executed.
+ */
+export function extractCommandSnippets(
+  text: string,
+  file: string,
+  entry: Pick<
+    CommandSnippetCorpusEntry,
+    "audience" | "defaultClassification" | "historicalHeadingPrefixes"
+  >,
+  exemptions: readonly CommandSnippetExemption[] = COMMAND_SNIPPET_EXEMPTIONS,
+): CommandSnippet[] {
+  const snippets: CommandSnippet[] = [];
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  const headingState = { historical: false };
+  const historicalPrefixes = entry.historicalHeadingPrefixes ?? [];
+  let inFence = false;
+
+  const push = (
+    extracted: ExtractedCommand,
+    line: number,
+    span: CommandSnippetSpan,
+    classification: CommandSnippetClassification,
+  ): void => {
+    let nextClassification = classification;
+    if (COMMAND_SNIPPET_FROZEN_TASK_VERBS.has(extracted.verb) && extracted.family === "task") {
+      nextClassification = "frozen";
+    }
+    const exempt = exemptionFor(file, extracted.family, extracted.verb, exemptions);
+    if (exempt) nextClassification = exempt.classification;
+    snippets.push({
+      file,
+      line,
+      family: extracted.family,
+      verb: extracted.verb,
+      raw: extracted.raw,
+      span,
+      classification: nextClassification,
+      audience: entry.audience,
+    });
+  };
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] ?? "";
+    const classification = classifyByHeadings(
+      line,
+      entry.defaultClassification,
+      historicalPrefixes,
+      headingState,
+    );
+    const trimmed = line.trim();
+    if (trimmed.startsWith("```")) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) {
+      const parts = trimmed
+        .replace(/^[$]\s+/, "")
+        .split(/\s+/)
+        .filter((p) => p.length > 0);
+      for (const extracted of commandsFromTokens(parts)) {
+        push(extracted, i + 1, "fence", classification);
+      }
+      continue;
+    }
+    forEachBacktickSpan(line, (inner) => {
+      const parts = inner.split(/\s+/).filter((p) => p.length > 0);
+      for (const extracted of commandsFromTokens(parts)) {
+        push(extracted, i + 1, "backtick", classification);
+      }
+    });
+  }
+  return snippets;
+}
+
+export function resolveCommandSnippet(
+  snippet: CommandSnippet,
+  registries: CommandRegistries,
+): CommandSnippetResolution {
+  if (snippet.family === "task") {
+    if (
+      !snippet.verb.includes(":") &&
+      registries.includeNamespaces.has(snippet.verb) &&
+      !registries.publicTasks.has(snippet.verb) &&
+      !registries.internalTasks.has(snippet.verb)
+    ) {
+      return { kind: "skipped", publicCurrent: false };
+    }
+    if (registries.internalTasks.has(snippet.verb)) {
+      return { kind: "taskfile-internal", publicCurrent: false };
+    }
+    if (registries.publicTasks.has(snippet.verb)) {
+      return { kind: "taskfile-public", publicCurrent: true };
+    }
+    return { kind: "absent", publicCurrent: false };
+  }
+  const hyphen = snippet.verb.replace(/:/g, "-");
+  const cliNames = snippet.verb.includes(":") ? [snippet.verb, hyphen] : [snippet.verb];
+  if (cliNames.some((name) => registries.deferredCli.has(name))) {
+    return { kind: "cli-deferred", publicCurrent: false };
+  }
+  if (cliNames.some((name) => registries.stubbedCli.has(name))) {
+    return { kind: "cli-stubbed", publicCurrent: false };
+  }
+  if (cliNames.some((name) => registries.preferredCli.has(name))) {
+    return { kind: "cli-preferred", publicCurrent: true };
+  }
+  if (cliNames.some((name) => registries.helpCli.has(name))) {
+    return {
+      kind: "cli-help",
+      publicCurrent: cliNames.some((name) => registries.registeredCli.has(name)),
+    };
+  }
+  if (cliNames.some((name) => registries.registeredCli.has(name))) {
+    return { kind: "cli-registered", publicCurrent: false };
+  }
+  return { kind: "absent", publicCurrent: false };
+}
+
+export function evaluateMarkdownCommandSnippets(options: {
+  readonly text: string;
+  readonly file: string;
+  readonly entry: CommandSnippetCorpusEntry;
+  readonly registries: CommandRegistries;
+  readonly exemptions?: readonly CommandSnippetExemption[];
+}): CommandSnippetEvaluation {
+  const snippets = extractCommandSnippets(
+    options.text,
+    options.file,
+    options.entry,
+    options.exemptions ?? COMMAND_SNIPPET_EXEMPTIONS,
+  );
+  const findings: CommandSnippetFinding[] = [];
+  for (const snippet of snippets) {
+    const resolution = resolveCommandSnippet(snippet, options.registries);
+    if (
+      options.entry.failClosed &&
+      snippet.classification === "current" &&
+      snippet.audience !== "frozen" &&
+      !resolution.publicCurrent &&
+      resolution.kind !== "skipped"
+    ) {
+      findings.push({ snippet, resolution });
+    }
+  }
+  return { snippets, findings };
+}
+
+export function evaluateCommandSnippets(options: {
+  readonly repoRoot: string;
+  readonly corpus?: readonly CommandSnippetCorpusEntry[];
+  readonly exemptions?: readonly CommandSnippetExemption[];
+}): CommandSnippetEvaluation {
+  const registries = loadCommandRegistries(options.repoRoot);
+  const snippets: CommandSnippet[] = [];
+  const findings: CommandSnippetFinding[] = [];
+  for (const entry of options.corpus ?? COMMAND_SNIPPET_CORPUS) {
+    const abs = join(options.repoRoot, entry.path);
+    if (!existsSync(abs)) continue;
+    const text = readFileSync(abs, "utf8");
+    const result = evaluateMarkdownCommandSnippets({
+      text,
+      file: entry.path,
+      entry,
+      registries,
+      exemptions: options.exemptions,
+    });
+    snippets.push(...result.snippets);
+    findings.push(...result.findings);
+  }
+  return { snippets, findings };
+}
+
+export interface SameDiffExemptionViolation {
+  readonly verb: string;
+  readonly path: string;
+  readonly family: CommandSnippetFamily;
+}
+
+function splitUnifiedDiff(diffText: string): Map<string, string> {
+  const files = new Map<string, string>();
+  const parts = diffText.split(/^diff --git /m);
+  for (const part of parts) {
+    const header = /^(?:a\/)?(\S+)\s+b\/(\S+)/.exec(part);
+    const path = header?.[2]?.replace(/^b\//, "");
+    if (!path) continue;
+    files.set(path, part);
+  }
+  return files;
+}
+
+function addedLines(fileDiff: string): string[] {
+  return fileDiff
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"))
+    .map((line) => line.slice(1));
+}
+
+/**
+ * Same-diff exemption ownership (#4094): adding an allowlist row in the same
+ * diff as the snippet it exempts fails.
+ */
+export function sameDiffExemptionViolations(
+  diffText: string,
+): readonly SameDiffExemptionViolation[] {
+  const files = splitUnifiedDiff(diffText);
+  const resolverDiff = files.get("packages/core/src/deposit/live-procedure-targets.ts") ?? "";
+  const added = addedLines(resolverDiff).join("\n");
+  const verbs = [...added.matchAll(/verb:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const paths = [...added.matchAll(/path:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const families = [...added.matchAll(/family:\s*"(task|cli)"/g)].map((m) => m[1]);
+  const violations: SameDiffExemptionViolation[] = [];
+  const count = Math.max(verbs.length, paths.length, families.length);
+  for (let i = 0; i < count; i += 1) {
+    const verb = verbs[i] ?? verbs[0];
+    const path = paths[i] ?? paths[0];
+    const family = (families[i] ?? families[0] ?? "task") as CommandSnippetFamily;
+    if (!verb || !path) continue;
+    const targetDiff = files.get(path) ?? "";
+    const snippetAdded = addedLines(targetDiff).some(
+      (line) =>
+        line.includes(`task ${verb}`) ||
+        line.includes(`deft ${verb}`) ||
+        line.includes(`directive ${verb}`),
+    );
+    if (snippetAdded) {
+      violations.push({ verb, path, family });
+    }
+  }
+  return violations;
+}
+
+export function formatCommandSnippetFailure(result: CommandSnippetEvaluation): string {
+  const lines = [
+    `Command-snippet contract failed: ${result.findings.length} current snippet(s) do not resolve as public commands.`,
+  ];
+  for (const finding of result.findings.slice(0, 40)) {
+    const s = finding.snippet;
+    lines.push(
+      `  ${s.file}:${s.line} ${s.raw} audience=${s.audience} span=${s.span} -> ${finding.resolution.kind}`,
+    );
+  }
+  if (result.findings.length > 40) {
+    lines.push(`  ... ${result.findings.length - 40} more`);
   }
   return lines.join("\n");
 }

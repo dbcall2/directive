@@ -107,8 +107,8 @@ On-demand **write + check** dense xBRIEF SoT artifacts at an explicit path. Thes
 
 | Verb | Meaning |
 |------|---------|
-| `deft xbrief:create` / `task xbrief:create` | Write json, md, or both at `--out` |
-| `deft xbrief:verify` / `task xbrief:verify` | Fail-closed check at `--out` |
+| `deft xbrief:create` | Write json, md, or both at `--out` |
+| `deft xbrief:verify` | Fail-closed check at `--out` |
 | `scope:*` / intake | Lifecycle birth and folder/status transitions |
 | `xbrief:preflight` | Implementation-intent gate (unchanged) |
 
@@ -146,7 +146,7 @@ Common commands:
 - `task scope:fail -- xbrief/active/<file>.xbrief.json` -- mark running work failed when the scope cannot complete.
 - `task scope:cancel -- <path>` -- move a scope to `cancelled/`.
 - `task scope:restore`, `task scope:block`, `task scope:unblock`, `task scope:demote`, and `task scope:undo:*` -- repair or reverse lifecycle transitions.
-- `task issue:sync-from-xbrief -- <path>` -- post a GitHub issue comment summarizing material AC/status changes for an origin-linked scope xBRIEF (`plan.references` with `x-xbrief/github-issue`). Supports `--dry-run` (print without posting), `--repo OWNER/NAME` when the reference URI lacks a repo slug, and `--allow-cross-repo` for intentional cross-repo sync (refused by default; #2633). Skips when no material changes since the last successful sync. Closes the reverse-sync gap after `task issue:ingest` (#2540).
+- `deft issue:sync-from-xbrief -- <path>` -- post a GitHub issue comment summarizing material AC/status changes for an origin-linked scope xBRIEF (`plan.references` with `x-xbrief/github-issue`). Supports `--dry-run` (print without posting), `--repo OWNER/NAME` when the reference URI lacks a repo slug, and `--allow-cross-repo` for intentional cross-repo sync (refused by default; #2633). Skips when no material changes since the last successful sync. Closes the reverse-sync gap after `task issue:ingest` (#2540).
 - `task issue:ingest -- <N>` / `task issue:ingest -- --all [--label L] [--status S] [--dry-run]` -- ingest GitHub issues as scope xBRIEFs (deduplicates via existing references).
 - `task reconcile:issues [-- --apply-lifecycle-fixes]` -- scan origin-linked xBRIEFs for stale or closed GitHub issues.
 
@@ -168,7 +168,7 @@ The implementation gate succeeds only for active scope xBRIEFs with `plan.status
 
 **Slash-command intent containment (#1193):** When a session is originated by a slash command, that command is the *only* authorized verb for the session. Set `DEFT_SESSION_SLASH_VERB` (e.g. `/github-issue`) so `task xbrief:preflight` and PreToolUse hooks enforce the ceiling. Non-implement verbs (`/github-issue`, `/triage`, `/refine`, `/discuss`, `/research`, …) MUST NOT authorize implement, push, PR, merge, or deploy — adjacent bugs noticed during RCA become a second filed issue, not a second PR. Implement verbs: `/build`, `/ship`, `/ship-hotfix`, `/swarm`, `/implement`.
 
-**Human merge gate (#1193):** Typed `plan.policy.requireHumanMerge` (defaults true when `plan.policy.autoDeployOnMerge` is true). Agents may open PRs but must not merge when the gate is ON. Surfaces: (1) `task pr:wait-mergeable-and-merge` refuses agent merge, (2) `task verify:branch` advisory note, (3) branch-protection / setup requiring ≥1 human reviewer. Session-start discloses when ON. Override: `task policy:allow-bot-merge -- --confirm` or `DEFT_ALLOW_BOT_MERGE=1`.
+**Human merge gate (#1193):** Typed `plan.policy.requireHumanMerge` (defaults true when `plan.policy.autoDeployOnMerge` is true). Agents may open PRs but must not merge when the gate is ON. Surfaces: (1) `task pr:wait-mergeable-and-merge` refuses agent merge, (2) `task verify:branch` advisory note, (3) branch-protection / setup requiring ≥1 human reviewer. Session-start discloses when ON. Override: `deft policy:allow-bot-merge -- --confirm` or `DEFT_ALLOW_BOT_MERGE=1`.
 
 **Hotfix classifier (#1193):** Typed `plan.policy.hotfixCriteria` + pure `evaluateHotfixEligibility`. Small fix / pure revert may propose label `hotfix-candidate` only; a human promotes to `hotfix`. Refactors, new exports/handlers, and forbidden paths (Dockerfile, fly.toml, workflows, migrations, auth/secrets) never qualify.
 
@@ -286,7 +286,6 @@ Current status: the validation, extractor, provider, registry, generated MAP, an
 - `task check:merge` -- explicit merge-chokepoint alias for `check:framework-source` in the framework source repo (#1704).
 - `task check:framework-source` -- framework-source lane.
 - `task check:consumer` -- consumer-shape lane.
-- `task check:slow` -- slower/full checks.
 
 ### Gate throughput — iteration fast lane (#1704)
 
@@ -302,7 +301,7 @@ Current status: the validation, extractor, provider, registry, generated MAP, an
 - `task verify:branch` -- enforce default-branch protection.
 - `task verify:hooks-installed` -- ensure local git hooks are configured; use `deft verify:hooks-installed --scope=agent --live` for fail-closed agent-host registration + command functionality.
 - `task verify:encoding` -- detect mojibake and BOM issues.
-- `task verify:xbrief-conformance` -- validate xBRIEF conformance surfaces.
+- `task verify:vbrief-conformance` -- validate xBRIEF conformance surfaces.
 - `task verify:cache-fresh` -- validate cache freshness where required.
 - `task verify:capacity`, `task verify:wip-cap`, and `task verify:judgment-gates` -- policy/capacity gates.
 - `task verify:orphan-active` -- fail closed when active/running xBRIEFs still point at closed issues or merged PRs (#2321). After merge, `task verify:orphan-active -- --issue N` scans briefs that reference that issue. Confirmed shipped prints `task scope:complete -- <path>`; unresolved lookup prints a retry remediation and still exits 1 (#3429). PR-only briefs stay on the unscoped scan or `task swarm:complete-cohort`.
@@ -403,7 +402,7 @@ After CLI/deposit upgrade, disk can show the new generation while a long-lived s
 
 - ! Successful `init` / payload `update` stamps a monotonic live generation at `.deft/GENERATION.json` (outside `.deft/core` so replace does not wipe the counter).
 - ! Mutation `session:start` (cold and re-arm) binds that generation into `.deft/session-bind.json` when payload surfaces load.
-- ! Query with `deft freshness:report` / `task freshness:report` / `task session:freshness` (`--json` supported). States: `current` | `stale_soft` | `stale_hard` | `unbound`. Exit `0` only when `current`.
+- ! Query with `deft freshness:report` / `deft session:freshness` (`--json` supported). States: `current` | `stale_soft` | `stale_hard` | `unbound`. Exit `0` only when `current`.
 - ! Rebind without restarting a shared host runtime: re-load surfaces into the session, then `deft freshness:bind` (or re-arm / `session:ready`).
 - ! Mid-mission: park and hand off before a hard refresh; an empty session after refresh is not work complete.
 - Soft vs hard meanings, surfaces, and API: `content/docs/freshness-contract.md`.
@@ -457,7 +456,7 @@ Cross-link: spawn three postures and deny recoveries live under § Agent-host di
 ### Mutable ritual (mutation posture)
 
 - ! On **mutation** session start, run `deft session:start` (or `task session:start` in framework source) after loading AGENTS.md. Records quick-tier ritual in `.deft/ritual-state.json`: alignment confirmation, branch-policy disclosure, `deft verify:tools` guidance, default-branch sync warnings, and `deft triage:welcome` one-liner. State is worktree- and HEAD-bound; stale after `plan.policy.sessionRitualStalenessHours` hours (default 4). Mutation start also claims the worktree occupancy lease (`.deft/occupancy.json`); see Session routing (#3433).
-- ! **Orientation compression Now (#3286):** mutation cold `session:start` composes `doctor` + #3282 toolchain preflight (and deposit-sha fast-paths for `agents:refresh` / `verify:cache-fresh`) as inline sections with per-section status lines — composition of existing steps, not a new monolith. When the deposit fingerprint (payload + templates + engine) is unchanged, refresh surfaces print one-line `unchanged - sha match` no-ops. Opt-in compact output: `deft session:start --compact` or `DEFT_SESSION_COMPACT=1` (verbose remains the default). #2176 read-only default is unchanged. Dual-path Later (`deft orient`) stays open until run-summary telemetry shows ritual+gate share ≥ 25% after Now ships (#2899).
+- ! **Orientation compression Now (#3286):** mutation cold `session:start` composes `doctor` + #3282 toolchain preflight (and deposit-sha fast-paths for `agents:refresh` / `verify:cache-fresh`) as inline sections with per-section status lines — composition of existing steps, not a new monolith. When the deposit fingerprint (payload + templates + engine) is unchanged, refresh surfaces print one-line `unchanged - sha match` no-ops. Opt-in compact output: `deft session:start --compact` or `DEFT_SESSION_COMPACT=1` (verbose remains the default). #2176 read-only default is unchanged. Dual-path Later (orient) stays open until run-summary telemetry shows ritual+gate share ≥ 25% after Now ships (#2899).
 - ! Cold `session:start` does **not** run the live agent-hook probe. Functional readiness belongs to the gated mutation path so cold ceremony retains the #2990/#2991 latency profile.
 - ! **Hot path latency (#2991):** by default, mutation `session:start` does **not** block ritual-state write on optional network. It skips the npm release-availability probe and triage cache empty-hydrate / self-heal (`ensureTriageCacheHydrated` / `maybeSelfHealCache`). Targets (operator-facing, not CI-hard): warm hot path typically under a few seconds once tools are on PATH; cold path dominated by local `verify:tools` and git, usually well under ~30s when optional network is off. Empty-cache GitHub fetch-all and npm `view` previously accounted for multi-minute hangs in the WWYSYDH pilot — those stay off the critical path unless opted in.
 - ! **Cold vs re-arm ceremony tiers (#2992):** default `session:start` is the **cold** (full) path. After age staleness or compact re-arm (#2113) on the **same worktree** with continuous HEAD and previously-passing quick steps, prefer `deft session:start --rearm` (alias `--tier=rearm`) to refresh the ritual clock + HEAD/worktree bind without `verify:tools`, triage welcome, release probe, or staleness tickler. Full cold remains required for missing/invalid state, worktree change, discontinuous HEAD, first install, or failed/missing quick steps. Compact marks `rearm_needed`; PreToolUse denial and inspect/verify messages prefer re-arm recovery when cold is unnecessary.
@@ -465,7 +464,7 @@ Cross-link: spawn three postures and deny recoveries live under § Agent-host di
 - ~ `session:start --json` includes `steps[]` with `name` + `duration_ms` for major phases (`alignment`, `branch_policy`, `verify_tools`, `triage_welcome`, `release_probe`, `ritual_write`), plus total `duration_ms`, `optional_network`, and `ceremony_tier` (`cold` | `rearm`). Skipped optional steps report `skipped: true` and `duration_ms: 0`. Use this for attribution when investigating ceremony wall-clock.
 - ~ **Process-cost events (#2994 / #3508):** on mutation `session:start` completion (cold or re-arm), Directive appends a local `session:start` behavioral event to `.deft-cache/events.jsonl` with `ceremony_tier`, `duration_ms`, `exit_code`, and optional `steps[]` (same labels as `--json`). Mutation `session:start` also prints one operator-visible `ceremony <tier> <ms>` line (hidden under `--compact` / `DEFT_SESSION_COMPACT`). When PreToolUse denies for `ritual-not-ready`, a local `session:ritual-blocked` event records `tool_name`, `code`, and optional `recovery_tier` / `detail`. Always-on best-effort (never blocks ceremony or deny path); not gated on `valueFeedback`; **no remote upload** (Product Insights #2603 is a separate opt-in). Pull the rollup with `task value:show` (composed reader; CLI process time, not agent-turn wall clock). See § Process-cost events below. ⊗ Do not use the printed CLI duration as #3286 Later graduation input.
 - ~ At safe idle points (clean tree, no in-flight story), mutation session start and `deft scope:complete` may also run the staleness tickler: an interactive, consent-based offer to upgrade Directive (`npm i -g @deftai/directive@latest`) and/or migrate xBRIEF (`deft migrate:xbrief`). Escalation tiers, snooze windows, and opt-out live under `plan.policy.stalenessTickler` — inspect with `deft policy:show --field=stalenessTickler`. State persists in `xbrief/.triage-cache/staleness-tickler-state.json`. Skips framework source checkouts, dirty trees, CI/headless (`DEFT_SESSION_RITUAL_SKIP=1`), and typed opt-out. Refs #2488 / #2489.
-- ! Before any code-writing tool call or `start_agent` implementation dispatch, run `deft verify:session-ritual -- --tier=gated`. Gated tier fails closed unless quick-tier state is fresh; lazily records the non-deferrable `agent_hooks` readiness gate plus `deft doctor` and `deft verify:cache-fresh` entrypoints. Agent-hook correctness is independent of doctor warnings and throttling. Step 0 of the pre-`start_agent` gate stack.
+- ! Before any code-writing tool call or `start_agent` implementation dispatch, run `deft verify:session-ritual -- --tier=gated`. Gated tier fails closed unless quick-tier state is fresh; lazily records the non-deferrable `agent_hooks` readiness gate plus `deft doctor` and `task verify:cache-fresh` entrypoints. Agent-hook correctness is independent of doctor warnings and throttling. Step 0 of the pre-`start_agent` gate stack.
 - ! **One-shot recovery (#2993 / #3100):** when PreToolUse denies writes for a stale/missing gated ritual, run `deft session:ready` (or `task session:ready`). It composes `session:start` (only when quick-tier is not green) + `verify:session-ritual -- --tier=gated` + `cache fetch-all --force` when `cache_fresh` is the remaining blocker, then re-verifies. Even when gated inspect is already fresh, the fast path forces one live `agent_hooks` check so later drift cannot hide behind cached ritual state; it still avoids unnecessary fetch-all. Flags: `--json`, `--repo OWNER/NAME`, `--with-network` (forwarded to session:start). Prefer this over juggling the multi-step recovery sequence under hook pressure.
 - ? Postpone with `deft session:start --defer step=reason` (`alignment`, `branch_policy`, `triage_welcome`, `doctor`, `cache_fresh`). `agent_hooks` is non-deferrable.
 - Headless workers / CI MAY set `DEFT_SESSION_RITUAL_SKIP=1`; verifier exits 0 but warns when bypass hides failure.
@@ -488,7 +487,7 @@ Agents use this signal to prefer portable syntax and quote zsh-sensitive data su
 - Credential bridging: host-gh (`gh auth login` in the execution env) or injected-token (`GH_TOKEN` / `GITHUB_TOKEN` / `GH_ENTERPRISE_TOKEN`). Never put token values in prompts or transcripts.
 - Contract: `content/contracts/scm-readiness.md`; operator docs: `content/scm/github.md` § Mismatched/headless SCM readiness.
 
-**Pre-`start_agent` gate stack (#1149/#1348):** (0) `deft verify:session-ritual -- --tier=gated` → (1) `deft verify:story-ready` → (2) `deft xbrief:preflight` → (3) `deft verify:cache-fresh` → (4) `deft verify:branch` + hooks → (5) `start_agent`.
+**Pre-`start_agent` gate stack (#1149/#1348):** (0) `deft verify:session-ritual -- --tier=gated` → (1) `deft verify:story-ready` → (2) `deft xbrief:preflight` → (3) `task verify:cache-fresh` → (4) `deft verify:branch` + hooks → (5) `start_agent`.
 
 ```mermaid
 flowchart TD
