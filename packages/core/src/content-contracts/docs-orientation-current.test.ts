@@ -215,7 +215,13 @@ function splitComment(raw: string): { code: string; comment: string } {
 }
 
 function lineToken(code: string): string {
-  return code.replace(/[│├└─┬┤┌┐┘┴]/g, " ").replace(/\s+/g, " ").trim().split(" ")[0] ?? "";
+  return (
+    code
+      .replace(/[│├└─┬┤┌┐┘┴]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .split(" ")[0] ?? ""
+  );
 }
 
 function normalizeTreePath(path: string): string {
@@ -447,4 +453,3 @@ describe("docs orientation current-tense (#4087 Wave 1b FILES.md) — FAIL-CLOSE
     }
   });
 });
-
