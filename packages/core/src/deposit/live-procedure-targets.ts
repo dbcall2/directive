@@ -916,11 +916,27 @@ function commitExists(repoRoot: string, spec: string): boolean {
 
 function maybeFetchBase(repoRoot: string, spec: string): void {
   if (commitExists(repoRoot, spec)) return;
-  const ci = process.env.GITHUB_ACTIONS === "true" || Boolean(process.env.GITHUB_BASE_SHA?.trim());
+  const ci =
+    process.env.GITHUB_ACTIONS === "true" ||
+    Boolean(process.env.GITHUB_BASE_SHA?.trim()) ||
+    process.env.GITHUB_EVENT_NAME?.trim() === "push";
   if (!ci) return;
   const token = spec.replace(/^origin\//, "");
   if (token.length === 0) return;
   gitOut(repoRoot, ["fetch", "--depth", "1", "origin", token]);
+}
+
+function pushBeforeSha(): string {
+  const path = process.env.GITHUB_EVENT_PATH?.trim();
+  if (!path || !existsSync(path)) return "";
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as { before?: unknown };
+    const before = typeof parsed.before === "string" ? parsed.before.trim() : "";
+    if (/^[0-9a-f]{40}$/i.test(before) && before !== "0".repeat(40)) return before;
+  } catch {
+    return "";
+  }
+  return "";
 }
 
 function headSha(repoRoot: string): string {
@@ -962,6 +978,7 @@ export function readCommandSnippetCandidateDiff(repoRoot: string): string {
   if (working.includes("diff --git")) return working;
   const bases = [
     process.env.GITHUB_BASE_SHA?.trim() ?? "",
+    pushBeforeSha(),
     process.env.GITHUB_BASE_REF?.trim() ? `origin/${process.env.GITHUB_BASE_REF.trim()}` : "",
     "origin/master",
     "origin/main",

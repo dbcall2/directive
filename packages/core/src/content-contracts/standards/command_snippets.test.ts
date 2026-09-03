@@ -555,6 +555,79 @@ describe("command snippet contract (#4094)", () => {
     }
   });
 
+  it("shallow multi-commit push uses GITHUB_EVENT_PATH before SHA as the candidate range", () => {
+    const origin = mkdtempSync(join(tmpdir(), "cmd-snippet-origin-"));
+    const shallow = join(tmpdir(), `cmd-snippet-shallow-push-range-${process.pid}`);
+    created.push(origin, shallow);
+    const git = (cwd: string, args: readonly string[]): string =>
+      execFileSync("git", args, { cwd, encoding: "utf8" });
+    git(origin, ["init"]);
+    git(origin, ["config", "user.email", "t@example.test"]);
+    git(origin, ["config", "user.name", "t"]);
+    const resolverRel = "packages/core/src/deposit/live-procedure-targets.ts";
+    mkdirSync(join(origin, "packages/core/src/deposit"), { recursive: true });
+    mkdirSync(join(origin, "content"), { recursive: true });
+    writeFileSync(join(origin, resolverRel), "export const start = true;\n");
+    writeFileSync(join(origin, "content/commands.md"), "# Commands\n");
+    git(origin, ["add", "."]);
+    git(origin, ["commit", "-m", "base"]);
+    const beforeSha = git(origin, ["rev-parse", "HEAD"]).trim();
+    writeFileSync(
+      join(origin, resolverRel),
+      [
+        "export const COMMAND_SNIPPET_EXEMPTIONS = [",
+        "  {",
+        '    family: "task",',
+        '    verb: "check:slow",',
+        '    path: "content/commands.md",',
+        '    classification: "illustrative",',
+        '    reason: "waive",',
+        "  },",
+        "];",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(origin, "content/commands.md"),
+      "- `task check:slow` -- slower/full checks.\n",
+    );
+    git(origin, ["add", "."]);
+    git(origin, ["commit", "-m", "same-diff exemption"]);
+    writeFileSync(join(origin, "CHANGELOG.md"), "note\n");
+    git(origin, ["add", "."]);
+    git(origin, ["commit", "-m", "changelog only"]);
+    const afterSha = git(origin, ["rev-parse", "HEAD"]).trim();
+    execFileSync("git", ["clone", "--depth", "1", `file://${origin}`, shallow], {
+      encoding: "utf8",
+    });
+    const eventFile = join(shallow, "push-event.json");
+    writeFileSync(eventFile, JSON.stringify({ before: beforeSha, after: afterSha }));
+    const prevSha = process.env.GITHUB_BASE_SHA;
+    const prevRef = process.env.GITHUB_BASE_REF;
+    const prevEvent = process.env.GITHUB_EVENT_NAME;
+    const prevPath = process.env.GITHUB_EVENT_PATH;
+    delete process.env.GITHUB_BASE_SHA;
+    delete process.env.GITHUB_BASE_REF;
+    process.env.GITHUB_EVENT_NAME = "push";
+    process.env.GITHUB_EVENT_PATH = eventFile;
+    try {
+      const diff = readCommandSnippetCandidateDiff(shallow);
+      expect(diff).not.toContain(UNRESOLVED_SHALLOW_CANDIDATE_DIFF);
+      expect(sameDiffExemptionViolations(diff)).toEqual([
+        { verb: "check:slow", path: "content/commands.md", family: "task" },
+      ]);
+    } finally {
+      if (prevSha === undefined) delete process.env.GITHUB_BASE_SHA;
+      else process.env.GITHUB_BASE_SHA = prevSha;
+      if (prevRef === undefined) delete process.env.GITHUB_BASE_REF;
+      else process.env.GITHUB_BASE_REF = prevRef;
+      if (prevEvent === undefined) delete process.env.GITHUB_EVENT_NAME;
+      else process.env.GITHUB_EVENT_NAME = prevEvent;
+      if (prevPath === undefined) delete process.env.GITHUB_EVENT_PATH;
+      else process.env.GITHUB_EVENT_PATH = prevPath;
+    }
+  });
+
   it("does not rewrite Taskfile descriptions as a side effect", () => {
     const taskfile = join(repoRoot, "Taskfile.yml");
     const before = createHash("sha256").update(readFileSync(taskfile)).digest("hex");
