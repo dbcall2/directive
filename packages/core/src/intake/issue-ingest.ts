@@ -1,4 +1,12 @@
-import { lstatSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { cacheGet } from "../cache/operations.js";
 import { type ScanFlag, scan } from "../cache/scanner.js";
@@ -13,7 +21,9 @@ import { captureAndAttachLiteralAcceptance } from "../literal-acceptance/index.j
 import { stampIntendedPlacement } from "../preflight/intended-placement.js";
 import { stampAcceptanceFromLiteralCapture } from "../product-first-done-gate/index.js";
 import { type CompletedProcess, call } from "../scm/call.js";
+import { extractPlanId, findParentsByPlanId } from "../scope/parent-lineage.js";
 import { resolveProjectRoot } from "../scope/project-context.js";
+import { withAppendLock } from "../slice/lock.js";
 import { resolveProjectRepo } from "../slice/project-context.js";
 import {
   type CurrentShapeNullReason,
@@ -49,9 +59,13 @@ import {
   extractReferencesFromVbrief,
   fetchOpenIssues,
   GITHUB_ISSUE_REF_TYPES,
+  type IssueOrigin,
+  issueOriginKey,
   LIFECYCLE_FOLDERS,
   parseIssueNumber,
+  parseIssueOrigin,
   type ScmCallFn,
+  TERMINAL_LIFECYCLE_FOLDERS,
 } from "./reconcile-issues.js";
 
 /** Reference type pointing at the canonical current-shape comment permalink (#1870). */
@@ -414,6 +428,855 @@ export function scanProvenanceRefs(vbriefDir: string): Map<number, string[]> {
   return issueToVbriefs;
 }
 
+const PLAN_ID_FORMAT = /^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$/;
+const ORIGIN_HTML_RE = /https?:\/\/(?:www\.)?github\.com\/([^/\s]+)\/([^/\s]+)\/issues\/(\d+)/i;
+const ORIGIN_API_RE = /https?:\/\/api\.github\.com\/repos\/([^/\s]+)\/([^/\s]+)\/issues\/(\d+)/i;
+
+export const PLAN_ID_ORIGIN_META_KEY = "x-directive/plan-id" as const;
+export const PLAN_ID_MINT_VERSION = 1 as const;
+
+export type PlanIdMintSource = "github-rest-id" | "github-repo-fallback";
+
+export interface PlanIdMint {
+  readonly id: string;
+  readonly source: PlanIdMintSource;
+  readonly githubIssueId: number | null;
+  readonly originKey: string;
+  readonly version: typeof PLAN_ID_MINT_VERSION;
+}
+
+export class PlanIdIdentityError extends Error {
+  readonly issueNumber: number;
+  constructor(issueNumber: number, message: string) {
+    super(message);
+    this.name = "PlanIdIdentityError";
+    this.issueNumber = issueNumber;
+  }
+}
+
+export const PLAN_ID_REPAIR_HINT =
+  "Repair live nonterminal ingest owners with repairNonterminalIssuePlanIds({ vbriefDir, dryRun: true }) then apply with dryRun: false.";
+
+export function parsePositiveGithubIssueId(value: unknown): number | null {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === "string" && /^\d+$/.test(value)) {
+    const n = Number.parseInt(value, 10);
+    if (Number.isSafeInteger(n) && n > 0) {
+      return n;
+    }
+  }
+  return null;
+}
+
+export function parseRepoOwnerName(repoUrl: string): { owner: string; repo: string } | null {
+  const slug = repoSlugFromUrl(repoUrl);
+  const candidate =
+    slug ?? (/^[^/]+\/[^/]+$/.test(repoUrl.trim()) ? repoUrl.trim().replace(/\/$/, "") : null);
+  if (candidate === null) {
+    return null;
+  }
+  const slash = candidate.indexOf("/");
+  if (slash <= 0 || slash === candidate.length - 1) {
+    return null;
+  }
+  const owner = candidate.slice(0, slash);
+  const repo = candidate.slice(slash + 1);
+  if (owner.includes("/") || repo.includes("/")) {
+    return null;
+  }
+  return { owner, repo };
+}
+
+export function originFromIssue(
+  issue: Record<string, unknown>,
+  repoUrl: string,
+): IssueOrigin | null {
+  const number = Number(issue.number);
+  if (!Number.isSafeInteger(number) || number <= 0) {
+    return null;
+  }
+  const parsedRepo = parseRepoOwnerName(repoUrl);
+  if (parsedRepo !== null) {
+    return { owner: parsedRepo.owner, repo: parsedRepo.repo, number };
+  }
+  for (const key of ["url", "html_url"] as const) {
+    const value = issue[key];
+    if (typeof value === "string") {
+      const origin = parseIssueOrigin({ uri: value });
+      if (origin !== null) {
+        return origin;
+      }
+    }
+  }
+  return null;
+}
+
+function planIdSegmentOk(segment: string): boolean {
+  return /^[a-zA-Z0-9_-]+$/.test(segment);
+}
+
+function encodeFallbackSegment(raw: string): string {
+  // Escape x first so encoded dots cannot collide with a literal x2e sequence.
+  return raw.replace(/x/g, "x78").replace(/\./g, "x2e");
+}
+
+export function mintIssuePlanId(input: {
+  readonly issueId?: unknown;
+  readonly owner: string;
+  readonly repo: string;
+  readonly number: number;
+}): PlanIdMint {
+  const origin: IssueOrigin = {
+    owner: input.owner,
+    repo: input.repo,
+    number: input.number,
+  };
+  const originKey = issueOriginKey(origin);
+  const restId = parsePositiveGithubIssueId(input.issueId);
+  if (restId !== null) {
+    return {
+      id: `github.issue.${restId}`,
+      source: "github-rest-id",
+      githubIssueId: restId,
+      originKey,
+      version: PLAN_ID_MINT_VERSION,
+    };
+  }
+  const ownerSeg = encodeFallbackSegment(input.owner.toLowerCase());
+  const repoSeg = encodeFallbackSegment(input.repo.toLowerCase());
+  if (
+    ownerSeg.length === 0 ||
+    repoSeg.length === 0 ||
+    !planIdSegmentOk(ownerSeg) ||
+    !planIdSegmentOk(repoSeg) ||
+    !Number.isSafeInteger(input.number) ||
+    input.number <= 0
+  ) {
+    throw new PlanIdIdentityError(
+      input.number,
+      `cannot mint plan.id fallback for ${originKey}: owner/repo/number is not schema-safe`,
+    );
+  }
+  return {
+    id: `github.issue.fallback.${ownerSeg}.${repoSeg}.${input.number}`,
+    source: "github-repo-fallback",
+    githubIssueId: null,
+    originKey,
+    version: PLAN_ID_MINT_VERSION,
+  };
+}
+
+export function attachPlanIdMint(plan: Record<string, unknown>, mint: PlanIdMint): void {
+  plan.id = mint.id;
+  const meta =
+    plan.metadata !== null && typeof plan.metadata === "object" && !Array.isArray(plan.metadata)
+      ? (plan.metadata as Record<string, unknown>)
+      : {};
+  meta[PLAN_ID_ORIGIN_META_KEY] = {
+    version: mint.version,
+    source: mint.source,
+    github_issue_id: mint.githubIssueId,
+    origin: mint.originKey,
+    id: mint.id,
+  };
+  plan.metadata = meta;
+}
+
+function ingestOwnerTexts(data: Record<string, unknown>): string[] {
+  const plan =
+    data.plan !== null && typeof data.plan === "object" && !Array.isArray(data.plan)
+      ? (data.plan as Record<string, unknown>)
+      : {};
+  const narratives =
+    plan.narratives !== null &&
+    typeof plan.narratives === "object" &&
+    !Array.isArray(plan.narratives)
+      ? (plan.narratives as Record<string, unknown>)
+      : {};
+  const infoRaw = data.xBRIEFInfo ?? data.vBRIEFInfo;
+  const info =
+    infoRaw !== null && typeof infoRaw === "object" && !Array.isArray(infoRaw)
+      ? (infoRaw as Record<string, unknown>)
+      : {};
+  const out: string[] = [];
+  for (const text of [narratives.Origin, info.description]) {
+    if (typeof text === "string" && /ingested from/i.test(text)) {
+      out.push(text);
+    }
+  }
+  return out;
+}
+
+function originsFromText(text: string): IssueOrigin[] {
+  const found: IssueOrigin[] = [];
+  for (const re of [ORIGIN_HTML_RE, ORIGIN_API_RE]) {
+    const copy = new RegExp(re.source, "gi");
+    for (const m of text.matchAll(copy)) {
+      if (m[1] && m[2] && m[3]) {
+        found.push({
+          owner: m[1],
+          repo: m[2],
+          number: Number.parseInt(m[3], 10),
+        });
+      }
+    }
+  }
+  return found;
+}
+
+export type IngestProvenanceResolution =
+  | { readonly kind: "owner"; readonly origin: IssueOrigin }
+  | { readonly kind: "not-ingest-owner" }
+  | { readonly kind: "ambiguous" }
+  | { readonly kind: "unresolvable-repo"; readonly number: number };
+
+export function resolveIngestProvenanceOwner(
+  data: Record<string, unknown>,
+): IngestProvenanceResolution {
+  const texts = ingestOwnerTexts(data);
+  if (texts.length === 0) {
+    return { kind: "not-ingest-owner" };
+  }
+  const found: IssueOrigin[] = [];
+  const bare: number[] = [];
+  for (const text of texts) {
+    found.push(...originsFromText(text));
+    const b = ORIGIN_BARE_PATTERN.exec(text);
+    if (b?.[1]) {
+      bare.push(Number.parseInt(b[1], 10));
+    }
+  }
+  const uniqueKeys = new Map<string, IssueOrigin>();
+  for (const origin of found) {
+    uniqueKeys.set(issueOriginKey(origin), origin);
+  }
+  if (uniqueKeys.size > 1) {
+    return { kind: "ambiguous" };
+  }
+  const only = [...uniqueKeys.values()][0];
+  if (only !== undefined) {
+    return { kind: "owner", origin: only };
+  }
+  if (bare.length > 0) {
+    return { kind: "unresolvable-repo", number: bare[0] as number };
+  }
+  return { kind: "not-ingest-owner" };
+}
+
+export function numberOnlyOriginKey(issueNumber: number): string {
+  return `number-only:${issueNumber}`;
+}
+
+export function scanProvenanceOrigins(vbriefDir: string): Map<string, string[]> {
+  const issueToVbriefs = new Map<string, string[]>();
+  for (const folder of LIFECYCLE_FOLDERS) {
+    const folderPath = join(vbriefDir, folder);
+    try {
+      if (!statSync(folderPath).isDirectory()) {
+        continue;
+      }
+    } catch {
+      continue;
+    }
+    const files = readdirSync(folderPath)
+      .filter((f) => hasArtifactSuffix(f))
+      .sort();
+    for (const filename of files) {
+      let data: Record<string, unknown>;
+      try {
+        data = JSON.parse(readFileSync(join(folderPath, filename), "utf8")) as Record<
+          string,
+          unknown
+        >;
+      } catch {
+        continue;
+      }
+      const resolved = resolveIngestProvenanceOwner(data);
+      let key: string | null = null;
+      if (resolved.kind === "owner") {
+        key = issueOriginKey(resolved.origin);
+      } else if (resolved.kind === "unresolvable-repo") {
+        key = numberOnlyOriginKey(resolved.number);
+      }
+      if (key === null) {
+        continue;
+      }
+      const relPath = `${folder}/${filename}`;
+      const existing = issueToVbriefs.get(key) ?? [];
+      existing.push(relPath);
+      issueToVbriefs.set(key, existing);
+    }
+  }
+  return issueToVbriefs;
+}
+
+export function planIdIdentityLockPath(lifecycleRoot: string): string {
+  return join(lifecycleRoot, ".plan-id-identity");
+}
+
+export function withPlanIdIdentityLock<T>(lifecycleRoot: string, fn: () => T): T {
+  return withAppendLock(planIdIdentityLockPath(lifecycleRoot), fn);
+}
+
+function asPlanRecord(data: Record<string, unknown>): Record<string, unknown> | null {
+  const plan = data.plan;
+  if (plan === null || typeof plan !== "object" || Array.isArray(plan)) {
+    return null;
+  }
+  return plan as Record<string, unknown>;
+}
+
+function parseOriginKey(origin: string): IssueOrigin | null {
+  const match = /^([^/]+)\/([^#]+)#(\d+)$/.exec(origin);
+  if (!match?.[1] || !match[2] || !match[3]) {
+    return null;
+  }
+  const number = Number.parseInt(match[3], 10);
+  if (!Number.isSafeInteger(number) || number <= 0) {
+    return null;
+  }
+  return { owner: match[1], repo: match[2], number };
+}
+
+type ParsedPlanIdBinding =
+  | { readonly kind: "absent" }
+  | { readonly kind: "malformed"; readonly detail: string }
+  | {
+      readonly kind: "ok";
+      readonly binding: {
+        readonly version: typeof PLAN_ID_MINT_VERSION;
+        readonly source: PlanIdMintSource;
+        readonly githubIssueId: number | null;
+        readonly origin: string;
+        readonly id: string;
+      };
+    };
+
+function parseStoredPlanIdBinding(plan: Record<string, unknown>): ParsedPlanIdBinding {
+  const meta = plan.metadata;
+  if (meta === null || typeof meta !== "object" || Array.isArray(meta)) {
+    return { kind: "absent" };
+  }
+  const rec = meta as Record<string, unknown>;
+  if (!Object.hasOwn(rec, PLAN_ID_ORIGIN_META_KEY)) {
+    return { kind: "absent" };
+  }
+  const raw = rec[PLAN_ID_ORIGIN_META_KEY];
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return { kind: "malformed", detail: "stored plan-id binding is not an object." };
+  }
+  const binding = raw as Record<string, unknown>;
+  for (const key of ["version", "source", "github_issue_id", "origin", "id"] as const) {
+    if (!Object.hasOwn(binding, key)) {
+      return { kind: "malformed", detail: `stored plan-id binding is missing ${key}.` };
+    }
+  }
+  if (binding.version !== PLAN_ID_MINT_VERSION) {
+    return { kind: "malformed", detail: "stored plan-id binding version is not supported." };
+  }
+  const source = binding.source;
+  if (source !== "github-rest-id" && source !== "github-repo-fallback") {
+    return {
+      kind: "malformed",
+      detail: "stored plan-id binding source is not a known mint source.",
+    };
+  }
+  const origin = binding.origin;
+  if (typeof origin !== "string" || origin.trim().length === 0) {
+    return { kind: "malformed", detail: "stored plan-id binding origin is malformed." };
+  }
+  const parsedOrigin = parseOriginKey(origin);
+  if (parsedOrigin === null || issueOriginKey(parsedOrigin) !== origin) {
+    return {
+      kind: "malformed",
+      detail: "stored plan-id binding origin is not a canonical origin key.",
+    };
+  }
+  const id = binding.id;
+  if (typeof id !== "string" || id.trim().length === 0) {
+    return { kind: "malformed", detail: "stored plan-id binding id is malformed." };
+  }
+  if (source === "github-rest-id") {
+    if (typeof binding.github_issue_id !== "number") {
+      return { kind: "malformed", detail: "stored plan-id binding github_issue_id is malformed." };
+    }
+    const restId = parsePositiveGithubIssueId(binding.github_issue_id);
+    if (restId === null) {
+      return { kind: "malformed", detail: "stored plan-id binding github_issue_id is malformed." };
+    }
+    return {
+      kind: "ok",
+      binding: {
+        version: PLAN_ID_MINT_VERSION,
+        source,
+        githubIssueId: restId,
+        origin,
+        id: id.trim(),
+      },
+    };
+  }
+  if (binding.github_issue_id !== null) {
+    return {
+      kind: "malformed",
+      detail: "stored plan-id fallback binding github_issue_id must be null.",
+    };
+  }
+  return {
+    kind: "ok",
+    binding: {
+      version: PLAN_ID_MINT_VERSION,
+      source,
+      githubIssueId: null,
+      origin,
+      id: id.trim(),
+    },
+  };
+}
+
+function bindingIdentityConflict(
+  binding: Extract<ParsedPlanIdBinding, { kind: "ok" }>["binding"],
+  planId: string | null,
+  provenance: IngestProvenanceResolution,
+): string | null {
+  if (planId !== null && planId !== binding.id) {
+    return `plan.id ${planId} disagrees with stored mint ${binding.id}.`;
+  }
+  if (provenance.kind === "owner") {
+    const expected = issueOriginKey(provenance.origin);
+    if (binding.origin !== expected) {
+      return `stored plan-id origin ${binding.origin} disagrees with ingest origin ${expected}.`;
+    }
+  }
+  if (binding.source === "github-rest-id") {
+    const expectedId = `github.issue.${binding.githubIssueId}`;
+    if (binding.id !== expectedId) {
+      return `stored plan-id ${binding.id} disagrees with github_issue_id ${binding.githubIssueId}.`;
+    }
+    return null;
+  }
+  const origin = parseOriginKey(binding.origin);
+  if (origin === null) {
+    return "stored plan-id origin is not a canonical origin key.";
+  }
+  const mint = mintIssuePlanId({
+    owner: origin.owner,
+    repo: origin.repo,
+    number: origin.number,
+  });
+  if (binding.id !== mint.id) {
+    return `stored plan-id ${binding.id} disagrees with fallback mint for ${binding.origin}.`;
+  }
+  return null;
+}
+
+export type PlanIdAdmissionCode =
+  | "ok"
+  | "missing"
+  | "blank"
+  | "malformed"
+  | "conflicting"
+  | "duplicate"
+  | "ambiguous"
+  | "unresolvable-repo";
+
+export interface PlanIdAdmissionResult {
+  readonly ok: boolean;
+  readonly code: PlanIdAdmissionCode;
+  readonly message: string;
+}
+
+function admissionFail(
+  code: Exclude<PlanIdAdmissionCode, "ok">,
+  artifactPath: string,
+  detail: string,
+): PlanIdAdmissionResult {
+  return {
+    ok: false,
+    code,
+    message: `Refusing identity admission for ${artifactPath}: ${detail} ${PLAN_ID_REPAIR_HINT}`,
+  };
+}
+
+function sameResolvedPath(a: string, b: string): boolean {
+  return resolve(a) === resolve(b);
+}
+
+export function evaluateIssuePlanIdAdmission(opts: {
+  readonly lifecycleRoot: string;
+  readonly artifactPath: string;
+  readonly data: Record<string, unknown>;
+}): PlanIdAdmissionResult {
+  const plan = asPlanRecord(opts.data);
+  if (plan === null) {
+    return admissionFail("malformed", opts.artifactPath, "missing plan object.");
+  }
+  const provenance = resolveIngestProvenanceOwner(opts.data);
+  if (provenance.kind === "ambiguous") {
+    return admissionFail(
+      "ambiguous",
+      opts.artifactPath,
+      "ingest origin is ambiguous (multiple Ingested-from URLs).",
+    );
+  }
+  const extracted = extractPlanId(opts.data);
+  const raw = plan.id;
+  if (Object.hasOwn(plan, "id") && typeof raw !== "string") {
+    return admissionFail("malformed", opts.artifactPath, "plan.id is not a string.");
+  }
+  if (typeof raw === "string" && raw.trim().length === 0) {
+    return admissionFail("blank", opts.artifactPath, "plan.id is blank.");
+  }
+  const parsedBinding = parseStoredPlanIdBinding(plan);
+  if (parsedBinding.kind === "malformed") {
+    return admissionFail("malformed", opts.artifactPath, parsedBinding.detail);
+  }
+  if (parsedBinding.kind === "ok" && extracted === null) {
+    return admissionFail(
+      "conflicting",
+      opts.artifactPath,
+      "stored plan-id binding exists without plan.id.",
+    );
+  }
+  if (parsedBinding.kind === "ok") {
+    const conflict = bindingIdentityConflict(parsedBinding.binding, extracted, provenance);
+    if (conflict !== null) {
+      return admissionFail("conflicting", opts.artifactPath, conflict);
+    }
+  }
+  if (extracted !== null && !PLAN_ID_FORMAT.test(extracted)) {
+    return admissionFail(
+      "malformed",
+      opts.artifactPath,
+      `plan.id ${extracted} fails the schema pattern.`,
+    );
+  }
+  if (provenance.kind === "unresolvable-repo" && extracted === null) {
+    return admissionFail(
+      "unresolvable-repo",
+      opts.artifactPath,
+      `ingest owner #${provenance.number} has no repository in Origin.`,
+    );
+  }
+  let admittedId = extracted;
+  if (provenance.kind === "owner" && admittedId === null) {
+    const mint = mintIssuePlanId({
+      owner: provenance.origin.owner,
+      repo: provenance.origin.repo,
+      number: provenance.origin.number,
+    });
+    const mintOccupants = findParentsByPlanId(opts.lifecycleRoot, mint.id).filter(
+      (row) => !sameResolvedPath(row.path, opts.artifactPath),
+    );
+    if (mintOccupants.length > 0) {
+      const occupying = mintOccupants.map((row) => row.path).join(", ");
+      return admissionFail(
+        "duplicate",
+        opts.artifactPath,
+        `derived id ${mint.id} already occupies ${occupying}.`,
+      );
+    }
+    attachPlanIdMint(plan, mint);
+    admittedId = mint.id;
+  }
+  if (admittedId === null) {
+    return { ok: true, code: "ok", message: "" };
+  }
+  const occupants = findParentsByPlanId(opts.lifecycleRoot, admittedId).filter(
+    (row) => !sameResolvedPath(row.path, opts.artifactPath),
+  );
+  if (occupants.length > 0) {
+    const occupying = occupants.map((row) => row.path).join(", ");
+    return admissionFail(
+      "duplicate",
+      opts.artifactPath,
+      `plan.id ${admittedId} already occupies ${occupying}.`,
+    );
+  }
+  return { ok: true, code: "ok", message: "" };
+}
+
+const NONTERMINAL_FOLDERS = new Set(["proposed", "pending", "active"]);
+
+export interface PlanIdRepairMapping {
+  readonly path: string;
+  readonly from: string | null;
+  readonly to: string | null;
+  readonly action: "repair" | "skip" | "report-terminal" | "refuse";
+  readonly reason: string;
+}
+
+export interface PlanIdRepairResult {
+  readonly ok: boolean;
+  readonly message: string;
+  readonly mappings: readonly PlanIdRepairMapping[];
+}
+
+export function repairNonterminalIssuePlanIds(options: {
+  readonly vbriefDir: string;
+  readonly dryRun?: boolean;
+}): PlanIdRepairResult {
+  return withPlanIdIdentityLock(options.vbriefDir, () => {
+    const mappings: PlanIdRepairMapping[] = [];
+    const writes: Array<{ abs: string; data: Record<string, unknown> }> = [];
+    const pendingMints = new Map<string, { rel: string; abs: string }>();
+    const refuseQueuedMint = (mintId: string, siblingRel: string): void => {
+      const prior = pendingMints.get(mintId);
+      if (prior === undefined) {
+        return;
+      }
+      const idx = mappings.findIndex((row) => row.path === prior.rel && row.action === "repair");
+      if (idx >= 0) {
+        const row = mappings[idx];
+        if (row !== undefined) {
+          mappings[idx] = {
+            path: row.path,
+            from: row.from,
+            to: row.to,
+            action: "refuse",
+            reason: `derived id ${mintId} would collide with ${siblingRel} in this repair pass`,
+          };
+        }
+      }
+      const writeIdx = writes.findIndex((row) => sameResolvedPath(row.abs, prior.abs));
+      if (writeIdx >= 0) {
+        writes.splice(writeIdx, 1);
+      }
+    };
+    for (const folder of LIFECYCLE_FOLDERS) {
+      const folderPath = join(options.vbriefDir, folder);
+      try {
+        if (!statSync(folderPath).isDirectory()) {
+          continue;
+        }
+      } catch {
+        continue;
+      }
+      const files = readdirSync(folderPath)
+        .filter((f) => hasArtifactSuffix(f))
+        .sort();
+      for (const filename of files) {
+        const abs = join(folderPath, filename);
+        const rel = `${folder}/${filename}`;
+        let data: Record<string, unknown>;
+        try {
+          data = JSON.parse(readFileSync(abs, "utf8")) as Record<string, unknown>;
+        } catch {
+          continue;
+        }
+        const provenance = resolveIngestProvenanceOwner(data);
+        if (provenance.kind === "not-ingest-owner") {
+          continue;
+        }
+        const extracted = extractPlanId(data);
+        const terminal = TERMINAL_LIFECYCLE_FOLDERS.has(folder);
+        if (terminal) {
+          if (extracted === null && provenance.kind === "owner") {
+            mappings.push({
+              path: rel,
+              from: null,
+              to: null,
+              action: "report-terminal",
+              reason: "terminal history is not rewritten",
+            });
+          }
+          continue;
+        }
+        if (!NONTERMINAL_FOLDERS.has(folder)) {
+          continue;
+        }
+        if (provenance.kind === "ambiguous") {
+          mappings.push({
+            path: rel,
+            from: extracted,
+            to: null,
+            action: "refuse",
+            reason: "ambiguous ingest origin",
+          });
+          continue;
+        }
+        if (provenance.kind === "unresolvable-repo") {
+          mappings.push({
+            path: rel,
+            from: extracted,
+            to: null,
+            action: "refuse",
+            reason: "ingest origin has no repository",
+          });
+          continue;
+        }
+        const planRec = asPlanRecord(data);
+        const rawId = planRec?.id;
+        if (planRec !== null && Object.hasOwn(planRec, "id") && typeof rawId !== "string") {
+          mappings.push({
+            path: rel,
+            from: null,
+            to: null,
+            action: "refuse",
+            reason: "malformed plan.id is not overwritten",
+          });
+          continue;
+        }
+        if (typeof rawId === "string" && rawId.trim().length === 0) {
+          mappings.push({
+            path: rel,
+            from: rawId,
+            to: null,
+            action: "refuse",
+            reason: "blank plan.id is not overwritten",
+          });
+          continue;
+        }
+        if (extracted !== null && !PLAN_ID_FORMAT.test(extracted)) {
+          mappings.push({
+            path: rel,
+            from: extracted,
+            to: null,
+            action: "refuse",
+            reason: "malformed plan.id is not overwritten",
+          });
+          continue;
+        }
+        if (planRec !== null) {
+          const parsedBinding = parseStoredPlanIdBinding(planRec);
+          if (parsedBinding.kind === "malformed") {
+            mappings.push({
+              path: rel,
+              from: extracted,
+              to: null,
+              action: "refuse",
+              reason: "malformed stored plan-id binding is not overwritten",
+            });
+            continue;
+          }
+          if (parsedBinding.kind === "ok" && extracted === null) {
+            mappings.push({
+              path: rel,
+              from: null,
+              to: null,
+              action: "refuse",
+              reason: "stored plan-id binding exists without plan.id",
+            });
+            continue;
+          }
+          if (parsedBinding.kind === "ok") {
+            const conflict = bindingIdentityConflict(parsedBinding.binding, extracted, provenance);
+            if (conflict !== null) {
+              mappings.push({
+                path: rel,
+                from: extracted,
+                to: null,
+                action: "refuse",
+                reason: conflict.replace(/\.$/, ""),
+              });
+              continue;
+            }
+          }
+        }
+        if (extracted !== null && PLAN_ID_FORMAT.test(extracted)) {
+          const occupants = findParentsByPlanId(options.vbriefDir, extracted).filter(
+            (row) => !sameResolvedPath(row.path, abs),
+          );
+          if (occupants.length > 0) {
+            mappings.push({
+              path: rel,
+              from: extracted,
+              to: extracted,
+              action: "refuse",
+              reason: `duplicate plan.id occupies ${occupants[0]?.path ?? ""}`,
+            });
+            continue;
+          }
+          mappings.push({
+            path: rel,
+            from: extracted,
+            to: extracted,
+            action: "skip",
+            reason: "already-valid unique plan.id left alone",
+          });
+          continue;
+        }
+        const mint = mintIssuePlanId({
+          owner: provenance.origin.owner,
+          repo: provenance.origin.repo,
+          number: provenance.origin.number,
+        });
+        const occupants = findParentsByPlanId(options.vbriefDir, mint.id).filter(
+          (row) => !sameResolvedPath(row.path, abs),
+        );
+        if (occupants.length > 0) {
+          mappings.push({
+            path: rel,
+            from: extracted,
+            to: mint.id,
+            action: "refuse",
+            reason: `derived id ${mint.id} duplicates ${occupants[0]?.path ?? ""}`,
+          });
+          continue;
+        }
+        const queued = pendingMints.get(mint.id);
+        if (queued !== undefined) {
+          refuseQueuedMint(mint.id, rel);
+          mappings.push({
+            path: rel,
+            from: extracted,
+            to: mint.id,
+            action: "refuse",
+            reason: `derived id ${mint.id} would collide with ${queued.rel} in this repair pass`,
+          });
+          continue;
+        }
+        const plan = asPlanRecord(data);
+        if (plan === null) {
+          mappings.push({
+            path: rel,
+            from: extracted,
+            to: null,
+            action: "refuse",
+            reason: "missing plan object",
+          });
+          continue;
+        }
+        attachPlanIdMint(plan, mint);
+        pendingMints.set(mint.id, { rel, abs });
+        writes.push({ abs, data });
+        mappings.push({
+          path: rel,
+          from: extracted,
+          to: mint.id,
+          action: "repair",
+          reason: `mint ${mint.source}`,
+        });
+      }
+    }
+    const refused = mappings.filter((row) => row.action === "refuse");
+    if (refused.length > 0) {
+      return {
+        ok: false,
+        message: `Repair refused (${refused.length}) without partial mutation. ${PLAN_ID_REPAIR_HINT}`,
+        mappings,
+      };
+    }
+    if (options.dryRun === true) {
+      const repairs = mappings.filter((row) => row.action === "repair");
+      return {
+        ok: true,
+        message: `DRY-RUN would repair ${repairs.length} nonterminal ingest owner(s).`,
+        mappings,
+      };
+    }
+    for (const row of writes) {
+      writeFileSync(row.abs, `${JSON.stringify(row.data, null, 2)}\n`, "utf8");
+    }
+    return {
+      ok: true,
+      message: `Repaired ${writes.length} nonterminal ingest owner(s).`,
+      mappings,
+    };
+  });
+}
+
 export function composeOverviewWithComments(
   body: string,
   comments: readonly IssueComment[],
@@ -648,6 +1511,22 @@ export function buildIssueVbrief(
   }
 
   stampIntendedPlacement(plan);
+
+  const origin = originFromIssue(issue, repoUrl);
+  if (origin !== null) {
+    attachPlanIdMint(plan, mintIssuePlanId({ issueId: issue.id, ...origin }));
+  } else {
+    const restId = parsePositiveGithubIssueId(issue.id);
+    if (restId !== null) {
+      attachPlanIdMint(plan, {
+        id: `github.issue.${restId}`,
+        source: "github-rest-id",
+        githubIssueId: restId,
+        originKey: numberOnlyOriginKey(number),
+        version: PLAN_ID_MINT_VERSION,
+      });
+    }
+  }
 
   const infoRootKey = options.infoRootKey ?? LEGACY_INFO_ROOT_KEY;
   const infoVersion = options.infoVersion ?? EMITTED_VBRIEF_VERSION;
@@ -959,66 +1838,100 @@ export function ingestOne(
     repoUrl: string;
     dryRun?: boolean;
     existingRefs?: Map<number, string[]>;
+    existingOrigins?: Map<string, string[]>;
     scmCall?: ScmCallFn;
     cwd?: string | null;
     cacheRoot?: string | null;
   },
 ): [IngestResult, string | null, string] {
   const number = Number(issue.number);
-  const refs = options.existingRefs ?? scanProvenanceRefs(options.vbriefDir);
-  if (refs.has(number)) {
-    const existing = refs.get(number)?.[0] ?? "";
-    return [
-      "duplicate",
-      join(options.vbriefDir, existing),
-      `#${number} already ingested at ${existing}`,
-    ];
-  }
+  return withPlanIdIdentityLock(options.vbriefDir, () => {
+    if (options.existingRefs?.has(number)) {
+      const existing = options.existingRefs.get(number)?.[0] ?? "";
+      return [
+        "duplicate",
+        join(options.vbriefDir, existing),
+        `#${number} already ingested at ${existing}`,
+      ];
+    }
+    const origins = options.existingOrigins ?? scanProvenanceOrigins(options.vbriefDir);
+    const origin = originFromIssue(issue, options.repoUrl);
+    const originKeys: string[] = [numberOnlyOriginKey(number)];
+    if (origin !== null) {
+      originKeys.unshift(issueOriginKey(origin));
+    }
+    for (const key of originKeys) {
+      if (origins.has(key)) {
+        const existing = origins.get(key)?.[0] ?? "";
+        return [
+          "duplicate",
+          join(options.vbriefDir, existing),
+          `#${number} already ingested at ${existing}`,
+        ];
+      }
+    }
 
-  const enriched = enrichIssueWithComments(issue, options.repoUrl, {
-    scmCall: options.scmCall,
-    cwd: options.cwd,
-    cacheRoot: options.cacheRoot,
-  });
-  // #4057: clearance stays per-number. cancelled / unrecut-body refuse harvest.
-  assertCompletedArcAllowsIngest({
-    issueNumber: number,
-    labels: issueLabelNames(enriched),
-    comments: threadCommentsFromIssue(enriched),
-  });
-  const emissionLayout = resolveIngestEmissionLayout(options.vbriefDir);
-  const [vbrief, folder] = buildIssueVbrief(enriched, options.status, options.repoUrl, {
-    infoRootKey: emissionLayout.infoRootKey,
-    infoVersion: emissionLayout.infoVersion,
-  });
-  const filename = targetFilename(number, String(issue.title ?? ""), emissionLayout.artifactSuffix);
-  const folderPath = join(options.vbriefDir, folder);
-  const target = join(folderPath, filename);
-
-  if (options.dryRun) {
-    return ["dryrun", target, formatIngestCreatedMessage(folder, filename, vbrief.plan, true)];
-  }
-
-  // Gate lifecycle folder + leaf before mkdir/write so folder/parent symlinks
-  // cannot divert issue:ingest / triage:accept outside the project (#2869).
-  const projectRoot = resolveIngestProjectRoot(options.vbriefDir, options.cwd);
-  if (projectRoot === null) {
-    throw new ProjectionContainmentError(
-      `projection write refused: could not resolve project root for ingest into ${options.vbriefDir}`,
-      {
-        projectDir: options.vbriefDir,
-        targetPath: target,
-        offendingPath: options.vbriefDir,
-      },
+    const enriched = enrichIssueWithComments(issue, options.repoUrl, {
+      scmCall: options.scmCall,
+      cwd: options.cwd,
+      cacheRoot: options.cacheRoot,
+    });
+    assertCompletedArcAllowsIngest({
+      issueNumber: number,
+      labels: issueLabelNames(enriched),
+      comments: threadCommentsFromIssue(enriched),
+    });
+    const emissionLayout = resolveIngestEmissionLayout(options.vbriefDir);
+    const [vbrief, folder] = buildIssueVbrief(enriched, options.status, options.repoUrl, {
+      infoRootKey: emissionLayout.infoRootKey,
+      infoVersion: emissionLayout.infoVersion,
+    });
+    const filename = targetFilename(
+      number,
+      String(issue.title ?? ""),
+      emissionLayout.artifactSuffix,
     );
-  }
-  assertWriteTargetSafe(projectRoot, folderPath);
-  assertWriteTargetSafe(projectRoot, target);
+    const folderPath = join(options.vbriefDir, folder);
+    const target = join(folderPath, filename);
 
-  mkdirSync(folderPath, { recursive: true });
-  writeFileSync(target, `${JSON.stringify(vbrief, null, 2)}\n`, "utf8");
-  emitAcceptanceStampFromPlan(projectRoot, vbrief.plan);
-  return ["created", target, formatIngestCreatedMessage(folder, filename, vbrief.plan)];
+    const admission = evaluateIssuePlanIdAdmission({
+      lifecycleRoot: options.vbriefDir,
+      artifactPath: target,
+      data: vbrief,
+    });
+    if (!admission.ok) {
+      throw new PlanIdIdentityError(number, admission.message);
+    }
+    if (existsSync(target)) {
+      throw new PlanIdIdentityError(
+        number,
+        `Refusing to overwrite existing ${target}. ${PLAN_ID_REPAIR_HINT}`,
+      );
+    }
+
+    if (options.dryRun) {
+      return ["dryrun", target, formatIngestCreatedMessage(folder, filename, vbrief.plan, true)];
+    }
+
+    const projectRoot = resolveIngestProjectRoot(options.vbriefDir, options.cwd);
+    if (projectRoot === null) {
+      throw new ProjectionContainmentError(
+        `projection write refused: could not resolve project root for ingest into ${options.vbriefDir}`,
+        {
+          projectDir: options.vbriefDir,
+          targetPath: target,
+          offendingPath: options.vbriefDir,
+        },
+      );
+    }
+    assertWriteTargetSafe(projectRoot, folderPath);
+    assertWriteTargetSafe(projectRoot, target);
+
+    mkdirSync(folderPath, { recursive: true });
+    writeFileSync(target, `${JSON.stringify(vbrief, null, 2)}\n`, "utf8");
+    emitAcceptanceStampFromPlan(projectRoot, vbrief.plan);
+    return ["created", target, formatIngestCreatedMessage(folder, filename, vbrief.plan)];
+  });
 }
 
 export function ingestBulk(
@@ -1056,7 +1969,7 @@ export function ingestBulk(
     });
   }
 
-  const refs = scanProvenanceRefs(options.vbriefDir);
+  const origins = scanProvenanceOrigins(options.vbriefDir);
   const summary: Record<string, string[] | number> = {
     created: [],
     duplicate: [],
@@ -1069,7 +1982,7 @@ export function ingestBulk(
   for (const issue of filtered) {
     let ingested: [IngestResult, string | null, string];
     try {
-      ingested = ingestOne(issue, { ...options, existingRefs: refs });
+      ingested = ingestOne(issue, { ...options, existingOrigins: origins });
     } catch (exc) {
       // #2306: a per-issue quarantine hard-fail must not sink the whole batch;
       // record it, emit nothing for that issue, and surface a non-zero exit
@@ -1084,6 +1997,11 @@ export function ingestBulk(
         process.stderr.write(`${exc.message}\n`);
         continue;
       }
+      if (exc instanceof PlanIdIdentityError) {
+        (summary.failed as string[]).push(`#${exc.issueNumber}`);
+        process.stderr.write(`${exc.message}\n`);
+        continue;
+      }
       throw exc;
     }
     const [result, path, msg] = ingested;
@@ -1093,10 +2011,12 @@ export function ingestBulk(
       (summary.notices as string[]).push(msg);
     }
     if (result === "created" && path !== null) {
-      const num = Number(issue.number);
-      const existing = refs.get(num) ?? [];
+      const origin = originFromIssue(issue, options.repoUrl);
+      const key =
+        origin !== null ? issueOriginKey(origin) : numberOnlyOriginKey(Number(issue.number));
+      const existing = origins.get(key) ?? [];
       existing.push(rel);
-      refs.set(num, existing);
+      origins.set(key, existing);
     }
   }
   summary.total = filtered.length;
@@ -1226,6 +2146,10 @@ export function issueIngestMain(args: IssueIngestCliArgs): number {
     if (exc instanceof DesignCritiqueIngestBlockedError) {
       process.stderr.write(`${exc.message}\n`);
       return 1;
+    }
+    if (exc instanceof PlanIdIdentityError) {
+      process.stderr.write(`${exc.message}\n`);
+      return 2;
     }
     throw exc;
   }
