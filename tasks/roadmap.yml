@@ -22,7 +22,10 @@ tasks:
           ENGINE_CMD: 'roadmap-render --project-root "{{.USER_WORKING_DIR}}"'
 
   check:
-    desc: Verify ROADMAP.md matches what roadmap:render would produce
+    desc: >-
+      Verify ROADMAP.md matches what roadmap:render would produce.
+      Wired into FRAMEWORK_CHECK_GATES and check:framework-source (#4164).
+      That aggregator is not GitHub merge protection.
     dir: '{{.USER_WORKING_DIR}}'
     deps:
       - task: :engine:_ts-build
@@ -30,3 +33,15 @@ tasks:
       - task: :engine:invoke
         vars:
           ENGINE_CMD: 'roadmap-render --project-root "{{.USER_WORKING_DIR}}" --check'
+
+  sync-if-stale:
+    desc: >-
+      Regenerate ROADMAP.md only when the completed-set projection would drift
+      (#4164 producer). Used after task scope:complete / leftover land.
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'roadmap-render --project-root "{{.USER_WORKING_DIR}}" --sync-if-stale'

@@ -533,10 +533,35 @@ export function checkDrift(
   ];
 }
 
+/**
+ * Producer for ROADMAP.md at the completed-set dirtying transition (#4164).
+ *
+ * `task scope:complete` and leftover-completion land call this so ROADMAP.md
+ * regenerates in the same commit when renderer output would drift. Authoring
+ * stays off humans (#170); this is the freshness producer, not merge-time
+ * authoring. Byte-exact vs committed file (RULE-MAP analogue), not a second
+ * extractor (#1932).
+ */
+export function syncRoadmapAfterCompletedSetChange(projectRoot: string): string | null {
+  const root = resolve(projectRoot);
+  const pendingDir = join(resolveLifecycleRoot(root), "pending");
+  const outPath = join(root, "ROADMAP.md");
+  const [fresh] = checkDrift(pendingDir, outPath);
+  if (fresh) {
+    return null;
+  }
+  const [ok, msg] = renderRoadmap(pendingDir, outPath, { projectRoot: root });
+  if (!ok) {
+    return msg;
+  }
+  return null;
+}
+
 /** CLI entry (mirrors ``scripts/roadmap_render.main``). */
 export function main(argv: readonly string[]): number {
   let projectRoot: string | undefined;
   let check = false;
+  let syncIfStale = false;
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i] as string;
@@ -547,6 +572,8 @@ export function main(argv: readonly string[]): number {
       projectRoot = arg.slice("--project-root=".length);
     } else if (arg === "--check") {
       check = true;
+    } else if (arg === "--sync-if-stale") {
+      syncIfStale = true;
     } else {
       positional.push(arg);
     }
@@ -567,6 +594,19 @@ export function main(argv: readonly string[]): number {
     const [ok, msg] = checkDrift(pendingDir, outPath);
     process.stdout.write(`${msg}\n`);
     return ok ? 0 : 1;
+  }
+  if (syncIfStale) {
+    if (projectRoot === undefined) {
+      process.stdout.write("✗ --sync-if-stale requires --project-root\n");
+      return 2;
+    }
+    const err = syncRoadmapAfterCompletedSetChange(projectRoot);
+    if (err !== null) {
+      process.stdout.write(`${err}\n`);
+      return 1;
+    }
+    process.stdout.write("✓ ROADMAP.md is up to date\n");
+    return 0;
   }
   // When --project-root is set, use it; otherwise renderRoadmap derives from pendingDir
   // (…/xbrief|vbrief/pending → project root). Never use dirname(outPath).

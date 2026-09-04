@@ -68,8 +68,11 @@ describe("artifact-only lifecycle CI lane (#3678)", () => {
     expect(artifactOnly([])).toBe(false);
   });
 
-  it("allowlist is exactly CHANGELOG.md and xbrief/completed/**", () => {
+  it("allowlist is CHANGELOG.md, ROADMAP.md, and xbrief/completed/** (#4164)", () => {
+    expect(artifactOnly(["ROADMAP.md"])).toBe(true);
+    expect(artifactOnly([...TWO_FILE_SHAPE, "ROADMAP.md"])).toBe(true);
     expect(artifactOnly(["docs/CHANGELOG.md"])).toBe(false);
+    expect(artifactOnly(["docs/ROADMAP.md"])).toBe(false);
     expect(artifactOnly(["xbrief/completed"])).toBe(false);
     expect(artifactOnly(["xbrief/completed-extra.json"])).toBe(false);
     expect(artifactOnly(["xbrief/active/foo.xbrief.json"])).toBe(false);

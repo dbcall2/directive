@@ -470,6 +470,8 @@ describe("runTransition", () => {
     expect(data.plan.status).toBe("completed");
     expect(data.plan.metadata.completedAt).toMatch(/Z$/);
     expect(data.plan.metadata.lifecycleWrite?.action).toBe("complete");
+    expect(existsSync(join(root, "ROADMAP.md"))).toBe(true);
+    expect(readFileSync(join(root, "ROADMAP.md"), "utf8")).toContain("## Completed");
   });
 
   it("fails complete when last-completed marker cannot be written (#3357)", () => {

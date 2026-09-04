@@ -18,6 +18,7 @@ import { hasArtifactSuffix } from "../layout/resolve.js";
 import { stampExistingEnvelopes } from "../lifecycle/brief-envelope.js";
 import { evaluateCompletedPlanConsistency } from "../lifecycle/completed-consistency.js";
 import type { LiteralAcceptanceRunner } from "../literal-acceptance/index.js";
+import { syncRoadmapAfterCompletedSetChange } from "../render/roadmap-render.js";
 import type { GitRunner } from "../session/git.js";
 import { evaluateAcceptanceActivateGate } from "./acceptance-activate-gate.js";
 import {
@@ -445,10 +446,25 @@ export function runTransition(
       if (act === "activate" || act === "promote") {
         maybeEmitAcceptanceStampFromChange(projectRoot, previousAcceptance, planObj.acceptance);
       }
+      let roadmapNotice = "";
+      if (act === "complete") {
+        const roadmapErr = syncRoadmapAfterCompletedSetChange(projectRoot);
+        if (roadmapErr !== null) {
+          return {
+            ok: false,
+            message:
+              `${actionLabel} ${basename}: brief moved to ${targetFolder}/ but ` +
+              `ROADMAP.md regenerate failed: ${roadmapErr}`,
+            acceptanceReports,
+          };
+        }
+        roadmapNotice = "\nROADMAP.md regenerated if the completed-set projection drifted (#4164)";
+      }
       const moveMsg =
         `${actionLabel} ${basename}: ${currentFolder}/ -> ${targetFolder}/ (status: ${targetStatus})` +
         (derivationNotice.length > 0 ? `\n${derivationNotice}` : "") +
-        (acceptanceListing.length > 0 ? `\n${acceptanceListing}` : "");
+        (acceptanceListing.length > 0 ? `\n${acceptanceListing}` : "") +
+        roadmapNotice;
       return {
         ok: true,
         message: moveMsg,
@@ -575,6 +591,14 @@ function restampCompletedBrief(args: RestampArgs): TransitionResult {
   }
 
   const disposition = classifyStoredDeliveryDisposition(planObj);
+  const roadmapErr = syncRoadmapAfterCompletedSetChange(projectRoot);
+  if (roadmapErr !== null) {
+    return {
+      ok: false,
+      message:
+        `Restamped ${basename} in completed/ but ROADMAP.md regenerate failed: ${roadmapErr}`,
+    };
+  }
   return {
     ok: true,
     message:

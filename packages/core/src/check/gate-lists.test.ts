@@ -150,6 +150,40 @@ describe("gate-lists (#2791)", () => {
     expect(consumerDeps).not.toContain("docs:rule-map:check");
   });
 
+  it("wires roadmap:check into framework composition only (#4164)", () => {
+    // Local composition lists (seam a) + aggregator (seam b). GitHub merge
+    // protection is a separate seam (c) — this pair is not merge protection.
+    expect(FRAMEWORK_CHECK_GATES.map(checkGateId)).toContain("roadmap:check");
+    expect(CONSUMER_CHECK_GATES.map(checkGateId)).not.toContain("roadmap:check");
+    expect(gatesForCheckTarget("check:framework-source").map(checkGateId)).toContain(
+      "roadmap:check",
+    );
+    expect(gatesForCheckTarget("check:consumer").map(checkGateId)).not.toContain("roadmap:check");
+  });
+
+  it("Taskfile check:framework-source lists roadmap:check (#4164)", () => {
+    const here = fileURLToPath(new URL(".", import.meta.url));
+    const taskfile = readFileSync(join(resolve(here, "../../../../"), "Taskfile.yml"), "utf8");
+    const start = taskfile.indexOf("check:framework-source:");
+    expect(start).toBeGreaterThan(-1);
+    const rest = taskfile.slice(start);
+    const cmds = rest.indexOf("cmds:");
+    const deps = cmds === -1 ? rest : rest.slice(0, cmds);
+    expect(deps).toContain("- roadmap:check");
+    const consumerStart = taskfile.indexOf("check:consumer:");
+    expect(consumerStart).toBeGreaterThan(-1);
+    const consumerRest = taskfile.slice(consumerStart);
+    const consumerCmds = consumerRest.indexOf("cmds:");
+    const consumerDeps = consumerCmds === -1 ? consumerRest : consumerRest.slice(0, consumerCmds);
+    expect(consumerDeps).not.toContain("roadmap:check");
+  });
+
+  it("does not put leftover-completion into the required TypeScript check graph (#4164 / #3264)", () => {
+    expect(FRAMEWORK_CHECK_GATES.map(checkGateId)).not.toContain("verify:completed-tracked");
+    expect(CONSUMER_CHECK_GATES.map(checkGateId)).not.toContain("verify:completed-tracked");
+    expect(FRAMEWORK_CHECK_GATES.map(checkGateId)).toContain("roadmap:check");
+  });
+
   it("includes #3145 enforcement gates on framework and consumer lists", () => {
     const framework = FRAMEWORK_CHECK_GATES.map(checkGateId);
     const consumer = CONSUMER_CHECK_GATES.map(checkGateId);

@@ -44,8 +44,9 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1422 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1423 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4087** -- docs(architecture): rebuild architecture, concepts, and file maps for the current runtime tree -- `[completed]`
 - **#4119** -- bug(intake,lifecycle): issue:ingest omits stable plan.id and transitions admit it -- `[completed]`
 - **#4066** -- rfc(session,swarm): spawned work takes its own worktree; master occupancy is the exception and must be released -- `[completed]`
 - **#4086** -- docs(canon): remove residual legacy authority from current xBRIEF sources -- `[completed]`
@@ -70,5 +71,4 @@ _Showing 25 of 1422 completed scopes (newest first). Full history: lifecycle `co
 - **#4067** -- bug(design-critique): N=3 panel dispatch does not bind cross-family seats, and a Grok parent with claude/codex CLIs still paste-readies -- `[completed]`
 - **#4059** -- [framework-gap] scope:provenance rejects canonical scope:complete evidence as intent drift -- `[completed]`
 - **#4009** -- [framework-gap] verify:forward-coverage ignores configured testRoots and matches on a bare filename stem -- `[completed]`
-- **#4057** -- rfc(intake,design-critique): set-level bind does not change ingest — sisters mint harvest xbriefs and superseded threads stay blocked -- `[completed]`
 

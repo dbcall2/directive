@@ -471,6 +471,10 @@ tasks:
       - verify:spec-prd-fresh
       # #4095: committed RULE-MAP freshness (byte-identical renderer output).
       - docs:rule-map:check
+      # #4164: committed ROADMAP freshness (byte-identical renderer output).
+      # Local attach (FRAMEWORK_CHECK_GATES / this list) is the aggregator;
+      # GitHub merge protection is a separate seam.
+      - roadmap:check
       # #4099: committed capability index freshness (overlay vs registries).
       - docs:capability-map:check
       - verify-strategy-output

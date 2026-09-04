@@ -8,15 +8,25 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  CONSUMER_CHECK_GATES,
+  checkGateId,
+  FRAMEWORK_CHECK_GATES,
+  gatesForCheckTarget,
+} from "../check/gate-lists.js";
 import {
   checkDrift,
   generateRoadmapContent,
   renderRoadmap,
   renderRoadmapToBuffer,
   main as roadmapRenderMain,
+  syncRoadmapAfterCompletedSetChange,
 } from "./roadmap-render.js";
+
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
 
 const temps: string[] = [];
 afterEach(() => {
@@ -708,4 +718,91 @@ describe("roadmap-render projection containment (#2839)", () => {
       expect(existsSync(join(escapeDir, "ROADMAP.md"))).toBe(false);
     },
   );
+});
+
+describe("ROADMAP merge-lane attach (#4164)", () => {
+  // Three seams: (a) local composition lists, (b) aggregator FRAMEWORK_CHECK_GATES /
+  // check:framework-source, (c) GitHub merge protection is a separate seam.
+  it("wires roadmap:check into FRAMEWORK_CHECK_GATES only", () => {
+    expect(FRAMEWORK_CHECK_GATES.map(checkGateId)).toContain("roadmap:check");
+    expect(CONSUMER_CHECK_GATES.map(checkGateId)).not.toContain("roadmap:check");
+    expect(gatesForCheckTarget("check:framework-source").map(checkGateId)).toContain(
+      "roadmap:check",
+    );
+  });
+
+  it("Taskfile check:framework-source lists roadmap:check and names the leftover-land producer", () => {
+    const taskfile = readFileSync(join(REPO_ROOT, "Taskfile.yml"), "utf8");
+    const start = taskfile.indexOf("check:framework-source:");
+    expect(start).toBeGreaterThan(-1);
+    const rest = taskfile.slice(start);
+    const cmds = rest.indexOf("cmds:");
+    const deps = cmds === -1 ? rest : rest.slice(0, cmds);
+    expect(deps).toContain("- roadmap:check");
+    const consumerStart = taskfile.indexOf("check:consumer:");
+    expect(consumerStart).toBeGreaterThan(-1);
+    const consumerRest = taskfile.slice(consumerStart);
+    const consumerCmds = consumerRest.indexOf("cmds:");
+    const consumerDeps = consumerCmds === -1 ? consumerRest : consumerRest.slice(0, consumerCmds);
+    expect(consumerDeps).not.toContain("roadmap:check");
+    const roadmapTasks = readFileSync(join(REPO_ROOT, "tasks/roadmap.yml"), "utf8");
+    expect(roadmapTasks).toContain("sync-if-stale:");
+    expect(roadmapTasks).toContain("--sync-if-stale");
+  });
+
+  it("stale ROADMAP.md fails production-path --check on a fixture (not the live-repo pin)", () => {
+    const { root, pending, outPath } = makeFixture();
+    writeVbrief(pending, "2026-01-01-a.xbrief.json", MULTI_REF_SCOPE_A);
+    writeFileSync(outPath, "stale committed roadmap\n", "utf8");
+    expect(roadmapRenderMain(["--project-root", root, "--check"])).toBe(1);
+  });
+
+  it("live-repo --check matches committed ROADMAP.md (green-path pin)", () => {
+    expect(roadmapRenderMain(["--project-root", REPO_ROOT, "--check"])).toBe(0);
+  });
+});
+
+describe("ROADMAP producer at completed-set dirtying (#4164)", () => {
+  it("regenerates ROADMAP.md when the completed-set projection would drift", () => {
+    const { root, pending, completed, outPath } = makeFixture();
+    writeVbrief(pending, "2026-01-01-a.xbrief.json", MULTI_REF_SCOPE_A);
+    renderRoadmap(pending, outPath, { projectRoot: root, completedDir: completed });
+    writeVbrief(completed, "2026-01-02-done.xbrief.json", {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "Just completed",
+        status: "completed",
+        references: [{ id: "#4164" }],
+      },
+    });
+    expect(checkDrift(pending, outPath, completed)[0]).toBe(false);
+    expect(syncRoadmapAfterCompletedSetChange(root)).toBeNull();
+    expect(checkDrift(pending, outPath, completed)[0]).toBe(true);
+    expect(readFileSync(outPath, "utf8")).toContain("Just completed");
+  });
+
+  it("does not rewrite a fresh ROADMAP.md", () => {
+    const { root, pending, outPath } = makeFixture();
+    writeVbrief(pending, "2026-01-01-a.xbrief.json", MULTI_REF_SCOPE_A);
+    expect(renderRoadmap(pending, outPath, { projectRoot: root })[0]).toBe(true);
+    const before = readFileSync(outPath, "utf8");
+    expect(syncRoadmapAfterCompletedSetChange(root)).toBeNull();
+    expect(readFileSync(outPath, "utf8")).toBe(before);
+  });
+
+  it("main --sync-if-stale regenerates then --check exits 0", () => {
+    const { root, pending, completed, outPath } = makeFixture();
+    writeVbrief(pending, "2026-01-01-a.xbrief.json", MULTI_REF_SCOPE_A);
+    writeFileSync(outPath, "stale\n", "utf8");
+    writeVbrief(completed, "2026-01-02-done.xbrief.json", {
+      xBRIEFInfo: { version: "0.8" },
+      plan: { title: "Done", status: "completed", references: [{ id: "#1" }] },
+    });
+    expect(roadmapRenderMain(["--project-root", root, "--sync-if-stale"])).toBe(0);
+    expect(roadmapRenderMain(["--project-root", root, "--check"])).toBe(0);
+  });
+
+  it("main --sync-if-stale without --project-root exits 2", () => {
+    expect(roadmapRenderMain(["--sync-if-stale"])).toBe(2);
+  });
 });

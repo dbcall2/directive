@@ -147,6 +147,11 @@ export const FRAMEWORK_CHECK_GATES: readonly CheckGateSpec[] = [
   "verify:spec-prd-fresh",
   // #4095: committed RULE-MAP byte-identical to renderer (framework-only).
   "docs:rule-map:check",
+  // #4164: committed ROADMAP byte-identical to renderer (framework-only).
+  // Freshness check is merge-lane; authoring stays off humans (#170 amendment).
+  // This list + Taskfile check:framework-source are the aggregator, not GitHub
+  // merge protection.
+  "roadmap:check",
   // #4099: committed capability index byte-identical to overlay+registries.
   "docs:capability-map:check",
   "verify-strategy-output",
