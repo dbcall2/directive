@@ -544,17 +544,21 @@ export function checkDrift(
  */
 export function syncRoadmapAfterCompletedSetChange(projectRoot: string): string | null {
   const root = resolve(projectRoot);
-  const pendingDir = join(resolveLifecycleRoot(root), "pending");
-  const outPath = join(root, "ROADMAP.md");
-  const [fresh] = checkDrift(pendingDir, outPath);
-  if (fresh) {
+  try {
+    const pendingDir = join(resolveLifecycleRoot(root), "pending");
+    const outPath = join(root, "ROADMAP.md");
+    const [fresh] = checkDrift(pendingDir, outPath);
+    if (fresh) {
+      return null;
+    }
+    const [ok, msg] = renderRoadmap(pendingDir, outPath, { projectRoot: root });
+    if (!ok) {
+      return msg;
+    }
     return null;
+  } catch (exc) {
+    return `✗ Failed to refresh ROADMAP.md: ${String(exc)}`;
   }
-  const [ok, msg] = renderRoadmap(pendingDir, outPath, { projectRoot: root });
-  if (!ok) {
-    return msg;
-  }
-  return null;
 }
 
 /** CLI entry (mirrors ``scripts/roadmap_render.main``). */

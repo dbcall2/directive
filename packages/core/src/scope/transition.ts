@@ -449,16 +449,12 @@ export function runTransition(
       let roadmapNotice = "";
       if (act === "complete") {
         const roadmapErr = syncRoadmapAfterCompletedSetChange(projectRoot);
-        if (roadmapErr !== null) {
-          return {
-            ok: false,
-            message:
-              `${actionLabel} ${basename}: brief moved to ${targetFolder}/ but ` +
-              `ROADMAP.md regenerate failed: ${roadmapErr}`,
-            acceptanceReports,
-          };
-        }
-        roadmapNotice = "\nROADMAP.md regenerated if the completed-set projection drifted (#4164)";
+        // Brief is already in completed/. Regen failure must not report the
+        // transition as failed (Greptile P1 / #4164).
+        roadmapNotice =
+          roadmapErr === null
+            ? "\nROADMAP.md regenerated if the completed-set projection drifted (#4164)"
+            : `\nROADMAP.md regenerate failed after complete: ${roadmapErr} -- run: task roadmap:render`;
       }
       const moveMsg =
         `${actionLabel} ${basename}: ${currentFolder}/ -> ${targetFolder}/ (status: ${targetStatus})` +
@@ -592,17 +588,16 @@ function restampCompletedBrief(args: RestampArgs): TransitionResult {
 
   const disposition = classifyStoredDeliveryDisposition(planObj);
   const roadmapErr = syncRoadmapAfterCompletedSetChange(projectRoot);
-  if (roadmapErr !== null) {
-    return {
-      ok: false,
-      message: `Restamped ${basename} in completed/ but ROADMAP.md regenerate failed: ${roadmapErr}`,
-    };
-  }
+  const roadmapNotice =
+    roadmapErr === null
+      ? ""
+      : `\nROADMAP.md regenerate failed after restamp: ${roadmapErr} -- run: task roadmap:render`;
   return {
     ok: true,
     message:
       `Restamped ${basename} in completed/ (status: completed, ` +
-      `deliveryDisposition=${disposition})`,
+      `deliveryDisposition=${disposition})` +
+      roadmapNotice,
   };
 }
 

@@ -474,6 +474,17 @@ describe("runTransition", () => {
     expect(readFileSync(join(root, "ROADMAP.md"), "utf8")).toContain("## Completed");
   });
 
+  it("complete stays ok when ROADMAP regenerate fails after the move (#4164)", () => {
+    root = makeRepo();
+    const file = writeVbrief(root, "active", "running");
+    mkdirSync(join(root, "ROADMAP.md"));
+    const result = runTransition("complete", file);
+    expect(result.ok).toBe(true);
+    expect(existsSync(join(root, "xbrief", "completed", "story.xbrief.json"))).toBe(true);
+    expect(existsSync(file)).toBe(false);
+    expect(result.message).toMatch(/ROADMAP.md regenerate failed/);
+  });
+
   it("fails complete when last-completed marker cannot be written (#3357)", () => {
     root = makeRepo();
     const file = writeVbrief(root, "active", "running");
