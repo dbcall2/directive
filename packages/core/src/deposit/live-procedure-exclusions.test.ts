@@ -46,7 +46,7 @@ describe("C3 live-procedure exclusion declaration (#3602)", () => {
       expect(entry.kind).toBe("history");
       expect(entry.section && entry.section.length > 0).toBe(true);
     }
-    expect(isDeclaredLiveProcedureExclusion("UPGRADING.md")).toBe(true);
+    expect(isDeclaredLiveProcedureExclusion("UPGRADING.md")).toBe(false);
     expect(
       isLiveProcedureSectionExcluded(
         "UPGRADING.md",

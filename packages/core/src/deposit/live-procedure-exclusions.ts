@@ -198,10 +198,14 @@ export const LIVE_PROCEDURE_EXCLUSIONS: readonly LiveProcedureExclusion[] = [
   },
 ];
 
-const EXCLUSION_PATHS = new Set(LIVE_PROCEDURE_EXCLUSIONS.map((entry) => entry.path));
+const WHOLE_FILE_EXCLUSION_PATHS = new Set(
+  LIVE_PROCEDURE_EXCLUSIONS.filter((entry) => entry.section === undefined).map(
+    (entry) => entry.path,
+  ),
+);
 
 export function isDeclaredLiveProcedureExclusion(relativePath: string): boolean {
-  return EXCLUSION_PATHS.has(relativePath.replace(/\\/g, "/"));
+  return WHOLE_FILE_EXCLUSION_PATHS.has(relativePath.replace(/\\/g, "/"));
 }
 
 export function parseMarkdownHeading(line: string): { level: number; title: string } | null {
