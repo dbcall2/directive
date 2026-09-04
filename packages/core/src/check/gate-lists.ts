@@ -147,6 +147,8 @@ export const FRAMEWORK_CHECK_GATES: readonly CheckGateSpec[] = [
   "verify:spec-prd-fresh",
   // #4095: committed RULE-MAP byte-identical to renderer (framework-only).
   "docs:rule-map:check",
+  // #4099: committed capability index byte-identical to overlay+registries.
+  "docs:capability-map:check",
   "verify-strategy-output",
   // --- Suite last: vitest + coverage via ts:check-lane (#3188) ---
   "ts:check-lane",

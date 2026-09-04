@@ -188,6 +188,13 @@ jobs:
           # hooks stay fail-closed on master.
           DEFT_ALLOW_DEFAULT_BRANCH_COMMIT: "1"
 
+      - name: Documentation-impact declaration (#4099)
+        if: github.event_name == 'pull_request'
+        run: task verify:docs-impact -- --pr ${{ github.event.pull_request.number }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
   # -------------------------------------------------------------------------
   # Capacity watchdog: GH-hosted, independent of primary job cancellation
   # (no needs: on primaries; cancel API targets only Blacksmith primary names).
@@ -475,6 +482,13 @@ jobs:
           # not authoring. Documented exemption only. Local `task check` /
           # hooks stay fail-closed on master.
           DEFT_ALLOW_DEFAULT_BRANCH_COMMIT: "1"
+
+      - name: Documentation-impact declaration (#4099)
+        if: github.event_name == 'pull_request'
+        run: task verify:docs-impact -- --pr ${{ github.event.pull_request.number }} --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
   # -------------------------------------------------------------------------
   # Authoritative aggregators — ONLY these jobs use the branch-protection

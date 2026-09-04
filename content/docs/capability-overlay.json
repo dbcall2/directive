@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "issue": 4099,
+  "gotcha_max_chars": 280,
+  "entries": [
+    {
+      "id": "session-start",
+      "title": "Session start",
+      "audience": "consumer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "command", "id": "session:start" },
+      "gotchas": "Run before mutation. USER.md Personal wins. Read-only until implementation intent."
+    },
+    {
+      "id": "check",
+      "title": "task check",
+      "audience": "consumer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "command", "id": "check" },
+      "gotchas": "Merge chokepoint. Iteration may use cheaper affected gates; do not skip this before PR."
+    },
+    {
+      "id": "doctor",
+      "title": "Doctor",
+      "audience": "consumer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "command", "id": "doctor" },
+      "gotchas": "Support entry is doctor --full or the README cold-start. Not a second recovery ladder."
+    },
+    {
+      "id": "init",
+      "title": "Install / init",
+      "audience": "consumer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "command", "id": "init" },
+      "gotchas": "Consumer path is directive init. Do not send npm consumers through Corepack, Go, or uv."
+    },
+    {
+      "id": "setup-skill",
+      "title": "Setup skill",
+      "audience": "consumer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "skill-trigger", "id": "deft-directive-setup" },
+      "gotchas": "Writes USER.md and PROJECT-DEFINITION. Confirm captured values before write."
+    },
+    {
+      "id": "build-skill",
+      "title": "Build skill",
+      "audience": "consumer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "skill-trigger", "id": "deft-directive-build" },
+      "gotchas": "xbrief:preflight on an active running brief before code. Do not treat completed xBRIEFs as next-build contract."
+    },
+    {
+      "id": "docs-home",
+      "title": "Public docs home",
+      "audience": "consumer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "document", "id": "docs-site/index.html" },
+      "gotchas": "Public IA lives under docs-site/. Do not mix it with maintainer docs/."
+    },
+    {
+      "id": "docs-install",
+      "title": "Public install page",
+      "audience": "consumer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "document", "id": "docs-site/install.html" },
+      "gotchas": "Install copy stays on the consumer Node floor, not the maintainer toolchain pin."
+    },
+    {
+      "id": "docs-gates",
+      "title": "Public gates page",
+      "audience": "consumer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "document", "id": "docs-site/gates.html" },
+      "gotchas": "task check is the merge chokepoint named here; do not invent a parallel public gate."
+    },
+    {
+      "id": "docs-concepts",
+      "title": "Public concepts page",
+      "audience": "consumer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "document", "id": "docs-site/concepts.html" },
+      "gotchas": "Concepts page is a public IA surface. README/UPGRADING rewrites stay on #4100."
+    },
+    {
+      "id": "docs-upgrade",
+      "title": "Public upgrade page",
+      "audience": "consumer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "document", "id": "docs-site/upgrade.html" },
+      "gotchas": "Frozen pre-v0.20 migration stays on the v0.59.0 hop. Current npm uses migrate:xbrief."
+    },
+    {
+      "id": "docs-license",
+      "title": "Public license page",
+      "audience": "consumer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "document", "id": "docs-site/license.html" },
+      "gotchas": "License page is a docs-site surface, not a substitute for root LICENSE."
+    },
+    {
+      "id": "rule-map",
+      "title": "Rule map",
+      "audience": "maintainer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "command", "id": "docs:rule-map" },
+      "gotchas": "Generated maintainer view. Do not mint a second RULE-MAP. Refresh with task docs:rule-map."
+    },
+    {
+      "id": "policy-show",
+      "title": "Policy inspector",
+      "audience": "maintainer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "command", "id": "policy:show" },
+      "gotchas": "Read namespaced plan[\"x-directive/policy\"]. Bare plan.policy is a shadowing stop."
+    },
+    {
+      "id": "pre-pr-skill",
+      "title": "Pre-PR skill",
+      "audience": "maintainer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "skill-trigger", "id": "deft-directive-pre-pr" },
+      "gotchas": "Run before opening a PR. Always-pin process skill; not this capability index."
+    },
+    {
+      "id": "review-cycle-skill",
+      "title": "Review-cycle skill",
+      "audience": "maintainer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "skill-trigger", "id": "deft-directive-review-cycle" },
+      "gotchas": "Greptile residuals go through this skill. Host babysit/bugbot are advisory-only."
+    },
+    {
+      "id": "swarm-skill",
+      "title": "Swarm skill",
+      "audience": "maintainer",
+      "status": "current",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "skill-trigger", "id": "deft-directive-swarm" },
+      "gotchas": "Drive-to merge-ready is the default story unit. Parent must not implement as the leaf."
+    },
+    {
+      "id": "verify-encoding",
+      "title": "Encoding gate (alias)",
+      "audience": "maintainer",
+      "status": "compatibility",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "command", "id": "verify:encoding" },
+      "gotchas": "Alias owner is dispatch.ts VERB_ALIASES. Canonical engine verb is verify-encoding."
+    },
+    {
+      "id": "migrate-vbrief-frozen",
+      "title": "Frozen vBRIEF migrator",
+      "audience": "frozen",
+      "status": "compatibility",
+      "in_the_public_index": true,
+      "canonical_entry": { "kind": "command", "id": "migrate:vbrief" },
+      "gotchas": "Current npm does not ship this verb. Pin v0.59.0 for hop 1, then migrate:xbrief."
+    },
+    {
+      "id": "triage-skill-withdrawn",
+      "title": "Triage classify (withdrawn)",
+      "audience": "maintainer",
+      "status": "withdrawn",
+      "in_the_public_index": false,
+      "canonical_entry": { "kind": "skill-trigger", "id": "deft-directive-triage" },
+      "gotchas": "Classify playbook is off. Work selection is plan-sequence:current then triage:queue."
+    },
+    {
+      "id": "product-signal-consent",
+      "title": "Product-signal consent",
+      "audience": "consumer",
+      "status": "experimental",
+      "status_owner": "packages/core/src/product-signal",
+      "in_the_public_index": false,
+      "canonical_entry": { "kind": "command", "id": "product-signal:consent" },
+      "gotchas": "Off until the operator grants consent. Absence of consent is not a product verdict."
+    }
+  ]
+}
