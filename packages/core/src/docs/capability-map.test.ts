@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CONSUMER_CHECK_GATES, checkGateId, FRAMEWORK_CHECK_GATES } from "../check/gate-lists.js";
 import {
@@ -11,6 +11,7 @@ import {
   evaluateCapabilityMap,
   GOTCHA_MAX_CHARS,
   INDEX_REL,
+  OVERLAY_REL,
   isPublicIndexMember,
   loadCapabilityRegistries,
   loadOverlayFile,
@@ -242,12 +243,11 @@ describe("live overlay against #4094 registries", () => {
     expect(registries.skills.has("deft-directive-setup")).toBe(true);
     expect(registries.docsSitePages.has("docs-site/index.html")).toBe(true);
     expect(registries.helpKeys.has("task triage:summary")).toBe(true);
-    const loaded = parseOverlayJson(
-      readFileSync(join(repoRoot, "content", "docs", "capability-overlay.json"), "utf8"),
-    );
+    const loaded = parseOverlayJson(readFileSync(join(repoRoot, OVERLAY_REL), "utf8"));
     expect(loaded.overlay).not.toBeNull();
     if (loaded.overlay === null) return;
-    const committed = readFileSync(join(repoRoot, "content", "docs", "capabilities.md"), "utf8");
+    expect(basename(INDEX_REL)).toBe("capabilities.md");
+    const committed = readFileSync(join(repoRoot, INDEX_REL), "utf8");
     const result = evaluateCapabilityMap({
       overlay: loaded.overlay,
       registries,
