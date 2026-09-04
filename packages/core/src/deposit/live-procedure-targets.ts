@@ -985,9 +985,11 @@ export function readCommandSnippetCandidateDiff(repoRoot: string): string {
   ].filter((base) => base.length > 0);
   for (const base of bases) {
     const ranged = diffAgainstBase(repoRoot, base, files);
-    // Empty stdout is not a candidate diff. A failed or disconnected
-    // shallow range must not hide later bases or the git-log fallback.
-    if (ranged !== null && ranged.includes("diff --git")) return ranged;
+    // A resolved range is a candidate even when empty: PRs that do not
+    // touch COMMAND_SNIPPET_DIFF_PATHS have no same-diff hunks. Treating
+    // empty stdout as "no range" sent shallow fork checkouts to
+    // UNRESOLVED_SHALLOW_CANDIDATE_DIFF (#4094 / #4164).
+    if (ranged !== null) return ranged;
   }
   // Depth-one PR checkouts only have HEAD. A `git log -p` fallback would hide
   // exemption + snippet additions from earlier PR commits (fail-open).

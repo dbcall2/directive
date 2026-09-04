@@ -637,9 +637,9 @@ describe("command snippet contract (#4094)", () => {
     expect(COMMAND_SNIPPET_EXEMPTIONS).toEqual([]);
   });
 
-  it("candidate diff is non-empty so same-diff cannot vanish in git checkouts", () => {
+  it("candidate diff resolves a base range (empty is ok when those files are untouched)", () => {
     const diff = readCommandSnippetCandidateDiff(repoRoot);
-    expect(diff.includes("diff --git")).toBe(true);
+    expect(diff.trim()).not.toBe(UNRESOLVED_SHALLOW_CANDIDATE_DIFF);
   });
 
   it("fail-closed commands.md current snippets resolve on the named registries", () => {
