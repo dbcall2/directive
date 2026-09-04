@@ -238,16 +238,25 @@ function scanMarkdownFile(absolutePath: string, relativePath: string): LiveProce
   const hits: LiveProcedureHit[] = [];
   const lines = text.split("\n");
   let skipUntilLevel: number | null = null;
+  let inFence = false;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i] ?? "";
-    const heading = parseMarkdownHeading(line);
-    if (heading) {
-      if (skipUntilLevel !== null && heading.level <= skipUntilLevel) {
-        skipUntilLevel = null;
-      }
-      if (skipUntilLevel === null && isLiveProcedureSectionExcluded(relativePath, heading.title)) {
-        skipUntilLevel = heading.level;
-        continue;
+    if (line.trimStart().startsWith("```")) {
+      inFence = !inFence;
+      if (skipUntilLevel !== null) continue;
+    } else if (!inFence) {
+      const heading = parseMarkdownHeading(line);
+      if (heading) {
+        if (skipUntilLevel !== null && heading.level <= skipUntilLevel) {
+          skipUntilLevel = null;
+        }
+        if (
+          skipUntilLevel === null &&
+          isLiveProcedureSectionExcluded(relativePath, heading.title)
+        ) {
+          skipUntilLevel = heading.level;
+          continue;
+        }
       }
     }
     if (skipUntilLevel !== null) continue;
