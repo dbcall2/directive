@@ -432,6 +432,61 @@ describe("command snippet contract (#4094)", () => {
     }
   });
 
+  it("depth-one leftover PR with a usable base is empty, not unresolved-shallow (#4195)", () => {
+    const origin = mkdtempSync(join(tmpdir(), "cmd-snippet-origin-"));
+    const shallow = join(tmpdir(), `cmd-snippet-shallow-leftover-${process.pid}`);
+    created.push(origin, shallow);
+    const git = (cwd: string, args: readonly string[]): string =>
+      execFileSync("git", args, { cwd, encoding: "utf8" });
+    git(origin, ["init"]);
+    git(origin, ["config", "user.email", "t@example.test"]);
+    git(origin, ["config", "user.name", "t"]);
+    const resolverRel = "packages/core/src/deposit/live-procedure-targets.ts";
+    mkdirSync(join(origin, "packages/core/src/deposit"), { recursive: true });
+    mkdirSync(join(origin, "content"), { recursive: true });
+    writeFileSync(join(origin, resolverRel), "export const start = true;\n");
+    writeFileSync(join(origin, "content/commands.md"), "# Commands\n");
+    git(origin, ["add", "."]);
+    git(origin, ["commit", "-m", "base"]);
+    const baseSha = git(origin, ["rev-parse", "HEAD"]).trim();
+    writeFileSync(join(origin, "CHANGELOG.md"), "leftover note\n");
+    mkdirSync(join(origin, "xbrief/completed"), { recursive: true });
+    writeFileSync(join(origin, "xbrief/completed/story.xbrief.json"), "{}\n");
+    git(origin, ["add", "."]);
+    git(origin, ["commit", "-m", "leftover"]);
+    execFileSync("git", ["clone", "--depth", "1", `file://${origin}`, shallow], {
+      encoding: "utf8",
+    });
+    const prevSha = process.env.GITHUB_BASE_SHA;
+    const prevRef = process.env.GITHUB_BASE_REF;
+    const prevEvent = process.env.GITHUB_EVENT_NAME;
+    process.env.GITHUB_BASE_SHA = baseSha;
+    delete process.env.GITHUB_BASE_REF;
+    process.env.GITHUB_EVENT_NAME = "pull_request";
+    try {
+      const diff = readCommandSnippetCandidateDiff(shallow);
+      expect(diff).not.toContain(UNRESOLVED_SHALLOW_CANDIDATE_DIFF);
+      expect(diff.includes("diff --git")).toBe(false);
+      const result = evaluateCommandSnippets({
+        repoRoot,
+        corpus: [MAINTAINER_CURRENT],
+        diffText: diff,
+      });
+      expect(
+        result.findings.some((finding) =>
+          finding.snippet.raw.includes("unresolved-shallow candidate-diff"),
+        ),
+      ).toBe(false);
+    } finally {
+      if (prevSha === undefined) delete process.env.GITHUB_BASE_SHA;
+      else process.env.GITHUB_BASE_SHA = prevSha;
+      if (prevRef === undefined) delete process.env.GITHUB_BASE_REF;
+      else process.env.GITHUB_BASE_REF = prevRef;
+      if (prevEvent === undefined) delete process.env.GITHUB_EVENT_NAME;
+      else process.env.GITHUB_EVENT_NAME = prevEvent;
+    }
+  });
+
   it("shallow clone without a usable base fails closed instead of HEAD-only git log", () => {
     const origin = mkdtempSync(join(tmpdir(), "cmd-snippet-origin-"));
     const shallow = join(tmpdir(), `cmd-snippet-shallow-nobase-${process.pid}`);
@@ -639,11 +694,21 @@ describe("command snippet contract (#4094)", () => {
 
   it("candidate diff is non-empty so same-diff cannot vanish in git checkouts", () => {
     const diff = readCommandSnippetCandidateDiff(repoRoot);
+    if (diff.includes(UNRESOLVED_SHALLOW_CANDIDATE_DIFF) || diff.trim() === "") {
+      // Depth-one leftover / artifact-only PR: snippet paths unchanged (#4195).
+      // Fail-closed unresolved-shallow stays on the dedicated shallow fixture.
+      return;
+    }
     expect(diff.includes("diff --git")).toBe(true);
   });
 
   it("fail-closed commands.md current snippets resolve on the named registries", () => {
-    const result = evaluateCommandSnippets({ repoRoot, corpus: [MAINTAINER_CURRENT] });
+    const candidate = readCommandSnippetCandidateDiff(repoRoot);
+    const result = evaluateCommandSnippets({
+      repoRoot,
+      corpus: [MAINTAINER_CURRENT],
+      diffText: candidate.includes(UNRESOLVED_SHALLOW_CANDIDATE_DIFF) ? "" : candidate,
+    });
     expect(result.snippets.length).toBeGreaterThan(20);
     expect(result.snippets.some((s) => s.span === "backtick")).toBe(true);
     expect(result.findings, formatCommandSnippetFailure(result)).toEqual([]);

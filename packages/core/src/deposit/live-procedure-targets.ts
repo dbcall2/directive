@@ -897,6 +897,14 @@ function gitOut(repoRoot: string, args: readonly string[]): string {
   }
 }
 
+function gitDiff(repoRoot: string, args: readonly string[]): { ok: boolean; text: string } {
+  try {
+    return { ok: true, text: execFileSync("git", args, { cwd: repoRoot, encoding: "utf8" }) };
+  } catch {
+    return { ok: false, text: "" };
+  }
+}
+
 function gitOk(repoRoot: string, args: readonly string[]): boolean {
   try {
     execFileSync("git", args, {
@@ -951,12 +959,14 @@ function diffAgainstBase(repoRoot: string, base: string, files: readonly string[
     // Depth-one clones point origin/<default> at HEAD, so merge-base==HEAD is
     // not a PR base and would hide earlier commits as an empty range.
     if (isShallowRepo(repoRoot) && mergeBase === head) return null;
-    return gitOut(repoRoot, ["diff", `${mergeBase}...HEAD`, "--", ...files]);
+    const ranged = gitDiff(repoRoot, ["diff", `${mergeBase}...HEAD`, "--", ...files]);
+    return ranged.ok ? ranged.text : null;
   }
   if (commitExists(repoRoot, base)) {
     const baseSha = gitOut(repoRoot, ["rev-parse", `${base}^{commit}`]).trim();
     if (isShallowRepo(repoRoot) && baseSha === head) return null;
-    return gitOut(repoRoot, ["diff", base, "HEAD", "--", ...files]);
+    const ranged = gitDiff(repoRoot, ["diff", base, "HEAD", "--", ...files]);
+    return ranged.ok ? ranged.text : null;
   }
   return null;
 }
@@ -985,9 +995,10 @@ export function readCommandSnippetCandidateDiff(repoRoot: string): string {
   ].filter((base) => base.length > 0);
   for (const base of bases) {
     const ranged = diffAgainstBase(repoRoot, base, files);
-    // Empty stdout is not a candidate diff. A failed or disconnected
-    // shallow range must not hide later bases or the git-log fallback.
-    if (ranged !== null && ranged.includes("diff --git")) return ranged;
+    if (ranged === null) continue;
+    // A computed empty range means snippet paths are unchanged vs that base
+    // (leftover / artifact-only PRs). That is not UNRESOLVED_SHALLOW (#4195).
+    if (ranged.includes("diff --git") || ranged.trim() === "") return ranged;
   }
   // Depth-one PR checkouts only have HEAD. A `git log -p` fallback would hide
   // exemption + snippet additions from earlier PR commits (fail-open).
