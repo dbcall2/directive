@@ -432,9 +432,9 @@ describe("command snippet contract (#4094)", () => {
     }
   });
 
-  it("depth-one leftover PR with a usable base is empty, not unresolved-shallow (#4195)", () => {
+  it("shallow PR with a resolvable base and no command-file changes is empty, not unresolved", () => {
     const origin = mkdtempSync(join(tmpdir(), "cmd-snippet-origin-"));
-    const shallow = join(tmpdir(), `cmd-snippet-shallow-leftover-${process.pid}`);
+    const shallow = join(tmpdir(), `cmd-snippet-shallow-empty-${process.pid}`);
     created.push(origin, shallow);
     const git = (cwd: string, args: readonly string[]): string =>
       execFileSync("git", args, { cwd, encoding: "utf8" });
@@ -444,16 +444,15 @@ describe("command snippet contract (#4094)", () => {
     const resolverRel = "packages/core/src/deposit/live-procedure-targets.ts";
     mkdirSync(join(origin, "packages/core/src/deposit"), { recursive: true });
     mkdirSync(join(origin, "content"), { recursive: true });
+    mkdirSync(join(origin, "xbrief", "completed"), { recursive: true });
     writeFileSync(join(origin, resolverRel), "export const start = true;\n");
     writeFileSync(join(origin, "content/commands.md"), "# Commands\n");
     git(origin, ["add", "."]);
     git(origin, ["commit", "-m", "base"]);
     const baseSha = git(origin, ["rev-parse", "HEAD"]).trim();
-    writeFileSync(join(origin, "CHANGELOG.md"), "leftover note\n");
-    mkdirSync(join(origin, "xbrief/completed"), { recursive: true });
-    writeFileSync(join(origin, "xbrief/completed/story.xbrief.json"), "{}\n");
+    writeFileSync(join(origin, "xbrief/completed/note.xbrief.json"), "{}\n");
     git(origin, ["add", "."]);
-    git(origin, ["commit", "-m", "leftover"]);
+    git(origin, ["commit", "-m", "lifecycle only"]);
     execFileSync("git", ["clone", "--depth", "1", `file://${origin}`, shallow], {
       encoding: "utf8",
     });
@@ -461,8 +460,8 @@ describe("command snippet contract (#4094)", () => {
     const prevRef = process.env.GITHUB_BASE_REF;
     const prevEvent = process.env.GITHUB_EVENT_NAME;
     process.env.GITHUB_BASE_SHA = baseSha;
-    delete process.env.GITHUB_BASE_REF;
     process.env.GITHUB_EVENT_NAME = "pull_request";
+    delete process.env.GITHUB_BASE_REF;
     try {
       const diff = readCommandSnippetCandidateDiff(shallow);
       expect(diff).not.toContain(UNRESOLVED_SHALLOW_CANDIDATE_DIFF);
@@ -692,23 +691,13 @@ describe("command snippet contract (#4094)", () => {
     expect(COMMAND_SNIPPET_EXEMPTIONS).toEqual([]);
   });
 
-  it("candidate diff is non-empty so same-diff cannot vanish in git checkouts", () => {
+  it("full checkout candidate diff is never the unresolved-shallow sentinel", () => {
     const diff = readCommandSnippetCandidateDiff(repoRoot);
-    if (diff.includes(UNRESOLVED_SHALLOW_CANDIDATE_DIFF) || diff.trim() === "") {
-      // Depth-one leftover / artifact-only PR: snippet paths unchanged (#4195).
-      // Fail-closed unresolved-shallow stays on the dedicated shallow fixture.
-      return;
-    }
-    expect(diff.includes("diff --git")).toBe(true);
+    expect(diff).not.toContain(UNRESOLVED_SHALLOW_CANDIDATE_DIFF);
   });
 
   it("fail-closed commands.md current snippets resolve on the named registries", () => {
-    const candidate = readCommandSnippetCandidateDiff(repoRoot);
-    const result = evaluateCommandSnippets({
-      repoRoot,
-      corpus: [MAINTAINER_CURRENT],
-      diffText: candidate.includes(UNRESOLVED_SHALLOW_CANDIDATE_DIFF) ? "" : candidate,
-    });
+    const result = evaluateCommandSnippets({ repoRoot, corpus: [MAINTAINER_CURRENT] });
     expect(result.snippets.length).toBeGreaterThan(20);
     expect(result.snippets.some((s) => s.span === "backtick")).toBe(true);
     expect(result.findings, formatCommandSnippetFailure(result)).toEqual([]);
