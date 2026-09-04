@@ -1,5 +1,8 @@
 version: '3'
 
+vars:
+  DEFT_ROOT: '{{joinPath .TASKFILE_DIR ".."}}'
+
 # Maintainer documentation tasks.
 #
 # docs:rule-map renders the Rule Map: a maintainer-facing view of how the
@@ -35,3 +38,19 @@ tasks:
       - task: :engine:invoke
         vars:
           ENGINE_CMD: 'rule-map --project-root "{{.USER_WORKING_DIR}}" --check'
+
+  capability-map:
+    desc: "Generate content/docs/capabilities.md from the capability overlay (#4099)"
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/core/dist/docs/capability-map.js" --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}
+
+  capability-map:check:
+    desc: "Fail if committed content/docs/capabilities.md is stale or the overlay disagrees with registries (#4099)"
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - node "{{.DEFT_ROOT}}/packages/core/dist/docs/capability-map.js" --project-root "{{.USER_WORKING_DIR}}" --check

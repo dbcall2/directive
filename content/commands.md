@@ -4,7 +4,7 @@ Current command surfaces for scoped work, generated documents, triage/cache work
 
 Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
-**See also**: [verification/verification.md](./verification/verification.md) | [resilience/continue-here.md](./resilience/continue-here.md) | [vbrief/vbrief.md](./vbrief/vbrief.md) | [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md)
+**See also**: [verification/verification.md](./verification/verification.md) | [resilience/continue-here.md](./resilience/continue-here.md) | [vbrief/vbrief.md](./vbrief/vbrief.md) | [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) | [docs/capabilities.md](./docs/capabilities.md) (generated capability index; `task docs:capability-map`)
 
 ---
 

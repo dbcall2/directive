@@ -13,6 +13,18 @@
 - `vbrief/pending/YYYY-MM-DD-slug.vbrief.json`
 -->
 
+## Documentation impact
+
+<!-- Closed enum. Rationale is quoted data and is never a gate input.
+     change_class: add | change | withdraw | none
+     surfaces: none OR comma-separated command:<id> | skill-trigger:<id> | help:<id> | docs-site:<page>
+     `no user-doc impact` is refused when a registered command, skill, help key,
+     or public docs-site page is added or removed. Same-PR rule: coding/docs.md (#447). -->
+
+change_class: none
+surfaces: none
+rationale: "Replace this quoted sentence with the actual documentation-impact rationale."
+
 ## Checklist
 
 - [ ] `task check` passes locally (validate + lint + test; see `coding/testing.md`)
