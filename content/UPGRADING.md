@@ -8,6 +8,20 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 <!-- xbrief-backcompat-2111 -->
 
+## Current path
+
+Ordinary upgrades use the three-command model. This section is the current recovery path; frozen version-to-version hops stay below as history and keep their existing `UPGRADING.md#` anchors.
+
+| Your situation | Run this |
+| --- | --- |
+| Ordinary upgrade of an existing Directive project | `npm i -g @deftai/directive@latest`, then `directive update` in the project (`pnpm add -g @deftai/directive@latest` on pnpm) |
+| Not sure, or something looks broken | `directive doctor` |
+| First-time adoption, or a legacy / pre-v0.20 layout | `directive init` |
+
+Walkthrough: [Canonical upgrade — npm](#canonical-upgrade--npm-v0551). Multi-version jumps: [Big-jump triage](#big-jump-triage--multi-version-upgrades-start-here). Corporate or mirrored registry: [Corporate or mirrored npm registry](#corporate-or-mirrored-npm-registry). Frozen hop 1: [Frozen pre-v0.20 document-model migration](#frozen-pre-v020-document-model-migration-2068).
+
+---
+
 ## Dual policy block recovery (#3609)
 
 - **Applies when:** PROJECT-DEFINITION contains both legacy bare `plan.policy` and namespaced `plan["x-directive/policy"]`. The namespaced block wins reads, so the bare block is shadowed even when one or more values match.

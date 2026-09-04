@@ -25,7 +25,11 @@ import {
 } from "../check/consumer-gate-integrity.js";
 import { NON_PRODUCT_DIRS } from "../fs/non-product-dirs.js";
 import { extractLinkTargets, shouldSkipLinkTarget } from "../validate-content/link-parser.js";
-import { isDeclaredLiveProcedureExclusion } from "./live-procedure-exclusions.js";
+import {
+  isDeclaredLiveProcedureExclusion,
+  isLiveProcedureSectionExcluded,
+  parseMarkdownHeading,
+} from "./live-procedure-exclusions.js";
 import { isPrunedPythonArtifactPath } from "./python-free.js";
 
 const SKIP_DIRS = new Set([...NON_PRODUCT_DIRS, ".planning", "specs"]);
@@ -233,8 +237,29 @@ function scanMarkdownFile(absolutePath: string, relativePath: string): LiveProce
   }
   const hits: LiveProcedureHit[] = [];
   const lines = text.split("\n");
+  let skipUntilLevel: number | null = null;
+  let inFence = false;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i] ?? "";
+    if (line.trimStart().startsWith("```")) {
+      inFence = !inFence;
+      if (skipUntilLevel !== null) continue;
+    } else if (!inFence) {
+      const heading = parseMarkdownHeading(line);
+      if (heading) {
+        if (skipUntilLevel !== null && heading.level <= skipUntilLevel) {
+          skipUntilLevel = null;
+        }
+        if (
+          skipUntilLevel === null &&
+          isLiveProcedureSectionExcluded(relativePath, heading.title)
+        ) {
+          skipUntilLevel = heading.level;
+          continue;
+        }
+      }
+    }
+    if (skipUntilLevel !== null) continue;
     for (const target of extractLineTargets(line)) {
       if (!isPrunedPythonArtifactPath(target)) continue;
       hits.push({ file: relativePath, line: i + 1, target });
