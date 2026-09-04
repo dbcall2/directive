@@ -693,7 +693,9 @@ describe("command snippet contract (#4094)", () => {
 
   it("full checkout candidate diff is never the unresolved-shallow sentinel", () => {
     const diff = readCommandSnippetCandidateDiff(repoRoot);
-    expect(diff).not.toContain(UNRESOLVED_SHALLOW_CANDIDATE_DIFF);
+    // Exact match: a real range that edits the resolver mentions this
+    // identifier in source. Dedicated shallow fixtures cover fail-closed.
+    expect(diff.trim()).not.toBe(UNRESOLVED_SHALLOW_CANDIDATE_DIFF);
   });
 
   it("fail-closed commands.md current snippets resolve on the named registries", () => {

@@ -8,7 +8,6 @@
 ## Active
 
 - **#3785** -- bug(hooks): warn when a fail-closed hook registration travels without a hostable runtime -- `[running]`
-- **#4164** -- chore(docs): wire ROADMAP freshness into the merge lane -- `[running]`
 
 ## Proposed
 
