@@ -211,10 +211,17 @@ export function loadSkillRegistry(repoRoot: string): {
   const skillTriggers = new Set<string>();
   const path = join(repoRoot, SKILL_PACK_REL);
   if (!existsSync(path)) return { skills, skillTriggers };
-  const parsed = JSON.parse(readFileSync(path, "utf8")) as {
-    skills?: readonly { id?: unknown; triggers?: readonly unknown[] }[];
-  };
-  for (const skill of parsed.skills ?? []) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
+  } catch {
+    return { skills, skillTriggers };
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { skills, skillTriggers };
+  }
+  const pack = parsed as { skills?: readonly { id?: unknown; triggers?: readonly unknown[] }[] };
+  for (const skill of pack.skills ?? []) {
     if (typeof skill.id === "string" && skill.id.length > 0) {
       skills.add(skill.id);
       skillTriggers.add(skill.id);

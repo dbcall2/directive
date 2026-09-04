@@ -8,8 +8,8 @@ Maintainer-facing map of how Directive's rules are layered and grouped. This is 
 
 ## Overview
 
-- **Rules:** 24 groupings, 271 documents
-- **Tasks:** 62 namespaces, 243 Taskfile declarations (includes + unlisted tasks/*.yml, not `task --list`)
+- **Rules:** 24 groupings, 272 documents
+- **Tasks:** 62 namespaces, 246 Taskfile declarations (includes + unlisted tasks/*.yml, not `task --list`)
 - **Packs:** 6 source-of-truth packs (704 entries from rules|lessons|patterns|skills|strategies|entries)
 
 Three layers: **Rules** (lazy-loaded guidance under `content/`), **Tasks** (the Taskfile gates that enforce them), and the **Lifecycle** that ties them together.
@@ -24,7 +24,7 @@ Three layers: **Rules** (lazy-loaded guidance under `content/`), **Tasks** (the 
 | contracts | Interface/behavioral contracts the framework enforces. | 16 | 165 | 16 | 110 | 0 | 5 |
 | conventions | Cross-cutting naming, formatting, and repo conventions. | 4 | 16 | 2 | 16 | 0 | 3 |
 | deployments | Provider-specific deployment playbooks (AWS, Azure, GCP, Cloudflare, Vercel, fly.io…). | 52 | 107 | 74 | 24 | 13 | 6 |
-| docs | Explanatory docs and the framework glossary. | 33 | 18 | 12 | 52 | 1 | 2 |
+| docs | Explanatory docs and the framework glossary. | 34 | 18 | 12 | 52 | 1 | 2 |
 | events | Event and signal definitions used across the framework. | 1 | 0 | 0 | 0 | 0 | 0 |
 | incidents | Incident handling and postmortem guidance. | 2 | 0 | 0 | 0 | 0 | 0 |
 | interfaces | Interface definitions and boundaries. | 4 | 119 | 66 | 37 | 2 | 9 |
@@ -131,6 +131,7 @@ _Explanatory docs and the framework glossary._
 - `SUPPORT.md` — This page is a **symptom index**. It is not a second recovery ladder.
 - `agent-docs.md` — Guidance for structuring the AGENTS.md (and its reference docs) of a project directive creates or maintains. Unlike most style advice, the patterns here are **empirically measured**, not opinion: Augment Code's April 2026 AuggieBench…
 - **assets/** (0 files)
+- `capabilities.md` — Generated view over existing registries. Overlay: `content/docs/capability-overlay.json`. Membership: `in_the_public_index` and status `current` or `compatibility` and canonical kind not `none`. Same-PR documentation rule:…
 - `consumer-check-contract.md` — Refs: #3145 · Related: #3070 consumer gate integrity, #1519 check:consumer · Policy: #3314 coverageDebt / checkResume (reserved)
 - `consumer-issue-label-kit.md` — **Audience:** consumer projects that use Directive (not the `deftai/directive` maintainer repo). **Status:** recommended starter set -- not a mandate. **Related:** [#2611](https://github.com/deftai/directive/issues/2611) (this kit) ·…
 - `decision-log.md` — Durable **intent-debt** records for significant agent and operator choices.
@@ -395,7 +396,7 @@ _How agents prove work is done: gates, validators, coverage, review._
 | decision | Write a lightweight structured decision record (#1396). -- task decision:write -- [--decision TEXT] [--governing-rule ...]… | 2 |
 | deployments | Sync pinned cloud-gov-instructions release to deployments/cloud-gov/upstream | 2 |
 | directive | Outer walk-away cascade: finish-loop grant gate + queue scan + progress JSONL + optional pr:finish-loop; agent owns implement steps (#871) | 1 |
-| docs | Maintainer documentation tasks. | 2 |
+| docs | Maintainer documentation tasks. | 4 |
 | engine | Consumer engine resolution (#2022 Phase 3). | 3 |
 | eval | Self-consistency and quality evaluation tasks. | 4 |
 | feedback | Draft or file a deduped framework-gap issue upstream (#1709 / #3713). -- task feedback:file -- [--summary TEXT \| positional] [--context… | 1 |
@@ -442,7 +443,7 @@ _How agents prove work is done: gates, validators, coverage, review._
 | umbrella | Fetch umbrella ## Current shape comment (#1152) — task umbrella:current-shape <N> [-- --repo OWNER/REPO \| --json \| --strict]. Does NOT… | 1 |
 | value | Pull-based attributed-value trend readout (#1709). -- task value:show -- [--window=7d\|30d] [--format=text\|json] | 1 |
 | vbrief | Validate and manage vBRIEF lifecycle state and structure. | 6 |
-| verify | Verification gates: stub scans, session ritual, story-ready, oracles. | 58 |
+| verify | Verification gates: stub scans, session ritual, story-ready, oracles. | 59 |
 | xbrief | Validate xBRIEF lifecycle folder structure and cross-file consistency. Alias of vbrief:validate with xbrief-first naming (#3483). | 3 |
 
 ## Lifecycle

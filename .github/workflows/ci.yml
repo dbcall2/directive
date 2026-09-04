@@ -190,10 +190,11 @@ jobs:
 
       - name: Documentation-impact declaration (#4099)
         if: github.event_name == 'pull_request'
-        run: task verify:docs-impact -- --pr ${{ github.event.pull_request.number }} --repo ${{ github.repository }}
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: task verify:docs-impact -- --pr "$GITHUB_PR_NUMBER" --repo "$GITHUB_REPOSITORY"
 
   # -------------------------------------------------------------------------
   # Capacity watchdog: GH-hosted, independent of primary job cancellation
@@ -485,10 +486,11 @@ jobs:
 
       - name: Documentation-impact declaration (#4099)
         if: github.event_name == 'pull_request'
-        run: task verify:docs-impact -- --pr ${{ github.event.pull_request.number }} --repo ${{ github.repository }}
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: task verify:docs-impact -- --pr "$GITHUB_PR_NUMBER" --repo "$GITHUB_REPOSITORY"
 
   # -------------------------------------------------------------------------
   # Authoritative aggregators — ONLY these jobs use the branch-protection

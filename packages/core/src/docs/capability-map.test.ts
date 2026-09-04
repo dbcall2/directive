@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -14,6 +14,7 @@ import {
   isPublicIndexMember,
   loadCapabilityRegistries,
   loadOverlayFile,
+  loadSkillRegistry,
   type OverlayEntry,
   type OverlayFile,
   parseCapabilityMapArgs,
@@ -303,5 +304,13 @@ describe("live overlay against #4094 registries", () => {
     expect(result.ok).toBe(false);
     expect(result.errors.some((e) => e.includes("skill-trigger"))).toBe(true);
     expect(result.errors.some((e) => e.includes("docs-site"))).toBe(true);
+  });
+
+  it("loadSkillRegistry ignores null JSON without throwing", () => {
+    const dir = mkdtempSync(join(tmpdir(), "skill-null-"));
+    const packDir = join(dir, "content", "packs", "skills");
+    mkdirSync(packDir, { recursive: true });
+    writeFileSync(join(packDir, "skills-pack-0.1.json"), "null");
+    expect(loadSkillRegistry(dir).skills.size).toBe(0);
   });
 });

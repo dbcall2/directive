@@ -8,6 +8,7 @@ import {
   evaluateDocsImpact,
   extractCommandIdsFromSources,
   extractHelpKeysFromSource,
+  extractSkillIdsFromPack,
   fetchPrBodyRest,
   parseDocsImpactArgs,
   parseDocsImpactDeclaration,
@@ -280,5 +281,24 @@ describe("docs-impact CLI transport", () => {
     );
     expect(prCode).toBe(0);
     expect(docsImpactMain(["--pr", "4"])).toBe(2);
+  });
+
+  it("fails closed when git diff --name-status errors instead of treating stdout as empty", () => {
+    const dir = mkdtempSync(join(tmpdir(), "docs-impact-gitfail-"));
+    const bodyPath = join(dir, "body.md");
+    writeFileSync(
+      bodyPath,
+      `no user-doc impact\nrationale: "Would wrongly pass if a failed diff were empty."\n`,
+    );
+    const code = docsImpactMain(["--body-file", bodyPath, "--project-root", dir], {
+      runGit: (args) => {
+        if (args[0] === "diff") {
+          return { returncode: 128, stdout: "", stderr: "fatal: bad revision origin/master" };
+        }
+        return { returncode: 0, stdout: "", stderr: "" };
+      },
+    });
+    expect(code).toBe(2);
+    expect(extractSkillIdsFromPack("null")).toEqual(new Set());
   });
 });

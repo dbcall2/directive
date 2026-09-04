@@ -211,8 +211,10 @@ export function extractHelpKeysFromSource(source: string): Set<string> {
 export function extractSkillIdsFromPack(source: string): Set<string> {
   const ids = new Set<string>();
   try {
-    const parsed = JSON.parse(source) as { skills?: readonly { id?: unknown }[] };
-    for (const skill of parsed.skills ?? []) {
+    const parsed = JSON.parse(source) as unknown;
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return ids;
+    const pack = parsed as { skills?: readonly { id?: unknown }[] };
+    for (const skill of pack.skills ?? []) {
       if (typeof skill.id === "string" && skill.id.length > 0) ids.add(skill.id);
     }
   } catch {
@@ -575,6 +577,12 @@ export function docsImpactMain(
   const baseRef = mergeBase.returncode === 0 ? mergeBase.stdout.trim() : "";
   const range = baseRef.length > 0 ? `${baseRef}...HEAD` : "origin/master...HEAD";
   const nameStatusRaw = runGit(["diff", "--name-status", range]);
+  if (nameStatusRaw.returncode !== 0) {
+    process.stderr.write(
+      `Error: git diff --name-status failed for ${range}: ${nameStatusRaw.stderr.trim() || "no output"}\n`,
+    );
+    return EXIT_CONFIG;
+  }
   const nameStatus = parseNameStatus(nameStatusRaw.stdout);
   const snapshotPaths = collectSnapshotPaths(nameStatus);
   const baseFiles: Record<string, string> = {};
