@@ -8,7 +8,7 @@ import { timedGitRunner } from "../session/git.js";
 import { type LockDeps, withAppendLock } from "../slice/lock.js";
 import { composeGreenfieldAgentsMd } from "./agents-consumer-header.js";
 import { AGENTS_MANAGED_CLOSE, AGENTS_MANAGED_OPEN_V3_LITERAL } from "./constants.js";
-import { findManagedOpenMarker } from "./linear-scan.js";
+import { findManagedOpenMarker, matchAt } from "./linear-scan.js";
 import { payloadIsOwnGitRoot } from "./resolve-version.js";
 
 export interface ManagedSectionAttrs {
@@ -156,13 +156,126 @@ export function iterManagedSections(text: string): Array<[number, number, string
   return results;
 }
 
+export interface ManagedOpenCandidate {
+  readonly start: number;
+  readonly end: number;
+  readonly version: number | null;
+  readonly recognized: boolean;
+  readonly truncatedOpen: boolean;
+}
+
+const MANAGED_SECTION_TOKEN = "deft:managed-section";
+
+/**
+ * Scan AGENTS.md for managed-section openers, including versions the linear
+ * scanner does not recognize (v4+, v10). Used to refuse writes on future or
+ * truncated markers instead of treating them as `missing` and appending.
+ */
+export function scanManagedOpenCandidates(text: string, from = 0): ManagedOpenCandidate[] {
+  const results: ManagedOpenCandidate[] = [];
+  let pos = from;
+  while (pos < text.length) {
+    const idx = text.indexOf("<!--", pos);
+    if (idx < 0) break;
+    let i = idx + 4;
+    while (i < text.length && (text[i] === " " || text[i] === "\t")) i += 1;
+    if (!matchAt(text, i, MANAGED_SECTION_TOKEN)) {
+      pos = idx + 1;
+      continue;
+    }
+    i += MANAGED_SECTION_TOKEN.length;
+    while (i < text.length && (text[i] === " " || text[i] === "\t")) i += 1;
+    if (text[i] !== "v") {
+      pos = idx + 1;
+      continue;
+    }
+    i += 1;
+    let digits = "";
+    while (i < text.length) {
+      const ch = text[i] ?? "";
+      if (ch < "0" || ch > "9") break;
+      digits += ch;
+      i += 1;
+    }
+    let truncatedOpen = false;
+    while (i < text.length && !(text[i] === "-" && text[i + 1] === "-" && text[i + 2] === ">")) {
+      if (text[i] === "<" && text[i + 1] === "!" && text[i + 2] === "-" && text[i + 3] === "-") {
+        truncatedOpen = true;
+        break;
+      }
+      i += 1;
+    }
+    if (i >= text.length || truncatedOpen) {
+      results.push({
+        start: idx,
+        end: i >= text.length ? text.length : i,
+        version: digits ? Number(digits) : null,
+        recognized: false,
+        truncatedOpen: true,
+      });
+      if (i >= text.length) break;
+      pos = i;
+      continue;
+    }
+    const end = i + 3;
+    const version = digits ? Number(digits) : null;
+    const recognized = version !== null && digits.length === 1 && version >= 1 && version <= 3;
+    results.push({ start: idx, end, version, recognized, truncatedOpen: false });
+    pos = end;
+  }
+  return results;
+}
+
+export type ManagedMarkerIntegrity =
+  | "ok"
+  | "truncated-close"
+  | "truncated-open"
+  | "unsupported-future";
+
+/** Classify unbalanced or future managed markers. Current version comes from the template. */
+export function classifyManagedMarkerIntegrity(
+  text: string,
+  currentVersion: number,
+): ManagedMarkerIntegrity {
+  const candidates = scanManagedOpenCandidates(text);
+  for (const candidate of candidates) {
+    if (candidate.truncatedOpen) {
+      return "truncated-open";
+    }
+    if (candidate.version !== null && candidate.version > currentVersion) {
+      return "unsupported-future";
+    }
+    if (!candidate.recognized && candidate.version !== null) {
+      return "unsupported-future";
+    }
+  }
+  for (const candidate of candidates) {
+    const closeIdx = text.indexOf(AGENTS_MANAGED_CLOSE, candidate.end);
+    if (closeIdx < 0) return "truncated-close";
+  }
+  return "ok";
+}
+
+export function hasManagedSectionMarker(
+  projectRoot: string,
+  readText: (path: string) => string | null = defaultReadAgents,
+): boolean {
+  const agentsMd = join(projectRoot, "AGENTS.md");
+  const text = readText(agentsMd);
+  if (text === null) return false;
+  return scanManagedOpenCandidates(text).length > 0;
+}
+
 export function attributeRenderManagedSection(
   rendered: string,
-  attrs: { frameworkSha: string; refreshed: string; sessionId: string },
+  attrs: { frameworkSha: string; refreshed: string; sessionId: string; version?: number },
 ): string {
-  const attrString = `v3 sha=${attrs.frameworkSha} refreshed=${attrs.refreshed} session=${attrs.sessionId}`;
+  const open = findManagedOpenMarker(rendered, 0);
+  if (open === null) return rendered;
+  const version = attrs.version ?? open.version;
+  const attrString = `v${version} sha=${attrs.frameworkSha} refreshed=${attrs.refreshed} session=${attrs.sessionId}`;
   const attributedOpen = `<!-- deft:managed-section ${attrString} -->`;
-  return rendered.replace(AGENTS_MANAGED_OPEN_V3_LITERAL, attributedOpen);
+  return rendered.slice(0, open.start) + attributedOpen + rendered.slice(open.end);
 }
 
 function wrapLegacyInMarkers(existing: string, rendered: string): string {
@@ -214,10 +327,13 @@ export function agentsRefreshPlan(
   const frameworkSha = resolveSha();
   const refreshed = nowIso();
   const sessionId = newSession();
+  const templateOpen = findManagedOpenMarker(templateText.replace(/\r\n/g, "\n"));
+  const templateVersion = templateOpen?.version ?? 3;
   const attributedRendered = attributeRenderManagedSection(rendered, {
     frameworkSha,
     refreshed,
     sessionId,
+    version: templateVersion,
   });
   const agentsMd = join(projectRoot, "AGENTS.md");
   let existing: string | null;
@@ -249,6 +365,22 @@ export function agentsRefreshPlan(
     };
   }
   const normalised = existing.replace(/\r\n/g, "\n");
+  const integrity = classifyManagedMarkerIntegrity(normalised, templateVersion);
+  if (
+    integrity === "truncated-close" ||
+    integrity === "truncated-open" ||
+    integrity === "unsupported-future"
+  ) {
+    return {
+      state: "unreadable",
+      reason: integrity,
+      path: agentsMd,
+      rendered,
+      existing,
+      new_content: null,
+      sha: frameworkSha,
+    };
+  }
   const blocks = iterManagedSections(normalised);
   if (blocks.length === 0) {
     return {
@@ -284,6 +416,8 @@ export function agentsRefreshPlan(
     };
   }
   const extracted = blocks[0]?.[2] ?? "";
+  const extractedStart = blocks[0]?.[0] ?? 0;
+  const extractedEnd = blocks[0]?.[1] ?? 0;
   const extractedAttrs = parseManagedSectionAttrs(extracted);
   const isLegacyMarker = extractedAttrs !== null && [1, 2].includes(extractedAttrs.version);
   if (!isLegacyMarker && stripManagedSectionAttrs(extracted) === rendered) {
@@ -296,7 +430,8 @@ export function agentsRefreshPlan(
       sha: frameworkSha,
     };
   }
-  const newContent = normalised.replace(extracted, attributedRendered);
+  const newContent =
+    normalised.slice(0, extractedStart) + attributedRendered + normalised.slice(extractedEnd);
   return {
     state: "stale",
     path: agentsMd,

@@ -36,6 +36,9 @@ import { readDeclaredArtifactVersion } from "../xbrief-migrate/transforms.js";
 import {
   CANONICAL_UPGRADE_COMMAND,
   GO_BRIDGE_RELEASES_URL,
+  RECOVERY_LADDER_AGENTS_REFRESH,
+  recoveryLadderFields,
+  recoveryLadderProse,
   UPGRADING_DOC_URL,
 } from "./constants.js";
 import {
@@ -516,16 +519,12 @@ export function checkQuickStartResolves(
     detail:
       `QUICK-START.md not found at ${qsPath}. AGENTS.md claims the ` +
       `install root is '${installRoot}' but the file is missing. ` +
-      "Run `.deft/core/run agents:refresh` (Unix) / " +
-      "`.deft\\core\\run agents:refresh` (Windows) to align AGENTS.md " +
-      "with the on-disk install root, OR run `deft update` to " +
-      "re-pull the framework if the on-disk install is missing. " +
-      "See UPGRADING.md for the canonical drift-repair walkthrough.",
+      recoveryLadderProse("agents-refresh"),
     data: {
       path: qsPath,
       install_root: installRoot,
-      suggested_fix: ".deft/core/run agents:refresh",
-      suggested_fix_alt: "deft update",
+      ...recoveryLadderFields("agents-refresh"),
+      suggested_fix: RECOVERY_LADDER_AGENTS_REFRESH,
     },
   };
 }
@@ -578,14 +577,14 @@ export function checkSkillPathsResolve(
     status: "fail",
     detail:
       `${missing.length} skill path(s) do not resolve; ${redirectStubs.length} stub redirect(s). ` +
-      `${parts.join("; ")}. Run \`.deft/core/run agents:refresh\` (Unix) / ` +
-      "`.deft\\core\\run agents:refresh` (Windows) to rewrite the managed AGENTS.md block so skill paths match the on-disk framework, OR run `deft update` if the on-disk skills are missing entirely. See UPGRADING.md for the drift-repair walkthrough.",
+      `${parts.join("; ")}. ` +
+      recoveryLadderProse("agents-refresh"),
     data: {
       referenced,
       missing,
       redirect_stubs: redirectStubs,
-      suggested_fix: ".deft/core/run agents:refresh",
-      suggested_fix_alt: "deft update",
+      ...recoveryLadderFields("agents-refresh"),
+      suggested_fix: RECOVERY_LADDER_AGENTS_REFRESH,
     },
   };
 }
@@ -758,7 +757,10 @@ export function checkInstallPathConsistency(
     return {
       name: "install-path-consistency",
       status: "fail",
-      detail: `Install root is recorded as '${effectiveInstallRoot}' (source: ${source}) but ${claimedDir} is not a directory. Pick one of two repair paths: (a) run \`.deft/core/run agents:refresh\` (Unix) / \`.deft\\core\\run agents:refresh\` (Windows) to rewrite AGENTS.md to match the on-disk framework -- pick this if the framework on disk is correct; OR (b) run \`npx @deftai/directive update\` to (re)deposit the framework at the path AGENTS.md / the manifest claims (the npm CLI project deposit, #1912) -- pick this if AGENTS.md is correct. The YAML manifest (if present) is authoritative for the install-layout contract. See UPGRADING.md for the canonical drift-repair walkthrough.`,
+      detail:
+        `Install root is recorded as '${effectiveInstallRoot}' (source: ${source}) but ${claimedDir} is not a directory. ` +
+        recoveryLadderProse("agents-refresh") +
+        " The YAML manifest (if present) is authoritative for the install-layout contract.",
       data: {
         claimed_install_root: installRoot,
         effective_install_root: effectiveInstallRoot,
@@ -766,8 +768,8 @@ export function checkInstallPathConsistency(
         claimed_dir: claimedDir,
         claimed_dir_exists: false,
         fallback_info_note: fallbackInfoNote || null,
-        suggested_fix: ".deft/core/run agents:refresh",
-        suggested_fix_alt: "npx @deftai/directive update",
+        ...recoveryLadderFields("agents-refresh"),
+        suggested_fix: RECOVERY_LADDER_AGENTS_REFRESH,
       },
     };
   }
@@ -1476,9 +1478,12 @@ export function runChecksImpl(
     checks.push({
       name: "agents-md-present",
       status: "fail",
-      detail:
-        "AGENTS.md not found at project root -- run `.deft/core/run agents:refresh` to generate it from the canonical template.",
-      data: { agents_md_path: agentsMdPath },
+      detail: `AGENTS.md not found at project root -- ${recoveryLadderProse("agents-refresh")}`,
+      data: {
+        agents_md_path: agentsMdPath,
+        ...recoveryLadderFields("agents-refresh"),
+        suggested_fix: RECOVERY_LADDER_AGENTS_REFRESH,
+      },
     });
     checks.push(checkManifestAgreement(projectRoot, null, seams));
     checks.push(checkManifestVersionReportable(projectRoot, null, seams));

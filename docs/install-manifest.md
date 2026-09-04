@@ -5,10 +5,11 @@
 
 ## Why the framework records its install provenance
 
-Every deft install (`run install`, `task upgrade`, `oz-agent-upgrade`, the
-webinstaller's `upgrade.sh` / `upgrade.ps1` rail) needs to record **what
+Every deft install (`deft update`, `task upgrade`, `oz-agent-upgrade`, the
+webinstaller's `upgrade.sh` / `upgrade.ps1` rail, or the frozen Go bridge)
+needs to record **what
 the framework currently believes about itself on disk** so the upgrade
-gate, the framework doctor, and downstream sync skills can detect drift.
+gate, `deft doctor`, and downstream sync skills can detect drift.
 Pre-v0.28 the only artifact on disk was a bare `.deft-version` file
 containing a single version string (e.g. `0.27.1`). That file is not
 enough for the #1046 install/refresh-contract self-healing path:
@@ -51,9 +52,9 @@ fetched_by: 'oz-agent-upgrade'
 | `fetched_at`   | yes                            | ISO-8601 UTC timestamp of the install. Used by the doctor to flag stale installs against an `--age-days` threshold. |
 | `fetched_by`   | yes                            | Identifier for the rail that produced the manifest (`oz-agent-upgrade`, `run-install`, `run-upgrade`, `deft-install`, `webinstaller`, ...). |
 
-The file format is intentionally minimal YAML so the framework's pure-stdlib
-parser in `run::_parse_install_manifest` does not need PyYAML at install
-time. Values are single-quoted to disambiguate strings that happen to look
+The file format is intentionally minimal YAML so the TypeScript doctor
+(`packages/core/src/doctor/manifest.ts`) can parse it without a YAML library
+at install time. Values are single-quoted to disambiguate strings that happen to look
 like YAML scalars (`true`, `null`, etc.).
 
 ## Install-root resolution
@@ -95,27 +96,28 @@ The following surfaces write the canonical manifest:
 | `oz-agent-upgrade`    | Cloud agent install pipeline                        | `oz-agent-upgrade`     |
 | `webinstaller`        | `upgrade.sh` / `upgrade.ps1` rail (#992 PR2 successors) | `webinstaller`     |
 
-All writers go through a single helper (`run::_write_install_manifest`)
-so the on-disk shape stays consistent. The helper is best-effort: a
-read-only filesystem (CI cache layer, container image at runtime) silently
-degrades to no-op rather than crashing the install.
+Live writers are the npm CLI (`deft update` / `npx @deftai/directive update`)
+and the frozen Go bridge. Historical `run install` / `run upgrade` helpers
+are retired. Writes are best-effort: a read-only filesystem (CI cache layer,
+container image at runtime) silently degrades to no-op rather than crashing
+the install.
 
 ## Readers and drift reconciliation
 
-- `scripts/framework_doctor.py` (`task framework:doctor`) -- four-check
-  probe; the `manifest-agreement` check reads the manifest, compares
+- `deft doctor` -- `manifest-agreement` reads the manifest, compares
   the `tag` field against the framework's resolved VERSION, and reports
-  drift. Three-state exit (0 clean / 1 drift / 2 config error).
-- `run::_check_upgrade_gate` -- informational advisory only; emits a
-  one-line warn when the doctor reports drift but never blocks the
-  gate (mirrors the #801 remote-version probe contract).
+  drift. Recovery uses one ladder: `deft agents:refresh` (AGENTS.md stale,
+  CLI running), `deft update` (`task upgrade` is the documented alias),
+  `npx @deftai/directive …` / `npm i -g @deftai/directive` (CLI not on PATH),
+  then the frozen Go bridge for pre-canonical layouts. Three-state exit
+  (0 clean / 1 drift / 2 config error).
 - The agentic refresh path (`skills/deft-directive-sync/SKILL.md`) reads
   the manifest to decide whether a sync is needed; a manifest pointing
   at a stale `tag` triggers the Phase 2 framework-update flow.
 
 On drift between the manifest's `tag` and the bare `.deft-version`,
 **prefer the YAML manifest** -- it is the canonical source. The bare
-file is regenerated to match on the next `task upgrade`.
+file is regenerated to match on the next `deft update` / `task upgrade`.
 
 ## Back-compat for v0.27.x consumers
 
@@ -124,8 +126,8 @@ Projects upgrading from v0.27.x that have an existing
 following sequence on first `task upgrade`:
 
 1. The upgrade gate detects the missing manifest and emits a one-line
-   advisory pointing at `task framework:doctor`.
-2. `task upgrade` writes the canonical manifest at the install root
+   advisory pointing at `deft doctor`.
+2. `deft update` / `task upgrade` writes the canonical manifest at the install root
    with the current framework VERSION as `tag`, the resolved git SHA
    as `sha`, `fetched_by: run-upgrade`, and `fetched_at` set to the
    UTC time of the write.
@@ -141,6 +143,6 @@ the first `task upgrade` invocation.
 - [#1046](https://github.com/deftai/directive/issues/1046) -- install / refresh contract umbrella.
 - [#992](https://github.com/deftai/directive/issues/992) -- adopt `.deft/core/` as canonical install layout (defines the install-root contract this manifest is anchored to).
 - [#410](https://github.com/deftai/directive/issues/410) -- original upgrade gate + `.deft-version` marker (predecessor surface this manifest extends).
-- [`scripts/framework_doctor.py`](../scripts/framework_doctor.py) -- doctor probe (`manifest-agreement` check).
-- [`run::_write_install_manifest`](../run) / [`run::_read_install_manifest`](../run) -- canonical writer / reader.
-- [`tasks/framework.yml`](../tasks/framework.yml) -- `task framework:doctor` task surface.
+- `packages/core/src/doctor/checks.ts` -- `manifest-agreement` check and recovery ladder.
+- `packages/core/src/doctor/manifest.ts` -- canonical reader.
+- Frozen Go bridge releases: https://github.com/deftai/directive/releases

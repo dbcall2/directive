@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { agentsRefreshPlan, hasV3ManagedMarker } from "./agents-md.js";
+import { agentsRefreshPlan, hasManagedSectionMarker, hasV3ManagedMarker } from "./agents-md.js";
 
 const MANAGED = "<!-- deft:managed-section v3 -->\nbody\n<!-- /deft:managed-section -->";
 
@@ -109,6 +109,14 @@ describe("agents-md extra branches", () => {
     expect(hasV3ManagedMarker("/nonexistent/path/xyz")).toBe(false);
   });
 
+  it("hasManagedSectionMarker is exported and true for any recognized opener", () => {
+    expect(typeof hasManagedSectionMarker).toBe("function");
+    expect(hasManagedSectionMarker("/tmp", () => MANAGED)).toBe(true);
+    expect(hasManagedSectionMarker("/tmp", () => "<!-- deft:managed-section v2 -->\n")).toBe(true);
+    expect(hasManagedSectionMarker("/tmp", () => "# user header\n")).toBe(false);
+    expect(hasManagedSectionMarker("/tmp", () => null)).toBe(false);
+  });
+
   it("uses default readTemplate when seam omitted and template missing", () => {
     const root = mkdtempSync(join(tmpdir(), "deft-doc-"));
     try {
@@ -136,13 +144,15 @@ describe("agents-md extra branches", () => {
     }
   });
 
-  it("stops iterManagedSections when close marker missing mid-file", () => {
+  it("refuses to write when close marker missing mid-file", () => {
     const existing = "<!-- deft:managed-section v3 -->\nunclosed\n";
     const plan = agentsRefreshPlan("/tmp", {
       readTemplate: () => MANAGED,
       readAgents: () => existing,
       resolveSha: () => "sha1",
     });
-    expect(plan.state).toBe("missing");
+    expect(plan.state).toBe("unreadable");
+    expect(plan.reason).toBe("truncated-close");
+    expect(plan.new_content).toBeNull();
   });
 });

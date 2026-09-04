@@ -16,6 +16,84 @@ export const UPGRADING_DOC_URL =
   "https://github.com/deftai/directive/blob/master/content/UPGRADING.md";
 export const GO_BRIDGE_RELEASES_URL = "https://github.com/deftai/directive/releases";
 
+/** One recovery ladder for doctor FAIL suggested_fix (#4090). One spelling per rung. */
+export const RECOVERY_LADDER_AGENTS_REFRESH = "deft agents:refresh";
+export const RECOVERY_LADDER_UPDATE = "deft update";
+export const RECOVERY_LADDER_NPX_PREFIX = "npx @deftai/directive";
+export const RECOVERY_LADDER_NPM_GLOBAL = "npm i -g @deftai/directive";
+
+export type RecoveryLadderPrimary = "agents-refresh" | "update";
+
+export interface RecoveryLadderFields {
+  readonly suggested_fix: string;
+  readonly suggested_fix_alt: string;
+  readonly suggested_fix_npx: string;
+  readonly suggested_fix_npm_global: string;
+  readonly go_bridge_releases_url: string;
+  readonly upgrading_doc_url: string;
+}
+
+export function recoveryLadderFields(primary: RecoveryLadderPrimary): RecoveryLadderFields {
+  const refresh = RECOVERY_LADDER_AGENTS_REFRESH;
+  const update = RECOVERY_LADDER_UPDATE;
+  const verb = primary === "agents-refresh" ? "agents:refresh" : "update";
+  return {
+    suggested_fix: primary === "agents-refresh" ? refresh : update,
+    suggested_fix_alt: primary === "agents-refresh" ? update : refresh,
+    suggested_fix_npx: `${RECOVERY_LADDER_NPX_PREFIX} ${verb}`,
+    suggested_fix_npm_global: RECOVERY_LADDER_NPM_GLOBAL,
+    go_bridge_releases_url: GO_BRIDGE_RELEASES_URL,
+    upgrading_doc_url: UPGRADING_DOC_URL,
+  };
+}
+
+export function recoveryLadderProse(primary: RecoveryLadderPrimary): string {
+  const f = recoveryLadderFields(primary);
+  return (
+    `Run \`${f.suggested_fix}\`. Payload missing or version drift: \`${RECOVERY_LADDER_UPDATE}\` ` +
+    `(task upgrade is the documented alias). CLI not on PATH: \`${f.suggested_fix_npx}\` or ` +
+    `\`${f.suggested_fix_npm_global}\`, then the same verbs. Pre-canonical layout: frozen Go bridge ` +
+    `at ${f.go_bridge_releases_url} (see ${f.upgrading_doc_url}).`
+  );
+}
+
+/** Doctor remediation when the classifier refuses to write (#4090 P1). */
+export const RECOVERY_LADDER_UNREADABLE_TRUNCATED =
+  "Restore a matching <!-- /deft:managed-section --> close in AGENTS.md; deft agents:refresh refuses this unreadable state and will not write";
+export const RECOVERY_LADDER_UNREADABLE_TRUNCATED_OPEN =
+  "Complete the managed-section opener through --> in AGENTS.md (example: <!-- deft:managed-section v3 -->), then restore a matching close; deft agents:refresh refuses this unreadable state and will not write";
+
+export function unreadableAgentsRecovery(reason: string): {
+  readonly message: string;
+  readonly suggested_fix: string;
+} {
+  if (reason === "unsupported-future") {
+    return {
+      message:
+        `AGENTS.md managed section is unreadable (${reason}) -- refuse to write. ` +
+        `Upgrade the CLI/payload (\`${RECOVERY_LADDER_UPDATE}\` or \`${RECOVERY_LADDER_NPM_GLOBAL}\`), then re-run doctor. ` +
+        `\`${RECOVERY_LADDER_AGENTS_REFRESH}\` will not write this state.`,
+      suggested_fix: RECOVERY_LADDER_UPDATE,
+    };
+  }
+  if (reason === "truncated-open") {
+    return {
+      message:
+        `AGENTS.md managed section is unreadable (${reason}) -- refuse to write. ` +
+        `Complete the opener through \`-->\` (example: \`<!-- deft:managed-section v3 -->\`) and restore a matching close. ` +
+        `\`${RECOVERY_LADDER_AGENTS_REFRESH}\` will not write this state.`,
+      suggested_fix: RECOVERY_LADDER_UNREADABLE_TRUNCATED_OPEN,
+    };
+  }
+  return {
+    message:
+      `AGENTS.md managed section is unreadable (${reason}) -- refuse to write. ` +
+      `Restore a matching close marker \`<!-- /deft:managed-section -->\` in AGENTS.md. ` +
+      `\`${RECOVERY_LADDER_AGENTS_REFRESH}\` will not write this state.`,
+    suggested_fix: RECOVERY_LADDER_UNREADABLE_TRUNCATED,
+  };
+}
+
 export const AGENTS_MANAGED_CLOSE = "<!-- /deft:managed-section -->";
 
 export const DEPRECATED_REDIRECT_SENTINEL = "<!-- deft:deprecated-redirect -->";
