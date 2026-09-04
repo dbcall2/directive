@@ -595,8 +595,7 @@ function restampCompletedBrief(args: RestampArgs): TransitionResult {
   if (roadmapErr !== null) {
     return {
       ok: false,
-      message:
-        `Restamped ${basename} in completed/ but ROADMAP.md regenerate failed: ${roadmapErr}`,
+      message: `Restamped ${basename} in completed/ but ROADMAP.md regenerate failed: ${roadmapErr}`,
     };
   }
   return {
