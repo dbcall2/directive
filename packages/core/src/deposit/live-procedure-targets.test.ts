@@ -63,6 +63,30 @@ describe("C3 live-procedure target validation (#3602)", () => {
     expect(formatLiveProcedureFailure(result)).toContain("scripts/missing.py");
   });
 
+  it("does not end a section skip on hash comments inside fenced blocks (#4100)", () => {
+    const root = staged("c3-fence-heading-");
+    writeFileSync(
+      join(root, "UPGRADING.md"),
+      [
+        "## Migration to triage v1",
+        "",
+        "```bash",
+        "# remove the cache line",
+        "rm -rf .deft-cache/",
+        "```",
+        "",
+        "Still frozen: `scripts/ip_risk.py`",
+        "",
+        "## Current path",
+        "",
+        "Live: `scripts/ip_risk.py`",
+      ].join("\n"),
+      "utf8",
+    );
+    const result = evaluateLiveProcedureTargets({ stagedRoot: root });
+    expect(result.hits).toEqual([{ file: "UPGRADING.md", line: 12, target: "scripts/ip_risk.py" }]);
+  });
+
   it("skips a declared prohibition file rather than pattern-matching Python mentions", () => {
     expect(isDeclaredLiveProcedureExclusion("scm/github.md")).toBe(true);
     const root = staged("c3-prohibit-");

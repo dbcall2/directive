@@ -25,7 +25,11 @@ import {
 } from "../check/consumer-gate-integrity.js";
 import { NON_PRODUCT_DIRS } from "../fs/non-product-dirs.js";
 import { extractLinkTargets, shouldSkipLinkTarget } from "../validate-content/link-parser.js";
-import { isDeclaredLiveProcedureExclusion } from "./live-procedure-exclusions.js";
+import {
+  isDeclaredLiveProcedureExclusion,
+  isLiveProcedureSectionExcluded,
+  parseMarkdownHeading,
+} from "./live-procedure-exclusions.js";
 import { isPrunedPythonArtifactPath } from "./python-free.js";
 
 const SKIP_DIRS = new Set([...NON_PRODUCT_DIRS, ".planning", "specs"]);
@@ -233,8 +237,29 @@ function scanMarkdownFile(absolutePath: string, relativePath: string): LiveProce
   }
   const hits: LiveProcedureHit[] = [];
   const lines = text.split("\n");
+  let skipUntilLevel: number | null = null;
+  let inFence = false;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i] ?? "";
+    if (line.trimStart().startsWith("```")) {
+      inFence = !inFence;
+      if (skipUntilLevel !== null) continue;
+    } else if (!inFence) {
+      const heading = parseMarkdownHeading(line);
+      if (heading) {
+        if (skipUntilLevel !== null && heading.level <= skipUntilLevel) {
+          skipUntilLevel = null;
+        }
+        if (
+          skipUntilLevel === null &&
+          isLiveProcedureSectionExcluded(relativePath, heading.title)
+        ) {
+          skipUntilLevel = heading.level;
+          continue;
+        }
+      }
+    }
+    if (skipUntilLevel !== null) continue;
     for (const target of extractLineTargets(line)) {
       if (!isPrunedPythonArtifactPath(target)) continue;
       hits.push({ file: relativePath, line: i + 1, target });
@@ -897,6 +922,14 @@ function gitOut(repoRoot: string, args: readonly string[]): string {
   }
 }
 
+function gitOutOrNull(repoRoot: string, args: readonly string[]): string | null {
+  try {
+    return execFileSync("git", args, { cwd: repoRoot, encoding: "utf8" });
+  } catch {
+    return null;
+  }
+}
+
 function gitOk(repoRoot: string, args: readonly string[]): boolean {
   try {
     execFileSync("git", args, {
@@ -951,12 +984,12 @@ function diffAgainstBase(repoRoot: string, base: string, files: readonly string[
     // Depth-one clones point origin/<default> at HEAD, so merge-base==HEAD is
     // not a PR base and would hide earlier commits as an empty range.
     if (isShallowRepo(repoRoot) && mergeBase === head) return null;
-    return gitOut(repoRoot, ["diff", `${mergeBase}...HEAD`, "--", ...files]);
+    return gitOutOrNull(repoRoot, ["diff", `${mergeBase}...HEAD`, "--", ...files]);
   }
   if (commitExists(repoRoot, base)) {
     const baseSha = gitOut(repoRoot, ["rev-parse", `${base}^{commit}`]).trim();
     if (isShallowRepo(repoRoot) && baseSha === head) return null;
-    return gitOut(repoRoot, ["diff", base, "HEAD", "--", ...files]);
+    return gitOutOrNull(repoRoot, ["diff", base, "HEAD", "--", ...files]);
   }
   return null;
 }
@@ -985,11 +1018,11 @@ export function readCommandSnippetCandidateDiff(repoRoot: string): string {
   ].filter((base) => base.length > 0);
   for (const base of bases) {
     const ranged = diffAgainstBase(repoRoot, base, files);
-    // A resolved range is a candidate even when empty: PRs that do not
-    // touch COMMAND_SNIPPET_DIFF_PATHS have no same-diff hunks. Treating
-    // empty stdout as "no range" sent shallow fork checkouts to
-    // UNRESOLVED_SHALLOW_CANDIDATE_DIFF (#4094 / #4164).
-    if (ranged !== null) return ranged;
+    // null is a failed or disconnected range — try the next base.
+    // "" is a successful empty range (this PR does not touch command-snippet
+    // paths). That is resolved, not UNRESOLVED_SHALLOW.
+    if (ranged === null) continue;
+    return ranged;
   }
   // Depth-one PR checkouts only have HEAD. A `git log -p` fallback would hide
   // exemption + snippet additions from earlier PR commits (fail-open).

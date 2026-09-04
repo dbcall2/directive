@@ -8,6 +8,7 @@
 ## Active
 
 - **#3785** -- bug(hooks): warn when a fail-closed hook registration travels without a hostable runtime -- `[running]`
+- **#4164** -- chore(docs): wire ROADMAP freshness into the merge lane -- `[running]`
 
 ## Proposed
 
@@ -44,8 +45,10 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1423 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1425 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4100** -- docs(ia): recut README and UPGRADING around audience journeys -- `[completed]`
+- **#4099** -- docs(features): add a capability map and verifiable documentation-impact contract -- `[completed]`
 - **#4087** -- docs(architecture): rebuild architecture, concepts, and file maps for the current runtime tree -- `[completed]`
 - **#4119** -- bug(intake,lifecycle): issue:ingest omits stable plan.id and transitions admit it -- `[completed]`
 - **#4066** -- rfc(session,swarm): spawned work takes its own worktree; master occupancy is the exception and must be released -- `[completed]`
@@ -69,6 +72,4 @@ _Showing 25 of 1423 completed scopes (newest first). Full history: lifecycle `co
 - **#4000** -- bug(release): release:e2e is denied at the Step 10 closed-verb gate, so the rehearsal never reaches the npm phase -- `[completed]`
 - **#4070** -- chore(triage): withdraw the classify skill and strip triaged / triage:* chips -- `[completed]`
 - **#4067** -- bug(design-critique): N=3 panel dispatch does not bind cross-family seats, and a Grok parent with claude/codex CLIs still paste-readies -- `[completed]`
-- **#4059** -- [framework-gap] scope:provenance rejects canonical scope:complete evidence as intent drift -- `[completed]`
-- **#4009** -- [framework-gap] verify:forward-coverage ignores configured testRoots and matches on a bare filename stem -- `[completed]`
 
