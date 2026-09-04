@@ -268,9 +268,7 @@ describe("live overlay against #4094 registries", () => {
       registries: emptyRegistries,
     });
     expect(result.ok).toBe(true);
-    expect(result.markdown).toContain(
-      INDEX_REL.split("/").pop() === "capabilities.md" ? "# Capability index" : "",
-    );
+    expect(result.markdown).toContain("# Capability index");
   });
 
   it("capabilityMapMain --check exits 0 on the live overlay", () => {
