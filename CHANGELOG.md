@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Current Task and CLI snippets in commands.md resolve against the Taskfile graph and dispatch/help registries (#4094).** Extends the live-procedure markdown walker. Classification is a closed set; same-diff exemptions fail. Lookup is verb/namespace only and does not execute fences. Does not rewrite Task descriptions. Closes #4094. Refs #4085.
 - **Doctor-first support hub at `content/docs/SUPPORT.md` (#4098).** Symptom index points at `directive doctor --full` or the README cold-start. README one-click links Support and getting-started. No second recovery ladder, no paste-JSON capture, no `doctor --redact`. Closes #4098. Refs #4085.
 - **RULE-MAP freshness fails closed on `task check` (#4095).** Regenerates `docs/RULE-MAP.md`. `task docs:rule-map:check` is wired into `FRAMEWORK_CHECK_GATES` and `check:framework-source`. The gate asserts byte-identical renderer output, filled grouping purposes, pack entries from named arrays, and Taskfile declaration counts. ROADMAP stays on `task roadmap:check` (residual [#4164](https://github.com/deftai/directive/issues/4164)). Closes #4095.
 
@@ -28,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Orientation file map matches the current checkout (#4087).** Labeled-current directory trees no longer teach deleted Python launchers or root guidance paths. Skills and consumer state use `content/skills/` and `xbrief/`. A fail-closed content-contract pin covers those trees. Partial of #4087. Refs #4085.
 
 ### Fixed
+
+- **Shallow candidate-diff fallback fails closed when no usable base range exists (#4094).** A depth-one pull-request checkout no longer treats HEAD-only `git log -p` as the pull-request diff. Unresolved base fetch is a contract finding. Push-to-master CI diffs `GITHUB_EVENT_PATH.before` so a multi-commit push cannot hide an earlier exemption. Refs #4085.
+- **Same-diff exemption check keeps every candidate patch, not the oldest `git log -p` entry (#4094).** `splitUnifiedDiff` concatenates repeated path patches. Candidate diff prefers working-tree then merge-base, and only then the shallow log fallback. `git log -p` is scored per commit so historical patches are not one candidate. Shallow CI fetches `GITHUB_BASE_SHA` and two-dot diffs when merge-base is missing. Refs #4085.
+- **Command-snippet extraction skips runner flags after the launcher (#4094).** `task -t … verb` is no longer dropped before registry lookup. Refs #4085.
 
 ### Removed
 
