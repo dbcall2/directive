@@ -17,44 +17,21 @@
 
 # Deft
 
-**One-shot, anti-slop**
+**One-shot, anti-slop** — a layered framework for AI-assisted development.
 
-*A layered framework for AI-assisted development with consistent standards and workflows.*
+**What it is:** Directive is a **repo practice layer** (standards + durable work state + gates), not a coding host or an app orchestrator. Capability index: [content/docs/capabilities.md](./content/docs/capabilities.md). Category map: [docs/CATEGORY.md](./docs/CATEGORY.md).
+
+**Deft is the company; Directive is the product.** The published package is `@deftai/directive`; `deft` is the CLI alias.
+
+**📚 Public docs:** [https://deftai.github.io/directive/](https://deftai.github.io/directive/) — What, Install, Concepts, Gates, Upgrade, License.
 
 ## 📝 Notation Legend
 
-Deft uses compact RFC 2119-based notation for requirements. You will see these markers throughout `main.md`, language standards, skills, and the docs below:
-
-- **!** = MUST (required, mandatory)
-- **~** = SHOULD (recommended, strong preference)
-- **≉** = SHOULD NOT (discouraged, avoid unless justified)
-- **⊗** = MUST NOT (forbidden, never do this)
-
-## TL;DR
-
-Deft is a **layered set of standards files plus deterministic `task` tooling** that makes AI-assisted coding significantly more effective. Instead of repeating the same instructions in every AI session, you define your preferences once — from general coding style to project-specific rules — and AI agents follow them. The result: higher-quality code, reproducible workflows, and AI that gets better over time by learning from your patterns.
-
-**Key benefits:** No more "AI forgot my preferences", no more inconsistent code style across AI sessions, no more re-explaining your stack every time.
-
-**Don't have preferences yet?** Deft ships with professional-grade defaults for Python, Go, TypeScript, C++, and common workflows. Use it out of the box and customize later.
-
-**Context-efficient:** Deft keeps AI context windows lean through the [Notation Legend](#-notation-legend) above and lazy-loading — agents only read the files relevant to the current task, not everything at once.
-
-**Category fit:** Directive is a **repo practice layer** (standards + durable work state + gates) — not a coding host, not only a skill pack, and not an app orchestrator. See **[docs/CATEGORY.md](./docs/CATEGORY.md)** before you compare substitutes by star count.
-
-**📚 Public docs:** [https://deftai.github.io/directive/](https://deftai.github.io/directive/) — install, concepts A/B/C, gates, upgrade, and license (standalone home for #2906; `deft.md` DNS cutover is an operator follow-up).
-
-**📍 Roadmap:** See [ROADMAP.md](./ROADMAP.md) for the development timeline, open issues, and planned work.
-
-## Deft & Directive (naming)
-
-**Deft is the company; Directive is the product.** In docs and on npm, *Deft* names the organization and the on-disk footprint (`.deft/`, `@deftai/*` scope, `deft.md`). *Directive* names the framework you install and run — the published npm package is `@deftai/directive`, and the primary CLI command is `directive` (`deft` is retained as an alias). Existing `deft-install` / `deft` wording in older paths refers to the same product during the staged transition to the npm-first channel ([#423](https://github.com/deftai/directive/issues/423), [#11](https://github.com/deftai/directive/issues/11)).
+- **!** = MUST · **~** = SHOULD · **≉** = SHOULD NOT · **⊗** = MUST NOT · **?** = MAY
 
 ## 🚀 Getting Started
 
-**New here?** Read **[docs/CATEGORY.md](./docs/CATEGORY.md)** first — the four-way map (coding host vs skill pack vs Directive practice layer vs orchestrator) so you install the right job.
-
-Directive is driven by **three commands** — `init`, `update`, and `doctor`. You never have to choose between a half-dozen setup verbs; pick the single command that matches your situation:
+Directive is three commands — `init`, `update`, and `doctor`. After install, walk the [first-project tutorial](./content/docs/getting-started.md).
 
 | Your situation | Run this one command | What it does |
 | --- | --- | --- |
@@ -64,25 +41,21 @@ Directive is driven by **three commands** — `init`, `update`, and `doctor`. Yo
 | Not sure, or something looks broken | `directive doctor` | Read-only diagnosis that prints exactly one recommended next step. |
 | Legacy / pre-v0.20 layout | `directive init` (or `directive doctor`) | Classifies the layout and routes you to the specific migration path (see [UPGRADING.md](./content/UPGRADING.md)). |
 
-`directive init` is the **universal entrypoint**: run it from a project directory and it classifies *that directory* and dispatches to exactly one of the paths above, always printing a state summary plus one recommended next action. `directive doctor` is the safe "where am I?" probe, and `directive update` is the refresh path — the same three-command model the CLI's own `directive` help screen leads with.
+`directive init` is the **universal entrypoint**. `directive` (the `deft` alias also works) runs any verb; `npx @deftai/directive <verb>` or `pnpm dlx @deftai/directive <verb>` runs one without a global install.
 
 ### 1. Install and initialize
-
-Install the engine globally with npm (Node ≥ 20 required):
 
 ```bash
 npm i -g @deftai/directive
 ```
 
-**Using pnpm?** pnpm resolves the same package from the same npm registry — no extra registry or configuration is required:
+**Using pnpm?** Same package, same registry:
 
 ```bash
 pnpm add -g @deftai/directive
 ```
 
-Make sure pnpm's global bin directory is on your `PATH` (run `pnpm setup` once to configure `PNPM_HOME`). If you prefer not to install globally, a project-local `pnpm add -D @deftai/directive` plus `pnpm exec directive <verb>` works too. Deft detects your package manager (via `DEFT_PACKAGE_MANAGER`, the `packageManager` field, a `pnpm-lock.yaml`, or `npm_config_user_agent`) and prints install/upgrade hints in the matching form.
-
-Then `cd` into your project and run the universal entrypoint:
+Make sure pnpm's global bin directory is on your `PATH` (run `pnpm setup` once to configure `PNPM_HOME`). Then:
 
 ```bash
 directive init      # classify this directory and set up (or route) accordingly
@@ -90,25 +63,9 @@ directive doctor    # confirm the install and print your one next step
 directive toolchain:check --consumer
 ```
 
-`directive` (the `deft` alias also works) runs any verb; `npx @deftai/directive <verb>` (npm) or `pnpm dlx @deftai/directive <verb>` (pnpm) runs one without a global install.
-
-#### OpenPackage tiered skills (optional, Cursor / Codex / OpenCode)
-
-Directive's npm engine deposits `.deft/core/` and the managed `AGENTS.md`. For **harness-native skill paths** with tiered install (daily-core vs deferred workflows), use [OpenPackage](https://openpackage.dev/docs) alongside the engine:
-
-```bash
-npm i -g opkg
-node /path/to/directive/packaging/openpackage/sync-skills.mjs
-opkg install /path/to/directive/packaging/openpackage/deft-directive-skills --platforms cursor codex opencode
-```
-
-**Default install is daily-core** (six session-bootstrap skills) so Cursor injected frontmatter stays ~2 KB class. Sync copies only daily-core unless you pass `--tier all` or `--tier standard` / `--tier advanced` — see [`packaging/openpackage/deft-directive-skills/README.md`](./packaging/openpackage/deft-directive-skills/README.md). This is distribution-layer (A) only; there is no runtime skill router.
-
-**Where your project lands (honest scope):** the global install above is location-independent, but `directive init` acts on the **current working directory** — it inspects that directory and dispatches, so `cd` into the folder you want the project to live in first (create it if it doesn't exist yet). init does not reach outside the directory you run it in. When an engine is already installed, Directive reconciles it against your committed `package.json` pin: a **matched** engine (same version as the pin) proceeds; a **mismatched** engine (ahead of or behind the pin) prints the exact `npm i -g` / `directive update` step to take rather than silently running against the wrong version.
+**Node runtime (required):** Install **Node 20+**, **Git**, **GitHub CLI (`gh`)**, and the package manager you use (`npm` is bundled with Node; pnpm is an alternative). After `directive init`, confirm with `directive doctor` and `directive toolchain:check --consumer`. That consumer probe always checks Node, git, gh, and the selected manager (`npm` or `pnpm`). It does not require Python, uv, Go, or Task. Framework maintainers building this repository use a separate Node 24 pin plus pnpm, Go, and Task; see [CONTRIBUTING.md](./CONTRIBUTING.md). See [UPGRADING.md § Node runtime](./content/UPGRADING.md#node-runtime-1828--1530) for details.
 
 **What gets tracked vs ignored:** `init` and `update` add Directive's local-only artifacts to your `.gitignore` — the reconstitutable deposit `.deft/core/`, the per-platform engine cache `.deft/.cli/`, session/ritual state such as `.deft/ritual-state.json`, and the `.deft-cache/` content cache. Your committed `package.json` pin is **never** ignored: it is the anchor that lets `directive init` / `directive update` reconstitute `.deft/core/` on a fresh clone, so it stays tracked in version control.
-
-**Node runtime (required):** Live deft gates run through the TypeScript engine. Install **Node 20+**, **Git**, **GitHub CLI (`gh`)**, and the package manager you use to install Directive (`npm` is bundled with Node; pnpm is an alternative, not a requirement). After `directive init`, confirm with `directive doctor` and `directive toolchain:check --consumer`. That consumer probe always checks Node, git, gh, and the selected manager (`npm` or `pnpm`). It does not require Python, uv, Go, or Task. Framework maintainers building this repository use a separate Node 24 pin plus pnpm, Go, and Task; see [CONTRIBUTING.md](./CONTRIBUTING.md). See [UPGRADING.md § Node runtime](./content/UPGRADING.md#node-runtime-1828--1530) for details.
 
 > **🔄 Upgrading an existing Directive project?** The ordinary path is `directive update` from your project root (after `npm i -g @deftai/directive@latest`, or `pnpm add -g @deftai/directive@latest` on pnpm). See [UPGRADING.md](./content/UPGRADING.md) for the canonical steps and the advanced/big-jump detail. On **npm v12**, install scripts and non-registry sources are opt-in — [UPGRADING.md § npm v12 install-time security defaults](./content/UPGRADING.md#npm-v12-install-time-security-defaults) (Directive packages need no allowlist; app trees may). **Agents:** ! Read [UPGRADING.md](./content/UPGRADING.md) on the first session after a framework update.
 
@@ -118,105 +75,47 @@ opkg install /path/to/directive/packaging/openpackage/deft-directive-skills --pl
 
 #### Legacy and offline install (Go installer, #1912)
 
-> **Node is always required to *run* Deft.** Its live gates run through the TypeScript engine, so there is no Node-free way to actually use the framework — the Go installer only deposits files on disk. On a machine without Node, install **Node 20+** first (via [nvm](https://github.com/nvm-sh/nvm), your OS package manager, or [nodejs.org](https://nodejs.org/)), then run the `npm i -g @deftai/directive` command above.
-
-The Go installer is a **legacy bridge**, not the first-start installer — npm is canonical (above). Reach for it only when npm isn't an option: an **offline / air-gapped** deposit, or **migrating an existing old on-disk layout** (git-clone / submodule / legacy `deft/`-prefixed install) to the canonical `.deft/core/` layout so the npm path can take over. The final Go installer release will be frozen as the permanent stage-1 bridge (#1912).
+> **Node is always required to *run* Deft.** The Go installer is a **legacy bridge**, not the first-start installer — npm is canonical (above). Reach for it only when npm isn't an option: an **offline / air-gapped** deposit, or **migrating an existing old on-disk layout**.
 
 > **⬇️ Legacy binaries** — from the [latest GitHub Release](https://github.com/deftai/directive/releases/latest):
-> - **Windows:** [`install-windows-amd64.exe`](https://github.com/deftai/directive/releases/latest/download/install-windows-amd64.exe) | [`install-windows-arm64.exe`](https://github.com/deftai/directive/releases/latest/download/install-windows-arm64.exe) (Surface / Copilot+ PCs)
-> - **macOS:** [`install-macos-universal`](https://github.com/deftai/directive/releases/latest/download/install-macos-universal) (Intel + Apple Silicon)
-> - **Linux:** [`install-linux-amd64`](https://github.com/deftai/directive/releases/latest/download/install-linux-amd64) | [`install-linux-arm64`](https://github.com/deftai/directive/releases/latest/download/install-linux-arm64) (Raspberry Pi / ARM)
+> - **Windows:** [`install-windows-amd64.exe`](https://github.com/deftai/directive/releases/latest/download/install-windows-amd64.exe) | [`install-windows-arm64.exe`](https://github.com/deftai/directive/releases/latest/download/install-windows-arm64.exe)
+> - **macOS:** [`install-macos-universal`](https://github.com/deftai/directive/releases/latest/download/install-macos-universal)
+> - **Linux:** [`install-linux-amd64`](https://github.com/deftai/directive/releases/latest/download/install-linux-amd64) | [`install-linux-arm64`](https://github.com/deftai/directive/releases/latest/download/install-linux-arm64)
 
-**Windows:**
-- Download `install-windows-amd64.exe` (or `install-windows-arm64.exe` for Surface / Copilot+ PCs)
-- Run it — Windows SmartScreen may warn about an unrecognised publisher; click "More info" then "Run anyway"
+**Windows:** Download `install-windows-amd64.exe` (or `install-windows-arm64.exe`) and run it — SmartScreen may warn; click "More info" then "Run anyway".
 
-**macOS:**
-- Download `install-macos-universal` (works on all Macs — Intel and Apple Silicon)
-- Make it executable and run:
-  ```bash
-  chmod +x install-macos-universal && ./install-macos-universal
-  ```
-- If macOS Gatekeeper blocks the file: right-click then Open, or remove the quarantine attribute:
-  ```bash
-  xattr -d com.apple.quarantine install-macos-universal
-  ```
+**macOS:** Download `install-macos-universal`, then `chmod +x install-macos-universal && ./install-macos-universal`. If Gatekeeper blocks it: right-click then Open, or `xattr -d com.apple.quarantine install-macos-universal`.
 
-**Linux:**
-- Download `install-linux-amd64` (or `install-linux-arm64` for Raspberry Pi / ARM cloud)
-- Make it executable and run:
-  ```bash
-  chmod +x install-linux-amd64 && ./install-linux-amd64
-  ```
-
-The legacy Go installer deposits a tarball payload into `.deft/core/` on disk. For normal installs, use npm (`npm i -g @deftai/directive`) and then `directive init` in your project — init resolves the locally installed `@deftai/directive-content` package and copies it into gitignored `.deft/core/`, renders `AGENTS.md`, scaffolds the `xbrief/` layout, and creates your user config directory.
+**Linux:** Download `install-linux-amd64` (or `install-linux-arm64`), then `chmod +x install-linux-amd64 && ./install-linux-amd64`.
 
 #### Agent / headless install
-
-Asked to **"install Deft into this directory"** — for example by an AI agent or a CI job? Use npm:
 
 ```bash
 npm i -g @deftai/directive
 ```
 
-Node 20+ is required to run Deft (see the note above). For **offline / air-gapped** deposits or **migrating a legacy on-disk layout**, the Go-installer binaries remain available from [GitHub Releases](https://github.com/deftai/directive/releases/latest) (see the [Legacy and offline install](#legacy-and-offline-install-go-installer-1912) section above) — Node is still required to run the framework afterward.
+Node 20+ is required. For **offline / air-gapped** deposits or **migrating a legacy on-disk layout**, the Go-installer binaries remain at [GitHub Releases](https://github.com/deftai/directive/releases/latest) (see [Legacy and offline install](#legacy-and-offline-install-go-installer-1912)).
 
 #### Framework maintainers (this repository)
 
-**Building from source (developers only):** requires Go 1.22+
-
-```bash
-go run ./cmd/deft-install/
-```
-
-Framework maintainers working in a clone of `deftai/directive` should use the
-maintainer installer mode when bootstrapping tools from a published binary:
-
-```bash
-deft-install --yes --upgrade --maintainer --repo-root /path/to/directive --json
-```
-
-This mode checks maintainer tooling without projecting consumer-managed files
-such as `AGENTS.md`, `.gitignore`, `.gitattributes`, guard workflows, or
-consumer `xbrief/` scaffolding into the framework repository. See
-[`CONTRIBUTING.md`](./CONTRIBUTING.md) for maintainer setup details.
+Building from source requires Go 1.22+. Use `go run ./cmd/deft-install/` or `deft-install --yes --upgrade --maintainer --repo-root /path/to/directive --json`. Maintainer setup: [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ### 2. Set Up Your Preferences
 
-Deft offers two setup paths that produce the same output (`USER.md` + `xbrief/PROJECT-DEFINITION.xbrief.json` + scope xBRIEFs) but adapt to different users:
-
-- **Agent-driven** (recommended for most users) — Tell your agent `read AGENTS.md and follow it`, or run `directive bootstrap` to deposit the framework and hand off to the setup skill.
-- **CLI launcher** (for terminal operators) — `directive bootstrap` deposits `.deft/core/` when absent and routes into the agent-driven setup flow (Phases 1–3). Use `--project` or `--strategy <name>` to jump to a later phase; `--reconfigure` / `--force` control re-entry when artifacts already exist.
-
-**User config location:**
-
-- Unix / macOS: `~/.config/deft/USER.md`
-- Windows: `%APPDATA%\deft\USER.md`
-- Override: set `DEFT_USER_PATH` environment variable
+Tell your agent `read AGENTS.md and follow it`, or run `directive bootstrap`. Output is `USER.md` + `xbrief/PROJECT-DEFINITION.xbrief.json` + scope xBRIEFs. Unix / macOS: `~/.config/deft/USER.md`. Windows: `%APPDATA%\deft\USER.md`. Override: `DEFT_USER_PATH`. Full walkthrough: [getting-started](./content/docs/getting-started.md).
 
 ### 3. Generate a Scope xBRIEF
 
-`directive bootstrap` walks the full setup chain (user preferences → project definition → scope xBRIEF interview). Jump to a later phase when re-entering:
+`directive bootstrap` walks user preferences → project definition → scope interview. The interview writes a **scope xBRIEF** to `xbrief/proposed/`. `xbrief/*.xbrief.json` files are the source of truth; `.md` files (`PRD.md`, `SPECIFICATION.md`, `ROADMAP.md`) are rendered views generated on demand via `task *:render`. Direct edits to the rendered `.md` files are overwritten on the next render — edit the underlying `.xbrief.json` instead.
 
 ```bash
 directive bootstrap --strategy interview   # Phase 3 — scope xBRIEF interview
 directive bootstrap --project              # Phase 2 — project configuration only
+directive doctor                           # Check install integrity
+directive agents:refresh                   # Refresh AGENTS.md managed section
 ```
-
-The interview writes a **scope xBRIEF** to `xbrief/proposed/`. `xbrief/*.xbrief.json` files are the source of truth; `.md` files (`PRD.md`, `SPECIFICATION.md`, `ROADMAP.md`) are rendered views generated on demand via `task *:render`. Direct edits to the rendered `.md` files are overwritten on the next render — edit the underlying `.xbrief.json` instead.
-
-Other commands:
-
-```bash
-directive doctor               # Check install integrity and dependencies
-directive agents:refresh       # Refresh AGENTS.md managed section
-```
-
-> **Legacy note:** Other `.deft/core/run` verbs (`validate`, `reset`, `upgrade`) remain available during the Python-purge transition; prefer `directive <verb>` where a native handler exists.
 
 ### 4. Build With AI
-
-Ask your AI to build the product/project from your scope xBRIEFs and away you go:
 
 ```
 Read xbrief/PROJECT-DEFINITION.xbrief.json and the scope xBRIEFs in
@@ -224,37 +123,24 @@ xbrief/active/ (or xbrief/pending/ if none are active yet) and implement
 the project following deft/main.md standards.
 ```
 
-### 5. Backlog triage (working an existing backlog)
+## Owners
 
-Already have a populated backlog — an existing project, a brownfield migration, or an upstream issue tracker that has been accumulating? Trigger the refinement workflow's pre-ingest **Phase 0 action menu** with words like **"triage"**, **"work the cache"**, or **"pre-ingest"**. The agent walks each cached candidate through the menu (`accept | reject | defer | needs-ac | mark-duplicate`) and only **accepted** items land in `xbrief/proposed/` — rejected and deferred items are recorded in the audit log without polluting the backlog.
+Extra roles live with their owners — this README does not re-author them.
 
-First populate is scoped via flags so the upstream rate limit does not bite:
+| Role | Owner |
+| --- | --- |
+| First project / tutorial | [content/docs/getting-started.md](./content/docs/getting-started.md) |
+| Support | [content/docs/SUPPORT.md](./content/docs/SUPPORT.md) |
+| Capabilities | [content/docs/capabilities.md](./content/docs/capabilities.md) |
+| Maintainer | [CONTRIBUTING.md](./CONTRIBUTING.md) |
+| Architecture (maintainer-tier) | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) |
+| Vocabulary | [glossary.md](./content/glossary.md) |
 
-```bash
-task triage:bootstrap -- --limit 50 --state open
-```
-
-Why scoped flags? An unbounded populate against a real-sized backlog can drain the shared GitHub GraphQL bucket (see [#976](https://github.com/deftai/directive/issues/976)); the `--limit` / `--state` / `--batch-size` / `--delay-ms` surface keeps the populate inside the REST budget with batched delays. The cache (`task cache:fetch-all`) is REST-backed and reproducible across re-runs — no live `gh issue view` per decision.
-
-Full walkthrough — including the three-tier model (cache → audit log → accepted backlog), the action menu, and how to re-enter triage on subsequent passes — lives in [`docs/getting-started.md` § Working an existing backlog](./content/docs/getting-started.md#working-an-existing-backlog). The verb-to-outcome reference for every `task triage:*` and `task cache:*` command is in [`commands.md`](./content/commands.md#backlog-triage--cache-tasks).
-
-### 6. Feature slicing (breaking a plan into parallel-grabbable issues)
-
-When a spec, PRD, or plan is ready to hand off — especially to multiple agents or collaborators working in parallel — slice it into **tracer-bullet vertical slices**. Trigger the workflow with words like **"slice this into tickets"** or **"break this into GitHub issues"** (the [`deft-directive-gh-slice`](./content/skills/deft-directive-gh-slice/SKILL.md) skill).
-
-- **Vertical, not horizontal** — each slice cuts a narrow but *complete* path through every layer (schema → API → UI → tests) so it is independently demoable. "Implement all the data models" is a horizontal slice and an anti-pattern.
-- **AFK vs HITL** — each slice is tagged AFK (mergeable with no human interaction — preferred) or HITL (needs a decision/review first), and declares what blocks it so issues are filed in dependency order.
-- **Durable cohorts** — when a plan slices into an umbrella + child issues, the cohort is recorded in `<lifecycle-root>/.triage-cache/slices.jsonl` (e.g. `xbrief/.triage-cache/slices.jsonl`; tracked in git, with per-child wave numbers). This lets `task triage:audit --orphans | --slice-stalled | --slice-coverage` detect children stranded when an umbrella closes early, stalled siblings, and per-umbrella completion. Hand-filed cohorts are backfilled with `task slice:record-existing`; list recorded cohorts with `task slice:list`.
-
-Slices become GitHub issues, which triage into xBRIEFs, which flow through the `proposed/ → pending/ → active/ → completed/` lifecycle and can be allocated to parallel agents (the [`deft-directive-swarm`](./content/skills/deft-directive-swarm/SKILL.md) skill). Architectural refactors follow the same slicing path via [`deft-directive-gh-arch`](./content/skills/deft-directive-gh-arch/SKILL.md).
-
-## 🪜 Layered Architecture (at a glance)
-
-Deft separates **how the AI behaves** (the rule ladder) from **what to build** (project requirements). Both are summarised here; the full diagram and rationale live in [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+Backlog triage, slicing, and swarming are in the getting-started tutorial and CONTRIBUTING. Content packs: `task packs:slice -- --list-packs`.
 
 ### Rule Hierarchy
 
-Rules cascade with precedence (highest first). This is the **how-the-AI-behaves** ladder:
+Rules cascade with precedence (highest first):
 
 1. **USER.md** (highest) — your personal overrides (`~/.config/deft/USER.md` on Unix/macOS, `%APPDATA%\deft\USER.md` on Windows)
 2. **xbrief/PROJECT-DEFINITION.xbrief.json** — project-specific rules and identity gestalt
@@ -278,69 +164,19 @@ Deft enforces a feature-branch policy by default (#746, #747): direct commits to
 
 Three enforcement surfaces back the rule:
 
-1. **Git hooks** — `.githooks/pre-commit` and `.githooks/pre-push` invoke `scripts/preflight_branch.py`. Activate them with `task setup` (idempotent `git config core.hooksPath .githooks`); verify with `task verify:hooks-installed`.
-2. **Pre-commit gate** — `task verify:branch` is wired into the `task check` aggregate so any local pre-commit pass flags a default-branch commit before it lands.
-3. **CI** — `.github/workflows/branch-gate.yml` refuses PRs whose `head_ref` equals `base_ref` (catches `master->master` PRs that the local hooks cannot see).
+1. **Git hooks** — `.githooks/pre-commit` and `.githooks/pre-push`. Activate them with `task setup`; verify with `task verify:hooks-installed`.
+2. **Pre-commit gate** — `task verify:branch` is wired into the `task check` aggregate.
+3. **CI** — `.github/workflows/branch-gate.yml` refuses PRs whose `head_ref` equals `base_ref`.
 
 Reconfigure via deterministic tasks (audited to `meta/policy-changes.log`):
 
 - `task policy:show` — display the resolved policy and its source.
 - `task policy:enforce-branches` — set `allowDirectCommitsToMaster=false`.
-- `task policy:allow-direct-commits -- --confirm` — set the typed flag to `true` after the capability-cost disclosure (branch-protection turns OFF). The deft-directive-setup interview Phase 2 Step 9 elicits the same choice with the same disclosure.
+- `task policy:allow-direct-commits -- --confirm` — set the typed flag to `true` after the capability-cost disclosure.
 
-Emergency bypass: set `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1` for the current shell. The legacy `Allow direct commits to master:` narrative key is recognised at read time with a deprecation warning and is migrated to the typed surface on the next `task policy:*` write.
+Emergency bypass: set `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT=1` for the current shell.
 
-See [`glossary.md`](./content/glossary.md) (Branch-protection policy / Policy audit log entries) for the canonical vocabulary and `skills/deft-directive-setup/SKILL.md` Phase 2 Step 9 for the interview disclosure copy.
-
-## 🔒 Security
-
-Security posture, audit cadence, and vulnerability-reporting flow live in [`docs/security.md`](./docs/security.md). The 2026-05-12 supply-chain hygiene cohort (#1069) recorded the inaugural baseline; future quarterly + event-driven audits append new sections rather than rewrite history. To report a vulnerability, file a private advisory at <https://github.com/deftai/directive/security/advisories/new>.
-
-## ⚙️ Platform Requirements
-
-**GitHub** is the primary supported SCM platform. Skills that interact with issues and PRs (`deft-directive-sync`, `deft-directive-swarm`, `deft-directive-review-cycle`, `deft-directive-refinement`, `deft-directive-release`, `deft-directive-gh-slice`, `deft-directive-gh-arch`) require the [GitHub CLI (`gh`)](https://cli.github.com/) to be installed and authenticated. Core framework features (setup, build, rendering, validation) work independently of any SCM platform.
-
-**ghx (recommended proxy):** When `gh` is on PATH, Deft automatically prefers [ghx](https://github.com/brunoborges/ghx) — a read-only cache proxy for `gh` — if it is installed. ghx speeds up repeated GitHub API reads and helps multi-agent swarms stay under rate limits. Install it with consent via `directive setup:ghx` (or `task setup:ghx`); `task setup` nudges you when `gh` is present but `ghx` is missing. Consumer projects only require `gh`; ghx is optional but supported.
-
-The migration path (`deft migrate:xbrief`; legacy `task migrate:vbrief` alias) remains for historical layouts. Non-GitHub users should manually adjust `references[].type` in generated xBRIEFs after migration. **vBRIEF** is legacy — see [UPGRADING.md — xBRIEF rename](./content/UPGRADING.md#xbrief-rename-2034--2110--2907).
-
-## 📦 Content packs
-
-Deft ships versioned **content packs** — structured JSON projections of the framework's own corpus (lessons, skills, rules, strategies, patterns, the swarm spec). They let an agent pull just the slice it needs into context instead of reading a whole `.md` file, and they keep the rendered `.md` files drift-checked against a single canonical source.
-
-```bash
-task packs:slice -- --list-packs          # discover packs (name, version, one-line description)
-task packs:slice lessons -- --list        # list the named slices a pack exposes
-task packs:slice lessons by-tag -- --tag testing   # load just that slice (add --json for structured output)
-```
-
-Slices are addressed by a **stable, versioned slice name** (e.g. `recent`, `by-tag`, `by-trigger`, `by-tier`) — never a JSONPath — and read the canonical pack source directly, so a slice never drifts from what an agent sees. New packs and slices appear automatically in `--list-packs` / `--list` with no rewiring. See [`strategies/README.md`](./content/strategies/README.md) and the pack sources under `packs/` for details.
-
-## 📚 Learn More
-
-- **[Support hub](./content/docs/SUPPORT.md)** — Symptom index to `directive doctor` or this README cold-start
-- **[Getting started](./content/docs/getting-started.md)** — First-project tutorial
-- **[Testimonials by agents](./docs/TESTIMONIALS-AGENTS.md)** — First-person notes from agents on real runtimes (not only humans). *Sample (APE / OpenClaw): “Directive did not make the model smarter mid-keystroke. It constrained and finished the work…”*
-- **[Public docs site](https://deftai.github.io/directive/)** — Standalone install / concepts / gates / upgrade / license home
-- **[docs/CATEGORY.md](./docs/CATEGORY.md)** — Category decision aid: hosts vs skill packs vs practice layer vs orchestrators
-- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** — Current Taskfile-first architecture, rule authority, xBRIEF state, installer layout, and codeStructure projection boundary
-- **[docs/CONCEPTS.md](./docs/CONCEPTS.md)** — Current operating concepts: xBRIEF source of truth, deterministic gates, cache-backed triage, lifecycle folders, and projections
-- **[docs/FILES.md](./docs/FILES.md)** — Current directory tree, task includes, skills, xBRIEF state, and consumer artifact locations
-- **[docs/RELEASING.md](./docs/RELEASING.md)** — Release & smoke-test workflow
-- **[docs/BROWNFIELD.md](./content/docs/BROWNFIELD.md)** — Brownfield adoption (pre-v0.20 → xBRIEF migration; vBRIEF layout is legacy)
-- **[docs/security.md](./docs/security.md)** — Security posture, audit baseline, cadence, vulnerability-reporting flow
-- **[main.md](./main.md)** — Comprehensive AI guidelines (general behavior layer)
-- **[commands.md](./content/commands.md)** — Taskfile-first command lifecycle with compatibility `run` surfaces
-- **[glossary.md](./content/glossary.md)** — Canonical xBRIEF / v0.20+ vocabulary
-
-## 🎓 Philosophy
-
-Deft embodies:
-
-- **Correctness over convenience** — Optimize for long-term quality
-- **Standards over flexibility** — Consistent patterns across projects
-- **Evolution over perfection** — Continuously improve through learning
-- **Clarity over cleverness** — Direct, explicit, maintainable code
+**GitHub** is the primary supported SCM. Core features work without it. **vBRIEF** is legacy — see [UPGRADING.md — xBRIEF rename](./content/UPGRADING.md#xbrief-rename-2034--2110--2907).
 
 ---
 
