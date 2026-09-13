@@ -2402,32 +2402,18 @@ function quotedStringLiterals(payload: string): string[] {
   return dests;
 }
 
-const INTERPRETER_WRITE_MARKERS = [
-  "write",
-  "spurt",
-  "spit",
-  "open(",
-  "dump(",
-  "save(",
-  "mkdir",
-  "unlink",
-  "rename",
-  "put(",
-  "create",
-] as const;
-
-function interpreterPayloadLooksLikeWrite(payload: string): boolean {
-  const lower = payload.toLowerCase();
-  return INTERPRETER_WRITE_MARKERS.some((marker) => lower.includes(marker));
-}
-
+/**
+ * #3764 option 1: quoted path literals in -c/-e/--eval are dest-of-write
+ * without a write-API / language parse. Reads and `print` of protected
+ * paths in those payloads classify unknown. Concatenation stays residual.
+ */
 function harvestInterpreterPayloadDests(words: readonly string[], execIndex: number): string[] {
   const dests: string[] = [];
   for (let i = execIndex + 1; i < words.length; i++) {
     const flag = normalizeToken(words[i] as string);
     if (!INTERPRETER_CODE_FLAGS.has(flag) && flag !== "eval") continue;
     const payload = words[i + 1];
-    if (payload === undefined || !interpreterPayloadLooksLikeWrite(payload)) continue;
+    if (payload === undefined) continue;
     dests.push(...quotedStringLiterals(payload));
   }
   return dests;

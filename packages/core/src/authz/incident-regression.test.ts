@@ -1774,7 +1774,6 @@ describe("destination-visible empty-op fallback (#4005)", () => {
       "git status",
       "cat .deft/authz/state.json",
       "echo ok",
-      "python -c \"print('.deft/authz/grants/evil.json')\"",
       "zip /tmp/backup.zip .deft/authz/state.json",
       "zip /tmp/backup.zip .deft-directive-disable",
       "zip /tmp/backup.zip .deft/approved-scope/story.json",

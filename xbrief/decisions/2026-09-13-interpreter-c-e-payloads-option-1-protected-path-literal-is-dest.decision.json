@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "deft.decision.v1",
+  "id": "interpreter-c-e-payloads-option-1-protected-path-literal-is-dest",
+  "decision": "Interpreter -c/-e payloads: option 1 (protected-path literal is dest-of-write)",
+  "governingRule": {
+    "description": "content/contracts/human-origin-authz.md Fail-closed UAT mutation lease; #3764 Bound-remedy item 3",
+    "path": null,
+    "rfc2119": null
+  },
+  "alternativesConsidered": [
+    {
+      "option": "Leave payload plants as residual (option 2)"
+    },
+    {
+      "option": "Per-language write-vs-read parser"
+    }
+  ],
+  "whyWinner": "Operator selected option 1: no language parser; quoted protected path in -c/-e/--eval is dest-of-write; emit unknown; reads/print deny; concat remains residual.",
+  "confidence": "high",
+  "activeScopeRefs": [
+    "xbrief/active/2026-09-13-3764-appsec-2-high-2-medium-post-3545-uat-shell-residuals-qjsipyt.xbrief.json"
+  ],
+  "timestamp": "2026-09-13T16:58:47Z",
+  "revisitTrigger": "Filesystem-effect dest recovery ships, or false-deny rate on payload reads is unacceptable"
+}

@@ -1471,7 +1471,6 @@ describe("classifyShellAuthzOps (#2944)", () => {
       "git status",
       "cat .deft/authz/state.json",
       "echo ok",
-      "python -c \"print('.deft/authz/grants/evil.json')\"",
       "zip /tmp/backup.zip .deft/authz/state.json",
       "zip /tmp/backup.zip .deft-directive-disable",
       "zip /tmp/backup.zip .deft/approved-scope/story.json",
@@ -1610,7 +1609,6 @@ describe("classifyShellAuthzOps (#2944)", () => {
       "dpkg --info .deft/authz/grants/package.deb",
       "echo DESTDIR=.deft/authz/grants",
       "mkfile 1k /sibling/.deft/authz/grants/evil.json",
-      "python -c \"print('.deft/authz/grants/evil.json')\"",
     ]) {
       expect(classifyShellAuthzOps(command), command).not.toContain("unknown");
     }
@@ -1839,6 +1837,25 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
     ]) {
       expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
     }
+  });
+
+  it("emits unknown for a protected-path literal in -c/-e without a write marker (#3764 option 1)", () => {
+    for (const command of [
+      String.raw`qjs -e 'print(".deft/authz/grants/x.json")'`,
+      String.raw`ipython -c 'print(".deft/authz/state.json")'`,
+      String.raw`python -c "print('.deft/authz/grants/evil.json')"`,
+      String.raw`qjs -e 'print(".deft-directive-disable")'`,
+      String.raw`csi -e 'Console.WriteLine(".deft/approved-scope/story.json")'`,
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+    }
+  });
+
+  it("leaves concatenated payload dests residual (#3764 option 1)", () => {
+    expect(
+      classifyShellAuthzOps(String.raw`qjs -e 'std.open(".deft/" + "authz/grants/x.json","w")'`),
+    ).toEqual([]);
+    expect(classifyShellAuthzOps(String.raw`qjs -e 'print("/tmp/out.json")'`)).toEqual([]);
   });
 
   it("treats jar cf DEST inputs as dest-of-write, not last-positional input", () => {

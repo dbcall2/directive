@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Quoted protected paths in interpreter `-c`/`-e` payloads are dest-of-write (#3764).** Option 1: no write-API gate and no language parser. `print('.deft/authz/…')` classifies `unknown` (grant-immune under UAT). Concatenated paths stay residual. Does not grow named-bin lists. Refs #4188.
+
 ### Added
 
 - **Evaluator-surface disclosure gate and declared consumer test lane (#4386).** `verify:evaluator-surface` fails declared evaluator-definition diffs unless `xbrief/evaluator-surface-disposition.json` records disclosure; prior color is unobserved and a commit-body URL is not #3164 authorization. Inventories #3322 instead of a parallel history detector. `verify:consumer-test-lane` runs `plan.policy.testCommand` or `package.json` `scripts.test` and skips when undeclared; `verify:ac` stays first. Keeps testing.md coverage-population exclusion; no shipped-library default. Consumer agents-entry pins both verbs (#1309) without raising `plan.policy.agentsMdBudget`. Closes #4386. Refs #3156, #3322.
