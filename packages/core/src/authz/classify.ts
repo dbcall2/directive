@@ -2574,11 +2574,20 @@ function isNonPathishTrailingToken(raw: string): boolean {
 
 /** Last dest-of-write positional, walking back past trailing non-path junk (#3764). */
 function lastDestOfWritePositional(words: readonly string[], execIndex: number): string | null {
+  const argv0 = argv0BareName(words, execIndex);
   const nonFlags: string[] = [];
   for (let i = execIndex + 1; i < words.length; i++) {
     const raw = words[i] as string;
     const n = normalizeToken(raw);
     if (n === "--") continue;
+    // cargo --target TRIPLE is a toolchain, not dest-of-write (#4204 negative).
+    if (isCargoArgv0(argv0) && (n === "--target" || n.startsWith("--target="))) {
+      if (n === "--target") {
+        const next = words[i + 1];
+        if (next !== undefined && !normalizeToken(next).startsWith("-")) i++;
+      }
+      continue;
+    }
     if (n.startsWith("-")) continue;
     nonFlags.push(raw);
   }
@@ -4319,6 +4328,23 @@ function redirectDestIsProtectedSettings(command: string): boolean {
 
 const EMPTY_OPS_LAST_DEST_BINS = new Set(["makeself", "puppet", "yq", "dasel", "nomad"]);
 
+/**
+ * Dest-not-last dest-flag leftovers (#4204 / #4218 / #4161 / #3849 / #3918).
+ *
+ * Assumptions: these finite names are dest-of-write when the operand is a
+ * payload-protected path and the segment is not a proven read-shaped first bin.
+ * `--target` is dest-of-write except on cargo (toolchain triple; proven non-dest,
+ * not a named-bin harvest). `--jobname` is the long form of already-harvested
+ * `-jobname`.
+ *
+ * Guarantees: `restic restore --target DEST SNAPSHOT` emits `unknown`;
+ * `cargo --target ${grant}` stays unclassifiable; `grep -w`, `/tmp` dests, and
+ * dest-last generic `-o` stay as they were.
+ *
+ * Non-goals: do not add `--python_out` / `--stream-record` / `-p` / `-out:` to
+ * this set (#3918 bound-remedy). Attached `--*=` payload dests and last-positional
+ * dest-of-write stay on those other producers.
+ */
 const EMPTY_OPS_DEST_FLAGS = new Set([
   "--file",
   "--inplace",
@@ -4327,8 +4353,6 @@ const EMPTY_OPS_DEST_FLAGS = new Set([
   "--destination",
   "-out",
   "-f",
-  // Dest-not-last dest-flag leftovers (#4204 / #4218 / #4161 / #3849). Not --target
-  // (cargo --target is a proven non-dest) and not named-bin harvests.
   "-on",
   "-ox",
   "-og",
@@ -4343,8 +4367,25 @@ const EMPTY_OPS_DEST_FLAGS = new Set([
   "--data-dir",
   "-data-dir",
   "-jobname",
+  "--jobname",
   "-of",
+  "--target",
 ]);
+
+/** cargo `--target` is a toolchain triple, not a restore dest (#4204 negative). */
+function emptyOpsDestFlagIsCargoTarget(
+  flag: string,
+  tokens: readonly string[],
+  index: number,
+): boolean {
+  if (flag !== "--target") return false;
+  const first = firstCommandBin(segmentSliceAround(tokens, index));
+  return first === "cargo" || first === "cargo.exe";
+}
+
+function isCargoArgv0(name: string | null): boolean {
+  return name === "cargo" || name === "cargo.exe";
+}
 
 /** Bare `of=` assignment dests (`dcfldd of=dest`). Not DESTDIR= make harvest. */
 const EMPTY_OPS_DEST_ASSIGNMENT_KEYS = new Set(["of"]);
@@ -4391,6 +4432,8 @@ function destFlagOperandIsProtectedSettings(tokens: readonly string[]): boolean 
     const isEqDest = eqFlag.length > 0 && EMPTY_OPS_DEST_FLAGS.has(eqFlag);
     const isBareDest = EMPTY_OPS_DEST_FLAGS.has(lower);
     if (!isEqDest && !isBareDest) continue;
+    const destFlagName = isEqDest ? eqFlag : lower;
+    if (emptyOpsDestFlagIsCargoTarget(destFlagName, tokens, i)) continue;
     if (emptyOpsSegmentIsReadShaped(tokens, i)) continue;
     if (isEqDest) {
       const val = raw.slice(eq + 1);

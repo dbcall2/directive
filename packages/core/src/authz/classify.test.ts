@@ -1837,6 +1837,10 @@ describe("dest-flag dest-not-last empty-ops (#4204 / #4218 / #4161 / #3918 / #38
         `editcap -w ${dest} in.pcap`,
         `ibtool --compile ${dest} file`,
         `kotlinc-js -output ${dest} src`,
+        `restic restore --target ${dest} SNAPSHOT`,
+        `restic restore --target=${dest} SNAPSHOT`,
+        `pdflatex --jobname ${dest} extra.tex`,
+        `pdflatex --jobname=${dest} extra.tex`,
       ]) {
         expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
       }
@@ -1874,6 +1878,9 @@ describe("dest-flag dest-not-last empty-ops (#4204 / #4218 / #4161 / #3918 / #38
     for (const command of [
       `grep -w ${grant}`,
       `cargo --target ${grant}`,
+      `cargo --target=${grant}`,
+      `cargo build --target ${grant}`,
+      `protoc --python_out=${grant} foo.proto`,
       "cat .deft/authz/state.json",
       "nmap -oN /tmp/out HOST",
       "editcap -w /tmp/out in.pcap",
