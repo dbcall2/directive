@@ -2433,13 +2433,39 @@ function harvestInterpreterPayloadDests(words: readonly string[], execIndex: num
   return dests;
 }
 
-/** jar create/update DEST — dest is `--file` or the first positional, not the last (#3593). */
+/**
+ * Undashed jar create/update cluster (`cf`, `cfm`, `cmf`, `cfe`, `cvfm`).
+ * Mode letter is first (`c`/`u`). Remaining letters are jar short options
+ * (`m` manifest, `e` entrypoint, `f` file, `v` verbose, …). Dest-grammar only;
+ * does not grow a bin catalog (#3593 / #4188).
+ */
+function isJarCompactCreateCluster(token: string): boolean {
+  if (token.length < 1 || token.length > 8) return false;
+  if (token[0] !== "c" && token[0] !== "u") return false;
+  return /^[cuvtfximen0pkas]+$/.test(token);
+}
+
+/** Letters that consume the next positional (`f` archive, `m` manifest, `e` entry). */
+const JAR_OPERAND_LETTERS = new Set(["f", "m", "e"]);
+
+function noteJarCluster(cluster: string, pendingOperands: string[]): boolean {
+  const writes = cluster.includes("c") || cluster.includes("u");
+  for (const ch of cluster) {
+    if (JAR_OPERAND_LETTERS.has(ch)) pendingOperands.push(ch);
+  }
+  return writes;
+}
+
+/**
+ * jar create/update DEST — dest is `--file` or the operand bound to `f`
+ * in compact-cluster letter order (`cmf manifest DEST` vs `cfm DEST manifest`).
+ */
 function jarCreateArchiveDest(words: readonly string[], execIndex: number): string | null {
   const name = argv0BareName(words, execIndex);
   if (name !== "jar" && name !== "fastjar") return null;
   let writesArchive = false;
   let fileDest: string | null = null;
-  let firstPositional: string | null = null;
+  const pendingOperands: string[] = [];
   for (let i = execIndex + 1; i < words.length; i++) {
     const raw = words[i] as string;
     const n = normalizeToken(raw);
@@ -2464,23 +2490,23 @@ function jarCreateArchiveDest(words: readonly string[], execIndex: number): stri
       continue;
     }
     if (n.startsWith("-") && n !== "--") {
-      const cluster = n.replace(/^-*/, "");
-      if (cluster.includes("c") || cluster.includes("u")) writesArchive = true;
+      if (noteJarCluster(n.replace(/^-*/, ""), pendingOperands)) writesArchive = true;
       continue;
     }
     if (!n.startsWith("-") && n !== "--") {
-      // Compact `cf` / `uf` / `cfe` without a dash.
-      if (n.length <= 4 && /^[tfxcuv0-9]+$/.test(n) && (n.includes("c") || n.includes("u"))) {
-        writesArchive = true;
+      if (isJarCompactCreateCluster(n)) {
+        if (noteJarCluster(n, pendingOperands)) writesArchive = true;
         continue;
       }
-      firstPositional = raw;
-      break;
+      const letter = pendingOperands.shift();
+      if (letter === "f" && fileDest === null) {
+        fileDest = zipShellWordLiteral(raw);
+      }
+      if (letter === undefined) break;
     }
   }
   if (!writesArchive) return null;
-  const dest = fileDest ?? (firstPositional !== null ? zipShellWordLiteral(firstPositional) : null);
-  return dest !== null && dest.length > 0 ? dest : null;
+  return fileDest !== null && fileDest.length > 0 ? fileDest : null;
 }
 
 function lastNonFlagWord(words: readonly string[], execIndex: number): string | null {

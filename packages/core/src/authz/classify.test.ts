@@ -1859,6 +1859,24 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
     expect(
       classifyShellAuthzOps("jar --create '--file=.deft/authz/grants/evil.json' input.txt"),
     ).toContain("unknown");
+    expect(classifyShellAuthzOps("jar cfm .deft/authz/grants/evil.jar manifest.mf input")).toEqual([
+      "unknown",
+    ]);
+    expect(classifyShellAuthzOps("jar cfe .deft/authz/grants/evil.jar MainClass input")).toEqual([
+      "unknown",
+    ]);
+    expect(classifyShellAuthzOps("jar cvfm .deft-directive-disable manifest.mf files")).toEqual([
+      "unknown",
+    ]);
+    expect(classifyShellAuthzOps("jar cmf manifest.mf .deft/authz/grants/evil.jar input")).toEqual([
+      "unknown",
+    ]);
+    expect(classifyShellAuthzOps("jar -cmf manifest.mf .deft/authz/grants/evil.jar input")).toEqual(
+      ["unknown"],
+    );
+    expect(classifyShellAuthzOps("jar cef MainClass .deft/authz/grants/evil.jar input")).toEqual([
+      "unknown",
+    ]);
   });
 
   it("keeps git status fail-open", () => {
