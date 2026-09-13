@@ -2310,6 +2310,17 @@ function commandIndexAfterWrappers(words: readonly string[]): number | null {
       }
       break;
     }
+    // timeout DURATION cmd — duration is positional, not a value-flag.
+    if (wrapper === "timeout" && i < words.length) {
+      const duration = normalizeToken(words[i] as string);
+      if (
+        duration.length > 0 &&
+        !duration.startsWith("-") &&
+        wrapperBinName(words[i] as string) === null
+      ) {
+        i++;
+      }
+    }
     if (normalizeToken(words[i] ?? "") === "--") i++;
     if (wrapper === "env") {
       while (i < words.length && isEnvAssign(words[i] as string)) i++;
@@ -2575,13 +2586,15 @@ function isNonPathishTrailingToken(raw: string): boolean {
 /** Last dest-of-write positional, walking back past trailing non-path junk (#3764). */
 function lastDestOfWritePositional(words: readonly string[], execIndex: number): string | null {
   const argv0 = argv0BareName(words, execIndex);
+  const wrappedBin = firstCommandBin(words.slice(execIndex));
+  const cargoArgv = isCargoArgv0(argv0) || isCargoArgv0(wrappedBin);
   const nonFlags: string[] = [];
   for (let i = execIndex + 1; i < words.length; i++) {
     const raw = words[i] as string;
     const n = normalizeToken(raw);
     if (n === "--") continue;
     // cargo --target TRIPLE is a toolchain, not dest-of-write (#4204 negative).
-    if (isCargoArgv0(argv0) && (n === "--target" || n.startsWith("--target="))) {
+    if (cargoArgv && (n === "--target" || n.startsWith("--target="))) {
       if (n === "--target") {
         const next = words[i + 1];
         if (next !== undefined && !normalizeToken(next).startsWith("-")) i++;
@@ -4281,16 +4294,36 @@ const EMPTY_OPS_WRAPPER_BINS = new Set([
   "command",
   "builtin",
   "stdbuf",
+  "timeout",
+  "ionice",
 ]);
 
 function firstCommandBin(tokens: readonly string[]): string {
-  for (const t of tokens) {
-    if (isShellConnectorToken(t)) continue;
-    if (t.includes("=") && /^[A-Za-z_][A-Za-z0-9_]*=/.test(t)) continue;
-    if (t.startsWith("-")) continue;
-    const bin = writeBinName(t).replace(/^\(+/, "");
+  let skipNext = false;
+  let skipDurationOperand = false;
+  for (const raw of tokens) {
+    if (isShellConnectorToken(raw)) continue;
+    if (skipNext) {
+      skipNext = false;
+      continue;
+    }
+    if (raw.includes("=") && /^[A-Za-z_][A-Za-z0-9_]*=/.test(raw)) continue;
+    const lower = raw.toLowerCase();
+    if (raw.startsWith("-")) {
+      const flag = lower.includes("=") ? lower.slice(0, lower.indexOf("=")) : lower;
+      if (!raw.includes("=") && WRAPPER_VALUE_FLAGS.has(flag)) skipNext = true;
+      continue;
+    }
+    if (skipDurationOperand) {
+      skipDurationOperand = false;
+      continue;
+    }
+    const bin = writeBinName(raw).replace(/^\(+/, "");
     if (bin.length === 0) continue;
-    if (EMPTY_OPS_WRAPPER_BINS.has(bin)) continue;
+    if (EMPTY_OPS_WRAPPER_BINS.has(bin) || COMMAND_WRAPPER_BINS.has(bin)) {
+      if (bin === "timeout") skipDurationOperand = true;
+      continue;
+    }
     return bin;
   }
   return "";
@@ -4338,8 +4371,9 @@ const EMPTY_OPS_LAST_DEST_BINS = new Set(["makeself", "puppet", "yq", "dasel", "
  * `-jobname`.
  *
  * Guarantees: `restic restore --target DEST SNAPSHOT` emits `unknown`;
- * `cargo --target ${grant}` stays unclassifiable; `grep -w`, `/tmp` dests, and
- * dest-last generic `-o` stay as they were.
+ * `cargo --target ${grant}` (including `timeout`/`ionice`/`sudo`/`env` wrappers)
+ * stays unclassifiable; `grep -w`, `/tmp` dests, and dest-last generic `-o`
+ * stay as they were.
  *
  * Non-goals: do not add `--python_out` / `--stream-record` / `-p` / `-out:` to
  * this set (#3918 bound-remedy). Attached `--*=` payload dests and last-positional
