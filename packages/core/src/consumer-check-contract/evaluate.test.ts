@@ -52,6 +52,9 @@ tasks:
   evaluator-surface:
     cmds:
       - echo ok
+  observable-scope:
+    cmds:
+      - echo ok
   consumer-test-lane:
     cmds:
       - echo ok

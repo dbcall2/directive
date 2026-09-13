@@ -32,6 +32,9 @@ tasks:
   evaluator-surface:
     cmds:
       - echo ok
+  observable-scope:
+    cmds:
+      - echo ok
   orphan-active:
     cmds:
       - echo ok
