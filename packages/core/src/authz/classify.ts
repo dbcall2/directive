@@ -4155,8 +4155,9 @@ export function classifyShellAuthzOps(command: string): AuthzClassifiedOp[] {
   }
   // #4005 / #4188: a verified protected dest-of-write must not be hidden by
   // unrelated always-allowed token matches such as an input named `pytest`.
-  // Dest-flag plants stay settings (grantable). Zip first-positional and
-  // unknown-argv0 last-positional dests emit unknown (grant-immune under UAT).
+  // Generic dest-flag plants stay settings (grantable). Zip first-positional,
+  // unknown-argv0 last-positional, and dest-not-last dest-flag / of= empty-ops
+  // emit unknown (grant-immune under UAT).
   // #3593: jar archive dest is dest-of-write even when `--file=` also looks
   // like a dest-flag (genericProtectedDests skips jar; keep unknown if settings
   // still landed some other way).
@@ -4247,21 +4248,71 @@ const EMPTY_OPS_DEST_FLAGS = new Set([
   "--destination",
   "-out",
   "-f",
+  // Dest-not-last dest-flag leftovers (#4204 / #4218 / #4161 / #3849). Not --target
+  // (cargo --target is a proven non-dest) and not named-bin harvests.
+  "-on",
+  "-ox",
+  "-og",
+  "-oa",
+  "-os",
+  "-w",
+  "--result-file",
+  "-r",
+  "--compile",
+  "-output",
+  "--out-file",
+  "--data-dir",
+  "-data-dir",
+  "-jobname",
+  "-of",
 ]);
+
+/** Bare `of=` assignment dests (`dcfldd of=dest`). Not DESTDIR= make harvest. */
+const EMPTY_OPS_DEST_ASSIGNMENT_KEYS = new Set(["of"]);
+
+function emptyOpsSegmentIsReadShaped(tokens: readonly string[], index: number): boolean {
+  const first = firstCommandBin(segmentSliceAround(tokens, index));
+  return READ_SHAPED_FILE_FLAG_BINS.has(first) || DEST_ASSIGNMENT_NON_WRITER_FIRST_BINS.has(first);
+}
 
 function destFlagOperandIsProtectedSettings(tokens: readonly string[]): boolean {
   for (let i = 0; i < tokens.length; i++) {
     const raw = tokens[i] as string;
+    const lower = raw.toLowerCase();
     const eq = raw.indexOf("=");
-    const eqFlag = raw.startsWith("--") && eq > 1 ? raw.slice(0, eq).toLowerCase() : "";
-    const flag = raw.toLowerCase();
-    const isEqDest = eqFlag.length > 0 && EMPTY_OPS_DEST_FLAGS.has(eqFlag);
-    const isBareDest = EMPTY_OPS_DEST_FLAGS.has(flag);
-    if (!isEqDest && !isBareDest) continue;
-    const first = firstCommandBin(segmentSliceAround(tokens, i));
-    if (READ_SHAPED_FILE_FLAG_BINS.has(first) || DEST_ASSIGNMENT_NON_WRITER_FIRST_BINS.has(first)) {
+    const colonPrefix = lower.startsWith("-out:")
+      ? "-out:"
+      : lower.startsWith("json:")
+        ? "json:"
+        : "";
+
+    // `of=dest` (no leading dash) and `-out:dest` / `json:DEST` attached dests.
+    if (eq > 0 && !raw.startsWith("-")) {
+      const key = raw.slice(0, eq).toLowerCase();
+      if (
+        EMPTY_OPS_DEST_ASSIGNMENT_KEYS.has(key) &&
+        !emptyOpsSegmentIsReadShaped(tokens, i) &&
+        pathishIsProtectedMutationDest(pathishToken(raw.slice(eq + 1)))
+      ) {
+        return true;
+      }
       continue;
     }
+    if (colonPrefix.length > 0 && raw.length > colonPrefix.length) {
+      if (
+        !emptyOpsSegmentIsReadShaped(tokens, i) &&
+        pathishIsProtectedMutationDest(pathishToken(raw.slice(colonPrefix.length)))
+      ) {
+        return true;
+      }
+      continue;
+    }
+
+    const eqFlag = eq > 1 && raw.startsWith("-") ? raw.slice(0, eq).toLowerCase() : "";
+    const isEqDest = eqFlag.length > 0 && EMPTY_OPS_DEST_FLAGS.has(eqFlag);
+    const isBareDest = EMPTY_OPS_DEST_FLAGS.has(lower);
+    if (!isEqDest && !isBareDest) continue;
+    if (emptyOpsSegmentIsReadShaped(tokens, i)) continue;
     if (isEqDest) {
       const val = raw.slice(eq + 1);
       if (pathishIsProtectedMutationDest(pathishToken(val))) return true;
