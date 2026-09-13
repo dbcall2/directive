@@ -1841,11 +1841,11 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
 
   it("emits unknown for a protected-path literal in -c/-e without a write marker (#3764 option 1)", () => {
     for (const command of [
-      String.raw`qjs -e 'print(".deft/authz/grants/x.json")'`,
-      String.raw`ipython -c 'print(".deft/authz/state.json")'`,
-      String.raw`python -c "print('.deft/authz/grants/evil.json')"`,
-      String.raw`qjs -e 'print(".deft-directive-disable")'`,
-      String.raw`csi -e 'Console.WriteLine(".deft/approved-scope/story.json")'`,
+      "qjs -e 'print(\".deft/authz/grants/x.json\")'",
+      "ipython -c 'print(\".deft/authz/state.json\")'",
+      "python -c \"print('.deft/authz/grants/evil.json')\"",
+      "qjs -e 'print(\".deft-directive-disable\")'",
+      "csi -e 'Console.WriteLine(\".deft/approved-scope/story.json\")'",
     ]) {
       expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
     }
@@ -1853,9 +1853,9 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
 
   it("leaves concatenated payload dests residual (#3764 option 1)", () => {
     expect(
-      classifyShellAuthzOps(String.raw`qjs -e 'std.open(".deft/" + "authz/grants/x.json","w")'`),
+      classifyShellAuthzOps('qjs -e \'std.open(".deft/" + "authz/grants/x.json","w")\''),
     ).toEqual([]);
-    expect(classifyShellAuthzOps(String.raw`qjs -e 'print("/tmp/out.json")'`)).toEqual([]);
+    expect(classifyShellAuthzOps("qjs -e 'print(\"/tmp/out.json\")'")).toEqual([]);
   });
 
   it("emits unknown for dest-flag values including attached equals (#3764)", () => {
@@ -1891,7 +1891,9 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
       "unknown",
     ]);
     expect(classifyShellAuthzOps("cargo build --out-dir .deft/authz/grants")).toEqual(["unknown"]);
-    expect(classifyShellAuthzOps("npm run build --out-dir .deft/authz/grants")).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps("npm run build --out-dir .deft/authz/grants")).toEqual([
+      "unknown",
+    ]);
     expect(classifyShellAuthzOps("notabin build --out-dir .deft-directive-disable")).toEqual([
       "unknown",
     ]);
@@ -1900,9 +1902,9 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
   });
 
   it("keeps protected sources as inputs when the last path is ordinary (#3764)", () => {
-    expect(
-      classifyShellAuthzOps("ffmpeg -i .deft/authz/grants/x.json /tmp/out.wav"),
-    ).not.toContain("unknown");
+    expect(classifyShellAuthzOps("ffmpeg -i .deft/authz/grants/x.json /tmp/out.wav")).not.toContain(
+      "unknown",
+    );
     expect(
       classifyShellAuthzOps("typst compile .deft/authz/grants/x.json /tmp/out.pdf"),
     ).not.toContain("unknown");
