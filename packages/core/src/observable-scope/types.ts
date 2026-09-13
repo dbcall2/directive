@@ -1,0 +1,92 @@
+/**
+ * Observable UI scope contract types (#4495).
+ *
+ * First ship: committed markup/HTML/JSX/template structure only.
+ * Runtime JS default-tab state is out of scope unless encoded in markup
+ * (`selected` / `aria-selected`).
+ */
+
+export const OBSERVABLE_CHANGE_PLAN_KEY = "x-directive/observableChange";
+export const OBSERVABLE_SCOPE_DIR = ".deft/observable-scope";
+export const OBSERVABLE_UI_POLICY_REL = ".deft/observable-ui.policy.json";
+export const OBSERVABLE_UI_POLICY_SCHEMA = "deft.observable-ui.policy.v1";
+export const OBSERVABLE_SCOPE_RECORD_SCHEMA = "deft.observable-scope.v1";
+export const OBSERVABLE_UI_ARTIFACT_SCHEMA = "deft.observable-ui.v1";
+export const OBSERVABLE_UI_PROVIDER = "committed-markup";
+export const OBSERVABLE_UI_PROVIDER_VERSION = 1;
+export const OBSERVABLE_SCOPE_REMEDIATION =
+  "Restore the baseline markup structure or amend the observable scope through explicit human-presence mint (scope:record-observable-scope).";
+
+export const STRUCTURE_KINDS = [
+  "tab",
+  "heading",
+  "control",
+  "table-column",
+  "landmark",
+  "container",
+] as const;
+
+export type StructureKind = (typeof STRUCTURE_KINDS)[number];
+
+export const CHANGE_OPS = ["add", "remove", "reorder", "rename"] as const;
+export type ChangeOp = (typeof CHANGE_OPS)[number];
+
+export interface StructureFact {
+  readonly kind: StructureKind;
+  /** Stable locator, e.g. `tab:Overview`, `heading:1:Dashboard`, `control:button:Save`. */
+  readonly id: string;
+}
+
+export interface SurfaceSnapshot {
+  readonly path: string;
+  readonly facts: readonly StructureFact[];
+}
+
+export interface ObservableArtifact {
+  readonly schema: typeof OBSERVABLE_UI_ARTIFACT_SCHEMA;
+  readonly provider: typeof OBSERVABLE_UI_PROVIDER;
+  readonly version: typeof OBSERVABLE_UI_PROVIDER_VERSION;
+  readonly surfaces: readonly SurfaceSnapshot[];
+}
+
+export interface AllowedChange {
+  readonly kind: StructureKind;
+  readonly op: ChangeOp;
+  readonly name?: string;
+}
+
+export interface ObservableScopeHumanApproval {
+  readonly kind: string;
+  readonly actor: string;
+  readonly mintedAt: string;
+  readonly mintedVia?: string;
+}
+
+export interface ObservableScopeRecord {
+  readonly schema: typeof OBSERVABLE_SCOPE_RECORD_SCHEMA;
+  readonly planId: string;
+  readonly xbriefRelPath: string;
+  readonly approvedAt: string;
+  readonly changeKind: "fields-only";
+  readonly oracle: {
+    readonly provider: typeof OBSERVABLE_UI_PROVIDER;
+    readonly version: typeof OBSERVABLE_UI_PROVIDER_VERSION;
+  };
+  readonly allowedChanges: readonly AllowedChange[];
+  readonly mustPreserve?: readonly AllowedChange[];
+  readonly humanApproval: ObservableScopeHumanApproval;
+  readonly contractDigest: string;
+}
+
+export interface ObservableUiPolicy {
+  readonly schema: typeof OBSERVABLE_UI_POLICY_SCHEMA;
+  readonly surfaces: readonly string[];
+}
+
+export interface StructureDelta {
+  readonly path: string;
+  readonly kind: StructureKind;
+  readonly op: ChangeOp;
+  readonly name: string;
+  readonly id: string;
+}

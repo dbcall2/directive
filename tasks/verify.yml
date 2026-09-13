@@ -309,6 +309,16 @@ tasks:
         vars:
           ENGINE_CMD: 'verify:scope-provenance --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
 
+  observable-scope:
+    desc: "Fail-closed observable UI scope contract (#4495): minted allowedChanges versus committed-markup oracle on base-pinned surfaces. Internal skip when policy is unset (not universal UI coverage). Flags: --origin-ref / --staged / --quiet. Three-state exit (0 skip or pass / 1 unlisted delta or missing mint / 2 config). Does not accept --base-ref."
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'verify:observable-scope --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
+
   evaluator-surface:
     desc: "Declared evaluator-surface diff gate (#4386 / #3156): fail when Taskfile.yml, tasks/verify.yml, gate-lists, coverage config, or the detector itself changes without xbrief/evaluator-surface-disposition.json covering those paths. Disclosure only -- a commit-body issue/PR URL is not #3164 authorization. Prior color is unobserved. Flags: --base-ref / --staged / --path / --quiet. Three-state exit (0 skip or disclosed / 1 missing disposition / 2 config)."
     dir: '{{.USER_WORKING_DIR}}'

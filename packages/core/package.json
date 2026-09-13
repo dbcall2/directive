@@ -59,6 +59,10 @@
       "types": "./dist/evaluator-surface/index.d.ts",
       "default": "./dist/evaluator-surface/index.js"
     },
+    "./observable-scope": {
+      "types": "./dist/observable-scope/index.d.ts",
+      "default": "./dist/observable-scope/index.js"
+    },
     "./consumer-test-lane": {
       "types": "./dist/consumer-test-lane/index.d.ts",
       "default": "./dist/consumer-test-lane/index.js"

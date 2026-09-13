@@ -1,0 +1,179 @@
+import { describe, expect, it } from "vitest";
+import { evaluateObservableScope } from "./evaluate.js";
+import { buildObservableScopeRecord } from "./mint.js";
+import { OBSERVABLE_SCOPE_REMEDIATION, OBSERVABLE_UI_POLICY_REL } from "./types.js";
+
+const BASE_HTML = `
+<nav><button role="tab" aria-selected="true">Overview</button><button role="tab">Details</button></nav>
+<h1>Dashboard</h1>
+<input name="title" />
+<button>Save</button>
+<table><tr><th>Name</th><th>Status</th></tr></table>
+<section id="card"></section>
+`;
+
+const policy = JSON.stringify({
+  schema: "deft.observable-ui.policy.v1",
+  surfaces: ["ui.html"],
+});
+
+const human = {
+  kind: "operator" as const,
+  actor: "david",
+  mintedAt: "2026-09-13T00:00:00Z",
+  mintedVia: "scope:record-observable-scope",
+};
+
+function record(allowed: { kind: "control"; op: "add"; name: string }[]) {
+  const rec = buildObservableScopeRecord({
+    planId: "story-1",
+    xbriefRelPath: "xbrief/active/story.xbrief.json",
+    allowedChanges: allowed,
+    humanApproval: human,
+  });
+  if ("error" in rec) throw new Error(rec.error);
+  return rec;
+}
+
+function files(headHtml: string) {
+  return {
+    projectRoot: "/tmp/observable-scope-eval",
+    mergeBase: "base",
+    changedFiles: ["ui.html"],
+    policyTextAtBase: policy,
+    recordTextsAtBase: new Map([
+      [
+        ".deft/observable-scope/story-1.json",
+        `${JSON.stringify(
+          record([
+            { kind: "control", op: "add", name: "email" },
+            { kind: "control", op: "add", name: "phone" },
+          ]),
+          null,
+          2,
+        )}\n`,
+      ],
+    ]),
+    readAtBase: (rel: string) => (rel === "ui.html" ? BASE_HTML : null),
+    readAtHead: (rel: string) => (rel === "ui.html" ? headHtml : null),
+  };
+}
+
+describe("evaluateObservableScope (#4495)", () => {
+  it("skips when surfaces policy is unset on the merge base", () => {
+    const result = evaluateObservableScope({
+      projectRoot: "/tmp/x",
+      mergeBase: "base",
+      changedFiles: ["ui.html"],
+      policyTextAtBase: null,
+    });
+    expect(result.code).toBe(0);
+    expect(result.skipped).toBe(true);
+    expect(result.message).toMatch(/not yet universal UI coverage/);
+    expect(result.message).toMatch(/internal skip/);
+  });
+
+  it("skips unmatched non-UI paths", () => {
+    const result = evaluateObservableScope({
+      projectRoot: "/tmp/x",
+      mergeBase: "base",
+      changedFiles: ["src/app.ts"],
+      policyTextAtBase: policy,
+    });
+    expect(result.code).toBe(0);
+    expect(result.skipped).toBe(true);
+  });
+
+  it("fails missing mint on a matched UI surface", () => {
+    const result = evaluateObservableScope({
+      projectRoot: "/tmp/x",
+      mergeBase: "base",
+      changedFiles: ["ui.html"],
+      policyTextAtBase: policy,
+      recordTextsAtBase: new Map(),
+      readAtBase: () => BASE_HTML,
+      readAtHead: () => BASE_HTML,
+    });
+    expect(result.code).toBe(1);
+    expect(result.message).toContain(OBSERVABLE_SCOPE_REMEDIATION);
+  });
+
+  it("fails unlisted tab/heading/control/column/landmark/container deltas", () => {
+    const head = `
+<nav><button role="tab">Details</button><button role="tab" aria-selected="true">Overview</button></nav>
+<h1>Renamed</h1>
+<input name="title" />
+<input name="email" />
+<input name="phone" />
+<button>Save</button>
+<button>Delete</button>
+<table><tr><th>Name</th><th>Owner</th></tr></table>
+<footer></footer>
+<section id="card"></section>
+<article id="panel"></article>
+`;
+    const result = evaluateObservableScope(files(head));
+    expect(result.code).toBe(1);
+    expect(result.message).toContain(OBSERVABLE_SCOPE_REMEDIATION);
+    expect(result.message).toMatch(/unlisted structure delta/);
+  });
+
+  it("passes when only minted bound-field markup changes", () => {
+    const head = `
+<nav><button role="tab" aria-selected="true">Overview</button><button role="tab">Details</button></nav>
+<h1>Dashboard</h1>
+<input name="title" />
+<input name="email" />
+<input name="phone" />
+<button>Save</button>
+<table><tr><th>Name</th><th>Status</th></tr></table>
+<section id="card"></section>
+`;
+    const result = evaluateObservableScope(files(head));
+    expect(result.code).toBe(0);
+    expect(result.skipped).not.toBe(true);
+  });
+
+  it("fails same-PR mint rewrite", () => {
+    const result = evaluateObservableScope({
+      ...files(BASE_HTML),
+      changedFiles: ["ui.html", ".deft/observable-scope/story-1.json"],
+    });
+    expect(result.code).toBe(1);
+    expect(result.message).toMatch(/same-PR rewrite/);
+  });
+
+  it("config-fails invalid policy", () => {
+    const result = evaluateObservableScope({
+      projectRoot: "/tmp/x",
+      mergeBase: "base",
+      changedFiles: ["ui.html"],
+      policyTextAtBase: "{not json",
+    });
+    expect(result.code).toBe(2);
+  });
+
+  it("config-fails worker-declared baselineRef on the mint record", () => {
+    const rec = record([{ kind: "control", op: "add", name: "email" }]);
+    const result = evaluateObservableScope({
+      projectRoot: "/tmp/x",
+      mergeBase: "base",
+      changedFiles: ["ui.html"],
+      policyTextAtBase: policy,
+      recordTextsAtBase: new Map([
+        [
+          ".deft/observable-scope/story-1.json",
+          JSON.stringify({ ...rec, baselineRef: "origin/dev" }),
+        ],
+      ]),
+    });
+    expect(result.code).toBe(2);
+    expect(result.message).toMatch(/baselineRef/);
+  });
+});
+
+describe("policy path constant", () => {
+  it("is base-pinned under .deft", () => {
+    expect(OBSERVABLE_UI_POLICY_REL).toBe(".deft/observable-ui.policy.json");
+  });
+});
