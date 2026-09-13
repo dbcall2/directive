@@ -5182,3 +5182,362 @@ describe("MCP dest-bearing writes share inspectMutationGates (#3593)", () => {
     expect(decision).toMatchObject({ verdict: "deny", code: "ritual-not-ready" });
   });
 });
+
+describe("uninspectable lifecycle identity rewrite (#4431)", () => {
+  it("fails closed on a chained session:start instead of allowing a mint", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: { command: "deft session:start && echo ok" },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-unavailable",
+    });
+    expect(decision.message).toContain("not inspectable");
+    expect(decision.message).toContain("--session-id=host:claude:v1:c2Vzc2lvbi1h");
+    expect(decision.updatedInput).toBeUndefined();
+  });
+
+  it("fails closed on a redirected session:ready", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: { command: "deft session:ready 2>&1" },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision.verdict).toBe("deny");
+    expect(decision.code).toBe("occupancy-identity-unavailable");
+    expect(decision.message).toContain("session:ready");
+  });
+
+  it("allows a chained session:start that already names the matching owner", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: {
+            command: "deft session:start --session-id=host:claude:v1:c2Vzc2lvbi1h && echo ok",
+          },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision.verdict).toBe("allow");
+    expect(decision.updatedInput).toBeUndefined();
+  });
+
+  it("denies a chained session:start that names a foreign owner", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: {
+            command: "deft session:start --session-id=other-owner && echo ok",
+          },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision.verdict).toBe("deny");
+    expect(decision.code).toBe("occupancy-identity-conflict");
+  });
+
+  it("does not deny echo or grep of lifecycle syntax", () => {
+    for (const command of [
+      'echo "deft session:start"',
+      'grep "task occupancy:steal" file',
+      "echo hi # deft session:start",
+    ]) {
+      const decision = decideHook(
+        {
+          host: "claude",
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: {
+            tool_name: "Bash",
+            session_id: "session-a",
+            tool_input: { command },
+          },
+          environ: {},
+        },
+        readySeams(),
+      );
+      expect(decision.verdict, command).toBe("allow");
+    }
+  });
+
+  it("denies a chained session:start whose matching --session-id is on a sibling", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: {
+            command: "deft session:start && other-command --session-id=host:claude:v1:c2Vzc2lvbi1h",
+          },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision.verdict).toBe("deny");
+    expect(decision.code).toBe("occupancy-identity-unavailable");
+  });
+
+  it("denies a quoted executable lifecycle command that omits --session-id", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: { command: '"deft" session:start && echo ok' },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision.verdict).toBe("deny");
+    expect(decision.code).toBe("occupancy-identity-unavailable");
+  });
+
+  it("fails closed on an assignment-prefixed chained session:start", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: { command: "FOO=bar deft session:start && echo ok" },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({
+      verdict: "deny",
+      code: "occupancy-identity-unavailable",
+    });
+    expect(decision.message).toContain("not inspectable");
+    expect(decision.message).toContain("--session-id=host:claude:v1:c2Vzc2lvbi1h");
+  });
+
+  it("allows an assignment-prefixed chained session:start that already names the matching owner", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: {
+            command:
+              "FOO=bar deft session:start --session-id=host:claude:v1:c2Vzc2lvbi1h && echo ok",
+          },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision.verdict).toBe("allow");
+    expect(decision.updatedInput).toBeUndefined();
+  });
+
+  it("binds an assignment-prefixed exact session:start like the unprefixed command", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: { command: "FOO=bar deft session:start" },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({
+      verdict: "allow",
+      updatedInput: {
+        command: "FOO=bar deft session:start --session-id=host:claude:v1:c2Vzc2lvbi1h",
+      },
+    });
+  });
+
+  it("denies a compound command whose later lifecycle segment names a foreign owner", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Bash",
+          session_id: "session-a",
+          tool_input: {
+            command:
+              "deft session:start --session-id=host:claude:v1:c2Vzc2lvbi1h && deft session:end --session-id=foreign",
+          },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision.verdict).toBe("deny");
+    expect(decision.code).toBe("occupancy-identity-conflict");
+  });
+
+  it("fails closed on newline, single ampersand, and grouped session:start", () => {
+    for (const command of [
+      "echo ready\ndeft session:start",
+      "echo ready & deft session:start",
+      "(deft session:start)",
+    ]) {
+      const decision = decideHook(
+        {
+          host: "claude",
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: {
+            tool_name: "Bash",
+            session_id: "session-a",
+            tool_input: { command },
+          },
+          environ: {},
+        },
+        readySeams(),
+      );
+      expect(decision.verdict, command).toBe("deny");
+      expect(decision.code, command).toBe("occupancy-identity-unavailable");
+      expect(decision.message, command).toContain("session:start");
+    }
+  });
+
+  it("allows newline, single ampersand, and grouped session:start that already name the matching owner", () => {
+    for (const command of [
+      "echo ready\ndeft session:start --session-id=host:claude:v1:c2Vzc2lvbi1h",
+      "echo ready & deft session:start --session-id=host:claude:v1:c2Vzc2lvbi1h",
+      "(deft session:start --session-id=host:claude:v1:c2Vzc2lvbi1h)",
+    ]) {
+      const decision = decideHook(
+        {
+          host: "claude",
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: {
+            tool_name: "Bash",
+            session_id: "session-a",
+            tool_input: { command },
+          },
+          environ: {},
+        },
+        readySeams(),
+      );
+      expect(decision.verdict, command).toBe("allow");
+      expect(decision.updatedInput, command).toBeUndefined();
+    }
+  });
+
+  it("fails closed on brace-group and then-branch session:start", () => {
+    for (const command of ["{ deft session:start; }", "if true; then deft session:start; fi"]) {
+      const decision = decideHook(
+        {
+          host: "claude",
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: {
+            tool_name: "Bash",
+            session_id: "session-a",
+            tool_input: { command },
+          },
+          environ: {},
+        },
+        readySeams(),
+      );
+      expect(decision.verdict, command).toBe("deny");
+      expect(decision.code, command).toBe("occupancy-identity-unavailable");
+      expect(decision.message, command).toContain("session:start");
+    }
+  });
+
+  it("allows brace-group and then-branch session:start that already name the matching owner", () => {
+    for (const command of [
+      "{ deft session:start --session-id=host:claude:v1:c2Vzc2lvbi1h; }",
+      "if true; then deft session:start --session-id=host:claude:v1:c2Vzc2lvbi1h; fi",
+    ]) {
+      const decision = decideHook(
+        {
+          host: "claude",
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: {
+            tool_name: "Bash",
+            session_id: "session-a",
+            tool_input: { command },
+          },
+          environ: {},
+        },
+        readySeams(),
+      );
+      expect(decision.verdict, command).toBe("allow");
+      expect(decision.updatedInput, command).toBeUndefined();
+    }
+  });
+
+  it("does not deny argument-position deft text as a lifecycle command", () => {
+    for (const command of ["echo deft session:start", "grep deft session:start file"]) {
+      const decision = decideHook(
+        {
+          host: "claude",
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: {
+            tool_name: "Bash",
+            session_id: "session-a",
+            tool_input: { command },
+          },
+          environ: {},
+        },
+        readySeams(),
+      );
+      expect(decision.verdict, command).toBe("allow");
+    }
+  });
+});
