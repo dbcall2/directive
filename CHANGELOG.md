@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- **Dest-of-write grammar leftover on UAT Shell (#3764).** Interpreter `-c`/`-e` quoted protected paths (option 1, no write-API gate), dest-flag values (`--print-to-pdf=` / `--target-dir` / `--distpath` / `-of` / `-C`), trailing non-path junk after a last-positional dest, and `TEST_BINS` (`task`/`cargo`/`npm`) no longer skip dest-of-write. Emits grant-immune `unknown`, not `settings`. Concatenated payload paths stay residual. Finding 4 CHANGELOG containment stays split. Refs #4188.
+- **Dest-of-write grammar leftover on UAT Shell (#3764).** Under active UAT, more Shell forms that write a protected path (grant store, kill-switch, approved-scope) now deny as grant-immune `unknown`: quoted paths inside interpreter `-c`/`-e`, dest-flag values such as `--print-to-pdf=` / `--target-dir`, a protected last dest followed by trailing junk (`--quiet 1`), and `task`/`cargo`/`npm --out-dir`. `git -C` / `make -C` stay cwd, not dest. Bare output filenames (`out.wav`) stay outputs. Concatenated payload paths stay residual. Finding 4 CHANGELOG containment stays split. Refs #4188.
 
 ### Added
 

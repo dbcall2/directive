@@ -2510,8 +2510,16 @@ const UNKNOWN_DEST_OF_WRITE_FLAGS = new Set([
   "--output",
 ]);
 
-function harvestUnknownDestFlagValues(words: readonly string[], execIndex: number): string[] {
+/** `-C DIR` is dest-of-write only for these extractors. `git`/`make`/`tar` use `-C` as cwd. */
+const UNKNOWN_DEST_OF_WRITE_C_BINS = new Set(["binwalk"]);
+
+function harvestUnknownDestFlagValues(
+  words: readonly string[],
+  execIndex: number,
+  argv0Name: string | null,
+): string[] {
   const dests: string[] = [];
+  const harvestDashC = argv0Name !== null && UNKNOWN_DEST_OF_WRITE_C_BINS.has(argv0Name);
   for (let i = execIndex + 1; i < words.length; i++) {
     const raw = words[i] as string;
     const eq = raw.indexOf("=");
@@ -2519,12 +2527,15 @@ function harvestUnknownDestFlagValues(words: readonly string[], execIndex: numbe
       const flagTok = raw.slice(0, eq);
       const value = raw.slice(eq + 1);
       if (value.length === 0) continue;
-      if (flagTok === "-C" || UNKNOWN_DEST_OF_WRITE_FLAGS.has(normalizeToken(flagTok))) {
-        dests.push(value);
+      if (flagTok === "-C") {
+        if (harvestDashC) dests.push(value);
+        continue;
       }
+      if (UNKNOWN_DEST_OF_WRITE_FLAGS.has(normalizeToken(flagTok))) dests.push(value);
       continue;
     }
     if (raw === "-C") {
+      if (!harvestDashC) continue;
       const next = words[i + 1];
       if (next === undefined) continue;
       const nn = normalizeToken(next);
@@ -2545,11 +2556,20 @@ function harvestUnknownDestFlagValues(words: readonly string[], execIndex: numbe
   return dests;
 }
 
+function hasOrdinaryFileExtension(lit: string): boolean {
+  const slash = Math.max(lit.lastIndexOf("/"), lit.lastIndexOf("\\"));
+  const base = slash >= 0 ? lit.slice(slash + 1) : lit;
+  const dot = base.lastIndexOf(".");
+  return dot > 0 && dot < base.length - 1;
+}
+
 function isNonPathishTrailingToken(raw: string): boolean {
   if (isRelativePayloadProtectedDest(raw)) return false;
   const lit = zipShellWordLiteral(raw);
   if (lit === null) return true;
-  return !lit.includes("/") && !lit.includes("\\");
+  if (lit.includes("/") || lit.includes("\\")) return false;
+  if (hasOrdinaryFileExtension(lit)) return false;
+  return true;
 }
 
 /** Last dest-of-write positional, walking back past trailing non-path junk (#3764). */
@@ -2661,7 +2681,7 @@ function hasProtectedUnprovenReadOnlyDestOfWrite(command: string): boolean {
     for (const dest of harvestInterpreterPayloadDests(segment.words, segment.execIndex)) {
       if (isRelativePayloadProtectedDest(dest)) return true;
     }
-    for (const dest of harvestUnknownDestFlagValues(segment.words, segment.execIndex)) {
+    for (const dest of harvestUnknownDestFlagValues(segment.words, segment.execIndex, name)) {
       if (isRelativePayloadProtectedDest(dest)) return true;
     }
     const pathQualified = literal !== null && argv0IsPathQualified(literal);
@@ -2713,8 +2733,9 @@ export function harvestDestsOfWriteForRealpath(command: string): string[] {
     for (const interp of harvestInterpreterPayloadDests(segment.words, segment.execIndex)) {
       dests.push(interp);
     }
-    for (const flagDest of harvestUnknownDestFlagValues(segment.words, segment.execIndex)) {
-      dests.push(flagDest);
+    for (const flagDest of harvestUnknownDestFlagValues(segment.words, segment.execIndex, name)) {
+      const lit = zipShellWordLiteral(flagDest);
+      if (lit !== null && lit.length > 0) dests.push(lit);
     }
     const last = lastDestOfWritePositional(segment.words, segment.execIndex);
     if (last === null || zipShellWordHasExpansion(last)) continue;

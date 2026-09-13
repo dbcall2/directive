@@ -1905,9 +1905,18 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
     expect(classifyShellAuthzOps("ffmpeg -i .deft/authz/grants/x.json /tmp/out.wav")).not.toContain(
       "unknown",
     );
+    expect(classifyShellAuthzOps("ffmpeg -i .deft/authz/grants/x.json out.wav")).not.toContain(
+      "unknown",
+    );
     expect(
       classifyShellAuthzOps("typst compile .deft/authz/grants/x.json /tmp/out.pdf"),
     ).not.toContain("unknown");
+  });
+
+  it("does not treat git/make -C as dest-of-write (#3764)", () => {
+    expect(classifyShellAuthzOps("git -C .deft/authz status")).not.toContain("unknown");
+    expect(classifyShellAuthzOps("make -C .deft/authz all")).not.toContain("unknown");
+    expect(classifyShellAuthzOps("binwalk -e -C .deft/authz/grants f.bin")).toEqual(["unknown"]);
   });
 
   it("treats jar cf DEST inputs as dest-of-write, not last-positional input", () => {
