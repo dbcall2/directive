@@ -10,7 +10,7 @@ export const MISSING_ONE_PR_UNIT_CONSENT =
   "missing one-PR-unit consent — mint an operator-origin one-PR-unit grant for the exact origin set, or close one origin per PR";
 
 export const SERIALIZE_N_PRS =
-  "serialize N PRs (stacked or sequential solo-worker): one origin per PR. File overlap, missing swarm metadata, parallel_safe: false, swarm:readiness refusing concurrent workers, and \"swarm if possible\" are not one-PR-unit consent.";
+  'serialize N PRs (stacked or sequential solo-worker): one origin per PR. File overlap, missing swarm metadata, parallel_safe: false, swarm:readiness refusing concurrent workers, and "swarm if possible" are not one-PR-unit consent.';
 
 export const SOLO_MULTI_COHORT_CONFIG =
   "config error: implement-class solo with |cohort_vbriefs| > 1 and no one-PR-unit grant. " +

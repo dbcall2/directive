@@ -412,7 +412,6 @@ describe("pr-closeout-attestable #3598 shape (brief predates the closing branch)
   });
 });
 
-
 describe("one-PR-unit at forge closing references (#4494)", () => {
   it("fails closed when forge closing refs name five origins without a grant", () => {
     const root = makeRepo();

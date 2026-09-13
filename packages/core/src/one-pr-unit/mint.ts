@@ -28,7 +28,9 @@ export function mintOnePrUnitGrant(input: MintOnePrUnitInput): OnePrUnitGrant {
     eventRef: input.approvalRef,
   };
   if (isRejectedOriginKind(origin.kind) || !isHumanOrigin(origin)) {
-    throw new Error("one-pr-unit mint requires operator-cli origin; agent-authored allocation strings do not count");
+    throw new Error(
+      "one-pr-unit mint requires operator-cli origin; agent-authored allocation strings do not count",
+    );
   }
   const origins = uniqueOrigins(input.origins);
   if (origins.length < 2) {

@@ -1,5 +1,12 @@
 import { type PathLike, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
+import { loadOnePrUnitGrant } from "../one-pr-unit/store.js";
+import {
+  type OnePrUnitGrant,
+  type OriginRef,
+  SOLO_MULTI_COHORT_CONFIG,
+} from "../one-pr-unit/types.js";
 import { collectGithubRefs } from "../orphan-active/refs.js";
 import {
   evaluateProjectInvariantsGate,
@@ -10,13 +17,6 @@ import {
   formatParentLineageLine,
   type ParentLineageResult,
 } from "../scope/parent-lineage.js";
-import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
-import { loadOnePrUnitGrant } from "../one-pr-unit/store.js";
-import {
-  SOLO_MULTI_COHORT_CONFIG,
-  type OnePrUnitGrant,
-  type OriginRef,
-} from "../one-pr-unit/types.js";
 import {
   type AllocationFields,
   type ParsedAllocation,
@@ -133,7 +133,6 @@ function checkVbrief(
   return { ok: true, path, payload: payload as Record<string, unknown> };
 }
 
-
 function originsFromCohort(
   projectRoot: string | undefined,
   cohort: readonly string[],
@@ -157,9 +156,7 @@ function originsFromCohort(
       for (const issue of collectGithubRefs(plan as Record<string, unknown>, defaultRepo).issues) {
         out.push({ repo: issue.repo, issueId: issue.number });
       }
-    } catch {
-      continue;
-    }
+    } catch {}
   }
   return out;
 }
@@ -168,7 +165,11 @@ function readyMessage(treeNote: string, suffix: string): string {
   return `OK: ready to start -- ${treeNote}, vBRIEF active+running, ${suffix}`;
 }
 
-function classifyAllocation(fields: AllocationFields, treeNote: string, options: EvaluateOptions = {}): EvaluateResult {
+function classifyAllocation(
+  fields: AllocationFields,
+  treeNote: string,
+  options: EvaluateOptions = {},
+): EvaluateResult {
   const dispatchKind = fields.dispatch_kind ?? null;
   if (!("dispatch_kind" in fields) || dispatchKind === null) {
     return {

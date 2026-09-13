@@ -2,8 +2,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { EXIT_CONFIG_ERROR, EXIT_HITS_FOUND, EXIT_OK } from "./constants.js";
 import { mintOnePrUnitGrant } from "../one-pr-unit/mint.js";
+import { EXIT_CONFIG_ERROR, EXIT_HITS_FOUND, EXIT_OK } from "./constants.js";
 import { cmdPrCheckClosingKeywords, parseAllowList, parseArgs, run } from "./main.js";
 import type { RunGhFn } from "./types.js";
 
@@ -302,7 +302,6 @@ describe("run CLI --pr mode", () => {
     expect(run(["--pr", "735"], { runGh })).toBe(EXIT_CONFIG_ERROR);
   });
 });
-
 
 describe("one-PR-unit closer-set (#4494)", () => {
   const tmp = mkdtempSync(join(tmpdir(), "ck-4494-"));

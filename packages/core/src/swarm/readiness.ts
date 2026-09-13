@@ -13,6 +13,7 @@ import {
   resolveLifecycleRoot,
   stripArtifactSuffix,
 } from "../layout/resolve.js";
+import { SERIALIZE_N_PRS } from "../one-pr-unit/types.js";
 import {
   acceptanceTextsFromItems,
   asStrList,
@@ -23,7 +24,6 @@ import {
   storyQualityIssues,
 } from "../vbrief-validation/story-quality.js";
 import { LIFECYCLE_FOLDERS, READY } from "./constants.js";
-import { SERIALIZE_N_PRS } from "../one-pr-unit/types.js";
 
 export interface Candidate {
   path: string;

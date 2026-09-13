@@ -1,5 +1,9 @@
 import { existsSync } from "node:fs";
 import { dirname } from "node:path";
+import { closerSetFromIssueIds } from "../one-pr-unit/closer-set.js";
+import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
+import { listOnePrUnitGrants } from "../one-pr-unit/store.js";
+import { defaultRunGh, fetchClosingIssuesReferences } from "../pr-protected-issues/gh.js";
 import { releaseWorkClaimForBrief } from "../scm/work-claim.js";
 import { maybeRunStalenessTickler } from "../staleness-tickler/run.js";
 import { interceptHelp } from "../triage/help/index.js";
@@ -28,10 +32,6 @@ import {
 import { resolveProjectRoot } from "./project-context.js";
 import { promoteFromIssue } from "./promote-from-issue.js";
 import { promotePath } from "./promote-path.js";
-import { closerSetFromIssueIds } from "../one-pr-unit/closer-set.js";
-import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
-import { listOnePrUnitGrants } from "../one-pr-unit/store.js";
-import { defaultRunGh, fetchClosingIssuesReferences } from "../pr-protected-issues/gh.js";
 import { runTransition, type TransitionOptions } from "./transition.js";
 import {
   findByDecisionId,
@@ -404,8 +404,9 @@ export function lifecycleMain(argv: string[]): number {
         const linked = fetchClosingIssuesReferences(deliveryEvidence.prNumber, repo, defaultRunGh);
         if (linked !== null) {
           const grant =
-            listOnePrUnitGrants(rootForUnit).find((g) => g.prNumber === deliveryEvidence.prNumber) ??
-            null;
+            listOnePrUnitGrants(rootForUnit).find(
+              (g) => g.prNumber === deliveryEvidence.prNumber,
+            ) ?? null;
           const unit = evaluateOnePrUnit({
             closerSet: closerSetFromIssueIds(repo, linked),
             grant,

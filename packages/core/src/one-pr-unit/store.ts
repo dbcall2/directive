@@ -39,7 +39,10 @@ function writeJsonContained(projectRoot: string, targetPath: string, payload: un
   const abs = resolve(targetPath);
   assertWriteTargetSafe(root, abs);
   mkdirSync(dirname(abs), { recursive: true });
-  const tmp = join(dirname(abs), `.${basename(abs)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  const tmp = join(
+    dirname(abs),
+    `.${basename(abs)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`,
+  );
   try {
     containedWrite({
       root,
@@ -116,9 +119,12 @@ export function parseOnePrUnitGrant(raw: unknown): OnePrUnitGrant | null {
   }
   const originsRaw = rec.origins;
   if (!Array.isArray(originsRaw)) return null;
-  const origins = uniqueOrigins(originsRaw.map(parseOrigin).filter((x): x is OriginRef => x !== null));
+  const origins = uniqueOrigins(
+    originsRaw.map(parseOrigin).filter((x): x is OriginRef => x !== null),
+  );
   const branch = readString(rec, "branch");
-  const prNumber = typeof rec.prNumber === "number" && Number.isInteger(rec.prNumber) ? rec.prNumber : null;
+  const prNumber =
+    typeof rec.prNumber === "number" && Number.isInteger(rec.prNumber) ? rec.prNumber : null;
   return {
     schema: ONE_PR_UNIT_SCHEMA,
     id,

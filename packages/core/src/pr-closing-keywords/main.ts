@@ -1,13 +1,13 @@
 import { execFileSync } from "node:child_process";
+import { extractIntentCloserSet } from "../one-pr-unit/closer-set.js";
+import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
+import { loadOnePrUnitGrant } from "../one-pr-unit/store.js";
+import { MISSING_ONE_PR_UNIT_CONSENT } from "../one-pr-unit/types.js";
 import { SUBPROCESS_MAX_BUFFER } from "../subprocess/max-buffer.js";
 import { EXIT_CONFIG_ERROR, EXIT_HITS_FOUND, EXIT_OK } from "./constants.js";
 import { findAllClosingKeywordHits, findHits, renderHit } from "./detect.js";
 import { defaultRunGh, fetchPrBody, fetchPrCommitMessages } from "./gh.js";
 import { readCommitsFile, readTextFile } from "./io.js";
-import { extractIntentCloserSet } from "../one-pr-unit/closer-set.js";
-import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
-import { loadOnePrUnitGrant } from "../one-pr-unit/store.js";
-import { MISSING_ONE_PR_UNIT_CONSENT } from "../one-pr-unit/types.js";
 import type { ClosingKeywordMode, Hit, ParsedArgs, RunGhFn } from "./types.js";
 
 export function parseAllowList(values: readonly string[]): Set<number> {
@@ -396,14 +396,11 @@ export function run(argv: readonly string[], options: RunOptions = {}): number {
   }
   texts.push(...commitMessages);
   const grant =
-    args.onePrUnit === null
-      ? null
-      : loadOnePrUnitGrant(args.projectRoot ?? ".", args.onePrUnit);
+    args.onePrUnit === null ? null : loadOnePrUnitGrant(args.projectRoot ?? ".", args.onePrUnit);
   const repo = args.repo ?? grant?.repo ?? "unknown/unknown";
   const closerSet = extractIntentCloserSet(texts, repo);
   const branchResult = (options.runGit ?? defaultRunGit)(["rev-parse", "--abbrev-ref", "HEAD"]);
-  const branch =
-    branchResult.returncode === 0 ? branchResult.stdout.trim() || null : null;
+  const branch = branchResult.returncode === 0 ? branchResult.stdout.trim() || null : null;
   const unit = evaluateOnePrUnit({
     closerSet,
     grant,

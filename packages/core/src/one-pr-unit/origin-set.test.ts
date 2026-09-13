@@ -16,7 +16,10 @@ describe("origin-set", () => {
       { repo: "deftai/directive", issueId: 1 },
     ]);
     expect(exactOriginSetEquals(a, b)).toBe(true);
-    expect(originKey(a[0]!)).toBe("deftai/directive#1");
+    const first = a[0];
+    expect(first).toBeDefined();
+    if (first === undefined) return;
+    expect(originKey(first)).toBe("deftai/directive#1");
     expect(formatOriginSet(a)).toContain("deftai/directive#1");
   });
 

@@ -23,7 +23,13 @@ function parsePrNumber(raw: string): number | null {
 
 /** Parse verify-pr-closeout-attestable CLI args. */
 export function parseArgs(argv: string[]): ParsedArgs {
-  const parsed: ParsedArgs = { projectRoot: ".", repo: null, pr: null, quiet: false, onePrUnitId: null };
+  const parsed: ParsedArgs = {
+    projectRoot: ".",
+    repo: null,
+    pr: null,
+    quiet: false,
+    onePrUnitId: null,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--quiet") {

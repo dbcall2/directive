@@ -62,7 +62,10 @@ export function evaluateOnePrUnit(input: EvaluateOnePrUnitInput): OnePrUnitDecis
     return deny("deny-revoked", `one-PR-unit grant ${grant.id} was revoked at ${grant.revokedAt}.`);
   }
   if (grant.singleUse && grant.usedAt !== null) {
-    return deny("deny-spent", `one-PR-unit grant ${grant.id} is single-use and already spent at ${grant.usedAt}.`);
+    return deny(
+      "deny-spent",
+      `one-PR-unit grant ${grant.id} is single-use and already spent at ${grant.usedAt}.`,
+    );
   }
 
   if (!grantBound(grant) && !grant.singleUse) {
@@ -74,7 +77,11 @@ export function evaluateOnePrUnit(input: EvaluateOnePrUnitInput): OnePrUnitDecis
 
   const binding = input.binding ?? {};
   if (grant.branch !== null && grant.branch.length > 0) {
-    if (binding.branch === null || binding.branch === undefined || binding.branch !== grant.branch) {
+    if (
+      binding.branch === null ||
+      binding.branch === undefined ||
+      binding.branch !== grant.branch
+    ) {
       return deny(
         "deny-binding",
         `one-PR-unit grant ${grant.id} is bound to branch ${grant.branch}.`,
@@ -82,7 +89,11 @@ export function evaluateOnePrUnit(input: EvaluateOnePrUnitInput): OnePrUnitDecis
     }
   }
   if (grant.prNumber !== null) {
-    if (binding.prNumber === null || binding.prNumber === undefined || binding.prNumber !== grant.prNumber) {
+    if (
+      binding.prNumber === null ||
+      binding.prNumber === undefined ||
+      binding.prNumber !== grant.prNumber
+    ) {
       return deny(
         "deny-binding",
         `one-PR-unit grant ${grant.id} is bound to PR #${grant.prNumber}.`,
@@ -91,10 +102,7 @@ export function evaluateOnePrUnit(input: EvaluateOnePrUnitInput): OnePrUnitDecis
   }
   if (grant.repo.length > 0 && binding.repo !== undefined && binding.repo !== null) {
     if (grant.repo.toLowerCase() !== binding.repo.toLowerCase()) {
-      return deny(
-        "deny-binding",
-        `one-PR-unit grant ${grant.id} is bound to repo ${grant.repo}.`,
-      );
+      return deny("deny-binding", `one-PR-unit grant ${grant.id} is bound to repo ${grant.repo}.`);
     }
   }
 

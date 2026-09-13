@@ -139,10 +139,7 @@ describe("intent mode (#3015 class D)", () => {
 
 describe("comma-list closer-set (#4494)", () => {
   it("counts each origin in Closes #4204, #4218, …", () => {
-    const hits = findAllClosingKeywordHits(
-      "Closes #4204, #4218, #4161, #3918, #3849",
-      "pr-body",
-    );
+    const hits = findAllClosingKeywordHits("Closes #4204, #4218, #4161, #3918, #3849", "pr-body");
     expect(hits.filter((h) => h.reason === "intent").map((h) => h.issueNumber)).toEqual([
       4204, 4218, 4161, 3918, 3849,
     ]);

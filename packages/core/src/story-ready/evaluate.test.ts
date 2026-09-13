@@ -3,8 +3,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { evaluate, parseAllocationSection, parseCohortVbriefs, SWARM_COHORT_KIND } from "./evaluate.js";
 import { ONE_PR_UNIT_SCHEMA, type OnePrUnitGrant } from "../one-pr-unit/types.js";
+import {
+  evaluate,
+  parseAllocationSection,
+  parseCohortVbriefs,
+  SWARM_COHORT_KIND,
+} from "./evaluate.js";
 import { gitPorcelain } from "./git.js";
 
 const temps: string[] = [];
@@ -484,7 +489,6 @@ describe("story-ready index re-exports", () => {
     expect(typeof mod.gitPorcelain).toBe("function");
   });
 });
-
 
 describe("parseCohortVbriefs", () => {
   it("parses a bracket list", () => {

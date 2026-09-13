@@ -17,6 +17,10 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { hasArtifactSuffix, resolveLifecycleRoot } from "../layout/resolve.js";
+import { closerSetFromIssueIds } from "../one-pr-unit/closer-set.js";
+import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
+import { listOnePrUnitGrants, loadOnePrUnitGrant } from "../one-pr-unit/store.js";
+import type { OnePrUnitGrant } from "../one-pr-unit/types.js";
 import { type GateRunner, makeGateRunner } from "../orphan-active/issue-state.js";
 import { collectGithubRefs } from "../orphan-active/refs.js";
 import { fetchClosingIssuesReferences } from "../pr-protected-issues/gh.js";
@@ -30,10 +34,6 @@ import {
   inferRequiredStrictAxes,
   type StrictAcceptanceAxis,
 } from "../scope/acceptance-evidence.js";
-import { closerSetFromIssueIds } from "../one-pr-unit/closer-set.js";
-import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
-import { listOnePrUnitGrants, loadOnePrUnitGrant } from "../one-pr-unit/store.js";
-import type { OnePrUnitGrant } from "../one-pr-unit/types.js";
 import { resolveRepo } from "../triage/queue/repo.js";
 
 export type OutputStream = "stdout" | "stderr" | "none";
@@ -384,7 +384,7 @@ export function evaluate(
       ? options.onePrUnitGrant
       : options.onePrUnitId !== undefined && options.onePrUnitId !== null
         ? loadOnePrUnitGrant(root, options.onePrUnitId)
-        : listOnePrUnitGrants(root).find((g) => g.prNumber === prNumber) ?? null;
+        : (listOnePrUnitGrants(root).find((g) => g.prNumber === prNumber) ?? null);
   const unit = evaluateOnePrUnit({
     closerSet: closerSetFromIssueIds(repo, closingIssues),
     grant,

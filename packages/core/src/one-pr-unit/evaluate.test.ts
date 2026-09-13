@@ -10,9 +10,9 @@ import { loadOnePrUnitGrant } from "./store.js";
 import {
   MISSING_ONE_PR_UNIT_CONSENT,
   ONE_PR_UNIT_SCHEMA,
-  SERIALIZE_N_PRS,
   type OnePrUnitGrant,
   type OriginRef,
+  SERIALIZE_N_PRS,
 } from "./types.js";
 
 const temps: string[] = [];
@@ -123,7 +123,13 @@ describe("evaluateOnePrUnit", () => {
   });
 
   it("rejects revoked, spent, unbound, and binding mismatches", () => {
-    expect(evaluateOnePrUnit({ closerSet: FIVE, grant: grant({ revokedAt: "2026-09-13T21:00:00Z" }), binding: { repo: REPO, branch: "feat/batch" } }).code).toBe("deny-revoked");
+    expect(
+      evaluateOnePrUnit({
+        closerSet: FIVE,
+        grant: grant({ revokedAt: "2026-09-13T21:00:00Z" }),
+        binding: { repo: REPO, branch: "feat/batch" },
+      }).code,
+    ).toBe("deny-revoked");
     expect(
       evaluateOnePrUnit({
         closerSet: FIVE,
@@ -164,13 +170,8 @@ describe("evaluateOnePrUnit", () => {
 
 describe("extractIntentCloserSet comma-list", () => {
   it("counts Closes #4204, #4218, … as multiple origins", () => {
-    const set = extractIntentCloserSet(
-      ["Closes #4204, #4218, #4161, #3918, #3849"],
-      REPO,
-    );
-    expect(set.map((o) => o.issueId).sort((a, b) => a - b)).toEqual(
-      [3849, 3918, 4161, 4204, 4218],
-    );
+    const set = extractIntentCloserSet(["Closes #4204, #4218, #4161, #3918, #3849"], REPO);
+    expect(set.map((o) => o.issueId).sort((a, b) => a - b)).toEqual([3849, 3918, 4161, 4204, 4218]);
   });
 
   it("does not treat a first-#N-only detector as the closer-set", () => {

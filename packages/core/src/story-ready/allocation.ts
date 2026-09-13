@@ -90,4 +90,3 @@ export function parseCohortVbriefs(raw: string | null | undefined): string[] {
   }
   return out;
 }
-
