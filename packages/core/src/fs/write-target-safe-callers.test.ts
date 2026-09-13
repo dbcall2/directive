@@ -27,6 +27,7 @@ const WRITE_TARGET_SAFE_CALLERS: readonly string[] = [
   "intake/issue-ingest.ts",
   "intake/reconcile-issues.ts",
   "issue-sync/sync-from-xbrief.ts",
+  "one-pr-unit/store.ts",
   "orchestration/probe-session.ts",
   "orchestration/verify-judgment-gates.ts",
   "platform/changelog-cli.ts",
