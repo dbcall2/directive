@@ -145,12 +145,12 @@ export function buildClosingKeywordsCheckArgv(
 ): { argv: string[]; error?: string } {
   const source = resolveClosingKeywordsSource(env, runGit);
   if (source.kind === "pr") {
-    return { argv: ["--mode", "fp", "--pr", source.pr, ...extra] };
+    return { argv: ["--mode", "both", "--pr", source.pr, ...extra] };
   }
   if (source.kind === "missing-base" || source.kind === "stale-base") {
     return { argv: [], error: source.reason };
   }
-  return { argv: ["--mode", "fp", "--from-git-range", source.range, ...extra] };
+  return { argv: ["--mode", "both", "--from-git-range", source.range, ...extra] };
 }
 
 export function run(

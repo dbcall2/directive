@@ -30,6 +30,10 @@ import {
   inferRequiredStrictAxes,
   type StrictAcceptanceAxis,
 } from "../scope/acceptance-evidence.js";
+import { closerSetFromIssueIds } from "../one-pr-unit/closer-set.js";
+import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
+import { listOnePrUnitGrants, loadOnePrUnitGrant } from "../one-pr-unit/store.js";
+import type { OnePrUnitGrant } from "../one-pr-unit/types.js";
 import { resolveRepo } from "../triage/queue/repo.js";
 
 export type OutputStream = "stdout" | "stderr" | "none";
@@ -87,6 +91,8 @@ export interface EvaluateOptions {
   readonly quiet?: boolean;
   /** Closing-reference seam so tests do not need a forge. */
   readonly fetchClosingIssues?: FetchClosingIssuesFn;
+  readonly onePrUnitGrant?: OnePrUnitGrant | null;
+  readonly onePrUnitId?: string | null;
 }
 
 interface ActiveBrief {
@@ -373,6 +379,28 @@ export function evaluate(
   }
 
   const closingIssues = [...new Set(linked)].sort((a, b) => a - b);
+  const grant =
+    options.onePrUnitGrant !== undefined
+      ? options.onePrUnitGrant
+      : options.onePrUnitId !== undefined && options.onePrUnitId !== null
+        ? loadOnePrUnitGrant(root, options.onePrUnitId)
+        : listOnePrUnitGrants(root).find((g) => g.prNumber === prNumber) ?? null;
+  const unit = evaluateOnePrUnit({
+    closerSet: closerSetFromIssueIds(repo, closingIssues),
+    grant,
+    binding: { repo, prNumber },
+  });
+  if (!unit.ok) {
+    return {
+      code: 1,
+      message: `verify:pr-closeout-attestable: ${unit.message}`,
+      stream: "stderr",
+      prNumber,
+      closingIssues,
+      findings: [],
+      proxied: runner.proxied,
+    };
+  }
   if (closingIssues.length === 0) {
     return {
       code: 0,

@@ -28,6 +28,10 @@ import {
 import { resolveProjectRoot } from "./project-context.js";
 import { promoteFromIssue } from "./promote-from-issue.js";
 import { promotePath } from "./promote-path.js";
+import { closerSetFromIssueIds } from "../one-pr-unit/closer-set.js";
+import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
+import { listOnePrUnitGrants } from "../one-pr-unit/store.js";
+import { defaultRunGh, fetchClosingIssuesReferences } from "../pr-protected-issues/gh.js";
 import { runTransition, type TransitionOptions } from "./transition.js";
 import {
   findByDecisionId,
@@ -392,6 +396,31 @@ export function lifecycleMain(argv: string[]): number {
     return promoteResult.exitCode;
   }
 
+  if (action === "complete" && deliveryEvidence?.prNumber) {
+    const rootForUnit = resolveProjectRoot(projectRoot) ?? dirname(dirname(dirname(filePath)));
+    const repo = deliveryEvidence.repository;
+    if (repo !== null && repo !== undefined && repo.length > 0) {
+      try {
+        const linked = fetchClosingIssuesReferences(deliveryEvidence.prNumber, repo, defaultRunGh);
+        if (linked !== null) {
+          const grant =
+            listOnePrUnitGrants(rootForUnit).find((g) => g.prNumber === deliveryEvidence.prNumber) ??
+            null;
+          const unit = evaluateOnePrUnit({
+            closerSet: closerSetFromIssueIds(repo, linked),
+            grant,
+            binding: { repo, prNumber: deliveryEvidence.prNumber },
+          });
+          if (!unit.ok) {
+            process.stderr.write(`Error: ${unit.message}\n`);
+            return 1;
+          }
+        }
+      } catch {
+        /* lifecycle consistency only; forge lookup failure does not block complete */
+      }
+    }
+  }
   const transitionOptions: TransitionOptions = {
     nonDeliveryDisposition,
     deliveryEvidence,

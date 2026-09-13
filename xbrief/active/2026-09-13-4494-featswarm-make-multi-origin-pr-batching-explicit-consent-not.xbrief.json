@@ -1,0 +1,160 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #4494",
+    "updated": "2026-09-13T20:49:10Z"
+  },
+  "plan": {
+    "title": "feat(swarm): make multi-origin PR batching explicit consent, not overlap inference",
+    "status": "running",
+    "narratives": {
+      "Description": "feat(swarm): make multi-origin PR batching explicit consent, not overlap inference",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/4494",
+      "Overview": "# Next-build (recut Bound remedy)\n\nFiled Wanted 1 \"Reuse #1378 fields if that is clean\" is REJECTED. Dispatch-cohort consent and close-unit consent stay distinct. `cohort_vbriefs` is the dispatch set, not a close grant. `--allow-close` is not one-PR-unit consent. Do not parse an implement list or free-form issue/comment text as the mint.\n\nKeep one-PR batching. Make it explicit. Default without a one-PR-unit grant: one origin \u2192 one PR.\n\n## Bound remedy\n\n1. Distinct one-PR-unit identity. Do not reuse #1378 `allocation_plan_id` / `batching_rationale` / `operator_approval_evidence`.\n2. Operator-origin mint: approval reference, rationale, exact normalized `(repo, issue-id)` set, and branch/PR-unit binding or single-use claim. Envelope and CLI carry only its identifier. Exact-set equality (not authz overlap). Independent of UAT mode.\n3. One decision procedure, composed: forge closing references (including `Closes #4204, #4218, \u2026`) at `pr-closeout-attestable`; same decision at story-ready for a declared multi-origin unit; same validator at pre-PR / `pr:check-closing-keywords`; `scope:complete` rechecks for lifecycle consistency only.\n4. Flip automated `pr:check-closing-keywords` invocations (`task check` graph and branch-gate) from `--mode fp` to `--mode both`.\n5. Implement-class `solo` with `|cohort_vbriefs| > 1` and no one-PR-unit grant is a config error. Overlap serializes N PRs. File overlap / missing swarm metadata / `parallel_safe: false` / `swarm:readiness` refusing concurrent workers / \u201cswarm if possible\u201d are NOT close-permission.\n6. Docs: on `swarm:readiness` failure / Phase 0 exit, print serialize-N-PRs. Close-surface docs live next to the github.md single-purpose line. Phase 0 Step 3 \u201cno hardcoded 1:1 rule\u201d and github.md \u201cone cohesive change\u201d must not be readable as silent combine. #3666 solo path: N=1 per origin unless the closed one-PR-unit form exists.\n\nCiting lean 5655867921 and synthesis 5655871094.\n"
+    },
+    "items": [
+      {
+        "title": "Distinct one-PR-unit identity (not #1378 fields, not --allow-close, not implement-list parsing).",
+        "status": "proposed",
+        "effort": "M"
+      },
+      {
+        "title": "Operator-origin mint: approval ref, rationale, exact (repo, issue-id) set, branch/PR-unit or single-use; envelope/CLI carry only the id.",
+        "status": "proposed",
+        "effort": "M"
+      },
+      {
+        "title": "One fail-closed closer-set decision composed at story-ready, pre-PR, pr-closeout-attestable, and scope:complete consistency.",
+        "status": "proposed",
+        "effort": "M"
+      },
+      {
+        "title": "Flip automated pr:check-closing-keywords (task check graph and branch-gate) from --mode fp to --mode both.",
+        "status": "proposed",
+        "effort": "S"
+      },
+      {
+        "title": "Implement-class solo with |cohort_vbriefs| > 1 and no one-PR-unit grant is a config error; overlap serializes N PRs.",
+        "status": "proposed",
+        "effort": "M"
+      },
+      {
+        "title": "Docs: serialize-N-PRs on readiness/Phase 0 exit; github.md close-surface; #3666 N=1 per origin unless one-PR-unit exists.",
+        "status": "proposed",
+        "effort": "S"
+      },
+      {
+        "title": "Tests: solo one Closes passes; five origins without grant fail closed naming missing consent; five with operator-origin grant pass; overlap is serial PRs; comma-list closer-set counts all origins; --allow-close is not the grant.",
+        "status": "proposed",
+        "effort": "M"
+      }
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/4494",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #4494: feat(swarm): make multi-origin PR batching explicit consent, not overlap inference"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "recut Bound remedy 5655867921 + synthesis 5655871094; Wanted 1 reuse of #1378 rejected",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "Distinct one-PR-unit identity (not #1378 fields, not --allow-close, not implement-list parsing).",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "Operator-origin mint: approval ref, rationale, exact (repo, issue-id) set, branch/PR-unit or single-use; envelope/CLI carry only the id.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "One fail-closed closer-set decision composed at story-ready, pre-PR, pr-closeout-attestable, and scope:complete consistency.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "Flip automated pr:check-closing-keywords (task check graph and branch-gate) from --mode fp to --mode both.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 5,
+          "text": "Implement-class solo with |cohort_vbriefs| > 1 and no one-PR-unit grant is a config error; overlap serializes N PRs.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 6,
+          "text": "Docs: serialize-N-PRs on readiness/Phase 0 exit; github.md close-surface; #3666 N=1 per origin unless one-PR-unit exists.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 7,
+          "text": "Tests: solo one Closes passes; five origins without grant fail closed naming missing consent; five with operator-origin grant pass; overlap is serial PRs; comma-list closer-set counts all origins; --allow-close is not the grant.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found"
+    },
+    "metadata": {
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [
+          "packages/core/src/one-pr-unit/types.ts",
+          "packages/core/src/one-pr-unit/origin-set.ts",
+          "packages/core/src/one-pr-unit/closer-set.ts",
+          "packages/core/src/one-pr-unit/evaluate.ts",
+          "packages/core/src/one-pr-unit/store.ts",
+          "packages/core/src/one-pr-unit/mint.ts",
+          "packages/core/src/one-pr-unit/index.ts",
+          "packages/core/src/story-ready/evaluate.ts",
+          "packages/core/src/story-ready/allocation.ts",
+          "packages/core/src/pr-closing-keywords/detect.ts",
+          "packages/core/src/pr-closing-keywords/main.ts",
+          "packages/core/src/pr-closeout-attestable/evaluate.ts",
+          "packages/cli/src/verify-source-cli/verify-closing-keywords.ts",
+          "packages/cli/src/verify-story-ready.ts",
+          ".github/workflows/branch-gate.yml",
+          "content/scm/github.md",
+          "content/skills/deft-directive-swarm/references/core-phase-0.md",
+          "content/templates/agent-prompt-preamble.md",
+          "CHANGELOG.md"
+        ],
+        "module_boundary": "one-pr-unit consent composed onto existing closer-set surfaces",
+        "cohesion_exemption": "CHANGELOG.md is the append-only Keep a Changelog file; this slice adds one Unreleased bullet. No split of CHANGELOG.md in this story."
+      },
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5442381318,
+        "origin": "deftai/directive#4494",
+        "id": "github.issue.5442381318"
+      },
+      "x-directive/admitted-target-digest": {
+        "schema": "deft.scope.admitted-target-digest.v1",
+        "algorithm": "sha256",
+        "sha256": "f42809da5facae6ac3c19424e2d50382f8b79f3af97bc4bff508b5eb9abc2731"
+      }
+    },
+    "id": "github.issue.5442381318",
+    "updated": "2026-09-13T20:49:10Z"
+  }
+}

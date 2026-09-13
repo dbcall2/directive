@@ -411,3 +411,31 @@ describe("pr-closeout-attestable #3598 shape (brief predates the closing branch)
     expect(result.findings[0]?.unattested).toHaveLength(3);
   });
 });
+
+
+describe("one-PR-unit at forge closing references (#4494)", () => {
+  it("fails closed when forge closing refs name five origins without a grant", () => {
+    const root = makeRepo();
+    writeBrief(root, "dummy.xbrief.json", {
+      title: "dummy",
+      status: "running",
+      items: [],
+      references: [issueRef(1)],
+    });
+    const result = evaluate(root, 4492, opts(closing(4204, 4218, 4161, 3918, 3849)));
+    expect(result.code).toBe(1);
+    expect(result.message).toMatch(/missing one-PR-unit consent/);
+  });
+
+  it("allows a single closing origin without a grant", () => {
+    const root = makeRepo();
+    writeBrief(root, "dummy.xbrief.json", {
+      title: "dummy",
+      status: "running",
+      items: [],
+      references: [issueRef(4494)],
+    });
+    const result = evaluate(root, 1, opts(closing(4494)));
+    expect(result.code).toBe(0);
+  });
+});

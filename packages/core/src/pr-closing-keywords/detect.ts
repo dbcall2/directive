@@ -147,48 +147,62 @@ function snippetAround(text: string, match: RegExpExecArray): string {
   return text.slice(snippetStart, snippetEnd).replace(/\n/g, " ");
 }
 
-/** Layer 0 FP hits only (#737): keyword in negation / quotation / example / code-block / blockquote. */
-export function findHits(text: string, source: string): Hit[] {
+/** One-keyword comma-list tail GitHub links: `Closes #4204, #4218, #4161`. */
+const COMMA_LIST_TAIL_RE = /(?:\s*,\s*#(\d+))+/y;
+
+function commaListIssueIds(text: string, after: number): number[] {
+  COMMA_LIST_TAIL_RE.lastIndex = after;
+  const tail = COMMA_LIST_TAIL_RE.exec(text);
+  if (tail === null) {
+    return [];
+  }
+  return [...tail[0].matchAll(/#(\d+)/g)].map((m) => Number(m[1]));
+}
+
+function collectClosingHits(text: string, source: string, fpOnly: boolean): Hit[] {
   const hits: Hit[] = [];
   const re = new RegExp(CLOSING_KEYWORD_RE.source, CLOSING_KEYWORD_RE.flags);
   let match: RegExpExecArray | null = re.exec(text);
   while (match !== null) {
     const category = classifyHit(text, match);
-    if (category !== null) {
+    const reason = category ?? "intent";
+    if (!fpOnly || category !== null) {
       hits.push({
         source,
         keyword: match[1] ?? "",
         issueNumber: Number(match[2]),
         context: snippetAround(text, match),
-        reason: category,
+        reason: fpOnly ? (category as string) : reason,
       });
+      const start = match.index ?? 0;
+      for (const issueNumber of commaListIssueIds(text, start + match[0].length)) {
+        hits.push({
+          source,
+          keyword: match[1] ?? "",
+          issueNumber,
+          context: snippetAround(text, match),
+          reason: fpOnly ? (category as string) : reason,
+        });
+      }
     }
     match = re.exec(text);
   }
   return hits;
 }
 
+/** Layer 0 FP hits only (#737): keyword in negation / quotation / example / code-block / blockquote. */
+export function findHits(text: string, source: string): Hit[] {
+  return collectClosingHits(text, source, true);
+}
+
 /**
  * Intent-mode hits (#3015 class D): every closing-keyword + `#N` match, regardless of
  * surrounding prose. GitHub closes on token presence; conditional English is ignored.
  * reason is the FP category when present, otherwise `intent`.
+ * Comma-list tails (`Closes #4204, #4218, …`) count as additional origins (#4494).
  */
 export function findAllClosingKeywordHits(text: string, source: string): Hit[] {
-  const hits: Hit[] = [];
-  const re = new RegExp(CLOSING_KEYWORD_RE.source, CLOSING_KEYWORD_RE.flags);
-  let match: RegExpExecArray | null = re.exec(text);
-  while (match !== null) {
-    const category = classifyHit(text, match);
-    hits.push({
-      source,
-      keyword: match[1] ?? "",
-      issueNumber: Number(match[2]),
-      context: snippetAround(text, match),
-      reason: category ?? "intent",
-    });
-    match = re.exec(text);
-  }
-  return hits;
+  return collectClosingHits(text, source, false);
 }
 
 /**

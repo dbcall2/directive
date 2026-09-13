@@ -3,7 +3,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { evaluate, parseAllocationSection, SWARM_COHORT_KIND } from "./evaluate.js";
+import { evaluate, parseAllocationSection, parseCohortVbriefs, SWARM_COHORT_KIND } from "./evaluate.js";
+import { ONE_PR_UNIT_SCHEMA, type OnePrUnitGrant } from "../one-pr-unit/types.js";
 import { gitPorcelain } from "./git.js";
 
 const temps: string[] = [];
@@ -481,5 +482,97 @@ describe("story-ready index re-exports", () => {
     expect(typeof mod.evaluate).toBe("function");
     expect(typeof mod.parseAllocationSection).toBe("function");
     expect(typeof mod.gitPorcelain).toBe("function");
+  });
+});
+
+
+describe("parseCohortVbriefs", () => {
+  it("parses a bracket list", () => {
+    expect(parseCohortVbriefs("[a.json, b.json, c.json]")).toEqual(["a.json", "b.json", "c.json"]);
+  });
+
+  it("returns empty for null", () => {
+    expect(parseCohortVbriefs(null)).toEqual([]);
+  });
+});
+
+describe("one-PR-unit solo arity (#4494)", () => {
+  const fiveCohort =
+    "[xbrief/active/a.json, xbrief/active/b.json, xbrief/active/c.json, xbrief/active/d.json, xbrief/active/e.json]";
+  const fiveOrigins = [4204, 4218, 4161, 3918, 3849].map((issueId) => ({
+    repo: "deftai/directive",
+    issueId,
+  }));
+  const grant: OnePrUnitGrant = {
+    schema: ONE_PR_UNIT_SCHEMA,
+    id: "unit-five",
+    origin: {
+      kind: "operator-cli",
+      actor: "dbcall2",
+      mintedAt: "2026-09-13T20:00:00Z",
+      mintedVia: "one-pr-unit:mint",
+      eventRef: "operator-approved",
+    },
+    approvalRef: "operator-approved",
+    rationale: "five origins",
+    origins: fiveOrigins,
+    repo: "deftai/directive",
+    branch: "feat/batch",
+    prNumber: null,
+    singleUse: false,
+    usedAt: null,
+    revokedAt: null,
+    mintedAt: "2026-09-13T20:00:00Z",
+  };
+
+  it("solo envelope, one cohort_vbriefs entry, passes", () => {
+    const base = mkdtempSync(join(tmpdir(), "deft-sr-"));
+    const path = writeVbrief(base);
+    const envelope = renderAllocation({
+      dispatch_kind: "solo",
+      allocation_plan_id: null,
+      batching_rationale: null,
+      cohort_vbriefs: "[xbrief/active/only.json]",
+      operator_approval_evidence: "solo-interactive",
+    });
+    const result = evaluate(path, { gitStatus: CLEAN_TREE, allocationContext: envelope });
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("solo envelope, five cohort_vbriefs, no one-PR-unit grant, fails closed naming missing consent", () => {
+    const base = mkdtempSync(join(tmpdir(), "deft-sr-"));
+    const path = writeVbrief(base);
+    const envelope = renderAllocation({
+      dispatch_kind: "solo",
+      allocation_plan_id: "parent-invented",
+      batching_rationale: "overlap",
+      cohort_vbriefs: fiveCohort,
+      operator_approval_evidence: "implement 4204 4218 4161 3918 3849",
+    });
+    const result = evaluate(path, { gitStatus: CLEAN_TREE, allocationContext: envelope });
+    expect(result.exitCode).toBe(2);
+    expect(result.message).toMatch(/missing one-PR-unit consent/);
+  });
+
+  it("same five origins with operator-origin one-PR-unit grant pass", () => {
+    const base = mkdtempSync(join(tmpdir(), "deft-sr-"));
+    const path = writeVbrief(base);
+    const envelope = renderAllocation({
+      dispatch_kind: "solo",
+      allocation_plan_id: null,
+      batching_rationale: null,
+      cohort_vbriefs: fiveCohort,
+      operator_approval_evidence: "advisory only",
+      one_pr_unit_id: "unit-five",
+    });
+    const result = evaluate(path, {
+      gitStatus: CLEAN_TREE,
+      allocationContext: envelope,
+      onePrUnitGrant: grant,
+      declaredOrigins: fiveOrigins,
+      onePrUnitRepo: "deftai/directive",
+      onePrUnitBranch: "feat/batch",
+    });
+    expect(result.exitCode).toBe(0);
   });
 });

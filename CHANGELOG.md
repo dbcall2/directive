@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **One-PR-unit consent is explicit, not overlap inference (#4494).** Multi-origin `Closes` needs an operator-origin grant with exact `(repo, issue-id)` set matching. Default is one origin per PR. `--allow-close` and #1378 fields are not that grant. Comma-list `Closes #N, #M` counts every origin. Automated `pr:check-closing-keywords` runs `--mode both`. Overlap serializes N PRs. Closes #4494.
+
 ### Changed
 
 ### Fixed

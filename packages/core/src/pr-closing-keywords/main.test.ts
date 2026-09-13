@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { EXIT_CONFIG_ERROR, EXIT_HITS_FOUND, EXIT_OK } from "./constants.js";
+import { mintOnePrUnitGrant } from "../one-pr-unit/mint.js";
 import { cmdPrCheckClosingKeywords, parseAllowList, parseArgs, run } from "./main.js";
 import type { RunGhFn } from "./types.js";
 
@@ -299,5 +300,88 @@ describe("run CLI --pr mode", () => {
       stderr: "gh CLI not found. Install GitHub CLI.",
     });
     expect(run(["--pr", "735"], { runGh })).toBe(EXIT_CONFIG_ERROR);
+  });
+});
+
+
+describe("one-PR-unit closer-set (#4494)", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "ck-4494-"));
+  const body = join(tmp, "body.md");
+
+  it("solo one Closes #N passes", () => {
+    writeFileSync(body, "Closes #4494\n", "utf8");
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    expect(run(["--mode", "intent", "--body-file", body, "--allow-close", "4494"])).toBe(EXIT_OK);
+    stderr.mockRestore();
+  });
+
+  it("five-origin comma-list without one-PR-unit fails closed even with --allow-close", () => {
+    writeFileSync(body, "Closes #4204, #4218, #4161, #3918, #3849\n", "utf8");
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const code = run([
+      "--mode",
+      "intent",
+      "--body-file",
+      body,
+      "--allow-close",
+      "4204,4218,4161,3918,3849",
+      "--repo",
+      "deftai/directive",
+    ]);
+    expect(code).toBe(EXIT_HITS_FOUND);
+    expect(stderr.mock.calls.join("")).toMatch(/missing one-PR-unit consent/);
+    stderr.mockRestore();
+  });
+
+  it("--allow-close 4204,4218 is not one-PR-unit consent", () => {
+    writeFileSync(body, "Closes #4204, #4218\n", "utf8");
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const code = run([
+      "--mode",
+      "intent",
+      "--body-file",
+      body,
+      "--allow-close",
+      "4204,4218",
+      "--repo",
+      "deftai/directive",
+    ]);
+    expect(code).toBe(EXIT_HITS_FOUND);
+    expect(stderr.mock.calls.join("")).toMatch(/missing one-PR-unit consent/);
+    stderr.mockRestore();
+  });
+
+  it("five origins with operator-origin one-PR-unit grant pass", () => {
+    writeFileSync(body, "Closes #4204, #4218, #4161, #3918, #3849\n", "utf8");
+    mintOnePrUnitGrant({
+      projectRoot: tmp,
+      id: "unit-five",
+      actor: "dbcall2",
+      approvalRef: "operator-approved",
+      rationale: "five origins",
+      origins: [4204, 4218, 4161, 3918, 3849].map((issueId) => ({
+        repo: "deftai/directive",
+        issueId,
+      })),
+      repo: "deftai/directive",
+      singleUse: true,
+    });
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const code = run([
+      "--mode",
+      "intent",
+      "--body-file",
+      body,
+      "--allow-close",
+      "4204,4218,4161,3918,3849",
+      "--repo",
+      "deftai/directive",
+      "--one-pr-unit",
+      "unit-five",
+      "--project-root",
+      tmp,
+    ]);
+    expect(code).toBe(EXIT_OK);
+    stderr.mockRestore();
   });
 });

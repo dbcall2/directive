@@ -8,6 +8,7 @@ interface ParsedArgs {
   repo: string | null;
   pr: number | null;
   quiet: boolean;
+  onePrUnitId: string | null;
   error?: string;
 }
 
@@ -22,7 +23,7 @@ function parsePrNumber(raw: string): number | null {
 
 /** Parse verify-pr-closeout-attestable CLI args. */
 export function parseArgs(argv: string[]): ParsedArgs {
-  const parsed: ParsedArgs = { projectRoot: ".", repo: null, pr: null, quiet: false };
+  const parsed: ParsedArgs = { projectRoot: ".", repo: null, pr: null, quiet: false, onePrUnitId: null };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--quiet") {
@@ -63,6 +64,15 @@ export function parseArgs(argv: string[]): ParsedArgs {
         return { ...parsed, error: `argument --pr: expected a positive integer, got ${value}` };
       }
       parsed.pr = pr;
+    } else if (arg === "--one-pr-unit") {
+      const value = argv[i + 1];
+      if (value === undefined) {
+        return { ...parsed, error: "argument --one-pr-unit: expected one argument" };
+      }
+      parsed.onePrUnitId = value;
+      i += 1;
+    } else if (arg?.startsWith("--one-pr-unit=")) {
+      parsed.onePrUnitId = arg.slice("--one-pr-unit=".length);
     } else {
       return { ...parsed, error: `unrecognized argument: ${arg}` };
     }
@@ -84,6 +94,7 @@ export function run(argv: string[]): number {
   const result = evaluate(resolve(args.projectRoot), args.pr as number, {
     repo: args.repo,
     quiet: args.quiet,
+    onePrUnitId: args.onePrUnitId,
   });
 
   if (result.message.length > 0) {

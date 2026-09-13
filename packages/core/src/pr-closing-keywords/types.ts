@@ -34,5 +34,8 @@ export interface ParsedArgs {
    * both = default (FP + intent).
    */
   readonly mode: ClosingKeywordMode;
+  /** Distinct one-PR-unit grant id (#4494). Not `--allow-close`. */
+  readonly onePrUnit: string | null;
+  readonly projectRoot: string | null;
   readonly error?: string;
 }

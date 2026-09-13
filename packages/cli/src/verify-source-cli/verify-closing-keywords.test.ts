@@ -148,13 +148,13 @@ describe("buildClosingKeywordsCheckArgv (#3969)", () => {
   it("uses --pr when GITHUB_PR_NUMBER is set", () => {
     expect(
       buildClosingKeywordsCheckArgv({ GITHUB_PR_NUMBER: "3960" }, [], mergeBaseGit).argv,
-    ).toEqual(["--mode", "fp", "--pr", "3960"]);
+    ).toEqual(["--mode", "both", "--pr", "3960"]);
   });
 
   it("uses --from-git-range against the merge-base when no PR number is present", () => {
     expect(buildClosingKeywordsCheckArgv({}, [], mergeBaseGit).argv).toEqual([
       "--mode",
-      "fp",
+      "both",
       "--from-git-range",
       "abc1234def..HEAD",
     ]);
@@ -167,7 +167,7 @@ describe("run", () => {
     expect(run(["--allow-known-false-positives", "1"], {}, invoke, mergeBaseGit)).toBe(0);
     expect(invoke).toHaveBeenCalledWith([
       "--mode",
-      "fp",
+      "both",
       "--from-git-range",
       "abc1234def..HEAD",
       "--allow-known-false-positives",

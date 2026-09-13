@@ -1,5 +1,6 @@
 import { type PathLike, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { collectGithubRefs } from "../orphan-active/refs.js";
 import {
   evaluateProjectInvariantsGate,
   resolveProjectRootForInvariants,
@@ -9,10 +10,18 @@ import {
   formatParentLineageLine,
   type ParentLineageResult,
 } from "../scope/parent-lineage.js";
+import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
+import { loadOnePrUnitGrant } from "../one-pr-unit/store.js";
+import {
+  SOLO_MULTI_COHORT_CONFIG,
+  type OnePrUnitGrant,
+  type OriginRef,
+} from "../one-pr-unit/types.js";
 import {
   type AllocationFields,
   type ParsedAllocation,
   parseAllocationSection,
+  parseCohortVbriefs,
   SOLO_KIND,
   SWARM_COHORT_KIND,
   VALID_DISPATCH_KINDS,
@@ -41,6 +50,12 @@ export interface EvaluateOptions {
   readonly skipParentLineage?: boolean;
   /** Skip project-invariant coverage (#3425). Default false. */
   readonly skipProjectInvariants?: boolean;
+  /** Injected one-PR-unit grant (tests). Distinct from #1378 fields. */
+  readonly onePrUnitGrant?: OnePrUnitGrant | null;
+  /** Declared origin set for a multi-origin unit (story-ready). */
+  readonly declaredOrigins?: readonly OriginRef[];
+  readonly onePrUnitRepo?: string | null;
+  readonly onePrUnitBranch?: string | null;
 }
 
 function checkVbrief(
@@ -118,11 +133,42 @@ function checkVbrief(
   return { ok: true, path, payload: payload as Record<string, unknown> };
 }
 
+
+function originsFromCohort(
+  projectRoot: string | undefined,
+  cohort: readonly string[],
+  defaultRepo: string | null,
+): OriginRef[] {
+  if (projectRoot === undefined || cohort.length === 0) {
+    return [];
+  }
+  const out: OriginRef[] = [];
+  for (const rel of cohort) {
+    const path = resolve(projectRoot, rel);
+    try {
+      const payload = JSON.parse(readFileSync(path, "utf8")) as unknown;
+      if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+        continue;
+      }
+      const plan = (payload as Record<string, unknown>).plan;
+      if (typeof plan !== "object" || plan === null || Array.isArray(plan)) {
+        continue;
+      }
+      for (const issue of collectGithubRefs(plan as Record<string, unknown>, defaultRepo).issues) {
+        out.push({ repo: issue.repo, issueId: issue.number });
+      }
+    } catch {
+      continue;
+    }
+  }
+  return out;
+}
+
 function readyMessage(treeNote: string, suffix: string): string {
   return `OK: ready to start -- ${treeNote}, vBRIEF active+running, ${suffix}`;
 }
 
-function classifyAllocation(fields: AllocationFields, treeNote: string): EvaluateResult {
+function classifyAllocation(fields: AllocationFields, treeNote: string, options: EvaluateOptions = {}): EvaluateResult {
   const dispatchKind = fields.dispatch_kind ?? null;
   if (!("dispatch_kind" in fields) || dispatchKind === null) {
     return {
@@ -145,6 +191,53 @@ function classifyAllocation(fields: AllocationFields, treeNote: string): Evaluat
   }
 
   if (dispatchKind === SOLO_KIND) {
+    const cohort = parseCohortVbriefs(fields.cohort_vbriefs);
+    if (cohort.length > 1) {
+      const grantId = fields.one_pr_unit_id ?? null;
+      const grant =
+        options.onePrUnitGrant !== undefined
+          ? options.onePrUnitGrant
+          : grantId !== null && options.projectRoot !== undefined
+            ? loadOnePrUnitGrant(options.projectRoot, grantId)
+            : null;
+      if (grant === null) {
+        return {
+          exitCode: 2,
+          dispatchKind,
+          message: SOLO_MULTI_COHORT_CONFIG,
+        };
+      }
+      const declared =
+        options.declaredOrigins !== undefined && options.declaredOrigins.length > 0
+          ? options.declaredOrigins
+          : originsFromCohort(options.projectRoot, cohort, options.onePrUnitRepo ?? grant.repo);
+      if (declared.length === 0) {
+        return {
+          exitCode: 2,
+          dispatchKind,
+          message:
+            "config error: solo multi-origin unit did not declare an origin set for one-PR-unit exact-set matching. " +
+            SOLO_MULTI_COHORT_CONFIG,
+        };
+      }
+      const decision = evaluateOnePrUnit({
+        closerSet: declared,
+        grant,
+        binding: { repo: options.onePrUnitRepo, branch: options.onePrUnitBranch },
+      });
+      if (!decision.ok) {
+        return {
+          exitCode: 2,
+          dispatchKind,
+          message: `config error: ${decision.message}`,
+        };
+      }
+      return {
+        exitCode: 0,
+        dispatchKind,
+        message: readyMessage(treeNote, `dispatch_kind: solo; ${decision.message}`),
+      };
+    }
     return {
       exitCode: 0,
       dispatchKind,
@@ -276,7 +369,7 @@ export function evaluate(vbriefPath: PathLike, options: EvaluateOptions = {}): E
     };
   }
 
-  const classified = classifyAllocation(fields, treeNote);
+  const classified = classifyAllocation(fields, treeNote, options);
   return {
     ...classified,
     parentLineage: lineage,
@@ -292,4 +385,4 @@ export {
   formatParentLineageLine,
   type ParentLineageResult,
 } from "../scope/parent-lineage.js";
-export { parseAllocationSection, SOLO_KIND, SWARM_COHORT_KIND };
+export { parseAllocationSection, parseCohortVbriefs, SOLO_KIND, SWARM_COHORT_KIND };
