@@ -1826,3 +1826,24 @@ describe("classifyShellAuthzOps protected dest harvest (#4199)", () => {
     expect(classifyShellAuthzOps(`makeself src ${grant} label`)).toContain("unknown");
   });
 });
+
+describe("interpreter payload and jar dest-grammar (#3593)", () => {
+  it("emits unknown when a protected dest is quoted inside -e/-c/eval", () => {
+    for (const command of [
+      'raku -e \'spurt(".deft/authz/grants/evil.json", "{}")\'',
+      'graalpy -c \'open(".deft-directive-disable", "w").write("x")\'',
+      'clojure -e \'(spit ".deft/authz/grants/evil.json" "{}")\'',
+      'crystal eval \'File.write(".deft/approved-scope/story.json", "x")\'',
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+    }
+  });
+
+  it("treats jar cf DEST inputs as dest-of-write, not last-positional input", () => {
+    expect(classifyShellAuthzOps("jar cf .deft/authz/grants/evil.json files")).toEqual(["unknown"]);
+  });
+
+  it("keeps git status fail-open", () => {
+    expect(classifyShellAuthzOps("git status")).toEqual([]);
+  });
+});
