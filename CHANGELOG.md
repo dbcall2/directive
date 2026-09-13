@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.118.0] - 2026-09-13
+
+> Launcher-family spawn classification, evaluator-surface/test-lane gates, setup origin-count, dest-of-write UAT leftover, occupancy identity, leftover complete-tracking.
+
 ### Security
 
 - **Dest-of-write grammar leftover on UAT Shell (#3764).** Under active UAT, more Shell forms that write a protected path (grant store, kill-switch, approved-scope) now deny as grant-immune `unknown`: quoted paths inside interpreter `-c`/`-e`, dest-flag values such as `--print-to-pdf=` / `--target-dir`, a protected last dest followed by trailing junk (`--quiet 1`), and `task`/`cargo`/`npm --out-dir`. `git -C` / `make -C` stay cwd, not dest. Bare output filenames (`out.wav`) stay outputs. Concatenated payload paths stay residual. Finding 4 CHANGELOG containment stays split. Refs #4188.
@@ -6093,7 +6105,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.117.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.118.0...HEAD
+[0.118.0]: https://github.com/deftai/directive/compare/v0.117.0...v0.118.0
 [0.117.0]: https://github.com/deftai/directive/compare/v0.116.0...v0.117.0
 [0.116.0]: https://github.com/deftai/directive/compare/v0.115.0...v0.116.0
 [0.115.0]: https://github.com/deftai/directive/compare/v0.114.0...v0.115.0

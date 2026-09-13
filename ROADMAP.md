@@ -5,6 +5,10 @@
 
 # Roadmap
 
+## Active
+
+- **#3764** -- fix(hooks,security): dest-of-write grammar leftover on #3764 (option 1 payload literals) -- `[running]`
+
 ## Proposed
 
 _Scopes not yet promoted to pending. Orientation only — not a substitute for `task triage:queue`._
@@ -40,31 +44,31 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1479 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1504 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
-- **#4393** -- bug(hooks): dest-proven Grok implement spawn still hits #4007 on primary leftover actives; spawn cannot pass the story pin -- `[completed]`
-- **#4380** -- bug(setup,verify-ac): plan.acceptance requires fields no skill documents — setup-generated scopes fail verify:ac closed, then verify nothing (0 verified / N unverifiable) -- `[completed]`
-- **#4399** -- bug(session,release): session:ready reports OK while cache_fresh is dirty, then task release Step 5 fails -- `[completed]`
-- **#4266** -- bug(session,release): session:start cannot pass primaryClaimException=release-cut -- `[completed]`
-- **#4406** -- feat(session): default sessionRitualStalenessHours 4 to 8 -- `[completed]`
-- **#4374** -- bug(setup,scope): Phase 3 emits acceptance criteria as a non-derivable narrative, so scope:activate fails closed (#3334) on freshly-generated scopes -- `[completed]`
-- **#4379** -- bug(tasks,installer): the deposited consumer Taskfile namespaces the deft include, so every documented "task check" / "task scope:*" invocation fails (exit 200 = task not found) -- `[completed]`
-- **#4391** -- docs(design-critique): Grok critic spawn from primary fails two ways; dest-rooted grok CLI is the working seat -- `[completed]`
-- **#4390** -- bug(setup): same-session greenfield Phase 3 defaults to Add-scope and never asks what to build -- `[completed]`
-- **#4356** -- BLOCKER: 0.115.0 consumer docs-impact task references source-only packages/core path -- `[completed]`
-- **#4389** -- deft update --dry-run fails closed with C3 live-procedure target validation error (25 unresolved helper targets) instead of printing a plan -- `[completed]`
-- **#4361** -- refactor(design-critique): retire "recut"; the spec source at ingest is the Bound-remedy heading -- `[completed]`
-- **#4362** -- bug(hooks,cursor): dest-missing deny after #4295 still omits dest-placing recovery -- `[completed]`
-- **#4365** -- Grok Build design-critique Claude/Codex spawn recipe is missing; agents fail starting the CLI -- `[completed]`
-- **#3452** -- feat(review-cycle,swarm): policy-anchored review-response loop -- classify reviewer findings against a written invariant before patching; batch fixes into one push -- `[completed]`
-- **#4345** -- Consumer @deftai GitHub Packages scope 404s public @deftai/directive even with --registry npmjs -- `[completed]`
-- **#4343** -- Live Fly E2E RCA: gated ritual blocked by completed-xbrief doctor + missing consumer retry guidance -- `[completed]`
-- **#4337** -- [framework-gap] brownfield Phase 3 has no process-only path (keep building, use Directive) -- `[completed]`
-- **#4335** -- [framework-gap] init/doctor tell a Grok Build operator to open Codex /hooks -- `[completed]`
-- **#4348** -- chore(security): bump brace-expansion to 5.0.9 (Dependabot #10/#13) -- `[completed]`
-- **#4344** -- bug(doctor): #4162 escaping-symlink test EPERMs on Windows without Developer Mode -- `[completed]`
-- **#4162** -- [framework-gap] doctor checks consumer xbrief under the deposit root and emits an impossible warning -- `[completed]`
-- **#4310** -- bug(dev): clean master fails deterministic development-readiness gates -- `[completed]`
-- **#4321** -- bug(hooks,cursor): preflight-loop parallel review Task spawns denied — implement-class gate + no worktree destination -- `[completed]`
-- **#4324** -- bug(docs,skills): #1704 leftover -- CONTRIBUTING and pre-PR still force full task check per commit -- `[completed]`
+- **#4219** -- rfc(harness): classify launcher-family CLI argv as process-only skip; dest-absent fail-closed -- `[completed]`
+- **#4398** -- bug(release): npm-publish post-publish fixture fails immediately after successful sibling publishes -- `[completed]`
+- **#4315** -- fix(design-critique): land process_only on Grok PreToolUse tool_input for general-purpose plus dest cwd -- `[completed]`
+- **#4431** -- bug(session,occupancy): payload-identity hosts mint a UUID lease on claim, so session:start/ready locks the session out of its own worktree -- `[completed]`
+- **#4238** -- bug(literal-ac): a task_statement AC command cannot be promoted by any documented route — commandDedupeKey and promotionKey disagree -- `[completed]`
+- **#4386** -- design(gates): gate integrity is a hard rule with no detector — an agent cleared a red coverage floor by editing the coverage lane, and nothing objected -- `[completed]`
+- **#3593** -- AppSec: 3 HIGH + 2 MEDIUM — MCP write routing around UAT; post-#3545 residual writers (raku/graalpy/crystal/…); migrate agents-header symlink (#2912 miss) -- `[completed]`
+- **#3953** -- AppSec: 3 HIGH + 4 MEDIUM @ 41331dea - assist-scratch in-tree leaf diversion (#3186 residual); assertWriteTargetSafe parent-dir gap; prd/spec + changelog-cli unguarded writes; post-#3545 UAT Shell residuals (llvm-ar/emar/xorriso/virt-sparsify/lxc/incus/sam/f2py/termrec) -- `[completed]`
+- **#4199** -- AppSec: 4 HIGH + 1 MEDIUM @ 346848c1 -- UAT **/evidence/** grant bypass; Cursor EditNotebook skip; Shell >! harvest evasion; residual writers (nomad/puppet/swift/yarn/makeself/guix/dasel/yq) plant authz + kill-switch; approved-scope mint -- `[completed]`
+- **#4409** -- bug(occupancy): recut — isolate --host argv remainder; deposit stays on #4443 -- `[completed]`
+- **#4410** -- Occupancy deny text must not print the steal recipe to the refused party -- `[completed]`
+- **#4411** -- Housekeeping recut: xbrief stderr + no-active normal, occupancy --help names deft help, drop inner recovery append -- `[completed]`
+- **#4387** -- design(gates): the SLizard merge gate cannot parse SLizard's own verdict, prints severities it did not read from the verdict, and blocks forever on a request_changes with zero findings -- `[completed]`
+- **#4388** -- design(slizard): the json-syntax and TypeScript compilation checks ignore the project tsconfig, so a JSONC tsconfig and a deliberately excluded test file are reported as P1 defects -- `[completed]`
+- **#4430** -- bug(agents,bootstrap): both managed AGENTS.md recovery pointers dangle on a fresh clone; #2273 guard misses agents-entry.md -- `[completed]`
+- **#4412** -- bug(init,session,scope): fresh consumer onboarding -- init skips the promised package.json pin, then each printed recovery leads to the next denial (6 failures to write one file) -- `[completed]`
+- **#4422** -- bug(gates,scope): a completed scope's record cannot be corrected -- every printed recovery is inapplicable and scope:undo is never mentioned -- `[completed]`
+- **#4423** -- bug(scope): lifecycle stamps write 'updated' with no chronology validation, shipping updated<created artifacts the vendor's own reviewer then flags -- `[completed]`
+- **#4426** -- design(scope,verify): setup-created scopes carry no forge origin, so four lifecycle detectors silently no-op at exit 0 and scope:complete reports a vacuous acceptance -- `[completed]`
+- **#4429** -- bug(init): greenfield init gitignores .deft/core/ without the #2269 reconstitution-anchor gate (no package.json pin written) -- `[completed]`
+- **#4188** -- fix(hooks,security): fail closed on unknown writes to UAT-protected destinations -- `[completed]`
+- **#4424** -- bug(init): recut — keep traveling host-hook trees; reject three filed remedies -- `[completed]`
+- **#4158** -- bug(update): refuse dirty consumer upgrades before writes and keep the index unmixed -- `[completed]`
+- **#4245** -- bug(conformance): verify:vbrief-conformance --staged skips the D7 filename check, so the installed pre-commit hook admits files the full gate permanently rejects -- `[completed]`
+- **#4246** -- bug(agents-md): resolveFrameworkSha runs git in the framework install root — spurious git fatal AND sha=unknown persisted into consumer AGENTS.md (#3914 / #4118 still reproduce at 0.104.0) -- `[completed]`
 
