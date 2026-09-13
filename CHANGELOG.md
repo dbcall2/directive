@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Dest-of-write grammar leftover on UAT Shell (#3764).** Under active UAT, more Shell forms that write a protected path (grant store, kill-switch, approved-scope) now deny as grant-immune `unknown`: quoted paths inside interpreter `-c`/`-e`, dest-flag values such as `--print-to-pdf=` / `--target-dir`, a protected last dest followed by trailing junk (`--quiet 1`), and `task`/`cargo`/`npm --out-dir`. `git -C` / `make -C` stay cwd, not dest. Bare output filenames (`out.wav`) stay outputs. Concatenated payload paths stay residual. Finding 4 CHANGELOG containment stays split. Refs #4188.
+
 ### Added
 
 - **Evaluator-surface disclosure gate and declared consumer test lane (#4386).** `verify:evaluator-surface` fails declared evaluator-definition diffs unless `xbrief/evaluator-surface-disposition.json` records disclosure; prior color is unobserved and a commit-body URL is not #3164 authorization. Inventories #3322 instead of a parallel history detector. `verify:consumer-test-lane` runs `plan.policy.testCommand` or `package.json` `scripts.test` and skips when undeclared; `verify:ac` stays first. Keeps testing.md coverage-population exclusion; no shipped-library default. Consumer agents-entry pins both verbs (#1309) without raising `plan.policy.agentsMdBudget`. Closes #4386. Refs #3156, #3322.
@@ -27,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **npm-publish post-publish fixture retries tag-bound install, then warns (#4398).** After four successful `npm publish --provenance` steps, the two-pass fixture retries `npm install --ignore-scripts` of the cut versions with real backoff (not a no-op sleep, not `npm view` as the pass). After the bound, warn-only so a still-propagating registry does not fail `npm-publish.yml`; two-pass closure is deferred for that cut, not deleted. Publish-step failure still fails the job. `assertTagBoundDirectiveVersions` stays. Does not fold `pollWorkspacePackages` / Phase 7 (#4267). Closes #4398. Refs #4271, #4267.
 
 - **Land leftover completed-tracked artifact for #4315 (#3264 / #3476).** The #4315 xBRIEF stayed in xbrief/active/ on origin/master after squash of PR 4486. Moved to xbrief/completed/ via scope:complete. Does not reopen or recut that issue. Refs #2321, #3476.
+- **Land leftover completed-tracked artifact for #4431 (#3264 / #3476).** The #4431 xBRIEF stayed in xbrief/active/ on origin/master after squash of PR 4440. Moved to xbrief/completed/ via scope:complete. Does not reopen or recut that issue. Refs #2321, #3476.
 - **Land leftover completed-tracked artifact for #4238 (#3264 / #3476).** The #4238 xBRIEF stayed in xbrief/active/ on origin/master after squash of PR 4436. Moved to xbrief/completed/ via scope:complete. Does not reopen or recut that issue. Refs #2321, #3476.
 - **Land leftover completed-tracked artifact for #4386 (#3264 / #3476).** The #4386 xBRIEF stayed in xbrief/active/ on origin/master after squash of PR 4476. Moved to xbrief/completed/ via scope:complete. Does not reopen or recut that issue. Refs #2321, #3476.
 - **Land leftover completed-tracked artifact for #3593 (#3264 / #3476).** The #3593 xBRIEF stayed in xbrief/active/ on origin/master after squash of PR 4460. Moved to xbrief/completed/ via scope:complete. Does not reopen or recut that issue. Refs #2321, #3476.
