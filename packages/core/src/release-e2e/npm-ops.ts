@@ -21,6 +21,8 @@ import {
   NPM_PACK_TIMEOUT_SECONDS,
   NPM_PUBLISH_DRYRUN_TIMEOUT_SECONDS,
   NPM_PUBLISH_PACKAGES,
+  POST_PUBLISH_INSTALL_BACKOFF_MS,
+  POST_PUBLISH_INSTALL_RETRY_BOUND_MS,
 } from "./constants.js";
 import type { E2ESeams } from "./types.js";
 
@@ -598,6 +600,135 @@ function runPass2UpdateFromInstalledCli(
   return [true, "Pass 2 directive update OK", parsePorcelainPaths(porcelain.stdout ?? "")];
 }
 
+const REGISTRY_PROPAGATION_MARKERS = [
+  "ETARGET",
+  "E404",
+  "No matching version found",
+  "being processed",
+  "Not Found",
+] as const;
+
+const TWO_PASS_DEFERRED_MARK = "two-pass closure deferred";
+
+/** Synchronous non-spinning sleep. Production default for #4398 retry. */
+export function defaultPostPublishSleepMs(ms: number): void {
+  if (ms <= 0) return;
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function packageNameFromSpec(spec: string): string {
+  if (spec.startsWith("@")) {
+    const slash = spec.indexOf("/");
+    const restAt = spec.indexOf("@", Math.max(slash, 0) + 1);
+    return restAt === -1 ? spec : spec.slice(0, restAt);
+  }
+  const at = spec.lastIndexOf("@");
+  return at > 0 ? spec.slice(0, at) : spec;
+}
+
+/** True when npm install failed because this cut is still propagating. */
+export function isRegistryPropagationFailure(
+  detail: string,
+  specs: readonly string[] = [],
+): boolean {
+  const lower = detail.toLowerCase();
+  if (!REGISTRY_PROPAGATION_MARKERS.some((marker) => lower.includes(marker.toLowerCase()))) {
+    return false;
+  }
+  const names = specs.length > 0 ? specs.map(packageNameFromSpec) : ["@deftai/directive"];
+  return names.some((name) => lower.includes(name.toLowerCase()));
+}
+
+/** True when the fixture returned the #4398 warn-only deferred result. */
+export function isTwoPassDeferredWarning(reason: string): boolean {
+  return reason.includes(TWO_PASS_DEFERRED_MARK);
+}
+
+export interface PostPublishTwoPassCliStatus {
+  readonly exitCode: number;
+  readonly stream: "stdout" | "stderr";
+}
+
+/** Map fixture result to process exit for the release-workflow CLI. */
+export function postPublishTwoPassCliStatus(
+  ok: boolean,
+  reason: string,
+): PostPublishTwoPassCliStatus {
+  if (!ok) return { exitCode: 1, stream: "stderr" };
+  if (isTwoPassDeferredWarning(reason)) return { exitCode: 0, stream: "stderr" };
+  return { exitCode: 0, stream: "stdout" };
+}
+
+function nowMsFromSeams(seams: E2ESeams): number {
+  return seams.now ? seams.now().getTime() : Date.now();
+}
+
+function deferredTwoPassWarning(lastReason: string): [boolean, string] {
+  return [
+    true,
+    `WARN: two-pass closure deferred for this cut (registry still propagating after ${POST_PUBLISH_INSTALL_RETRY_BOUND_MS}ms): ${lastReason}`,
+  ];
+}
+
+/**
+ * Retry the tag-bound registry install with real backoff. After the bound,
+ * warn-only so a still-propagating registry does not fail npm-publish.yml.
+ */
+export function runTagBoundRegistryInstall(
+  options: {
+    readonly npmPath: string;
+    readonly cleanDir: string;
+    readonly specs: readonly string[];
+    readonly env?: NodeJS.ProcessEnv;
+  },
+  seams: E2ESeams = {},
+): [boolean, string] {
+  const sleep = seams.sleepMs ?? defaultPostPublishSleepMs;
+  const env = options.env ?? { ...process.env };
+  const start = nowMsFromSeams(seams);
+  let attempt = 0;
+  let lastReason = "";
+  while (true) {
+    const elapsed = nowMsFromSeams(seams) - start;
+    const remainingMs = POST_PUBLISH_INSTALL_RETRY_BOUND_MS - elapsed;
+    if (remainingMs <= 0) {
+      return lastReason.length > 0
+        ? deferredTwoPassWarning(lastReason)
+        : [false, "tag-bound registry install bound exhausted"];
+    }
+    const timeoutSeconds = Math.max(
+      1,
+      Math.min(NPM_INSTALL_TIMEOUT_SECONDS, Math.ceil(remainingMs / 1000)),
+    );
+    const [ok, reason] = runNpmStep(
+      [options.npmPath, "install", "--ignore-scripts", ...options.specs],
+      options.cleanDir,
+      env,
+      "tag-bound registry install",
+      timeoutSeconds,
+      seams,
+    );
+    if (ok) return [true, reason];
+    lastReason = reason;
+    if (!isRegistryPropagationFailure(reason, options.specs)) {
+      return [false, reason];
+    }
+    const elapsedAfter = nowMsFromSeams(seams) - start;
+    if (elapsedAfter >= POST_PUBLISH_INSTALL_RETRY_BOUND_MS) {
+      return deferredTwoPassWarning(lastReason);
+    }
+    const slot = Math.min(attempt, POST_PUBLISH_INSTALL_BACKOFF_MS.length - 1);
+    const remainingAfter = POST_PUBLISH_INSTALL_RETRY_BOUND_MS - elapsedAfter;
+    const backoff = POST_PUBLISH_INSTALL_BACKOFF_MS[slot] ?? remainingAfter;
+    const delay = Math.min(backoff, remainingAfter);
+    if (delay <= 0) {
+      return deferredTwoPassWarning(lastReason);
+    }
+    sleep(delay);
+    attempt += 1;
+  }
+}
+
 export function runPostPublishTwoPassFixture(
   options: PostPublishTwoPassOptions,
   seams: E2ESeams = {},
@@ -615,15 +746,12 @@ export function runPostPublishTwoPassFixture(
     const pkgs = options.registryPackages ?? DEFAULT_REGISTRY_PACKAGES;
     const specs = pkgs.map((name) => `${name}@${options.version}`);
     mkdirSync(options.cleanDir, { recursive: true });
-    const [ok, reason] = runNpmStep(
-      [npmPath, "install", ...specs],
-      options.cleanDir,
-      env,
-      "tag-bound registry install",
-      NPM_INSTALL_TIMEOUT_SECONDS,
+    const [ok, reason] = runTagBoundRegistryInstall(
+      { npmPath, cleanDir: options.cleanDir, specs, env },
       seams,
     );
     if (!ok) return [false, reason];
+    if (isTwoPassDeferredWarning(reason)) return [true, reason];
   }
   try {
     assertTagBoundDirectiveVersions(options.cleanDir, options.version);
@@ -693,9 +821,13 @@ if (/\/npm-ops\.[cm]?js$/.test(npmOpsEntry) && process.argv.includes("--post-pub
   const raw = process.argv[flagAt + 1] ?? process.env.VERSION ?? "";
   const version = raw.replace(/^v/, "");
   const [ok, reason] = invokePostPublishTwoPassFromReleaseWorkflow(version, process.cwd());
-  if (!ok) {
+  const status = postPublishTwoPassCliStatus(ok, reason);
+  if (status.stream === "stderr") {
     console.error(reason);
-    process.exit(1);
+  } else {
+    console.log(reason);
   }
-  console.log(reason);
+  if (status.exitCode !== 0) {
+    process.exit(status.exitCode);
+  }
 }
