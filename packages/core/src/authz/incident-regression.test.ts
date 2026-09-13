@@ -1838,6 +1838,9 @@ describe("UAT protected dest-of-write fail-closed (#4188)", () => {
     "typst compile doc.typ .deft-directive-disable",
     "ffmpeg -i in.wav .no-deft-directive",
     "screencapture .deft/approved-scope/story.json",
+    "chrome --print-to-pdf=.deft/authz/grants/x.json",
+    "task build --out-dir .deft-directive-disable",
+    "lame in.wav .deft-directive-disable --quiet 1",
   ] as const;
 
   const settingsGrant: HumanOriginGrant = {

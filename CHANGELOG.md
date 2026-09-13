@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- **Quoted protected paths in interpreter `-c`/`-e` payloads are dest-of-write (#3764).** Option 1: no write-API gate and no language parser. `print('.deft/authz/…')` classifies `unknown` (grant-immune under UAT). Concatenated paths stay residual. Does not grow named-bin lists. Refs #4188.
+- **Dest-of-write grammar leftover on UAT Shell (#3764).** Interpreter `-c`/`-e` quoted protected paths (option 1, no write-API gate), dest-flag values (`--print-to-pdf=` / `--target-dir` / `--distpath` / `-of` / `-C`), trailing non-path junk after a last-positional dest, and `TEST_BINS` (`task`/`cargo`/`npm`) no longer skip dest-of-write. Emits grant-immune `unknown`, not `settings`. Concatenated payload paths stay residual. Finding 4 CHANGELOG containment stays split. Refs #4188.
 
 ### Added
 

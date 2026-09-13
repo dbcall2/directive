@@ -1858,6 +1858,56 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
     expect(classifyShellAuthzOps(String.raw`qjs -e 'print("/tmp/out.json")'`)).toEqual([]);
   });
 
+  it("emits unknown for dest-flag values including attached equals (#3764)", () => {
+    for (const command of [
+      "chrome --headless --print-to-pdf=.deft/authz/grants/x.json",
+      "chrome --print-to-pdf=.deft-directive-disable about:blank",
+      "webpack --output-path=.deft/authz/grants dist.js",
+      "webpack --output-path .deft/authz/grants --mode production",
+      "pyinstaller --distpath .deft/authz/grants app.py",
+      "cargo build --target-dir .deft/authz/grants",
+      "ldc2 -of=.deft/authz/grants/a.out main.d",
+      "mlton -output .deft/authz/grants/a.out main.sml",
+      "binwalk -e -C .deft/authz/grants f.bin",
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+    }
+  });
+
+  it("recovers last-positional dest after trailing non-path junk (#3764)", () => {
+    expect(classifyShellAuthzOps("lame in.wav .deft-directive-disable --quiet 1")).toEqual([
+      "unknown",
+    ]);
+    expect(
+      classifyShellAuthzOps("qpdf --empty --pages . -- .deft/approved-scope/p.json extra"),
+    ).toEqual(["unknown"]);
+    expect(
+      classifyShellAuthzOps("webpack --output-path .deft/authz/grants --mode production"),
+    ).toEqual(["unknown"]);
+  });
+
+  it("does not skip TEST_BINS dest-of-write (#3764)", () => {
+    expect(classifyShellAuthzOps("task build --out-dir .deft-directive-disable")).toEqual([
+      "unknown",
+    ]);
+    expect(classifyShellAuthzOps("cargo build --out-dir .deft/authz/grants")).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps("npm run build --out-dir .deft/authz/grants")).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps("notabin build --out-dir .deft-directive-disable")).toEqual([
+      "unknown",
+    ]);
+    expect(classifyShellAuthzOps("cargo build")).toEqual([]);
+    expect(classifyShellAuthzOps("task test")).toEqual(["test"]);
+  });
+
+  it("keeps protected sources as inputs when the last path is ordinary (#3764)", () => {
+    expect(
+      classifyShellAuthzOps("ffmpeg -i .deft/authz/grants/x.json /tmp/out.wav"),
+    ).not.toContain("unknown");
+    expect(
+      classifyShellAuthzOps("typst compile .deft/authz/grants/x.json /tmp/out.pdf"),
+    ).not.toContain("unknown");
+  });
+
   it("treats jar cf DEST inputs as dest-of-write, not last-positional input", () => {
     expect(classifyShellAuthzOps("jar cf .deft/authz/grants/evil.json files")).toEqual(["unknown"]);
     expect(

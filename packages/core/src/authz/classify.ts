@@ -2373,7 +2373,6 @@ function argv0HasExistingDestGrammar(name: string): boolean {
   if (SYMLINK_PLANT_BINS.has(name)) return true;
   if (DEST_ASSIGNMENT_OWNER_BINS.has(name)) return true;
   if (DEST_ASSIGNMENT_NON_WRITER_FIRST_BINS.has(name)) return true;
-  if (TEST_BINS.has(name)) return true;
   for (const bin of UAT_RESIDUAL_DEST_WRITE_BINS_3545) {
     if (bin === name) return true;
   }
@@ -2495,14 +2494,82 @@ function jarCreateArchiveDest(words: readonly string[], execIndex: number): stri
   return fileDest !== null && fileDest.length > 0 ? fileDest : null;
 }
 
-function lastNonFlagWord(words: readonly string[], execIndex: number): string | null {
-  let last: string | null = null;
+/**
+ * Dest-flag names harvested as dest-of-write (`unknown`), not as grantable
+ * `settings`. Do not merge into GENERIC_PROTECTED_EXTRA_DEST_FLAGS (#3764).
+ */
+const UNKNOWN_DEST_OF_WRITE_FLAGS = new Set([
+  "--target-dir",
+  "--print-to-pdf",
+  "--distpath",
+  "--output-path",
+  "--out-dir",
+  "--outdir",
+  "-of",
+  "-output",
+  "--output",
+]);
+
+function harvestUnknownDestFlagValues(words: readonly string[], execIndex: number): string[] {
+  const dests: string[] = [];
+  for (let i = execIndex + 1; i < words.length; i++) {
+    const raw = words[i] as string;
+    const eq = raw.indexOf("=");
+    if (eq > 0 && raw.startsWith("-")) {
+      const flagTok = raw.slice(0, eq);
+      const value = raw.slice(eq + 1);
+      if (value.length === 0) continue;
+      if (flagTok === "-C" || UNKNOWN_DEST_OF_WRITE_FLAGS.has(normalizeToken(flagTok))) {
+        dests.push(value);
+      }
+      continue;
+    }
+    if (raw === "-C") {
+      const next = words[i + 1];
+      if (next === undefined) continue;
+      const nn = normalizeToken(next);
+      if (nn === "--" || nn.startsWith("-")) continue;
+      dests.push(next);
+      i++;
+      continue;
+    }
+    const flag = normalizeToken(raw);
+    if (!UNKNOWN_DEST_OF_WRITE_FLAGS.has(flag)) continue;
+    const next = words[i + 1];
+    if (next === undefined) continue;
+    const nn = normalizeToken(next);
+    if (nn === "--" || nn.startsWith("-")) continue;
+    dests.push(next);
+    i++;
+  }
+  return dests;
+}
+
+function isNonPathishTrailingToken(raw: string): boolean {
+  if (isRelativePayloadProtectedDest(raw)) return false;
+  const lit = zipShellWordLiteral(raw);
+  if (lit === null) return true;
+  return !lit.includes("/") && !lit.includes("\\");
+}
+
+/** Last dest-of-write positional, walking back past trailing non-path junk (#3764). */
+function lastDestOfWritePositional(words: readonly string[], execIndex: number): string | null {
+  const nonFlags: string[] = [];
   for (let i = execIndex + 1; i < words.length; i++) {
     const raw = words[i] as string;
     const n = normalizeToken(raw);
     if (n === "--") continue;
     if (n.startsWith("-")) continue;
-    last = raw;
+    nonFlags.push(raw);
+  }
+  if (nonFlags.length === 0) return null;
+  const last = nonFlags[nonFlags.length - 1] as string;
+  if (isRelativePayloadProtectedDest(last)) return last;
+  if (isNonPathishTrailingToken(last)) {
+    for (let j = nonFlags.length - 2; j >= 0; j--) {
+      const prev = nonFlags[j] as string;
+      if (isRelativePayloadProtectedDest(prev)) return prev;
+    }
   }
   return last;
 }
@@ -2594,6 +2661,9 @@ function hasProtectedUnprovenReadOnlyDestOfWrite(command: string): boolean {
     for (const dest of harvestInterpreterPayloadDests(segment.words, segment.execIndex)) {
       if (isRelativePayloadProtectedDest(dest)) return true;
     }
+    for (const dest of harvestUnknownDestFlagValues(segment.words, segment.execIndex)) {
+      if (isRelativePayloadProtectedDest(dest)) return true;
+    }
     const pathQualified = literal !== null && argv0IsPathQualified(literal);
     // Path-qualified `./cat` is not a proven reader. Still skip catalogued
     // writers (they already emit settings). Do not apply print/read first-bin
@@ -2610,7 +2680,7 @@ function hasProtectedUnprovenReadOnlyDestOfWrite(command: string): boolean {
       continue;
     }
     if (!pathQualified && argv0HasExistingDestGrammar(name)) continue;
-    const last = lastNonFlagWord(segment.words, segment.execIndex);
+    const last = lastDestOfWritePositional(segment.words, segment.execIndex);
     if (last !== null && isRelativePayloadProtectedDest(last)) return true;
   }
   return false;
@@ -2638,13 +2708,15 @@ export function harvestDestsOfWriteForRealpath(command: string): string[] {
     const literal = argv0Literal(segment.words, segment.execIndex);
     const pathQualified = literal !== null && argv0IsPathQualified(literal);
     if (!pathQualified && DEST_ASSIGNMENT_NON_WRITER_FIRST_BINS.has(name)) continue;
-    if (!pathQualified && TEST_BINS.has(name)) continue;
     const jarDest = jarCreateArchiveDest(segment.words, segment.execIndex);
     if (jarDest !== null && jarDest.length > 0) dests.push(jarDest);
     for (const interp of harvestInterpreterPayloadDests(segment.words, segment.execIndex)) {
       dests.push(interp);
     }
-    const last = lastNonFlagWord(segment.words, segment.execIndex);
+    for (const flagDest of harvestUnknownDestFlagValues(segment.words, segment.execIndex)) {
+      dests.push(flagDest);
+    }
+    const last = lastDestOfWritePositional(segment.words, segment.execIndex);
     if (last === null || zipShellWordHasExpansion(last)) continue;
     const destLiteral = zipShellWordLiteral(last);
     if (destLiteral === null || destLiteral.length === 0) continue;
