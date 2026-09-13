@@ -186,6 +186,6 @@ export function run(argv: string[], seams: HumanPresenceMintSeams = {}): number 
   return 0;
 }
 
-if (isDirectEntrypoint(import.meta.url, process.argv[1])) {
+if (isDirectEntrypoint(import.meta.url)) {
   process.exit(run(process.argv.slice(2)));
 }
