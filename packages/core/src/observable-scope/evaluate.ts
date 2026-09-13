@@ -180,7 +180,13 @@ function listBaseRecords(
     return new Map(options.recordTextsAtBase);
   }
   const reader = options.readAtBase ?? ((rel: string) => gitShow(projectRoot, mergeBase, rel));
-  const names = runGit(projectRoot, ["ls-tree", "--name-only", mergeBase, OBSERVABLE_SCOPE_DIR]);
+  const names = runGit(projectRoot, [
+    "ls-tree",
+    "-r",
+    "--name-only",
+    mergeBase,
+    OBSERVABLE_SCOPE_DIR,
+  ]);
   const out = new Map<string, string>();
   if (names === null || names.length === 0) {
     // Fall back to working-tree listing only for injected readers in tests.

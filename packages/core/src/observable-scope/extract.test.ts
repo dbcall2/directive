@@ -49,4 +49,14 @@ describe("committed-markup oracle (#4495)", () => {
     expect(surface.path).toBe("src/App.tsx");
     expect(surface.facts).toEqual([{ kind: "heading", id: "heading:2:Hello" }]);
   });
+
+  it("extracts Heading, TableHead, and role landmarks", () => {
+    const facts = extractMarkupFacts(
+      `<Heading level="2">Stats</Heading><TableHead>Owner</TableHead><div role="navigation" aria-label="Side">x</div>`,
+    );
+    const ids = facts.map((f) => f.id);
+    expect(ids).toContain("heading:2:Stats");
+    expect(ids).toContain("table-column:Owner");
+    expect(ids).toContain("landmark:navigation:Side");
+  });
 });
