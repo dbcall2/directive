@@ -2844,6 +2844,225 @@ describe("process-only critic spawn dest skip (#4241)", () => {
   });
 });
 
+describe("launcher-family argv classification (#4219)", () => {
+  it("leaves bare grok as shell-op-unclassifiable", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "run_terminal_command",
+          tool_input: { command: "grok" },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "allow", code: "shell-op-unclassifiable" });
+  });
+
+  it("denies dest-absent grok argv closed, not shell-op-unclassifiable", () => {
+    const inspectRitual = vi.fn(() => READY_RITUAL);
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "run_terminal_command",
+          tool_input: {
+            command:
+              "grok --always-approve --permission-mode bypassPermissions --verbatim --no-subagents",
+          },
+        },
+      },
+      readySeams({ inspectRitual }),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "spawn-not-ready" });
+    expect(decision.code).not.toBe("shell-op-unclassifiable");
+    expect(decision.code).not.toBe("spawn-ready");
+    expect(decision.message).toMatch(/Dest-absent fails closed/);
+    expect(decision.message.startsWith(GROK_CRITIC_SPAWN_NOT_READY_RECOVERY)).toBe(true);
+    expect(GROK_CRITIC_SPAWN_NOT_READY_RECOVERY).toContain("Native first");
+    expect(GROK_CRITIC_SPAWN_NOT_READY_RECOVERY).not.toContain("until #4219");
+    expect(inspectRitual).not.toHaveBeenCalled();
+  });
+
+  it("denies dest-absent grok on monitor", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "monitor",
+          tool_input: { command: "grok --always-approve" },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "spawn-not-ready" });
+  });
+
+  it("denies dest-absent grok under read-only as read-only-deny", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "run_terminal_command",
+          tool_input: { command: "grok --cwd /missing --always-approve" },
+        },
+        environ: { [READ_ONLY_HOOK_ENV]: "1" },
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "read-only-deny" });
+    expect(decision.code).not.toBe("shell-op-unclassifiable");
+  });
+
+  it("denies dest-absent claude worker argv", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "run_terminal_command",
+          tool_input: {
+            command:
+              'claude -p "Read and follow /e.md" --permission-mode bypassPermissions --output-format text',
+          },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "spawn-not-ready" });
+    expect(decision.message).toMatch(/claude/);
+  });
+
+  it("denies dest-absent codex exec argv", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "run_terminal_command",
+          tool_input: { command: "codex exec --ephemeral --skip-git-repo-check" },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "spawn-not-ready" });
+    expect(decision.message).toMatch(/codex/);
+  });
+
+  it("leaves git status as shell-op-unclassifiable", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "run_terminal_command",
+          tool_input: { command: "git status" },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "allow", code: "shell-op-unclassifiable" });
+  });
+
+  it("denies compound grok argv so trailing git reset cannot skip gates", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "run_terminal_command",
+          tool_input: { command: "grok --cwd /wt --always-approve && git reset --hard" },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "spawn-not-ready" });
+    expect(decision.code).not.toBe("spawn-process-only-ready");
+    expect(decision.message).toMatch(/Compound commands and shell substitution fail closed/);
+  });
+
+  it("denies grok argv with quoted command substitution so $(rm) cannot skip gates", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "run_terminal_command",
+          tool_input: { command: 'grok --cwd /wt --always-approve "$(rm target)"' },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "spawn-not-ready" });
+    expect(decision.code).not.toBe("spawn-process-only-ready");
+    expect(decision.message).toMatch(/shell substitution fail closed/);
+  });
+
+  it("does not deny single-quoted substitution syntax as compound", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "run_terminal_command",
+          tool_input: {
+            command: "grok --cwd /wt --always-approve --prompt 'explain $(...)'",
+          },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision.message).not.toMatch(/shell substitution fail closed/);
+    expect(decision.code).not.toBe("spawn-ready");
+  });
+
+  it("leaves grok login as shell-op-unclassifiable", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "run_terminal_command",
+          tool_input: { command: "grok login" },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "allow", code: "shell-op-unclassifiable" });
+  });
+
+  it("leaves grok --version as shell-op-unclassifiable", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "run_terminal_command",
+          tool_input: { command: "grok --version" },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "allow", code: "shell-op-unclassifiable" });
+  });
+});
+
 describe("runtime authority policy (#1394)", () => {
   const ENABLED_POLICY = {
     enabled: true,
