@@ -44,8 +44,16 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1504 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1512 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4218** -- AppSec: 2 HIGH + 1 MEDIUM @ 0c9f6ab -- Bash &>| / &>>| redirect harvest evasion; residual writers (mysqldump/PlistBuddy/virt-copy-out/gobjcopy/dcfldd/ibtool) plant authz + kill-switch; approved-scope mint -- `[completed]`
+- **#4204** -- AppSec: 2 HIGH + 1 MEDIUM @ 20f9dfbd -- Bash >| / >>| / >& redirect harvest evasion; residual writers (nmap/masscan/emacs/restic/editcap/mergecap) plant authz + kill-switch; approved-scope mint -- `[completed]`
+- **#4161** -- AppSec: 2 HIGH + 1 MEDIUM @ ed58d30f — post-#4005/#4041 UAT Shell residuals (jmod/kotlinc-js/amm/etcdctl/consul/bolt/Deno.copyFileSync/salt-call/inspec/mkfile/screencapture plant authz + kill-switch; approved-scope mint) -- `[completed]`
+- **#3918** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (babashka/janet/clisp/ecl/fasm/mcs/coreutils --coreutils-prog=cp/duckdb/gprolog/nim --eval/nfpm/midicsv/ssconvert/mpv/protoc plant authz + kill-switch; approved-scope mint) -- `[completed]`
+- **#3849** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (typst/pdflatex/latexmk/mksquashfs/hdiutil/pkgbuild/opusenc/pngcrush/rdiff-backup/unison/cxfreeze/guix/racket/swipl/odin/ldmd2/picolisp/newlisp/factor plant authz + kill-switch; approved-scope mint) -- `[completed]`
+- **#4496** -- bug(design-critique): ingest-ready must not stamp when Stop 1 warrant pain is unrelieved -- `[completed]`
+- **#4443** -- bug(session,worktree): a fresh linked worktree has no deposit (.deft/ is gitignored), so the sanctioned worktree escape fails doctor until a full directive init -- `[completed]`
+- **#4432** -- bug(design-critique): the N>=3 panel launcher tree is unreachable from a Claude Code parent, so it claims three families and can deliver one -- `[completed]`
 - **#4219** -- rfc(harness): classify launcher-family CLI argv as process-only skip; dest-absent fail-closed -- `[completed]`
 - **#4398** -- bug(release): npm-publish post-publish fixture fails immediately after successful sibling publishes -- `[completed]`
 - **#4315** -- fix(design-critique): land process_only on Grok PreToolUse tool_input for general-purpose plus dest cwd -- `[completed]`
@@ -63,12 +71,4 @@ _Showing 25 of 1504 completed scopes (newest first). Full history: lifecycle `co
 - **#4430** -- bug(agents,bootstrap): both managed AGENTS.md recovery pointers dangle on a fresh clone; #2273 guard misses agents-entry.md -- `[completed]`
 - **#4412** -- bug(init,session,scope): fresh consumer onboarding -- init skips the promised package.json pin, then each printed recovery leads to the next denial (6 failures to write one file) -- `[completed]`
 - **#4422** -- bug(gates,scope): a completed scope's record cannot be corrected -- every printed recovery is inapplicable and scope:undo is never mentioned -- `[completed]`
-- **#4423** -- bug(scope): lifecycle stamps write 'updated' with no chronology validation, shipping updated<created artifacts the vendor's own reviewer then flags -- `[completed]`
-- **#4426** -- design(scope,verify): setup-created scopes carry no forge origin, so four lifecycle detectors silently no-op at exit 0 and scope:complete reports a vacuous acceptance -- `[completed]`
-- **#4429** -- bug(init): greenfield init gitignores .deft/core/ without the #2269 reconstitution-anchor gate (no package.json pin written) -- `[completed]`
-- **#4188** -- fix(hooks,security): fail closed on unknown writes to UAT-protected destinations -- `[completed]`
-- **#4424** -- bug(init): recut — keep traveling host-hook trees; reject three filed remedies -- `[completed]`
-- **#4158** -- bug(update): refuse dirty consumer upgrades before writes and keep the index unmixed -- `[completed]`
-- **#4245** -- bug(conformance): verify:vbrief-conformance --staged skips the D7 filename check, so the installed pre-commit hook admits files the full gate permanently rejects -- `[completed]`
-- **#4246** -- bug(agents-md): resolveFrameworkSha runs git in the framework install root — spurious git fatal AND sha=unknown persisted into consumer AGENTS.md (#3914 / #4118 still reproduce at 0.104.0) -- `[completed]`
 

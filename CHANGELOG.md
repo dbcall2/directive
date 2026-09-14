@@ -24,6 +24,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [0.118.1] - 2026-09-14
+
+> Design-critique ingest and launch-probe gates, plus linked-worktree local deposit reconstitution.
+
+### Added
+
+### Changed
+
+### Fixed
+
+- **Ingest refuses complete while named Stop 1 pains are unrelieved (#4496).** Missing `pain:` fails closed. Chip ingest-ready stays list state. Closes #4496.
+
+- **N≥3 design-critique spend now requires a launch-probe pong with critic bypass flags before the panel-deposit (#4432).** The three-family MUST stays host-neutral; the blocked variable is permission posture, not Claude Code as a host class. A failed probe amends spend down with a reason or halts as dispatch-fail. Seat composition still takes claimed families plus PATH and does not observe launchability. Does not close #3850. Closes #4432.
+- **Linked worktree missing deposit reconstitutes `.deft/core` locally (#4443).** `session:start` / `session:ready` copy a contained payload into dest `.deft/core` before gated doctor (no per-tree `npx init`). Swarm worktree reservation provisions the same payload from the primary core. Doctor names `directive update` for a linked worktree missing payload. Occupancy, ritual-state, and identity stay per-tree; escaping `.deft/core` links stay refused. Deposit reconstitution stays on #4443 rather than the identity recut. Closes #4443.
+
+### Removed
+
 ## [0.118.0] - 2026-09-13
 
 > Launcher-family spawn classification, evaluator-surface/test-lane gates, setup origin-count, dest-of-write UAT leftover, occupancy identity, leftover complete-tracking.
@@ -73,6 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Land leftover completed-tracked artifact for #4245 (#3264 / #3476).** The #4245 xBRIEF stayed untracked after squash of PR 4438. Moved to xbrief/completed/ via scope:complete. Does not reopen or recut that issue. Refs #2321, #3476.
 
 ### Fixed
+
+- **UAT Shell dest-flag dest-not-last empty-ops emit grant-immune `unknown` (#4204 / #4218 / #4161 / #3918 / #3849).** Dest-flag operands (`-oN`, `-w`, `--result-file` / `-r`, `--compile`, `-output` / `--out-file`, `-jobname=` / `--jobname`, `restic restore --target` with cargo `--target` skipped, including `timeout`/`ionice` wrappers) and `of=` / `-out:` / `json:` dests classify `unknown` when the dest is payload-protected and not last-positional. Named bins stay corpus. Last-positional dest-of-write and dest-last `-o` settings stay. `grep -w`, `cargo --target`, `/tmp` dests, and proven reads stay unclassifiable. `--python_out` is not a dest-flag (#3918). Quoted `bash`/`sh`/`zsh -c` dest-of-write is dest-visible. Closes #4204, #4218, #4161, #3918, #3849.
 
 - **Land `process_only` on Grok PreToolUse `tool_input` for general-purpose plus dest cwd (#4315).** Adapter copies the host-visible flag from Grok stdin (`toolInput` / `processOnly` / top-level) onto canonical `tool_input`. That stdin shape is `spawn-process-only-ready` (no dest occupancy, no leftover `file_scope`) at zero, one, or many leftover eligible briefs. Unmarked dest-cwd general-purpose stays #2885 or implement-class dest-lock. Implement-class never sets the flag. Advertised schema is a separate upstream ask. CLI last-resort after any native outcome that is not skip-class. Does not re-open #4296 or classify `grok --cwd` (#4219). Closes #4315.
 
@@ -6107,7 +6126,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.118.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.118.1...HEAD
+[0.118.1]: https://github.com/deftai/directive/compare/v0.118.0...v0.118.1
 [0.118.0]: https://github.com/deftai/directive/compare/v0.117.0...v0.118.0
 [0.117.0]: https://github.com/deftai/directive/compare/v0.116.0...v0.117.0
 [0.116.0]: https://github.com/deftai/directive/compare/v0.115.0...v0.116.0

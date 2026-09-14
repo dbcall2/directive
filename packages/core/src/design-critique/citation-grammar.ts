@@ -355,3 +355,163 @@ export function scanCitations(body: string): CitationScan {
   }
   return { citations, rejected, idShapedRuns: idShapedRuns(body) };
 }
+
+/** Closed pain-id form: P plus 1-8 digits. Published in the pain-coverage grammar. */
+export const ACCEPTED_PAIN_LIST_FORMS: readonly string[] = [
+  "pain: P1",
+  "pain: P1, P2",
+  "pain: then a list item - P1",
+];
+
+export const ACCEPTED_PAIN_CITE_FORMS: readonly string[] = [
+  "relieves: P1",
+  "relieves P1",
+  "does-not-relieve: P1",
+  "operator-deferred: P1 #4377",
+  "operator-deferred: P1 issue 4377",
+];
+
+export type PainDisposition = "relieves" | "does-not-relieve" | "operator-deferred";
+
+export type PainCite = {
+  readonly painId: string;
+  readonly disposition: PainDisposition;
+  readonly deferredIssueNumber: number | null;
+};
+
+export type PainListScan = {
+  readonly present: boolean;
+  readonly ids: readonly string[];
+  readonly duplicates: readonly string[];
+  readonly malformed: boolean;
+};
+
+export type PainCiteScan = {
+  readonly cites: readonly PainCite[];
+  readonly rejected: readonly {
+    readonly painId: string;
+    readonly reason: CitationRejectionClass;
+  }[];
+};
+
+const PAIN_ID_TOKEN = "P\\d{1,8}";
+const PAIN_FIELD_RE = /(?:^|\n)[ \t]*\*{0,2}pain:\*{0,2}/gi;
+const LIST_ITEM_RE = /^[ \t]*(?:[-*]|\d+\.)[ \t]+/;
+const FIELD_LINE_RE = /^[ \t]*\*{0,2}[A-Za-z][A-Za-z0-9._-]*:\*{0,2}/;
+const PAIN_CITE_RE = new RegExp(
+  `\\b(relieves|does-not-relieve|operator-deferred)\\b(?::[ \\t]*|[ \\t]+)(${PAIN_ID_TOKEN})` +
+    `(?:[ \\t]+(?:#|issue[ \\t]+)(\\d{1,8}))?`,
+  "gi",
+);
+
+function fieldTokenOffset(match: RegExpMatchArray, token: string): number {
+  const matchOffset = match.index ?? 0;
+  const inner = match[0].search(token);
+  return matchOffset + (inner >= 0 ? inner : 0);
+}
+
+function parseClosedPainIds(text: string): { ids: string[]; malformed: boolean } {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return { ids: [], malformed: false };
+  const ids: string[] = [];
+  for (const part of trimmed.split(/\s*,\s*/)) {
+    const piece = part.trim();
+    if (!/^P\d{1,8}$/.test(piece)) return { ids: [], malformed: true };
+    ids.push(piece);
+  }
+  return { ids, malformed: false };
+}
+
+function collectFollowingListIds(
+  body: string,
+  afterLineEnd: number,
+): { ids: string[]; malformed: boolean } {
+  const ids: string[] = [];
+  let cursor = afterLineEnd + 1;
+  let malformed = false;
+  while (cursor < body.length) {
+    const { start, end } = lineBounds(body, cursor);
+    const line = body.slice(start, end);
+    if (line.trim().length === 0) break;
+    if (FIELD_LINE_RE.test(line) && !LIST_ITEM_RE.test(line)) break;
+    if (!LIST_ITEM_RE.test(line)) break;
+    if (classifyPosition(body, start) === null) {
+      const item = line.trim().replace(/^(?:[-*]|\d+\.)\s+/, "");
+      const parsed = parseClosedPainIds(item);
+      if (parsed.malformed) malformed = true;
+      ids.push(...parsed.ids);
+    }
+    cursor = end + 1;
+  }
+  return { ids, malformed };
+}
+
+/**
+ * Pain denominator from one Stop 1 write-back. Fence, quote, strike, and
+ * inline-code do not count. Duplicate ids are reported rather than dropped.
+ */
+export function scanPainList(body: string): PainListScan {
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  const duplicates: string[] = [];
+  let present = false;
+  let malformed = false;
+  const re = new RegExp(PAIN_FIELD_RE.source, "gi");
+  for (const match of body.matchAll(re)) {
+    const offset = fieldTokenOffset(match, "pain:");
+    if (classifyPosition(body, offset) !== null) continue;
+    present = true;
+    const { end } = lineBounds(body, offset);
+    const sameLine = body.slice(offset + "pain:".length, end);
+    const parsedSame = parseClosedPainIds(sameLine);
+    const chunk = sameLine.trim().length > 0 ? parsedSame : collectFollowingListIds(body, end);
+    if (chunk.malformed) malformed = true;
+    for (const id of chunk.ids) {
+      if (seen.has(id)) {
+        if (!duplicates.includes(id)) duplicates.push(id);
+        continue;
+      }
+      seen.add(id);
+      ordered.push(id);
+    }
+  }
+  return { present, ids: ordered, duplicates, malformed };
+}
+
+/**
+ * Pain dispositions from the cited successor lean. Uncited ids stay residual;
+ * this scan does not invent a third coverage-map type.
+ */
+export function scanPainCites(body: string): PainCiteScan {
+  const cites: PainCite[] = [];
+  const rejected: { painId: string; reason: CitationRejectionClass }[] = [];
+  const seen = new Set<string>();
+  const re = new RegExp(PAIN_CITE_RE.source, "gi");
+  for (const match of body.matchAll(re)) {
+    const painId = match[2];
+    const rawDisposition = match[1]?.toLowerCase();
+    if (painId === undefined || rawDisposition === undefined) continue;
+    const reason = classifyPosition(body, match.index ?? 0);
+    if (reason !== null) {
+      rejected.push({ painId, reason });
+      continue;
+    }
+    const disposition: PainDisposition =
+      rawDisposition === "does-not-relieve"
+        ? "does-not-relieve"
+        : rawDisposition === "operator-deferred"
+          ? "operator-deferred"
+          : "relieves";
+    const issueRaw = match[3];
+    const parsedIssue = issueRaw === undefined ? Number.NaN : Number(issueRaw);
+    const deferredIssueNumber =
+      disposition === "operator-deferred" && Number.isSafeInteger(parsedIssue) && parsedIssue > 0
+        ? parsedIssue
+        : null;
+    const key = `${painId}|${disposition}|${deferredIssueNumber ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    cites.push({ painId, disposition, deferredIssueNumber });
+  }
+  return { cites, rejected };
+}

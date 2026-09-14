@@ -113,6 +113,9 @@ const REQUIRED_CONTRACT_POINTERS = [
   "ADR-006-parent-side-substantiation.md",
   "evaluateParentAudit",
   "evaluatePanelSeatComposition",
+  "evaluateN3LaunchProbe",
+  "does not observe launchability",
+  "amend-the-spend-down",
   "AND zero unresolved audit markers",
   "independence, not provenance",
   "measured-versus-asserted",
@@ -954,6 +957,53 @@ describe("design-critique contract + brief template + thin skill (#3434)", () =>
     }
   });
 
+  it("locks N>=3 launch-probe posture before panel-deposit (#4432)", () => {
+    const text = readText(CONTRACT);
+    const ceiling = markdownSection(text, "### Envelope and ceiling");
+    expect(ceiling).toContain("launchability under the critic argv class");
+    expect(ceiling).toContain("not a Claude Code host-class gap");
+    expect(ceiling).toContain("Before the panel-deposit");
+    expect(ceiling).toContain("Benign fixed prompt");
+    expect(ceiling).toContain("No envelope path");
+    expect(ceiling).toContain("amend-the-spend-down");
+    expect(ceiling).toContain("dispatch-fail");
+    expect(ceiling).toContain("does not observe launchability");
+    expect(ceiling).toContain("evaluateN3LaunchProbe");
+    expect(ceiling).toContain(
+      "Name Claude Code native subagent as the only sanctioned Claude-family seat",
+    );
+    const dual = markdownSection(text, "## Dual stop");
+    expect(dual).toContain("A failed N≥3 launch probe is this halt");
+    expect(dual).toContain("Add a new halt token");
+    const testSurface = markdownSection(text, "## Test surface");
+    expect(testSurface).toContain("does not observe launchability");
+    expect(testSurface).toContain("evaluateN3LaunchProbe");
+    expect(testSurface).toContain("#4432");
+    expect(testSurface).toContain("Does not close #3850");
+    const dispatch = markdownSection(
+      readText("docs/grok-build-subscription-setup.md"),
+      "## Design-critique dispatch",
+    );
+    expect(dispatch).toContain("Launch probe (before panel-deposit)");
+    expect(dispatch).toContain(
+      'claude -p "Do not use tools. Reply with the single word: pong" --permission-mode bypassPermissions --output-format text',
+    );
+    expect(dispatch).toContain("--dangerously-bypass-approvals-and-sandbox");
+    expect(dispatch).toContain("amend-the-spend-down");
+    expect(dispatch).toContain(
+      "Name Claude Code native subagent as the only sanctioned Claude-family seat",
+    );
+    expect(dispatch).toContain("Pass the envelope path");
+    const verification = markdownSection(
+      readText("docs/grok-build-subscription-setup.md"),
+      "## Verification (report pass/fail with evidence)",
+    );
+    expect(verification).toContain(
+      'claude -p "Do not use tools. Reply with the single word: pong" --output-format text',
+    );
+    expect(verification).not.toContain("--permission-mode bypassPermissions");
+  });
+
   it("locks Grok Build critic-spawn recipe tokens on the playbook heading (#4365)", () => {
     const playbook = readText("docs/grok-build-subscription-setup.md");
     const verification = markdownSection(
@@ -1491,6 +1541,21 @@ describe("design-critique contract + brief template + thin skill (#3434)", () =>
     );
     expect(grammar).toContain("⊗ Merge two states under one reason when their remedies differ.");
     expect(grammar).toContain("That is conformance to it, not a second rule.");
+
+    const pain = markdownSection(text, "### Pain coverage (#4496)");
+    expect(pain).toContain("### Pain coverage (#4496)");
+    expect(pain).toContain("evaluateCompletedArcRecord");
+    expect(pain).toContain("`pain: P1`");
+    expect(pain).toContain("relieves: P1");
+    expect(pain).toContain("does-not-relieve: P1");
+    expect(pain).toContain("operator-deferred: P1 #4377");
+    expect(pain).toContain("classifyPosition");
+    expect(pain).toContain("scanPainList");
+    expect(pain).toContain("evaluateParentAudit");
+    expect(pain).toContain("halt-for-human or later-arc");
+    expect(pain).toContain("Do not restore `design-critique:recut-needed`");
+    expect(pain).toContain("Do not grow `resolveAutoStampCatalogChip`");
+    expect(pain).not.toContain("recut-needed` as a catalog chip");
 
     const testSurface = markdownSection(text, "## Test surface");
     expect(testSurface).toContain("### Verified-claims table heading");
