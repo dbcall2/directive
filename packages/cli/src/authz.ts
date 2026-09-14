@@ -519,6 +519,13 @@ export function main(
           }
           const blocked = gateConfirm();
           if (blocked !== null) return blocked;
+          if ((process.env.DEFT_ONE_PR_UNIT_APP ?? "").trim().length === 0) {
+            process.stderr.write(
+              "authz:grant --template one-pr-unit requires DEFT_ONE_PR_UNIT_APP (durable Directive App store). " +
+                "The in-process simulator is test-only and is discarded on process exit.\n",
+            );
+            return 2;
+          }
           const claim = mintOnePrUnitGrant({
             actor: args.actor,
             approvalRef: args.note ?? "authz:grant --template one-pr-unit",

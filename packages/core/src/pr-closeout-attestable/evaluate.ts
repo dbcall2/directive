@@ -390,7 +390,7 @@ export function evaluate(
   const unit = evaluateOnePrUnit({
     closerSet: closerSetFromIssueIds(repo, closingIssues),
     grant,
-    binding: { repo, prNodeId: options.prNodeId ?? grant?.prNodeId },
+    binding: { repo, prNodeId: options.prNodeId },
     presentedIdWithoutStore: (options.onePrUnitId ?? null) !== null && grant === null,
   });
   if (!unit.ok) {

@@ -1,5 +1,12 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { runMergeGroupCheckFromEvent } from "./merge-group-cli.js";
+import {
+  loadMergeGroupEventFromPath,
+  main,
+  runMergeGroupCheckFromEvent,
+} from "./merge-group-cli.js";
 import { InProcessAppStore } from "./simulator.js";
 
 describe("merge-group CLI", () => {
@@ -26,5 +33,18 @@ describe("merge-group CLI", () => {
       },
     );
     expect(result.conclusion).toBe("success");
+  });
+});
+
+describe("merge-group CLI entry", () => {
+  it("fails closed without GITHUB_EVENT_PATH", () => {
+    expect(main(["node", "merge-group-cli.js"], {})).toBe(1);
+  });
+
+  it("reads GITHUB_EVENT_PATH and fails on empty merge_group", () => {
+    const dir = mkdtempSync(join(tmpdir(), "mg-"));
+    const path = join(dir, "event.json");
+    writeFileSync(path, '{"action":"checks_requested"}\n');
+    expect(main(["node", "merge-group-cli.js"], { GITHUB_EVENT_PATH: path })).toBe(1);
   });
 });

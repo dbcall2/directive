@@ -437,4 +437,47 @@ describe("one-PR-unit at forge closing references (#4494)", () => {
     const result = evaluate(root, 1, opts(closing(4494)));
     expect(result.code).toBe(0);
   });
+
+  it("does not attest the wrong PR by substituting the claim node id", () => {
+    const root = makeRepo();
+    writeBrief(root, "dummy.xbrief.json", {
+      title: "dummy",
+      status: "running",
+      items: [],
+      references: [issueRef(1)],
+    });
+    const grant = {
+      schema: "deft.one-pr-unit.v1",
+      id: "unit-five",
+      origin: {
+        kind: "operator-cli",
+        actor: "dbcall2",
+        mintedAt: "2026-09-14T00:00:00Z",
+        mintedVia: "authz:grant/one-pr-unit",
+        eventRef: "op",
+      },
+      approvalRef: "op",
+      rationale: "batch",
+      origins: [4204, 4218, 4161, 3918, 3849].map((issueId) => ({
+        repo: REPO,
+        issueId,
+      })),
+      repo: REPO,
+      state: "bound",
+      prNodeId: "PR_NODE_A",
+      mintedBy: "dbcall2",
+      mintedAt: "2026-09-14T00:00:00Z",
+      expiresAt: "2026-09-15T00:00:00Z",
+      boundAt: "2026-09-14T00:01:00Z",
+      spentAt: null,
+      revokedAt: null,
+      expiredAt: null,
+    };
+    const result = evaluate(root, 4492, {
+      ...opts(closing(4204, 4218, 4161, 3918, 3849)),
+      onePrUnitGrant: grant,
+    });
+    expect(result.code).toBe(1);
+    expect(result.message).not.toMatch(/OK:/);
+  });
 });
