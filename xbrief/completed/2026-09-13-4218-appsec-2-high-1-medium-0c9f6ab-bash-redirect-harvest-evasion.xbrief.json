@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4218",
-    "updated": "2026-09-13T17:45:57Z"
+    "updated": "2026-09-14T00:56:19Z"
   },
   "plan": {
     "title": "AppSec: 2 HIGH + 1 MEDIUM @ 0c9f6ab -- Bash &>| / &>>| redirect harvest evasion; residual writers (mysqldump/PlistBuddy/virt-copy-out/gobjcopy/dcfldd/ibtool) plant authz + kill-switch; approved-scope mint",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "AppSec: 2 HIGH + 1 MEDIUM @ 0c9f6ab -- Bash &>| / &>>| redirect harvest evasion; residual writers (mysqldump/PlistBuddy/virt-copy-out/gobjcopy/dcfldd/ibtool) plant authz + kill-switch; approved-scope mint",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/4218",
@@ -16,23 +16,28 @@
     "items": [
       {
         "title": "Do not bind Finding 1 (`&>|` / `&>>|` harvest) or a named-bin denylist. Those recut closed #4199 / #4188.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Widen dest-visible empty-ops so dest-flag operands and `key=path` assignment dests (`of=`, `-r` / `--result-file`, `--compile` when dest is not last) emit `unknown` when the dest is payload-protected (authz grants, kill-switch, approved-scope).",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Named bins stay regression corpus. Follow #4188 `unknown` (grant-immune), not `cp`-class `settings` (grantable).",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "`>|` / `>&` / `>!` stay on #4204 / #4199. `objcopy` stays settings; this issue does not recut it.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Ordinary `/tmp` dests and proven reads (`cat .deft/authz/state.json`) stay unclassifiable.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       }
     ],
     "tags": [
@@ -122,6 +127,6 @@
       }
     },
     "id": "github.issue.5365748160",
-    "updated": "2026-09-13T17:45:57Z"
+    "updated": "2026-09-14T00:56:19Z"
   }
 }

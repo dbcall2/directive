@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4204",
-    "updated": "2026-09-13T17:45:56Z"
+    "updated": "2026-09-14T00:56:19Z"
   },
   "plan": {
     "title": "AppSec: 2 HIGH + 1 MEDIUM @ 20f9dfbd -- Bash >| / >>| / >& redirect harvest evasion; residual writers (nmap/masscan/emacs/restic/editcap/mergecap) plant authz + kill-switch; approved-scope mint",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "AppSec: 2 HIGH + 1 MEDIUM @ 20f9dfbd -- Bash >| / >>| / >& redirect harvest evasion; residual writers (nmap/masscan/emacs/restic/editcap/mergecap) plant authz + kill-switch; approved-scope mint",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/4204",
@@ -16,23 +16,28 @@
     "items": [
       {
         "title": "Drop HIGH 1 / redirect harvest from the next-build. `>|` / `>&` / `>>|` are not live UAT bypasses at this SHA.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Do not bind a six-name harvest (nmap / masscan / emacs / restic / editcap / mergecap).",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Recut remaining work as dest-flag-value dest-of-write when dest is not the last positional (completeness residual of #4188), argv0-independent. Emit `unknown` (grant-immune).",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Required pins: `nmap -oN dest HOST`, `editcap -w dest in.pcap`, `restic restore --target dest SNAPSHOT`, plus dest-last positives already gated, plus `grep -w` / `cargo --target` negatives, plus `/tmp` dests.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Named bins stay corpus. HIGH 3 is not a separate classify extension.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       }
     ],
     "tags": [
@@ -118,6 +123,6 @@
       }
     },
     "id": "github.issue.5361790792",
-    "updated": "2026-09-13T17:45:56Z"
+    "updated": "2026-09-14T00:56:19Z"
   }
 }

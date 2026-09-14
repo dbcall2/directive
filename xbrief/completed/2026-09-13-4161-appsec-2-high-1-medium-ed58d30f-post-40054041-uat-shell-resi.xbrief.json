@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4161",
-    "updated": "2026-09-13T17:45:58Z"
+    "updated": "2026-09-14T00:56:19Z"
   },
   "plan": {
     "title": "AppSec: 2 HIGH + 1 MEDIUM @ ed58d30f — post-#4005/#4041 UAT Shell residuals (jmod/kotlinc-js/amm/etcdctl/consul/bolt/Deno.copyFileSync/salt-call/inspec/mkfile/screencapture plant authz + kill-switch; approved-scope mint)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "AppSec: 2 HIGH + 1 MEDIUM @ ed58d30f — post-#4005/#4041 UAT Shell residuals (jmod/kotlinc-js/amm/etcdctl/consul/bolt/Deno.copyFileSync/salt-call/inspec/mkfile/screencapture plant authz + kill-switch; approved-scope mint)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/4161",
@@ -16,19 +16,23 @@
     "items": [
       {
         "title": "Do not bind \"harvest these 11 bins because they classify empty.\" Last-positional named bins are corpus via #4188.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Remaining set is dest-visible harvest of dest-flag / attached-dest spellings (`-output`, `--out-file`, `--data-dir`, `-data-dir`, prefixed `json:DEST`), argv0-independent.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Prefer grant-immune `unknown` over grantable `settings` for protected dest-of-write.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Not a duplicate of #3626.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       }
     ],
     "tags": [
@@ -101,6 +105,6 @@
       }
     },
     "id": "github.issue.5337080525",
-    "updated": "2026-09-13T17:45:58Z"
+    "updated": "2026-09-14T00:56:19Z"
   }
 }

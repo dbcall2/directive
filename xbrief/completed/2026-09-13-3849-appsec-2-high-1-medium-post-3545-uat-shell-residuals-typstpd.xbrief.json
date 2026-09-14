@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #3849",
-    "updated": "2026-09-13T17:46:00Z"
+    "updated": "2026-09-14T00:56:19Z"
   },
   "plan": {
     "title": "AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (typst/pdflatex/latexmk/mksquashfs/hdiutil/pkgbuild/opusenc/pngcrush/rdiff-backup/unison/cxfreeze/guix/racket/swipl/odin/ldmd2/picolisp/newlisp/factor plant authz + kill-switch; approved-scope mint)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (typst/pdflatex/latexmk/mksquashfs/hdiutil/pkgbuild/opusenc/pngcrush/rdiff-backup/unison/cxfreeze/guix/racket/swipl/odin/ldmd2/picolisp/newlisp/factor plant authz + kill-switch; approved-scope mint)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/3849",
@@ -16,15 +16,18 @@
     "items": [
       {
         "title": "Do not bind a named-bin harvest. Named bins stay corpus.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Restate leftover uniqueness as: (1) unrecognized/attached dest flag with dest not last-positional; (2) protected dest not last; (3) quoted `bash`/`sh`/`zsh -c` payload tokenization.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Cheap close, if any, is dest-flag harvest on existing #4199 / generic catalogs. Dest-not-last expansion is a separate design decision (#4188 last-positional bound). Quoted `-c` is dest-visible tokenization on the #4188 class, not 3849 leftover uniqueness of those binaries.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       }
     ],
     "tags": [
@@ -96,6 +99,6 @@
       }
     },
     "id": "github.issue.5279320434",
-    "updated": "2026-09-13T17:46:00Z"
+    "updated": "2026-09-14T00:56:19Z"
   }
 }

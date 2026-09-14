@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #3918",
-    "updated": "2026-09-13T17:45:59Z"
+    "updated": "2026-09-14T00:56:19Z"
   },
   "plan": {
     "title": "AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (babashka/janet/clisp/ecl/fasm/mcs/coreutils --coreutils-prog=cp/duckdb/gprolog/nim --eval/nfpm/midicsv/ssconvert/mpv/protoc plant authz + kill-switch; approved-scope mint)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (babashka/janet/clisp/ecl/fasm/mcs/coreutils --coreutils-prog=cp/duckdb/gprolog/nim --eval/nfpm/midicsv/ssconvert/mpv/protoc plant authz + kill-switch; approved-scope mint)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/3918",
@@ -16,15 +16,18 @@
     "items": [
       {
         "title": "Do not bind the issue-body parse list. Named bins stay regression corpus.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Leftover uniqueness binds as dest-of-write grammar for (1) attached flag values whose value is a payload-relative protected path (`--*=` / `-out:`) and (2) eval-flag payloads outside `-e/-c/--eval/--command`.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       },
       {
         "title": "Emit `unknown` (grant-immune), matching #4188 last-positional. Do not add `--python_out` / `--stream-record` / `--target` / `-p` / `-out:` to dest-flag lists.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-14T00:56:19Z"
       }
     ],
     "tags": [
@@ -90,6 +93,6 @@
       }
     },
     "id": "github.issue.5289710911",
-    "updated": "2026-09-13T17:45:59Z"
+    "updated": "2026-09-14T00:56:19Z"
   }
 }
