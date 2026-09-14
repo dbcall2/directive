@@ -12,6 +12,7 @@ export {
   extractSurface,
   isMarkupPath,
   isUndeclaredTemplatePath,
+  parsersFor,
 } from "./extract.js";
 export {
   buildObservableScopeRecord,
@@ -27,6 +28,7 @@ export {
 } from "./mint.js";
 export {
   type AllowedChange,
+  type ArtifactParsers,
   CHANGE_KINDS,
   CHANGE_OPS,
   type ChangeKind,

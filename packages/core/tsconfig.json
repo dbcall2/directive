@@ -6,6 +6,6 @@
     "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
-  "exclude": ["src/**/*.test.ts", "dist"],
+  "exclude": ["src/**/*.test.ts", "src/observable-scope/parity/**", "dist"],
   "references": [{ "path": "../types" }]
 }

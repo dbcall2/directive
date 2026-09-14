@@ -1,23 +1,15 @@
 /**
  * First-ship observable UI oracle (#4495 later-arc).
  *
- * Closed suffix/parser pairs: `.html` via parse5 (scriptingEnabled: false),
- * `.jsx`/`.tsx` via the consumer project's own TypeScript parser
- * (resolved, never bundled; parse-only). HTML `template` elements inside `.html` are in
+ * Closed suffix/parser pairs: `.html` via inert jsdom, `.jsx`/`.tsx` via
+ * TypeScript parse-only. HTML `template` elements inside `.html` are in
  * scope; undeclared dialects (vue/svelte/njk/hbs/ejs/astro) are not.
  * Embedded scripts and subresource loading stay off. Extractor output is data.
  */
 
-import { createRequire } from "node:module";
-import { join } from "node:path";
-import type * as TS from "typescript";
+import { JSDOM } from "jsdom";
+import ts from "typescript";
 import {
-  HTML_FRONTEND_VERSION as HTML_LITE_VERSION,
-  type LiteElement,
-  parseHtml,
-} from "./html-spec.js";
-import {
-  type ArtifactParsers,
   OBSERVABLE_UI_ARTIFACT_SCHEMA,
   OBSERVABLE_UI_PROVIDER,
   OBSERVABLE_UI_PROVIDER_VERSION,
@@ -25,13 +17,20 @@ import {
   type StructureFact,
   type StructureKind,
   type SurfaceSnapshot,
-} from "./types.js";
+} from "../types.js";
 
 const MARKUP_EXT = /\.(html|jsx|tsx)$/i;
 const UNDECLARED_TEMPLATE_EXT = /\.(vue|svelte|njk|hbs|handlebars|ejs|astro)$/i;
 const SCRIPT_SENTINEL = "__OBSERVABLE_SCOPE_SENTINEL";
 
-type MarkupEl = LiteElement;
+interface MarkupEl {
+  readonly tagName: string;
+  readonly textContent: string | null;
+  readonly content?: { querySelectorAll(sel: string): ArrayLike<MarkupEl> };
+  getAttribute(name: string): string | null;
+  hasAttribute(name: string): boolean;
+  querySelectorAll(selectors: string): ArrayLike<MarkupEl>;
+}
 
 export function isMarkupPath(path: string): boolean {
   return MARKUP_EXT.test(path.replace(/\\/g, "/"));
@@ -166,25 +165,18 @@ function walkHtmlRoot(root: MarkupEl, facts: StructureFact[]): void {
   }
 }
 
-function extractHtmlFacts(source: string, path: string): StructureFact[] {
+function extractHtmlFacts(source: string): StructureFact[] {
   const facts: StructureFact[] = [];
-  // parse5 has no script engine, no window, no resource loader: the sentinel
-  // check below is retained only so the existing test contract keeps guarding it.
   const before = (globalThis as Record<string, unknown>)[SCRIPT_SENTINEL];
-  const { document, anomalies } = parseHtml(source);
+  const dom = new JSDOM(source, {
+    url: "https://observable-scope.invalid/",
+    contentType: "text/html",
+    pretendToBeVisual: false,
+  });
   if ((globalThis as Record<string, unknown>)[SCRIPT_SENTINEL] !== before) {
-    throw new Error("extractor executed embedded script; scripts must stay off");
+    throw new Error("jsdom executed embedded script during extract; scripts must stay off");
   }
-  if (anomalies.length > 0) {
-    const first = anomalies[0];
-    throw new ObservableScopeProviderError(
-      "observable-scope-markup-unresolved",
-      `${path}: parser could not resolve ${first?.kind ?? "construct"}` +
-        (first?.tag !== undefined ? ` (<${first.tag}>)` : "") +
-        ` at offset ${String(first?.offset ?? 0)}; ${String(anomalies.length)} anomaly(ies). ` +
-        "Fix the markup or narrow the observable-ui surfaces policy; the oracle does not report a partial fact list.",
-    );
-  }
+  const document = dom.window.document as unknown as MarkupEl;
   walkHtmlRoot(document, facts);
   for (const tmpl of listOf(document.querySelectorAll("template"))) {
     if (tmpl.content !== undefined) walkHtmlRoot(tmpl.content as MarkupEl, facts);
@@ -192,79 +184,12 @@ function extractHtmlFacts(source: string, path: string): StructureFact[] {
   return facts;
 }
 
-type TSModule = typeof TS;
-
-/** Named-cause failure for missing/invalid parser material (fail closed, no fallback). */
-export class ObservableScopeProviderError extends Error {
-  constructor(
-    readonly refusal:
-      | "observable-scope-parser-unresolvable"
-      | "observable-scope-parser-invalid"
-      | "observable-scope-markup-unresolved",
-    message: string,
-  ) {
-    super(`${refusal}: ${message}`);
-    this.name = "ObservableScopeProviderError";
-  }
-}
-
-const TS_CACHE = new Map<string, TSModule>();
-const TYPESCRIPT_MAJOR_FLOOR = 5;
-
-/**
- * Resolve the TypeScript parser by Node semantics from the *consumer project
- * root the evaluator is already operating on* (upward walk, so a hoisted
- * workspace root counts as the consumer's declared toolchain), never from
- * Directive's own bundle and never from process.cwd(). A project with
- * .jsx/.tsx surfaces already carries typescript; one that does not gets a
- * named-cause refusal. Not exported: the published declarations must not
- * reference the "typescript" module.
- */
-function loadTypeScript(projectRoot: string): TSModule {
-  const cached = TS_CACHE.get(projectRoot);
-  if (cached !== undefined) return cached;
-  const req = createRequire(join(projectRoot, "package.json"));
-  let resolved: string;
-  try {
-    resolved = req.resolve("typescript");
-  } catch {
-    throw new ObservableScopeProviderError(
-      "observable-scope-parser-unresolvable",
-      `no \`typescript\` resolvable from ${projectRoot}; add it as a devDependency or narrow the observable-ui surfaces policy to exclude .jsx/.tsx`,
-    );
-  }
-  const mod = req(resolved) as TSModule | { default?: TSModule };
-  const ts = "createSourceFile" in mod ? mod : (mod as { default?: TSModule }).default;
-  if (
-    ts === undefined ||
-    typeof ts.createSourceFile !== "function" ||
-    typeof ts.version !== "string"
-  ) {
-    throw new ObservableScopeProviderError(
-      "observable-scope-parser-invalid",
-      `module at ${resolved} does not expose a TypeScript parser`,
-    );
-  }
-  const major = Number.parseInt(ts.version.split(".")[0] ?? "0", 10);
-  if (!Number.isFinite(major) || major < TYPESCRIPT_MAJOR_FLOOR) {
-    throw new ObservableScopeProviderError(
-      "observable-scope-parser-invalid",
-      `typescript@${ts.version} at ${resolved} is below the supported floor ${String(TYPESCRIPT_MAJOR_FLOOR)}.x`,
-    );
-  }
-  TS_CACHE.set(projectRoot, ts);
-  return ts;
-}
-
-// Module-scoped binding used by the JSX walker; set per parse by extractJsxFacts.
-let ts!: TSModule;
-
-function jsxTagName(node: TS.JsxOpeningLikeElement): string {
+function jsxTagName(node: ts.JsxOpeningLikeElement): string {
   return node.tagName.getText();
 }
 
 function jsxAttr(
-  node: TS.JsxOpeningLikeElement,
+  node: ts.JsxOpeningLikeElement,
   name: string,
 ): { kind: "flag" | "literal" | "expr"; value?: string } | undefined {
   for (const attr of node.attributes.properties) {
@@ -290,7 +215,7 @@ function jsxAttr(
   return undefined;
 }
 
-function jsxInnerText(node: TS.JsxElement): string {
+function jsxInnerText(node: ts.JsxElement): string {
   const parts: string[] = [];
   for (const child of node.children) {
     if (ts.isJsxText(child)) parts.push(child.text);
@@ -306,7 +231,7 @@ function jsxInnerText(node: TS.JsxElement): string {
   return normalizeText(parts.join(" "));
 }
 
-function jsxSelected(open: TS.JsxOpeningLikeElement): boolean {
+function jsxSelected(open: ts.JsxOpeningLikeElement): boolean {
   const selected = jsxAttr(open, "selected");
   if (selected?.kind === "flag") return true;
   if (selected?.kind === "literal" && selected.value?.toLowerCase() === "true") return true;
@@ -314,7 +239,7 @@ function jsxSelected(open: TS.JsxOpeningLikeElement): boolean {
   return aria?.kind === "literal" && aria.value?.toLowerCase() === "true";
 }
 
-function jsxControlName(open: TS.JsxOpeningLikeElement, inner: string): string {
+function jsxControlName(open: ts.JsxOpeningLikeElement, inner: string): string {
   const literal = (name: string): string | undefined => {
     const a = jsxAttr(open, name);
     return a?.kind === "literal" ? a.value : undefined;
@@ -328,7 +253,7 @@ function jsxControlName(open: TS.JsxOpeningLikeElement, inner: string): string {
   );
 }
 
-function visitJsx(node: TS.Node, facts: StructureFact[]): void {
+function visitJsx(node: ts.Node, facts: StructureFact[]): void {
   if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
     const open = ts.isJsxSelfClosingElement(node) ? node : node;
     const parent = ts.isJsxOpeningElement(node) ? node.parent : undefined;
@@ -339,7 +264,7 @@ function visitJsx(node: TS.Node, facts: StructureFact[]): void {
 }
 
 function collectJsxFacts(
-  open: TS.JsxOpeningLikeElement,
+  open: ts.JsxOpeningLikeElement,
   inner: string,
   facts: StructureFact[],
 ): void {
@@ -458,86 +383,36 @@ function collectJsxFacts(
   }
 }
 
-function extractJsxFacts(source: string, path: string, projectRoot: string): StructureFact[] {
-  ts = loadTypeScript(projectRoot);
+function extractJsxFacts(source: string, path: string): StructureFact[] {
   const facts: StructureFact[] = [];
   const kind = path.replace(/\\/g, "/").toLowerCase().endsWith(".jsx")
     ? ts.ScriptKind.JSX
     : ts.ScriptKind.TSX;
   const sf = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, kind);
-  const diagnostics =
-    (sf as unknown as { parseDiagnostics?: readonly TS.DiagnosticWithLocation[] })
-      .parseDiagnostics ?? [];
-  if (diagnostics.length > 0) {
-    const first = diagnostics[0];
-    const message =
-      first === undefined ? "parse error" : ts.flattenDiagnosticMessageText(first.messageText, " ");
-    throw new ObservableScopeProviderError(
-      "observable-scope-markup-unresolved",
-      `${path}: ${String(diagnostics.length)} parse diagnostic(s); first: ${message}. The oracle does not report a partial fact list.`,
-    );
-  }
   visitJsx(sf, facts);
   return facts;
 }
 
-export interface ExtractOptions {
-  /**
-   * Consumer project root the evaluator is operating on; used to resolve the
-   * .jsx/.tsx parser. Required for .jsx/.tsx surfaces. There is no cwd default.
-   */
-  readonly projectRoot?: string;
-}
-
 /** Extract a versioned snapshot from one first-ship source file. */
-export function extractMarkupFacts(
-  source: string,
-  path = "snippet.html",
-  opts: ExtractOptions = {},
-): StructureFact[] {
+export function extractMarkupFacts(source: string, path = "snippet.html"): StructureFact[] {
   const norm = path.replace(/\\/g, "/");
-  if (norm.toLowerCase().endsWith(".html")) return extractHtmlFacts(source, norm);
+  if (norm.toLowerCase().endsWith(".html")) return extractHtmlFacts(source);
   if (norm.toLowerCase().endsWith(".jsx") || norm.toLowerCase().endsWith(".tsx")) {
-    if (opts.projectRoot === undefined || opts.projectRoot.length === 0) {
-      throw new ObservableScopeProviderError(
-        "observable-scope-parser-unresolvable",
-        `${norm}: no projectRoot supplied for a .jsx/.tsx surface; the evaluator must pass the project root it is operating on (no cwd default)`,
-      );
-    }
-    return extractJsxFacts(source, norm, opts.projectRoot);
+    return extractJsxFacts(source, norm);
   }
   return [];
 }
 
-export function extractSurface(
-  path: string,
-  source: string,
-  opts: ExtractOptions = {},
-): SurfaceSnapshot {
-  return { path: path.replace(/\\/g, "/"), facts: extractMarkupFacts(source, path, opts) };
+export function extractSurface(path: string, source: string): SurfaceSnapshot {
+  return { path: path.replace(/\\/g, "/"), facts: extractMarkupFacts(source, path) };
 }
 
-/** Parser identity for one artifact, derived from the surfaces that artifact actually parsed. */
-export function parsersFor(
-  surfaces: readonly SurfaceSnapshot[],
-  projectRoot: string | undefined,
-): ArtifactParsers {
-  const usedTs = surfaces.some((s) => /\.(jsx|tsx)$/i.test(s.path));
-  return {
-    html: HTML_LITE_VERSION,
-    typescript: usedTs && projectRoot !== undefined ? loadTypeScript(projectRoot).version : null,
-  };
-}
-
-export function buildArtifact(
-  surfaces: readonly SurfaceSnapshot[],
-  parsers: ArtifactParsers,
-): ObservableArtifact {
+export function buildArtifact(surfaces: readonly SurfaceSnapshot[]): ObservableArtifact {
   return {
     schema: OBSERVABLE_UI_ARTIFACT_SCHEMA,
     provider: OBSERVABLE_UI_PROVIDER,
     version: OBSERVABLE_UI_PROVIDER_VERSION,
-    parsers,
+    parsers: { html: "jsdom@26", typescript: null },
     surfaces: [...surfaces].sort((a, b) => a.path.localeCompare(b.path)),
   };
 }

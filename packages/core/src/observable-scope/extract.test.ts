@@ -22,7 +22,7 @@ const PAGE = `
 </main>
 `;
 
-describe("jsdom+typescript oracle (#4495)", () => {
+describe("parse5+typescript oracle (#4495)", () => {
   it("recognizes the closed first-ship suffix set", () => {
     expect(isMarkupPath("src/App.tsx")).toBe(true);
     expect(isMarkupPath("src/App.jsx")).toBe(true);
@@ -52,22 +52,24 @@ describe("jsdom+typescript oracle (#4495)", () => {
 
   it("sees markup-visible selected tab in tsx, not state expressions", () => {
     const facts = extractMarkupFacts(
-      `<Tab>A</Tab><Tab selected>B</Tab><Tab selected={isOn}>C</Tab>`,
+      `<><Tab>A</Tab><Tab selected>B</Tab><Tab selected={isOn}>C</Tab></>`,
       "ui.tsx",
+      { projectRoot: process.cwd() },
     );
     expect(facts.map((f) => f.id)).toEqual(["tab:A", "tab:B", "tab-selected:B", "tab:C"]);
   });
 
   it("snapshots path + facts", () => {
-    const surface = extractSurface("src/App.tsx", "<h2>Hello</h2>");
+    const surface = extractSurface("src/App.tsx", "<h2>Hello</h2>", { projectRoot: process.cwd() });
     expect(surface.path).toBe("src/App.tsx");
     expect(surface.facts).toEqual([{ kind: "heading", id: "heading:2:Hello" }]);
   });
 
   it("extracts Heading, TableHead, and role landmarks from tsx", () => {
     const facts = extractMarkupFacts(
-      `<Heading level="2">Stats</Heading><TableHead>Owner</TableHead><div role="navigation" aria-label="Side">x</div>`,
+      `<><Heading level="2">Stats</Heading><TableHead>Owner</TableHead><div role="navigation" aria-label="Side">x</div></>`,
       "ui.tsx",
+      { projectRoot: process.cwd() },
     );
     const ids = facts.map((f) => f.id);
     expect(ids).toContain("heading:2:Stats");
@@ -112,7 +114,9 @@ export function Page() {
   );
 }
 `;
-    const tsxIds = extractMarkupFacts(tsx, "ui.tsx").map((f) => f.id);
+    const tsxIds = extractMarkupFacts(tsx, "ui.tsx", { projectRoot: process.cwd() }).map(
+      (f) => f.id,
+    );
     expect(tsxIds).toContain("landmark:header:Head");
     expect(tsxIds).toContain("landmark:nav:menu");
     expect(tsxIds).toContain("landmark:main:main");

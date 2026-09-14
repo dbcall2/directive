@@ -11,6 +11,8 @@ const BASE = `
 <section id="card"></section>
 `;
 
+const PARSERS = { html: "parse5@7", typescript: null };
+
 describe("markup delta vs minted allows (#4495)", () => {
   it("fails unlisted tab reorder / extra control / heading / columns / landmarks / containers", () => {
     const candidate = `
@@ -27,8 +29,8 @@ describe("markup delta vs minted allows (#4495)", () => {
 <article id="panel"></article>
 `;
     const deltas = diffArtifacts(
-      buildArtifact([extractSurface("ui.html", BASE)]),
-      buildArtifact([extractSurface("ui.html", candidate)]),
+      buildArtifact([extractSurface("ui.html", BASE)], PARSERS),
+      buildArtifact([extractSurface("ui.html", candidate)], PARSERS),
     );
     const leftover = unlistedDeltas(deltas, [{ kind: "control", op: "add", name: "email" }]);
     expect(leftover.some((d) => d.kind === "tab" && d.op === "reorder")).toBe(true);
@@ -51,8 +53,8 @@ describe("markup delta vs minted allows (#4495)", () => {
 <section id="card"></section>
 `;
     const deltas = diffArtifacts(
-      buildArtifact([extractSurface("ui.html", BASE)]),
-      buildArtifact([extractSurface("ui.html", candidate)]),
+      buildArtifact([extractSurface("ui.html", BASE)], PARSERS),
+      buildArtifact([extractSurface("ui.html", candidate)], PARSERS),
     );
     const leftover = unlistedDeltas(deltas, [
       { kind: "control", op: "add", name: "email" },

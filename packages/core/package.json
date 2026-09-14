@@ -409,14 +409,14 @@
     "@deftai/directive-content": "workspace:*",
     "@deftai/directive-types": "workspace:*",
     "archiver": "^8.0.0",
-    "jsdom": "26.1.0",
-    "typescript": "^5.9.3"
+    "parse5": "^7.3.0"
   },
   "scripts": {
     "build": "tsc -b",
     "test": "pnpm -w exec vitest run --coverage packages/core/src"
   },
   "devDependencies": {
-    "@types/archiver": "^8.0.0"
+    "@types/archiver": "^8.0.0",
+    "jsdom": "26.1.0"
   }
 }

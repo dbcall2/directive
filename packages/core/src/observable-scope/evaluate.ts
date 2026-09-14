@@ -16,6 +16,8 @@ import {
   extractSurface,
   isMarkupPath,
   isUndeclaredTemplatePath,
+  ObservableScopeProviderError,
+  parsersFor,
 } from "./extract.js";
 import { observableScopeRecordRel, parseObservableScopeRecord } from "./mint.js";
 import {
@@ -406,15 +408,22 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
     const baseText = readBase(path) ?? "";
     const headText = readHead(path) ?? "";
     try {
-      baseSurfaces.push(extractSurface(path, baseText));
-      headSurfaces.push(extractSurface(path, headText));
+      baseSurfaces.push(extractSurface(path, baseText, { projectRoot }));
+      headSurfaces.push(extractSurface(path, headText, { projectRoot }));
     } catch (err: unknown) {
+      if (err instanceof ObservableScopeProviderError) {
+        if (err.refusal === "observable-scope-markup-unresolved") {
+          return fail(`verify:observable-scope: ${err.message}`);
+        }
+        return config(err.message);
+      }
       return config(`extractor failed on ${path}: ${String(err)}`);
     }
   }
 
-  const baseArtifact = buildArtifact(baseSurfaces);
-  const headArtifact = buildArtifact(headSurfaces);
+  const parsers = parsersFor([...baseSurfaces, ...headSurfaces], projectRoot);
+  const baseArtifact = buildArtifact(baseSurfaces, parsers);
+  const headArtifact = buildArtifact(headSurfaces, parsers);
   if (
     baseArtifact.provider !== OBSERVABLE_UI_PROVIDER ||
     headArtifact.provider !== OBSERVABLE_UI_PROVIDER ||
@@ -428,13 +437,20 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
     );
   }
 
+  const planId = resolveCurrentPlanId(
+    projectRoot,
+    options.planId,
+    parsedRecords.map((r) => r.planId),
+  );
   let selected = parsedRecords;
-  if (parsedRecords.length > 1) {
-    const planId = resolveCurrentPlanId(
-      projectRoot,
-      options.planId,
-      parsedRecords.map((r) => r.planId),
-    );
+  if (options.planId !== undefined && options.planId.length > 0) {
+    selected = parsedRecords.filter((r) => r.planId === options.planId);
+    if (selected.length === 0) {
+      return fail(
+        `verify:observable-scope: no merge-base mint record for planId ${options.planId}.`,
+      );
+    }
+  } else if (parsedRecords.length > 1) {
     if (planId === undefined || planId.length === 0) {
       return config(
         "multiple merge-base mint records; pass --plan-id or pin DEFT_ACTIVE_SCOPE to the current story (old mints must not authorize new work)",
@@ -445,10 +461,21 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
       return fail(`verify:observable-scope: no merge-base mint record for planId ${planId}.`);
     }
   }
+  if (selected.length > 1) {
+    return config(
+      "multiple merge-base mint records share a planId; allowances cannot be pooled across mints",
+    );
+  }
+  const mint = selected[0];
+  if (mint === undefined) {
+    return fail(
+      "verify:observable-scope: matched UI surfaces changed without a merge-base observable-scope mint record.",
+    );
+  }
 
   const deltas = diffArtifacts(baseArtifact, headArtifact);
-  const allowed = selected.flatMap((r) => r.allowedChanges);
-  const mustPreserve = selected.flatMap((r) => r.mustPreserve ?? []);
+  const allowed = mint.allowedChanges;
+  const mustPreserve = mint.mustPreserve ?? [];
   const preserveHits = deltas.filter((delta) => mustPreserve.some((p) => changeMatches(p, delta)));
   if (preserveHits.length > 0) {
     const listed = preserveHits
@@ -471,8 +498,10 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
   }
 
   return ok(
-    `verify:observable-scope: minted allowedChanges cover the jsdom+typescript oracle ` +
-      `(${uiPaths.length} surface(s), ${selected.length} mint record(s)).`,
+    `verify:observable-scope: minted allowedChanges cover the parse5+typescript oracle ` +
+      `(${uiPaths.length} surface(s), 1 mint record, parsers html=${parsers.html}` +
+      (parsers.typescript !== null ? ` typescript=${parsers.typescript}` : "") +
+      `).`,
     false,
     options.quiet === true,
   );

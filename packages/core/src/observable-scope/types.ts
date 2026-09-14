@@ -1,7 +1,7 @@
 /**
  * Observable UI scope contract types (#4495).
  *
- * First ship: closed `.html` (jsdom) + `.jsx`/`.tsx` (TypeScript parse-only).
+ * First ship: closed `.html` (parse5) + `.jsx`/`.tsx` (project-resolved TypeScript parse-only).
  * Runtime/state-derived default-tab is #4503. Markup-visible selected /
  * aria-selected / source-order is in scope.
  */
@@ -12,7 +12,7 @@ export const OBSERVABLE_UI_POLICY_REL = ".deft/observable-ui.policy.json";
 export const OBSERVABLE_UI_POLICY_SCHEMA = "deft.observable-ui.policy.v1";
 export const OBSERVABLE_SCOPE_RECORD_SCHEMA = "deft.observable-scope.v1";
 export const OBSERVABLE_UI_ARTIFACT_SCHEMA = "deft.observable-ui.v1";
-export const OBSERVABLE_UI_PROVIDER = "jsdom+typescript";
+export const OBSERVABLE_UI_PROVIDER = "parse5+typescript";
 export const OBSERVABLE_UI_PROVIDER_VERSION = 1;
 export const OBSERVABLE_SCOPE_REMEDIATION =
   "Restore the baseline markup structure or amend the observable scope through explicit human-presence mint (scope:record-observable-scope).";
@@ -45,10 +45,21 @@ export interface SurfaceSnapshot {
   readonly facts: readonly StructureFact[];
 }
 
+export interface ArtifactParsers {
+  readonly html: string;
+  readonly typescript: string | null;
+}
+
 export interface ObservableArtifact {
   readonly schema: typeof OBSERVABLE_UI_ARTIFACT_SCHEMA;
   readonly provider: typeof OBSERVABLE_UI_PROVIDER;
   readonly version: typeof OBSERVABLE_UI_PROVIDER_VERSION;
+  /**
+   * Informational parser identities (tokenizer version, resolved TypeScript
+   * version or null when no .jsx/.tsx surface was parsed). Never compared
+   * against the base-committed mint record; never part of its hash.
+   */
+  readonly parsers: ArtifactParsers;
   readonly surfaces: readonly SurfaceSnapshot[];
 }
 

@@ -142,6 +142,56 @@ describe("evaluateObservableScope real git (#4495)", () => {
     expect(rewrite.message).toMatch(/same-PR rewrite/);
   });
 
+  it("reads HEAD not the dirty working tree in normal mode", () => {
+    root = initRepo();
+    writeTracked(root, ".deft/observable-ui.policy.json", POLICY);
+    writeTracked(root, "ui.html", BASE_HTML);
+    const rec = buildObservableScopeRecord({
+      planId: "story-1",
+      xbriefRelPath: "xbrief/active/story.xbrief.json",
+      allowedChanges: [{ kind: "control", op: "add", name: "email" }],
+      humanApproval: human,
+    });
+    if ("error" in rec) throw new Error(rec.error);
+    writeObservableScopeRecord(root, rec);
+    git(root, ["add", "--", ".deft/observable-scope/story-1.json"]);
+    commit(root, "base mint");
+    git(root, ["checkout", "-q", "-b", "feat"]);
+    writeTracked(root, "ui.html", `${BASE_HTML}<input name="email" />\n`);
+    commit(root, "fields");
+    writeFileSync(
+      join(root, "ui.html"),
+      `${BASE_HTML}<input name="email" /><button>Extra</button>\n`,
+    );
+    const result = evaluateObservableScope({ projectRoot: root, originRef: "main" });
+    expect(result.code).toBe(0);
+  });
+
+  it("reads the index not the dirty working tree in staged mode", () => {
+    root = initRepo();
+    writeTracked(root, ".deft/observable-ui.policy.json", POLICY);
+    writeTracked(root, "ui.html", BASE_HTML);
+    const rec = buildObservableScopeRecord({
+      planId: "story-1",
+      xbriefRelPath: "xbrief/active/story.xbrief.json",
+      allowedChanges: [{ kind: "control", op: "add", name: "email" }],
+      humanApproval: human,
+    });
+    if ("error" in rec) throw new Error(rec.error);
+    writeObservableScopeRecord(root, rec);
+    git(root, ["add", "--", ".deft/observable-scope/story-1.json"]);
+    commit(root, "base mint");
+    git(root, ["checkout", "-q", "-b", "feat"]);
+    writeFileSync(join(root, "ui.html"), `${BASE_HTML}<input name="email" />\n`);
+    git(root, ["add", "--", "ui.html"]);
+    writeFileSync(
+      join(root, "ui.html"),
+      `${BASE_HTML}<input name="email" /><button>Extra</button>\n`,
+    );
+    const result = evaluateObservableScope({ projectRoot: root, originRef: "main", staged: true });
+    expect(result.code).toBe(0);
+  });
+
   it("resolveMergeBase errors when git has no origin default", () => {
     root = mkdtempSync(join(tmpdir(), "obs-scope-nogit-"));
     const resolved = resolveMergeBase(root);

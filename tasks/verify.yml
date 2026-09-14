@@ -310,7 +310,7 @@ tasks:
           ENGINE_CMD: 'verify:scope-provenance --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
 
   observable-scope:
-    desc: "Fail-closed observable UI scope contract (#4495): minted allowedChanges versus jsdom+typescript oracle on base-pinned surfaces. Unset policy plus UI file types is inferred-defaults-warn (exit 0 with findings). Flags: --origin-ref / --staged / --quiet. Three-state exit (0 skip/warn/pass / 1 unlisted delta or missing mint / 2 config). Does not accept --base-ref."
+    desc: "Fail-closed observable UI scope contract (#4495): minted allowedChanges versus parse5+typescript oracle on base-pinned surfaces. Unset policy plus UI file types is inferred-defaults-warn (exit 0 with findings). Flags: --origin-ref / --staged / --quiet. Three-state exit (0 skip/warn/pass / 1 unlisted delta or missing mint / 2 config). Does not accept --base-ref."
     dir: '{{.USER_WORKING_DIR}}'
     deps:
       - task: :engine:_ts-build
