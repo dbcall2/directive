@@ -275,6 +275,62 @@
       }
     },
     "id": "github.issue.5442407893",
-    "updated": "2026-09-14T12:38:44Z"
+    "updated": "2026-09-14T12:38:44Z",
+    "architecture": {
+      "systemOfRecord": {
+        "note": "Observable-scope first ship does not add durable product state. The minted contract is a git canonical artifact; human-presence mint is the existing #3110 TTY/confirm gate. Extractor output is ephemeral. jsdom/parse5 'parity' names fixture goldens, not a reference application.",
+        "stateSurfaces": [
+          {
+            "name": "Minted observable-change contract",
+            "classification": "canonical_artifact",
+            "owner": "packages/core/src/observable-scope/mint.ts .deft/observable-scope/<planId>.json",
+            "approvedStorage": [
+              "json_file",
+              "filesystem"
+            ]
+          },
+          {
+            "name": "Human-presence mint (#3110)",
+            "classification": "authorization_state",
+            "owner": "existing TTY/confirm mint (scope:record-observable-scope); JSON is the canonical copy",
+            "approvedStorage": "external_service",
+            "permissionBoundary": "human-presence mint on merge base; same-PR rewrite fails",
+            "migrationRequired": false,
+            "auditRequired": true,
+            "concurrencyRequired": true,
+            "concurrencySemantics": "one minted contract per plan-id; rewrite refused in the same PR",
+            "transactionBoundary": "one containedWrite of the canonical JSON after #3110 confirm",
+            "recoverySemantics": "restore the merge-base record or re-mint with human presence",
+            "conflictDetection": "contractDigest plus same-PR path rewrite check",
+            "deleteSemantics": "not deleted by the gate; follow-up stories amend via a new mint",
+            "migrationPath": "none; new .deft/observable-scope JSON beside approved-scope"
+          },
+          {
+            "name": "Extractor walk (parse5 / project TypeScript)",
+            "classification": "ephemeral_ui_state",
+            "owner": "packages/core/src/observable-scope/html-spec.ts and extract.ts",
+            "approvedStorage": "in_memory"
+          },
+          {
+            "name": "Parity HTML corpus fixtures",
+            "classification": "dev_only_fixture",
+            "owner": "packages/core/src/observable-scope/parity/corpus",
+            "approvedStorage": [
+              "filesystem",
+              "browser_storage"
+            ],
+            "productionGuard": "vitest-only compare tests; runtime extract.ts never loads corpus HTML"
+          }
+        ],
+        "referenceApplicationComparisons": [
+          {
+            "subject": "parse5 versus historical jsdom extractor fixtures",
+            "persistence": "No application database or repository. Minted JSON is git canonical storage, not product persistence. Parity HTML goldens are fixtures.",
+            "auth": "No identity or session store. Human-presence mint reuses #3110 TTY/confirm, not an authentication provider.",
+            "permission": "No membership or role store. Authorization is the merge-base mint; same-PR rewrite fails."
+          }
+        ]
+      }
+    }
   }
 }
