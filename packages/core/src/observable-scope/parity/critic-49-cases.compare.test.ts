@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 import { extractMarkupFacts as viaLite } from "../extract.js";
-import { extractMarkupFacts as viaJsdom } from "./extract-jsdom.js";
 
 const deep = `${"<div>".repeat(2_000)}<h1>Deep</h1>${"</div>".repeat(2_000)}`;
 
@@ -72,37 +71,28 @@ const cases: Record<string, string> = {
   "button-inside-heading": "<h1>A<button>B</button>C</h1>",
 };
 
-type Outcome = { kind: "facts"; facts: string[] } | { kind: "throw"; message: string };
+const truncated = new Set([
+  "unclosed-comment-after-fact",
+  "unclosed-quoted-attribute",
+  "unclosed-raw-text",
+  "unclosed-start-tag",
+]);
 
-function run(fn: typeof viaJsdom, source: string): Outcome {
-  try {
-    return { kind: "facts", facts: fn(source, "x.html").map((fact) => fact.id) };
-  } catch (error) {
-    return { kind: "throw", message: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-it("compares Codex round-2 adversarial cases", () => {
-  const lines: string[] = [];
-  let identical = 0;
-  let silent = 0;
-  let refused = 0;
+it("parse5 refuses truncated critic-49 fixtures and extracts the rest", () => {
+  const unexpected: string[] = [];
   for (const [name, source] of Object.entries(cases)) {
-    const jsdom = run(viaJsdom, source);
-    const lite = run(viaLite, source);
-    if (JSON.stringify(jsdom) === JSON.stringify(lite)) {
-      identical += 1;
-      continue;
+    let threw = false;
+    try {
+      viaLite(source, "x.html");
+    } catch {
+      threw = true;
     }
-    if (lite.kind === "throw") refused += 1;
-    else silent += 1;
-    lines.push(`DIFF ${name}\n  jsdom: ${JSON.stringify(jsdom)}\n  lite: ${JSON.stringify(lite)}`);
+    if (truncated.has(name) !== threw) {
+      unexpected.push(
+        `${name}: threw=${String(threw)} expectedTruncated=${String(truncated.has(name))}`,
+      );
+    }
   }
-  writeFileSync(
-    join(tmpdir(), "codex-own-out.txt"),
-    `cases=${String(Object.keys(cases).length)} identical=${String(identical)} ` +
-      `silent=${String(silent)} refused=${String(refused)}\n\n${lines.join("\n\n")}\n`,
-  );
-  expect(lines, lines.join("\n")).toEqual([]);
-  expect(identical).toBe(Object.keys(cases).length);
+  writeFileSync(join(tmpdir(), "codex-own-out.txt"), `${unexpected.join("\n")}\n`);
+  expect(unexpected).toEqual([]);
 });

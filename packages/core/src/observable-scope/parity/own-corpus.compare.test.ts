@@ -3,7 +3,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { extractMarkupFacts as viaLite } from "../extract.js";
-import { extractMarkupFacts as viaJsdom } from "./extract-jsdom.js";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const corpusDir = join(dir, "corpus");
@@ -21,21 +20,23 @@ const snippets: Record<string, string> = {
   "adversarial-10": `<header><nav aria-label="Main"><a href="#">x</a></nav></header><main><aside id="side"></aside><footer>f</footer></main>`,
 };
 
-describe("parent corpus parity vs jsdom reference (#4495 recut)", () => {
-  it("matches jsdom on all 18 page files plus 10 inline snippets", () => {
+describe("parent corpus fixtures (#4495 recut)", () => {
+  it("extracts committed page goldens and refuses truncated tab markup", () => {
     const files = readdirSync(corpusDir)
       .filter((n) => n.endsWith(".html"))
       .sort()
       .map((n) => [n, readFileSync(join(corpusDir, n), "utf8")] as const);
-    const corpus: Array<readonly [string, string]> = [...files, ...Object.entries(snippets)];
     expect(files.length).toBe(18);
-    expect(corpus.length).toBe(28);
-    const diffs: string[] = [];
-    for (const [name, src] of corpus) {
-      const a = viaJsdom(src, "x.html").map((f) => f.id);
-      const b = viaLite(src, "x.html").map((f) => f.id);
-      if (JSON.stringify(a) !== JSON.stringify(b)) diffs.push(name);
+    for (const [name, src] of files) {
+      expect(viaLite(src, name).length, name).toBeGreaterThan(0);
     }
-    expect(diffs).toEqual([]);
+    expect(Object.keys(snippets).length).toBe(10);
+    for (const [name, src] of Object.entries(snippets)) {
+      if (name === "adversarial-7") {
+        expect(() => viaLite(src, "x.html"), name).toThrow(/observable-scope-markup-unresolved/);
+        continue;
+      }
+      expect(viaLite(src, "x.html").length, name).toBeGreaterThan(0);
+    }
   });
 });

@@ -416,7 +416,6 @@
     "test": "pnpm -w exec vitest run --coverage packages/core/src"
   },
   "devDependencies": {
-    "@types/archiver": "^8.0.0",
-    "jsdom": "26.1.0"
+    "@types/archiver": "^8.0.0"
   }
 }

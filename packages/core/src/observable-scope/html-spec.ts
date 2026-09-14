@@ -7,7 +7,7 @@
  * tree; nothing else of parse5's surface is exposed.
  */
 
-import { type DefaultTreeAdapterMap, parse } from "parse5";
+import { type DefaultTreeAdapterMap, type ParserError, parse } from "parse5";
 
 export const HTML_FRONTEND_VERSION = "parse5@7";
 
@@ -155,14 +155,37 @@ function wrap(el: P5Element): LiteElement {
 }
 
 /**
+ * Tokenizer/tree-construction codes that mean the input ended mid-construct.
+ * WHATWG recovery would still emit a partial tree; extract.ts refuses when
+ * any of these land in anomalies so the oracle never compares recovered
+ * partial facts. Fragment HTML without a doctype is not incomplete.
+ */
+const INCOMPLETE_PARSE_CODES: ReadonlySet<string> = new Set([
+  "eof-in-tag",
+  "eof-before-tag-name",
+  "eof-in-doctype",
+  "eof-in-comment",
+  "eof-in-cdata",
+  "eof-in-script-html-comment-like-text",
+  "eof-in-element-that-can-contain-only-text",
+]);
+
+/**
  * Parse a committed HTML source as a document with the scripting flag disabled.
  *
- * anomalies stays empty: parse5 WHATWG recovery is the oracle (jsdom-parity).
- * Incomplete tokens are recovered into a tree, not refused. TypeScript parse
- * diagnostics on .jsx/.tsx still refuse via extract.ts.
+ * onParseError collects incomplete-token errors into anomalies. extract.ts
+ * refuses when anomalies.length > 0. Recoverable tree-construction noise
+ * (missing doctype on fragments, implied closes) is not an anomaly.
  */
 export function parseHtml(source: string): ParseResult {
-  const doc = parse(source, { scriptingEnabled: false, onParseError: () => undefined });
+  const anomalies: ParseAnomaly[] = [];
+  const doc = parse(source, {
+    scriptingEnabled: false,
+    onParseError: (err: ParserError) => {
+      if (!INCOMPLETE_PARSE_CODES.has(err.code)) return;
+      anomalies.push({ kind: err.code, offset: err.startOffset });
+    },
+  });
   const document: LiteElement = {
     tagName: "#DOCUMENT",
     get textContent() {
@@ -172,5 +195,5 @@ export function parseHtml(source: string): ParseResult {
     hasAttribute: () => false,
     querySelectorAll: (s: string) => selectAll(doc, compileSelectorList(s)),
   };
-  return { document, anomalies: [] };
+  return { document, anomalies };
 }

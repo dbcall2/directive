@@ -48,10 +48,12 @@ describe("parse5 front end (scripting disabled): classes both critics measured",
     ).toEqual(["Hidden"]);
   });
 
-  it("truncated or malformed html is parsed the way a browser parses it", () => {
-    expect(ids('<h1>Open <button role="tab" aria-selected="tru', "a.html")).toEqual([
-      "heading:1:Open",
-    ]);
+  it("truncated tab markup fails closed instead of comparing recovered partial facts", () => {
+    const truncated = '<h1>Open <button role="tab" aria-selected="tru';
+    const parsed = parseHtml(truncated);
+    expect(parsed.anomalies.map((a) => a.kind)).toContain("eof-in-tag");
+    expect(() => ids(truncated, "a.html")).toThrow(/observable-scope-markup-unresolved/);
+    expect(parseHtml("<h1>Open</h1>").anomalies).toEqual([]);
   });
 });
 

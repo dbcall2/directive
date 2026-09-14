@@ -23,7 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Observable-scope HTML parse refuses truncated markup (#4495).** parse5 `onParseError` records incomplete-token errors into `anomalies`; extract refuses rather than comparing recovered partial facts.
+
 ### Removed
+
+- **jsdom from `@deftai/directive-core`, including DEV-ONLY (#4495).** Socket Warn alerts came from `jsdom@26.1.0` (`data-urls`, `rrweb-cssom`, `whatwg-encoding`). Parity HTML fixtures stay as committed goldens.
 
 ## [0.118.1] - 2026-09-14
 

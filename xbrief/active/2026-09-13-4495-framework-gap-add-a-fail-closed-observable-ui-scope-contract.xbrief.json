@@ -198,8 +198,6 @@
           "pnpm-lock.yaml",
           "packages/core/src/observable-scope/html-spec.ts",
           "packages/core/src/observable-scope/html-spec.test.ts",
-          "packages/core/src/observable-scope/parity/extract-jsdom.ts",
-          "packages/core/src/observable-scope/parity/jsdom-module.d.ts",
           "packages/core/src/observable-scope/parity/critic-30-cases.compare.test.ts",
           "packages/core/src/observable-scope/parity/critic-49-cases.compare.test.ts",
           "packages/core/src/observable-scope/parity/paired-delta.compare.test.ts",

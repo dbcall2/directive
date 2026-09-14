@@ -40,7 +40,13 @@ describe("packed/installed oracle smoke (#4495)", () => {
       dependencies?: Record<string, string>;
     };
     expect(Object.keys(parse5Pkg.dependencies ?? {})).toEqual(["entities"]);
-    expect(pkg.devDependencies?.jsdom).toBeTruthy();
+    expect(pkg.devDependencies?.jsdom).toBeUndefined();
+    const lock = readFileSync(
+      fileURLToPath(new URL("../../../../pnpm-lock.yaml", import.meta.url)),
+      "utf8",
+    );
+    expect(lock).not.toMatch(/jsdom@26/);
+    expect(lock).not.toMatch(/^ {2}jsdom@/m);
   });
 
   it("html extraction needs no TypeScript", () => {

@@ -13,6 +13,6 @@ First ship is **not** universal UI coverage. Applicability is opt-in and base-pi
 
 One remediation: restore the baseline markup structure or amend the observable scope through explicit human-presence mint (`scope:record-observable-scope`).
 
-The verb is composed on `task check` (`FRAMEWORK_CHECK_GATES`, `CONSUMER_CHECK_GATES`, and required consumer enforcement). Missing, stale, invalid, or changed provider material fails; there is no generic fallback. Dependency delta versus master is two pure parser packages (`parse5` and `entities`). The JSX path trades a bundled pinned parser for one resolved from the consumer project, recorded per artifact and never compared against the mint. jsdom is DEV-ONLY comparison tooling.
+The verb is composed on `task check` (`FRAMEWORK_CHECK_GATES`, `CONSUMER_CHECK_GATES`, and required consumer enforcement). Missing, stale, invalid, or changed provider material fails; there is no generic fallback. Dependency delta versus master is two pure parser packages (`parse5` and `entities`). The JSX path trades a bundled pinned parser for one resolved from the consumer project, recorded per artifact and never compared against the mint. Truncated or incomplete HTML is refused (parse5 onParseError into anomalies). jsdom is not a dependency.
 
 Three-state exit: `0` skip, warn-findings, or pass / `1` missing mint or unlisted delta / `2` invalid configuration.

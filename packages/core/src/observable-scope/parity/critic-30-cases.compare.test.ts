@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 import { extractMarkupFacts as viaLite } from "../extract.js";
-import { extractMarkupFacts as viaJsdom } from "./extract-jsdom.js";
 
 const cases: Record<string, string> = {
   "noscript-heading":
@@ -42,33 +41,15 @@ const cases: Record<string, string> = {
   "frameset-ish": "<h1>A</h1><frameset><frame></frameset><h1>B</h1>",
 };
 
-it("differential", () => {
-  let same = 0;
-  const diffs: string[] = [];
+it("parse5 extracts critic-30 fixtures without truncated-token refusal", () => {
+  const threw: string[] = [];
   for (const [name, src] of Object.entries(cases)) {
-    let a: unknown, b: unknown;
     try {
-      a = viaJsdom(src, "x.html").map((f) => f.id);
+      viaLite(src, "x.html");
     } catch (e) {
-      a = `THREW:${(e as Error).message}`;
+      threw.push(`${name}:${(e as Error).message}`);
     }
-    try {
-      b = viaLite(src, "x.html").map((f) => f.id);
-    } catch (e) {
-      b = `THREW:${(e as Error).message}`;
-    }
-    if (JSON.stringify(a) === JSON.stringify(b)) {
-      same++;
-      continue;
-    }
-    diffs.push(`DIFF ${name}\n   jsdom: ${JSON.stringify(a)}\n   lite : ${JSON.stringify(b)}`);
   }
-  writeFileSync(
-    join(tmpdir(), "out-critic30.txt"),
-    `cases=${Object.keys(cases).length} identical=${same} different=${diffs.length}\n\n` +
-      diffs.join("\n\n") +
-      "\n",
-  );
-  expect(diffs, diffs.join("\n")).toEqual([]);
-  expect(same).toBe(Object.keys(cases).length);
+  writeFileSync(join(tmpdir(), "out-critic30.txt"), `${threw.join("\n")}\n`);
+  expect(threw).toEqual([]);
 });

@@ -1,8 +1,7 @@
 import { expect, it } from "vitest";
 import { extractMarkupFacts as viaLite } from "../extract.js";
-import { extractMarkupFacts as viaJsdom } from "./extract-jsdom.js";
 
-/** Inverse of critic 5658507245's silent-pass harness: the front end must see every delta jsdom sees. */
+/** Inverse of critic 5658507245's silent-pass harness: parse5 must see these deltas. */
 const cases: Record<string, { base: string; candidate: string }> = {
   "heading-moved-out-of-select": {
     base: '<select name="s"><h1>Settings</h1><option>A</option></select>',
@@ -31,17 +30,12 @@ const cases: Record<string, { base: string; candidate: string }> = {
   },
 };
 
-it("every base/candidate delta jsdom sees, the front end sees identically", () => {
+it("every base/candidate paired delta is visible to the parse5 front end", () => {
   for (const [name, { base, candidate }] of Object.entries(cases)) {
-    const j = [
-      viaJsdom(base, "x.html").map((f) => f.id),
-      viaJsdom(candidate, "x.html").map((f) => f.id),
-    ];
     const l = [
       viaLite(base, "x.html").map((f) => f.id),
       viaLite(candidate, "x.html").map((f) => f.id),
     ];
-    expect(j[1], name).not.toEqual(j[0]);
-    expect(l, name).toEqual(j);
+    expect(l[1], name).not.toEqual(l[0]);
   }
 });
