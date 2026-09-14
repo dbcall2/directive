@@ -1,7 +1,7 @@
 {
   "schema": "deft.evaluator-surface-disposition.v1",
   "kind": "disclosure",
-  "issue": 4495,
+  "issue": 4267,
   "surfaces": [
     "Taskfile.yml",
     "tasks/verify.yml",
@@ -17,5 +17,5 @@
     "packages/cli/src/verify-observable-scope.ts",
     "packages/cli/src/scope-record-observable-scope.ts"
   ],
-  "note": "Disclosure of evaluator-surface wiring including #4495 verify:observable-scope. Not reviewed authorization under #3164. A commit-body issue/PR URL is not this record."
+  "note": "Disclosure of Taskfile.yml Phase 7 task release:wait-npm (#4267). Surfaces include the #4495 observable-scope set so this renewal covers the merged evaluator-surface tree. Not reviewed authorization under #3164. A leftover #4495 record does not cover later evaluator-surface changes."
 }
