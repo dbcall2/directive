@@ -1,65 +1,57 @@
-import { isHumanOrigin, isRejectedOriginKind } from "../authz/origin.js";
-import type { GrantOrigin } from "../authz/types.js";
-import { uniqueOrigins } from "./origin-set.js";
-import { utcIso, writeOnePrUnitGrant } from "./store.js";
-import { ONE_PR_UNIT_SCHEMA, type OnePrUnitGrant, type OriginRef } from "./types.js";
+/**
+ * Human-presence mint UX for one-PR-unit claims (#4494).
+ * `deft authz:grant` / `refuseNonInteractiveMint` call this, which calls the App store.
+ * Opaque id is not a bearer. Disk `.deft/one-pr-unit` is not written.
+ */
 
-export interface MintOnePrUnitInput {
-  readonly projectRoot: string;
-  readonly id: string;
-  readonly actor: string;
-  readonly approvalRef: string;
-  readonly rationale: string;
-  readonly origins: readonly OriginRef[];
-  readonly repo: string;
-  readonly branch?: string | null;
-  readonly prNumber?: number | null;
-  readonly singleUse?: boolean;
-  readonly now?: Date;
+import { evidenceSatisfiesImplementationApproval, isHumanOrigin } from "../authz/origin.js";
+import type { HumanOriginGrant } from "../authz/types.js";
+import type { MintClaimInput, OnePrUnitAppStore } from "./app-store.js";
+import { getDefaultAppStore } from "./simulator.js";
+import type { OnePrUnitClaim } from "./types.js";
+
+export interface MintOnePrUnitInput extends MintClaimInput {
+  readonly store?: OnePrUnitAppStore;
+  /**
+   * @deprecated disk path is not SoT. Ignored.
+   */
+  readonly projectRoot?: string;
 }
 
-export function mintOnePrUnitGrant(input: MintOnePrUnitInput): OnePrUnitGrant {
-  const mintedAt = utcIso(input.now);
-  const origin: GrantOrigin = {
-    kind: "operator-cli",
-    actor: input.actor,
-    mintedAt,
-    mintedVia: "one-pr-unit:mint",
-    eventRef: input.approvalRef,
+function probeHumanOrigin(input: MintClaimInput): HumanOriginGrant {
+  const mintedAt = (input.now ?? new Date()).toISOString();
+  return {
+    schemaVersion: 1,
+    id: "one-pr-unit-mint-probe",
+    origin: {
+      kind: "operator-cli",
+      actor: input.actor,
+      mintedAt,
+      mintedVia: "authz:grant/one-pr-unit",
+      eventRef: input.approvalRef,
+    },
+    scope: {
+      planRef: null,
+      repo: input.repo,
+      branch: null,
+      worktree: null,
+      surfaces: [],
+      operations: [],
+      storyIds: [],
+      issueIds: input.origins.map((o) => o.issueId),
+      cohortId: null,
+    },
+    semantics: { expiresAt: null, singleUse: true, usedAt: null, revokedAt: null },
   };
-  if (isRejectedOriginKind(origin.kind) || !isHumanOrigin(origin)) {
+}
+
+export function mintOnePrUnitGrant(input: MintOnePrUnitInput): OnePrUnitClaim {
+  const probe = probeHumanOrigin(input);
+  if (!isHumanOrigin(probe.origin) || !evidenceSatisfiesImplementationApproval({ grant: probe })) {
     throw new Error(
-      "one-pr-unit mint requires operator-cli origin; agent-authored allocation strings do not count",
+      "one-pr-unit mint requires operator-cli origin; evidenceSatisfiesImplementationApproval rejected #1378/allocation/implement-list evidence",
     );
   }
-  const origins = uniqueOrigins(input.origins);
-  if (origins.length < 2) {
-    throw new Error("one-pr-unit mint requires at least two origins");
-  }
-  const branch = input.branch ?? null;
-  const prNumber = input.prNumber ?? null;
-  const singleUse = input.singleUse === true;
-  if ((branch === null || branch.length === 0) && prNumber === null && !singleUse) {
-    throw new Error("one-pr-unit mint requires branch/PR-unit binding or single-use");
-  }
-  const grant: OnePrUnitGrant = {
-    schema: ONE_PR_UNIT_SCHEMA,
-    id: input.id.trim(),
-    origin,
-    approvalRef: input.approvalRef.trim(),
-    rationale: input.rationale.trim(),
-    origins,
-    repo: input.repo.trim(),
-    branch,
-    prNumber,
-    singleUse,
-    usedAt: null,
-    revokedAt: null,
-    mintedAt,
-  };
-  if (grant.id.length === 0 || grant.approvalRef.length === 0 || grant.rationale.length === 0) {
-    throw new Error("one-pr-unit mint requires id, approvalRef, and rationale");
-  }
-  writeOnePrUnitGrant(input.projectRoot, grant);
-  return grant;
+  const store = input.store ?? getDefaultAppStore();
+  return store.mint(input);
 }

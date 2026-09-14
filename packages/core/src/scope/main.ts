@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { closerSetFromIssueIds } from "../one-pr-unit/closer-set.js";
 import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
+import { exactOriginSetEquals } from "../one-pr-unit/origin-set.js";
 import { listOnePrUnitGrants } from "../one-pr-unit/store.js";
 import { defaultRunGh, fetchClosingIssuesReferences } from "../pr-protected-issues/gh.js";
 import { releaseWorkClaimForBrief } from "../scm/work-claim.js";
@@ -402,23 +403,30 @@ export function lifecycleMain(argv: string[]): number {
     if (repo !== null && repo !== undefined && repo.length > 0) {
       try {
         const linked = fetchClosingIssuesReferences(deliveryEvidence.prNumber, repo, defaultRunGh);
-        if (linked !== null) {
-          const grant =
-            listOnePrUnitGrants(rootForUnit).find(
-              (g) => g.prNumber === deliveryEvidence.prNumber,
-            ) ?? null;
-          const unit = evaluateOnePrUnit({
-            closerSet: closerSetFromIssueIds(repo, linked),
-            grant,
-            binding: { repo, prNumber: deliveryEvidence.prNumber },
-          });
-          if (!unit.ok) {
-            process.stderr.write(`Error: ${unit.message}\n`);
-            return 1;
-          }
+        if (linked === null) {
+          process.stderr.write(
+            "Error: could not read closing-issue references for one-PR-unit recheck. " +
+              "Retry after fixing gh auth, rate limit, or network.\n",
+          );
+          return 1;
         }
-      } catch {
-        /* lifecycle consistency only; forge lookup failure does not block complete */
+        const closerSet = closerSetFromIssueIds(repo, linked);
+        const grant =
+          listOnePrUnitGrants(rootForUnit).find((g) => exactOriginSetEquals(g.origins, closerSet)) ??
+          null;
+        const unit = evaluateOnePrUnit({
+          closerSet,
+          grant,
+          binding: { repo },
+        });
+        if (!unit.ok) {
+          process.stderr.write(`Error: ${unit.message}\n`);
+          return 1;
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`Error: one-PR-unit recheck failed: ${message}\n`);
+        return 1;
       }
     }
   }

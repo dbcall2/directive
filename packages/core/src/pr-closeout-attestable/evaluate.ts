@@ -19,7 +19,7 @@ import { join, relative, resolve } from "node:path";
 import { hasArtifactSuffix, resolveLifecycleRoot } from "../layout/resolve.js";
 import { closerSetFromIssueIds } from "../one-pr-unit/closer-set.js";
 import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
-import { listOnePrUnitGrants, loadOnePrUnitGrant } from "../one-pr-unit/store.js";
+import { loadOnePrUnitGrant } from "../one-pr-unit/store.js";
 import type { OnePrUnitGrant } from "../one-pr-unit/types.js";
 import { type GateRunner, makeGateRunner } from "../orphan-active/issue-state.js";
 import { collectGithubRefs } from "../orphan-active/refs.js";
@@ -93,6 +93,7 @@ export interface EvaluateOptions {
   readonly fetchClosingIssues?: FetchClosingIssuesFn;
   readonly onePrUnitGrant?: OnePrUnitGrant | null;
   readonly onePrUnitId?: string | null;
+  readonly prNodeId?: string | null;
 }
 
 interface ActiveBrief {
@@ -300,6 +301,7 @@ function configError(
  * PR head checkout. That is the tree the merge lands, and it is the same
  * working-tree basis `verify:orphan-active` uses.
  */
+
 export function evaluate(
   projectRoot: string,
   prNumber: number,
@@ -384,11 +386,12 @@ export function evaluate(
       ? options.onePrUnitGrant
       : options.onePrUnitId !== undefined && options.onePrUnitId !== null
         ? loadOnePrUnitGrant(root, options.onePrUnitId)
-        : (listOnePrUnitGrants(root).find((g) => g.prNumber === prNumber) ?? null);
+        : null;
   const unit = evaluateOnePrUnit({
     closerSet: closerSetFromIssueIds(repo, closingIssues),
     grant,
-    binding: { repo, prNumber },
+    binding: { repo, prNodeId: options.prNodeId ?? grant?.prNodeId },
+    presentedIdWithoutStore: (options.onePrUnitId ?? null) !== null && grant === null,
   });
   if (!unit.ok) {
     return {

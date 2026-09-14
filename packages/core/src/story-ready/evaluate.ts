@@ -224,7 +224,8 @@ function classifyAllocation(
       const decision = evaluateOnePrUnit({
         closerSet: declared,
         grant,
-        binding: { repo: options.onePrUnitRepo, branch: options.onePrUnitBranch },
+        binding: { repo: options.onePrUnitRepo },
+        presentedIdWithoutStore: grant === null && grantId !== null,
       });
       if (!decision.ok) {
         return {

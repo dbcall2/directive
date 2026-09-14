@@ -350,6 +350,44 @@ describe("one-PR-unit closer-set (#4494)", () => {
     stderr.mockRestore();
   });
 
+  it("live --pr single Closes without --allow-close passes (CI)", () => {
+    const runGh: RunGhFn = (cmd) => {
+      if (cmd.includes("body")) {
+        return {
+          returncode: 0,
+          stdout: JSON.stringify({ body: "Closes #4494\n" }),
+          stderr: "",
+        };
+      }
+      return { returncode: 0, stdout: JSON.stringify({ commits: [] }), stderr: "" };
+    };
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    expect(run(["--mode", "both", "--pr", "4497", "--repo", "deftai/directive"], { runGh })).toBe(
+      EXIT_OK,
+    );
+    stderr.mockRestore();
+  });
+
+  it("live --pr five-origin comma-list without grant fails closed", () => {
+    const runGh: RunGhFn = (cmd) => {
+      if (cmd.includes("body")) {
+        return {
+          returncode: 0,
+          stdout: JSON.stringify({
+            body: "Closes #4204, #4218, #4161, #3918, #3849\n",
+          }),
+          stderr: "",
+        };
+      }
+      return { returncode: 0, stdout: JSON.stringify({ commits: [] }), stderr: "" };
+    };
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const code = run(["--mode", "both", "--pr", "1", "--repo", "deftai/directive"], { runGh });
+    expect(code).toBe(EXIT_HITS_FOUND);
+    expect(stderr.mock.calls.join("")).toMatch(/missing one-PR-unit consent/);
+    stderr.mockRestore();
+  });
+
   it("five origins with operator-origin one-PR-unit grant pass", () => {
     writeFileSync(body, "Closes #4204, #4218, #4161, #3918, #3849\n", "utf8");
     mintOnePrUnitGrant({

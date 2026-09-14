@@ -1,21 +1,14 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { mintOnePrUnitGrant } from "./mint.js";
-import { listOnePrUnitGrants, loadOnePrUnitGrant, parseOnePrUnitGrant } from "./store.js";
+import { InProcessAppStore } from "./simulator.js";
+import { listOnePrUnitGrants, loadOnePrUnitGrant, writeOnePrUnitGrant } from "./store.js";
+import { DISK_STORE_NOT_SOT } from "./types.js";
 
-const temps: string[] = [];
-afterAll(() => {
-  for (const t of temps) rmSync(t, { recursive: true, force: true });
-});
-
-describe("one-pr-unit store", () => {
-  it("round-trips a minted grant and rejects agent-origin JSON", () => {
-    const project = mkdtempSync(join(tmpdir(), "store-"));
-    temps.push(project);
+describe("one-pr-unit App store facade", () => {
+  it("looks up minted claims and refuses disk writes", () => {
+    const store = new InProcessAppStore();
     mintOnePrUnitGrant({
-      projectRoot: project,
+      store,
       id: "unit-a",
       actor: "dbcall2",
       approvalRef: "ref",
@@ -25,36 +18,11 @@ describe("one-pr-unit store", () => {
         { repo: "o/r", issueId: 2 },
       ],
       repo: "o/r",
-      branch: "feat/x",
     });
-    expect(loadOnePrUnitGrant(project, "unit-a")?.id).toBe("unit-a");
-    expect(listOnePrUnitGrants(project)).toHaveLength(1);
-    expect(parseOnePrUnitGrant({ schema: "nope" })).toBeNull();
-    expect(
-      parseOnePrUnitGrant({
-        schema: "deft.one-pr-unit.v1",
-        id: "bad",
-        origin: {
-          kind: "allocation-context",
-          actor: "agent",
-          mintedAt: "2026-09-13T00:00:00Z",
-          mintedVia: "self",
-          eventRef: null,
-        },
-        approvalRef: "x",
-        rationale: "y",
-        origins: [
-          { repo: "o/r", issueId: 1 },
-          { repo: "o/r", issueId: 2 },
-        ],
-        repo: "o/r",
-        branch: "b",
-        prNumber: null,
-        singleUse: false,
-        usedAt: null,
-        revokedAt: null,
-        mintedAt: "2026-09-13T00:00:00Z",
-      }),
-    ).toBeNull();
+    expect(loadOnePrUnitGrant("ignored", "unit-a", store)?.id).toBe("unit-a");
+    expect(listOnePrUnitGrants("ignored", store)).toHaveLength(1);
+    expect(() => writeOnePrUnitGrant("ignored", store.getById("unit-a")!)).toThrow(
+      DISK_STORE_NOT_SOT,
+    );
   });
 });

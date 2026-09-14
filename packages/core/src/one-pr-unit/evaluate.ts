@@ -3,15 +3,19 @@ import { exactOriginSetEquals, formatOriginSet, uniqueOrigins } from "./origin-s
 import {
   MISSING_ONE_PR_UNIT_CONSENT,
   type OnePrUnitBinding,
+  type OnePrUnitClaim,
   type OnePrUnitDecision,
-  type OnePrUnitGrant,
+  OPAQUE_ID_NOT_BEARER,
   type OriginRef,
 } from "./types.js";
 
 export interface EvaluateOnePrUnitInput {
   readonly closerSet: readonly OriginRef[];
-  readonly grant: OnePrUnitGrant | null;
+  /** Claim resolved from the App store. Null means no store hit. */
+  readonly grant: OnePrUnitClaim | null;
   readonly binding?: OnePrUnitBinding;
+  /** Envelope opaque id presented without a store hit. */
+  readonly presentedIdWithoutStore?: boolean;
 }
 
 function deny(code: OnePrUnitDecision["code"], message: string): OnePrUnitDecision {
@@ -22,17 +26,20 @@ function allow(code: OnePrUnitDecision["code"], message: string): OnePrUnitDecis
   return { ok: true, code, message };
 }
 
-function grantBound(grant: OnePrUnitGrant): boolean {
-  return (grant.branch !== null && grant.branch.length > 0) || grant.prNumber !== null;
-}
-
 /**
  * One fail-closed decision: 0 or 1 distinct origin needs no grant; more than one
- * requires an operator-origin grant whose origin set equals the closer-set.
- * Independent of UAT mode. `--allow-close` and #1378 fields are not inputs.
+ * requires an App-store claim whose origin set equals the closer-set.
+ * `--allow-close` and #1378 fields are not inputs.
+ * Opaque id is not a bearer: a presented id without a store claim is deny-not-bearer.
  */
 export function evaluateOnePrUnit(input: EvaluateOnePrUnitInput): OnePrUnitDecision {
   const closerSet = uniqueOrigins(input.closerSet);
+  if (input.presentedIdWithoutStore === true && input.grant === null && closerSet.length > 1) {
+    return deny(
+      "deny-not-bearer",
+      `${OPAQUE_ID_NOT_BEARER} (closer-set: ${formatOriginSet(closerSet)}).`,
+    );
+  }
   if (closerSet.length === 0) {
     return allow("allow-empty", "OK: closer-set is empty; one-PR-unit consent does not apply.");
   }
@@ -58,45 +65,35 @@ export function evaluateOnePrUnit(input: EvaluateOnePrUnitInput): OnePrUnitDecis
     );
   }
 
-  if (grant.revokedAt !== null) {
+  if (grant.state === "revoked" || grant.revokedAt !== null) {
     return deny("deny-revoked", `one-PR-unit grant ${grant.id} was revoked at ${grant.revokedAt}.`);
   }
-  if (grant.singleUse && grant.usedAt !== null) {
-    return deny(
-      "deny-spent",
-      `one-PR-unit grant ${grant.id} is single-use and already spent at ${grant.usedAt}.`,
-    );
+  if (grant.state === "expired" || grant.expiredAt !== null) {
+    return deny("deny-expired", `one-PR-unit grant ${grant.id} expired at ${grant.expiresAt}.`);
   }
-
-  if (!grantBound(grant) && !grant.singleUse) {
-    return deny(
-      "deny-unbound",
-      `one-PR-unit grant ${grant.id} has no branch/PR-unit binding and is not single-use.`,
-    );
+  if (grant.state === "spent" || grant.spentAt !== null) {
+    return deny("deny-spent", `one-PR-unit grant ${grant.id} is spent at ${grant.spentAt}.`);
   }
 
   const binding = input.binding ?? {};
-  if (grant.branch !== null && grant.branch.length > 0) {
-    if (
-      binding.branch === null ||
-      binding.branch === undefined ||
-      binding.branch !== grant.branch
-    ) {
+  if (grant.state === "reserved" && grant.prNodeId === null) {
+    const presented = binding.prNodeId?.trim() ?? "";
+    if (presented.length > 0) {
       return deny(
-        "deny-binding",
-        `one-PR-unit grant ${grant.id} is bound to branch ${grant.branch}.`,
+        "deny-unbound",
+        `one-PR-unit grant ${grant.id} is reserved and unbound; first App interaction must bind this PR node id`,
       );
     }
   }
-  if (grant.prNumber !== null) {
-    if (
-      binding.prNumber === null ||
-      binding.prNumber === undefined ||
-      binding.prNumber !== grant.prNumber
-    ) {
+  if (grant.prNodeId !== null) {
+    const presented = binding.prNodeId?.trim() ?? "";
+    if (presented.length === 0) {
+      return deny("deny-not-bearer", `${OPAQUE_ID_NOT_BEARER} (grant ${grant.id} is bound).`);
+    }
+    if (presented !== grant.prNodeId) {
       return deny(
         "deny-binding",
-        `one-PR-unit grant ${grant.id} is bound to PR #${grant.prNumber}.`,
+        `one-PR-unit grant ${grant.id} is bound to a different GitHub PR node id.`,
       );
     }
   }

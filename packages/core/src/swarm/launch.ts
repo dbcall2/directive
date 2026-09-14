@@ -19,6 +19,7 @@ import {
   resolveLifecycleFolder,
   stripArtifactSuffix,
 } from "../layout/resolve.js";
+import { evaluateWorkerInstallationPermissions } from "../one-pr-unit/dest-token.js";
 import { evaluate as preflightEvaluate } from "../preflight/evaluate.js";
 import { applyWorktreeOccupancy, releaseOccupancy } from "../session/occupancy.js";
 import { issueNumbersFromPlan, scopeMetadataRank } from "../triage/queue/scope-walk.js";
@@ -1299,6 +1300,13 @@ export function swarmLaunch(args: LaunchArgs): {
 
   void args.noAudit;
   return { exitCode: EXIT_OK, stdout: rendered, stderr: "" };
+}
+
+export function assertDestWorkerInstallationPermissions(requested: unknown): void {
+  const decision = evaluateWorkerInstallationPermissions({ requested });
+  if (!decision.ok) {
+    throw new Error(decision.message);
+  }
 }
 
 export { EXIT_CONFIG_ERROR, EXIT_GATE_FAILED, EXIT_OK };

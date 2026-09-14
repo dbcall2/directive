@@ -469,7 +469,9 @@ export class ScmUmbrellaClient implements UmbrellaClient {
 
   closeIssue(repo: string, issueNumber: number): void {
     try {
-      restCloseIssue(repo, issueNumber, "completed");
+      restCloseIssue(repo, issueNumber, "completed", {
+        claimedSet: [{ repo, issueId: issueNumber }],
+      });
     } catch (exc) {
       const message = exc instanceof Error ? exc.message : String(exc);
       throw new UmbrellaScmError(`close issue #${issueNumber} (${repo}) failed: ${message}`);

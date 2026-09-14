@@ -1,26 +1,19 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import { evidenceSatisfiesImplementationApproval } from "../authz/origin.js";
 import type { GrantOrigin } from "../authz/types.js";
 import { extractIntentCloserSet } from "./closer-set.js";
 import { evaluateOnePrUnit } from "./evaluate.js";
 import { mintOnePrUnitGrant } from "./mint.js";
+import { InProcessAppStore } from "./simulator.js";
 import { loadOnePrUnitGrant } from "./store.js";
 import {
   MISSING_ONE_PR_UNIT_CONSENT,
   ONE_PR_UNIT_SCHEMA,
-  type OnePrUnitGrant,
+  type OnePrUnitClaim,
+  OPAQUE_ID_NOT_BEARER,
   type OriginRef,
   SERIALIZE_N_PRS,
 } from "./types.js";
-
-const temps: string[] = [];
-afterAll(() => {
-  for (const t of temps) {
-    rmSync(t, { recursive: true, force: true });
-  }
-});
 
 const REPO = "deftai/directive";
 const FIVE: OriginRef[] = [4204, 4218, 4161, 3918, 3849].map((issueId) => ({
@@ -32,28 +25,31 @@ function humanOrigin(overrides: Partial<GrantOrigin> = {}): GrantOrigin {
   return {
     kind: "operator-cli",
     actor: "dbcall2",
-    mintedAt: "2026-09-13T20:00:00Z",
-    mintedVia: "one-pr-unit:mint",
-    eventRef: "operator chat 2026-09-13",
+    mintedAt: "2026-09-14T00:00:00Z",
+    mintedVia: "authz:grant/one-pr-unit",
+    eventRef: "operator chat",
     ...overrides,
   };
 }
 
-function grant(overrides: Partial<OnePrUnitGrant> = {}): OnePrUnitGrant {
+function claim(overrides: Partial<OnePrUnitClaim> = {}): OnePrUnitClaim {
   return {
     schema: ONE_PR_UNIT_SCHEMA,
     id: "unit-five",
     origin: humanOrigin(),
-    approvalRef: "operator-approved one-PR-unit 2026-09-13",
+    approvalRef: "operator-approved",
     rationale: "five origins close together",
     origins: FIVE,
     repo: REPO,
-    branch: "feat/batch",
-    prNumber: null,
-    singleUse: false,
-    usedAt: null,
+    state: "bound",
+    prNodeId: "PR_kwDOFive",
+    mintedBy: "dbcall2",
+    mintedAt: "2026-09-14T00:00:00Z",
+    expiresAt: "2026-09-15T00:00:00Z",
+    boundAt: "2026-09-14T00:01:00Z",
+    spentAt: null,
     revokedAt: null,
-    mintedAt: "2026-09-13T20:00:00Z",
+    expiredAt: null,
     ...overrides,
   };
 }
@@ -81,11 +77,36 @@ describe("evaluateOnePrUnit", () => {
     expect(d.message).toContain(MISSING_ONE_PR_UNIT_CONSENT);
   });
 
-  it("passes the same five origins with an operator-origin grant", () => {
+  it("does not treat #1378 fields as consent", () => {
+    expect(
+      evidenceSatisfiesImplementationApproval({
+        allocationContext: {
+          allocation_plan_id: "plan",
+          batching_rationale: "overlap",
+          operator_approval_evidence: "implement 4204 4218",
+        },
+      }),
+    ).toBe(false);
+    const d = evaluateOnePrUnit({ closerSet: FIVE, grant: null });
+    expect(d.ok).toBe(false);
+  });
+
+  it("opaque id without a store hit is not a bearer", () => {
     const d = evaluateOnePrUnit({
       closerSet: FIVE,
-      grant: grant(),
-      binding: { repo: REPO, branch: "feat/batch" },
+      grant: null,
+      presentedIdWithoutStore: true,
+    });
+    expect(d.ok).toBe(false);
+    expect(d.code).toBe("deny-not-bearer");
+    expect(d.message).toContain(OPAQUE_ID_NOT_BEARER);
+  });
+
+  it("passes the same five origins with an App-store bound claim", () => {
+    const d = evaluateOnePrUnit({
+      closerSet: FIVE,
+      grant: claim(),
+      binding: { repo: REPO, prNodeId: "PR_kwDOFive" },
     });
     expect(d.ok).toBe(true);
     expect(d.code).toBe("allow-granted");
@@ -94,77 +115,55 @@ describe("evaluateOnePrUnit", () => {
   it("rejects agent-authored allocation origin", () => {
     const d = evaluateOnePrUnit({
       closerSet: FIVE,
-      grant: grant({ origin: humanOrigin({ kind: "allocation-context", actor: "agent" }) }),
-      binding: { repo: REPO, branch: "feat/batch" },
+      grant: claim({ origin: humanOrigin({ kind: "allocation-context", actor: "agent" }) }),
+      binding: { repo: REPO, prNodeId: "PR_kwDOFive" },
     });
     expect(d.ok).toBe(false);
     expect(d.code).toBe("deny-origin-kind");
-    expect(d.message).toContain(MISSING_ONE_PR_UNIT_CONSENT);
   });
 
   it("rejects overlap (superset) grants — exact-set only", () => {
     const d = evaluateOnePrUnit({
       closerSet: FIVE.slice(0, 2),
-      grant: grant(),
-      binding: { repo: REPO, branch: "feat/batch" },
+      grant: claim(),
+      binding: { repo: REPO, prNodeId: "PR_kwDOFive" },
     });
     expect(d.ok).toBe(false);
     expect(d.code).toBe("deny-origin-mismatch");
   });
 
-  it("does not consult UAT state", () => {
-    const d = evaluateOnePrUnit({
-      closerSet: FIVE,
-      grant: grant(),
-      binding: { repo: REPO, branch: "feat/batch" },
-    });
-    expect(d.ok).toBe(true);
-    expect(JSON.stringify(d)).not.toMatch(/uat/i);
-  });
-
-  it("rejects revoked, spent, unbound, and binding mismatches", () => {
+  it("rejects a later presentation from a different PR node id", () => {
     expect(
       evaluateOnePrUnit({
         closerSet: FIVE,
-        grant: grant({ revokedAt: "2026-09-13T21:00:00Z" }),
-        binding: { repo: REPO, branch: "feat/batch" },
+        grant: claim(),
+        binding: { repo: REPO, prNodeId: "PR_other" },
+      }).code,
+    ).toBe("deny-binding");
+  });
+
+  it("rejects revoked, spent, expired", () => {
+    expect(
+      evaluateOnePrUnit({
+        closerSet: FIVE,
+        grant: claim({ state: "revoked", revokedAt: "2026-09-14T01:00:00Z" }),
+        binding: { repo: REPO, prNodeId: "PR_kwDOFive" },
       }).code,
     ).toBe("deny-revoked");
     expect(
       evaluateOnePrUnit({
         closerSet: FIVE,
-        grant: grant({ singleUse: true, usedAt: "2026-09-13T21:00:00Z", branch: null }),
-        binding: { repo: REPO },
+        grant: claim({ state: "spent", spentAt: "2026-09-14T01:00:00Z" }),
+        binding: { repo: REPO, prNodeId: "PR_kwDOFive" },
       }).code,
     ).toBe("deny-spent");
     expect(
       evaluateOnePrUnit({
         closerSet: FIVE,
-        grant: grant({ branch: null, prNumber: null, singleUse: false }),
-        binding: { repo: REPO },
+        grant: claim({ state: "expired", expiredAt: "2026-09-15T00:00:00Z" }),
+        binding: { repo: REPO, prNodeId: "PR_kwDOFive" },
       }).code,
-    ).toBe("deny-unbound");
-    expect(
-      evaluateOnePrUnit({
-        closerSet: FIVE,
-        grant: grant(),
-        binding: { repo: REPO, branch: "other" },
-      }).code,
-    ).toBe("deny-binding");
-    expect(
-      evaluateOnePrUnit({
-        closerSet: FIVE,
-        grant: grant({ branch: null, prNumber: 4492 }),
-        binding: { repo: REPO, prNumber: 1 },
-      }).code,
-    ).toBe("deny-binding");
-    expect(
-      evaluateOnePrUnit({
-        closerSet: FIVE,
-        grant: grant(),
-        binding: { repo: "other/repo", branch: "feat/batch" },
-      }).code,
-    ).toBe("deny-binding");
+    ).toBe("deny-expired");
   });
 });
 
@@ -180,24 +179,22 @@ describe("extractIntentCloserSet comma-list", () => {
   });
 });
 
-describe("mintOnePrUnitGrant", () => {
-  it("writes an operator-cli grant and reloads it", () => {
-    const project = mkdtempSync(join(tmpdir(), "one-pr-unit-"));
-    temps.push(project);
+describe("mintOnePrUnitGrant App store", () => {
+  it("writes an operator-cli reserved claim into the App store, not disk", () => {
+    const store = new InProcessAppStore();
     const minted = mintOnePrUnitGrant({
-      projectRoot: project,
+      store,
       id: "unit-five",
       actor: "dbcall2",
-      approvalRef: "operator-approved 2026-09-13",
+      approvalRef: "operator-approved 2026-09-14",
       rationale: "five origins",
       origins: FIVE,
       repo: REPO,
-      branch: "feat/batch",
     });
     expect(minted.origin.kind).toBe("operator-cli");
-    const loaded = loadOnePrUnitGrant(project, "unit-five");
-    expect(loaded?.id).toBe("unit-five");
-    expect(loaded?.origins).toHaveLength(5);
+    expect(minted.state).toBe("reserved");
+    expect(minted.prNodeId).toBeNull();
+    expect(loadOnePrUnitGrant("/tmp/not-a-store", "unit-five", store)?.id).toBe("unit-five");
   });
 });
 

@@ -43,6 +43,7 @@ import {
   suspendUatLease,
   toProjectRelativePosix,
 } from "@deftai/directive-core/authz";
+import { mintOnePrUnitGrant } from "@deftai/directive-core/one-pr-unit";
 import {
   type HumanPresenceMintSeams,
   refuseMintWhileUatActive,
@@ -502,6 +503,37 @@ export function main(
           process.stdout.write(
             "  Apply: deft scope:decompose -- <parent> --draft <draft>\n" +
               "  Authorization SoT: Wave 1 grant store (.deft/authz/grants) — not session-auth.\n",
+          );
+          return 0;
+        }
+        if (args.template !== null && args.template.trim().toLowerCase() === "one-pr-unit") {
+          if (args.repo === null || args.repo.trim().length === 0) {
+            process.stderr.write("authz:grant --template one-pr-unit requires --repo owner/name\n");
+            return 2;
+          }
+          if (args.issueIds.length < 2) {
+            process.stderr.write(
+              "authz:grant --template one-pr-unit requires --issue-ids with at least two origins\n",
+            );
+            return 2;
+          }
+          const blocked = gateConfirm();
+          if (blocked !== null) return blocked;
+          const claim = mintOnePrUnitGrant({
+            actor: args.actor,
+            approvalRef: args.note ?? "authz:grant --template one-pr-unit",
+            rationale: args.note ?? "one-PR-unit",
+            origins: args.issueIds.map((issueId) => ({ repo: args.repo as string, issueId })),
+            repo: args.repo,
+          });
+          process.stdout.write(
+            `✓ one-PR-unit claim minted id=${claim.id} state=${claim.state} (reserved unbound)\n`,
+          );
+          process.stdout.write(
+            "  Opaque id is not a bearer. Only the App store plus the bound PR node id authorizes.\n",
+          );
+          process.stdout.write(
+            `  origins=${claim.origins.map((o) => `${o.repo}#${o.issueId}`).join(",")}\n`,
           );
           return 0;
         }

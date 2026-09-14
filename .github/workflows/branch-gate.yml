@@ -37,9 +37,10 @@ jobs:
           fi
           echo "✓ head_ref ($HEAD_REF) != base_ref ($BASE_REF)"
 
-  # Layer 0 closing-keyword FP lint (#737 / #3969). Fires on body edits too
-  # (types include `edited`), which merge-gate does not. Mode fp is the
-  # detector that flagged PR #3960 (reason negation).
+  # Layer 0 closing-keyword lint (#737 / #3969 / #4494). Fires on body edits
+  # too (types include `edited`), which merge-gate does not. `--mode both`
+  # runs FP (#737) plus one-PR-unit closer-set (#4494). Live `--pr` does not
+  # fail #3015 intent without --allow-close (CI cannot carry that allowlist).
   closing-keywords:
     runs-on: ubuntu-latest
     steps:

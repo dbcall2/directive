@@ -387,33 +387,40 @@ export function run(argv: readonly string[], options: RunOptions = {}): number {
 
   // Intent allowlist is CLI --allow-close only (#3015). Body trailers are not
   // an authorization path (Markdown example/fence false-authorization class).
+  // Live `--pr` forge reads (branch-gate / merge-gate) cannot carry that
+  // allowlist. Skip intent-fail there unless the caller passed --allow-close.
+  // FP + one-PR-unit still run. Local --body-file / --from-git-range still
+  // require --allow-close for real Closes.
   const fpFiltered = filterHits(fpHits, fpAllow);
-  const intentFiltered = filterHits(intentHits, closeAllow);
+  const intentFiltered =
+    args.pr !== null && closeAllow.size === 0 ? [] : filterHits(intentHits, closeAllow);
 
-  const texts: string[] = [];
-  if (bodyText !== null) {
-    texts.push(bodyText);
-  }
-  texts.push(...commitMessages);
-  const grant =
-    args.onePrUnit === null ? null : loadOnePrUnitGrant(args.projectRoot ?? ".", args.onePrUnit);
-  const repo = args.repo ?? grant?.repo ?? "unknown/unknown";
-  const closerSet = extractIntentCloserSet(texts, repo);
-  const branchResult = (options.runGit ?? defaultRunGit)(["rev-parse", "--abbrev-ref", "HEAD"]);
-  const branch = branchResult.returncode === 0 ? branchResult.stdout.trim() || null : null;
-  const unit = evaluateOnePrUnit({
-    closerSet,
-    grant,
-    binding: { repo: args.repo ?? grant?.repo, branch, prNumber: args.pr },
-  });
-  if (!unit.ok) {
-    process.stderr.write(`FAIL: ${unit.message}\n`);
-    if (!unit.message.includes("missing one-PR-unit consent") && closerSet.length > 1) {
-      process.stderr.write(`${MISSING_ONE_PR_UNIT_CONSENT}\n`);
+  // FP-only is false-positive detection, not the closer-set gate. Negated
+  // "not Closes #N" must not mint a multi-origin unit. Intent/both run the gate.
+  if (runIntent) {
+    const texts: string[] = [];
+    if (bodyText !== null) {
+      texts.push(bodyText);
     }
-    return EXIT_HITS_FOUND;
+    texts.push(...commitMessages);
+    const grant =
+      args.onePrUnit === null ? null : loadOnePrUnitGrant(args.projectRoot ?? ".", args.onePrUnit);
+    const repo = args.repo ?? grant?.repo ?? "unknown/unknown";
+    const closerSet = extractIntentCloserSet(texts, repo);
+    const unit = evaluateOnePrUnit({
+      closerSet,
+      grant,
+      binding: { repo: args.repo ?? grant?.repo },
+      presentedIdWithoutStore: args.onePrUnit !== null && grant === null,
+    });
+    if (!unit.ok) {
+      process.stderr.write(`FAIL: ${unit.message}\n`);
+      if (!unit.message.includes("missing one-PR-unit consent") && closerSet.length > 1) {
+        process.stderr.write(`${MISSING_ONE_PR_UNIT_CONSENT}\n`);
+      }
+      return EXIT_HITS_FOUND;
+    }
   }
-
   return emitResult(
     args.mode,
     fpFiltered,

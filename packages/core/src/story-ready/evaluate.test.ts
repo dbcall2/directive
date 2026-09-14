@@ -521,12 +521,15 @@ describe("one-PR-unit solo arity (#4494)", () => {
     rationale: "five origins",
     origins: fiveOrigins,
     repo: "deftai/directive",
-    branch: "feat/batch",
-    prNumber: null,
-    singleUse: false,
-    usedAt: null,
-    revokedAt: null,
+    state: "reserved",
+    prNodeId: null,
+    mintedBy: "dbcall2",
     mintedAt: "2026-09-13T20:00:00Z",
+    expiresAt: "2026-09-14T20:00:00Z",
+    boundAt: null,
+    spentAt: null,
+    revokedAt: null,
+    expiredAt: null,
   };
 
   it("solo envelope, one cohort_vbriefs entry, passes", () => {
