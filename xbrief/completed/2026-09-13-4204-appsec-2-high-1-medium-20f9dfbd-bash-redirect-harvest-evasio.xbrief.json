@@ -2,7 +2,7 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4204",
-    "updated": "2026-09-14T00:56:19Z"
+    "updated": "2026-09-14T01:03:58Z"
   },
   "plan": {
     "title": "AppSec: 2 HIGH + 1 MEDIUM @ 20f9dfbd -- Bash >| / >>| / >& redirect harvest evasion; residual writers (nmap/masscan/emacs/restic/editcap/mergecap) plant authz + kill-switch; approved-scope mint",
@@ -120,9 +120,34 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "409e22415c07608cff2d6e8145264905968c1e0b20c5294bfec67b292f14d939"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4492,
+        "prBase": null,
+        "mergeCommit": "46df9e495cd80df7d9cdd0c066c37c2affb2d8bb",
+        "deliveryBranch": "master",
+        "deliveryCommit": "10baa3a11d141afacab67935a0add03561a39f07",
+        "verifiedAt": "2026-09-14T01:03:58Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:claude:v1:MDFhMDljYmQtMjQ4ZC03MTAwLWFjMGMtZGQ0ZWU5NDNiMTAw"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-14T01:03:58Z",
+      "completedSessionId": "host:claude:v1:MDFhMDljYmQtMjQ4ZC03MTAwLWFjMGMtZGQ0ZWU5NDNiMTAw",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-14T01:03:58Z"
       }
     },
     "id": "github.issue.5361790792",
-    "updated": "2026-09-14T00:56:19Z"
+    "updated": "2026-09-14T01:03:58Z"
   }
 }

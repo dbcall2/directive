@@ -2,7 +2,7 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #3918",
-    "updated": "2026-09-14T00:56:19Z"
+    "updated": "2026-09-14T01:03:47Z"
   },
   "plan": {
     "title": "AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (babashka/janet/clisp/ecl/fasm/mcs/coreutils --coreutils-prog=cp/duckdb/gprolog/nim --eval/nfpm/midicsv/ssconvert/mpv/protoc plant authz + kill-switch; approved-scope mint)",
@@ -90,9 +90,34 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "86f8c5ee92dabeadb4c9e3de358d8ab10287690f7d720c15013f15e63c931202"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4492,
+        "prBase": null,
+        "mergeCommit": "46df9e495cd80df7d9cdd0c066c37c2affb2d8bb",
+        "deliveryBranch": "master",
+        "deliveryCommit": "10baa3a11d141afacab67935a0add03561a39f07",
+        "verifiedAt": "2026-09-14T01:03:47Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:claude:v1:MDFhMDljYmQtMjQ4ZC03MTAwLWFjMGMtZGQ0ZWU5NDNiMTAw"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-14T01:03:47Z",
+      "completedSessionId": "host:claude:v1:MDFhMDljYmQtMjQ4ZC03MTAwLWFjMGMtZGQ0ZWU5NDNiMTAw",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-14T01:03:47Z"
       }
     },
     "id": "github.issue.5289710911",
-    "updated": "2026-09-14T00:56:19Z"
+    "updated": "2026-09-14T01:03:47Z"
   }
 }

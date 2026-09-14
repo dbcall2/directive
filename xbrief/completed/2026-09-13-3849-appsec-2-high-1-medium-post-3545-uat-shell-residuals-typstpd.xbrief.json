@@ -2,7 +2,7 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #3849",
-    "updated": "2026-09-14T00:56:19Z"
+    "updated": "2026-09-14T01:03:40Z"
   },
   "plan": {
     "title": "AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (typst/pdflatex/latexmk/mksquashfs/hdiutil/pkgbuild/opusenc/pngcrush/rdiff-backup/unison/cxfreeze/guix/racket/swipl/odin/ldmd2/picolisp/newlisp/factor plant authz + kill-switch; approved-scope mint)",
@@ -96,9 +96,34 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "542643f8c2cacae25cf2c1e96f09d228c84b292c24898507f5c9c161ebb454a2"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4492,
+        "prBase": null,
+        "mergeCommit": "46df9e495cd80df7d9cdd0c066c37c2affb2d8bb",
+        "deliveryBranch": "master",
+        "deliveryCommit": "10baa3a11d141afacab67935a0add03561a39f07",
+        "verifiedAt": "2026-09-14T01:03:40Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:claude:v1:MDFhMDljYmQtMjQ4ZC03MTAwLWFjMGMtZGQ0ZWU5NDNiMTAw"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-14T01:03:40Z",
+      "completedSessionId": "host:claude:v1:MDFhMDljYmQtMjQ4ZC03MTAwLWFjMGMtZGQ0ZWU5NDNiMTAw",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-14T01:03:40Z"
       }
     },
     "id": "github.issue.5279320434",
-    "updated": "2026-09-14T00:56:19Z"
+    "updated": "2026-09-14T01:03:40Z"
   }
 }

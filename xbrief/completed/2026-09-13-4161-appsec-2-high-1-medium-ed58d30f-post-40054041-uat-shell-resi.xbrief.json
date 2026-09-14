@@ -2,7 +2,7 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4161",
-    "updated": "2026-09-14T00:56:19Z"
+    "updated": "2026-09-14T01:03:53Z"
   },
   "plan": {
     "title": "AppSec: 2 HIGH + 1 MEDIUM @ ed58d30f — post-#4005/#4041 UAT Shell residuals (jmod/kotlinc-js/amm/etcdctl/consul/bolt/Deno.copyFileSync/salt-call/inspec/mkfile/screencapture plant authz + kill-switch; approved-scope mint)",
@@ -102,9 +102,34 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "9dea1dc4bdb0dc3c15797f9405b5ea094ed8eab23cf0f3382c40ccba61c52e3d"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4492,
+        "prBase": null,
+        "mergeCommit": "46df9e495cd80df7d9cdd0c066c37c2affb2d8bb",
+        "deliveryBranch": "master",
+        "deliveryCommit": "10baa3a11d141afacab67935a0add03561a39f07",
+        "verifiedAt": "2026-09-14T01:03:53Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:claude:v1:MDFhMDljYmQtMjQ4ZC03MTAwLWFjMGMtZGQ0ZWU5NDNiMTAw"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-14T01:03:53Z",
+      "completedSessionId": "host:claude:v1:MDFhMDljYmQtMjQ4ZC03MTAwLWFjMGMtZGQ0ZWU5NDNiMTAw",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-14T01:03:53Z"
       }
     },
     "id": "github.issue.5337080525",
-    "updated": "2026-09-14T00:56:19Z"
+    "updated": "2026-09-14T01:03:53Z"
   }
 }

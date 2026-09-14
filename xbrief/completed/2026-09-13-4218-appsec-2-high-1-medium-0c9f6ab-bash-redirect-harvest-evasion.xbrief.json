@@ -2,7 +2,7 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4218",
-    "updated": "2026-09-14T00:56:19Z"
+    "updated": "2026-09-14T01:04:05Z"
   },
   "plan": {
     "title": "AppSec: 2 HIGH + 1 MEDIUM @ 0c9f6ab -- Bash &>| / &>>| redirect harvest evasion; residual writers (mysqldump/PlistBuddy/virt-copy-out/gobjcopy/dcfldd/ibtool) plant authz + kill-switch; approved-scope mint",
@@ -124,9 +124,34 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "f9e8b15213902ee15a3582ed1832d26267e3ed5ad7b91834a4af5dc5e1e74862"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4492,
+        "prBase": null,
+        "mergeCommit": "46df9e495cd80df7d9cdd0c066c37c2affb2d8bb",
+        "deliveryBranch": "master",
+        "deliveryCommit": "10baa3a11d141afacab67935a0add03561a39f07",
+        "verifiedAt": "2026-09-14T01:04:05Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:claude:v1:MDFhMDljYmQtMjQ4ZC03MTAwLWFjMGMtZGQ0ZWU5NDNiMTAw"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-14T01:04:05Z",
+      "completedSessionId": "host:claude:v1:MDFhMDljYmQtMjQ4ZC03MTAwLWFjMGMtZGQ0ZWU5NDNiMTAw",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-14T01:04:05Z"
       }
     },
     "id": "github.issue.5365748160",
-    "updated": "2026-09-14T00:56:19Z"
+    "updated": "2026-09-14T01:04:05Z"
   }
 }
