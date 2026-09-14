@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { evaluateObservableScope } from "./evaluate.js";
 import { buildObservableScopeRecord } from "./mint.js";
@@ -353,6 +356,40 @@ describe("evaluateObservableScope (#4495)", () => {
     });
     expect(result.code).toBe(1);
     expect(result.message).toMatch(/unlisted structure delta/);
+  });
+
+  it("refuses to let a unique minted running story authorize a sibling running story", () => {
+    const root = mkdtempSync(join(tmpdir(), "obs-multi-running-"));
+    mkdirSync(join(root, "xbrief", "active"), { recursive: true });
+    const running = (id: string) => JSON.stringify({ plan: { id, status: "running" } });
+    writeFileSync(join(root, "xbrief", "active", "a.xbrief.json"), running("story-1"));
+    writeFileSync(join(root, "xbrief", "active", "b.xbrief.json"), running("story-2"));
+    const rec = record([{ kind: "control", op: "add", name: "email" }]);
+    const head = `
+<nav><button role="tab" aria-selected="true">Overview</button><button role="tab">Details</button></nav>
+<h1>Dashboard</h1>
+<input name="title" />
+<input name="email" />
+<button>Save</button>
+<table><tr><th>Name</th><th>Status</th></tr></table>
+<section id="card"></section>
+`;
+    const prev = process.env.DEFT_ACTIVE_SCOPE;
+    delete process.env.DEFT_ACTIVE_SCOPE;
+    try {
+      const result = evaluateObservableScope({
+        ...files(head),
+        projectRoot: root,
+        recordTextsAtBase: new Map([
+          [".deft/observable-scope/story-1.json", `${JSON.stringify(rec)}\n`],
+        ]),
+      });
+      expect(result.code).toBe(2);
+      expect(result.message).toMatch(/multiple running stories/);
+    } finally {
+      if (prev === undefined) delete process.env.DEFT_ACTIVE_SCOPE;
+      else process.env.DEFT_ACTIVE_SCOPE = prev;
+    }
   });
 
   it("does not let a single other-story mint authorize via --plan-id bypass", () => {

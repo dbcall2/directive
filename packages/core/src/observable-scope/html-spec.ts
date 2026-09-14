@@ -154,9 +154,15 @@ function wrap(el: P5Element): LiteElement {
   return wrapped;
 }
 
-/** Parse a committed HTML source as a document with the scripting flag disabled. */
+/**
+ * Parse a committed HTML source as a document with the scripting flag disabled.
+ *
+ * anomalies stays empty: parse5 WHATWG recovery is the oracle (jsdom-parity).
+ * Incomplete tokens are recovered into a tree, not refused. TypeScript parse
+ * diagnostics on .jsx/.tsx still refuse via extract.ts.
+ */
 export function parseHtml(source: string): ParseResult {
-  const doc = parse(source, { scriptingEnabled: false });
+  const doc = parse(source, { scriptingEnabled: false, onParseError: () => undefined });
   const document: LiteElement = {
     tagName: "#DOCUMENT",
     get textContent() {

@@ -183,7 +183,7 @@ function listRunningPlanIds(projectRoot: string): string[] {
 function resolveCurrentPlanId(
   projectRoot: string,
   explicit: string | undefined,
-  mintPlanIds: readonly string[],
+  _mintPlanIds: readonly string[],
 ): string | undefined {
   if (explicit !== undefined && explicit.length > 0) return explicit;
   const pin = process.env.DEFT_ACTIVE_SCOPE;
@@ -198,8 +198,9 @@ function resolveCurrentPlanId(
     }
   }
   const running = listRunningPlanIds(projectRoot);
-  const hits = running.filter((id) => mintPlanIds.includes(id));
-  if (hits.length === 1) return hits[0];
+  // Several running stories: never guess the mint owner from "the only
+  // running id that already has a mint". That would let a mint-less
+  // sibling ride the old story's allowedChanges.
   if (running.length === 1) return running[0];
   return undefined;
 }
@@ -437,29 +438,22 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
     );
   }
 
+  const running = listRunningPlanIds(projectRoot);
   const planId = resolveCurrentPlanId(
     projectRoot,
     options.planId,
     parsedRecords.map((r) => r.planId),
   );
   let selected = parsedRecords;
-  if (options.planId !== undefined && options.planId.length > 0) {
-    selected = parsedRecords.filter((r) => r.planId === options.planId);
-    if (selected.length === 0) {
-      return fail(
-        `verify:observable-scope: no merge-base mint record for planId ${options.planId}.`,
-      );
-    }
-  } else if (parsedRecords.length > 1) {
-    if (planId === undefined || planId.length === 0) {
-      return config(
-        "multiple merge-base mint records; pass --plan-id or pin DEFT_ACTIVE_SCOPE to the current story (old mints must not authorize new work)",
-      );
-    }
+  if (planId !== undefined && planId.length > 0) {
     selected = parsedRecords.filter((r) => r.planId === planId);
     if (selected.length === 0) {
       return fail(`verify:observable-scope: no merge-base mint record for planId ${planId}.`);
     }
+  } else if (parsedRecords.length > 1 || running.length > 1) {
+    return config(
+      "multiple running stories or merge-base mint records; pass --plan-id or pin DEFT_ACTIVE_SCOPE to the current story (old mints must not authorize new work)",
+    );
   }
   if (selected.length > 1) {
     return config(
