@@ -533,7 +533,7 @@ export function main(
             "  Opaque id is not a bearer. Only the App store plus the bound PR node id authorizes.\n",
           );
           process.stdout.write(
-            `  origins=${claim.origins.map((o) => `${o.repo}#${o.issueId}`).join(",")}\n`,
+            `  origins=${claim.origins.map((o: { repo: string; issueId: number }) => `${o.repo}#${o.issueId}`).join(",")}\n`,
           );
           return 0;
         }
