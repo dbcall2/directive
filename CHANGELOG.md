@@ -20,6 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+### Removed
+
+## [0.118.1] - 2026-09-14
+
+> Design-critique ingest and launch-probe gates, plus linked-worktree local deposit reconstitution.
+
+### Added
+
+### Changed
+
+### Fixed
+
 - **Ingest refuses complete while named Stop 1 pains are unrelieved (#4496).** Missing `pain:` fails closed. Chip ingest-ready stays list state. Closes #4496.
 
 - **N≥3 design-critique spend now requires a launch-probe pong with critic bypass flags before the panel-deposit (#4432).** The three-family MUST stays host-neutral; the blocked variable is permission posture, not Claude Code as a host class. A failed probe amends spend down with a reason or halts as dispatch-fail. Seat composition still takes claimed families plus PATH and does not observe launchability. Does not close #3850. Closes #4432.
@@ -6112,7 +6124,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.118.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.118.1...HEAD
+[0.118.1]: https://github.com/deftai/directive/compare/v0.118.0...v0.118.1
 [0.118.0]: https://github.com/deftai/directive/compare/v0.117.0...v0.118.0
 [0.117.0]: https://github.com/deftai/directive/compare/v0.116.0...v0.117.0
 [0.116.0]: https://github.com/deftai/directive/compare/v0.115.0...v0.116.0
