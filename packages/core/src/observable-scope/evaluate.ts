@@ -163,21 +163,9 @@ function planIdFromXbriefText(text: string): string | undefined {
   }
 }
 
-function resolveCurrentPlanId(projectRoot: string, explicit?: string): string | undefined {
-  if (explicit !== undefined && explicit.length > 0) return explicit;
-  const pin = process.env.DEFT_ACTIVE_SCOPE;
-  if (pin !== undefined && pin.length > 0) {
-    const rel = pin.replace(/\\/g, "/");
-    try {
-      const text = readFileSync(join(resolve(projectRoot), ...rel.split("/")), "utf8");
-      const id = planIdFromXbriefText(text);
-      if (id !== undefined) return id;
-    } catch {
-      // fall through to unique running brief
-    }
-  }
+function listRunningPlanIds(projectRoot: string): string[] {
   const activeDir = join(resolve(projectRoot), "xbrief", "active");
-  if (!existsSync(activeDir)) return undefined;
+  if (!existsSync(activeDir)) return [];
   const ids: string[] = [];
   for (const name of readdirSync(activeDir)) {
     if (!name.endsWith(".xbrief.json")) continue;
@@ -187,7 +175,31 @@ function resolveCurrentPlanId(projectRoot: string, explicit?: string): string | 
       if (id !== undefined) ids.push(id);
     } catch {}
   }
-  return ids.length === 1 ? ids[0] : undefined;
+  return ids;
+}
+
+function resolveCurrentPlanId(
+  projectRoot: string,
+  explicit: string | undefined,
+  mintPlanIds: readonly string[],
+): string | undefined {
+  if (explicit !== undefined && explicit.length > 0) return explicit;
+  const pin = process.env.DEFT_ACTIVE_SCOPE;
+  if (pin !== undefined && pin.length > 0) {
+    const rel = pin.replace(/\\/g, "/");
+    try {
+      const text = readFileSync(join(resolve(projectRoot), ...rel.split("/")), "utf8");
+      const id = planIdFromXbriefText(text);
+      if (id !== undefined) return id;
+    } catch {
+      // fall through
+    }
+  }
+  const running = listRunningPlanIds(projectRoot);
+  const hits = running.filter((id) => mintPlanIds.includes(id));
+  if (hits.length === 1) return hits[0];
+  if (running.length === 1) return running[0];
+  return undefined;
 }
 
 function fail(message: string): EvaluateResult {
@@ -418,7 +430,11 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
 
   let selected = parsedRecords;
   if (parsedRecords.length > 1) {
-    const planId = resolveCurrentPlanId(projectRoot, options.planId);
+    const planId = resolveCurrentPlanId(
+      projectRoot,
+      options.planId,
+      parsedRecords.map((r) => r.planId),
+    );
     if (planId === undefined || planId.length === 0) {
       return config(
         "multiple merge-base mint records; pass --plan-id or pin DEFT_ACTIVE_SCOPE to the current story (old mints must not authorize new work)",

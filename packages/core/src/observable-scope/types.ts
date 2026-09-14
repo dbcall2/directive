@@ -56,6 +56,8 @@ export interface AllowedChange {
   readonly kind: StructureKind;
   readonly op: ChangeOp;
   readonly name?: string;
+  /** When set, the allowance applies only to this surface path. */
+  readonly path?: string;
 }
 
 export interface ObservableScopeHumanApproval {

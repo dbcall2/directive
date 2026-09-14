@@ -74,6 +74,7 @@ export function diffArtifacts(
 
 export function changeMatches(allow: AllowedChange, delta: StructureDelta): boolean {
   if (allow.kind !== delta.kind || allow.op !== delta.op) return false;
+  if (allow.path !== undefined && allow.path.length > 0 && allow.path !== delta.path) return false;
   if (allow.name === undefined || allow.name.length === 0) return true;
   return (
     allow.name === delta.name || delta.id === allow.name || delta.id.endsWith(`:${allow.name}`)

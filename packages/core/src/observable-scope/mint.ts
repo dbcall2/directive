@@ -80,10 +80,15 @@ function parseAllowed(raw: unknown, label: string): AllowedChange[] | { error: s
     if (name !== undefined && typeof name !== "string") {
       return { error: `${label} name must be a string when set` };
     }
+    const path = item.path;
+    if (path !== undefined && typeof path !== "string") {
+      return { error: `${label} path must be a string when set` };
+    }
     out.push({
       kind: kind as AllowedChange["kind"],
       op: op as AllowedChange["op"],
       name: typeof name === "string" ? name : undefined,
+      path: typeof path === "string" && path.length > 0 ? path.replace(/\\/g, "/") : undefined,
     });
   }
   return out;
