@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #3764",
-    "updated": "2026-09-13T16:58:27Z"
+    "updated": "2026-09-14T14:50:41Z"
   },
   "plan": {
     "title": "fix(hooks,security): dest-of-write grammar leftover on #3764 (option 1 payload literals)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "AppSec: 2 HIGH + 2 MEDIUM — post-#3545 UAT Shell residuals (qjs/ipython/csi/chrome/lame/webpack/… plant authz + kill-switch; approved-scope mint; CHANGELOG leaf symlink)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/3764",
@@ -17,38 +17,83 @@
     "items": [
       {
         "title": "Do not bind another named-bin pass, and do not bind fail-closed on unclassifiable write-shaped Shell, as the class close.",
-        "status": "proposed",
-        "effort": "S"
+        "status": "completed",
+        "effort": "S",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/classify.ts#UNKNOWN_DEST_OF_WRITE_FLAGS (do not merge into GENERIC_PROTECTED_EXTRA_DEST_FLAGS); commit 134b1e11a",
+          "recorded_at": "2026-09-14T14:50:34Z",
+          "recorded_by": "host:claude:v1:MDFhMGEwNWEtMDM3OC03NGIxLTk0ZDQtYTkxZjk3NDEyMmNi"
+        }
       },
       {
         "title": "Do not recut remaining UAT bins to `settings` deny. Residual dest-of-write grammar emits `unknown` and active-UAT `authz-uat-deny` (grant-immune), matching #4188.",
-        "status": "proposed",
-        "effort": "S"
+        "status": "completed",
+        "effort": "S",
+        "x-directive/evidence": {
+          "kind": "uat",
+          "pointer": "packages/core/src/authz/classify.test.ts dest-of-write leftover fixtures; emit unknown not settings; PR 4490 / 134b1e11a",
+          "recorded_at": "2026-09-14T14:50:34Z",
+          "recorded_by": "host:claude:v1:MDFhMGEwNWEtMDM3OC03NGIxLTk0ZDQtYTkxZjk3NDEyMmNi"
+        }
       },
       {
         "title": "Remaining UAT dest-of-write grammar: dest-flag values (attached `=`, `--target-dir` / `--print-to-pdf` / `--distpath` / `-of` / `-output` / `-C`), last-positional defeat by a trailing non-flag word, the `TEST_BINS` skip (`task` / `cargo` / `npm` / …), and option 1: a protected-path literal inside interpreter `-c`/`-e`/`--eval` bodies is dest-of-write (emit `unknown`; no write-marker gate; reads/`print` of those paths deny). Names stay regression fixtures. Concatenation and non-literal paths remain residual.",
-        "status": "proposed",
-        "effort": "M"
+        "status": "completed",
+        "effort": "M",
+        "x-directive/evidence": {
+          "kind": "uat",
+          "pointer": "packages/core/src/authz/classify.ts harvestUnknownDestFlagValues + lastDestOfWritePositional + harvestInterpreterPayloadDests; classify.test.ts; PR 4490",
+          "recorded_at": "2026-09-14T14:50:34Z",
+          "recorded_by": "host:claude:v1:MDFhMGEwNWEtMDM3OC03NGIxLTk0ZDQtYTkxZjk3NDEyMmNi"
+        }
       },
       {
         "title": "Scope that UAT residual to payload-root-relative dests. Sibling-worktree effective-root admission is out of this issue.",
-        "status": "proposed",
-        "effort": "S"
+        "status": "completed",
+        "effort": "S",
+        "x-directive/evidence": {
+          "kind": "uat",
+          "pointer": "packages/core/src/authz/classify.ts isRelativePayloadProtectedDest; /tmp holdout in classify.test.ts; PR 4490",
+          "recorded_at": "2026-09-14T14:50:34Z",
+          "recorded_by": "host:claude:v1:MDFhMGEwNWEtMDM3OC03NGIxLTk0ZDQtYTkxZjk3NDEyMmNi"
+        }
       },
       {
         "title": "Finding 4 stays split to the containment story (comment 5496116702). It is not a same-story patch on this UAT residual. The CHANGELOG sink is real; restated victim is an in-tree changelog-shaped file, not `package.json`. Guard before the first read via existing `containedWrite` / `assertWriteTargetSafe` / `assertDestinationNotSymlink`. Cite `render/roadmap-render.ts` as the in-repo peer.",
-        "status": "proposed",
-        "effort": "S"
+        "status": "completed",
+        "effort": "S",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound-remedy item 5 / successor lean 5650240094 keeps Finding 4 on the containment story (comment 5496116702). PR 4490 CHANGELOG: Finding 4 CHANGELOG containment stays split. Not implemented on this issue.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "David"
+          },
+          "recorded_at": "2026-09-14T14:50:34Z"
+        }
       },
       {
         "title": "Replace the body evidence table with dest-grammar rows against `9a28d509`. Last-positional already gated; payload and dest-flag values remain.",
-        "status": "proposed",
-        "effort": "S"
+        "status": "completed",
+        "effort": "S",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "CHANGELOG.md [Unreleased] Dest-of-write grammar leftover on UAT Shell (#3764) dest-grammar rows; live GitHub body not recut (lean: next-build is Bound-remedy not the body)",
+          "recorded_at": "2026-09-14T14:50:34Z",
+          "recorded_by": "host:claude:v1:MDFhMGEwNWEtMDM3OC03NGIxLTk0ZDQtYTkxZjk3NDEyMmNi"
+        }
       },
       {
         "title": "Campaign-wide `uat-suspend` is the accepted recovery for remaining UAT dest-of-write work here. Consumer comment 5479859534 (protected-files missing approval verb) is a different residual and is not this classify class.",
-        "status": "proposed",
-        "effort": "S"
+        "status": "completed",
+        "effort": "S",
+        "x-directive/evidence": {
+          "kind": "uat",
+          "pointer": "packages/core/src/authz/evaluate.ts authz-uat-deny recovery prints deft authz:uat-suspend; bound-remedy item 7 accepted campaign-wide suspend",
+          "recorded_at": "2026-09-14T14:50:34Z",
+          "recorded_by": "host:claude:v1:MDFhMGEwNWEtMDM3OC03NGIxLTk0ZDQtYTkxZjk3NDEyMmNi"
+        }
       }
     ],
     "tags": [
@@ -149,9 +194,32 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "d5b473c4e00032f435e08061c0c60c9d6fd53489349635cde833a8c538c9cbf9"
-      }
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4490,
+        "prBase": null,
+        "mergeCommit": "134b1e11a121d2312188244c0f0904b40915b40d",
+        "deliveryBranch": "master",
+        "deliveryCommit": "e48db87af28b9c2cc4550fe65a43db85648739a7",
+        "verifiedAt": "2026-09-14T14:50:41Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-14T14:50:41Z"
+      },
+      "completedAt": "2026-09-14T14:50:41Z",
+      "capacityBucket": "technical-debt"
     },
     "id": "github.issue.5258241122",
-    "updated": "2026-09-13T16:58:27Z"
+    "updated": "2026-09-14T14:50:41Z"
   }
 }
