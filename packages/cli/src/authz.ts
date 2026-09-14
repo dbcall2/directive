@@ -24,6 +24,7 @@
  */
 import { existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
+import { onePrUnit } from "@deftai/directive-core";
 import {
   AFK_TEMPLATE_NAMES,
   AUTHZ_OPERATIONS,
@@ -43,7 +44,6 @@ import {
   suspendUatLease,
   toProjectRelativePosix,
 } from "@deftai/directive-core/authz";
-import { onePrUnit } from "@deftai/directive-core";
 import {
   type HumanPresenceMintSeams,
   refuseMintWhileUatActive,
