@@ -43,7 +43,7 @@ import {
   suspendUatLease,
   toProjectRelativePosix,
 } from "@deftai/directive-core/authz";
-import { mintOnePrUnitGrant } from "@deftai/directive-core/one-pr-unit";
+import { onePrUnit } from "@deftai/directive-core";
 import {
   type HumanPresenceMintSeams,
   refuseMintWhileUatActive,
@@ -526,7 +526,7 @@ export function main(
             );
             return 2;
           }
-          const claim = mintOnePrUnitGrant({
+          const claim = onePrUnit.mintOnePrUnitGrant({
             actor: args.actor,
             approvalRef: args.note ?? "authz:grant --template one-pr-unit",
             rationale: args.note ?? "one-PR-unit",
