@@ -6,11 +6,11 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { resolveDefaultBaseRef } from "../evaluator-surface/evaluate.js";
 import { matchAny, normalizePath } from "../orchestration/pathspec.js";
-import { diffArtifacts, unlistedDeltas } from "./diff.js";
+import { changeMatches, diffArtifacts, unlistedDeltas } from "./diff.js";
 import {
   buildArtifact,
   extractSurface,
@@ -147,6 +147,47 @@ function gitShowIndex(projectRoot: string, relPath: string): string | null {
 
 function readCandidateBytes(projectRoot: string, relPath: string, staged: boolean): string | null {
   return staged ? gitShowIndex(projectRoot, relPath) : gitShow(projectRoot, "HEAD", relPath);
+}
+
+function planIdFromXbriefText(text: string): string | undefined {
+  try {
+    const raw: unknown = JSON.parse(text);
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+    const plan = (raw as Record<string, unknown>).plan;
+    if (plan === null || typeof plan !== "object" || Array.isArray(plan)) return undefined;
+    const rec = plan as Record<string, unknown>;
+    if (rec.status !== "running") return undefined;
+    return typeof rec.id === "string" && rec.id.trim().length > 0 ? rec.id.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveCurrentPlanId(projectRoot: string, explicit?: string): string | undefined {
+  if (explicit !== undefined && explicit.length > 0) return explicit;
+  const pin = process.env.DEFT_ACTIVE_SCOPE;
+  if (pin !== undefined && pin.length > 0) {
+    const rel = pin.replace(/\\/g, "/");
+    try {
+      const text = readFileSync(join(resolve(projectRoot), ...rel.split("/")), "utf8");
+      const id = planIdFromXbriefText(text);
+      if (id !== undefined) return id;
+    } catch {
+      // fall through to unique running brief
+    }
+  }
+  const activeDir = join(resolve(projectRoot), "xbrief", "active");
+  if (!existsSync(activeDir)) return undefined;
+  const ids: string[] = [];
+  for (const name of readdirSync(activeDir)) {
+    if (!name.endsWith(".xbrief.json")) continue;
+    try {
+      const text = readFileSync(join(activeDir, name), "utf8");
+      const id = planIdFromXbriefText(text);
+      if (id !== undefined) ids.push(id);
+    } catch {}
+  }
+  return ids.length === 1 ? ids[0] : undefined;
 }
 
 function fail(message: string): EvaluateResult {
@@ -377,10 +418,10 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
 
   let selected = parsedRecords;
   if (parsedRecords.length > 1) {
-    const planId = options.planId;
+    const planId = resolveCurrentPlanId(projectRoot, options.planId);
     if (planId === undefined || planId.length === 0) {
       return config(
-        "multiple merge-base mint records; pass --plan-id for the current story (old mints must not authorize new work)",
+        "multiple merge-base mint records; pass --plan-id or pin DEFT_ACTIVE_SCOPE to the current story (old mints must not authorize new work)",
       );
     }
     selected = parsedRecords.filter((r) => r.planId === planId);
@@ -392,17 +433,7 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
   const deltas = diffArtifacts(baseArtifact, headArtifact);
   const allowed = selected.flatMap((r) => r.allowedChanges);
   const mustPreserve = selected.flatMap((r) => r.mustPreserve ?? []);
-  const preserveHits = deltas.filter((delta) =>
-    mustPreserve.some(
-      (p) =>
-        p.kind === delta.kind &&
-        (p.name === undefined ||
-          p.name.length === 0 ||
-          p.name === delta.name ||
-          delta.id === p.name ||
-          delta.id.endsWith(`:${p.name}`)),
-    ),
-  );
+  const preserveHits = deltas.filter((delta) => mustPreserve.some((p) => changeMatches(p, delta)));
   if (preserveHits.length > 0) {
     const listed = preserveHits
       .slice(0, 8)
