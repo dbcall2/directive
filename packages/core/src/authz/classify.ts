@@ -2521,6 +2521,35 @@ const UNKNOWN_DEST_OF_WRITE_FLAGS = new Set([
   "--output",
 ]);
 
+/**
+ * Leftover dest-of-write grammars (#3626): attached emit-flags (`-femit-bin=`)
+ * and Windows slash dests (`/out:`, `/output=`, `/p:OutputPath=`), plus leftover
+ * `-p:OutputPath=`. Do not recut `-out:` / `-output=` (already unknown). Do not
+ * add generic `-p` (#3918).
+ */
+function attachedDestOfWriteValue(raw: string): string | null {
+  const lower = raw.toLowerCase();
+  if (lower.startsWith("-femit-")) {
+    const eq = raw.indexOf("=");
+    if (eq > "-femit-".length && eq < raw.length - 1) return raw.slice(eq + 1);
+    return null;
+  }
+  // Longer slash dests first so `/output=` is not `/out`.
+  const slashPrefixes = ["/output=", "/output:", "/out=", "/out:"] as const;
+  for (const prefix of slashPrefixes) {
+    if (lower.startsWith(prefix) && raw.length > prefix.length) {
+      return raw.slice(prefix.length);
+    }
+  }
+  const propertyPrefixes = ["-p:outputpath=", "/p:outputpath="] as const;
+  for (const prefix of propertyPrefixes) {
+    if (lower.startsWith(prefix) && raw.length > prefix.length) {
+      return raw.slice(prefix.length);
+    }
+  }
+  return null;
+}
+
 /** `-C DIR` is dest-of-write only for these extractors. `git`/`make`/`tar` use `-C` as cwd. */
 const UNKNOWN_DEST_OF_WRITE_C_BINS = new Set(["binwalk"]);
 
@@ -2533,6 +2562,11 @@ function harvestUnknownDestFlagValues(
   const harvestDashC = argv0Name !== null && UNKNOWN_DEST_OF_WRITE_C_BINS.has(argv0Name);
   for (let i = execIndex + 1; i < words.length; i++) {
     const raw = words[i] as string;
+    const attached = attachedDestOfWriteValue(raw);
+    if (attached !== null && attached.length > 0) {
+      dests.push(attached);
+      continue;
+    }
     const eq = raw.indexOf("=");
     if (eq > 0 && raw.startsWith("-")) {
       const flagTok = raw.slice(0, eq);
@@ -4461,6 +4495,16 @@ function emptyOpsSegmentIsReadShaped(tokens: readonly string[], index: number): 
 function destFlagOperandIsProtectedSettings(tokens: readonly string[]): boolean {
   for (let i = 0; i < tokens.length; i++) {
     const raw = tokens[i] as string;
+    const attached = attachedDestOfWriteValue(raw);
+    if (attached !== null && attached.length > 0) {
+      if (
+        !emptyOpsSegmentIsReadShaped(tokens, i) &&
+        pathishIsProtectedMutationDest(pathishToken(attached))
+      ) {
+        return true;
+      }
+      continue;
+    }
     const lower = raw.toLowerCase();
     const eq = raw.indexOf("=");
     const colonPrefix = lower.startsWith("-out:")

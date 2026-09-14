@@ -1,17 +1,3 @@
- Changelog
-
-
-
-All notable changes to the Deft framework will be documented in this file.
-
-
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-
-
 ## [Unreleased]
 
 ### Added
@@ -40,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **jsdom from `@deftai/directive-core`, including DEV-ONLY (#4495).** Socket Warn alerts came from `jsdom@26.1.0` (`data-urls`, `rrweb-cssom`, `whatwg-encoding`). Parity HTML fixtures stay as committed goldens.
+
+### Security
+
+- **UAT Shell dest-of-write leftover emit-flag and Windows slash dests (#3626).** Attached `-femit-bin=` and slash `/out:` `/output=` `/p:OutputPath=` (plus leftover `-p:OutputPath=`) against the grant store, kill-switch, or approved-scope dest classify grant-immune `unknown`. `/tmp` dests stay empty. Named bins stay fixtures. Finding 4 CHANGELOG containment stays split. Closes #3626.
 
 ## [0.118.1] - 2026-09-14
 
