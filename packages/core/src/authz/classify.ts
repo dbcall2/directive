@@ -2528,26 +2528,43 @@ const UNKNOWN_DEST_OF_WRITE_FLAGS = new Set([
  * add generic `-p` (#3918).
  */
 function attachedDestOfWriteValue(raw: string): string | null {
-  const lower = raw.toLowerCase();
+  const literal = zipShellWordLiteral(raw) ?? raw;
+  const lower = literal.toLowerCase();
   if (lower.startsWith("-femit-")) {
-    const eq = raw.indexOf("=");
-    if (eq > "-femit-".length && eq < raw.length - 1) return raw.slice(eq + 1);
+    const eq = literal.indexOf("=");
+    if (eq > "-femit-".length && eq < literal.length - 1) return literal.slice(eq + 1);
     return null;
   }
   // Longer slash dests first so `/output=` is not `/out`.
   const slashPrefixes = ["/output=", "/output:", "/out=", "/out:"] as const;
   for (const prefix of slashPrefixes) {
-    if (lower.startsWith(prefix) && raw.length > prefix.length) {
-      return raw.slice(prefix.length);
+    if (lower.startsWith(prefix) && literal.length > prefix.length) {
+      return literal.slice(prefix.length);
     }
   }
   const propertyPrefixes = ["-p:outputpath=", "/p:outputpath="] as const;
   for (const prefix of propertyPrefixes) {
-    if (lower.startsWith(prefix) && raw.length > prefix.length) {
-      return raw.slice(prefix.length);
+    if (lower.startsWith(prefix) && literal.length > prefix.length) {
+      return literal.slice(prefix.length);
     }
   }
   return null;
+}
+
+function hasProtectedAttachedDestOfWrite(command: string): boolean {
+  for (const segment of zipStyleCommandSegments(command)) {
+    for (let i = segment.execIndex + 1; i < segment.words.length; i++) {
+      const dest = attachedDestOfWriteValue(segment.words[i] as string);
+      if (dest !== null && dest.length > 0 && isRelativePayloadProtectedDest(dest)) return true;
+    }
+  }
+  for (const raw of shellTokens(command)) {
+    const dest = attachedDestOfWriteValue(raw);
+    if (dest !== null && dest.length > 0 && pathishIsProtectedMutationDest(pathishToken(dest))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** `-C DIR` is dest-of-write only for these extractors. `git`/`make`/`tar` use `-C` as cwd. */
@@ -4327,11 +4344,20 @@ export function classifyShellAuthzOps(command: string): AuthzClassifiedOp[] {
   // still landed some other way).
   const destOfWriteUnknown =
     hasProtectedZipArchiveDestination(cmd) || hasProtectedUnprovenReadOnlyDestOfWrite(cmd);
-  if (destOfWriteUnknown && (!found.has("settings") || hasProtectedJarCreateArchiveDest(cmd))) {
+  const attachedProtected = hasProtectedAttachedDestOfWrite(cmd);
+  // #3626: attached emit-flag / slash dests stay grant-immune even when a
+  // compound prefix already classified settings.
+  if (
+    destOfWriteUnknown &&
+    (!found.has("settings") || hasProtectedJarCreateArchiveDest(cmd) || attachedProtected)
+  ) {
     found.add("unknown");
   }
   // #4199: write-shaped Shell with a visible protected dest must not fail open as [].
-  if (!found.has("settings") && hasWriteShapedProtectedSettingsDest(cmd, tokens)) {
+  if (
+    hasWriteShapedProtectedSettingsDest(cmd, tokens) &&
+    (!found.has("settings") || attachedProtected)
+  ) {
     found.add("unknown");
   }
 

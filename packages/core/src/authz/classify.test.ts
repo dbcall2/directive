@@ -1977,6 +1977,24 @@ describe("emit-flag and Windows slash dest-of-write (#3626)", () => {
       "unknown",
     ]);
   });
+
+  it("strips wrapping quotes on attached dest flags (#3626 Greptile P1)", () => {
+    expect(classifyShellAuthzOps('csc "/out:.deft/authz/grants/x.exe" in.cs')).toEqual(["unknown"]);
+    expect(
+      classifyShellAuthzOps('zig build-exe "-femit-bin=.deft-directive-disable" main.zig'),
+    ).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps("ilasm '/output=.deft/authz/grants/x.exe' in.il")).toEqual([
+      "unknown",
+    ]);
+  });
+
+  it("keeps attached dest-of-write unknown beside a settings prefix (#3626 Greptile P1)", () => {
+    const mixed = classifyShellAuthzOps(
+      "gh repo edit --visibility private && zig build-exe -femit-bin=.deft/authz/grants/x.json main.zig",
+    );
+    expect(mixed).toContain("settings");
+    expect(mixed).toContain("unknown");
+  });
 });
 
 describe("interpreter payload and jar dest-grammar (#3593)", () => {
