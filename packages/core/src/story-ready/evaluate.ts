@@ -226,6 +226,7 @@ function classifyAllocation(
         grant,
         binding: { repo: options.onePrUnitRepo },
         presentedIdWithoutStore: grant === null && grantId !== null,
+        phase: "declare",
       });
       if (!decision.ok) {
         return {

@@ -132,6 +132,21 @@ describe("evaluateOnePrUnit", () => {
     expect(d.code).toBe("deny-origin-mismatch");
   });
 
+  it("deny-unbound on enforce for reserved claims without a PR node bind", () => {
+    const reserved = claim({ state: "reserved", prNodeId: null, boundAt: null });
+    expect(
+      evaluateOnePrUnit({ closerSet: FIVE, grant: reserved, binding: { repo: REPO } }).code,
+    ).toBe("deny-unbound");
+    expect(
+      evaluateOnePrUnit({
+        closerSet: FIVE,
+        grant: reserved,
+        binding: { repo: REPO },
+        phase: "declare",
+      }).ok,
+    ).toBe(true);
+  });
+
   it("rejects a later presentation from a different PR node id", () => {
     expect(
       evaluateOnePrUnit({

@@ -412,8 +412,9 @@ export function lifecycleMain(argv: string[]): number {
         }
         const closerSet = closerSetFromIssueIds(repo, linked);
         const grant =
-          listOnePrUnitGrants(rootForUnit).find((g) => exactOriginSetEquals(g.origins, closerSet)) ??
-          null;
+          listOnePrUnitGrants(rootForUnit).find((g) =>
+            exactOriginSetEquals(g.origins, closerSet),
+          ) ?? null;
         const unit = evaluateOnePrUnit({
           closerSet,
           grant,

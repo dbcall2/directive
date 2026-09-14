@@ -16,6 +16,11 @@ export interface EvaluateOnePrUnitInput {
   readonly binding?: OnePrUnitBinding;
   /** Envelope opaque id presented without a store hit. */
   readonly presentedIdWithoutStore?: boolean;
+  /**
+   * declare = story-ready exact-set check (reserved unbound is ok).
+   * enforce = merge/close (reserved unbound is deny; PR node bind required).
+   */
+  readonly phase?: "declare" | "enforce";
 }
 
 function deny(code: OnePrUnitDecision["code"], message: string): OnePrUnitDecision {
@@ -76,9 +81,9 @@ export function evaluateOnePrUnit(input: EvaluateOnePrUnitInput): OnePrUnitDecis
   }
 
   const binding = input.binding ?? {};
+  const phase = input.phase ?? "enforce";
   if (grant.state === "reserved" && grant.prNodeId === null) {
-    const presented = binding.prNodeId?.trim() ?? "";
-    if (presented.length > 0) {
+    if (phase === "enforce") {
       return deny(
         "deny-unbound",
         `one-PR-unit grant ${grant.id} is reserved and unbound; first App interaction must bind this PR node id`,

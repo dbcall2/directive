@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  OverlappingMintError,
-  UniqueMembershipError,
-  resolveClaimFromStore,
-} from "./app-store.js";
+import { OverlappingMintError, resolveClaimFromStore, UniqueMembershipError } from "./app-store.js";
 import { InProcessAppStore } from "./simulator.js";
 import type { OriginRef } from "./types.js";
 

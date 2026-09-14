@@ -412,6 +412,7 @@ export function run(argv: readonly string[], options: RunOptions = {}): number {
       grant,
       binding: { repo: args.repo ?? grant?.repo },
       presentedIdWithoutStore: args.onePrUnit !== null && grant === null,
+      phase: args.pr !== null ? "enforce" : "declare",
     });
     if (!unit.ok) {
       process.stderr.write(`FAIL: ${unit.message}\n`);

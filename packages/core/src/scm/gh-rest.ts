@@ -2,6 +2,8 @@ import { type SpawnSyncOptions, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { assertNoDeftAllowEscape, CLAIMED_SET_REQUIRED } from "../one-pr-unit/close-via-app.js";
+import type { OriginRef } from "../one-pr-unit/types.js";
 import { SUBPROCESS_MAX_BUFFER } from "../subprocess/max-buffer.js";
 import { defaultWhich, type WhichFn } from "./binary.js";
 import { classifyScmArgv, resolveBinaryForRole } from "./call-shape.js";
@@ -11,11 +13,6 @@ import {
   formatScmSpawnDiagnostic,
   isAvailabilitySpawnFailure,
 } from "./spawn-status.js";
-import {
-  assertNoDeftAllowEscape,
-  CLAIMED_SET_REQUIRED,
-} from "../one-pr-unit/close-via-app.js";
-import type { OriginRef } from "../one-pr-unit/types.js";
 
 export const DEFAULT_TIMEOUT_S = 60;
 

@@ -39,4 +39,3 @@ export function gitRevParseAbbrev(projectRoot: string): string | null {
     return null;
   }
 }
-
