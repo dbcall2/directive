@@ -241,6 +241,120 @@ describe("evaluateObservableScope (#4495)", () => {
     expect(result.message).toMatch(/mixed/);
   });
 
+  it("fails duplicate table-column removal that unique-id collapse would miss", () => {
+    const base = `<table><tr><th>Name</th><th>Name</th></tr></table>`;
+    const head = `<table><tr><th>Name</th></tr></table>`;
+    const rec = buildObservableScopeRecord({
+      planId: "story-1",
+      xbriefRelPath: "xbrief/active/story.xbrief.json",
+      allowedChanges: [],
+      humanApproval: human,
+    });
+    if ("error" in rec) throw new Error(rec.error);
+    const result = evaluateObservableScope({
+      projectRoot: "/tmp/x",
+      mergeBase: "base",
+      changedFiles: ["ui.html"],
+      policyTextAtBase: policy,
+      recordTextsAtBase: new Map([
+        [".deft/observable-scope/story-1.json", `${JSON.stringify(rec)}\n`],
+      ]),
+      readAtBase: (rel: string) => (rel === "ui.html" ? base : null),
+      readAtHead: (rel: string) => (rel === "ui.html" ? head : null),
+    });
+    expect(result.code).toBe(1);
+    expect(result.message).toMatch(/unlisted structure delta/);
+  });
+
+  it("fails markup-visible selection even when the tab name is already allowed", () => {
+    const rec = buildObservableScopeRecord({
+      planId: "story-1",
+      xbriefRelPath: "xbrief/active/story.xbrief.json",
+      allowedChanges: [{ kind: "tab", op: "add", name: "Extra" }],
+      humanApproval: human,
+    });
+    if ("error" in rec) throw new Error(rec.error);
+    const head = `
+<nav><button role="tab">Overview</button><button role="tab" aria-selected="true">Details</button></nav>
+<h1>Dashboard</h1>
+<input name="title" />
+<button>Save</button>
+<table><tr><th>Name</th><th>Status</th></tr></table>
+<section id="card"></section>
+`;
+    const result = evaluateObservableScope({
+      ...files(head),
+      recordTextsAtBase: new Map([
+        [".deft/observable-scope/story-1.json", `${JSON.stringify(rec)}\n`],
+      ]),
+    });
+    expect(result.code).toBe(1);
+    expect(result.message).toMatch(/tab-selected|unlisted structure delta/);
+  });
+
+  it("fails mustPreserve even when allowedChanges would cover the delta", () => {
+    const rec = buildObservableScopeRecord({
+      planId: "story-1",
+      xbriefRelPath: "xbrief/active/story.xbrief.json",
+      allowedChanges: [{ kind: "control", op: "add", name: "email" }],
+      mustPreserve: [{ kind: "control", op: "add", name: "email" }],
+      humanApproval: human,
+    });
+    if ("error" in rec) throw new Error(rec.error);
+    const head = `
+<nav><button role="tab" aria-selected="true">Overview</button><button role="tab">Details</button></nav>
+<h1>Dashboard</h1>
+<input name="title" />
+<input name="email" />
+<button>Save</button>
+<table><tr><th>Name</th><th>Status</th></tr></table>
+<section id="card"></section>
+`;
+    const result = evaluateObservableScope({
+      ...files(head),
+      recordTextsAtBase: new Map([
+        [".deft/observable-scope/story-1.json", `${JSON.stringify(rec)}\n`],
+      ]),
+    });
+    expect(result.code).toBe(1);
+    expect(result.message).toMatch(/mustPreserve/);
+  });
+
+  it("does not let another story mint authorize this change", () => {
+    const other = buildObservableScopeRecord({
+      planId: "story-other",
+      xbriefRelPath: "xbrief/active/other.xbrief.json",
+      allowedChanges: [{ kind: "control", op: "add", name: "email" }],
+      humanApproval: human,
+    });
+    const mine = buildObservableScopeRecord({
+      planId: "story-1",
+      xbriefRelPath: "xbrief/active/story.xbrief.json",
+      allowedChanges: [],
+      humanApproval: human,
+    });
+    if ("error" in other || "error" in mine) throw new Error("mint");
+    const head = `
+<nav><button role="tab" aria-selected="true">Overview</button><button role="tab">Details</button></nav>
+<h1>Dashboard</h1>
+<input name="title" />
+<input name="email" />
+<button>Save</button>
+<table><tr><th>Name</th><th>Status</th></tr></table>
+<section id="card"></section>
+`;
+    const result = evaluateObservableScope({
+      ...files(head),
+      planId: "story-1",
+      recordTextsAtBase: new Map([
+        [".deft/observable-scope/story-other.json", `${JSON.stringify(other)}\n`],
+        [".deft/observable-scope/story-1.json", `${JSON.stringify(mine)}\n`],
+      ]),
+    });
+    expect(result.code).toBe(1);
+    expect(result.message).toMatch(/unlisted structure delta/);
+  });
+
   it("config-fails worker-declared baselineRef on the mint record", () => {
     const rec = record([{ kind: "control", op: "add", name: "email" }]);
     const result = evaluateObservableScope({

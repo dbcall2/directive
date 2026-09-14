@@ -44,9 +44,15 @@ function fact(kind: StructureKind, id: string): StructureFact {
   return { kind, id };
 }
 
-function pushUnique(out: StructureFact[], next: StructureFact): void {
-  if (out.some((f) => f.id === next.id && f.kind === next.kind)) return;
-  out.push(next);
+function pushFact(out: StructureFact[], next: StructureFact): void {
+  const same = out.filter(
+    (f) => f.kind === next.kind && (f.id === next.id || f.id.startsWith(`${next.id}#`)),
+  ).length;
+  if (same === 0) {
+    out.push(next);
+    return;
+  }
+  out.push({ kind: next.kind, id: `${next.id}#${same + 1}` });
 }
 
 function normalizeText(value: string): string {
@@ -88,7 +94,7 @@ function walkHtmlRoot(root: MarkupEl, facts: StructureFact[]): void {
     const level = el.tagName.toLowerCase().slice(1) || "1";
     const text = normalizeText(el.textContent ?? "");
     if (text.length === 0) continue;
-    pushUnique(facts, fact("heading", `heading:${level}:${text}`));
+    pushFact(facts, fact("heading", `heading:${level}:${text}`));
   }
 
   for (const el of listOf(root.querySelectorAll('[role="tab"]'))) {
@@ -98,8 +104,8 @@ function walkHtmlRoot(root: MarkupEl, facts: StructureFact[]): void {
       el.getAttribute("data-tab") ||
       "";
     if (text.length === 0) continue;
-    pushUnique(facts, fact("tab", `tab:${text}`));
-    if (htmlSelected(el)) pushUnique(facts, fact("tab", `tab-selected:${text}`));
+    pushFact(facts, fact("tab", `tab:${text}`));
+    if (htmlSelected(el)) pushFact(facts, fact("tab-selected", `tab-selected:${text}`));
   }
 
   for (const el of listOf(root.querySelectorAll("button"))) {
@@ -111,7 +117,7 @@ function walkHtmlRoot(root: MarkupEl, facts: StructureFact[]): void {
       normalizeText(el.textContent ?? ""),
     );
     if (name.length === 0) continue;
-    pushUnique(facts, fact("control", `control:button:${name}`));
+    pushFact(facts, fact("control", `control:button:${name}`));
   }
 
   for (const el of listOf(root.querySelectorAll("input,select,textarea"))) {
@@ -125,19 +131,19 @@ function walkHtmlRoot(root: MarkupEl, facts: StructureFact[]): void {
       "",
     );
     if (name.length === 0) continue;
-    pushUnique(facts, fact("control", `control:${kind}:${name}`));
+    pushFact(facts, fact("control", `control:${kind}:${name}`));
   }
 
   for (const el of listOf(root.querySelectorAll("th"))) {
     const text = normalizeText(el.textContent ?? "") || el.getAttribute("aria-label") || "";
     if (text.length === 0) continue;
-    pushUnique(facts, fact("table-column", `table-column:${text}`));
+    pushFact(facts, fact("table-column", `table-column:${text}`));
   }
 
   for (const el of listOf(root.querySelectorAll("header,nav,main,footer,aside"))) {
     const tag = el.tagName.toLowerCase();
     const name = el.getAttribute("aria-label") ?? el.getAttribute("id") ?? tag;
-    pushUnique(facts, fact("landmark", `landmark:${tag}:${name}`));
+    pushFact(facts, fact("landmark", `landmark:${tag}:${name}`));
   }
 
   for (const el of listOf(
@@ -148,14 +154,14 @@ function walkHtmlRoot(root: MarkupEl, facts: StructureFact[]): void {
     const role = (el.getAttribute("role") ?? "").toLowerCase();
     if (role.length === 0) continue;
     const name = el.getAttribute("aria-label") ?? el.getAttribute("id") ?? role;
-    pushUnique(facts, fact("landmark", `landmark:${role}:${name}`));
+    pushFact(facts, fact("landmark", `landmark:${role}:${name}`));
   }
 
   for (const el of listOf(root.querySelectorAll("section,article"))) {
     const tag = el.tagName.toLowerCase();
     const name =
       el.getAttribute("aria-label") ?? el.getAttribute("id") ?? el.getAttribute("class") ?? tag;
-    pushUnique(facts, fact("container", `container:${tag}:${name}`));
+    pushFact(facts, fact("container", `container:${tag}:${name}`));
   }
 }
 
@@ -278,7 +284,7 @@ function collectJsxFacts(
       (jsxAttr(open, "aria-label")?.kind === "literal"
         ? (jsxAttr(open, "aria-label")?.value ?? "")
         : "");
-    if (text.length > 0) pushUnique(facts, fact("heading", `heading:${level}:${text}`));
+    if (text.length > 0) pushFact(facts, fact("heading", `heading:${level}:${text}`));
   }
 
   const role = jsxAttr(open, "role");
@@ -297,14 +303,14 @@ function collectJsxFacts(
         ? (jsxAttr(open, "data-tab")?.value ?? "")
         : "");
     if (text.length > 0) {
-      pushUnique(facts, fact("tab", `tab:${text}`));
-      if (jsxSelected(open)) pushUnique(facts, fact("tab", `tab-selected:${text}`));
+      pushFact(facts, fact("tab", `tab:${text}`));
+      if (jsxSelected(open)) pushFact(facts, fact("tab-selected", `tab-selected:${text}`));
     }
   }
 
   if (lower === "button" || tag === "Button") {
     const name = jsxControlName(open, inner);
-    if (name.length > 0) pushUnique(facts, fact("control", `control:button:${name}`));
+    if (name.length > 0) pushFact(facts, fact("control", `control:button:${name}`));
   }
 
   if (
@@ -322,7 +328,7 @@ function collectJsxFacts(
           ? "textarea"
           : "input";
     const name = jsxControlName(open, "");
-    if (name.length > 0) pushUnique(facts, fact("control", `control:${kind}:${name}`));
+    if (name.length > 0) pushFact(facts, fact("control", `control:${kind}:${name}`));
   }
 
   if (lower === "th" || tag === "Th" || tag === "TableHead" || tag === "TableHeaderCell") {
@@ -331,7 +337,7 @@ function collectJsxFacts(
       (jsxAttr(open, "aria-label")?.kind === "literal"
         ? (jsxAttr(open, "aria-label")?.value ?? "")
         : "");
-    if (text.length > 0) pushUnique(facts, fact("table-column", `table-column:${text}`));
+    if (text.length > 0) pushFact(facts, fact("table-column", `table-column:${text}`));
   }
 
   if (
@@ -347,7 +353,7 @@ function collectJsxFacts(
         : undefined) ??
       (jsxAttr(open, "id")?.kind === "literal" ? jsxAttr(open, "id")?.value : undefined) ??
       lower;
-    pushUnique(facts, fact("landmark", `landmark:${lower}:${name}`));
+    pushFact(facts, fact("landmark", `landmark:${lower}:${name}`));
   }
 
   if (role?.kind === "literal") {
@@ -359,7 +365,7 @@ function collectJsxFacts(
           : undefined) ??
         (jsxAttr(open, "id")?.kind === "literal" ? jsxAttr(open, "id")?.value : undefined) ??
         r;
-      pushUnique(facts, fact("landmark", `landmark:${r}:${name}`));
+      pushFact(facts, fact("landmark", `landmark:${r}:${name}`));
     }
   }
 
@@ -373,7 +379,7 @@ function collectJsxFacts(
         ? jsxAttr(open, "className")?.value
         : undefined) ??
       lower;
-    pushUnique(facts, fact("container", `container:${lower}:${name}`));
+    pushFact(facts, fact("container", `container:${lower}:${name}`));
   }
 }
 

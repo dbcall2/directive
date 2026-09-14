@@ -74,7 +74,7 @@ function parseAllowed(raw: unknown, label: string): AllowedChange[] | { error: s
       return { error: `${label} kind must be a structure kind` };
     }
     if (typeof op !== "string" || !(CHANGE_OPS as readonly string[]).includes(op)) {
-      return { error: `${label} op must be add, remove, reorder, or rename` };
+      return { error: `${label} op must be add, remove, or reorder` };
     }
     const name = item.name;
     if (name !== undefined && typeof name !== "string") {

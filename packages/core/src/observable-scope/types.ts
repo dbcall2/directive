@@ -21,6 +21,7 @@ export type ChangeKind = (typeof CHANGE_KINDS)[number];
 
 export const STRUCTURE_KINDS = [
   "tab",
+  "tab-selected",
   "heading",
   "control",
   "table-column",
@@ -30,7 +31,7 @@ export const STRUCTURE_KINDS = [
 
 export type StructureKind = (typeof STRUCTURE_KINDS)[number];
 
-export const CHANGE_OPS = ["add", "remove", "reorder", "rename"] as const;
+export const CHANGE_OPS = ["add", "remove", "reorder"] as const;
 export type ChangeOp = (typeof CHANGE_OPS)[number];
 
 export interface StructureFact {

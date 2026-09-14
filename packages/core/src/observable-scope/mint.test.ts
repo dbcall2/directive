@@ -65,6 +65,12 @@ describe("observable-scope mint record (#4495)", () => {
     expect(
       parseObservableChangeContract({ changeKind: "mixed", allowedChanges: [] }),
     ).toMatchObject({ error: expect.stringMatching(/mixed/) });
+    expect(
+      parseObservableChangeContract({
+        changeKind: "fields-only",
+        allowedChanges: [{ kind: "heading", op: "rename", name: "A" }],
+      }),
+    ).toMatchObject({ error: expect.stringMatching(/reorder/) });
   });
 
   it("pins contractDigest", () => {

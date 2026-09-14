@@ -21,6 +21,7 @@ describe("observable-scope constants (#4495)", () => {
     expect(OBSERVABLE_SCOPE_REMEDIATION).toMatch(/human-presence mint/);
     expect(STRUCTURE_KINDS).toEqual([
       "tab",
+      "tab-selected",
       "heading",
       "control",
       "table-column",

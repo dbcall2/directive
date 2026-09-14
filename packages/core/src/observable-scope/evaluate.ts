@@ -6,7 +6,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { resolveDefaultBaseRef } from "../evaluator-surface/evaluate.js";
 import { matchAny, normalizePath } from "../orchestration/pathspec.js";
@@ -51,6 +51,8 @@ export interface EvaluateOptions {
   readonly readAtBase?: (relPath: string) => string | null;
   readonly readAtHead?: (relPath: string) => string | null;
   readonly mergeBase?: string;
+  /** Current story planId; required when more than one mint record exists on the merge base. */
+  readonly planId?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -131,14 +133,20 @@ function gitShow(projectRoot: string, rev: string, relPath: string): string | nu
   }
 }
 
-function readHeadFile(projectRoot: string, relPath: string): string | null {
-  const full = join(resolve(projectRoot), ...relPath.split("/"));
-  if (!existsSync(full)) return null;
+function gitShowIndex(projectRoot: string, relPath: string): string | null {
   try {
-    return readFileSync(full, "utf8");
+    return execFileSync("git", ["-C", projectRoot, "show", `:${relPath}`], {
+      encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
   } catch {
     return null;
   }
+}
+
+function readCandidateBytes(projectRoot: string, relPath: string, staged: boolean): string | null {
+  return staged ? gitShowIndex(projectRoot, relPath) : gitShow(projectRoot, "HEAD", relPath);
 }
 
 function fail(message: string): EvaluateResult {
@@ -335,7 +343,9 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
   }
 
   const readBase = options.readAtBase ?? ((rel: string) => gitShow(projectRoot, mergeBase, rel));
-  const readHead = options.readAtHead ?? ((rel: string) => readHeadFile(projectRoot, rel));
+  const readHead =
+    options.readAtHead ??
+    ((rel: string) => readCandidateBytes(projectRoot, rel, options.staged === true));
 
   const baseSurfaces = [];
   const headSurfaces = [];
@@ -365,8 +375,43 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
     );
   }
 
+  let selected = parsedRecords;
+  if (parsedRecords.length > 1) {
+    const planId = options.planId;
+    if (planId === undefined || planId.length === 0) {
+      return config(
+        "multiple merge-base mint records; pass --plan-id for the current story (old mints must not authorize new work)",
+      );
+    }
+    selected = parsedRecords.filter((r) => r.planId === planId);
+    if (selected.length === 0) {
+      return fail(`verify:observable-scope: no merge-base mint record for planId ${planId}.`);
+    }
+  }
+
   const deltas = diffArtifacts(baseArtifact, headArtifact);
-  const allowed = parsedRecords.flatMap((r) => r.allowedChanges);
+  const allowed = selected.flatMap((r) => r.allowedChanges);
+  const mustPreserve = selected.flatMap((r) => r.mustPreserve ?? []);
+  const preserveHits = deltas.filter((delta) =>
+    mustPreserve.some(
+      (p) =>
+        p.kind === delta.kind &&
+        (p.name === undefined ||
+          p.name.length === 0 ||
+          p.name === delta.name ||
+          delta.id === p.name ||
+          delta.id.endsWith(`:${p.name}`)),
+    ),
+  );
+  if (preserveHits.length > 0) {
+    const listed = preserveHits
+      .slice(0, 8)
+      .map((d) => `${d.path} ${d.op} ${d.kind} ${d.name}`)
+      .join("; ");
+    return fail(
+      `verify:observable-scope: mustPreserve violated versus merge-base oracle (${listed}).`,
+    );
+  }
   const leftover = unlistedDeltas(deltas, allowed);
   if (leftover.length > 0) {
     const listed = leftover
@@ -380,7 +425,7 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
 
   return ok(
     `verify:observable-scope: minted allowedChanges cover the jsdom+typescript oracle ` +
-      `(${uiPaths.length} surface(s), ${parsedRecords.length} mint record(s)).`,
+      `(${uiPaths.length} surface(s), ${selected.length} mint record(s)).`,
     false,
     options.quiet === true,
   );
