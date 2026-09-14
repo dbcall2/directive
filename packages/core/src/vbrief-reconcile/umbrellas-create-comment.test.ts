@@ -104,7 +104,9 @@ describe("ScmUmbrellaClient closeIssue (#3428)", () => {
   it("closes via restCloseIssue PATCH completed", () => {
     const spy = vi.spyOn(ghRest, "restCloseIssue").mockReturnValue({ state: "closed" });
     new ScmUmbrellaClient().closeIssue("deftai/directive", 3377);
-    expect(spy).toHaveBeenCalledWith("deftai/directive", 3377, "completed");
+    expect(spy).toHaveBeenCalledWith("deftai/directive", 3377, "completed", {
+      claimedSet: [{ repo: "deftai/directive", issueId: 3377 }],
+    });
   });
 
   it("wraps close failures as UmbrellaScmError", () => {

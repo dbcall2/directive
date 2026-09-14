@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **One-PR-unit consent is an App-backed exact-set claim, not a local disk grant (#4494).** Multi-origin `Closes` needs an operator mint into the Directive App store with unique active membership on every `(repo, issue-id)`. Dest workers get an installation token allowlist `contents: write` / `issues: none`. Merge-queue `merge_group.checks_requested` re-reads forge closers, PR body, and commit messages. Close-shaped `gh issue close` is grant-immune unknown (not fail-open). `--allow-close` and #1378 fields are not that grant. `.deft/one-pr-unit` is not SoT. Live Greptile-only ruleset and undeployed App are implementation gaps. Closes #4494.
+- **One-PR-unit consent is an App-backed exact-set claim, not a local disk grant (#4494).** Multi-origin `Closes` needs an operator mint into the Directive App store with unique active membership on every `(repo, issue-id)`. Dest workers get an installation token allowlist `contents: write` / `issues: none`. Merge-queue `merge_group.checks_requested` re-reads forge closers, PR body, and commit messages. Close-shaped `gh issue close` is grant-immune unknown (not fail-open). `--allow-close` and #1378 fields are not that grant. `.deft/one-pr-unit` is not SoT. Live Greptile-only ruleset and undeployed App are implementation gaps. Consumer agents-entry pointer (#1309). `plan.policy.agentsMdBudget` unmanagedMaxLines 162→163 and absoluteMaxBytes 18000→18200. Closes #4494.
 
 ### Changed
 
