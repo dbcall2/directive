@@ -2521,6 +2521,52 @@ const UNKNOWN_DEST_OF_WRITE_FLAGS = new Set([
   "--output",
 ]);
 
+/**
+ * Leftover dest-of-write grammars (#3626): attached emit-flags (`-femit-bin=`)
+ * and Windows slash dests (`/out:`, `/output=`, `/p:OutputPath=`), plus leftover
+ * `-p:OutputPath=`. Do not recut `-out:` / `-output=` (already unknown). Do not
+ * add generic `-p` (#3918).
+ */
+function attachedDestOfWriteValue(raw: string): string | null {
+  const literal = zipShellWordLiteral(raw) ?? raw;
+  const lower = literal.toLowerCase();
+  if (lower.startsWith("-femit-")) {
+    const eq = literal.indexOf("=");
+    if (eq > "-femit-".length && eq < literal.length - 1) return literal.slice(eq + 1);
+    return null;
+  }
+  // Longer slash dests first so `/output=` is not `/out`.
+  const slashPrefixes = ["/output=", "/output:", "/out=", "/out:"] as const;
+  for (const prefix of slashPrefixes) {
+    if (lower.startsWith(prefix) && literal.length > prefix.length) {
+      return literal.slice(prefix.length);
+    }
+  }
+  const propertyPrefixes = ["-p:outputpath=", "/p:outputpath="] as const;
+  for (const prefix of propertyPrefixes) {
+    if (lower.startsWith(prefix) && literal.length > prefix.length) {
+      return literal.slice(prefix.length);
+    }
+  }
+  return null;
+}
+
+function hasProtectedAttachedDestOfWrite(command: string): boolean {
+  for (const segment of zipStyleCommandSegments(command)) {
+    for (let i = segment.execIndex + 1; i < segment.words.length; i++) {
+      const dest = attachedDestOfWriteValue(segment.words[i] as string);
+      if (dest !== null && dest.length > 0 && isRelativePayloadProtectedDest(dest)) return true;
+    }
+  }
+  for (const raw of shellTokens(command)) {
+    const dest = attachedDestOfWriteValue(raw);
+    if (dest !== null && dest.length > 0 && pathishIsProtectedMutationDest(pathishToken(dest))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** `-C DIR` is dest-of-write only for these extractors. `git`/`make`/`tar` use `-C` as cwd. */
 const UNKNOWN_DEST_OF_WRITE_C_BINS = new Set(["binwalk"]);
 
@@ -2533,6 +2579,11 @@ function harvestUnknownDestFlagValues(
   const harvestDashC = argv0Name !== null && UNKNOWN_DEST_OF_WRITE_C_BINS.has(argv0Name);
   for (let i = execIndex + 1; i < words.length; i++) {
     const raw = words[i] as string;
+    const attached = attachedDestOfWriteValue(raw);
+    if (attached !== null && attached.length > 0) {
+      dests.push(attached);
+      continue;
+    }
     const eq = raw.indexOf("=");
     if (eq > 0 && raw.startsWith("-")) {
       const flagTok = raw.slice(0, eq);
@@ -4293,11 +4344,20 @@ export function classifyShellAuthzOps(command: string): AuthzClassifiedOp[] {
   // still landed some other way).
   const destOfWriteUnknown =
     hasProtectedZipArchiveDestination(cmd) || hasProtectedUnprovenReadOnlyDestOfWrite(cmd);
-  if (destOfWriteUnknown && (!found.has("settings") || hasProtectedJarCreateArchiveDest(cmd))) {
+  const attachedProtected = hasProtectedAttachedDestOfWrite(cmd);
+  // #3626: attached emit-flag / slash dests stay grant-immune even when a
+  // compound prefix already classified settings.
+  if (
+    destOfWriteUnknown &&
+    (!found.has("settings") || hasProtectedJarCreateArchiveDest(cmd) || attachedProtected)
+  ) {
     found.add("unknown");
   }
   // #4199: write-shaped Shell with a visible protected dest must not fail open as [].
-  if (!found.has("settings") && hasWriteShapedProtectedSettingsDest(cmd, tokens)) {
+  if (
+    hasWriteShapedProtectedSettingsDest(cmd, tokens) &&
+    (!found.has("settings") || attachedProtected)
+  ) {
     found.add("unknown");
   }
 
@@ -4461,6 +4521,16 @@ function emptyOpsSegmentIsReadShaped(tokens: readonly string[], index: number): 
 function destFlagOperandIsProtectedSettings(tokens: readonly string[]): boolean {
   for (let i = 0; i < tokens.length; i++) {
     const raw = tokens[i] as string;
+    const attached = attachedDestOfWriteValue(raw);
+    if (attached !== null && attached.length > 0) {
+      if (
+        !emptyOpsSegmentIsReadShaped(tokens, i) &&
+        pathishIsProtectedMutationDest(pathishToken(attached))
+      ) {
+        return true;
+      }
+      continue;
+    }
     const lower = raw.toLowerCase();
     const eq = raw.indexOf("=");
     const colonPrefix = lower.startsWith("-out:")

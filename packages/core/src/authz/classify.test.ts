@@ -1917,6 +1917,86 @@ describe("dest-flag dest-not-last empty-ops (#4204 / #4218 / #4161 / #3918 / #38
   });
 });
 
+describe("emit-flag and Windows slash dest-of-write (#3626)", () => {
+  const grant = ".deft/authz/grants/evil.json";
+  const scope = ".deft/approved-scope/story.json";
+  const kill = ".deft-directive-disable";
+
+  it("emits unknown for attached emit-flags such as -femit-bin=", () => {
+    for (const dest of [grant, scope, kill]) {
+      for (const command of [
+        `zig build-exe -femit-bin=${dest} main.zig`,
+        `zig build-exe -femit-h=${dest} main.zig`,
+      ]) {
+        expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+        expect(classifyShellAuthzOps(command), command).not.toContain("settings");
+      }
+    }
+  });
+
+  it("emits unknown for Windows slash dests and leftover -p:OutputPath=", () => {
+    for (const dest of [grant, scope, kill]) {
+      for (const command of [
+        `csc /out:${dest} in.cs`,
+        `ilasm /output=${dest} in.il`,
+        `msbuild /p:OutputPath=${dest} foo.csproj`,
+        `msbuild -p:OutputPath=${dest} foo.csproj`,
+      ]) {
+        expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+        expect(classifyShellAuthzOps(command), command).not.toContain("settings");
+      }
+    }
+  });
+
+  it("keeps already-gated -out: and -output= unknown without recut", () => {
+    expect(classifyShellAuthzOps(`csc -out:${grant} in.cs`)).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps(`ilasm -output=${grant} in.il`)).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps(`odin -out:${grant}`)).toEqual(["unknown"]);
+  });
+
+  it("keeps /tmp dests empty and does not add generic -p", () => {
+    for (const command of [
+      "zig build-exe -femit-bin=/tmp/x.json main.zig",
+      "csc /out:/tmp/x.exe in.cs",
+      "ilasm /output=/tmp/x.exe in.il",
+      "msbuild /p:OutputPath=/tmp/out foo.csproj",
+      "msbuild -p:OutputPath=/tmp/out foo.csproj",
+      "ffmpeg -i in.wav /tmp/out.json",
+      `weirdbin -p ${grant} /tmp/out.json`,
+      "msbuild -p:Configuration=Release foo.csproj",
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual([]);
+    }
+  });
+
+  it("keeps already-gated last-positional and Lisp payloads unknown", () => {
+    expect(classifyShellAuthzOps("ffmpeg -i in.wav .deft/authz/grants/x.json")).toEqual([
+      "unknown",
+    ]);
+    expect(classifyShellAuthzOps('hy -c \'open(".deft/authz/grants/x.json","w")\'')).toEqual([
+      "unknown",
+    ]);
+  });
+
+  it("strips wrapping quotes on attached dest flags (#3626 Greptile P1)", () => {
+    expect(classifyShellAuthzOps('csc "/out:.deft/authz/grants/x.exe" in.cs')).toEqual(["unknown"]);
+    expect(
+      classifyShellAuthzOps('zig build-exe "-femit-bin=.deft-directive-disable" main.zig'),
+    ).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps("ilasm '/output=.deft/authz/grants/x.exe' in.il")).toEqual([
+      "unknown",
+    ]);
+  });
+
+  it("keeps attached dest-of-write unknown beside a settings prefix (#3626 Greptile P1)", () => {
+    const mixed = classifyShellAuthzOps(
+      "gh repo edit --visibility private && zig build-exe -femit-bin=.deft/authz/grants/x.json main.zig",
+    );
+    expect(mixed).toContain("settings");
+    expect(mixed).toContain("unknown");
+  });
+});
+
 describe("interpreter payload and jar dest-grammar (#3593)", () => {
   it("emits unknown when a protected dest is quoted inside -e/-c/eval", () => {
     for (const command of [
