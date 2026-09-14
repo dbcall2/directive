@@ -11,10 +11,12 @@ export {
   extractMarkupFacts,
   extractSurface,
   isMarkupPath,
+  isUndeclaredTemplatePath,
 } from "./extract.js";
 export {
   buildObservableScopeRecord,
   computeContractDigest,
+  evaluateObservableMintPreflight,
   extractObservableChangeFromPlan,
   observableScopeDir,
   observableScopeRecordPath,
@@ -25,7 +27,9 @@ export {
 } from "./mint.js";
 export {
   type AllowedChange,
+  CHANGE_KINDS,
   CHANGE_OPS,
+  type ChangeKind,
   OBSERVABLE_CHANGE_PLAN_KEY,
   OBSERVABLE_SCOPE_DIR,
   OBSERVABLE_SCOPE_RECORD_SCHEMA,
@@ -36,6 +40,7 @@ export {
   OBSERVABLE_UI_PROVIDER,
   OBSERVABLE_UI_PROVIDER_VERSION,
   type ObservableArtifact,
+  type ObservableScopeFinding,
   type ObservableScopeRecord,
   type ObservableUiPolicy,
   STRUCTURE_KINDS,

@@ -155,7 +155,6 @@
       "types": "./dist/decision/index.d.ts",
       "default": "./dist/decision/index.js"
     },
-
     "./events": {
       "types": "./dist/events/attribution-ledger.d.ts",
       "default": "./dist/events/attribution-ledger.js"
@@ -409,7 +408,9 @@
   "dependencies": {
     "@deftai/directive-content": "workspace:*",
     "@deftai/directive-types": "workspace:*",
-    "archiver": "^8.0.0"
+    "archiver": "^8.0.0",
+    "jsdom": "26.1.0",
+    "typescript": "^5.9.3"
   },
   "scripts": {
     "build": "tsc -b",

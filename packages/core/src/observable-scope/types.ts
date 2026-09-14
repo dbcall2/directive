@@ -1,9 +1,9 @@
 /**
  * Observable UI scope contract types (#4495).
  *
- * First ship: committed markup/HTML/JSX/template structure only.
- * Runtime JS default-tab state is out of scope unless encoded in markup
- * (`selected` / `aria-selected`).
+ * First ship: closed `.html` (jsdom) + `.jsx`/`.tsx` (TypeScript parse-only).
+ * Runtime/state-derived default-tab is #4503. Markup-visible selected /
+ * aria-selected / source-order is in scope.
  */
 
 export const OBSERVABLE_CHANGE_PLAN_KEY = "x-directive/observableChange";
@@ -12,10 +12,12 @@ export const OBSERVABLE_UI_POLICY_REL = ".deft/observable-ui.policy.json";
 export const OBSERVABLE_UI_POLICY_SCHEMA = "deft.observable-ui.policy.v1";
 export const OBSERVABLE_SCOPE_RECORD_SCHEMA = "deft.observable-scope.v1";
 export const OBSERVABLE_UI_ARTIFACT_SCHEMA = "deft.observable-ui.v1";
-export const OBSERVABLE_UI_PROVIDER = "committed-markup";
+export const OBSERVABLE_UI_PROVIDER = "jsdom+typescript";
 export const OBSERVABLE_UI_PROVIDER_VERSION = 1;
 export const OBSERVABLE_SCOPE_REMEDIATION =
   "Restore the baseline markup structure or amend the observable scope through explicit human-presence mint (scope:record-observable-scope).";
+export const CHANGE_KINDS = ["fields-only", "layout-authorized"] as const;
+export type ChangeKind = (typeof CHANGE_KINDS)[number];
 
 export const STRUCTURE_KINDS = [
   "tab",
@@ -62,12 +64,18 @@ export interface ObservableScopeHumanApproval {
   readonly mintedVia?: string;
 }
 
+export interface ObservableScopeFinding {
+  readonly kind: "non-adoption" | "unlisted-delta" | "missing-mint" | "same-pr-rewrite";
+  readonly path?: string;
+  readonly detail: string;
+}
+
 export interface ObservableScopeRecord {
   readonly schema: typeof OBSERVABLE_SCOPE_RECORD_SCHEMA;
   readonly planId: string;
   readonly xbriefRelPath: string;
   readonly approvedAt: string;
-  readonly changeKind: "fields-only";
+  readonly changeKind: ChangeKind;
   readonly oracle: {
     readonly provider: typeof OBSERVABLE_UI_PROVIDER;
     readonly version: typeof OBSERVABLE_UI_PROVIDER_VERSION;

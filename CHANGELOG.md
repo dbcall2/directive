@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Observable UI scope contract for fields-only markup (#4495).** `verify:observable-scope` compares a committed-markup oracle to a human-minted `plan["x-directive/observableChange"]` record. Merge-base baseline; same-PR rewrite fails; opt-in base-pinned surfaces with internal skip. Not universal UI coverage. Closes #4495.
+- **Observable UI scope contract (#4495).** `verify:observable-scope` compares a human-minted `plan["x-directive/observableChange"]` record to a versioned jsdom (`.html`) plus TypeScript parse-only (`.jsx`/`.tsx`) oracle. Merge-base baseline; same-PR rewrite fails; opt-in surfaces; unset policy plus matching UI files is inferred-defaults-warn (exit 0 with findings). Runtime default-tab is #4503. Closes #4495.
 - **One-PR-unit consent is an App-backed exact-set claim (#4494).** Multi-origin `Closes` needs an operator mint; `.deft/one-pr-unit` is not SoT. Dest tokens allow `contents: write` only. Merge-queue re-reads closers. Closes #4494.
 
 ### Changed

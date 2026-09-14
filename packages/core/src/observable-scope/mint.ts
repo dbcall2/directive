@@ -6,15 +6,19 @@
  */
 
 import { createHash } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { containedWrite } from "../fs/contained-write.js";
 import { isHumanApprovalStamp } from "../scope-provenance/digest.js";
+import { isMarkupPath } from "./extract.js";
 import {
   type AllowedChange,
+  CHANGE_KINDS,
   CHANGE_OPS,
+  type ChangeKind,
   OBSERVABLE_SCOPE_DIR,
   OBSERVABLE_SCOPE_RECORD_SCHEMA,
+  OBSERVABLE_SCOPE_REMEDIATION,
   OBSERVABLE_UI_PROVIDER,
   OBSERVABLE_UI_PROVIDER_VERSION,
   type ObservableScopeHumanApproval,
@@ -106,8 +110,15 @@ export function parseObservableScopeRecord(
     return { error: "xbriefRelPath is required" };
   }
   if (typeof raw.approvedAt !== "string") return { error: "approvedAt is required" };
-  if (raw.changeKind !== "fields-only")
-    return { error: 'changeKind must be "fields-only" in first ship' };
+  if (
+    typeof raw.changeKind !== "string" ||
+    !(CHANGE_KINDS as readonly string[]).includes(raw.changeKind)
+  ) {
+    return {
+      error:
+        'changeKind must be "fields-only" or "layout-authorized"; mixed is not a first-ship escape',
+    };
+  }
   if (!isRecord(raw.oracle)) return { error: "oracle is required" };
   if (raw.oracle.provider !== OBSERVABLE_UI_PROVIDER) {
     return { error: `oracle.provider must be ${OBSERVABLE_UI_PROVIDER}` };
@@ -149,7 +160,7 @@ export function parseObservableScopeRecord(
     planId: raw.planId.trim(),
     xbriefRelPath: raw.xbriefRelPath.replace(/\\/g, "/"),
     approvedAt: raw.approvedAt,
-    changeKind: "fields-only",
+    changeKind: raw.changeKind as ChangeKind,
     oracle: { provider: OBSERVABLE_UI_PROVIDER, version: OBSERVABLE_UI_PROVIDER_VERSION },
     allowedChanges: allowed,
     mustPreserve,
@@ -167,7 +178,7 @@ export function parseObservableChangeContract(raw: unknown):
   | {
       readonly allowedChanges: AllowedChange[];
       readonly mustPreserve?: AllowedChange[];
-      readonly changeKind: "fields-only";
+      readonly changeKind: ChangeKind;
     }
   | { error: string } {
   if (raw === undefined) return { error: 'missing plan["x-directive/observableChange"]' };
@@ -178,8 +189,12 @@ export function parseObservableChangeContract(raw: unknown):
   if (raw.designApprovalRef !== undefined) {
     return { error: "URL-shaped designApprovalRef is not a contract" };
   }
-  if (raw.changeKind !== undefined && raw.changeKind !== "fields-only") {
-    return { error: 'changeKind must be "fields-only" in first ship' };
+  const changeKind = raw.changeKind === undefined ? "fields-only" : raw.changeKind;
+  if (typeof changeKind !== "string" || !(CHANGE_KINDS as readonly string[]).includes(changeKind)) {
+    return {
+      error:
+        'changeKind must be "fields-only" or "layout-authorized"; mixed is not a first-ship escape',
+    };
   }
   const allowed = parseAllowed(raw.allowedChanges, "allowedChanges");
   if ("error" in allowed) return allowed;
@@ -189,7 +204,7 @@ export function parseObservableChangeContract(raw: unknown):
     if ("error" in parsed) return parsed;
     mustPreserve = parsed;
   }
-  return { allowedChanges: allowed, mustPreserve, changeKind: "fields-only" };
+  return { allowedChanges: allowed, mustPreserve, changeKind: changeKind as ChangeKind };
 }
 
 export function buildObservableScopeRecord(input: {
@@ -199,6 +214,7 @@ export function buildObservableScopeRecord(input: {
   readonly mustPreserve?: readonly AllowedChange[];
   readonly humanApproval: ObservableScopeHumanApproval;
   readonly approvedAt?: string;
+  readonly changeKind?: ChangeKind;
 }): ObservableScopeRecord | { error: string } {
   if (!isHumanApprovalStamp(input.humanApproval)) {
     return {
@@ -212,7 +228,7 @@ export function buildObservableScopeRecord(input: {
     planId: input.planId,
     xbriefRelPath: input.xbriefRelPath.replace(/\\/g, "/"),
     approvedAt,
-    changeKind: "fields-only",
+    changeKind: input.changeKind ?? "fields-only",
     oracle: { provider: OBSERVABLE_UI_PROVIDER, version: OBSERVABLE_UI_PROVIDER_VERSION },
     allowedChanges: input.allowedChanges,
     mustPreserve: input.mustPreserve,
@@ -238,4 +254,45 @@ export function writeObservableScopeRecord(
     mode: "replace",
   });
   return path;
+}
+
+/**
+ * Pre-dispatch refusal when intended UI files have no story contract / mint
+ * record. Missing mint is not a same-run prompt (#4495 later-arc).
+ */
+export function evaluateObservableMintPreflight(
+  payload: unknown,
+  projectRoot: string,
+): { ok: true } | { ok: false; message: string } {
+  if (!isRecord(payload) || !isRecord(payload.plan)) return { ok: true };
+  const plan = payload.plan;
+  const meta = isRecord(plan.metadata) ? plan.metadata : undefined;
+  const placement =
+    meta !== undefined && isRecord(meta.intended_placement) ? meta.intended_placement : undefined;
+  const files = Array.isArray(placement?.files)
+    ? placement.files.filter((f): f is string => typeof f === "string")
+    : [];
+  if (!files.some((f) => isMarkupPath(f))) return { ok: true };
+  const parsed = parseObservableChangeContract(extractObservableChangeFromPlan(payload));
+  if ("error" in parsed) {
+    return {
+      ok: false,
+      message: `verify:observable-scope preflight: ${parsed.error} ${OBSERVABLE_SCOPE_REMEDIATION}`,
+    };
+  }
+  const planId = typeof plan.id === "string" ? plan.id.trim() : "";
+  if (planId.length === 0) {
+    return {
+      ok: false,
+      message: `verify:observable-scope preflight: plan.id is required to locate the mint record. ${OBSERVABLE_SCOPE_REMEDIATION}`,
+    };
+  }
+  const recPath = observableScopeRecordPath(projectRoot, planId);
+  if (!existsSync(recPath)) {
+    return {
+      ok: false,
+      message: `verify:observable-scope preflight: matched UI files in intended_placement without a mint record at ${observableScopeRecordRel(planId)}. ${OBSERVABLE_SCOPE_REMEDIATION}`,
+    };
+  }
+  return { ok: true };
 }

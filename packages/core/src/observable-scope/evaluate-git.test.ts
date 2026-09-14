@@ -70,7 +70,7 @@ describe("evaluateObservableScope real git (#4495)", () => {
     }
   });
 
-  it("skips when merge-base has no surfaces policy", () => {
+  it("warns (exit 0) when merge-base has no surfaces policy and UI files change", () => {
     root = initRepo();
     writeTracked(root, "README.md", "hi\n");
     commit(root, "base");
@@ -79,7 +79,8 @@ describe("evaluateObservableScope real git (#4495)", () => {
     commit(root, "ui");
     const result = evaluateObservableScope({ projectRoot: root, originRef: "main" });
     expect(result.code).toBe(0);
-    expect(result.skipped).toBe(true);
+    expect(result.skipped).not.toBe(true);
+    expect(result.findings?.some((f) => f.kind === "non-adoption")).toBe(true);
   });
 
   it("fails matched UI change without a merge-base mint", () => {

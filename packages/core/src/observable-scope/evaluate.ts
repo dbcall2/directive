@@ -11,13 +11,21 @@ import { join, resolve } from "node:path";
 import { resolveDefaultBaseRef } from "../evaluator-surface/evaluate.js";
 import { matchAny, normalizePath } from "../orchestration/pathspec.js";
 import { diffArtifacts, unlistedDeltas } from "./diff.js";
-import { buildArtifact, extractSurface, isMarkupPath } from "./extract.js";
+import {
+  buildArtifact,
+  extractSurface,
+  isMarkupPath,
+  isUndeclaredTemplatePath,
+} from "./extract.js";
 import { observableScopeRecordRel, parseObservableScopeRecord } from "./mint.js";
 import {
   OBSERVABLE_SCOPE_DIR,
   OBSERVABLE_SCOPE_REMEDIATION,
   OBSERVABLE_UI_POLICY_REL,
   OBSERVABLE_UI_POLICY_SCHEMA,
+  OBSERVABLE_UI_PROVIDER,
+  OBSERVABLE_UI_PROVIDER_VERSION,
+  type ObservableScopeFinding,
   type ObservableUiPolicy,
 } from "./types.js";
 
@@ -28,6 +36,7 @@ export interface EvaluateResult {
   readonly message: string;
   readonly stream: OutputStream;
   readonly skipped?: boolean;
+  readonly findings?: readonly ObservableScopeFinding[];
 }
 
 export interface EvaluateOptions {
@@ -140,12 +149,18 @@ function config(message: string): EvaluateResult {
   return { code: 2, message: `verify:observable-scope: ${message}`, stream: "stderr" };
 }
 
-function ok(message: string, skipped = false, quiet = false): EvaluateResult {
+function ok(
+  message: string,
+  skipped = false,
+  quiet = false,
+  findings?: readonly ObservableScopeFinding[],
+): EvaluateResult {
   return {
     code: 0,
     message: quiet ? "" : message,
     stream: "stdout",
     skipped,
+    findings,
   };
 }
 
@@ -240,12 +255,29 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
     return config(policy.error);
   }
   if (policy === null) {
+    const uiChanged = changed.filter((p) => isMarkupPath(p));
+    if (uiChanged.length === 0) {
+      return ok(
+        "verify:observable-scope: N/A — no base-pinned observable-ui surfaces policy " +
+          `(${OBSERVABLE_UI_POLICY_REL}). This is not yet universal UI coverage.`,
+        true,
+        options.quiet === true,
+      );
+    }
+    const findings: ObservableScopeFinding[] = uiChanged.map((path) => ({
+      kind: "non-adoption",
+      path,
+      detail:
+        "UI file-type changed with no base-pinned surfaces policy; inferred-defaults-warn, not enforce.",
+    }));
     return ok(
-      "verify:observable-scope: N/A — no base-pinned observable-ui surfaces policy " +
-        `(${OBSERVABLE_UI_POLICY_REL}). This is not yet universal UI coverage; ` +
-        "the verb is composed with an internal skip.",
-      true,
+      `verify:observable-scope: WARN ${findings.length} non-adoption finding(s) ` +
+        `(inferred-defaults-warn; not failing) (#4495). Surfaces policy unset while UI ` +
+        `file type(s) changed: ${uiChanged.slice(0, 8).join(", ")}. This is not yet ` +
+        `universal UI coverage. Adopt ${OBSERVABLE_UI_POLICY_REL} on the merge base to enforce.`,
+      false,
       options.quiet === true,
+      findings,
     );
   }
 
@@ -253,6 +285,19 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
   if (matched.length === 0) {
     return ok(
       "verify:observable-scope: N/A — changed paths are outside the base-pinned surfaces policy.",
+      true,
+      options.quiet === true,
+    );
+  }
+  if (matched.some((p) => isUndeclaredTemplatePath(p))) {
+    return config(
+      "undeclared template dialect in a matched surface (closed first-ship set is .html/.jsx/.tsx)",
+    );
+  }
+  const uiPaths = matched.filter((p) => isMarkupPath(p));
+  if (uiPaths.length === 0) {
+    return ok(
+      "verify:observable-scope: N/A — matched surfaces have no first-ship UI file types.",
       true,
       options.quiet === true,
     );
@@ -289,7 +334,6 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
     parsedRecords.push(parsed);
   }
 
-  const uiPaths = matched.filter((p) => isMarkupPath(p) || matchAny(policy.surfaces, p));
   const readBase = options.readAtBase ?? ((rel: string) => gitShow(projectRoot, mergeBase, rel));
   const readHead = options.readAtHead ?? ((rel: string) => readHeadFile(projectRoot, rel));
 
@@ -298,11 +342,30 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
   for (const path of uiPaths) {
     const baseText = readBase(path) ?? "";
     const headText = readHead(path) ?? "";
-    baseSurfaces.push(extractSurface(path, baseText));
-    headSurfaces.push(extractSurface(path, headText));
+    try {
+      baseSurfaces.push(extractSurface(path, baseText));
+      headSurfaces.push(extractSurface(path, headText));
+    } catch (err: unknown) {
+      return config(`extractor failed on ${path}: ${String(err)}`);
+    }
   }
 
-  const deltas = diffArtifacts(buildArtifact(baseSurfaces), buildArtifact(headSurfaces));
+  const baseArtifact = buildArtifact(baseSurfaces);
+  const headArtifact = buildArtifact(headSurfaces);
+  if (
+    baseArtifact.provider !== OBSERVABLE_UI_PROVIDER ||
+    headArtifact.provider !== OBSERVABLE_UI_PROVIDER ||
+    baseArtifact.version !== OBSERVABLE_UI_PROVIDER_VERSION ||
+    headArtifact.version !== OBSERVABLE_UI_PROVIDER_VERSION ||
+    baseArtifact.provider !== headArtifact.provider ||
+    baseArtifact.version !== headArtifact.version
+  ) {
+    return fail(
+      "verify:observable-scope: missing, stale, invalid, or changed provider material (no generic fallback).",
+    );
+  }
+
+  const deltas = diffArtifacts(baseArtifact, headArtifact);
   const allowed = parsedRecords.flatMap((r) => r.allowedChanges);
   const leftover = unlistedDeltas(deltas, allowed);
   if (leftover.length > 0) {
@@ -316,7 +379,7 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
   }
 
   return ok(
-    `verify:observable-scope: minted allowedChanges cover the committed-markup oracle ` +
+    `verify:observable-scope: minted allowedChanges cover the jsdom+typescript oracle ` +
       `(${uiPaths.length} surface(s), ${parsedRecords.length} mint record(s)).`,
     false,
     options.quiet === true,

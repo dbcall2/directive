@@ -60,7 +60,7 @@ function files(headHtml: string) {
 }
 
 describe("evaluateObservableScope (#4495)", () => {
-  it("skips when surfaces policy is unset on the merge base", () => {
+  it("emits inferred-defaults-warn when surfaces policy is unset and UI files change", () => {
     const result = evaluateObservableScope({
       projectRoot: "/tmp/x",
       mergeBase: "base",
@@ -68,9 +68,23 @@ describe("evaluateObservableScope (#4495)", () => {
       policyTextAtBase: null,
     });
     expect(result.code).toBe(0);
-    expect(result.skipped).toBe(true);
+    expect(result.skipped).not.toBe(true);
+    expect(result.findings?.some((f) => f.kind === "non-adoption" && f.path === "ui.html")).toBe(
+      true,
+    );
+    expect(result.message).toMatch(/inferred-defaults-warn/);
     expect(result.message).toMatch(/not yet universal UI coverage/);
-    expect(result.message).toMatch(/internal skip/);
+  });
+
+  it("skips when surfaces policy is unset and no UI file types changed", () => {
+    const result = evaluateObservableScope({
+      projectRoot: "/tmp/x",
+      mergeBase: "base",
+      changedFiles: ["src/app.ts"],
+      policyTextAtBase: null,
+    });
+    expect(result.code).toBe(0);
+    expect(result.skipped).toBe(true);
   });
 
   it("skips unmatched non-UI paths", () => {
@@ -143,6 +157,34 @@ describe("evaluateObservableScope (#4495)", () => {
     expect(result.message).toMatch(/same-PR rewrite/);
   });
 
+  it("config-fails undeclared template dialects in a matched surface", () => {
+    const result = evaluateObservableScope({
+      projectRoot: "/tmp/x",
+      mergeBase: "base",
+      changedFiles: ["ui.vue"],
+      policyTextAtBase: JSON.stringify({
+        schema: "deft.observable-ui.policy.v1",
+        surfaces: ["ui.vue"],
+      }),
+    });
+    expect(result.code).toBe(2);
+    expect(result.message).toMatch(/undeclared template dialect/);
+  });
+
+  it("skips matched surfaces with no first-ship UI file types", () => {
+    const result = evaluateObservableScope({
+      projectRoot: "/tmp/x",
+      mergeBase: "base",
+      changedFiles: ["ui.css"],
+      policyTextAtBase: JSON.stringify({
+        schema: "deft.observable-ui.policy.v1",
+        surfaces: ["ui.css"],
+      }),
+    });
+    expect(result.code).toBe(0);
+    expect(result.skipped).toBe(true);
+  });
+
   it("config-fails invalid policy", () => {
     const result = evaluateObservableScope({
       projectRoot: "/tmp/x",
@@ -151,6 +193,52 @@ describe("evaluateObservableScope (#4495)", () => {
       policyTextAtBase: "{not json",
     });
     expect(result.code).toBe(2);
+  });
+
+  it("passes layout-authorized work when every semantic delta is listed", () => {
+    const rec = buildObservableScopeRecord({
+      planId: "story-1",
+      xbriefRelPath: "xbrief/active/story.xbrief.json",
+      changeKind: "layout-authorized",
+      allowedChanges: [
+        { kind: "tab", op: "reorder" },
+        { kind: "control", op: "reorder" },
+        { kind: "heading", op: "remove", name: "Dashboard" },
+        { kind: "heading", op: "add", name: "Renamed" },
+      ],
+      humanApproval: human,
+    });
+    if ("error" in rec) throw new Error(rec.error);
+    const head = `
+<nav><button role="tab">Details</button><button role="tab" aria-selected="true">Overview</button></nav>
+<h1>Renamed</h1>
+<input name="title" />
+<button>Save</button>
+<table><tr><th>Name</th><th>Status</th></tr></table>
+<section id="card"></section>
+`;
+    const result = evaluateObservableScope({
+      ...files(head),
+      recordTextsAtBase: new Map([
+        [".deft/observable-scope/story-1.json", `${JSON.stringify(rec)}\n`],
+      ]),
+    });
+    expect(result.code).toBe(0);
+  });
+
+  it("config-fails mixed changeKind", () => {
+    const rec = record([{ kind: "control", op: "add", name: "email" }]);
+    const result = evaluateObservableScope({
+      projectRoot: "/tmp/x",
+      mergeBase: "base",
+      changedFiles: ["ui.html"],
+      policyTextAtBase: policy,
+      recordTextsAtBase: new Map([
+        [".deft/observable-scope/story-1.json", JSON.stringify({ ...rec, changeKind: "mixed" })],
+      ]),
+    });
+    expect(result.code).toBe(2);
+    expect(result.message).toMatch(/mixed/);
   });
 
   it("config-fails worker-declared baselineRef on the mint record", () => {

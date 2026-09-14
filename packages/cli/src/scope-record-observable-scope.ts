@@ -166,6 +166,7 @@ export function run(argv: string[], seams: HumanPresenceMintSeams = {}): number 
     xbriefRelPath: rel.startsWith("xbrief/pending/") ? `xbrief/active/${basename(rel)}` : rel,
     allowedChanges: contract.allowedChanges,
     mustPreserve: contract.mustPreserve,
+    changeKind: contract.changeKind,
     humanApproval: {
       kind: args.kind,
       actor: args.actor,
