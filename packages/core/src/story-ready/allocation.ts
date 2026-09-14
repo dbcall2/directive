@@ -68,3 +68,25 @@ export function parseAllocationSection(text: string | null | undefined): ParsedA
   }
   return [true, fields];
 }
+
+/** Parse `cohort_vbriefs: [a.json, b.json]` into path entries. Empty/null → []. */
+export function parseCohortVbriefs(raw: string | null | undefined): string[] {
+  if (raw === null || raw === undefined) {
+    return [];
+  }
+  let value = raw.trim();
+  if (value.startsWith("[") && value.endsWith("]")) {
+    value = value.slice(1, -1).trim();
+  }
+  if (value.length === 0) {
+    return [];
+  }
+  const out: string[] = [];
+  for (const part of value.split(",")) {
+    const entry = normaliseValue(part);
+    if (entry !== null && entry.length > 0) {
+      out.push(entry);
+    }
+  }
+  return out;
+}

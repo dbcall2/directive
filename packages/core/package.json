@@ -95,6 +95,10 @@
       "types": "./dist/authz/index.d.ts",
       "default": "./dist/authz/index.js"
     },
+    "./one-pr-unit": {
+      "types": "./dist/one-pr-unit/index.d.ts",
+      "default": "./dist/one-pr-unit/index.js"
+    },
     "./escalation": {
       "types": "./dist/escalation/index.d.ts",
       "default": "./dist/escalation/index.js"

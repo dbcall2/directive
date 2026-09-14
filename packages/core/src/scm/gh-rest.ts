@@ -2,6 +2,8 @@ import { type SpawnSyncOptions, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { assertNoDeftAllowEscape, CLAIMED_SET_REQUIRED } from "../one-pr-unit/close-via-app.js";
+import type { OriginRef } from "../one-pr-unit/types.js";
 import { SUBPROCESS_MAX_BUFFER } from "../subprocess/max-buffer.js";
 import { defaultWhich, type WhichFn } from "./binary.js";
 import { classifyScmArgv, resolveBinaryForRole } from "./call-shape.js";
@@ -481,19 +483,29 @@ export function restCreateLabel(
   });
 }
 
+export interface RestCloseIssueSeams extends GhRestSeams {
+  /** Required claimed origin set. Automated close only after App consume. */
+  readonly claimedSet?: readonly OriginRef[];
+}
+
 export function restCloseIssue(
   repo: string,
   n: number,
   reason: string | null = "completed",
-  seams: GhRestSeams = {},
+  seams: RestCloseIssueSeams = {},
 ): Record<string, unknown> {
+  assertNoDeftAllowEscape();
+  if (seams.claimedSet === undefined || seams.claimedSet.length === 0) {
+    throw new Error(CLAIMED_SET_REQUIRED);
+  }
+  const { claimedSet: _claimedSet, ...restSeams } = seams;
   const [owner, name] = splitRepo(repo);
   const endpoint = `repos/${owner}/${name}/issues/${n}`;
   return execMutation([endpoint, "--method", "PATCH"], {
     endpoint,
     payload: { state: "closed", state_reason: reason },
     hint: "verify repo permissions and that the issue is open (closing a closed issue is idempotent server-side)",
-    ...seams,
+    ...restSeams,
   });
 }
 

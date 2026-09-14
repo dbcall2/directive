@@ -161,7 +161,7 @@ On hit, repair via the fetch → UTF-8 file edit → edit path above. `verify:en
 ### Branch Lifecycle
 
 - ! Create feature branches from `master` (or the project's default branch)
-- ! Each branch serves a single purpose -- one issue or one cohesive change
+- ! Each branch serves a single purpose -- one issue or one cohesive change. "One cohesive change" is not silent multi-origin close. Default: one origin → one PR. Closing more than one origin requires a distinct operator-origin one-PR-unit grant (not #1378 dispatch consent, not `--allow-close`, not file overlap). On `swarm:readiness` failure, serialize N PRs.
 - ! Include closing keywords in the PR body (`Closes #N`, `Fixes #N`) so GitHub auto-closes issues on merge
 - ! Delete the branch after merge (`--delete-branch` flag on `gh pr merge`)
 - ⊗ Reuse a branch for a second PR after the first has merged

@@ -13,6 +13,7 @@ import {
   resolveLifecycleRoot,
   stripArtifactSuffix,
 } from "../layout/resolve.js";
+import { SERIALIZE_N_PRS } from "../one-pr-unit/types.js";
 import {
   acceptanceTextsFromItems,
   asStrList,
@@ -686,6 +687,7 @@ function renderReport(
     for (const [filePath, ids] of [...overlaps.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       lines.push(`- ${filePath}: ${ids.join(", ")}`);
     }
+    lines.push("Overlap is not one-PR-unit consent; serialize N PRs, one origin per PR.");
   } else {
     lines.push("- none");
   }
@@ -731,7 +733,13 @@ export function readinessReport(
     candidates.some(
       (c) => c.missing.length > 0 || c.blocked.length > 0 || c.decomposition_needed,
     ) || overlaps.size > 0;
-  return { exitCode: failed ? 1 : 0, report };
+  const withSerialize =
+    failed && !report.includes("serialize N PRs")
+      ? `${report}
+
+${SERIALIZE_N_PRS}`
+      : report;
+  return { exitCode: failed ? 1 : 0, report: withSerialize };
 }
 
 export function expandReadinessPaths(projectRoot: string, patterns: readonly string[]): string[] {

@@ -17,6 +17,10 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { hasArtifactSuffix, resolveLifecycleRoot } from "../layout/resolve.js";
+import { closerSetFromIssueIds } from "../one-pr-unit/closer-set.js";
+import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
+import { loadOnePrUnitGrant } from "../one-pr-unit/store.js";
+import type { OnePrUnitGrant } from "../one-pr-unit/types.js";
 import { type GateRunner, makeGateRunner } from "../orphan-active/issue-state.js";
 import { collectGithubRefs } from "../orphan-active/refs.js";
 import { fetchClosingIssuesReferences } from "../pr-protected-issues/gh.js";
@@ -87,6 +91,9 @@ export interface EvaluateOptions {
   readonly quiet?: boolean;
   /** Closing-reference seam so tests do not need a forge. */
   readonly fetchClosingIssues?: FetchClosingIssuesFn;
+  readonly onePrUnitGrant?: OnePrUnitGrant | null;
+  readonly onePrUnitId?: string | null;
+  readonly prNodeId?: string | null;
 }
 
 interface ActiveBrief {
@@ -294,6 +301,7 @@ function configError(
  * PR head checkout. That is the tree the merge lands, and it is the same
  * working-tree basis `verify:orphan-active` uses.
  */
+
 export function evaluate(
   projectRoot: string,
   prNumber: number,
@@ -373,6 +381,29 @@ export function evaluate(
   }
 
   const closingIssues = [...new Set(linked)].sort((a, b) => a - b);
+  const grant =
+    options.onePrUnitGrant !== undefined
+      ? options.onePrUnitGrant
+      : options.onePrUnitId !== undefined && options.onePrUnitId !== null
+        ? loadOnePrUnitGrant(root, options.onePrUnitId)
+        : null;
+  const unit = evaluateOnePrUnit({
+    closerSet: closerSetFromIssueIds(repo, closingIssues),
+    grant,
+    binding: { repo, prNodeId: options.prNodeId },
+    presentedIdWithoutStore: (options.onePrUnitId ?? null) !== null && grant === null,
+  });
+  if (!unit.ok) {
+    return {
+      code: 1,
+      message: `verify:pr-closeout-attestable: ${unit.message}`,
+      stream: "stderr",
+      prNumber,
+      closingIssues,
+      findings: [],
+      proxied: runner.proxied,
+    };
+  }
   if (closingIssues.length === 0) {
     return {
       code: 0,

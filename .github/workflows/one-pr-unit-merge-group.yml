@@ -1,0 +1,43 @@
+# One-PR-unit merge-queue projection (#4494).
+# Event is merge_group.checks_requested — literal "dequeue" is not an event name.
+# Check-runs are a projection, not the canonical App store.
+# Remaining deploy (implementation gap, not a contradiction of the bound recut):
+#   1. Directive GitHub App private transactional store
+#   2. Org ruleset that app-restricts this required check
+#   3. Merge queue enablement on the delivery branch
+# Live ruleset is still Greptile-only.
+name: one-pr-unit-merge-group
+
+on:
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: read
+
+jobs:
+  one-pr-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build engine
+        run: pnpm run build
+
+      - name: Evaluate merge_group one-PR-unit census
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: node packages/core/dist/one-pr-unit/merge-group-cli.js

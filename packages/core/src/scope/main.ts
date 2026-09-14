@@ -1,5 +1,10 @@
 import { existsSync } from "node:fs";
 import { dirname } from "node:path";
+import { closerSetFromIssueIds } from "../one-pr-unit/closer-set.js";
+import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
+import { exactOriginSetEquals } from "../one-pr-unit/origin-set.js";
+import { listOnePrUnitGrants } from "../one-pr-unit/store.js";
+import { defaultRunGh, fetchClosingIssuesReferences } from "../pr-protected-issues/gh.js";
 import { releaseWorkClaimForBrief } from "../scm/work-claim.js";
 import { maybeRunStalenessTickler } from "../staleness-tickler/run.js";
 import { interceptHelp } from "../triage/help/index.js";
@@ -392,6 +397,40 @@ export function lifecycleMain(argv: string[]): number {
     return promoteResult.exitCode;
   }
 
+  if (action === "complete" && deliveryEvidence?.prNumber) {
+    const rootForUnit = resolveProjectRoot(projectRoot) ?? dirname(dirname(dirname(filePath)));
+    const repo = deliveryEvidence.repository;
+    if (repo !== null && repo !== undefined && repo.length > 0) {
+      try {
+        const linked = fetchClosingIssuesReferences(deliveryEvidence.prNumber, repo, defaultRunGh);
+        if (linked === null) {
+          process.stderr.write(
+            "Error: could not read closing-issue references for one-PR-unit recheck. " +
+              "Retry after fixing gh auth, rate limit, or network.\n",
+          );
+          return 1;
+        }
+        const closerSet = closerSetFromIssueIds(repo, linked);
+        const grant =
+          listOnePrUnitGrants(rootForUnit).find((g) =>
+            exactOriginSetEquals(g.origins, closerSet),
+          ) ?? null;
+        const unit = evaluateOnePrUnit({
+          closerSet,
+          grant,
+          binding: { repo },
+        });
+        if (!unit.ok) {
+          process.stderr.write(`Error: ${unit.message}\n`);
+          return 1;
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`Error: one-PR-unit recheck failed: ${message}\n`);
+        return 1;
+      }
+    }
+  }
   const transitionOptions: TransitionOptions = {
     nonDeliveryDisposition,
     deliveryEvidence,

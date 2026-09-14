@@ -1,0 +1,244 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #4494; recut Bound-remedy from lean 5658220623",
+    "updated": "2026-09-14T02:56:43Z"
+  },
+  "plan": {
+    "title": "feat(swarm): make multi-origin PR batching explicit consent, not overlap inference",
+    "status": "running",
+    "narratives": {
+      "Description": "feat(swarm): make multi-origin PR batching explicit consent, not overlap inference",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/4494",
+      "Overview": "# Next-build (bound recut)\n\nFiled Wanted 1 reuse of #1378 fields is REJECTED. Dispatch-cohort consent and close-unit consent stay distinct. `cohort_vbriefs` is the dispatch set, not a close grant. `--allow-close` is not one-PR-unit consent. Do not parse an implement list or free-form issue/comment text as the mint. Cite `evidenceSatisfiesImplementationApproval`.\n\nKeep one-PR batching. Make it explicit. Default without a one-PR-unit grant: one origin → one PR.\n\nThe gitignored `.deft/one-pr-unit/` disk store is NOT the verifier-visible record.\n\n## Bound remedy (lean 5658220623)\n\n1. Distinct one-PR-unit identity. Do not reuse #1378 `allocation_plan_id` / `batching_rationale` / `operator_approval_evidence`, `--allow-close`, or an implement list. Cite `evidenceSatisfiesImplementationApproval`.\n2. Mint UX: keep `deft authz:grant` / `refuseNonInteractiveMint`. The mint calls the App. Opaque grant id is not a bearer credential. Only the App store plus the bound PR node id authorizes.\n3. Canonical store: Directive GitHub App private transactional store. Unique active-membership on every normalized `(repo, issue-id)`. One transaction reserves the whole exact set or the mint fails. Overlapping concurrent mints abort. Check-runs are a projection, not the store. Do not keep `.deft/one-pr-unit` as SoT.\n4. PR-unit bind: at mint the claim is `reserved` and unbound. It binds irreversibly to the GitHub PR node id on first App interaction. A later presentation from a different node id is refused.\n5. Worker identity: dest-placed workers receive a Directive App installation token whose requested permissions are an explicit allowlist: `contents: write`, `issues: none`. Verify the permissions GitHub returns. Omit of the `permissions` object is refuse. Worker context has no operator `gh` store, no App private key, no Pull requests write, no Checks write, no Administration, no ruleset-bypass identity. Local PreToolUse / `.deft-directive-disable` are not that host.\n6. Merge lane: GitHub merge queue. On every `merge_group.checks_requested`, the App resolves every constituent PR, reads live `closingIssuesReferences`, PR-body declarations, and commit-message declarations, applies the explicit grammar (not `CLOSING_KEYWORD_RE`), compares each PR unit to its bound reservation, and reports the App-restricted required check on that merge-group SHA. Missing constituent, unreadable source, unbound claim, extra declaration, or set mismatch is non-passing. Single-origin / no-grant PRs still get an App-posted passing check. Literal \"dequeue\" is not an event name.\n7. Automated close only through the App after consume. Invert fail-open close classifier for close-shaped ops. No `DEFT_ALLOW_*` escape. `restCloseIssue` / umbrella reconcile must present claimed set.\n8. UI/raw API closes are recovery-class (`closed_by` ≠ App), not prevention. Webhook reopen is recovery.\n9. Consumption states: reserved (unbound) → bound → member-complete* → spent | revoked | expired. Expiry 24 hours from mint. Revoker: minting operator via human-presence mint. PR closed unmerged revokes.\n10. Direct default-branch commits that close origins still need an App reservation; `allowDirectCommitsToMaster` does not bypass. Commit-message Closes without the merge-group check is recovery-class.\n11. Implement-class `solo` with `|cohort_vbriefs| > 1` and no grant is a config error. Overlap serializes. The four named sources are not close-permission.\n12. Docs: on `swarm:readiness` failure / Phase 0 exit, print serialize-N-PRs. Close-surface docs next to github.md. PR-template prose is docs, not the gate. Live Greptile-only ruleset is an implementation gap, not a contradiction.\n\nCiting lean 5658220623 and synthesis 5658223755 (table 5658221934).\n"
+    },
+    "items": [
+      {
+        "title": "Distinct one-PR-unit identity (not #1378 fields, not --allow-close, not implement-list parsing). Cite evidenceSatisfiesImplementationApproval.",
+        "status": "proposed",
+        "effort": "M"
+      },
+      {
+        "title": "Mint UX: deft authz:grant / refuseNonInteractiveMint calls the App. Opaque id is not bearer. App store + bound PR node id authorizes.",
+        "status": "proposed",
+        "effort": "M"
+      },
+      {
+        "title": "Canonical App private transactional store with unique active membership on every (repo, issue-id). One transaction reserves the whole set or mint fails. Overlapping mints abort. Disk .deft/one-pr-unit is not SoT.",
+        "status": "proposed",
+        "effort": "L"
+      },
+      {
+        "title": "PR-unit bind: reserved unbound at mint; irreversible bind to GitHub PR node id on first App interaction.",
+        "status": "proposed",
+        "effort": "M"
+      },
+      {
+        "title": "Dest-placed worker App installation token allowlist contents:write issues:none; verify returned permissions; omit permissions is refuse. No operator gh store, App private key, PR/Checks/Administration/ruleset-bypass in worker context.",
+        "status": "proposed",
+        "effort": "M"
+      },
+      {
+        "title": "Merge queue merge_group.checks_requested App check: live closingIssuesReferences + PR body + commit messages, explicit grammar not CLOSING_KEYWORD_RE, compare to bound reservation. Single-origin no-grant still gets passing App check.",
+        "status": "proposed",
+        "effort": "L"
+      },
+      {
+        "title": "Automated close only through App after consume. Invert fail-open close classifier. No DEFT_ALLOW escape. restCloseIssue / umbrella reconcile present claimed set.",
+        "status": "proposed",
+        "effort": "M"
+      },
+      {
+        "title": "UI/raw API closes are recovery-class (closed_by != App), not prevention.",
+        "status": "proposed",
+        "effort": "S"
+      },
+      {
+        "title": "Consumption states reserved→bound→member-complete*→spent|revoked|expired; 24h expiry; minting-operator revoker; unmerged PR revokes.",
+        "status": "proposed",
+        "effort": "M"
+      },
+      {
+        "title": "Direct default-branch Closes without merge-group check is recovery-class. allowDirectCommitsToMaster does not bypass reservation.",
+        "status": "proposed",
+        "effort": "S"
+      },
+      {
+        "title": "Implement-class solo |cohort_vbriefs|>1 without grant is config error. Overlap serializes N PRs.",
+        "status": "proposed",
+        "effort": "M"
+      },
+      {
+        "title": "Docs: serialize-N-PRs; github.md close-surface; PR template is docs not the gate. Live Greptile-only ruleset is an implementation gap.",
+        "status": "proposed",
+        "effort": "S"
+      },
+      {
+        "title": "Tests: unique membership race; token permission allowlist; merge_group census body+commit messages; classifier invert; #1378 not consent; comma-list grammar; --allow-close is not consent.",
+        "status": "proposed",
+        "effort": "M"
+      }
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/4494",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #4494: feat(swarm): make multi-origin PR batching explicit consent, not overlap inference"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "bound recut Bound-remedy lean 5658220623 + synthesis 5658223755; Wanted 1 reuse of #1378 rejected; disk store rejected as SoT",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "Distinct one-PR-unit identity (not #1378 fields, not --allow-close, not implement-list parsing). Cite evidenceSatisfiesImplementationApproval.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "Mint UX: deft authz:grant / refuseNonInteractiveMint calls the App. Opaque id is not bearer. App store + bound PR node id authorizes.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "Canonical App private transactional store with unique active membership on every (repo, issue-id). One transaction reserves the whole set or mint fails. Overlapping mints abort. Disk .deft/one-pr-unit is not SoT.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "PR-unit bind: reserved unbound at mint; irreversible bind to GitHub PR node id on first App interaction.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 5,
+          "text": "Dest-placed worker App installation token allowlist contents:write issues:none; verify returned permissions; omit permissions is refuse. No operator gh store, App private key, PR/Checks/Administration/ruleset-bypass in worker context.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 6,
+          "text": "Merge queue merge_group.checks_requested App check: live closingIssuesReferences + PR body + commit messages, explicit grammar not CLOSING_KEYWORD_RE, compare to bound reservation. Single-origin no-grant still gets passing App check.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 7,
+          "text": "Automated close only through App after consume. Invert fail-open close classifier. No DEFT_ALLOW escape. restCloseIssue / umbrella reconcile present claimed set.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 8,
+          "text": "UI/raw API closes are recovery-class (closed_by != App), not prevention.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 9,
+          "text": "Consumption states reserved→bound→member-complete*→spent|revoked|expired; 24h expiry; minting-operator revoker; unmerged PR revokes.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 10,
+          "text": "Direct default-branch Closes without merge-group check is recovery-class. allowDirectCommitsToMaster does not bypass reservation.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 11,
+          "text": "Implement-class solo |cohort_vbriefs|>1 without grant is config error. Overlap serializes N PRs.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 12,
+          "text": "Docs: serialize-N-PRs; github.md close-surface; PR template is docs not the gate. Live Greptile-only ruleset is an implementation gap.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 13,
+          "text": "Tests: unique membership race; token permission allowlist; merge_group census body+commit messages; classifier invert; #1378 not consent; comma-list grammar; --allow-close is not consent.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found"
+    },
+    "metadata": {
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [
+          "packages/core/src/one-pr-unit/types.ts",
+          "packages/core/src/one-pr-unit/origin-set.ts",
+          "packages/core/src/one-pr-unit/closer-set.ts",
+          "packages/core/src/one-pr-unit/evaluate.ts",
+          "packages/core/src/one-pr-unit/app-store.ts",
+          "packages/core/src/one-pr-unit/simulator.ts",
+          "packages/core/src/one-pr-unit/mint.ts",
+          "packages/core/src/one-pr-unit/dest-token.ts",
+          "packages/core/src/one-pr-unit/merge-group.ts",
+          "packages/core/src/one-pr-unit/close-via-app.ts",
+          "packages/core/src/one-pr-unit/index.ts",
+          "packages/core/src/one-pr-unit/store.ts",
+          "packages/core/src/story-ready/evaluate.ts",
+          "packages/core/src/story-ready/allocation.ts",
+          "packages/core/src/pr-closing-keywords/detect.ts",
+          "packages/core/src/pr-closing-keywords/main.ts",
+          "packages/core/src/pr-closeout-attestable/evaluate.ts",
+          "packages/core/src/authz/classify.ts",
+          "packages/core/src/authz/origin.ts",
+          "packages/core/src/scm/gh-rest.ts",
+          "packages/core/src/vbrief-reconcile/umbrellas.ts",
+          "packages/core/src/swarm/launch.ts",
+          "packages/core/src/scope/main.ts",
+          "packages/cli/src/authz.ts",
+          "packages/cli/src/verify-story-ready.ts",
+          ".github/workflows/one-pr-unit-merge-group.yml",
+          ".github/workflows/branch-gate.yml",
+          "content/scm/github.md",
+          "content/skills/deft-directive-swarm/references/core-phase-0.md",
+          "content/templates/agent-prompt-preamble.md",
+          "CHANGELOG.md"
+        ],
+        "module_boundary": "one-PR-unit App store + merge_group check composed onto existing closer-set surfaces; disk .deft/one-pr-unit is not canonical",
+        "cohesion_exemption": "CHANGELOG.md is the append-only Keep a Changelog file; this slice updates the Unreleased bullet. No split of CHANGELOG.md in this story."
+      },
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5442381318,
+        "origin": "deftai/directive#4494",
+        "id": "github.issue.5442381318"
+      },
+      "x-directive/admitted-target-digest": {
+        "schema": "deft.scope.admitted-target-digest.v1",
+        "algorithm": "sha256",
+        "sha256": "f42809da5facae6ac3c19424e2d50382f8b79f3af97bc4bff508b5eb9abc2731"
+      }
+    },
+    "id": "github.issue.5442381318",
+    "updated": "2026-09-14T02:56:43Z"
+  }
+}

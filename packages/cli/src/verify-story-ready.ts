@@ -2,7 +2,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { evaluate, gitPorcelain, parseAllocationSection } from "@deftai/directive-core/story-ready";
+import {
+  evaluate,
+  gitPorcelain,
+  gitRevParseAbbrev,
+  parseAllocationSection,
+} from "@deftai/directive-core/story-ready";
 import {
   ROUTING_GATED_DISPATCH_PROVIDERS,
   resolveDispatchProvider,
@@ -167,6 +172,7 @@ export function run(argv: string[]): number {
     allowDirty: args.allowDirty,
     parsed,
     projectRoot,
+    onePrUnitBranch: gitRevParseAbbrev(projectRoot),
   });
 
   if (result.exitCode === 0 && !args.skipRouting) {

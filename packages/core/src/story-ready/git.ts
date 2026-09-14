@@ -23,3 +23,19 @@ export function gitPorcelain(projectRoot: string): string | null {
     return null;
   }
 }
+
+/** Current branch name, or null when undeterminable / detached. */
+export function gitRevParseAbbrev(projectRoot: string): string | null {
+  try {
+    const proc = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+      cwd: projectRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const name = (typeof proc === "string" ? proc : "").trim();
+    if (name.length === 0 || name === "HEAD") return null;
+    return name;
+  } catch {
+    return null;
+  }
+}

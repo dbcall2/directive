@@ -49,6 +49,8 @@ Worked example (a swarm-cohort member):
 
 A `solo` dispatch sets `dispatch_kind: solo`, MAY leave `allocation_plan_id` / `batching_rationale` null, and lists only its own xBRIEF in `cohort_vbriefs`; such a section does NOT by itself satisfy the consent token, so the Story Start Gate falls through to the #1371 prose carve-out for a lone interactive dispatch.
 
+! Implement-class `solo` lists exactly one xBRIEF in `cohort_vbriefs` unless a distinct `one_pr_unit_id` names an operator-origin one-PR-unit grant. `|cohort_vbriefs| > 1` with `dispatch_kind: solo` and no such grant is a config error. `one_pr_unit_id` is not an #1378 recognition field — do not reuse `allocation_plan_id` / `batching_rationale` / `operator_approval_evidence` as close consent. `--allow-close` is not that grant. Review-monitor envelopes may use `cohort_vbriefs: []`.
+
 ## 2.55 Ordered-plan continuation boundary (#2402)
 
 When the operator supplies an ordered plan (delivery sequence, cohort, checklist, review batch, or phase list), continuation language is bounded by that sequence — not by the triage queue, skill chaining, or adjacent backlog memory.

@@ -4179,6 +4179,31 @@ function hasIndirectAuthzStoreWrite(command: string, tokens: readonly string[]):
   return false;
 }
 
+/**
+ * Close-shaped issue writes (#4494). Previously unclassified (`gh issue close`)
+ * failed open. Invert: grant-immune `unknown`, not empty and not DEFT_ALLOW-escapable
+ * `issue_mutation`.
+ */
+function isCloseShapedIssueWrite(tokens: readonly string[], command: string): boolean {
+  const gh = findGhResourceVerb(tokens);
+  if (gh !== null && gh.resource === "issue" && (gh.verb === "close" || gh.verb === "delete")) {
+    return true;
+  }
+  const lower = command.toLowerCase();
+  if (lower.includes("scm:issue:close") || lower.includes("scm issue close")) {
+    return true;
+  }
+  if (!hasGhApiPath(tokens, "/issues") || hasGhApiPath(tokens, "/comments")) {
+    return false;
+  }
+  return (
+    lower.includes("--method patch") ||
+    lower.includes("--method put") ||
+    lower.includes("-x patch") ||
+    lower.includes("-x put")
+  );
+}
+
 /** Best-effort shell classification for UAT-sensitive ops beyond push/merge. */
 export function classifyShellAuthzOps(command: string): AuthzClassifiedOp[] {
   const cmd = command.trim();
@@ -4209,7 +4234,11 @@ export function classifyShellAuthzOps(command: string): AuthzClassifiedOp[] {
       found.add("settings");
     }
   }
-  if (hasGhApiPath(tokens, "/issues")) found.add("issue_mutation");
+  if (isCloseShapedIssueWrite(tokens, cmd)) {
+    found.add("unknown");
+  } else if (hasGhApiPath(tokens, "/issues")) {
+    found.add("issue_mutation");
+  }
   if (hasGhApiPath(tokens, "/settings")) found.add("settings");
   if (hasTestRunner(tokens)) found.add("test");
   if (hasDeploy(tokens)) found.add("deployment");

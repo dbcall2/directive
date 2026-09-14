@@ -27,6 +27,19 @@ describe("classifyShellAuthzOps (#2944)", () => {
     expect(classifyShellAuthzOps("fly deploy")).toContain("deployment");
   });
 
+  it("inverts fail-open close-shaped ops to grant-immune unknown (#4494)", () => {
+    expect(classifyShellAuthzOps("gh issue close 4494")).toContain("unknown");
+    expect(classifyShellAuthzOps("gh issue close 4494")).not.toEqual([]);
+    expect(
+      classifyShellAuthzOps(
+        "gh api repos/deftai/directive/issues/4494 --method PATCH -f state=closed",
+      ),
+    ).toContain("unknown");
+    expect(classifyShellAuthzOps("task scm:issue:close -- 4494")).toContain("unknown");
+    expect(classifyShellAuthzOps("gh issue create --title d")).toContain("issue_mutation");
+    expect(classifyShellAuthzOps("gh issue create --title d")).not.toContain("unknown");
+  });
+
   it("returns empty for unclassifiable non-product shell", () => {
     expect(classifyShellAuthzOps("git status")).toEqual([]);
     expect(classifyShellAuthzOps("")).toEqual([]);

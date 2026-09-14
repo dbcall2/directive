@@ -24,6 +24,7 @@
  */
 import { existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
+import { onePrUnit } from "@deftai/directive-core";
 import {
   AFK_TEMPLATE_NAMES,
   AUTHZ_OPERATIONS,
@@ -502,6 +503,44 @@ export function main(
           process.stdout.write(
             "  Apply: deft scope:decompose -- <parent> --draft <draft>\n" +
               "  Authorization SoT: Wave 1 grant store (.deft/authz/grants) — not session-auth.\n",
+          );
+          return 0;
+        }
+        if (args.template !== null && args.template.trim().toLowerCase() === "one-pr-unit") {
+          if (args.repo === null || args.repo.trim().length === 0) {
+            process.stderr.write("authz:grant --template one-pr-unit requires --repo owner/name\n");
+            return 2;
+          }
+          if (args.issueIds.length < 2) {
+            process.stderr.write(
+              "authz:grant --template one-pr-unit requires --issue-ids with at least two origins\n",
+            );
+            return 2;
+          }
+          const blocked = gateConfirm();
+          if (blocked !== null) return blocked;
+          if ((process.env.DEFT_ONE_PR_UNIT_APP ?? "").trim().length === 0) {
+            process.stderr.write(
+              "authz:grant --template one-pr-unit requires DEFT_ONE_PR_UNIT_APP (durable Directive App store). " +
+                "The in-process simulator is test-only and is discarded on process exit.\n",
+            );
+            return 2;
+          }
+          const claim = onePrUnit.mintOnePrUnitGrant({
+            actor: args.actor,
+            approvalRef: args.note ?? "authz:grant --template one-pr-unit",
+            rationale: args.note ?? "one-PR-unit",
+            origins: args.issueIds.map((issueId) => ({ repo: args.repo as string, issueId })),
+            repo: args.repo,
+          });
+          process.stdout.write(
+            `✓ one-PR-unit claim minted id=${claim.id} state=${claim.state} (reserved unbound)\n`,
+          );
+          process.stdout.write(
+            "  Opaque id is not a bearer. Only the App store plus the bound PR node id authorizes.\n",
+          );
+          process.stdout.write(
+            `  origins=${claim.origins.map((o: { repo: string; issueId: number }) => `${o.repo}#${o.issueId}`).join(",")}\n`,
           );
           return 0;
         }

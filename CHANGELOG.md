@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **One-PR-unit consent is an App-backed exact-set claim (#4494).** Multi-origin `Closes` needs an operator mint; `.deft/one-pr-unit` is not SoT. Dest tokens allow `contents: write` only. Merge-queue re-reads closers. Closes #4494.
+
 ### Changed
 
 ### Fixed

@@ -1,4 +1,8 @@
 import { execFileSync } from "node:child_process";
+import { extractIntentCloserSet } from "../one-pr-unit/closer-set.js";
+import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
+import { loadOnePrUnitGrant } from "../one-pr-unit/store.js";
+import { MISSING_ONE_PR_UNIT_CONSENT } from "../one-pr-unit/types.js";
 import { SUBPROCESS_MAX_BUFFER } from "../subprocess/max-buffer.js";
 import { EXIT_CONFIG_ERROR, EXIT_HITS_FOUND, EXIT_OK } from "./constants.js";
 import { findAllClosingKeywordHits, findHits, renderHit } from "./detect.js";
@@ -35,6 +39,8 @@ function emptyParsed(error: string): ParsedArgs {
     allowKnownFalsePositives: [],
     allowClose: [],
     mode: "both",
+    onePrUnit: null,
+    projectRoot: null,
     error,
   };
 }
@@ -48,6 +54,8 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   let mode: ClosingKeywordMode = "both";
   const allowKnownFalsePositives: string[] = [];
   const allowClose: string[] = [];
+  let onePrUnit: string | null = null;
+  let projectRoot: string | null = null;
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -139,6 +147,24 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
       i += 1;
     } else if (arg?.startsWith("--allow-close=")) {
       allowClose.push(arg.slice("--allow-close=".length));
+    } else if (arg === "--one-pr-unit") {
+      const value = argv[i + 1];
+      if (value === undefined) {
+        return emptyParsed("argument --one-pr-unit: expected one argument");
+      }
+      onePrUnit = value;
+      i += 1;
+    } else if (arg?.startsWith("--one-pr-unit=")) {
+      onePrUnit = arg.slice("--one-pr-unit=".length);
+    } else if (arg === "--project-root") {
+      const value = argv[i + 1];
+      if (value === undefined) {
+        return emptyParsed("argument --project-root: expected one argument");
+      }
+      projectRoot = value;
+      i += 1;
+    } else if (arg?.startsWith("--project-root=")) {
+      projectRoot = arg.slice("--project-root=".length);
     } else if (arg?.startsWith("-")) {
       return emptyParsed(`unrecognized arguments: ${arg}`);
     } else {
@@ -155,6 +181,8 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
     allowKnownFalsePositives,
     allowClose,
     mode,
+    onePrUnit,
+    projectRoot,
   };
 }
 
@@ -359,9 +387,41 @@ export function run(argv: readonly string[], options: RunOptions = {}): number {
 
   // Intent allowlist is CLI --allow-close only (#3015). Body trailers are not
   // an authorization path (Markdown example/fence false-authorization class).
+  // Live `--pr` forge reads (branch-gate / merge-gate) cannot carry that
+  // allowlist. Skip intent-fail there unless the caller passed --allow-close.
+  // FP + one-PR-unit still run. Local --body-file / --from-git-range still
+  // require --allow-close for real Closes.
   const fpFiltered = filterHits(fpHits, fpAllow);
-  const intentFiltered = filterHits(intentHits, closeAllow);
+  const intentFiltered =
+    args.pr !== null && closeAllow.size === 0 ? [] : filterHits(intentHits, closeAllow);
 
+  // FP-only is false-positive detection, not the closer-set gate. Negated
+  // "not Closes #N" must not mint a multi-origin unit. Intent/both run the gate.
+  if (runIntent) {
+    const texts: string[] = [];
+    if (bodyText !== null) {
+      texts.push(bodyText);
+    }
+    texts.push(...commitMessages);
+    const grant =
+      args.onePrUnit === null ? null : loadOnePrUnitGrant(args.projectRoot ?? ".", args.onePrUnit);
+    const repo = args.repo ?? grant?.repo ?? "unknown/unknown";
+    const closerSet = extractIntentCloserSet(texts, repo);
+    const unit = evaluateOnePrUnit({
+      closerSet,
+      grant,
+      binding: { repo: args.repo ?? grant?.repo },
+      presentedIdWithoutStore: args.onePrUnit !== null && grant === null,
+      phase: args.pr !== null ? "enforce" : "declare",
+    });
+    if (!unit.ok) {
+      process.stderr.write(`FAIL: ${unit.message}\n`);
+      if (!unit.message.includes("missing one-PR-unit consent") && closerSet.length > 1) {
+        process.stderr.write(`${MISSING_ONE_PR_UNIT_CONSENT}\n`);
+      }
+      return EXIT_HITS_FOUND;
+    }
+  }
   return emitResult(
     args.mode,
     fpFiltered,
