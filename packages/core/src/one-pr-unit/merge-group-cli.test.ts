@@ -48,3 +48,50 @@ describe("merge-group CLI entry", () => {
     expect(main(["node", "merge-group-cli.js"], { GITHUB_EVENT_PATH: path })).toBe(1);
   });
 });
+
+describe("production constituent loader", () => {
+  it("fails closed when repository full_name is missing (no silent empty pass)", () => {
+    const result = runMergeGroupCheckFromEvent({
+      action: "checks_requested",
+      merge_group: { head_sha: "abc" },
+    });
+    expect(result.conclusion).toBe("failure");
+    expect(result.summary).toMatch(/missing constituent/);
+  });
+
+  it("uses loadConstituentsFromGithub when no seam override", () => {
+    const store = new InProcessAppStore();
+    const result = runMergeGroupCheckFromEvent(
+      {
+        action: "checks_requested",
+        merge_group: { head_sha: "abc" },
+        repository: { full_name: "deftai/directive" },
+      },
+      {
+        store,
+        runGh: (cmd) => {
+          const joined = cmd.join(" ");
+          if (joined.includes("/commits/abc/pulls")) {
+            return {
+              returncode: 0,
+              stdout: JSON.stringify([{ number: 4497, node_id: "PR_1", body: "Closes #4494" }]),
+              stderr: "",
+            };
+          }
+          if (joined.includes("closingIssuesReferences")) {
+            return {
+              returncode: 0,
+              stdout: JSON.stringify({ closingIssuesReferences: [{ number: 4494 }] }),
+              stderr: "",
+            };
+          }
+          if (joined.includes("/pulls/4497/commits")) {
+            return { returncode: 0, stdout: "[]", stderr: "" };
+          }
+          return { returncode: 1, stdout: "", stderr: "unexpected" };
+        },
+      },
+    );
+    expect(result.conclusion).toBe("success");
+  });
+});
