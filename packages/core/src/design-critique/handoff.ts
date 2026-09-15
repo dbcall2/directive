@@ -1,5 +1,6 @@
 /**
- * Parent-class Handoff after unrelieved pain plus recut (#4531).
+ * Parent-class Handoff after unrelieved pain plus recut (#4531),
+ * or same-P* relieves Recut-supersedes (#4554).
  *
  * Print condition is not residualHeadingCount / Retry. open-question: is
  * Spec-path-class wrapping with classifyPosition; it is not a successor-lean
@@ -61,19 +62,52 @@ function hasUncitedPain(cites: readonly PainCite[], stop1PainIds: readonly strin
   return stop1PainIds.some((id) => !cited.has(id));
 }
 
-function hasOperativeSupersedesPriorLean(
+function operativeRelievesIds(cites: readonly PainCite[]): Set<string> {
+  return new Set(
+    cites.filter((cite) => cite.disposition === "relieves").map((cite) => cite.painId),
+  );
+}
+
+function collectSupersededSuccessorLeans(
   body: string,
   comments: readonly ThreadComment[] | undefined,
-): boolean {
-  if (comments === undefined || comments.length === 0) return false;
+): ThreadComment[] {
+  if (comments === undefined || comments.length === 0) return [];
   const byId = new Map(comments.map((comment) => [comment.id, comment]));
+  const found: ThreadComment[] = [];
   const re = new RegExp(SUPERSEDES_RE.source, "gi");
   for (const match of body.matchAll(re)) {
     if (classifyPosition(body, match.index ?? 0) !== null) continue;
     const id = Number(match[1]);
     if (!Number.isSafeInteger(id) || id <= 0) continue;
     const cited = byId.get(id);
-    if (cited !== undefined && isSuccessorLeanBody(cited.body)) return true;
+    if (cited !== undefined && isSuccessorLeanBody(cited.body)) found.push(cited);
+  }
+  return found;
+}
+
+function hasOperativeSupersedesPriorLean(
+  body: string,
+  comments: readonly ThreadComment[] | undefined,
+): boolean {
+  return collectSupersededSuccessorLeans(body, comments).length > 0;
+}
+
+function hasHarvestRelievesOverlap(
+  mapBody: string,
+  comments: readonly ThreadComment[] | undefined,
+  stop1PainIds: readonly string[],
+): boolean {
+  if (!isSuccessorLeanBody(mapBody)) return false;
+  const admitted = new Set(stop1PainIds);
+  if (admitted.size === 0) return false;
+  const current = operativeRelievesIds(scanPainCites(mapBody).cites);
+  if (current.size === 0) return false;
+  for (const prior of collectSupersededSuccessorLeans(mapBody, comments)) {
+    const priorRelieves = operativeRelievesIds(scanPainCites(prior.body).cites);
+    for (const painId of current) {
+      if (admitted.has(painId) && priorRelieves.has(painId)) return true;
+    }
   }
   return false;
 }
@@ -83,7 +117,7 @@ export type HandoffPrintInput = {
   readonly stop1PainIds: readonly string[];
   /** Cap spend does not suppress print; Handoff is parent-class. */
   readonly dualStopCapSpent?: boolean;
-  /** Thread comments used only to validate a Supersedes id as a prior successor lean. */
+  /** Thread comments: prior successor leans for Recut-supersedes and harvest overlap. */
   readonly comments?: readonly ThreadComment[];
 };
 
@@ -91,12 +125,15 @@ export type HandoffPrintVerdict = {
   readonly print: boolean;
   readonly unrelievedPain: boolean;
   readonly recutConjunct: boolean;
+  /** Same-P* operative relieves Recut-superseding a prior successor relieves map. */
+  readonly harvestRelievesOverlap: boolean;
 };
 
 /**
- * Print Handoff when the posted map has operative does-not-relieve or uncited
- * pain, plus operative Spec-path / Recut or an operative supersession of a
- * prior successor-lean id. Does not clone residualHeadingCount.
+ * Print Handoff when unrelieved pain plus recut, or when a successor map has
+ * operative relieves of the same P* as a prior successor map it Recut-supersedes.
+ * Keep dest unrelieved print and OR the harvest overlap. Does not clone
+ * residualHeadingCount. Does not scrape class tokens.
  */
 export function evaluateHandoffPrint(input: HandoffPrintInput): HandoffPrintVerdict {
   const cites = scanPainCites(input.mapBody).cites;
@@ -105,10 +142,16 @@ export function evaluateHandoffPrint(input: HandoffPrintInput): HandoffPrintVerd
   const recutConjunct =
     leanCarriesSpecPathToken(input.mapBody) ||
     hasOperativeSupersedesPriorLean(input.mapBody, input.comments);
+  const harvestRelievesOverlap = hasHarvestRelievesOverlap(
+    input.mapBody,
+    input.comments,
+    input.stop1PainIds,
+  );
   return {
-    print: unrelievedPain && recutConjunct,
+    print: (unrelievedPain && recutConjunct) || harvestRelievesOverlap,
     unrelievedPain,
     recutConjunct,
+    harvestRelievesOverlap,
   };
 }
 
