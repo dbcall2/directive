@@ -44,8 +44,22 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1512 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1526 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4529** -- rfc(swarm,grok-build): implement leaf stop-at pr-open -- `[completed]`
+- **#3626** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (ffmpeg/sox/Lisp/build dest writers plant authz + kill-switch; approved-scope mint) -- `[completed]`
+- **#4494** -- feat(swarm): make multi-origin PR batching explicit consent, not overlap inference -- `[completed]`
+- **#4541** -- Fail closed when implementation introduces semantic constraints absent from approved intent -- `[completed]`
+- **#4554** -- leftover(#4531): Handoff does not stop relieves+sharpening recut loop; constraint-brief and routing seat still dropped -- `[completed]`
+- **#3928** -- bug(telemetry): one tool_turn_denominator per session_id -- `[completed]`
+- **#4531** -- design(design-critique): unrelieved pain after recut defaults to Handoff not refutation -- `[completed]`
+- **#4542** -- bug(hooks,grok): implement spawn-not-ready must not lead with critic CLI -- `[completed]`
+- **#4446** -- feat(update): record-mode payload-root substitution so dest plans match apply -- `[completed]`
+- **#4267** -- feat(release): Phase 7 wait until all four npm siblings are in the version list -- `[completed]`
+- **#4447** -- Consumer docs use tree-correct deft verb spelling (#4447) -- `[completed]`
+- **#4445** -- feat(occupancy): live sibling-lease discriminator for primary checkout claims -- `[completed]`
+- **#4442** -- fix(design-critique): Parallel fingerprint working default is unsound -- `[completed]`
+- **#4495** -- [framework-gap] Add a fail-closed observable UI scope contract for fields-only changes -- `[completed]`
 - **#4218** -- AppSec: 2 HIGH + 1 MEDIUM @ 0c9f6ab -- Bash &>| / &>>| redirect harvest evasion; residual writers (mysqldump/PlistBuddy/virt-copy-out/gobjcopy/dcfldd/ibtool) plant authz + kill-switch; approved-scope mint -- `[completed]`
 - **#4204** -- AppSec: 2 HIGH + 1 MEDIUM @ 20f9dfbd -- Bash >| / >>| / >& redirect harvest evasion; residual writers (nmap/masscan/emacs/restic/editcap/mergecap) plant authz + kill-switch; approved-scope mint -- `[completed]`
 - **#4161** -- AppSec: 2 HIGH + 1 MEDIUM @ ed58d30f — post-#4005/#4041 UAT Shell residuals (jmod/kotlinc-js/amm/etcdctl/consul/bolt/Deno.copyFileSync/salt-call/inspec/mkfile/screencapture plant authz + kill-switch; approved-scope mint) -- `[completed]`
@@ -57,18 +71,4 @@ _Showing 25 of 1512 completed scopes (newest first). Full history: lifecycle `co
 - **#4219** -- rfc(harness): classify launcher-family CLI argv as process-only skip; dest-absent fail-closed -- `[completed]`
 - **#4398** -- bug(release): npm-publish post-publish fixture fails immediately after successful sibling publishes -- `[completed]`
 - **#4315** -- fix(design-critique): land process_only on Grok PreToolUse tool_input for general-purpose plus dest cwd -- `[completed]`
-- **#4431** -- bug(session,occupancy): payload-identity hosts mint a UUID lease on claim, so session:start/ready locks the session out of its own worktree -- `[completed]`
-- **#4238** -- bug(literal-ac): a task_statement AC command cannot be promoted by any documented route — commandDedupeKey and promotionKey disagree -- `[completed]`
-- **#4386** -- design(gates): gate integrity is a hard rule with no detector — an agent cleared a red coverage floor by editing the coverage lane, and nothing objected -- `[completed]`
-- **#3593** -- AppSec: 3 HIGH + 2 MEDIUM — MCP write routing around UAT; post-#3545 residual writers (raku/graalpy/crystal/…); migrate agents-header symlink (#2912 miss) -- `[completed]`
-- **#3953** -- AppSec: 3 HIGH + 4 MEDIUM @ 41331dea - assist-scratch in-tree leaf diversion (#3186 residual); assertWriteTargetSafe parent-dir gap; prd/spec + changelog-cli unguarded writes; post-#3545 UAT Shell residuals (llvm-ar/emar/xorriso/virt-sparsify/lxc/incus/sam/f2py/termrec) -- `[completed]`
-- **#4199** -- AppSec: 4 HIGH + 1 MEDIUM @ 346848c1 -- UAT **/evidence/** grant bypass; Cursor EditNotebook skip; Shell >! harvest evasion; residual writers (nomad/puppet/swift/yarn/makeself/guix/dasel/yq) plant authz + kill-switch; approved-scope mint -- `[completed]`
-- **#4409** -- bug(occupancy): recut — isolate --host argv remainder; deposit stays on #4443 -- `[completed]`
-- **#4410** -- Occupancy deny text must not print the steal recipe to the refused party -- `[completed]`
-- **#4411** -- Housekeeping recut: xbrief stderr + no-active normal, occupancy --help names deft help, drop inner recovery append -- `[completed]`
-- **#4387** -- design(gates): the SLizard merge gate cannot parse SLizard's own verdict, prints severities it did not read from the verdict, and blocks forever on a request_changes with zero findings -- `[completed]`
-- **#4388** -- design(slizard): the json-syntax and TypeScript compilation checks ignore the project tsconfig, so a JSONC tsconfig and a deliberately excluded test file are reported as P1 defects -- `[completed]`
-- **#4430** -- bug(agents,bootstrap): both managed AGENTS.md recovery pointers dangle on a fresh clone; #2273 guard misses agents-entry.md -- `[completed]`
-- **#4412** -- bug(init,session,scope): fresh consumer onboarding -- init skips the promised package.json pin, then each printed recovery leads to the next denial (6 failures to write one file) -- `[completed]`
-- **#4422** -- bug(gates,scope): a completed scope's record cannot be corrected -- every printed recovery is inapplicable and scope:undo is never mentioned -- `[completed]`
 

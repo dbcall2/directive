@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.119.0] - 2026-09-15
+
+> Intent-constraint and observable-scope gates, Grok through-merge stop-at: pr-open, requirements posture, one-PR-unit consent, and design-critique Handoff.
+
+### Added
+
 - **Intent-constraint snapshot (#4541).** `verify:intent-constraint` compares throw/reject/abort sites and new numeric consts in changed production .ts/.js to a merge-base pin. Numeric-const peel is a while-unwrap until NumericLiteral. Human mint for value/unit/rejectionScope; same-PR rewrite fails. Tests and in-scope paths are not authority. Do not name the verb semantic-*. Closes #4541.
 - **Requirements session posture for tracked docs (#4444).** `session:start --posture=requirements` claims occupancy, skips gated ritual and story xBRIEF, and allows docs/specs/proposed xBRIEF writes after occupancy (`write-requirements-ready`). Token is `requirements`; `docs` stays assist. Unknown posture tokens refuse. Instruction-surface paths stay denied. Occupancy engine stays on #4445. Closes #4444.
 - **Observable UI scope contract (#4495).** `verify:observable-scope` compares a human-minted `plan["x-directive/observableChange"]` record to a versioned parse5 (`.html`, scripting disabled) plus project-resolved TypeScript parse-only (`.jsx`/`.tsx`) oracle. Runtime deps add parse5 and entities only. Merge-base baseline; same-PR rewrite fails; opt-in surfaces; unset policy plus matching UI files is inferred-defaults-warn (exit 0 with findings). Runtime default-tab is #4503. Closes #4495.
@@ -6161,7 +6173,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.118.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.119.0...HEAD
+[0.119.0]: https://github.com/deftai/directive/compare/v0.118.1...v0.119.0
 [0.118.1]: https://github.com/deftai/directive/compare/v0.118.0...v0.118.1
 [0.118.0]: https://github.com/deftai/directive/compare/v0.117.0...v0.118.0
 [0.117.0]: https://github.com/deftai/directive/compare/v0.116.0...v0.117.0
