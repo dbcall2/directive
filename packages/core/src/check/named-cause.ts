@@ -81,7 +81,7 @@ export function extractGateCause(
   }
   const combined = `${stderr}\n${stdout}`
     .split(/\r?\n/)
-    .map((l) => l.trim())
+    .map((l) => stripAnsi(l).trim())
     .filter((l) => l.length > 0);
   const useful: string[] = [];
   for (const line of combined) {
@@ -100,6 +100,17 @@ export function extractGateCause(
     if (toolFailure !== undefined) {
       return sanitizeCauseLine(toolFailure);
     }
+  }
+  // Prefer vitest summaries over earlier `FAIL:` CLI path prints (#4506).
+  // `Tests N failed` wins when present; else `FAIL` + whitespace + test file.
+  // Colon `FAIL:` path prints are not vitest-shaped.
+  const testsFailed = useful.find((line) => /^Tests\s+\d+\s+failed/.test(line));
+  if (testsFailed !== undefined) {
+    return sanitizeCauseLine(testsFailed);
+  }
+  const vitestFailFile = useful.find((line) => /^FAIL\s+\S+\.(test|spec)\./.test(line));
+  if (vitestFailFile !== undefined) {
+    return sanitizeCauseLine(vitestFailFile);
   }
   const failureSignal = useful.find((line) => /\bFAIL\b/.test(line) || /\bTests?\b/.test(line));
   if (failureSignal !== undefined) {
@@ -128,6 +139,24 @@ function isGoTaskWrapperNoise(line: string): boolean {
   }
   if (/^(if |elif |else$|fi$|then$)/.test(line)) return true;
   return false;
+}
+
+/** Strip CSI/SGR so vitest color still matches preferred summaries (#4506). */
+function stripAnsi(line: string): string {
+  let out = "";
+  for (let i = 0; i < line.length; i += 1) {
+    if (line.charCodeAt(i) !== 27 || line[i + 1] !== "[") {
+      out += line[i];
+      continue;
+    }
+    i += 2;
+    while (i < line.length) {
+      const code = line.charCodeAt(i);
+      if (code >= 64 && code <= 126) break;
+      i += 1;
+    }
+  }
+  return out;
 }
 
 function looksLikeEnvLeak(line: string): boolean {
