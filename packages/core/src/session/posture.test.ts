@@ -1,11 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import {
+  clearPersistedSessionPosture,
   DEFAULT_POSTURE,
   detectMutationIntent,
+  isRequirementsPosture,
+  overlayTrustedSessionPosture,
+  parseSessionPostureToken,
   parseStructuredHandoff,
+  persistTrustedSessionPosture,
   readOnlyPostureMessage,
+  readPersistedSessionPosture,
   resolveSessionPosture,
   ritualStateIsPostureAuthority,
+  sessionPosturePath,
 } from "./posture.js";
 
 describe("session posture (#2180)", () => {
@@ -99,5 +109,63 @@ Next: commit the staged fix and open PR.
   it("readOnlyPostureMessage documents diagnostic-only contract", () => {
     expect(readOnlyPostureMessage("gated")).toContain("read-only posture");
     expect(readOnlyPostureMessage("gated")).toContain("diagnostic-only");
+  });
+
+  it("parses requirements and assist aliases and refuses unknown tokens (#4444)", () => {
+    expect(parseSessionPostureToken("requirements").token).toBe("requirements");
+    expect(parseSessionPostureToken("docs").token).toBe("assist");
+    expect(parseSessionPostureToken("requirement").error).toContain(
+      "unknown session posture token",
+    );
+    expect(parseSessionPostureToken("requirement").error).toContain("closed set");
+    expect(isRequirementsPosture({ DEFT_SESSION_POSTURE: "requirements" })).toBe(true);
+    expect(isRequirementsPosture({ DEFT_SESSION_POSTURE: "docs" })).toBe(false);
+    expect(resolveSessionPosture({ envPosture: "requirements" })).toBe("requirements");
+  });
+});
+
+describe("trusted session posture file (#4444)", () => {
+  const temps: string[] = [];
+  afterEach(() => {
+    for (const t of temps) rmSync(t, { recursive: true, force: true });
+    temps.length = 0;
+  });
+  it("persists requirements and overlays when env is unset", () => {
+    const root = mkdtempSync(join(tmpdir(), "posture-file-"));
+    temps.push(root);
+    persistTrustedSessionPosture(root, "requirements", "owner-a");
+    expect(readPersistedSessionPosture(root)).toBe("requirements");
+    const over = overlayTrustedSessionPosture(root, {}, "owner-a");
+    expect(over.DEFT_SESSION_POSTURE).toBe("requirements");
+    expect(overlayTrustedSessionPosture(root, {}, "owner-b").DEFT_SESSION_POSTURE).toBeUndefined();
+    expect(overlayTrustedSessionPosture(root, {}).DEFT_SESSION_POSTURE).toBeUndefined();
+  });
+  it("lets env win over the persisted file", () => {
+    const root = mkdtempSync(join(tmpdir(), "posture-env-"));
+    temps.push(root);
+    persistTrustedSessionPosture(root, "requirements", "owner-a");
+    const over = overlayTrustedSessionPosture(root, { DEFT_SESSION_POSTURE: "assist" }, "owner-a");
+    expect(over.DEFT_SESSION_POSTURE).toBe("assist");
+  });
+  it("clears the persisted file", () => {
+    const root = mkdtempSync(join(tmpdir(), "posture-clear-"));
+    temps.push(root);
+    persistTrustedSessionPosture(root, "requirements", "owner-a");
+    clearPersistedSessionPosture(root);
+    expect(readPersistedSessionPosture(root)).toBeNull();
+  });
+  it("treats a missing overlay as already clear", () => {
+    const root = mkdtempSync(join(tmpdir(), "posture-clear-missing-"));
+    temps.push(root);
+    mkdirSync(join(root, ".deft"), { recursive: true });
+    expect(() => clearPersistedSessionPosture(root)).not.toThrow();
+    expect(readPersistedSessionPosture(root)).toBeNull();
+  });
+  it("surfaces a real overlay remove failure", () => {
+    const root = mkdtempSync(join(tmpdir(), "posture-clear-fail-"));
+    temps.push(root);
+    mkdirSync(sessionPosturePath(root), { recursive: true });
+    expect(() => clearPersistedSessionPosture(root)).toThrow();
+    expect(existsSync(sessionPosturePath(root))).toBe(true);
   });
 });

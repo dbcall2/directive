@@ -99,6 +99,7 @@ import {
   type OccupancyDecision,
   type OccupancyIdentityProvenance,
   type PrimaryClaimException,
+  releaseOccupancy,
   resolveOccupancySessionClaim,
 } from "./occupancy.js";
 import {
@@ -107,6 +108,11 @@ import {
   resolveSessionCompact,
   runOrientationCompression,
 } from "./orientation-compression.js";
+import {
+  clearPersistedSessionPosture,
+  persistTrustedSessionPosture,
+  REQUIREMENTS_OVERLAY_CLEAR_FAILED_PREFIX,
+} from "./posture.js";
 import { emitSessionStartProcessCost, formatSessionStartCeremonyCostLine } from "./process-cost.js";
 import {
   probeSessionReleaseAvailability,
@@ -128,13 +134,18 @@ import {
   toolchainPreflightToDict,
 } from "./toolchain-preflight.js";
 
-export const SESSION_POSTURES = ["read-only", "mutation"] as const;
+export const SESSION_POSTURES = ["read-only", "mutation", "requirements"] as const;
 export type SessionPosture = (typeof SESSION_POSTURES)[number];
 export const READ_ONLY_POSTURE: SessionPosture = "read-only";
 export const MUTATION_POSTURE: SessionPosture = "mutation";
+export const REQUIREMENTS_POSTURE: SessionPosture = "requirements";
 export const READ_ONLY_ALIGNMENT_MESSAGE = "Deft Directive active -- AGENTS.md loaded.";
 export const READ_ONLY_RESULT_MESSAGE =
   "read-only session posture (alignment only; no ritual-state write)";
+export const REQUIREMENTS_RESULT_MESSAGE =
+  "requirements session posture (occupancy claimed; gated ritual and story-start skipped)";
+export const REQUIREMENTS_POSTURE_EXPORT_LINE =
+  "Wrote .deft/session-posture.json for PreToolUse (trusted session:start producer). Set DEFT_SESSION_POSTURE=requirements when the hook process can inherit env.";
 
 /** Cold (full) vs re-arm (clock/HEAD refresh) ceremony tiers (#2992). */
 export const SESSION_CEREMONY_TIERS = ["cold", "rearm"] as const;
@@ -282,6 +293,9 @@ export interface SessionStartOptions {
   /** Claim-time occupancy identity provenance (#4431). */
   readonly identityProvenance?: OccupancyIdentityProvenance;
   readonly applyOccupancy?: (projectRoot: string, input: ApplyOccupancyInput) => OccupancyDecision;
+  readonly persistSessionPosture?: typeof persistTrustedSessionPosture;
+  readonly clearSessionPosture?: typeof clearPersistedSessionPosture;
+  readonly releaseOccupancy?: typeof releaseOccupancy;
   readonly runTriageWelcome?: (
     projectRoot: string,
     options: { writeHistory: boolean; now: Date; output: (line: string) => void },
@@ -999,6 +1013,104 @@ function runReadOnlySessionStart(
   return { code: 0, payload: resultPayload, lines };
 }
 
+function clearRequirementsOverlayAfterReady(
+  projectRoot: string,
+  options: SessionStartOptions,
+): string | null {
+  try {
+    (options.clearSessionPosture ?? clearPersistedSessionPosture)(projectRoot);
+    return null;
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return REQUIREMENTS_OVERLAY_CLEAR_FAILED_PREFIX + ": " + detail;
+  }
+}
+
+function runRequirementsSessionStart(
+  projectRoot: string,
+  options: SessionStartOptions,
+  instant: Date,
+  environment: EnvironmentContext,
+): SessionStartResult {
+  const claim = resolveOccupancySessionClaim({
+    sessionId: options.sessionId,
+    env: options.env,
+    newSessionId: options.newSessionId,
+  });
+  if (claim.status === "refuse-mint") {
+    return {
+      code: 1,
+      payload: {
+        ready: false,
+        exit_code: 1,
+        posture: REQUIREMENTS_POSTURE,
+        environment: environmentContextToDict(environment),
+        message: claim.message,
+      },
+      lines: claim.message.split("\n"),
+    };
+  }
+  options = { ...options, identityProvenance: claim.provenance };
+  const persisted = persistOccupancyOrDeny(
+    projectRoot,
+    options,
+    claim.sessionId,
+    instant,
+    environment,
+  );
+  if ("payload" in persisted) {
+    return { ...persisted, payload: { ...persisted.payload, posture: REQUIREMENTS_POSTURE } };
+  }
+  const base = runReadOnlySessionStart(projectRoot, options, instant, environment);
+  try {
+    (options.persistSessionPosture ?? persistTrustedSessionPosture)(
+      projectRoot,
+      REQUIREMENTS_POSTURE,
+      persisted.sessionId,
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    let recovery = message;
+    if (persisted.action === "claimed" || persisted.action === "stolen") {
+      try {
+        const released = (options.releaseOccupancy ?? releaseOccupancy)(projectRoot, {
+          sessionId: persisted.sessionId,
+          env: options.env,
+          now: instant,
+        });
+        if (released.code !== 0) {
+          recovery = `${message}; occupancy rollback failed: ${released.message}`;
+        }
+      } catch (releaseErr) {
+        const detail = releaseErr instanceof Error ? releaseErr.message : String(releaseErr);
+        recovery = `${message}; occupancy rollback failed: ${detail}`;
+      }
+    }
+    return {
+      code: 1,
+      payload: {
+        ready: false,
+        exit_code: 1,
+        posture: REQUIREMENTS_POSTURE,
+        environment: environmentContextToDict(environment),
+        message: recovery,
+      },
+      lines: [recovery],
+    };
+  }
+  const lines = [...base.lines, persisted.message, REQUIREMENTS_POSTURE_EXPORT_LINE];
+  return {
+    code: persisted.code === 0 ? 0 : persisted.code,
+    payload: {
+      ...base.payload,
+      posture: REQUIREMENTS_POSTURE,
+      occupancy: occupancyReport(persisted),
+      message: REQUIREMENTS_RESULT_MESSAGE,
+    },
+    lines,
+  };
+}
+
 function runSessionRearm(
   projectRoot: string,
   options: SessionStartOptions,
@@ -1216,7 +1328,17 @@ function runSessionRearm(
   const failed = Object.entries(quickSteps)
     .filter(([, step]) => !step.ok && !step.deferred_reason)
     .map(([name]) => name);
-  const code = failed.length > 0 ? 1 : 0;
+  let code = failed.length > 0 ? 1 : 0;
+  if (code === 0) {
+    // Clear only after mutation readiness. A failed upgrade must not revoke
+    // the occupant's live requirements overlay. A failed clear must not
+    // report ready while the overlay remains.
+    const overlayErr = clearRequirementsOverlayAfterReady(projectRoot, options);
+    if (overlayErr !== null) {
+      code = 2;
+      lines.push(overlayErr);
+    }
+  }
 
   // #3117: bind live deposit generation into session context on re-arm (host-agnostic).
   let freshnessBind: Record<string, unknown> | null = null;
@@ -1402,6 +1524,9 @@ export function runSessionStart(
 
   if (posture === READ_ONLY_POSTURE) {
     return runReadOnlySessionStart(projectRoot, options, instant, environment);
+  }
+  if (posture === REQUIREMENTS_POSTURE) {
+    return runRequirementsSessionStart(projectRoot, options, instant, environment);
   }
 
   // #3611: resolve once per mutation invocation. Every occupancy evaluation,
@@ -1976,7 +2101,17 @@ export function runSessionStart(
   // verify_tools is recorded on quick_steps; failure makes ready=false.
   // #3282: toolchain preflight degraded mode does NOT flip ready=false by itself —
   // agents still proceed with a named skip report at check time.
-  const code = failed.length > 0 ? 1 : 0;
+  let code = failed.length > 0 ? 1 : 0;
+  if (code === 0) {
+    // Clear only after mutation readiness. A failed upgrade must not revoke
+    // the occupant's live requirements overlay. A failed clear must not
+    // report ready while the overlay remains.
+    const overlayErr = clearRequirementsOverlayAfterReady(projectRoot, options);
+    if (overlayErr !== null) {
+      code = 2;
+      lines.push(overlayErr);
+    }
+  }
   const totalMs = elapsedMs(overallStarted);
 
   // #3282 / #3286: event-driven run-summary (dial + preflight + orientation call
