@@ -62,6 +62,24 @@ const EVIDENCE_KIND_SET = new Set<string>(ACCEPTANCE_EVIDENCE_KINDS);
 const DISPOSITION_SET = new Set<string>(ACCEPTANCE_DISPOSITIONS);
 const STRICT_AXIS_SET = new Set<string>(STRICT_ACCEPTANCE_AXES);
 
+/**
+ * kind:uat write-time pointer shape (#4563).
+ *
+ * Assumptions: pointer is a path/symbol token string (no NLP). Probe artifacts live
+ * under repo-root uat-evidence/** after POSIX-separator normalize.
+ * Guarantees: .. / absolute paths are not probes (no collapse-then-prefix);
+ * test/spec and path#Symbol stay denied even under uat-evidence/; camelCase
+ * and PR/CHANGELOG substrings in probe filenames are allowed.
+ * Non-goals: completed-tracked re-audit; uatVerified as independent evidence;
+ * human-origin on kind:uat recorded_by.
+ */
+const UAT_TEST_SPEC_POINTER = /\.test\.|\.spec\./i;
+const UAT_EVIDENCE_ROOT = "uat-evidence";
+
+export const UAT_POINTER_SHAPE_REMEDIATION =
+  "evidence kind mismatch: kind 'uat' with a test/source pointer — point at a UAT probe " +
+  "artifact (uat-evidence/**), or relabel 'test' (#4563)";
+
 /** Item statuses that still represent unfinished acceptance work (#2862 / #3240). */
 const NON_TERMINAL_ITEM_STATUSES = new Set(["pending", "proposed", "running"]);
 
@@ -109,6 +127,43 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function posixPointer(pointer: string): string {
+  return pointer.trim().replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+/**
+ * Contained uat-evidence/** probe path: first segment must be the root after
+ * dropping . and empty parts. .. and absolute paths fail closed (no collapse).
+ */
+function isContainedUatEvidencePath(p: string): boolean {
+  if (p.startsWith("/") || /^[A-Za-z]:\//.test(p)) {
+    return false;
+  }
+  const out: string[] = [];
+  for (const part of p.split("/")) {
+    if (part === "" || part === ".") {
+      continue;
+    }
+    if (part === "..") {
+      return false;
+    }
+    out.push(part);
+  }
+  return out.length >= 2 && out[0] === UAT_EVIDENCE_ROOT;
+}
+
+/**
+ * Fail-closed kind:uat pointer shape at write (#4563).
+ * Positive allow: contained uat-evidence/**. Replay deny: test/spec, hash symbol.
+ * Source / PR / CHANGELOG pointers fail the allow (they are not under uat-evidence).
+ * Does not read uatVerified. Does not require human-origin on recorded_by.
+ */
+function uatPointerShapeError(pointer: string): string | null {
+  const p = posixPointer(pointer);
+  const denied = p.includes("#") || UAT_TEST_SPEC_POINTER.test(p) || !isContainedUatEvidencePath(p);
+  return denied ? UAT_POINTER_SHAPE_REMEDIATION : null;
 }
 
 export function isAcceptanceEvidenceKind(value: unknown): value is AcceptanceEvidenceKind {
@@ -238,6 +293,12 @@ function parseEvidence(raw: unknown):
   }
   if (!isNonEmptyString(obj.recorded_by)) {
     return { ok: false, message: "evidence.recorded_by is required" };
+  }
+  if (kindRaw === "uat") {
+    const shape = uatPointerShapeError(obj.pointer.trim());
+    if (shape !== null) {
+      return { ok: false, message: shape };
+    }
   }
   return {
     ok: true,
