@@ -1,0 +1,130 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF for GitHub issue #4529. Bound contract is successor lean 5668412344 + synthesis 5668619924 + verified-claims 5668614763.",
+    "updated": "2026-09-15T12:21:44Z"
+  },
+  "plan": {
+    "id": "4529-grok-stop-at-pr-open",
+    "title": "rfc(swarm,grok-build): implement leaf stop-at pr-open",
+    "status": "completed",
+    "narratives": {
+      "Description": "On Grok through-merge, implement is stop-at: pr-open. Phase 6 owns squash-merge and leftover.",
+      "Origin": "https://github.com/deftai/directive/issues/4529 bound by comments 5668412344, 5668614763, 5668619924.",
+      "Overview": "Amend #3032 pin and DONE reservation. Do not harvest drive-to continuation as partner.",
+      "Labels": "rfc,swarm,process,agent-experience,design"
+    },
+    "items": [
+      {
+        "title": "Grok through-merge implement stop-at: pr-open",
+        "status": "completed",
+        "effort": "M",
+        "x-directive/evidence": {
+          "kind": "review",
+          "pointer": "https://github.com/deftai/directive/pull/4549 content/skills/deft-directive-swarm Phase 0/3/host-grok-build stop-at: pr-open HEAD f26b2b196 Greptile 5/5",
+          "recorded_at": "2026-09-15T11:07:20Z",
+          "recorded_by": "parent Phase 6 closeout after Greptile 5/5 on f26b2b196"
+        },
+        "completed": "2026-09-15T12:21:44Z"
+      },
+      {
+        "title": "Phase 6 finalize-cohort sole leftover owner",
+        "status": "completed",
+        "effort": "M",
+        "x-directive/evidence": {
+          "kind": "review",
+          "pointer": "https://github.com/deftai/directive/pull/4549 Phase 6 pr:wait-mergeable-and-merge parent-retained; swarm:finalize-cohort leftover after merge HEAD f26b2b196",
+          "recorded_at": "2026-09-15T11:07:20Z",
+          "recorded_by": "parent Phase 6 closeout after Greptile 5/5 on f26b2b196"
+        },
+        "completed": "2026-09-15T12:21:44Z"
+      },
+      {
+        "title": "Amend #3032 pin for named partner",
+        "status": "completed",
+        "effort": "S",
+        "x-directive/evidence": {
+          "kind": "review",
+          "pointer": "https://github.com/deftai/directive/pull/4549 content/templates/agents-entry.md #3032 pin named partner HEAD f26b2b196",
+          "recorded_at": "2026-09-15T11:07:20Z",
+          "recorded_by": "parent Phase 6 closeout after Greptile 5/5 on f26b2b196"
+        },
+        "completed": "2026-09-15T12:21:44Z"
+      },
+      {
+        "title": "CHANGELOG [Unreleased] #4529",
+        "status": "completed",
+        "effort": "S",
+        "x-directive/evidence": {
+          "kind": "review",
+          "pointer": "https://github.com/deftai/directive/pull/4549 CHANGELOG [Unreleased] #4529 HEAD f26b2b196",
+          "recorded_at": "2026-09-15T11:07:20Z",
+          "recorded_by": "parent Phase 6 closeout after Greptile 5/5 on f26b2b196"
+        },
+        "completed": "2026-09-15T12:21:44Z"
+      }
+    ],
+    "tags": [
+      "rfc",
+      "swarm",
+      "process",
+      "agent-experience",
+      "design"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/4529",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #4529"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "clauses are the AC",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "Grok through-merge implement leaf is stop-at: pr-open",
+          "artifact_path": "content/skills/deft-directive-swarm",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "Phase 6 finalize-cohort is sole squash-merge and leftover owner",
+          "artifact_path": "content/skills/deft-directive-swarm",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "Do not harvest Grok drive-to: merge-ready continuation as named partner",
+          "artifact_path": "content/templates/agents-entry.md",
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found"
+    },
+    "updated": "2026-09-15T12:21:44Z",
+    "metadata": {
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "content/skills/deft-directive-swarm/SKILL.md",
+          "content/skills/deft-directive-swarm/references/core-phase-0.md",
+          "content/skills/deft-directive-swarm/references/core-phase-5-6.md",
+          "content/templates/agents-entry.md",
+          "content/templates/agent-prompt-preamble.md",
+          "content/skills/deft-directive-review-cycle/SKILL.md",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": []
+      }
+    }
+  }
+}

@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4494; recut Bound-remedy from lean 5658220623",
-    "updated": "2026-09-14T02:56:43Z"
+    "updated": "2026-09-15T12:21:44Z"
   },
   "plan": {
     "title": "feat(swarm): make multi-origin PR batching explicit consent, not overlap inference",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "feat(swarm): make multi-origin PR batching explicit consent, not overlap inference",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/4494",
@@ -15,68 +15,81 @@
     "items": [
       {
         "title": "Distinct one-PR-unit identity (not #1378 fields, not --allow-close, not implement-list parsing). Cite evidenceSatisfiesImplementationApproval.",
-        "status": "proposed",
-        "effort": "M"
+        "status": "completed",
+        "effort": "M",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Mint UX: deft authz:grant / refuseNonInteractiveMint calls the App. Opaque id is not bearer. App store + bound PR node id authorizes.",
-        "status": "proposed",
-        "effort": "M"
+        "status": "completed",
+        "effort": "M",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Canonical App private transactional store with unique active membership on every (repo, issue-id). One transaction reserves the whole set or mint fails. Overlapping mints abort. Disk .deft/one-pr-unit is not SoT.",
-        "status": "proposed",
-        "effort": "L"
+        "status": "completed",
+        "effort": "L",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "PR-unit bind: reserved unbound at mint; irreversible bind to GitHub PR node id on first App interaction.",
-        "status": "proposed",
-        "effort": "M"
+        "status": "completed",
+        "effort": "M",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Dest-placed worker App installation token allowlist contents:write issues:none; verify returned permissions; omit permissions is refuse. No operator gh store, App private key, PR/Checks/Administration/ruleset-bypass in worker context.",
-        "status": "proposed",
-        "effort": "M"
+        "status": "completed",
+        "effort": "M",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Merge queue merge_group.checks_requested App check: live closingIssuesReferences + PR body + commit messages, explicit grammar not CLOSING_KEYWORD_RE, compare to bound reservation. Single-origin no-grant still gets passing App check.",
-        "status": "proposed",
-        "effort": "L"
+        "status": "completed",
+        "effort": "L",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Automated close only through App after consume. Invert fail-open close classifier. No DEFT_ALLOW escape. restCloseIssue / umbrella reconcile present claimed set.",
-        "status": "proposed",
-        "effort": "M"
+        "status": "completed",
+        "effort": "M",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "UI/raw API closes are recovery-class (closed_by != App), not prevention.",
-        "status": "proposed",
-        "effort": "S"
+        "status": "completed",
+        "effort": "S",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Consumption states reserved→bound→member-complete*→spent|revoked|expired; 24h expiry; minting-operator revoker; unmerged PR revokes.",
-        "status": "proposed",
-        "effort": "M"
+        "status": "completed",
+        "effort": "M",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Direct default-branch Closes without merge-group check is recovery-class. allowDirectCommitsToMaster does not bypass reservation.",
-        "status": "proposed",
-        "effort": "S"
+        "status": "completed",
+        "effort": "S",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Implement-class solo |cohort_vbriefs|>1 without grant is config error. Overlap serializes N PRs.",
-        "status": "proposed",
-        "effort": "M"
+        "status": "completed",
+        "effort": "M",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Docs: serialize-N-PRs; github.md close-surface; PR template is docs not the gate. Live Greptile-only ruleset is an implementation gap.",
-        "status": "proposed",
-        "effort": "S"
+        "status": "completed",
+        "effort": "S",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Tests: unique membership race; token permission allowlist; merge_group census body+commit messages; classifier invert; #1378 not consent; comma-list grammar; --allow-close is not consent.",
-        "status": "proposed",
-        "effort": "M"
+        "status": "completed",
+        "effort": "M",
+        "completed": "2026-09-15T12:21:44Z"
       }
     ],
     "references": [
@@ -239,6 +252,6 @@
       }
     },
     "id": "github.issue.5442381318",
-    "updated": "2026-09-14T02:56:43Z"
+    "updated": "2026-09-15T12:21:44Z"
   }
 }

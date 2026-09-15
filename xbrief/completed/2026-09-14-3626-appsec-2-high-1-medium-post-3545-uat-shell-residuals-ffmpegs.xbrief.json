@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #3626",
-    "updated": "2026-09-14T15:06:08Z"
+    "updated": "2026-09-15T12:21:44Z"
   },
   "plan": {
     "title": "AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (ffmpeg/sox/Lisp/build dest writers plant authz + kill-switch; approved-scope mint)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (ffmpeg/sox/Lisp/build dest writers plant authz + kill-switch; approved-scope mint)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/3626",
@@ -16,23 +16,28 @@
     "items": [
       {
         "title": "Harvest attached emit-flags such as `-femit-bin=` as dest-of-write. Protected dests emit `unknown` (grant-immune under UAT), matching #4188 / #3764. Do not recut to `settings`.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Harvest Windows slash dest forms `/out:`, `/output=`, `/p:OutputPath=` (and the same flags with `-` prefix if they appear) as dest-of-write. Protected dests emit `unknown`.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Keep `/tmp` and ordinary non-protected dests empty. Named bins stay regression fixtures.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Do not bind named-bin membership or hasWriteShape fail-closed as the class close.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-15T12:21:44Z"
       },
       {
         "title": "Finding 4 / CHANGELOG containment is not this issue.",
-        "status": "proposed"
+        "status": "completed",
+        "completed": "2026-09-15T12:21:44Z"
       }
     ],
     "tags": [
@@ -112,6 +117,6 @@
       }
     },
     "id": "github.issue.5224701664",
-    "updated": "2026-09-14T15:06:08Z"
+    "updated": "2026-09-15T12:21:44Z"
   }
 }
