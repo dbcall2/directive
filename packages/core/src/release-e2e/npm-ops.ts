@@ -1,13 +1,15 @@
 import {
+  type Dirent,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { delimiter, isAbsolute, join, relative, resolve } from "node:path";
 import { isPass2CommitPath } from "../init-deposit/hygiene.js";
 import { defaultWhich } from "../release/spawn.js";
 import type { SpawnResult } from "../release/types.js";
@@ -395,6 +397,20 @@ export const PASS1_ABSENCE_LOCK_PATHS = [
   "xbrief/plan.xbrief.json",
 ] as const;
 
+export const PASS2_XBRIEF_LIFECYCLE_FOLDERS = [
+  "proposed",
+  "pending",
+  "active",
+  "completed",
+  "cancelled",
+] as const;
+
+function seedXbriefLifecycleFolders(consumerDir: string): void {
+  for (const folder of PASS2_XBRIEF_LIFECYCLE_FOLDERS) {
+    mkdirSync(join(consumerDir, "xbrief", folder), { recursive: true });
+  }
+}
+
 const DIRECTIVE_SCOPE_PREFIX = "@deftai/directive";
 
 function isInsideWorkspace(cleanDir: string, workspaceRoot: string): boolean {
@@ -509,13 +525,22 @@ function fixtureGit(consumerDir: string, args: readonly string[], seams: E2ESeam
   });
 }
 
-function parsePorcelainPaths(stdout: string): string[] {
+const PORCELAIN_RENAME_MARK = " -> ";
+
+function porcelainRenameDest(line: string): string | null {
+  const at = line.indexOf(PORCELAIN_RENAME_MARK);
+  if (at === -1) return null;
+  const dest = line.slice(at + PORCELAIN_RENAME_MARK.length).trim();
+  return dest.length > 0 ? dest : null;
+}
+
+export function parsePorcelainPaths(stdout: string): string[] {
   const paths: string[] = [];
   for (const line of stdout.split(/\r?\n/)) {
     if (line.trim().length === 0) continue;
-    const renamed = line.match(/->\s+(.+)$/);
-    if (renamed?.[1] !== undefined) {
-      paths.push(renamed[1].trim());
+    const renamed = porcelainRenameDest(line);
+    if (renamed !== null) {
+      paths.push(renamed);
       continue;
     }
     paths.push(line.slice(3).trim());
@@ -523,8 +548,94 @@ function parsePorcelainPaths(stdout: string): string[] {
   return paths.filter((path) => path.length > 0);
 }
 
+function isFsDirectory(abs: string): boolean {
+  try {
+    return statSync(abs).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return value.slice(0, end);
+}
+
+function stripPorcelainQuotes(value: string): string {
+  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+/**
+ * Pass 2 porcelain expansion (#4507).
+ * Assumptions: default `git status --porcelain` may collapse untracked trees
+ * to directory lines; those lines must expand to inspectable entries.
+ * Guarantees: every porcelain directory is fully inspected, or the prefix /
+ * non-regular entry is preserved so isPass2CommitPath can fail closed.
+ * Non-goals: git -uall; prefixing whole host dirs; treating skipped entries as files.
+ */
+function listFilesUnderPrefix(consumerDir: string, posixPrefix: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string, prefix: string): void => {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      out.push(prefix.endsWith("/") ? prefix : `${prefix}/`);
+      return;
+    }
+    for (const entry of entries) {
+      const rel = prefix.length > 0 ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        walk(join(dir, entry.name), rel);
+      } else {
+        out.push(rel);
+      }
+    }
+  };
+  walk(join(consumerDir, posixPrefix), posixPrefix);
+  return out;
+}
+
+/** Expand default porcelain directory collapse into files (no git -uall). */
+export function expandPass2PorcelainPaths(consumerDir: string, paths: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const raw of paths) {
+    const normalized = stripPorcelainQuotes(raw.replace(/\\/g, "/"));
+    const abs = join(consumerDir, normalized);
+    const looksLikeDir = normalized.endsWith("/") || isFsDirectory(abs);
+    if (!looksLikeDir) {
+      out.push(normalized);
+      continue;
+    }
+    const prefix = stripTrailingSlashes(normalized);
+    const files = prefix.length > 0 ? listFilesUnderPrefix(consumerDir, prefix) : [];
+    if (files.length === 0) {
+      out.push(normalized.endsWith("/") ? normalized : `${normalized}/`);
+      continue;
+    }
+    out.push(...files);
+  }
+  return out;
+}
+
+function pass2UpdateEnv(cleanDir: string, consumerDir: string): NodeJS.ProcessEnv {
+  const bin = join(cleanDir, "node_modules", ".bin");
+  return {
+    ...process.env,
+    DEFT_PROJECT_ROOT: consumerDir,
+    PATH: `${bin}${delimiter}${process.env.PATH ?? ""}`,
+  };
+}
+
 function seedInitializedPass1Consumer(consumerDir: string, version: string): void {
   mkdirSync(join(consumerDir, "xbrief"), { recursive: true });
+  seedXbriefLifecycleFolders(consumerDir);
   mkdirSync(join(consumerDir, ".deft", "core"), { recursive: true });
   const xbriefBody = `${JSON.stringify({ plan: { narratives: { Overview: "ok" } } })}\n`;
   for (const rel of PASS1_ABSENCE_LOCK_PATHS) {
@@ -582,7 +693,7 @@ function runPass2UpdateFromInstalledCli(
   const spawn = seams.spawnText ?? spawnCommandText;
   const update = spawn(process.execPath, [cliBin, ...PASS2_UPDATE_ARGV], {
     cwd: consumerDir,
-    env: { ...process.env, DEFT_PROJECT_ROOT: consumerDir },
+    env: pass2UpdateEnv(cleanDir, consumerDir),
     timeoutMs: NPM_INSTALL_RUN_TIMEOUT_SECONDS * 1000,
   });
   if (update.status !== 0) {
@@ -597,7 +708,11 @@ function runPass2UpdateFromInstalledCli(
       [],
     ];
   }
-  return [true, "Pass 2 directive update OK", parsePorcelainPaths(porcelain.stdout ?? "")];
+  return [
+    true,
+    "Pass 2 directive update OK",
+    expandPass2PorcelainPaths(consumerDir, parsePorcelainPaths(porcelain.stdout ?? "")),
+  ];
 }
 
 const REGISTRY_PROPAGATION_MARKERS = [
@@ -780,7 +895,9 @@ export function runPostPublishTwoPassFixture(
       return [false, String(exc)];
     }
   }
-  const illegal = changed.filter((path) => !isPass2CommitPath(path));
+  const illegal = expandPass2PorcelainPaths(consumerDir, changed).filter(
+    (path) => !isPass2CommitPath(path),
+  );
   if (illegal.length > 0) {
     return [false, `Pass 2 commit-set includes non-installer-managed paths: ${illegal.join(", ")}`];
   }
@@ -799,6 +916,7 @@ export function invokePostPublishTwoPassFromReleaseWorkflow(
   const cleanDir = mkdtempSync(join(tmpdir(), "deft-4271-two-pass-"));
   const consumerDir = join(cleanDir, "consumer");
   mkdirSync(join(consumerDir, "xbrief"), { recursive: true });
+  seedXbriefLifecycleFolders(consumerDir);
   const body = `${JSON.stringify({ plan: { narratives: { Overview: "ok" } } })}\n`;
   for (const rel of PASS1_ABSENCE_LOCK_PATHS) {
     writeFileSync(join(consumerDir, rel), body, "utf8");
