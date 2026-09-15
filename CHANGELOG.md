@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Complete tracking for #4508.** After PR 4570. The #4508 xBRIEF stayed in xbrief/active/ on origin/master after squash. Moved to xbrief/completed/ via scope:complete. Does not reopen or recut that issue. Refs #2321, #3476.
+
 ### Fixed
 
 - **Post-publish Pass 2 host-root porcelain (#4507).** Default `git status --porcelain` (no `-uall`) collapses installer-written `.claude/` / `.cursor/` / `.codex/` / `.grok/` / `.github/` trees into directory lines. Expand those lines to files before `isPass2CommitPath`. Unreadable or non-regular nested entries stay fail-closed. Parse porcelain without ReDoS-prone regexes. Put the installed CLI `.bin` on PATH so Pass 2 update can find `deft-hook`. Seed lifecycle folders so classifyUpdateState is not migration-required. Keep Pass 2 fail-closed. Do not prefix whole host dirs, fold Phase 7, or widen #4398 warn-only. Closes #4507.
