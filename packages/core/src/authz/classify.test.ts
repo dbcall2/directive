@@ -2023,6 +2023,45 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
     }
   });
 
+  it("emits unknown for #3728 interpreter payload flags and unquoted protected paths", () => {
+    for (const command of [
+      "erl -eval 'file:write_file(.deft/authz/grants/evil.json, data)'",
+      "erl -noshell -eval 'file:write_file(.deft-directive-disable, data)'",
+      "escript -eval 'file:write_file(\".deft/authz/grants/evil.json\", data)'",
+      "tclsh -c 'open .deft/approved-scope/story.json w'",
+      "maxima --batch-string 'stringout(.deft/authz/grants/evil.json,1)'",
+      "gap --batch-string 'stringout(\".deft/approved-scope/story.json\",1)'",
+      "maxima -r 'stringout(\".deft/authz/grants/evil.json\",1)'",
+      "wolfram -code 'Export[.deft-directive-disable,1]'",
+      "guestfish -c 'copy-out /foo .deft/authz/grants/evil.json'",
+      "debugfs -R 'dump /path .deft/approved-scope/story.json' image",
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+    }
+  });
+
+  it("keeps ordinary #3728 interpreter payload destinations unclassifiable", () => {
+    for (const command of [
+      "erl -eval 'file:write_file(/tmp/out.json, data)'",
+      "tclsh -c 'open /tmp/out.json w'",
+      "maxima --batch-string 'stringout(/tmp/out.json,1)'",
+      "wolfram -code 'Export[/tmp/out.json,1]'",
+      "guestfish -c 'copy-out /foo /tmp/out.json'",
+      "debugfs -R 'dump /path /tmp/out.json' image",
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual([]);
+    }
+  });
+
+  it("keeps #3728 attached compiler destinations grant-immune", () => {
+    for (const command of [
+      "vbc /out:.deft/authz/grants/evil.exe source.vb",
+      "al /out:.deft-directive-disable module.netmodule",
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+    }
+  });
+
   it("leaves concatenated payload dests residual (#3764 option 1)", () => {
     expect(
       classifyShellAuthzOps('qjs -e \'std.open(".deft/" + "authz/grants/x.json","w")\''),

@@ -1,0 +1,43 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8"
+  },
+  "plan": {
+    "title": "3728-3804-unique-destination-grammar",
+    "status": "approved",
+    "narratives": {
+      "Problem": "Issues #3728 and #3804 retain protected destination grammars that classify as empty under active UAT, allowing write-shaped Shell forms to bypass the existing grant-immune unknown operation.",
+      "Change": "Extend the existing destination grammar producers so the accepted unique payload, flag, archive-operand, repository, and Windows output forms emit unknown while ordinary destinations remain unclassified.",
+      "Scope": "Implement the accepted synthesis records for #3728 and #3804 in one batch because both change the same classifier grammar and regression surface. Keep named binaries as fixtures, preserve existing unknown classifications, add focused regressions, and add one brief CHANGELOG security note.",
+      "Impact": "Expected files are packages/core/src/authz/classify.ts, packages/core/src/authz/classify.test.ts, CHANGELOG.md, the two issue scope xBRIEFs, and lifecycle metadata updated by canonical scope commands.",
+      "Risks": "Overbroad payload-token harvesting could deny read-only commands or ordinary output paths. Returning settings instead of unknown would make protected writes grantable and weaken the current UAT boundary.",
+      "Approach": "Work test first. Implement #3728 and #3804 sequentially on one branch with checkpoint validation between scopes, while sharing the same bounded grammar helpers. Require protected destinations to emit unknown or an already-stronger existing class, and require ordinary /tmp controls to remain empty.",
+      "Alternatives": "Separate branches would duplicate edits in the same classifier and tests. A named-binary catalog was rejected by both accepted design critiques because it would repeat the harvest treadmill and can weaken grant-immune unknown into grantable settings.",
+      "Dependencies": "Accepted design-critique synthesis comments 5666804796 for #3728 and 5666379072 for #3804; existing #4188/#4199/#4492 destination-visible classifier mechanisms.",
+      "BatchingRationale": "The operator explicitly requested both issues together. They alter the same classifier function and test matrix, so one branch avoids conflicting helper changes while preserving separate scope acceptance and checkpoints.",
+      "Confirmation": "David explicitly confirmed /deft:change 3728-3804-unique-destination-grammar with yes on 2026-09-16."
+    },
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3728",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3728"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3728#issuecomment-5666804796",
+        "type": "x-xbrief/github-comment",
+        "title": "Accepted #3728 design-critique synthesis"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3804",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3804"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3804#issuecomment-5666379072",
+        "type": "x-xbrief/github-comment",
+        "title": "Accepted #3804 design-critique synthesis"
+      }
+    ]
+  }
+}

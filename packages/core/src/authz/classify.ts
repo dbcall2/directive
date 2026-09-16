@@ -2393,7 +2393,16 @@ function argv0HasExistingDestGrammar(name: string): boolean {
   return false;
 }
 
-const INTERPRETER_CODE_FLAGS = new Set(["-e", "-c", "--eval", "--command"]);
+const INTERPRETER_CODE_FLAGS = new Set([
+  "-e",
+  "-c",
+  "--eval",
+  "--command",
+  "-eval",
+  "--batch-string",
+  "-code",
+  "-r",
+]);
 
 /** Quoted path-like literals inside -e/-c/eval payloads (#3593). */
 function quotedStringLiterals(payload: string): string[] {
@@ -2412,19 +2421,41 @@ function quotedStringLiterals(payload: string): string[] {
   return dests;
 }
 
+/** Bounded shell-word-like tokens inside interpreter payloads (#3728). */
+function unquotedPayloadPathTokens(payload: string): string[] {
+  return [...payload.matchAll(/[^\s()[\]{},;'"`]{1,512}/g)]
+    .map((match) => match[0])
+    .filter((token) => token.length > 0);
+}
+
+function interpreterPayloadIsProvenReadOnly(payload: string): boolean {
+  const nestedCommand = payload.replace(/^['"`]|['"`]$/g, "");
+  const [segment, ...rest] = zipStyleCommandSegments(nestedCommand);
+  return (
+    segment !== undefined &&
+    rest.length === 0 &&
+    isProvenReadOnlyArgv(segment.words, segment.execIndex)
+  );
+}
+
 /**
- * #3764 option 1: quoted path literals in -c/-e/--eval are dest-of-write
- * without a write-API / language parse. Reads and `print` of protected
- * paths in those payloads classify unknown. Concatenation stays residual.
+ * #3764 / #3728: path literals in interpreter payloads are dest-of-write
+ * without a write-API / language parse. Reads and `print` of protected paths
+ * in those payloads classify unknown. Concatenation stays residual.
  */
 function harvestInterpreterPayloadDests(words: readonly string[], execIndex: number): string[] {
   const dests: string[] = [];
   for (let i = execIndex + 1; i < words.length; i++) {
-    const flag = normalizeToken(words[i] as string);
+    const rawFlag = words[i] as string;
+    const flag = normalizeToken(rawFlag);
+    if (rawFlag.replace(/['"\\]/g, "") === "-C") continue;
     if (!INTERPRETER_CODE_FLAGS.has(flag) && flag !== "eval") continue;
     const payload = words[i + 1];
     if (payload === undefined) continue;
     dests.push(...quotedStringLiterals(payload));
+    if (!interpreterPayloadIsProvenReadOnly(payload)) {
+      dests.push(...unquotedPayloadPathTokens(payload));
+    }
   }
   return dests;
 }
