@@ -266,7 +266,7 @@ function jsxTagName(node: TS.JsxOpeningLikeElement): string {
 function jsxAttr(
   node: TS.JsxOpeningLikeElement,
   name: string,
-): { kind: "flag" | "literal" | "expr"; value?: string } | undefined {
+): { kind: "flag" | "literal" | "expr"; value?: string; ident?: string } | undefined {
   for (const attr of node.attributes.properties) {
     if (!ts.isJsxAttribute(attr)) continue;
     if (attr.name.getText() !== name) continue;
@@ -284,6 +284,7 @@ function jsxAttr(
       if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
         return { kind: "literal", value: expr.text };
       }
+      if (ts.isIdentifier(expr)) return { kind: "expr", ident: expr.text };
       return { kind: "expr" };
     }
   }
@@ -328,20 +329,102 @@ function jsxControlName(open: TS.JsxOpeningLikeElement, inner: string): string {
   );
 }
 
-function visitJsx(node: TS.Node, facts: StructureFact[]): void {
+/**
+ * Same-file const useState StringLiteral unwrap (#4586). Not the #4503 TabsTrigger recognizer.
+ * Assumptions: parse-only, same file, closed callees useState / React.useState.
+ * Guarantees: Tabs value={ident} emits tab-selected from a unique matching TabsTrigger
+ * value= literal. Colliding ident initializers or colliding trigger labels stay unresolvable
+ * (last-wins is not a lexical scope walk). Non-Tabs value= does not mint a selection.
+ * Non-goals: #4503 recognizer, defaultValue, import-follow, same-both-sides, always-fail
+ * on a controlled value= expression, executing useState, walking setTab.
+ */
+function isUseStateCallee(expr: TS.Expression): boolean {
+  if (ts.isIdentifier(expr)) return expr.text === "useState";
+  if (
+    ts.isPropertyAccessExpression(expr) &&
+    expr.questionDotToken === undefined &&
+    ts.isIdentifier(expr.expression) &&
+    expr.expression.text === "React" &&
+    expr.name.text === "useState"
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function collectUseStateBinding(
+  decl: TS.VariableDeclaration,
+  bindings: Map<string, string>,
+  ambiguous: Set<string>,
+): void {
+  if (!ts.isVariableDeclarationList(decl.parent)) return;
+  if ((decl.parent.flags & ts.NodeFlags.Const) === 0) return;
+  if (decl.initializer === undefined || !ts.isCallExpression(decl.initializer)) return;
+  if (!isUseStateCallee(decl.initializer.expression)) return;
+  const arg0 = decl.initializer.arguments[0];
+  if (arg0 === undefined || !ts.isStringLiteral(arg0)) return;
+  if (!ts.isArrayBindingPattern(decl.name)) return;
+  const first = decl.name.elements[0];
+  if (first === undefined || ts.isOmittedExpression(first)) return;
+  if (first.dotDotDotToken !== undefined) return;
+  if (!ts.isIdentifier(first.name)) return;
+  const name = first.name.text;
+  if (ambiguous.has(name)) return;
+  const existing = bindings.get(name);
+  if (existing !== undefined && existing !== arg0.text) {
+    bindings.delete(name);
+    ambiguous.add(name);
+    return;
+  }
+  bindings.set(name, arg0.text);
+}
+
+function collectUseStateBindings(root: TS.Node): Map<string, string> {
+  const bindings = new Map<string, string>();
+  const ambiguous = new Set<string>();
+  const walk = (node: TS.Node): void => {
+    if (ts.isVariableDeclaration(node)) collectUseStateBinding(node, bindings, ambiguous);
+    ts.forEachChild(node, walk);
+  };
+  walk(root);
+  return bindings;
+}
+
+interface ControlledTabUnwrap {
+  readonly bindings: ReadonlyMap<string, string>;
+  readonly triggerLabels: Map<string, string>;
+  readonly ambiguousTriggerValues: Set<string>;
+  readonly valueIdents: string[];
+}
+
+function emitUnwrappedTabSelected(facts: StructureFact[], unwrap: ControlledTabUnwrap): void {
+  const seen = new Set<string>();
+  for (const ident of unwrap.valueIdents) {
+    if (seen.has(ident)) continue;
+    seen.add(ident);
+    const lit = unwrap.bindings.get(ident);
+    if (lit === undefined) continue;
+    const label = unwrap.triggerLabels.get(lit);
+    if (label === undefined || label.length === 0) continue;
+    pushFact(facts, fact("tab-selected", `tab-selected:${label}`));
+  }
+}
+
+function visitJsx(node: TS.Node, facts: StructureFact[], unwrap: ControlledTabUnwrap): void {
   if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
     const open = ts.isJsxSelfClosingElement(node) ? node : node;
     const parent = ts.isJsxOpeningElement(node) ? node.parent : undefined;
     const inner = parent !== undefined && ts.isJsxElement(parent) ? jsxInnerText(parent) : "";
-    collectJsxFacts(open, inner, facts);
+    collectJsxFacts(open, inner, facts, unwrap);
   }
-  ts.forEachChild(node, (child) => visitJsx(child, facts));
+  ts.forEachChild(node, (child) => visitJsx(child, facts, unwrap));
 }
 
 function collectJsxFacts(
   open: TS.JsxOpeningLikeElement,
   inner: string,
   facts: StructureFact[],
+  unwrap: ControlledTabUnwrap,
 ): void {
   const tag = jsxTagName(open);
   const lower = tag.toLowerCase();
@@ -380,6 +463,33 @@ function collectJsxFacts(
     if (text.length > 0) {
       pushFact(facts, fact("tab", `tab:${text}`));
       if (jsxSelected(open)) pushFact(facts, fact("tab-selected", `tab-selected:${text}`));
+    }
+  }
+
+  if (tag === "TabsTrigger") {
+    const triggerValue = jsxAttr(open, "value");
+    if (
+      triggerValue?.kind === "literal" &&
+      triggerValue.value !== undefined &&
+      triggerValue.value.length > 0
+    ) {
+      const value = triggerValue.value;
+      const label = inner.length > 0 ? inner : value;
+      if (!unwrap.ambiguousTriggerValues.has(value)) {
+        const existing = unwrap.triggerLabels.get(value);
+        if (existing !== undefined && existing !== label) {
+          unwrap.triggerLabels.delete(value);
+          unwrap.ambiguousTriggerValues.add(value);
+        } else {
+          unwrap.triggerLabels.set(value, label);
+        }
+      }
+    }
+  }
+  if (tag === "Tabs") {
+    const controlledValue = jsxAttr(open, "value");
+    if (controlledValue?.kind === "expr" && controlledValue.ident !== undefined) {
+      unwrap.valueIdents.push(controlledValue.ident);
     }
   }
 
@@ -477,7 +587,14 @@ function extractJsxFacts(source: string, path: string, projectRoot: string): Str
       `${path}: ${String(diagnostics.length)} parse diagnostic(s); first: ${message}. The oracle does not report a partial fact list.`,
     );
   }
-  visitJsx(sf, facts);
+  const unwrap: ControlledTabUnwrap = {
+    bindings: collectUseStateBindings(sf),
+    triggerLabels: new Map(),
+    ambiguousTriggerValues: new Set(),
+    valueIdents: [],
+  };
+  visitJsx(sf, facts, unwrap);
+  emitUnwrappedTabSelected(facts, unwrap);
   return facts;
 }
 
