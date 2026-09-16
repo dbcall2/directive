@@ -2497,11 +2497,19 @@ function unquotedPayloadPathTokens(payload: string): string[] {
 function interpreterPayloadIsProvenReadOnly(payload: string): boolean {
   const nestedCommand = payload.replace(/^['"`]|['"`]$/g, "");
   const [segment, ...rest] = zipStyleCommandSegments(nestedCommand);
-  return (
-    segment !== undefined &&
-    rest.length === 0 &&
-    isProvenReadOnlyArgv(segment.words, segment.execIndex)
-  );
+  if (segment === undefined || rest.length !== 0) return false;
+
+  // An archive operand is source-only for top-level `ar x`, but extraction
+  // still writes files. It cannot prove an enclosing interpreter payload is
+  // read-only, so keep scanning that payload for protected path literals.
+  const name = argv0BareName(segment.words, segment.execIndex);
+  if (name !== null && isArStyleArchiveBin(name)) {
+    const rawMode = segment.words[segment.execIndex + 1];
+    const literalMode = rawMode === undefined ? null : zipShellWordLiteral(rawMode);
+    if (literalMode?.replace(/^-/, "").includes("x")) return false;
+  }
+
+  return isProvenReadOnlyArgv(segment.words, segment.execIndex);
 }
 
 /**
@@ -2632,15 +2640,14 @@ function firstArchiveOperandDest(words: readonly string[], execIndex: number): s
   return dest !== null && dest.length > 0 ? dest : null;
 }
 
-/** Borg create options whose values precede the unique archive positional. */
-const BORG_CREATE_VALUE_OPTIONS = new Set([
-  "-e",
+/** Borg create long options whose values precede the unique archive positional. */
+const BORG_CREATE_LONG_VALUE_OPTIONS = new Set([
   "--exclude",
   "--exclude-from",
   "--pattern",
   "--patterns-from",
   "--exclude-if-present",
-  "-c",
+  "--checkpoint-interval",
   "--compression",
   "--comment",
   "--timestamp",
@@ -2665,6 +2672,34 @@ const BORG_CREATE_VALUE_OPTIONS = new Set([
   "--other-repo",
 ]);
 
+/** Borg short options that consume an attached or following value. */
+const BORG_CREATE_SHORT_VALUE_OPTIONS = new Set(["e", "c", "C"]);
+
+/**
+ * Whether a Borg short-option token consumes the following argv word.
+ *
+ * Python argparse accepts clusters such as `-ne PATTERN` and attached values
+ * such as `-nePATTERN`. The first value-taking option owns the remaining
+ * suffix; only a value-taking option at the end consumes the next word.
+ */
+function borgShortOptionConsumesNext(literal: string): boolean {
+  const cluster = literal.slice(1);
+  for (let i = 0; i < cluster.length; i++) {
+    if (!BORG_CREATE_SHORT_VALUE_OPTIONS.has(cluster[i] as string)) continue;
+    return i === cluster.length - 1;
+  }
+  return false;
+}
+
+function borgOptionConsumesNext(raw: string): boolean {
+  const literal = zipShellWordLiteral(raw);
+  if (literal === null || !literal.startsWith("-") || literal === "-") return false;
+  if (!literal.startsWith("--")) return borgShortOptionConsumesNext(literal);
+  const separator = literal.indexOf("=");
+  const option = normalizeToken(separator >= 0 ? literal.slice(0, separator) : literal);
+  return separator < 0 && BORG_CREATE_LONG_VALUE_OPTIONS.has(option);
+}
+
 /** Borg `create DEST::archive`: only the first positional is a write destination (#3804). */
 function doubleColonCreateArchiveDests(words: readonly string[], execIndex: number): string[] {
   if (argv0BareName(words, execIndex) !== "borg") return [];
@@ -2674,16 +2709,25 @@ function doubleColonCreateArchiveDests(words: readonly string[], execIndex: numb
     const raw = words[i] as string;
     const token = normalizeToken(raw);
     if (!sawCreate) {
-      if (token === "create") sawCreate = true;
+      if (!optionsEnded && token === "--") {
+        optionsEnded = true;
+        continue;
+      }
+      if (!optionsEnded && token.startsWith("-") && token !== "-") {
+        if (borgOptionConsumesNext(raw)) i += 1;
+        continue;
+      }
+      if (token !== "create") return [];
+      sawCreate = true;
+      optionsEnded = false;
       continue;
     }
     if (!optionsEnded && token === "--") {
       optionsEnded = true;
       continue;
     }
-    if (!optionsEnded && token.startsWith("-")) {
-      const option = token.split("=", 1)[0] as string;
-      if (!token.includes("=") && BORG_CREATE_VALUE_OPTIONS.has(option)) i += 1;
+    if (!optionsEnded && token.startsWith("-") && token !== "-") {
+      if (borgOptionConsumesNext(raw)) i += 1;
       continue;
     }
     if (zipShellWordHasExpansion(raw)) return [];

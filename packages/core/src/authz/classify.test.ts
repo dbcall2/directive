@@ -2230,14 +2230,43 @@ describe("unique destination grammar (#3804)", () => {
       for (const command of [
         `borg create --compression lz4 ${dest}::archive /tmp/src`,
         `borg create --compression=lz4 ${dest}::archive /tmp/src`,
+        `borg create --checkpoint-interval 60 ${dest}::archive /tmp/src`,
         `borg create --comment note ${dest}::archive /tmp/src`,
         `borg create --comment note::tag ${dest}::archive /tmp/src`,
         `borg create --exclude /tmp/cache::pattern ${dest}::archive /tmp/src`,
         `borg create --compression lz4 --comment note ${dest}::archive /tmp/src`,
+        `borg create -e /tmp/cache::pattern ${dest}::archive /tmp/src`,
+        `borg create -ne /tmp/cache::pattern ${dest}::archive /tmp/src`,
+        `borg create -ne/tmp/cache::pattern ${dest}::archive /tmp/src`,
+        `borg create -c 60 ${dest}::archive /tmp/src`,
+        `borg create -nc 60 ${dest}::archive /tmp/src`,
+        `borg create -C zlib ${dest}::archive /tmp/src`,
+        `borg create -Czlib ${dest}::archive /tmp/src`,
+        `borg create -nC zlib ${dest}::archive /tmp/src`,
+        `borg create -nCzlib ${dest}::archive /tmp/src`,
+        `borg create -ns ${dest}::archive /tmp/src`,
+        `borg -n create -ns ${dest}::archive /tmp/src`,
+        `borg --repo /tmp/repo create -ns ${dest}::archive /tmp/src`,
+        `borg -- create -ns ${dest}::archive /tmp/src`,
+        String.raw`borg create -$'\x' ${dest}::archive /tmp/src`,
         `borg create -- ${dest}::archive /tmp/src`,
       ]) {
         expect(classifyShellAuthzOps(command), command).toContain("unknown");
       }
+    }
+  });
+
+  it("does not use protected Borg option values or sources as the archive destination", () => {
+    for (const command of [
+      "borg create -e .deft/authz::pattern /tmp/repo::archive /tmp/src",
+      "borg create -ne .deft/authz::pattern /tmp/repo::archive /tmp/src",
+      "borg create -ne.deft/authz::pattern /tmp/repo::archive /tmp/src",
+      "borg create -C .deft/authz::compression /tmp/repo::archive /tmp/src",
+      "borg create -C.deft/authz::compression /tmp/repo::archive /tmp/src",
+      "borg create -ns /tmp/repo::archive .deft/authz::source",
+      "borg list .deft/authz::archive",
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual([]);
     }
   });
 
@@ -2264,6 +2293,13 @@ describe("unique destination grammar (#3804)", () => {
     ]) {
       expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
     }
+  });
+
+  it("keeps extracting ar payloads out of the interpreter read-only proof", () => {
+    expect(classifyShellAuthzOps("qjs -e 'ar x .deft/authz/grants/source.a'")).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps("qjs -e 'ar t .deft/authz/grants/source.a'")).toEqual([]);
+    expect(classifyShellAuthzOps("qjs -e 'ar p .deft/authz/grants/source.a'")).toEqual([]);
+    expect(classifyShellAuthzOps("qjs -e 'ar'")).toEqual([]);
   });
 
   it("scans the complete concat body instead of failing open after 512 bytes", () => {
