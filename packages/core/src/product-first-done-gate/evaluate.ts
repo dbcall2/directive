@@ -9,7 +9,7 @@
  */
 
 import { existsSync, readFileSync } from "node:fs";
-import { basename, isAbsolute, relative, resolve } from "node:path";
+import { resolve } from "node:path";
 import {
   emitAcceptanceStampFromPlan,
   MISSING_AMBIGUITY_ATTESTATION_CAUSE,
@@ -40,6 +40,7 @@ import {
 } from "../run-summary/index.js";
 import { maybeBankOnAcPass } from "../session/ac-pass-banking.js";
 import {
+  collisionAwareOracleRelPath,
   resolveAcReuse,
   resolveScopeIdForAcReuse,
   snapshotFromReuseFields,
@@ -286,6 +287,7 @@ function tryReuseVerifyAc(
     allowCache: mode === "auto",
     allowBank: true,
     resolvedAcceptanceContract: currentLedger,
+    oracleScopeKey: options.oracleScopeKey,
   });
   if (reuse.kind === "miss") return null;
 
@@ -369,7 +371,9 @@ function persistVerifyAcSessionCache(
 ): void {
   if (!result.ok || result.resolution !== "verified-pass") return;
   const sessionId = resolveVerifyAcSessionId(options.env, options.sessionId);
-  const resolvedScope = resolveScopeIdForAcReuse(plan, options.bankScopeId);
+  const resolvedScope = resolveScopeIdForAcReuse(plan, options.bankScopeId, {
+    oracleScopeKey: options.oracleScopeKey,
+  });
   if (sessionId === null || resolvedScope === null) return;
   const hashed = hashProductState({
     projectRoot,
@@ -983,6 +987,7 @@ function applyOracle(
       allowCache: (options.reuseMode ?? "auto") === "auto",
       allowBank: true,
       resolvedAcceptanceContract: resolvedContractForHash(plan, options),
+      oracleScopeKey: options.oracleScopeKey,
     });
     if (reuse.kind === "miss") missReason = reuse.reason;
   }
@@ -1104,12 +1109,7 @@ export function resolveOracleScopeKey(
   xbriefPath: string,
   projectRoot: string,
 ): string {
-  const abs = resolve(xbriefPath);
-  const root = resolve(projectRoot);
-  let rel = relative(root, abs).replace(/\\/g, "/");
-  if (rel.length === 0 || rel.startsWith("..") || isAbsolute(rel)) {
-    rel = basename(abs);
-  }
+  const rel = collisionAwareOracleRelPath(xbriefPath, projectRoot);
   const planId = typeof plan.id === "string" && plan.id.trim() ? plan.id.trim() : null;
   if (planId !== null) {
     return `${planId}@${rel}`;
@@ -1134,13 +1134,14 @@ function maybeAttachAcPassBank(
     return result;
   }
   const projectRoot = resolve(options.projectRoot ?? process.cwd());
-  const planId = typeof plan.id === "string" && plan.id.trim() ? plan.id.trim() : null;
-  const scopeId =
-    options.bankScopeId?.trim() ||
-    planId ||
-    basename(xbriefPath)
-      .replace(/\.xbrief\.json$/i, "")
-      .replace(/\.vbrief\.json$/i, "");
+  const scopeId = resolveScopeIdForAcReuse(plan, options.bankScopeId, {
+    oracleScopeKey: options.oracleScopeKey,
+    xbriefPath,
+    projectRoot,
+  });
+  if (scopeId === null) {
+    return result;
+  }
   try {
     const hashed = hashProductState({
       projectRoot,
