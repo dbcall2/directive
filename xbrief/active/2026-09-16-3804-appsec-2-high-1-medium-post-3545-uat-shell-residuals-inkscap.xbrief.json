@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #3804",
-    "updated": "2026-09-16T11:59:24Z"
+    "updated": "2026-09-16T13:23:41Z"
   },
   "plan": {
     "title": "AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (inkscape/babel/sass/ar/emacs --batch/pdf/makeself/restic/borg plant authz + kill-switch; approved-scope mint)",
-    "status": "pending",
+    "status": "running",
     "narratives": {
       "Description": "AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (inkscape/babel/sass/ar/emacs --batch/pdf/makeself/restic/borg plant authz + kill-switch; approved-scope mint)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/3804",
@@ -90,6 +90,6 @@
       }
     },
     "id": "github.issue.5269168657",
-    "updated": "2026-09-16T11:59:24Z"
+    "updated": "2026-09-16T13:23:41Z"
   }
 }

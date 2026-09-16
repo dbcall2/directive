@@ -2421,6 +2421,17 @@ function quotedStringLiterals(payload: string): string[] {
   return dests;
 }
 
+/** Concatenated double-quoted literals inside a bounded Lisp-style concat form (#3804). */
+function concatenatedQuotedStringLiterals(payload: string): string[] {
+  const dests: string[] = [];
+  for (const match of payload.matchAll(/\(\s*concat\b([^)]{1,512})\)/g)) {
+    const body = match[1] as string;
+    const parts = [...body.matchAll(/"([^"]{0,512})"/g)].map((part) => part[1] as string);
+    if (parts.length > 1) dests.push(parts.join(""));
+  }
+  return dests;
+}
+
 /** Bounded shell-word-like tokens inside interpreter payloads (#3728). */
 function unquotedPayloadPathTokens(payload: string): string[] {
   return [...payload.matchAll(/[^\s()[\]{},;'"`]{1,512}/g)]
@@ -2453,6 +2464,7 @@ function harvestInterpreterPayloadDests(words: readonly string[], execIndex: num
     const payload = words[i + 1];
     if (payload === undefined) continue;
     dests.push(...quotedStringLiterals(payload));
+    if (flag === "--eval") dests.push(...concatenatedQuotedStringLiterals(payload));
     if (!interpreterPayloadIsProvenReadOnly(payload)) {
       dests.push(...unquotedPayloadPathTokens(payload));
     }
@@ -2536,6 +2548,39 @@ function jarCreateArchiveDest(words: readonly string[], execIndex: number): stri
   return fileDest !== null && fileDest.length > 0 ? fileDest : null;
 }
 
+/** Compact archive mode followed by the first archive operand (#3804). */
+function firstArchiveOperandDest(words: readonly string[], execIndex: number): string | null {
+  const name = argv0BareName(words, execIndex);
+  if (name !== null && argv0HasExistingDestGrammar(name)) return null;
+  const rawMode = words[execIndex + 1];
+  const rawDest = words[execIndex + 2];
+  if (rawMode === undefined || rawDest === undefined) return null;
+  const mode = normalizeToken(rawMode).replace(/^-/, "");
+  if (!/^[abcdfilmnpqrstuv]+$/.test(mode)) return null;
+  if (!mode.includes("r") || !mode.includes("c") || !mode.includes("s")) return null;
+  const dest = zipShellWordLiteral(rawDest);
+  return dest !== null && dest.length > 0 ? dest : null;
+}
+
+/** create DEST::archive grammar where later positionals are inputs (#3804). */
+function doubleColonCreateArchiveDest(words: readonly string[], execIndex: number): string | null {
+  let sawCreate = false;
+  for (let i = execIndex + 1; i < words.length; i++) {
+    const raw = words[i] as string;
+    const token = normalizeToken(raw);
+    if (!sawCreate) {
+      if (token === "create") sawCreate = true;
+      continue;
+    }
+    if (token === "--" || token.startsWith("-")) continue;
+    const literal = zipShellWordLiteral(raw);
+    if (literal === null) return null;
+    const separator = literal.indexOf("::");
+    return separator > 0 ? literal.slice(0, separator) : null;
+  }
+  return null;
+}
+
 /**
  * Dest-flag names harvested as dest-of-write (`unknown`), not as grantable
  * `settings`. Do not merge into GENERIC_PROTECTED_EXTRA_DEST_FLAGS (#3764).
@@ -2547,6 +2592,11 @@ const UNKNOWN_DEST_OF_WRITE_FLAGS = new Set([
   "--output-path",
   "--out-dir",
   "--outdir",
+  "--export-filename",
+  "--repo",
+  "--repository",
+  "--to",
+  "--to-name",
   "-of",
   "-output",
   "--output",
@@ -2608,6 +2658,7 @@ function harvestUnknownDestFlagValues(
 ): string[] {
   const dests: string[] = [];
   const harvestDashC = argv0Name !== null && UNKNOWN_DEST_OF_WRITE_C_BINS.has(argv0Name);
+  const repoFlagIsSelector = argv0Name === "gh" || argv0Name === "gh.exe";
   for (let i = execIndex + 1; i < words.length; i++) {
     const raw = words[i] as string;
     const attached = attachedDestOfWriteValue(raw);
@@ -2624,7 +2675,9 @@ function harvestUnknownDestFlagValues(
         if (harvestDashC) dests.push(value);
         continue;
       }
-      if (UNKNOWN_DEST_OF_WRITE_FLAGS.has(normalizeToken(flagTok))) dests.push(value);
+      const flag = normalizeToken(flagTok);
+      if (flag === "--repo" && repoFlagIsSelector) continue;
+      if (UNKNOWN_DEST_OF_WRITE_FLAGS.has(flag)) dests.push(value);
       continue;
     }
     if (raw === "-C") {
@@ -2639,6 +2692,7 @@ function harvestUnknownDestFlagValues(
     }
     const flag = normalizeToken(raw);
     if (!UNKNOWN_DEST_OF_WRITE_FLAGS.has(flag)) continue;
+    if (flag === "--repo" && repoFlagIsSelector) continue;
     const next = words[i + 1];
     if (next === undefined) continue;
     const nn = normalizeToken(next);
@@ -2782,6 +2836,10 @@ function hasProtectedUnprovenReadOnlyDestOfWrite(command: string): boolean {
     if (name === null) continue;
     const jarDest = jarCreateArchiveDest(segment.words, segment.execIndex);
     if (jarDest !== null && isRelativePayloadProtectedDest(jarDest)) return true;
+    const archiveDest = firstArchiveOperandDest(segment.words, segment.execIndex);
+    if (archiveDest !== null && isRelativePayloadProtectedDest(archiveDest)) return true;
+    const doubleColonDest = doubleColonCreateArchiveDest(segment.words, segment.execIndex);
+    if (doubleColonDest !== null && isRelativePayloadProtectedDest(doubleColonDest)) return true;
     for (const dest of harvestInterpreterPayloadDests(segment.words, segment.execIndex)) {
       if (isRelativePayloadProtectedDest(dest)) return true;
     }
@@ -2834,6 +2892,10 @@ export function harvestDestsOfWriteForRealpath(command: string): string[] {
     if (!pathQualified && DEST_ASSIGNMENT_NON_WRITER_FIRST_BINS.has(name)) continue;
     const jarDest = jarCreateArchiveDest(segment.words, segment.execIndex);
     if (jarDest !== null && jarDest.length > 0) dests.push(jarDest);
+    const archiveDest = firstArchiveOperandDest(segment.words, segment.execIndex);
+    if (archiveDest !== null && archiveDest.length > 0) dests.push(archiveDest);
+    const doubleColonDest = doubleColonCreateArchiveDest(segment.words, segment.execIndex);
+    if (doubleColonDest !== null && doubleColonDest.length > 0) dests.push(doubleColonDest);
     for (const interp of harvestInterpreterPayloadDests(segment.words, segment.execIndex)) {
       dests.push(interp);
     }

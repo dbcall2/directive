@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { SHELL_TOOL_NAMES } from "../hooks/tools.js";
-import { classifyHookAuthzOps, classifyShellAuthzOps } from "./classify.js";
+import {
+  classifyHookAuthzOps,
+  classifyShellAuthzOps,
+  harvestDestsOfWriteForRealpath,
+} from "./classify.js";
 
 describe("classifyShellAuthzOps (#2944)", () => {
   it("classifies push/merge via #2711 reuse", () => {
@@ -2170,5 +2174,93 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
 
   it("keeps git status fail-open", () => {
     expect(classifyShellAuthzOps("git status")).toEqual([]);
+  });
+});
+
+describe("unique destination grammar (#3804)", () => {
+  const protectedDests = [
+    ".deft/authz/grants/evil.json",
+    ".deft/approved-scope/story.json",
+    ".deft-directive-disable",
+    ".no-deft-directive",
+  ] as const;
+
+  it("emits unknown for attached exports, archive operands, repository flags, and DEST::", () => {
+    for (const dest of protectedDests) {
+      for (const command of [
+        `inkscape in.svg --export-filename=${dest} --export-type=png`,
+        `ar rcs ${dest} foo.o`,
+        `ar -rcs ${dest} foo.o`,
+        `llvm-ar rcs ${dest} foo.o`,
+        `gcc-ar crs ${dest} foo.o`,
+        `flatpak-builder --repo=${dest} builddir manifest.json`,
+        `flatpak-builder --repo ${dest} builddir manifest.json`,
+        `borg create ${dest}::archive /tmp/src`,
+        `borg create --repo ${dest} archive /tmp/src`,
+        `restic backup --repo=${dest} /tmp/src`,
+        `restic backup --repository ${dest} /tmp/src`,
+        `abiword --to=${dest} in.doc`,
+        `abiword --to ${dest} in.doc`,
+        `abiword --to pdf --to-name=${dest} in.doc`,
+        `abiword --to pdf --to-name ${dest} in.doc`,
+      ]) {
+        expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+      }
+    }
+  });
+
+  it("emits unknown for --eval concatenations without a protected quoted literal", () => {
+    for (const command of [
+      `emacs --batch --eval '(write-file (concat ".deft" "/authz/grants/evil.json"))'`,
+      `emacs --batch --eval '(write-file (concat ".deft" "/approved-scope/story.json"))'`,
+      `emacs --batch --eval '(write-file (concat ".deft-directive" "-disable"))'`,
+      `emacs --batch --eval '(write-file (concat ".no-deft" "-directive"))'`,
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+    }
+  });
+
+  it("exposes archive and DEST:: destinations to dispatcher realpath checks", () => {
+    expect(harvestDestsOfWriteForRealpath("ar rcs .deft/authz/grants/evil.json foo.o")).toContain(
+      ".deft/authz/grants/evil.json",
+    );
+    expect(
+      harvestDestsOfWriteForRealpath(
+        "borg create .deft/approved-scope/story.json::archive /tmp/src",
+      ),
+    ).toContain(".deft/approved-scope/story.json");
+  });
+
+  it("keeps ordinary #3804 destinations and repository selectors unclassifiable", () => {
+    for (const command of [
+      "inkscape in.svg --export-filename=/tmp/out.png --export-type=png",
+      "ar rcs /tmp/archive.a foo.o",
+      "flatpak-builder --repo=/tmp/repo builddir manifest.json",
+      "borg create /tmp/repo::archive /tmp/src",
+      "restic backup --repository /tmp/repo /tmp/src",
+      "abiword --to=/tmp/out.pdf in.doc",
+      `emacs --batch --eval '(write-file (concat "/tmp" "/out.txt"))'`,
+      `emacs --batch --eval '(concat ".deft")'`,
+      'ar rcs "$DEST" foo.o',
+      'borg create "$REPO"::archive /tmp/src',
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual([]);
+    }
+    expect(classifyShellAuthzOps("cp -r .deft/authz /tmp/backup")).not.toContain("unknown");
+    expect(classifyShellAuthzOps("tar rcs .deft/authz/grants/source.json foo.o")).not.toContain(
+      "unknown",
+    );
+    expect(
+      classifyShellAuthzOps("gh --repo .deft/authz/grants/evil.json pr create --title t"),
+    ).toEqual(["pr"]);
+    expect(
+      classifyShellAuthzOps("gh --repo=.deft/authz/grants/evil.json pr create --title t"),
+    ).toEqual(["pr"]);
+  });
+
+  it("does not recut generic repository-directory settings as unknown", () => {
+    expect(
+      classifyShellAuthzOps("flatpak-builder --repodir=.deft/authz/grants build manifest"),
+    ).toEqual(["settings"]);
   });
 });
