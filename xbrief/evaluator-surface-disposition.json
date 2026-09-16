@@ -1,10 +1,10 @@
 {
   "schema": "deft.evaluator-surface-disposition.v1",
   "kind": "disclosure",
-  "issue": 4591,
+  "issue": 4586,
   "surfaces": [
-    "vitest.config.ts",
+    "packages/core/src/observable-scope/**",
     "xbrief/evaluator-surface-disposition.json"
   ],
-  "note": "Disclosure of vitest project extends:true so Windows single-file vitest inherits root aliases (#4591). Occupancy stays per-it. Hang-detector last. Not reviewed authorization under #3164."
+  "note": "Disclosure of same-file const useState StringLiteral unwrap for tab-selected (#4586). Not reviewed authorization under #3164. Does not implement the #4503 recognizer."
 }
