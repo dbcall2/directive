@@ -2279,6 +2279,10 @@ describe("unique destination grammar (#3804)", () => {
       expect(classifyShellAuthzOps(command), command).toEqual([]);
     }
     expect(classifyShellAuthzOps("cp -r .deft/authz /tmp/backup")).not.toContain("unknown");
+    expect(classifyShellAuthzOps("cat rc .deft/authz/grants/example.json")).toEqual([]);
+    expect(harvestDestsOfWriteForRealpath("cat rc .deft/authz/grants/example.json")).not.toContain(
+      ".deft/authz/grants/example.json",
+    );
     expect(classifyShellAuthzOps("tar rcs .deft/authz/grants/source.json foo.o")).not.toContain(
       "unknown",
     );

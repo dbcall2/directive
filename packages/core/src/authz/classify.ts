@@ -6,8 +6,10 @@
  * Token walks are O(n) — no nested-quantifier regex on untrusted shell input
  * (CodeQL js/polynomial-redos).
  *
- * These recognizers cover explicit destination grammars rather than arbitrary
- * embedded-language semantics. Full-input token and literal scans stay linear.
+ * Guarantee: protected destinations in explicit write grammars emit `unknown`,
+ * while proven read-only commands and ordinary destinations retain their prior
+ * classifications. Non-goals: arbitrary embedded-language semantics and argv0
+ * writer catalogs. Full-input token and literal scans stay linear.
  */
 
 import { isShellTool } from "../hooks/tools.js";
@@ -2592,6 +2594,7 @@ function jarCreateArchiveDest(words: readonly string[], execIndex: number): stri
 function firstArchiveOperandDest(words: readonly string[], execIndex: number): string | null {
   const name = argv0BareName(words, execIndex);
   if (name !== null && argv0HasExistingDestGrammar(name)) return null;
+  if (isProvenReadOnlyArgv(words, execIndex)) return null;
   const rawMode = words[execIndex + 1];
   const rawDest = words[execIndex + 2];
   if (rawMode === undefined || rawDest === undefined) return null;
