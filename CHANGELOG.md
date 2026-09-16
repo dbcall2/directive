@@ -18,6 +18,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Solo leftover-land recovery names the post-merge land sequence (#4421).** Sanctioned close-out is unreachable from the solo path, not unsatisfiable. After merge: scope:complete, git add of that verb's diff, leftover-land lifecycle PR. Do not Edit/Write completed/ or mint a completing status. Greptile: active/ on a product PR is correct; completed/ before merge stays a defect; leftover-land after merge is sanctioned. Org dashboard rules cannot be overridden by rules.md. Closes #4421.
+- **Design-critique panel ceiling (#4435).** Multi-critic rounds now include the panel deposit in the round-1 input ceiling. Closes #4435.
+
+### Fixed
+
+- **verify:session-ritual parse error on `--session-id` names the drop-flag retry (#4576).** Unrecognized `--session-id` / `--session-id=` still exits 2. Stderr appends a suffix to drop the flag and retry `deft verify:session-ritual -- --tier=gated`. Other unknown flags stay generic. Occupancy bind stays on session:start / session:ready. Closes #4576.
+
+### Removed
+
+## [0.119.1] - 2026-09-16
+
+> Design-critique leftover-pain and later-arc ingest, file_scope remint, observable-scope mint-when, Windows coverage wall, and leftover complete-tracking.
+
+### Added
+
+### Changed
+
 - **Complete tracking for #4630.** Recorded the completed xBRIEF after PR 4633. Refs #2321, #3476.
 - **Complete tracking for #4621.** Recorded the completed xBRIEF after PR 4622. Refs #2321, #3476.
 - **Complete tracking for #4578.** Recorded the completed xBRIEF after PR 4602. Refs #2321, #3476.
@@ -6214,7 +6231,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.119.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.119.1...HEAD
+[0.119.1]: https://github.com/deftai/directive/compare/v0.119.0...v0.119.1
 [0.119.0]: https://github.com/deftai/directive/compare/v0.118.1...v0.119.0
 [0.118.1]: https://github.com/deftai/directive/compare/v0.118.0...v0.118.1
 [0.118.0]: https://github.com/deftai/directive/compare/v0.117.0...v0.118.0
