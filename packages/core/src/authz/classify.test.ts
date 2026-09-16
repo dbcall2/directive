@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { SHELL_TOOL_NAMES } from "../hooks/tools.js";
-import { classifyHookAuthzOps, classifyShellAuthzOps } from "./classify.js";
+import {
+  classifyHookAuthzOps,
+  classifyShellAuthzOps,
+  harvestDestsOfWriteForRealpath,
+} from "./classify.js";
 
 describe("classifyShellAuthzOps (#2944)", () => {
   it("classifies push/merge via #2711 reuse", () => {
@@ -2023,6 +2027,50 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
     }
   });
 
+  it("emits unknown for #3728 interpreter payload flags and unquoted protected paths", () => {
+    for (const command of [
+      "erl -eval 'file:write_file(.deft/authz/grants/evil.json, data)'",
+      "erl -noshell -eval 'file:write_file(.deft-directive-disable, data)'",
+      "escript -eval 'file:write_file(\".deft/authz/grants/evil.json\", data)'",
+      "tclsh -c 'open .deft/approved-scope/story.json w'",
+      "maxima --batch-string 'stringout(.deft/authz/grants/evil.json,1)'",
+      "gap --batch-string 'stringout(\".deft/approved-scope/story.json\",1)'",
+      "maxima -r 'stringout(\".deft/authz/grants/evil.json\",1)'",
+      "wolfram -code 'Export[.deft-directive-disable,1]'",
+      "guestfish -c 'copy-out /foo .deft/authz/grants/evil.json'",
+      "debugfs -R 'dump /path .deft/approved-scope/story.json' image",
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+    }
+  });
+
+  it("scans complete protected literals longer than 512 bytes", () => {
+    const protectedDest = `.deft/authz/${"a".repeat(600)}`;
+    expect(classifyShellAuthzOps(`qjs -e 'cat "${protectedDest}"'`)).toEqual(["unknown"]);
+  });
+
+  it("keeps ordinary #3728 interpreter payload destinations unclassifiable", () => {
+    for (const command of [
+      "erl -eval 'file:write_file(/tmp/out.json, data)'",
+      "tclsh -c 'open /tmp/out.json w'",
+      "maxima --batch-string 'stringout(/tmp/out.json,1)'",
+      "wolfram -code 'Export[/tmp/out.json,1]'",
+      "guestfish -c 'copy-out /foo /tmp/out.json'",
+      "debugfs -R 'dump /path /tmp/out.json' image",
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual([]);
+    }
+  });
+
+  it("keeps #3728 attached compiler destinations grant-immune", () => {
+    for (const command of [
+      "vbc /out:.deft/authz/grants/evil.exe source.vb",
+      "al /out:.deft-directive-disable module.netmodule",
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+    }
+  });
+
   it("leaves concatenated payload dests residual (#3764 option 1)", () => {
     expect(
       classifyShellAuthzOps('qjs -e \'std.open(".deft/" + "authz/grants/x.json","w")\''),
@@ -2131,5 +2179,205 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
 
   it("keeps git status fail-open", () => {
     expect(classifyShellAuthzOps("git status")).toEqual([]);
+  });
+});
+
+describe("unique destination grammar (#3804)", () => {
+  const protectedDests = [
+    ".deft/authz/grants/evil.json",
+    ".deft/approved-scope/story.json",
+    ".deft-directive-disable",
+    ".no-deft-directive",
+  ] as const;
+
+  it("emits unknown for attached exports, archive operands, repository flags, and DEST::", () => {
+    for (const dest of protectedDests) {
+      for (const command of [
+        `inkscape in.svg --export-filename=${dest} --export-type=png`,
+        `ar rcs ${dest} foo.o`,
+        `ar r ${dest} foo.o`,
+        `ar q ${dest} foo.o`,
+        `ar d ${dest} foo.o`,
+        `ar m ${dest} foo.o`,
+        `ar s ${dest}`,
+        `ar cr ${dest} foo.o`,
+        `ar -rcs ${dest} foo.o`,
+        `ar -cr ${dest} foo.o`,
+        `llvm-ar rcs ${dest} foo.o`,
+        `llvm-ar cr ${dest} foo.o`,
+        `gcc-ar crs ${dest} foo.o`,
+        `gcc-ar rc ${dest} foo.o`,
+        `ar ra anchor.o ${dest} foo.o`,
+        `ar rN 2 ${dest} foo.o`,
+        `flatpak-builder --repo=${dest} builddir manifest.json`,
+        `flatpak-builder --repo ${dest} builddir manifest.json`,
+        `borg create ${dest}::archive /tmp/src`,
+        `borg create --repo ${dest} archive /tmp/src`,
+        `restic backup --repo=${dest} /tmp/src`,
+        `restic backup --repository ${dest} /tmp/src`,
+        `abiword --to=${dest} in.doc`,
+        `abiword --to ${dest} in.doc`,
+        `abiword --to pdf --to-name=${dest} in.doc`,
+        `abiword --to pdf --to-name ${dest} in.doc`,
+      ]) {
+        expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+      }
+    }
+  });
+
+  it("continues past Borg option operands before a protected DEST::archive", () => {
+    for (const dest of protectedDests) {
+      for (const command of [
+        `borg create --compression lz4 ${dest}::archive /tmp/src`,
+        `borg create --compression=lz4 ${dest}::archive /tmp/src`,
+        `borg create --checkpoint-interval 60 ${dest}::archive /tmp/src`,
+        `borg create --comment note ${dest}::archive /tmp/src`,
+        `borg create --comment note::tag ${dest}::archive /tmp/src`,
+        `borg create --paths-delimiter NUL ${dest}::archive /tmp/src`,
+        `borg create --files-changed ctime ${dest}::archive /tmp/src`,
+        `borg create --remote-buffer 16 ${dest}::archive /tmp/src`,
+        `borg create --exclude /tmp/cache::pattern ${dest}::archive /tmp/src`,
+        `borg create --compression lz4 --comment note ${dest}::archive /tmp/src`,
+        `borg create -e /tmp/cache::pattern ${dest}::archive /tmp/src`,
+        `borg create -ne /tmp/cache::pattern ${dest}::archive /tmp/src`,
+        `borg create -ne/tmp/cache::pattern ${dest}::archive /tmp/src`,
+        `borg create -c 60 ${dest}::archive /tmp/src`,
+        `borg create -nc 60 ${dest}::archive /tmp/src`,
+        `borg create -C zlib ${dest}::archive /tmp/src`,
+        `borg create -Czlib ${dest}::archive /tmp/src`,
+        `borg create -nC zlib ${dest}::archive /tmp/src`,
+        `borg create -nCzlib ${dest}::archive /tmp/src`,
+        `borg create -ns ${dest}::archive /tmp/src`,
+        `borg -n create -ns ${dest}::archive /tmp/src`,
+        `borg --repo /tmp/repo create -ns ${dest}::archive /tmp/src`,
+        `borg --remote-buffer 16 create -ns ${dest}::archive /tmp/src`,
+        `borg -- create -ns ${dest}::archive /tmp/src`,
+        String.raw`borg create -$'\x' ${dest}::archive /tmp/src`,
+        `borg create -- ${dest}::archive /tmp/src`,
+      ]) {
+        expect(classifyShellAuthzOps(command), command).toContain("unknown");
+      }
+    }
+  });
+
+  it("does not use protected Borg option values or sources as the archive destination", () => {
+    for (const command of [
+      "borg create -e .deft/authz::pattern /tmp/repo::archive /tmp/src",
+      "borg create -ne .deft/authz::pattern /tmp/repo::archive /tmp/src",
+      "borg create -ne.deft/authz::pattern /tmp/repo::archive /tmp/src",
+      "borg create -C .deft/authz::compression /tmp/repo::archive /tmp/src",
+      "borg create -C.deft/authz::compression /tmp/repo::archive /tmp/src",
+      "borg create --paths-delimiter .deft/authz::delimiter /tmp/repo::archive /tmp/src",
+      "borg create --files-changed .deft/authz::mode /tmp/repo::archive /tmp/src",
+      "borg create --remote-buffer .deft/authz::size /tmp/repo::archive /tmp/src",
+      "borg --remote-buffer .deft/authz::size create /tmp/repo::archive /tmp/src",
+      "borg create -ns /tmp/repo::archive .deft/authz::source",
+      "borg list .deft/authz::archive",
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual([]);
+    }
+  });
+
+  it("handles incomplete and unrecognized ar destination grammars without guessing", () => {
+    expect(classifyShellAuthzOps("ar")).toEqual([]);
+    expect(classifyShellAuthzOps("ar r")).toEqual([]);
+    expect(classifyShellAuthzOps("ar z .deft/authz/grants/evil.a")).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps("ar $MODE .deft/authz/grants/evil.a")).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps(String.raw`ar $'\x' .deft/authz/grants/evil.a`)).toEqual([
+      "unknown",
+    ]);
+  });
+
+  it("emits unknown for Emacs eval concatenations without a protected quoted literal", () => {
+    for (const command of [
+      `emacs --batch --eval '(write-file (concat ".deft" "/authz/grants/evil.json"))'`,
+      `emacs --batch -eval '(write-file (concat ".deft" "/authz/grants/evil.json"))'`,
+      `emacs --batch -e '(write-file (concat ".deft" "/authz/grants/evil.json"))'`,
+      `emacsclient --eval '(write-file (concat ".deft" "/authz/grants/evil.json"))'`,
+      `emacsclient -e '(write-file (concat ".deft" "/authz/grants/evil.json"))'`,
+      `emacs --batch --eval '(write-file (concat ".deft" "/approved-scope/story.json"))'`,
+      `emacs --batch --eval '(write-file (concat ".deft-directive" "-disable"))'`,
+      `emacs --batch --eval '(write-file (concat ".no-deft" "-directive"))'`,
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual(["unknown"]);
+    }
+  });
+
+  it("keeps extracting ar payloads out of the interpreter read-only proof", () => {
+    expect(classifyShellAuthzOps("qjs -e 'ar x .deft/authz/grants/source.a'")).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps("qjs -e 'ar t .deft/authz/grants/source.a'")).toEqual([]);
+    expect(classifyShellAuthzOps("qjs -e 'ar p .deft/authz/grants/source.a'")).toEqual([]);
+    expect(classifyShellAuthzOps("qjs -e 'ar'")).toEqual([]);
+  });
+
+  it("scans the complete concat body instead of failing open after 512 bytes", () => {
+    const padding = " ".repeat(600);
+    expect(
+      classifyShellAuthzOps(
+        `emacs --batch --eval '(write-file (concat ${padding} ".deft" "/authz/grants/evil.json"))'`,
+      ),
+    ).toEqual(["unknown"]);
+  });
+
+  it("exposes archive and DEST:: destinations to dispatcher realpath checks", () => {
+    expect(harvestDestsOfWriteForRealpath("ar cr .deft/authz/grants/evil.json foo.o")).toContain(
+      ".deft/authz/grants/evil.json",
+    );
+    expect(
+      harvestDestsOfWriteForRealpath(
+        "borg create --comment note::tag --compression lz4 .deft/approved-scope/story.json::archive /tmp/src",
+      ),
+    ).toContain(".deft/approved-scope/story.json");
+    expect(harvestDestsOfWriteForRealpath('borg create "$REPO"::archive /tmp/src')).not.toContain(
+      "$REPO",
+    );
+    expect(
+      harvestDestsOfWriteForRealpath(String.raw`borg create $'\x'::archive /tmp/src`),
+    ).not.toContain("\\x");
+  });
+
+  it("keeps ordinary #3804 destinations and repository selectors unclassifiable", () => {
+    for (const command of [
+      "inkscape in.svg --export-filename=/tmp/out.png --export-type=png",
+      "ar rcs /tmp/archive.a foo.o",
+      "ar cr /tmp/archive.a foo.o",
+      "ar t .deft/authz/grants/source.a",
+      "ar x .deft/authz/grants/source.a",
+      "flatpak-builder --repo=/tmp/repo builddir manifest.json",
+      "borg create /tmp/repo::archive /tmp/src",
+      "borg create --compression lz4 /tmp/repo::archive /tmp/src",
+      "borg create --comment note::tag /tmp/repo::archive /tmp/src",
+      "borg create /tmp/repo::archive .deft/authz::source",
+      "borg create --comment .deft/authz::note /tmp/repo::archive /tmp/src",
+      "borg create --exclude .deft/authz::pattern /tmp/repo::archive /tmp/src",
+      "restic backup --repository /tmp/repo /tmp/src",
+      "abiword --to=/tmp/out.pdf in.doc",
+      `emacs --batch --eval '(write-file (concat "/tmp" "/out.txt"))'`,
+      `emacs --batch --eval '(concat ".deft")'`,
+      'ar rcs "$DEST" foo.o',
+      'borg create "$REPO"::archive /tmp/src',
+    ]) {
+      expect(classifyShellAuthzOps(command), command).toEqual([]);
+    }
+    expect(classifyShellAuthzOps("cp -r .deft/authz /tmp/backup")).not.toContain("unknown");
+    expect(classifyShellAuthzOps("cat rc .deft/authz/grants/example.json")).toEqual([]);
+    expect(harvestDestsOfWriteForRealpath("cat rc .deft/authz/grants/example.json")).not.toContain(
+      ".deft/authz/grants/example.json",
+    );
+    expect(classifyShellAuthzOps("tar rcs .deft/authz/grants/source.json foo.o")).not.toContain(
+      "unknown",
+    );
+    expect(
+      classifyShellAuthzOps("gh --repo .deft/authz/grants/evil.json pr create --title t"),
+    ).toEqual(["pr"]);
+    expect(
+      classifyShellAuthzOps("gh --repo=.deft/authz/grants/evil.json pr create --title t"),
+    ).toEqual(["pr"]);
+  });
+
+  it("does not recut generic repository-directory settings as unknown", () => {
+    expect(
+      classifyShellAuthzOps("flatpak-builder --repodir=.deft/authz/grants build manifest"),
+    ).toEqual(["settings"]);
   });
 });

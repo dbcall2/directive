@@ -5,6 +5,11 @@
  *
  * Token walks are O(n) — no nested-quantifier regex on untrusted shell input
  * (CodeQL js/polynomial-redos).
+ *
+ * Guarantee: protected destinations in explicit write grammars emit `unknown`,
+ * while proven read-only commands and ordinary destinations retain their prior
+ * classifications. Non-goals: arbitrary embedded-language semantics and argv0
+ * writer catalogs. Full-input token and literal scans stay linear.
  */
 
 import { isShellTool } from "../hooks/tools.js";
@@ -2346,10 +2351,23 @@ function argv0BareName(words: readonly string[], execIndex: number): string | nu
   return writeBinName(literal);
 }
 
+function isArStyleArchiveBin(name: string): boolean {
+  return name === "ar" || name === "llvm-ar" || name === "gcc-ar";
+}
+
 function isProvenReadOnlyArgv(words: readonly string[], execIndex: number): boolean {
   const literal = argv0Literal(words, execIndex);
   if (literal === null || argv0IsPathQualified(literal)) return false;
   const name = writeBinName(literal);
+  if (isArStyleArchiveBin(name)) {
+    const rawMode = words[execIndex + 1];
+    if (rawMode === undefined) return false;
+    const mode = normalizeToken(rawMode).replace(/^-/, "");
+    return (
+      /^[abcdfilmnpqrstuvx]+$/.test(mode) &&
+      ![...mode].some((letter) => ARCHIVE_WRITE_OPERATIONS.has(letter))
+    );
+  }
   if (READ_ONLY_PROOF_BINS.has(name)) {
     if (name === "sort" || name === "awk" || name === "gawk" || name === "nawk") {
       return !argvHasOutputDestFlag(words, execIndex);
@@ -2393,17 +2411,21 @@ function argv0HasExistingDestGrammar(name: string): boolean {
   return false;
 }
 
-const INTERPRETER_CODE_FLAGS = new Set(["-e", "-c", "--eval", "--command"]);
+const INTERPRETER_CODE_FLAGS = new Set([
+  "-e",
+  "-c",
+  "--eval",
+  "--command",
+  "-eval",
+  "--batch-string",
+  "-code",
+  "-r",
+]);
 
 /** Quoted path-like literals inside -e/-c/eval payloads (#3593). */
 function quotedStringLiterals(payload: string): string[] {
   const dests: string[] = [];
-  for (const re of [
-    /"([^"]{1,512})"/g,
-    /'([^']{1,512})'/g,
-    /`([^`]{1,512})`/g,
-    /(?:q|qq|Q|%q|%Q)\{([^}]{1,512})\}/g,
-  ]) {
+  for (const re of [/"([^"]+)"/g, /'([^']+)'/g, /`([^`]+)`/g, /(?:q|qq|Q|%q|%Q)\{([^}]+)\}/g]) {
     for (const match of payload.matchAll(re)) {
       const inner = match[1];
       if (inner !== undefined && inner.length > 0) dests.push(inner);
@@ -2412,19 +2434,108 @@ function quotedStringLiterals(payload: string): string[] {
   return dests;
 }
 
+/** Concatenated double-quoted literals inside a Lisp-style concat form (#3804). */
+function concatenatedQuotedStringLiterals(payload: string): string[] {
+  const dests: string[] = [];
+  for (let i = 0; i < payload.length; i++) {
+    if (payload[i] !== "(") continue;
+    let cursor = i + 1;
+    while (cursor < payload.length && /\s/.test(payload[cursor] as string)) cursor++;
+    if (payload.slice(cursor, cursor + 6) !== "concat") continue;
+    cursor += 6;
+    if (cursor < payload.length && !/\s|\)/.test(payload[cursor] as string)) continue;
+
+    let depth = 1;
+    let inString = false;
+    let escaped = false;
+    let current = "";
+    const parts: string[] = [];
+    let closed = false;
+    for (; cursor < payload.length; cursor++) {
+      const ch = payload[cursor] as string;
+      if (inString) {
+        if (escaped) {
+          current += ch;
+          escaped = false;
+        } else if (ch === "\\") {
+          escaped = true;
+        } else if (ch === '"') {
+          parts.push(current);
+          current = "";
+          inString = false;
+        } else {
+          current += ch;
+        }
+        continue;
+      }
+      if (ch === '"') {
+        inString = true;
+      } else if (ch === "(") {
+        depth++;
+      } else if (ch === ")") {
+        depth--;
+        if (depth === 0) {
+          closed = true;
+          break;
+        }
+      }
+    }
+    if (!closed) return dests;
+    if (parts.length > 1) dests.push(parts.join(""));
+    i = cursor;
+  }
+  return dests;
+}
+
+/** Shell-word-like tokens inside interpreter payloads (#3728). */
+function unquotedPayloadPathTokens(payload: string): string[] {
+  return [...payload.matchAll(/[^\s()[\]{},;'"`]+/g)]
+    .map((match) => match[0])
+    .filter((token) => token.length > 0);
+}
+
+function interpreterPayloadIsProvenReadOnly(payload: string): boolean {
+  const nestedCommand = payload.replace(/^['"`]|['"`]$/g, "");
+  const [segment, ...rest] = zipStyleCommandSegments(nestedCommand);
+  if (segment === undefined || rest.length !== 0) return false;
+
+  // An archive operand is source-only for top-level `ar x`, but extraction
+  // still writes files. It cannot prove an enclosing interpreter payload is
+  // read-only, so keep scanning that payload for protected path literals.
+  const name = argv0BareName(segment.words, segment.execIndex);
+  if (name !== null && isArStyleArchiveBin(name)) {
+    const rawMode = segment.words[segment.execIndex + 1];
+    const literalMode = rawMode === undefined ? null : zipShellWordLiteral(rawMode);
+    if (literalMode?.replace(/^-/, "").includes("x")) return false;
+  }
+
+  return isProvenReadOnlyArgv(segment.words, segment.execIndex);
+}
+
 /**
- * #3764 option 1: quoted path literals in -c/-e/--eval are dest-of-write
- * without a write-API / language parse. Reads and `print` of protected
- * paths in those payloads classify unknown. Concatenation stays residual.
+ * #3764 / #3728: path literals in interpreter payloads are dest-of-write
+ * without a write-API / language parse. Reads and `print` of protected paths
+ * in those payloads classify unknown. Emacs eval forms also reconstruct Lisp
+ * `concat` literals because the individual strings need not be protected.
  */
 function harvestInterpreterPayloadDests(words: readonly string[], execIndex: number): string[] {
   const dests: string[] = [];
+  const name = argv0BareName(words, execIndex);
   for (let i = execIndex + 1; i < words.length; i++) {
-    const flag = normalizeToken(words[i] as string);
+    const rawFlag = words[i] as string;
+    const flag = normalizeToken(rawFlag);
+    if (rawFlag.replace(/['"\\]/g, "") === "-C") continue;
     if (!INTERPRETER_CODE_FLAGS.has(flag) && flag !== "eval") continue;
     const payload = words[i + 1];
     if (payload === undefined) continue;
     dests.push(...quotedStringLiterals(payload));
+    const emacsEvalFlag =
+      (name === "emacs" || name === "emacsclient") &&
+      (flag === "--eval" || flag === "-eval" || flag === "-e");
+    if (emacsEvalFlag) dests.push(...concatenatedQuotedStringLiterals(payload));
+    if (!interpreterPayloadIsProvenReadOnly(payload)) {
+      dests.push(...unquotedPayloadPathTokens(payload));
+    }
   }
   return dests;
 }
@@ -2505,6 +2616,132 @@ function jarCreateArchiveDest(words: readonly string[], execIndex: number): stri
   return fileDest !== null && fileDest.length > 0 ? fileDest : null;
 }
 
+/** `ar`-style operations that mutate the archive rather than only read or extract it. */
+const ARCHIVE_WRITE_OPERATIONS = new Set(["d", "m", "q", "r", "s"]);
+
+/** Compact archive mode followed by the first archive operand (#3804). */
+function firstArchiveOperandDest(words: readonly string[], execIndex: number): string | null {
+  const name = argv0BareName(words, execIndex);
+  if (name === null || !isArStyleArchiveBin(name) || argv0HasExistingDestGrammar(name)) return null;
+  const rawMode = words[execIndex + 1];
+  if (rawMode === undefined) return null;
+  const literalMode = zipShellWordLiteral(rawMode);
+  if (literalMode === null) return null;
+  const mode = normalizeToken(literalMode).replace(/^-/, "");
+  if (!/^[abcdfilmnpqrstuvx]+$/.test(mode)) return null;
+  if (![...mode].some((letter) => ARCHIVE_WRITE_OPERATIONS.has(letter))) return null;
+  const exactMode = literalMode.replace(/^-/, "");
+  const consumesPositionOperand = /[abi]/i.test(exactMode);
+  const consumesCountOperand = exactMode.includes("N");
+  const rawDest =
+    words[execIndex + 2 + (consumesPositionOperand ? 1 : 0) + (consumesCountOperand ? 1 : 0)];
+  if (rawDest === undefined) return null;
+  const dest = zipShellWordLiteral(rawDest);
+  return dest !== null && dest.length > 0 ? dest : null;
+}
+
+/** Borg create long options whose values precede the unique archive positional. */
+const BORG_CREATE_LONG_VALUE_OPTIONS = new Set([
+  "--exclude",
+  "--exclude-from",
+  "--pattern",
+  "--patterns-from",
+  "--exclude-if-present",
+  "--checkpoint-interval",
+  "--compression",
+  "--comment",
+  "--timestamp",
+  "--chunker-params",
+  "--files-cache",
+  "--stdin-name",
+  "--stdin-user",
+  "--stdin-group",
+  "--stdin-mode",
+  "--paths-delimiter",
+  "--filter",
+  "--files-changed",
+  "--lock-wait",
+  "--debug-topic",
+  "--debug-profile",
+  "--rsh",
+  "--remote-path",
+  "--remote-ratelimit",
+  "--remote-buffer",
+  "--upload-ratelimit",
+  "--upload-buffer",
+  "--umask",
+  "--repo",
+  "--repository",
+  "--other-repo",
+]);
+
+/** Borg short options that consume an attached or following value. */
+const BORG_CREATE_SHORT_VALUE_OPTIONS = new Set(["e", "c", "C"]);
+
+/**
+ * Whether a Borg short-option token consumes the following argv word.
+ *
+ * Python argparse accepts clusters such as `-ne PATTERN` and attached values
+ * such as `-nePATTERN`. The first value-taking option owns the remaining
+ * suffix; only a value-taking option at the end consumes the next word.
+ */
+function borgShortOptionConsumesNext(literal: string): boolean {
+  const cluster = literal.slice(1);
+  for (let i = 0; i < cluster.length; i++) {
+    if (!BORG_CREATE_SHORT_VALUE_OPTIONS.has(cluster[i] as string)) continue;
+    return i === cluster.length - 1;
+  }
+  return false;
+}
+
+function borgOptionConsumesNext(raw: string): boolean {
+  const literal = zipShellWordLiteral(raw);
+  if (literal === null || !literal.startsWith("-") || literal === "-") return false;
+  if (!literal.startsWith("--")) return borgShortOptionConsumesNext(literal);
+  const separator = literal.indexOf("=");
+  const option = normalizeToken(separator >= 0 ? literal.slice(0, separator) : literal);
+  return separator < 0 && BORG_CREATE_LONG_VALUE_OPTIONS.has(option);
+}
+
+/** Borg `create DEST::archive`: only the first positional is a write destination (#3804). */
+function doubleColonCreateArchiveDests(words: readonly string[], execIndex: number): string[] {
+  if (argv0BareName(words, execIndex) !== "borg") return [];
+  let sawCreate = false;
+  let optionsEnded = false;
+  for (let i = execIndex + 1; i < words.length; i++) {
+    const raw = words[i] as string;
+    const token = normalizeToken(raw);
+    if (!sawCreate) {
+      if (!optionsEnded && token === "--") {
+        optionsEnded = true;
+        continue;
+      }
+      if (!optionsEnded && token.startsWith("-") && token !== "-") {
+        if (borgOptionConsumesNext(raw)) i += 1;
+        continue;
+      }
+      if (token !== "create") return [];
+      sawCreate = true;
+      optionsEnded = false;
+      continue;
+    }
+    if (!optionsEnded && token === "--") {
+      optionsEnded = true;
+      continue;
+    }
+    if (!optionsEnded && token.startsWith("-") && token !== "-") {
+      if (borgOptionConsumesNext(raw)) i += 1;
+      continue;
+    }
+    if (zipShellWordHasExpansion(raw)) return [];
+    const literal = zipShellWordLiteral(raw);
+    if (literal === null) return [];
+    const separator = literal.indexOf("::");
+    return separator > 0 ? [literal.slice(0, separator)] : [];
+  }
+  return [];
+}
+
 /**
  * Dest-flag names harvested as dest-of-write (`unknown`), not as grantable
  * `settings`. Do not merge into GENERIC_PROTECTED_EXTRA_DEST_FLAGS (#3764).
@@ -2516,6 +2753,11 @@ const UNKNOWN_DEST_OF_WRITE_FLAGS = new Set([
   "--output-path",
   "--out-dir",
   "--outdir",
+  "--export-filename",
+  "--repo",
+  "--repository",
+  "--to",
+  "--to-name",
   "-of",
   "-output",
   "--output",
@@ -2577,6 +2819,7 @@ function harvestUnknownDestFlagValues(
 ): string[] {
   const dests: string[] = [];
   const harvestDashC = argv0Name !== null && UNKNOWN_DEST_OF_WRITE_C_BINS.has(argv0Name);
+  const repoFlagIsSelector = argv0Name === "gh" || argv0Name === "gh.exe";
   for (let i = execIndex + 1; i < words.length; i++) {
     const raw = words[i] as string;
     const attached = attachedDestOfWriteValue(raw);
@@ -2593,7 +2836,9 @@ function harvestUnknownDestFlagValues(
         if (harvestDashC) dests.push(value);
         continue;
       }
-      if (UNKNOWN_DEST_OF_WRITE_FLAGS.has(normalizeToken(flagTok))) dests.push(value);
+      const flag = normalizeToken(flagTok);
+      if (flag === "--repo" && repoFlagIsSelector) continue;
+      if (UNKNOWN_DEST_OF_WRITE_FLAGS.has(flag)) dests.push(value);
       continue;
     }
     if (raw === "-C") {
@@ -2608,6 +2853,7 @@ function harvestUnknownDestFlagValues(
     }
     const flag = normalizeToken(raw);
     if (!UNKNOWN_DEST_OF_WRITE_FLAGS.has(flag)) continue;
+    if (flag === "--repo" && repoFlagIsSelector) continue;
     const next = words[i + 1];
     if (next === undefined) continue;
     const nn = normalizeToken(next);
@@ -2737,6 +2983,17 @@ function hasProtectedJarCreateArchiveDest(command: string): boolean {
   return false;
 }
 
+function hasProtectedUniqueArchiveDest(command: string): boolean {
+  for (const segment of zipStyleCommandSegments(command)) {
+    const archiveDest = firstArchiveOperandDest(segment.words, segment.execIndex);
+    if (archiveDest !== null && isRelativePayloadProtectedDest(archiveDest)) return true;
+    for (const doubleColonDest of doubleColonCreateArchiveDests(segment.words, segment.execIndex)) {
+      if (isRelativePayloadProtectedDest(doubleColonDest)) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * #4188: unknown argv0 (not a write/dest catalog member, not proven read-only)
  * whose last positional dest-of-write is a payload-relative protected path.
@@ -2751,6 +3008,8 @@ function hasProtectedUnprovenReadOnlyDestOfWrite(command: string): boolean {
     if (name === null) continue;
     const jarDest = jarCreateArchiveDest(segment.words, segment.execIndex);
     if (jarDest !== null && isRelativePayloadProtectedDest(jarDest)) return true;
+    const archiveDest = firstArchiveOperandDest(segment.words, segment.execIndex);
+    if (archiveDest !== null && isRelativePayloadProtectedDest(archiveDest)) return true;
     for (const dest of harvestInterpreterPayloadDests(segment.words, segment.execIndex)) {
       if (isRelativePayloadProtectedDest(dest)) return true;
     }
@@ -2803,6 +3062,9 @@ export function harvestDestsOfWriteForRealpath(command: string): string[] {
     if (!pathQualified && DEST_ASSIGNMENT_NON_WRITER_FIRST_BINS.has(name)) continue;
     const jarDest = jarCreateArchiveDest(segment.words, segment.execIndex);
     if (jarDest !== null && jarDest.length > 0) dests.push(jarDest);
+    const archiveDest = firstArchiveOperandDest(segment.words, segment.execIndex);
+    if (archiveDest !== null && archiveDest.length > 0) dests.push(archiveDest);
+    dests.push(...doubleColonCreateArchiveDests(segment.words, segment.execIndex));
     for (const interp of harvestInterpreterPayloadDests(segment.words, segment.execIndex)) {
       dests.push(interp);
     }
@@ -4342,14 +4604,20 @@ export function classifyShellAuthzOps(command: string): AuthzClassifiedOp[] {
   // #3593: jar archive dest is dest-of-write even when `--file=` also looks
   // like a dest-flag (genericProtectedDests skips jar; keep unknown if settings
   // still landed some other way).
+  const uniqueArchiveDest = hasProtectedUniqueArchiveDest(cmd);
   const destOfWriteUnknown =
-    hasProtectedZipArchiveDestination(cmd) || hasProtectedUnprovenReadOnlyDestOfWrite(cmd);
+    uniqueArchiveDest ||
+    hasProtectedZipArchiveDestination(cmd) ||
+    hasProtectedUnprovenReadOnlyDestOfWrite(cmd);
   const attachedProtected = hasProtectedAttachedDestOfWrite(cmd);
   // #3626: attached emit-flag / slash dests stay grant-immune even when a
   // compound prefix already classified settings.
   if (
     destOfWriteUnknown &&
-    (!found.has("settings") || hasProtectedJarCreateArchiveDest(cmd) || attachedProtected)
+    (!found.has("settings") ||
+      hasProtectedJarCreateArchiveDest(cmd) ||
+      uniqueArchiveDest ||
+      attachedProtected)
   ) {
     found.add("unknown");
   }
