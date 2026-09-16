@@ -2223,6 +2223,7 @@ describe("unique destination grammar (#3804)", () => {
       for (const command of [
         `borg create --compression lz4 ${dest}::archive /tmp/src`,
         `borg create --comment note ${dest}::archive /tmp/src`,
+        `borg create --comment note::tag ${dest}::archive /tmp/src`,
         `borg create --compression lz4 --comment note ${dest}::archive /tmp/src`,
       ]) {
         expect(classifyShellAuthzOps(command), command).toContain("unknown");
@@ -2256,7 +2257,7 @@ describe("unique destination grammar (#3804)", () => {
     );
     expect(
       harvestDestsOfWriteForRealpath(
-        "borg create --compression lz4 .deft/approved-scope/story.json::archive /tmp/src",
+        "borg create --comment note::tag --compression lz4 .deft/approved-scope/story.json::archive /tmp/src",
       ),
     ).toContain(".deft/approved-scope/story.json");
   });
@@ -2269,6 +2270,7 @@ describe("unique destination grammar (#3804)", () => {
       "flatpak-builder --repo=/tmp/repo builddir manifest.json",
       "borg create /tmp/repo::archive /tmp/src",
       "borg create --compression lz4 /tmp/repo::archive /tmp/src",
+      "borg create --comment note::tag /tmp/repo::archive /tmp/src",
       "restic backup --repository /tmp/repo /tmp/src",
       "abiword --to=/tmp/out.pdf in.doc",
       `emacs --batch --eval '(write-file (concat "/tmp" "/out.txt"))'`,

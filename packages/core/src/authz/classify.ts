@@ -2605,8 +2605,9 @@ function firstArchiveOperandDest(words: readonly string[], execIndex: number): s
   return dest !== null && dest.length > 0 ? dest : null;
 }
 
-/** create DEST::archive grammar where later positionals are inputs (#3804). */
-function doubleColonCreateArchiveDest(words: readonly string[], execIndex: number): string | null {
+/** create DEST::archive candidates where later positionals are inputs (#3804). */
+function doubleColonCreateArchiveDests(words: readonly string[], execIndex: number): string[] {
+  const dests: string[] = [];
   let sawCreate = false;
   for (let i = execIndex + 1; i < words.length; i++) {
     const raw = words[i] as string;
@@ -2619,9 +2620,9 @@ function doubleColonCreateArchiveDest(words: readonly string[], execIndex: numbe
     const literal = zipShellWordLiteral(raw);
     if (literal === null) continue;
     const separator = literal.indexOf("::");
-    if (separator > 0) return literal.slice(0, separator);
+    if (separator > 0) dests.push(literal.slice(0, separator));
   }
-  return null;
+  return dests;
 }
 
 /**
@@ -2869,8 +2870,9 @@ function hasProtectedUniqueArchiveDest(command: string): boolean {
   for (const segment of zipStyleCommandSegments(command)) {
     const archiveDest = firstArchiveOperandDest(segment.words, segment.execIndex);
     if (archiveDest !== null && isRelativePayloadProtectedDest(archiveDest)) return true;
-    const doubleColonDest = doubleColonCreateArchiveDest(segment.words, segment.execIndex);
-    if (doubleColonDest !== null && isRelativePayloadProtectedDest(doubleColonDest)) return true;
+    for (const doubleColonDest of doubleColonCreateArchiveDests(segment.words, segment.execIndex)) {
+      if (isRelativePayloadProtectedDest(doubleColonDest)) return true;
+    }
   }
   return false;
 }
@@ -2891,8 +2893,6 @@ function hasProtectedUnprovenReadOnlyDestOfWrite(command: string): boolean {
     if (jarDest !== null && isRelativePayloadProtectedDest(jarDest)) return true;
     const archiveDest = firstArchiveOperandDest(segment.words, segment.execIndex);
     if (archiveDest !== null && isRelativePayloadProtectedDest(archiveDest)) return true;
-    const doubleColonDest = doubleColonCreateArchiveDest(segment.words, segment.execIndex);
-    if (doubleColonDest !== null && isRelativePayloadProtectedDest(doubleColonDest)) return true;
     for (const dest of harvestInterpreterPayloadDests(segment.words, segment.execIndex)) {
       if (isRelativePayloadProtectedDest(dest)) return true;
     }
@@ -2947,8 +2947,7 @@ export function harvestDestsOfWriteForRealpath(command: string): string[] {
     if (jarDest !== null && jarDest.length > 0) dests.push(jarDest);
     const archiveDest = firstArchiveOperandDest(segment.words, segment.execIndex);
     if (archiveDest !== null && archiveDest.length > 0) dests.push(archiveDest);
-    const doubleColonDest = doubleColonCreateArchiveDest(segment.words, segment.execIndex);
-    if (doubleColonDest !== null && doubleColonDest.length > 0) dests.push(doubleColonDest);
+    dests.push(...doubleColonCreateArchiveDests(segment.words, segment.execIndex));
     for (const interp of harvestInterpreterPayloadDests(segment.words, segment.execIndex)) {
       dests.push(interp);
     }
