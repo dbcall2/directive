@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4621",
-    "updated": "2026-09-16T13:14:46Z"
+    "updated": "2026-09-16T14:20:13Z"
   },
   "plan": {
     "title": "bug(docs): committed RULE-MAP.md is stale vs renderer — blocks v0.119.1 Step 5",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "bug(docs): committed RULE-MAP.md is stale vs renderer — blocks v0.119.1 Step 5",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/4621",
@@ -15,15 +15,33 @@
     "items": [
       {
         "title": "`task docs:rule-map:check` exits 0",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "task docs:rule-map:check (exit 0)",
+          "recorded_at": "2026-09-16T14:19:58Z",
+          "recorded_by": "agent:closeout-4622"
+        }
       },
       {
         "title": "live-repo `rule-map --check` in `rule-map.test.ts` passes",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/render/rule-map.test.ts:live-repo --check matches committed docs/RULE-MAP.md",
+          "recorded_at": "2026-09-16T14:19:58Z",
+          "recorded_by": "agent:closeout-4622"
+        }
       },
       {
         "title": "No hand-edits to `docs/RULE-MAP.md`; regenerate with `task docs:rule-map` only",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "observed_behavior",
+          "pointer": "docs/RULE-MAP.md AUTO-GENERATED banner; regenerated via task docs:rule-map only",
+          "recorded_at": "2026-09-16T14:19:58Z",
+          "recorded_by": "agent:closeout-4622"
+        }
       }
     ],
     "references": [
@@ -75,9 +93,34 @@
         "github_issue_id": 5475016830,
         "origin": "deftai/directive#4621",
         "id": "github.issue.5475016830"
-      }
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4622,
+        "prBase": null,
+        "mergeCommit": "4b670c6b4628e0d06dbc9ac494a33ef1a6a06bc8",
+        "deliveryBranch": "master",
+        "deliveryCommit": "4b670c6b4628e0d06dbc9ac494a33ef1a6a06bc8",
+        "verifiedAt": "2026-09-16T14:20:13Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:claude:v1:MDFhMGFhNGQtMjU3Ni03ZTczLTg3NzktOGRkMTYxOWUzYWQ5"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-16T14:20:13Z"
+      },
+      "completedAt": "2026-09-16T14:20:13Z",
+      "completedSessionId": "host:claude:v1:MDFhMGFhNGQtMjU3Ni03ZTczLTg3NzktOGRkMTYxOWUzYWQ5",
+      "capacityBucket": "new-capability"
     },
     "id": "github.issue.5475016830",
-    "updated": "2026-09-16T13:14:46Z"
+    "updated": "2026-09-16T14:20:13Z"
   }
 }
