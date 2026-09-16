@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+### Removed
+
+## [0.119.1] - 2026-09-16
+
+> Design-critique leftover-pain and later-arc ingest, file_scope remint, observable-scope mint-when, Windows coverage wall, and leftover complete-tracking.
+
+### Added
+
+### Changed
+
 - **Complete tracking for #4630.** Recorded the completed xBRIEF after PR 4633. Refs #2321, #3476.
 - **Complete tracking for #4621.** Recorded the completed xBRIEF after PR 4622. Refs #2321, #3476.
 - **Complete tracking for #4578.** Recorded the completed xBRIEF after PR 4602. Refs #2321, #3476.
@@ -6213,7 +6225,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.119.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.119.1...HEAD
+[0.119.1]: https://github.com/deftai/directive/compare/v0.119.0...v0.119.1
 [0.119.0]: https://github.com/deftai/directive/compare/v0.118.1...v0.119.0
 [0.118.1]: https://github.com/deftai/directive/compare/v0.118.0...v0.118.1
 [0.118.0]: https://github.com/deftai/directive/compare/v0.117.0...v0.118.0

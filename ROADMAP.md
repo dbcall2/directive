@@ -44,8 +44,26 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1526 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1544 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4630** -- bug(ts-check-lane): release Step 5 poisons vitest with DEFT_ALLOW_DESTRUCTIVE_GH_VERBS -- `[completed]`
+- **#4621** -- bug(docs): committed RULE-MAP.md is stale vs renderer — blocks v0.119.1 Step 5 -- `[completed]`
+- **#4578** -- bug(xbrief,cli): D7 commit gate rejects uppercase slug after activate; error still says .vbrief.json -- `[completed]`
+- **#4586** -- feat(observable-scope): controlled Tabs + useState default flip still silent -- `[completed]`
+- **#4587** -- design(setup,scope): intent-constraint mint still lands mid-build after setup-created scopes park in pending -- `[completed]`
+- **#4593** -- feat(design-critique): yolo leftover-pain handling (split/defer/deliver) and default Dual-stop cap 6 -- `[completed]`
+- **#4590** -- [framework-gap] evaluateCompletedArcRecord never consults isInFlightCritiqueThread on a later arc, so a thread mid-critique stays ingestable -- `[completed]`
+- **#4591** -- bugcheck: Windows ts:check-lane 20m kill is spawn-heavy coverage wall clock, not git-worktree fixtures -- `[completed]`
+- **#4588** -- design(setup,scope): observable-scope mint still lands mid-build after setup-created scopes park in pending -- `[completed]`
+- **#4589** -- design(setup,scope): file_scope expansion re-demands approved-scope mint after the operator has left -- `[completed]`
+- **#4565** -- blocked(grok-build,hooks): occupancy self-deadlock on Grok Write (FairMark 2026-09-15, residue of #4125) -- `[completed]`
+- **#4592** -- bug(design-critique): yolo auto-stamp still posts synthesis-accepted and ingest-ready when pain coverage would refuse complete -- `[completed]`
+- **#4563** -- gate(scope,verify): evidence kind is self-attested — closeout accepted kind: uat stamps pointing at unit tests and source symbols with uatVerified null (#4516); add one fail-closed pointer-shape check at scope:complete / verify:completed-tracked -- `[completed]`
+- **#4561** -- uat(hooks,security): #3764 dest-of-write leftover — run the five UAT-mode probes (dest-flag values, trailing operand, TEST_BINS skip, interpreter payload literals, payload-root scope) and record kind: uat evidence so the brief completes without a waiver -- `[completed]`
+- **#4507** -- bug(release): npm-publish post-publish fixture still fails the job after all four packages publish -- `[completed]`
+- **#4506** -- bug(check,release): DEFT_ACTIVE_SCOPE leaks into ts:check-lane and misnames Step 5 cause -- `[completed]`
+- **#4508** -- bug(lifecycle,release): reconcile apply-lifecycle-fixes moves to completed/ without a runTransition stamp -- `[completed]`
+- **#4567** -- bug(check): ts:check-lane 20m kill is git-worktree coverage wall clock, not a stuck test -- `[completed]`
 - **#4529** -- rfc(swarm,grok-build): implement leaf stop-at pr-open -- `[completed]`
 - **#3626** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (ffmpeg/sox/Lisp/build dest writers plant authz + kill-switch; approved-scope mint) -- `[completed]`
 - **#4494** -- feat(swarm): make multi-origin PR batching explicit consent, not overlap inference -- `[completed]`
@@ -53,22 +71,4 @@ _Showing 25 of 1526 completed scopes (newest first). Full history: lifecycle `co
 - **#4554** -- leftover(#4531): Handoff does not stop relieves+sharpening recut loop; constraint-brief and routing seat still dropped -- `[completed]`
 - **#3928** -- bug(telemetry): one tool_turn_denominator per session_id -- `[completed]`
 - **#4531** -- design(design-critique): unrelieved pain after recut defaults to Handoff not refutation -- `[completed]`
-- **#4542** -- bug(hooks,grok): implement spawn-not-ready must not lead with critic CLI -- `[completed]`
-- **#4446** -- feat(update): record-mode payload-root substitution so dest plans match apply -- `[completed]`
-- **#4267** -- feat(release): Phase 7 wait until all four npm siblings are in the version list -- `[completed]`
-- **#4447** -- Consumer docs use tree-correct deft verb spelling (#4447) -- `[completed]`
-- **#4445** -- feat(occupancy): live sibling-lease discriminator for primary checkout claims -- `[completed]`
-- **#4442** -- fix(design-critique): Parallel fingerprint working default is unsound -- `[completed]`
-- **#4495** -- [framework-gap] Add a fail-closed observable UI scope contract for fields-only changes -- `[completed]`
-- **#4218** -- AppSec: 2 HIGH + 1 MEDIUM @ 0c9f6ab -- Bash &>| / &>>| redirect harvest evasion; residual writers (mysqldump/PlistBuddy/virt-copy-out/gobjcopy/dcfldd/ibtool) plant authz + kill-switch; approved-scope mint -- `[completed]`
-- **#4204** -- AppSec: 2 HIGH + 1 MEDIUM @ 20f9dfbd -- Bash >| / >>| / >& redirect harvest evasion; residual writers (nmap/masscan/emacs/restic/editcap/mergecap) plant authz + kill-switch; approved-scope mint -- `[completed]`
-- **#4161** -- AppSec: 2 HIGH + 1 MEDIUM @ ed58d30f — post-#4005/#4041 UAT Shell residuals (jmod/kotlinc-js/amm/etcdctl/consul/bolt/Deno.copyFileSync/salt-call/inspec/mkfile/screencapture plant authz + kill-switch; approved-scope mint) -- `[completed]`
-- **#3918** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (babashka/janet/clisp/ecl/fasm/mcs/coreutils --coreutils-prog=cp/duckdb/gprolog/nim --eval/nfpm/midicsv/ssconvert/mpv/protoc plant authz + kill-switch; approved-scope mint) -- `[completed]`
-- **#3849** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (typst/pdflatex/latexmk/mksquashfs/hdiutil/pkgbuild/opusenc/pngcrush/rdiff-backup/unison/cxfreeze/guix/racket/swipl/odin/ldmd2/picolisp/newlisp/factor plant authz + kill-switch; approved-scope mint) -- `[completed]`
-- **#4496** -- bug(design-critique): ingest-ready must not stamp when Stop 1 warrant pain is unrelieved -- `[completed]`
-- **#4443** -- bug(session,worktree): a fresh linked worktree has no deposit (.deft/ is gitignored), so the sanctioned worktree escape fails doctor until a full directive init -- `[completed]`
-- **#4432** -- bug(design-critique): the N>=3 panel launcher tree is unreachable from a Claude Code parent, so it claims three families and can deliver one -- `[completed]`
-- **#4219** -- rfc(harness): classify launcher-family CLI argv as process-only skip; dest-absent fail-closed -- `[completed]`
-- **#4398** -- bug(release): npm-publish post-publish fixture fails immediately after successful sibling publishes -- `[completed]`
-- **#4315** -- fix(design-critique): land process_only on Grok PreToolUse tool_input for general-purpose plus dest cwd -- `[completed]`
 
