@@ -2195,6 +2195,11 @@ describe("unique destination grammar (#3804)", () => {
       for (const command of [
         `inkscape in.svg --export-filename=${dest} --export-type=png`,
         `ar rcs ${dest} foo.o`,
+        `ar r ${dest} foo.o`,
+        `ar q ${dest} foo.o`,
+        `ar d ${dest} foo.o`,
+        `ar m ${dest} foo.o`,
+        `ar s ${dest}`,
         `ar cr ${dest} foo.o`,
         `ar -rcs ${dest} foo.o`,
         `ar -cr ${dest} foo.o`,
@@ -2202,6 +2207,8 @@ describe("unique destination grammar (#3804)", () => {
         `llvm-ar cr ${dest} foo.o`,
         `gcc-ar crs ${dest} foo.o`,
         `gcc-ar rc ${dest} foo.o`,
+        `ar ra anchor.o ${dest} foo.o`,
+        `ar rN 2 ${dest} foo.o`,
         `flatpak-builder --repo=${dest} builddir manifest.json`,
         `flatpak-builder --repo ${dest} builddir manifest.json`,
         `borg create ${dest}::archive /tmp/src`,
@@ -2222,18 +2229,35 @@ describe("unique destination grammar (#3804)", () => {
     for (const dest of protectedDests) {
       for (const command of [
         `borg create --compression lz4 ${dest}::archive /tmp/src`,
+        `borg create --compression=lz4 ${dest}::archive /tmp/src`,
         `borg create --comment note ${dest}::archive /tmp/src`,
         `borg create --comment note::tag ${dest}::archive /tmp/src`,
+        `borg create --exclude /tmp/cache::pattern ${dest}::archive /tmp/src`,
         `borg create --compression lz4 --comment note ${dest}::archive /tmp/src`,
+        `borg create -- ${dest}::archive /tmp/src`,
       ]) {
         expect(classifyShellAuthzOps(command), command).toContain("unknown");
       }
     }
   });
 
-  it("emits unknown for --eval concatenations without a protected quoted literal", () => {
+  it("handles incomplete and unrecognized ar destination grammars without guessing", () => {
+    expect(classifyShellAuthzOps("ar")).toEqual([]);
+    expect(classifyShellAuthzOps("ar r")).toEqual([]);
+    expect(classifyShellAuthzOps("ar z .deft/authz/grants/evil.a")).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps("ar $MODE .deft/authz/grants/evil.a")).toEqual(["unknown"]);
+    expect(classifyShellAuthzOps(String.raw`ar $'\x' .deft/authz/grants/evil.a`)).toEqual([
+      "unknown",
+    ]);
+  });
+
+  it("emits unknown for Emacs eval concatenations without a protected quoted literal", () => {
     for (const command of [
       `emacs --batch --eval '(write-file (concat ".deft" "/authz/grants/evil.json"))'`,
+      `emacs --batch -eval '(write-file (concat ".deft" "/authz/grants/evil.json"))'`,
+      `emacs --batch -e '(write-file (concat ".deft" "/authz/grants/evil.json"))'`,
+      `emacsclient --eval '(write-file (concat ".deft" "/authz/grants/evil.json"))'`,
+      `emacsclient -e '(write-file (concat ".deft" "/authz/grants/evil.json"))'`,
       `emacs --batch --eval '(write-file (concat ".deft" "/approved-scope/story.json"))'`,
       `emacs --batch --eval '(write-file (concat ".deft-directive" "-disable"))'`,
       `emacs --batch --eval '(write-file (concat ".no-deft" "-directive"))'`,
@@ -2260,6 +2284,12 @@ describe("unique destination grammar (#3804)", () => {
         "borg create --comment note::tag --compression lz4 .deft/approved-scope/story.json::archive /tmp/src",
       ),
     ).toContain(".deft/approved-scope/story.json");
+    expect(harvestDestsOfWriteForRealpath('borg create "$REPO"::archive /tmp/src')).not.toContain(
+      "$REPO",
+    );
+    expect(
+      harvestDestsOfWriteForRealpath(String.raw`borg create $'\x'::archive /tmp/src`),
+    ).not.toContain("\\x");
   });
 
   it("keeps ordinary #3804 destinations and repository selectors unclassifiable", () => {
@@ -2267,10 +2297,15 @@ describe("unique destination grammar (#3804)", () => {
       "inkscape in.svg --export-filename=/tmp/out.png --export-type=png",
       "ar rcs /tmp/archive.a foo.o",
       "ar cr /tmp/archive.a foo.o",
+      "ar t .deft/authz/grants/source.a",
+      "ar x .deft/authz/grants/source.a",
       "flatpak-builder --repo=/tmp/repo builddir manifest.json",
       "borg create /tmp/repo::archive /tmp/src",
       "borg create --compression lz4 /tmp/repo::archive /tmp/src",
       "borg create --comment note::tag /tmp/repo::archive /tmp/src",
+      "borg create /tmp/repo::archive .deft/authz::source",
+      "borg create --comment .deft/authz::note /tmp/repo::archive /tmp/src",
+      "borg create --exclude .deft/authz::pattern /tmp/repo::archive /tmp/src",
       "restic backup --repository /tmp/repo /tmp/src",
       "abiword --to=/tmp/out.pdf in.doc",
       `emacs --batch --eval '(write-file (concat "/tmp" "/out.txt"))'`,

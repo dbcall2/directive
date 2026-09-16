@@ -2351,10 +2351,23 @@ function argv0BareName(words: readonly string[], execIndex: number): string | nu
   return writeBinName(literal);
 }
 
+function isArStyleArchiveBin(name: string): boolean {
+  return name === "ar" || name === "llvm-ar" || name === "gcc-ar";
+}
+
 function isProvenReadOnlyArgv(words: readonly string[], execIndex: number): boolean {
   const literal = argv0Literal(words, execIndex);
   if (literal === null || argv0IsPathQualified(literal)) return false;
   const name = writeBinName(literal);
+  if (isArStyleArchiveBin(name)) {
+    const rawMode = words[execIndex + 1];
+    if (rawMode === undefined) return false;
+    const mode = normalizeToken(rawMode).replace(/^-/, "");
+    return (
+      /^[abcdfilmnpqrstuvx]+$/.test(mode) &&
+      ![...mode].some((letter) => ARCHIVE_WRITE_OPERATIONS.has(letter))
+    );
+  }
   if (READ_ONLY_PROOF_BINS.has(name)) {
     if (name === "sort" || name === "awk" || name === "gawk" || name === "nawk") {
       return !argvHasOutputDestFlag(words, execIndex);
@@ -2494,10 +2507,12 @@ function interpreterPayloadIsProvenReadOnly(payload: string): boolean {
 /**
  * #3764 / #3728: path literals in interpreter payloads are dest-of-write
  * without a write-API / language parse. Reads and `print` of protected paths
- * in those payloads classify unknown. Concatenation stays residual.
+ * in those payloads classify unknown. Emacs eval forms also reconstruct Lisp
+ * `concat` literals because the individual strings need not be protected.
  */
 function harvestInterpreterPayloadDests(words: readonly string[], execIndex: number): string[] {
   const dests: string[] = [];
+  const name = argv0BareName(words, execIndex);
   for (let i = execIndex + 1; i < words.length; i++) {
     const rawFlag = words[i] as string;
     const flag = normalizeToken(rawFlag);
@@ -2506,7 +2521,10 @@ function harvestInterpreterPayloadDests(words: readonly string[], execIndex: num
     const payload = words[i + 1];
     if (payload === undefined) continue;
     dests.push(...quotedStringLiterals(payload));
-    if (flag === "--eval") dests.push(...concatenatedQuotedStringLiterals(payload));
+    const emacsEvalFlag =
+      (name === "emacs" || name === "emacsclient") &&
+      (flag === "--eval" || flag === "-eval" || flag === "-e");
+    if (emacsEvalFlag) dests.push(...concatenatedQuotedStringLiterals(payload));
     if (!interpreterPayloadIsProvenReadOnly(payload)) {
       dests.push(...unquotedPayloadPathTokens(payload));
     }
@@ -2590,25 +2608,68 @@ function jarCreateArchiveDest(words: readonly string[], execIndex: number): stri
   return fileDest !== null && fileDest.length > 0 ? fileDest : null;
 }
 
+/** `ar`-style operations that mutate the archive rather than only read or extract it. */
+const ARCHIVE_WRITE_OPERATIONS = new Set(["d", "m", "q", "r", "s"]);
+
 /** Compact archive mode followed by the first archive operand (#3804). */
 function firstArchiveOperandDest(words: readonly string[], execIndex: number): string | null {
   const name = argv0BareName(words, execIndex);
-  if (name !== null && argv0HasExistingDestGrammar(name)) return null;
-  if (isProvenReadOnlyArgv(words, execIndex)) return null;
+  if (name === null || !isArStyleArchiveBin(name) || argv0HasExistingDestGrammar(name)) return null;
   const rawMode = words[execIndex + 1];
-  const rawDest = words[execIndex + 2];
-  if (rawMode === undefined || rawDest === undefined) return null;
-  const mode = normalizeToken(rawMode).replace(/^-/, "");
-  if (!/^[abcdfilmnpqrstuv]+$/.test(mode)) return null;
-  if (!mode.includes("r") || !mode.includes("c")) return null;
+  if (rawMode === undefined) return null;
+  const literalMode = zipShellWordLiteral(rawMode);
+  if (literalMode === null) return null;
+  const mode = normalizeToken(literalMode).replace(/^-/, "");
+  if (!/^[abcdfilmnpqrstuvx]+$/.test(mode)) return null;
+  if (![...mode].some((letter) => ARCHIVE_WRITE_OPERATIONS.has(letter))) return null;
+  const exactMode = literalMode.replace(/^-/, "");
+  const consumesPositionOperand = /[abi]/i.test(exactMode);
+  const consumesCountOperand = exactMode.includes("N");
+  const rawDest =
+    words[execIndex + 2 + (consumesPositionOperand ? 1 : 0) + (consumesCountOperand ? 1 : 0)];
+  if (rawDest === undefined) return null;
   const dest = zipShellWordLiteral(rawDest);
   return dest !== null && dest.length > 0 ? dest : null;
 }
 
-/** create DEST::archive candidates where later positionals are inputs (#3804). */
+/** Borg create options whose values precede the unique archive positional. */
+const BORG_CREATE_VALUE_OPTIONS = new Set([
+  "-e",
+  "--exclude",
+  "--exclude-from",
+  "--pattern",
+  "--patterns-from",
+  "--exclude-if-present",
+  "-c",
+  "--compression",
+  "--comment",
+  "--timestamp",
+  "--chunker-params",
+  "--files-cache",
+  "--stdin-name",
+  "--stdin-user",
+  "--stdin-group",
+  "--stdin-mode",
+  "--filter",
+  "--lock-wait",
+  "--debug-topic",
+  "--debug-profile",
+  "--rsh",
+  "--remote-path",
+  "--remote-ratelimit",
+  "--upload-ratelimit",
+  "--upload-buffer",
+  "--umask",
+  "--repo",
+  "--repository",
+  "--other-repo",
+]);
+
+/** Borg `create DEST::archive`: only the first positional is a write destination (#3804). */
 function doubleColonCreateArchiveDests(words: readonly string[], execIndex: number): string[] {
-  const dests: string[] = [];
+  if (argv0BareName(words, execIndex) !== "borg") return [];
   let sawCreate = false;
+  let optionsEnded = false;
   for (let i = execIndex + 1; i < words.length; i++) {
     const raw = words[i] as string;
     const token = normalizeToken(raw);
@@ -2616,13 +2677,22 @@ function doubleColonCreateArchiveDests(words: readonly string[], execIndex: numb
       if (token === "create") sawCreate = true;
       continue;
     }
-    if (token === "--" || token.startsWith("-")) continue;
+    if (!optionsEnded && token === "--") {
+      optionsEnded = true;
+      continue;
+    }
+    if (!optionsEnded && token.startsWith("-")) {
+      const option = token.split("=", 1)[0] as string;
+      if (!token.includes("=") && BORG_CREATE_VALUE_OPTIONS.has(option)) i += 1;
+      continue;
+    }
+    if (zipShellWordHasExpansion(raw)) return [];
     const literal = zipShellWordLiteral(raw);
-    if (literal === null) continue;
+    if (literal === null) return [];
     const separator = literal.indexOf("::");
-    if (separator > 0) dests.push(literal.slice(0, separator));
+    return separator > 0 ? [literal.slice(0, separator)] : [];
   }
-  return dests;
+  return [];
 }
 
 /**
