@@ -5,6 +5,9 @@
  *
  * Token walks are O(n) — no nested-quantifier regex on untrusted shell input
  * (CodeQL js/polynomial-redos).
+ *
+ * These recognizers cover explicit destination grammars rather than arbitrary
+ * embedded-language semantics. Full-input token and literal scans stay linear.
  */
 
 import { isShellTool } from "../hooks/tools.js";
@@ -2407,12 +2410,7 @@ const INTERPRETER_CODE_FLAGS = new Set([
 /** Quoted path-like literals inside -e/-c/eval payloads (#3593). */
 function quotedStringLiterals(payload: string): string[] {
   const dests: string[] = [];
-  for (const re of [
-    /"([^"]{1,512})"/g,
-    /'([^']{1,512})'/g,
-    /`([^`]{1,512})`/g,
-    /(?:q|qq|Q|%q|%Q)\{([^}]{1,512})\}/g,
-  ]) {
+  for (const re of [/"([^"]+)"/g, /'([^']+)'/g, /`([^`]+)`/g, /(?:q|qq|Q|%q|%Q)\{([^}]+)\}/g]) {
     for (const match of payload.matchAll(re)) {
       const inner = match[1];
       if (inner !== undefined && inner.length > 0) dests.push(inner);
@@ -2421,20 +2419,62 @@ function quotedStringLiterals(payload: string): string[] {
   return dests;
 }
 
-/** Concatenated double-quoted literals inside a bounded Lisp-style concat form (#3804). */
+/** Concatenated double-quoted literals inside a Lisp-style concat form (#3804). */
 function concatenatedQuotedStringLiterals(payload: string): string[] {
   const dests: string[] = [];
-  for (const match of payload.matchAll(/\(\s*concat\b([^)]{1,512})\)/g)) {
-    const body = match[1] as string;
-    const parts = [...body.matchAll(/"([^"]{0,512})"/g)].map((part) => part[1] as string);
+  for (let i = 0; i < payload.length; i++) {
+    if (payload[i] !== "(") continue;
+    let cursor = i + 1;
+    while (cursor < payload.length && /\s/.test(payload[cursor] as string)) cursor++;
+    if (payload.slice(cursor, cursor + 6) !== "concat") continue;
+    cursor += 6;
+    if (cursor < payload.length && !/\s|\)/.test(payload[cursor] as string)) continue;
+
+    let depth = 1;
+    let inString = false;
+    let escaped = false;
+    let current = "";
+    const parts: string[] = [];
+    let closed = false;
+    for (; cursor < payload.length; cursor++) {
+      const ch = payload[cursor] as string;
+      if (inString) {
+        if (escaped) {
+          current += ch;
+          escaped = false;
+        } else if (ch === "\\") {
+          escaped = true;
+        } else if (ch === '"') {
+          parts.push(current);
+          current = "";
+          inString = false;
+        } else {
+          current += ch;
+        }
+        continue;
+      }
+      if (ch === '"') {
+        inString = true;
+      } else if (ch === "(") {
+        depth++;
+      } else if (ch === ")") {
+        depth--;
+        if (depth === 0) {
+          closed = true;
+          break;
+        }
+      }
+    }
+    if (!closed) return dests;
     if (parts.length > 1) dests.push(parts.join(""));
+    i = cursor;
   }
   return dests;
 }
 
-/** Bounded shell-word-like tokens inside interpreter payloads (#3728). */
+/** Shell-word-like tokens inside interpreter payloads (#3728). */
 function unquotedPayloadPathTokens(payload: string): string[] {
-  return [...payload.matchAll(/[^\s()[\]{},;'"`]{1,512}/g)]
+  return [...payload.matchAll(/[^\s()[\]{},;'"`]+/g)]
     .map((match) => match[0])
     .filter((token) => token.length > 0);
 }
@@ -2557,7 +2597,7 @@ function firstArchiveOperandDest(words: readonly string[], execIndex: number): s
   if (rawMode === undefined || rawDest === undefined) return null;
   const mode = normalizeToken(rawMode).replace(/^-/, "");
   if (!/^[abcdfilmnpqrstuv]+$/.test(mode)) return null;
-  if (!mode.includes("r") || !mode.includes("c") || !mode.includes("s")) return null;
+  if (!mode.includes("r") || !mode.includes("c")) return null;
   const dest = zipShellWordLiteral(rawDest);
   return dest !== null && dest.length > 0 ? dest : null;
 }
@@ -2574,9 +2614,9 @@ function doubleColonCreateArchiveDest(words: readonly string[], execIndex: numbe
     }
     if (token === "--" || token.startsWith("-")) continue;
     const literal = zipShellWordLiteral(raw);
-    if (literal === null) return null;
+    if (literal === null) continue;
     const separator = literal.indexOf("::");
-    return separator > 0 ? literal.slice(0, separator) : null;
+    if (separator > 0) return literal.slice(0, separator);
   }
   return null;
 }
@@ -2818,6 +2858,16 @@ function hasProtectedJarCreateArchiveDest(command: string): boolean {
   for (const segment of zipStyleCommandSegments(command)) {
     const jarDest = jarCreateArchiveDest(segment.words, segment.execIndex);
     if (jarDest !== null && isRelativePayloadProtectedDest(jarDest)) return true;
+  }
+  return false;
+}
+
+function hasProtectedUniqueArchiveDest(command: string): boolean {
+  for (const segment of zipStyleCommandSegments(command)) {
+    const archiveDest = firstArchiveOperandDest(segment.words, segment.execIndex);
+    if (archiveDest !== null && isRelativePayloadProtectedDest(archiveDest)) return true;
+    const doubleColonDest = doubleColonCreateArchiveDest(segment.words, segment.execIndex);
+    if (doubleColonDest !== null && isRelativePayloadProtectedDest(doubleColonDest)) return true;
   }
   return false;
 }
@@ -4435,14 +4485,20 @@ export function classifyShellAuthzOps(command: string): AuthzClassifiedOp[] {
   // #3593: jar archive dest is dest-of-write even when `--file=` also looks
   // like a dest-flag (genericProtectedDests skips jar; keep unknown if settings
   // still landed some other way).
+  const uniqueArchiveDest = hasProtectedUniqueArchiveDest(cmd);
   const destOfWriteUnknown =
-    hasProtectedZipArchiveDestination(cmd) || hasProtectedUnprovenReadOnlyDestOfWrite(cmd);
+    uniqueArchiveDest ||
+    hasProtectedZipArchiveDestination(cmd) ||
+    hasProtectedUnprovenReadOnlyDestOfWrite(cmd);
   const attachedProtected = hasProtectedAttachedDestOfWrite(cmd);
   // #3626: attached emit-flag / slash dests stay grant-immune even when a
   // compound prefix already classified settings.
   if (
     destOfWriteUnknown &&
-    (!found.has("settings") || hasProtectedJarCreateArchiveDest(cmd) || attachedProtected)
+    (!found.has("settings") ||
+      hasProtectedJarCreateArchiveDest(cmd) ||
+      uniqueArchiveDest ||
+      attachedProtected)
   ) {
     found.add("unknown");
   }

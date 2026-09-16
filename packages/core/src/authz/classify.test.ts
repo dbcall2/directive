@@ -2044,6 +2044,11 @@ describe("interpreter payload and jar dest-grammar (#3593)", () => {
     }
   });
 
+  it("scans complete protected literals longer than 512 bytes", () => {
+    const protectedDest = `.deft/authz/${"a".repeat(600)}`;
+    expect(classifyShellAuthzOps(`qjs -e 'cat "${protectedDest}"'`)).toEqual(["unknown"]);
+  });
+
   it("keeps ordinary #3728 interpreter payload destinations unclassifiable", () => {
     for (const command of [
       "erl -eval 'file:write_file(/tmp/out.json, data)'",
@@ -2190,9 +2195,13 @@ describe("unique destination grammar (#3804)", () => {
       for (const command of [
         `inkscape in.svg --export-filename=${dest} --export-type=png`,
         `ar rcs ${dest} foo.o`,
+        `ar cr ${dest} foo.o`,
         `ar -rcs ${dest} foo.o`,
+        `ar -cr ${dest} foo.o`,
         `llvm-ar rcs ${dest} foo.o`,
+        `llvm-ar cr ${dest} foo.o`,
         `gcc-ar crs ${dest} foo.o`,
+        `gcc-ar rc ${dest} foo.o`,
         `flatpak-builder --repo=${dest} builddir manifest.json`,
         `flatpak-builder --repo ${dest} builddir manifest.json`,
         `borg create ${dest}::archive /tmp/src`,
@@ -2209,6 +2218,18 @@ describe("unique destination grammar (#3804)", () => {
     }
   });
 
+  it("continues past Borg option operands before a protected DEST::archive", () => {
+    for (const dest of protectedDests) {
+      for (const command of [
+        `borg create --compression lz4 ${dest}::archive /tmp/src`,
+        `borg create --comment note ${dest}::archive /tmp/src`,
+        `borg create --compression lz4 --comment note ${dest}::archive /tmp/src`,
+      ]) {
+        expect(classifyShellAuthzOps(command), command).toContain("unknown");
+      }
+    }
+  });
+
   it("emits unknown for --eval concatenations without a protected quoted literal", () => {
     for (const command of [
       `emacs --batch --eval '(write-file (concat ".deft" "/authz/grants/evil.json"))'`,
@@ -2220,13 +2241,22 @@ describe("unique destination grammar (#3804)", () => {
     }
   });
 
+  it("scans the complete concat body instead of failing open after 512 bytes", () => {
+    const padding = " ".repeat(600);
+    expect(
+      classifyShellAuthzOps(
+        `emacs --batch --eval '(write-file (concat ${padding} ".deft" "/authz/grants/evil.json"))'`,
+      ),
+    ).toEqual(["unknown"]);
+  });
+
   it("exposes archive and DEST:: destinations to dispatcher realpath checks", () => {
-    expect(harvestDestsOfWriteForRealpath("ar rcs .deft/authz/grants/evil.json foo.o")).toContain(
+    expect(harvestDestsOfWriteForRealpath("ar cr .deft/authz/grants/evil.json foo.o")).toContain(
       ".deft/authz/grants/evil.json",
     );
     expect(
       harvestDestsOfWriteForRealpath(
-        "borg create .deft/approved-scope/story.json::archive /tmp/src",
+        "borg create --compression lz4 .deft/approved-scope/story.json::archive /tmp/src",
       ),
     ).toContain(".deft/approved-scope/story.json");
   });
@@ -2235,8 +2265,10 @@ describe("unique destination grammar (#3804)", () => {
     for (const command of [
       "inkscape in.svg --export-filename=/tmp/out.png --export-type=png",
       "ar rcs /tmp/archive.a foo.o",
+      "ar cr /tmp/archive.a foo.o",
       "flatpak-builder --repo=/tmp/repo builddir manifest.json",
       "borg create /tmp/repo::archive /tmp/src",
+      "borg create --compression lz4 /tmp/repo::archive /tmp/src",
       "restic backup --repository /tmp/repo /tmp/src",
       "abiword --to=/tmp/out.pdf in.doc",
       `emacs --batch --eval '(write-file (concat "/tmp" "/out.txt"))'`,
