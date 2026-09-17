@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+### Removed
+
+## [0.119.2] - 2026-09-17
+
+> Leftover-land recovery, design-critique panel ceiling, occupancy persist-and-bind, one-PR-unit node-id bind, docs-impact PR-base, leftover ingest/complete.
+
+### Added
+
+### Changed
+
 - **Maintainer .gitignore un-ignores provenance under .deft/approved-scope and .deft/intent-constraint.** Local scratch and reconstituted .deft/core stay ignored. Not consumer CANONICAL_GITIGNORE_BASELINE. Mint records show in git status without -f.
 - **Solo leftover-land recovery names the post-merge land sequence (#4421).** Sanctioned close-out is unreachable from the solo path, not unsatisfiable. After merge: scope:complete, git add of that verb's diff, leftover-land lifecycle PR. Do not Edit/Write completed/ or mint a completing status. Greptile: active/ on a product PR is correct; completed/ before merge stays a defect; leftover-land after merge is sanctioned. Org dashboard rules cannot be overridden by rules.md. Closes #4421.
 - **Design-critique panel ceiling (#4435).** Multi-critic rounds now include the panel deposit in the round-1 input ceiling. Closes #4435.
@@ -6250,7 +6262,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.119.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.119.2...HEAD
+[0.119.2]: https://github.com/deftai/directive/compare/v0.119.1...v0.119.2
 [0.119.1]: https://github.com/deftai/directive/compare/v0.119.0...v0.119.1
 [0.119.0]: https://github.com/deftai/directive/compare/v0.118.1...v0.119.0
 [0.118.1]: https://github.com/deftai/directive/compare/v0.118.0...v0.118.1

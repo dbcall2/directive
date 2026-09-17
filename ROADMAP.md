@@ -5,10 +5,6 @@
 
 # Roadmap
 
-## Active
-
-- **#3764** -- fix(hooks,security): dest-of-write grammar leftover on #3764 (option 1 payload literals) -- `[running]`
-
 ## Proposed
 
 _Scopes not yet promoted to pending. Orientation only — not a substitute for `task triage:queue`._
@@ -44,8 +40,10 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1544 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1546 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4636** -- test(session): CODEX_CI leaks host identity into session, occupancy, and swarm suites -- `[completed]`
+- **#3804** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (inkscape/babel/sass/ar/emacs --batch/pdf/makeself/restic/borg plant authz + kill-switch; approved-scope mint) -- `[completed]`
 - **#4630** -- bug(ts-check-lane): release Step 5 poisons vitest with DEFT_ALLOW_DESTRUCTIVE_GH_VERBS -- `[completed]`
 - **#4621** -- bug(docs): committed RULE-MAP.md is stale vs renderer — blocks v0.119.1 Step 5 -- `[completed]`
 - **#4578** -- bug(xbrief,cli): D7 commit gate rejects uppercase slug after activate; error still says .vbrief.json -- `[completed]`
@@ -69,6 +67,4 @@ _Showing 25 of 1544 completed scopes (newest first). Full history: lifecycle `co
 - **#4494** -- feat(swarm): make multi-origin PR batching explicit consent, not overlap inference -- `[completed]`
 - **#4541** -- Fail closed when implementation introduces semantic constraints absent from approved intent -- `[completed]`
 - **#4554** -- leftover(#4531): Handoff does not stop relieves+sharpening recut loop; constraint-brief and routing seat still dropped -- `[completed]`
-- **#3928** -- bug(telemetry): one tool_turn_denominator per session_id -- `[completed]`
-- **#4531** -- design(design-critique): unrelieved pain after recut defaults to Handoff not refutation -- `[completed]`
 
