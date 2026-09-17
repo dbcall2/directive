@@ -75,11 +75,12 @@ export const RELEASE_HELP =
   "  --skip-release        Do not invoke gh release create.\n" +
   "  --allow-dirty         Bypass the dirty-tree pre-flight (use only for\n" +
   "                        rehearsals).\n" +
-  "  --allow-vbrief-drift  Bypass the vBRIEF-lifecycle sync pre-flight gate\n" +
-  "                        (#734). Use only when the operator has reviewed the\n" +
-  "                        drift and explicitly accepts that closed-issue vBRIEFs\n" +
-  "                        may still live in non-terminal folders. The clean path\n" +
-  "                        is to run `task reconcile:issues -- --apply-lifecycle-\n" +
+  "  --allow-vbrief-drift  Skip lifecycle mismatch policy only (#734 / #4317).\n" +
+  "                        Does not skip committed-input validation. Use only\n" +
+  "                        when the operator has reviewed the drift and\n" +
+  "                        explicitly accepts that closed-issue vBRIEFs may still\n" +
+  "                        live in non-terminal folders. The clean path is to\n" +
+  "                        run `task reconcile:issues -- --apply-lifecycle-\n" +
   "                        fixes` first.\n" +
   "  --allow-coverage-debt #N\n" +
   "                        Acknowledge a hairline coverage miss: Step 5 passes\n" +

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { cmdRelease } from "./main.js";
 import { runPipeline } from "./pipeline.js";
 import { seedReleaseProjectDir } from "./pipeline-fixture.js";
+import { passReleaseInputs } from "./release-input.js";
 import type { ReleaseSeams } from "./types.js";
 
 const CHANGELOG = `## [Unreleased]\n\n### Added\n- x\n`;
@@ -31,6 +32,7 @@ describe("cmdRelease integration", () => {
     }) as typeof process.stderr.write;
 
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       todayIso: () => "2026-06-19",
       fileExists: (p) => p.endsWith("CHANGELOG.md"),
       readFile: () => CHANGELOG,
@@ -81,6 +83,7 @@ describe("pipeline verify flip failure", () => {
       allowSkipCiIssue: 716,
     };
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
         if (a.includes("branch")) return { status: 0, stdout: "master\n", stderr: "" };

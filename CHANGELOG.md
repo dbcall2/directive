@@ -18,11 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Release validates committed lifecycle inputs before the native scanner and again before CHANGELOG write (#4317).** Uncommitted or unsafe xBRIEF files now fail the release instead of reaching the scanner or ROADMAP write. Refs #4164.
 - **Leftover-complete through-merge-4576 briefs.** Moves #4672, #4673, #4674, #4697, #4698, #4700, #4705 from `xbrief/active/` to `xbrief/completed/` with `kind: test` evidence on harvest items and bound `clause:N` rows. Does not recut #3240 or #4385. Follow-on derive-stamp is #4732.
 
 - **ROADMAP stays off merge-lane freshness and leftover-complete writes (#4316).** Tests lock `roadmap:check` off FRAMEWORK_CHECK_GATES / CONSUMER_CHECK_GATES / Taskfile check aggregates; the TypeScript suite has no live-checkout ROADMAP freshness pin, including aliased `roadmapRenderMain`, stored `repoRoot()`, and `checkDrift` via a checkout path; `scope:complete` and restamp do not write ROADMAP.md; leftover allowlist rejects ROADMAP.md; issue-closing PR template no longer asks for that edit. `task roadmap:check` stays the explicit diagnostic. Closes #4316.
 
 ### Fixed
+
+- **Release-input census keeps POSIX backslash filenames (#4317).** A committed filename with a backslash is no longer treated as a nested path; invalid UTF-8 names print as byte escapes.
 
 - **Full-stop reverse-init recipe (#4674).** Adds an ordered procedure that strips live hooks before uninstall. See [full-stop](content/docs/full-stop.md). Refs #4674.
 - **verify:orphan-active fail-closes dropped refs instead of skipping them as noOrigin (#4697).** Unknown reserved spellings (`pull-request` and the next unknown) and uncollected `github-issue`/`github-pr` entries exit 1 with a collectable-origin remedy. Title-only setup-created and known non-GitHub types stay the Origins line. Malformed PR-only stays on the unscoped scan. Does not recut `collectGithubRefs` or #4426. Refs #4697.

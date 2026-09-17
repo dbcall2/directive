@@ -9,6 +9,7 @@ import { checkTagAvailable } from "./gh.js";
 import { cmdRelease } from "./main.js";
 import { emit, runPipeline } from "./pipeline.js";
 import { seedReleaseProjectDir } from "./pipeline-fixture.js";
+import { passReleaseInputs } from "./release-input.js";
 import type { ReleaseConfig, ReleaseSeams } from "./types.js";
 
 describe("cmdRelease", () => {
@@ -75,6 +76,7 @@ describe("runPipeline dry-run", () => {
     }) as typeof process.stderr.write;
 
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       todayIso: () => "2026-04-28",
       fileExists: (p) => p.endsWith("CHANGELOG.md"),
       readFile: () => `## [Unreleased]\n\n### Added\n`,
@@ -131,6 +133,7 @@ describe("runPipeline dry-run", () => {
       allowSkipCiIssue: null,
     };
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       todayIso: () => "2026-04-28",
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
@@ -158,6 +161,7 @@ describe("runPipeline dry-run", () => {
 
   it("returns config error when CHANGELOG missing", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       fileExists: () => false,
     };
     expect(runPipeline(baseConfig, seams)).toBe(2);
@@ -195,6 +199,7 @@ describe("release markdown containment (#2470)", () => {
           allowSkipCiIssue: 716,
         };
         const seams: ReleaseSeams = {
+          validateReleaseInputs: passReleaseInputs,
           todayIso: () => "2026-04-28",
           spawnText: (_c, a) => {
             if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
@@ -243,6 +248,7 @@ describe("prependUpgradeBanner", () => {
 describe("checkTagAvailable", () => {
   it("detects local tag conflict", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_cmd, args) => {
         if (args.includes("tag") && args.includes("-l")) {
           return { status: 0, stdout: "v0.21.0\n", stderr: "" };

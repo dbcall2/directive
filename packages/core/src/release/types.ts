@@ -1,6 +1,7 @@
 /* v8 ignore file -- type-only surface */
 import type { EnvMap } from "../authz/closed-verb.js";
 import type { HumanOriginGrant } from "../authz/types.js";
+import type { ReleaseInputPhase, ReleaseInputResult } from "./release-input.js";
 
 export type { CachedCheckCompletion } from "../check/orchestrator.js";
 
@@ -80,6 +81,10 @@ export interface ReleaseSeams {
     projectRoot: string,
     repo: string,
   ) => [boolean, number, string];
+  readonly validateReleaseInputs?: (
+    projectRoot: string,
+    phase: ReleaseInputPhase,
+  ) => ReleaseInputResult;
   readonly runBuild?: (projectRoot: string, version: string | null) => [boolean, string];
   readonly runUvLock?: (projectRoot: string) => [boolean, string];
   readonly checkTagAvailable?: (
