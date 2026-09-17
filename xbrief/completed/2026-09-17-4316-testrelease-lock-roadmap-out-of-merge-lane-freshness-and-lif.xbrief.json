@@ -75,8 +75,8 @@
         }
       },
       {
-        "id": "clause:1",
-        "title": "clause:1",
+        "id": "clause-1",
+        "title": "clause-1",
         "status": "completed",
         "x-directive/evidence": {
           "kind": "merge",
@@ -86,8 +86,8 @@
         }
       },
       {
-        "id": "clause:2",
-        "title": "clause:2",
+        "id": "clause-2",
+        "title": "clause-2",
         "status": "completed",
         "x-directive/evidence": {
           "kind": "merge",
@@ -97,8 +97,8 @@
         }
       },
       {
-        "id": "clause:3",
-        "title": "clause:3",
+        "id": "clause-3",
+        "title": "clause-3",
         "status": "completed",
         "x-directive/evidence": {
           "kind": "merge",
@@ -108,8 +108,8 @@
         }
       },
       {
-        "id": "clause:4",
-        "title": "clause:4",
+        "id": "clause-4",
+        "title": "clause-4",
         "status": "completed",
         "x-directive/evidence": {
           "kind": "merge",
@@ -119,8 +119,8 @@
         }
       },
       {
-        "id": "clause:5",
-        "title": "clause:5",
+        "id": "clause-5",
+        "title": "clause-5",
         "status": "completed",
         "x-directive/evidence": {
           "kind": "merge",
@@ -130,8 +130,8 @@
         }
       },
       {
-        "id": "clause:6",
-        "title": "clause:6",
+        "id": "clause-6",
+        "title": "clause-6",
         "status": "completed",
         "x-directive/evidence": {
           "kind": "merge",
