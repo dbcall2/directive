@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LabelClient } from "../vbrief-reconcile/types.js";
+import { applyIngestReadyRemainingSet, type ThreadComment } from "./completed-arc-record.js";
 import {
   applyDesignCritiqueCatalogChip,
   DESIGN_CRITIQUE_CATALOG_CHIPS,
@@ -8,6 +9,46 @@ import {
   mergeDesignCritiqueExclusiveIntoApply,
   remainingSetAfterDesignCritiqueChip,
 } from "./exclusive-chip.js";
+
+const LEAN_ID = 5442939496;
+const TABLE_ID = 5443106967;
+const SYNTHESIS_ID = 5443114746;
+
+const completeComments: ThreadComment[] = [
+  { id: LEAN_ID, body: "**Lean:** operator amend of 5442883752. Chips stay convenience.\n" },
+  { id: TABLE_ID, body: "## Verified-claims table\n\n| Verified claim | Result |\n" },
+  {
+    id: SYNTHESIS_ID,
+    body:
+      "model: grok-4.6\nrole: parent\n\n" +
+      "design-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\n" +
+      `Bound contract: successor lean ${LEAN_ID}, confirmed by operator, verified-claims table ${TABLE_ID}.\n`,
+  },
+];
+
+const malformedCanonicalComments: ThreadComment[] = [
+  { id: 1, body: "role: critic\n\n## Finding 1\n" },
+  {
+    id: SYNTHESIS_ID,
+    body: "design-critique: synthesis accepted because agents agreed (empty disagreement set)\n",
+  },
+];
+
+const unresolvedPainComments: ThreadComment[] = [
+  {
+    id: 10,
+    body: "role: parent\n\ndesign-critique: warranted, because coverage gap.\n\npain: P1\npain: P2\n",
+  },
+  { id: LEAN_ID, body: "**Lean:** bind relief.\n\nrelieves: P1\nrelieves: P2\n" },
+  { id: TABLE_ID, body: "## Verified-claims table\n\n| Verified claim | Result |\n" },
+  {
+    id: SYNTHESIS_ID,
+    body:
+      "model: grok-4.6\nrole: parent\n\n" +
+      "design-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\n" +
+      `Bound contract: successor lean ${LEAN_ID}, confirmed by operator, verified-claims table ${TABLE_ID}.\n`,
+  },
+];
 
 class FakeLabelClient implements LabelClient {
   labels: string[];
@@ -111,18 +152,16 @@ describe("design-critique exclusive remaining-set chip (#3642 / #4298)", () => {
 
   it("apply is a single LabelClient.apply with add and remove together", () => {
     const client = new FakeLabelClient(["bug", "design-critique:mechanism-shaped", "area:cli"]);
-    const result = applyDesignCritiqueCatalogChip(
-      client,
-      "deftai/directive",
-      3637,
-      "design-critique:ingest-ready",
-    );
+    const result = applyIngestReadyRemainingSet(client, "deftai/directive", 3637, completeComments);
     expect(client.applyCalls).toHaveLength(1);
     expect(client.applyCalls[0]).toEqual({
       add: ["design-critique:ingest-ready"],
       remove: ["design-critique:mechanism-shaped"],
     });
-    expect(result.remaining).toEqual(["bug", "area:cli", "design-critique:ingest-ready"]);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.remaining).toEqual(["bug", "area:cli", "design-critique:ingest-ready"]);
+    }
     expect(client.labels.sort()).toEqual(
       ["area:cli", "bug", "design-critique:ingest-ready"].sort(),
     );
@@ -130,12 +169,7 @@ describe("design-critique exclusive remaining-set chip (#3642 / #4298)", () => {
 
   it("skips apply when the remaining set is already exclusive", () => {
     const client = new FakeLabelClient(["process", "design-critique:ingest-ready"]);
-    applyDesignCritiqueCatalogChip(
-      client,
-      "deftai/directive",
-      3642,
-      "design-critique:ingest-ready",
-    );
+    applyIngestReadyRemainingSet(client, "deftai/directive", 3642, completeComments);
     expect(client.applyCalls).toHaveLength(0);
   });
 
@@ -161,13 +195,63 @@ describe("design-critique exclusive remaining-set chip (#3642 / #4298)", () => {
       "design-critique:mechanism-shaped",
       "design-critique:ingest-ready",
     ]);
-    applyDesignCritiqueCatalogChip(
+    applyIngestReadyRemainingSet(client, "deftai/directive", 3637, completeComments);
+    expect(client.applyCalls).toEqual([{ add: [], remove: ["design-critique:mechanism-shaped"] }]);
+  });
+
+  it("refuses applyDesignCritiqueCatalogChip ingest-ready without completed-arc proof (#4700)", () => {
+    const client = new FakeLabelClient(["bug", "design-critique:mechanism-shaped"]);
+    const result = applyDesignCritiqueCatalogChip(
       client,
       "deftai/directive",
-      3637,
+      4700,
       "design-critique:ingest-ready",
     );
-    expect(client.applyCalls).toEqual([{ add: [], remove: ["design-critique:mechanism-shaped"] }]);
+    expect(client.applyCalls).toHaveLength(0);
+    expect(result.add).toEqual([]);
+    expect(result.remove).toEqual([]);
+    expect(result.remaining).toEqual(["bug", "design-critique:mechanism-shaped"]);
+  });
+
+  it("refuses malformed canonical record plus label (#4700)", () => {
+    const client = new FakeLabelClient(["bug", "design-critique:mechanism-shaped"]);
+    const result = applyIngestReadyRemainingSet(
+      client,
+      "deftai/directive",
+      652,
+      malformedCanonicalComments,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.verdict).toMatchObject({ status: "blocked", reason: "missing-record" });
+    }
+    expect(client.applyCalls).toHaveLength(0);
+    expect(client.labels).toEqual(["bug", "design-critique:mechanism-shaped"]);
+  });
+
+  it("refuses unresolved pain audit plus label (#4700)", () => {
+    const client = new FakeLabelClient(["bug", "design-critique:mechanism-shaped"]);
+    const result = applyIngestReadyRemainingSet(
+      client,
+      "deftai/directive",
+      657,
+      unresolvedPainComments,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.verdict).toMatchObject({ status: "blocked", reason: "unresolved-pain-audit" });
+    }
+    expect(client.applyCalls).toHaveLength(0);
+    expect(client.labels).toEqual(["bug", "design-critique:mechanism-shaped"]);
+  });
+
+  it("comments present is not complete for ingest-ready remaining-set (#4700)", () => {
+    const client = new FakeLabelClient(["bug"]);
+    const result = applyIngestReadyRemainingSet(client, "deftai/directive", 4700, [
+      { id: 1, body: "role: critic\n\n## Finding 1\n" },
+    ]);
+    expect(result.ok).toBe(false);
+    expect(client.applyCalls).toHaveLength(0);
   });
 
   it("rejects an open glob name on apply delta", () => {
