@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   checkDrift,
@@ -708,4 +709,27 @@ describe("roadmap-render projection containment (#2839)", () => {
       expect(existsSync(join(escapeDir, "ROADMAP.md"))).toBe(false);
     },
   );
+});
+
+describe("ROADMAP producer stays off complete/finalize (#4316)", () => {
+  it("does not export syncRoadmapAfterCompletedSetChange or --sync-if-stale", () => {
+    const src = readFileSync(
+      fileURLToPath(new URL("./roadmap-render.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(src).not.toContain("syncRoadmapAfterCompletedSetChange");
+    expect(src).not.toContain("--sync-if-stale");
+    expect(src).not.toContain("syncIfStale");
+  });
+
+  it("tasks/roadmap.yml has render and check only (no sync-if-stale)", () => {
+    const roadmapTasks = readFileSync(
+      fileURLToPath(new URL("../../../../tasks/roadmap.yml", import.meta.url)),
+      "utf8",
+    );
+    expect(roadmapTasks).not.toContain("sync-if-stale");
+    expect(roadmapTasks).not.toContain("--sync-if-stale");
+    expect(roadmapTasks).toContain("render:");
+    expect(roadmapTasks).toContain("check:");
+  });
 });

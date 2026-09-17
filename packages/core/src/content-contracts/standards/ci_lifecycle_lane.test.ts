@@ -76,6 +76,14 @@ describe("artifact-only lifecycle CI lane (#3678)", () => {
     expect(artifactOnly(["xbrief/pending/foo.xbrief.json"])).toBe(false);
   });
 
+  it("ROADMAP.md is not allowlisted, alone or with leftover shape (#4316)", () => {
+    // Invert of closed unmerged PR 4196, which set artifactOnly(["ROADMAP.md"]) true
+    // so leftover land could carry the shared snapshot. Named false-case is the lock.
+    expect(artifactOnly(["ROADMAP.md"])).toBe(false);
+    expect(artifactOnly([...TWO_FILE_SHAPE, "ROADMAP.md"])).toBe(false);
+    expect(artifactOnly(["docs/ROADMAP.md"])).toBe(false);
+  });
+
   it("rename source plus allowlisted dest fails closed (workflow lists both via --no-renames)", () => {
     expect(
       artifactOnly(["packages/core/src/foo.ts", "xbrief/completed/2026-08-24-renamed.xbrief.json"]),
