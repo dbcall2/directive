@@ -48,7 +48,7 @@ describe("cmdRelease integration", () => {
           "--repo",
           "deftai/directive",
           "--project-root",
-          "/tmp/proj",
+          seedReleaseProjectDir(),
           "--allow-vbrief-drift",
           "--skip-ci",
           "--allow-skip-ci=716",

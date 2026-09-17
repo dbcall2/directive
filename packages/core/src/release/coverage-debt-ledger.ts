@@ -12,6 +12,7 @@ import {
   filterOpenCoverageDebtIssues,
   mergeOpenDebtLedger,
 } from "./auto-hatch.js";
+import { guardChangelogReadSafety } from "./changelog-read-safety.js";
 import { resolveGh } from "./gh.js";
 import { defaultWhich, spawnText } from "./spawn.js";
 import type { ReleaseSeams, SpawnResult } from "./types.js";
@@ -147,7 +148,8 @@ export function probeOpenCoverageDebtLedger(
   const exists = seams.fileExists ?? ((p: string) => existsSync(p));
   const read = seams.readFile ?? ((p: string) => readFileSync(p, "utf8"));
   let citedOpen: number[] = [];
-  if (exists(changelogPath)) {
+  const changelogSafety = guardChangelogReadSafety(projectRoot);
+  if (changelogSafety.ok && exists(changelogPath)) {
     try {
       const cited = extractCoverageDebtCitationsFromChangelog(read(changelogPath));
       if (ghPath === null) {

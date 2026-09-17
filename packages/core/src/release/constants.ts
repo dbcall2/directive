@@ -58,9 +58,9 @@ export const RELEASE_HELP =
   "               [--project-root PATH] [--summary TEXT]\n" +
   "               version\n" +
   "\n" +
-  "Automate the v0.X.Y release flow (#74): pre-flight, CI, CHANGELOG promote,\n" +
-  "ROADMAP refresh, build, tag, push, gh release. Halt-friendly: supports --dry-\n" +
-  "run / --skip-tag / --skip-release for safe rehearsals.\n" +
+  "Automate the v0.X.Y release flow (#74): pre-flight, CI, prepare artifacts,\n" +
+  "write ROADMAP then CHANGELOG, build, tag, push, gh release. Halt-friendly:\n" +
+  "supports --dry-run / --skip-tag / --skip-release for safe rehearsals.\n" +
   "\n" +
   "positional arguments:\n" +
   "  version               Release version, e.g. 0.21.0 (no leading 'v', strict\n" +
@@ -88,18 +88,19 @@ export const RELEASE_HELP =
   "                        flag cites an operator-owned issue number (#2573).\n" +
   "                        PowerShell: use --allow-coverage-debt=N (no bare #)\n" +
   '                        or quote "#N"; unquoted # starts a comment (#2621).\n' +
-  "  --skip-ci             Skip Step 5 (task ci:local / task check fallback).\n" +
-  "                        Used by `task release:e2e` to keep wall-clock\n" +
-  "                        manageable inside the auto-created temp repo (CI\n" +
-  "                        semantics are covered by the unit-test suite, not the\n" +
-  "                        e2e rehearsal). Production cuts MUST pass\n" +
+  "  --skip-ci             Skip the Step 5 CI suite (task ci:local / task\n" +
+  "                        check fallback). Does not skip the CHANGELOG\n" +
+  "                        structural entry guard. Used by `task release:e2e`\n" +
+  "                        to keep wall-clock manageable inside the auto-created\n" +
+  "                        temp repo (CI semantics are covered by the unit-test\n" +
+  "                        suite, not the e2e rehearsal). Production cuts MUST pass\n" +
   "                        --allow-skip-ci=#N citing the tracked incident (#2652);\n" +
   "                        otherwise Step 5 runs with a hard timeout.\n" +
   "  --allow-skip-ci #N    Acknowledge skipping Step 5 on a production cut (#2652).\n" +
   "                        Emits a loud WARN — npm ships without vitest coverage.\n" +
   "                        PowerShell: use --allow-skip-ci=N (no bare #) or quote\n" +
   '                        "#N"; unquoted # starts a comment (#2621).\n' +
-  "  --skip-build          Skip Step 6 (task build). Used by `task release:e2e`\n" +
+  "  --skip-build          Skip Step 8 (task build). Used by `task release:e2e`\n" +
   "                        to keep wall-clock manageable; build artefacts are not\n" +
   "                        needed for the draft-release verification step.\n" +
   "  --no-draft            Publish the GitHub release immediately instead of\n" +

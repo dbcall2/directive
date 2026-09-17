@@ -121,7 +121,7 @@ describe("pipeline branches extra", () => {
       version: "0.21.0",
       repo: "deftai/directive",
       baseBranch: "master",
-      projectRoot: "/proj",
+      projectRoot: seedReleaseProjectDir(CHANGELOG),
       dryRun: false,
       skipTag: true,
       skipRelease: true,

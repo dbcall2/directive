@@ -1,3 +1,5 @@
+import { mkdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createGithubRelease, verifyReleaseDraft } from "./gh.js";
 import { checkGitClean, commitReleaseArtifacts, createTag, pushRelease } from "./git.js";
@@ -31,23 +33,25 @@ function baseSeams(overrides: ReleaseSeams = {}): ReleaseSeams {
   };
 }
 
-const baseConfig: ReleaseConfig = {
-  version: "0.21.0",
-  repo: "deftai/directive",
-  baseBranch: "master",
-  projectRoot: seedReleaseProjectDir(),
-  dryRun: false,
-  skipTag: false,
-  skipRelease: false,
-  allowDirty: false,
-  draft: true,
-  skipCi: true,
-  skipBuild: false,
-  summary: null,
-  allowVbriefDrift: true,
-  allowCoverageDebtIssue: null,
-  allowSkipCiIssue: 716,
-};
+function baseConfig(): ReleaseConfig {
+  return {
+    version: "0.21.0",
+    repo: "deftai/directive",
+    baseBranch: "master",
+    projectRoot: seedReleaseProjectDir(),
+    dryRun: false,
+    skipTag: false,
+    skipRelease: false,
+    allowDirty: false,
+    draft: true,
+    skipCi: true,
+    skipBuild: false,
+    summary: null,
+    allowVbriefDrift: true,
+    allowCoverageDebtIssue: null,
+    allowSkipCiIssue: 716,
+  };
+}
 
 describe("spawnText", () => {
   it("returns status from spawnSync", () => {
@@ -98,22 +102,25 @@ describe("pipeline remaining branches", () => {
   it("fails vbrief config error", () => {
     expect(
       runPipeline(
-        { ...baseConfig, allowVbriefDrift: false },
+        { ...baseConfig(), allowVbriefDrift: false },
         baseSeams({ checkVbriefLifecycleSync: () => [false, -1, "cfg"] }),
       ),
     ).toBe(2);
   });
 
-  it("fails roadmap refresh", () => {
-    expect(runPipeline(baseConfig, baseSeams({ refreshRoadmap: () => [false, "bad"] }))).toBe(1);
+  it("fails when ROADMAP destination is a directory", () => {
+    const cfg = baseConfig();
+    rmSync(join(cfg.projectRoot, "ROADMAP.md"));
+    mkdirSync(join(cfg.projectRoot, "ROADMAP.md"));
+    expect(runPipeline(cfg, baseSeams())).toBe(1);
   });
 
   it("fails build step", () => {
-    expect(runPipeline(baseConfig, baseSeams({ runBuild: () => [false, "build fail"] }))).toBe(1);
+    expect(runPipeline(baseConfig(), baseSeams({ runBuild: () => [false, "build fail"] }))).toBe(1);
   });
 
   it("runs tag and push when skip_tag false", () => {
-    expect(runPipeline({ ...baseConfig, skipRelease: true }, baseSeams())).toBe(0);
+    expect(runPipeline({ ...baseConfig(), skipRelease: true }, baseSeams())).toBe(0);
   });
 
   it("creates github release when skip_release false", () => {
@@ -129,7 +136,7 @@ describe("pipeline remaining branches", () => {
       },
       sleep: () => undefined,
     });
-    expect(runPipeline({ ...baseConfig, skipRelease: false, skipTag: true }, seams)).toBe(0);
+    expect(runPipeline({ ...baseConfig(), skipRelease: false, skipTag: true }, seams)).toBe(0);
   });
 
   it("fails github release create", () => {
@@ -144,7 +151,7 @@ describe("pipeline remaining branches", () => {
         return { status: 0, stdout: "", stderr: "" };
       },
     });
-    expect(runPipeline({ ...baseConfig, skipRelease: false, skipTag: true }, seams)).toBe(1);
+    expect(runPipeline({ ...baseConfig(), skipRelease: false, skipTag: true }, seams)).toBe(1);
   });
 
   it("warns on allow-dirty non-dry-run", () => {
@@ -156,13 +163,13 @@ describe("pipeline remaining branches", () => {
       },
     });
     expect(
-      runPipeline({ ...baseConfig, allowDirty: true, dryRun: false, skipRelease: true }, seams),
+      runPipeline({ ...baseConfig(), allowDirty: true, dryRun: false, skipRelease: true }, seams),
     ).toBe(0);
   });
 
   it("fails when commit step fails", () => {
     const config: ReleaseConfig = {
-      ...baseConfig,
+      ...baseConfig(),
       skipRelease: true,
       skipBuild: true,
       skipCi: true,
@@ -183,7 +190,7 @@ describe("pipeline remaining branches", () => {
 
   it("fails when tag step fails", () => {
     const config: ReleaseConfig = {
-      ...baseConfig,
+      ...baseConfig(),
       skipRelease: true,
       skipBuild: true,
       skipCi: true,
@@ -203,7 +210,7 @@ describe("pipeline remaining branches", () => {
 
   it("fails when push step fails", () => {
     const config: ReleaseConfig = {
-      ...baseConfig,
+      ...baseConfig(),
       skipRelease: true,
       skipBuild: true,
       skipCi: true,
@@ -221,7 +228,7 @@ describe("pipeline remaining branches", () => {
 
   it("skips verify when --no-draft", () => {
     expect(
-      runPipeline({ ...baseConfig, draft: false, skipRelease: true, skipTag: true }, baseSeams()),
+      runPipeline({ ...baseConfig(), draft: false, skipRelease: true, skipTag: true }, baseSeams()),
     ).toBe(0);
   });
 });

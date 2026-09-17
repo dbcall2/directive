@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { guardChangelogReadSafety } from "../release/changelog-read-safety.js";
 import {
   COVERAGE_GOAL,
   countRecentCoverageDebtMentions,
@@ -45,11 +46,14 @@ export default async function coverageDebtTeardown(): Promise<void> {
 
   process.stderr.write(`${formatCoverageAttribution(resolution.issue, totals)}\n`);
 
-  try {
-    const changelog = readFileSync(join(repoRoot, "CHANGELOG.md"), "utf8");
-    const overuse = formatOveruseWarning(countRecentCoverageDebtMentions(changelog));
-    if (overuse) process.stderr.write(`${overuse}\n`);
-  } catch {
-    // CHANGELOG unreadable — debt attribution still stands.
+  const changelogSafety = guardChangelogReadSafety(repoRoot);
+  if (changelogSafety.ok) {
+    try {
+      const changelog = readFileSync(join(repoRoot, "CHANGELOG.md"), "utf8");
+      const overuse = formatOveruseWarning(countRecentCoverageDebtMentions(changelog));
+      if (overuse) process.stderr.write(`${overuse}\n`);
+    } catch {
+      // CHANGELOG unreadable — debt attribution still stands.
+    }
   }
 }
