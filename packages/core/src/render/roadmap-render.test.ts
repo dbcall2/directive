@@ -713,7 +713,10 @@ describe("roadmap-render projection containment (#2839)", () => {
 
 describe("ROADMAP producer stays off complete/finalize (#4316)", () => {
   it("does not export syncRoadmapAfterCompletedSetChange or --sync-if-stale", () => {
-    const src = readFileSync(fileURLToPath(new URL("./roadmap-render.ts", import.meta.url)), "utf8");
+    const src = readFileSync(
+      fileURLToPath(new URL("./roadmap-render.ts", import.meta.url)),
+      "utf8",
+    );
     expect(src).not.toContain("syncRoadmapAfterCompletedSetChange");
     expect(src).not.toContain("--sync-if-stale");
     expect(src).not.toContain("syncIfStale");
