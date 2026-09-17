@@ -582,6 +582,22 @@ describe("runTransition", () => {
     expect(data.plan.status).toBe("completed");
     expect(data.plan.metadata.completedAt).toMatch(/Z$/);
     expect(data.plan.metadata.lifecycleWrite?.action).toBe("complete");
+    expect(existsSync(join(root, "ROADMAP.md"))).toBe(false);
+    expect(result.message).not.toMatch(/ROADMAP/);
+  });
+
+  it("complete from active does not create or modify ROADMAP.md (#4316)", () => {
+    root = makeRepo();
+    const sentinel = "sentinel-roadmap-must-not-change\n";
+    writeFileSync(join(root, "ROADMAP.md"), sentinel, "utf8");
+    const file = writeVbrief(root, "active", "running");
+    const result = runTransition("complete", file);
+    expect(result.ok).toBe(true);
+    expect(existsSync(join(root, "xbrief", "completed", "2026-01-01-story.xbrief.json"))).toBe(
+      true,
+    );
+    expect(readFileSync(join(root, "ROADMAP.md"), "utf8")).toBe(sentinel);
+    expect(result.message).not.toMatch(/ROADMAP/);
   });
 
   it("fails complete when last-completed marker cannot be written (#3357)", () => {
@@ -923,6 +939,24 @@ describe("runTransition", () => {
     expect(data.plan.metadata.completedAt).toMatch(/Z$/);
     expect(data.plan.metadata.lifecycleWrite.action).toBe("complete");
     expect(existsSync(join(root, "xbrief", "active", "husk.xbrief.json"))).toBe(false);
+    expect(existsSync(join(root, "ROADMAP.md"))).toBe(false);
+    expect(result.message).not.toMatch(/ROADMAP/);
+  });
+
+  it("restamp of already-completed does not create or modify ROADMAP.md (#4316)", () => {
+    root = makeRepo();
+    const sentinel = "sentinel-restamp-must-not-change\n";
+    writeFileSync(join(root, "ROADMAP.md"), sentinel, "utf8");
+    const path = join(root, "xbrief", "completed", "husk.xbrief.json");
+    writeFile(path, {
+      xBRIEFInfo: { version: "0.8" },
+      plan: { title: "husk", status: "running", items: [] },
+    });
+    const result = runTransition("complete", path, new Date("2026-08-25T12:00:00.000Z"));
+    expect(result.ok).toBe(true);
+    expect(result.message).toMatch(/Restamped/);
+    expect(readFileSync(join(root, "ROADMAP.md"), "utf8")).toBe(sentinel);
+    expect(result.message).not.toMatch(/ROADMAP/);
   });
 
   it("normalizes item status complete to completed on complete (#4284)", () => {

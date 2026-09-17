@@ -156,6 +156,36 @@ describe("gate-lists (#2791)", () => {
     expect(consumerDeps).not.toContain("docs:rule-map:check");
   });
 
+  it("omits roadmap:check from FRAMEWORK_CHECK_GATES and CONSUMER_CHECK_GATES (#4316)", () => {
+    // Invert of closed unmerged PR 4196 toContain pins. Omit is necessary for
+    // local check composition (P1 / decision 2) and is not GitHub merge protection.
+    expect(FRAMEWORK_CHECK_GATES.map(checkGateId)).not.toContain("roadmap:check");
+    expect(CONSUMER_CHECK_GATES.map(checkGateId)).not.toContain("roadmap:check");
+    expect(gatesForCheckTarget("check:framework-source").map(checkGateId)).not.toContain(
+      "roadmap:check",
+    );
+    expect(gatesForCheckTarget("check:consumer").map(checkGateId)).not.toContain("roadmap:check");
+    expect(FRAMEWORK_CHECK_GATES.map(checkGateId)).not.toContain("verify:roadmap-policy");
+    expect(CONSUMER_CHECK_GATES.map(checkGateId)).not.toContain("verify:roadmap-policy");
+  });
+
+  it("Taskfile check:framework-source and check:consumer omit roadmap:check (#4316)", () => {
+    const here = fileURLToPath(new URL(".", import.meta.url));
+    const taskfile = readFileSync(join(resolve(here, "../../../../"), "Taskfile.yml"), "utf8");
+    const start = taskfile.indexOf("check:framework-source:");
+    expect(start).toBeGreaterThan(-1);
+    const rest = taskfile.slice(start);
+    const cmds = rest.indexOf("cmds:");
+    const deps = cmds === -1 ? rest : rest.slice(0, cmds);
+    expect(deps).not.toContain("roadmap:check");
+    const consumerStart = taskfile.indexOf("check:consumer:");
+    expect(consumerStart).toBeGreaterThan(-1);
+    const consumerRest = taskfile.slice(consumerStart);
+    const consumerCmds = consumerRest.indexOf("cmds:");
+    const consumerDeps = consumerCmds === -1 ? consumerRest : consumerRest.slice(0, consumerCmds);
+    expect(consumerDeps).not.toContain("roadmap:check");
+  });
+
   it("includes #3145 enforcement gates on framework and consumer lists", () => {
     const framework = FRAMEWORK_CHECK_GATES.map(checkGateId);
     const consumer = CONSUMER_CHECK_GATES.map(checkGateId);
