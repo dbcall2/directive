@@ -10,8 +10,47 @@ import { readText, repoRoot } from "./_helpers.js";
  * A later worker can recouple leftover-complete to ROADMAP without putting
  * roadmap:check on the Taskfile lists — this suite scan is that lock.
  * Fixture-level checkDrift against a temp outPath stays legal (AC 1).
+ * Bound names: identifier alias of roadmapRenderMain, repoRoot() stored then
+ * used with --check, and checkDrift against checkout ROADMAP.md via a local
+ * path variable.
  */
 const LOCK_BASENAME = "roadmap_merge_lane_lock.test.ts";
+const IDENT = String.raw`[A-Za-z_$][\w$]*`;
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function identAlt(names: readonly string[]): string {
+  return names.map(escapeRegExp).join("|");
+}
+
+function collectBindings(source: string, rhs: string): string[] {
+  const names: string[] = [];
+  const re = new RegExp(String.raw`\b(?:const|let|var)\s+(${IDENT})\s*=\s*${rhs}`, "g");
+  for (const m of source.matchAll(re)) {
+    const name = m[1];
+    if (name !== undefined) {
+      names.push(name);
+    }
+  }
+  return names;
+}
+
+function collectRoadmapRenderAliases(source: string): string[] {
+  const names = collectBindings(source, String.raw`roadmapRenderMain\b`);
+  if (!source.includes("roadmap-render")) {
+    return names;
+  }
+  const importAs = new RegExp(String.raw`\bmain\s+as\s+(${IDENT})`, "g");
+  for (const m of source.matchAll(importAs)) {
+    const name = m[1];
+    if (name !== undefined) {
+      names.push(name);
+    }
+  }
+  return names;
+}
 
 function collectVitestSuiteFiles(dir: string, acc: string[]): void {
   for (const ent of readdirSync(dir, { withFileTypes: true })) {
@@ -49,17 +88,36 @@ function requiredVitestSuite(): string[] {
 
 function liveCheckoutRoadmapHits(source: string, rel: string): string[] {
   const hits: string[] = [];
+  const renderNames = ["roadmapRenderMain", ...collectRoadmapRenderAliases(source)];
+  const rootNames = [
+    "REPO_ROOT",
+    ...collectBindings(source, String.raw`repoRoot\s*\(\s*\)`),
+    ...collectBindings(source, String.raw`REPO_ROOT\b`),
+  ];
+  const renderAlt = identAlt(renderNames);
+  const rootExpr = `(?:${identAlt(rootNames)}|repoRoot\\s*\\(\\s*\\))`;
   // 4196 exemplar: roadmapRenderMain(["--project-root", REPO_ROOT, "--check"])
   const liveMainCheck =
-    /roadmapRenderMain\s*\(\s*\[[^\]]*(?:REPO_ROOT|repoRoot\(\))[^\]]*--check/.test(source) ||
-    /roadmapRenderMain\s*\(\s*\[[^\]]*--check[^\]]*(?:REPO_ROOT|repoRoot\(\))/.test(source);
+    new RegExp(String.raw`\b(?:${renderAlt})\s*\(\s*\[[^\]]*(?:${rootExpr})[^\]]*--check`).test(
+      source,
+    ) ||
+    new RegExp(String.raw`\b(?:${renderAlt})\s*\(\s*\[[^\]]*--check[^\]]*(?:${rootExpr})`).test(
+      source,
+    );
   if (liveMainCheck) {
     hits.push(`${rel}: live-repo roadmapRenderMain --check`);
   }
-  if (
-    /checkDrift\s*\(/.test(source) &&
-    /join\s*\(\s*(?:REPO_ROOT|repoRoot\(\))\s*,\s*["']ROADMAP\.md["']/.test(source)
-  ) {
+  const checkoutJoin = new RegExp(
+    String.raw`join\s*\(\s*(?:${rootExpr})\s*,\s*["']ROADMAP\.md["']`,
+  );
+  const pathVars = collectBindings(
+    source,
+    String.raw`join\s*\(\s*(?:${rootExpr})\s*,\s*["']ROADMAP\.md["']\s*\)`,
+  );
+  const usesCheckoutPathVar =
+    pathVars.length > 0 &&
+    new RegExp(String.raw`checkDrift\s*\([^;]*\b(?:${identAlt(pathVars)})\b`).test(source);
+  if (/checkDrift\s*\(/.test(source) && (checkoutJoin.test(source) || usesCheckoutPathVar)) {
     hits.push(`${rel}: checkDrift against checkout ROADMAP.md`);
   }
   if (/\btask\s+roadmap:check\b/.test(source)) {
@@ -72,6 +130,49 @@ function liveCheckoutRoadmapHits(source: string, rel: string): string[] {
 }
 
 describe("ROADMAP merge-lane lock (#4316)", () => {
+  it("still flags the 4196 exemplar and named equivalents", () => {
+    expect(
+      liveCheckoutRoadmapHits(
+        'roadmapRenderMain(["--project-root", REPO_ROOT, "--check"])',
+        "ex.ts",
+      ),
+    ).toEqual(["ex.ts: live-repo roadmapRenderMain --check"]);
+    expect(
+      liveCheckoutRoadmapHits(
+        'const run = roadmapRenderMain;\nrun(["--project-root", REPO_ROOT, "--check"]);',
+        "ex.ts",
+      ),
+    ).toEqual(["ex.ts: live-repo roadmapRenderMain --check"]);
+    expect(
+      liveCheckoutRoadmapHits(
+        'import { main as run } from "./roadmap-render.js";\nrun(["--project-root", REPO_ROOT, "--check"]);',
+        "ex.ts",
+      ),
+    ).toEqual(["ex.ts: live-repo roadmapRenderMain --check"]);
+    expect(
+      liveCheckoutRoadmapHits(
+        'const root = repoRoot();\nroadmapRenderMain(["--project-root", root, "--check"]);',
+        "ex.ts",
+      ),
+    ).toEqual(["ex.ts: live-repo roadmapRenderMain --check"]);
+    expect(
+      liveCheckoutRoadmapHits(
+        'const root = repoRoot();\nconst path = join(root, "ROADMAP.md");\ncheckDrift(actual, path);',
+        "ex.ts",
+      ),
+    ).toEqual(["ex.ts: checkDrift against checkout ROADMAP.md"]);
+  });
+
+  it("keeps fixture-level checkDrift against a temp outPath legal", () => {
+    const src = [
+      'const root = mkdtempSync(join(tmpdir(), "deft-roadmap-"));',
+      'const outPath = join(root, "ROADMAP.md");',
+      "checkDrift(pending, outPath);",
+      'roadmapRenderMain(["--project-root", root, outPath, "--check"]);',
+    ].join("\n");
+    expect(liveCheckoutRoadmapHits(src, "ex.ts")).toEqual([]);
+  });
+
   it("required vitest suite has no live-checkout ROADMAP freshness assertion", () => {
     const root = repoRoot();
     const hits: string[] = [];

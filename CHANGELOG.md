@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **ROADMAP stays off merge-lane freshness and leftover-complete writes (#4316).** Tests lock `roadmap:check` off FRAMEWORK_CHECK_GATES / CONSUMER_CHECK_GATES / Taskfile check aggregates; the TypeScript suite has no live-checkout ROADMAP freshness pin; `scope:complete` and restamp do not write ROADMAP.md; leftover allowlist rejects ROADMAP.md; issue-closing PR template no longer asks for that edit. `task roadmap:check` stays the explicit diagnostic. Closes #4316.
+- **ROADMAP stays off merge-lane freshness and leftover-complete writes (#4316).** Tests lock `roadmap:check` off FRAMEWORK_CHECK_GATES / CONSUMER_CHECK_GATES / Taskfile check aggregates; the TypeScript suite has no live-checkout ROADMAP freshness pin, including aliased `roadmapRenderMain`, stored `repoRoot()`, and `checkDrift` via a checkout path; `scope:complete` and restamp do not write ROADMAP.md; leftover allowlist rejects ROADMAP.md; issue-closing PR template no longer asks for that edit. `task roadmap:check` stays the explicit diagnostic. Closes #4316.
 
 ### Fixed
 
