@@ -64,6 +64,20 @@ describe("laterGraduationFromShare (#3320)", () => {
     expect(trigger.summary).toMatch(/trigger unevaluable/);
     expect(trigger.share).toBeNull();
   });
+
+  it("does not graduate or decline on a host_planned cap denominator (#4626)", () => {
+    const trigger = laterGraduationFromShare({
+      evaluable: false,
+      ritualGateCount: 2,
+      totalToolTurns: 120,
+      share: 2 / 120,
+    });
+    expect(trigger.verdict).toBe("unevaluable");
+    expect(trigger.evaluable).toBe(false);
+    expect(trigger.share).toBeNull();
+    expect(trigger.summary).toMatch(/host_planned \/ cap denominator/);
+    expect(trigger.summary).not.toMatch(/ritual\+gate share/);
+  });
 });
 
 describe("evaluateLaterGraduationTrigger (#3320)", () => {
@@ -126,5 +140,63 @@ describe("evaluateLaterGraduationTrigger (#3320)", () => {
       env: {},
     });
     expect(missing.verdict).toBe("unevaluable");
+  });
+
+  it("does not graduate on a host_planned cap in the run-summary file (#4626)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-later-cap-"));
+    temps.push(root);
+    const cap = join(root, "cap.jsonl");
+    writeFileSync(
+      cap,
+      `${JSON.stringify({ event: "check_invocation", session_id: "s", payload: {} })}
+${JSON.stringify({ event: "tool_turn_denominator", session_id: "s", total_tool_turns: 8, payload: { total_tool_turns: 8, denominator_source: "host_planned" } })}
+`,
+      "utf8",
+    );
+    const trigger = evaluateLaterGraduationTrigger({
+      projectRoot: root,
+      runSummaryPath: cap,
+      env: {},
+    });
+    expect(trigger.verdict).toBe("unevaluable");
+    expect(trigger.share).toBeNull();
+    expect(trigger.summary).toMatch(/host_planned \/ cap denominator/);
+  });
+
+  it("does not classify persisted harness_actual from reporter process.env (#4626)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-later-ambient-"));
+    temps.push(root);
+    const actual = join(root, "actual.jsonl");
+    writeFileSync(
+      actual,
+      `${JSON.stringify({ event: "check_invocation", session_id: "s", payload: {} })}
+${JSON.stringify({ event: "tool_turn_denominator", session_id: "s", total_tool_turns: 40, payload: { total_tool_turns: 40, denominator_source: "harness_actual" } })}
+`,
+      "utf8",
+    );
+    const prevMax = process.env.DEFT_MAX_TURNS;
+    const prevTotal = process.env.DEFT_TOTAL_TOOL_TURNS;
+    process.env.DEFT_MAX_TURNS = "40";
+    process.env.DEFT_TOTAL_TOOL_TURNS = "40";
+    try {
+      const trigger = evaluateLaterGraduationTrigger({
+        projectRoot: root,
+        runSummaryPath: actual,
+      });
+      expect(trigger.evaluable).toBe(true);
+      expect(trigger.verdict).toBe("do-not-graduate");
+      expect(trigger.share).toBe(1 / 40);
+    } finally {
+      if (prevMax === undefined) {
+        delete process.env.DEFT_MAX_TURNS;
+      } else {
+        process.env.DEFT_MAX_TURNS = prevMax;
+      }
+      if (prevTotal === undefined) {
+        delete process.env.DEFT_TOTAL_TOOL_TURNS;
+      } else {
+        process.env.DEFT_TOTAL_TOOL_TURNS = prevTotal;
+      }
+    }
   });
 });
