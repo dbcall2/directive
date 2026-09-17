@@ -199,8 +199,14 @@ function posixKey(folder: string, nameBytes: Buffer): string {
 }
 
 function displayPath(folder: string, nameBytes: Buffer): string {
-  const name = utf8RoundTrip(nameBytes) ?? nameBytes.toString("latin1");
-  return `${XBRIEF_PREFIX}${folder}/${name}`;
+  const name = utf8RoundTrip(nameBytes);
+  if (name !== null) return `${XBRIEF_PREFIX}${folder}/${name}`;
+  return `${XBRIEF_PREFIX}${folder}/${escapeReleaseDisplay(nameBytes)}`;
+}
+
+/** Git `-z` paths use `/` as the only separator. Do not rewrite `\` (#4317). */
+function gitPathText(pathBytes: Buffer): string {
+  return utf8RoundTrip(pathBytes) ?? pathBytes.toString("latin1");
 }
 
 function parseOneComponent(relPosix: string): { folder: string; name: string } | null {
@@ -530,10 +536,7 @@ export function validateReleaseInputs(
   for (const rec of indexRecords) {
     const parsed = parseStageRecord(rec);
     if (!parsed) return fail("git-framing", "index");
-    const rel = (utf8RoundTrip(parsed.pathBytes) ?? parsed.pathBytes.toString("latin1")).replaceAll(
-      "\\",
-      "/",
-    );
+    const rel = gitPathText(parsed.pathBytes);
     const one = parseOneComponent(rel);
     if (!one || !folderSet.has(one.folder)) continue;
     const nameBytes = nameBytesFromGitPath(parsed.pathBytes);
@@ -549,10 +552,7 @@ export function validateReleaseInputs(
   for (const rec of treeRecords) {
     const parsed = parseLsTreeRecord(rec);
     if (!parsed) return fail("git-framing", "HEAD");
-    const rel = (utf8RoundTrip(parsed.pathBytes) ?? parsed.pathBytes.toString("latin1")).replaceAll(
-      "\\",
-      "/",
-    );
+    const rel = gitPathText(parsed.pathBytes);
     const one = parseOneComponent(rel);
     if (!one || !folderSet.has(one.folder)) continue;
     const nameBytes = nameBytesFromGitPath(parsed.pathBytes);

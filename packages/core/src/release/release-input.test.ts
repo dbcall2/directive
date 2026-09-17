@@ -89,6 +89,8 @@ describe("escapeReleaseDisplay (#4317 F1)", () => {
   it("escapes tab and control bytes", () => {
     expect(escapeReleaseDisplay("a\tb")).toBe("a\\tb");
     expect(escapeReleaseDisplay(Buffer.from([0x01, 0x7f]))).toBe("\\x01\\x7f");
+    expect(escapeReleaseDisplay(Buffer.from([0xe9]))).toBe("\\xe9");
+    expect(escapeReleaseDisplay("é")).toBe("é");
   });
 });
 
@@ -223,6 +225,16 @@ describe("three-view census", () => {
     const result = validateReleaseInputs(root, "scanner");
     expect(result.ok).toBe(true);
   });
+
+  it("keeps a POSIX backslash in a committed filename across all three views", () => {
+    const root = initRepo();
+    commitArtifact(root, "pending", "foo\\bar.xbrief.json");
+    const result = validateReleaseInputs(root, "scanner");
+    expect(result.ok).toBe(true);
+    expect(result.code).toBe("ok");
+    expect(result.selectedPaths).toEqual(["xbrief/pending/foo\\bar.xbrief.json"]);
+  });
+
 });
 
 describe("production-reader observer", () => {
