@@ -16,6 +16,7 @@ import {
   readFileSync,
   writeSync,
 } from "node:fs";
+import { dirname } from "node:path";
 import { resolveLifecycleFolder } from "../layout/resolve.js";
 import { renderRoadmapToBuffer } from "../render/roadmap-render.js";
 import { promoteChangelog } from "./changelog.js";
@@ -33,12 +34,14 @@ import { EXIT_CONFIG_ERROR, EXIT_VIOLATION } from "./constants.js";
 export type FileIdentity = { readonly dev: bigint; readonly ino: bigint };
 
 export type PreparedArtifacts = {
+  readonly projectRoot: string;
   readonly changelogPath: string;
   readonly roadmapPath: string;
   readonly changelogBytes: Buffer;
   readonly roadmapBytes: Buffer;
   readonly changelogFd: number | null;
   readonly roadmapFd: number | null;
+  readonly missingRoadmapParent: FileIdentity | null;
 };
 
 export type PrepareOk = { readonly ok: true; readonly prepared: PreparedArtifacts };
@@ -125,6 +128,34 @@ function identitiesMatch(a: FileIdentity, b: FileIdentity): boolean {
   return a.dev === b.dev && a.ino === b.ino;
 }
 
+function parentDirectoryIdentity(
+  childPath: string,
+  label: string,
+): FileIdentity | ChangelogSafetyFail {
+  const parent = dirname(childPath);
+  let stats: BigIntStats;
+  try {
+    stats = lstatSync(parent, { bigint: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return safetyFail(EXIT_VIOLATION, "unsafe", `${label} parent: ${msg}`);
+  }
+  if (stats.isSymbolicLink()) {
+    return safetyFail(EXIT_VIOLATION, "symlink", `${label} parent is a symlink`);
+  }
+  if (!stats.isDirectory()) {
+    return safetyFail(EXIT_VIOLATION, "not-file", `${label} parent is not a directory`);
+  }
+  if (typeof stats.dev !== "bigint" || typeof stats.ino !== "bigint") {
+    return safetyFail(
+      EXIT_VIOLATION,
+      "bigint-unavailable",
+      `${label} parent: bigint dev/ino is required; refuse closed`,
+    );
+  }
+  return { dev: stats.dev, ino: stats.ino };
+}
+
 function nontruncOpenFlags(): number {
   let flags = constants.O_RDWR;
   if (typeof constants.O_NOFOLLOW === "number") flags |= constants.O_NOFOLLOW;
@@ -191,6 +222,13 @@ export function prepareReleaseArtifacts(input: PrepareReleaseArtifactsInput): Pr
   const rm = inspectExistingOutput(roadmapPath, "ROADMAP.md");
   if (!("kind" in rm)) return rm;
 
+  let missingRoadmapParent: FileIdentity | null = null;
+  if (rm.kind === "missing") {
+    const parent = parentDirectoryIdentity(roadmapPath, "ROADMAP.md");
+    if ("ok" in parent) return parent;
+    missingRoadmapParent = parent;
+  }
+
   if (cl.kind === "ok" && rm.kind === "ok" && identitiesMatch(cl.identity, rm.identity)) {
     return safetyFail(
       EXIT_VIOLATION,
@@ -205,12 +243,14 @@ export function prepareReleaseArtifacts(input: PrepareReleaseArtifactsInput): Pr
     return {
       ok: true,
       prepared: {
+        projectRoot: input.projectRoot,
         changelogPath,
         roadmapPath,
         changelogBytes: dry.changelogBytes,
         roadmapBytes: dry.roadmapBytes,
         changelogFd: null,
         roadmapFd: null,
+        missingRoadmapParent: null,
       },
     };
   }
@@ -294,12 +334,14 @@ export function prepareReleaseArtifacts(input: PrepareReleaseArtifactsInput): Pr
   return {
     ok: true,
     prepared: {
+      projectRoot: input.projectRoot,
       changelogPath,
       roadmapPath,
       changelogBytes: buffers.changelogBytes,
       roadmapBytes: buffers.roadmapBytes,
       changelogFd: openedCl.fd,
       roadmapFd,
+      missingRoadmapParent,
     },
   };
 }
@@ -395,6 +437,27 @@ export function writeReleaseArtifacts(prepared: PreparedArtifacts): WriteArtifac
   let roadmapFd = prepared.roadmapFd;
   let createdRoadmap = false;
   if (roadmapFd === null) {
+    const floor = symlinkAncestorFloor(prepared.projectRoot, prepared.roadmapPath);
+    if (!floor.ok) {
+      closePreparedArtifacts(prepared);
+      return writeFail(floor.code, floor.message, false);
+    }
+    const parentNow = parentDirectoryIdentity(prepared.roadmapPath, "ROADMAP.md");
+    if ("ok" in parentNow) {
+      closePreparedArtifacts(prepared);
+      return writeFail(parentNow.code, parentNow.message, false);
+    }
+    if (
+      prepared.missingRoadmapParent !== null &&
+      !identitiesMatch(parentNow, prepared.missingRoadmapParent)
+    ) {
+      closePreparedArtifacts(prepared);
+      return writeFail(
+        "pair-identity",
+        "ROADMAP.md parent directory identity drifted before create",
+        false,
+      );
+    }
     try {
       roadmapFd = openSync(prepared.roadmapPath, createOpenFlags());
       createdRoadmap = true;
@@ -402,6 +465,20 @@ export function writeReleaseArtifacts(prepared: PreparedArtifacts): WriteArtifac
       closePreparedArtifacts(prepared);
       const msg = err instanceof Error ? err.message : String(err);
       return writeFail("roadmap-create", `ROADMAP.md create failed: ${msg}`, false);
+    }
+    try {
+      const created = fstatSync(roadmapFd, { bigint: true });
+      const createdIdent = bigintStatsOrFail(created, "ROADMAP.md created descriptor");
+      if ("ok" in createdIdent) {
+        closeQuiet(roadmapFd);
+        closePreparedArtifacts(prepared);
+        return writeFail(createdIdent.code, createdIdent.message, false);
+      }
+    } catch (err) {
+      closeQuiet(roadmapFd);
+      closePreparedArtifacts(prepared);
+      const msg = err instanceof Error ? err.message : String(err);
+      return writeFail("unsafe", `ROADMAP.md created descriptor fstat failed: ${msg}`, false);
     }
   }
 

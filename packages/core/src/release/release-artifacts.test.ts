@@ -4,7 +4,9 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -215,6 +217,39 @@ describe("writeReleaseArtifacts", () => {
     expect(written.changelogMutated).toBe(false);
     expect(written.message).toContain("CHANGELOG.md is byte-identical");
     expect(readFileSync(join(root, "CHANGELOG.md"))).toEqual(beforeCl);
+  });
+
+  it("creates missing ROADMAP after revalidating the parent directory", () => {
+    const root = tempRoot();
+    rmSync(join(root, "ROADMAP.md"));
+    const prepared = prepareReleaseArtifacts(prepInput(root, false));
+    expect(prepared.ok).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.prepared.roadmapFd).toBeNull();
+    expect(prepared.prepared.missingRoadmapParent).not.toBeNull();
+    const written = writeReleaseArtifacts(prepared.prepared);
+    expect(written.ok).toBe(true);
+    expect(readFileSync(join(root, "ROADMAP.md"), "utf8")).toContain("# Roadmap");
+  });
+
+  itPosix("refuses ROADMAP create when the parent directory is replaced with a symlink", () => {
+    const root = tempRoot();
+    rmSync(join(root, "ROADMAP.md"));
+    const prepared = prepareReleaseArtifacts(prepInput(root, false));
+    expect(prepared.ok).toBe(true);
+    if (!prepared.ok) return;
+    const moved = `${root}.moved`;
+    const outside = mkdtempSync(join(tmpdir(), "rel-art-out-"));
+    roots.push(moved);
+    roots.push(outside);
+    writeFileSync(join(outside, "CHANGELOG.md"), CHANGELOG);
+    renameSync(root, moved);
+    symlinkSync(outside, root);
+    const written = writeReleaseArtifacts(prepared.prepared);
+    expect(written.ok).toBe(false);
+    if (written.ok) return;
+    expect(["symlink", "pair-identity", "unsafe"]).toContain(written.code);
+    expect(written.changelogMutated).toBe(false);
   });
 });
 
