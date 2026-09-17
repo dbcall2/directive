@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4316",
-    "updated": "2026-09-17T16:04:33Z"
+    "updated": "2026-09-17T19:02:38Z"
   },
   "plan": {
     "title": "test(release): lock ROADMAP out of merge-lane freshness and lifecycle writes (#4164)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "test(release): lock ROADMAP out of merge-lane freshness and lifecycle writes (#4164)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/4316",
@@ -16,27 +16,129 @@
     "items": [
       {
         "title": "Omit lock: FRAMEWORK_CHECK_GATES / CONSUMER_CHECK_GATES / Taskfile check:framework-source / check:consumer do not list roadmap:check. Invert 4196 toContain tests with the existing omit pattern. Omit is not sufficient for GitHub and is still necessary for P1 / decision 2.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/check/gate-lists.test.ts",
+          "recorded_at": "2026-09-17T19:02:33Z",
+          "recorded_by": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+        }
       },
       {
         "title": "Suite-wide TypeScript lock: the required vitest suite has no live-checkout ROADMAP freshness assertion of any shape (live-repo --check, checkDrift against checkout ROADMAP.md, task roadmap:check from a test). Name a suite scan using the existing Taskfile readFileSync omit pattern. The 4196 pin is the exemplar, not the only banned form.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/content-contracts/standards/roadmap_merge_lane_lock.test.ts",
+          "recorded_at": "2026-09-17T19:02:33Z",
+          "recorded_by": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+        }
       },
       {
         "title": "Named producer lock: packages/core/src/scope/transition.ts. runTransition(\"complete\") from active and restamp of already-completed both do not create or modify ROADMAP.md. Extend the existing restamp fixture. Invert 4196 producer tests in transition.test.ts and the 4196 roadmap-render.test.ts producer describe (syncRoadmapAfterCompletedSetChange, --sync-if-stale). No sync-if-stale. Do not add a multi-worktree finalize e2e.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/scope/transition.test.ts",
+          "recorded_at": "2026-09-17T19:02:33Z",
+          "recorded_by": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+        }
       },
       {
         "title": "AC 4 requires artifactOnly([\"ROADMAP.md\"]) === false and leftover shape plus ROADMAP.md is false.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/content-contracts/standards/ci_lifecycle_lane.test.ts",
+          "recorded_at": "2026-09-17T19:02:33Z",
+          "recorded_by": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+        }
       },
       {
         "title": "Retire or rewrite .github/PULL_REQUEST_TEMPLATE.md so issue-closing / leftover-land PRs do not ask for a ROADMAP edit. Keep refinement-batch task roadmap:render out of this child's product change.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": ".github/PULL_REQUEST_TEMPLATE.md",
+          "recorded_at": "2026-09-17T19:02:33Z",
+          "recorded_by": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+        }
       },
       {
         "title": "Keep fixture-level roadmap-render.test.ts checkDrift against temp outPath for AC 1. Keep refreshRoadmapNative as the sole automatic producer. Do not add verify:roadmap-policy.",
-        "status": "proposed"
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/render/roadmap-render.test.ts",
+          "recorded_at": "2026-09-17T19:02:33Z",
+          "recorded_by": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+        }
+      },
+      {
+        "id": "clause:1",
+        "title": "clause:1",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4712 merge 33bf9066a3c1b9a957dde8ec2b78304ebe121ffa",
+          "recorded_at": "2026-09-17T19:02:33Z",
+          "recorded_by": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+        }
+      },
+      {
+        "id": "clause:2",
+        "title": "clause:2",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4712 merge 33bf9066a3c1b9a957dde8ec2b78304ebe121ffa",
+          "recorded_at": "2026-09-17T19:02:33Z",
+          "recorded_by": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+        }
+      },
+      {
+        "id": "clause:3",
+        "title": "clause:3",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4712 merge 33bf9066a3c1b9a957dde8ec2b78304ebe121ffa",
+          "recorded_at": "2026-09-17T19:02:33Z",
+          "recorded_by": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+        }
+      },
+      {
+        "id": "clause:4",
+        "title": "clause:4",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4712 merge 33bf9066a3c1b9a957dde8ec2b78304ebe121ffa",
+          "recorded_at": "2026-09-17T19:02:33Z",
+          "recorded_by": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+        }
+      },
+      {
+        "id": "clause:5",
+        "title": "clause:5",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4712 merge 33bf9066a3c1b9a957dde8ec2b78304ebe121ffa",
+          "recorded_at": "2026-09-17T19:02:33Z",
+          "recorded_by": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+        }
+      },
+      {
+        "id": "clause:6",
+        "title": "clause:6",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4712 merge 33bf9066a3c1b9a957dde8ec2b78304ebe121ffa",
+          "recorded_at": "2026-09-17T19:02:33Z",
+          "recorded_by": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+        }
       }
     ],
     "tags": [
@@ -527,9 +629,34 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "9cf00fcdc9932fad3d802a5e64f0d5b78f648619097817a52ffd0b2ef0bf3a52"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4712,
+        "prBase": null,
+        "mergeCommit": "33bf9066a3c1b9a957dde8ec2b78304ebe121ffa",
+        "deliveryBranch": "master",
+        "deliveryCommit": "33bf9066a3c1b9a957dde8ec2b78304ebe121ffa",
+        "verifiedAt": "2026-09-17T19:02:38Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:claude:v1:MDFhMGIwNDEtMTQyZi03MjEwLTliN2UtYTBiOWYwMzkyMzll"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-17T19:02:38Z",
+      "completedSessionId": "host:claude:v1:MDFhMGIwNDEtMTQyZi03MjEwLTliN2UtYTBiOWYwMzkyMzll",
+      "capacityBucket": "new-capability",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-17T19:02:38Z"
       }
     },
     "id": "github.issue.5413388678",
-    "updated": "2026-09-17T16:04:33Z"
+    "updated": "2026-09-17T19:02:38Z"
   }
 }
