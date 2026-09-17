@@ -15,6 +15,7 @@
     },
     "items": [
       {
+        "id": "1",
         "title": "Omit lock: FRAMEWORK_CHECK_GATES / CONSUMER_CHECK_GATES / Taskfile check:framework-source / check:consumer do not list roadmap:check. Invert 4196 toContain tests with the existing omit pattern. Omit is not sufficient for GitHub and is still necessary for P1 / decision 2.",
         "status": "completed",
         "x-directive/evidence": {
@@ -25,6 +26,7 @@
         }
       },
       {
+        "id": "2",
         "title": "Suite-wide TypeScript lock: the required vitest suite has no live-checkout ROADMAP freshness assertion of any shape (live-repo --check, checkDrift against checkout ROADMAP.md, task roadmap:check from a test). Name a suite scan using the existing Taskfile readFileSync omit pattern. The 4196 pin is the exemplar, not the only banned form.",
         "status": "completed",
         "x-directive/evidence": {
@@ -35,6 +37,7 @@
         }
       },
       {
+        "id": "3",
         "title": "Named producer lock: packages/core/src/scope/transition.ts. runTransition(\"complete\") from active and restamp of already-completed both do not create or modify ROADMAP.md. Extend the existing restamp fixture. Invert 4196 producer tests in transition.test.ts and the 4196 roadmap-render.test.ts producer describe (syncRoadmapAfterCompletedSetChange, --sync-if-stale). No sync-if-stale. Do not add a multi-worktree finalize e2e.",
         "status": "completed",
         "x-directive/evidence": {
@@ -45,6 +48,7 @@
         }
       },
       {
+        "id": "4",
         "title": "AC 4 requires artifactOnly([\"ROADMAP.md\"]) === false and leftover shape plus ROADMAP.md is false.",
         "status": "completed",
         "x-directive/evidence": {
@@ -55,6 +59,7 @@
         }
       },
       {
+        "id": "5",
         "title": "Retire or rewrite .github/PULL_REQUEST_TEMPLATE.md so issue-closing / leftover-land PRs do not ask for a ROADMAP edit. Keep refinement-batch task roadmap:render out of this child's product change.",
         "status": "completed",
         "x-directive/evidence": {
@@ -65,6 +70,7 @@
         }
       },
       {
+        "id": "6",
         "title": "Keep fixture-level roadmap-render.test.ts checkDrift against temp outPath for AC 1. Keep refreshRoadmapNative as the sole automatic producer. Do not add verify:roadmap-policy.",
         "status": "completed",
         "x-directive/evidence": {
