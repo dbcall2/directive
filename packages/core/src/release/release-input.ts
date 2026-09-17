@@ -15,8 +15,8 @@ import { GIT_LS_FILES_Z_ENCODING, splitGitLsFilesZRecords } from "./build-dist.j
 import { EXIT_OK, EXIT_VIOLATION } from "./constants.js";
 
 export const RELEASE_INPUT_PER_FILE_MAX_BYTES = COMPLETED_WRITE_GUARD_MAX_BYTES;
-export const RELEASE_INPUT_PER_VIEW_MAX_BYTES = 67_108_864;
-const CAT_FILE_FRAMING_BUDGET_BYTES = 1_048_576;
+export const RELEASE_INPUT_PER_VIEW_MAX_BYTES = 64 * 1024 * 1024;
+const CAT_FILE_FRAMING_BUDGET_BYTES = COMPLETED_WRITE_GUARD_MAX_BYTES;
 const GIT_Z_LIST_MAX_BUFFER = 16 * 1024 * 1024;
 const REGULAR_FILE_MODES = new Set(["100644", "100755"]);
 
@@ -51,13 +51,8 @@ export interface ReleaseInputMetaSeams {
 const SUFFIX_BUFFERS = [Buffer.from(".xbrief.json"), Buffer.from(".vbrief.json")] as const;
 const XBRIEF_PREFIX = `${MIGRATED_ARTIFACT_DIR}/`;
 
-function defined<T>(value: T | undefined, label: string): T {
-  if (value === undefined) throw new Error(label);
-  return value;
-}
-
 function byteAt(buf: Buffer, i: number): number {
-  return defined(buf[i], "buffer index");
+  return buf[i] ?? 0;
 }
 
 export function foldersForPhase(phase: ReleaseInputPhase): readonly string[] {
@@ -163,10 +158,10 @@ export function loneLfEquals(head: Buffer, disk: Buffer): boolean {
   return di === disk.length;
 }
 
-export function splitGitNulRecordsStrict(stdout: Buffer): Buffer[] {
+export function splitGitNulRecordsStrict(stdout: Buffer): Buffer[] | null {
   if (stdout.length === 0) return [];
   if (stdout[stdout.length - 1] !== 0) {
-    throw new Error("truncated git -z framing");
+    return null;
   }
   return splitGitLsFilesZRecords(stdout).map((r) => r.bytes);
 }
@@ -174,9 +169,8 @@ export function splitGitNulRecordsStrict(stdout: Buffer): Buffer[] {
 function lstatOrNull(path: string): ReturnType<typeof lstatSync> | null {
   try {
     return lstatSync(path);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw err;
+  } catch {
+    return null;
   }
 }
 
@@ -266,28 +260,28 @@ function ensureCandidate(
   return c;
 }
 
+type GitBytesResult = { readonly ok: true; readonly stdout: Buffer } | { readonly ok: false };
+
 function runGitBytes(
   projectRoot: string,
   args: readonly string[],
   maxBuffer: number,
   input?: Buffer,
-): Buffer {
+): GitBytesResult {
   const result = spawnSync("git", ["-C", projectRoot, ...args], {
     encoding: GIT_LS_FILES_Z_ENCODING,
     maxBuffer,
-    timeout: 30_000,
+    timeout: 30 * 1000,
     stdio: input ? ["pipe", "pipe", "pipe"] : ["ignore", "pipe", "pipe"],
     input,
   });
   if (result.status !== 0 || result.error) {
-    const errText = Buffer.isBuffer(result.stderr)
-      ? result.stderr.toString("utf8")
-      : String(result.stderr ?? result.error?.message ?? "git failed");
-    throw new Error(errText.trim() || "git failed");
+    return { ok: false };
   }
-  if (Buffer.isBuffer(result.stdout)) return result.stdout;
-  if (typeof result.stdout === "string") return Buffer.from(result.stdout, "utf8");
-  return Buffer.alloc(0);
+  if (Buffer.isBuffer(result.stdout)) return { ok: true, stdout: result.stdout };
+  if (typeof result.stdout === "string")
+    return { ok: true, stdout: Buffer.from(result.stdout, "utf8") };
+  return { ok: true, stdout: Buffer.alloc(0) };
 }
 
 function parseStageRecord(rec: Buffer): {
@@ -300,11 +294,11 @@ function parseStageRecord(rec: Buffer): {
   if (tab < 0) return null;
   const meta = rec.subarray(0, tab).toString("ascii");
   const m = /^([0-7]{6}) ([0-9a-f]+) ([0-3])$/i.exec(meta);
-  if (!m) return null;
+  if (!m || m[1] === undefined || m[2] === undefined || m[3] === undefined) return null;
   return {
-    mode: defined(m[1], "stage mode"),
-    oid: defined(m[2], "stage oid").toLowerCase(),
-    stage: Number(defined(m[3], "stage")),
+    mode: m[1],
+    oid: m[2].toLowerCase(),
+    stage: Number(m[3]),
     pathBytes: Buffer.from(rec.subarray(tab + 1)),
   };
 }
@@ -319,72 +313,86 @@ function parseLsTreeRecord(rec: Buffer): {
   if (tab < 0) return null;
   const meta = rec.subarray(0, tab).toString("ascii");
   const m = /^([0-7]{6}) (blob|tree|commit|tag) ([0-9a-f]+)$/i.exec(meta);
-  if (!m) return null;
+  if (!m || m[1] === undefined || m[2] === undefined || m[3] === undefined) return null;
   return {
-    mode: defined(m[1], "tree mode"),
-    type: defined(m[2], "tree type"),
-    oid: defined(m[3], "tree oid").toLowerCase(),
+    mode: m[1],
+    type: m[2],
+    oid: m[3].toLowerCase(),
     pathBytes: Buffer.from(rec.subarray(tab + 1)),
   };
 }
 
-function parseCatFileBatch(stdout: Buffer, oids: readonly string[]): Map<string, Buffer> {
+type CatFileBatchResult =
+  | { readonly ok: true; readonly map: Map<string, Buffer> }
+  | { readonly ok: false; readonly oversized: boolean };
+
+function parseCatFileBatch(stdout: Buffer, oids: readonly string[]): CatFileBatchResult {
   const out = new Map<string, Buffer>();
   let offset = 0;
   for (const _oid of oids) {
     const nl = stdout.indexOf(0x0a, offset);
-    if (nl < 0) throw new Error("truncated git cat-file --batch header");
+    if (nl < 0) return { ok: false, oversized: false };
     const header = stdout.subarray(offset, nl).toString("ascii");
     offset = nl + 1;
     if (/\smissing$/.test(header)) {
-      throw new Error(`missing git object in cat-file --batch: ${header}`);
+      return { ok: false, oversized: false };
     }
     const parts = header.split(" ");
-    if (parts.length !== 3) throw new Error(`malformed cat-file header: ${header}`);
-    const gotOid = defined(parts[0], "cat-file oid");
-    const type = defined(parts[1], "cat-file type");
-    const sizeStr = defined(parts[2], "cat-file size");
-    if (!/^[0-9a-f]+$/i.test(gotOid)) throw new Error("cat-file object id is not hex");
+    if (
+      parts.length !== 3 ||
+      parts[0] === undefined ||
+      parts[1] === undefined ||
+      parts[2] === undefined
+    ) {
+      return { ok: false, oversized: false };
+    }
+    const gotOid = parts[0];
+    const type = parts[1];
+    const sizeStr = parts[2];
+    if (!/^[0-9a-f]+$/i.test(gotOid)) return { ok: false, oversized: false };
     const size = Number(sizeStr);
-    if (!Number.isInteger(size) || size < 0) throw new Error("cat-file size is not an integer");
-    if (type !== "blob") throw new Error(`cat-file type ${type} is not blob`);
-    if (size > RELEASE_INPUT_PER_FILE_MAX_BYTES) throw new Error("oversized-head-blob");
-    if (offset + size + 1 > stdout.length)
-      throw new Error("truncated git cat-file --batch payload");
+    if (!Number.isInteger(size) || size < 0) return { ok: false, oversized: false };
+    if (type !== "blob") return { ok: false, oversized: false };
+    if (size > RELEASE_INPUT_PER_FILE_MAX_BYTES) return { ok: false, oversized: true };
+    if (offset + size + 1 > stdout.length) return { ok: false, oversized: false };
     const payload = Buffer.from(stdout.subarray(offset, offset + size));
-    if (byteAt(stdout, offset + size) !== 0x0a)
-      throw new Error("malformed cat-file payload trailer");
+    if (byteAt(stdout, offset + size) !== 0x0a) return { ok: false, oversized: false };
     offset += size + 1;
     out.set(gotOid.toLowerCase(), payload);
   }
-  if (offset !== stdout.length) throw new Error("extra cat-file --batch bytes after payloads");
-  return out;
+  if (offset !== stdout.length) return { ok: false, oversized: false };
+  return { ok: true, map: out };
 }
 
-function parseCatFileCheck(
-  stdout: Buffer,
-  oids: readonly string[],
-): Map<string, { type: string; size: number }> {
+type CatFileCheckResult =
+  | { readonly ok: true; readonly map: Map<string, { type: string; size: number }> }
+  | { readonly ok: false };
+
+function parseCatFileCheck(stdout: Buffer, oids: readonly string[]): CatFileCheckResult {
   const out = new Map<string, { type: string; size: number }>();
   const text = stdout.toString("ascii");
   if (text.length === 0) {
-    if (oids.length === 0) return out;
-    throw new Error("truncated git cat-file --batch-check");
+    if (oids.length === 0) return { ok: true, map: out };
+    return { ok: false };
   }
   const lines = text.endsWith("\n") ? text.slice(0, -1).split("\n") : text.split("\n");
-  if (lines.length !== oids.length) throw new Error("cat-file --batch-check count mismatch");
+  if (lines.length !== oids.length) return { ok: false };
   for (const header of lines) {
-    if (/\smissing$/.test(header)) throw new Error(`missing git object: ${header}`);
+    if (/\smissing$/.test(header)) return { ok: false };
     const parts = header.split(" ");
-    if (parts.length !== 3) throw new Error(`malformed batch-check header: ${header}`);
-    const oid = defined(parts[0], "batch-check oid");
-    const type = defined(parts[1], "batch-check type");
-    const sizeStr = defined(parts[2], "batch-check size");
-    const size = Number(sizeStr);
-    if (!Number.isInteger(size) || size < 0) throw new Error("batch-check size is not an integer");
-    out.set(oid.toLowerCase(), { type, size });
+    if (
+      parts.length !== 3 ||
+      parts[0] === undefined ||
+      parts[1] === undefined ||
+      parts[2] === undefined
+    ) {
+      return { ok: false };
+    }
+    const size = Number(parts[2]);
+    if (!Number.isInteger(size) || size < 0) return { ok: false };
+    out.set(parts[0].toLowerCase(), { type: parts[1], size });
   }
-  return out;
+  return { ok: true, map: out };
 }
 
 function remedyFor(code: string): string {
@@ -495,42 +503,31 @@ export function validateReleaseInputs(
     }
   }
 
-  let headSha: string;
-  try {
-    headSha = runGitBytes(projectRoot, ["--no-replace-objects", "rev-parse", "HEAD"], 64 * 1024)
-      .toString("utf8")
-      .trim();
-    if (!/^[0-9a-f]+$/i.test(headSha)) return fail("git-error", "HEAD");
-  } catch {
-    return fail("git-error", "HEAD");
-  }
+  const headShaRun = runGitBytes(
+    projectRoot,
+    ["--no-replace-objects", "rev-parse", "HEAD"],
+    64 * 1024,
+  );
+  if (!headShaRun.ok) return fail("git-error", "HEAD");
+  const headSha = headShaRun.stdout.toString("utf8").trim();
+  if (!/^[0-9a-f]+$/i.test(headSha)) return fail("git-error", "HEAD");
 
   const folderPathspecs = folders.map((f) => `${MIGRATED_ARTIFACT_DIR}/${f}`);
-  let indexOut: Buffer;
-  let treeOut: Buffer;
-  try {
-    indexOut = runGitBytes(
-      projectRoot,
-      ["ls-files", "--stage", "-z", "--", ...folderPathspecs],
-      GIT_Z_LIST_MAX_BUFFER,
-    );
-    treeOut = runGitBytes(
-      projectRoot,
-      ["--no-replace-objects", "ls-tree", "-z", "-r", headSha, "--", ...folderPathspecs],
-      GIT_Z_LIST_MAX_BUFFER,
-    );
-  } catch {
-    return fail("git-error", "HEAD");
-  }
+  const indexRun = runGitBytes(
+    projectRoot,
+    ["ls-files", "--stage", "-z", "--", ...folderPathspecs],
+    GIT_Z_LIST_MAX_BUFFER,
+  );
+  const treeRun = runGitBytes(
+    projectRoot,
+    ["--no-replace-objects", "ls-tree", "-z", "-r", headSha, "--", ...folderPathspecs],
+    GIT_Z_LIST_MAX_BUFFER,
+  );
+  if (!indexRun.ok || !treeRun.ok) return fail("git-error", "HEAD");
 
-  let indexRecords: Buffer[];
-  let treeRecords: Buffer[];
-  try {
-    indexRecords = splitGitNulRecordsStrict(indexOut);
-    treeRecords = splitGitNulRecordsStrict(treeOut);
-  } catch {
-    return fail("git-framing", "HEAD");
-  }
+  const indexRecords = splitGitNulRecordsStrict(indexRun.stdout);
+  const treeRecords = splitGitNulRecordsStrict(treeRun.stdout);
+  if (indexRecords === null || treeRecords === null) return fail("git-framing", "HEAD");
 
   const folderSet = new Set(folders);
   for (const rec of indexRecords) {
@@ -684,19 +681,16 @@ export function validateReleaseInputs(
       headMeta.set(oid, { type: "blob", size: meta.headBlobSizeOf?.(oid) as number });
     }
   } else if (uniqueOids.length > 0) {
-    try {
-      const checkOut = runGitBytes(
-        projectRoot,
-        ["--no-replace-objects", "cat-file", "--batch-check"],
-        GIT_Z_LIST_MAX_BUFFER,
-        Buffer.from(`${uniqueOids.join("\n")}\n`, "utf8"),
-      );
-      headMeta = parseCatFileCheck(checkOut, uniqueOids);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("oversized")) return fail("oversized", "HEAD", { selectedPaths });
-      return fail("git-error", "HEAD", { selectedPaths });
-    }
+    const checkOut = runGitBytes(
+      projectRoot,
+      ["--no-replace-objects", "cat-file", "--batch-check"],
+      GIT_Z_LIST_MAX_BUFFER,
+      Buffer.from(`${uniqueOids.join("\n")}\n`, "utf8"),
+    );
+    if (!checkOut.ok) return fail("git-error", "HEAD", { selectedPaths });
+    const parsedCheck = parseCatFileCheck(checkOut.stdout, uniqueOids);
+    if (!parsedCheck.ok) return fail("git-error", "HEAD", { selectedPaths });
+    headMeta = parsedCheck.map;
   }
 
   for (const c of readable) {
@@ -718,19 +712,18 @@ export function validateReleaseInputs(
 
   let payloads = new Map<string, Buffer>();
   if (uniqueOids.length > 0) {
-    try {
-      const batch = runGitBytes(
-        projectRoot,
-        ["--no-replace-objects", "cat-file", "--batch"],
-        RELEASE_INPUT_PER_VIEW_MAX_BYTES + CAT_FILE_FRAMING_BUDGET_BYTES,
-        Buffer.from(`${uniqueOids.join("\n")}\n`, "utf8"),
-      );
-      payloads = parseCatFileBatch(batch, uniqueOids);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("oversized")) return fail("oversized", "HEAD", { selectedPaths });
-      return fail("git-error", "HEAD", { selectedPaths });
+    const batch = runGitBytes(
+      projectRoot,
+      ["--no-replace-objects", "cat-file", "--batch"],
+      RELEASE_INPUT_PER_VIEW_MAX_BYTES + CAT_FILE_FRAMING_BUDGET_BYTES,
+      Buffer.from(`${uniqueOids.join("\n")}\n`, "utf8"),
+    );
+    if (!batch.ok) return fail("git-error", "HEAD", { selectedPaths });
+    const parsedBatch = parseCatFileBatch(batch.stdout, uniqueOids);
+    if (!parsedBatch.ok) {
+      return fail(parsedBatch.oversized ? "oversized" : "git-error", "HEAD", { selectedPaths });
     }
+    payloads = parsedBatch.map;
   }
 
   let payloadReads = 0;

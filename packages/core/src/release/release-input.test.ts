@@ -114,9 +114,9 @@ describe("splitGitNulRecordsStrict", () => {
   it("reuses splitGitLsFilesZRecords and refuses missing trailing NUL", () => {
     expect(GIT_LS_FILES_Z_ENCODING).toBeNull();
     const ok = Buffer.from("a\0b\0");
-    expect(splitGitNulRecordsStrict(ok).map((b) => b.toString("utf8"))).toEqual(["a", "b"]);
+    expect(splitGitNulRecordsStrict(ok)?.map((b) => b.toString("utf8"))).toEqual(["a", "b"]);
     expect(splitGitLsFilesZRecords(ok)).toHaveLength(2);
-    expect(() => splitGitNulRecordsStrict(Buffer.from("a\0b"))).toThrow(/truncated git -z framing/);
+    expect(splitGitNulRecordsStrict(Buffer.from("a\0b"))).toBeNull();
     expect(splitGitNulRecordsStrict(Buffer.alloc(0))).toEqual([]);
   });
 });
@@ -234,7 +234,6 @@ describe("three-view census", () => {
     expect(result.code).toBe("ok");
     expect(result.selectedPaths).toEqual(["xbrief/pending/foo\\bar.xbrief.json"]);
   });
-
 });
 
 describe("production-reader observer", () => {
