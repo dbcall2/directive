@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { runPipeline } from "./pipeline.js";
+import { passReleaseInputs } from "./release-input.js";
 import type { ReleaseConfig, ReleaseSeams } from "./types.js";
 
 const CHANGELOG = `## [Unreleased]\n\n### Added\n- x\n`;
@@ -73,6 +74,7 @@ describe("pipeline Step 5 auto-hatch + suite stamp (#3187)", () => {
     let createdTitle = "";
     const files = new Map<string, string>();
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       todayIso: () => "2026-08-07",
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
@@ -118,6 +120,7 @@ describe("pipeline Step 5 auto-hatch + suite stamp (#3187)", () => {
     const cap = captureStderr();
     let created = false;
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       todayIso: () => "2026-08-07",
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
@@ -155,6 +158,7 @@ describe("pipeline Step 5 auto-hatch + suite stamp (#3187)", () => {
     const cap = captureStderr();
     let created = false;
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       todayIso: () => "2026-08-07",
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
@@ -203,6 +207,7 @@ describe("pipeline Step 5 auto-hatch + suite stamp (#3187)", () => {
     });
 
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       todayIso: () => "2026-08-07",
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
@@ -243,6 +248,7 @@ describe("pipeline Step 5 auto-hatch + suite stamp (#3187)", () => {
     const cap = captureStderr();
     let created = false;
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       todayIso: () => "2026-08-07",
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
@@ -290,6 +296,7 @@ describe("pipeline Step 5 auto-hatch + suite stamp (#3187)", () => {
       recordedAt: "2026-08-07T00:00:00.000Z",
     });
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       todayIso: () => "2026-08-07",
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };

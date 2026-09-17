@@ -3,6 +3,7 @@ import { parseReleaseFlags } from "./flags.js";
 import { checkGitClean, commitReleaseArtifacts } from "./git.js";
 import { runPipeline } from "./pipeline.js";
 import { seedReleaseProjectDir } from "./pipeline-fixture.js";
+import { passReleaseInputs } from "./release-input.js";
 import { defaultWhich, spawnText } from "./spawn.js";
 import type { ReleaseConfig, ReleaseSeams } from "./types.js";
 import { isPublishable } from "./version.js";
@@ -20,6 +21,7 @@ describe("spawn edge branches", () => {
 describe("git commit branches", () => {
   it("commits when cache diff is non-empty", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       fileExists: () => true,
       spawnText: (_c, a) => {
         if (a.includes("diff")) return { status: 1, stdout: "", stderr: "" };
@@ -48,6 +50,7 @@ describe("git commit branches", () => {
 
   it("fails when git commit fails", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       fileExists: () => true,
       spawnText: (_c, a) => {
         if (a.includes("diff")) return { status: 1, stdout: "", stderr: "" };
@@ -96,6 +99,7 @@ describe("pipeline branches extra", () => {
       allowSkipCiIssue: null,
     };
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
         if (a.includes("branch")) return { status: 0, stdout: "master\n", stderr: "" };
@@ -131,6 +135,7 @@ describe("pipeline branches extra", () => {
       allowSkipCiIssue: null,
     };
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
         if (a.includes("branch")) return { status: 0, stdout: "master\n", stderr: "" };

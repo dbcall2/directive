@@ -19,6 +19,7 @@ import {
 } from "../layout/resolve.js";
 import { renderRoadmap } from "../render/roadmap-render.js";
 import { fetchIssueStatesForRelease } from "./issue-state-fetch.js";
+import { escapeReleaseDisplay } from "./release-input.js";
 import type { ReleaseSeams } from "./types.js";
 
 const BUILD_DIST_RUNNER = join(dirname(fileURLToPath(import.meta.url)), "build-dist-runner.js");
@@ -85,7 +86,7 @@ export function checkVbriefLifecycleSyncNative(
       return [true, 0, "no mismatches"];
     }
     const suffix = count > 5 ? " ..." : "";
-    const preview = mismatches.slice(0, 5).join(", ");
+    const preview = mismatches.slice(0, 5).map(escapeReleaseDisplay).join(", ");
     const reason = `${count} closed-issue vBRIEF(s) not in completed/ or cancelled/: ${preview}${suffix}`;
     return [false, count, reason];
   } catch (err) {

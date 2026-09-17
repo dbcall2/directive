@@ -3,6 +3,7 @@ import { createGithubRelease, verifyReleaseDraft } from "./gh.js";
 import { checkGitClean, commitReleaseArtifacts, createTag, pushRelease } from "./git.js";
 import { runPipeline } from "./pipeline.js";
 import { seedReleaseProjectDir } from "./pipeline-fixture.js";
+import { passReleaseInputs } from "./release-input.js";
 import { spawnText } from "./spawn.js";
 import type { ReleaseConfig, ReleaseSeams } from "./types.js";
 
@@ -10,6 +11,7 @@ const CHANGELOG = `## [Unreleased]\n\n### Added\n- x\n`;
 
 function baseSeams(overrides: ReleaseSeams = {}): ReleaseSeams {
   return {
+    validateReleaseInputs: passReleaseInputs,
     spawnText: (_c, a) => {
       if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
       if (a.includes("branch")) return { status: 0, stdout: "master\n", stderr: "" };
@@ -66,6 +68,7 @@ describe("git failure branches", () => {
 
   it("commitReleaseArtifacts fails on git add", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, a) => {
         if (a.includes("add")) return { status: 1, stdout: "", stderr: "add fail" };
         return { status: 0, stdout: "", stderr: "" };
@@ -227,6 +230,7 @@ describe("gh edge cases", () => {
   it("createGithubRelease uses generate-notes when empty", () => {
     let sawGenerate = false;
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       whichGh: () => "/usr/bin/gh",
       spawnText: (_c, a) => {
         if (a.includes("--generate-notes")) sawGenerate = true;
@@ -240,6 +244,7 @@ describe("gh edge cases", () => {
 
   it("verifyReleaseDraft handles gh json error", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       whichGh: () => "/usr/bin/gh",
       spawnText: () => ({ status: 0, stdout: "not-json", stderr: "" }),
       sleep: () => undefined,

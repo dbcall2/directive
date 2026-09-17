@@ -9,3 +9,5 @@ export function seedReleaseProjectDir(changelog = `## [Unreleased]\n\n### Added\
   writeFileSync(join(dir, "ROADMAP.md"), "# Roadmap\n", "utf8");
   return dir;
 }
+
+export { passReleaseInputs } from "./release-input.js";

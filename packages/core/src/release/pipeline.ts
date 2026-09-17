@@ -47,6 +47,13 @@ import {
 } from "./native-steps.js";
 import { todayIso } from "./paths.js";
 import { runReleaseCheck } from "./preflight.js";
+import {
+  escapeReleaseDisplay,
+  type ReleaseInputPhase,
+  validateReleaseInputs,
+  writeEscapedReleaseLine,
+  writeReleaseInputDetails,
+} from "./release-input.js";
 import { evaluateReleaseConsumerReadiness, issuesFromInventory } from "./run-consumer-readiness.js";
 import { formatSkipCiIncidentWarning } from "./skip-ci-incident.js";
 import { evaluateSuiteStamp, writeSuiteStamp } from "./suite-stamp.js";
@@ -110,7 +117,16 @@ function recordSuiteStamp(
 }
 
 export function emit(step: number, label: string, status: string, target = process.stderr): void {
-  target.write(`[${step}/${TOTAL_STEPS}] ${label}... ${status}\n`);
+  target.write(`[${step}/${TOTAL_STEPS}] ${label}... ${escapeReleaseDisplay(status)}\n`);
+}
+
+function runInputPhase(
+  projectRoot: string,
+  phase: ReleaseInputPhase,
+  seams: ReleaseSeams,
+): ReturnType<typeof validateReleaseInputs> {
+  const fn = seams.validateReleaseInputs ?? validateReleaseInputs;
+  return fn(projectRoot, phase);
 }
 
 export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): number {
@@ -164,10 +180,29 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
     }
   }
 
+  // Phase 1: five-folder committed-input validation (#4317). Before the
+  // mismatch-skip branch; --allow-dirty / --allow-vbrief-drift do not skip it.
+  if (config.dryRun) {
+    process.stderr.write("[release-input] scanner not run; would validate\n");
+  } else {
+    const phase1 = runInputPhase(projectRoot, "scanner", seams);
+    if (!phase1.ok) {
+      writeReleaseInputDetails(phase1);
+      emit(3, "Pre-flight vBRIEF lifecycle sync", `FAIL (${phase1.code})`);
+      return phase1.exitCode;
+    }
+  }
+
   // Step 3: vBRIEF lifecycle sync (#734).
   label = "Pre-flight vBRIEF lifecycle sync";
   if (config.allowVbriefDrift) {
-    emit(3, label, "SKIP (--allow-vbrief-drift)");
+    emit(
+      3,
+      label,
+      config.dryRun
+        ? "SKIP (mismatch policy only; --allow-vbrief-drift; input validation not run)"
+        : "SKIP (mismatch policy only; --allow-vbrief-drift; input validation already ran)",
+    );
   } else if (config.dryRun) {
     emit(3, label, "DRYRUN (would scan vbrief/ + gh open issues for closed-issue mismatches)");
   } else {
@@ -183,7 +218,7 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
         label,
         `FAIL (${mismatchCount} mismatches; run task reconcile:issues -- --apply-lifecycle-fixes to fix, or pass --allow-vbrief-drift to override)`,
       );
-      process.stderr.write(`${reason}\n`);
+      writeEscapedReleaseLine(reason);
       return EXIT_VIOLATION;
     }
   }
@@ -439,6 +474,18 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
         );
         return EXIT_CONFIG_ERROR;
       }
+    }
+  }
+
+  // Phase 2: independent four-folder census after Step 5, before CHANGELOG write (#4317).
+  if (config.dryRun) {
+    process.stderr.write("[release-input] roadmap not run; would validate\n");
+  } else {
+    const phase2 = runInputPhase(projectRoot, "roadmap", seams);
+    if (!phase2.ok) {
+      writeReleaseInputDetails(phase2);
+      emit(6, "CHANGELOG promotion", `FAIL (${phase2.code})`);
+      return phase2.exitCode;
     }
   }
 

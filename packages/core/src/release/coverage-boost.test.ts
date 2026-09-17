@@ -9,10 +9,12 @@ import {
   releaseSubprocessEnv,
 } from "./git.js";
 import { runPipeline } from "./pipeline.js";
+import { passReleaseInputs } from "./release-input.js";
 import type { ReleaseConfig, ReleaseSeams } from "./types.js";
 
 describe("git helpers", () => {
   const seams: ReleaseSeams = {
+    validateReleaseInputs: passReleaseInputs,
     spawnText: (_cmd, args) => {
       if (args.includes("status")) {
         return { status: 0, stdout: "", stderr: "" };
@@ -117,6 +119,7 @@ describe("gh helpers", () => {
 
   it("verifyReleaseDraft confirms draft state", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       whichGh: () => "/usr/bin/gh",
       spawnText: () => ({
         status: 0,
@@ -139,6 +142,7 @@ describe("gh helpers", () => {
   it("verifyReleaseDraft flips public release", () => {
     let calls = 0;
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       whichGh: () => "/usr/bin/gh",
       spawnText: () => {
         calls += 1;
@@ -164,6 +168,7 @@ describe("gh helpers", () => {
 describe("checkTagAvailable branches", () => {
   it("reports remote tag conflict", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, args) => {
         if (args.includes("tag") && args.includes("-l")) {
           return { status: 0, stdout: "", stderr: "" };
@@ -182,6 +187,7 @@ describe("checkTagAvailable branches", () => {
 
   it("notes remote unverified when ls-remote fails", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, args) => {
         if (args.includes("ls-remote")) {
           return { status: 1, stdout: "", stderr: "network down" };
@@ -197,6 +203,7 @@ describe("checkTagAvailable branches", () => {
 
   it("detects existing GitHub release", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, args) => {
         if (args[1] === "release") {
           return { status: 0, stdout: '{"tagName":"v0.21.0"}', stderr: "" };
@@ -213,6 +220,7 @@ describe("checkTagAvailable branches", () => {
 describe("createGithubRelease success", () => {
   it("creates release with notes file", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       whichGh: () => "/usr/bin/gh",
       spawnText: () => ({ status: 0, stdout: "", stderr: "" }),
     };
@@ -233,6 +241,7 @@ describe("createGithubRelease success", () => {
 describe("verifyReleaseDraft polling", () => {
   it("returns inconclusive after not-found budget", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       whichGh: () => "/usr/bin/gh",
       spawnText: () => ({ status: 1, stdout: "", stderr: "release not found" }),
       sleep: () => undefined,
@@ -285,6 +294,7 @@ describe("runPipeline additional branches", () => {
 
   it("runs vbrief drift failure path", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
         if (a.includes("branch")) return { status: 0, stdout: "master\n", stderr: "" };
@@ -299,6 +309,7 @@ describe("runPipeline additional branches", () => {
 
   it("runs promote failure on bad changelog", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: "", stderr: "" };
         if (a.includes("branch")) return { status: 0, stdout: "master\n", stderr: "" };
@@ -315,6 +326,7 @@ describe("runPipeline additional branches", () => {
 
   it("accepts allow-dirty warn path", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, a) => {
         if (a.includes("status")) return { status: 0, stdout: " M x\n", stderr: "" };
         if (a.includes("branch")) return { status: 0, stdout: "master\n", stderr: "" };
@@ -353,6 +365,7 @@ describe("runPipeline violation branches", () => {
 
   it("fails on dirty tree", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, args) => {
         if (args.includes("status")) {
           return { status: 0, stdout: " M dirty\n", stderr: "" };
@@ -365,6 +378,7 @@ describe("runPipeline violation branches", () => {
 
   it("fails on wrong branch", () => {
     const seams: ReleaseSeams = {
+      validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, args) => {
         if (args.includes("status")) return { status: 0, stdout: "", stderr: "" };
         if (args.includes("branch")) return { status: 0, stdout: "feature\n", stderr: "" };

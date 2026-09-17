@@ -13,6 +13,7 @@ import {
 import { EXIT_OK, EXIT_VIOLATION } from "./constants.js";
 import { runPipeline } from "./pipeline.js";
 import { seedReleaseProjectDir } from "./pipeline-fixture.js";
+import { passReleaseInputs } from "./release-input.js";
 import type { ReleaseConfig, ReleaseSeams } from "./types.js";
 
 /** v0.105.0 cut: tag push published npm with no closed-verb challenge (#3527). */
@@ -77,6 +78,7 @@ function recordingSeams(
   const gitMutations: string[][] = [];
   const seams: ReleaseSeams & { gitMutations: string[][] } = {
     gitMutations,
+    validateReleaseInputs: passReleaseInputs,
     spawnText: (_cmd, args) => {
       const argv = [...args];
       if (argv.includes("tag") || argv.includes("push")) {

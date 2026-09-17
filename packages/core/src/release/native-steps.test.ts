@@ -13,11 +13,15 @@ vi.mock("../render/roadmap-render.js", () => ({
   renderRoadmap: (...args: unknown[]) => mockRenderRoadmap(...args),
 }));
 
-vi.mock("../intake/reconcile-issues.js", () => ({
-  scanLifecycleAnchors: (...args: unknown[]) => mockScanLifecycleAnchors(...args),
-  buildLifecycleReport: (...args: unknown[]) => mockBuildLifecycleReport(...args),
-  isTerminalLifecyclePath: (...args: unknown[]) => mockIsTerminalLifecyclePath(...args),
-}));
+vi.mock("../intake/reconcile-issues.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../intake/reconcile-issues.js")>();
+  return {
+    ...actual,
+    scanLifecycleAnchors: (...args: unknown[]) => mockScanLifecycleAnchors(...args),
+    buildLifecycleReport: (...args: unknown[]) => mockBuildLifecycleReport(...args),
+    isTerminalLifecyclePath: (...args: unknown[]) => mockIsTerminalLifecyclePath(...args),
+  };
+});
 
 const mockFetchIssueStatesForRelease = vi.fn();
 
