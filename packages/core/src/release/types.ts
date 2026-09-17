@@ -76,7 +76,6 @@ export interface ReleaseSeams {
     projectRoot: string,
     allowCoverageDebtIssue: number | null,
   ) => [boolean, string];
-  readonly refreshRoadmap?: (projectRoot: string) => [boolean, string];
   readonly checkVbriefLifecycleSync?: (
     projectRoot: string,
     repo: string,

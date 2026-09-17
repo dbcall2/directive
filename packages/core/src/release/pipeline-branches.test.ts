@@ -25,7 +25,6 @@ function baseSeams(overrides: ReleaseSeams = {}): ReleaseSeams {
     readFile: (p) => (p.endsWith("pyproject.toml") ? '[project]\nversion = "0.20.0"\n' : CHANGELOG),
     writeFile: () => undefined,
     runUvLock: () => [true, "uv.lock regenerated"],
-    refreshRoadmap: () => [true, "ok"],
     runBuild: () => [true, "ok"],
     todayIso: () => "2026-04-28",
     closedVerbEnv: { DEFT_ALLOW_RELEASE_PUBLISH: "1" },

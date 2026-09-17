@@ -121,7 +121,6 @@ describe("pipeline release-input hook sites (#4317)", () => {
         fileExists: (p) => p.endsWith(".md"),
         readFile: () => "## [Unreleased]\n\n### Added\n- x\n",
         writeFile: () => undefined,
-        refreshRoadmap: () => [true, "ok"],
         validateReleaseInputs: (_root, phase) => {
           phases.push(phase);
           return passReleaseInputs();

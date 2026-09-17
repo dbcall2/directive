@@ -151,7 +151,6 @@ describe("runPipeline dry-run", () => {
       fileExists: (p) => p.endsWith("CHANGELOG.md") || p.endsWith("ROADMAP.md"),
       readFile: () => `## [Unreleased]\n\n### Added\n`,
       writeFile: () => undefined,
-      refreshRoadmap: () => [true, "ok"],
     };
     try {
       expect(runPipeline(config, seams)).toBe(0);

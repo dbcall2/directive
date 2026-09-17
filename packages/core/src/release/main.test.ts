@@ -103,7 +103,6 @@ describe("pipeline verify flip failure", () => {
       fileExists: (p) => p.endsWith("CHANGELOG.md"),
       readFile: () => CHANGELOG,
       writeFile: () => undefined,
-      refreshRoadmap: () => [true, "ok"],
       sleep: () => undefined,
       todayIso: () => "2026-04-28",
     };

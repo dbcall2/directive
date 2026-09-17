@@ -129,6 +129,18 @@ describe("prepareReleaseArtifacts", () => {
     closePreparedArtifacts(result.prepared);
   });
 
+  it("non-dry-run CHANGELOG payload read uses the retained descriptor", () => {
+    const src = readFileSync(
+      join(process.cwd(), "packages/core/src/release/release-artifacts.ts"),
+      "utf8",
+    );
+    expect(src).toContain("readFileSync(openedCl.fd");
+    const afterOpen = src.split("const openedCl = openExisting(changelogPath)")[1] ?? "";
+    expect(afterOpen).toContain("readFileSync(openedCl.fd");
+    const beforeOpen = src.split("const openedCl = openExisting(changelogPath)")[0] ?? "";
+    expect(beforeOpen).not.toContain("readFileSync(changelogPath");
+  });
+
   itPosix("refuses nlink!=1 on an existing ROADMAP hard-linked to an external file", () => {
     const root = tempRoot();
     const alias = join(root, "alias-roadmap.md");

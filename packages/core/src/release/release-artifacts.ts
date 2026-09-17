@@ -199,49 +199,16 @@ export function prepareReleaseArtifacts(input: PrepareReleaseArtifactsInput): Pr
     );
   }
 
-  let changelogText: string;
-  try {
-    changelogText = readFileSync(changelogPath, "utf8");
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return safetyFail(EXIT_CONFIG_ERROR, "read", `CHANGELOG.md read failed: ${msg}`);
-  }
-
-  let promoted: string;
-  try {
-    promoted = promoteChangelog(
-      changelogText,
-      input.version,
-      input.repo,
-      input.today,
-      input.summary,
-    );
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return safetyFail(EXIT_CONFIG_ERROR, "promote", msg);
-  }
-
-  let roadmapText: string;
-  try {
-    const pending = resolveLifecycleFolder(input.projectRoot, "pending");
-    const completed = resolveLifecycleFolder(input.projectRoot, "completed");
-    roadmapText = renderRoadmapToBuffer(pending, completed);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return safetyFail(EXIT_VIOLATION, "roadmap-render", msg);
-  }
-
-  const changelogBytes = Buffer.from(promoted, "utf8");
-  const roadmapBytes = Buffer.from(roadmapText, "utf8");
-
   if (input.dryRun) {
+    const dry = buffersFromChangelogText(input, changelogPath);
+    if (!dry.ok) return dry;
     return {
       ok: true,
       prepared: {
         changelogPath,
         roadmapPath,
-        changelogBytes,
-        roadmapBytes,
+        changelogBytes: dry.changelogBytes,
+        roadmapBytes: dry.roadmapBytes,
         changelogFd: null,
         roadmapFd: null,
       },
@@ -307,16 +274,72 @@ export function prepareReleaseArtifacts(input: PrepareReleaseArtifactsInput): Pr
     }
   }
 
+  let changelogText: string;
+  try {
+    changelogText = readFileSync(openedCl.fd, "utf8");
+  } catch (err) {
+    closeQuiet(openedCl.fd);
+    if (roadmapFd !== null) closeQuiet(roadmapFd);
+    const msg = err instanceof Error ? err.message : String(err);
+    return safetyFail(EXIT_CONFIG_ERROR, "read", `CHANGELOG.md read failed: ${msg}`);
+  }
+
+  const buffers = buffersFromChangelogText(input, changelogPath, changelogText);
+  if (!buffers.ok) {
+    closeQuiet(openedCl.fd);
+    if (roadmapFd !== null) closeQuiet(roadmapFd);
+    return buffers;
+  }
+
   return {
     ok: true,
     prepared: {
       changelogPath,
       roadmapPath,
-      changelogBytes,
-      roadmapBytes,
+      changelogBytes: buffers.changelogBytes,
+      roadmapBytes: buffers.roadmapBytes,
       changelogFd: openedCl.fd,
       roadmapFd,
     },
+  };
+}
+
+function buffersFromChangelogText(
+  input: PrepareReleaseArtifactsInput,
+  changelogPath: string,
+  changelogText?: string,
+):
+  | { readonly ok: true; readonly changelogBytes: Buffer; readonly roadmapBytes: Buffer }
+  | ChangelogSafetyFail {
+  let text = changelogText;
+  if (text === undefined) {
+    try {
+      text = readFileSync(changelogPath, "utf8");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return safetyFail(EXIT_CONFIG_ERROR, "read", `CHANGELOG.md read failed: ${msg}`);
+    }
+  }
+  let promoted: string;
+  try {
+    promoted = promoteChangelog(text, input.version, input.repo, input.today, input.summary);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return safetyFail(EXIT_CONFIG_ERROR, "promote", msg);
+  }
+  let roadmapText: string;
+  try {
+    const pending = resolveLifecycleFolder(input.projectRoot, "pending");
+    const completed = resolveLifecycleFolder(input.projectRoot, "completed");
+    roadmapText = renderRoadmapToBuffer(pending, completed);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return safetyFail(EXIT_VIOLATION, "roadmap-render", msg);
+  }
+  return {
+    ok: true,
+    changelogBytes: Buffer.from(promoted, "utf8"),
+    roadmapBytes: Buffer.from(roadmapText, "utf8"),
   };
 }
 
@@ -328,7 +351,7 @@ function writeFd(
   let offset = 0;
   try {
     while (offset < buf.length) {
-      const n = writeSync(fd, buf, offset, buf.length - offset);
+      const n = writeSync(fd, buf, offset, buf.length - offset, offset);
       if (n <= 0) {
         return {
           ok: false,
