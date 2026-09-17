@@ -18,13 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Release validates committed lifecycle inputs before the native scanner and again before CHANGELOG write (#4317).** Five-folder provenance runs after Step 2 and before the mismatch-policy skip; four-folder provenance runs after Step 5. `--allow-dirty` and `--allow-vbrief-drift` do not skip either phase. Dry-run does not start the new Git probes. Refs #4164.
+- **Release validates committed lifecycle inputs before the native scanner and again before CHANGELOG write (#4317).** Uncommitted or unsafe xBRIEF files now fail the release instead of reaching the scanner or ROADMAP write. Refs #4164.
 
 - **ROADMAP stays off merge-lane freshness and leftover-complete writes (#4316).** Tests lock `roadmap:check` off FRAMEWORK_CHECK_GATES / CONSUMER_CHECK_GATES / Taskfile check aggregates; the TypeScript suite has no live-checkout ROADMAP freshness pin, including aliased `roadmapRenderMain`, stored `repoRoot()`, and `checkDrift` via a checkout path; `scope:complete` and restamp do not write ROADMAP.md; leftover allowlist rejects ROADMAP.md; issue-closing PR template no longer asks for that edit. `task roadmap:check` stays the explicit diagnostic. Closes #4316.
 
 ### Fixed
 
-- **Release-input census keeps POSIX backslash filenames (#4317).** Git `-z` index and HEAD parsing no longer rewrite `\\` to `/`. Invalid UTF-8 leaf names print `\\xNN` in diagnostics instead of latin-1. MCP unavailable in this session -- used gh api fallback for review comments.
+- **Release-input census keeps POSIX backslash filenames (#4317).** A committed filename with a backslash is no longer treated as a nested path; invalid UTF-8 names print as byte escapes.
 
 - **Full-stop reverse-init recipe (#4674).** Adds an ordered procedure that strips live hooks before uninstall. See [full-stop](content/docs/full-stop.md). Refs #4674.
 - **Throttle-skip after a warning-only doctor run is not billed as clean (#4673).** The skip line uses persisted lastFindingCount; lastErrorCount 0 with findings >= 1 does not print clean. isDirty stays lastErrorCount > 0. README diagnosis rows and diagnosis front doors name `--full`. Ritual session-start `deft doctor` stays the cost skip. Missing `.deft/core` skip invalidation stays on #4679. Refs #4673.
