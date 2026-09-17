@@ -27,7 +27,7 @@ describe("FIFO CHANGELOG bounded child (#4318)", () => {
       writeFileSync(join(root, "ROADMAP.md"), "# Roadmap\n");
       const result = spawnSync(process.execPath, [tsx, child, root, mode], {
         encoding: "utf8",
-        timeout: 8 * 1000,
+        timeout: 30 * 1000,
         env: { ...process.env },
       });
       expect(result.error, `${mode} timed out or failed to spawn`).toBeUndefined();

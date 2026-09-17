@@ -1,3 +1,4 @@
+/* v8 ignore file -- spawned FIFO fixture helper (#4318) */
 /**
  * Bounded child for FIFO CHANGELOG fixtures (#4318). Do not import from tests
  * in-process — spawn this file so a guard regression cannot hang the suite.
