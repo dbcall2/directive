@@ -5,7 +5,7 @@
  * and pinned HEAD. Payload reads happen only after type/membership/size checks.
  */
 import { spawnSync } from "node:child_process";
-import { lstatSync, readdirSync, readFileSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, type Stats } from "node:fs";
 import { join } from "node:path";
 import { LIFECYCLE_FOLDERS } from "../intake/reconcile-issues.js";
 import { hasArtifactSuffix } from "../layout/resolve.js";
@@ -166,11 +166,17 @@ export function splitGitNulRecordsStrict(stdout: Buffer): Buffer[] | null {
   return splitGitLsFilesZRecords(stdout).map((r) => r.bytes);
 }
 
-function lstatOrNull(path: string): ReturnType<typeof lstatSync> | null {
+type LstatOutcome =
+  | { readonly kind: "ok"; readonly stats: Stats }
+  | { readonly kind: "missing" }
+  | { readonly kind: "unsafe" };
+
+function lstatOutcome(path: string): LstatOutcome {
   try {
-    return lstatSync(path);
-  } catch {
-    return null;
+    return { kind: "ok", stats: lstatSync(path) };
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return { kind: "missing" };
+    return { kind: "unsafe" };
   }
 }
 
@@ -456,38 +462,26 @@ export function validateReleaseInputs(
 ): ReleaseInputResult {
   const folders = foldersForPhase(phase);
   const xbriefRoot = join(projectRoot, MIGRATED_ARTIFACT_DIR);
-  let rootStat: ReturnType<typeof lstatSync> | null;
-  try {
-    rootStat = lstatOrNull(xbriefRoot);
-  } catch {
-    return fail("unsafe-node", MIGRATED_ARTIFACT_DIR);
-  }
+  const rootStat = lstatOutcome(xbriefRoot);
+  if (rootStat.kind === "unsafe") return fail("unsafe-node", MIGRATED_ARTIFACT_DIR);
 
-  if (rootStat == null) {
-    let legacy: ReturnType<typeof lstatSync> | null;
-    try {
-      legacy = lstatOrNull(join(projectRoot, LEGACY_ARTIFACT_DIR));
-    } catch {
-      return fail("unsafe-node", LEGACY_ARTIFACT_DIR);
-    }
-    if (legacy !== null) return fail("legacy-only", LEGACY_ARTIFACT_DIR);
+  if (rootStat.kind === "missing") {
+    const legacy = lstatOutcome(join(projectRoot, LEGACY_ARTIFACT_DIR));
+    if (legacy.kind === "unsafe") return fail("unsafe-node", LEGACY_ARTIFACT_DIR);
+    if (legacy.kind === "ok") return fail("legacy-only", LEGACY_ARTIFACT_DIR);
     return fail("missing-lifecycle-root", MIGRATED_ARTIFACT_DIR);
   }
-  if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
+  if (rootStat.stats.isSymbolicLink() || !rootStat.stats.isDirectory()) {
     return fail("unsafe-node", MIGRATED_ARTIFACT_DIR);
   }
 
   const candidates = new Map<string, Candidate>();
   for (const folder of folders) {
     const bucket = join(xbriefRoot, folder);
-    let st: ReturnType<typeof lstatSync> | null;
-    try {
-      st = lstatOrNull(bucket);
-    } catch {
-      return fail("unsafe-node", `${XBRIEF_PREFIX}${folder}`);
-    }
-    if (st == null) continue;
-    if (st.isSymbolicLink() || !st.isDirectory()) {
+    const st = lstatOutcome(bucket);
+    if (st.kind === "unsafe") return fail("unsafe-node", `${XBRIEF_PREFIX}${folder}`);
+    if (st.kind === "missing") continue;
+    if (st.stats.isSymbolicLink() || !st.stats.isDirectory()) {
       return fail("unsafe-node", `${XBRIEF_PREFIX}${folder}`);
     }
     let names: Array<string | Buffer>;
@@ -618,15 +612,13 @@ export function validateReleaseInputs(
       continue;
     }
     const abs = join(projectRoot, MIGRATED_ARTIFACT_DIR, c.folder, name);
-    let leaf: ReturnType<typeof lstatSync> | null;
-    try {
-      leaf = lstatOrNull(abs);
-    } catch {
+    const leaf = lstatOutcome(abs);
+    if (leaf.kind === "unsafe") {
       violations.push({ code: "unsafe-node", path: c.display, remedy: remedyFor("unsafe-node") });
       continue;
     }
-    if (leaf == null || leaf.isSymbolicLink() || !leaf.isFile()) {
-      const code = leaf == null ? "missing-view" : "unsafe-node";
+    if (leaf.kind === "missing" || leaf.stats.isSymbolicLink() || !leaf.stats.isFile()) {
+      const code = leaf.kind === "missing" ? "missing-view" : "unsafe-node";
       violations.push({ code, path: c.display, remedy: remedyFor(code) });
       continue;
     }
