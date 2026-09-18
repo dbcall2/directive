@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "xbriefRelPath": "xbrief/active/2026-09-18-4744-bugcheck-windows-release-step-5-still-exits-124-after.xbrief.json",
+  "planId": "github.issue.5495206751",
+  "approvedAt": "2026-09-18T11:46:59Z",
+  "fileScope": [
+    "CHANGELOG.md",
+    "packages/cli/src/install-upgrade.test.ts",
+    "packages/cli/src/occupancy-grant.test.ts",
+    "packages/cli/src/occupancy-heartbeat.test.ts",
+    "packages/cli/src/occupancy-release.test.ts",
+    "packages/cli/src/occupancy-steal.test.ts",
+    "packages/core/src/check/named-cause.test.ts",
+    "packages/core/src/check/named-cause.ts",
+    "packages/core/src/integration-e2e/triage-bootstrap-at-scale.test.ts",
+    "packages/core/src/session/branches.test.ts",
+    "packages/core/src/session/child-occupancy.test.ts",
+    "packages/core/src/session/occupancy-mint-refusal.test.ts",
+    "packages/core/src/session/occupancy-stress.test.ts",
+    "packages/core/src/ts-check-lane/progress-reporter.ts",
+    "packages/core/src/ts-check-lane/progress.ts",
+    "packages/core/src/ts-check-lane/run-lane.ts",
+    "packages/core/src/vitest-runner/vitest-config-contract.test.ts",
+    "vitest.config.ts"
+  ],
+  "fileScopeDigest": "c5875cde707c00fdf10a928f0017f29fe2c38f740e9b50703aca27e24c05aa0a",
+  "humanApproval": {
+    "kind": "operator",
+    "actor": "MScottAdams",
+    "mintedAt": "2026-09-18T11:46:59Z",
+    "mintedVia": "scope:record-approved-scope"
+  },
+  "intentDigest": "bb89c754a57e0ca09c4533719b51ad5c2d6512a360030c6a52a770fcdd6a82bd",
+  "digestAlgo": "intent-extract-v1"
+}
