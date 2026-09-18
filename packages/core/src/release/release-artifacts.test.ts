@@ -43,6 +43,7 @@ function tempRoot(): string {
 }
 
 const itPosix = it.skipIf(process.platform === "win32");
+const itLinux = it.skipIf(process.platform !== "linux");
 
 function prepInput(root: string, dryRun = false) {
   return {
@@ -220,7 +221,7 @@ describe("writeReleaseArtifacts", () => {
     expect(readFileSync(join(root, "CHANGELOG.md"))).toEqual(beforeCl);
   });
 
-  it("creates missing ROADMAP after revalidating the parent directory", () => {
+  itLinux("creates missing ROADMAP through the retained parent descriptor", () => {
     const root = tempRoot();
     rmSync(join(root, "ROADMAP.md"));
     const prepared = prepareReleaseArtifacts(prepInput(root, false));
@@ -232,6 +233,21 @@ describe("writeReleaseArtifacts", () => {
     const written = writeReleaseArtifacts(prepared.prepared);
     expect(written.ok).toBe(true);
     expect(readFileSync(join(root, "ROADMAP.md"), "utf8")).toContain("# Roadmap");
+  });
+
+  it("refuses missing ROADMAP create by pathname on non-Linux platforms", () => {
+    if (process.platform === "linux") return;
+    const root = tempRoot();
+    rmSync(join(root, "ROADMAP.md"));
+    const prepared = prepareReleaseArtifacts(prepInput(root, false));
+    expect(prepared.ok).toBe(true);
+    if (!prepared.ok) return;
+    const written = writeReleaseArtifacts(prepared.prepared);
+    expect(written.ok).toBe(false);
+    if (written.ok) return;
+    expect(written.code).toBe("roadmap-create");
+    expect(written.changelogMutated).toBe(false);
+    expect(existsSync(join(root, "ROADMAP.md"))).toBe(false);
   });
 
   itPosix("refuses ROADMAP create when the parent directory is replaced with a symlink", () => {
