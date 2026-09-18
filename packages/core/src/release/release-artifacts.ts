@@ -4,6 +4,8 @@
  * Do not use containedWrite create|replace|append for these two sinks.
  * native-steps is not the ROADMAP writer on this path.
  */
+
+import { execFileSync } from "node:child_process";
 import {
   type BigIntStats,
   closeSync,
@@ -16,7 +18,7 @@ import {
   readFileSync,
   writeSync,
 } from "node:fs";
-import { basename, dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { ContainedWriteError, containedOpenExclusive } from "../fs/contained-write.js";
 import { resolveLifecycleFolder } from "../layout/resolve.js";
 import { renderRoadmapToBuffer } from "../render/roadmap-render.js";
@@ -166,6 +168,26 @@ function parentDirOpenFlags(): number {
   return flags;
 }
 
+function inodePathOfDirFd(dirFd: number): string | null {
+  if (process.platform === "linux") {
+    return `/proc/self/fd/${String(dirFd)}`;
+  }
+  if (process.platform === "darwin") {
+    try {
+      const out = execFileSync(
+        "/usr/sbin/lsof",
+        ["-a", "-w", "-p", String(process.pid), "-d", String(dirFd), "-Fn"],
+        { encoding: "utf8", timeout: 5000 },
+      );
+      const line = out.split("\n").find((row) => row.startsWith("n"));
+      return line === undefined ? null : line.slice(1);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 function openExclusiveAtParentFd(
   parentFd: number,
   childName: string,
@@ -183,10 +205,11 @@ function openExclusiveAtParentFd(
         "ROADMAP.md parent descriptor is not a directory",
       );
     }
-    if (process.platform === "linux") {
+    const inodePath = inodePathOfDirFd(parentFd);
+    if (inodePath !== null) {
       return {
         ok: true,
-        fd: openSync(`/proc/self/fd/${String(parentFd)}/${childName}`, createOpenFlags()),
+        fd: openSync(join(inodePath, childName), createOpenFlags()),
       };
     }
     const handle = containedOpenExclusive({
