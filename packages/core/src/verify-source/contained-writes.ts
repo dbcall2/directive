@@ -71,6 +71,9 @@ export const CONTAINED_WRITES_ALLOWLIST: readonly string[] = [
   "packages/core/src/release/gh.ts",
   "packages/core/src/release/pipeline-fixture.ts",
   "packages/core/src/release/pipeline.ts",
+  // #4318: ROADMAP/CHANGELOG retained-descriptor writer. containedWrite
+  // create|replace|append cannot keep pair-open fds or bigint identity.
+  "packages/core/src/release/release-artifacts.ts",
   "packages/core/src/render/roadmap-render.ts",
   "packages/core/src/render/rule-map.ts",
   "packages/core/src/scm/gh-rest.ts",

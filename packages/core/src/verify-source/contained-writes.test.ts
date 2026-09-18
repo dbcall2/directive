@@ -92,6 +92,10 @@ describe("evaluateContainedWrites (#2951)", () => {
     );
   });
 
+  it("allowlists release-artifacts retained-descriptor writer (#4318)", () => {
+    expect(CONTAINED_WRITES_ALLOWLIST).toContain("packages/core/src/release/release-artifacts.ts");
+  });
+
   it("does not allowlist a path that merely ends with an allowlisted suffix", () => {
     const root = freshDir("cw-verify-endswith-");
     const spoof = join(root, "packages", "core", "src", "evil", "packages", "core", "src", "fs");
@@ -140,6 +144,7 @@ describe("evaluateContainedWrites (#2951)", () => {
       "packages/core/src/release/gh.ts",
       "packages/core/src/release/pipeline-fixture.ts",
       "packages/core/src/release/pipeline.ts",
+      "packages/core/src/release/release-artifacts.ts",
       "packages/core/src/render/roadmap-render.ts",
       "packages/core/src/render/rule-map.ts",
       "packages/core/src/scm/gh-rest.ts",

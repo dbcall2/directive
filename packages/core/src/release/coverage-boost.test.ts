@@ -9,6 +9,7 @@ import {
   releaseSubprocessEnv,
 } from "./git.js";
 import { runPipeline } from "./pipeline.js";
+import { seedReleaseProjectDir } from "./pipeline-fixture.js";
 import { passReleaseInputs } from "./release-input.js";
 import type { ReleaseConfig, ReleaseSeams } from "./types.js";
 
@@ -308,6 +309,7 @@ describe("runPipeline additional branches", () => {
   });
 
   it("runs promote failure on bad changelog", () => {
+    const projectDir = seedReleaseProjectDir("no unreleased\n");
     const seams: ReleaseSeams = {
       validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, a) => {
@@ -321,10 +323,13 @@ describe("runPipeline additional branches", () => {
       readFile: () => "no unreleased",
       todayIso: () => "2026-01-01",
     };
-    expect(runPipeline({ ...base, allowVbriefDrift: true }, seams)).toBe(2);
+    expect(runPipeline({ ...base, allowVbriefDrift: true, projectRoot: projectDir }, seams)).toBe(
+      2,
+    );
   });
 
   it("accepts allow-dirty warn path", () => {
+    const projectDir = seedReleaseProjectDir(changelog);
     const seams: ReleaseSeams = {
       validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, a) => {
@@ -339,7 +344,16 @@ describe("runPipeline additional branches", () => {
       todayIso: () => "2026-01-01",
     };
     expect(
-      runPipeline({ ...base, allowDirty: true, allowVbriefDrift: true, dryRun: true }, seams),
+      runPipeline(
+        {
+          ...base,
+          allowDirty: true,
+          allowVbriefDrift: true,
+          dryRun: true,
+          projectRoot: projectDir,
+        },
+        seams,
+      ),
     ).toBe(0);
   });
 });

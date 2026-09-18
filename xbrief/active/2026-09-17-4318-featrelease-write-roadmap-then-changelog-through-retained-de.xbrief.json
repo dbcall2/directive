@@ -1,0 +1,464 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #4318",
+    "updated": "2026-09-17T21:57:09Z"
+  },
+  "plan": {
+    "title": "feat(release): write ROADMAP then CHANGELOG through retained descriptors (#4164)",
+    "status": "running",
+    "narratives": {
+      "Description": "feat(release): write ROADMAP then CHANGELOG through retained descriptors (#4164)",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/4318",
+      "Overview": "## Parent\n\n#4164\n\n## Locked design\n\nhttps://github.com/deftai/directive/issues/4164 is the bound contract (successor lean 5573709507). This child implements decision 5, decision 12, the Step 5 CHANGELOG read-safety boundary, the paired destination predicate, ROADMAP-then-CHANGELOG writes, and the failure/postcondition matrix. Input validation in this step reuses the Wave-2 module; do not reimplement it.\n\n## What to build\n\nAt Step 5 entry, refuse unsafe CHANGELOG paths and node types before any release-owned CHANGELOG read, including dry-run and `--skip-ci`. Step 6 prepares both artifacts and validates both destinations before either write. Existing outputs are independent, singly linked regular files held on nontruncating descriptors. Step 7 completes ROADMAP before any CHANGELOG write or truncate. Pre-mutation refusals preserve both artifacts. Partial writes report partial state and are not retry-safe.\n\n## Acceptance criteria\n\nParent #4164 sections **Destinations, preparation, and retry** and **Dry-run, operator interface, and preserved scope** except the four preserved-scope lock boxes owned by Wave 1, plus:\n\n- [ ] Real `runPipeline` fixtures with CHANGELOG as FIFO, directory, symlink, or special node return a numbered Step 5 policy refusal before payload read, CI, or artifact mutation. Missing CHANGELOG stays code 2; detected policy refusal stays code 1.\n- [ ] Step 5 structural guard precedes coverage-debt ledger and native teardown CHANGELOG reads. Only the release-root target is claimed protected.\n- [ ] Both destinations are checked before either write. Hard-linked ROADMAP/CHANGELOG pairs are refused. Successful preparation writes nothing.\n- [ ] Step 7 writes ROADMAP to completion, then CHANGELOG. ROADMAP create/write/truncate faults leave CHANGELOG byte-identical.\n- [ ] Dry-run still performs the CHANGELOG structural read-safety check and pure promotion rehearsal; it does not run destination write-open probes or writes.\n- [ ] Steps stay `[N/13]`. Step 6 label is `Prepare release artifacts`. Step 7 label is `Write release artifacts`. `[release-input]` detail lines stay outside the numbering.\n- [ ] Release skill, `docs/RELEASING.md`, CLI help, and transcript tests match. `runPipeline` throw expectation is replaced with the classified return.\n- [ ] All new tests pass.\n- [ ] `task check` passes.\n\n## Type\n\nAFK\n\n## Blocked by\n\n- Blocked by #4317\n\n## File scope (advisory)\n\n- `packages/core/src/release/pipeline.ts`\n- `packages/core/src/release/native-steps.ts`\n- `packages/core/src/release/types.ts` (seams)\n- `packages/core/src/fs/projection-containment.ts` (reuse `assertDestinationNotSymlink`; do not substitute `assertProjectionContained` alone)\n- `packages/core/src/release/coverage-debt-ledger.ts`\n- `packages/core/src/vitest-runner/coverage-debt-teardown.ts`\n- `content/skills/deft-directive-release/SKILL.md`\n- `docs/RELEASING.md`\n- colocated pipeline/destination tests\n\n",
+      "Labels": "enhancement, area:release, status:child"
+    },
+    "items": [
+      {
+        "title": "assertDestinationNotSymlink is a symlink floor, not the node-type / nlink / pair-identity guard. Do not use containedWrite create|replace|append for these two sinks.",
+        "status": "proposed"
+      },
+      {
+        "title": "Step 5 entry guard is a read-only structural check (leaf node-type plus the existing symlink-ancestor floor) that precedes every release-owned CHANGELOG read, including coverage-debt ledger and native teardown. Only the release-root target is claimed protected. It runs on real, dry-run, and --skip-ci (skip the suite, not the entry guard). Catch-and-empty must not wrap the guard. FIFO fixtures run in a bounded child. Classified Step 5 return on a real node. A real-path FIFO/special-node refusal proves zero CI/readiness calls (do not inject runCi to hide teardown). Missing CHANGELOG stays code 2; detected policy refusal stays code 1.",
+        "status": "proposed"
+      },
+      {
+        "title": "Step 6 pair-opens independent singly linked regular files on nontruncating descriptors after Wave-2's second validation. Dry-run does not run destination write-open probes or writes. In-memory prep uses renderRoadmapToBuffer and promoteChangelog. Successful preparation writes nothing.",
+        "status": "proposed"
+      },
+      {
+        "title": "Require bigint nlink === 1n and bigint dev+ino pair-identity on pre-open metadata and on the retained descriptors. Fail closed if bigint stats are unavailable. Refuse nlink≠1 on either existing output and the pair-identity case.",
+        "status": "proposed"
+      },
+      {
+        "title": "Step 7 writes ROADMAP to completion, then CHANGELOG, through retained descriptors. native-steps must not remain the ROADMAP writer. ROADMAP create/write/truncate faults leave CHANGELOG byte-identical. Partial writes report partial state and are not retry-safe.",
+        "status": "proposed"
+      },
+      {
+        "title": "Order: Step 5 CHANGELOG node-type guard → CI/readiness → Wave-2 second validation → Step 6 paired dest open plus in-memory prep → Step 7 ROADMAP then CHANGELOG. Wave-2 is not the CHANGELOG guard.",
+        "status": "proposed"
+      },
+      {
+        "title": "Steps stay [N/13]. Step 6 label is Prepare release artifacts. Step 7 label is Write release artifacts. Relabel of Step 6 must not attach --skip-build to prepare-artifacts.",
+        "status": "proposed"
+      }
+    ],
+    "tags": [
+      "enhancement",
+      "area:release",
+      "status:child"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/4318",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #4318: feat(release): write ROADMAP then CHANGELOG through retained descriptors (#4164)"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/4317",
+        "type": "x-xbrief/blocks",
+        "title": "Issue #4317"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 7 independently testable clauses from the task statement before product edit (#3323)",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "assertDestinationNotSymlink is a symlink floor, not the node-type / nlink / pair-identity guard. Do not use containedWrite create|replace|append for these two sinks.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "Step 5 entry guard is a read-only structural check (leaf node-type plus the existing symlink-ancestor floor) that precedes every release-owned CHANGELOG read, including coverage-debt ledger and native teardown. Only the release-root target is claimed protected. It runs on real, dry-run, and --skip-ci (skip the suite, not the entry guard). Catch-and-empty must not wrap the guard. FIFO fixtures run in a bounded child. Classified Step 5 return on a real node. A real-path FIFO/special-node refusal proves zero CI/readiness calls (do not inject runCi to hide teardown). Missing CHANGELOG stays code 2; detected policy refusal stays code 1.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "Step 6 pair-opens independent singly linked regular files on nontruncating descriptors after Wave-2's second validation. Dry-run does not run destination write-open probes or writes. In-memory prep uses renderRoadmapToBuffer and promoteChangelog. Successful preparation writes nothing.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "Require bigint nlink === 1n and bigint dev+ino pair-identity on pre-open metadata and on the retained descriptors. Fail closed if bigint stats are unavailable. Refuse nlink≠1 on either existing output and the pair-identity case.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 5,
+          "text": "Step 7 writes ROADMAP to completion, then CHANGELOG, through retained descriptors. native-steps must not remain the ROADMAP writer. ROADMAP create/write/truncate faults leave CHANGELOG byte-identical. Partial writes report partial state and are not retry-safe.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 6,
+          "text": "Order: Step 5 CHANGELOG node-type guard → CI/readiness → Wave-2 second validation → Step 6 paired dest open plus in-memory prep → Step 7 ROADMAP then CHANGELOG. Wave-2 is not the CHANGELOG guard.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 7,
+          "text": "Steps stay [N/13]. Step 6 label is Prepare release artifacts. Step 7 label is Write release artifacts. Relabel of Step 6 must not attach --skip-build to prepare-artifacts.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found"
+    },
+    "metadata": {
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [],
+        "module_boundary": ""
+      },
+      "issueCommentThread": [
+        {
+          "body": "Parent tracker: #4164 (bound design; successor lean 5573709507).\nWave 3 of 3. Blocked by #4317.\nSiblings: #4316, #4317, #4318.",
+          "id": 5620225069,
+          "html_url": "https://github.com/deftai/directive/issues/4318#issuecomment-5620225069",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-10T14:22:34Z",
+          "updated_at": "2026-09-10T14:22:34Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: triage\n```\n\ndesign-critique: warranted, because Wave 3 writes ROADMAP then CHANGELOG through retained descriptors and a Step 5 CHANGELOG read-safety boundary, and an unsafe node or a CHANGELOG truncate before ROADMAP completion can still land — not disposition-only.\n\nmechanism-shaped: true\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: /Users/davidcall/.grok/worktrees/deft-directive/issue-4318-dc\norigin-ref: origin/master\ndispatch-sha: 068831ea6b68afde722b2bfc2899f6ab87f880db\n\ncharter: open critique\nspend: N=1\nspend-why: default motion. Child of bound #4164 (decision 5, decision 12, Step 5 read-safety, paired dest predicate, ROADMAP-then-CHANGELOG). Wave 3 blocked by #4317. Not an open solution space that selects panel spend.\n\nrefutation-target: Step 5 refuses unsafe CHANGELOG paths and node types before any release-owned CHANGELOG read, including dry-run and --skip-ci. Step 6 prepares both artifacts and validates both destinations before either write. Existing outputs are independent, singly linked regular files. Step 7 completes ROADMAP before any CHANGELOG write or truncate. Pre-mutation refusals preserve both artifacts.\n\ntarget: #4318\ntarget-shape: single-issue (default)\naudit-targets: none\n\npain: P1\n\n## Gate stamp\n\nThe triage author stamps the semantic call. P1 is a Step 5 CHANGELOG read of an unsafe node, a hard-linked ROADMAP/CHANGELOG pair, or a CHANGELOG write/truncate before ROADMAP completion. Parent #4164 is the bound contract (successor lean 5573709507). Input validation in this step reuses the Wave-2 module; do not reimplement it. Body SHA-256 c382bb2c94675a96a12238c26d47b8deb6e3332f16d5d599defbecc6343f9923 (2920 UTF-8 bytes). No implement and no ingest from this parent.\n\n",
+          "id": 5714680571,
+          "html_url": "https://github.com/deftai/directive/issues/4318#issuecomment-5714680571",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-17T12:54:00Z",
+          "updated_at": "2026-09-17T12:54:00Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\nOpen critique of #4318, Wave 3 child of bound #4164 (successor lean 5573709507). Round 1, spend N=1. Not a pain-audit.\n\n## Verdict\n\nThe child slice matches the parent Wave 3 intent: Step 5 CHANGELOG read-safety, paired destination prep, ROADMAP then CHANGELOG, pre-mutation preserve, partial writes not retry-safe. Parent Destinations / Dry-run sections stay the contract. No `blocks-the-design` finding.\n\nIt is not ready as an AFK working spec. Existing symlink/write helpers do not implement the predicate, and the compressed AC drops the live hang paths, the FIFO bounded child, and the contained-write collision.\n\n## Existing mechanisms\n\nVerified at `068831ea6b68afde722b2bfc2899f6ab87f880db` by `git show`, not line-cite:\n\n- `runPipeline` Step 5: `--skip-ci` and dry-run skip the suite, then `readFile(changelogPath)` for consumer-readiness disclosure inside catch-and-empty. Ledger CHANGELOG read is only on the CI-failure path and also catch-and-empty. Vitest `coverage-debt-teardown` reads repo-root CHANGELOG inside CI.\n- Step 6 (`CHANGELOG promotion`) reads, then `assertProjectionContained` plus `writeFileSync`. Step 7 (`ROADMAP refresh`) calls `refreshRoadmapNative` → `renderRoadmap` (`assertWriteTargetSafe` plus `writeFileSync`). Write order is CHANGELOG then ROADMAP.\n- Missing CHANGELOG returns `EXIT_CONFIG_ERROR` (2). The current symlink test expects `toThrow(ProjectionContainmentError)` with `skipCi: true` and injected `readFile` / `fileExists` seams, so `lstat` of the real node never runs before the seamed read.\n- `assertDestinationNotSymlink` refuses symlink components only. That module has no FIFO/socket/device/`isFile`/`nlink`/bigint identity check.\n- `containedWrite` `mode: \"replace\"` opens `O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW` and closes per call. No retained nontruncating fd, no paired open.\n- `renderRoadmapToBuffer` and pure `promoteChangelog` already exist. Wave-2 lifecycle module is not on this SHA (blocked by #4317).\n\n## Findings\n\n### 1. File-scope points AFK at helpers that leave P1 open (`sharpens-framing`)\n\n**Evidence:** File-scope says reuse `assertDestinationNotSymlink` and not `assertProjectionContained` alone. At the pinned SHA that helper throws only on `isSymbolicLink()` after the escape walk. `containedWrite` replace truncates on open. `refreshRoadmapNative` still writes. #2951 tells new product sinks to prefer `containedWrite`.\n\n**Failure mode:** An AFK worker treats the advisory list as the mechanism: symlink-check at Step 5, then `containedWrite` replace or `renderRoadmap`. A FIFO still blocks on the skip-ci disclosure `readFile`. Opening CHANGELOG with `O_TRUNC` before ROADMAP completion mutates CHANGELOG during \"preparation\". Sequential containedWrite writes ROADMAP, then fails CHANGELOG open, so a second-output open failure does not preserve both artifacts.\n\n**Disposition:** Bind only after file-scope names the real predicate and the chokepoint exception. `assertDestinationNotSymlink` is a symlink floor, not the node-type / nlink / pair-identity guard. Do not use `containedWrite` create|replace|append for these two sinks: pair-open, nontruncating fds, and ftruncate-after-write are not that API. Step 6 must call `renderRoadmapToBuffer` and `promoteChangelog`. Step 7 writes through retained descriptors. `native-steps` must not remain the ROADMAP writer.\n\n### 2. First AC bullet drops the live hang paths and the FIFO bounded child (`sharpens-framing`)\n\n**Evidence:** Parent Destinations requires real, dry-run, and `--skip-ci` fixtures, a bounded child for FIFO, and no catch-and-empty hiding the guard. Child What-to-build includes dry-run and `--skip-ci`. The first AC bullet names only real `runPipeline` FIFO/directory/symlink/special-node before payload read, CI, or mutation. On this SHA, `--skip-ci` still hits disclosure `readFile` then Step 6 `readFile`. `--skip-ci` help already says \"Skip Step 5\".\n\n**Failure mode:** Tests copy the seamed throw case, or open a FIFO in-process. A guard regression hangs `task check`. A help-driven worker skips the new entry guard with `--skip-ci`, which is the live hang path.\n\n**Disposition:** First AC bullet must name dry-run and `--skip-ci` (skip the suite, not the entry guard). Catch-and-empty must not wrap the guard. FIFO fixtures run in a bounded child. Replace the throw expectation with a classified Step 5 return on a real node, without injected `readFile` hiding `lstat`.\n\n### 3. Hard-link AC names the pair only (`sharpens-framing`)\n\n**Evidence:** Parent requires a Git-clean ROADMAP hard-linked to an external file and both outputs hard-linked to each other, plus bigint single-link and pair-identity on retained descriptors. Child What-to-build says \"singly linked\". AC only says hard-linked ROADMAP/CHANGELOG pairs are refused.\n\n**Failure mode:** Implementer compares the two output inodes, skips `nlink === 1`, and Step 7 mutates an external ROADMAP alias.\n\n**Disposition:** AC must refuse nlink≠1 on either existing output and the pair-identity case, fail closed on unsupported metadata, and repeat those checks on the retained descriptors before mutation.\n\n### 4. \"Reuse the Wave-2 module\" collides with the CHANGELOG guard (`sharpens-framing`)\n\n**Evidence:** #4317 is the lifecycle input module, run before Step 3 and again after CI immediately before ROADMAP preparation. CHANGELOG read-safety is a different predicate (parent Decision 12 / 14). That module is not on this SHA.\n\n**Failure mode:** Worker reuses xbrief validation for CHANGELOG, or opens Step 6 destinations before Wave-2's post-CI validation, and prepares ROADMAP from unvalidated lifecycle inputs.\n\n**Disposition:** State the order on the child: Step 5 entry CHANGELOG node-type guard → CI/readiness → Wave-2 second validation → Step 6 paired dest open plus in-memory prep → Step 7 ROADMAP then CHANGELOG. Wave-2 is not the CHANGELOG guard.\n\n## Injection / swarm\n\nUntrusted repo node types are the input. FIFO hangs the operator-credentialed process. Symlink diverts writes. Hard-link aliases mutate extra paths. Newline-bearing symlink targets can forge `[N/13]` FAIL lines unless Decision 13 escaping applies to destination diagnostics (Wave 2 already paid this class). `--skip-ci` is authority to skip the suite, not the guard. Retained descriptors are pair-open against TOCTOU between Step 6 and Step 7, not a lock; parent Decision 14 still assumes no concurrent writer. Wave 1 still owns `swarm:finalize-cohort` not writing ROADMAP. Do not wrap the guard in catch-and-empty (disclosure, ledger, and teardown swallow unreadability today). Partial CHANGELOG write is shared artifact state: report it, do not claim retry-safe, do not add rollback.\n\n## Road not taken\n\nI considered `blocks-the-design` on finding 1 because Type is AFK and file-scope names an insufficient helper. I rejected that: the first AC already names FIFO/directory/special node, which that helper cannot pass, and the child incorporates the parent Destinations section. Tests written from that AC force a stronger predicate. What would flip: deleting FIFO/special-node from the child AC, or wording file-scope as \"do not reimplement node-type checks.\"\n\nI considered routing Step 7 through `containedWrite` to honor the #2951 chokepoint. That API cannot hold two nontruncating fds and check the second destination before mutating the first. Sequential replace would keep CHANGELOG intact on a ROADMAP write fault and fail second-open-preserves-both. Flip: a containedWrite multi-target prepare/commit.\n\n## Anchors\n\n- Issue body SHA-256 `c382bb2c94675a96a12238c26d47b8deb6e3332f16d5d599defbecc6343f9923` (2920 UTF-8 bytes) matches the REST JSON body. `gh --jq .body` appends a newline and is not the digest input.\n- `TOTAL_STEPS` is 13. Missing CHANGELOG is code 2. Today's containment miss is an uncaught `ProjectionContainmentError`.\n- `--skip-build` already skips Step 8 in code while help says Step 6. Relabel of Step 6 must not attach `--skip-build` to prepare-artifacts.\n\n",
+          "id": 5714826746,
+          "html_url": "https://github.com/deftai/directive/issues/4318#issuecomment-5714826746",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-17T13:05:11Z",
+          "updated_at": "2026-09-17T13:05:11Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nWave 3 can write ROADMAP then CHANGELOG through retained descriptors, but not by reusing today's symlink helper or containedWrite replace. Confirming this map recuts #4318 so Step 5 is a real node-type guard on dry-run and `--skip-ci` too, Step 6 pair-opens nontruncating fds after Wave-2's second census, and Step 7 writes ROADMAP to completion before any CHANGELOG truncate.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept critic headings.\n\nForward verdict: recut. Disposition: classified headings accept-into-contract. Residual: audit:pain-P1.\nSpec-path: next-build contract is not this body.\n\n**Lean:** recut of #4318 after round 1 sibling 1. Cites critic 5714826746. Supersedes write-back 5714680571.\n\nTarget-digest: sha256:c382bb2c94675a96a12238c26d47b8deb6e3332f16d5d599defbecc6343f9923\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: /Users/davidcall/.grok/worktrees/deft-directive/issue-4318-dc\norigin-ref: origin/master\ndispatch-sha: 068831ea6b68afde722b2bfc2899f6ab87f880db\ntarget shape: single-issue\nround: 1\nsiblings: 1\n\nTakes:\n\n- 5714826746 File-scope points AFK at helpers that leave P1 open — accept-into-contract\n- 5714826746 First AC bullet drops the live hang paths and the FIFO bounded child — accept-into-contract\n- 5714826746 Hard-link AC names the pair only — accept-into-contract\n- 5714826746 Reuse the Wave-2 module collides with the CHANGELOG guard — accept-into-contract\n- remaining classified headings — accept-into-contract\n\nrelieves: P1\n\n## Parent-side substantiation\n\naudit:pain-P1 sha=068831ea6b68afde722b2bfc2899f6ab87f880db pointer=comment:5714826746 reading=measured\n\n## Bound remedy\n\n- `assertDestinationNotSymlink` is a symlink floor, not the node-type / nlink / pair-identity guard. Do not use `containedWrite` create|replace|append for these two sinks.\n- Step 5 entry CHANGELOG node-type guard runs on real, dry-run, and `--skip-ci` (skip the suite, not the entry guard). Catch-and-empty must not wrap the guard. FIFO fixtures run in a bounded child. Classified Step 5 return on a real node; replace the throw expectation; do not inject `readFile` to hide `lstat`. Missing CHANGELOG stays code 2; detected policy refusal stays code 1.\n- Step 6 pair-opens independent singly linked regular files on nontruncating descriptors after Wave-2's second validation. In-memory prep uses `renderRoadmapToBuffer` and `promoteChangelog`. Successful preparation writes nothing.\n- Refuse nlink≠1 on either existing output and the pair-identity case. Fail closed on unsupported metadata. Repeat those checks on the retained descriptors before mutation.\n- Step 7 writes ROADMAP to completion, then CHANGELOG, through retained descriptors. `native-steps` must not remain the ROADMAP writer. ROADMAP create/write/truncate faults leave CHANGELOG byte-identical. Partial writes report partial state and are not retry-safe.\n- Order: Step 5 CHANGELOG node-type guard → CI/readiness → Wave-2 second validation → Step 6 paired dest open plus in-memory prep → Step 7 ROADMAP then CHANGELOG. Wave-2 is not the CHANGELOG guard.\n- Steps stay `[N/13]`. Step 6 label is `Prepare release artifacts`. Step 7 label is `Write release artifacts`. Relabel of Step 6 must not attach `--skip-build` to prepare-artifacts.\n\n",
+          "id": 5714865355,
+          "html_url": "https://github.com/deftai/directive/issues/4318#issuecomment-5714865355",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-17T13:08:05Z",
+          "updated_at": "2026-09-17T13:08:05Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\nPain-audit of successor lean 5714865355 `relieves: P1` against Stop 1 P1 on 5714680571. Round-1 critic 5714826746 is in envelope. Not a successor lean.\n\n## Verdict\n\nStop 1 P1 is a Step 5 CHANGELOG read of an unsafe node, a hard-linked ROADMAP/CHANGELOG pair, or a CHANGELOG write/truncate before ROADMAP completion.\n\nThe Bound remedy names all three as product predicates: entry node-type guard on real, dry-run, and `--skip-ci`; nlink≠1 and pair-identity before mutation; pair-open on nontruncating descriptors; no `containedWrite` create|replace|append for these sinks; Step 7 ROADMAP then CHANGELOG through retained descriptors; ROADMAP faults leave CHANGELOG byte-identical. No `blocks-the-design` finding.\n\n`relieves: P1` still overclaims as an AFK harvest. Spec-path makes this Bound remedy the next-build contract, and the harvest dropped the live Step 5 CHANGELOG readers and the bigint identity lock that Destinations used to carry. Those are `sharpens-framing`; they change the harvest.\n\n## Existing mechanisms\n\nRe-verified at `068831ea6b68afde722b2bfc2899f6ab87f880db` by `git show`, not line-cite:\n\n- `runPipeline` Step 5: `--skip-ci` and dry-run skip the suite, then `readFile(changelogPath)` for consumer-readiness disclosure inside catch-and-empty. The real path runs CI first. Ledger CHANGELOG read is only on the CI-failure path (`probeOpenCoverageDebtLedger`) and catch-and-empty. Vitest `coverage-debt-teardown` `readFileSync` of repo-root CHANGELOG inside CI; catch-and-empty does not unblock a FIFO (it blocks, it does not throw).\n- Step 6 label `CHANGELOG promotion` reads, then `assertProjectionContained` plus `writeFileSync`. Step 7 calls `refreshRoadmapNative` → `renderRoadmap` (`assertWriteTargetSafe` plus `writeFileSync`). Write order is CHANGELOG then ROADMAP.\n- Missing CHANGELOG returns `EXIT_CONFIG_ERROR` (2). The symlink test expects `toThrow(ProjectionContainmentError)` with `skipCi: true` and injected `readFile` / `fileExists`, so `lstat` of the real node never runs before the seamed read.\n- `assertDestinationNotSymlink` walks components and throws only on `isSymbolicLink()`. No FIFO/socket/device/`isFile`/`nlink`/bigint identity check. No `bigint: true` `lstat`/`stat` in this tree.\n- `containedWrite` `mode: \"replace\"` opens `O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW` and closes per call. No retained nontruncating fd, no paired open.\n- `renderRoadmapToBuffer` and pure `promoteChangelog` exist. Wave-2 lifecycle module is not on this SHA (blocked by #4317).\n- CLI help: `--skip-ci` / `--allow-skip-ci` say \"Skip Step 5\"; `--skip-build` says \"Skip Step 6 (task build)\" while code skips Step 8. `TOTAL_STEPS` is 13.\n\n## Findings\n\n### 1. Bound remedy does not lock the live Step 5 CHANGELOG readers (`sharpens-framing`)\n\n**Evidence:** P1 includes a Step 5 CHANGELOG read of an unsafe node. Parent Destinations requires a read-only structural check before any CHANGELOG payload read, CI/readiness, or write-open, production-order proof that the guard precedes coverage-debt ledger and native teardown, and zero CI/readiness calls after a Step 5 refusal. The child AC already had the ledger/teardown sentence; round-1 did not recut it. Bound remedy harvests \"entry\" guard on real/dry-run/`--skip-ci`, FIFO bounded child, classified return on a real node, and do not inject `readFile` to hide `lstat`. It does not name ledger or teardown. It does not forbid injected `runCi`. Spec-path drops the body file-scope that listed those two readers.\n\n**Failure mode:** An AFK worker `lstat`s next to the disclosure `readFile` in `pipeline.ts`. Tests inject `runCi` so teardown never runs. FIFO classified refusal passes after fake CI. Production `task check` hangs on FIFO CHANGELOG. Catch-and-empty on disclosure, ledger, and teardown does not prevent that hang.\n\n**Disposition:** Do not bind this harvest. Bound remedy must say the entry guard is a read-only structural check (leaf node-type plus the existing symlink-ancestor floor) that precedes every release-owned CHANGELOG read, including coverage-debt ledger and native teardown; only the release-root target is claimed protected; a real-path FIFO/special-node refusal proves zero CI/readiness calls (do not inject `runCi` to hide teardown).\n\n### 2. Pair-identity harvest dropped bigint (`sharpens-framing`)\n\n**Evidence:** P1 includes a hard-linked ROADMAP/CHANGELOG pair. Parent Destinations requires bigint single-link and pair-identity on retained descriptors. Round-1 finding 3 evidence named bigint; the harvested disposition is nlink≠1, pair-identity, fail closed on unsupported metadata, and repeat on retained descriptors — without bigint. Default `fs.Stats` `ino`/`nlink` are number. This SHA has no `bigint: true` stats.\n\n**Failure mode:** Default `lstat` accepts a pair whose 64-bit inode is not a safe number. Step 7 mutates both names, or an external ROADMAP alias. Number identity is not \"unsupported metadata\"; it is present and wrong.\n\n**Disposition:** Bound remedy must require bigint `nlink === 1n` and bigint dev+ino pair-identity on pre-open metadata and on the retained descriptors, and fail closed if bigint stats are unavailable.\n\n### 3. Dry-run write-open carve-out is not in the harvest (`footnote`)\n\nParent Decision 12 and the child AC skip destination write-open on dry-run. Bound remedy says Step 6 pair-opens and does not carve dry-run. Nontruncating open is not a CHANGELOG write/truncate, so this is not P1. It is a Destinations leftover if Spec-path drops the body.\n\n## Injection / swarm\n\nUntrusted repo node types are the input. FIFO hangs the operator-credentialed process, including teardown inside `task check` and a write-open of a ROADMAP FIFO if pair-open runs before `lstat`. Symlink diverts reads/writes; the current helper is the ancestor floor, not the leaf node-type guard. Hard-link aliases mutate extra paths unless bigint identity refuses them. `--skip-ci` / `--allow-skip-ci` help still says \"Skip Step 5\"; Bound remedy already says skip the suite, not the entry guard. Catch-and-empty on disclosure, ledger, and teardown swallows unreadability and does not hide a hang. Retained descriptors are pair-open against TOCTOU, not a lock; parent Decision 14 still assumes no concurrent writer. Partial CHANGELOG write after ROADMAP completion is shared artifact state: report it, do not claim retry-safe, do not add rollback. Decision 13 escaping for destination diagnostics stays on Wave 2; not P1.\n\n## Road not taken\n\nI considered `blocks-the-design` on finding 1 because Type is AFK and Spec-path drops the Destinations/child sentence that named ledger and teardown. I rejected that: the order bullet already places the guard before CI, so the product predicate relieves the hang if followed. The hole is the missing reader names and the seamed `runCi` lock. Flip: delete the order bullet, or place the guard only around disclosure.\n\nI considered `blocks-the-design` on finding 2 because number `ino` can accept a pair. I rejected that: the lean does not prescribe number stats, and \"fail closed on unsupported metadata\" can still be read as requiring bigint. The miss is naming. Flip: Bound remedy saying inode number equality.\n\n## Anchors\n\n- Issue body SHA-256 `c382bb2c94675a96a12238c26d47b8deb6e3332f16d5d599defbecc6343f9923` (2920 UTF-8 bytes) re-measured from REST `.body`.\n- `TOTAL_STEPS` is 13. Missing CHANGELOG is code 2. Today's containment miss is an uncaught `ProjectionContainmentError`.\n- `--skip-build` already skips Step 8 in code while help says Step 6. Relabel of Step 6 must not attach `--skip-build` to prepare-artifacts.\n\n",
+          "id": 5715065759,
+          "html_url": "https://github.com/deftai/directive/issues/4318#issuecomment-5715065759",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-17T13:22:33Z",
+          "updated_at": "2026-09-17T13:22:33Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPain-audit 5715065759 kept ROADMAP-then-CHANGELOG through retained descriptors, and said the first harvest dropped live Step 5 CHANGELOG readers and bigint pair-identity. Confirming this map puts the entry guard before every release-owned CHANGELOG read, including ledger and teardown, and requires bigint nlink and pair-identity.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept critic headings.\n\nForward verdict: harvest recut. Disposition: classified headings accept-into-contract. Residual: audit:pain-P1.\nSpec-path: next-build contract is not this body.\n\n**Lean:** recut of #4318 after pain-audit 5715065759. Cites critic 5715065759. Supersedes successor lean 5714865355.\n\nTarget-digest: sha256:c382bb2c94675a96a12238c26d47b8deb6e3332f16d5d599defbecc6343f9923\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: /Users/davidcall/.grok/worktrees/deft-directive/issue-4318-dc\norigin-ref: origin/master\ndispatch-sha: 068831ea6b68afde722b2bfc2899f6ab87f880db\ntarget shape: single-issue\nround: 2\nsiblings: 1\n\nTakes:\n\n- 5715065759 Bound remedy does not lock the live Step 5 CHANGELOG readers — accept-into-contract\n- 5715065759 Pair-identity harvest dropped bigint — accept-into-contract\n- 5715065759 Dry-run write-open carve-out is not in the harvest — accept-into-contract\n- remaining classified headings — accept-into-contract\n\nrelieves: P1\n\n## Parent-side substantiation\n\naudit:pain-P1 sha=068831ea6b68afde722b2bfc2899f6ab87f880db pointer=comment:5715065759 reading=measured\n\n## Bound remedy\n\n- assertDestinationNotSymlink is a symlink floor, not the node-type / nlink / pair-identity guard. Do not use containedWrite create|replace|append for these two sinks.\n- Step 5 entry guard is a read-only structural check (leaf node-type plus the existing symlink-ancestor floor) that precedes every release-owned CHANGELOG read, including coverage-debt ledger and native teardown. Only the release-root target is claimed protected. It runs on real, dry-run, and --skip-ci (skip the suite, not the entry guard). Catch-and-empty must not wrap the guard. FIFO fixtures run in a bounded child. Classified Step 5 return on a real node. A real-path FIFO/special-node refusal proves zero CI/readiness calls (do not inject runCi to hide teardown). Missing CHANGELOG stays code 2; detected policy refusal stays code 1.\n- Step 6 pair-opens independent singly linked regular files on nontruncating descriptors after Wave-2's second validation. Dry-run does not run destination write-open probes or writes. In-memory prep uses renderRoadmapToBuffer and promoteChangelog. Successful preparation writes nothing.\n- Require bigint nlink === 1n and bigint dev+ino pair-identity on pre-open metadata and on the retained descriptors. Fail closed if bigint stats are unavailable. Refuse nlink≠1 on either existing output and the pair-identity case.\n- Step 7 writes ROADMAP to completion, then CHANGELOG, through retained descriptors. native-steps must not remain the ROADMAP writer. ROADMAP create/write/truncate faults leave CHANGELOG byte-identical. Partial writes report partial state and are not retry-safe.\n- Order: Step 5 CHANGELOG node-type guard → CI/readiness → Wave-2 second validation → Step 6 paired dest open plus in-memory prep → Step 7 ROADMAP then CHANGELOG. Wave-2 is not the CHANGELOG guard.\n- Steps stay [N/13]. Step 6 label is Prepare release artifacts. Step 7 label is Write release artifacts. Relabel of Step 6 must not attach --skip-build to prepare-artifacts.\n\n",
+          "id": 5715115720,
+          "html_url": "https://github.com/deftai/directive/issues/4318#issuecomment-5715115720",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-17T13:26:13Z",
+          "updated_at": "2026-09-17T13:26:13Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\nHandoff\n\nSuccessor lean 5715115720 recut-supersedes 5714865355 and both record relieves of P1. Checking critic is the next pain-audit of that harvest recut. Yolo standing does not confirm this Handoff.\n\nopen-question: Does the updated Bound-remedy cover Stop 1 P1 without leftover next-build?\n\n",
+          "id": 5715124337,
+          "html_url": "https://github.com/deftai/directive/issues/4318#issuecomment-5715124337",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-17T13:26:50Z",
+          "updated_at": "2026-09-17T13:26:50Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\nPain-audit of successor lean 5715115720 `relieves: P1` against Stop 1 P1 on 5714680571, after the harvest recut. Prior pain-audit 5715065759 is in envelope. Not a successor lean.\n\n## Verdict\n\nStop 1 P1 is a Step 5 CHANGELOG read of an unsafe node, a hard-linked ROADMAP/CHANGELOG pair, or a CHANGELOG write/truncate before ROADMAP completion.\n\nThe recut Bound remedy names all three as product predicates: read-only structural entry guard (leaf node-type plus the existing symlink-ancestor floor) before every release-owned CHANGELOG read, including coverage-debt ledger and native teardown, on real, dry-run, and `--skip-ci`; bigint `nlink === 1n` and bigint dev+ino pair-identity on pre-open metadata and on retained descriptors, fail-closed if bigint stats are unavailable; pair-open on nontruncating descriptors; no `containedWrite` create|replace|append for these sinks; Step 7 ROADMAP then CHANGELOG through retained descriptors; ROADMAP faults leave CHANGELOG byte-identical. Dry-run does not run destination write-open. No `blocks-the-design` finding. No harvest-changing `sharpens-framing`.\n\n`relieves: P1` holds as an AFK harvest. Spec-path makes this Bound remedy the next-build contract. The prior pain-audit holes (live Step 5 readers, bigint identity, dry-run write-open carve-out) are in the recut.\n\n## Existing mechanisms\n\nRe-verified at `068831ea6b68afde722b2bfc2899f6ab87f880db` by `git show`, not line-cite:\n\n- `runPipeline` Step 5: `--skip-ci` and dry-run skip the suite, then `readFile(changelogPath)` for consumer-readiness disclosure inside catch-and-empty. The real path runs CI first. Ledger CHANGELOG read is only on the CI-failure path (`probeOpenCoverageDebtLedger`) and catch-and-empty. Vitest `coverage-debt-teardown` `readFileSync` of `import.meta.dirname` repo-root CHANGELOG inside CI; catch-and-empty does not unblock a FIFO (it blocks, it does not throw).\n- Step 6 label `CHANGELOG promotion` reads, then `assertProjectionContained` plus `writeFileSync`. Step 7 calls `refreshRoadmapNative` → `renderRoadmap` (`assertWriteTargetSafe` plus `writeFileSync`). Write order is CHANGELOG then ROADMAP.\n- Missing CHANGELOG returns `EXIT_CONFIG_ERROR` (2). The symlink test expects `toThrow(ProjectionContainmentError)` with `skipCi: true` and injected `readFile` / `fileExists`, so `lstat` of the real node never runs before the seamed read.\n- `assertDestinationNotSymlink` walks components and throws only on `isSymbolicLink()`. No FIFO/socket/device/`isFile`/`nlink`/bigint identity check. No `bigint: true` `lstat`/`stat` in this tree (`git grep bigint` on `packages/core/src/{fs,release}` is empty).\n- `containedWrite` `mode: \"replace\"` opens `O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW` and closes per call. No retained nontruncating fd, no paired open.\n- `renderRoadmapToBuffer` and pure `promoteChangelog` exist. Wave-2 lifecycle module is not on this SHA (blocked by #4317).\n- CLI help: `--skip-ci` / `--allow-skip-ci` say \"Skip Step 5\"; `--skip-build` says \"Skip Step 6 (task build)\" while code skips Step 8. `TOTAL_STEPS` is 13.\n\n## Findings\n\n### 1. `--skip-ci` help still says Skip Step 5 (`footnote`)\n\nBound remedy already says skip the suite, not the entry guard. CLI help and `--allow-skip-ci` still say Skip Step 5. Spec-path drops the child docs-match bullet. An operator reading help can think `--skip-ci` skips the new guard; the harvest still requires the guard on that path. Not P1.\n\n## Injection / swarm\n\nUntrusted repo node types are the input. FIFO hangs the operator-credentialed process, including teardown inside `task check` and a write-open of a ROADMAP FIFO if pair-open runs before `lstat`. Symlink diverts reads/writes; the current helper is the ancestor floor, not the leaf node-type guard. Hard-link aliases mutate extra paths unless bigint identity refuses them. `--skip-ci` / `--allow-skip-ci` help still says \"Skip Step 5\"; Bound remedy already says skip the suite, not the entry guard. Catch-and-empty on disclosure, ledger, and teardown swallows unreadability and does not hide a hang. Retained descriptors are pair-open against TOCTOU, not a lock; parent Decision 14 still assumes no concurrent writer. Partial CHANGELOG write after ROADMAP completion is shared artifact state: report it, do not claim retry-safe, do not add rollback. Decision 13 escaping for destination diagnostics stays on Wave 2; not P1.\n\n## Road not taken\n\nI considered `sharpens-framing` because the recut dropped \"do not inject `readFile` to hide `lstat`\" and \"replace the throw expectation\" from lean 5714865355. I rejected that: the recut still requires a classified Step 5 return on a real node, FIFO fixtures in a bounded child, and a real-path FIFO/special-node refusal that proves zero CI/readiness calls without injecting `runCi`. That is the production hang path. Flip: Bound remedy saying FIFO tests may inject `readFile`, or deleting the bounded-child lock.\n\nI considered `blocks-the-design` because Spec-path still drops Destinations sentences that are not in Bound remedy (Step 6 repeats the structural predicate before the payload read; ftruncate-after-write / do not reopen with a different truncating flag). I rejected that: P1 is a Step 5 unsafe-node read, a hard-linked pair, or a CHANGELOG write/truncate before ROADMAP completion. Step 6 payload read after a passing Step 5 guard is Decision 14 leftover. CHANGELOG ftruncate at Step 7 is after ROADMAP completion.\n\n## Anchors\n\n- Issue body SHA-256 `c382bb2c94675a96a12238c26d47b8deb6e3332f16d5d599defbecc6343f9923` (2920 UTF-8 bytes) re-measured from REST `.body`. Matches Stop 1 and the recut Target-digest.\n- `TOTAL_STEPS` is 13. Missing CHANGELOG is code 2. Today's containment miss is an uncaught `ProjectionContainmentError`.\n- `--skip-build` already skips Step 8 in code while help says Step 6. Relabel of Step 6 must not attach `--skip-build` to prepare-artifacts.\n\n",
+          "id": 5715222562,
+          "html_url": "https://github.com/deftai/directive/issues/4318#issuecomment-5715222562",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-17T13:33:59Z",
+          "updated_at": "2026-09-17T13:33:59Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\nPain-audit 5715222562 is footnote-only. Harvest unchanged. CLI --skip-ci help still says Skip Step 5; Bound remedy already requires the entry guard on that path. Bind remains successor lean 5715115720.\n\nAccept 5715222562 --skip-ci help still says Skip Step 5.\n\n",
+          "id": 5715247197,
+          "html_url": "https://github.com/deftai/directive/issues/4318#issuecomment-5715247197",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-17T13:35:41Z",
+          "updated_at": "2026-09-17T13:35:41Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## Verified-claims table\n\nCites successor lean 5715115720.\n\n| Claim | Source | Method |\n|---|---|---|\n| Classified headings on lean 5715115720 are accept-into-contract | critic 5714826746, 5715065759, 5715222562 | posted take-map |\n| Empty disagreement set | this round | no disagree/defer takes |\n| relieves: P1 holds of the harvest recut | critic 5715222562 | pain-audit at pinned SHA 068831ea6 |\n| --skip-ci help footnote does not change harvest | critic 5715222562 | footnote census |\n\n",
+          "id": 5715261080,
+          "html_url": "https://github.com/deftai/directive/issues/4318#issuecomment-5715261080",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-17T13:36:29Z",
+          "updated_at": "2026-09-17T13:36:29Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nWave 3 was an unsafe CHANGELOG read, a hard-linked pair, or a CHANGELOG truncate before ROADMAP completion. The accepted recut is a real node-type guard before every release-owned CHANGELOG read, bigint pair-identity on retained descriptors, and ROADMAP-then-CHANGELOG writes through those descriptors. No leftover next-build on this map.\n\nThis is not an instruction to a later builder.\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nThis record cites successor lean 5715115720.\n\n",
+          "id": 5715261407,
+          "html_url": "https://github.com/deftai/directive/issues/4318#issuecomment-5715261407",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-17T13:36:30Z",
+          "updated_at": "2026-09-17T13:36:30Z",
+          "author_association": "CONTRIBUTOR"
+        }
+      ],
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5413388984,
+        "origin": "deftai/directive#4318",
+        "id": "github.issue.5413388984"
+      },
+      "x-directive/admitted-target-digest": {
+        "schema": "deft.scope.admitted-target-digest.v1",
+        "algorithm": "sha256",
+        "sha256": "c382bb2c94675a96a12238c26d47b8deb6e3332f16d5d599defbecc6343f9923"
+      }
+    },
+    "id": "github.issue.5413388984",
+    "updated": "2026-09-17T21:57:09Z"
+  }
+}

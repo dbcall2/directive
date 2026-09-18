@@ -110,7 +110,6 @@ describe("pipeline branches extra", () => {
       fileExists: (p) => p.endsWith("CHANGELOG.md"),
       readFile: () => CHANGELOG,
       writeFile: () => undefined,
-      refreshRoadmap: () => [true, "ok"],
       todayIso: () => "2026-04-28",
     };
     expect(runPipeline(config, seams)).toBe(0);
@@ -121,7 +120,7 @@ describe("pipeline branches extra", () => {
       version: "0.21.0",
       repo: "deftai/directive",
       baseBranch: "master",
-      projectRoot: "/proj",
+      projectRoot: seedReleaseProjectDir(CHANGELOG),
       dryRun: false,
       skipTag: true,
       skipRelease: true,

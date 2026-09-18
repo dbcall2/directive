@@ -34,6 +34,10 @@ If the env-var bypass is unavoidable outside the enforce closeout above, scope i
 
 See `skills/deft-directive-release/SKILL.md` § Branch-Protection Policy Guard for the full operator workflow.
 
+## Release artifact write order (#4318)
+
+`task release` Step 5 starts with a read-only CHANGELOG node-type guard (regular file plus symlink-ancestor floor). `--skip-ci` skips the CI suite, not that guard. Step 6 is **Prepare release artifacts** (in-memory ROADMAP + CHANGELOG; pair-open existing destinations; no writes). Step 7 is **Write release artifacts** (ROADMAP to completion, then CHANGELOG). `--skip-build` skips Step 8 (`task build`), not prepare-artifacts.
+
 ## Vitest coverage hang recovery (#2652 / #4230)
 
 Release Step 5 runs `task check` on the **cached** path with a **20-minute hang detector** (`runReleaseCheck` arms `timeoutMs`). That is hang detection, not a success SLA. Ambient `task check` tees without that kill. `task release` does not take the uncached `--no-cache` path.

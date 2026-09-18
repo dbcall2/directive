@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { promoteChangelog } from "./changelog.js";
@@ -38,7 +39,6 @@ describe("pipeline write path", () => {
   };
 
   it("writes changelog on happy path", () => {
-    const writes: Record<string, string> = {};
     const seams: ReleaseSeams = {
       validateReleaseInputs: passReleaseInputs,
       spawnText: (_c, a) => {
@@ -49,14 +49,11 @@ describe("pipeline write path", () => {
       checkTagAvailable: () => [true, "ok"],
       fileExists: (p) => p.endsWith("CHANGELOG.md"),
       readFile: () => CHANGELOG,
-      writeFile: (p, c) => {
-        writes[p] = c;
-      },
-      refreshRoadmap: () => [true, "ROADMAP.md re-rendered"],
+      writeFile: () => undefined,
       todayIso: () => "2026-04-28",
     };
     expect(runPipeline(config, seams)).toBe(0);
-    expect(writes[join(projectRoot, "CHANGELOG.md")]).toContain("## [0.21.0]");
+    expect(readFileSync(join(projectRoot, "CHANGELOG.md"), "utf8")).toContain("## [0.21.0]");
   });
 });
 

@@ -100,7 +100,6 @@ describe("pipeline Step 5 auto-hatch + suite stamp (#3187)", () => {
       writeFile: (p, c) => {
         files.set(p, c);
       },
-      refreshRoadmap: () => [true, "ok"],
       isCi: () => false,
     };
 
@@ -141,7 +140,6 @@ describe("pipeline Step 5 auto-hatch + suite stamp (#3187)", () => {
       fileExists: (p) => p.endsWith("CHANGELOG.md") || p.endsWith("ROADMAP.md"),
       readFile: () => CHANGELOG,
       writeFile: () => undefined,
-      refreshRoadmap: () => [true, "ok"],
       isCi: () => false,
     };
 
@@ -179,7 +177,6 @@ describe("pipeline Step 5 auto-hatch + suite stamp (#3187)", () => {
       fileExists: (p) => p.endsWith("CHANGELOG.md") || p.endsWith("ROADMAP.md"),
       readFile: () => CHANGELOG,
       writeFile: () => undefined,
-      refreshRoadmap: () => [true, "ok"],
       isCi: () => false,
     };
 
@@ -231,7 +228,6 @@ describe("pipeline Step 5 auto-hatch + suite stamp (#3187)", () => {
         return CHANGELOG;
       },
       writeFile: () => undefined,
-      refreshRoadmap: () => [true, "ok"],
       isCi: () => false,
     };
 
@@ -271,7 +267,6 @@ describe("pipeline Step 5 auto-hatch + suite stamp (#3187)", () => {
       fileExists: (p) => p.endsWith("CHANGELOG.md") || p.endsWith("ROADMAP.md"),
       readFile: () => CHANGELOG,
       writeFile: () => undefined,
-      refreshRoadmap: () => [true, "ok"],
       isCi: () => false,
     };
 
@@ -316,7 +311,6 @@ describe("pipeline Step 5 auto-hatch + suite stamp (#3187)", () => {
         p.includes("release-suite-stamp.json"),
       readFile: (p) => (p.includes("release-suite-stamp.json") ? stampContent : CHANGELOG),
       writeFile: () => undefined,
-      refreshRoadmap: () => [true, "ok"],
       isCi: () => true,
     };
 

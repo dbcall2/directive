@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -82,7 +82,7 @@ describe("pipeline release-input hook sites (#4317)", () => {
     const phases: ReleaseInputPhase[] = [];
     const cap = capture();
     try {
-      const rc = runPipeline(config("/tmp/proj", { dryRun: true, skipCi: true }), {
+      const rc = runPipeline(config(seededRepo(), { dryRun: true, skipCi: true }), {
         todayIso: () => "2026-04-28",
         fileExists: (p) => p.endsWith("CHANGELOG.md"),
         readFile: () => "## [Unreleased]\n\n### Added\n",
@@ -121,7 +121,6 @@ describe("pipeline release-input hook sites (#4317)", () => {
         fileExists: (p) => p.endsWith(".md"),
         readFile: () => "## [Unreleased]\n\n### Added\n- x\n",
         writeFile: () => undefined,
-        refreshRoadmap: () => [true, "ok"],
         validateReleaseInputs: (_root, phase) => {
           phases.push(phase);
           return passReleaseInputs();
@@ -138,10 +137,11 @@ describe("pipeline release-input hook sites (#4317)", () => {
     }
   });
 
-  it("phase 2 still runs after --skip-ci and before CHANGELOG writeFile", () => {
+  it("phase 2 still runs after --skip-ci and before CHANGELOG write", () => {
     const order: string[] = [];
     const cap = capture();
     const root = seededRepo();
+    const before = readFileSync(join(root, "CHANGELOG.md"), "utf8");
     try {
       const rc = runPipeline(config(root, { skipCi: true }), {
         todayIso: () => "2026-04-28",
@@ -151,19 +151,15 @@ describe("pipeline release-input hook sites (#4317)", () => {
           return { status: 0, stdout: "", stderr: "" };
         },
         checkTagAvailable: () => [true, "ok"],
-        fileExists: (p) => p.endsWith(".md"),
-        readFile: () => "## [Unreleased]\n\n### Added\n- x\n",
-        writeFile: () => {
-          order.push("writeFile");
-        },
-        refreshRoadmap: () => [true, "ok"],
         validateReleaseInputs: (_root, phase) => {
           order.push(phase);
+          expect(readFileSync(join(root, "CHANGELOG.md"), "utf8")).toBe(before);
           return passReleaseInputs();
         },
       });
       expect(rc).toBe(0);
-      expect(order).toEqual(["scanner", "roadmap", "writeFile"]);
+      expect(order).toEqual(["scanner", "roadmap"]);
+      expect(readFileSync(join(root, "CHANGELOG.md"), "utf8")).toContain("## [0.21.0]");
     } finally {
       cap.restore();
     }
@@ -189,7 +185,6 @@ describe("pipeline release-input hook sites (#4317)", () => {
         writeFile: () => {
           wrote = true;
         },
-        refreshRoadmap: () => [true, "ok"],
       });
       expect(rc).toBe(EXIT_VIOLATION);
       expect(wrote).toBe(false);

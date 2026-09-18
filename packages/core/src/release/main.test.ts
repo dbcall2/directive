@@ -48,7 +48,7 @@ describe("cmdRelease integration", () => {
           "--repo",
           "deftai/directive",
           "--project-root",
-          "/tmp/proj",
+          seedReleaseProjectDir(),
           "--allow-vbrief-drift",
           "--skip-ci",
           "--allow-skip-ci=716",
@@ -103,7 +103,6 @@ describe("pipeline verify flip failure", () => {
       fileExists: (p) => p.endsWith("CHANGELOG.md"),
       readFile: () => CHANGELOG,
       writeFile: () => undefined,
-      refreshRoadmap: () => [true, "ok"],
       sleep: () => undefined,
       todayIso: () => "2026-04-28",
     };

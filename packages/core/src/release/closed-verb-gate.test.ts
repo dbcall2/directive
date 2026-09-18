@@ -96,7 +96,6 @@ function recordingSeams(
     fileExists: (p) => /\.(md|toml)$/.test(p),
     readFile: () => `## [Unreleased]\n\n### Added\n- x\n`,
     writeFile: () => undefined,
-    refreshRoadmap: () => [true, "ok"],
     runBuild: () => [true, "ok"],
     todayIso: () => "2026-08-19",
     ...overrides,

@@ -1,6 +1,5 @@
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { assertProjectionContained } from "../fs/projection-containment.js";
 import { restIssueListOpenInventory } from "../scm/gh-rest.js";
 import { readCoverageTotalsFromReport } from "../vitest-runner/coverage-debt.js";
 import {
@@ -11,7 +10,8 @@ import {
   parseExitCodeFromReason,
   reasonLooksLikeTimeout,
 } from "./auto-hatch.js";
-import { prependUpgradeBanner, promoteChangelog, sectionForVersion } from "./changelog.js";
+import { prependUpgradeBanner, sectionForVersion } from "./changelog.js";
+import { guardChangelogReadSafety } from "./changelog-read-safety.js";
 import {
   emitCliDriftReportBestEffort,
   shouldSkipRegistryPoll,
@@ -40,13 +40,14 @@ import {
   releaseCommitSubject,
   runGit,
 } from "./git.js";
-import {
-  checkVbriefLifecycleSyncNative,
-  refreshRoadmapNative,
-  runBuildNative,
-} from "./native-steps.js";
+import { checkVbriefLifecycleSyncNative, runBuildNative } from "./native-steps.js";
 import { todayIso } from "./paths.js";
 import { runReleaseCheck } from "./preflight.js";
+import {
+  type PreparedArtifacts,
+  prepareReleaseArtifacts,
+  writeReleaseArtifacts,
+} from "./release-artifacts.js";
 import {
   escapeReleaseDisplay,
   type ReleaseInputPhase,
@@ -134,15 +135,10 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
   const version = config.version;
   const today = (seams.todayIso ?? todayIso)();
   const changelogPath = join(projectRoot, "CHANGELOG.md");
-  const roadmapPath = join(projectRoot, "ROADMAP.md");
   const readFile = seams.readFile ?? ((p: string) => readFileSync(p, "utf8"));
-  const writeFile = seams.writeFile ?? ((p: string, c: string) => writeFileSync(p, c, "utf8"));
-  const fileExists = seams.fileExists ?? ((p: string) => existsSync(p));
-
   const runCiFn =
     seams.runCi ??
     ((root: string, debtIssue: number | null) => runReleaseCheck(root, {}, debtIssue));
-  const refreshRoadmapFn = seams.refreshRoadmap ?? ((root: string) => refreshRoadmapNative(root));
   const checkVbriefFn =
     seams.checkVbriefLifecycleSync ??
     ((root: string, repo: string) => checkVbriefLifecycleSyncNative(root, repo));
@@ -254,6 +250,11 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
   // hairline failures may auto-file coverage-debt and PASS_WITH_DEBT without a
   // second suite. CI never trusts the stamp.
   label = "Pre-flight CI (task ci:local | fallback task check)";
+  const changelogSafety = guardChangelogReadSafety(projectRoot);
+  if (!changelogSafety.ok) {
+    emit(5, label, `FAIL (${changelogSafety.message})`);
+    return changelogSafety.exitCode;
+  }
   if (config.skipCi) {
     if (config.allowSkipCiIssue !== null && config.allowSkipCiIssue > 0) {
       process.stderr.write(formatSkipCiIncidentWarning(config.allowSkipCiIssue));
@@ -477,40 +478,20 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
     }
   }
 
-  // Phase 2: independent four-folder census after Step 5, before CHANGELOG write (#4317).
+  // Phase 2: independent four-folder census after Step 5, before destination open (#4317).
   if (config.dryRun) {
     process.stderr.write("[release-input] roadmap not run; would validate\n");
   } else {
     const phase2 = runInputPhase(projectRoot, "roadmap", seams);
     if (!phase2.ok) {
       writeReleaseInputDetails(phase2);
-      emit(6, "CHANGELOG promotion", `FAIL (${phase2.code})`);
+      emit(6, "Prepare release artifacts", `FAIL (${phase2.code})`);
       return phase2.exitCode;
     }
   }
 
-  // Step 6: CHANGELOG promotion.
-  label = "CHANGELOG promotion";
-  if (!fileExists(changelogPath)) {
-    emit(6, label, `FAIL (CHANGELOG.md not found at ${changelogPath})`);
-    return EXIT_CONFIG_ERROR;
-  }
-  const originalChangelog = readFile(changelogPath);
-  let promotedChangelog: string;
-  try {
-    promotedChangelog = promoteChangelog(
-      originalChangelog,
-      version,
-      config.repo,
-      today,
-      config.summary,
-    );
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    emit(6, label, `FAIL (${msg})`);
-    return EXIT_CONFIG_ERROR;
-  }
-
+  // Step 6: prepare both artifacts and pair-open destinations. Writes nothing.
+  label = "Prepare release artifacts";
   let summaryNote: string;
   if (config.summary) {
     const truncated = config.summary.slice(0, 60);
@@ -520,31 +501,45 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
     summaryNote = " no summary";
   }
 
+  const preparedResult = prepareReleaseArtifacts({
+    projectRoot,
+    version,
+    repo: config.repo,
+    today,
+    summary: config.summary,
+    dryRun: config.dryRun,
+  });
+  if (!preparedResult.ok) {
+    emit(6, label, `FAIL (${preparedResult.message})`);
+    return preparedResult.exitCode;
+  }
+  const prepared: PreparedArtifacts = preparedResult.prepared;
+
   if (config.dryRun) {
     emit(
       6,
       label,
-      `DRYRUN (would rewrite CHANGELOG.md: ## [Unreleased] -> ## [${version}] - ${today}; new compare link added;${summaryNote})`,
+      `DRYRUN (would prepare ROADMAP.md and CHANGELOG.md in memory; no destination write-open;${summaryNote})`,
     );
   } else {
-    assertProjectionContained(projectRoot, changelogPath);
-    writeFile(changelogPath, promotedChangelog);
-    emit(6, label, `OK (## [${version}] - ${today};${summaryNote})`);
+    emit(6, label, `OK (prepared in memory; destinations open; no writes yet;${summaryNote})`);
   }
 
-  // Step 7: ROADMAP refresh.
-  label = "ROADMAP refresh (task roadmap:render)";
+  // Step 7: ROADMAP to completion, then CHANGELOG, through retained descriptors.
+  label = "Write release artifacts";
   if (config.dryRun) {
-    emit(7, label, "DRYRUN (would run task roadmap:render)");
+    emit(
+      7,
+      label,
+      "DRYRUN (would write ROADMAP.md then CHANGELOG.md through retained descriptors)",
+    );
   } else {
-    assertProjectionContained(projectRoot, roadmapPath);
-    const [ok, reason] = refreshRoadmapFn(projectRoot);
-    if (ok) {
-      emit(7, label, `OK (${reason})`);
-    } else {
-      emit(7, label, `FAIL (${reason})`);
-      return EXIT_VIOLATION;
+    const written = writeReleaseArtifacts(prepared);
+    if (!written.ok) {
+      emit(7, label, `FAIL (${written.message})`);
+      return written.exitCode;
     }
+    emit(7, label, `OK (ROADMAP.md then CHANGELOG.md; ## [${version}] - ${today};${summaryNote})`);
   }
 
   // Step 8: build dist.
@@ -643,7 +638,7 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
       `DRYRUN (would run \`gh release create v${version} --repo ${config.repo}${draftFlag}${prereleaseFlag} ...\`)`,
     );
   } else {
-    let notes = sectionForVersion(promotedChangelog, version);
+    let notes = sectionForVersion(prepared.changelogBytes.toString("utf8"), version);
     notes = prependUpgradeBanner(notes, config.repo, projectRoot, readTextFile);
     const [ok, reason] = createGithubRelease(
       projectRoot,
