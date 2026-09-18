@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Leftover-complete #4317.** Completes the Wave 2 brief after #4727. Refs #4164.
+
 - **Release writes ROADMAP then CHANGELOG through retained descriptors (#4318).** Step 5 refuses unsafe CHANGELOG node types before any release-owned read (including `--skip-ci` and dry-run). Step 6 prepares both artifacts without writing. Step 7 completes ROADMAP before CHANGELOG. Refs #4164.
 
 - **Release validates committed lifecycle inputs before the native scanner and again before CHANGELOG write (#4317).** Uncommitted or unsafe xBRIEF files now fail the release instead of reaching the scanner or ROADMAP write. Refs #4164.

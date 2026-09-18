@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4317",
-    "updated": "2026-09-17T19:04:29Z"
+    "updated": "2026-09-18T01:19:39Z"
   },
   "plan": {
     "title": "feat(release): validate committed lifecycle inputs before native scanner and ROADMAP render (#4164)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "feat(release): validate committed lifecycle inputs before native scanner and ROADMAP render (#4164)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/4317",
@@ -16,31 +16,80 @@
     "items": [
       {
         "title": "Five-folder validation lives in pipeline.ts after Step 2 and before if (config.allowVbriefDrift). Not inside checkVbriefLifecycleSyncNative. --allow-dirty and --allow-vbrief-drift bypass neither phase. Dry-run does not run the new Git probes. The non-dry-run path still validates when mismatch policy is skipped. The Step 3 SKIP line must not claim the whole step was skipped after provenance ran.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "1",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/release-input.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       },
       {
         "title": "Phase 2 is the same module, second independent census, after Step 5 (including --skip-ci and suite-stamp skip) and before current Step 6 writeFile of CHANGELOG.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "2",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/release-input-pipeline.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       },
       {
         "title": "Wave 2 still implements parent #4164 decisions 6-11, 13-14, lone-LF, budgets, and enumeration/diagnostics. This recut is hook sites only.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "3",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/release-input.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       },
       {
         "title": "At each phase the census is the three-view union. The filesystem view is gitignore-blind raw-name readdir plus lstat. Neither porcelain nor git ls-files --others --exclude-standard is that view. Ignored/untracked regular candidates are refused before the real scanner/render seams.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "4",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/release-input.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       },
       {
         "title": "Escaped single-line applies to existing Step 3 mismatch reason paths and any other path-bearing stderr this child writes in pipeline.ts / native-steps.ts, and to new [release-input] / OK/FAIL displays. Do not route those details through emit() or raw process.stderr.write(reason).",
-        "status": "proposed"
+        "status": "completed",
+        "id": "5",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/pipeline.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       },
       {
         "title": "Reuse splitGitLsFilesZRecords / GIT_LS_FILES_Z_ENCODING with strict framing. Do not reuse showBlobsBatch / parseGitCatFileBatch, listGitTrackedPathRecords --git-dir=.git, loadVbriefs catch-and-return-empty, or resolveLifecycleRoot before a non-following lstat of lexical xbrief/.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "6",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/release-input.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       },
       {
         "title": "Do not recut the parent #4164 body.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "7",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/pipeline.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       }
     ],
     "tags": [
@@ -456,9 +505,34 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "0a6fda5178819716fb29d1a06918a685f861f36292aed6596cda88377223a63e"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4727,
+        "prBase": null,
+        "mergeCommit": "8e488451a",
+        "deliveryBranch": "master",
+        "deliveryCommit": "045ab42fd465dd4c36dce73a948632cfbf5dae60",
+        "verifiedAt": "2026-09-18T01:19:39Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-18T01:19:39Z",
+      "completedSessionId": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl",
+      "capacityBucket": "new-capability",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-18T01:19:39Z"
       }
     },
     "id": "github.issue.5413388829",
-    "updated": "2026-09-17T19:04:29Z"
+    "updated": "2026-09-18T01:19:39Z"
   }
 }
