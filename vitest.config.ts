@@ -191,12 +191,28 @@ const subpathAliases: Record<string, string> = {
   "@deftai/directive-core": src("core"),
 };
 
-// #4591: spawn leftovers that must stay out of process (bin symlink, host-identity
-// lifetime). CLI parity tests now use in-process routeAndDispatch. Occupancy
-// suites stay per-it. Hang-detector timeout stays last (operator lock 5685476402).
+// #4591 / #4744: spawn leftovers that must stay out of process. CLI parity tests
+// use in-process routeAndDispatch. Leftover git-worktree clones use share-plus-reset.
+// Occupancy leftover CLI/child-occupancy/mint-refusal fixtures use share-plus-reset
+// (afterEach deletes occupancy.json / child-occupancy; cases stay independent).
+// Occupancy-stress stays spawn-heavy. Remaining Windows --coverage cost after #4591:
+// leftover execPath boots (pack-smoke tsc, cursor-managed-runtime, ci_lifecycle_lane)
+// and occupancy-stress children. Spawn-heavy uses Number(isWin32) workers so it does
+// not double the unit fork cap. In-process 240s suites stay in unit (second-pool
+// overlap is slower).
+// Hang-detector timeout stays last
+// (operator lock 5685476402). Do not raise RELEASE_CHECK_TIMEOUT_MS.
 const spawnHeavyGlobs = [
   "packages/cli/src/cli-bin-symlink-entrypoint.test.ts",
   "packages/cli/src/hook-host-identity-lifetime.test.ts",
+  "packages/core/src/session/occupancy-stress.test.ts",
+  "packages/core/src/platform/ts-build-fresh.test.ts",
+  "packages/core/src/deposit/run-stage-content-pack.test.ts",
+  "packages/core/src/content-contracts/standards/taskfile_engine_dispatch.test.ts",
+  "packages/core/src/one-pr-unit/store.test.ts",
+  "packages/core/src/observable-scope/pack-smoke.test.ts",
+  "packages/core/src/platform/cursor-managed-runtime.test.ts",
+  "packages/core/src/content-contracts/standards/ci_lifecycle_lane.test.ts",
 ] as const;
 
 export default defineConfig({
@@ -214,6 +230,11 @@ export default defineConfig({
     ],
   },
   test: {
+    // Projects inherit this so last-file ticks reach the hang-detector tee (#4744).
+    reporters: [
+      resolve(import.meta.dirname, "packages/core/src/ts-check-lane/progress-reporter.ts"),
+      "default",
+    ],
     env: testEnvironment,
     // Windows CI runs single files without tsc. Projects must inherit root
     // resolve.alias or @deftai/directive-types fails to resolve. Refs #4591.
@@ -225,6 +246,8 @@ export default defineConfig({
           include: ["packages/*/src/**/*.test.ts"],
           exclude: [...spawnHeavyGlobs],
           testTimeout: isWin32 ? 240_000 : 5_000,
+          // Projects do not inherit root maxWorkers; pin the same cap (#4744).
+          ...(isWin32 ? { maxWorkers: winMaxWorkers } : {}),
         },
       },
       {
@@ -233,6 +256,9 @@ export default defineConfig({
           name: "spawn-heavy",
           include: [...spawnHeavyGlobs],
           testTimeout: isWin32 ? 240_000 : 5_000,
+          // Number(isWin32) is one Windows worker so unit keeps the timing cap.
+          // Do not add a new numeric-const on this evaluator surface (#4541).
+          ...(isWin32 ? { maxWorkers: Number(isWin32) } : {}),
         },
       },
     ],
@@ -254,8 +280,11 @@ export default defineConfig({
     // Spawn throughput is concurrency-independent, so capping parallelism buys
     // nothing but wall-clock and regresses #3480. Spawn-heavy leftovers that
     // must stay out of process live in the spawn-heavy vitest project (#4591).
-    // Cost classes after #4567: CLI process boots (in-process run), occupancy
-    // filesystem (per-it), leftover git-worktree clones (share-plus-reset).
+    // Cost classes after #4567 / #4591 / #4744: CLI process boots (in-process
+    // routeAndDispatch; leftover execPath files in spawn-heavy), occupancy
+    // leftover CLI/child-occupancy (share-plus-reset), leftover git-worktree clones
+    // (share-plus-reset). Occupancy-stress stays spawn-heavy.
+    // New files since #4591 are in-process except posix-only fifo-child.
     // Do not raise RELEASE_CHECK_TIMEOUT_MS; hang-detector stays last.
     testTimeout: isWin32 ? 240_000 : 5_000,
     ...(coverageEnabled

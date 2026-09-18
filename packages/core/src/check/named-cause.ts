@@ -58,6 +58,12 @@ const SPAWN_ERROR_REMEDY =
 
 const CLI_SPAWN_ERROR_REMEDY = "Install: npm i -g @deftai/directive@latest";
 
+/** Suite gates the hang detector may wrap (#4230 / #4744). */
+const SUITE_HANG_DETECTOR_GATES: ReadonlySet<string> = new Set([
+  "ts:check-lane",
+  "verify:consumer-test-lane",
+]);
+
 /**
  * Extract a short cause from gate stdout/stderr without leaking env values.
  * Strips lines that look like KEY=value assignments.
@@ -68,6 +74,7 @@ export function extractGateCause(
   exitCode: number,
   spawnError?: string,
   gateId?: string,
+  hangTimeout?: boolean,
 ): string {
   if (spawnError !== undefined && spawnError.length > 0) {
     // Normalize common missing-binary messages without path dumps.
@@ -89,6 +96,10 @@ export function extractGateCause(
     if (line.startsWith("check:")) continue;
     if (isGoTaskWrapperNoise(line)) continue;
     useful.push(line);
+  }
+  const hangCause = extractHangDetectorCause(useful, exitCode, gateId, hangTimeout);
+  if (hangCause !== null) {
+    return hangCause;
   }
   const gateHint = gateId?.trim() ?? "";
   if (gateHint === "toolchain:check" || gateHint === "toolchain:check-consumer") {
@@ -175,7 +186,44 @@ function sanitizeCauseLine(line: string): string {
   return out;
 }
 
+/** Last ts:check-lane last-file tick in captured output, if any (#4744). */
+function lastCompletedTestFile(useful: readonly string[]): string | null {
+  for (let i = useful.length - 1; i >= 0; i -= 1) {
+    const line = useful[i] as string;
+    const match = /^ts:check-lane last-file (.+) \((\d+)\/(\d+) files\)$/.exec(line);
+    const file = match?.[1]?.trim() ?? "";
+    if (file.length > 0) return file;
+  }
+  return null;
+}
+
+/**
+ * Exit 124 is hang-detector only on the suite-gate path, an explicit hangTimeout
+ * flag, or a last-file tick in the capture. A killed suite has no Tests N failed
+ * summary, so a later FAIL: fixture print must not win (#4744).
+ */
+function extractHangDetectorCause(
+  useful: readonly string[],
+  exitCode: number,
+  gateId?: string,
+  hangTimeout?: boolean,
+): string | null {
+  if (exitCode !== 124) return null;
+  const lastFile = lastCompletedTestFile(useful);
+  const gateHint = gateId?.trim() ?? "";
+  const hangPath =
+    hangTimeout === true || SUITE_HANG_DETECTOR_GATES.has(gateHint) || lastFile !== null;
+  if (!hangPath) return null;
+  if (lastFile !== null) {
+    return `hang detector timeout (exit 124); last completed test file: ${lastFile}`;
+  }
+  return "hang detector timeout (exit 124); last completed test file unknown";
+}
+
 export function remedyForGate(gateId: string, cause: string): string {
+  if (/hang detector timeout/i.test(cause)) {
+    return "Cheapen remaining Windows vitest --coverage cost; do not raise RELEASE_CHECK_TIMEOUT_MS";
+  }
   if (/global deft\/directive CLI not found/i.test(cause)) {
     return CLI_SPAWN_ERROR_REMEDY;
   }
@@ -214,6 +262,7 @@ export function formatNamedCauseFailure(input: {
   readonly stdout?: string;
   readonly stderr?: string;
   readonly spawnError?: string;
+  readonly hangTimeout?: boolean;
 }): NamedCauseMessage {
   const cause = extractGateCause(
     input.stdout ?? "",
@@ -221,6 +270,7 @@ export function formatNamedCauseFailure(input: {
     input.exitCode,
     input.spawnError,
     input.gateId,
+    input.hangTimeout,
   );
   const remedy = remedyForGate(input.gateId, cause);
   const lines = [

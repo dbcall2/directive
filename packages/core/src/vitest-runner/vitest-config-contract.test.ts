@@ -170,6 +170,8 @@ describe("vitest.config.ts coverage wall classes (#4591)", () => {
     expect(source).toMatch(/git-worktree/);
     expect(source).toMatch(/Hang-detector timeout stays last/);
     expect(source).toMatch(/RELEASE_CHECK_TIMEOUT_MS/);
+    expect(source).toContain("#4744");
+    expect(source).toMatch(/progress-reporter\.ts/);
     expect(constants).toMatch(/RELEASE_CHECK_TIMEOUT_MS = 20 \* 60 \* 1000/);
   });
 
@@ -178,8 +180,17 @@ describe("vitest.config.ts coverage wall classes (#4591)", () => {
     expect(source).toMatch(/name:\s*"unit"/);
     expect(source).toContain("cli-bin-symlink-entrypoint.test.ts");
     expect(source).toContain("hook-host-identity-lifetime.test.ts");
+    expect(source).toContain("occupancy-stress.test.ts");
+    expect(source).toContain("ts-build-fresh.test.ts");
+    expect(source).toContain("run-stage-content-pack.test.ts");
+    expect(source).toContain("pack-smoke.test.ts");
+    expect(source).toContain("cursor-managed-runtime.test.ts");
+    expect(source).toContain("ci_lifecycle_lane.test.ts");
+    expect(source).not.toContain("install-upgrade.test.ts");
     expect(source).not.toMatch(/fileParallelism:\s*false/);
     expect(source).toMatch(/maxWorkers:\s*winMaxWorkers/);
+    expect(source).toMatch(/name:\s*"unit"[\s\S]*maxWorkers:\s*winMaxWorkers/);
+    expect(source).toMatch(/name:\s*"spawn-heavy"[\s\S]*maxWorkers:\s*Number\(isWin32\)/);
   });
 
   it("projects inherit root aliases so unbuilt packages resolve without tsc", () => {
@@ -198,5 +209,25 @@ describe("vitest.config.ts coverage wall classes (#4591)", () => {
     expect(worktree).toMatch(/sharedLinked/);
     expect(worktree).toMatch(/resetLeaseFiles/);
     expect(worktree).toMatch(/beforeAll/);
+  });
+
+  it("reuses share-plus-reset for leftover occupancy fixtures", () => {
+    const grant = readFileSync(join(repoRoot, "packages/cli/src/occupancy-grant.test.ts"), "utf8");
+    const child = readFileSync(
+      join(repoRoot, "packages/core/src/session/child-occupancy.test.ts"),
+      "utf8",
+    );
+    const branches = readFileSync(
+      join(repoRoot, "packages/core/src/session/branches.test.ts"),
+      "utf8",
+    );
+    expect(grant).toMatch(/function resetLeaseFiles/);
+    expect(grant).toMatch(/beforeAll/);
+    expect(grant).toMatch(/sharedRoot/);
+    expect(child).toMatch(/function linkedFixture/);
+    expect(child).toMatch(/resetLeaseFiles/);
+    expect(child).toMatch(/beforeAll/);
+    expect(branches).toMatch(/resetSharedRepo/);
+    expect(branches).toMatch(/beforeAll/);
   });
 });

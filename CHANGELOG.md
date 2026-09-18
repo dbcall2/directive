@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Windows release Step 5 hang detector names timeout, not the D7 fixture (#4744).** Named-cause reports hang/timeout and the last completed test file. Ranked spawn leftovers move to spawn-heavy. Does not close the 20-minute wall. Do not raise RELEASE_CHECK_TIMEOUT_MS. Refs #4591, #4567. Tracking #4744.
+
 - **Ingest and promote bind harvest item ids to clause ids (#4732).** Promote binds on the source file before the folder move. A stamp writer outside complete may record kind:test from declared file_scope or existing artifact_path. Refs #4732.
 
 - **Release-input census keeps POSIX backslash filenames (#4317).** A committed filename with a backslash is no longer treated as a nested path; invalid UTF-8 names print as byte escapes.

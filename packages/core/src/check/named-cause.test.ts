@@ -136,6 +136,80 @@ describe("named-cause gate failures (#3282)", () => {
     expect(cause).toContain("deliberately-bad");
   });
 
+  it("names hang detector timeout instead of the D7 FAIL: fixture on exit 124 (#4744)", () => {
+    const cause = extractGateCause(
+      "check: starting suite gate ts:check-lane\n",
+      "FAIL: xbrief/completed/2026-09-07-deliberately-bad-1.2.3.xbrief.json\n",
+      124,
+      undefined,
+      "ts:check-lane",
+    );
+    expect(cause).toMatch(/hang detector timeout/i);
+    expect(cause).toMatch(/exit 124/);
+    expect(cause).not.toContain("deliberately-bad");
+    expect(cause).not.toContain("FAIL:");
+  });
+
+  it("includes last completed test file on exit 124 when a last-file tick is present (#4744)", () => {
+    const cause = extractGateCause(
+      "FAIL: xbrief/completed/2026-09-07-deliberately-bad-1.2.3.xbrief.json\n",
+      "ts:check-lane last-file packages/core/src/hooks/scope.test.ts (412/2060 files)\n",
+      124,
+      undefined,
+      "ts:check-lane",
+    );
+    expect(cause).toMatch(/hang detector timeout/i);
+    expect(cause).toContain("packages/core/src/hooks/scope.test.ts");
+    expect(cause).not.toContain("deliberately-bad");
+  });
+
+  it("remedies exit 124 without raising RELEASE_CHECK_TIMEOUT_MS (#4744)", () => {
+    const msg = formatNamedCauseFailure({
+      gateId: "ts:check-lane",
+      exitCode: 124,
+      stdout: "FAIL: xbrief/completed/2026-09-07-deliberately-bad-1.2.3.xbrief.json\n",
+      stderr: "",
+    });
+    expect(msg.cause).toMatch(/hang detector timeout/i);
+    expect(msg.remedy).toMatch(/do not raise RELEASE_CHECK_TIMEOUT_MS/);
+    expect(msg.cause).not.toContain("deliberately-bad");
+  });
+
+  it("does not treat every exit 124 as hang detector (#4744 P2)", () => {
+    const cause = extractGateCause(
+      "",
+      "FAIL: xbrief/completed/2026-09-07-deliberately-bad-1.2.3.xbrief.json\n",
+      124,
+      undefined,
+      "verify:branch",
+    );
+    expect(cause).not.toMatch(/hang detector timeout/i);
+    expect(cause).toContain("deliberately-bad");
+  });
+
+  it("does not name hang detector on exit 124 without suite gate, last-file, or hangTimeout (#4744 P2)", () => {
+    const cause = extractGateCause(
+      "",
+      "FAIL: xbrief/completed/2026-09-07-deliberately-bad-1.2.3.xbrief.json\n",
+      124,
+    );
+    expect(cause).not.toMatch(/hang detector timeout/i);
+    expect(cause).toContain("FAIL:");
+  });
+
+  it("names hang detector on exit 124 when hangTimeout context is explicit (#4744 P2)", () => {
+    const cause = extractGateCause(
+      "",
+      "FAIL: xbrief/completed/2026-09-07-deliberately-bad-1.2.3.xbrief.json\n",
+      124,
+      undefined,
+      "verify:branch",
+      true,
+    );
+    expect(cause).toMatch(/hang detector timeout/i);
+    expect(cause).not.toContain("deliberately-bad");
+  });
+
   it("prefers ANSI-colored Tests N failed over a colon FAIL: path print (#4506)", () => {
     const red = "\u001b[31m";
     const reset = "\u001b[0m";
