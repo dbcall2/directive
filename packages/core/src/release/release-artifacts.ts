@@ -17,6 +17,7 @@ import {
   writeSync,
 } from "node:fs";
 import { basename, dirname } from "node:path";
+import { ContainedWriteError, containedOpenExclusive } from "../fs/contained-write.js";
 import { resolveLifecycleFolder } from "../layout/resolve.js";
 import { renderRoadmapToBuffer } from "../render/roadmap-render.js";
 import { promoteChangelog } from "./changelog.js";
@@ -168,23 +169,37 @@ function parentDirOpenFlags(): number {
 function openExclusiveAtParentFd(
   parentFd: number,
   childName: string,
+  projectRoot: string,
 ): { ok: true; fd: number } | ChangelogSafetyFail {
   if (childName !== "ROADMAP.md") {
     return safetyFail(EXIT_VIOLATION, "unsafe", `refusing create of ${childName}`);
   }
-  if (process.platform !== "linux") {
-    return safetyFail(
-      EXIT_VIOLATION,
-      "roadmap-create",
-      "ROADMAP.md create binds to a retained parent descriptor via openat; refuse closed on this platform",
-    );
-  }
   try {
-    return {
-      ok: true,
-      fd: openSync(`/proc/self/fd/${String(parentFd)}/${childName}`, createOpenFlags()),
-    };
+    const pst = fstatSync(parentFd, { bigint: true });
+    if (!pst.isDirectory()) {
+      return safetyFail(
+        EXIT_VIOLATION,
+        "not-file",
+        "ROADMAP.md parent descriptor is not a directory",
+      );
+    }
+    if (process.platform === "linux") {
+      return {
+        ok: true,
+        fd: openSync(`/proc/self/fd/${String(parentFd)}/${childName}`, createOpenFlags()),
+      };
+    }
+    const handle = containedOpenExclusive({
+      root: projectRoot,
+      target: childName,
+      mkdir: false,
+    });
+    return { ok: true, fd: handle.fd };
   } catch (err) {
+    if (err instanceof ContainedWriteError) {
+      const code = err.code === "CONTAINED_WRITE_SYMLINK" ? "symlink" : "roadmap-create";
+      return safetyFail(EXIT_VIOLATION, code, err.message);
+    }
     const msg = err instanceof Error ? err.message : String(err);
     return safetyFail(EXIT_VIOLATION, "roadmap-create", `ROADMAP.md create failed: ${msg}`);
   }
@@ -554,6 +569,7 @@ export function writeReleaseArtifacts(prepared: PreparedArtifacts): WriteArtifac
     const opened = openExclusiveAtParentFd(
       prepared.missingRoadmapParentFd,
       basename(prepared.roadmapPath),
+      prepared.projectRoot,
     );
     if (!opened.ok) {
       closePreparedArtifacts(prepared);
