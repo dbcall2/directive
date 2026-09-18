@@ -42,7 +42,7 @@
         "id": "3",
         "x-directive/evidence": {
           "kind": "test",
-          "pointer": "packages/core/src/release/release-input.ts",
+          "pointer": "packages/core/src/release/release-input.test.ts",
           "recorded_at": "2026-09-18T01:19:26Z",
           "recorded_by": "leftover-complete/4164"
         }
@@ -86,7 +86,7 @@
         "id": "7",
         "x-directive/evidence": {
           "kind": "test",
-          "pointer": "packages/core/src/release/pipeline.ts",
+          "pointer": "packages/core/src/release/pipeline.test.ts",
           "recorded_at": "2026-09-18T01:19:26Z",
           "recorded_by": "leftover-complete/4164"
         }
