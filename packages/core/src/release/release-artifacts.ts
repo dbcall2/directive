@@ -321,6 +321,12 @@ function nontruncOpenFlags(): number {
   return flags;
 }
 
+function readonlyOpenFlags(): number {
+  let flags = constants.O_RDONLY;
+  if (typeof constants.O_NOFOLLOW === "number") flags |= constants.O_NOFOLLOW;
+  return flags;
+}
+
 function createOpenFlags(): number {
   let flags = constants.O_RDWR | constants.O_CREAT | constants.O_EXCL;
   if (typeof constants.O_NOFOLLOW === "number") flags |= constants.O_NOFOLLOW;
@@ -397,7 +403,28 @@ export function prepareReleaseArtifacts(input: PrepareReleaseArtifactsInput): Pr
   }
 
   if (input.dryRun) {
-    const dry = buffersFromChangelogText(input, changelogPath);
+    let readFd: number;
+    try {
+      readFd = openSync(changelogPath, readonlyOpenFlags());
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return safetyFail(EXIT_VIOLATION, "open", `failed to open CHANGELOG.md: ${msg}`);
+    }
+    const checked = inspectFd(readFd, cl.identity, "CHANGELOG.md");
+    if (!checked.ok) {
+      closeQuiet(readFd);
+      return checked;
+    }
+    let changelogText: string;
+    try {
+      changelogText = readFileSync(readFd, "utf8");
+    } catch (err) {
+      closeQuiet(readFd);
+      const msg = err instanceof Error ? err.message : String(err);
+      return safetyFail(EXIT_CONFIG_ERROR, "read", `CHANGELOG.md read failed: ${msg}`);
+    }
+    closeQuiet(readFd);
+    const dry = buffersFromChangelogText(input, changelogPath, changelogText);
     if (!dry.ok) return dry;
     return {
       ok: true,
