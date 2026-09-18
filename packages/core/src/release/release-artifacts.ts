@@ -16,7 +16,6 @@ import {
   lstatSync,
   openSync,
   readFileSync,
-  unlinkSync,
   writeSync,
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
@@ -189,24 +188,6 @@ function inodePathOfDirFd(dirFd: number): string | null {
   return null;
 }
 
-function unlinkCreatedIfOwned(
-  createdFd: number,
-  inodePath: string | null,
-  childName: string,
-): void {
-  if (inodePath === null) return;
-  const childPath = join(inodePath, childName);
-  try {
-    const created = fstatSync(createdFd, { bigint: true });
-    const child = lstatSync(childPath, { bigint: true });
-    if (typeof created.ino !== "bigint" || typeof child.ino !== "bigint") return;
-    if (created.dev !== child.dev || created.ino !== child.ino) return;
-    unlinkSync(childPath);
-  } catch {
-    return;
-  }
-}
-
 function createdBelongsToParent(
   createdFd: number,
   parentFd: number,
@@ -236,7 +217,8 @@ function createdBelongsToParent(
   }
   try {
     const parentNow = lstatSync(inodePath, { bigint: true });
-    if (parentNow.isSymbolicLink()) {
+    const procFdParent = inodePath.startsWith("/proc/self/fd/");
+    if (!procFdParent && parentNow.isSymbolicLink()) {
       return safetyFail(
         EXIT_VIOLATION,
         "symlink",
@@ -251,6 +233,7 @@ function createdBelongsToParent(
       );
     }
     if (
+      !procFdParent &&
       !identitiesMatch(
         { dev: parentNow.dev, ino: parentNow.ino },
         { dev: parent.dev, ino: parent.ino },
@@ -318,7 +301,6 @@ function openExclusiveAtParentFd(
     }
     const owned = createdBelongsToParent(fd, parentFd, inodePath, childName);
     if (!owned.ok) {
-      unlinkCreatedIfOwned(fd, inodePath, childName);
       closeQuiet(fd);
       return owned;
     }
