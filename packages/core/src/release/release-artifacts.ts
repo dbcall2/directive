@@ -188,6 +188,87 @@ function inodePathOfDirFd(dirFd: number): string | null {
   return null;
 }
 
+function createdBelongsToParent(
+  createdFd: number,
+  parentFd: number,
+  inodePath: string | null,
+  childName: string,
+): { ok: true } | ChangelogSafetyFail {
+  let created: BigIntStats;
+  let parent: BigIntStats;
+  try {
+    created = fstatSync(createdFd, { bigint: true });
+    parent = fstatSync(parentFd, { bigint: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return safetyFail(EXIT_VIOLATION, "unsafe", `created ROADMAP.md identity check failed: ${msg}`);
+  }
+  const createdIdent = bigintStatsOrFail(created, "ROADMAP.md created descriptor");
+  if ("ok" in createdIdent) return createdIdent;
+  if (!parent.isDirectory()) {
+    return safetyFail(
+      EXIT_VIOLATION,
+      "not-file",
+      "ROADMAP.md parent descriptor is not a directory",
+    );
+  }
+  if (inodePath === null) {
+    return { ok: true };
+  }
+  try {
+    const parentNow = lstatSync(inodePath, { bigint: true });
+    if (parentNow.isSymbolicLink()) {
+      return safetyFail(
+        EXIT_VIOLATION,
+        "symlink",
+        "ROADMAP.md parent path is a symlink after create",
+      );
+    }
+    if (typeof parentNow.dev !== "bigint" || typeof parentNow.ino !== "bigint") {
+      return safetyFail(
+        EXIT_VIOLATION,
+        "bigint-unavailable",
+        "ROADMAP.md parent path bigint identity required",
+      );
+    }
+    if (
+      !identitiesMatch(
+        { dev: parentNow.dev, ino: parentNow.ino },
+        { dev: parent.dev, ino: parent.ino },
+      )
+    ) {
+      return safetyFail(
+        EXIT_VIOLATION,
+        "pair-identity",
+        "created ROADMAP.md parent path is not the retained directory",
+      );
+    }
+    const childNow = lstatSync(join(inodePath, childName), { bigint: true });
+    if (typeof childNow.dev !== "bigint" || typeof childNow.ino !== "bigint") {
+      return safetyFail(
+        EXIT_VIOLATION,
+        "bigint-unavailable",
+        "created ROADMAP.md path bigint identity required",
+      );
+    }
+    if (!identitiesMatch({ dev: childNow.dev, ino: childNow.ino }, createdIdent)) {
+      return safetyFail(
+        EXIT_VIOLATION,
+        "pair-identity",
+        "created ROADMAP.md descriptor is not the file in the retained parent",
+      );
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return safetyFail(
+      EXIT_VIOLATION,
+      "pair-identity",
+      `created ROADMAP.md is not in the retained parent: ${msg}`,
+    );
+  }
+  return { ok: true };
+}
+
 function openExclusiveAtParentFd(
   parentFd: number,
   childName: string,
@@ -206,18 +287,22 @@ function openExclusiveAtParentFd(
       );
     }
     const inodePath = inodePathOfDirFd(parentFd);
+    let fd: number;
     if (inodePath !== null) {
-      return {
-        ok: true,
-        fd: openSync(join(inodePath, childName), createOpenFlags()),
-      };
+      fd = openSync(join(inodePath, childName), createOpenFlags());
+    } else {
+      fd = containedOpenExclusive({
+        root: projectRoot,
+        target: childName,
+        mkdir: false,
+      }).fd;
     }
-    const handle = containedOpenExclusive({
-      root: projectRoot,
-      target: childName,
-      mkdir: false,
-    });
-    return { ok: true, fd: handle.fd };
+    const owned = createdBelongsToParent(fd, parentFd, inodePath, childName);
+    if (!owned.ok) {
+      closeQuiet(fd);
+      return owned;
+    }
+    return { ok: true, fd };
   } catch (err) {
     if (err instanceof ContainedWriteError) {
       const code = err.code === "CONTAINED_WRITE_SYMLINK" ? "symlink" : "roadmap-create";
