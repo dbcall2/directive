@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4318",
-    "updated": "2026-09-17T21:57:09Z"
+    "updated": "2026-09-18T01:19:59Z"
   },
   "plan": {
     "title": "feat(release): write ROADMAP then CHANGELOG through retained descriptors (#4164)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "feat(release): write ROADMAP then CHANGELOG through retained descriptors (#4164)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/4318",
@@ -16,31 +16,80 @@
     "items": [
       {
         "title": "assertDestinationNotSymlink is a symlink floor, not the node-type / nlink / pair-identity guard. Do not use containedWrite create|replace|append for these two sinks.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "1",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/changelog-read-safety.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       },
       {
         "title": "Step 5 entry guard is a read-only structural check (leaf node-type plus the existing symlink-ancestor floor) that precedes every release-owned CHANGELOG read, including coverage-debt ledger and native teardown. Only the release-root target is claimed protected. It runs on real, dry-run, and --skip-ci (skip the suite, not the entry guard). Catch-and-empty must not wrap the guard. FIFO fixtures run in a bounded child. Classified Step 5 return on a real node. A real-path FIFO/special-node refusal proves zero CI/readiness calls (do not inject runCi to hide teardown). Missing CHANGELOG stays code 2; detected policy refusal stays code 1.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "2",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/changelog-read-safety.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       },
       {
         "title": "Step 6 pair-opens independent singly linked regular files on nontruncating descriptors after Wave-2's second validation. Dry-run does not run destination write-open probes or writes. In-memory prep uses renderRoadmapToBuffer and promoteChangelog. Successful preparation writes nothing.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "3",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/release-artifacts.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       },
       {
         "title": "Require bigint nlink === 1n and bigint dev+ino pair-identity on pre-open metadata and on the retained descriptors. Fail closed if bigint stats are unavailable. Refuse nlink≠1 on either existing output and the pair-identity case.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "4",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/release-artifacts.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       },
       {
         "title": "Step 7 writes ROADMAP to completion, then CHANGELOG, through retained descriptors. native-steps must not remain the ROADMAP writer. ROADMAP create/write/truncate faults leave CHANGELOG byte-identical. Partial writes report partial state and are not retry-safe.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "5",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/release-artifacts.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       },
       {
         "title": "Order: Step 5 CHANGELOG node-type guard → CI/readiness → Wave-2 second validation → Step 6 paired dest open plus in-memory prep → Step 7 ROADMAP then CHANGELOG. Wave-2 is not the CHANGELOG guard.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "6",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/pipeline.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       },
       {
         "title": "Steps stay [N/13]. Step 6 label is Prepare release artifacts. Step 7 label is Write release artifacts. Relabel of Step 6 must not attach --skip-build to prepare-artifacts.",
-        "status": "proposed"
+        "status": "completed",
+        "id": "7",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/pipeline.test.ts",
+          "recorded_at": "2026-09-18T01:19:26Z",
+          "recorded_by": "leftover-complete/4164"
+        }
       }
     ],
     "tags": [
@@ -456,9 +505,34 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "c382bb2c94675a96a12238c26d47b8deb6e3332f16d5d599defbecc6343f9923"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4737,
+        "prBase": null,
+        "mergeCommit": "045ab42fd",
+        "deliveryBranch": "master",
+        "deliveryCommit": "045ab42fd465dd4c36dce73a948632cfbf5dae60",
+        "verifiedAt": "2026-09-18T01:19:59Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-18T01:19:59Z",
+      "completedSessionId": "host:claude:v1:MDFhMGIwMTEtYmFkZC03OWQzLWE0NjYtODEyZTYxNjM5ZmNl",
+      "capacityBucket": "new-capability",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-18T01:19:59Z"
       }
     },
     "id": "github.issue.5413388984",
-    "updated": "2026-09-17T21:57:09Z"
+    "updated": "2026-09-18T01:19:59Z"
   }
 }
