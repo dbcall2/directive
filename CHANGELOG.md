@@ -18,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Leftover-complete #4318.** Completes the Wave 3 brief after #4737. Refs #4164.
 - **Leftover-complete #4317.** Completes the Wave 2 brief after #4727. Refs #4164.
 
 - **Release writes ROADMAP then CHANGELOG through retained descriptors (#4318).** Step 5 refuses unsafe CHANGELOG node types before any release-owned read (including `--skip-ci` and dry-run). Step 6 prepares both artifacts without writing. Step 7 completes ROADMAP before CHANGELOG. Refs #4164.
