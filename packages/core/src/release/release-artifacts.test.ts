@@ -1,5 +1,6 @@
 import {
   closeSync,
+  existsSync,
   linkSync,
   mkdirSync,
   mkdtempSync,
@@ -227,6 +228,7 @@ describe("writeReleaseArtifacts", () => {
     if (!prepared.ok) return;
     expect(prepared.prepared.roadmapFd).toBeNull();
     expect(prepared.prepared.missingRoadmapParent).not.toBeNull();
+    expect(prepared.prepared.missingRoadmapParentFd).not.toBeNull();
     const written = writeReleaseArtifacts(prepared.prepared);
     expect(written.ok).toBe(true);
     expect(readFileSync(join(root, "ROADMAP.md"), "utf8")).toContain("# Roadmap");
@@ -246,10 +248,15 @@ describe("writeReleaseArtifacts", () => {
     renameSync(root, moved);
     symlinkSync(outside, root);
     const written = writeReleaseArtifacts(prepared.prepared);
-    expect(written.ok).toBe(false);
-    if (written.ok) return;
-    expect(["symlink", "pair-identity", "unsafe"]).toContain(written.code);
-    expect(written.changelogMutated).toBe(false);
+    expect(existsSync(join(outside, "ROADMAP.md"))).toBe(false);
+    if (written.ok) {
+      expect(existsSync(join(moved, "ROADMAP.md"))).toBe(true);
+    } else {
+      expect(["symlink", "pair-identity", "unsafe", "open", "roadmap-create"]).toContain(
+        written.code,
+      );
+      expect(written.changelogMutated).toBe(false);
+    }
   });
 });
 
