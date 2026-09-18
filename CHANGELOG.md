@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+### Removed
+
+## [0.119.4] - 2026-09-18
+
+> Leftover-complete harvest after merged product PRs (#4744, #4746, #4722, #4716, #4706, #4723, #4708, #4628) and xbrief:preflight lifecycle-ready vs authorization (#4690).
+
+### Added
+
+### Changed
+
 - **Records #4744 complete after ts:check-lane timeline and hang named-cause landed.** Completes the tracked brief for the merged product PR. Refs #4744.
 
 - **Records #4746 complete after Class B reserved-prefix warnings landed.** Completes the tracked brief for the merged product PR. Leftover Class A remainder stays #4749. Refs #4746.
@@ -6337,7 +6349,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.119.3...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.119.4...HEAD
+[0.119.4]: https://github.com/deftai/directive/compare/v0.119.3...v0.119.4
 [0.119.3]: https://github.com/deftai/directive/compare/v0.119.2...v0.119.3
 [0.119.2]: https://github.com/deftai/directive/compare/v0.119.1...v0.119.2
 [0.119.1]: https://github.com/deftai/directive/compare/v0.119.0...v0.119.1

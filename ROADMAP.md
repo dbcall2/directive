@@ -44,8 +44,18 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1560 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1570 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4746** -- framework-gap: 0.119.3 rejects previously valid reserved-prefix xBRIEF subtypes -- `[completed]`
+- **#4744** -- bug(check): Windows release Step 5 still exits 124 after #4591 cheapening -- `[completed]`
+- **#4722** -- bug(check): bare deft check requires --framework-root/--project-root -- `[completed]`
+- **#4716** -- session:ready agent_hooks gate hard-blocks on CLI/deposit version skew; only destructive deft update offered for the active host -- `[completed]`
+- **#4711** -- bug(session): fresh git worktree blocks gated writes on agent_hooks drift — committed .claude/settings.json / .cursor/hooks.json matcher tokens lag the live deposit -- `[completed]`
+- **#4706** -- BLOCKER: deft update leaves consumer doctor failing on stale deposit files and AGENTS.md -- `[completed]`
+- **#4690** -- bug(authz): free-text preflight can self-authorize the first product write outside UAT -- `[completed]`
+- **#4708** -- bug(occupancy,hooks): Grok vendor-compat --host claude claims occupancy as host:claude:v1 -- `[completed]`
+- **#4723** -- bug(doctor): throttle-skip stays clean after .deft/core is gone -- `[completed]`
+- **#4628** -- bug(pr): refuse Closes while the brief is still active, and exit wait-mergeable on P1 -- `[completed]`
 - **#4718** -- bug(doctor): after successful update, within-window engine>pin still recommends npx update (ignores pnpm; pin/lock is the real gap) -- `[completed]`
 - **#4710** -- bug(update): update must write the consumer pin; doctor-names-file is not reconstitution -- `[completed]`
 - **#4692** -- 0.114.0 to 0.118.1 upgrade deadlocks: update does not bump its own pin, and the printed recovery flag does not exist -- `[completed]`
@@ -61,14 +71,4 @@ _Showing 25 of 1560 completed scopes (newest first). Full history: lifecycle `co
 - **#4698** -- bug(types,schema): x-xbrief/ validates by pattern but is consumed as a closed set — unknown subtypes are silently ignored -- `[completed]`
 - **#4316** -- test(release): lock ROADMAP out of merge-lane freshness and lifecycle writes (#4164) -- `[completed]`
 - **#4636** -- test(session): CODEX_CI leaks host identity into session, occupancy, and swarm suites -- `[completed]`
-- **#3804** -- AppSec: 2 HIGH + 1 MEDIUM — post-#3545 UAT Shell residuals (inkscape/babel/sass/ar/emacs --batch/pdf/makeself/restic/borg plant authz + kill-switch; approved-scope mint) -- `[completed]`
-- **#4630** -- bug(ts-check-lane): release Step 5 poisons vitest with DEFT_ALLOW_DESTRUCTIVE_GH_VERBS -- `[completed]`
-- **#4621** -- bug(docs): committed RULE-MAP.md is stale vs renderer — blocks v0.119.1 Step 5 -- `[completed]`
-- **#4578** -- bug(xbrief,cli): D7 commit gate rejects uppercase slug after activate; error still says .vbrief.json -- `[completed]`
-- **#4586** -- feat(observable-scope): controlled Tabs + useState default flip still silent -- `[completed]`
-- **#4587** -- design(setup,scope): intent-constraint mint still lands mid-build after setup-created scopes park in pending -- `[completed]`
-- **#4593** -- feat(design-critique): yolo leftover-pain handling (split/defer/deliver) and default Dual-stop cap 6 -- `[completed]`
-- **#4590** -- [framework-gap] evaluateCompletedArcRecord never consults isInFlightCritiqueThread on a later arc, so a thread mid-critique stays ingestable -- `[completed]`
-- **#4591** -- bugcheck: Windows ts:check-lane 20m kill is spawn-heavy coverage wall clock, not git-worktree fixtures -- `[completed]`
-- **#4588** -- design(setup,scope): observable-scope mint still lands mid-build after setup-created scopes park in pending -- `[completed]`
 
