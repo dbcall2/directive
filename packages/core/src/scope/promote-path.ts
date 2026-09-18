@@ -4,7 +4,9 @@
 
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { bindPlanItemIdsToClauses } from "./acceptance-evidence.js";
 import { append, canonicalLogPath, newDecisionId } from "./audit-log.js";
+import { atomicWriteBrief, readBriefForMutation } from "./brief-io.js";
 import { resolveProjectRoot } from "./project-context.js";
 import { recordWipCapOverride, runTransition } from "./transition.js";
 import { utcNowIso } from "./vbrief-json.js";
@@ -73,6 +75,12 @@ export function promotePath(filePath: string, options: PromotePathOptions = {}):
   }
 
   const now = options.now ?? new Date();
+  const lifecycleRoot = dirname(dirname(resolved));
+  const bindWrite = bindClauseIdsOnSourceBrief(resolved, root, lifecycleRoot);
+  if (!bindWrite.ok) {
+    return { ok: false, message: bindWrite.message, exitCode: 1 };
+  }
+
   const result = runTransition("promote", resolved, now);
   if (!result.ok) {
     return { ok: false, message: result.message, exitCode: 1 };
@@ -80,7 +88,6 @@ export function promotePath(filePath: string, options: PromotePathOptions = {}):
 
   const basename = resolved.split(/[/\\]/).pop() ?? "";
   // Destination after promote is sibling pending/ under the same lifecycle root.
-  const lifecycleRoot = dirname(dirname(resolved));
   const destPath = join(lifecycleRoot, "pending", basename);
 
   let auditEntry: Record<string, unknown> | null = null;
@@ -145,4 +152,44 @@ export function promotePath(filePath: string, options: PromotePathOptions = {}):
     auditEntry,
     wipCapOverride: capCheck.forceOverride,
   };
+}
+
+function asPlanRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+function bindClauseIdsOnSourceBrief(
+  destPath: string,
+  projectRoot: string,
+  lifecycleRoot: string,
+): { readonly ok: boolean; readonly message: string } {
+  if (!existsSync(destPath)) {
+    return { ok: true, message: "" };
+  }
+  const loaded = readBriefForMutation(destPath);
+  if (!loaded.ok) {
+    return {
+      ok: false,
+      message: `Clause-id bind failed before promote: ${loaded.message}`,
+    };
+  }
+  const plan = asPlanRecord(loaded.data.plan);
+  if (plan === null) {
+    return { ok: true, message: "" };
+  }
+  const bind = bindPlanItemIdsToClauses(plan);
+  if (bind.boundIds.length === 0) {
+    return { ok: true, message: "" };
+  }
+  const write = atomicWriteBrief(destPath, loaded.data, lifecycleRoot, { projectRoot });
+  if (!write.ok) {
+    return {
+      ok: false,
+      message: `Clause-id bind write failed before promote: ${write.message}`,
+    };
+  }
+  return { ok: true, message: "" };
 }
