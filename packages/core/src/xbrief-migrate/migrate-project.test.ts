@@ -995,6 +995,21 @@ describe("planRedundantLegacyEnvelopeStrips (#4163)", () => {
     expect(plan.pending).toHaveLength(0);
   });
 
+  it("fails closed when leftover key cannot be deleted from original bytes", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-dup-key-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base);
+    const artifact = join(project, MIGRATED_ARTIFACT_DIR, "specification.xbrief.json");
+    const compact = JSON.stringify(dualEnvelopeDoc());
+    const duplicated = `${compact.slice(0, -1)},"vBRIEFInfo":{"version":"0.6"}}`;
+    writeFileSync(artifact, duplicated, "utf8");
+    const plan = planRedundantLegacyEnvelopeStrips(project);
+    expect(plan.ok).toBe(false);
+    if (plan.ok) return;
+    expect(plan.error).toMatch(/failed to delete leftover vBRIEFInfo/);
+    expect(readFileSync(artifact, "utf8")).toBe(duplicated);
+  });
+
   it("fails closed on a non-redundant dual envelope in the drift-gate set", () => {
     const base = mkdtempSync(join(tmpdir(), "xbrief-strip-disagree-"));
     temps.push(base);
@@ -1100,6 +1115,72 @@ describe("runXbriefMigration redundant leftover strip (#4163)", () => {
     const drift = evaluateXbriefDrift(project);
     expect(drift.code).toBe(0);
     expect(drift.findings).toHaveLength(0);
+  });
+
+  it("does not write when evaluateXbriefDrift cannot run on a non-git tree", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-nogit-"));
+    temps.push(base);
+    const project = join(base, "consumer");
+    mkdirSync(join(project, MIGRATED_ARTIFACT_DIR), { recursive: true });
+    const artifact = join(project, MIGRATED_ARTIFACT_DIR, "specification.xbrief.json");
+    writeFileSync(artifact, `${JSON.stringify(dualEnvelopeDoc(), null, 2)}\n`, "utf8");
+    const before = readFileSync(artifact, "utf8");
+    const outcome = runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO);
+    expect(outcome.kind).toBe("config");
+    expect(readFileSync(artifact, "utf8")).toBe(before);
+    expect(JSON.parse(before)).toHaveProperty("vBRIEFInfo");
+  });
+
+  it("does not write when another tracked drift finding would keep evaluateXbriefDrift red", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-partial-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base, { track: true });
+    writeFileSync(join(project, "stale.vbrief.json"), "{}\n", "utf8");
+    gitQuiet(project, ["add", "--", "stale.vbrief.json"]);
+    const artifact = join(project, MIGRATED_ARTIFACT_DIR, "specification.xbrief.json");
+    const before = readFileSync(artifact, "utf8");
+    const outcome = runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO);
+    expect(outcome.kind).toBe("config");
+    expect(readFileSync(artifact, "utf8")).toBe(before);
+    expect(JSON.parse(before)).toHaveProperty("vBRIEFInfo");
+  });
+
+  it("compact dual-envelope input stays byte-identical except the deleted key", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-compact-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base);
+    const artifact = join(project, MIGRATED_ARTIFACT_DIR, "specification.xbrief.json");
+    const compact = JSON.stringify(dualEnvelopeDoc());
+    writeFileSync(artifact, compact, "utf8");
+    const expected = JSON.stringify({
+      plan: dualEnvelopeDoc().plan,
+      xBRIEFInfo: dualEnvelopeDoc().xBRIEFInfo,
+    });
+    expect(runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO).kind).toBe(
+      "rewritten",
+    );
+    expect(readFileSync(artifact, "utf8")).toBe(expected);
+  });
+
+  it("tab-indented dual-envelope input stays byte-identical except the deleted key", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-tab-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base);
+    const artifact = join(project, MIGRATED_ARTIFACT_DIR, "specification.xbrief.json");
+    const tabbed = `${JSON.stringify(dualEnvelopeDoc(), null, "\t")}\n`;
+    writeFileSync(artifact, tabbed, "utf8");
+    const expected = `${JSON.stringify(
+      {
+        plan: dualEnvelopeDoc().plan,
+        xBRIEFInfo: dualEnvelopeDoc().xBRIEFInfo,
+      },
+      null,
+      "\t",
+    )}\n`;
+    expect(runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO).kind).toBe(
+      "rewritten",
+    );
+    expect(readFileSync(artifact, "utf8")).toBe(expected);
   });
 
   it("is idempotent: second pass after a strip is a clean noop", () => {

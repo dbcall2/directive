@@ -19,6 +19,7 @@ import {
   VBRIEF_DEPRECATION_MARKER_FILENAME,
   VBRIEF_VERSION,
 } from "./constants.js";
+import { deleteTopLevelJsonKey } from "./delete-top-level-json-key.js";
 import { detectLegacyVbriefLayout, detectXbriefConvergence } from "./detect.js";
 import {
   evaluateXbriefDrift,
@@ -253,29 +254,36 @@ function omitLegacyInfoKey(parsed: JsonObject): JsonObject {
   return stripped;
 }
 
+type StripRewrite = {
+  readonly path: string;
+  readonly body: string;
+  readonly original: string;
+};
+
 /**
  * Plan in-place leftover-`vBRIEFInfo` strips for the same candidate set as
  * `scanCorpusEnvelope` (#4163). Beside {@link planHybridEnvelopeRewrites}, not
- * through `transformArtifactV06ToV08`. Pure probe — no writes.
+ * through `transformArtifactV06ToV08`. Pure probe — no writes. Bodies are
+ * original file bytes with only the leftover key deleted.
  */
 export function planRedundantLegacyEnvelopeStrips(
   projectRoot: string,
-):
-  | { ok: true; pending: ReadonlyArray<{ path: string; body: string }> }
-  | { ok: false; error: string } {
+): { ok: true; pending: ReadonlyArray<StripRewrite> } | { ok: false; error: string } {
   const migratedDir = join(projectRoot, MIGRATED_ARTIFACT_DIR);
   const artifactPaths = collectFiles(migratedDir).filter((path) =>
     path.endsWith(MIGRATED_ARTIFACT_SUFFIX),
   );
-  const pending: Array<{ path: string; body: string }> = [];
+  const pending: StripRewrite[] = [];
 
   for (const filePath of artifactPaths) {
     const rel = relative(projectRoot, filePath).replace(/\\/g, "/");
     if (!isCorpusEnvelopeCandidatePath(rel)) continue;
 
+    let original: string;
     let parsed: JsonObject;
     try {
-      parsed = JSON.parse(readFileSync(filePath, "utf8")) as JsonObject;
+      original = readFileSync(filePath, "utf8");
+      parsed = JSON.parse(original) as JsonObject;
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       return {
@@ -320,13 +328,95 @@ export function planRedundantLegacyEnvelopeStrips(
       };
     }
 
+    const deleted = deleteTopLevelJsonKey(original, LEGACY_INFO_ROOT_KEY);
+    if (!deleted.ok) {
+      return {
+        ok: false,
+        error: `failed to delete leftover ${LEGACY_INFO_ROOT_KEY} from original bytes of ${rel}: ${deleted.error}`,
+      };
+    }
+
     pending.push({
       path: filePath,
-      body: `${JSON.stringify(stripped, null, 2)}\n`,
+      body: deleted.body,
+      original,
     });
   }
 
   return { ok: true, pending };
+}
+
+function stripRewriteRel(projectRoot: string, filePath: string): string {
+  return relative(projectRoot, filePath).replace(/\\/g, "/");
+}
+
+function restoreStripOriginals(projectRoot: string, written: ReadonlyArray<StripRewrite>): void {
+  const root = resolve(projectRoot);
+  for (const entry of written) {
+    containedWrite({
+      root,
+      target: entry.path,
+      data: entry.original,
+      mode: "replace",
+    });
+  }
+}
+
+/**
+ * Write planned leftover-envelope strips via containedWrite only after every
+ * body is planned. Restore originals on write or postcondition failure so a
+ * red evaluateXbriefDrift cannot leave a partial authority rewrite (#4163).
+ */
+function applyRedundantLegacyEnvelopeStrips(
+  projectRoot: string,
+  pending: ReadonlyArray<StripRewrite>,
+): { ok: true; files: number } | { ok: false; error: string } {
+  const pre = evaluateXbriefDrift(projectRoot, { quiet: true });
+  if (pre.code === 2) {
+    return { ok: false, error: pre.message.trim() };
+  }
+  const plannedRels = new Set(pending.map((entry) => stripRewriteRel(projectRoot, entry.path)));
+  const leftover = pre.findings.filter(
+    (finding) => !(finding.kind === "legacy-envelope-key" && plannedRels.has(finding.path)),
+  );
+  if (leftover.length > 0) {
+    return {
+      ok: false,
+      error:
+        pre.message.trim() ||
+        "evaluateXbriefDrift has findings the leftover-envelope strip would not clear",
+    };
+  }
+
+  const root = resolve(projectRoot);
+  const written: StripRewrite[] = [];
+  try {
+    for (const entry of pending) {
+      containedWrite({
+        root,
+        target: entry.path,
+        data: entry.body,
+        mode: "replace",
+      });
+      written.push(entry);
+    }
+  } catch (err) {
+    restoreStripOriginals(projectRoot, written);
+    const detail = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `leftover-envelope strip write failed: ${detail}` };
+  }
+
+  const post = evaluateXbriefDrift(projectRoot, { quiet: true });
+  if (post.code !== 0) {
+    restoreStripOriginals(projectRoot, written);
+    return {
+      ok: false,
+      error:
+        post.message.trim() ||
+        "post-strip evaluateXbriefDrift still red on the drift-gate candidate set",
+    };
+  }
+  return { ok: true, files: pending.length };
 }
 
 function backupMigrationInputs(
@@ -579,20 +669,14 @@ export function runXbriefMigration(
           };
         }
       }
-      const files = applyHybridEnvelopeRewrites(projectRoot, strip.pending);
-      const drift = evaluateXbriefDrift(projectRoot, { quiet: true });
-      if (drift.code !== 0) {
-        return {
-          kind: "config",
-          message:
-            drift.message.trim() ||
-            "post-strip evaluateXbriefDrift still red on the drift-gate candidate set",
-        };
+      const applied = applyRedundantLegacyEnvelopeStrips(projectRoot, strip.pending);
+      if (!applied.ok) {
+        return { kind: "config", message: applied.error };
       }
       return {
         kind: "rewritten",
-        files,
-        message: `Stripped ${files} redundant leftover vBRIEFInfo envelope(s) beside xBRIEFInfo@0.8 under '${MIGRATED_ARTIFACT_DIR}/'.`,
+        files: applied.files,
+        message: `Stripped ${applied.files} redundant leftover vBRIEFInfo envelope(s) beside xBRIEFInfo@0.8 under '${MIGRATED_ARTIFACT_DIR}/'.`,
       };
     }
   }
