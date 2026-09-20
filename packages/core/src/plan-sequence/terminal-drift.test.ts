@@ -53,6 +53,16 @@ describe("resolvePlanEntryLifecycleOrigin (#4129)", () => {
     }
   });
 
+  it("resolves a wholly numeric story id as an issue origin", () => {
+    expect(resolvePlanEntryLifecycleOrigin({ id: "287", kind: "story" })).toEqual({
+      status: "resolved",
+      keys: [
+        { kind: "issue", value: "287" },
+        { kind: "story-id", value: "287" },
+      ],
+    });
+  });
+
   it("resolves story kind from issue, id, and title", () => {
     const resolved = resolvePlanEntryLifecycleOrigin({
       id: "287-done",
@@ -86,6 +96,36 @@ describe("resolvePlanEntryLifecycleOrigin (#4129)", () => {
 
   it("skips issue kind with no numeric origin", () => {
     expect(resolvePlanEntryLifecycleOrigin({ id: "unbound", kind: "issue" })).toEqual({
+      status: "skip",
+      reason: "no-origin",
+    });
+  });
+
+  it("requires the whole issue id token to be a positive integer", () => {
+    expect(resolvePlanEntryLifecycleOrigin({ id: "287-followup", kind: "issue" })).toEqual({
+      status: "skip",
+      reason: "no-origin",
+    });
+    expect(resolvePlanEntryLifecycleOrigin({ id: "#287", kind: "issue" })).toEqual({
+      status: "resolved",
+      keys: [{ kind: "issue", value: "287" }],
+    });
+  });
+
+  it("requires pr- remainder to be all digits", () => {
+    expect(resolvePlanEntryLifecycleOrigin({ id: "pr-99-extra", kind: "pr" })).toEqual({
+      status: "skip",
+      reason: "no-origin",
+    });
+    expect(resolvePlanEntryLifecycleOrigin({ id: "pr-99", kind: "pr" })).toEqual({
+      status: "resolved",
+      keys: [{ kind: "pr", value: "99" }],
+    });
+    expect(resolvePlanEntryLifecycleOrigin({ id: "99", kind: "pr" })).toEqual({
+      status: "resolved",
+      keys: [{ kind: "pr", value: "99" }],
+    });
+    expect(resolvePlanEntryLifecycleOrigin({ id: "0", kind: "issue" })).toEqual({
       status: "skip",
       reason: "no-origin",
     });
@@ -243,6 +283,34 @@ describe("detectTerminalEntryDrift (#4129)", () => {
         origin({ path: "xbrief/completed/pr-99.xbrief.json", prNumbers: [99] }),
       ]).drifted,
     ).toBe(true);
+  });
+
+  it("does not treat 287-followup as issue 287", () => {
+    const followup = createPlanSequence({
+      sequence_id: "followup",
+      sequence_kind: "delivery",
+      authorized_by: "t",
+      entries: [{ id: "287-followup", kind: "issue" }],
+    });
+    expect(
+      detectTerminalEntryDrift(followup, [
+        origin({ path: "xbrief/completed/287.xbrief.json", issueNumbers: [287] }),
+      ]).drifted,
+    ).toBe(false);
+  });
+
+  it("does not treat pr-99-extra as PR 99", () => {
+    const extra = createPlanSequence({
+      sequence_id: "pr-extra",
+      sequence_kind: "delivery",
+      authorized_by: "t",
+      entries: [{ id: "pr-99-extra", kind: "pr" }],
+    });
+    expect(
+      detectTerminalEntryDrift(extra, [
+        origin({ path: "xbrief/completed/pr-99.xbrief.json", prNumbers: [99] }),
+      ]).drifted,
+    ).toBe(false);
   });
 });
 

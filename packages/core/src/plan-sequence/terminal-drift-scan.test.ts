@@ -109,4 +109,136 @@ describe("collectTerminalLifecycleOrigins (#4129)", () => {
     writeFileSync(join(dir, "array.xbrief.json"), "[]");
     expect(collectTerminalLifecycleOrigins(root, { defaultRepo: "acme/app" })).toEqual([]);
   });
+
+  it("does not treat a completed umbrella mention as the current issue origin", () => {
+    const root = seed();
+    writeBrief(root, "xbrief/completed", "2026-09-01-3913-umbrella.xbrief.json", {
+      title: "Umbrella that mentions 287",
+      status: "completed",
+      narratives: {
+        Origin: "Ingested from https://github.com/acme/app/issues/3913",
+      },
+      references: [
+        {
+          uri: "https://github.com/acme/app/issues/3913",
+          type: "x-xbrief/github-issue",
+        },
+        {
+          uri: "https://github.com/acme/app/issues/287",
+          type: "x-xbrief/refs",
+        },
+      ],
+      metadata: { "x-tracking": { parent_issue: 287 } },
+    });
+    writeBrief(root, "xbrief/completed", "2026-09-01-999-sibling.xbrief.json", {
+      title: "Sibling of 287",
+      status: "completed",
+      references: [
+        {
+          uri: "https://github.com/acme/app/issues/999",
+          type: "x-xbrief/github-issue",
+        },
+        {
+          uri: "https://github.com/acme/app/issues/287",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    });
+    const terminals = collectTerminalLifecycleOrigins(root, { defaultRepo: "acme/app" });
+    expect(terminals.some((t) => t.issueNumbers.includes(287))).toBe(false);
+    expect(terminals.some((t) => t.issueNumbers.includes(3913))).toBe(true);
+    expect(terminals.some((t) => t.issueNumbers.includes(999))).toBe(true);
+    const seq = createPlanSequence({
+      sequence_id: "s",
+      sequence_kind: "delivery",
+      authorized_by: "t",
+      entries: [{ id: "287", kind: "issue", issue: 287 }],
+    });
+    expect(detectTerminalEntryDrift(seq, terminals).drifted).toBe(false);
+  });
+
+  it("falls back to the first github-issue when Origin is not a GitHub URL", () => {
+    const root = seed();
+    writeBrief(root, "xbrief/completed", "note-origin.xbrief.json", {
+      title: "Note origin",
+      status: "completed",
+      narratives: { Origin: "hand-authored local story" },
+      references: [
+        null,
+        "skip",
+        {
+          uri: "https://github.com/acme/app/issues/9",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    });
+    const terminals = collectTerminalLifecycleOrigins(root, { defaultRepo: "acme/app" });
+    expect(terminals.some((t) => t.issueNumbers.includes(9))).toBe(true);
+  });
+
+  it("keeps URI-parsed numbers when defaultRepo is empty", () => {
+    const root = seed();
+    writeBrief(root, "xbrief/completed", "empty-repo.xbrief.json", {
+      title: "Empty default repo",
+      status: "completed",
+      narratives: { Origin: "" },
+      references: [
+        {
+          uri: "https://github.com/acme/app/issues/11",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    });
+    writeBrief(root, "xbrief/completed", "no-refs.xbrief.json", {
+      title: "No references",
+      status: "completed",
+    });
+    const terminals = collectTerminalLifecycleOrigins(root, { defaultRepo: "" });
+    expect(terminals.some((t) => t.issueNumbers.includes(11))).toBe(true);
+    expect(terminals.some((t) => t.title === "No references")).toBe(true);
+  });
+
+  it("keeps only the first github-pr as provenance origin", () => {
+    const root = seed();
+    writeBrief(root, "xbrief/completed", "2026-09-01-pr-99.xbrief.json", {
+      title: "PR 99",
+      status: "completed",
+      references: [
+        {
+          uri: "https://github.com/acme/app/pull/99",
+          type: "x-xbrief/github-pr",
+        },
+        {
+          uri: "https://github.com/acme/app/pull/12",
+          type: "x-xbrief/github-pr",
+        },
+      ],
+    });
+    const terminals = collectTerminalLifecycleOrigins(root, { defaultRepo: "acme/app" });
+    expect(terminals.some((t) => t.prNumbers.includes(99))).toBe(true);
+    expect(terminals.some((t) => t.prNumbers.includes(12))).toBe(false);
+  });
+
+  it("does not treat another repo's same issue number as this entry's origin", () => {
+    const root = seed();
+    writeBrief(root, "xbrief/completed", "2026-09-01-other-287.xbrief.json", {
+      title: "Other repo 287",
+      status: "completed",
+      references: [
+        {
+          uri: "https://github.com/other/repo/issues/287",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    });
+    const terminals = collectTerminalLifecycleOrigins(root, { defaultRepo: "acme/app" });
+    expect(terminals.some((t) => t.issueNumbers.includes(287))).toBe(false);
+    const seq = createPlanSequence({
+      sequence_id: "s",
+      sequence_kind: "delivery",
+      authorized_by: "t",
+      entries: [{ id: "287", kind: "issue", issue: 287 }],
+    });
+    expect(detectTerminalEntryDrift(seq, terminals).drifted).toBe(false);
+  });
 });

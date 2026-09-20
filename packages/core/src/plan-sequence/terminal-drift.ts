@@ -48,22 +48,27 @@ function normalizeToken(raw: string): string {
   return raw.trim().toLowerCase().replace(/^#/, "");
 }
 
-function parsePositiveInt(raw: string): number | null {
-  const trimmed = raw.trim().replace(/^#/u, "");
-  const n = Number.parseInt(trimmed, 10);
-  if (!Number.isFinite(n) || n <= 0) {
+function parseWholePositiveInt(token: string): number | null {
+  if (!/^\d+$/u.test(token)) {
+    return null;
+  }
+  const n = Number(token);
+  if (!Number.isInteger(n) || n <= 0) {
     return null;
   }
   return n;
 }
 
+function parsePositiveInt(raw: string): number | null {
+  return parseWholePositiveInt(raw.trim().replace(/^#/u, ""));
+}
+
 function parsePrNumber(raw: string): number | null {
-  const trimmed = raw.trim().replace(/^#/u, "").replace(/^pr-/iu, "");
-  const n = Number.parseInt(trimmed, 10);
-  if (!Number.isFinite(n) || n <= 0) {
-    return null;
+  const trimmed = raw.trim().replace(/^#/u, "");
+  if (/^pr-/iu.test(trimmed)) {
+    return parseWholePositiveInt(trimmed.replace(/^pr-/iu, ""));
   }
-  return n;
+  return parseWholePositiveInt(trimmed);
 }
 
 function pushKey(keys: PlanEntryOriginKey[], key: PlanEntryOriginKey): void {
