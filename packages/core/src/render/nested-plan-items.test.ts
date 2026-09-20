@@ -1,11 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -122,9 +115,15 @@ describe("pinned make-spec nested plan.items (#4511)", () => {
     expect(md).toMatch(/^- 1\.1\.1: Task description/m);
     expect(md).toContain("**Traces**: FR-1");
     expect(md).toMatch(/^\s*- \.\.\./m);
-    expect(md.indexOf("## Implementation Plan")).toBeLessThan(md.indexOf("### Phase 1: Foundation"));
-    expect(md.indexOf("### Phase 1: Foundation")).toBeLessThan(md.indexOf("#### Subphase 1.1: Setup"));
-    expect(md.indexOf("#### Subphase 1.1: Setup")).toBeLessThan(md.indexOf("1.1.1: Task description"));
+    expect(md.indexOf("## Implementation Plan")).toBeLessThan(
+      md.indexOf("### Phase 1: Foundation"),
+    );
+    expect(md.indexOf("### Phase 1: Foundation")).toBeLessThan(
+      md.indexOf("#### Subphase 1.1: Setup"),
+    );
+    expect(md.indexOf("#### Subphase 1.1: Setup")).toBeLessThan(
+      md.indexOf("1.1.1: Task description"),
+    );
   });
 
   it("keeps Depends on on the nested leaf alongside Traces and Acceptance", () => {
@@ -174,9 +173,9 @@ describe("item-depth cap (#4511)", () => {
     expect(bad.errors.some((e) => e.includes("Invalid --item-depth=off"))).toBe(true);
     const exportBad = parseExportSpecArgv(["--item-depth=nope"]);
     expect(exportBad.errors.some((e) => e.includes("Invalid --item-depth=nope"))).toBe(true);
-    expect(parseExportSpecArgv(["--item-depth"]).errors.some((e) => e.includes("Missing --item-depth"))).toBe(
-      true,
-    );
+    expect(
+      parseExportSpecArgv(["--item-depth"]).errors.some((e) => e.includes("Missing --item-depth")),
+    ).toBe(true);
     expect(renderImplementationPlanLines("not-array", 3)).toEqual([]);
   });
 

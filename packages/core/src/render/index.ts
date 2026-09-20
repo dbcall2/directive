@@ -61,6 +61,7 @@ export {
   tryParseItemDepthCap,
   tryParseOnOffFlag,
 } from "./spec-render.js";
+export type { NestedPlanItemKey, WalkNestedPlanItemsHandlers } from "./spec-validate.js";
 export * as specValidate from "./spec-validate.js";
 export {
   listNestedPlanItems,
@@ -69,7 +70,6 @@ export {
   validateSpec,
   walkNestedPlanItems,
 } from "./spec-validate.js";
-export type { NestedPlanItemKey, WalkNestedPlanItemsHandlers } from "./spec-validate.js";
 export {
   parsePhaseNumber,
   phaseSortKey,
