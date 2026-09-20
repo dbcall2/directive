@@ -4,7 +4,6 @@ import { ContainedWriteError, containedWrite } from "../fs/contained-write.js";
 import {
   buildSpecRenderBanner,
   DEFAULT_INCLUDE_SCOPES_MODE,
-  DEFAULT_ITEM_DEPTH_CAP,
   type IncludeScopesMode,
   LEGACY_ARTIFACTS_NARRATIVE_KEY,
   RENDERABLE_SPEC_STATUSES,
@@ -13,8 +12,6 @@ import {
 import { buildScopeOutlookSection } from "./scope-outlook.js";
 import { listNestedPlanItems, validateSpec } from "./spec-validate.js";
 import { stripTrailingWhitespace } from "./text-utils.js";
-
-export { DEFAULT_ITEM_DEPTH_CAP };
 
 type JsonObject = Record<string, unknown>;
 
@@ -77,7 +74,7 @@ export function tryParseItemDepthCap(value: string): number | undefined {
 export function resolveItemDepthCap(
   value: number | string | undefined,
 ): { ok: true; cap: number } | { ok: false; message: string } {
-  if (value === undefined) return { ok: true, cap: DEFAULT_ITEM_DEPTH_CAP };
+  if (value === undefined) return { ok: true, cap: 3 };
   if (typeof value === "number") {
     if (!Number.isInteger(value) || value < 1) {
       return {
@@ -102,7 +99,7 @@ function itemHandlerIndent(depth: number): string {
 }
 
 function truncationNotice(cap: number, indent = ""): string {
-  const named = cap === DEFAULT_ITEM_DEPTH_CAP ? " (phase, subphase, task)" : "";
+  const named = cap === 3 ? " (phase, subphase, task)" : "";
   return (
     `${indent}_Nested plan.items truncated at depth ${cap}${named}. ` +
     "Raise --item-depth to include deeper items._\n"
@@ -345,7 +342,7 @@ export function parseIncludeScopesFlag(argv: readonly string[]): {
 } {
   let includeScopes: IncludeScopesMode = DEFAULT_INCLUDE_SCOPES_MODE;
   let includeLegacyArtifacts = false;
-  let itemDepthCap = DEFAULT_ITEM_DEPTH_CAP;
+  let itemDepthCap = 3;
   const remaining: string[] = [];
   const errors: string[] = [];
   for (const arg of argv) {
@@ -439,7 +436,7 @@ export function main(argv: readonly string[]): number {
         "[--include-scopes=off|current|all] [--include-legacy-artifacts=on|off] " +
         "[--item-depth=N]\n" +
         "  Defaults (#1566): --include-scopes=off --include-legacy-artifacts=off\n" +
-        `  Nested plan.items (#4511): --item-depth=${DEFAULT_ITEM_DEPTH_CAP} (phase, subphase, task)\n`,
+        "  Nested plan.items (#4511): --item-depth=3 (phase, subphase, task)\n",
     );
     return 2;
   }

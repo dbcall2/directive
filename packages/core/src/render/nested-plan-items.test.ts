@@ -13,7 +13,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { exportSpec, parseExportSpecArgv } from "./export-spec.js";
 import { generateRoadmapContent } from "./roadmap-render.js";
 import {
-  DEFAULT_ITEM_DEPTH_CAP,
   parseIncludeScopesFlag,
   renderImplementationPlanLines,
   renderSpecMarkdown,
@@ -159,7 +158,6 @@ describe("pinned make-spec nested plan.items (#4511)", () => {
 
 describe("item-depth cap (#4511)", () => {
   it("defaults to 3 and rejects unknown tokens", () => {
-    expect(DEFAULT_ITEM_DEPTH_CAP).toBe(3);
     expect(tryParseItemDepthCap("3")).toBe(3);
     expect(tryParseItemDepthCap("off")).toBeUndefined();
     expect(tryParseItemDepthCap("0")).toBeUndefined();

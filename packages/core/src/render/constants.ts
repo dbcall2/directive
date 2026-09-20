@@ -39,12 +39,6 @@ export const LEGACY_ARTIFACTS_NARRATIVE_KEY = "LegacyArtifacts";
  */
 export const DEFAULT_INCLUDE_SCOPES_MODE = "off" as const;
 
-/**
- * Default nested plan.items depth for spec emitters (#4511).
- * 1 = phase, 2 = subphase, 3 = task. Deeper items are announced, not omitted.
- */
-export const DEFAULT_ITEM_DEPTH_CAP = 3;
-
 /** Lifecycle scope aggregation modes for rendered specs (#1566). */
 export type IncludeScopesMode = "off" | "current" | "all";
 
