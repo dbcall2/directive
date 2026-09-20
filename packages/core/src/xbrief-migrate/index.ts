@@ -25,12 +25,16 @@ export {
 } from "./detect.js";
 export {
   BUILTIN_ALLOW_LIST,
+  corpusEnvelopeFindingFromObject,
   type DriftEvaluateOptions,
   type DriftEvaluateResult,
   type DriftFinding,
   type DriftScanMode,
   evaluateXbriefDrift,
+  inMemoryCorpusEnvelopeIsDirty,
+  isCorpusEnvelopeCandidatePath,
   LEGACY_REFERENCE_PREFIX,
+  scanCorpusEnvelope,
   scanCorpusToken,
 } from "./drift-gate.js";
 export {
@@ -41,6 +45,8 @@ export {
 export {
   convergeLegacyVbriefRoot,
   emitXbriefMigration,
+  legacyInfoIsRedundantWithCanonical,
+  planRedundantLegacyEnvelopeStrips,
   removeStaleMigratedFrameworkNarrative,
   runXbriefMigration,
   runXbriefMigrationCli,

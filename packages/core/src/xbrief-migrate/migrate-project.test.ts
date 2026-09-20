@@ -19,9 +19,12 @@ import {
   VBRIEF_DEPRECATION_MARKER_SENTINEL,
 } from "./constants.js";
 import { detectXbriefConvergence } from "./detect.js";
+import { evaluateXbriefDrift } from "./drift-gate.js";
 import {
   convergeLegacyVbriefRoot,
   emitXbriefMigration,
+  legacyInfoIsRedundantWithCanonical,
+  planRedundantLegacyEnvelopeStrips,
   removeStaleMigratedFrameworkNarrative,
   runXbriefMigration,
   runXbriefMigrationCli,
@@ -848,5 +851,268 @@ describe("emitXbriefMigration converged (#2270)", () => {
     );
     expect(code).toBe(0);
     expect(outs.join("")).toContain("Converged layout: removed");
+  });
+});
+
+const CANONICAL_08_INFO = {
+  version: "0.8",
+  description: "fixture",
+  created: "2026-06-30T00:00:00Z",
+  updated: "2026-06-30T00:00:00Z",
+  metadata: { deft_version: "0.109.1" },
+} as const;
+
+const DUAL_PLAN = {
+  title: "Dual envelope spec",
+  status: "running",
+  items: [],
+} as const;
+
+function dualEnvelopeDoc(
+  legacy: Record<string, unknown> = { version: "0.6" },
+): Record<string, unknown> {
+  return {
+    vBRIEFInfo: legacy,
+    plan: { ...DUAL_PLAN },
+    xBRIEFInfo: {
+      ...CANONICAL_08_INFO,
+      metadata: { ...CANONICAL_08_INFO.metadata },
+    },
+  };
+}
+
+function gitQuiet(root: string, args: string[]): void {
+  execFileSync("git", args, { cwd: root, stdio: ["ignore", "ignore", "ignore"] });
+}
+
+function scaffoldDualEnvelopeXbriefOnly(
+  base: string,
+  options: {
+    specLegacy?: Record<string, unknown>;
+    alsoPlan?: boolean;
+    alsoCompleted?: boolean;
+    track?: boolean;
+  } = {},
+): string {
+  const project = join(base, "consumer");
+  mkdirSync(join(project, MIGRATED_ARTIFACT_DIR, "completed"), { recursive: true });
+  writeFileSync(
+    join(project, MIGRATED_ARTIFACT_DIR, "specification.xbrief.json"),
+    `${JSON.stringify(dualEnvelopeDoc(options.specLegacy), null, 2)}\n`,
+    "utf8",
+  );
+  if (options.alsoPlan === true) {
+    writeFileSync(
+      join(project, MIGRATED_ARTIFACT_DIR, "plan.xbrief.json"),
+      `${JSON.stringify(dualEnvelopeDoc({ version: "0.6" }), null, 2)}\n`,
+      "utf8",
+    );
+  }
+  if (options.alsoCompleted === true) {
+    writeFileSync(
+      join(project, MIGRATED_ARTIFACT_DIR, "completed", "2026-01-01-old.xbrief.json"),
+      `${JSON.stringify(dualEnvelopeDoc({ version: "0.6" }), null, 2)}\n`,
+      "utf8",
+    );
+  }
+  gitQuiet(project, ["init", "-q"]);
+  if (options.track === true) {
+    gitQuiet(project, ["add", "--", "xbrief"]);
+  }
+  return project;
+}
+
+describe("legacyInfoIsRedundantWithCanonical (#4163)", () => {
+  it("treats version-only leftover {version: 0.6} as redundant", () => {
+    expect(legacyInfoIsRedundantWithCanonical({ version: "0.6" }, { ...CANONICAL_08_INFO })).toBe(
+      true,
+    );
+  });
+
+  it("strips when leftover updated equals the canonical stamp", () => {
+    expect(
+      legacyInfoIsRedundantWithCanonical(
+        { version: "0.6", updated: CANONICAL_08_INFO.updated },
+        { ...CANONICAL_08_INFO },
+      ),
+    ).toBe(true);
+  });
+
+  it("fails closed on a unique leftover description", () => {
+    expect(
+      legacyInfoIsRedundantWithCanonical(
+        { version: "0.6", description: "only on leftover" },
+        { version: "0.8" },
+      ),
+    ).toBe(false);
+  });
+
+  it("fails closed when leftover description disagrees with canonical", () => {
+    expect(
+      legacyInfoIsRedundantWithCanonical(
+        { version: "0.6", description: "other" },
+        { ...CANONICAL_08_INFO },
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("planRedundantLegacyEnvelopeStrips (#4163)", () => {
+  it("plans a strip for root specification.xbrief.json and plan.xbrief.json", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-plan-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base, { alsoPlan: true });
+    const plan = planRedundantLegacyEnvelopeStrips(project);
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    const rels = plan.pending.map((entry) => entry.path.replace(/\\/g, "/"));
+    expect(rels.some((p) => p.endsWith("xbrief/specification.xbrief.json"))).toBe(true);
+    expect(rels.some((p) => p.endsWith("xbrief/plan.xbrief.json"))).toBe(true);
+    for (const entry of plan.pending) {
+      const body = JSON.parse(entry.body) as Record<string, unknown>;
+      expect(body).not.toHaveProperty("vBRIEFInfo");
+      expect(body.xBRIEFInfo).toEqual({
+        ...CANONICAL_08_INFO,
+        metadata: { ...CANONICAL_08_INFO.metadata },
+      });
+      expect(body.plan).toEqual(DUAL_PLAN);
+    }
+  });
+
+  it("does not plan a strip for xbrief/completed historical records", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-completed-"));
+    temps.push(base);
+    const project = scaffoldCanonicalXbrief(base);
+    mkdirSync(join(project, MIGRATED_ARTIFACT_DIR, "completed"), { recursive: true });
+    writeFileSync(
+      join(project, MIGRATED_ARTIFACT_DIR, "completed", "2026-01-01-old.xbrief.json"),
+      `${JSON.stringify(dualEnvelopeDoc({ version: "0.6" }), null, 2)}\n`,
+      "utf8",
+    );
+    const plan = planRedundantLegacyEnvelopeStrips(project);
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    expect(plan.pending).toHaveLength(0);
+  });
+
+  it("fails closed on a non-redundant dual envelope in the drift-gate set", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-disagree-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base, {
+      specLegacy: { version: "0.6", description: "only on leftover" },
+    });
+    const plan = planRedundantLegacyEnvelopeStrips(project);
+    expect(plan.ok).toBe(false);
+    if (plan.ok) return;
+    expect(plan.error).toMatch(/non-redundant dual envelope/);
+    expect(plan.error).toMatch(/specification\.xbrief\.json/);
+  });
+});
+
+describe("runXbriefMigration redundant leftover strip (#4163)", () => {
+  it("strips leftover vBRIEFInfo on an already-xbrief specification and returns rewritten", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-rewrite-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base);
+    const artifact = join(project, MIGRATED_ARTIFACT_DIR, "specification.xbrief.json");
+    const before = JSON.parse(readFileSync(artifact, "utf8")) as Record<string, unknown>;
+    const planBefore = JSON.stringify(before.plan);
+    const infoBefore = JSON.stringify(before.xBRIEFInfo);
+
+    const outcome = runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO);
+    expect(outcome.kind).toBe("rewritten");
+    if (outcome.kind === "rewritten") {
+      expect(outcome.files).toBe(1);
+      expect(outcome.message).toMatch(/Stripped 1 redundant leftover vBRIEFInfo/);
+    }
+
+    const after = JSON.parse(readFileSync(artifact, "utf8")) as Record<string, unknown>;
+    expect(after).not.toHaveProperty("vBRIEFInfo");
+    expect(JSON.stringify(after.plan)).toBe(planBefore);
+    expect(JSON.stringify(after.xBRIEFInfo)).toBe(infoBefore);
+  });
+
+  it("does not fire the residual-schema noop when a strip is pending", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-no-noop-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base);
+    const outcome = runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO);
+    expect(outcome.kind).not.toBe("noop");
+    expect(outcome.kind).toBe("rewritten");
+  });
+
+  it("leaves xbrief/completed dual envelopes historical", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-hist-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base, { alsoCompleted: true });
+    const completed = join(
+      project,
+      MIGRATED_ARTIFACT_DIR,
+      "completed",
+      "2026-01-01-old.xbrief.json",
+    );
+    const before = readFileSync(completed, "utf8");
+    expect(runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO).kind).toBe(
+      "rewritten",
+    );
+    expect(readFileSync(completed, "utf8")).toBe(before);
+    expect(JSON.parse(before)).toHaveProperty("vBRIEFInfo");
+  });
+
+  it("refuses the whole migrate on a non-redundant dual envelope and does not write", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-refuse-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base, {
+      specLegacy: { version: "0.6", description: "only on leftover" },
+    });
+    const artifact = join(project, MIGRATED_ARTIFACT_DIR, "specification.xbrief.json");
+    const before = readFileSync(artifact, "utf8");
+    const outcome = runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO);
+    expect(outcome.kind).toBe("config");
+    if (outcome.kind === "config") {
+      expect(outcome.message).toMatch(/non-redundant dual envelope/);
+    }
+    expect(readFileSync(artifact, "utf8")).toBe(before);
+    const code = emitXbriefMigration(outcome, SILENT_IO);
+    expect(code).toBe(2);
+  });
+
+  it("refuses a dirty tree unless force is passed", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-dirty-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base);
+    writeFileSync(join(project, "dirty.txt"), "change\n", "utf8");
+    const artifact = join(project, MIGRATED_ARTIFACT_DIR, "specification.xbrief.json");
+    const outcome = runXbriefMigration({ projectRoot: project }, SILENT_IO);
+    expect(outcome.kind).toBe("refused");
+    expect(JSON.parse(readFileSync(artifact, "utf8"))).toHaveProperty("vBRIEFInfo");
+  });
+
+  it("evaluateXbriefDrift on the stripped tracked set is the success-then-reject postcondition", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-drift-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base, { track: true });
+    expect(evaluateXbriefDrift(project).code).toBe(1);
+    expect(evaluateXbriefDrift(project).findings[0]?.kind).toBe("legacy-envelope-key");
+
+    const outcome = runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO);
+    expect(outcome.kind).toBe("rewritten");
+    const drift = evaluateXbriefDrift(project);
+    expect(drift.code).toBe(0);
+    expect(drift.findings).toHaveLength(0);
+  });
+
+  it("is idempotent: second pass after a strip is a clean noop", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-idem-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base);
+    const artifact = join(project, MIGRATED_ARTIFACT_DIR, "specification.xbrief.json");
+    expect(runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO).kind).toBe(
+      "rewritten",
+    );
+    const afterFirst = readFileSync(artifact, "utf8");
+    const second = runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO);
+    expect(second.kind).toBe("noop");
+    expect(readFileSync(artifact, "utf8")).toBe(afterFirst);
   });
 });

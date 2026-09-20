@@ -3,7 +3,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { evaluateXbriefDrift } from "./drift-gate.js";
+import {
+  corpusEnvelopeFindingFromObject,
+  evaluateXbriefDrift,
+  inMemoryCorpusEnvelopeIsDirty,
+  isCorpusEnvelopeCandidatePath,
+} from "./drift-gate.js";
 
 function git(root: string, args: string[]): void {
   execFileSync("git", args, { cwd: root, stdio: ["ignore", "ignore", "ignore"] });
@@ -254,5 +259,42 @@ describe("evaluateXbriefDrift", () => {
     } finally {
       rmSync(nonGitDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("corpus envelope candidate path and in-memory predicate (#4163 / #4086)", () => {
+  it("includes root specification.xbrief.json and plan.xbrief.json", () => {
+    expect(isCorpusEnvelopeCandidatePath("xbrief/specification.xbrief.json")).toBe(true);
+    expect(isCorpusEnvelopeCandidatePath("xbrief/plan.xbrief.json")).toBe(true);
+  });
+
+  it("excludes lifecycle-folder historical records", () => {
+    expect(isCorpusEnvelopeCandidatePath("xbrief/completed/2026-01-01-old.xbrief.json")).toBe(
+      false,
+    );
+    expect(isCorpusEnvelopeCandidatePath("xbrief/active/story.xbrief.json")).toBe(false);
+  });
+
+  it("marks leftover vBRIEFInfo dirty in memory and clean after the key is gone", () => {
+    const dual = {
+      vBRIEFInfo: { version: "0.6" },
+      xBRIEFInfo: { version: "0.8" },
+      plan: { title: "x" },
+    };
+    expect(inMemoryCorpusEnvelopeIsDirty(dual)).toBe(true);
+    expect(corpusEnvelopeFindingFromObject("xbrief/specification.xbrief.json", dual)?.kind).toBe(
+      "legacy-envelope-key",
+    );
+    const stripped = { xBRIEFInfo: dual.xBRIEFInfo, plan: dual.plan };
+    expect(inMemoryCorpusEnvelopeIsDirty(stripped)).toBe(false);
+    expect(corpusEnvelopeFindingFromObject("xbrief/specification.xbrief.json", stripped)).toBe(
+      null,
+    );
+  });
+
+  it("fails closed on a non-object instead of treating detector-null as pass", () => {
+    expect(inMemoryCorpusEnvelopeIsDirty(null)).toBe(true);
+    expect(inMemoryCorpusEnvelopeIsDirty("nope")).toBe(true);
+    expect(corpusEnvelopeFindingFromObject("xbrief/specification.xbrief.json", null)).toBe(null);
   });
 });
