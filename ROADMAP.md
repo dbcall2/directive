@@ -40,8 +40,25 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1571 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1588 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4824** -- leftover(#167): Tracking/Refs merge plus xBRIEF complete can leave GitHub issues open -- `[completed]`
+- **#4822** -- leftover(#4821,#4820): wait-merge must not swallow the pr:watch babysit wait -- `[completed]`
+- **#4821** -- leftover(#4529): Grok parent-retained review must not skip dest review-cycle worker -- `[completed]`
+- **#4765** -- leftover(#4749): unenumerated residual 20 of the xbrief:validate exit-code pain -- `[completed]`
+- **#4511** -- bug(spec:render): renders only depth-1 of plan.items, discarding the phase/subphase/task tree make-spec.md mandates (+5 presentation defects) -- `[completed]`
+- **#4813** -- BLOCKER: intent-constraint validates the wrong diff in main/develop consumers -- `[completed]`
+- **#4163** -- [framework-gap] migrate:xbrief no-ops dual-envelope files that the 0.111 commit gate rejects -- `[completed]`
+- **#4129** -- [framework-gap] Detect a current ordered-plan entry whose lifecycle entity is already terminal -- `[completed]`
+- **#4801** -- bug(release): Step 5 hang detector is suite-only; hung non-suite gates never 124 -- `[completed]`
+- **#4798** -- bug(release): v0.119.4 Windows Step 5 exceeded 20m hang detector after leftover-complete #4744 -- `[completed]`
+- **#4796** -- rfc(swarm,ux): Gap D parent-chat interactivity is not first-class on Grok Build — harness matrix + workaround evidence -- `[completed]`
+- **#4795** -- bug(ceremony-dial): leftover pending max-wins ceremony size over a live active brief -- `[completed]`
+- **#4794** -- bug(grok-build,session): native spawn_subagent has no passable writing skip-class field -- `[completed]`
+- **#4793** -- bug(hooks,cli): exact-miss session:start hint deny blames quoting/pipe/chain -- `[completed]`
+- **#4783** -- bug(ceremony-dial): session:start binds provisional taskSize from unrelated pending xBRIEF -- `[completed]`
+- **#4782** -- bug(occupancy,grok-build): completed spawn_subagent leaves dest worktree leased (forces extra worktrees) -- `[completed]`
+- **#4780** -- bug(hooks,cli): session:start -- --read-only still denied as not inspectable on 0.119.2 (regression #4577) -- `[completed]`
 - **#4784** -- Completed-write guard rejects canonical completion after mutable brief changes -- `[completed]`
 - **#4746** -- framework-gap: 0.119.3 rejects previously valid reserved-prefix xBRIEF subtypes -- `[completed]`
 - **#4744** -- bug(check): Windows release Step 5 still exits 124 after #4591 cheapening -- `[completed]`
@@ -50,21 +67,4 @@ _Showing 25 of 1571 completed scopes (newest first). Full history: lifecycle `co
 - **#4711** -- bug(session): fresh git worktree blocks gated writes on agent_hooks drift — committed .claude/settings.json / .cursor/hooks.json matcher tokens lag the live deposit -- `[completed]`
 - **#4706** -- BLOCKER: deft update leaves consumer doctor failing on stale deposit files and AGENTS.md -- `[completed]`
 - **#4690** -- bug(authz): free-text preflight can self-authorize the first product write outside UAT -- `[completed]`
-- **#4708** -- bug(occupancy,hooks): Grok vendor-compat --host claude claims occupancy as host:claude:v1 -- `[completed]`
-- **#4723** -- bug(doctor): throttle-skip stays clean after .deft/core is gone -- `[completed]`
-- **#4628** -- bug(pr): refuse Closes while the brief is still active, and exit wait-mergeable on P1 -- `[completed]`
-- **#4718** -- bug(doctor): after successful update, within-window engine>pin still recommends npx update (ignores pnpm; pin/lock is the real gap) -- `[completed]`
-- **#4710** -- bug(update): update must write the consumer pin; doctor-names-file is not reconstitution -- `[completed]`
-- **#4692** -- 0.114.0 to 0.118.1 upgrade deadlocks: update does not bump its own pin, and the printed recovery flag does not exist -- `[completed]`
-- **#4732** -- scope:complete should derive test-axis evidence from landed tests on bound clauses -- `[completed]`
-- **#4318** -- feat(release): write ROADMAP then CHANGELOG through retained descriptors (#4164) -- `[completed]`
-- **#4317** -- feat(release): validate committed lifecycle inputs before native scanner and ROADMAP render (#4164) -- `[completed]`
-- **#4672** -- Swarm deadlock: cannot edit xbrief/active in requirements posture; mutation requires uv -- `[completed]`
-- **#4674** -- Uninstall + delete .deft/ does not fully remove Directive -- `[completed]`
-- **#4673** -- doctor throttles full probe for 22h; README does not mention --full -- `[completed]`
-- **#4697** -- bug(verify): verify:orphan-active silently skips briefs whose forge origin it cannot resolve -- `[completed]`
-- **#4700** -- [framework-gap] design-critique ingest-ready writer does not prove completed-arc readiness -- `[completed]`
-- **#4705** -- bug(design-critique): missing spend token silently selects N=1; launchable panels never ask -- `[completed]`
-- **#4698** -- bug(types,schema): x-xbrief/ validates by pattern but is consumed as a closed set — unknown subtypes are silently ignored -- `[completed]`
-- **#4316** -- test(release): lock ROADMAP out of merge-lane freshness and lifecycle writes (#4164) -- `[completed]`
 
