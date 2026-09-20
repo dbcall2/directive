@@ -1,7 +1,7 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseArgs, main as planSequenceMain } from "./plan-sequence.js";
 import { main as verifyPlanSequenceMain } from "./verify-plan-sequence.js";
 
@@ -128,5 +128,69 @@ describe("plan-sequence CLI (#2402)", () => {
     expect(planSequenceMain(["set", `--file=${fullFile}`, "--project-root", root])).toBe(0);
     expect(planSequenceMain(["current", "--project-root", root])).toBe(0);
     expect(planSequenceMain(["set", "--project-root", root])).toBe(1);
+  });
+
+  it("current fail-closes when the current issue origin is already in completed/ (#4129)", () => {
+    const root = mkdtempSync(join(tmpdir(), "ps-cli-drift-"));
+    roots.push(root);
+    const file = join(root, "plan.json");
+    writeFileSync(
+      file,
+      JSON.stringify({
+        sequence_id: "drift",
+        sequence_kind: "delivery",
+        authorized_by: "test",
+        entries: [
+          { id: "287", kind: "issue", issue: 287 },
+          { id: "288", kind: "issue", issue: 288 },
+        ],
+      }),
+    );
+    expect(planSequenceMain(["set", "--project-root", root, "--file", file])).toBe(0);
+    mkdirSync(join(root, "xbrief/completed"), { recursive: true });
+    writeFileSync(
+      join(root, "xbrief/completed/2026-09-01-287.xbrief.json"),
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8" },
+        plan: {
+          title: "Done 287",
+          status: "completed",
+          references: [
+            {
+              uri: "https://github.com/acme/app/issues/287",
+              type: "x-xbrief/github-issue",
+            },
+          ],
+        },
+      }),
+    );
+    const err: string[] = [];
+    const errSpy = vi.spyOn(process.stderr, "write").mockImplementation((c) => {
+      err.push(String(c));
+      return true;
+    });
+    try {
+      expect(planSequenceMain(["current", "--project-root", root])).toBe(1);
+      const text = err.join("");
+      expect(text).toContain("terminal in");
+      expect(text).toContain("Do not run task plan-sequence:advance until");
+      expect(text).toContain("Do not treat this as permission to pick the next id");
+    } finally {
+      errSpy.mockRestore();
+    }
+    const out: string[] = [];
+    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation((c) => {
+      out.push(String(c));
+      return true;
+    });
+    const err2 = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    try {
+      expect(planSequenceMain(["current", "--project-root", root, "--json"])).toBe(1);
+      const payload = JSON.parse(out.join("")) as { terminal_lifecycle_drift?: { code: string } };
+      expect(payload.terminal_lifecycle_drift?.code).toBe("terminal-lifecycle");
+    } finally {
+      outSpy.mockRestore();
+      err2.mockRestore();
+    }
   });
 });

@@ -146,6 +146,49 @@ describe("plan-sequence (#2402)", () => {
     ).toBe(true);
   });
 
+  it("verifyPlanTarget fail-closes terminal-lifecycle before mismatch (#4129)", () => {
+    const seq = twoPrPlan();
+    const terminals = [
+      {
+        path: "xbrief/completed/2120.xbrief.json",
+        folder: "completed" as const,
+        issueNumbers: [2120],
+        prNumbers: [2120],
+        storyIds: [],
+        failed: false,
+        hasTransitionWrite: true,
+      },
+    ];
+    const matched = verifyPlanTarget(seq, {
+      targetKind: "pr",
+      target: "pr-2120",
+      terminalOrigins: terminals,
+    });
+    expect(matched.ok).toBe(false);
+    if (!matched.ok) {
+      expect(matched.code).toBe("terminal-lifecycle");
+      expect(matched.code).not.toBe("mismatch");
+      expect(matched.message).toContain("Do not run task plan-sequence:advance until");
+    }
+    const nextId = verifyPlanTarget(seq, {
+      targetKind: "pr",
+      target: "pr-2118",
+      terminalOrigins: terminals,
+    });
+    expect(nextId.ok).toBe(false);
+    if (!nextId.ok) {
+      expect(nextId.code).toBe("terminal-lifecycle");
+      expect(nextId.code).not.toBe("mismatch");
+    }
+  });
+
+  it("verifyPlanTarget match path stays ok when terminalOrigins is empty", () => {
+    const seq = twoPrPlan();
+    expect(
+      verifyPlanTarget(seq, { targetKind: "pr", target: "pr-2120", terminalOrigins: [] }).ok,
+    ).toBe(true);
+  });
+
   it("isExplicitQueueAsk and isPlanFirstPhrase helpers", () => {
     expect(isExplicitQueueAsk("build a cohort please")).toBe(true);
     expect(isPlanFirstPhrase("please proceed")).toBe(true);
