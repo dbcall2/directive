@@ -2,8 +2,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { TIP_TERMINAL_FOLDERS } from "../lifecycle/completed-tracked-on-delivery.js";
 import { detectTerminalEntryDrift } from "./terminal-drift.js";
-import { collectTerminalLifecycleOrigins } from "./terminal-drift-scan.js";
+import {
+  collectTerminalLifecycleOrigins,
+  TERMINAL_LIFECYCLE_FOLDERS,
+} from "./terminal-drift-scan.js";
 import { createPlanSequence } from "./types.js";
 
 const roots: string[] = [];
@@ -31,6 +35,10 @@ function writeBrief(
 }
 
 describe("collectTerminalLifecycleOrigins (#4129)", () => {
+  it("locks folder names to TIP_TERMINAL_FOLDERS", () => {
+    expect([...TERMINAL_LIFECYCLE_FOLDERS]).toEqual([...TIP_TERMINAL_FOLDERS]);
+  });
+
   it("scans completed xBRIEFs via collectGithubRefs and matches the current issue entry", () => {
     const root = seed();
     writeBrief(root, "xbrief/completed", "2026-09-01-287-done.xbrief.json", {
@@ -97,6 +105,8 @@ describe("collectTerminalLifecycleOrigins (#4129)", () => {
     const dir = join(root, "xbrief/completed");
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "broken.xbrief.json"), "{not json");
+    writeFileSync(join(dir, "notes.md"), "not an artifact");
+    writeFileSync(join(dir, "array.xbrief.json"), "[]");
     expect(collectTerminalLifecycleOrigins(root, { defaultRepo: "acme/app" })).toEqual([]);
   });
 });

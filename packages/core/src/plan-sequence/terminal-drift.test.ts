@@ -204,6 +204,46 @@ describe("detectTerminalEntryDrift (#4129)", () => {
   it("returns not drifted for a null sequence", () => {
     expect(detectTerminalEntryDrift(null, []).drifted).toBe(false);
   });
+
+  it("matches a story title against a completed brief title", () => {
+    const story = createPlanSequence({
+      sequence_id: "t",
+      sequence_kind: "swarm",
+      authorized_by: "t",
+      entries: [{ id: "slug", kind: "story", title: "Ship 287" }],
+    });
+    expect(
+      detectTerminalEntryDrift(story, [
+        origin({ path: "xbrief/completed/ship.xbrief.json", title: "Ship 287" }),
+      ]).drifted,
+    ).toBe(true);
+  });
+
+  it("does not drift when plan entry status is skipped", () => {
+    const skipped = {
+      ...seq,
+      entries: seq.entries.map((e, i) => (i === 0 ? { ...e, status: "skipped" as const } : e)),
+    };
+    expect(
+      detectTerminalEntryDrift(skipped, [
+        origin({ path: "xbrief/completed/287.xbrief.json", issueNumbers: [287] }),
+      ]).drifted,
+    ).toBe(false);
+  });
+
+  it("matches pr kind via prNumbers", () => {
+    const pr = createPlanSequence({
+      sequence_id: "pr",
+      sequence_kind: "delivery",
+      authorized_by: "t",
+      entries: [{ id: "pr-99", kind: "pr" }],
+    });
+    expect(
+      detectTerminalEntryDrift(pr, [
+        origin({ path: "xbrief/completed/pr-99.xbrief.json", prNumbers: [99] }),
+      ]).drifted,
+    ).toBe(true);
+  });
 });
 
 describe("formatTerminalLifecycleDriftMessage (#4129)", () => {

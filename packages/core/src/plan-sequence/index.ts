@@ -14,7 +14,10 @@ export {
   type TerminalEntryDriftResult,
   type TerminalLifecycleOrigin,
 } from "./terminal-drift.js";
-export { collectTerminalLifecycleOrigins } from "./terminal-drift-scan.js";
+export {
+  collectTerminalLifecycleOrigins,
+  TERMINAL_LIFECYCLE_FOLDERS,
+} from "./terminal-drift-scan.js";
 export {
   advancePlanSequence,
   type ContinuationResolution,

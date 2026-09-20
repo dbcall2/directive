@@ -12,11 +12,12 @@ import {
   MIGRATED_ARTIFACT_DIR,
   resolveLifecycleRoot,
 } from "../layout/resolve.js";
-import { TIP_TERMINAL_FOLDERS } from "../lifecycle/completed-tracked-on-delivery.js";
 import { collectGithubRefs } from "../orphan-active/refs.js";
 import { hasTransitionWrite } from "../scope/lifecycle-write.js";
-import { resolveRepo } from "../triage/queue/repo.js";
 import type { TerminalLifecycleOrigin } from "./terminal-drift.js";
+
+/** Same members as `TIP_TERMINAL_FOLDERS` — local to avoid loading the GitHub land gate. */
+export const TERMINAL_LIFECYCLE_FOLDERS = ["completed", "cancelled"] as const;
 
 const DATE_PREFIX_RE = /^\d{4}-\d{2}-\d{2}-/u;
 
@@ -86,10 +87,10 @@ export function collectTerminalLifecycleOrigins(
   projectRoot: string,
   options?: { readonly defaultRepo?: string | null },
 ): TerminalLifecycleOrigin[] {
-  const defaultRepo = options?.defaultRepo ?? resolveRepo(null, projectRoot) ?? "_";
+  const defaultRepo = options?.defaultRepo ?? "_";
   const out: TerminalLifecycleOrigin[] = [];
   for (const root of lifecycleRoots(projectRoot)) {
-    for (const folder of TIP_TERMINAL_FOLDERS) {
+    for (const folder of TERMINAL_LIFECYCLE_FOLDERS) {
       const dir = join(root, folder);
       if (!existsSync(dir)) {
         continue;

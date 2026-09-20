@@ -178,5 +178,19 @@ describe("plan-sequence CLI (#2402)", () => {
     } finally {
       errSpy.mockRestore();
     }
+    const out: string[] = [];
+    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation((c) => {
+      out.push(String(c));
+      return true;
+    });
+    const err2 = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    try {
+      expect(planSequenceMain(["current", "--project-root", root, "--json"])).toBe(1);
+      const payload = JSON.parse(out.join("")) as { terminal_lifecycle_drift?: { code: string } };
+      expect(payload.terminal_lifecycle_drift?.code).toBe("terminal-lifecycle");
+    } finally {
+      outSpy.mockRestore();
+      err2.mockRestore();
+    }
   });
 });
