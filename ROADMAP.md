@@ -5,10 +5,6 @@
 
 # Roadmap
 
-## Active
-
-- **#4744** -- bug(check): Windows release Step 5 still exits 124 after #4591 cheapening -- `[running]`
-
 ## Proposed
 
 _Scopes not yet promoted to pending. Orientation only — not a substitute for `task triage:queue`._
@@ -44,8 +40,9 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1570 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1571 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4784** -- Completed-write guard rejects canonical completion after mutable brief changes -- `[completed]`
 - **#4746** -- framework-gap: 0.119.3 rejects previously valid reserved-prefix xBRIEF subtypes -- `[completed]`
 - **#4744** -- bug(check): Windows release Step 5 still exits 124 after #4591 cheapening -- `[completed]`
 - **#4722** -- bug(check): bare deft check requires --framework-root/--project-root -- `[completed]`
@@ -70,5 +67,4 @@ _Showing 25 of 1570 completed scopes (newest first). Full history: lifecycle `co
 - **#4705** -- bug(design-critique): missing spend token silently selects N=1; launchable panels never ask -- `[completed]`
 - **#4698** -- bug(types,schema): x-xbrief/ validates by pattern but is consumed as a closed set — unknown subtypes are silently ignored -- `[completed]`
 - **#4316** -- test(release): lock ROADMAP out of merge-lane freshness and lifecycle writes (#4164) -- `[completed]`
-- **#4636** -- test(session): CODEX_CI leaks host identity into session, occupancy, and swarm suites -- `[completed]`
 

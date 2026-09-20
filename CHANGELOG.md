@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+### Removed
+
+## [0.119.5] - 2026-09-20
+
+> Leftover-complete harvest after merged product PR 4799 (#4784 completed-write pairing).
+
+### Added
+
+### Changed
+
 - **Records #4784 complete after completed-write pairing recut landed.** Completes the tracked brief for merged PR 4799. Refs #4784.
 
 
@@ -6354,7 +6366,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.119.4...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.119.5...HEAD
+[0.119.5]: https://github.com/deftai/directive/compare/v0.119.4...v0.119.5
 [0.119.4]: https://github.com/deftai/directive/compare/v0.119.3...v0.119.4
 [0.119.3]: https://github.com/deftai/directive/compare/v0.119.2...v0.119.3
 [0.119.2]: https://github.com/deftai/directive/compare/v0.119.1...v0.119.2
