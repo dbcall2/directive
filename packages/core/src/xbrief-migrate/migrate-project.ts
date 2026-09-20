@@ -1,6 +1,6 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
-import { containedRemove, containedWrite } from "../fs/contained-write.js";
+import { basename, dirname, join, relative, resolve } from "node:path";
+import { containedRemove, containedRename, containedWrite } from "../fs/contained-write.js";
 import { assertWriteTargetSafe, ProjectionContainmentError } from "../fs/projection-containment.js";
 import { checkGitClean } from "../migrate-preflight/index.js";
 import { applyAgentsRefresh } from "../platform/agents-md.js";
@@ -350,22 +350,90 @@ function stripRewriteRel(projectRoot: string, filePath: string): string {
   return relative(projectRoot, filePath).replace(/\\/g, "/");
 }
 
-function restoreStripOriginals(projectRoot: string, written: ReadonlyArray<StripRewrite>): void {
-  const root = resolve(projectRoot);
-  for (const entry of written) {
+function stripAtomicTempPath(targetPath: string): string {
+  return join(dirname(targetPath), `${basename(targetPath)}.deft-${process.pid}.tmp`);
+}
+
+/** Contained temp+rename so a failed replace cannot truncate the live file. */
+function containedReplaceAtomic(
+  root: string,
+  target: string,
+  data: string,
+): { ok: true } | { ok: false; error: string } {
+  const temporary = stripAtomicTempPath(target);
+  try {
     containedWrite({
       root,
-      target: entry.path,
-      data: entry.original,
+      target: temporary,
+      data,
       mode: "replace",
+      mutation: { path: target },
     });
+    containedRename({
+      root,
+      from: temporary,
+      to: target,
+      mutation: false,
+    });
+    return { ok: true };
+  } catch (err) {
+    try {
+      containedRemove({ root, target: temporary, mutation: false });
+    } catch {
+      /* best-effort temp cleanup */
+    }
+    const detail = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: detail };
   }
 }
 
+function stripRestoreSet(
+  written: ReadonlyArray<StripRewrite>,
+  inFlight: StripRewrite | undefined,
+): StripRewrite[] {
+  if (inFlight === undefined) return [...written];
+  if (written.some((entry) => entry.path === inFlight.path)) return [...written];
+  return [...written, inFlight];
+}
+
+function formatStripRestoreFailures(restoreFailures: ReadonlyArray<string>): string {
+  if (restoreFailures.length === 0) return "";
+  return `; restore also failed: ${restoreFailures.join("; ")}`;
+}
+
+/** Restore originals; never throw — caller includes failures in the returned error. */
+function restoreStripOriginals(
+  projectRoot: string,
+  entries: ReadonlyArray<StripRewrite>,
+): string[] {
+  const root = resolve(projectRoot);
+  const failures: string[] = [];
+  for (const entry of entries) {
+    const restored = containedReplaceAtomic(root, entry.path, entry.original);
+    if (!restored.ok) {
+      failures.push(`${stripRewriteRel(projectRoot, entry.path)}: ${restored.error}`);
+    }
+  }
+  return failures;
+}
+
+function rollbackStripWrites(
+  projectRoot: string,
+  written: ReadonlyArray<StripRewrite>,
+  inFlight: StripRewrite | undefined,
+  detail: string,
+): { ok: false; error: string } {
+  const restoreFailures = restoreStripOriginals(projectRoot, stripRestoreSet(written, inFlight));
+  return {
+    ok: false,
+    error: `leftover-envelope strip write failed: ${detail}${formatStripRestoreFailures(restoreFailures)}`,
+  };
+}
+
 /**
- * Write planned leftover-envelope strips via containedWrite only after every
- * body is planned. Restore originals on write or postcondition failure so a
- * red evaluateXbriefDrift cannot leave a partial authority rewrite (#4163).
+ * Write planned leftover-envelope strips via contained temp+rename only after
+ * every body is planned. Record the current file before replacing it. Restore
+ * that file plus prior writes on failure; restore errors are returned (#4163).
  */
 function applyRedundantLegacyEnvelopeStrips(
   projectRoot: string,
@@ -390,30 +458,31 @@ function applyRedundantLegacyEnvelopeStrips(
 
   const root = resolve(projectRoot);
   const written: StripRewrite[] = [];
+  let inFlight: StripRewrite | undefined;
   try {
     for (const entry of pending) {
-      containedWrite({
-        root,
-        target: entry.path,
-        data: entry.body,
-        mode: "replace",
-      });
+      inFlight = entry;
+      const replaced = containedReplaceAtomic(root, entry.path, entry.body);
+      if (!replaced.ok) {
+        return rollbackStripWrites(projectRoot, written, inFlight, replaced.error);
+      }
       written.push(entry);
+      inFlight = undefined;
     }
   } catch (err) {
-    restoreStripOriginals(projectRoot, written);
     const detail = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: `leftover-envelope strip write failed: ${detail}` };
+    return rollbackStripWrites(projectRoot, written, inFlight, detail);
   }
 
   const post = evaluateXbriefDrift(projectRoot, { quiet: true });
   if (post.code !== 0) {
-    restoreStripOriginals(projectRoot, written);
+    const restoreFailures = restoreStripOriginals(projectRoot, written);
     return {
       ok: false,
-      error:
+      error: `${
         post.message.trim() ||
-        "post-strip evaluateXbriefDrift still red on the drift-gate candidate set",
+        "post-strip evaluateXbriefDrift still red on the drift-gate candidate set"
+      }${formatStripRestoreFailures(restoreFailures)}`,
     };
   }
   return { ok: true, files: pending.length };

@@ -10,8 +10,10 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import * as containedWriteMod from "../fs/contained-write.js";
+import { isAtomicWriteTemp } from "../fs/mutation-ledger.js";
 import {
   LEGACY_ARTIFACT_DIR,
   MIGRATED_ARTIFACT_DIR,
@@ -1195,5 +1197,105 @@ describe("runXbriefMigration redundant leftover strip (#4163)", () => {
     const second = runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO);
     expect(second.kind).toBe("noop");
     expect(readFileSync(artifact, "utf8")).toBe(afterFirst);
+  });
+
+  it("restores both originals when the second of two writes throws", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-second-throw-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base, { alsoPlan: true });
+    const spec = join(project, MIGRATED_ARTIFACT_DIR, "specification.xbrief.json");
+    const planPath = join(project, MIGRATED_ARTIFACT_DIR, "plan.xbrief.json");
+    const specBefore = readFileSync(spec, "utf8");
+    const planBefore = readFileSync(planPath, "utf8");
+    const live = new Set([resolve(spec), resolve(planPath)]);
+    const realWrite = containedWriteMod.containedWrite;
+    const realRename = containedWriteMod.containedRename;
+    let committed = 0;
+    let induced = false;
+    vi.spyOn(containedWriteMod, "containedRename").mockImplementation((input) => {
+      const result = realRename(input);
+      if (live.has(resolve(String(input.to)))) committed += 1;
+      return result;
+    });
+    vi.spyOn(containedWriteMod, "containedWrite").mockImplementation((input) => {
+      const target = resolve(String(input.target));
+      if (!induced && committed >= 1 && isAtomicWriteTemp(target)) {
+        induced = true;
+        throw Object.assign(new Error("EIO: input/output error"), { code: "EIO" });
+      }
+      return realWrite(input);
+    });
+
+    const outcome = runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO);
+    expect(outcome.kind).toBe("config");
+    if (outcome.kind === "config") {
+      expect(outcome.message).toMatch(/leftover-envelope strip write failed/);
+      expect(outcome.message).toMatch(/EIO/);
+    }
+    expect(readFileSync(spec, "utf8")).toBe(specBefore);
+    expect(readFileSync(planPath, "utf8")).toBe(planBefore);
+    expect(JSON.parse(specBefore)).toHaveProperty("vBRIEFInfo");
+    expect(JSON.parse(planBefore)).toHaveProperty("vBRIEFInfo");
+  });
+
+  it("restores the original when the first replace throws mid-write", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-mid-replace-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base);
+    const spec = join(project, MIGRATED_ARTIFACT_DIR, "specification.xbrief.json");
+    const before = readFileSync(spec, "utf8");
+    const realWrite = containedWriteMod.containedWrite;
+    let induced = false;
+    vi.spyOn(containedWriteMod, "containedWrite").mockImplementation((input) => {
+      const target = resolve(String(input.target));
+      if (!induced && isAtomicWriteTemp(target)) {
+        induced = true;
+        const live = target.replace(/\.deft-\d+\.tmp$/u, "");
+        writeFileSync(live, "truncated-partial\n", "utf8");
+        throw Object.assign(new Error("ENOSPC: no space left on device"), { code: "ENOSPC" });
+      }
+      return realWrite(input);
+    });
+
+    const outcome = runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO);
+    expect(outcome.kind).toBe("config");
+    if (outcome.kind === "config") {
+      expect(outcome.message).toMatch(/leftover-envelope strip write failed/);
+      expect(outcome.message).toMatch(/ENOSPC/);
+    }
+    expect(readFileSync(spec, "utf8")).toBe(before);
+    expect(JSON.parse(before)).toHaveProperty("vBRIEFInfo");
+  });
+
+  it("returns restore failures instead of throwing when rollback writes fail", () => {
+    const base = mkdtempSync(join(tmpdir(), "xbrief-strip-restore-fail-"));
+    temps.push(base);
+    const project = scaffoldDualEnvelopeXbriefOnly(base);
+    const realWrite = containedWriteMod.containedWrite;
+    let induced = false;
+    vi.spyOn(containedWriteMod, "containedWrite").mockImplementation((input) => {
+      const target = resolve(String(input.target));
+      if (!induced && isAtomicWriteTemp(target)) {
+        induced = true;
+        const live = target.replace(/\.deft-\d+\.tmp$/u, "");
+        writeFileSync(live, "truncated-partial\n", "utf8");
+        throw Object.assign(new Error("ENOSPC: no space left on device"), { code: "ENOSPC" });
+      }
+      if (induced && isAtomicWriteTemp(target)) {
+        throw Object.assign(new Error("ENOSPC during restore"), { code: "ENOSPC" });
+      }
+      return realWrite(input);
+    });
+
+    let outcome: ReturnType<typeof runXbriefMigration> | undefined;
+    expect(() => {
+      outcome = runXbriefMigration({ projectRoot: project, force: true }, SILENT_IO);
+    }).not.toThrow();
+    expect(outcome?.kind).toBe("config");
+    if (outcome?.kind === "config") {
+      expect(outcome.message).toMatch(/leftover-envelope strip write failed/);
+      expect(outcome.message).toMatch(/restore also failed/);
+      expect(outcome.message).toMatch(/ENOSPC during restore/);
+    }
   });
 });
