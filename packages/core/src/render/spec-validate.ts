@@ -22,21 +22,22 @@ export function walkNestedPlanItems(
   parent: JsonObject,
   handlers: WalkNestedPlanItemsHandlers,
 ): void {
-  for (const nestedKey of PLAN_ITEM_NESTED_KEYS) {
-    if (!(nestedKey in parent)) continue;
-    const nested = parent[nestedKey];
-    if (!Array.isArray(nested)) {
-      handlers.onInvalidCollection?.(nestedKey);
+  // `subItems` is a fallback alias. Walking both keys duplicates subtrees in
+  // spec/export/roadmap output when a document still carries a leftover copy.
+  const nestedKey: NestedPlanItemKey = "items" in parent ? "items" : "subItems";
+  if (!(nestedKey in parent)) return;
+  const nested = parent[nestedKey];
+  if (!Array.isArray(nested)) {
+    handlers.onInvalidCollection?.(nestedKey);
+    return;
+  }
+  for (let j = 0; j < nested.length; j += 1) {
+    const sub = nested[j];
+    if (typeof sub !== "object" || sub === null || Array.isArray(sub)) {
+      handlers.onInvalidEntry?.(nestedKey, j);
       continue;
     }
-    for (let j = 0; j < nested.length; j += 1) {
-      const sub = nested[j];
-      if (typeof sub !== "object" || sub === null || Array.isArray(sub)) {
-        handlers.onInvalidEntry?.(nestedKey, j);
-        continue;
-      }
-      handlers.onItem(sub as JsonObject, nestedKey, j);
-    }
+    handlers.onItem(sub as JsonObject, nestedKey, j);
   }
 }
 
@@ -76,6 +77,12 @@ function validatePlanItem(item: JsonObject, path: string, errors: string[]): voi
 
   if ("narrative" in item) {
     validateNarratives(item.narrative, `${itemPath}.narrative`, errors);
+  }
+
+  if ("items" in item && "subItems" in item) {
+    errors.push(
+      `${itemPath} must not declare both items and subItems; subItems is a fallback alias`,
+    );
   }
 
   walkNestedPlanItems(item, {

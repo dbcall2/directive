@@ -15,6 +15,7 @@ import {
 import {
   listNestedPlanItems,
   PLAN_ITEM_NESTED_KEYS,
+  validateSpec,
   walkNestedPlanItems,
 } from "./spec-validate.js";
 
@@ -64,13 +65,17 @@ describe("shared dual-key walker (#4511)", () => {
     expect([...PLAN_ITEM_NESTED_KEYS]).toEqual(["items", "subItems"]);
   });
 
-  it("lists children from both keys and skips invalid entries", () => {
-    const parent: JsonObject = {
+  it("treats subItems as a fallback alias so both keys do not duplicate children", () => {
+    const both: JsonObject = {
       items: [{ id: "preferred" }, "skip", null],
       subItems: [{ id: "legacy" }, 2],
     };
-    const listed = listNestedPlanItems(parent).map((child) => String(child.id ?? ""));
-    expect(listed).toEqual(["preferred", "legacy"]);
+    expect(listNestedPlanItems(both).map((child) => String(child.id ?? ""))).toEqual(["preferred"]);
+    expect(
+      listNestedPlanItems({ subItems: [{ id: "legacy" }, 2] }).map((child) =>
+        String(child.id ?? ""),
+      ),
+    ).toEqual(["legacy"]);
   });
 
   it("reports invalid collections to the validator callback", () => {
@@ -136,6 +141,20 @@ describe("pinned make-spec nested plan.items (#4511)", () => {
     expect(result.markdown).toContain("**Depends on**: 1.1");
     expect(result.markdown).toContain("**Traces**: FR-1");
     expect(result.markdown).toMatch(/^\s*- \.\.\./m);
+  });
+
+  it("fails closed when a parent declares both items and subItems", () => {
+    const spec = renderablePinnedExample();
+    const plan = spec.plan as JsonObject;
+    const phase = (plan.items as JsonObject[])[0] as JsonObject;
+    const sub = (phase.items as JsonObject[])[0] as JsonObject;
+    sub.subItems = sub.items;
+    const { specPath } = writeTempSpec(spec);
+    const [ok, msg] = validateSpec(specPath);
+    expect(ok).toBe(false);
+    expect(msg).toMatch(/both items and subItems/);
+    const rendered = renderSpecMarkdown(specPath);
+    expect(rendered.ok).toBe(false);
   });
 
   it("walks deprecated subItems so the pinned leaf still survives", () => {
@@ -224,7 +243,7 @@ describe("item-depth cap (#4511)", () => {
               status: "pending",
               items: [
                 { title: "Leaf", status: "pending", narrative: ["one", "two"] },
-                { title: "Prose", status: "pending", narrative: "plain" },
+                { title: "Prose", status: "pending", narrative: "plain\nbreak" },
                 {
                   title: "Other key",
                   status: "pending",
@@ -241,7 +260,8 @@ describe("item-depth cap (#4511)", () => {
     const md = lines.join("\n");
     expect(md).toContain("- Leaf");
     expect(md).toContain("- one");
-    expect(md).toContain("plain");
+    expect(md).toContain("plain break");
+    expect(md).not.toMatch(/plain\nbreak/);
     expect(md).toContain("keep");
     expect(md).toContain("**Depends on**: p");
   });

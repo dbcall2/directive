@@ -98,6 +98,10 @@ function itemHandlerIndent(depth: number): string {
   return depth >= 3 ? "  ".repeat(depth - 2) : "";
 }
 
+function oneLine(value: unknown): string {
+  return String(value).replace(/\r?\n/g, " ");
+}
+
 function truncationNotice(cap: number, indent = ""): string {
   const named = cap === 3 ? " (phase, subphase, task)" : "";
   return (
@@ -121,24 +125,24 @@ function renderItemHandlers(item: JsonObject, lines: string[], depth: number): v
   const narrative = item.narrative;
   if (typeof narrative === "object" && narrative !== null && !Array.isArray(narrative)) {
     for (const [key, val] of Object.entries(narrative as JsonObject)) {
-      if (key === "Traces") lines.push(`${prefix}**Traces**: ${String(val)}\n`);
+      if (key === "Traces") lines.push(`${prefix}**Traces**: ${oneLine(val)}\n`);
       else if (key === "Acceptance") {
-        for (const line of splitAcceptance(val)) lines.push(`${prefix}- ${line}`);
+        for (const line of splitAcceptance(val)) lines.push(`${prefix}- ${oneLine(line)}`);
         lines.push("");
-      } else lines.push(`${prefix}${String(val)}\n`);
+      } else lines.push(`${prefix}${oneLine(val)}\n`);
     }
   } else if (Array.isArray(narrative)) {
-    for (const entry of narrative) lines.push(`${prefix}- ${String(entry)}`);
+    for (const entry of narrative) lines.push(`${prefix}- ${oneLine(entry)}`);
     lines.push("");
   } else if (narrative) {
-    lines.push(`${prefix}${String(narrative)}\n`);
+    lines.push(`${prefix}${oneLine(narrative)}\n`);
   }
 }
 
 function renderPlanItemHeading(item: JsonObject, depth: number): string {
-  const itemId = String(item.id ?? "");
-  const titleText = String(item.title ?? "");
-  const itemStatus = String(item.status ?? "");
+  const itemId = oneLine(item.id ?? "");
+  const titleText = oneLine(item.title ?? "");
+  const itemStatus = oneLine(item.status ?? "");
   const statusSuffix = itemStatus ? `  \`[${itemStatus}]\`` : "";
   if (depth >= 3) {
     const indent = "  ".repeat(depth - 3);
