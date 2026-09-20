@@ -121,7 +121,7 @@ function validatePlanItem(item: JsonObject, path: string, errors: string[]): voi
 }
 
 /**
- * Bounded 0.119.2 compatibility set (#4746). Positive membership of six
+ * Bounded compatibility set (#4746 / #4765). Positive membership of fifteen
  * bares under x-vbrief/ and x-xbrief/. Not a fifth type registry and not
  * ENGINE_WRITTEN_BARE_TYPES. nearestCanonical == null is not the classifier.
  */
@@ -132,6 +132,15 @@ const CLASS_B_COMPATIBILITY_BARES: ReadonlySet<string> = new Set([
   "user-approval",
   "revisit-condition",
   "superseded-by",
+  "verification",
+  "evidence",
+  "runtime-evidence",
+  "change-proposal",
+  "delivery-evidence",
+  "build-run",
+  "hash-pinned-input",
+  "upstream-defect",
+  "azure-boards-issue",
 ]);
 
 export interface PlanReferenceTypeIssues {
