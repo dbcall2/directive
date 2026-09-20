@@ -1,0 +1,613 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #4511",
+    "updated": "2026-09-20T19:13:05Z"
+  },
+  "plan": {
+    "title": "bug(spec:render): renders only depth-1 of plan.items, discarding the phase/subphase/task tree make-spec.md mandates (+5 presentation defects)",
+    "status": "completed",
+    "narratives": {
+      "Description": "bug(spec:render): renders only depth-1 of plan.items, discarding the phase/subphase/task tree make-spec.md mandates (+5 presentation defects)",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/4511",
+      "Overview": "## Summary\n\n`spec:render` renders only the **first level** of `plan.items`. It never recurses into `item.items`, so the phase → subphase → task structure that [`templates/make-spec.md`](../blob/main/templates/make-spec.md) *instructs agents to author* is silently discarded — including the `Acceptance` and `Traces` narrative keys the renderer has dedicated handling for, because the template places those on the leaf task three levels down.\n\nFollowing the framework's own documented authoring instructions produces a rendered specification containing a single heading per phase and nothing else.\n\nFour further presentation defects are bundled below; all four reproduce from the same 30-line file.\n\n**Environment:** `@deftai/directive` 0.117.0 (engine `@deftai/directive-core@0.117.0`), consumer project on macOS.\n\n## Reproduction\n\n`templates/make-spec.md` lines 118-146 give the required top-level structure. Copied **verbatim** into `spec.json`, with the single change noted below:\n\n```json\n{\n  \"xBRIEFInfo\": { \"version\": \"0.8\" },\n  \"plan\": {\n    \"title\": \"Project Name SPECIFICATION\",\n    \"status\": \"approved\",\n    \"narratives\": {\n      \"Overview\": \"Brief project summary as a plain string.\",\n      \"ProblemStatement\": \"Demonstrates the raw camelCase heading.\",\n      \"Architecture\": \"System design as a plain string.\"\n    },\n    \"items\": [\n      { \"id\": \"phase-1\", \"title\": \"Phase 1: Foundation\", \"status\": \"pending\",\n        \"items\": [\n          { \"id\": \"1.1\", \"title\": \"Subphase 1.1: Setup\", \"status\": \"pending\",\n            \"items\": [\n              { \"id\": \"1.1.1\", \"title\": \"Task description\", \"status\": \"pending\",\n                \"narrative\": { \"Acceptance\": \"...\", \"Traces\": \"FR-1\" } }\n            ] }\n        ] }\n    ]\n  }\n}\n```\n\n```\ndeft spec-render spec.json OUT.md\n```\n\n**Actual output, in full:**\n\n```markdown\n# Project Name SPECIFICATION\n\n## Overview\n\nBrief project summary as a plain string.\n\n## ProblemStatement\n\nDemonstrates the raw camelCase heading.\n\n## Architecture\n\nSystem design as a plain string.\n\n## phase-1: Phase 1: Foundation  `[pending]`\n```\n\nSubphase `1.1`, task `1.1.1`, and its `Acceptance` and `Traces` are all gone.\n\n## Defect 1 — no recursion into nested items (primary)\n\n`dist/render/spec-render.js:148-149` iterates `plan.items` with a flat `for` loop and never descends:\n\n```js\nif (Array.isArray(items)) {\n    for (const item of items) {\n```\n\nWithin that one level it *does* render detail — `**Depends on**` from `metadata.dependencies`, `**Traces**`, and `Acceptance` split into bullets (lines 157-180). So the capability exists; it simply cannot reach the depth at which `make-spec.md` says the data lives.\n\nThe contradiction is internal to the framework:\n\n- `make-spec.md:191` — \"Break into phases, subphases, tasks\"\n- `make-spec.md:124-140` — required JSON shows three levels, `narrative: {Acceptance, Traces}` on the leaf\n- `make-spec.md:184-190` — documents the rendered output as containing `#### Subphase 1.1` and `- Task 1.1.1: (description, traces: FR-1, dependencies, acceptance criteria)`\n\nNone of that output shape is produced.\n\n**This is not #1566.** That issue was scoped to *lifecycle scope aggregation* from `vbrief/{pending,active,completed}` — \"appends an `Implementation Plan` section generated from all lifecycle folders\". Its acceptance criteria never mention `plan.items`, and `commands.md:247` documents the compact default as \"no lifecycle Scope outlook, no `LegacyArtifacts`\" only. The item-tree limitation appears to be independent and undocumented.\n\n**Consumer impact.** A consumer specification with six phases and ~40 tasks renders as six bare headings. The only way to get a readable document today is to duplicate task titles, statuses and dependencies into each phase's `narrative` prose — deliberate data duplication against the item tree that is supposed to be the source of truth, with the drift risk that implies.\n\n## Defect 2 — the template's own example is refused by the renderer\n\n`make-spec.md:120` specifies `\"status\": \"proposed\"`. The renderer rejects it:\n\n```\n⚠ specification.vbrief.json status is 'proposed' (expected one of approved, running, completed)\n```\n\nThe repro above only renders because I changed `proposed` → `approved`. An agent following the template verbatim gets a hard stop. Either `RENDERABLE_SPEC_STATUSES` should include `proposed`, or the template should not specify it.\n\n## Defect 3 — heading stutter, straight from the documented example\n\nLine 156 emits `## ${itemId}: ${titleText}`, and `make-spec.md` titles its example item `\"Phase 1: Foundation\"` under id `\"phase-1\"`. The documented input therefore renders as:\n\n```markdown\n## phase-1: Phase 1: Foundation  `[pending]`\n```\n\nEither the id prefix or the convention of repeating it in the title has to go.\n\n## Defect 4 — canonical narrative keys render as raw camelCase headings\n\n`SPECIFICATION_NARRATIVE_KEY_ORDER` is `[\"Overview\", \"ProblemStatement\", \"Goals\", \"UserStories\", \"Requirements\", \"SuccessMetrics\", \"EdgeCases\", \"Architecture\", \"TechDecisions\", \"ImplementationPhases\", \"PreImplementationGates\"]`, and the key is used as the heading verbatim — so a spec using the canonical vocabulary gets `## ProblemStatement`, `## ImplementationPhases`, `## PreImplementationGates`. A presentable document needs \"Problem statement\", \"Implementation phases\", \"Pre-implementation gates\". A display-name map would fix it without changing the key contract.\n\n## Defect 5 — section order cannot be controlled without abandoning the canonical keys\n\nCanonical keys render first in fixed order; every other key is then emitted **alphabetically** (lines 137-144). An author using domain-appropriate section names has no way to order them except by choosing names that happen to sort correctly. In our spec I ended up naming sections \"Decisions settled\", \"Dependencies and sequencing\", \"Implementation phases\", \"Open decisions and gates\", \"Source and confidence\" — chosen so alphabetical order coincides with reading order. That is a workaround, not a design.\n\n## Defect 6 — dependency field is undocumented and contradicts the template\n\nLines 157-166 read dependencies from `metadata.dependencies`, falling back to `item.dependencies`. Neither is in `xbrief-core-0.8.schema.json`'s `PlanItem` definition, and `make-spec.md:190` shows dependencies as *prose* inside the task description (\"dependencies, acceptance criteria\") and as `(depends on: 1.1)` appended to a heading. An author following the template writes dependencies where nothing can read them; the field that *is* read is documented nowhere.\n\n## Suggested fix\n\n1. Recurse into `item.items`, mapping depth to heading level (`##` → `###` → `####`), matching `make-spec.md:184-192`. Keep the existing per-item `Depends on` / `Traces` / `Acceptance` handling at every depth.\n2. Add `proposed` to renderable statuses, or correct the template.\n3. Stop prefixing the id when the title already begins with it, or drop the prefix and render the id as metadata.\n4. Add a display-name map for canonical narrative keys.\n5. Give authors explicit section ordering — an optional `narrativeOrder` array, or render unknown keys in insertion order rather than alphabetically.\n6. Add `dependencies` to the `PlanItem` schema and document it in `make-spec.md`.\n7. Add a regression test that renders the `make-spec.md` example verbatim and asserts subphase and task content survive.\n\nItems 1 and 2 are the blocking ones. 3-6 are presentation and contract clarity, but they compound: together they make the default rendered artifact hard to hand to a human reviewer, which is the artifact's whole purpose.\n\n## Willing to contribute\n\nHappy to open a PR for the recursion fix and the regression test if the approach above is the direction you'd want.\n\n",
+      "Labels": "bug, area:vbrief, design-critique:mechanism-shaped"
+    },
+    "items": [
+      {
+        "title": "Both emitters are in: renderSpecMarkdown and exportSpec. Nested-on is the default of both no-flag paths. No legacy-only scope-out.",
+        "status": "completed",
+        "id": "clause:1",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/render/nested-plan-items.test.ts",
+          "recorded_at": "2026-09-20T19:12:54Z",
+          "recorded_by": "host:grok:v1:MDFhMGJmZmYtZTEzMi03OTkxLTkxOWYtOGE5MzdiMGY5ZDdh"
+        }
+      },
+      {
+        "title": "Compaction cap default is 3 (phase, subphase, task) so the pinned make-spec exemplar leaf survives. The cap must announce truncation rather than omit silently. Fail closed on unknown tokens.",
+        "status": "completed",
+        "id": "clause:2",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/render/nested-plan-items.test.ts",
+          "recorded_at": "2026-09-20T19:12:54Z",
+          "recorded_by": "host:grok:v1:MDFhMGJmZmYtZTEzMi03OTkxLTkxOWYtOGE5MzdiMGY5ZDdh"
+        }
+      },
+      {
+        "title": "Export a shared dual-key walker from spec-validate; validator, spec-render, exportSpec, and roadmap-render consume it.",
+        "status": "completed",
+        "id": "clause:3",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/render/nested-plan-items.test.ts",
+          "recorded_at": "2026-09-20T19:12:54Z",
+          "recorded_by": "host:grok:v1:MDFhMGJmZmYtZTEzMi03OTkxLTkxOWYtOGE5MzdiMGY5ZDdh"
+        }
+      },
+      {
+        "title": "Item-subtree shape only: Implementation Plan wrapper, phases at ###, subphases at ####, tasks as bullets. Document-level section ordering is out of this list.",
+        "status": "completed",
+        "id": "clause:4",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/render/nested-plan-items.test.ts",
+          "recorded_at": "2026-09-20T19:12:54Z",
+          "recorded_by": "host:grok:v1:MDFhMGJmZmYtZTEzMi03OTkxLTkxOWYtOGE5MzdiMGY5ZDdh"
+        }
+      },
+      {
+        "title": "Contract test: render the pinned make-spec example and assert that shape plus existing depth-1 handlers (Depends on, Traces, Acceptance).",
+        "status": "completed",
+        "id": "clause:5",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/render/nested-plan-items.test.ts",
+          "recorded_at": "2026-09-20T19:12:54Z",
+          "recorded_by": "host:grok:v1:MDFhMGJmZmYtZTEzMi03OTkxLTkxOWYtOGE5MzdiMGY5ZDdh"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "area:vbrief",
+      "design-critique:mechanism-shaped"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/4511",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #4511: bug(spec:render): renders only depth-1 of plan.items, discarding the phase/subphase/task tree make-spec.md mandates (+5 presentation defects)"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 5 independently testable clauses from the task statement before product edit (#3323)",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "Both emitters are in: renderSpecMarkdown and exportSpec. Nested-on is the default of both no-flag paths. No legacy-only scope-out.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "Compaction cap default is 3 (phase, subphase, task) so the pinned make-spec exemplar leaf survives. The cap must announce truncation rather than omit silently. Fail closed on unknown tokens.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "Export a shared dual-key walker from spec-validate; validator, spec-render, exportSpec, and roadmap-render consume it.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "Item-subtree shape only: Implementation Plan wrapper, phases at ###, subphases at ####, tasks as bullets. Document-level section ordering is out of this list.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 5,
+          "text": "Contract test: render the pinned make-spec example and assert that shape plus existing depth-1 handlers (Depends on, Traces, Acceptance).",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found"
+    },
+    "metadata": {
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [],
+        "module_boundary": ""
+      },
+      "issueCommentThread": [
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: triage\n```\n\ndesign-critique: warranted, because spec:render walks plan.items with a flat loop and never descends item.items, so the phase/subphase/task tree make-spec.md mandates is discarded from the rendered specification.\n\nmechanism-shaped: true\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4511-dc\norigin-ref: origin/master\ndispatch-sha: 64667b94a6afd263c0d70791be44175fd72bd65c\n\ncharter: open critique\nspend: N=1\nspend-why: default motion; operator did not raise N.\n\npain: P1\n\ntarget: #4511\ntarget-shape: single-issue (default)\naudit-targets: none\n\n## Gate stamp\n\nThe triage author stamps the semantic call. This write-back is the round-1 ceiling.\n\nP1 is the silent discard of nested plan.items (Defect 1). Defects 2-6 are bundled presentation/contract issues on the same renderer; they are in-envelope as issue body, not extra pain ids.\n\n",
+          "id": 5685863527,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5685863527",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-15T18:31:40Z",
+          "updated_at": "2026-09-15T18:31:40Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: claude-opus-5\n```quarantined\nrole: critic\n```\n\nRound 1, open critique, fresh critic. Every anchor below re-verified against `git show 64667b94a6afd263c0d70791be44175fd72bd65c:<path>`, not from the reported `dist/` line numbers.\n\nP1 reproduces at source. `renderSpecMarkdown` (`packages/core/src/render/spec-render.ts`) iterates `plan.items` with one flat `for` loop, reads `id`/`title`/`status`, `metadata.dependencies`, `narrative.Traces` and `narrative.Acceptance`, and never touches `item.items`. The tree is discarded. The rest of this post is about what the fix as scoped does not reach.\n\n### F1 -- the named command is not the one contract-conformant consumers run\n\n`blocks-the-design`\n\nEvidence. `content/strategies/v0-20-contract.md:88` carries the prohibition on invoking `task spec:render` on a greenfield tree that lacks `specification.vbrief.json`, and routes to `task project:export-spec` instead. Same prohibition at `content/skills/deft-directive-setup/SKILL.md:881` and `content/strategies/speckit.md:144`. The sanctioned emitter is `exportSpec` (`packages/core/src/render/export-spec.ts`, #2013 / #1502). Grepping that file for `items` returns nothing. It composes banner, title, `renderNarrativeSections(narratives)`, and an optional scope-outlook section. It renders no plan item at any depth.\n\nFailure mode. Recursion lands in `renderSpecMarkdown`. A v0.20 consumer follows the contract, runs `task project:export-spec`, and gets a SPECIFICATION.md with zero phases and zero tasks -- strictly worse than the six bare headings this issue reports, and untouched by the fix.\n\nDisposition consequence. P1 relief cannot bind for the population the contract routes to the other command. Either the target widens to both emitters, or the write-back records explicitly that P1 is scoped to legacy migrated trees holding `specification.*brief.json`.\n\n### F2 -- the proposed depth-to-heading map does not produce the shape it cites, and the proposed test cannot tell\n\n`blocks-the-design`\n\nEvidence. Suggested fix 1 asks for `##` then `###` then `####`, \"matching make-spec.md:184-192\". The block it cites is titled **SPECIFICATION Structure (Light path -- embedded Requirements)**. It places phases at `###` under a `## Implementation Plan` wrapper, subphases at `####`, and the task as a **bullet** carrying description, traces, dependencies and acceptance inline: `- Task 1.1.1: (description, traces: FR-1, dependencies, acceptance criteria)`. Fix 1 produces phases at `##`, no wrapper, leaf tasks as `####` headings, and Acceptance as separate bullets via `splitAcceptance`.\n\nFailure mode. The patch ships, suggested fix 7 (render the make-spec.md example verbatim and assert subphase and task content survive) passes, and the rendered document still does not match the documented structure. The internal contradiction the issue opens with is half-closed, and no test discriminates the remainder.\n\nDisposition consequence. \"Recurse\" is underdetermined. The design has to state which of the two shapes is authoritative before a mechanism is picked.\n\n### F3 -- one-key recursion does not fix the class, and the class is already live next door\n\n`blocks-the-design`\n\nEvidence. Schema `$defs.PlanItem` (`packages/types/schemas/xbrief-core-0.8.schema.json`) declares **both** `items` (\"Preferred v0.6 nested PlanItem field\") and `subItems` (\"Deprecated legacy alias for items; retained for compatibility\"). Fix 1 names `item.items` only.\n\nThe repo already has a convention for this. `packages/core/src/render/spec-validate.ts:36` iterates the nested-key pair `[\"items\", \"subItems\"]` and recurses; `packages/core/src/lifecycle/completed-consistency.ts:123` uses the same pair. `validateSpec` is called by `renderSpecMarkdown` before it renders -- so the render pipeline already walks the whole tree to validate it, then throws the tree away.\n\nInventory of the four item-consuming emitters at this SHA:\n\n| emitter | nesting behaviour |\n| --- | --- |\n| `spec-render.ts` | flat, depth 1, `items` only |\n| `scope-outlook.ts:165` | flat, depth 1, `items` only |\n| `export-spec.ts` | no items at all |\n| `roadmap-render.ts:161` | recurses -- into `subItems` only, never `item.items` |\n\nFailure mode, two limbs. First: a legacy migrated tree authored with `subItems` -- the population `v0-20-contract.md:87` still permits to run `spec:render` -- renders bare headings after the fix. Second, and larger: `roadmap-render.ts` is the mirror image. It descends the deprecated alias and drops the preferred key, so a make-spec.md-conformant spec loses every subphase and task in ROADMAP.md today. That is the same defect class, already shipped, on a renderer this issue does not name.\n\nDisposition consequence. Patching one loop leaves four nesting conventions in one directory. The mechanism should be a shared dual-key walk reused from the `spec-validate` convention, and the target should say whether `roadmap-render` is in or out.\n\n### F4 -- the branch being changed has no test at all, and the authoring side is contract-pinned while the rendering side is not\n\n`sharpens-framing`\n\nEvidence. Every `renderSpecMarkdown` / `renderSpec` fixture in the repo uses an empty item array -- `render.test.ts` (lines 42, 52, 96, 114, 131, 459, 492, 520), `spec-authority.test.ts`, `verify-source/spec-prd-fresh.test.ts`, `content-contracts/skills/machine_generated_banner.test.ts`. The item branch -- the dependency line, the traces line, and `splitAcceptance` -- is exercised by nothing.\n\nMeanwhile `packages/core/src/content-contracts/skills/decomposition_readiness.test.ts:98-106` requires make-spec.md to teach that nested children within a PlanItem must use `items`, and to not contain the deprecated alias spelling.\n\nFailure mode. The issue's reading that \"the capability exists; it simply cannot reach the depth\" is a source reading, not verified behaviour -- nothing has ever run it. A recursion patch is therefore not a guarded refactor, and fix 7 is the first test of the branch.\n\nDisposition consequence. The authoring contract is pinned and the rendering contract is absent. That asymmetry is the mechanism-level cause of P1, not the loop itself. The durable remedy is a paired contract test that renders the pinned template example and asserts output shape, plus coverage of the existing depth-1 handlers; a single fixture asserting that task text is present restores nothing.\n\n### F5 -- two of the bundled dispositions point the wrong way\n\n`sharpens-framing`\n\nEvidence, Defect 2. `RENDERABLE_SPEC_STATUSES` is the set approved / running / completed (`packages/core/src/render/constants.ts:121`) while `VALID_STATUSES` includes `proposed`. That set has already been widened once deliberately, for `completed` (`xbrief/completed/2026-04-15-spec-render-completed-status.xbrief.json`, \"status gate rejects 'completed' specs -- overly strict for post-implementation projects\"), and #432 made rendering the speckit Phase 3 to Phase 4 human review gate.\n\nFailure mode. Admitting `proposed` lets an unreviewed spec render as the artifact the review gate consumes, inverting the gate. The two options in Defect 2 are not equivalent; the template correction is the cheap one and already sits under a content contract that would carry it.\n\nEvidence, Defect 6. `plan.edges` is a declared, typed dependency mechanism (`$defs.Edge`, `Plan.properties.edges`), and `roadmap-render.ts:99-109` builds its dep map from it -- which is where the `(depends on: 1.1)` shape at make-spec.md:190 actually comes from. The `metadata.dependencies` / `item.dependencies` read in `spec-render` is the undeclared outlier; `dependencies` is absent from `PlanItem.properties` and only validates because `additionalProperties` is true.\n\nFailure mode. Fix 6 promotes the ad-hoc field into the schema, making two typed dependency representations permanent and leaving the two renderers reading different fields.\n\nDisposition consequence. Converge `spec-render` onto `plan.edges` with the ad-hoc read kept as compat, and take the template correction for Defect 2 -- or record why the review gate should admit pre-approval specs.\n\n### F6 -- verbosity has to fail closed, or this re-opens #1566\n\n`sharpens-framing`\n\nEvidence. The #1566 remedy was compact-by-default (`DEFAULT_INCLUDE_SCOPES_MODE` set to off, `constants.ts`). The countervailing principle is recorded in the same module, `spec-render.ts:41-42`: callers must fail closed rather than silently omitting content.\n\nFailure mode. Full three-level recursion with per-leaf Acceptance bullets pushes back toward the #1566 shape on a long-lived project; a silent depth cap added to avoid that is exactly the silent omission the module already calls a P1.\n\nDisposition consequence. Name the control and make it mirror `normalizeIncludeScopesMode` -- explicit mode, unknown tokens throw. Do not leave depth unbounded and do not truncate quietly.\n\n### F7 -- injection lens\n\n`footnote`\n\nThe lens fires: this renderer consumes agent-authored JSON that can originate from ingested issue text, and writes a document later agents read as the spec. Values reach markdown through a bare string coercion, so a `title` or narrative containing a newline and a hash character forges a heading today at depth 1. Recursion does not create the surface, but it multiplies the sites, and fix 1 puts author-controlled strings in heading position at three depths. The write path is already hardened (`containedWrite`, #3953). The deterministic control, if wanted, is escaping a line-start hash in interpolated values -- the same instinct the arc-record reserved line-starts already encode. Recorded so it is not met later as new.\n\n### Road not taken\n\nI considered classifying F1 as `sharpens-framing`, on the grounds that the reporter demonstrably runs `spec:render` and `v0-20-contract.md:87` still permits it for migrated trees, so relief is real for them. I put it at blocking because the issue's stated impact is that duplicating task data into phase narratives is \"the only way to get a readable document today\", and a relief claim scoped to the legacy command will read as satisfying that while the sanctioned command still emits nothing. What flips it: a write-back amendment scoping P1 explicitly to legacy migrated trees. That turns F1 into a scope note.\n\n### Steelman\n\nThe strongest rejected position is that `spec:render` is legacy, so patch it minimally and stop. It is defensible -- it is the reporter's actual path, the patch is small, and item omission in `exportSpec` may be deliberate, a stakeholder-audience export of narratives only. If that intent is recorded anywhere, F1 collapses to a footnote. I looked for it: `resolveExportScopePolicy` governs the scope-outlook section only, and nothing I read states that dropping the item tree is intended. Absent that record, the silent-omission principle at `spec-render.ts:41-42` reads against it.\n\n",
+          "id": 5686128506,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5686128506",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-15T18:46:31Z",
+          "updated_at": "2026-09-15T18:46:31Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nspec:render still walks only the first level of plan.items, so a make-spec tree never reaches the rendered spec. Recursing that one loop does not close it: the command contract consumers actually run does not emit items at all, the cited heading map is not the documented shape, and a one-key walk leaves roadmap-render as the mirror-image bug.\n\nConfirming this map recuts first-ship to a shared dual-key walk and names which emitter and which output shape are in. It does not close by patching one flat loop.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept critic headings.\n\nForward verdict: recut. Disposition: all classified headings accept-into-contract. Residual: none.\n\nSpec-path: next-build contract is not this body.\n\n**Lean:** recut of #4511 after round 1 critic 5686128506 (claude-opus-5). Supersedes write-back 5685863527.\n\nTarget-digest: sha256:ad5a8c1e9c2dfd951c6c1ff6a5ca4441ea2dbfaaf60d3e5315a6060cc98d2410\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4511-dc\norigin-ref: origin/master\ndispatch-sha: 64667b94a6afd263c0d70791be44175fd72bd65c\n\nTakes:\n\n- 5686128506 F1 named command is not the one contract-conformant consumers run — accept-into-contract\n- 5686128506 F2 proposed depth-to-heading map does not produce the cited shape — accept-into-contract\n- 5686128506 F3 one-key recursion does not fix the class — accept-into-contract\n- 5686128506 F4 branch has no test and authoring is contract-pinned — accept-into-contract\n- 5686128506 F5 two bundled dispositions point the wrong way — accept-into-contract\n- 5686128506 F6 verbosity has to fail closed — accept-into-contract\n\nrelieves: P1\n\n## Bound remedy\n\n- Widen the target to both `renderSpecMarkdown` and `exportSpec`, or record that P1 is scoped to legacy `specification.*brief.json` trees only.\n- State which output shape is authoritative before picking a mechanism: make-spec light-path (Implementation Plan wrapper, phases at ###, tasks as bullets) versus the issue's ##/###/#### map.\n- Use a shared dual-key walk (`items` and `subItems`) reused from spec-validate. Say whether roadmap-render is in or out.\n- Pair a contract test that renders the pinned make-spec example and asserts output shape. Cover existing depth-1 handlers.\n- Defect 2: correct the template status, do not admit `proposed` into RENDERABLE_SPEC_STATUSES. Defect 6: converge spec-render onto `plan.edges`; keep the ad-hoc read as compat only.\n- Name an explicit depth/verbosity control that fails closed on unknown tokens, mirroring include-scopes.\n\n",
+          "id": 5686380064,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5686380064",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-15T18:58:43Z",
+          "updated_at": "2026-09-15T18:58:43Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: claude-opus-5\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\nStop 4 pain-audit, round 2, fresh critic. Target: `relieves: P1` on successor lean 5686380064. Denominator: write-back 5685863527 -- \"P1 is the silent discard of nested plan.items (Defect 1)\". Every anchor below re-read with `git show 64667b94a6afd263c0d70791be44175fd72bd65c:<path>`.\n\n**Verdict: `relieves: P1` is not established as written.** One clause of the Bound remedy does bind real relief -- item 3's shared dual-key walk, applied to `renderSpecMarkdown`, ends the discard for the reporter's own command. Two things defeat the cite anyway: the control the remedy names is off-by-default in the exemplar it names, and item 1 offers a branch that discharges P1 by re-scoping it from a surface that does not own the denominator.\n\n### F1 -- the depth control's default is unnamed, and the exemplar the remedy names defaults to off\n\n`blocks-the-design`\n\nEvidence. Bound-remedy item 6 asks for \"an explicit depth/verbosity control that fails closed on unknown tokens, mirroring include-scopes\". Include-scopes is `DEFAULT_INCLUDE_SCOPES_MODE = \"off\"` (`packages/core/src/render/constants.ts:40`). The fail-closed property the item names is the unknown-token branch of `tryParseIncludeScopesMode` (`spec-render.ts:41-44`, returns `undefined` on an unrecognised token); it is not a statement about the default. The module's recorded principle in that same comment is broader than the item quotes it -- \"callers MUST fail closed rather than silently omitting content (#1566 Greptile P1)\" -- and that principle cuts toward nested-on. The remedy imports the exemplar, not the principle.\n\nFailure mode. Builder lands the dual-key walk plus `--depth` mirroring include-scopes, default off. The reporter re-runs the repro verbatim -- `deft spec-render spec.json OUT.md`, no flags -- and gets the same six bare headings. The contract test at item 4 does not discriminate: if it passes a depth token it goes green while the default path stays broken; if it passes none it contradicts the default it was written under.\n\nDisposition consequence. A silence complaint is not relieved by a walk that runs only when the user already knows a flag exists. Bind the default explicitly (nested on, with the #1566 compaction pressure carried by a raisable cap rather than an off switch), or record that P1 relief is flag-gated -- which the write-back's \"silent discard\" wording does not permit. Until the default is on the lean, `relieves: P1` is conditional on a value nobody has written down.\n\n### F2 -- item 1's second branch edits the pain denominator from a surface that does not own it\n\n`blocks-the-design`\n\nEvidence. Pain coverage (#4496) in `content/contracts/design-critique.md`: \"The latest Stop 1 write-back ... owns the denominator\" and \"A superseding warrant is a new Stop 1, not last-writer prose elsewhere on the thread.\" Bound-remedy item 1 is a disjunction whose second branch is \"record that P1 is scoped to legacy `specification.*brief.json` trees only\". That branch does not relieve P1; it shrinks it. The excluded population is real and verified: `packages/core/src/render/export-spec.ts` contains the token `items` zero times at this SHA -- it renders no plan item at any depth -- and `content/strategies/v0-20-contract.md:88` forbids `task spec:render` on a greenfield tree, routing it to `task project:export-spec`.\n\nFailure mode. The harvest is literal capture: `extractBoundRemedyHarvest` -> `parseListItems`, mapped at `packages/core/src/intake/issue-ingest.ts:1483` to `{ title, status }`. The builder reads item 1, takes the cheaper branch, writes the scope note, and the bind conjunct is satisfied while `task project:export-spec` still emits zero phases and zero tasks for the population the contract routes there. Round 1 F1 was taken `accept-into-contract` on exactly that population being inside the pain; permitting a remedy branch that scopes it back out reverses the accepted take without a `disagree`.\n\nDisposition consequence. Resolve the branch on the lean. If branch B is the intent, it is a new Stop 1 write-back that restates the denominator, and relief is re-cited against that -- not a bullet on a successor map. `relieves: P1` cannot be graded true while P1 extent is one of the remedy own open choices.\n\n### F3 -- \"reused from spec-validate\" names a walker that is not exported\n\n`sharpens-framing`\n\nEvidence. `packages/core/src/render/spec-validate.ts` exports three things: `ValidateSpecResult`, `validateSpec(specPath)`, `main`. The dual-key recursion is module-private `validatePlanItem` (`spec-validate.ts:36`, `for (const nestedKey of [\"items\", \"subItems\"] as const)`), and it accumulates error strings -- it yields no traversal a renderer could consume. The one exported entry point takes a path, re-reads and re-parses the file, and returns `[ok, msg]`. `renderSpecMarkdown` already calls it that way at `spec-render.ts:113`, which is why the pipeline walks the whole tree and then discards it.\n\nFailure mode. A builder taking item 3 literally finds nothing importable and re-implements the key pair inline. That is a fifth nesting convention in `packages/core/src/render/`, alongside `spec-render.ts:173` (flat, `items`), `scope-outlook.ts` (flat, `items`), `export-spec.ts` (none) and `roadmap-render.ts` (top-level `plan.items` at :377, then `subItems` only at :161 and :399). Proliferation is the outcome round 1 F3 was accepted to prevent.\n\nDisposition consequence. The remedy has to name the extraction, not the reuse: export a shared walker from `spec-validate` and have the validator and the renderers consume the same one.\n\n### F4 -- the harvest cannot carry the remedy own sequencing or the edges take it accepted\n\n`sharpens-framing`\n\nEvidence. `parseListItems` (`packages/core/src/intake/markdown-scanners.ts:266`) iterates lines; `matchListItemLine` (:292) strips leading whitespace and returns the text with no depth tracking. The harvest is flat by construction. `issue-ingest.ts:1483` then narrows each item to `{ title, status }` -- no `id`, no `items`, no `edges`.\n\nFailure mode. Item 2 says to state the authoritative output shape \"before picking a mechanism\", making it a strict predecessor of items 3 and 4. The recut artifact is a six-element flat list whose items carry no ids, so `plan.edges` -- the typed mechanism round 1 F5 was accepted to converge `spec-render` onto -- cannot be authored in the artifact that carries the F5 take. The ordering survives only inside the prose of item 2.\n\nDisposition consequence. Best fix is to resolve item 2 on the lean so the fork never has to be carried downstream. Failing that, put the sequencing inside the item text that literal capture preserves.\n\n### F5 -- injection lens\n\n`footnote`\n\nThe lens fires (agent-authored JSON in, a document later agents read as spec, out) and round 1 recorded the heading-forgery surface as F7. Nothing in this Bound remedy changes it, and the remedy adds no escaping obligation while items 3 and 6 multiply the sites that put author-controlled strings in heading position. Recorded so it is not met later as new. Correctly absent from the lean takes -- a `footnote` carries no disposition weight.\n\n### F6 -- non-P1 scope inside the P1 remedy\n\n`footnote`\n\nItem 5 (Defect 2 status set, Defect 6 `plan.edges` convergence) and the trailing clause of item 3, \"Say whether roadmap-render is in or out\", sit outside the P1 denominator. `roadmap-render` is a sibling defect of the same class, not the discard the write-back named. Under literal capture all three become plan.items of a recut whose bind conjunct is P1 coverage. No failure mode beyond dilution; recorded, not blocking.\n\n### Protocol fit\n\nThree checks passed, recorded so a later reader does not re-derive them.\n\n- Handoff correctly does not print. Print condition 2 needs `relieves` of the same P* as a prior successor map the lean Recut-supersedes; 5686380064 supersedes write-back 5685863527, and the contract is explicit that relieves-plus-`Spec-path:` superseding a write-back is print-false.\n- Cite forms are closed and operative. `pain: P1` on the write-back and `relieves: P1` on the lean are both bare lines, neither fenced, quoted, struck, nor inline-code.\n- F7 of round 1 is correctly absent from the takes list.\n\n### Road not taken\n\nI considered F2 as `sharpens-framing`, on the ground that the write-back because-clause already names `spec:render` by name, so branch B arguably records a scope the warrant already had. I put it at blocking because the sentence that actually defines the id -- the gate stamp, \"the silent discard of nested plan.items (Defect 1)\" -- is renderer-agnostic, and the lean took F1 `accept-into-contract` on the strength of the `export-spec` population being inside the pain. What flips it: a new Stop 1 whose gate stamp names the population explicitly. Branch B then becomes a restatement and F2 collapses to a footnote.\n\n### Steelman\n\nThe strongest rejected position is that `relieves: P1` should stand, because the first clause of item 3 binds a genuine mechanism and applying it to `renderSpecMarkdown` demonstrably ends the discard for the exact command the reporter ran; everything else is scope and polish. It is defensible, and I checked the mechanism is specific enough to build -- `spec-validate.ts:36` is a working convention even unexported. What defeats it is F1. The pain is a *silent* discard, and the exemplar the remedy names for the new control is off at `constants.ts:40`. Relief that only appears once a user discovers a flag does not answer a silence complaint. If the lean names the default as on, this steelman wins and F1 collapses to a footnote, leaving F2 as the only blocker.\n\n",
+          "id": 5686567149,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5686567149",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-15T19:10:20Z",
+          "updated_at": "2026-09-15T19:10:20Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nStop 4 found the dual-key walk would end the discard for spec:render, but relieves: P1 cannot stand: the named depth control copies an off-by-default exemplar, and item 1 offered a branch that shrinks the pain instead of relieving it.\n\nConfirming this map recuts the Bound remedy, drops the relief cite, and leaves P1 unrelieved. Dual-stop cap is spent.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept Stop 4 headings.\n\nForward verdict: recut. Disposition: classified headings accept-into-contract. Residual: P1 unrelieved.\nSpec-path: next-build contract is not this body.\n\n**Lean:** Stop 4 recut of #4511 after pain-audit 5686567149. Supersedes successor lean 5686380064.\n\nTarget-digest: sha256:ad5a8c1e9c2dfd951c6c1ff6a5ca4441ea2dbfaaf60d3e5315a6060cc98d2410\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4511-dc\norigin-ref: origin/master\ndispatch-sha: 64667b94a6afd263c0d70791be44175fd72bd65c\n\nTakes:\n\n- 5686567149 F1 depth control default is unnamed and the exemplar defaults off — accept-into-contract\n- 5686567149 F2 item 1 second branch edits the pain denominator — accept-into-contract\n- 5686567149 F3 reused-from-spec-validate walker is not exported — accept-into-contract\n- 5686567149 F4 harvest cannot carry sequencing or edges — accept-into-contract\n\ndoes-not-relieve: P1\n\n## Bound remedy\n\n- Keep both emitters in: renderSpecMarkdown and exportSpec. Drop the legacy-only scope-out branch. A later denominator shrink is a new Stop 1, not a bullet.\n- Nested-on by default. Compaction is a raisable cap, not an off switch. Fail closed on unknown tokens.\n- Export a shared dual-key walker from spec-validate; validator and renderers consume it. Do not re-implement the key pair inline.\n- Authoritative output shape is the make-spec light-path. Resolve that on this list, not as a predecessor fork.\n\n",
+          "id": 5686672707,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5686672707",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-15T19:17:17Z",
+          "updated_at": "2026-09-15T19:17:17Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\n#4511 next-build is the Stop 4 Bound-remedy recut. P1 stays unrelieved on this arc. Dual-stop cap is spent.\n\nopen-question: Should nested rendering default on for both spec:render and exportSpec, with a raisable cap rather than an off switch?\n\nHandoff\n\n",
+          "id": 5686673848,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5686673848",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-15T19:17:21Z",
+          "updated_at": "2026-09-15T19:17:21Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\nOperator raised Dual-stop cap to 3 critic posts for this arc. Why: Stop 4 named missing Bound-remedy clauses that can bind relieves: P1; default 2 posts spent (round 1 + pain-audit). Third post is a pain-audit of the recut relieves cite.\n\ncap: 3\n\n",
+          "id": 5686856586,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5686856586",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-15T19:27:39Z",
+          "updated_at": "2026-09-15T19:27:39Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nOperator raised the critic cap to 3. Stop 4 said relieves: P1 fails while nested rendering is off-by-default and while a Bound-remedy branch can shrink the pain. This map closes those two holes and cites relief again.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept Stop 4 headings.\n\nForward verdict: recut. Disposition: classified headings accept-into-contract. Residual: none.\n\nSpec-path: next-build contract is not this body.\n\n**Lean:** cap-3 recut of #4511 after pain-audit 5686567149. Supersedes successor lean 5686672707.\n\nTarget-digest: sha256:ad5a8c1e9c2dfd951c6c1ff6a5ca4441ea2dbfaaf60d3e5315a6060cc98d2410\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4511-dc\norigin-ref: origin/master\ndispatch-sha: 64667b94a6afd263c0d70791be44175fd72bd65c\ncap: 3\n\nTakes:\n\n- 5686567149 F1 depth control default is unnamed and the exemplar defaults off — accept-into-contract\n- 5686567149 F2 item 1 second branch edits the pain denominator — accept-into-contract\n- 5686567149 F3 reused-from-spec-validate walker is not exported — accept-into-contract\n- 5686567149 F4 harvest cannot carry sequencing or edges — accept-into-contract\n\nrelieves: P1\n\n## Bound remedy\n\n- Both emitters are in: renderSpecMarkdown and exportSpec. No legacy-only scope-out. A later denominator shrink is a new Stop 1, not a bullet.\n- Nested-on by default on the no-flag path the reporter ran. Compaction is a raisable cap, not an off switch. Fail closed on unknown tokens.\n- Export a shared dual-key walker from spec-validate; validator and renderers consume it. Do not re-implement the key pair inline.\n- Authoritative output shape is the make-spec light-path (Implementation Plan wrapper, phases at ###, tasks as bullets).\n\n",
+          "id": 5686858007,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5686858007",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-15T19:27:44Z",
+          "updated_at": "2026-09-15T19:27:44Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: claude-opus-5\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\nStop 4 pain-audit, round 2 reiteration, third critic post of the operator-raised cap. Target: the relief cite on successor lean 5686858007. Denominator: write-back 5685863527 -- \"P1 is the silent discard of nested plan.items (Defect 1)\". Fresh critic; every anchor below re-read with `git show 64667b94a6afd263c0d70791be44175fd72bd65c:<path>`, not carried from the prior post.\n\n**Verdict: the relief cite is still not established.** The recut closes the two holes the prior pain-audit named -- item 1 drops the denominator-shrinking branch, item 3 adopts the extraction wording, item 4 resolves the shape fork on the list instead of as a predecessor. The cite fails anyway for three reasons that are new to this lean. Item 2 answers \"not off by default\" by introducing a cap whose default value is unnamed and whose truncation carries no announce obligation -- the same unnamed-value defect one level down. Item 2 binds that default for one emitter while item 1 scopes the pain to two. And the round-1 accepted headings are cited nowhere on this lean, so the harvested next-build contract carries no verification of the relief it claims.\n\n### F1 -- the cap replaces the off-switch with a second unnamed value, and can silently drop the exemplar leaf\n\n`blocks-the-design`\n\nEvidence. Item 2 reads \"Nested-on by default on the no-flag path the reporter ran. Compaction is a raisable cap, not an off switch. Fail closed on unknown tokens.\" The cap has no named default. \"Fail closed on unknown tokens\" is the unknown-token branch -- `normalizeIncludeScopesMode` throws on an unrecognised token (`packages/core/src/render/spec-render.ts:75-77`). It says nothing about what a cap does when it is reached. The recorded principle in that same module is the other one: \"callers MUST fail closed rather than silently omitting content (#1566 Greptile P1)\" (`spec-render.ts:41-42`). The cap is motivated by #1566 compaction pressure, which pushes its default down.\n\nThe reporter exemplar is three levels: `phase-1` then `1.1` then `1.1.1`, with `narrative: {Acceptance, Traces}` on the leaf -- the pinned shape at `content/templates/make-spec.md:124-146`.\n\nFailure mode. Builder lands the dual-key walk, nested-on, with a compaction cap defaulting to depth 2. The reporter re-runs `deft spec-render spec.json OUT.md` and gets phases and subphases but no task `1.1.1`, no Acceptance, no Traces -- silently, because nothing obliges the cap to say it truncated. That is the write-back sentence reproduced inside the remedy for it.\n\nDisposition consequence. Name the cap default on the lean, and require the cap to announce truncation rather than omit silently. The prior audit F1 was accepted because relief conditional on an unwritten value cannot be graded; item 2 discharged the default-off value and created a second one. Until both are on the lean, the relief cite is conditional on a number nobody has written down.\n\n### F2 -- item 1 widens the emitter set, item 2 binds the default for only one of them\n\n`blocks-the-design`\n\nEvidence. Item 1: \"Both emitters are in: renderSpecMarkdown and exportSpec. No legacy-only scope-out.\" Item 2 binds nested-on \"on the no-flag path the reporter ran\". The reporter ran `deft spec-render spec.json OUT.md` (issue body, Reproduction). That is `renderSpecMarkdown`. The `exportSpec` no-flag path is a different path, and the parent own Handoff open-question on 5686673848 framed the question as \"for both spec:render and exportSpec\" -- the answer on this lean names one.\n\nThe gap is not theoretical, because `exportSpec` renders no plan item at any depth today: `packages/core/src/render/export-spec.ts:135-139` composes banner, title, `renderNarrativeSections(narratives)`, then an optional scope-outlook section, and nothing else. For it, \"nested-on by default\" is not deepening an existing flat render -- it is the whole feature. And the file already carries a default-off idiom for exactly this class of extra structure: `resolveExportScopePolicy` (`export-spec.ts:47-63`) returns `render: includeProposed`, where `includeProposed = audience === \"internal\"` and `audience` defaults to `\"stakeholder\"` (`export-spec.ts:107`). With no flags, the scope-outlook section is already off.\n\nFailure mode. Builder adds item rendering to `exportSpec` behind an audience or flag gate, following the idiom in the file being edited. Item 1 is satisfied -- both emitters are in. Item 2 is satisfied -- the reporter path defaults on. A v0.20 consumer follows `content/strategies/v0-20-contract.md:88`, runs `task project:export-spec` with no flags, and still gets zero phases and zero tasks. That is the round-1 F1 failure mode, taken `accept-into-contract`, surviving the recut.\n\nDisposition consequence. Strike the path qualifier. Bind nested-on as the default of both emitter no-flag paths, which is what the open-question asked and what item 1 scope requires.\n\n### F3 -- the round-1 accepted headings are cited nowhere on this lean, so the harvest carries no verification\n\n`blocks-the-design`\n\nEvidence. Harvest is literal capture from one comment. `extractBoundRemedyHarvest(citedBody)` runs against the single body of `verdict.citedLeanId` (`packages/core/src/intake/issue-ingest.ts:2037-2040`); `parseListItems` (`packages/core/src/intake/markdown-scanners.ts:266-289`) returns a flat, de-duplicated list; `issue-ingest.ts:1483` narrows each entry to `{ title, status }`. The next-build contract is exactly the four bullets on 5686858007 and nothing else on the thread.\n\nThis lean cites `5686567149 F1-F4` and supersedes 5686672707. It cites no heading from round-1 critic 5686128506. Superseded lean 5686380064 carried round-1 F4 as a bullet -- \"Pair a contract test that renders the pinned make-spec example and asserts output shape. Cover existing depth-1 handlers.\" That bullet is on no lean now, and round-1 F4 never received a `disagree`.\n\nThe gap it covered is live at this SHA. Every `renderSpecMarkdown` fixture in the repo uses an empty item array: `packages/core/src/render/render.test.ts` lines 42, 52, 96, 114, 131, 459, 492, 520, and the same in `project-render.test.ts`. The depth-1 branch -- the `**Depends on**` line, the `**Traces**` line, and `splitAcceptance` (`spec-render.ts:175-207`) -- is exercised by nothing.\n\nFailure mode. Item 4 restructures that untested branch: tasks stop being `##` headings with Acceptance as separate bullets and become light-path bullets under `####` subphases. The builder rewrites uncovered code, ships, and the only assertion that the discard ended is the diff. A regression that drops Traces or collapses Acceptance at any depth is invisible, and it is the same class as P1 -- content present in the source, absent from the document, no error.\n\nDisposition consequence. Two things. Restore the contract-test bullet to this lean, so the harvested contract contains the assertion that relief happened, with the existing depth-1 handlers covered. And cite the round-1 accepted headings on the latest lean -- the contract requires a successor lean to \"Cite accepted critic ids/headings\", and with harvest reading the cited lean only, an accepted take that is not restated is not merely unmentioned, it is unbound.\n\n### F4 -- the bound output shape is not reachable at document scope\n\n`sharpens-framing`\n\nEvidence. Item 4 names the make-spec light path as authoritative: \"Implementation Plan wrapper, phases at ###, tasks as bullets\". The pinned block (`content/templates/make-spec.md`, SPECIFICATION Structure -- Light path) places the Implementation Plan wrapper after Architecture and **before** Testing Strategy and Deployment.\n\n`renderSpecMarkdown` cannot produce that ordering. It emits canonical narrative keys in `SPECIFICATION_NARRATIVE_KEY_ORDER` order, then every remaining narrative key alphabetically (`spec-render.ts:156-171`), and only then the item block. \"Testing Strategy\" and \"Deployment\" are not canonical keys (`packages/core/src/render/constants.ts:19`), so they sort into the alphabetical tail and land before the items, inverted from the bound shape. Separately, `ImplementationPhases` is canonical, so a conforming spec renders that heading a few lines above the new Implementation Plan wrapper.\n\nFailure mode. No blocked build -- the phase, subphase and task subtree is still produced, and the P1 discard still ends for `spec:render`. But the shape binding cannot be asserted as written, and a test author writing the item-4 assertion finds the document-level half unreachable without the Defect 5 ordering fix, which no bullet carries.\n\nDisposition consequence. Scope item 4 to the item subtree: the wrapper heading plus phases at `###`, subphases at `####`, tasks as bullets. State that document-level section ordering is out of this list.\n\n### F5 -- item 1 closes the emitter set while item 3 says renderers\n\n`sharpens-framing`\n\nEvidence. Item 3: \"Export a shared dual-key walker from spec-validate; validator and renderers consume it.\" Item 1 closes the set at two emitters. Round-1 F3 was taken `accept-into-contract` and its ask was explicit -- say whether `roadmap-render` is in or out; superseded lean 5686380064 carried that sentence and this lean drops it.\n\nThe mirror-image bug is real at this SHA. `packages/core/src/render/roadmap-render.ts` reads `plan.items` at the top level (:377) and then descends `subItems` only (:161, :399), never `item.items`. `content/templates/make-spec.md` requires nested children to use `items` and marks `subItems` a compatibility alias. So a make-spec-conformant spec loses every subphase and task in ROADMAP.md today, by the same silent mechanism.\n\nFailure mode. Builder reads renderers as the two emitters item 1 named, exports the walker, and leaves `roadmap-render` on the deprecated key. The shared walker now exists and one renderer in the same directory still does not use it -- the proliferation outcome round-1 F3 was accepted to prevent, in its weaker form.\n\nDisposition consequence. Answer the fork on this lean. `roadmap-render` consuming the exported walker is the cheap in; an explicit out is also fine, but the bullet has to say which, because item 1 and item 3 currently disagree about the size of the set.\n\n### F6 -- injection lens\n\n`footnote`\n\nThe lens fires -- agent-authored JSON in, a document later agents read as spec, out -- and round 1 recorded the heading-forgery surface as F7. Nothing in this Bound remedy changes it. Item 4 narrows the exposure slightly by moving tasks from heading position to bullet position, and widens it by adding a subphase heading depth. The write path stays hardened (`containedWrite`, #3953). Recorded so it is not met later as new; a `footnote` carries no disposition weight and is correctly absent from the takes.\n\n### Protocol fit\n\nRecorded so a later reader does not re-derive them.\n\n- Cap accounting. Under Dual stop, the reserved slot already admits one pain-audit post targeting the cite, in-cap, when a successor map carries an operative relief cite and the numbered cap is spent. This post qualifies, so the operator raise on 5686856586 was not needed to authorise it. That leaves an open bookkeeping question -- whether a fourth post would draw on the raise or on the reserved slot -- which is arithmetic, not disposition.\n- No same-fingerprint halt. Takes moved materially between 5686672707 and 5686858007: the map flipped from `does-not-relieve` to relief on the same P*, the item 1 disjunction resolved, the item 4 fork closed on the list. Not a restatement.\n- Handoff correctly does not print. This map carries an operative relief cite and no uncited pain, and it supersedes a `does-not-relieve` map -- the contract makes that print-false explicitly. The Handoff at 5686673848 is superseded.\n- Checking vs generation is intact. The parent generated the candidate answer to its own open-question and recorded the non-self-arbitration marker; this post is the independent check the contract requires.\n- Cite forms are closed and operative. The pain list on 5685863527 and the relief cite on 5686858007 are both bare lines -- not fenced, quoted, struck, or inline-code.\n- Item 3 is now mechanism-adequate. `validatePlanItem` (`packages/core/src/render/spec-validate.ts:21,36`) is module-private and accumulates error strings; the module exports only `ValidateSpecResult`, `validateSpec`, `main`. \"Export a shared walker ... do not re-implement the key pair inline\" names an extraction, not a reuse of something importable, which is what the prior F3 asked for.\n\n### Road not taken\n\nI considered F3 as `sharpens-framing`, on the ground that a missing test is process debt rather than a defect in the design, and that the walk itself is the relief. I put it at blocking because of the harvest mechanism, not the testing philosophy: the cited lean list is the next-build contract, the round-1 F4 accepted disposition consequence was that the absent rendering contract is the mechanism-level cause of P1, and item 4 rewrites the one branch in the repo with zero coverage. What flips it: restoring the test bullet to this lean. F3 then collapses to a footnote about citation hygiene.\n\n### Steelman\n\nThe strongest rejected position is that the relief cite should stand now. Item 3 binds an extraction that ends the discard, item 2 binds the default on the reporter own command, item 1 refuses the scope-out, item 4 removes the fork -- every blocker the prior audit named is discharged, and F1, F2 and F3 are all \"name one more thing\" rather than \"this mechanism does not work\". That is defensible, and I checked the mechanism is buildable: `spec-validate.ts:36` is a working dual-key convention, and lifting it out is ordinary work.\n\nWhat defeats it is that the pain is silence, and each remaining gap regenerates silence by default. An unnamed cap truncates without saying so. An unbound `exportSpec` default emits nothing without saying so. An untested restructure of the one uncovered branch drops fields without saying so. One of these would be a footnote. Three, on a denominator whose defining word is silent, is the same failure the arc has now recut twice. If the lean names the cap default and its announce behaviour, and strikes the path qualifier in item 2, F1 and F2 collapse and F3 is the only blocker left.\r\n\n",
+          "id": 5687026765,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5687026765",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-15T19:38:40Z",
+          "updated_at": "2026-09-15T19:38:40Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nThe cap-3 pain-audit still refuses relieves: P1. Nested-on is not enough while the compaction cap has no named default, while exportSpec is unbound on its no-flag path, and while the harvested list dropped the contract-test bullet. This map closes those three holes. Dual-stop cap 3 is spent, so this cite is does-not-relieve until a fourth critic audits relief.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept critic headings.\n\nForward verdict: recut. Disposition: classified headings accept-into-contract. Residual: P1 unrelieved.\nSpec-path: next-build contract is not this body.\n\n**Lean:** post-cap-3 recut of #4511 after pain-audit 5687026765. Supersedes successor lean 5686858007.\n\nTarget-digest: sha256:ad5a8c1e9c2dfd951c6c1ff6a5ca4441ea2dbfaaf60d3e5315a6060cc98d2410\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4511-dc\norigin-ref: origin/master\ndispatch-sha: 64667b94a6afd263c0d70791be44175fd72bd65c\ncap: 3\n\nTakes:\n\n- 5686128506 F1 named command is not the one contract-conformant consumers run — accept-into-contract\n- 5686128506 F2 proposed depth-to-heading map does not produce the cited shape — accept-into-contract\n- 5686128506 F3 one-key recursion does not fix the class — accept-into-contract\n- 5686128506 F4 branch has no test and authoring is contract-pinned — accept-into-contract\n- 5686128506 F5 two bundled dispositions point the wrong way — accept-into-contract\n- 5686128506 F6 verbosity has to fail closed — accept-into-contract\n- 5687026765 F1 cap replaces the off-switch with a second unnamed value — accept-into-contract\n- 5687026765 F2 nested-on bound for only one emitter — accept-into-contract\n- 5687026765 F3 round-1 headings not cited; harvest dropped the test — accept-into-contract\n- 5687026765 F4 bound output shape is not reachable at document scope — accept-into-contract\n- 5687026765 F5 item 1 vs item 3 disagree on renderer set — accept-into-contract\n\ndoes-not-relieve: P1\n\n## Bound remedy\n\n- Both emitters are in: renderSpecMarkdown and exportSpec. Nested-on is the default of both no-flag paths. No legacy-only scope-out.\n- Compaction cap default is 3 (phase, subphase, task) so the pinned make-spec exemplar leaf survives. The cap must announce truncation rather than omit silently. Fail closed on unknown tokens.\n- Export a shared dual-key walker from spec-validate; validator, spec-render, exportSpec, and roadmap-render consume it.\n- Item-subtree shape only: Implementation Plan wrapper, phases at ###, subphases at ####, tasks as bullets. Document-level section ordering is out of this list.\n- Contract test: render the pinned make-spec example and assert that shape plus existing depth-1 handlers (Depends on, Traces, Acceptance).\n\n",
+          "id": 5687049537,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5687049537",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-15T19:40:26Z",
+          "updated_at": "2026-09-15T19:40:26Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\nOperator raised Dual-stop cap to 4 critic posts for this arc. Why: lean 5687049537 recut the three remaining holes and is does-not-relieve until a fourth critic audits relief. Default 3 posts spent (round 1 + two pain-audits). Fourth post is a pain-audit of a relieves cite. Operator utterance: raise cap on 4511.\n\nDual-stop cap: 4 posts\noperator-raised-cap: 4 posts\narc-mode: no-ingest\nyolo-standing: yes\n\n",
+          "id": 5749813083,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5749813083",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T12:31:31Z",
+          "updated_at": "2026-09-20T12:31:31Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nThe operator raised Dual-stop cap to 4 so this map can cite relief on the harvest that already closed the three remaining holes: compaction cap default 3, both emitters on nested-on, and the contract-test bullet. Confirming this map plus a pain-audit of that cite is the remaining close.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept critic headings.\n\nForward verdict: recut. Disposition: classified headings accept-into-contract. Residual: none on classified headings.\nSpec-path: next-build contract is not this body.\n\n**Lean:** post-cap-raise successor of #4511. Cites critic 5687026765. Supersedes successor lean 5687049537. Round 1 sibling count 1.\n\nTarget-digest: sha256:ad5a8c1e9c2dfd951c6c1ff6a5ca4441ea2dbfaaf60d3e5315a6060cc98d2410\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: /Users/davidcall/.grok/worktrees/deft-directive/issue-4511-dc\norigin-ref: origin/master\ndispatch-sha: 64667b94a6afd263c0d70791be44175fd72bd65c\ntarget shape: single-issue\nround: 3\nsiblings: 1\nDual-stop cap: 4 posts\noperator-raised-cap: 4 posts\noperator-raise: raise cap on 4511\n\nTakes:\n\n- 5686128506 F1 named command is not the one contract-conformant consumers run — accept-into-contract\n- 5686128506 F2 proposed depth-to-heading map does not produce the cited shape — accept-into-contract\n- 5686128506 F3 one-key recursion does not fix the class — accept-into-contract\n- 5686128506 F4 branch has no test and authoring is contract-pinned — accept-into-contract\n- 5686128506 F5 two bundled dispositions point the wrong way — accept-into-contract\n- 5686128506 F6 verbosity has to fail closed — accept-into-contract\n- 5687026765 F1 cap replaces the off-switch with a second unnamed value — accept-into-contract\n- 5687026765 F2 nested-on bound for only one emitter — accept-into-contract\n- 5687026765 F3 round-1 headings not cited; harvest dropped the test — accept-into-contract\n- 5687026765 F4 bound output shape is not reachable at document scope — accept-into-contract\n- 5687026765 F5 item 1 vs item 3 disagree on renderer set — accept-into-contract\n\nrelieves: P1\n\n## Bound remedy\n\n- Both emitters are in: renderSpecMarkdown and exportSpec. Nested-on is the default of both no-flag paths. No legacy-only scope-out.\n- Compaction cap default is 3 (phase, subphase, task) so the pinned make-spec exemplar leaf survives. The cap must announce truncation rather than omit silently. Fail closed on unknown tokens.\n- Export a shared dual-key walker from spec-validate; validator, spec-render, exportSpec, and roadmap-render consume it.\n- Item-subtree shape only: Implementation Plan wrapper, phases at ###, subphases at ####, tasks as bullets. Document-level section ordering is out of this list.\n- Contract test: render the pinned make-spec example and assert that shape plus existing depth-1 handlers (Depends on, Traces, Acceptance).\n\n",
+          "id": 5749813156,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5749813156",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T12:31:31Z",
+          "updated_at": "2026-09-20T12:31:31Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\nStop 4 pain-audit. Fresh critic. One question: does the Bound-remedy list on successor lean 5749813156 relieve P1 on write-back 5685863527 (silent discard of nested plan.items). Anchors re-read with `git show 64667b94a6afd263c0d70791be44175fd72bd65c:<path>`. Parent hypotheses were not inputs. The three holes from pain-audit 5687026765 and recut 5687049537 were checked against this list, then against the tree.\n\n**Verdict: yes. The relief cite is established.**\n\nP1 still reproduces at this SHA. `renderSpecMarkdown` walks top-level `plan.items` once and never reads `item.items` or `subItems`. `exportSpec` reads `plan.title` only. `validatePlanItem` already recurses `[\"items\", \"subItems\"]` and is module-private. The pinned make-spec exemplar is three levels, with `Acceptance` and `Traces` on the leaf. Every `renderSpecMarkdown` fixture still uses an empty item array.\n\nThe five harvested bullets close the three holes and the discard:\n\n- Both emitters in; nested-on is the default of both no-flag paths. Closes 5687026765 F2 (default bound for one emitter).\n- Compaction cap default is 3 (phase, subphase, task) so the exemplar leaf survives; truncation must be announced; unknown tokens fail closed. Closes 5687026765 F1 (unnamed cap that can drop the leaf with no announce).\n- Export the existing dual-key walk from spec-validate; validator, spec-render, exportSpec, and roadmap-render consume it. That is the live convention, not a new walker. Closes 5687026765 F5 (renderer-set fork) by naming roadmap-render in.\n- Item-subtree shape only: Implementation Plan wrapper, phases at ###, subphases at ####, tasks as bullets. Document-level section order is out of this list. Closes 5687026765 F4.\n- Contract test: render the pinned make-spec example and assert that shape plus Depends on / Traces / Acceptance. Closes 5687026765 F3 (harvest dropped the test). Round-1 headings from 5686128506 F1–F6 are cited on this lean's takes.\n\nNested-on plus cap 3 plus a render-time walk plus a test that the leaf survives is the mechanism that ends silent discard of the mandated tree. Bullet text is not the evidence; the tree still discards today, and this list is the first harvested contract that would make that discard a failed test rather than the default.\n\n### F1 -- injection / swarm lens\n\n`footnote`\n\nThe renderer takes agent-authored JSON and writes a document later agents read as spec. Titles and narrative values are still coerced into markdown with no line-start-hash escape. Nested-on adds `####` sites and moves tasks to bullets. Write path stays `containedWrite`. Same surface round 1 recorded. No new identity, worktree, or shared-mutable-state limb. Deterministic control if wanted: escape a line-start `#` in interpolated values. No disposition weight.\n\n### Road not taken\n\nI considered blocking on two remaining underspecs. (a) \"Announce\" could be stderr-only, so a later agent who reads only SPECIFICATION.md still treats a truncated tree as complete. (b) `exportSpec` nested-on could walk PROJECT-DEFINITION.plan.items (the scope registry already in hand) instead of `authority.specPath`. Both are real forks. Neither reproduces P1 for the three-level make-spec tree: the cap names that the leaf survives, and the contract test is that exemplar, which is a specification file. What would flip the verdict: a harvested default that can drop the leaf, or a test that does not assert subphase, task, Acceptance, and Traces survive.\n\n### Steelman\n\nThe strongest rejected position is that relief is still conditional because \"consume the walker\" is what `renderSpecMarkdown` already does: it calls `validateSpec`, which walks the tree, then the flat loop throws the tree away. Item 3 alone would not end P1. Items 1, 4, and 5 require nested output on the no-flag path in the light-path shape, and a test of that shape. That is not validate-then-discard. The walker is extractable: `validatePlanItem` already iterates the key pair and recurses.\n\nInventory, not a new mechanism: `collectOpenPlanItems` is a second dual-key walk, for lifecycle terminal-state, not this renderer. `scope-outlook` is still a flat `items` loop; it is the #1566 lifecycle section, not the specification item tree, and is out of this list.\n\n",
+          "id": 5749857123,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5749857123",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T12:40:21Z",
+          "updated_at": "2026-09-20T12:40:21Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## Verified-claims table\n\nCites successor lean 5749813156.\n\n| Claim | Source | Method |\n|---|---|---|\n| Classified headings on lean 5749813156 are accept-into-contract | critics 5686128506, 5687026765 | posted take-map |\n| Empty disagreement set | this round | no disagree or defer |\n| relieves P1 covers silent discard of nested plan.items | pain-audit 5749857123 | pin-read of renderSpecMarkdown flat loop, exportSpec title-only, validatePlanItem dual-key walk; footnote-only census |\n\n",
+          "id": 5749865027,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5749865027",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T12:41:57Z",
+          "updated_at": "2026-09-20T12:41:57Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nspec:render still walks plan.items once and never descends nested items, so the make-spec phase/subphase/task tree is discarded. The accepted next-build is nested-on as the default of both emitters, compaction cap default 3, a shared dual-key walker, item-subtree shape only, and a contract test of the pinned exemplar.\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nBound contract: successor lean 5749813156.\n\n",
+          "id": 5749865099,
+          "html_url": "https://github.com/deftai/directive/issues/4511#issuecomment-5749865099",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T12:41:58Z",
+          "updated_at": "2026-09-20T12:41:58Z",
+          "author_association": "CONTRIBUTOR"
+        }
+      ],
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5450735782,
+        "origin": "deftai/directive#4511",
+        "id": "github.issue.5450735782"
+      },
+      "x-directive/admitted-target-digest": {
+        "schema": "deft.scope.admitted-target-digest.v1",
+        "algorithm": "sha256",
+        "sha256": "ad5a8c1e9c2dfd951c6c1ff6a5ca4441ea2dbfaaf60d3e5315a6060cc98d2410"
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": null,
+        "prNumber": 4826,
+        "prBase": null,
+        "mergeCommit": "19f20e3220d34258db0614d8165ab3024b85be0b",
+        "deliveryBranch": "master",
+        "deliveryCommit": "19f20e3220d34258db0614d8165ab3024b85be0b",
+        "verifiedAt": "2026-09-20T19:13:05Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:grok:v1:MDFhMGJmZmYtZTEzMi03OTkxLTkxOWYtOGE5MzdiMGY5ZDdh"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-20T19:13:05Z",
+      "completedSessionId": "host:grok:v1:MDFhMGJmZmYtZTEzMi03OTkxLTkxOWYtOGE5MzdiMGY5ZDdh",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-20T19:13:05Z"
+      }
+    },
+    "id": "github.issue.5450735782",
+    "updated": "2026-09-20T19:13:05Z"
+  }
+}
