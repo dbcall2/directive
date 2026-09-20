@@ -244,9 +244,10 @@ Docs: [docs/decision-log.md](./docs/decision-log.md) · layout: `xbrief/decision
 
 Edit the xBRIEF source, then render the markdown view.
 
-- `task spec:render` -- render `xbrief/specification.xbrief.json` to a **compact** `SPECIFICATION.md` by default (#1566). Defaults: no lifecycle Scope outlook, no `LegacyArtifacts`. Opt in with engine flags passed after `--`:
+- `task spec:render` -- render `xbrief/specification.xbrief.json` to a **compact** `SPECIFICATION.md` by default (#1566). Defaults: no lifecycle Scope outlook, no `LegacyArtifacts`. Nested `plan.items` render on by default (#4511). Opt in with engine flags passed after `--`:
   - `--include-scopes=off` (default) / `current` (pending+active) / `all` (include completed archive)
   - `--include-legacy-artifacts=on|off` (default off)
+  - `--item-depth=N` (default `3`: phase, subphase, task). Unknown tokens fail closed. Truncation is announced in the markdown, not omitted silently. Same nested-on default applies to `task project:export-spec`.
 - `task prd:render` -- render a stakeholder PRD view from the specification xBRIEF.
 - `task roadmap:render` -- render `ROADMAP.md` from lifecycle scope xBRIEFs (`pending/` + `proposed/` + `active/` forward; `completed/` capped).
 - `task project:render` -- refresh the `PROJECT-DEFINITION.xbrief.json` items registry from lifecycle folders.

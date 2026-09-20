@@ -53,12 +53,23 @@ export {
   main as specRenderMain,
   normalizeIncludeScopesMode,
   parseIncludeScopesFlag,
+  renderImplementationPlanLines,
   renderSpec,
+  renderSpecMarkdown,
+  resolveItemDepthCap,
   tryParseIncludeScopesMode,
+  tryParseItemDepthCap,
   tryParseOnOffFlag,
 } from "./spec-render.js";
+export type { NestedPlanItemKey, WalkNestedPlanItemsHandlers } from "./spec-validate.js";
 export * as specValidate from "./spec-validate.js";
-export { main as specValidateMain, validateSpec } from "./spec-validate.js";
+export {
+  listNestedPlanItems,
+  main as specValidateMain,
+  PLAN_ITEM_NESTED_KEYS,
+  validateSpec,
+  walkNestedPlanItems,
+} from "./spec-validate.js";
 export {
   parsePhaseNumber,
   phaseSortKey,
