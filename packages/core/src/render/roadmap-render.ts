@@ -8,6 +8,7 @@ import {
   ROADMAP_COMPLETED_CAP,
   ROADMAP_EMPTY_FORWARD_MARKER,
 } from "./constants.js";
+import { listNestedPlanItems } from "./spec-validate.js";
 import { phaseSortKey } from "./text-utils.js";
 
 type JsonObject = Record<string, unknown>;
@@ -158,12 +159,9 @@ function renderItem(item: JsonObject, depMap: Record<string, string[]>, indent =
   if (deps.length > 0) parts.push(`(depends on: ${[...deps].sort().join(", ")})`);
   lines.push(`${prefix}${parts.join(" -- ")}`);
 
-  const subItems = item.subItems;
-  if (Array.isArray(subItems) && subItems.length > 0) {
-    const subs = subItems.filter(
-      (s): s is JsonObject => typeof s === "object" && s !== null && !Array.isArray(s),
-    );
-    const sortedSubs = topoSortItems(subs, depMap);
+  const nested = listNestedPlanItems(item);
+  if (nested.length > 0) {
+    const sortedSubs = topoSortItems(nested, depMap);
     for (const sub of sortedSubs) lines.push(...renderItem(sub, depMap, indent + 1));
   }
   return lines;
@@ -396,12 +394,9 @@ function renderPendingBody(vbriefs: JsonObject[]): string[] {
         }
       }
 
-      const subItems = phase.subItems;
-      if (Array.isArray(subItems) && subItems.length > 0) {
-        const subs = subItems.filter(
-          (s): s is JsonObject => typeof s === "object" && s !== null && !Array.isArray(s),
-        );
-        const sortedSubs = topoSortItems(subs, depMap);
+      const nested = listNestedPlanItems(phase);
+      if (nested.length > 0) {
+        const sortedSubs = topoSortItems(nested, depMap);
         for (const item of sortedSubs) lines.push(...renderItem(item, depMap));
         lines.push("");
       }

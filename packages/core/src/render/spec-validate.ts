@@ -6,6 +6,51 @@ import { VALID_STATUSES } from "./constants.js";
 
 type JsonObject = Record<string, unknown>;
 
+/** Preferred `items` first, then deprecated `subItems` alias (#4511). */
+export type NestedPlanItemKey = "items" | "subItems";
+
+export const PLAN_ITEM_NESTED_KEYS: readonly NestedPlanItemKey[] = ["items", "subItems"];
+
+export interface WalkNestedPlanItemsHandlers {
+  readonly onItem: (child: JsonObject, key: NestedPlanItemKey, index: number) => void;
+  readonly onInvalidCollection?: (key: NestedPlanItemKey) => void;
+  readonly onInvalidEntry?: (key: NestedPlanItemKey, index: number) => void;
+}
+
+/** Dual-key walk over nested PlanItem children. Shared by validator and renderers (#4511). */
+export function walkNestedPlanItems(
+  parent: JsonObject,
+  handlers: WalkNestedPlanItemsHandlers,
+): void {
+  for (const nestedKey of PLAN_ITEM_NESTED_KEYS) {
+    if (!(nestedKey in parent)) continue;
+    const nested = parent[nestedKey];
+    if (!Array.isArray(nested)) {
+      handlers.onInvalidCollection?.(nestedKey);
+      continue;
+    }
+    for (let j = 0; j < nested.length; j += 1) {
+      const sub = nested[j];
+      if (typeof sub !== "object" || sub === null || Array.isArray(sub)) {
+        handlers.onInvalidEntry?.(nestedKey, j);
+        continue;
+      }
+      handlers.onItem(sub as JsonObject, nestedKey, j);
+    }
+  }
+}
+
+/** Object children from `items` then `subItems`. Invalid slots are skipped. */
+export function listNestedPlanItems(parent: JsonObject): JsonObject[] {
+  const children: JsonObject[] = [];
+  walkNestedPlanItems(parent, {
+    onItem: (child) => {
+      children.push(child);
+    },
+  });
+  return children;
+}
+
 function validateNarratives(narratives: unknown, path: string, errors: string[]): void {
   if (typeof narratives !== "object" || narratives === null || Array.isArray(narratives)) {
     errors.push(`${path} must be an object`);
@@ -33,22 +78,17 @@ function validatePlanItem(item: JsonObject, path: string, errors: string[]): voi
     validateNarratives(item.narrative, `${itemPath}.narrative`, errors);
   }
 
-  for (const nestedKey of ["items", "subItems"] as const) {
-    if (!(nestedKey in item)) continue;
-    const nested = item[nestedKey];
-    if (!Array.isArray(nested)) {
+  walkNestedPlanItems(item, {
+    onItem: (sub, nestedKey) => {
+      validatePlanItem(sub, `${itemPath}.${nestedKey}`, errors);
+    },
+    onInvalidCollection: (nestedKey) => {
       errors.push(`${itemPath}.${nestedKey} must be an array`);
-      continue;
-    }
-    for (let j = 0; j < nested.length; j += 1) {
-      const sub = nested[j];
-      if (typeof sub !== "object" || sub === null || Array.isArray(sub)) {
-        errors.push(`${itemPath}.${nestedKey}[${j}] must be an object`);
-        continue;
-      }
-      validatePlanItem(sub as JsonObject, `${itemPath}.${nestedKey}`, errors);
-    }
-  }
+    },
+    onInvalidEntry: (nestedKey, j) => {
+      errors.push(`${itemPath}.${nestedKey}[${j}] must be an object`);
+    },
+  });
 }
 
 function validateSchema(data: JsonObject): string[] {

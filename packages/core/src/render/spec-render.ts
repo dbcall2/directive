@@ -4,14 +4,17 @@ import { ContainedWriteError, containedWrite } from "../fs/contained-write.js";
 import {
   buildSpecRenderBanner,
   DEFAULT_INCLUDE_SCOPES_MODE,
+  DEFAULT_ITEM_DEPTH_CAP,
   type IncludeScopesMode,
   LEGACY_ARTIFACTS_NARRATIVE_KEY,
   RENDERABLE_SPEC_STATUSES,
   SPECIFICATION_NARRATIVE_KEY_ORDER,
 } from "./constants.js";
 import { buildScopeOutlookSection } from "./scope-outlook.js";
-import { validateSpec } from "./spec-validate.js";
+import { listNestedPlanItems, validateSpec } from "./spec-validate.js";
 import { stripTrailingWhitespace } from "./text-utils.js";
+
+export { DEFAULT_ITEM_DEPTH_CAP };
 
 type JsonObject = Record<string, unknown>;
 
@@ -60,6 +63,119 @@ export function tryParseOnOffFlag(value: string): boolean | undefined {
   return undefined;
 }
 
+const ITEM_DEPTH_CAP_HELP = "integer >= 1";
+
+/** Parse a nested plan.items depth cap. undefined = unknown token (fail closed, #4511). */
+export function tryParseItemDepthCap(value: string): number | undefined {
+  const v = value.trim();
+  if (!/^[1-9]\d*$/.test(v)) return undefined;
+  const n = Number(v);
+  if (!Number.isSafeInteger(n)) return undefined;
+  return n;
+}
+
+export function resolveItemDepthCap(
+  value: number | string | undefined,
+): { ok: true; cap: number } | { ok: false; message: string } {
+  if (value === undefined) return { ok: true, cap: DEFAULT_ITEM_DEPTH_CAP };
+  if (typeof value === "number") {
+    if (!Number.isInteger(value) || value < 1) {
+      return {
+        ok: false,
+        message: `Invalid item-depth cap '${String(value)}' (expected ${ITEM_DEPTH_CAP_HELP})`,
+      };
+    }
+    return { ok: true, cap: value };
+  }
+  const parsed = tryParseItemDepthCap(String(value));
+  if (parsed === undefined) {
+    return {
+      ok: false,
+      message: `Invalid item-depth cap '${String(value)}' (expected ${ITEM_DEPTH_CAP_HELP})`,
+    };
+  }
+  return { ok: true, cap: parsed };
+}
+
+function itemHandlerIndent(depth: number): string {
+  return depth >= 3 ? "  ".repeat(depth - 2) : "";
+}
+
+function truncationNotice(cap: number, indent = ""): string {
+  const named = cap === DEFAULT_ITEM_DEPTH_CAP ? " (phase, subphase, task)" : "";
+  return (
+    `${indent}_Nested plan.items truncated at depth ${cap}${named}. ` +
+    "Raise --item-depth to include deeper items._\n"
+  );
+}
+
+function renderItemHandlers(item: JsonObject, lines: string[], depth: number): void {
+  const prefix = itemHandlerIndent(depth);
+  let deps: unknown;
+  const metadata = item.metadata;
+  if (typeof metadata === "object" && metadata !== null && !Array.isArray(metadata)) {
+    deps = (metadata as JsonObject).dependencies;
+  }
+  if (!deps) deps = item.dependencies;
+  if (Array.isArray(deps) && deps.length > 0) {
+    lines.push(`${prefix}**Depends on**: ${deps.map(String).join(", ")}\n`);
+  }
+
+  const narrative = item.narrative;
+  if (typeof narrative === "object" && narrative !== null && !Array.isArray(narrative)) {
+    for (const [key, val] of Object.entries(narrative as JsonObject)) {
+      if (key === "Traces") lines.push(`${prefix}**Traces**: ${String(val)}\n`);
+      else if (key === "Acceptance") {
+        for (const line of splitAcceptance(val)) lines.push(`${prefix}- ${line}`);
+        lines.push("");
+      } else lines.push(`${prefix}${String(val)}\n`);
+    }
+  } else if (Array.isArray(narrative)) {
+    for (const entry of narrative) lines.push(`${prefix}- ${String(entry)}`);
+    lines.push("");
+  } else if (narrative) {
+    lines.push(`${prefix}${String(narrative)}\n`);
+  }
+}
+
+function renderPlanItemHeading(item: JsonObject, depth: number): string {
+  const itemId = String(item.id ?? "");
+  const titleText = String(item.title ?? "");
+  const itemStatus = String(item.status ?? "");
+  const statusSuffix = itemStatus ? `  \`[${itemStatus}]\`` : "";
+  if (depth >= 3) {
+    const indent = "  ".repeat(depth - 3);
+    const label = itemId ? `${itemId}: ${titleText}` : titleText;
+    return `${indent}- ${label}${statusSuffix}\n`;
+  }
+  const hashes = depth === 1 ? "###" : "####";
+  return `${hashes} ${titleText}${statusSuffix}\n`;
+}
+
+function renderPlanItem(item: JsonObject, depth: number, cap: number, lines: string[]): void {
+  lines.push(renderPlanItemHeading(item, depth));
+  renderItemHandlers(item, lines, depth);
+  const children = listNestedPlanItems(item);
+  if (children.length === 0) return;
+  if (depth >= cap) {
+    lines.push(truncationNotice(cap, itemHandlerIndent(depth)));
+    return;
+  }
+  for (const child of children) renderPlanItem(child, depth + 1, cap, lines);
+}
+
+/** Light-path item subtree: Implementation Plan wrapper, ### / ####, task bullets (#4511). */
+export function renderImplementationPlanLines(items: unknown, itemDepthCap: number): string[] {
+  if (!Array.isArray(items)) return [];
+  const valid = items.filter(
+    (item): item is JsonObject => typeof item === "object" && item !== null && !Array.isArray(item),
+  );
+  if (valid.length === 0) return [];
+  const lines: string[] = ["## Implementation Plan\n"];
+  for (const item of valid) renderPlanItem(item, 1, itemDepthCap, lines);
+  return lines;
+}
+
 /**
  * Normalize CLI / API include-scopes values to a mode (#1566).
  * Default is compact (`off`) so completed lifecycle is not dumped into SPECIFICATION.md.
@@ -96,6 +212,11 @@ export interface RenderSpecOptions {
    * Defaults to `process.cwd()`. Out-of-root outputs and symlink parents fail closed.
    */
   readonly root?: string;
+  /**
+   * Nested plan.items depth cap (#4511). Default 3 (phase, subphase, task).
+   * Unknown tokens fail closed; truncation is announced in the markdown.
+   */
+  readonly itemDepthCap?: number | string;
 }
 
 function shouldRenderNarrativeKey(key: string, includeLegacyArtifacts: boolean): boolean {
@@ -110,6 +231,8 @@ export function renderSpecMarkdown(
 ): { ok: true; markdown: string } | { ok: false; message: string } {
   const includeScopesMode = normalizeIncludeScopesMode(options.includeScopes);
   const includeLegacyArtifacts = options.includeLegacyArtifacts ?? false;
+  const depthCap = resolveItemDepthCap(options.itemDepthCap);
+  if (!depthCap.ok) return { ok: false, message: depthCap.message };
   const [ok, msg] = validateSpec(specPath);
   if (!ok) return { ok: false, message: msg };
 
@@ -174,42 +297,7 @@ export function renderSpecMarkdown(
     typeof plan === "object" && plan !== null && !Array.isArray(plan)
       ? ((plan as JsonObject).items ?? [])
       : (spec.tasks ?? []);
-  if (Array.isArray(items)) {
-    for (const item of items) {
-      if (typeof item !== "object" || item === null || Array.isArray(item)) continue;
-      const itemObj = item as JsonObject;
-      const itemId = String(itemObj.id ?? "");
-      const titleText = String(itemObj.title ?? "");
-      const itemStatus = String(itemObj.status ?? "");
-      lines.push(`## ${itemId}: ${titleText}  \`[${itemStatus}]\`\n`);
-
-      let deps: unknown;
-      const metadata = itemObj.metadata;
-      if (typeof metadata === "object" && metadata !== null && !Array.isArray(metadata)) {
-        deps = (metadata as JsonObject).dependencies;
-      }
-      if (!deps) deps = itemObj.dependencies;
-      if (Array.isArray(deps) && deps.length > 0) {
-        lines.push(`**Depends on**: ${deps.map(String).join(", ")}\n`);
-      }
-
-      const narrative = itemObj.narrative;
-      if (typeof narrative === "object" && narrative !== null && !Array.isArray(narrative)) {
-        for (const [key, val] of Object.entries(narrative as JsonObject)) {
-          if (key === "Traces") lines.push(`**Traces**: ${String(val)}\n`);
-          else if (key === "Acceptance") {
-            for (const line of splitAcceptance(val)) lines.push(`- ${line}`);
-            lines.push("");
-          } else lines.push(`${String(val)}\n`);
-        }
-      } else if (Array.isArray(narrative)) {
-        for (const entry of narrative) lines.push(`- ${String(entry)}`);
-        lines.push("");
-      } else if (narrative) {
-        lines.push(`${String(narrative)}\n`);
-      }
-    }
-  }
+  lines.push(...renderImplementationPlanLines(items, depthCap.cap));
 
   if (includeScopesMode !== "off") {
     const vbriefDir = resolve(dirname(specPath));
@@ -251,11 +339,13 @@ export function renderSpec(
 export function parseIncludeScopesFlag(argv: readonly string[]): {
   includeScopes: IncludeScopesMode;
   includeLegacyArtifacts: boolean;
+  itemDepthCap: number;
   remaining: string[];
   errors: string[];
 } {
   let includeScopes: IncludeScopesMode = DEFAULT_INCLUDE_SCOPES_MODE;
   let includeLegacyArtifacts = false;
+  let itemDepthCap = DEFAULT_ITEM_DEPTH_CAP;
   const remaining: string[] = [];
   const errors: string[] = [];
   for (const arg of argv) {
@@ -291,9 +381,23 @@ export function parseIncludeScopesFlag(argv: readonly string[]): {
       }
       continue;
     }
+    if (arg === "--item-depth") {
+      errors.push(`Missing --item-depth value (expected ${ITEM_DEPTH_CAP_HELP})`);
+      continue;
+    }
+    if (arg.startsWith("--item-depth=")) {
+      const value = arg.split("=", 2)[1] ?? "";
+      const parsed = tryParseItemDepthCap(value);
+      if (parsed === undefined) {
+        errors.push(`Invalid --item-depth=${value} (expected ${ITEM_DEPTH_CAP_HELP})`);
+      } else {
+        itemDepthCap = parsed;
+      }
+      continue;
+    }
     remaining.push(arg);
   }
-  return { includeScopes, includeLegacyArtifacts, remaining, errors };
+  return { includeScopes, includeLegacyArtifacts, itemDepthCap, remaining, errors };
 }
 
 /** Named containment root: cwd when the output is inside it, else the spec's project. */
@@ -318,20 +422,24 @@ export function resolveSpecRenderRoot(
 
 /** CLI entry (mirrors ``scripts/spec_render.main``). */
 export function main(argv: readonly string[]): number {
-  const { includeScopes, includeLegacyArtifacts, remaining, errors } = parseIncludeScopesFlag(argv);
+  const { includeScopes, includeLegacyArtifacts, itemDepthCap, remaining, errors } =
+    parseIncludeScopesFlag(argv);
   if (errors.length > 0) {
     for (const err of errors) process.stderr.write(`${err}\n`);
     process.stderr.write(
       "Usage: spec-render <spec_file> [out_file] " +
-        "[--include-scopes=off|current|all] [--include-legacy-artifacts=on|off]\n",
+        "[--include-scopes=off|current|all] [--include-legacy-artifacts=on|off] " +
+        "[--item-depth=N]\n",
     );
     return 2;
   }
   if (remaining.length === 0) {
     process.stderr.write(
       "Usage: spec-render <spec_file> [out_file] " +
-        "[--include-scopes=off|current|all] [--include-legacy-artifacts=on|off]\n" +
-        "  Defaults (#1566): --include-scopes=off --include-legacy-artifacts=off\n",
+        "[--include-scopes=off|current|all] [--include-legacy-artifacts=on|off] " +
+        "[--item-depth=N]\n" +
+        "  Defaults (#1566): --include-scopes=off --include-legacy-artifacts=off\n" +
+        `  Nested plan.items (#4511): --item-depth=${DEFAULT_ITEM_DEPTH_CAP} (phase, subphase, task)\n`,
     );
     return 2;
   }
@@ -343,6 +451,7 @@ export function main(argv: readonly string[]): number {
   const [ok, message] = renderSpec(specPath, outPath, {
     includeScopes,
     includeLegacyArtifacts,
+    itemDepthCap,
     root: resolveSpecRenderRoot(specPath, outPath),
   });
   process.stdout.write(`${message}\n`);

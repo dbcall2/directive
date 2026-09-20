@@ -11,7 +11,10 @@ import { type IncludeScopesMode, LEGACY_ARTIFACTS_NARRATIVE_KEY } from "./consta
 import { buildScopeOutlookSection } from "./scope-outlook.js";
 import {
   normalizeIncludeScopesMode,
+  renderImplementationPlanLines,
+  resolveItemDepthCap,
   tryParseIncludeScopesMode,
+  tryParseItemDepthCap,
   tryParseOnOffFlag,
 } from "./spec-render.js";
 import { validateSpec } from "./spec-validate.js";
@@ -33,6 +36,11 @@ export interface ExportSpecOptions {
   readonly includeScopes?: boolean | IncludeScopesMode;
   readonly includeLegacyArtifacts?: boolean;
   readonly proposedLimit?: number;
+  /**
+   * Nested plan.items depth cap (#4511). Default 3 (phase, subphase, task).
+   * Nested-on is the no-flag path; unknown tokens fail closed.
+   */
+  readonly itemDepthCap?: number | string;
 }
 
 export type ExportSpecResult = readonly [boolean, string];
@@ -74,17 +82,28 @@ function resolveExportScopePolicy(
   };
 }
 
-function loadPlanTitle(path: string, fallback: string): string {
+function loadPlan(path: string): JsonObject | null {
   try {
     const doc = JSON.parse(readFileSync(path, "utf8")) as JsonObject;
     const plan = doc.plan;
     if (typeof plan === "object" && plan !== null && !Array.isArray(plan)) {
-      return String((plan as JsonObject).title ?? fallback);
+      return plan as JsonObject;
     }
   } catch {
     /* ignore */
   }
+  return null;
+}
+
+function loadPlanTitle(path: string, fallback: string): string {
+  const plan = loadPlan(path);
+  if (plan) return String(plan.title ?? fallback);
   return fallback;
+}
+
+function loadPlanItems(path: string): unknown {
+  const plan = loadPlan(path);
+  return plan?.items ?? [];
 }
 
 function filterLegacyArtifacts(
@@ -107,6 +126,8 @@ export function exportSpec(options: ExportSpecOptions = {}): ExportSpecResult {
   const audience = options.audience ?? "stakeholder";
   const scopePolicy = resolveExportScopePolicy(audience, options.includeScopes);
   const includeLegacyArtifacts = options.includeLegacyArtifacts ?? false;
+  const depthCap = resolveItemDepthCap(options.itemDepthCap);
+  if (!depthCap.ok) return [false, depthCap.message];
 
   const authority = resolveSpecAuthority(projectRoot);
   if (!authority) {
@@ -132,10 +153,17 @@ export function exportSpec(options: ExportSpecOptions = {}): ExportSpecResult {
       ? loadPlanTitle(authority.specPath, "Specification")
       : loadPlanTitle(authority.projectDefPath, "Specification");
 
+  const planSource =
+    authority.kind === "full-spec" && authority.specPath
+      ? authority.specPath
+      : authority.projectDefPath;
+  const planItems = loadPlanItems(planSource);
+
   const lines: string[] = [
     authority.banner,
     `# ${title}\n`,
     ...renderNarrativeSections(narratives),
+    ...renderImplementationPlanLines(planItems, depthCap.cap),
   ];
 
   if (scopePolicy.render) {
@@ -175,6 +203,7 @@ export function parseExportSpecArgv(argv: readonly string[]): {
     includeScopes?: boolean | IncludeScopesMode;
     includeLegacyArtifacts?: boolean;
     proposedLimit?: number;
+    itemDepthCap?: number;
   } = {};
   const errors: string[] = [];
   const positional: string[] = [];
@@ -222,6 +251,20 @@ export function parseExportSpecArgv(argv: readonly string[]): {
         );
       } else {
         options.includeLegacyArtifacts = parsed;
+      }
+      continue;
+    }
+    if (arg === "--item-depth") {
+      errors.push("Missing --item-depth value (expected integer >= 1)");
+      continue;
+    }
+    if (arg.startsWith("--item-depth=")) {
+      const value = arg.split("=", 2)[1] ?? "";
+      const parsed = tryParseItemDepthCap(value);
+      if (parsed === undefined) {
+        errors.push(`Invalid --item-depth=${value} (expected integer >= 1)`);
+      } else {
+        options.itemDepthCap = parsed;
       }
       continue;
     }

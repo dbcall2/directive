@@ -25,8 +25,10 @@ tasks:
   render:
     desc: >-
       Render the specification artifact to a compact SPECIFICATION.md by default
-      (#1566: no completed lifecycle dump, no LegacyArtifacts). Opt in via
-      --include-scopes=current|all and --include-legacy-artifacts=on after --.
+      (#1566: no completed lifecycle dump, no LegacyArtifacts). Nested plan.items
+      render on by default to depth 3 (#4511). Opt in via
+      --include-scopes=current|all, --include-legacy-artifacts=on, and
+      --item-depth=N after --.
     dir: '{{.USER_WORKING_DIR}}'
     deps:
       - task: :engine:_ts-build
