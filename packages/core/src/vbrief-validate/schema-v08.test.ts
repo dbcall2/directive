@@ -273,6 +273,15 @@ const CLASS_B_BARES = [
   "user-approval",
   "revisit-condition",
   "superseded-by",
+  "verification",
+  "evidence",
+  "runtime-evidence",
+  "change-proposal",
+  "delivery-evidence",
+  "build-run",
+  "hash-pinned-input",
+  "upstream-defect",
+  "azure-boards-issue",
 ] as const;
 
 const CLASS_B_PREFIXES = ["x-vbrief/", "x-xbrief/"] as const;
@@ -296,8 +305,8 @@ function writeProposedBrief(root: string, name: string, type: string): string {
   return vbrief;
 }
 
-describe("Class B reserved-prefix compatibility (#4746)", () => {
-  it("warns on all twelve Class B spellings and keeps them off the fatal-errors API", () => {
+describe("Class B reserved-prefix compatibility (#4746 / #4765)", () => {
+  it("warns on all thirty Class B spellings and keeps them off the fatal-errors API", () => {
     for (const prefix of CLASS_B_PREFIXES) {
       for (const bare of CLASS_B_BARES) {
         const type = prefix + bare;
@@ -390,7 +399,7 @@ describe("Class B reserved-prefix compatibility (#4746)", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("CLI exits 0 for each of the six names under both prefixes", () => {
+  it("CLI exits 0 for each of the fifteen names under both prefixes", () => {
     for (const prefix of CLASS_B_PREFIXES) {
       for (const bare of CLASS_B_BARES) {
         const root = mkdtempSync(join(tmpdir(), "vb-4746-matrix-"));

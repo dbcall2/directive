@@ -45,9 +45,11 @@ The following `type` values are recognized by deft's tooling and skills. JSON
 Schema still accepts `x-vbrief/*` and `x-xbrief/*`, but `validatePlanReferenceTypes`
 fail-closes unknown reserved-prefix subtypes except a bounded Class B
 compatibility set (`depends-on`, `supersedes`, `source-document`,
-`user-approval`, `revisit-condition`, `superseded-by`) under both prefixes,
-which warn. Forward custom types use `x-<consumer>/`. The types below carry
-documented semantics.
+`user-approval`, `revisit-condition`, `superseded-by`, `verification`,
+`evidence`, `runtime-evidence`, `change-proposal`, `delivery-evidence`,
+`build-run`, `hash-pinned-input`, `upstream-defect`, `azure-boards-issue`)
+under both prefixes, which warn. Forward custom types use `x-<consumer>/`.
+The types below carry documented semantics.
 
 - `x-vbrief/plan` — reference to another vBRIEF plan (epic→story or story→epic links, also the canonical v0.5 enum value)
 - `x-vbrief/github-issue` — a GitHub issue (the **primary** origin of an ingested scope vBRIEF). `task issue:emit` treats any `plan.references[]` entry whose type matches `github-issue` / `x-vbrief/github-issue` / `x-xbrief/github-issue` as **already tracked** and SKIPs create. Do **not** add related-only issue refs with this type when the brief still needs emit for its primary origin — keep related links in narratives / PR body / `Refs #N` prose instead (#2881 related-ref footgun).
