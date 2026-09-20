@@ -8,8 +8,11 @@ import {
   appendBoundedCapture,
   bindWorkerFailureToWaiter,
   boundedCaptureText,
+  confirmChildHandleForKill,
   createBoundedCapture,
   killDescendantTree,
+  killTreeAndProveEmpty,
+  listDescendantPids,
   mintSuiteRunId,
   ownerPidFromTeeName,
   pruneSuiteTees,
@@ -19,6 +22,7 @@ import {
   suiteActuallyRan,
   suiteTeeRelativePath,
   superviseChild,
+  superviseTimedChild,
   touchTeeMtime,
 } from "./suite-gate-supervisor.js";
 
@@ -219,5 +223,157 @@ describe("superviseChild", () => {
     expect(a.teeRel).not.toBe(b.teeRel);
     expect(a.teeRel).toContain("same-sess");
     expect(b.teeRel).toContain("same-sess");
+  }, 15_000);
+});
+
+describe("confirmChildHandleForKill (#4801)", () => {
+  it("returns null when the child already exited", () => {
+    expect(confirmChildHandleForKill({ exitCode: 0, pid: 12 })).toBeNull();
+  });
+
+  it("returns the pid when the handle is still live", () => {
+    expect(confirmChildHandleForKill({ exitCode: null, pid: 12 })).toBe(12);
+  });
+
+  it("returns null when pid is missing", () => {
+    expect(confirmChildHandleForKill({ exitCode: null })).toBeNull();
+  });
+});
+
+describe("killTreeAndProveEmpty (#4801)", () => {
+  it("kills the root and reports an empty tree", () => {
+    const killed: number[] = [];
+    const alive = new Set([1, 2, 3]);
+    const result = killTreeAndProveEmpty(1, {
+      killTree: (pid) => {
+        killed.push(pid);
+        alive.delete(pid);
+      },
+      listDescendants: () => [2, 3],
+      isPidAlive: (pid) => alive.has(pid),
+    });
+    expect(killed[0]).toBe(1);
+    expect(result.remaining).toEqual([]);
+  });
+
+  it("snapshots descendants before the first kill so reparented children stay in the set", () => {
+    const order: string[] = [];
+    const alive = new Set([2]);
+    const result = killTreeAndProveEmpty(1, {
+      killTree: (pid) => {
+        order.push(`kill:${pid}`);
+        alive.delete(pid);
+      },
+      listDescendants: () => {
+        order.push("list");
+        return [2];
+      },
+      isPidAlive: (pid) => alive.has(pid),
+    });
+    expect(order[0]).toBe("list");
+    expect(order[1]).toBe("kill:1");
+    expect(order).toEqual(["list", "kill:1", "kill:2"]);
+    expect(result.remaining).toEqual([]);
+  });
+
+  it("retries a failed root kill", () => {
+    const killed: number[] = [];
+    let rootAttempts = 0;
+    const alive = new Set([1, 2]);
+    const result = killTreeAndProveEmpty(1, {
+      killTree: (pid) => {
+        killed.push(pid);
+        if (pid === 1) {
+          rootAttempts += 1;
+          if (rootAttempts >= 2) alive.delete(1);
+          return;
+        }
+        alive.delete(pid);
+      },
+      listDescendants: () => [2],
+      isPidAlive: (pid) => alive.has(pid),
+    });
+    expect(killed.filter((id) => id === 1).length).toBeGreaterThanOrEqual(2);
+    expect(result.remaining).toEqual([]);
+  });
+
+  it("escalates leftover descendants with a second kill", () => {
+    const killed: number[] = [];
+    const alive = new Set([1, 2, 3]);
+    const result = killTreeAndProveEmpty(1, {
+      killTree: (pid) => {
+        killed.push(pid);
+        if (pid !== 1) alive.delete(pid);
+        else alive.delete(1);
+      },
+      listDescendants: () => [2, 3],
+      isPidAlive: (pid) => alive.has(pid),
+    });
+    expect(killed).toEqual([1, 2, 3]);
+    expect(result.remaining).toEqual([]);
+  });
+});
+
+describe("listDescendantPids (#4801)", () => {
+  it("walks injected children without looping", () => {
+    const ids = listDescendantPids(1, "linux", (pid) => {
+      if (pid === 1) return [2];
+      if (pid === 2) return [3];
+      return [];
+    });
+    expect(ids).toEqual([2, 3]);
+  });
+
+  it("stops walking when the verification budget has already expired", () => {
+    const ids = listDescendantPids(1, "linux", () => [2, 3], -1);
+    expect(ids).toEqual([]);
+  });
+});
+
+describe("superviseTimedChild (#4801)", () => {
+  it("kills a hung child at timeoutMs, reports 124, and does not create a suite tee", async () => {
+    const root = freshRoot();
+    const result = await superviseTimedChild({
+      command: process.execPath,
+      args: ["-e", "setTimeout(() => {}, 30_000)"],
+      cwd: root,
+      timeoutMs: 200,
+    });
+    expect(result.timedOut).toBe(true);
+    expect(result.exitCode).toBe(124);
+    expect(result.teeRel).toBe("");
+    expect(result.teePath).toBe("");
+  }, 15_000);
+
+  it("reconfirms the child handle is live before taskkill", async () => {
+    const root = freshRoot();
+    const handles: Array<{ exitCode: number | null; pid: number }> = [];
+    const result = await superviseTimedChild({
+      command: process.execPath,
+      args: ["-e", "setTimeout(() => {}, 30_000)"],
+      cwd: root,
+      timeoutMs: 200,
+      killTree: (pid, handle) => {
+        handles.push({ exitCode: handle.exitCode, pid });
+        killDescendantTree(pid);
+      },
+    });
+    expect(result.timedOut).toBe(true);
+    expect(result.exitCode).toBe(124);
+    expect(handles).toHaveLength(1);
+    expect(handles[0]?.exitCode).toBeNull();
+  }, 15_000);
+
+  it("does not arm a timeout when timeoutMs is omitted and leaves tee paths empty", async () => {
+    const root = freshRoot();
+    const result = await superviseTimedChild({
+      command: process.execPath,
+      args: ["-e", "process.stdout.write('ok\\n')"],
+      cwd: root,
+    });
+    expect(result.timedOut).toBe(false);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("ok");
+    expect(result.teeRel).toBe("");
   }, 15_000);
 });
