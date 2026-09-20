@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 import {
   advancePlanSequence,
   clearPlanSequence,
+  collectTerminalLifecycleOrigins,
   createPlanSequence,
+  detectTerminalEntryDrift,
   type PlanSequence,
   type PlanSequenceEntry,
   type PlanSequenceKind,
@@ -132,8 +134,29 @@ export function main(argv: string[] = process.argv.slice(2)): number {
         );
         return 1;
       }
+      const drift = detectTerminalEntryDrift(seq, collectTerminalLifecycleOrigins(root));
       if (parsed.emitJson) {
-        process.stdout.write(`${JSON.stringify(seq, null, 2)}\n`);
+        if (drift.drifted) {
+          process.stdout.write(
+            `${JSON.stringify(
+              {
+                ...seq,
+                terminal_lifecycle_drift: {
+                  code: drift.code,
+                  message: drift.message,
+                  originPath: drift.originPath,
+                  folder: drift.folder,
+                },
+              },
+              null,
+              2,
+            )}\n`,
+          );
+        } else {
+          process.stdout.write(`${JSON.stringify(seq, null, 2)}\n`);
+        }
+      } else if (drift.drifted) {
+        process.stderr.write(`${drift.message}\n`);
       } else {
         const cur = seq.exhausted ? null : seq.entries[seq.current_index];
         process.stdout.write(
@@ -146,7 +169,7 @@ export function main(argv: string[] = process.argv.slice(2)): number {
           process.stdout.write("current: (exhausted — fresh approval required)\n");
         }
       }
-      return 0;
+      return drift.drifted ? 1 : 0;
     }
     if (parsed.action === "clear") {
       const cleared = clearPlanSequence(root);

@@ -6,6 +6,12 @@
  * triage queue continuationNumbers / continuationOrder.
  */
 
+import {
+  detectTerminalEntryDrift,
+  TERMINAL_LIFECYCLE_CODE,
+  type TerminalLifecycleOrigin,
+} from "./terminal-drift.js";
+
 export const PLAN_SEQUENCE_FILENAME = "plan-sequence.json";
 export const PLAN_SEQUENCE_CONTRACT = "ordered-plan-continuation" as const;
 
@@ -45,13 +51,15 @@ export interface PlanSequence {
 export interface PlanSequenceVerifyInput {
   readonly targetKind: PlanTargetKind;
   readonly target: string;
+  /** Folder-scan facts for #4129 terminal-lifecycle drift. Omit or [] for match-only. */
+  readonly terminalOrigins?: readonly TerminalLifecycleOrigin[];
 }
 
 export type PlanSequenceVerifyResult =
   | { readonly ok: true; readonly entry: PlanSequenceEntry; readonly index: number }
   | {
       readonly ok: false;
-      readonly code: "missing" | "exhausted" | "mismatch" | "kind-mismatch";
+      readonly code: "missing" | "exhausted" | "mismatch" | "kind-mismatch" | "terminal-lifecycle";
       readonly message: string;
     };
 
@@ -198,6 +206,14 @@ export function verifyPlanTarget(
       ok: false,
       code: "exhausted",
       message: EXHAUSTED_FAIL_CLOSED_MESSAGE,
+    };
+  }
+  const drift = detectTerminalEntryDrift(sequence, input.terminalOrigins ?? []);
+  if (drift.drifted) {
+    return {
+      ok: false,
+      code: TERMINAL_LIFECYCLE_CODE,
+      message: drift.message,
     };
   }
   if (entry.kind !== input.targetKind) {

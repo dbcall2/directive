@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Ordered-plan current entry fail-closes when its lifecycle origin is already terminal (#4129).** `plan-sequence:current` and `verify:plan-sequence` share one filesystem drift helper: a pending current entry whose origin already sits in `xbrief/completed/` or `cancelled/` (failed stamps included) returns `terminal-lifecycle`, not `mismatch` or `exhausted`. Remediation is operator-reviewed stop/ask, not unattended `plan-sequence:advance`. GitHub-closed without a terminal xBRIEF stays on #3429 / #3476. Solo `swarm:launch` skip and dummy-target cohort admission remain leftover. Tracking #4129.
 - **Exact-miss session:start hint deny names the actual miss (#4793).** Horizontal whitespace no longer blames quoting/redirect/pipe/chain. True pipe, redirect, newline, and chain stay fail-closed and name that miss. Read-only whitespace misses do not demand --session-id. Four-token `deft session:start -- --read-only` stays exact. Tracking #4793.
 - **Leftover pending cannot max-win ceremony size over a stamped active brief (#4795).** When an `xbrief/active/` brief yields a derived clause count, leftover pending is skipped (stamp-gated). Pending still fills as the #3358 proxy when no active file yields a count. Tracking #4795.
 

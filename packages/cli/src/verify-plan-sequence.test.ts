@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -104,6 +104,48 @@ describe("verify-plan-sequence CLI (#2402)", () => {
       const writes = err.mock.calls.map((c) => String(c[0]));
       const exhaustedWrites = writes.filter((w) => w.includes("Starting another item"));
       expect(exhaustedWrites).toHaveLength(1);
+    } finally {
+      err.mockRestore();
+    }
+  });
+
+  it("fail-closes matching current entry whose origin is already completed (#4129)", () => {
+    const root = mkdtempSync(join(tmpdir(), "vps-drift-"));
+    roots.push(root);
+    const file = join(root, "plan.json");
+    writeFileSync(
+      file,
+      JSON.stringify({
+        sequence_id: "drift",
+        sequence_kind: "delivery",
+        authorized_by: "test",
+        entries: [{ id: "287", kind: "issue", issue: 287 }],
+      }),
+    );
+    expect(planSequenceMain(["set", "--project-root", root, "--file", file])).toBe(0);
+    mkdirSync(join(root, "xbrief/completed"), { recursive: true });
+    writeFileSync(
+      join(root, "xbrief/completed/287.xbrief.json"),
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8" },
+        plan: {
+          title: "Done",
+          status: "completed",
+          references: [
+            {
+              uri: "https://github.com/acme/app/issues/287",
+              type: "x-xbrief/github-issue",
+            },
+          ],
+        },
+      }),
+    );
+    const err = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    try {
+      expect(main(["--project-root", root, "--target-kind", "issue", "--target", "287"])).toBe(1);
+      const text = err.mock.calls.map((c) => String(c[0])).join("");
+      expect(text).toContain("Do not run task plan-sequence:advance until");
+      expect(text).not.toContain("is not the current ordered-plan entry");
     } finally {
       err.mockRestore();
     }

@@ -5,6 +5,7 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  collectTerminalLifecycleOrigins,
   type PlanTargetKind,
   readPlanSequence,
   verifyPlanTarget,
@@ -118,6 +119,7 @@ export function main(argv: string[] = process.argv.slice(2)): number {
   const result = verifyPlanTarget(seq, {
     targetKind: parsed.targetKind,
     target: parsed.target,
+    terminalOrigins: collectTerminalLifecycleOrigins(resolve(parsed.projectRoot)),
   });
   if (parsed.emitJson) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

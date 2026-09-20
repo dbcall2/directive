@@ -5,6 +5,17 @@ export {
   writePlanSequence,
 } from "./store.js";
 export {
+  detectTerminalEntryDrift,
+  formatTerminalLifecycleDriftMessage,
+  type PlanEntryOriginKey,
+  type PlanEntryOriginResolution,
+  resolvePlanEntryLifecycleOrigin,
+  TERMINAL_LIFECYCLE_CODE,
+  type TerminalEntryDriftResult,
+  type TerminalLifecycleOrigin,
+} from "./terminal-drift.js";
+export { collectTerminalLifecycleOrigins } from "./terminal-drift-scan.js";
+export {
   advancePlanSequence,
   type ContinuationResolution,
   createPlanSequence,
