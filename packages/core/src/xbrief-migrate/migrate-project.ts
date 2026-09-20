@@ -1,21 +1,31 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
-import { containedRemove, containedWrite } from "../fs/contained-write.js";
+import { basename, dirname, join, relative, resolve } from "node:path";
+import { containedRemove, containedRename, containedWrite } from "../fs/contained-write.js";
 import { assertWriteTargetSafe, ProjectionContainmentError } from "../fs/projection-containment.js";
 import { checkGitClean } from "../migrate-preflight/index.js";
 import { applyAgentsRefresh } from "../platform/agents-md.js";
+import { validateVbriefSchema } from "../vbrief-validate/schema.js";
 import { patchAgentsMdHeader, renderHeaderPatchSummary } from "./agents-header.js";
 import {
   LEGACY_ARTIFACT_DIR,
   LEGACY_ARTIFACT_SUFFIX,
+  LEGACY_INFO_ROOT_KEY,
   LEGACY_VBRIEF_VERSION,
   MIGRATED_ARTIFACT_DIR,
   MIGRATED_ARTIFACT_SUFFIX,
+  MIGRATED_INFO_ROOT_KEY,
   OBSOLETE_FRAMEWORK_NARRATIVE_FILENAME,
   VBRIEF_DEPRECATION_MARKER_BODY,
   VBRIEF_DEPRECATION_MARKER_FILENAME,
+  VBRIEF_VERSION,
 } from "./constants.js";
+import { deleteTopLevelJsonKey } from "./delete-top-level-json-key.js";
 import { detectLegacyVbriefLayout, detectXbriefConvergence } from "./detect.js";
+import {
+  evaluateXbriefDrift,
+  inMemoryCorpusEnvelopeIsDirty,
+  isCorpusEnvelopeCandidatePath,
+} from "./drift-gate.js";
 import { hasVbriefDeprecationMarker, isDirectory, isEffectivelyEmptyDir } from "./fs-helpers.js";
 import { assertMigrationSourceSafe } from "./migration-containment.js";
 import { renderXbriefMigrationLine, xbriefMigrationGuidance } from "./signpost.js";
@@ -198,6 +208,284 @@ function applyHybridEnvelopeRewrites(
     });
   }
   return pending.length;
+}
+
+function isPlainJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function jsonFieldsEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return a === b;
+  if (typeof a !== typeof b) return false;
+  if (typeof a !== "object") return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((v, i) => jsonFieldsEqual(v, b[i]));
+  }
+  const ao = a as JsonObject;
+  const bo = b as JsonObject;
+  const keys = Object.keys(ao);
+  if (keys.length !== Object.keys(bo).length) return false;
+  return keys.every((key) => Object.hasOwn(bo, key) && jsonFieldsEqual(ao[key], bo[key]));
+}
+
+/**
+ * Leftover `vBRIEFInfo` is redundant iff every field is either `version: "0.6"`
+ * or already present and equal on the canonical 0.8 object. Field disagreement
+ * fails closed the same way dual-populated refuses a merge (#4163).
+ */
+export function legacyInfoIsRedundantWithCanonical(legacy: unknown, canonical: unknown): boolean {
+  if (!isPlainJsonObject(legacy) || !isPlainJsonObject(canonical)) return false;
+  for (const [key, value] of Object.entries(legacy)) {
+    if (key === "version" && value === LEGACY_VBRIEF_VERSION) continue;
+    if (!Object.hasOwn(canonical, key)) return false;
+    if (!jsonFieldsEqual(value, canonical[key])) return false;
+  }
+  return true;
+}
+
+function omitLegacyInfoKey(parsed: JsonObject): JsonObject {
+  const stripped: JsonObject = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (key === LEGACY_INFO_ROOT_KEY) continue;
+    stripped[key] = value;
+  }
+  return stripped;
+}
+
+type StripRewrite = {
+  readonly path: string;
+  readonly body: string;
+  readonly original: string;
+};
+
+/**
+ * Plan in-place leftover-`vBRIEFInfo` strips for the same candidate set as
+ * `scanCorpusEnvelope` (#4163). Beside {@link planHybridEnvelopeRewrites}, not
+ * through `transformArtifactV06ToV08`. Pure probe — no writes. Bodies are
+ * original file bytes with only the leftover key deleted.
+ */
+export function planRedundantLegacyEnvelopeStrips(
+  projectRoot: string,
+): { ok: true; pending: ReadonlyArray<StripRewrite> } | { ok: false; error: string } {
+  const migratedDir = join(projectRoot, MIGRATED_ARTIFACT_DIR);
+  const artifactPaths = collectFiles(migratedDir).filter((path) =>
+    path.endsWith(MIGRATED_ARTIFACT_SUFFIX),
+  );
+  const pending: StripRewrite[] = [];
+
+  for (const filePath of artifactPaths) {
+    const rel = relative(projectRoot, filePath).replace(/\\/g, "/");
+    if (!isCorpusEnvelopeCandidatePath(rel)) continue;
+
+    let original: string;
+    let parsed: JsonObject;
+    try {
+      original = readFileSync(filePath, "utf8");
+      parsed = JSON.parse(original) as JsonObject;
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return {
+        ok: false,
+        error: `failed to parse leftover-envelope candidate ${rel}: ${detail}`,
+      };
+    }
+    if (!isPlainJsonObject(parsed) || !Object.hasOwn(parsed, LEGACY_INFO_ROOT_KEY)) {
+      continue;
+    }
+
+    const canonical = parsed[MIGRATED_INFO_ROOT_KEY];
+    if (!isPlainJsonObject(canonical) || canonical.version !== VBRIEF_VERSION) {
+      return {
+        ok: false,
+        error:
+          `non-redundant dual envelope ${rel}: leftover ${LEGACY_INFO_ROOT_KEY} beside ` +
+          `${MIGRATED_INFO_ROOT_KEY} that is not @${VBRIEF_VERSION} (refuse merge)`,
+      };
+    }
+    if (!legacyInfoIsRedundantWithCanonical(parsed[LEGACY_INFO_ROOT_KEY], canonical)) {
+      return {
+        ok: false,
+        error:
+          `non-redundant dual envelope ${rel}: leftover ${LEGACY_INFO_ROOT_KEY} disagrees ` +
+          `with ${MIGRATED_INFO_ROOT_KEY} (refuse merge)`,
+      };
+    }
+
+    const stripped = omitLegacyInfoKey(parsed);
+    const schemaErrors = validateVbriefSchema(stripped, rel);
+    if (schemaErrors.length > 0) {
+      return {
+        ok: false,
+        error: `post-strip schema invalid for ${rel}: ${schemaErrors.join("; ")}`,
+      };
+    }
+    if (inMemoryCorpusEnvelopeIsDirty(stripped)) {
+      return {
+        ok: false,
+        error: `post-strip envelope still dirty for ${rel}`,
+      };
+    }
+
+    const deleted = deleteTopLevelJsonKey(original, LEGACY_INFO_ROOT_KEY);
+    if (!deleted.ok) {
+      return {
+        ok: false,
+        error: `failed to delete leftover ${LEGACY_INFO_ROOT_KEY} from original bytes of ${rel}: ${deleted.error}`,
+      };
+    }
+
+    pending.push({
+      path: filePath,
+      body: deleted.body,
+      original,
+    });
+  }
+
+  return { ok: true, pending };
+}
+
+function stripRewriteRel(projectRoot: string, filePath: string): string {
+  return relative(projectRoot, filePath).replace(/\\/g, "/");
+}
+
+function stripAtomicTempPath(targetPath: string): string {
+  return join(dirname(targetPath), `${basename(targetPath)}.deft-${process.pid}.tmp`);
+}
+
+/** Contained temp+rename so a failed replace cannot truncate the live file. */
+function containedReplaceAtomic(
+  root: string,
+  target: string,
+  data: string,
+): { ok: true } | { ok: false; error: string } {
+  const temporary = stripAtomicTempPath(target);
+  try {
+    containedWrite({
+      root,
+      target: temporary,
+      data,
+      mode: "replace",
+      mutation: { path: target },
+    });
+    containedRename({
+      root,
+      from: temporary,
+      to: target,
+      mutation: false,
+    });
+    return { ok: true };
+  } catch (err) {
+    try {
+      containedRemove({ root, target: temporary, mutation: false });
+    } catch {
+      /* best-effort temp cleanup */
+    }
+    const detail = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: detail };
+  }
+}
+
+function stripRestoreSet(
+  written: ReadonlyArray<StripRewrite>,
+  inFlight: StripRewrite | undefined,
+): StripRewrite[] {
+  if (inFlight === undefined) return [...written];
+  if (written.some((entry) => entry.path === inFlight.path)) return [...written];
+  return [...written, inFlight];
+}
+
+function formatStripRestoreFailures(restoreFailures: ReadonlyArray<string>): string {
+  if (restoreFailures.length === 0) return "";
+  return `; restore also failed: ${restoreFailures.join("; ")}`;
+}
+
+/** Restore originals; never throw — caller includes failures in the returned error. */
+function restoreStripOriginals(
+  projectRoot: string,
+  entries: ReadonlyArray<StripRewrite>,
+): string[] {
+  const root = resolve(projectRoot);
+  const failures: string[] = [];
+  for (const entry of entries) {
+    const restored = containedReplaceAtomic(root, entry.path, entry.original);
+    if (!restored.ok) {
+      failures.push(`${stripRewriteRel(projectRoot, entry.path)}: ${restored.error}`);
+    }
+  }
+  return failures;
+}
+
+function rollbackStripWrites(
+  projectRoot: string,
+  written: ReadonlyArray<StripRewrite>,
+  inFlight: StripRewrite | undefined,
+  detail: string,
+): { ok: false; error: string } {
+  const restoreFailures = restoreStripOriginals(projectRoot, stripRestoreSet(written, inFlight));
+  return {
+    ok: false,
+    error: `leftover-envelope strip write failed: ${detail}${formatStripRestoreFailures(restoreFailures)}`,
+  };
+}
+
+/**
+ * Write planned leftover-envelope strips via contained temp+rename only after
+ * every body is planned. Record the current file before replacing it. Restore
+ * that file plus prior writes on failure; restore errors are returned (#4163).
+ */
+function applyRedundantLegacyEnvelopeStrips(
+  projectRoot: string,
+  pending: ReadonlyArray<StripRewrite>,
+): { ok: true; files: number } | { ok: false; error: string } {
+  const pre = evaluateXbriefDrift(projectRoot, { quiet: true });
+  if (pre.code === 2) {
+    return { ok: false, error: pre.message.trim() };
+  }
+  const plannedRels = new Set(pending.map((entry) => stripRewriteRel(projectRoot, entry.path)));
+  const leftover = pre.findings.filter(
+    (finding) => !(finding.kind === "legacy-envelope-key" && plannedRels.has(finding.path)),
+  );
+  if (leftover.length > 0) {
+    return {
+      ok: false,
+      error:
+        pre.message.trim() ||
+        "evaluateXbriefDrift has findings the leftover-envelope strip would not clear",
+    };
+  }
+
+  const root = resolve(projectRoot);
+  const written: StripRewrite[] = [];
+  let inFlight: StripRewrite | undefined;
+  try {
+    for (const entry of pending) {
+      inFlight = entry;
+      const replaced = containedReplaceAtomic(root, entry.path, entry.body);
+      if (!replaced.ok) {
+        return rollbackStripWrites(projectRoot, written, inFlight, replaced.error);
+      }
+      written.push(entry);
+      inFlight = undefined;
+    }
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return rollbackStripWrites(projectRoot, written, inFlight, detail);
+  }
+
+  const post = evaluateXbriefDrift(projectRoot, { quiet: true });
+  if (post.code !== 0) {
+    const restoreFailures = restoreStripOriginals(projectRoot, written);
+    return {
+      ok: false,
+      error: `${
+        post.message.trim() ||
+        "post-strip evaluateXbriefDrift still red on the drift-gate candidate set"
+      }${formatStripRestoreFailures(restoreFailures)}`,
+    };
+  }
+  return { ok: true, files: pending.length };
 }
 
 function backupMigrationInputs(
@@ -433,6 +721,31 @@ export function runXbriefMigration(
         kind: "rewritten",
         files,
         message: `Rewrote ${files} hybrid xBRIEFInfo@0.6 envelope(s) in place to xBRIEFInfo@0.8 under '${MIGRATED_ARTIFACT_DIR}/'.`,
+      };
+    }
+
+    const strip = planRedundantLegacyEnvelopeStrips(projectRoot);
+    if (!strip.ok) {
+      return { kind: "config", message: strip.error };
+    }
+    if (strip.pending.length > 0) {
+      if (!args.force) {
+        const git = checkGitClean(projectRoot);
+        if (git.status === "WARN") {
+          return {
+            kind: "refused",
+            message: `${git.message} ${xbriefMigrationGuidance()} Pass --force to override.`,
+          };
+        }
+      }
+      const applied = applyRedundantLegacyEnvelopeStrips(projectRoot, strip.pending);
+      if (!applied.ok) {
+        return { kind: "config", message: applied.error };
+      }
+      return {
+        kind: "rewritten",
+        files: applied.files,
+        message: `Stripped ${applied.files} redundant leftover vBRIEFInfo envelope(s) beside xBRIEFInfo@0.8 under '${MIGRATED_ARTIFACT_DIR}/'.`,
       };
     }
   }

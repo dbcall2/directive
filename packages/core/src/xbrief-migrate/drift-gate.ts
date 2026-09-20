@@ -98,6 +98,21 @@ function isLifecycleFolderPath(relPath: string): boolean {
   return LIFECYCLE_FOLDER_PREFIXES.some((prefix) => relPath.startsWith(prefix));
 }
 
+/**
+ * Path predicate for the envelope scan inside {@link evaluateXbriefDrift}:
+ * canonical xbrief corpus `.xbrief.json` outside lifecycle folders and the
+ * built-in allowlist. Root `specification.xbrief.json` / `plan.xbrief.json`
+ * are in; `xbrief/completed/` stays historical (#4086 / #4163).
+ */
+export function isCorpusEnvelopeCandidatePath(relPath: string): boolean {
+  const rel = relPath.replace(/\\/g, "/");
+  if (isAllowListed(rel, BUILTIN_ALLOW_LIST)) return false;
+  if (!rel.startsWith(`${MIGRATED_ARTIFACT_DIR}/`) || !rel.endsWith(MIGRATED_ARTIFACT_SUFFIX)) {
+    return false;
+  }
+  return !isLifecycleFolderPath(rel);
+}
+
 export interface DriftEvaluateOptions {
   readonly mode?: DriftScanMode;
   readonly allowListPath?: string | null;
@@ -188,20 +203,15 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Envelope-key/version predicate for correctly named `*.xbrief.json` (#4086). */
-export function scanCorpusEnvelope(relPath: string, fullPath: string): DriftFinding | null {
-  let raw: string;
-  try {
-    raw = readFileSync(fullPath, { encoding: "utf8" });
-  } catch {
-    return null;
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return null;
-  }
+/**
+ * Envelope-key/version conditions already inside {@link scanCorpusEnvelope},
+ * applied to an in-memory object. I/O and parse failures are not this helper
+ * — those stay path-scanner `null` (#4163).
+ */
+export function corpusEnvelopeFindingFromObject(
+  relPath: string,
+  parsed: unknown,
+): DriftFinding | null {
   if (!isPlainObject(parsed)) return null;
   if (Object.hasOwn(parsed, LEGACY_INFO_ROOT_KEY)) {
     return {
@@ -221,6 +231,32 @@ export function scanCorpusEnvelope(relPath: string, fullPath: string): DriftFind
     };
   }
   return null;
+}
+
+/**
+ * Write-gate form of the envelope predicate: a non-object is dirty (fail
+ * closed). Detector-`null` from a missing path is not a pass (#4163).
+ */
+export function inMemoryCorpusEnvelopeIsDirty(parsed: unknown): boolean {
+  if (!isPlainObject(parsed)) return true;
+  return corpusEnvelopeFindingFromObject("", parsed) !== null;
+}
+
+/** Envelope-key/version predicate for correctly named `*.xbrief.json` (#4086). */
+export function scanCorpusEnvelope(relPath: string, fullPath: string): DriftFinding | null {
+  let raw: string;
+  try {
+    raw = readFileSync(fullPath, { encoding: "utf8" });
+  } catch {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  return corpusEnvelopeFindingFromObject(relPath, parsed);
 }
 
 export function evaluateXbriefDrift(

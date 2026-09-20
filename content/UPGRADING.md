@@ -405,6 +405,8 @@ Folder rename (`vbrief/` → `xbrief/`, `*.vbrief.json` → `*.xbrief.json`) and
 
 It is common after a manual folder rename or when agents stamp the current key name while copying old `0.6` examples. `transformArtifactV06ToV08` / `deft migrate:xbrief` accept **either** classic `vBRIEFInfo@0.6` **or** hybrid `xBRIEFInfo@0.6` and emit `xBRIEFInfo@0.8` (with path/token rewrites). A second pass is idempotent. Layout migration alone does not imply envelope migration — re-run `deft migrate:xbrief` (or rely on schema-distance / staleness prompts) until declared version is `0.8`.
 
+A leftover `vBRIEFInfo` key beside a complete `xBRIEFInfo@0.8` on an already-`xbrief/` tree (typical on root `specification.xbrief.json` / `plan.xbrief.json`) is a different shape: `migrate:xbrief` strips that leftover in place when every leftover field is `version: "0.6"` or already equal on the 0.8 object. The leftover key is deleted from the original file bytes; compact and tab-indented envelopes stay otherwise byte-identical. Each replace is a contained temp+rename. A failed write or drift postcondition restores the current file plus prior writes; restore errors are returned rather than thrown. Non-redundant dual envelopes refuse. Historical `xbrief/completed/` records stay as-is (#4163).
+
 ### AGENTS.md: managed vs unmanaged header (#2154)
 
 `migrate:xbrief` touches your `AGENTS.md` in two distinct regions:
