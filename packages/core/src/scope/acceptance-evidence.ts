@@ -628,6 +628,8 @@ export function stampDeclaredTestEvidence(
 
 export interface PersistClauseKeyedPendingItemsResult {
   readonly addedIds: readonly string[];
+  /** Leftover `clause:N` ids rewritten to `clause.N`. Not new mints. */
+  readonly rewrittenIds: readonly string[];
 }
 
 /**
@@ -639,9 +641,9 @@ export function persistClauseKeyedPendingItems(
 ): PersistClauseKeyedPendingItemsResult {
   const clauses = readAcceptanceClauses(plan.acceptance);
   const items = Array.isArray(plan.items) ? plan.items : [];
-  rewriteLegacyClauseKeyedItemIds(items);
+  const rewrittenIds = rewriteLegacyClauseKeyedItemIds(items);
   if (clauses.length === 0) {
-    return { addedIds: [] };
+    return { addedIds: [], rewrittenIds };
   }
   if (!Array.isArray(plan.items)) {
     plan.items = items;
@@ -662,7 +664,7 @@ export function persistClauseKeyedPendingItems(
     keys.add(id);
     addedIds.push(id);
   }
-  return { addedIds };
+  return { addedIds, rewrittenIds };
 }
 
 export interface ScopeStatusInput {
@@ -735,9 +737,9 @@ function findClauseKeyedItem(items: unknown, clauseId: number): Record<string, u
   );
 }
 
-function rewriteLegacyClauseKeyedItemIds(items: unknown): void {
+function rewriteLegacyClauseKeyedItemIds(items: unknown, rewrittenIds: string[] = []): string[] {
   if (!Array.isArray(items)) {
-    return;
+    return rewrittenIds;
   }
   for (const item of items) {
     if (item === null || typeof item !== "object" || Array.isArray(item)) {
@@ -753,11 +755,13 @@ function rewriteLegacyClauseKeyedItemIds(items: unknown): void {
           obj.title = next;
         }
         obj.id = next;
+        rewrittenIds.push(next);
       }
     }
-    rewriteLegacyClauseKeyedItemIds(obj.subItems);
-    rewriteLegacyClauseKeyedItemIds(obj.items);
+    rewriteLegacyClauseKeyedItemIds(obj.subItems, rewrittenIds);
+    rewriteLegacyClauseKeyedItemIds(obj.items, rewrittenIds);
   }
+  return rewrittenIds;
 }
 
 export function evaluateScopeStatus(

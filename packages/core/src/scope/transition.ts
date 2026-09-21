@@ -337,7 +337,8 @@ export function runTransition(
   let acceptanceListing = "";
   if (act === "complete" && options.skipAcceptanceEvidenceGate !== true) {
     const persist = persistClauseKeyedPendingItems(planObj);
-    if (persist.addedIds.length > 0) {
+    // Rewrite-only leftover clause:N must land before the evidence gate can refuse.
+    if (persist.addedIds.length > 0 || persist.rewrittenIds.length > 0) {
       const persistWrite = atomicWriteBrief(resolvedPath, data, vbriefRoot, { projectRoot });
       if (!persistWrite.ok) {
         return { ok: false, message: persistWrite.message };

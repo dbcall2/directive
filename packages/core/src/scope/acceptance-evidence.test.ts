@@ -1154,7 +1154,9 @@ describe("#4385 clause-keyed complete persist and scope:status", () => {
         ],
       },
     };
-    expect(persistClauseKeyedPendingItems(plan).addedIds).toEqual([]);
+    const persist = persistClauseKeyedPendingItems(plan);
+    expect(persist.addedIds).toEqual([]);
+    expect(persist.rewrittenIds).toEqual([clauseKeyedItemId(1), clauseKeyedItemId(2)]);
     expect(plan.items).toEqual([
       { id: clauseKeyedItemId(1), title: clauseKeyedItemId(1), status: "pending" },
       { id: clauseKeyedItemId(2), title: "Keep complete a pure check", status: "pending" },
@@ -1177,7 +1179,9 @@ describe("#4385 clause-keyed complete persist and scope:status", () => {
     expect(stampDeclaredTestEvidence(before, { recorded_by: "leftover" }).skipped[0]?.reason).toBe(
       "already-stamped",
     );
-    expect(persistClauseKeyedPendingItems(before).addedIds).toEqual([]);
+    const persist = persistClauseKeyedPendingItems(before);
+    expect(persist.addedIds).toEqual([]);
+    expect(persist.rewrittenIds).toEqual([clauseKeyedItemId(1)]);
     expect(leftover.id).toBe(clauseKeyedItemId(1));
     expect(leftover.title).toBe(clauseKeyedItemId(1));
   });
@@ -1685,6 +1689,27 @@ describe("#4732 ingest/promote clause-id bind and declared test stamp", () => {
     };
     expect(parsed.plan.items).toHaveLength(1);
     expect(parsed.plan.items[0]?.[ACCEPTANCE_EVIDENCE_KEY]).toBeUndefined();
+  });
+
+  it("complete persists leftover clause:N rewrite when addedIds is empty (#4707)", () => {
+    root = makeRepo();
+    const file = writeActive(
+      root,
+      "leftover-colon.xbrief.json",
+      [{ id: "clause:1", title: "clause:1", status: "pending" }],
+      {
+        acceptance: { clauses: [clause(1, "Change prefix", declaredPath)] },
+      },
+    );
+    const result = runTransition("complete", file);
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/Acceptance evidence required|#3240/);
+    const parsed = JSON.parse(readFileSync(file, "utf8")) as {
+      plan: { items: Array<{ id?: string; title?: string }> };
+    };
+    expect(parsed.plan.items[0]?.id).toBe(clauseKeyedItemId(1));
+    expect(parsed.plan.items[0]?.title).toBe(clauseKeyedItemId(1));
+    expect(existsSync(join(root, "xbrief", "completed", "leftover-colon.xbrief.json"))).toBe(false);
   });
 
   it("promotePath binds harvest item ids to clause ids", () => {
