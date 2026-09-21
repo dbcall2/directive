@@ -11,8 +11,13 @@
  */
 
 import { type PainCite, scanPainCites } from "./citation-grammar.js";
-import { isSuccessorLeanBody } from "./completed-arc-record.js";
-import { extractOperativeAuditTargets } from "./parent-audit.js";
+import {
+  criticEnvelopes,
+  isSuccessorLeanBody,
+  type ThreadComment,
+} from "./completed-arc-record.js";
+import { evaluateDualStopReservedSlot } from "./handoff.js";
+import { extractOperativeAuditTargets, painMarkerId } from "./parent-audit.js";
 
 export type PainAuditFindingClass = "blocking" | "sharpening" | "footnote";
 
@@ -290,6 +295,60 @@ export function evaluateDualStopPostBudget(input: {
     postsRemaining: Math.max(0, numberedCap - postsUsed),
     refilled: false,
     notation: "posts",
+  };
+}
+
+/**
+ * Reserved-slot use from critic envelopes after the earliest asserted-coverage
+ * successor lean. Filter auditTargets to painMarkerId of asserted ids. Do not
+ * use declaredNone or .length. Do not reset on a later Recut-supersedes lean.
+ */
+export function deriveReservedPainAuditPostsUsed(input: {
+  readonly comments: readonly ThreadComment[];
+  readonly afterCommentId: number;
+  readonly assertedPainIds: readonly string[];
+}): number {
+  const markers = new Set(input.assertedPainIds.map(painMarkerId));
+  return criticEnvelopes(input.comments, input.afterCommentId).filter((envelope) =>
+    envelope.auditTargets.some((target) => markers.has(target)),
+  ).length;
+}
+
+export type DualStopParentPathVerdict = {
+  readonly postsRemaining: number;
+  readonly inCapWithoutRaise: boolean;
+  readonly admit: boolean;
+};
+
+/**
+ * Parent-facing Dual-stop: numbered remaining OR the existing reserved slot.
+ * Does not fold reserved into numbered postsRemaining.
+ */
+export function evaluateDualStopParentPath(input: {
+  readonly spendSeats: number;
+  readonly criticPostsUsed: number;
+  readonly operatorRaisedCap: number | null;
+  readonly afterHandoff: boolean;
+  readonly mapCarriesAssertedPainCoverage: boolean;
+  readonly reservedPainAuditPostsUsed: number;
+}): DualStopParentPathVerdict {
+  const budget = evaluateDualStopPostBudget({
+    spendSeats: input.spendSeats,
+    criticPostsUsed: input.criticPostsUsed,
+    operatorRaisedCap: input.operatorRaisedCap,
+    afterHandoff: input.afterHandoff,
+  });
+  const reserved = evaluateDualStopReservedSlot({
+    numberedCap: budget.numberedCap,
+    criticPostsUsed: input.criticPostsUsed,
+    mapCarriesAssertedPainCoverage: input.mapCarriesAssertedPainCoverage,
+    reservedPainAuditPostsUsed: input.reservedPainAuditPostsUsed,
+    operatorRaisedCap: input.operatorRaisedCap !== null,
+  });
+  return {
+    postsRemaining: budget.postsRemaining,
+    inCapWithoutRaise: reserved.inCapWithoutRaise,
+    admit: budget.postsRemaining > 0 || reserved.inCapWithoutRaise,
   };
 }
 

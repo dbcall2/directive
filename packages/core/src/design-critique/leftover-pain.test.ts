@@ -5,9 +5,11 @@ import { evaluateCompletedArcRecord, type ThreadComment } from "./completed-arc-
 import {
   assertedPainIdsFromCites,
   bindLeanPredecessorValid,
+  deriveReservedPainAuditPostsUsed,
   dualStopCapNotation,
   evaluateBoundRemedyCites,
   evaluateContinueRemainder,
+  evaluateDualStopParentPath,
   evaluateDualStopPostBudget,
   evaluateFinishStillPossible,
   evaluatePainAuditDispatchFill,
@@ -294,6 +296,95 @@ describe("yolo leftover-pain handling (#4593)", () => {
     });
     expect(n3.numberedCap).toBe(3);
     expect(n3.postsRemaining).toBe(0);
+  });
+
+  it("admits leftover-pain Dual-stop parent path as numbered remaining OR reserved slot (#4522)", () => {
+    const spentAsserted = {
+      spendSeats: 3,
+      criticPostsUsed: 3,
+      operatorRaisedCap: null,
+      afterHandoff: false,
+      mapCarriesAssertedPainCoverage: true,
+    };
+    expect(
+      evaluateDualStopParentPath({
+        ...spentAsserted,
+        reservedPainAuditPostsUsed: 0,
+      }),
+    ).toEqual({
+      postsRemaining: 0,
+      inCapWithoutRaise: true,
+      admit: true,
+    });
+    expect(
+      evaluateDualStopParentPath({
+        ...spentAsserted,
+        reservedPainAuditPostsUsed: 1,
+      }),
+    ).toEqual({
+      postsRemaining: 0,
+      inCapWithoutRaise: false,
+      admit: false,
+    });
+    expect(
+      evaluateDualStopParentPath({
+        ...spentAsserted,
+        mapCarriesAssertedPainCoverage: false,
+        reservedPainAuditPostsUsed: 0,
+      }).admit,
+    ).toBe(false);
+  });
+
+  it("derives reserved-slot use from criticEnvelopes after the earliest asserted lean (#4522)", () => {
+    const earliest: ThreadComment = {
+      id: 10,
+      body: "**Lean:** bind.\n\nrelieves: P1\n",
+    };
+    const firstAudit: ThreadComment = {
+      id: 20,
+      body: "model: grok-4.6\nrole: critic\n\naudit-targets: pain-P1\n",
+    };
+    const recut: ThreadComment = {
+      id: 30,
+      body: "**Lean:** Recut-supersedes 10.\n\nrelieves: P1\n",
+    };
+    const declaredNone: ThreadComment = {
+      id: 15,
+      body: "model: grok-4.6\nrole: critic\n\naudit-targets: none\n",
+    };
+    const otherMarker: ThreadComment = {
+      id: 16,
+      body: "model: grok-4.6\nrole: critic\n\naudit-targets: pain-P2\n",
+    };
+    const comments = [earliest, declaredNone, otherMarker, firstAudit, recut];
+    expect(
+      deriveReservedPainAuditPostsUsed({
+        comments,
+        afterCommentId: earliest.id,
+        assertedPainIds: ["P1"],
+      }),
+    ).toBe(1);
+    expect(
+      deriveReservedPainAuditPostsUsed({
+        comments,
+        afterCommentId: recut.id,
+        assertedPainIds: ["P1"],
+      }),
+    ).toBe(0);
+    expect(
+      evaluateDualStopParentPath({
+        spendSeats: 3,
+        criticPostsUsed: 3,
+        operatorRaisedCap: null,
+        afterHandoff: false,
+        mapCarriesAssertedPainCoverage: true,
+        reservedPainAuditPostsUsed: deriveReservedPainAuditPostsUsed({
+          comments,
+          afterCommentId: earliest.id,
+          assertedPainIds: ["P1"],
+        }),
+      }).admit,
+    ).toBe(false);
   });
 
   it("computes asserted coverage as relieves plus different-issue deferred", () => {

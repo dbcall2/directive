@@ -337,7 +337,7 @@ function latestStop1(comments: readonly ThreadComment[]): ThreadComment | undefi
   return latest;
 }
 
-function criticEnvelopes(
+export function criticEnvelopes(
   comments: readonly ThreadComment[],
   afterCommentId: number,
 ): AuditEnvelope[] {

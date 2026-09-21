@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **N=3 Dual-stop leftover-pain parent path admits the reserved pain-audit slot (#4522).** Parent-facing Dual-stop is numbered remaining OR `inCapWithoutRaise`. leftover-pain `evaluateDualStopParentPath` calls existing `evaluateDualStopReservedSlot`. Dual-stop fourth-post prose no longer says a fourth post always needs a raise. Reserved-slot use comes from exported `criticEnvelopes` after the earliest asserted-coverage successor lean. Live parent turns stay unenforced. Closes #4522.
+
 ### Removed
 
 ## [0.119.6] - 2026-09-20
