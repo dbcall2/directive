@@ -14,6 +14,7 @@ import { type PainCite, scanPainCites } from "./citation-grammar.js";
 import {
   criticEnvelopes,
   isSuccessorLeanBody,
+  latestCancelled,
   type ThreadComment,
 } from "./completed-arc-record.js";
 import { evaluateDualStopReservedSlot } from "./handoff.js";
@@ -302,6 +303,7 @@ export function evaluateDualStopPostBudget(input: {
  * Reserved-slot use from critic envelopes after the earliest asserted-coverage
  * successor lean. Filter auditTargets to painMarkerId of asserted ids. Do not
  * use declaredNone or .length. Do not reset on a later Recut-supersedes lean.
+ * Stop the search and audit count at the current arc's cancelled boundary.
  */
 export function deriveReservedPainAuditPostsUsed(input: {
   readonly comments: readonly ThreadComment[];
@@ -309,9 +311,14 @@ export function deriveReservedPainAuditPostsUsed(input: {
   readonly assertedPainIds: readonly string[];
 }): number {
   const markers = new Set(input.assertedPainIds.map(painMarkerId));
+  const cancel = latestCancelled(
+    input.comments.filter((comment) => comment.id < input.afterCommentId),
+  );
+  const cancelId = cancel?.id;
   let afterCommentId = input.afterCommentId;
   for (const comment of input.comments) {
     if (comment.id >= afterCommentId) continue;
+    if (cancelId !== undefined && comment.id <= cancelId) continue;
     if (!isSuccessorLeanBody(comment.body)) continue;
     if (!mapCarriesAssertedPainCoverage(comment.body, input.assertedPainIds, undefined)) {
       continue;

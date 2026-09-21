@@ -1432,6 +1432,9 @@ describe("design-critique contract + brief template + thin skill (#3434)", () =>
     expect(leftover).toContain("painMarkerId");
     expect(leftover).toContain("Do not reset when a later map Recut-supersedes");
     expect(leftover).toContain(
+      "Stop the search and audit count at the current arc's `design-critique: cancelled` boundary",
+    );
+    expect(leftover).toContain(
       "does not confirm the split, waive pain coverage, or confirm Handoff",
     );
     expect(leftover).toContain("blocking findings is not relief");

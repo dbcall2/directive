@@ -286,7 +286,8 @@ function hasOperativeCancelledShape(body: string): boolean {
   return false;
 }
 
-function latestCancelled(comments: readonly ThreadComment[]): ThreadComment | undefined {
+/** Latest operative parent/triage `design-critique: cancelled, because ...`. */
+export function latestCancelled(comments: readonly ThreadComment[]): ThreadComment | undefined {
   let latest: ThreadComment | undefined;
   for (const comment of comments) {
     if (!isParentOrTriageAuthority(comment.body)) continue;

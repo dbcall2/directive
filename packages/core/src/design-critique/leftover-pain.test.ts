@@ -400,6 +400,49 @@ describe("yolo leftover-pain handling (#4593)", () => {
     ).toBe(false);
   });
 
+  it("does not count a cancelled prior arc's pain-audit as reserved-slot use (#4522)", () => {
+    const priorLean: ThreadComment = {
+      id: 10,
+      body: "**Lean:** bind.\n\nrelieves: P1\n",
+    };
+    const priorAudit: ThreadComment = {
+      id: 20,
+      body: "model: grok-4.6\nrole: critic\n\naudit-targets: pain-P1\n",
+    };
+    const cancelled: ThreadComment = {
+      id: 25,
+      body: "model: grok-4.6\nrole: parent\n\ndesign-critique: cancelled, because dominated\n",
+    };
+    const currentLean: ThreadComment = {
+      id: 30,
+      body: "**Lean:** bind.\n\nrelieves: P1\n",
+    };
+    const currentAudit: ThreadComment = {
+      id: 35,
+      body: "model: grok-4.6\nrole: critic\n\naudit-targets: pain-P1\n",
+    };
+    const recut: ThreadComment = {
+      id: 40,
+      body: "**Lean:** Recut-supersedes 30.\n\nrelieves: P1\n",
+    };
+    const comments = [priorLean, priorAudit, cancelled, currentLean];
+    expect(
+      deriveReservedPainAuditPostsUsed({
+        comments,
+        afterCommentId: currentLean.id,
+        assertedPainIds: ["P1"],
+      }),
+    ).toBe(0);
+    const sameArc = [priorLean, priorAudit, cancelled, currentLean, currentAudit, recut];
+    expect(
+      deriveReservedPainAuditPostsUsed({
+        comments: sameArc,
+        afterCommentId: recut.id,
+        assertedPainIds: ["P1"],
+      }),
+    ).toBe(1);
+  });
+
   it("computes asserted coverage as relieves plus different-issue deferred", () => {
     const relieves = "**Lean:** bind.\n\nrelieves: P1\n";
     const deferred = "**Lean:** bind.\n\noperator-deferred: P1 #4602\n";
