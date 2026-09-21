@@ -309,7 +309,16 @@ export function deriveReservedPainAuditPostsUsed(input: {
   readonly assertedPainIds: readonly string[];
 }): number {
   const markers = new Set(input.assertedPainIds.map(painMarkerId));
-  return criticEnvelopes(input.comments, input.afterCommentId).filter((envelope) =>
+  let afterCommentId = input.afterCommentId;
+  for (const comment of input.comments) {
+    if (comment.id >= afterCommentId) continue;
+    if (!isSuccessorLeanBody(comment.body)) continue;
+    if (!mapCarriesAssertedPainCoverage(comment.body, input.assertedPainIds, undefined)) {
+      continue;
+    }
+    afterCommentId = comment.id;
+  }
+  return criticEnvelopes(input.comments, afterCommentId).filter((envelope) =>
     envelope.auditTargets.some((target) => markers.has(target)),
   ).length;
 }

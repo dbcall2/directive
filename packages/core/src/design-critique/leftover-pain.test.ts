@@ -348,6 +348,10 @@ describe("yolo leftover-pain handling (#4593)", () => {
       id: 30,
       body: "**Lean:** Recut-supersedes 10.\n\nrelieves: P1\n",
     };
+    const unassertedLean: ThreadComment = {
+      id: 12,
+      body: "**Lean:** recut.\n\nSpec-path: next-build is not this body.\n",
+    };
     const declaredNone: ThreadComment = {
       id: 15,
       body: "model: grok-4.6\nrole: critic\n\naudit-targets: none\n",
@@ -356,7 +360,7 @@ describe("yolo leftover-pain handling (#4593)", () => {
       id: 16,
       body: "model: grok-4.6\nrole: critic\n\naudit-targets: pain-P2\n",
     };
-    const comments = [earliest, declaredNone, otherMarker, firstAudit, recut];
+    const comments = [earliest, unassertedLean, declaredNone, otherMarker, firstAudit, recut];
     expect(
       deriveReservedPainAuditPostsUsed({
         comments,
@@ -364,13 +368,12 @@ describe("yolo leftover-pain handling (#4593)", () => {
         assertedPainIds: ["P1"],
       }),
     ).toBe(1);
-    expect(
-      deriveReservedPainAuditPostsUsed({
-        comments,
-        afterCommentId: recut.id,
-        assertedPainIds: ["P1"],
-      }),
-    ).toBe(0);
+    const reservedUsedAfterRecut = deriveReservedPainAuditPostsUsed({
+      comments,
+      afterCommentId: recut.id,
+      assertedPainIds: ["P1"],
+    });
+    expect(reservedUsedAfterRecut).toBe(1);
     expect(
       evaluateDualStopParentPath({
         spendSeats: 3,
@@ -383,6 +386,16 @@ describe("yolo leftover-pain handling (#4593)", () => {
           afterCommentId: earliest.id,
           assertedPainIds: ["P1"],
         }),
+      }).admit,
+    ).toBe(false);
+    expect(
+      evaluateDualStopParentPath({
+        spendSeats: 3,
+        criticPostsUsed: 3,
+        operatorRaisedCap: null,
+        afterHandoff: false,
+        mapCarriesAssertedPainCoverage: true,
+        reservedPainAuditPostsUsed: reservedUsedAfterRecut,
       }).admit,
     ).toBe(false);
   });
