@@ -929,7 +929,7 @@ describe("design-critique contract + brief template + thin skill (#3434)", () =>
     );
     expect(text).toContain("An N=3 panel is permitted three round-1 posts and no default retry.");
     expect(text).toContain(
-      "A fourth post requires the operator to raise the cap for this arc and record it.",
+      "A fourth post requires the operator to raise the cap for this arc and record it, except the Dual-stop reserved slot admits the first post-lean pain-audit of asserted coverage without a raise.",
     );
     expect(text).toContain("Panels larger than three (N>3) are unaddressed.");
     expect(text).toContain("An N=3 panel is not a recorded why for a Stop 4 retry.");
@@ -1424,7 +1424,16 @@ describe("design-critique contract + brief template + thin skill (#3434)", () =>
     expect(leftover).toContain("evaluateYoloStandingLeftoverScope");
     expect(leftover).toContain("bindLeanPredecessorValid");
     expect(leftover).toContain("evaluateDualStopPostBudget");
+    expect(leftover).toContain("evaluateDualStopParentPath");
     expect(leftover).toContain("mapCarriesAssertedPainCoverage");
+    expect(leftover).toContain("postsRemaining > 0");
+    expect(leftover).toContain("inCapWithoutRaise");
+    expect(leftover).toContain("criticEnvelopes");
+    expect(leftover).toContain("painMarkerId");
+    expect(leftover).toContain("Do not reset when a later map Recut-supersedes");
+    expect(leftover).toContain(
+      "Stop the search and audit count at the current arc's `design-critique: cancelled` boundary",
+    );
     expect(leftover).toContain(
       "does not confirm the split, waive pain coverage, or confirm Handoff",
     );
@@ -1821,6 +1830,9 @@ describe("design-critique contract + brief template + thin skill (#3434)", () =>
     expect(pain).not.toContain("halt-for-human or later-arc");
     const dual = markdownSection(text, "## Dual stop");
     expect(dual).toContain("evaluateDualStopReservedSlot");
+    expect(dual).toContain("evaluateDualStopParentPath");
+    expect(dual).toContain("postsRemaining > 0");
+    expect(dual).toContain("inCapWithoutRaise");
     expect(dual).toContain("Not always-on +1");
     expect(dual).toContain("applyPainCoverage computes asserted");
     expect(dual).toContain("Default Close is 6 posts");
