@@ -1616,7 +1616,9 @@ describe("design-critique contract + brief template + thin skill (#3434)", () =>
       "A summary claim that is not a reading of a recorded take or an accepted finding is a new load-bearing premise",
     );
     expect(summary).toContain("### Non-normative for downstream agents");
-    expect(summary).toContain("composeOverviewWithComments");
+    expect(summary).toContain("buildIssueVbrief");
+    expect(summary).not.toContain("composeOverviewWithComments");
+    expect(summary).toContain("not copied into Overview");
     expect(summary).toContain("Security context (#480)");
     expect(summary).toContain(
       "⊗ Mandate a next-step or recommended-action field on either artifact.",
@@ -1638,6 +1640,10 @@ describe("design-critique contract + brief template + thin skill (#3434)", () =>
     expect(lean).toContain(
       "- ! Lead that lean with the plain-language summary under the `## In plain English` token.",
     );
+    expect(lean).toContain(
+      "When Spec-path harvest is present, Overview MUST NOT contain the refused GitHub body",
+    );
+    expect(lean).not.toContain("Overview may keep the GitHub body as historical described content");
     const stop5 = markdownSection(text, "## Stop 5 \u2014 Verified synthesis");
     expect(stop5).toContain(
       "- ! Lead the synthesis with the plain-language summary under the `## In plain English` token,",
