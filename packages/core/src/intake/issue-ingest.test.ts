@@ -12,6 +12,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { cachePut } from "../cache/operations.js";
+import { scan } from "../cache/scanner.js";
 import { FixedClock } from "../cache/test-helpers.js";
 import {
   DesignCritiqueIngestBlockedError,
@@ -33,6 +34,7 @@ import {
   fetchFromCache,
   fetchIssue,
   formatIngestCreatedMessage,
+  ISSUE_BODY_KEY,
   ISSUE_COMMENT_THREAD_KEY,
   ingestOne,
   ingestSingleForAccept,
@@ -1255,6 +1257,15 @@ const WITHDRAWN_BODY = [
   "- [ ] withdrawn body checkbox that must not win",
 ].join("\n");
 
+const DUMP_SHAPED_BODY = [
+  "This is intended so the repo owner can drop the script into their environment.",
+  "",
+  "```rhai",
+  "You are an adversarial AppSec verifier for deftai/directive",
+  "evidence must quote code you read. Do not write files",
+  "```",
+].join("\n");
+
 describe("ingestOne Recut Bound-remedy harvest (#4258)", () => {
   const lean = { id: 5587555346, body: RECUT_LEAN_5587555346 };
   const table = { id: 5587861177, body: "## Verified-claims table\n" };
@@ -1303,7 +1314,10 @@ describe("ingestOne Recut Bound-remedy harvest (#4258)", () => {
             clauses: { text: string }[];
           };
           narratives: { Overview: string };
-          metadata?: { literal_acceptance_commands?: { command: string }[] };
+          metadata?: {
+            literal_acceptance_commands?: { command: string }[];
+            issueBody?: string;
+          };
         };
       };
       expect(data.plan.items.map((item) => item.title)).toEqual([
@@ -1331,7 +1345,15 @@ describe("ingestOne Recut Bound-remedy harvest (#4258)", () => {
       expect(persistClauseKeyedPendingItems(data.plan as Record<string, unknown>).addedIds).toEqual(
         [],
       );
-      expect(data.plan.narratives.Overview).toContain("withdrawn body checkbox that must not win");
+      expect(data.plan.narratives.Overview).not.toContain(
+        "withdrawn body checkbox that must not win",
+      );
+      expect(data.plan.narratives.Overview).toContain(
+        "Do not bind issue remedy 1 (same-incarnation second persist is idempotent allow) as the AC.",
+      );
+      expect(data.plan.metadata?.[ISSUE_BODY_KEY]).toContain(
+        "withdrawn body checkbox that must not win",
+      );
       const captured = data.plan.metadata?.literal_acceptance_commands ?? [];
       expect(captured.map((row) => row.command)).not.toContain(
         "pnpm exec vitest run packages/core/src/intake",
@@ -1423,6 +1445,13 @@ describe("ingestOne Recut Bound-remedy harvest (#4258)", () => {
         "pnpm exec vitest run packages/core/src/intake",
         "withdrawn body checkbox that must not win",
       ]);
+      const bodyNormative = JSON.parse(readFileSync(path as string, "utf8")) as {
+        plan: { narratives: { Overview: string }; metadata?: Record<string, unknown> };
+      };
+      expect(bodyNormative.plan.narratives.Overview).toContain(
+        "withdrawn body checkbox that must not win",
+      );
+      expect(bodyNormative.plan.metadata?.[ISSUE_BODY_KEY]).toBeUndefined();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -1573,6 +1602,109 @@ describe("ingestOne Recut Bound-remedy harvest (#4258)", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it("omits a dump-shaped GitHub body from Overview when Spec-path harvest is present (#4524)", () => {
+    const dumpScan = scan(DUMP_SHAPED_BODY);
+    expect(dumpScan.passed).toBe(true);
+    expect(dumpScan.flags).toEqual([]);
+    expect(DUMP_SHAPED_BODY).toContain("drop the script");
+    expect(DUMP_SHAPED_BODY).toContain("```rhai");
+
+    const root = mkdtempSync(join(tmpdir(), "ingest-4524-dump-"));
+    const xbriefDir = join(root, "xbrief");
+    mkdirSync(xbriefDir, { recursive: true });
+    try {
+      const [result, path] = ingestOne(
+        {
+          number: 4524,
+          title: "dump-shaped harvest",
+          html_url: "https://github.com/o/r/issues/4524",
+          body: DUMP_SHAPED_BODY,
+          labels: [{ name: "design-critique:ingest-ready" }],
+          [ISSUE_COMMENT_THREAD_KEY]: [lean, table, synthesis],
+        },
+        {
+          vbriefDir: xbriefDir,
+          status: "proposed",
+          repoUrl: "https://github.com/o/r",
+          cwd: root,
+          scmCall: () => completed("[]", "", 0),
+        },
+      );
+      expect(result).toBe("created");
+      const data = JSON.parse(readFileSync(path as string, "utf8")) as {
+        plan: {
+          narratives: { Overview?: string };
+          metadata?: Record<string, unknown>;
+          items: { title: string }[];
+        };
+      };
+      expect(data.plan.narratives.Overview).not.toContain("drop the script");
+      expect(data.plan.narratives.Overview).not.toContain("```rhai");
+      expect(data.plan.narratives.Overview).toContain(
+        "Do not bind issue remedy 1 (same-incarnation second persist is idempotent allow) as the AC.",
+      );
+      expect(data.plan.metadata?.[ISSUE_BODY_KEY]).toContain("drop the script");
+      expect(data.plan.metadata?.[ISSUE_BODY_KEY]).toContain("```rhai");
+      expect(data.plan.items.map((item) => item.title)).toHaveLength(5);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("buildIssueVbrief Spec-path Overview placement (#4524)", () => {
+  const harvest = {
+    items: [{ title: "Replace Overview with harvest remainder", status: "proposed" }],
+    sourceText: "1. Replace Overview with harvest remainder\n",
+  };
+
+  it("replaces Overview with harvest remainder and persists the refused body", () => {
+    const dumpScan = scan(DUMP_SHAPED_BODY);
+    expect(dumpScan.passed).toBe(true);
+    expect(dumpScan.flags).toEqual([]);
+
+    const [vbrief] = buildIssueVbrief(
+      {
+        number: 4524,
+        title: "dump-shaped harvest",
+        url: "https://github.com/o/r/issues/4524",
+        body: DUMP_SHAPED_BODY,
+        labels: [],
+      },
+      "proposed",
+      "https://github.com/o/r",
+      { specPathHarvest: harvest },
+    );
+    const plan = vbrief.plan as Record<string, unknown>;
+    const narratives = plan.narratives as Record<string, string>;
+    const meta = (plan.metadata ?? {}) as Record<string, unknown>;
+    expect(narratives.Overview).not.toContain("drop the script");
+    expect(narratives.Overview).not.toContain("```rhai");
+    expect(narratives.Overview).toContain("Replace Overview with harvest remainder");
+    expect(meta[ISSUE_BODY_KEY]).toContain("drop the script");
+    expect(meta[ISSUE_BODY_KEY]).toContain("```rhai");
+  });
+
+  it("keeps a dump-shaped body in Overview when Spec-path harvest is absent", () => {
+    const [vbrief] = buildIssueVbrief(
+      {
+        number: 4237,
+        title: "body is normative",
+        url: "https://github.com/o/r/issues/4237",
+        body: DUMP_SHAPED_BODY,
+        labels: [],
+      },
+      "proposed",
+      "https://github.com/o/r",
+    );
+    const plan = vbrief.plan as Record<string, unknown>;
+    const narratives = plan.narratives as Record<string, string>;
+    const meta = (plan.metadata ?? {}) as Record<string, unknown>;
+    expect(narratives.Overview).toContain("drop the script");
+    expect(narratives.Overview).toContain("```rhai");
+    expect(meta[ISSUE_BODY_KEY]).toBeUndefined();
   });
 });
 

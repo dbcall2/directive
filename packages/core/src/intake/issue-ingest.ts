@@ -154,6 +154,12 @@ export interface IssueComment {
 /** Enriched on issues after `fetchIssue` when the comment thread is non-empty (#2143). */
 export const ISSUE_COMMENT_THREAD_KEY = "issueCommentThread" as const;
 
+/**
+ * Sibling of `ISSUE_COMMENT_THREAD_KEY`. Holds the GitHub issue body after
+ * Spec-path harvest omits it from Overview (#4524). Not a comment array.
+ */
+export const ISSUE_BODY_KEY = "issueBody" as const;
+
 /** REST page size for ingest comment fetch. Stays on the ghx cached-get seam (#4137). */
 export const ISSUE_COMMENT_PAGE_SIZE = 100;
 
@@ -1406,6 +1412,20 @@ function persistIssueCommentThreadOnPlan(
   plan.metadata = meta;
 }
 
+/** Persist the refused GitHub body under plan.metadata, not Overview (#4524). */
+function persistRefusedIssueBodyOnPlan(
+  plan: Record<string, unknown>,
+  body: string,
+  issueNumber: number,
+): void {
+  if (body.length === 0) {
+    return;
+  }
+  const meta = planMetadataRecord(plan);
+  meta[ISSUE_BODY_KEY] = scanUntrustedIngestText(issueNumber, body);
+  plan.metadata = meta;
+}
+
 export function issueCommentThread(issue: Record<string, unknown>): IssueComment[] {
   const raw = issue[ISSUE_COMMENT_THREAD_KEY];
   if (!Array.isArray(raw)) {
@@ -1462,9 +1482,12 @@ export function buildIssueVbrief(
   const bodyRaw = issue.body;
   const bodyStr = typeof bodyRaw === "string" && bodyRaw.length > 0 ? bodyRaw : "";
   const commentThread = issueCommentThread(issue);
-  // Overview remainder is the issue body. Comment bodies persist under
-  // plan.metadata[ISSUE_COMMENT_THREAD_KEY], not narratives (#4434).
+  // Overview remainder is the issue body unless Spec-path harvest is present.
+  // Comment bodies persist under plan.metadata[ISSUE_COMMENT_THREAD_KEY]
+  // (#4434). Cache content.md is an explicit non-goal of this placement (#4524).
   const overviewSource = bodyStr;
+  const specPathHarvest = options.specPathHarvest ?? options.recutHarvest;
+  const harvestSource = specPathHarvest?.sourceText;
   // #1870 / #1152: materialize the canonical Current shape comment as its own
   // narrative so agents cannot plan umbrellas from the stale body alone. Prefer
   // the same selector as `task umbrella:current-shape` (highest pass-N,
@@ -1499,11 +1522,15 @@ export function buildIssueVbrief(
     Description: title,
     Origin: url.length > 0 ? `Ingested from ${url}` : `Ingested from issue #${number}`,
   };
-  if (overviewSource.length > 0) {
-    warnBodyControlCharacters(number, overviewSource);
-    // #2306: quarantine-scan untrusted issue body before it is persisted as
-    // Overview dispatch input. Comment-thread content is not copied here (#4434).
-    const scanResult = scan(overviewSource);
+  // #4524: when Spec-path harvest is present, Overview is the harvest remainder,
+  // not the refused GitHub body. Body-is-normative ingest still copies the body.
+  const overviewDispatchSource =
+    specPathHarvest !== undefined ? (harvestSource ?? "") : overviewSource;
+  if (overviewDispatchSource.length > 0) {
+    warnBodyControlCharacters(number, overviewDispatchSource);
+    // #2306: quarantine-scan untrusted Overview text before it is persisted as
+    // dispatch input. Comment-thread content is not copied here (#4434).
+    const scanResult = scan(overviewDispatchSource);
     if (!scanResult.passed) {
       throw new ScannerHardFailError(number, scanResult.flags);
     }
@@ -1527,7 +1554,6 @@ export function buildIssueVbrief(
     narratives.Labels = labelNames.join(", ");
   }
 
-  const specPathHarvest = options.specPathHarvest ?? options.recutHarvest;
   const planItemsRaw =
     specPathHarvest !== undefined
       ? specPathHarvest.items.map((item) => ({ title: item.title, status: item.status }))
@@ -1578,7 +1604,6 @@ export function buildIssueVbrief(
   // into plan.metadata.literal_acceptance_commands (source=task_statement, capture-only).
   // Agents MUST promote exact strings into swarm.verify_commands before shell execution
   // (Greptile P1: raw issue text must not auto-spawn). Not paraphrased.
-  const harvestSource = specPathHarvest?.sourceText;
   if (bodyStr.length > 0 || harvestSource !== undefined) {
     const intakeText = [title, harvestSource ?? bodyStr].filter((s) => s.length > 0).join("\n\n");
     const attached = captureAndAttachLiteralAcceptance(plan, intakeText);
@@ -1625,6 +1650,9 @@ export function buildIssueVbrief(
 
   stampIntendedPlacement(plan);
   persistIssueCommentThreadOnPlan(plan, commentThread, number);
+  if (specPathHarvest !== undefined) {
+    persistRefusedIssueBodyOnPlan(plan, bodyStr, number);
+  }
 
   const origin = originFromIssue(issue, repoUrl);
   if (origin !== null) {
