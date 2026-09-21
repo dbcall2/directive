@@ -142,9 +142,9 @@ describe("validateVbriefSchema xBRIEF v0.8 (#2107)", () => {
         ],
       },
     };
-    expect(validateVbriefSchema(nested, "id-nested.json").some((e) => e.includes("invalid id"))).toBe(
-      true,
-    );
+    expect(
+      validateVbriefSchema(nested, "id-nested.json").some((e) => e.includes("invalid id")),
+    ).toBe(true);
   });
 
   it("rejects plan.status auto (item-only in v0.8)", () => {

@@ -1174,9 +1174,9 @@ describe("#4385 clause-keyed complete persist and scope:status", () => {
     };
     const keyedBefore = evaluateScopeStatus([{ plan: before }]);
     expect(keyedBefore[0]?.clauseCounts.keyed).toBe(1);
-    expect(
-      stampDeclaredTestEvidence(before, { recorded_by: "leftover" }).skipped[0]?.reason,
-    ).toBe("already-stamped");
+    expect(stampDeclaredTestEvidence(before, { recorded_by: "leftover" }).skipped[0]?.reason).toBe(
+      "already-stamped",
+    );
     expect(persistClauseKeyedPendingItems(before).addedIds).toEqual([]);
     expect(leftover.id).toBe(clauseKeyedItemId(1));
     expect(leftover.title).toBe(clauseKeyedItemId(1));
