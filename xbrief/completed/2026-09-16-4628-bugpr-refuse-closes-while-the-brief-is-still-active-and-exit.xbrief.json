@@ -23,7 +23,7 @@
         "narrative": {
           "Acceptance": "When this slice ships, --allow-close N plus a running brief for N in xbrief/active/ fails closed. Print Refs/Tracking. Name the brief path. Reuse the running-brief enumerator and collectGithubRefs matching. Do not call orphan-active or attestable evaluate(). Do not copy the orphan-signature or unattested-AC verdict. Extract the already-duplicated enumerator; do not make a third copy inside pr-closing-keywords."
         },
-        "id": "clause:1",
+        "id": "clause.1",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/pr-closing-keywords/main.ts",
@@ -38,7 +38,7 @@
         "narrative": {
           "Acceptance": "When this slice ships, live --pr intent skip stays #3015. Slice 1 does not recut branch-gate."
         },
-        "id": "clause:2",
+        "id": "clause.2",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/pr-closing-keywords/main.ts",
@@ -53,7 +53,7 @@
         "narrative": {
           "Acceptance": "When this slice ships, pr:wait-mergeable-and-merge maps SHA-matched pr:watch NEW_P0_P1 / hasBlocking the way finish-loop already maps watch exit 1 in-process. Named waiter outcome, exit 1, one probe, no cap wait. Do not subprocess-swap runMonitor for pr:watch. classifyMonitorOutcome keeps #2673 config-error for empty/non-CAP exit 1."
         },
-        "id": "clause:3",
+        "id": "clause.3",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/pr-wait-mergeable/classify.ts",
@@ -68,7 +68,7 @@
         "narrative": {
           "Acceptance": "When this slice ships, sub-floor confidence without P1 stays a wait. Stale-SHA P1 stays non-terminal. Do not halt on HARD-block or readiness-failure English. No minGreptileConfidence change."
         },
-        "id": "clause:4",
+        "id": "clause.4",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/pr-wait-mergeable/classify.ts",
@@ -83,7 +83,7 @@
         "narrative": {
           "Acceptance": "When this slice ships, other merge routes stay #3875. No CHANGELOG policy loosen."
         },
-        "id": "clause:5",
+        "id": "clause.5",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",

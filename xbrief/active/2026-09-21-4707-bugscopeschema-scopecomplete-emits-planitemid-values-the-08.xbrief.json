@@ -1,0 +1,346 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #4707",
+    "updated": "2026-09-21T03:02:48Z"
+  },
+  "plan": {
+    "title": "bug(scope,schema): scope:complete emits PlanItem.id values the 0.8 schema forbids, and xbrief:validate passes them",
+    "status": "running",
+    "narratives": {
+      "Description": "bug(scope,schema): scope:complete emits PlanItem.id values the 0.8 schema forbids, and xbrief:validate passes them",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/4707",
+      "Overview": "# `scope:complete` synthesises `PlanItem.id` values the 0.8 schema forbids, and `xbrief:validate` passes them\n\nTwo halves, same as #4698's shape: the writer emits a value the schema rejects, and the validator that should catch it does not look.\n\n## Measured\n\nConsumer repo on `@deftai/directive-core@0.119.1`.\n\n**The writer.** A brief ingested from a GitHub issue had `items: []` and three derived acceptance clauses. `scope:complete` synthesised one plan item per clause:\n\n```json\n\"items\": [\n  { \"id\": \"clause:1\", \"title\": \"clause:1\", \"status\": \"pending\" },\n  { \"id\": \"clause:2\", \"title\": \"clause:2\", \"status\": \"pending\" },\n  { \"id\": \"clause:3\", \"title\": \"clause:3\", \"status\": \"pending\" }\n]\n```\n\nIt also reports them in its own refusal text as `items[0] «untrusted:clause:1»`.\n\n**The schema.** `xbrief-core-0.8.schema.json`, `$defs/PlanItem/properties/id`:\n\n```json\n{ \"type\": \"string\", \"pattern\": \"^[a-zA-Z0-9_-]+(\\\\.[a-zA-Z0-9_-]+)*$\" }\n```\n\nDot-separated segments only. The colon is not in the class, so every synthesised id is non-conformant:\n\n```\nid='clause:1'  matches schema pattern: False\nid='clause:2'  matches schema pattern: False\nid='clause:3'  matches schema pattern: False\n```\n\n**The validator does not catch it.** With all three ids present:\n\n```\n$ deft xbrief:validate\nOK: vBRIEF validation passed: 38 scope vBRIEF(s), PROJECT-DEFINITION\n```\n\n`verify:vbrief-conformance` also passes — it checks bare keys (#1620), not the id pattern. So `deft check` is green on an artifact that does not satisfy the shipped schema.\n\n## How it surfaced\n\nNot from the toolchain. A bot reviewer flagged it as P1 on the lifecycle PR, correctly citing the pattern and proposing `clause.1`. Every Directive gate in the path — commit hooks, `xbrief:validate`, `verify:vbrief-conformance`, `deft check` — was green on the colon form.\n\nRenaming to `clause.1` / `clause.2` / `clause.3` conforms. A repo-wide sweep of every brief found no other non-conformant item ids, so this is the synthesis path specifically, not legacy data.\n\n## Why it matters\n\n`scope:complete` is the terminal lifecycle write. The artifact it produces is the durable record of what shipped, and it is the one a later consumer validates against the schema. A writer that emits ids its own schema forbids, guarded by a validator that does not check the constraint, means the invalid shape is only discovered by whoever validates strictly later — or by a bot reviewer, as here.\n\n## Suggested shape\n\nTwo independent fixes:\n\n1. **Writer** — synthesise `clause.N` (or any pattern-conformant form) in the `scope:complete` item-synthesis path. The `«untrusted:clause:N»` diagnostic label can keep its own formatting; the persisted `id` is what must conform.\n2. **Validator** — have `xbrief:validate` enforce `PlanItem.id` against the schema pattern. A schema constraint that no shipped gate checks is the same gap as #4698's `KNOWN_REFERENCE_TYPES`: a closed set declared in one place and never consumed.\n\nFixing only the writer leaves the validator blind to hand-authored or older artifacts.\n\nRelated: #4697, #4698 (same writer-permissive / reader-blind shape on reference types).\n\n",
+      "Labels": "bug, determinism, agent-experience, area:cli, area:vbrief, design-critique:ingest-ready"
+    },
+    "items": [
+      {
+        "title": "Change `CLAUSE_KEYED_ITEM_ID_PREFIX` to `clause.`. Dual-read `clause:N` on lookup, including `findItemByKey` next to `clauseHasKeyedItem`. Do not treat ingest/promote bind as a second design. Do not add a parallel id mint.",
+        "status": "proposed",
+        "id": "clause.1"
+      },
+      {
+        "title": "Same unit of work: writer first or together, then fail-closed pattern check on string `id` when present, inside `packages/core/src/vbrief-validate/schema.ts` `validatePlanItem` next to effort/status (reuse `constants` the way `VALID_PLAN_ITEM_EFFORTS` is reused).",
+        "status": "proposed",
+        "id": "clause.2"
+      },
+      {
+        "title": "Same-PR rewrite of every PlanItem.id matching `clause:N` (same nested walk as `collectItemIdKeys`; this corpus is top-level). Title rewrite stays the exact-id case. Early complete persist write is gated on `addedIds.length > 0`; leftover rewrite must still mutate ids when addedIds is empty, before the later complete persist.",
+        "status": "proposed",
+        "id": "clause.3"
+      },
+      {
+        "title": "Strike warn-first à la #4746 from this harvest; it is leftover, not P1 coverage. Integer ids stay leftover, not P1. Do not plug Ajv. Do not put the check in `scanVbrief` or `verify:vbrief-conformance`. Do not make `id` required. Do not widen the schema class to allow `:`.",
+        "status": "proposed",
+        "id": "clause.4"
+      }
+    ],
+    "tags": [
+      "bug",
+      "determinism",
+      "agent-experience",
+      "area:cli",
+      "area:vbrief",
+      "design-critique:ingest-ready"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/4707",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #4707: bug(scope,schema): scope:complete emits PlanItem.id values the 0.8 schema forbids, and xbrief:validate passes them"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 4 independently testable clauses from the task statement before product edit (#3323)",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "Change `CLAUSE_KEYED_ITEM_ID_PREFIX` to `clause.`. Dual-read `clause:N` on lookup, including `findItemByKey` next to `clauseHasKeyedItem`. Do not treat ingest/promote bind as a second design. Do not add a parallel id mint.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "Same unit of work: writer first or together, then fail-closed pattern check on string `id` when present, inside `packages/core/src/vbrief-validate/schema.ts` `validatePlanItem` next to effort/status (reuse `constants` the way `VALID_PLAN_ITEM_EFFORTS` is reused).",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "Same-PR rewrite of every PlanItem.id matching `clause:N` (same nested walk as `collectItemIdKeys`; this corpus is top-level). Title rewrite stays the exact-id case. Early complete persist write is gated on `addedIds.length > 0`; leftover rewrite must still mutate ids when addedIds is empty, before the later complete persist.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "Strike warn-first à la #4746 from this harvest; it is leftover, not P1 coverage. Integer ids stay leftover, not P1. Do not plug Ajv. Do not put the check in `scanVbrief` or `verify:vbrief-conformance`. Do not make `id` required. Do not widen the schema class to allow `:`.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found"
+    },
+    "metadata": {
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [],
+        "module_boundary": ""
+      },
+      "issueCommentThread": [
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: triage\n```\n\ndesign-critique: warranted, because scope:complete synthesises PlanItem.id values with a colon the 0.8 schema pattern forbids, and xbrief:validate plus verify:vbrief-conformance still pass, so deft check is green on an artifact that does not satisfy the shipped schema.\n\nmechanism-shaped: true\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: /Users/davidcall/.grok/worktrees/deft-directive/issue-4707-dc\norigin-ref: origin/master\ndispatch-sha: 19f20e3220d34258db0614d8165ab3024b85be0b\n\ncharter: open critique\nspend: N=1\nspend-ask: asked\nspend-why: operator utterance `use n=1 or n=3 as needed`. Per-issue Stop 2: two named independent fixes (persist clause.N; validate PlanItem.id). Schema-widen is a fork the critic may name, not a panel trigger selected here. N=1.\nDual-stop cap: 6 posts\n\npain: P1\n\ntarget: #4707\ntarget-shape: single-issue (default)\naudit-targets: none\nrefutation-target: a schema pattern that no shipped gate checks is still a closed constraint because xbrief:validate reports OK\n\n## Gate stamp\n\nThe triage author stamps the semantic call. This write-back is the round-1 ceiling.\n\nP1 is that `scope:complete` synthesises `clause:N` PlanItem ids the 0.8 schema pattern `^[a-zA-Z0-9_-]+(\\.[a-zA-Z0-9_-]+)*$` forbids, and `xbrief:validate` / `verify:vbrief-conformance` do not enforce that pattern, so `deft check` is green. Consumer repo on `@deftai/directive-core@0.119.1`. Renaming to `clause.N` conforms. A repo-wide sweep found no other non-conformant item ids.\n\nWhat this P1 is not:\n\n- Not changing the `«untrusted:clause:N»` diagnostic label format.\n- Not a legacy-data migration of other id shapes.\n- Not treating a bot reviewer as the gate.\n\nSuggested shape on the issue is two independent fixes: persist a pattern-conformant id, and have `xbrief:validate` enforce `PlanItem.id`. Re-measured at `19f20e3220d34258db0614d8165ab3024b85be0b`.\n\n",
+          "id": 5752167698,
+          "html_url": "https://github.com/deftai/directive/issues/4707#issuecomment-5752167698",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T19:38:59Z",
+          "updated_at": "2026-09-20T19:38:59Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: none\n\nRound 1, fresh critic. Open critique. Ceiling 5752167698 inclusive. Re-derived at dispatch-sha `19f20e3220d34258db0614d8165ab3024b85be0b`. Process-only. No product patch.\n\n## P1 re-measurement\n\nThe warrant holds. I tried to refute \"the schema pattern is a closed constraint that no shipped gate checks\" and could not.\n\nRan, not cited:\n\n- 0.6, 0.8, and `packages/types` copies of PlanItem.id share one pattern `^[a-zA-Z0-9_-]+(\\.[a-zA-Z0-9_-]+)*$`. `id` is optional (`required`: title, status). Node match: `clause:1` false, `clause.1` true, `github.issue.5450735782` true, `1` true.\n- `validatePlanItem` uses `item.id` only to build the error path. It does not test the pattern, and it does not type-check `id`. Fixture `{ id: \"clause:1\", title, status }` therefore has zero schema errors from that function.\n- `scanVbrief` / `ITEM_CORE` names the key `id`. It does not read the value. Conformance stays green on colon ids.\n- No Ajv (or other JSON Schema engine) in `packages/**/*.ts`. The shipped consumer of schema enums is the hand-rolled walker (`VALID_PLAN_ITEM_EFFORTS`, status, type) plus `validatePlanReferenceTypes` for #4698.\n- Writer: `CLAUSE_KEYED_ITEM_ID_PREFIX = \"clause:\"`. `persistClauseKeyedPendingItems` (complete-prep in `scope/transition.ts` when `act === \"complete\"`) invents `{ id, title: id, status: \"pending\" }`. `bindPlanItemIdsToClauses` stamps the same id onto title-matched rows at ingest and before promote. Lookup is `clauseKeyedItemId(n)` or numeric `\"n\"` only.\n- `vbrief:validate` is on both `FRAMEWORK_CHECK_GATES` and `CONSUMER_CHECK_GATES`. `atomicWriteBrief` → `validateBriefForPersist` → `validateVbriefSchema`.\n- `git archive` of `xbrief/` at this SHA: 139 `clause:N` items in 29 **completed** files (none in `active/`). 21 integer ids in 7 July completed files. 3343 items with no `id` (legal: optional).\n\nTwo named fixes remain the right shape. Schema-widen is a fork, not a third required fix. Recuts below are how those two fixes bind.\n\n## Findings\n\n### 1. The writer is the prefix constant and its lookups, not only the complete persist helper. `sharpens-framing`\n\n**Evidence.** Production sites of `clauseKeyedItemId` / the prefix at this SHA: `persistClauseKeyedPendingItems` (complete), `bindPlanItemIdsToClauses` (ingest in `issue-ingest.ts`, promote in `promote-path.ts`), and `clauseHasKeyedItem` / `findItemByKey` (stamp, status, evidence). Re-ran the lookup: a key set `{ \"clause:1\" }` is not keyed under prefix `clause.`; a set `{ \"clause.1\" }` is not keyed under prefix `clause:`. Numeric `\"1\"` still matches either prefix via the existing `String(clause.id)` arm.\n\n**Failure mode.** An implementer edits only `persistClauseKeyedPendingItems` as \"the scope:complete item-synthesis path.\" Ingest and promote keep writing `clause:1`. Fail-closed validate then refuses those new briefs. Conversely, flipping the prefix constant without reading the old form: a leftover `clause:1` row from a complete that persisted items and then failed the acceptance gate is unbound, so the next complete invents a second row `clause.1`.\n\n**Disposition.** Change `CLAUSE_KEYED_ITEM_ID_PREFIX` to `clause.`. Dual-read `clause:N` on lookup. On the complete persist path, rewrite an existing `clause:N` id (and a title that is exactly that id) to `clause.N` so leftover rows become persistable under the new validator. Do not treat ingest/promote bind as a second design. Do not add a parallel id mint.\n\n### 2. Fail-closed validate cannot land as an independent second PR, and it reds this repo unless synthesis ids are rewritten. `sharpens-framing`\n\n**Evidence.** `validateBriefForPersist` already concatenates `validateVbriefSchema`. Complete persist writes through that path. `vbrief:validate` is a `deft check` gate on this repo and on consumers. Archive walk at this SHA: 29 completed briefs, 139 `clause:N` items. #4746 is the existing \"consume a closed set, corpus would go red\" move: those twelve spellings warn, they do not fail-closed.\n\n**Failure mode.** Validator-only: persist still emits `clause:1`, `atomicWriteBrief` refuses, complete cannot persist items. Validator-with-writer but no corpus rewrite: `vbrief:validate` on `check:framework-source` fails on those 29 files, so the PR cannot merge here. Ajv-against-the-JSON-file would also fail the 21 integer ids (schema `type: string`) and is a new engine.\n\n**Disposition.** Same unit of work: writer first or together, then pattern check on **string** `id` when present, inside `validatePlanItem` next to effort/status (reuse `constants` the way `VALID_PLAN_ITEM_EFFORTS` is reused). Same-PR rewrite of synthesis-emitted `clause:N` in this corpus. Integer ids stay a leftover, not P1, unless a later lean names schema `type`. Warn-first à la #4746 is the alternative if rewrite is refused; it is not the default. Do not plug Ajv. Do not put the check in `scanVbrief`. Do not make `id` required.\n\n## Road not taken\n\nChose consume-the-pattern, not schema-widen (allow `:` in the class).\n\nSteelmanned rejected: colon is already a delimiter in `«untrusted:…»` and in GitHub-style labels, so widening is cheaper than 139 rewrites. Flip condition: the shipped 0.6/0.8 pattern is dotted segments, and plan-id mint already uses that shape (`github.issue.<n>`). Widening is a schema recut that also has to decide whether `:` is a segment character or a second separator. #4698 consumed the closed set; it did not enlarge it. I would flip if a documented PlanItem.id contract said opaque tokens, not dotted segments.\n\n## Footnotes\n\n- `fenceUntrustedAcceptanceText` wraps **title**, and persist sets `title` to the id. After `clause.N`, refuse listings show `«untrusted:clause.N»`. No separate colon formatter to preserve. The fence itself is not a schema field.\n- Tests at this SHA hard-code `clause:1` (`acceptance-evidence.test.ts`, `issue-ingest.test.ts`, `completed-write-guard.test.ts`). Expected recut with the prefix, not extra design.\n- Injection / swarm lens: not applied. This is a writer/validator schema-pattern gap, not an authority or envelope change.\n\n",
+          "id": 5752228476,
+          "html_url": "https://github.com/deftai/directive/issues/4707#issuecomment-5752228476",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T19:49:14Z",
+          "updated_at": "2026-09-20T19:49:14Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nscope:complete still writes PlanItem ids with a colon the 0.8 schema forbids, and xbrief:validate still does not check that pattern, so deft check stays green. Confirming this map recuts first-ship to one prefix constant clause., dual-read of leftover clause:N, a same-PR corpus rewrite of those synthesis ids, and a string-id pattern check inside validatePlanItem. It does not widen the schema class and it does not add Ajv.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept critic headings.\n\nForward verdict: recut. Disposition: classified headings accept-into-contract. Residual: none on classified headings.\nSpec-path: next-build contract is not this body.\n\n**Lean:** round-1 successor after one critic. Cites critic 5752228476. Supersedes Stop 1 write-back 5752167698. Round 1 sibling count 1.\n\nTarget-digest: sha256:569a19ca27e3bea6f338c95cab1926d7257270ffc383dc246a3773fdc222efbc\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: /Users/davidcall/.grok/worktrees/deft-directive/issue-4707-dc\norigin-ref: origin/master\ndispatch-sha: 19f20e3220d34258db0614d8165ab3024b85be0b\ntarget shape: single-issue\nround: 1\nsiblings: 1\nDual-stop cap: 6 posts\n\nTakes:\n\n- 5752228476 The writer is the prefix constant and its lookups, not only the complete persist helper — accept-into-contract\n- 5752228476 Fail-closed validate cannot land as an independent second PR, and it reds this repo unless synthesis ids are rewritten — accept-into-contract\n\nrelieves: P1\n\n## Bound remedy\n\n- Change `CLAUSE_KEYED_ITEM_ID_PREFIX` to `clause.`. Dual-read `clause:N` on lookup. On the complete persist path, rewrite an existing `clause:N` id (and a title that is exactly that id) to `clause.N` so leftover rows become persistable under the new validator. Do not treat ingest/promote bind as a second design. Do not add a parallel id mint.\n- Same unit of work: writer first or together, then pattern check on string `id` when present, inside `validatePlanItem` next to effort/status (reuse `constants` the way `VALID_PLAN_ITEM_EFFORTS` is reused). Same-PR rewrite of synthesis-emitted `clause:N` in this corpus.\n- Integer ids stay a leftover, not P1. Warn-first à la #4746 is the alternative if rewrite is refused; it is not the default. Do not plug Ajv. Do not put the check in `scanVbrief`. Do not make `id` required. Do not widen the schema class to allow `:`.\n\nFootnotes stay footnotes: fence wraps title so `«untrusted:clause.N»` needs no separate colon formatter; tests that hard-code `clause:1` recut with the prefix.\n\n",
+          "id": 5752237867,
+          "html_url": "https://github.com/deftai/directive/issues/4707#issuecomment-5752237867",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T19:50:50Z",
+          "updated_at": "2026-09-20T19:50:50Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\nStop 4 pain-audit. One question: does Bound remedy on successor lean 5752237867 relieve P1 on Stop 1 write-back 5752167698. Ceiling 5752237867 inclusive. Re-derived at dispatch-sha `19f20e3220d34258db0614d8165ab3024b85be0b`. Process-only. No product patch. Parent hypotheses were not inputs.\n\n## Verdict\n\nDefault harvest relieves P1. `CLAUSE_KEYED_ITEM_ID_PREFIX` `clause.` plus `clauseKeyedItemId` emits `clause.N`, which matches the shipped PlanItem.id pattern. Fail-closed pattern check on string `id` when present, inside `packages/core/src/vbrief-validate/schema.ts` `validatePlanItem` next to effort/status, is on `validateVbriefSchema` → `validateAll` / `validateBriefForPersist`. `xbrief:validate` aliases `vbrief-validate`. That gate is on `FRAMEWORK_CHECK_GATES` and `CONSUMER_CHECK_GATES`, so `deft check` is no longer green on colon ids.\n\nOne harvest lock so that cite stays true.\n\nRan, not cited:\n\n- Pattern `^[a-zA-Z0-9_-]+(\\.[a-zA-Z0-9_-]+)*$`: `clause:1` false, `clause.1` true, `github.issue.5450735782` true, `1` true.\n- `validatePlanItem` in `vbrief-validate/schema.ts` uses `item.id` only as the error path. No pattern. No type check.\n- `git archive` of `xbrief/` at this SHA: 139 `clause:N` in 29 completed files, 0 in active. 20 have `title === id`. 119 have clause-text titles (bind stamps `id`, not title). Nested `clause:N`: 0. 21 integer ids in 7 July completed files. 3343 items with no `id`.\n- `runValidate`: warnings still print `OK: vBRIEF validation passed` and exit 0 unless `--warnings-as-errors`.\n- Live mint: prefix `clause:` → `persistClauseKeyedPendingItems` and `bindPlanItemIdsToClauses`. Lookup today is `clauseKeyedItemId(n)` or numeric `\"n\"`, not leftover `clause:N` after a prefix recut.\n- Existing regex copies: `PLAN_ID_FORMAT` (ingest `plan.id` only), fidelity `ID_PATTERN` (spec-task edges). Neither is the PlanItem check-path. `scanVbrief` / `ITEM_CORE` names the key `id` and does not read the value. No Ajv in `packages/**/*.ts`.\n\nInventory already on the tree: the schema.ts walker, `VALID_PLAN_ITEM_EFFORTS` in `constants.ts`, `atomicWriteBrief` → `validateBriefForPersist`. Do not plug Ajv. Do not put the check in `scanVbrief`. Do not add a parallel mint.\n\n## 1. Rewrite every `clause:N` id fail-closed; title-equals-id-only rewrite and warn-first are not P1 coverage\n\nsharpens-framing\n\n**Evidence.** Harvest item 2 says same-PR rewrite of synthesis-emitted `clause:N`. Harvest item 1 rewrites an existing `clause:N` id and a title that is exactly that id. Archive: 119 of 139 leftover colon ids have titles that are not the id (`bindPlanItemIdsToClauses` copies the prefix onto title-matched rows and leaves title). Harvest item 3 names warn-first à la #4746 if rewrite is refused; `runValidate` exits 0 on warnings.\n\n**Failure mode.** Implementer rewrites only the 20 `title === id` persist rows, or takes warn-first when the other 119 red `vbrief:validate`. Fail-closed never ships, or check stays green. Writer-only prefix recut is the case Stop 1 already named: validator stays blind to leftover colon ids.\n\n**Disposition.** Keep `relieves: P1`. Harvest rewrite is every PlanItem.id matching `clause:N` (same nested walk as `collectItemIdKeys`; this corpus is top-level). Title rewrite stays the exact-id case. Fail-closed pattern check remains this unit. Strike warn-first from this harvest; it is leftover, not P1 coverage. Dual-read `clause:N` on lookup stays, including `findItemByKey` next to `clauseHasKeyedItem`. Early complete persist write is gated on `addedIds.length > 0`; leftover rewrite must still mutate ids when addedIds is empty, before the later complete persist.\n\n## Footnotes\n\n- `verify:vbrief-conformance` stays a key scanner and is not on `CONSUMER_CHECK_GATES`. P1's green-check half is `vbrief:validate`. Do not put the pattern there.\n- `packages/core/src/render/spec-validate.ts` has a second `validatePlanItem` with no effort check. Harvest's \"next to effort/status\" plus `VALID_PLAN_ITEM_EFFORTS` already pins schema.ts.\n- Integer ids stay leftover, not P1. Pattern check on string `id` when present leaves them as today. Do not make `id` required. Do not widen the schema class to allow `:`.\n- Tests at this SHA hard-code `clause:1`. Expected recut with the prefix, not extra design.\n\n",
+          "id": 5752291062,
+          "html_url": "https://github.com/deftai/directive/issues/4707#issuecomment-5752291062",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T19:59:52Z",
+          "updated_at": "2026-09-20T19:59:52Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nscope:complete still writes colon PlanItem ids, and xbrief:validate still does not check the pattern. Confirming this map recuts first-ship to prefix clause., dual-read of leftover clause:N, fail-closed rewrite of every clause:N id in this corpus, and a string-id pattern check inside validatePlanItem. Warn-first is leftover, not P1 coverage.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept critic headings.\n\nForward verdict: recut. Disposition: classified headings accept-into-contract. Residual: none on classified headings.\nSpec-path: next-build contract is not this body.\n\n**Lean:** post-pain-audit successor of #4707. Cites critic 5752291062. Supersedes successor lean 5752237867. Round 1 sibling count 1.\n\nTarget-digest: sha256:569a19ca27e3bea6f338c95cab1926d7257270ffc383dc246a3773fdc222efbc\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: /Users/davidcall/.grok/worktrees/deft-directive/issue-4707-dc\norigin-ref: origin/master\ndispatch-sha: 19f20e3220d34258db0614d8165ab3024b85be0b\ntarget shape: single-issue\nround: 2\nsiblings: 1\nDual-stop cap: 6 posts\n\nTakes:\n\n- 5752228476 The writer is the prefix constant and its lookups, not only the complete persist helper — accept-into-contract\n- 5752228476 Fail-closed validate cannot land as an independent second PR, and it reds this repo unless synthesis ids are rewritten — accept-into-contract\n- 5752291062 Rewrite every clause:N id fail-closed; title-equals-id-only rewrite and warn-first are not P1 coverage — accept-into-contract\n\nrelieves: P1\n\n## Bound remedy\n\n- Change `CLAUSE_KEYED_ITEM_ID_PREFIX` to `clause.`. Dual-read `clause:N` on lookup, including `findItemByKey` next to `clauseHasKeyedItem`. Do not treat ingest/promote bind as a second design. Do not add a parallel id mint.\n- Same unit of work: writer first or together, then fail-closed pattern check on string `id` when present, inside `packages/core/src/vbrief-validate/schema.ts` `validatePlanItem` next to effort/status (reuse `constants` the way `VALID_PLAN_ITEM_EFFORTS` is reused).\n- Same-PR rewrite of every PlanItem.id matching `clause:N` (same nested walk as `collectItemIdKeys`; this corpus is top-level). Title rewrite stays the exact-id case. Early complete persist write is gated on `addedIds.length > 0`; leftover rewrite must still mutate ids when addedIds is empty, before the later complete persist.\n- Strike warn-first à la #4746 from this harvest; it is leftover, not P1 coverage. Integer ids stay leftover, not P1. Do not plug Ajv. Do not put the check in `scanVbrief` or `verify:vbrief-conformance`. Do not make `id` required. Do not widen the schema class to allow `:`.\n\nFootnotes stay footnotes: tests that hard-code `clause:1` recut with the prefix; spec-validate.ts has a second validatePlanItem and is not the harvest site.\n\n",
+          "id": 5752300839,
+          "html_url": "https://github.com/deftai/directive/issues/4707#issuecomment-5752300839",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T20:01:34Z",
+          "updated_at": "2026-09-20T20:01:34Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\nStop 4 pain-audit. One question: does Bound remedy on successor lean 5752300839 relieve the P1 named on Stop 1 write-back comment 5752167698. Ceiling 5752300839 inclusive. Re-derived at dispatch-sha `19f20e3220d34258db0614d8165ab3024b85be0b`. Process-only. No product patch. Parent hypotheses were not inputs.\n\n## Verdict\n\nHarvest relieves P1. `CLAUSE_KEYED_ITEM_ID_PREFIX` `clause.` plus `clauseKeyedItemId` emits `clause.N`, which matches the shipped PlanItem.id pattern. Fail-closed pattern check on string `id` when present, inside `packages/core/src/vbrief-validate/schema.ts` `validatePlanItem` next to effort/status, is on `validateVbriefSchema` → `validateAll` / `validateBriefForPersist`. `xbrief:validate` aliases `vbrief-validate`. That gate is on `FRAMEWORK_CHECK_GATES` and `CONSUMER_CHECK_GATES`, so `deft check` is no longer green on colon ids.\n\nSame-PR rewrite of every `clause:N` id, plus leftover rewrite when `addedIds` is empty, keeps fail-closed from reding this corpus or refusing the later complete persist of leftover rows. Warn-first is struck.\n\nPrior pain-audit comment 5752291062 recut (every `clause:N` id; strike warn-first) is on this harvest. No further harvest lock. No classified blocking or sharpening findings.\n\nRan, not cited:\n\n- Pattern `^[a-zA-Z0-9_-]+(\\.[a-zA-Z0-9_-]+)*$` on 0.6, 0.8, and `packages/types` copies: `clause:1` false, `clause.1` true, `github.issue.5450735782` true, `1` true.\n- `validatePlanItem` in `vbrief-validate/schema.ts` uses `item.id` only as the error path. No pattern. No type check. Recurses `items` and `subItems`. Effort/status sit next to that path.\n- `git archive` of `xbrief/` at this SHA: 139 `clause:N` ids in 29 completed files, 0 in active, 0 nested. All 139 non-conformant string ids are exactly `clause:N`. 20 have `title === id`. 119 have clause-text titles. 21 JSON integer ids in 7 files. 86 string digit ids (pattern-legal). 3343 items with no `id`.\n- `runValidate`: warnings still print `OK: vBRIEF validation passed` and exit 0 unless `--warnings-as-errors`.\n- Live mint: only `CLAUSE_KEYED_ITEM_ID_PREFIX` in `acceptance-evidence.ts`. `persistClauseKeyedPendingItems` and `bindPlanItemIdsToClauses` emit `clauseKeyedItemId`. Lookup today is `clauseKeyedItemId(n)` or numeric `\"n\"`. After prefix-only recut, key set `{ \"clause:1\" }` is not keyed under `clause.`. Dual-read restores it.\n- Early complete persist write is `if (persist.addedIds.length > 0) atomicWriteBrief(...)`. Later complete dest write is ungated `atomicWriteBrief`.\n- `packages/cli/src/dispatch.ts` maps `xbrief:validate` to `vbrief-validate`. `verify:vbrief-conformance` is on `FRAMEWORK_CHECK_GATES` only; `ITEM_CORE` names the key `id` and does not read the value.\n- Existing regex copies: `PLAN_ID_FORMAT` (ingest `plan.id` only), fidelity `ID_PATTERN` (spec-task edges). Neither is the PlanItem check-path. No Ajv in `packages/**/*.ts`.\n\nInventory already on the tree: the schema.ts walker, `VALID_PLAN_ITEM_EFFORTS` in `constants.ts`, `collectItemIdKeys`, `atomicWriteBrief` → `validateBriefForPersist`. Do not plug Ajv. Do not put the check in `scanVbrief`. Do not add a parallel mint.\n\n## Footnotes\n\n- Leftover rewrite belongs inside `persistClauseKeyedPendingItems` so in-memory ids change before the later dest persist. Dual-read on `clauseHasKeyedItem` / `findItemByKey` covers the pre-rewrite window. Sequencing, not a second design.\n- `verify:vbrief-conformance` stays a key scanner. P1's green-check half is `vbrief:validate`. Do not put the pattern there.\n- `packages/core/src/render/spec-validate.ts` has a second `validatePlanItem` used by spec/prd render, not `deft check`. Harvest already pins schema.ts.\n- Integer ids stay leftover, not P1. Pattern check on string `id` when present leaves them as today. Do not make `id` required. Do not widen the schema class to allow `:`.\n- Tests at this SHA hard-code `clause:1`. Expected recut with the prefix, not extra design.\n- Injection / swarm lens: not applied. This is a writer/validator schema-pattern gap, not an authority or envelope change.\n\n",
+          "id": 5752348995,
+          "html_url": "https://github.com/deftai/directive/issues/4707#issuecomment-5752348995",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T20:09:50Z",
+          "updated_at": "2026-09-20T20:09:50Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## Verified-claims table\n\nCites successor lean 5752300839.\n\n| Claim | Source | Method |\n|---|---|---|\n| Classified headings on lean 5752300839 are accept-into-contract | critics 5752228476, 5752291062 | posted take-map |\n| Empty disagreement set | this round | no disagree or defer |\n| relieves P1 covers writer prefix recut plus fail-closed PlanItem.id check | pain-audit 5752348995 | pin-read of schema.ts walker, prefix constant, corpus clause:N rewrite; blocking and sharpening census empty |\n\n",
+          "id": 5752350822,
+          "html_url": "https://github.com/deftai/directive/issues/4707#issuecomment-5752350822",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T20:10:09Z",
+          "updated_at": "2026-09-20T20:10:09Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nscope:complete still writes colon PlanItem ids, and xbrief:validate still does not check the pattern. The accepted next-build is prefix clause., dual-read of leftover clause:N, fail-closed rewrite of every clause:N id in this corpus, and a string-id pattern check inside validatePlanItem. Warn-first is leftover, not P1 coverage.\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nBound contract: successor lean 5752300839.\n\n",
+          "id": 5752350882,
+          "html_url": "https://github.com/deftai/directive/issues/4707#issuecomment-5752350882",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T20:10:09Z",
+          "updated_at": "2026-09-20T20:10:09Z",
+          "author_association": "COLLABORATOR"
+        }
+      ],
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5489819696,
+        "origin": "deftai/directive#4707",
+        "id": "github.issue.5489819696"
+      },
+      "x-directive/admitted-target-digest": {
+        "schema": "deft.scope.admitted-target-digest.v1",
+        "algorithm": "sha256",
+        "sha256": "569a19ca27e3bea6f338c95cab1926d7257270ffc383dc246a3773fdc222efbc"
+      }
+    },
+    "id": "github.issue.5489819696",
+    "updated": "2026-09-21T03:02:48Z"
+  }
+}

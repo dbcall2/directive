@@ -23,7 +23,7 @@
           "Acceptance": "When this slice ships, When agent_hooks fails, still surface pin/engine skew, or still run doctor, so reconstitution is visible. Do not replace a true valid() fail with a pin-skew cause. One schema for writeAgentHookDeposit and inspectAgentHookDeposit."
         },
         "effort": "M",
-        "id": "clause:1",
+        "id": "clause.1",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/init-deposit/agent-hooks.ts",
@@ -38,7 +38,7 @@
           "Acceptance": "When this slice ships, Printed nextAction on this number either parses or names DEFT_ACCEPT_ENGINE_SKEW without claiming proceed. Do not add a doctor or session-ready flag whose only effect is proceed-without-pin-match. Literal <gate> is not runnable argv."
         },
         "effort": "M",
-        "id": "clause:2",
+        "id": "clause.2",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/init-deposit/agent-hooks.ts",
@@ -53,7 +53,7 @@
           "Acceptance": "When this slice ships, Do not claim pin reconstitution closed on this number. That remainder is #4710. Do not add a doctor-prose write-gate carve-out."
         },
         "effort": "M",
-        "id": "clause:3",
+        "id": "clause.3",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/init-deposit/agent-hooks.ts",
@@ -68,7 +68,7 @@
           "Acceptance": "When this slice ships, Tests: hook-drift recovery is not prescribed as the skew fix; a valid() fail still reports as that fail; printed nextAction does not claim proceed."
         },
         "effort": "M",
-        "id": "clause:4",
+        "id": "clause.4",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/init-deposit/agent-hooks.ts",

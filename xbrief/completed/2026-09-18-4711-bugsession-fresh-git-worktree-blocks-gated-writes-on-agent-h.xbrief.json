@@ -17,7 +17,7 @@
       {
         "title": "Strike option (a) and strike the session:ready write seat. Repair is a thin command over existing writeAgentHookDeposit against this projectRoot, engine-constants-only, all enabled hosts in AGENT_HOOK_PATHS, exact changedPaths, malformed-config refusal, immediate live recheck. Print that recovery from evaluateAgentHooks. Keep it off AGENTS.md refresh and off session:ready.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Strike option (a) and strike the session:ready write seat. Repair is a thin command over existing writeAgentHookDeposit against this projectRoot, engine-constants-only, all enabled hosts in AGENT_HOOK_PATHS, exact changedPaths, malformed-config refusal, immediate live recheck. Print that recovery from evaluateAgentHooks. Keep it off AGENTS.md refresh and off session:ready."
@@ -32,7 +32,7 @@
       {
         "title": "Keep the triggering action denied until this worktree registration is repaired and verify:hooks-installed --scope=agent --live is green; then require retry.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Keep the triggering action denied until this worktree registration is repaired and verify:hooks-installed --scope=agent --live is green; then require retry."
@@ -47,7 +47,7 @@
       {
         "title": "Tracked-state disposition, this-worktree only, print dirty hook JSON. Do not copy from the primary. Do not extend #4443. Durable prevention is committing refreshed deposits on the delivery branch.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Tracked-state disposition, this-worktree only, print dirty hook JSON. Do not copy from the primary. Do not extend #4443. Durable prevention is committing refreshed deposits on the delivery branch."
@@ -62,7 +62,7 @@
       {
         "title": "Liveness: print that the host must relaunch or reload matchers. Do not recut #4706. Do not weaken exact-matcher compare on unobserved claude/cursor catalogues.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Liveness: print that the host must relaunch or reload matchers. Do not recut #4706. Do not weaken exact-matcher compare on unobserved claude/cursor catalogues."

@@ -23,7 +23,7 @@
           "Acceptance": "When this slice ships, Name a non-update ResolutionMode for content already at engine plus pin lag (new enum member plus schema lockstep). Map that mode so update/init do not deposit-refresh. Keep doctor primary Next command on a non-proceed mode. Command-string swap on mode update cannot bind. Silent proceed cannot bind."
         },
         "effort": "M",
-        "id": "clause:1",
+        "id": "clause.1",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/types/src/resolution.ts",
@@ -38,7 +38,7 @@
           "Acceptance": "When this slice ships, Current-content is semverGte(contentVersion, engineVersion); null content stays on update. Keep content-behind-pin still recommends update. Drop or-otherwise-not-behind."
         },
         "effort": "M",
-        "id": "clause:2",
+        "id": "clause.2",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/types/src/resolution.ts",
@@ -53,7 +53,7 @@
           "Acceptance": "When this slice ships, Thread doctor detectPackageManager (stripped env, field then lock, no user-agent) into plan(). Do not add packageManager to ResolutionFacts. Threading alone does not close P1."
         },
         "effort": "M",
-        "id": "clause:3",
+        "id": "clause.3",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/types/src/resolution.ts",
@@ -68,7 +68,7 @@
           "Acceptance": "When this slice ships, Next command is renderProjectInstall(pm, @deftai/directive@ + engine). Remediation may say add updates the lock. Pin write inside update stays #4710."
         },
         "effort": "M",
-        "id": "clause:4",
+        "id": "clause.4",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/types/src/resolution.ts",

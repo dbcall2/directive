@@ -23,7 +23,7 @@
           "Acceptance": "When this slice ships, runRefreshDeposit writes the pin via ensurePackageJsonPin on skip-copy when pin lags the reconstituted version."
         },
         "effort": "M",
-        "id": "clause:1",
+        "id": "clause.1",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/init-deposit/refresh.ts",
@@ -38,7 +38,7 @@
           "Acceptance": "When this slice ships, Then in-process lock mutation: containedDestExec with closed file+args from the matching LOCKFILE_REFRESH_COMMANDS row after that pin write (lockfile-only, not renderProjectInstall add-the-dep). destTarget is the present lock path. Dest-plan records that path in port-record so skip-copy pin-lag is not empty."
         },
         "effort": "M",
-        "id": "clause:2",
+        "id": "clause.2",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/init-deposit/refresh.ts",
@@ -53,7 +53,7 @@
           "Acceptance": "When this slice ships, Spawn failure (ok false, manager missing, no network, non-zero) fails the update verb or reverts the pin. Print-argv-on-refuse does not relieve P1."
         },
         "effort": "M",
-        "id": "clause:3",
+        "id": "clause.3",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/init-deposit/refresh.ts",
@@ -68,7 +68,7 @@
           "Acceptance": "When this slice ships, yarn.lock uses the existing yarn install argv from that table, not silent npm. Do not leftover yarn."
         },
         "effort": "M",
-        "id": "clause:4",
+        "id": "clause.4",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/init-deposit/refresh.ts",
@@ -83,7 +83,7 @@
           "Acceptance": "When this slice ships, Do not interpolate a raw version into a shell line. Spec is the content package version, same as the pin helper."
         },
         "effort": "M",
-        "id": "clause:5",
+        "id": "clause.5",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/init-deposit/refresh.ts",
@@ -98,7 +98,7 @@
           "Acceptance": "When this slice ships, Do not leftover this reconstitution identity onto #4718. Doctor Next command stays #4718. Hook one-schema stays #4692. Keep #4429 row 3c proceed for pinVersion === null. Never-proceeds applies only when a pin exists and mismatches."
         },
         "effort": "M",
-        "id": "clause:6",
+        "id": "clause.6",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/init-deposit/refresh.ts",
@@ -113,7 +113,7 @@
           "Acceptance": "When this slice ships, Do not treat --accept-engine-jump, DEFT_ACCEPT_ENGINE_SKEW, or lastErrorCount as the write-gate unlock."
         },
         "effort": "M",
-        "id": "clause:7",
+        "id": "clause.7",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/init-deposit/refresh.ts",

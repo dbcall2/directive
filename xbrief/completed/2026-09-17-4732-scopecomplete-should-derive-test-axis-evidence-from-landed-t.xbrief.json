@@ -23,7 +23,7 @@
           "Acceptance": "When this slice ships, Do not derive or stamp x-directive/evidence inside scope:complete or evaluateAcceptanceEvidenceGate. Complete stays a pure check. persistClauseKeyedPendingItems still does not stamp evidence."
         },
         "effort": "M",
-        "id": "clause:1",
+        "id": "clause.1",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/scope/acceptance-evidence.ts",
@@ -38,7 +38,7 @@
           "Acceptance": "When this slice ships, Bind harvest plan.items ids to clause ids (1 / clause:1) at ingest/promote so complete does not invent empty pending rows from missing keys. Unbound clauses still persist-and-refuse. Empty verify:ac still fails."
         },
         "effort": "M",
-        "id": "clause:2",
+        "id": "clause.2",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/intake/issue-ingest.ts",
@@ -53,7 +53,7 @@
           "Acceptance": "When this slice ships, A stamp writer that is not the complete gate may record kind:test with pointer already a declared file_scope member or existing artifact_path from #4008. Do not take pointers from a PR path listing, verify_commands basename, or issue/comment prose (#3835)."
         },
         "effort": "M",
-        "id": "clause:3",
+        "id": "clause.3",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/scope/acceptance-evidence.ts",
@@ -68,7 +68,7 @@
           "Acceptance": "When this slice ships, merge SHA and review still cannot complete the four strict evidence axes."
         },
         "effort": "M",
-        "id": "clause:4",
+        "id": "clause.4",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/scope/acceptance-evidence.ts",
@@ -83,7 +83,7 @@
           "Acceptance": "When this slice ships, Do not reopen #3240 or #4385."
         },
         "effort": "M",
-        "id": "clause:5",
+        "id": "clause.5",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/scope/acceptance-evidence.test.ts",

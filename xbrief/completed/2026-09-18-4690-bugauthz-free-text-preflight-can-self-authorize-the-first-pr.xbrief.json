@@ -18,7 +18,7 @@
       {
         "title": "Split preflight from authorization. xbrief:preflight exit 0 remains lifecycle-ready (active/ plus running plus the structural checks already on evaluate). It is not implementation authorization. Report authorization as a separate result. Do not treat the two layers as equivalent.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Split preflight from authorization. xbrief:preflight exit 0 remains lifecycle-ready (active/ plus running plus the structural checks already on evaluate). It is not implementation authorization. Report authorization as a separate result. Do not treat the two layers as equivalent."
@@ -33,7 +33,7 @@
       {
         "title": "Do not claim ordinary-session first-write closed on this number. That remainder is #4709.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Do not claim ordinary-session first-write closed on this number. That remainder is #4709."
@@ -48,7 +48,7 @@
       {
         "title": "Tests: preflight OK is not an authz allow. A session with no DEFT_SESSION_SLASH_VERB still reaches the lifecycle-ready message without that message naming implementation authorization.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Tests: preflight OK is not an authz allow. A session with no DEFT_SESSION_SLASH_VERB still reaches the lifecycle-ready message without that message naming implementation authorization."

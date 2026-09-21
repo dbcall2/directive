@@ -19,7 +19,7 @@
       {
         "title": "When restate the premise: after an implement-class Grok child claims dest and the parent tool returns, dest occupancy.json can still be live under the child host-env id. spawn_subagent persist is dest-lock plus a parent-owner dispatch record.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "narrative": {
           "Acceptance": "When restate the premise: after an implement-class Grok child claims dest and the parent tool returns, dest occupancy.json can still be live under the child host-env id. spawn_subagent persist is dest-lock plus a parent-owner dispatch record."
         },
@@ -33,7 +33,7 @@
       {
         "title": "When do not claim dest-linger closed on this number. That remainder is #4792.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "narrative": {
           "Acceptance": "When do not claim dest-linger closed on this number. That remainder is #4792."
         },
@@ -47,7 +47,7 @@
       {
         "title": "When do not extend leftover dest-lock to yank a live occupant. Do not extend swarm:finalize to every spawn_subagent dest.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "narrative": {
           "Acceptance": "When do not extend leftover dest-lock to yank a live occupant. Do not extend swarm:finalize to every spawn_subagent dest."
         },

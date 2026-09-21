@@ -18,7 +18,7 @@
       {
         "title": "When GROK_HOOK_EVENT is set, argv --host claude occupancy owner is canonicalHostSessionId of grok plus payload session_id, not readHostEnvIdentity of GROK_SESSION_ID. Do not call isGrokHookProcess. Do not read grok payload session_id. Do not treat argv claude as a host-env fallback.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "effort": "S",
         "narrative": {},
         "x-directive/evidence": {
@@ -31,7 +31,7 @@
       {
         "title": "Fixture: --host claude plus GROK_HOOK_EVENT plus payload session_id plus no GROK_SESSION_ID yields host:grok:v1 of those payload bytes. Leftover GROK_SESSION_ID without GROK_HOOK_EVENT stays payload session_id to host:claude:v1. Same-tree two-session refuse stays.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Fixture: --host claude plus GROK_HOOK_EVENT plus payload session_id plus no GROK_SESSION_ID yields host:grok:v1 of those payload bytes. Leftover GROK_SESSION_ID without GROK_HOOK_EVENT stays payload session_id to host:claude:v1. Same-tree two-session refuse stays."
@@ -46,7 +46,7 @@
       {
         "title": "P1 owner is that Claude-payload grok owner. Vendor-compat --host claude Write/Edit must present it. Fail-closed if occupancy.json records that grok owner and --host claude Write still presents Claude, nothing, or unavailable. Native --host grok missing GROK_SESSION_ID stays leftover on #4125. Do not close #4125 or #4565.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, P1 owner is that Claude-payload grok owner. Vendor-compat --host claude Write/Edit must present it. Fail-closed if occupancy.json records that grok owner and --host claude Write still presents Claude, nothing, or unavailable. Native --host grok missing GROK_SESSION_ID stays leftover on #4125. Do not close #4125 or #4565."
@@ -61,7 +61,7 @@
       {
         "title": "When GROK_HOOK_EVENT is set, --host cursor does not attach lifecycle rewrite. Drop the P1-bytes comparison. Cursor Write stranger-deny stays leftover, not this AC. Do not require the cursor handler to present P1 bytes it cannot see.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "effort": "S",
         "narrative": {},
         "x-directive/evidence": {
@@ -74,7 +74,7 @@
       {
         "title": "Identity denials still name hook --host flag. Do not honour DEFT_SESSION_ID over a derived host owner. Do not disable Claude hook scan. Spawn dest recut stays out of scope.",
         "status": "completed",
-        "id": "clause:5",
+        "id": "clause.5",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Identity denials still name hook --host flag. Do not honour DEFT_SESSION_ID over a derived host owner. Do not disable Claude hook scan. Spawn dest recut stays out of scope."

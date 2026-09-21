@@ -18,7 +18,7 @@
       {
         "title": "Post-update deft doctor --full deposit hygiene compares .deft/core against resolveInstalledContentRoot (the engine content tree runRefreshDeposit already reconciled), not resolveContentPackageRoot (project ancestor walk).",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Post-update deft doctor --full deposit hygiene compares .deft/core against resolveInstalledContentRoot (the engine content tree runRefreshDeposit already reconciled), not resolveContentPackageRoot (project ancestor walk)."
@@ -33,7 +33,7 @@
       {
         "title": "When those two roots diverge, print both; do not name directive update as the prune recovery for extras vs the walk-root.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "effort": "S",
         "narrative": {},
         "x-directive/evidence": {
@@ -46,7 +46,7 @@
       {
         "title": "Do not add a third resolver. Do not recut contentRoot() prefer-package.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Do not add a third resolver. Do not recut contentRoot() prefer-package."
@@ -61,7 +61,7 @@
       {
         "title": "Choosing the walk-root as canonical is leftover #4710 and is out of this P1.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Choosing the walk-root as canonical is leftover #4710 and is out of this P1."
@@ -76,7 +76,7 @@
       {
         "title": "AGENTS managed-section freshness stays a warning. If included, pass agentsRefreshPlan an explicit template root equal to the tree update just wrote. Primary recovery remains deft agents:refresh.",
         "status": "completed",
-        "id": "clause:5",
+        "id": "clause.5",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, AGENTS managed-section freshness stays a warning. If included, pass agentsRefreshPlan an explicit template root equal to the tree update just wrote. Primary recovery remains deft agents:refresh."
@@ -91,7 +91,7 @@
       {
         "title": "Do not widen to any-clean-worktree, tool-path vs commit-path, or org-force-on.",
         "status": "completed",
-        "id": "clause:6",
+        "id": "clause.6",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Do not widen to any-clean-worktree, tool-path vs commit-path, or org-force-on."

@@ -19,7 +19,7 @@
       {
         "title": "When cycle guard: check-integrated verify:ac refuses an acceptance command that re-enters the containing check graph (task check or verify:ac). Do not globally denylist task check outside that context. Fixture the #4744 active shape (swarm.verify_commands task check, none_stated true).",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "narrative": {
           "Acceptance": "When cycle guard: check-integrated verify:ac refuses an acceptance command that re-enters the containing check graph (task check or verify:ac). Do not globally denylist task check outside that context. Fixture the #4744 active shape (swarm.verify_commands task check, none_stated true)."
         },
@@ -33,7 +33,7 @@
       {
         "title": "When leftover-complete must move or remove tracked active, not add-completed-only. Clearing verify_commands on leftover-complete is cleanup, not a substitute for the cycle guard.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "narrative": {
           "Acceptance": "When leftover-complete must move or remove tracked active, not add-completed-only. Clearing verify_commands on leftover-complete is cleanup, not a substitute for the cycle guard."
         },
@@ -47,7 +47,7 @@
       {
         "title": "When `--allow-vbrief-drift` must not authorize executing commands from a drifted leftover while validating gates sit after AC.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "narrative": {
           "Acceptance": "When `--allow-vbrief-drift` must not authorize executing commands from a drifted leftover while validating gates sit after AC."
         },
@@ -61,7 +61,7 @@
       {
         "title": "When do not harvest a Step 5 hang bound, spawnSync timeout, or runSupervisedGate remaining-time 124 on this issue. That remainder is #4801.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "narrative": {
           "Acceptance": "When do not harvest a Step 5 hang bound, spawnSync timeout, or runSupervisedGate remaining-time 124 on this issue. That remainder is #4801."
         },
@@ -75,7 +75,7 @@
       {
         "title": "When do not raise RELEASE_CHECK_TIMEOUT_MS. A later production cut without skip-ci is confirmation, not the sole AC.",
         "status": "completed",
-        "id": "clause:5",
+        "id": "clause.5",
         "narrative": {
           "Acceptance": "When do not raise RELEASE_CHECK_TIMEOUT_MS. A later production cut without skip-ci is confirmation, not the sole AC."
         },

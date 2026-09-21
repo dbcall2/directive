@@ -17,7 +17,7 @@
       {
         "title": "Skill/preamble forbid: do not start pr:wait-mergeable-and-merge until pr:watch / pr:merge-ready is CLEAN. Keep the closer as squash-after-CLEAN. Do not harvest cascade.ts, pr-monitor, or minGreptileConfidence.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "content/skills/deft-directive-review-cycle/SKILL.md",
@@ -28,7 +28,7 @@
       {
         "title": "Sequence: one-shot or first-probe parse of clean_gate_holdout; leftover class A/B/C; dest residual or BLOCKED; wait-merge only after CLEAN. Copy the #2688 ci_failures wake shape onto SHA-matched confidence plus named leftover. Do not invent a third poller.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "content/skills/deft-directive-review-cycle/SKILL.md",
@@ -39,7 +39,7 @@
       {
         "title": "Split holdouts. sha_match: blocking pr:watch until SHA match or cap. SHA-matched confidence plus named leftover: dest residual. SHA-matched confidence with 0 P0/P1 and no named leftover: class C halt.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "content/skills/deft-directive-review-cycle/SKILL.md",
@@ -50,7 +50,7 @@
       {
         "title": "Drop Stop 1 inventory cite of #3984 as babysit binding. #4820 stays the CLEAN-plus-SLizard/CI hang. Do not recut #4821 dest-worker ownership into this issue.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "content/skills/deft-directive-review-cycle/SKILL.md",

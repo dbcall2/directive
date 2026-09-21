@@ -19,7 +19,7 @@
       {
         "title": "When keep advertised passability as the leftover proof. A native spawn_subagent schema field operators can pass (process_only or a new named field). Re-running the #4315 stdin lander fixture does not close this number.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "narrative": {
           "Acceptance": "When keep advertised passability as the leftover proof. A native spawn_subagent schema field operators can pass (process_only or a new named field). Re-running the #4315 stdin lander fixture does not close this number."
         },
@@ -33,7 +33,7 @@
       {
         "title": "When keep dest-path out of skip class. Implement-class never sets the flag.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "narrative": {
           "Acceptance": "When keep dest-path out of skip class. Implement-class never sets the flag."
         },
@@ -47,7 +47,7 @@
       {
         "title": "When inventing an active xBRIEF is leftover-class #2885 lead, not skip-class close. CLI last-resort stays native-deny recovery, not spawn_subagent close.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "narrative": {
           "Acceptance": "When inventing an active xBRIEF is leftover-class #2885 lead, not skip-class close. CLI last-resort stays native-deny recovery, not spawn_subagent close."
         },
@@ -61,7 +61,7 @@
       {
         "title": "When tests: advertised JSON lists a writing skip-class field; native spawn with that field plus dest cwd is spawn-process-only-ready at 0 eligible without inventing a brief; dest-path without the marker is not skip class.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "narrative": {
           "Acceptance": "When tests: advertised JSON lists a writing skip-class field; native spawn with that field plus dest cwd is spawn-process-only-ready at 0 eligible without inventing a brief; dest-path without the marker is not skip class."
         },

@@ -17,7 +17,7 @@
       {
         "title": "After `decision.skip`, if `classify(projectRoot).hasDeftCore` is false, do not take the skip return. Fall through into the existing probe and let `plan()` pick init / update / migrate. Keep the three fences: no always `--full`, no `CLEAN_WINDOW_HOURS`, no `lastFindingCount` / #4673.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, After `decision.skip`, if `classify(projectRoot).hasDeftCore` is false, do not take the skip return. Fall through into the existing probe and let `plan()` pick init / update / migrate. Keep the three fences: no always `--full`, no `CLEAN_WINDOW_HOURS`, no `lastFindingCount` / #4673."
@@ -32,7 +32,7 @@
       {
         "title": "Keep signpost cites as the measured miss. Do not treat `runLocalSignpostChecks` / #1997 as the implementation site. Do not add a missing-core signpost warning as the fix.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Keep signpost cites as the measured miss. Do not treat `runLocalSignpostChecks` / #1997 as the implementation site. Do not add a missing-core signpost warning as the fix."
@@ -47,7 +47,7 @@
       {
         "title": "Do not widen to empty leftover directories. Do not harvest with #4679 P2 or P3.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Do not widen to empty leftover directories. Do not harvest with #4679 P2 or P3."

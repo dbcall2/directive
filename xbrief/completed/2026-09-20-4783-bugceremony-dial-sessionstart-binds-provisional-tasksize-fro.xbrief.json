@@ -19,7 +19,7 @@
       {
         "title": "When name the fill site as collectCeremonyDialConsumerEvidence merged as explicit-before-provisional. Do not edit estimateProvisionalCeremonyInputs as if it scanned pending.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "narrative": {
           "Acceptance": "When name the fill site as collectCeremonyDialConsumerEvidence merged as explicit-before-provisional. Do not edit estimateProvisionalCeremonyInputs as if it scanned pending."
         },
@@ -33,7 +33,7 @@
       {
         "title": "When do not claim leftover-pending size closed on this number. That remainder is #4795.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "narrative": {
           "Acceptance": "When do not claim leftover-pending size closed on this number. That remainder is #4795."
         },
@@ -47,7 +47,7 @@
       {
         "title": "When cLI --task-size / env still win.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "narrative": {
           "Acceptance": "When cLI --task-size / env still win."
         },

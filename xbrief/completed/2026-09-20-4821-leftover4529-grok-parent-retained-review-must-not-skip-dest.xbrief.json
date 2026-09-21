@@ -17,7 +17,7 @@
       {
         "title": "Recut L4-B / partner-merge-path / Phase 5-6 carve-out so parent-retained is closer plus post-merge scope:complete after a dest worker exists. Do not delete parent-retained as merge-path owner. Do not treat #2655 restatement as the recut.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "content/skills/deft-directive-swarm/SKILL.md",
@@ -28,7 +28,7 @@
       {
         "title": "Dest worker: dest-cwd one-shot residual (class A), stop-at after the push, then engine pr:watch, then pr:wait-mergeable-and-merge only after CLEAN. Not option 2. Approach 1 remains wait owner after residual lands, with verify:review-monitor / review-monitor:register.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "content/skills/deft-directive-swarm/SKILL.md",
@@ -39,7 +39,7 @@
       {
         "title": "Dest spawn deny: BLOCKED or dest-cwd residual (native, else CLI last-resort per #4215). Not parent-primary residual. Do not recut occupancy live or Codex stdin (#4771 / #4818).",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "content/skills/deft-directive-swarm/SKILL.md",
@@ -50,7 +50,7 @@
       {
         "title": "Do not reopen #4529 implement stop-at pr-open. Do not lower minGreptileConfidence. Wait-verb swallow stays on #4822.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "content/skills/deft-directive-swarm/SKILL.md",
