@@ -12,8 +12,7 @@
   "exclude": [
     "src/**/*.test.ts",
     "src/observable-scope/parity/**",
-    "dist",
-    "src/vitest-runner/dest-contention-it-timeout.ts"
+    "dist"
   ],
   "references": [
     {

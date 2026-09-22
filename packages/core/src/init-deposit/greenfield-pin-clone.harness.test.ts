@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
-import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { buildHeadlessManifest } from "./headless-manifest.js";
 import { runInitDeposit } from "./init-deposit.js";
 import { ensurePackageJsonPin, PIN_DEPENDENCY_NAME } from "./scaffold.js";

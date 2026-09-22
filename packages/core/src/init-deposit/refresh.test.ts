@@ -25,7 +25,7 @@ import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
 import type { ClassifySeams } from "../resolution/index.js";
 import type { AgentHookReadinessResult } from "../verify-env/agent-hook-readiness.js";
 import { evaluate as evaluateHooksInstalled } from "../verify-env/verify-hooks-installed.js";
-import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { detectXbriefConvergence } from "../xbrief-migrate/detect.js";
 import { LOCKFILE_REFRESH_COMMANDS } from "./init-deposit.js";
 import { type LegacyLayoutDetection, LegacyLayoutRefusedError } from "./legacy-detect.js";

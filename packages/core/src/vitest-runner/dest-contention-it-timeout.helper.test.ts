@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 /** Darwin/Linux dest-contention budget for named its (#4847). Live-pack walk needs 20s. */
 export const DEST_CONTENTION_IT_TIMEOUT_MS = 20_000;
 
@@ -11,3 +13,9 @@ export function destContentionItTimeout(): { timeout: number } {
       process.platform === "win32" ? WIN32_SPAWN_IT_TIMEOUT_MS : DEST_CONTENTION_IT_TIMEOUT_MS,
   };
 }
+
+describe("dest-contention timeout helper module", () => {
+  it("exports a positive platform timeout", () => {
+    expect(destContentionItTimeout().timeout).toBeGreaterThan(0);
+  });
+});
