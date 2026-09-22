@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   applyPromoteClauseFileScopeBind,
@@ -21,6 +24,14 @@ function planWith(clauses: unknown[], fileScope: string[] = [DECLARED]): Record<
   };
 }
 
+function rootWithDeclared(): string {
+  const root = mkdtempSync(join(tmpdir(), "promote-bind-"));
+  const abs = join(root, DECLARED);
+  mkdirSync(dirname(abs), { recursive: true });
+  writeFileSync(abs, "ok\n", "utf8");
+  return root;
+}
+
 describe("promote clause file_scope bind (#4008)", () => {
   it("stamps the declared member onto a matching derived clause", () => {
     const plan = planWith([
@@ -31,7 +42,7 @@ describe("promote clause file_scope bind (#4008)", () => {
         ambiguous: false,
       },
     ]);
-    const result = applyPromoteClauseFileScopeBind(plan);
+    const result = applyPromoteClauseFileScopeBind(plan, rootWithDeclared());
     expect(result.ok).toBe(true);
     expect(result.changed).toBe(true);
     const acceptance = plan.acceptance as { clauses: { artifact_path: string | null }[] };
@@ -47,7 +58,7 @@ describe("promote clause file_scope bind (#4008)", () => {
         ambiguous: false,
       },
     ]);
-    const result = evaluatePromoteClauseFileScopeBind(plan);
+    const result = evaluatePromoteClauseFileScopeBind(plan, rootWithDeclared());
     expect(result.ok).toBe(false);
     expect(result.message).toContain("#4008");
     expect(result.message).toContain("Basename matching is refused");
@@ -68,7 +79,7 @@ describe("promote clause file_scope bind (#4008)", () => {
         ambiguous: false,
       },
     ]);
-    const result = applyPromoteClauseFileScopeBind(plan);
+    const result = applyPromoteClauseFileScopeBind(plan, rootWithDeclared());
     expect(result.ok).toBe(true);
     const acceptance = plan.acceptance as { clauses: { artifact_path: string | null }[] };
     expect(acceptance.clauses[0]?.artifact_path).toBe(DECLARED);
@@ -98,7 +109,7 @@ describe("promote clause file_scope bind (#4008)", () => {
       ],
       [],
     );
-    const result = applyPromoteClauseFileScopeBind(plan);
+    const result = applyPromoteClauseFileScopeBind(plan, rootWithDeclared());
     expect(result.ok).toBe(true);
     expect(result.changed).toBe(false);
   });

@@ -13,8 +13,6 @@
  * ITEM_CORE is not expanded with bare keys; verify:vbrief-conformance rejects them.
  */
 
-import { lstatSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, relative, resolve } from "node:path";
 import { isHumanOrigin } from "../authz/origin.js";
 import type { GrantOrigin } from "../authz/types.js";
 import {
@@ -564,34 +562,6 @@ function resolveAllowedTestPointer(
   return isExactDeclaredMember(pointer, declared) ? pointer : null;
 }
 
-function isContainedProjectPath(projectRoot: string, child: string): boolean {
-  const rel = relative(resolve(projectRoot), resolve(child));
-  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
-}
-
-/** Walk's isFile check at stamp time: refuse directories, missing paths, and symlink escape. */
-function isShippedFilePointer(projectRoot: string, pointer: string): boolean {
-  const abs = resolve(projectRoot, pointer);
-  if (!isContainedProjectPath(projectRoot, abs)) {
-    return false;
-  }
-  try {
-    const info = lstatSync(abs);
-    if (!info.isFile() && !info.isSymbolicLink()) {
-      return false;
-    }
-    const projectReal = realpathSync(projectRoot);
-    const pointerReal = realpathSync(abs);
-    const rel = relative(projectReal, pointerReal);
-    if (rel === "" || rel.startsWith("..") || isAbsolute(rel)) {
-      return false;
-    }
-    return statSync(pointerReal).isFile();
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Skip-row pointer for the glob-refusing matchAny stamp (#4840).
  * Exact-member `resolveAllowedTestPointer` is not this writer.
@@ -608,10 +578,7 @@ export function resolveMatchAnyFilePointer(
     return null;
   }
   const pointer = posixPointer(artifactPath);
-  if (!isMatchAnyFilePointer(pointer, declared)) {
-    return null;
-  }
-  if (!isShippedFilePointer(projectRoot, pointer)) {
+  if (!isMatchAnyFilePointer(pointer, declared, projectRoot)) {
     return null;
   }
   return pointer;

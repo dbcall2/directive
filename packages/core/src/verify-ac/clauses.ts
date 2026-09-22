@@ -3,7 +3,7 @@
  * at intake; walk every clause against the shipped artifact at done (#3323).
  */
 
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, isAbsolute, relative, resolve } from "node:path";
 import { findAcHeading, parseListItems, sliceAcSection } from "../intake/markdown-scanners.js";
 import { hasGlobMagic, matchAny } from "../orchestration/pathspec.js";
@@ -646,16 +646,52 @@ export function isDeclaredArtifactPath(
   });
 }
 
-/** File-token shape for bind: non-glob path. Directories fail later at isFile. */
+function isContained(root: string, child: string): boolean {
+  const rel = relative(resolve(root), resolve(child));
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+/** File-token shape: non-glob path. Bind still requires isFile via isMatchAnyFilePointer. */
 export function isFileShapedPointer(path: string): boolean {
   const candidate = normalizeScopePath(path);
   return candidate.length > 0 && !hasGlobMagic(candidate);
 }
 
+/** Stamp's isFile check: refuse directories, missing paths, and symlink escape. */
+function isShippedFilePointer(projectRoot: string, pointer: string): boolean {
+  const abs = resolve(projectRoot, pointer);
+  if (!isContained(projectRoot, abs)) {
+    return false;
+  }
+  try {
+    const info = lstatSync(abs);
+    if (!info.isFile() && !info.isSymbolicLink()) {
+      return false;
+    }
+    const projectReal = realpathSync(projectRoot);
+    const pointerReal = realpathSync(abs);
+    const rel = relative(projectReal, pointerReal);
+    if (rel === "" || rel.startsWith("..") || isAbsolute(rel)) {
+      return false;
+    }
+    return statSync(pointerReal).isFile();
+  } catch {
+    return false;
+  }
+}
+
 /** Stored/extracted pointer that bind may copy onto artifact_path (#4840 / #4008). */
-export function isMatchAnyFilePointer(path: string, declaredScope: readonly string[]): boolean {
+export function isMatchAnyFilePointer(
+  path: string,
+  declaredScope: readonly string[],
+  projectRoot: string,
+): boolean {
   const candidate = normalizeScopePath(path);
-  return isFileShapedPointer(candidate) && matchAny(declaredScope, candidate);
+  return (
+    isFileShapedPointer(candidate) &&
+    matchAny(declaredScope, candidate) &&
+    isShippedFilePointer(projectRoot, candidate)
+  );
 }
 
 export type ClauseBindFailureKind = "unbound-path" | "ambiguous-scope" | "undeclared-binding";
@@ -727,17 +763,18 @@ function uniqueMatchAnyFileHits(
   tokens: readonly string[],
   declared: readonly string[],
   text: string,
+  projectRoot: string,
 ): string[] {
   const hits = new Set<string>();
   for (const token of tokens) {
     const normalized = normalizeScopePath(token);
-    if (isMatchAnyFilePointer(normalized, declared)) {
+    if (isMatchAnyFilePointer(normalized, declared, projectRoot)) {
       hits.add(normalized);
     }
   }
   for (const member of declared) {
     const normalized = normalizeScopePath(member);
-    if (!isMatchAnyFilePointer(normalized, declared)) {
+    if (!isMatchAnyFilePointer(normalized, declared, projectRoot)) {
       continue;
     }
     if (memberAppearsInText(text, member) || memberAppearsInText(text, normalized)) {
@@ -751,10 +788,11 @@ function bindStoredOrTokens(
   storedPath: string | null,
   text: string,
   declared: readonly string[],
+  projectRoot: string,
 ): BoundPathResult {
   if (storedPath !== null && storedPath.trim().length > 0) {
     const normalized = normalizeScopePath(storedPath);
-    if (isMatchAnyFilePointer(normalized, declared)) {
+    if (isMatchAnyFilePointer(normalized, declared, projectRoot)) {
       return { ok: true, path: normalized };
     }
     return {
@@ -764,7 +802,7 @@ function bindStoredOrTokens(
     };
   }
   const tokens = extractPathTokens(text);
-  const hits = uniqueMatchAnyFileHits(tokens, declared, text);
+  const hits = uniqueMatchAnyFileHits(tokens, declared, text, projectRoot);
   if (hits.length === 1) {
     return { ok: true, path: hits[0] ?? null };
   }
@@ -788,6 +826,7 @@ function bindStoredOrTokens(
 function bindOneClause(
   clause: AcceptanceClause,
   declared: readonly string[],
+  projectRoot: string,
 ):
   | { readonly ok: true; readonly clause: AcceptanceClause; readonly changed: boolean }
   | { readonly ok: false; readonly failure: ClauseBindFailure } {
@@ -796,7 +835,7 @@ function bindOneClause(
     const boundReadings: AcceptanceClauseReading[] = [];
     let changed = false;
     for (const reading of readings) {
-      const result = bindStoredOrTokens(reading.artifact_path, reading.text, declared);
+      const result = bindStoredOrTokens(reading.artifact_path, reading.text, declared, projectRoot);
       if (result.ok === false) {
         return {
           ok: false,
@@ -829,7 +868,7 @@ function bindOneClause(
       },
     };
   }
-  const result = bindStoredOrTokens(clause.artifact_path, clause.text, declared);
+  const result = bindStoredOrTokens(clause.artifact_path, clause.text, declared, projectRoot);
   if (result.ok === false) {
     return {
       ok: false,
@@ -866,12 +905,13 @@ function formatBindFailures(failures: readonly ClauseBindFailure[]): string {
  *
  * Empty declared scope is a no-op: there is no approved member to bind to.
  * Glob-shaped stored paths, extracted tokens, and declared-member text hits
- * are refused. A file token that `matchAny` accepts becomes `artifact_path`.
- * Basename matching stays refused.
+ * are refused. A shipped file that `matchAny` accepts becomes `artifact_path`.
+ * Directory stand-ins are not copied. Basename matching stays refused.
  */
 export function bindClausesToDeclaredScope(
   clauses: readonly AcceptanceClause[],
   declaredScope: readonly string[],
+  projectRoot: string,
 ): ClauseFileScopeBindResult {
   const declared = declaredScope
     .map((entry) => normalizeScopePath(entry))
@@ -884,7 +924,7 @@ export function bindClausesToDeclaredScope(
   let changed = false;
   let boundCount = 0;
   for (const clause of clauses) {
-    const bound = bindOneClause(clause, declared);
+    const bound = bindOneClause(clause, declared, projectRoot);
     if (bound.ok === false) {
       failures.push(bound.failure);
       next.push(clause);
@@ -916,11 +956,6 @@ export function bindClausesToDeclaredScope(
       ? `bound ${boundCount} clause(s) to plan.metadata.swarm.file_scope (#4008)`
       : "",
   };
-}
-
-function isContained(root: string, child: string): boolean {
-  const rel = relative(resolve(root), resolve(child));
-  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }
 
 /**

@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as clauseDerivation from "../intake/clause-derivation.js";
 import { ENV_RUN_SUMMARY_PATH } from "../run-summary/index.js";
@@ -378,6 +378,9 @@ describe("runTransition", () => {
 
   it("binds a derived clause to an exact file_scope member on promote (#4008)", () => {
     root = makeRepo();
+    const shipped = join(root, "src", "ui", "ledger-table", "useDensity.ts");
+    mkdirSync(dirname(shipped), { recursive: true });
+    writeFileSync(shipped, "export {}\n", "utf8");
     const path = join(root, "xbrief", "proposed", "2026-01-01-density.xbrief.json");
     writeFile(path, {
       xBRIEFInfo: { version: "0.8" },

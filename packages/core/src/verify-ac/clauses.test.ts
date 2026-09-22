@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, parse } from "node:path";
+import { dirname, join, parse } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   bindClausesToDeclaredScope,
@@ -113,6 +113,16 @@ AcceptanceCriteria: Third constraint binds CHANGELOG.md
 describe("bindClausesToDeclaredScope (#4008)", () => {
   const declared = ["src/ui/ledger-table/useDensity.ts", "src/ui/ledger-table/useTableKeyboard.ts"];
 
+  function rootWith(files: string[]): string {
+    const root = mkdtempSync(join(tmpdir(), "clause-bind-"));
+    for (const file of files) {
+      const abs = join(root, file);
+      mkdirSync(dirname(abs), { recursive: true });
+      writeFileSync(abs, "ok\n", "utf8");
+    }
+    return root;
+  }
+
   it("binds a clause to the exact file_scope member named in the text", () => {
     const result = bindClausesToDeclaredScope(
       [
@@ -124,6 +134,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       declared,
+      rootWith(declared),
     );
     expect(result.ok).toBe(true);
     expect(result.changed).toBe(true);
@@ -141,6 +152,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       declared,
+      rootWith(declared),
     );
     expect(result.ok).toBe(false);
     expect(result.failures[0]?.kind).toBe("unbound-path");
@@ -158,6 +170,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       declared,
+      rootWith(declared),
     );
     expect(result.ok).toBe(false);
     expect(result.failures[0]?.kind).toBe("ambiguous-scope");
@@ -179,6 +192,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       declared,
+      rootWith(declared),
     );
     expect(result.ok).toBe(false);
     expect(result.failures[0]?.kind).toBe("undeclared-binding");
@@ -202,6 +216,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       declared,
+      rootWith(declared),
     );
     expect(result.ok).toBe(true);
     expect(result.clauses[0]?.artifact_path).toBe("src/ui/ledger-table/useTableKeyboard.ts");
@@ -214,30 +229,51 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
     const result = bindClausesToDeclaredScope(
       [{ id: 1, text: "No clause-count cap is introduced", artifact_path: null, ambiguous: false }],
       declared,
+      rootWith(declared),
     );
     expect(result.ok).toBe(true);
     expect(result.changed).toBe(false);
     expect(result.clauses[0]?.artifact_path).toBeNull();
   });
 
-  it("binds a declared non-glob directory prefix; walk isFile refuses it (#4840)", () => {
-    const result = bindClausesToDeclaredScope(
+  it("does not bind a directory stand-in mentioned in a clause (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-bind-dir-"));
+    mkdirSync(join(root, "packages", "a", "src"), { recursive: true });
+    const mentioned = bindClausesToDeclaredScope(
       [
         {
           id: 1,
-          text: "Ship helpers under src/ui/ledger-table/",
+          text: "Ship helpers under packages/a",
           artifact_path: null,
           ambiguous: false,
         },
       ],
-      ["src/ui/ledger-table"],
+      ["packages/a"],
+      root,
     );
-    expect(result.ok).toBe(true);
-    expect(result.clauses[0]?.artifact_path).toBe("src/ui/ledger-table");
+    expect(mentioned.ok).toBe(true);
+    expect(mentioned.clauses[0]?.artifact_path).toBeNull();
+    const stored = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "Ship helpers under packages/a",
+          artifact_path: "packages/a",
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      root,
+    );
+    expect(stored.ok).toBe(false);
+    expect(stored.failures[0]?.kind).toBe("undeclared-binding");
+    expect(stored.clauses[0]?.artifact_path).toBe("packages/a");
   });
 
-  it("binds ./ or backslash directory prefixes as the same non-glob pointer (#4840)", () => {
-    const declared = ["src/ui/ledger-table"];
+  it("does not copy ./ or backslash directory prefixes onto artifact_path (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-bind-dir-prefix-"));
+    mkdirSync(join(root, "src", "ui", "ledger-table"), { recursive: true });
+    const dirDeclared = ["src/ui/ledger-table"];
     const dotted = bindClausesToDeclaredScope(
       [
         {
@@ -247,10 +283,11 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
           ambiguous: false,
         },
       ],
-      declared,
+      dirDeclared,
+      root,
     );
     expect(dotted.ok).toBe(true);
-    expect(dotted.clauses[0]?.artifact_path).toBe("src/ui/ledger-table");
+    expect(dotted.clauses[0]?.artifact_path).toBeNull();
     const win = bindClausesToDeclaredScope(
       [
         {
@@ -260,13 +297,14 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
           ambiguous: false,
         },
       ],
-      declared,
+      dirDeclared,
+      root,
     );
     expect(win.ok).toBe(true);
-    expect(win.clauses[0]?.artifact_path).toBe("src/ui/ledger-table");
+    expect(win.clauses[0]?.artifact_path).toBeNull();
   });
 
-  it("binds a stored extensionless Dockerfile under matchAny (#4840)", () => {
+  it("binds a stored extensionless Dockerfile under matchAny when it is a file (#4840)", () => {
     const result = bindClausesToDeclaredScope(
       [
         {
@@ -277,28 +315,49 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       ["Dockerfile"],
+      rootWith(["Dockerfile"]),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.clauses[0]?.artifact_path).toBe("Dockerfile");
+  });
+
+  it("binds Dockerfile under glob file_scope when it is a regular file (#4840)", () => {
+    const result = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "ship Dockerfile",
+          artifact_path: "Dockerfile",
+          ambiguous: false,
+        },
+      ],
+      ["*"],
+      rootWith(["Dockerfile"]),
     );
     expect(result.ok).toBe(true);
     expect(result.clauses[0]?.artifact_path).toBe("Dockerfile");
   });
 
   it("binds a stored non-glob matchAny file under a glob file_scope (#4840)", () => {
+    const pointer = "packages/a/index.ts";
     const result = bindClausesToDeclaredScope(
       [
         {
           id: 1,
           text: "unit covers packages/a/index.ts",
-          artifact_path: "packages/a/index.ts",
+          artifact_path: pointer,
           ambiguous: false,
         },
       ],
       ["packages/a/**"],
+      rootWith([pointer]),
     );
     expect(result.ok).toBe(true);
-    expect(result.clauses[0]?.artifact_path).toBe("packages/a/index.ts");
+    expect(result.clauses[0]?.artifact_path).toBe(pointer);
   });
 
   it("binds a file token in clause text under a glob file_scope (#4840)", () => {
+    const pointer = "packages/a/index.ts";
     const result = bindClausesToDeclaredScope(
       [
         {
@@ -309,12 +368,14 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       ["packages/a/**"],
+      rootWith([pointer]),
     );
     expect(result.ok).toBe(true);
-    expect(result.clauses[0]?.artifact_path).toBe("packages/a/index.ts");
+    expect(result.clauses[0]?.artifact_path).toBe(pointer);
   });
 
   it("refuses glob-shaped stored paths and declared-member glob text hits (#4840)", () => {
+    const root = rootWith(["packages/a/index.ts"]);
     const stored = bindClausesToDeclaredScope(
       [
         {
@@ -325,6 +386,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       ["packages/a/**"],
+      root,
     );
     expect(stored.ok).toBe(false);
     expect(stored.failures[0]?.kind).toBe("undeclared-binding");
@@ -338,6 +400,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       ["packages/a/**"],
+      root,
     );
     expect(fromText.ok).toBe(false);
     expect(fromText.failures[0]?.kind).toBe("unbound-path");
@@ -354,6 +417,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       [],
+      rootWith(declared),
     );
     expect(result.ok).toBe(true);
     expect(result.changed).toBe(false);
