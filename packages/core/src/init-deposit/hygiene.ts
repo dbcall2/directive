@@ -1313,13 +1313,19 @@ export async function prunePackageAbsentDepositPaths(
   const pruned: string[] = [];
   const prunedDirs: string[] = [];
   for (const rel of absent) {
+    const target = join(deftDir, rel);
     try {
-      containedRemove({ root: deftDir, target: join(deftDir, rel) });
-      pruned.push(rel);
-      prunedDirs.push(...(await pruneEmptyParentsForFile(deftDir, contentDirs, rel)));
+      containedRemove({ root: deftDir, target });
     } catch (cause) {
       io.printf(`Warning: could not prune .deft/core/${rel}: ${String(cause)}\n`);
+      continue;
     }
+    if (existsSync(target) && !isPortRecordMode()) {
+      io.printf(`Warning: could not prune .deft/core/${rel}: path still exists\n`);
+      continue;
+    }
+    pruned.push(rel);
+    prunedDirs.push(...(await pruneEmptyParentsForFile(deftDir, contentDirs, rel)));
   }
   if (pruned.length > 0) {
     io.printf(
@@ -1327,6 +1333,17 @@ export async function prunePackageAbsentDepositPaths(
     );
   }
   return { pruned, prunedDirs };
+}
+
+function ledgerDeletesStillOnDisk(): string[] {
+  if (isPortRecordMode()) return [];
+  const ledger = activeMutationLedger();
+  if (ledger === undefined) return [];
+  const still: string[] = [];
+  for (const rel of ledger.summarize().deleted) {
+    if (existsSync(join(ledger.root, rel))) still.push(rel);
+  }
+  return still;
 }
 
 /**
@@ -1346,10 +1363,14 @@ export async function reconcileDepositToContentPackage(
   io: InitDepositIo,
 ): Promise<PrunePackageAbsentDepositPathsResult> {
   const result = await prunePackageAbsentDepositPaths(deftDir, contentRoot, io);
-  const remaining = await findPackageAbsentDepositPaths(deftDir, contentRoot);
+  const remaining = [...(await findPackageAbsentDepositPaths(deftDir, contentRoot))];
+  for (const rel of ledgerDeletesStillOnDisk()) {
+    if (!remaining.includes(rel)) remaining.push(rel);
+  }
   if (remaining.length > 0) {
     if (isPortRecordMode()) {
       // Dest IO was skipped; dest-only paths stay on disk and are already ledgered.
+      // That planning ledger is not dest proof (#4812).
       return result;
     }
     const sample = remaining.slice(0, 5).join(", ");

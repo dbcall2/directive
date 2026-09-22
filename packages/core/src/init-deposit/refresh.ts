@@ -37,6 +37,7 @@ import {
   isPortRecordMode,
   type MutationSummary,
   mutationSummaryJson,
+  omitReportedDeletesStillPresent,
   runInPortRecordMode,
   runWithMutationLedger,
   snapshotMutationSummary,
@@ -1278,6 +1279,10 @@ function emitGitRefusal(
   const message = decision.message ?? "directive update: Git preflight refused";
   io.printf(`${message}\n`);
   printMeasuredDirt(io, decision.preflight);
+  const reported = dryRun
+    ? omitReportedDeletesStillPresent(destMutations, (rel) => existsSync(join(projectDir, rel)))
+        .summary
+    : destMutations;
   if (options.jsonOut) {
     options.writeOut(
       `${JSON.stringify(
@@ -1291,7 +1296,7 @@ function emitGitRefusal(
           ...gitPreflightJsonFields(decision.preflight),
           ...(options.allowDirtyNoStage === true ? { allow_dirty_no_stage: true } : {}),
           ...(dryRun ? { dry_run: true } : {}),
-          mutations: mutationSummaryJson(destMutations),
+          mutations: mutationSummaryJson(reported),
         },
         null,
         2,
@@ -1321,7 +1326,11 @@ async function emitDryRunPlan(
     io.printf(`${skewHeadline}\n`);
   }
   printMeasuredDirt(io, gitPreflight);
-  printDestPlanLines(io, classification, destResult.mutations);
+  // Record mode did not unlink. Do not list a delete that is still on disk.
+  const mutations = omitReportedDeletesStillPresent(destResult.mutations, (rel) =>
+    existsSync(join(projectDir, rel)),
+  ).summary;
+  printDestPlanLines(io, classification, mutations);
   if (options.jsonOut) {
     options.writeOut(
       `${JSON.stringify(
@@ -1337,7 +1346,7 @@ async function emitDryRunPlan(
           deposit_refresh_pending: refreshPending,
           next_action: resolutionPlan.nextAction,
           warnings: resolutionPlan.warnings,
-          mutations: mutationSummaryJson(destResult.mutations),
+          mutations: mutationSummaryJson(mutations),
           exclusions: [...UPDATE_DRY_RUN_EXCLUSIONS],
           ...gitPreflightJsonFields(gitPreflight),
           ...(options.allowDirtyNoStage === true
@@ -1522,6 +1531,30 @@ export async function runRefreshDepositCli(options: RunRefreshDepositCliOptions)
         }
         return 1;
       }
+      const honestDeletes = omitReportedDeletesStillPresent(result.mutations, (rel) =>
+        existsSync(join(result.projectDir, rel)),
+      );
+      if (honestDeletes.omitted.length > 0) {
+        const message =
+          "refused to report deleted path(s) that still exist: " +
+          honestDeletes.omitted.slice(0, 5).join(", ");
+        options.writeErr(`directive update: ${message}\n`);
+        if (options.jsonOut) {
+          options.writeOut(
+            `${JSON.stringify(
+              {
+                success: false,
+                error: message,
+                error_code: "refresh_deposit_failed",
+                mutations: mutationSummaryJson(honestDeletes.summary),
+              },
+              null,
+              2,
+            )}\n`,
+          );
+        }
+        return 1;
+      }
       const readiness = evaluateAgentHookReadinessSafely(
         result.projectDir,
         options.seams?.evaluateAgentHookReadiness ?? evaluateAgentHookReadiness,
@@ -1565,7 +1598,9 @@ export async function runRefreshDepositCli(options: RunRefreshDepositCliOptions)
         return LEGACY_LAYOUT_REFUSED_EXIT_CODE;
       }
       const message = cause instanceof Error ? cause.message : String(cause);
-      const mutations = snapshotMutationSummary();
+      const mutations = omitReportedDeletesStillPresent(snapshotMutationSummary(), (rel) =>
+        existsSync(join(projectDir, rel)),
+      ).summary;
       options.writeErr(`directive update: ${message}\n`);
       if (options.jsonOut) {
         options.writeOut(

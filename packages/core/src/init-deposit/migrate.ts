@@ -15,7 +15,8 @@
  *   3. Engine-resolve check: verify the global engine resolves via
  *      content-root.ts `resolveContentPackageRoot`. If absent, signpost the
  *      README and return needs-action -- NEVER install/download.
- *   4. Stamp the sentinel into the manifest, writing a timestamped backup first.
+ *   4. Stamp the sentinel into the manifest. The timestamped backup is written
+ *      outside `.deft/core` (user-cache `deft/backups`, else OS temp).
  *
  * Three-state result:
  *   - exitCode 0: migrated OR already-hybrid
@@ -25,12 +26,18 @@
  * Refs #1941, #1912 (freeze prerequisite b), #1933 (never-first-start), #1670.
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveContentPackageRoot } from "../content-root.js";
 import { locateManifest, parseInstallManifest } from "../doctor/manifest.js";
-import { containedWrite } from "../fs/contained-write.js";
+import {
+  ContainedWriteError,
+  ContainedWriteErrorCode,
+  containedWrite,
+} from "../fs/contained-write.js";
 import { CANONICAL_INSTALL_ROOT } from "./scaffold.js";
 
 /**
@@ -73,6 +80,17 @@ export interface MigrateSeams {
   nowIso?: () => string;
   /** Engine-resolve check; returns the resolved content package root or null. */
   resolveEngine?: () => string | null;
+  /**
+   * Out-of-tree directory for the VERSION backup (#4812). Default is the
+   * user-cache `deft/backups` root. A root inside the project is refused.
+   */
+  backupRootDir?: () => string;
+  /**
+   * Backup bytes. Default is containedWrite rooted at the backup directory,
+   * not the project. A project root refuses the cache and temp paths.
+   * An EXISTS refusal from mode "create" is retried under another filename.
+   */
+  writeBackup?: (path: string, text: string) => void;
 }
 
 function defaultReadText(path: string): string | null {
@@ -100,6 +118,158 @@ function defaultResolveEngine(): string | null {
 /** Filesystem-safe rendering of an ISO-8601 timestamp for a backup suffix. */
 function backupSuffix(nowIso: string): string {
   return nowIso.replace(/:/g, "-");
+}
+
+/** Stable per-project key so one shared backup directory cannot collide (#4812). */
+function projectBackupKey(projectRoot: string): string {
+  const abs = resolve(projectRoot);
+  const canonical = process.platform === "win32" ? abs.toLowerCase() : abs;
+  return createHash("sha256").update(canonical).digest("hex").slice(0, 12);
+}
+
+/** `VERSION.bak.<project-key>.<suffix>`. The key is not a path and not in-tree. */
+export function migrateVersionBackupName(projectRoot: string, suffix: string): string {
+  return `VERSION.bak.${projectBackupKey(projectRoot)}.${suffix}`;
+}
+
+function backupNameTaken(skip: ReadonlySet<string>, candidate: string): boolean {
+  return existsSync(candidate) || skip.has(candidate) || skip.has(resolve(candidate));
+}
+
+function unusedBackupFile(dir: string, baseName: string, skip: ReadonlySet<string>): string {
+  const first = join(dir, baseName);
+  if (!backupNameTaken(skip, first)) return first;
+  const pid = process.pid;
+  for (let n = 1; n < 10000; n += 1) {
+    const candidate = join(dir, `${baseName}.${pid}.${n}`);
+    if (!backupNameTaken(skip, candidate)) return candidate;
+  }
+  const stamp = Date.now();
+  for (let n = 0; n < 100; n += 1) {
+    const candidate = join(dir, `${baseName}.${pid}.${stamp}.${n}`);
+    if (!backupNameTaken(skip, candidate)) return candidate;
+  }
+  return join(dir, `${baseName}.${pid}.${stamp}.last`);
+}
+
+function userCacheDir(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): string | null {
+  if (platform === "win32") {
+    const local = env.LOCALAPPDATA?.trim();
+    if (local) return local;
+    const home = (env.USERPROFILE ?? env.HOME)?.trim();
+    if (!home) return null;
+    return join(home, "AppData", "Local");
+  }
+  if (platform === "darwin") {
+    const home = env.HOME?.trim();
+    if (!home) return null;
+    return join(home, "Library", "Caches");
+  }
+  const xdg = env.XDG_CACHE_HOME?.trim();
+  if (xdg) return xdg;
+  const home = env.HOME?.trim();
+  if (!home) return null;
+  return join(home, ".cache");
+}
+
+/** `<user-cache>/deft/backups`, else the OS temp dir (#1445 / #4812). */
+export function defaultVersionBackupRootDir(
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  return join(userCacheDir(env, platform) ?? tmpdir(), "deft", "backups");
+}
+
+function pathIsInside(parent: string, child: string): boolean {
+  const rel = relative(resolve(parent), resolve(child));
+  return rel.length === 0 || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+/**
+ * Timestamped VERSION backup outside the project tree (#4812).
+ * Prefers `backupRootDir` (user-cache `deft/backups`), then OS temp `deft-backups`,
+ * then `deft-core-bak-*`. A root inside the project, including `.deft/backups/`, is skipped.
+ */
+export function resolveMigrateBackupFile(
+  projectRoot: string,
+  suffix: string,
+  backupRootDir?: () => string,
+  skip: ReadonlySet<string> = new Set(),
+): string {
+  const fileName = migrateVersionBackupName(projectRoot, suffix);
+  const roots = [
+    backupRootDir ?? (() => defaultVersionBackupRootDir()),
+    () => join(tmpdir(), "deft-backups"),
+  ];
+  for (const rootFn of roots) {
+    let dir = "";
+    try {
+      dir = rootFn();
+      if (dir.trim().length === 0) continue;
+      mkdirSync(dir, { recursive: true });
+    } catch {
+      continue;
+    }
+    const candidate = unusedBackupFile(dir, fileName, skip);
+    if (pathIsInside(projectRoot, candidate)) continue;
+    if (backupNameTaken(skip, candidate)) continue;
+    return candidate;
+  }
+  const fallback = join(mkdtempSync(join(tmpdir(), "deft-core-bak-")), fileName);
+  if (!backupNameTaken(skip, fallback) && !pathIsInside(projectRoot, fallback)) return fallback;
+  return join(mkdtempSync(join(tmpdir(), "deft-core-bak-")), `${fileName}.${process.pid}.1`);
+}
+
+function writeBackupFile(path: string, text: string): void {
+  const root = dirname(path);
+  mkdirSync(root, { recursive: true });
+  // Root is the backup directory, not the project. create refuses an overwrite.
+  containedWrite({
+    root,
+    target: path,
+    data: text,
+    mode: "create",
+  });
+}
+
+function isBackupCreateExists(err: unknown): boolean {
+  return err instanceof ContainedWriteError && err.code === ContainedWriteErrorCode.EXISTS;
+}
+
+/**
+ * Same-second callers can both observe one free name. The loser of mode
+ * "create" gets EXISTS; pick another name instead of aborting the stamp.
+ * Any other failure is invoked again outside the catch so that refusal still
+ * stops the migration.
+ */
+function writeMigrateBackup(
+  projectRoot: string,
+  suffix: string,
+  text: string,
+  backupRootDir: (() => string) | undefined,
+  writeBackup: (path: string, text: string) => void,
+): string {
+  const rejected = new Set<string>();
+  let lastPath = "";
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const backupPath = resolveMigrateBackupFile(projectRoot, suffix, backupRootDir, rejected);
+    lastPath = backupPath;
+    let failed: unknown = null;
+    try {
+      writeBackup(backupPath, text);
+    } catch (err) {
+      failed = err;
+    }
+    if (failed === null) return backupPath;
+    if (!isBackupCreateExists(failed)) {
+      writeBackup(backupPath, text);
+      return backupPath;
+    }
+    rejected.add(backupPath);
+    rejected.add(resolve(backupPath));
+  }
+  writeBackup(lastPath, text);
+  return lastPath;
 }
 
 /**
@@ -158,6 +328,7 @@ export function runMigrate(projectRoot: string, seams: MigrateSeams = {}): Migra
     });
   const nowIso = seams.nowIso ?? (() => new Date().toISOString().replace(/\.\d{3}Z$/, "Z"));
   const resolveEngine = seams.resolveEngine ?? defaultResolveEngine;
+  const writeBackup = seams.writeBackup ?? writeBackupFile;
 
   const manifestPath = detectCanonicalVendoredManifest(projectRoot, isFile);
   if (manifestPath === null) {
@@ -209,8 +380,13 @@ export function runMigrate(projectRoot: string, seams: MigrateSeams = {}): Migra
     };
   }
 
-  const backupPath = `${manifestPath}.bak.${backupSuffix(nowIso())}`;
-  writeText(backupPath, text);
+  const backupPath = writeMigrateBackup(
+    projectRoot,
+    backupSuffix(nowIso()),
+    text,
+    seams.backupRootDir,
+    writeBackup,
+  );
   writeText(manifestPath, stampManifestText(text));
 
   return {
