@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { destContentionItTimeout } from "../vitest-runner/__tests__/dest-contention-it-timeout.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.test.js";
 import { CacheValidationError } from "./errors.js";
 import {
   FetchAllReportImpl,
