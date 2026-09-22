@@ -13,6 +13,7 @@ import {
   formatClauseWalkMessage,
   formatZeroClauseAcceptanceShapedNotice,
   isDeclaredArtifactPath,
+  isFileShapedPointer,
   isScratchArtifactPath,
   readAcceptanceClauses,
   serializeAcceptanceClauses,
@@ -219,7 +220,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
     expect(result.clauses[0]?.artifact_path).toBeNull();
   });
 
-  it("does not bind a declared directory stand-in named in the clause (#4840)", () => {
+  it("binds a declared non-glob directory prefix; walk isFile refuses it (#4840)", () => {
     const result = bindClausesToDeclaredScope(
       [
         {
@@ -232,10 +233,10 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
       ["src/ui/ledger-table"],
     );
     expect(result.ok).toBe(true);
-    expect(result.clauses[0]?.artifact_path).toBeNull();
+    expect(result.clauses[0]?.artifact_path).toBe("src/ui/ledger-table");
   });
 
-  it("does not bind ./ or backslash directory stand-ins (#4840)", () => {
+  it("binds ./ or backslash directory prefixes as the same non-glob pointer (#4840)", () => {
     const declared = ["src/ui/ledger-table"];
     const dotted = bindClausesToDeclaredScope(
       [
@@ -249,7 +250,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
       declared,
     );
     expect(dotted.ok).toBe(true);
-    expect(dotted.clauses[0]?.artifact_path).toBeNull();
+    expect(dotted.clauses[0]?.artifact_path).toBe("src/ui/ledger-table");
     const win = bindClausesToDeclaredScope(
       [
         {
@@ -262,7 +263,23 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
       declared,
     );
     expect(win.ok).toBe(true);
-    expect(win.clauses[0]?.artifact_path).toBeNull();
+    expect(win.clauses[0]?.artifact_path).toBe("src/ui/ledger-table");
+  });
+
+  it("binds a stored extensionless Dockerfile under matchAny (#4840)", () => {
+    const result = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "ship Dockerfile",
+          artifact_path: "Dockerfile",
+          ambiguous: false,
+        },
+      ],
+      ["Dockerfile"],
+    );
+    expect(result.ok).toBe(true);
+    expect(result.clauses[0]?.artifact_path).toBe("Dockerfile");
   });
 
   it("binds a stored non-glob matchAny file under a glob file_scope (#4840)", () => {
@@ -357,6 +374,18 @@ describe("isDeclaredArtifactPath glob-refusing matchAny (#4840)", () => {
     expect(isDeclaredArtifactPath("packages/a/index.ts", ["packages/a/**"])).toBe(true);
     expect(isDeclaredArtifactPath("packages/a/**", ["packages/a/**"])).toBe(false);
     expect(isDeclaredArtifactPath("packages/a/foo*.ts", ["packages/a/**"])).toBe(false);
+  });
+});
+
+describe("isFileShapedPointer (#4840)", () => {
+  it("accepts extensionless files and refuses glob-shaped pointers", () => {
+    expect(isFileShapedPointer("Dockerfile")).toBe(true);
+    expect(isFileShapedPointer("Makefile")).toBe(true);
+    expect(isFileShapedPointer("LICENSE")).toBe(true);
+    expect(isFileShapedPointer("packages/a/index.ts")).toBe(true);
+    expect(isFileShapedPointer("packages/a/**")).toBe(false);
+    expect(isFileShapedPointer("foo*.ts")).toBe(false);
+    expect(isFileShapedPointer("")).toBe(false);
   });
 });
 
@@ -509,6 +538,25 @@ describe("walkAcceptanceClauses (#3323)", () => {
     expect(report.clauses[1]?.detail).toMatch(/not a shipped file/);
     expect(report.clauses[2]?.outcome).toBe("unverifiable");
     expect(report.clauses[2]?.adjudicable).toBe(false);
+  });
+
+  it("walks an extensionless Dockerfile as a shipped file (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-docker-"));
+    writeFileSync(join(root, "Dockerfile"), "FROM scratch\n", "utf8");
+    const report = walkAcceptanceClauses(
+      [
+        {
+          id: 1,
+          text: "artifact exists at Dockerfile",
+          artifact_path: "Dockerfile",
+          ambiguous: false,
+        },
+      ],
+      root,
+      { declaredScope: ["Dockerfile"] },
+    );
+    expect(report.clauses[0]?.outcome).toBe("verified");
+    expect(report.clauses[0]?.adjudicable).toBe(true);
   });
 
   // #3826 changed the absent half of this pair: a negation matched against the

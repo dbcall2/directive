@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **MatchAny stamp accepts extensionless files, refuses symlink escape, and fences hook names (#4840).** `isFileShapedPointer` no longer requires FILE_EXT; directories still fail at `isFile`. Stamp realpath-contains the pointer under the project root. `inspectActiveScope` fences blocked/eligible basenames; `fenceUntrustedAcceptanceText` collapses newlines. Tracking #4840.
 - **#4008 bind and the clause walk accept a matchAny file under glob file_scope (#4840).** Glob-shaped stored paths and declared-member glob text hits stay refused. `inspectActiveScope` reports a structured zero-eligible-blocked reason; the write-fence suffix names `scope:unblock` or `scope:stamp-evidence`. Evidence `pointer` is fenced in detail and completion listings. Tracking #4840.
 - **Yolo first all-accept lean carries honest pain cites; Mid-arc EXIT does not wait after that lean (#4811).** Uncited first map stays Handoff. After first relieves, unresolved-pain-audit is a pain-audit brief while Dual-stop remains, not operator next-envelope. Dual-stop raise stays a raise. Do not recut evaluateHandoffPrint.
 - **Unchanged landed completed filenames no longer fail vbrief:validate (#4844).** A completed name that already landed stays valid. A basename this change adds or renames, including one with dots, uppercase, or an apostrophe, stays a hard filename error. The printed remedy names that scope and does not say to edit JSON or rename landed records.

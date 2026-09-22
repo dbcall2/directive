@@ -646,10 +646,10 @@ export function isDeclaredArtifactPath(
   });
 }
 
-/** File-token shape for bind: extensioned path, not a directory stand-in or glob. */
+/** File-token shape for bind: non-glob path. Directories fail later at isFile. */
 export function isFileShapedPointer(path: string): boolean {
   const candidate = normalizeScopePath(path);
-  return candidate.length > 0 && !hasGlobMagic(candidate) && FILE_EXT.test(candidate);
+  return candidate.length > 0 && !hasGlobMagic(candidate);
 }
 
 /** Stored/extracted pointer that bind may copy onto artifact_path (#4840 / #4008). */

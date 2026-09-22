@@ -13,7 +13,7 @@
  * ITEM_CORE is not expanded with bare keys; verify:vbrief-conformance rejects them.
  */
 
-import { existsSync, statSync } from "node:fs";
+import { lstatSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import { isHumanOrigin } from "../authz/origin.js";
 import type { GrantOrigin } from "../authz/types.js";
@@ -413,9 +413,15 @@ function itemLabel(item: Record<string, unknown>, path: string): string {
   return path;
 }
 
-/** Fence untrusted clause/task text so roster and refuse listings cannot inject (#4385). */
+/**
+ * Fence untrusted clause/task/basename text so roster and refuse listings cannot inject (#4385 / #4840).
+ * Assumptions: callers interpolate this into operator-visible hook or gate copy.
+ * Guarantees: fence markers and CR/LF are stripped so `pointer=` cannot break a markdown bullet.
+ * Non-goals: HTML/ANSI escaping, path canonicalization, glob matching.
+ */
 export function fenceUntrustedAcceptanceText(text: string): string {
-  return `«untrusted:${text.replace(/[«»]/g, "")}»`;
+  const collapsed = text.replace(/[«»]/g, "").replace(/\r?\n/g, " ");
+  return `«untrusted:${collapsed}»`;
 }
 
 export function clauseKeyedItemId(clauseId: number): string {
@@ -563,14 +569,24 @@ function isContainedProjectPath(projectRoot: string, child: string): boolean {
   return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }
 
-/** Walk's isFile check at stamp time: refuse directories and missing paths. */
+/** Walk's isFile check at stamp time: refuse directories, missing paths, and symlink escape. */
 function isShippedFilePointer(projectRoot: string, pointer: string): boolean {
   const abs = resolve(projectRoot, pointer);
   if (!isContainedProjectPath(projectRoot, abs)) {
     return false;
   }
   try {
-    return existsSync(abs) && statSync(abs).isFile();
+    const info = lstatSync(abs);
+    if (!info.isFile() && !info.isSymbolicLink()) {
+      return false;
+    }
+    const projectReal = realpathSync(projectRoot);
+    const pointerReal = realpathSync(abs);
+    const rel = relative(projectReal, pointerReal);
+    if (rel === "" || rel.startsWith("..") || isAbsolute(rel)) {
+      return false;
+    }
+    return statSync(pointerReal).isFile();
   } catch {
     return false;
   }

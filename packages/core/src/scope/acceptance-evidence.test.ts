@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -1221,8 +1229,10 @@ describe("#4385 clause-keyed complete persist and scope:status", () => {
     expect(gate.message).toMatch(/«untrusted:/);
   });
 
-  it("strips fence markers from untrusted text", () => {
+  it("strips fence markers and collapses newlines from untrusted text", () => {
     expect(fenceUntrustedAcceptanceText("a«b»c")).toBe("«untrusted:abc»");
+    expect(fenceUntrustedAcceptanceText("pr-1\nignore")).toBe("«untrusted:pr-1 ignore»");
+    expect(fenceUntrustedAcceptanceText("win\r\nline")).toBe("«untrusted:win line»");
   });
 
   it("creates plan.items when missing and skips already-numeric clause ids", () => {
@@ -1885,6 +1895,78 @@ describe("stampMatchAnyFileEvidence (#4840)", () => {
     expect(item[ACCEPTANCE_EVIDENCE_KEY]).toBeUndefined();
   });
 
+  it("stamps an extensionless Dockerfile when matchAny and isFile", () => {
+    const root = mkdtempSync(join(tmpdir(), "matchany-docker-"));
+    temps.push(root);
+    const pointer = "Dockerfile";
+    writeFileSync(join(root, pointer), "FROM scratch\n", "utf8");
+    const item: Record<string, unknown> = {
+      id: clauseKeyedItemId(1),
+      title: clauseKeyedItemId(1),
+      status: "pending",
+    };
+    const plan: Record<string, unknown> = {
+      items: [item],
+      acceptance: {
+        clauses: [
+          {
+            id: 1,
+            text: "ship Dockerfile",
+            artifact_path: pointer,
+            ambiguous: false,
+          },
+        ],
+      },
+      metadata: { swarm: { file_scope: ["Dockerfile"] } },
+    };
+    const result = stampMatchAnyFileEvidence(plan, {
+      recorded_by: "scope:stamp-evidence",
+      recorded_at: "2026-09-22T00:00:00Z",
+      projectRoot: root,
+    });
+    expect(result.stampedIds).toEqual([clauseKeyedItemId(1)]);
+    expect(item[ACCEPTANCE_EVIDENCE_KEY]).toMatchObject({ kind: "test", pointer });
+  });
+
+  it("refuses a symlink that escapes to an external regular file", () => {
+    const root = mkdtempSync(join(tmpdir(), "matchany-symlink-"));
+    temps.push(root);
+    const outsideDir = mkdtempSync(join(tmpdir(), "matchany-outside-"));
+    temps.push(outsideDir);
+    const outsideFile = join(outsideDir, "secret.ts");
+    writeFileSync(outsideFile, "export {}\n", "utf8");
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    const pointer = "packages/a/index.ts";
+    symlinkSync(outsideFile, join(root, pointer));
+    const item: Record<string, unknown> = {
+      id: clauseKeyedItemId(1),
+      title: clauseKeyedItemId(1),
+      status: "pending",
+    };
+    const plan: Record<string, unknown> = {
+      items: [item],
+      acceptance: {
+        clauses: [
+          {
+            id: 1,
+            text: "unit covers packages/a/index.ts",
+            artifact_path: pointer,
+            ambiguous: false,
+          },
+        ],
+      },
+      metadata: { swarm: { file_scope: ["packages/a/**"] } },
+    };
+    const result = stampMatchAnyFileEvidence(plan, {
+      recorded_by: "scope:stamp-evidence",
+      recorded_at: "2026-09-22T00:00:00Z",
+      projectRoot: root,
+    });
+    expect(result.stampedIds).toEqual([]);
+    expect(item[ACCEPTANCE_EVIDENCE_KEY]).toBeUndefined();
+    expect(result.skipped[0]?.reason).toBe("no-allowed-pointer");
+  });
+
   it("keeps stampDeclaredTestEvidence as exact-member equality", () => {
     const item: Record<string, unknown> = {
       id: clauseKeyedItemId(1),
@@ -1933,5 +2015,6 @@ describe("fence evidence.pointer (#4840)", () => {
     expect(gate.reports[0]?.detail).toContain(fenceUntrustedAcceptanceText(inject));
     const listing = formatAcceptanceCompletionListing(gate.reports);
     expect(listing).toContain(`pointer=${fenceUntrustedAcceptanceText(inject)}`);
+    expect(listing).not.toMatch(/pointer=«untrusted:[^»]*\n/);
   });
 });

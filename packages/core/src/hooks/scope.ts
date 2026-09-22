@@ -2,6 +2,7 @@ import { readdirSync } from "node:fs";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { hasArtifactSuffix } from "../layout/resolve.js";
 import { evaluate } from "../preflight/evaluate.js";
+import { fenceUntrustedAcceptanceText } from "../scope/acceptance-evidence.js";
 
 /** Hook/process env pin for the dispatched story when more than one brief is active (#4007). */
 export const ACTIVE_SCOPE_PIN_ENV = "DEFT_ACTIVE_SCOPE";
@@ -102,8 +103,17 @@ export function matchPinnedActiveScope(
   return null;
 }
 
+/**
+ * Assumptions: deny copy is operator-visible hook text; basenames come from the filesystem.
+ * Guarantees: names are fenced and CR/LF-collapsed so they cannot break markdown or inject copy.
+ * Non-goals: pin env values, preflight evaluator copy, origin-freshness messages.
+ */
+function fenceActiveScopeName(path: string): string {
+  return fenceUntrustedAcceptanceText(toPosix(basename(path)));
+}
+
 function formatMultipleActiveMessage(eligible: readonly EligibleScope[]): string {
-  const names = eligible.map((item) => toPosix(basename(item.path))).join(", ");
+  const names = eligible.map((item) => fenceActiveScopeName(item.path)).join(", ");
   return (
     `Multiple active xBRIEF artifacts are eligible (${names}). ` +
     "The write fence cannot bind the first-sorted story: a cohort would share that " +
@@ -115,7 +125,7 @@ function formatMultipleActiveMessage(eligible: readonly EligibleScope[]): string
 }
 
 function formatZeroEligibleBlockedMessage(blocked: readonly string[]): string {
-  const names = blocked.map((path) => toPosix(basename(path))).join(", ");
+  const names = blocked.map((path) => fenceActiveScopeName(path)).join(", ");
   return (
     `No eligible running xBRIEF under xbrief/active/. Scanned candidate(s) are ` +
     `blocked (${names}).`
