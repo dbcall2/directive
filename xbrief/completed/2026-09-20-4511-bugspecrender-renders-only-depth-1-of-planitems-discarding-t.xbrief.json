@@ -17,7 +17,7 @@
       {
         "title": "Both emitters are in: renderSpecMarkdown and exportSpec. Nested-on is the default of both no-flag paths. No legacy-only scope-out.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/render/nested-plan-items.test.ts",
@@ -28,7 +28,7 @@
       {
         "title": "Compaction cap default is 3 (phase, subphase, task) so the pinned make-spec exemplar leaf survives. The cap must announce truncation rather than omit silently. Fail closed on unknown tokens.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/render/nested-plan-items.test.ts",
@@ -39,7 +39,7 @@
       {
         "title": "Export a shared dual-key walker from spec-validate; validator, spec-render, exportSpec, and roadmap-render consume it.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/render/nested-plan-items.test.ts",
@@ -50,7 +50,7 @@
       {
         "title": "Item-subtree shape only: Implementation Plan wrapper, phases at ###, subphases at ####, tasks as bullets. Document-level section ordering is out of this list.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/render/nested-plan-items.test.ts",
@@ -61,7 +61,7 @@
       {
         "title": "Contract test: render the pinned make-spec example and assert that shape plus existing depth-1 handlers (Depends on, Traces, Acceptance).",
         "status": "completed",
-        "id": "clause:5",
+        "id": "clause.5",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/render/nested-plan-items.test.ts",

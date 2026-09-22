@@ -19,7 +19,7 @@
       {
         "title": "When canonical deft check must not use evaluator-surface resolveDefaultBaseRef (origin/HEAD then origin/main or origin/master) as the silent intent-constraint origin when a typed consumer dest exists. Local canonical check uses dest the same way orphan-active already does (resolveCandidateBaseRef / origin/<deliveryBranch>).",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "narrative": {
           "Acceptance": "When canonical deft check must not use evaluator-surface resolveDefaultBaseRef (origin/HEAD then origin/main or origin/master) as the silent intent-constraint origin when a typed consumer dest exists. Local canonical check uses dest the same way orphan-active already does (resolveCandidateBaseRef / origin/<deliveryBranch>)."
         },
@@ -33,7 +33,7 @@
       {
         "title": "When report the resolved origin and candidate mode on every run, including N/A. Do not treat origin equal to HEAD as a successful validation. An opt-in --origin-ref on deft check is a diagnostic, not the default-base recut. Keep standalone --origin-ref.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "narrative": {
           "Acceptance": "When report the resolved origin and candidate mode on every run, including N/A. Do not treat origin equal to HEAD as a successful validation. An opt-in --origin-ref on deft check is a diagnostic, not the default-base recut. Keep standalone --origin-ref."
         },
@@ -47,7 +47,7 @@
       {
         "title": "When HEAD equals that origin and the working tree has production edits not in HEAD: either include those unstaged/untracked production files as candidates (bytes from the working tree; mint authority stays git show merge-base) or N/A in language that names committed HEAD versus origin only; unstaged not assessed. Do not skip. Do not let exit-0 N/A read as assessment of a dirty tree.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "narrative": {
           "Acceptance": "When HEAD equals that origin and the working tree has production edits not in HEAD: either include those unstaged/untracked production files as candidates (bytes from the working tree; mint authority stays git show merge-base) or N/A in language that names committed HEAD versus origin only; unstaged not assessed. Do not skip. Do not let exit-0 N/A read as assessment of a dirty tree."
         },
@@ -61,7 +61,7 @@
       {
         "title": "When preserve merge-base mint authority. Do not skip the gate. Do not invent a fourth default. Typed baseBranch is the integration source, not dest. Do not claim deliveryBranch is always the comparison base. Do not treat #4597 mid-build mint as this comparison-base recut.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "narrative": {
           "Acceptance": "When preserve merge-base mint authority. Do not skip the gate. Do not invent a fourth default. Typed baseBranch is the integration source, not dest. Do not claim deliveryBranch is always the comparison base. Do not treat #4597 mid-build mint as this comparison-base recut."
         },

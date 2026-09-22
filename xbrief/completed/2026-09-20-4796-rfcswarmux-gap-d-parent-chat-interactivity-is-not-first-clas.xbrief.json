@@ -19,7 +19,7 @@
       {
         "title": "When split the matrix into independently evidenced axes: background launch, parent turn return, completion delivery, live steer, soft pause/resume, interrupt/orphan. Reserve Gap D fidelity for the first three.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "narrative": {
           "Acceptance": "When split the matrix into independently evidenced axes: background launch, parent turn return, completion delivery, live steer, soft pause/resume, interrupt/orphan. Reserve Gap D fidelity for the first three."
         },
@@ -33,7 +33,7 @@
       {
         "title": "When two trials per host: (A) primitive-only spawn then immediate parent-turn return; (B) canonical Directive swarm/review flow. Record parent_turn_returned_at, second user turn while child alive, how completion arrived, interrupt effect.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "narrative": {
           "Acceptance": "When two trials per host: (A) primitive-only spawn then immediate parent-turn return; (B) canonical Directive swarm/review flow. Record parent_turn_returned_at, second user turn while child alive, how completion arrived, interrupt effect."
         },
@@ -47,7 +47,7 @@
       {
         "title": "When every non-Unknown cell needs dated evidence keyed by harness version, model, Directive SHA, trial shape, and observed result. Unmeasured starting-point rows become Unknown.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "narrative": {
           "Acceptance": "When every non-Unknown cell needs dated evidence keyed by harness version, model, Directive SHA, trial shape, and observed result. Unmeasured starting-point rows become Unknown."
         },
@@ -61,7 +61,7 @@
       {
         "title": "When grok Layer A: host-grok-build.md must carry the same background-then-end-turn recipe as host-openclaw.md, plus a completion channel that is not parent pull-wait. Phase 3 Gap D must name spawn_subagent. Layer B: host has no sessions_yield / retain. Do not conflate Tier-1 spawn with Tier-1 parent interactivity.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "narrative": {
           "Acceptance": "When grok Layer A: host-grok-build.md must carry the same background-then-end-turn recipe as host-openclaw.md, plus a completion channel that is not parent pull-wait. Phase 3 Gap D must name spawn_subagent. Layer B: host has no sessions_yield / retain. Do not conflate Tier-1 spawn with Tier-1 parent interactivity."
         },
@@ -75,7 +75,7 @@
       {
         "title": "When score bake-off (c) only when completion-notify or a second session that is the durable owner is measured true. Otherwise (c) is a #3153 defect.",
         "status": "completed",
-        "id": "clause:5",
+        "id": "clause.5",
         "narrative": {
           "Acceptance": "When score bake-off (c) only when completion-notify or a second session that is the durable owner is measured true. Otherwise (c) is a #3153 defect."
         },
@@ -89,7 +89,7 @@
       {
         "title": "When steer inbox scores child-steer only, not parent-pane usability. Two-session split names occupancy-lease holder and dest-proven session; one owner, one read-only companion, one durable handoff.",
         "status": "completed",
-        "id": "clause:6",
+        "id": "clause.6",
         "narrative": {
           "Acceptance": "When steer inbox scores child-steer only, not parent-pane usability. Two-session split names occupancy-lease holder and dest-proven session; one owner, one read-only companion, one durable handoff."
         },
@@ -103,7 +103,7 @@
       {
         "title": "When reconcile review-cycle \"parent yielding\" with host-grok-build pull-wait as part of primary disposition. Until a measured callback exists, Grok wording is conditional.",
         "status": "completed",
-        "id": "clause:7",
+        "id": "clause.7",
         "narrative": {
           "Acceptance": "When reconcile review-cycle \"parent yielding\" with host-grok-build pull-wait as part of primary disposition. Until a measured callback exists, Grok wording is conditional."
         },
@@ -117,7 +117,7 @@
       {
         "title": "When do not merge into #3984. Do not bind pause/checkpoint as primary. Do not relitigate Gap D prose as failed delivery.",
         "status": "completed",
-        "id": "clause:8",
+        "id": "clause.8",
         "narrative": {
           "Acceptance": "When do not merge into #3984. Do not bind pause/checkpoint as primary. Do not relitigate Gap D prose as failed delivery."
         },

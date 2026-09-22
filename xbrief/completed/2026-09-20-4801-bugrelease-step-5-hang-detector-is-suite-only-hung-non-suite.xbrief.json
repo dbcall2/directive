@@ -19,7 +19,7 @@
       {
         "title": "When cached path only. Mint one absolute deadline at runReleaseCheck entry. Each cached non-suite gate receives remaining time and refuses before spawn when none remains. Do not arm a fresh 20 minutes per gate.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "narrative": {
           "Acceptance": "When cached path only. Mint one absolute deadline at runReleaseCheck entry. Each cached non-suite gate receives remaining time and refuses before spawn when none remains. Do not arm a fresh 20 minutes per gate."
         },
@@ -33,7 +33,7 @@
       {
         "title": "When hang kill is Worker plus Atomics.wait wrapping superviseChild without suite tees, so the timer can fire while cached runner() stays sync. Map timeout to 124, then tree-kill. Keep runSupervisedGate and suite tees on isSuiteCheckGate only. Do not harvest Promise/async dispatchCachedTaskCheck. Do not harvest captureSpawn spawnSync plus killDescendantTree on the same thread.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "narrative": {
           "Acceptance": "When hang kill is Worker plus Atomics.wait wrapping superviseChild without suite tees, so the timer can fire while cached runner() stays sync. Map timeout to 124, then tree-kill. Keep runSupervisedGate and suite tees on isSuiteCheckGate only. Do not harvest Promise/async dispatchCachedTaskCheck. Do not harvest captureSpawn spawnSync plus killDescendantTree on the same thread."
         },
@@ -47,7 +47,7 @@
       {
         "title": "When do not switch production Step 5 to uncached spawnSync timeout. Nested remaining-time through literal-acceptance and DEFT_RELEASE_PREFLIGHT refuse stay off this harvest. Cycle refuse is leftover #4798.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "narrative": {
           "Acceptance": "When do not switch production Step 5 to uncached spawnSync timeout. Nested remaining-time through literal-acceptance and DEFT_RELEASE_PREFLIGHT refuse stay off this harvest. Cycle refuse is leftover #4798."
         },
@@ -61,7 +61,7 @@
       {
         "title": "When 124 copy names the actual gate. Plumb hangTimeout. Read completion.gates on the 124 branch. Re-confirm the child handle before taskkill and prove the tree empty. Do not harvest Job Object. Do not raise RELEASE_CHECK_TIMEOUT_MS.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "narrative": {
           "Acceptance": "When 124 copy names the actual gate. Plumb hangTimeout. Read completion.gates on the 124 branch. Re-confirm the child handle before taskkill and prove the tree empty. Do not harvest Job Object. Do not raise RELEASE_CHECK_TIMEOUT_MS."
         },

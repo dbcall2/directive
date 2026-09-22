@@ -19,7 +19,7 @@
       {
         "title": "When inspectExactLifecycleCommand is null and the hint is session:start and quoting/redirect/pipe/chain tokens are absent, deny text names the actual miss. Measured class: leading/trailing space, double space, tab.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "narrative": {
           "Acceptance": "When inspectExactLifecycleCommand is null and the hint is session:start and quoting/redirect/pipe/chain tokens are absent, deny text names the actual miss. Measured class: leading/trailing space, double space, tab."
         },
@@ -33,7 +33,7 @@
       {
         "title": "When keep fail-closed on pipe, redirect, newline, and chain. Name those as the actual miss. Do not put them in the false-cause leftover.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "narrative": {
           "Acceptance": "When keep fail-closed on pipe, redirect, newline, and chain. Name those as the actual miss. Do not put them in the false-cause leftover."
         },
@@ -47,7 +47,7 @@
       {
         "title": "When drop heredoc-mention as a distinct false-cause class. Split line-start newline (keep fail-closed) from mid-line mention (no hint).",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "narrative": {
           "Acceptance": "When drop heredoc-mention as a distinct false-cause class. Split line-start newline (keep fail-closed) from mid-line mention (no hint)."
         },
@@ -61,7 +61,7 @@
       {
         "title": "When drop the trial conjunct. Recut copy does not remove --session-id=. Four-token deft session:start -- --read-only stays exact.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "narrative": {
           "Acceptance": "When drop the trial conjunct. Recut copy does not remove --session-id=. Four-token deft session:start -- --read-only stays exact."
         },
@@ -75,7 +75,7 @@
       {
         "title": "When for requiresOwner false session:start --read-only, a miss that is only horizontal whitespace must not demand --session-id. Do not trim-then-rewrite across newline.",
         "status": "completed",
-        "id": "clause:5",
+        "id": "clause.5",
         "narrative": {
           "Acceptance": "When for requiresOwner false session:start --read-only, a miss that is only horizontal whitespace must not demand --session-id. Do not trim-then-rewrite across newline."
         },

@@ -19,7 +19,7 @@
       {
         "title": "When at least one xbrief/active/*.xbrief.json yields a non-null clauseCountFromBrief, pending must not max-win over the max of those counts. Pick stamp-gated skip, not file-gated skip of pending whenever any active file exists.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "narrative": {
           "Acceptance": "When at least one xbrief/active/*.xbrief.json yields a non-null clauseCountFromBrief, pending must not max-win over the max of those counts. Pick stamp-gated skip, not file-gated skip of pending whenever any active file exists."
         },
@@ -33,7 +33,7 @@
       {
         "title": "When live means those stamped-count active files. Occupancy and DEFT_ACTIVE_SCOPE stay out. Intra-active max-win stays.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "narrative": {
           "Acceptance": "When live means those stamped-count active files. Occupancy and DEFT_ACTIVE_SCOPE stay out. Intra-active max-win stays."
         },
@@ -47,7 +47,7 @@
       {
         "title": "When keep pending as the #3358 proxy when no active file yields a derived count. Fill site is collectCeremonyDialConsumerEvidence merge, not estimateProvisionalCeremonyInputs. CLI --task-size / env still win.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "narrative": {
           "Acceptance": "When keep pending as the #3358 proxy when no active file yields a derived count. Fill site is collectCeremonyDialConsumerEvidence merge, not estimateProvisionalCeremonyInputs. CLI --task-size / env still win."
         },
@@ -61,7 +61,7 @@
       {
         "title": "When tests: pending-4 must not beat active-1; pending-only still fills; unstamped-active plus pending-4 is recorded as stamp-gated (pending still fills) unless a later leftover names file-gated.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "narrative": {
           "Acceptance": "When tests: pending-4 must not beat active-1; pending-only still fills; unstamped-active plus pending-4 is recorded as stamp-gated (pending still fills) unless a later leftover names file-gated."
         },

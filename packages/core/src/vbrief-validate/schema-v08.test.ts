@@ -103,6 +103,50 @@ describe("validateVbriefSchema xBRIEF v0.8 (#2107)", () => {
     expect(errors.some((e) => e.includes("invalid effort"))).toBe(true);
   });
 
+  it("rejects non-conformant string PlanItem.id and leaves omitted/integer ids (#4707)", () => {
+    const legal = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        items: [
+          { id: "clause.1", title: "dotted", status: "pending" },
+          { id: "github.issue.5450735782", title: "mint", status: "pending" },
+          { id: "1", title: "digit", status: "pending" },
+          { title: "omitted", status: "pending" },
+          { id: 2, title: "integer leftover", status: "pending" },
+        ],
+      },
+    };
+    expect(validateVbriefSchema(legal, "id-legal.json")).toEqual([]);
+
+    const colon = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        items: [{ id: "clause:1", title: "colon", status: "pending" }],
+      },
+    };
+    const errors = validateVbriefSchema(colon, "id-colon.json");
+    expect(errors.some((e) => e.includes("invalid id"))).toBe(true);
+
+    const nested = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        items: [
+          {
+            title: "parent",
+            status: "pending",
+            subItems: [{ id: "clause:2", title: "nested", status: "pending" }],
+          },
+        ],
+      },
+    };
+    expect(
+      validateVbriefSchema(nested, "id-nested.json").some((e) => e.includes("invalid id")),
+    ).toBe(true);
+  });
+
   it("rejects plan.status auto (item-only in v0.8)", () => {
     const errors = validateVbriefSchema(
       {

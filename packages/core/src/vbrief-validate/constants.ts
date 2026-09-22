@@ -33,6 +33,9 @@ export const VALID_PLAN_ITEM_TYPES = new Set(["task", "group", "milestone", "epi
 /** Optional PlanItem.effort enum (#1581). Time anchors: S <2h, M 2-4h, L 1-2d, XL needs breakdown. */
 export const VALID_PLAN_ITEM_EFFORTS = new Set(["S", "M", "L", "XL"]);
 
+/** Optional PlanItem.id pattern from 0.6/0.8 schema. String ids when present must match (#4707). */
+export const PLAN_ITEM_ID_PATTERN = /^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$/;
+
 /** D13: status-to-folder mapping (#533 adds ``failed`` in completed/). */
 export const FOLDER_ALLOWED_STATUSES: Readonly<Record<string, ReadonlySet<string>>> = {
   proposed: new Set(["draft", "proposed"]),

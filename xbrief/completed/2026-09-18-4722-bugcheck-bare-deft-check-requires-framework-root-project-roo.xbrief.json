@@ -17,7 +17,7 @@
       {
         "title": "Default project-root to cwd when `--project-root` is omitted. Resolve framework-root from that project-root through explicit, then `DEFT_ROOT`, then source checkout, then `.deft/core`, then legacy `deft/`. Keep both flags as overrides. One handler for `deft` and `directive`. Copy `packages/cli/src/migrate-xbrief.ts` parseArgs order.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Default project-root to cwd when `--project-root` is omitted. Resolve framework-root from that project-root through explicit, then `DEFT_ROOT`, then source checkout, then `.deft/core`, then legacy `deft/`. Keep both flags as overrides. One handler for `deft` and `directive`. Copy `packages/cli/src/migrate-xbrief.ts` parseArgs order."
@@ -32,7 +32,7 @@
       {
         "title": "Fail-closed for check: probe those same project-root candidates (plus explicit / `DEFT_ROOT`) and refuse `resolveDefaultFrameworkRoot` as check's framework-root. Do not recut #2146 for doctor or migrate. Do not treat consumer-gate-integrity or go-task spawn as the miss.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Fail-closed for check: probe those same project-root candidates (plus explicit / `DEFT_ROOT`) and refuse `resolveDefaultFrameworkRoot` as check's framework-root. Do not recut #2146 for doctor or migrate. Do not treat consumer-gate-integrity or go-task spawn as the miss."
@@ -47,7 +47,7 @@
       {
         "title": "Do not add a new check CLI. Do not teach testers the flags as the close. Do not recut getting-started off bare `deft check`. Do not harvest with #4679 P1 or P2.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Do not add a new check CLI. Do not teach testers the flags as the close. Do not recut getting-started off bare `deft check`. Do not harvest with #4679 P1 or P2."

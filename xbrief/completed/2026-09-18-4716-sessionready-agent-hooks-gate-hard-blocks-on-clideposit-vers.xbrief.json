@@ -18,7 +18,7 @@
       {
         "title": "Expose writeAgentHookDeposit as the recovery without runRefreshDeposit file-swap (new verb or no-swap path). Write all still-enabled hosts. Re-run the existing live probe.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Expose writeAgentHookDeposit as the recovery without runRefreshDeposit file-swap (new verb or no-swap path). Write all still-enabled hosts. Re-run the existing live probe."
@@ -33,7 +33,7 @@
       {
         "title": "Keep structural missing/drifted fail-closed. Do not treat warning as an equal bound shape.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Keep structural missing/drifted fail-closed. Do not treat warning as an equal bound shape."
@@ -48,7 +48,7 @@
       {
         "title": "Do not take out-of-tree write exemption (Requested item 4). In-repo scratch stays #1802. Out-of-tree ritual stays #4013.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Do not take out-of-tree write exemption (Requested item 4). In-repo scratch stays #1802. Out-of-tree ritual stays #4013."
@@ -63,7 +63,7 @@
       {
         "title": "Keep a rewrite-disclosure clause on the update recovery line. Disclosure-only does not relieve P1.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Keep a rewrite-disclosure clause on the update recovery line. Disclosure-only does not relieve P1."
@@ -78,7 +78,7 @@
       {
         "title": "Do not add doctor to WRITE_GATED_EXECUTE_STEPS.",
         "status": "completed",
-        "id": "clause:5",
+        "id": "clause.5",
         "effort": "S",
         "narrative": {
           "Acceptance": "When this slice ships, Do not add doctor to WRITE_GATED_EXECUTE_STEPS."

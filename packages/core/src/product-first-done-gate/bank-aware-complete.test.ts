@@ -603,8 +603,8 @@ function swarmOnlyPlan(id: string, commands: string[]): Record<string, unknown> 
         },
       },
       {
-        id: "clause:1",
-        title: "clause:1",
+        id: "clause.1",
+        title: "clause.1",
         status: "pending",
         "x-directive/evidence": {
           kind: "test",
@@ -614,8 +614,8 @@ function swarmOnlyPlan(id: string, commands: string[]): Record<string, unknown> 
         },
       },
       {
-        id: "clause:2",
-        title: "clause:2",
+        id: "clause.2",
+        title: "clause.2",
         status: "pending",
         "x-directive/evidence": {
           kind: "test",

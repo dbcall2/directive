@@ -17,7 +17,7 @@
       {
         "title": "Add a strip plan beside `planHybridEnvelopeRewrites`, not through `transformArtifactV06ToV08` / `isAlreadyV08Artifact`.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -28,7 +28,7 @@
       {
         "title": "Redundancy predicate: fail closed on field disagreement the same way `dual-populated` refuses a merge. Strip only when every legacy-info field is either `version: \"0.6\"` or already present and equal on the canonical 0.8 object.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -39,7 +39,7 @@
       {
         "title": "Preserve the canonical envelope and `plan` byte-for-byte aside from deleting the leftover key.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -50,7 +50,7 @@
       {
         "title": "Reuse `checkGitClean` plus `containedWrite`.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -61,7 +61,7 @@
       {
         "title": "Validate the in-memory post-strip object with `validateVbriefSchema` and the envelope predicate already inside `scanCorpusEnvelope` (`vBRIEFInfo` present, or `xBRIEFInfo.version` not `0.8`); fail closed if dirty. Do not `readFileSync` the pre-strip path. Do not treat detector-null as pass. After apply, `evaluateXbriefDrift` on that same candidate set is the success-then-reject postcondition. A non-redundant dual envelope in the drift-gate set refuses the whole migrate (non-zero).",
         "status": "completed",
-        "id": "clause:5",
+        "id": "clause.5",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -72,7 +72,7 @@
       {
         "title": "Call site: same `xbriefHasContent && !vbriefPresent` window, after empty hybrid pending, before `detectLegacyVbriefLayout` / residual-schema noop. On non-empty strip pending, reuse hybrid `checkGitClean` plus `containedWrite`, then return rewritten so the noop cannot fire.",
         "status": "completed",
-        "id": "clause:6",
+        "id": "clause.6",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -83,7 +83,7 @@
       {
         "title": "File set is `scanCorpusEnvelope` candidates. Root `specification.xbrief.json` and `plan.xbrief.json` are in. `xbrief/completed/**` stays historical.",
         "status": "completed",
-        "id": "clause:7",
+        "id": "clause.7",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -94,7 +94,7 @@
       {
         "title": "Update-transaction prevention remains leftover.",
         "status": "completed",
-        "id": "clause:8",
+        "id": "clause.8",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",

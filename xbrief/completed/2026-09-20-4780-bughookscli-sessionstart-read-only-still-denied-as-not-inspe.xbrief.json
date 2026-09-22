@@ -19,7 +19,7 @@
       {
         "title": "When do not bind the recorded refutation-target as written. deft session:start -- --read-only is exact at this SHA.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "narrative": {
           "Acceptance": "When do not bind the recorded refutation-target as written. deft session:start -- --read-only is exact at this SHA."
         },
@@ -33,7 +33,7 @@
       {
         "title": "When do not claim exact-miss hint deny closed on this number. That remainder is #4793.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "narrative": {
           "Acceptance": "When do not claim exact-miss hint deny closed on this number. That remainder is #4793."
         },
@@ -47,7 +47,7 @@
       {
         "title": "When keep fail-closed on true compound forms. Keep rewriteSafe versus hint as separate classes.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "narrative": {
           "Acceptance": "When keep fail-closed on true compound forms. Keep rewriteSafe versus hint as separate classes."
         },

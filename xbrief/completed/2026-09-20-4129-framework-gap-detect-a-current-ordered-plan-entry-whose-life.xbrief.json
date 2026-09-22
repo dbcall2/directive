@@ -17,7 +17,7 @@
       {
         "title": "Name the resolution function from a plan entry to a lifecycle entity per `PlanSequenceEntry.kind`, including no-origin skip versus fail-closed.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -28,7 +28,7 @@
       {
         "title": "Sufficient terminal evidence is existing local ledgers: `TIP_TERMINAL_FOLDERS` (completed|cancelled), `hasTransitionWrite` / failed stamp, and `collectGithubRefs` on that entry's origin. Do not add a new GitHub issue-state client inside `verifyPlanTarget`.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -39,7 +39,7 @@
       {
         "title": "Unknown policy reuses orphan-active `StateResolution` or stays filesystem-only so unknown does not arise.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -50,7 +50,7 @@
       {
         "title": "Drift predicate: current plan entry is non-terminal (`status` pending or unset, sequence not exhausted) and a resolvable Directive lifecycle origin for that entry already sits in `completed/` or `cancelled/` (or carries the failed stamp). GitHub `closed` without a terminal xBRIEF stays on #3429 / #3476.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -61,7 +61,7 @@
       {
         "title": "Fail-closed surfaces: `plan-sequence:current` (work selection) and `verifyPlanTarget` (work-unit plus sub-agent admission). Solo `swarm:launch` skip and dummy-target cohort admission are in that surface list, or they are a named leftover; they are not closed by editing only `packages/cli/src/verify-plan-sequence.ts`.",
         "status": "completed",
-        "id": "clause:5",
+        "id": "clause.5",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -72,7 +72,7 @@
       {
         "title": "Printed remediation is operator-reviewed stop/ask, same voice as orphan-active's do-not-complete-until, not unattended `plan-sequence:advance`.",
         "status": "completed",
-        "id": "clause:6",
+        "id": "clause.6",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -83,7 +83,7 @@
       {
         "title": "New result code, not `mismatch` or `exhausted`, so agents cannot treat drift as pick-the-next-id.",
         "status": "completed",
-        "id": "clause:7",
+        "id": "clause.7",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -94,7 +94,7 @@
       {
         "title": "Share one pure drift helper between `plan-sequence:current` and `verifyPlanTarget`. Do not add a third verb.",
         "status": "completed",
-        "id": "clause:8",
+        "id": "clause.8",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",
@@ -105,7 +105,7 @@
       {
         "title": "#4433 `batching_allowed` stays out.",
         "status": "completed",
-        "id": "clause:9",
+        "id": "clause.9",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "CHANGELOG.md",

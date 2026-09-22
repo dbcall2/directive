@@ -155,8 +155,8 @@ describe("buildIssueVbrief", () => {
     );
     const plan = vbrief.plan as Record<string, unknown>;
     expect(plan.items).toEqual([
-      { id: "clause:1", title: "Widget renders", status: "proposed" },
-      { id: "clause:2", title: "Spec updated", status: "completed" },
+      { id: "clause.1", title: "Widget renders", status: "proposed" },
+      { id: "clause.2", title: "Spec updated", status: "completed" },
     ]);
     expect((plan.narratives as Record<string, string>).Overview).toContain("Acceptance Criteria");
     const metadata = plan.metadata as {
@@ -1328,11 +1328,11 @@ describe("ingestOne Recut Bound-remedy harvest (#4258)", () => {
         "Logging of persist incarnation vs EXISTS does not change disposition.",
       ]);
       expect(data.plan.items.map((item) => item.id)).toEqual([
-        "clause:1",
-        "clause:2",
-        "clause:3",
-        "clause:4",
-        "clause:5",
+        "clause.1",
+        "clause.2",
+        "clause.3",
+        "clause.4",
+        "clause.5",
       ]);
       expect(data.plan.items.map((item) => item.title)).not.toContain(
         "withdrawn body checkbox that must not win",
@@ -1495,11 +1495,11 @@ describe("ingestOne Recut Bound-remedy harvest (#4258)", () => {
         "Logging of persist incarnation vs EXISTS does not change disposition.",
       ]);
       expect(data.plan.items.map((item) => item.id)).toEqual([
-        "clause:1",
-        "clause:2",
-        "clause:3",
-        "clause:4",
-        "clause:5",
+        "clause.1",
+        "clause.2",
+        "clause.3",
+        "clause.4",
+        "clause.5",
       ]);
     } finally {
       rmSync(root, { recursive: true, force: true });

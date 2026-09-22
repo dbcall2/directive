@@ -17,7 +17,7 @@
       {
         "title": "After leftover-complete of the named story list (finalize-cohort or scope:complete plus verify:completed-tracked green on origin/<deliveryBranch>), fail-closed REST GET repos/<owner>/<repo>/issues/<N> for those completed briefs github-issue refs only. If still open and not a protected staying-OPEN umbrella and not parked-with-no-merged-PR, close with a comment naming the product PR, or refuse DONE.",
         "status": "completed",
-        "id": "clause:1",
+        "id": "clause.1",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/swarm/finalize-cohort.ts",
@@ -28,7 +28,7 @@
       {
         "title": "Origin-close is after leftover-complete land of those stories. Do not start origin-close at pr:wait-mergeable-and-merge; that fights verify:orphan-active / #3429.",
         "status": "completed",
-        "id": "clause:2",
+        "id": "clause.2",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/swarm/finalize-cohort.ts",
@@ -39,7 +39,7 @@
       {
         "title": "Origin list is leftover --stories / completed-brief refs leftover-complete already trusted. Do not scrape Tracking/Refs from product PR bodies. Do not grow fetchClosingIssuesReferences. Do not add an unscoped verify:origin-closed to task check.",
         "status": "completed",
-        "id": "clause:3",
+        "id": "clause.3",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/swarm/finalize-cohort.ts",
@@ -50,7 +50,7 @@
       {
         "title": "Keep Tracking/Refs. Do not teach Closes. Do not use gh issue view --json. Do not recut Layer 3 / #701. Do not merge this into #4821 dest-worker skip or #4822 wait-verb swallow. REST rewrite of Step 2 GraphQL is hygiene, not the gate.",
         "status": "completed",
-        "id": "clause:4",
+        "id": "clause.4",
         "x-directive/evidence": {
           "kind": "test",
           "pointer": "packages/core/src/swarm/finalize-cohort.ts",

@@ -89,8 +89,12 @@ export const UAT_POINTER_SHAPE_REMEDIATION =
 /** Item statuses that still represent unfinished acceptance work (#2862 / #3240). */
 const NON_TERMINAL_ITEM_STATUSES = new Set(["pending", "proposed", "running"]);
 
-/** Stable plan.item id for a clause so stampNamespacedEvidence has a row (#4385). */
-export const CLAUSE_KEYED_ITEM_ID_PREFIX = "clause:" as const;
+/** Stable plan.item id for a clause so stampNamespacedEvidence has a row (#4385 / #4707). */
+export const CLAUSE_KEYED_ITEM_ID_PREFIX = "clause." as const;
+
+/** Pre-#4707 persist prefix. Dual-read only — not a second mint. */
+const LEGACY_CLAUSE_KEYED_ITEM_ID_PREFIX = "clause:" as const;
+const LEGACY_CLAUSE_KEYED_ITEM_ID_RE = /^clause:(\d+)$/;
 
 /**
  * Leftover of #4385 defect 2: pending change-task ledger
@@ -415,6 +419,10 @@ export function clauseKeyedItemId(clauseId: number): string {
   return `${CLAUSE_KEYED_ITEM_ID_PREFIX}${clauseId}`;
 }
 
+function legacyClauseKeyedItemId(clauseId: number): string {
+  return `${LEGACY_CLAUSE_KEYED_ITEM_ID_PREFIX}${clauseId}`;
+}
+
 function itemIdKey(item: Record<string, unknown>): string | null {
   const id = item.id;
   if (typeof id === "string" && id.trim().length > 0) {
@@ -445,7 +453,11 @@ function collectItemIdKeys(items: unknown, keys: Set<string>): void {
 }
 
 function clauseHasKeyedItem(clauseId: number, keys: ReadonlySet<string>): boolean {
-  return keys.has(clauseKeyedItemId(clauseId)) || keys.has(String(clauseId));
+  return (
+    keys.has(clauseKeyedItemId(clauseId)) ||
+    keys.has(legacyClauseKeyedItemId(clauseId)) ||
+    keys.has(String(clauseId))
+  );
 }
 
 function clauseBindingKeysFromPlan(plan: Record<string, unknown>): ReadonlySet<string> {
@@ -474,7 +486,7 @@ export interface BindPlanItemIdsToClausesResult {
 }
 
 /**
- * Copy clause ids onto matching plan.items (title === clause text) as `clause:N`.
+ * Copy clause ids onto matching plan.items (title === clause text) as `clause.N`.
  * Does not overwrite existing ids. Does not invent rows. Unmatched clauses stay unbound (#4732).
  */
 export function bindPlanItemIdsToClauses(
@@ -584,9 +596,7 @@ export function stampDeclaredTestEvidence(
     return { stampedIds, skipped };
   }
   for (const clause of clauses) {
-    const item =
-      findItemByKey(plan.items, clauseKeyedItemId(clause.id)) ??
-      findItemByKey(plan.items, String(clause.id));
+    const item = findClauseKeyedItem(plan.items, clause.id);
     if (item === null) {
       skipped.push({ clauseId: clause.id, reason: "unbound" });
       continue;
@@ -618,6 +628,8 @@ export function stampDeclaredTestEvidence(
 
 export interface PersistClauseKeyedPendingItemsResult {
   readonly addedIds: readonly string[];
+  /** Leftover `clause:N` ids rewritten to `clause.N`. Not new mints. */
+  readonly rewrittenIds: readonly string[];
 }
 
 /**
@@ -628,10 +640,11 @@ export function persistClauseKeyedPendingItems(
   plan: Record<string, unknown>,
 ): PersistClauseKeyedPendingItemsResult {
   const clauses = readAcceptanceClauses(plan.acceptance);
-  if (clauses.length === 0) {
-    return { addedIds: [] };
-  }
   const items = Array.isArray(plan.items) ? plan.items : [];
+  const rewrittenIds = rewriteLegacyClauseKeyedItemIds(items);
+  if (clauses.length === 0) {
+    return { addedIds: [], rewrittenIds };
+  }
   if (!Array.isArray(plan.items)) {
     plan.items = items;
   }
@@ -651,7 +664,7 @@ export function persistClauseKeyedPendingItems(
     keys.add(id);
     addedIds.push(id);
   }
-  return { addedIds };
+  return { addedIds, rewrittenIds };
 }
 
 export interface ScopeStatusInput {
@@ -716,6 +729,41 @@ function findItemByKey(items: unknown, wanted: string): Record<string, unknown> 
   return null;
 }
 
+function findClauseKeyedItem(items: unknown, clauseId: number): Record<string, unknown> | null {
+  return (
+    findItemByKey(items, clauseKeyedItemId(clauseId)) ??
+    findItemByKey(items, legacyClauseKeyedItemId(clauseId)) ??
+    findItemByKey(items, String(clauseId))
+  );
+}
+
+function rewriteLegacyClauseKeyedItemIds(items: unknown, rewrittenIds: string[] = []): string[] {
+  if (!Array.isArray(items)) {
+    return rewrittenIds;
+  }
+  for (const item of items) {
+    if (item === null || typeof item !== "object" || Array.isArray(item)) {
+      continue;
+    }
+    const obj = item as Record<string, unknown>;
+    if (typeof obj.id === "string") {
+      const raw = obj.id;
+      const match = LEGACY_CLAUSE_KEYED_ITEM_ID_RE.exec(raw.trim());
+      if (match !== null) {
+        const next = clauseKeyedItemId(Number(match[1]));
+        if (typeof obj.title === "string" && obj.title === raw) {
+          obj.title = next;
+        }
+        obj.id = next;
+        rewrittenIds.push(next);
+      }
+    }
+    rewriteLegacyClauseKeyedItemIds(obj.subItems, rewrittenIds);
+    rewriteLegacyClauseKeyedItemIds(obj.items, rewrittenIds);
+  }
+  return rewrittenIds;
+}
+
 export function evaluateScopeStatus(
   scopes: readonly ScopeStatusInput[],
 ): readonly ScopeStatusCounts[] {
@@ -729,9 +777,7 @@ export function evaluateScopeStatus(
     let evidenced = 0;
     let dispositioned = 0;
     for (const clause of clauses) {
-      const item =
-        findItemByKey(plan.items, clauseKeyedItemId(clause.id)) ??
-        findItemByKey(plan.items, String(clause.id));
+      const item = findClauseKeyedItem(plan.items, clause.id);
       if (item === null) {
         continue;
       }

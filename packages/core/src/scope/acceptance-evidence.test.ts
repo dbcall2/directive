@@ -744,8 +744,8 @@ describe("scope:complete acceptance parity with verify:ac (#3497)", () => {
         metadata?: { lifecycleWrite?: { action: string } };
       };
     };
-    expect(persisted.plan.items.some((i) => i.id === "clause:1")).toBe(true);
-    expect(persisted.plan.items.some((i) => i.id === "clause:4")).toBe(true);
+    expect(persisted.plan.items.some((i) => i.id === clauseKeyedItemId(1))).toBe(true);
+    expect(persisted.plan.items.some((i) => i.id === clauseKeyedItemId(4))).toBe(true);
     expect(persisted.plan.metadata?.lifecycleWrite).toBeUndefined();
   });
 
@@ -1141,6 +1141,51 @@ describe("#4385 clause-keyed complete persist and scope:status", () => {
     expect(evaluateAcceptanceEvidenceGate(plan).ok).toBe(true);
   });
 
+  it("rewrites leftover clause:N ids when persist adds nothing (#4707)", () => {
+    const plan: Record<string, unknown> = {
+      items: [
+        { id: "clause:1", title: "clause:1", status: "pending" },
+        { id: "clause:2", title: "Keep complete a pure check", status: "pending" },
+      ],
+      acceptance: {
+        clauses: [
+          injectClause,
+          { id: 2, text: "Keep complete a pure check", artifact_path: null, ambiguous: false },
+        ],
+      },
+    };
+    const persist = persistClauseKeyedPendingItems(plan);
+    expect(persist.addedIds).toEqual([]);
+    expect(persist.rewrittenIds).toEqual([clauseKeyedItemId(1), clauseKeyedItemId(2)]);
+    expect(plan.items).toEqual([
+      { id: clauseKeyedItemId(1), title: clauseKeyedItemId(1), status: "pending" },
+      { id: clauseKeyedItemId(2), title: "Keep complete a pure check", status: "pending" },
+    ]);
+  });
+
+  it("rewrites nested leftover clause:N ids and dual-reads them for status (#4707)", () => {
+    const leftover: Record<string, unknown> = {
+      id: "clause:1",
+      title: "clause:1",
+      status: "pending",
+      [ACCEPTANCE_EVIDENCE_KEY]: testEvidence,
+    };
+    const before: Record<string, unknown> = {
+      items: [{ title: "parent", status: "pending", subItems: [leftover] }],
+      acceptance: { clauses: [injectClause] },
+    };
+    const keyedBefore = evaluateScopeStatus([{ plan: before }]);
+    expect(keyedBefore[0]?.clauseCounts.keyed).toBe(1);
+    expect(stampDeclaredTestEvidence(before, { recorded_by: "leftover" }).skipped[0]?.reason).toBe(
+      "already-stamped",
+    );
+    const persist = persistClauseKeyedPendingItems(before);
+    expect(persist.addedIds).toEqual([]);
+    expect(persist.rewrittenIds).toEqual([clauseKeyedItemId(1)]);
+    expect(leftover.id).toBe(clauseKeyedItemId(1));
+    expect(leftover.title).toBe(clauseKeyedItemId(1));
+  });
+
   it("scope:status emits counts and ids and omits clause text", () => {
     const plan: Record<string, unknown> = {
       id: "github.issue.5421105917",
@@ -1153,7 +1198,7 @@ describe("#4385 clause-keyed complete persist and scope:status", () => {
     expect(text).toMatch(/id=github.issue.5421105917/);
     expect(text).toMatch(/status=running/);
     expect(text).toMatch(/pending=/);
-    expect(text).toMatch(/clause:1/);
+    expect(text).toMatch(/clause\.1/);
     expect(text).not.toContain(injectClause.text);
     expect(text).not.toContain("task text must not leak");
     const json = formatScopeStatus([{ plan }], { json: true });
@@ -1163,7 +1208,7 @@ describe("#4385 clause-keyed complete persist and scope:status", () => {
     expect(rows[0]?.clauseCounts.total).toBe(1);
     expect(rows[0]?.clauseCounts.keyed).toBe(1);
     expect(rows[0]?.clauseCounts.unbound).toBe(0);
-    expect(rows[0]?.itemIds).toEqual(expect.arrayContaining(["t1", "clause:1"]));
+    expect(rows[0]?.itemIds).toEqual(expect.arrayContaining(["t1", clauseKeyedItemId(1)]));
   });
 
   it("fences refuse listing titles from the evidence gate", () => {
@@ -1381,10 +1426,13 @@ describe("#4732 ingest/promote clause-id bind and declared test stamp", () => {
         ],
       },
     };
-    expect(bindPlanItemIdsToClauses(plan).boundIds).toEqual(["clause:1", "clause:2"]);
+    expect(bindPlanItemIdsToClauses(plan).boundIds).toEqual([
+      clauseKeyedItemId(1),
+      clauseKeyedItemId(2),
+    ]);
     expect((plan.items as Array<{ id?: string }>).map((item) => item.id)).toEqual([
-      "clause:1",
-      "clause:2",
+      clauseKeyedItemId(1),
+      clauseKeyedItemId(2),
     ]);
     expect(persistClauseKeyedPendingItems(plan).addedIds).toEqual([]);
     expect(plan.items).toHaveLength(2);
@@ -1643,6 +1691,27 @@ describe("#4732 ingest/promote clause-id bind and declared test stamp", () => {
     expect(parsed.plan.items[0]?.[ACCEPTANCE_EVIDENCE_KEY]).toBeUndefined();
   });
 
+  it("complete persists leftover clause:N rewrite when addedIds is empty (#4707)", () => {
+    root = makeRepo();
+    const file = writeActive(
+      root,
+      "leftover-colon.xbrief.json",
+      [{ id: "clause:1", title: "clause:1", status: "pending" }],
+      {
+        acceptance: { clauses: [clause(1, "Change prefix", declaredPath)] },
+      },
+    );
+    const result = runTransition("complete", file);
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/Acceptance evidence required|#3240/);
+    const parsed = JSON.parse(readFileSync(file, "utf8")) as {
+      plan: { items: Array<{ id?: string; title?: string }> };
+    };
+    expect(parsed.plan.items[0]?.id).toBe(clauseKeyedItemId(1));
+    expect(parsed.plan.items[0]?.title).toBe(clauseKeyedItemId(1));
+    expect(existsSync(join(root, "xbrief", "completed", "leftover-colon.xbrief.json"))).toBe(false);
+  });
+
   it("promotePath binds harvest item ids to clause ids", () => {
     root = makeRepo();
     const path = join(root, "xbrief", "proposed", "2026-09-17-bind-at-promote.xbrief.json");
@@ -1679,7 +1748,10 @@ describe("#4732 ingest/promote clause-id bind and declared test stamp", () => {
       plan: { items: Array<{ id?: string; title: string }> };
     };
     expect(existsSync(path)).toBe(false);
-    expect(parsed.plan.items.map((item) => item.id)).toEqual(["clause:1", "clause:2"]);
+    expect(parsed.plan.items.map((item) => item.id)).toEqual([
+      clauseKeyedItemId(1),
+      clauseKeyedItemId(2),
+    ]);
   });
 
   it("promotePath leaves the source in proposed/ when clause-id bind fails", () => {

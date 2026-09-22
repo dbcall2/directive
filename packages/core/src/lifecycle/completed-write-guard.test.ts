@@ -616,7 +616,7 @@ describe("evaluateCompletedWriteGuard (#3766 active deletion)", () => {
           status: "completed",
           items: [
             { title: "story-item", status: "completed" },
-            { id: "clause:1", title: "clause:1", status: "pending" },
+            { id: "clause.1", title: "clause.1", status: "pending" },
           ],
           references: [{ type: "x-xbrief/github-issue", uri: ISSUE_URI }],
           metadata: {

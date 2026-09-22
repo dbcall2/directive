@@ -4,6 +4,7 @@ import {
 } from "@deftai/directive-types";
 import { pyStrRepr, pythonTypeName } from "../triage/scope/python-repr.js";
 import {
+  PLAN_ITEM_ID_PATTERN,
   PROJECT_DEF_EXPECTED_NARRATIVES,
   STRICT_ORIGIN_ALLOWLIST,
   VALID_INFO_ROOT_KEYS,
@@ -75,6 +76,10 @@ function validatePlanItem(item: JsonObject, path: string, errors: string[]): voi
 
   if ("effort" in item && !VALID_PLAN_ITEM_EFFORTS.has(String(item.effort))) {
     errors.push(`${itemPath} invalid effort: ${pyStrRepr(String(item.effort))}`);
+  }
+
+  if (typeof item.id === "string" && !PLAN_ITEM_ID_PATTERN.test(item.id)) {
+    errors.push(`${itemPath} invalid id: ${pyStrRepr(item.id)}`);
   }
 
   if ("summary" in item && typeof item.summary !== "string") {
