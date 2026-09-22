@@ -2,7 +2,7 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4917",
-    "updated": "2026-09-22T20:02:14Z"
+    "updated": "2026-09-22T20:04:26Z"
   },
   "plan": {
     "title": "bug(release): adoption-blocker punch list must not block a tag",
@@ -38,9 +38,34 @@
         "github_issue_id": 5544410988,
         "origin": "deftai/directive#4917",
         "id": "github.issue.5544410988"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4918,
+        "prBase": null,
+        "mergeCommit": "5b80d8229",
+        "deliveryBranch": "master",
+        "deliveryCommit": "5b80d82294ae26dd3fe088c7be9c75d1faec216f",
+        "verifiedAt": "2026-09-22T20:04:26Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:grok:v1:MDFhMGM5ZTQtN2MzZS03NGUzLWI4NDktNTE5NzU4Njk5YzU4"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-22T20:04:26Z",
+      "completedSessionId": "host:grok:v1:MDFhMGM5ZTQtN2MzZS03NGUzLWI4NDktNTE5NzU4Njk5YzU4",
+      "capacityBucket": "new-capability",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-22T20:04:26Z"
       }
     },
     "id": "github.issue.5544410988",
-    "updated": "2026-09-22T20:02:14Z"
+    "updated": "2026-09-22T20:04:26Z"
   }
 }
