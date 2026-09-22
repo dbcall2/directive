@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { collectBrokenLinks } from "../validate-content/validate-links.js";
-import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.test.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import {
   REWRITE_MARKER_PREFIX,
   resolveSourceTargetRel,
