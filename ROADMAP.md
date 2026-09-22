@@ -40,8 +40,22 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1588 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1602 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4917** -- bug(release): adoption-blocker punch list must not block a tag -- `[completed]`
+- **#4906** -- bug(lifecycle): a leftover active brief cannot be deleted once its completed twin is already on the base -- `[completed]`
+- **#4907** -- bug(test): Windows release Step 5 dies on symlink and illegal-filename fixtures -- `[completed]`
+- **#4840** -- Multi-story cohort closeout can deadlock: #3240 evidence needs a write, #4007 fence denies it, and no verb reduces the active set -- `[completed]`
+- **#4707** -- bug(scope,schema): scope:complete emits PlanItem.id values the 0.8 schema forbids, and xbrief:validate passes them -- `[completed]`
+- **#4819** -- leftover(#4814): add .js to forward-coverage SOURCE_EXTENSIONS -- `[completed]`
+- **#4854** -- bug(hooks): update strip line does not say a hook refusal can clear -- `[completed]`
+- **#4844** -- bug(xbrief): vbrief:validate fails deft check on legacy completed filenames -- `[completed]`
+- **#4843** -- bug(plan-sequence): current throws sequence_kind required on older sequence files -- `[completed]`
+- **#4841** -- .deft-scratch/ is the swarm worktree default but is not in the framework-generated .gitignore -- `[completed]`
+- **#4839** -- swarm:finalize-cohort --dry-run reports FINALIZE CLEAN for a cohort that fails closed on #3240 acceptance evidence -- `[completed]`
+- **#4812** -- migrate/update/doctor chain: VERSION.bak in .deft/core fails deposit hygiene, update's prune silently no-ops, doctor omits the failure from its summary -- `[completed]`
+- **#4811** -- bug(design-critique): yolo standing still next-envelopes after an all-accept successor lean when Stop 1 pain is uncited -- `[completed]`
+- **#4702** -- UAT Tester 6: verify:ac rejects python -m pytest on a Python project -- `[completed]`
 - **#4824** -- leftover(#167): Tracking/Refs merge plus xBRIEF complete can leave GitHub issues open -- `[completed]`
 - **#4822** -- leftover(#4821,#4820): wait-merge must not swallow the pr:watch babysit wait -- `[completed]`
 - **#4821** -- leftover(#4529): Grok parent-retained review must not skip dest review-cycle worker -- `[completed]`
@@ -53,18 +67,4 @@ _Showing 25 of 1588 completed scopes (newest first). Full history: lifecycle `co
 - **#4801** -- bug(release): Step 5 hang detector is suite-only; hung non-suite gates never 124 -- `[completed]`
 - **#4798** -- bug(release): v0.119.4 Windows Step 5 exceeded 20m hang detector after leftover-complete #4744 -- `[completed]`
 - **#4796** -- rfc(swarm,ux): Gap D parent-chat interactivity is not first-class on Grok Build — harness matrix + workaround evidence -- `[completed]`
-- **#4795** -- bug(ceremony-dial): leftover pending max-wins ceremony size over a live active brief -- `[completed]`
-- **#4794** -- bug(grok-build,session): native spawn_subagent has no passable writing skip-class field -- `[completed]`
-- **#4793** -- bug(hooks,cli): exact-miss session:start hint deny blames quoting/pipe/chain -- `[completed]`
-- **#4783** -- bug(ceremony-dial): session:start binds provisional taskSize from unrelated pending xBRIEF -- `[completed]`
-- **#4782** -- bug(occupancy,grok-build): completed spawn_subagent leaves dest worktree leased (forces extra worktrees) -- `[completed]`
-- **#4780** -- bug(hooks,cli): session:start -- --read-only still denied as not inspectable on 0.119.2 (regression #4577) -- `[completed]`
-- **#4784** -- Completed-write guard rejects canonical completion after mutable brief changes -- `[completed]`
-- **#4746** -- framework-gap: 0.119.3 rejects previously valid reserved-prefix xBRIEF subtypes -- `[completed]`
-- **#4744** -- bug(check): Windows release Step 5 still exits 124 after #4591 cheapening -- `[completed]`
-- **#4722** -- bug(check): bare deft check requires --framework-root/--project-root -- `[completed]`
-- **#4716** -- session:ready agent_hooks gate hard-blocks on CLI/deposit version skew; only destructive deft update offered for the active host -- `[completed]`
-- **#4711** -- bug(session): fresh git worktree blocks gated writes on agent_hooks drift — committed .claude/settings.json / .cursor/hooks.json matcher tokens lag the live deposit -- `[completed]`
-- **#4706** -- BLOCKER: deft update leaves consumer doctor failing on stale deposit files and AGENTS.md -- `[completed]`
-- **#4690** -- bug(authz): free-text preflight can self-authorize the first product write outside UAT -- `[completed]`
 

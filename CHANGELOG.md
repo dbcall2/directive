@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.119.7] - 2026-09-22
+
+> matchAny stamp (#4840), Class B warn (#4846), clause ids (#4707), Windows Step 5 fixtures (#4907), and leftover-active restamp (#4906)
+
+### Added
+
 - **Evidence-only `scope:stamp-evidence` records kind:test on glob file_scope skip rows (#4840).** Writes a non-glob file that `matchAny(file_scope)` accepts through `stampNamespacedEvidence`. Refuses glob-shaped pointers and directory stand-ins. No disposition argv; `--pr` / `--merge-commit` stay off this field. Null-path persist-default rows stay unstamped. Tracking #4840.
 
 ### Changed
@@ -6432,7 +6444,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.119.6...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.119.7...HEAD
+[0.119.7]: https://github.com/deftai/directive/compare/v0.119.6...v0.119.7
 [0.119.6]: https://github.com/deftai/directive/compare/v0.119.5...v0.119.6
 [0.119.5]: https://github.com/deftai/directive/compare/v0.119.4...v0.119.5
 [0.119.4]: https://github.com/deftai/directive/compare/v0.119.3...v0.119.4
