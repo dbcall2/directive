@@ -89,6 +89,18 @@ describe("MutationLedger (#3392)", () => {
     expect(text).toContain(`Removed: ${json.deleted.join(", ")}`);
     expect(text).toContain(`wrote: ${json.wrote.join(", ")}`);
     expect(text).toContain(`stripped: ${json.stripped.join(", ")}`);
+    const strippedLine = text.split("\n").find((line) => line.startsWith("stripped:"));
+    expect(strippedLine).toBe(`stripped: ${json.stripped.join(", ")}`);
+    expect(strippedLine).not.toContain("hook refusal");
+    expect(text).not.toContain(
+      "A hook refusal in the current session can clear when the gate is removed.",
+    );
+    expect(text).not.toContain(
+      "A hook refusal in the current session can clear because the gate was removed.",
+    );
+    expect(text).not.toContain(
+      "The running host has to reload or relaunch before the refusal clears.",
+    );
   });
 
   it("isolates nested and unbound ledgers", () => {
