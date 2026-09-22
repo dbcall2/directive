@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { evaluateCommandSafety, isExecutableLiteralSource } from "./safety.js";
+import {
+  buildAcceptanceFromIntakeCapture,
+  stampAcceptanceFromLiteralCapture,
+  validatePlanAcceptance,
+} from "../product-first-done-gate/acceptance.js";
+import {
+  evaluateCommandSafety,
+  evaluateStampAcceptanceSafety,
+  isExecutableLiteralSource,
+  REJECTED_NOOP_OUTCOME,
+} from "./safety.js";
 
 /**
  * Branch matrix for literal-AC safety allowlists (#3287 / #3267).
@@ -17,7 +27,6 @@ describe("evaluateCommandSafety branch matrix (#3287)", () => {
       /path-like|allowlist/i,
     );
     expect(evaluateCommandSafety("tools:bin run").reason).toMatch(/path-like|allowlist/i);
-    expect(evaluateCommandSafety("python -m pytest").ok).toBe(false);
     expect(evaluateCommandSafety("curl https://example.com").ok).toBe(false);
   });
 
@@ -92,6 +101,114 @@ describe("evaluateCommandSafety branch matrix (#3287)", () => {
     expect(evaluateCommandSafety("vitest dev").ok).toBe(false);
     expect(evaluateCommandSafety("vitest run --watch").ok).toBe(false);
     expect(evaluateCommandSafety("vitest related foo").ok).toBe(false);
+  });
+
+  it.each([
+    "python -m pytest",
+    "python3 -m pytest",
+    "py -m pytest",
+    "python -m pytest tests/test_new.py -q",
+    "python3 -m pytest tests/test_list.py -q",
+    "py -m pytest tests/ -q",
+  ])("accepts closed pytest shape %s (#4702)", (command) => {
+    expect(evaluateCommandSafety(command)).toEqual({ ok: true, reason: null });
+  });
+
+  it.each([
+    ["pytest", /allowlist/],
+    ["pytest --testmon", /allowlist/],
+    ["uv run --with pytest python -m pytest", /allowlist/],
+    [
+      "uv run --no-project --with pytest --with pytest-cov python -m pytest tests/test_scan_report.py",
+      /allowlist/,
+    ],
+    ["go test", /allowlist/],
+    ["go test ./...", /allowlist/],
+    ["node --test", /allowlist/],
+    ["python -c 1", /-m pytest/],
+    ["python -m pip install requests", /-m pytest/],
+    ["python -m http.server", /-m pytest/],
+    ["python -m http.server 8000", /-m pytest/],
+    ["python3 -m pip install requests", /-m pytest/],
+    ["py -m http.server", /-m pytest/],
+    ["python script.py", /-m pytest/],
+    ["python -mpytest", /-m pytest/],
+    ["python -M pytest", /-m pytest/],
+    ["python -m PYTEST", /-m pytest/],
+  ] as const)("refuses %s (#4702)", (command, reason) => {
+    const result = evaluateCommandSafety(command);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toMatch(reason);
+  });
+
+  it("validation surfaces every stamp refusal, not only no-op reasons (#4702)", () => {
+    const refused = "node --test";
+    const reason = evaluateCommandSafety(refused).reason ?? "";
+    expect(reason).toMatch(/allowlist/);
+    expect(
+      validatePlanAcceptance({
+        commands: [{ command: refused }],
+        none_stated: false,
+        source_rung: "derived",
+      }),
+    ).toContain(reason);
+    expect(() => buildAcceptanceFromIntakeCapture([{ command: refused }])).toThrow(reason);
+    expect(() =>
+      stampAcceptanceFromLiteralCapture({
+        title: "t",
+        metadata: {
+          literal_acceptance_commands: [{ command: refused, source: "explicit" }],
+        },
+      }),
+    ).toThrow(reason);
+    expect(
+      validatePlanAcceptance({
+        commands: [{ command: "python -m pytest" }],
+        none_stated: false,
+        source_rung: "derived",
+      }),
+    ).toEqual([]);
+  });
+
+  it.each([
+    "python -M pytest",
+    "python -m PYTEST",
+  ])("refuses non-exact pytest grammar %s at validation (#4702)", (command) => {
+    const result = evaluateCommandSafety(command);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toMatch(/-m pytest/);
+    expect(
+      validatePlanAcceptance({
+        commands: [{ command }],
+        none_stated: false,
+      }),
+    ).toContain(result.reason);
+  });
+
+  it("runs command safety when the command is stamped (#4702)", () => {
+    expect(evaluateStampAcceptanceSafety({ commands: [{ command: "python -m pytest" }] }).ok).toBe(
+      true,
+    );
+    expect(
+      evaluateStampAcceptanceSafety({ commands: [{ command: "python3 -m pytest tests/ -q" }] }).ok,
+    ).toBe(true);
+    expect(evaluateStampAcceptanceSafety({ commands: [{ command: "py -m pytest" }] }).ok).toBe(
+      true,
+    );
+    for (const command of [
+      "pytest",
+      "uv run --with pytest python -m pytest",
+      "go test",
+      "node --test",
+      "python -m http.server",
+    ]) {
+      const stamped = evaluateStampAcceptanceSafety({ commands: [{ command }] });
+      expect(stamped.ok).toBe(false);
+      expect(stamped.reason).toBe(evaluateCommandSafety(command).reason);
+    }
+    const noop = evaluateStampAcceptanceSafety({ commands: [{ command: "true" }] });
+    expect(noop.ok).toBe(false);
+    expect(noop.outcome).toBe(REJECTED_NOOP_OUTCOME);
   });
 
   it("refuses no-op first tokens and classifies executable sources", () => {
