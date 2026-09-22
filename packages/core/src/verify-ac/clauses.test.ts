@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, parse } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -12,6 +12,7 @@ import {
   extractExpectedTokens,
   formatClauseWalkMessage,
   formatZeroClauseAcceptanceShapedNotice,
+  isBindableMatchAnyFilePointer,
   isDeclaredArtifactPath,
   isFileShapedPointer,
   isScratchArtifactPath,
@@ -483,6 +484,69 @@ describe("isFileShapedPointer (#4840)", () => {
     expect(isFileShapedPointer("packages/a/**")).toBe(false);
     expect(isFileShapedPointer("foo*.ts")).toBe(false);
     expect(isFileShapedPointer("")).toBe(false);
+  });
+});
+
+describe("isBindableMatchAnyFilePointer (#4840)", () => {
+  it("binds a missing in-scope file", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-bindable-missing-"));
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    expect(isBindableMatchAnyFilePointer("packages/a/new-file.ts", ["packages/a/**"], root)).toBe(
+      true,
+    );
+  });
+
+  it("binds an existing in-scope regular file", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-bindable-file-"));
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    writeFileSync(join(root, "packages", "a", "index.ts"), "export {}\n", "utf8");
+    expect(isBindableMatchAnyFilePointer("packages/a/index.ts", ["packages/a/**"], root)).toBe(
+      true,
+    );
+  });
+
+  it("does not bind an in-repo symlink to an external regular file", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-bindable-symlink-"));
+    const outsideDir = mkdtempSync(join(tmpdir(), "clause-bindable-outside-"));
+    const outsideFile = join(outsideDir, "secret.ts");
+    writeFileSync(outsideFile, "export {}\n", "utf8");
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    const pointer = "packages/a/index.ts";
+    try {
+      symlinkSync(outsideFile, join(root, pointer));
+    } catch {
+      // Windows without symlink privilege: skip rather than fail the suite
+      return;
+    }
+    expect(isBindableMatchAnyFilePointer(pointer, ["packages/a/**"], root)).toBe(false);
+    const stored = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "unit covers packages/a/index.ts",
+          artifact_path: pointer,
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      root,
+    );
+    expect(stored.ok).toBe(false);
+    expect(stored.failures[0]?.kind).toBe("undeclared-binding");
+    const fromText = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "unit covers packages/a/index.ts",
+          artifact_path: null,
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      root,
+    );
+    expect(fromText.ok).toBe(false);
+    expect(fromText.failures[0]?.kind).toBe("unbound-path");
   });
 });
 

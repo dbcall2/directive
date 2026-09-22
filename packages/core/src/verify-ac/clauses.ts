@@ -682,9 +682,11 @@ function isShippedFilePointer(projectRoot: string, pointer: string): boolean {
 
 /**
  * Promotion bind matcher (#4840 / #4008).
- * Glob-shaped pointers are refused. An existing directory (exists && isDirectory,
- * or exists && !isFile) is refused. A missing matchAny path may bind so
- * promotion can name a future in-scope file. Stamp and walk still require isFile.
+ * Glob-shaped pointers are refused. An existing directory is refused.
+ * A missing matchAny path may bind so promotion can name a future in-scope
+ * file. Existing targets reuse stamp realpath containment so an in-repo
+ * symlink that escapes the project cannot bind. Stamp and walk still
+ * require a contained regular file.
  */
 export function isBindableMatchAnyFilePointer(
   path: string,
@@ -703,7 +705,7 @@ export function isBindableMatchAnyFilePointer(
     if (!existsSync(abs)) {
       return true;
     }
-    return statSync(abs).isFile();
+    return isShippedFilePointer(projectRoot, candidate);
   } catch {
     return false;
   }
