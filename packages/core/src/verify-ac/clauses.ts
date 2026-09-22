@@ -6,6 +6,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, isAbsolute, relative, resolve } from "node:path";
 import { findAcHeading, parseListItems, sliceAcSection } from "../intake/markdown-scanners.js";
+import { hasGlobMagic, matchAny } from "../orchestration/pathspec.js";
 
 export type ClauseOutcome = "verified" | "unverifiable" | "failed";
 
@@ -616,7 +617,12 @@ export function readDeclaredArtifactScope(plan: unknown): string[] {
   return [...declared];
 }
 
-/** True when the clause binding is a declared entry or sits under a declared directory. */
+/**
+ * True when a non-glob path is in declared file_scope (#4840 / #3835).
+ * Glob entries match via `matchAny`. Unstarred entries stay directory prefixes
+ * (`classifyGlob` prefix/depth). Glob-shaped pointers are refused here; walk's
+ * `statSync.isFile` then fails directories.
+ */
 export function isDeclaredArtifactPath(
   artifactPath: string,
   declaredScope: readonly string[],
@@ -625,10 +631,31 @@ export function isDeclaredArtifactPath(
   if (candidate.length === 0 || candidate === ".." || candidate.startsWith("../")) {
     return false;
   }
+  if (hasGlobMagic(candidate)) {
+    return false;
+  }
+  if (matchAny(declaredScope, candidate)) {
+    return true;
+  }
   return declaredScope.some((raw) => {
+    if (hasGlobMagic(raw)) {
+      return false;
+    }
     const entry = normalizeScopePath(raw);
     return entry.length > 0 && (candidate === entry || candidate.startsWith(`${entry}/`));
   });
+}
+
+/** File-token shape for bind: extensioned path, not a directory stand-in or glob. */
+export function isFileShapedPointer(path: string): boolean {
+  const candidate = normalizeScopePath(path);
+  return candidate.length > 0 && !hasGlobMagic(candidate) && FILE_EXT.test(candidate);
+}
+
+/** Stored/extracted pointer that bind may copy onto artifact_path (#4840 / #4008). */
+export function isMatchAnyFilePointer(path: string, declaredScope: readonly string[]): boolean {
+  const candidate = normalizeScopePath(path);
+  return isFileShapedPointer(candidate) && matchAny(declaredScope, candidate);
 }
 
 export type ClauseBindFailureKind = "unbound-path" | "ambiguous-scope" | "undeclared-binding";
@@ -696,22 +723,25 @@ function memberAppearsInText(text: string, member: string): boolean {
   return false;
 }
 
-function uniqueExactDeclaredHits(
+function uniqueMatchAnyFileHits(
   tokens: readonly string[],
   declared: readonly string[],
   text: string,
 ): string[] {
   const hits = new Set<string>();
-  const members = new Set(declared);
   for (const token of tokens) {
     const normalized = normalizeScopePath(token);
-    if (members.has(normalized)) {
+    if (isMatchAnyFilePointer(normalized, declared)) {
       hits.add(normalized);
     }
   }
   for (const member of declared) {
-    if (memberAppearsInText(text, member)) {
-      hits.add(member);
+    const normalized = normalizeScopePath(member);
+    if (!isMatchAnyFilePointer(normalized, declared)) {
+      continue;
+    }
+    if (memberAppearsInText(text, member) || memberAppearsInText(text, normalized)) {
+      hits.add(normalized);
     }
   }
   return [...hits];
@@ -724,17 +754,17 @@ function bindStoredOrTokens(
 ): BoundPathResult {
   if (storedPath !== null && storedPath.trim().length > 0) {
     const normalized = normalizeScopePath(storedPath);
-    if (declared.includes(normalized)) {
+    if (isMatchAnyFilePointer(normalized, declared)) {
       return { ok: true, path: normalized };
     }
     return {
       ok: false,
       kind: "undeclared-binding",
-      detail: `${storedPath} is not an exact plan.metadata.swarm.file_scope member`,
+      detail: `${storedPath} is not a non-glob matchAny file under plan.metadata.swarm.file_scope`,
     };
   }
   const tokens = extractPathTokens(text);
-  const hits = uniqueExactDeclaredHits(tokens, declared, text);
+  const hits = uniqueMatchAnyFileHits(tokens, declared, text);
   if (hits.length === 1) {
     return { ok: true, path: hits[0] ?? null };
   }
@@ -749,7 +779,7 @@ function bindStoredOrTokens(
     return {
       ok: false,
       kind: "unbound-path",
-      detail: `names ${tokens.join(", ")} which is not an exact file_scope member`,
+      detail: `names ${tokens.join(", ")} which is not a non-glob matchAny file under file_scope`,
     };
   }
   return { ok: true, path: null };
@@ -826,18 +856,18 @@ function formatBindFailures(failures: readonly ClauseBindFailure[]): string {
     lines.push(`  clause ${failure.id}: ${failure.detail}`);
   }
   lines.push(
-    "  remedy: set artifact_path to a plan.metadata.swarm.file_scope entry, or name that exact path in the clause. Basename matching is refused.",
+    "  remedy: set artifact_path to a non-glob file that matchAny(file_scope) accepts, or name that file in the clause. Glob-shaped pointers and directory stand-ins are refused. Basename matching is refused.",
   );
   return lines.join("\n");
 }
 
 /**
- * Bind derived clauses to exact `plan.metadata.swarm.file_scope` members (#4008).
+ * Bind derived clauses to non-glob `matchAny` files under file_scope (#4008 / #4840).
  *
  * Empty declared scope is a no-op: there is no approved member to bind to.
- * Path tokens match only as exact normalized members — never by basename,
- * including stored `readings[]`. Derivation still stores no prose path; this
- * step copies the declared member onto the clause.
+ * Glob-shaped stored paths, extracted tokens, and declared-member text hits
+ * are refused. A file token that `matchAny` accepts becomes `artifact_path`.
+ * Basename matching stays refused.
  */
 export function bindClausesToDeclaredScope(
   clauses: readonly AcceptanceClause[],

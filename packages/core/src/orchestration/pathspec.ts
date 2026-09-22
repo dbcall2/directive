@@ -103,3 +103,8 @@ export function matchAny(patterns: unknown, path: string): boolean {
   }
   return false;
 }
+
+/** Glob-shaped detector (`*`, `?`, `[`). Same two-line helper as default-extractor. */
+export function hasGlobMagic(value: string): boolean {
+  return value.includes("*") || value.includes("?") || value.includes("[");
+}

@@ -119,6 +119,16 @@ tasks:
         vars:
           ENGINE_CMD: 'scope-lifecycle unblock {{.CLI_ARGS}} --project-root "{{.USER_WORKING_DIR}}"'
 
+  stamp-evidence:
+    desc: "Stamp kind:test evidence for non-glob matchAny files (#4840). Evidence-only; no --pr/--merge-commit."
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'scope-lifecycle stamp-evidence {{.CLI_ARGS}} --project-root "{{.USER_WORKING_DIR}}"'
+
   decompose:
     desc: "Apply/check an approved epic/phase -> story decomposition draft"
     dir: '{{.USER_WORKING_DIR}}'

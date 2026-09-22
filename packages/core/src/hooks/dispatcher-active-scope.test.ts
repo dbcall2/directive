@@ -102,6 +102,39 @@ describe("dispatcher shared-active story fence (#4007)", () => {
     expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
     expect(decision.message).toContain("Multiple active xBRIEF artifacts");
     expect(decision.message).toContain(ACTIVE_SCOPE_PIN_ENV);
+    expect(decision.message).toContain("scope:stamp-evidence");
+  });
+
+  it("names scope:unblock on a zero-eligible blocked deny and omits activate (#4840)", () => {
+    const root = project();
+    const active = join(root, "xbrief", "active");
+    mkdirSync(active, { recursive: true });
+    writeFileSync(
+      join(active, "a-story.xbrief.json"),
+      JSON.stringify({ plan: { ...runningPlacement, status: "blocked" } }),
+      "utf8",
+    );
+    writeFileSync(
+      join(active, "b-story.xbrief.json"),
+      JSON.stringify({ plan: { ...runningPlacement, status: "blocked" } }),
+      "utf8",
+    );
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: root,
+        payload: {
+          toolName: "Write",
+          file_path: join(root, "src", "ui", "__tests__", "fonts.test.ts"),
+        },
+        environ: { DEFT_SESSION_ID: "owner" },
+      },
+      liveScopeSeams(),
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "scope-not-ready" });
+    expect(decision.message).toContain("scope:unblock");
+    expect(decision.message).not.toMatch(/scope:promote|then `deft scope:activate/);
   });
 
   it("allows a bound story path that first-wins would have refused", () => {

@@ -13,6 +13,8 @@
  * ITEM_CORE is not expanded with bare keys; verify:vbrief-conformance rejects them.
  */
 
+import { existsSync, statSync } from "node:fs";
+import { isAbsolute, relative, resolve } from "node:path";
 import { isHumanOrigin } from "../authz/origin.js";
 import type { GrantOrigin } from "../authz/types.js";
 import {
@@ -26,6 +28,7 @@ import {
   evaluateVerifyAcFromPlan,
 } from "../product-first-done-gate/evaluate.js";
 import {
+  isMatchAnyFilePointer,
   readAcceptanceClauses,
   readDeclaredArtifactScope,
   stripInlineMarkdownBold,
@@ -555,6 +558,49 @@ function resolveAllowedTestPointer(
   return isExactDeclaredMember(pointer, declared) ? pointer : null;
 }
 
+function isContainedProjectPath(projectRoot: string, child: string): boolean {
+  const rel = relative(resolve(projectRoot), resolve(child));
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+/** Walk's isFile check at stamp time: refuse directories and missing paths. */
+function isShippedFilePointer(projectRoot: string, pointer: string): boolean {
+  const abs = resolve(projectRoot, pointer);
+  if (!isContainedProjectPath(projectRoot, abs)) {
+    return false;
+  }
+  try {
+    return existsSync(abs) && statSync(abs).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Skip-row pointer for the glob-refusing matchAny stamp (#4840).
+ * Exact-member `resolveAllowedTestPointer` is not this writer.
+ */
+export function resolveMatchAnyFilePointer(
+  artifactPath: string | null | undefined,
+  declared: readonly string[],
+  projectRoot: string,
+): string | null {
+  if (declared.length === 0) {
+    return null;
+  }
+  if (typeof artifactPath !== "string" || artifactPath.trim().length === 0) {
+    return null;
+  }
+  const pointer = posixPointer(artifactPath);
+  if (!isMatchAnyFilePointer(pointer, declared)) {
+    return null;
+  }
+  if (!isShippedFilePointer(projectRoot, pointer)) {
+    return null;
+  }
+  return pointer;
+}
+
 export interface StampDeclaredTestEvidenceOptions {
   readonly recorded_by: string;
   readonly recorded_at?: string;
@@ -611,6 +657,70 @@ export function stampDeclaredTestEvidence(
       continue;
     }
     const pointer = resolveAllowedTestPointer(clause.artifact_path, declared);
+    if (pointer === null) {
+      skipped.push({ clauseId: clause.id, reason: "no-allowed-pointer" });
+      continue;
+    }
+    stampNamespacedEvidence(item, {
+      kind: "test",
+      pointer,
+      recorded_at: recordedAt,
+      recorded_by: recordedBy,
+    });
+    stampedIds.push(itemIdKey(item) ?? clauseKeyedItemId(clause.id));
+  }
+  return { stampedIds, skipped };
+}
+
+export interface StampMatchAnyFileEvidenceOptions {
+  readonly recorded_by: string;
+  readonly recorded_at?: string;
+  readonly projectRoot: string;
+}
+
+/**
+ * Evidence-only skip-row writer (#4840). Calls stampNamespacedEvidence for a
+ * non-glob file that matchAny(file_scope) accepts. Does not take disposition,
+ * --pr, or --merge-commit. Does not copy file_scope[0] or classifyGlob.prefix.
+ * Null-path persist-default rows stay unstamped.
+ */
+export function stampMatchAnyFileEvidence(
+  plan: Record<string, unknown>,
+  options: StampMatchAnyFileEvidenceOptions,
+): StampDeclaredTestEvidenceResult {
+  const recordedBy = typeof options.recorded_by === "string" ? options.recorded_by.trim() : "";
+  const recordedAt =
+    typeof options.recorded_at === "string" && options.recorded_at.trim().length > 0
+      ? options.recorded_at.trim()
+      : utcNowIso();
+  const projectRoot = options.projectRoot;
+  const declared = readDeclaredArtifactScope(plan);
+  const clauses = readAcceptanceClauses(plan.acceptance);
+  const stampedIds: string[] = [];
+  const skipped: StampDeclaredTestEvidenceSkip[] = [];
+  if (recordedBy.length === 0) {
+    for (const clause of clauses) {
+      skipped.push({ clauseId: clause.id, reason: "recorded_by-required" });
+    }
+    return { stampedIds, skipped };
+  }
+  for (const clause of clauses) {
+    const item = findClauseKeyedItem(plan.items, clause.id);
+    if (item === null) {
+      skipped.push({ clauseId: clause.id, reason: "unbound" });
+      continue;
+    }
+    const fields = readNamespacedAcceptanceFields(item);
+    if (fields.hasEvidence || fields.hasDisposition) {
+      skipped.push({ clauseId: clause.id, reason: "already-stamped" });
+      continue;
+    }
+    const axisItem = { ...item, title: clause.text };
+    if (inferRequiredStrictAxes(axisItem).length > 0) {
+      skipped.push({ clauseId: clause.id, reason: "strict-axis" });
+      continue;
+    }
+    const pointer = resolveMatchAnyFilePointer(clause.artifact_path, declared, projectRoot);
     if (pointer === null) {
       skipped.push({ clauseId: clause.id, reason: "no-allowed-pointer" });
       continue;
@@ -995,7 +1105,7 @@ function evaluateOneItem(
     path,
     title,
     outcome: "evidence",
-    detail: `${parsed.record.kind} @ ${parsed.record.pointer}`,
+    detail: `${parsed.record.kind} @ ${fenceUntrustedAcceptanceText(parsed.record.pointer)}`,
     evidence: parsed.record,
   };
 }
@@ -1148,7 +1258,7 @@ export function formatAcceptanceCompletionListing(
   const lines = reports.map((r) => {
     const label = fenceUntrustedAcceptanceText(r.title);
     if (r.outcome === "evidence" && r.evidence) {
-      return `  - ${r.path} ${label}: evidence kind=${r.evidence.kind} pointer=${r.evidence.pointer}`;
+      return `  - ${r.path} ${label}: evidence kind=${r.evidence.kind} pointer=${fenceUntrustedAcceptanceText(r.evidence.pointer)}`;
     }
     if (r.outcome === "disposition" && r.disposition) {
       return (

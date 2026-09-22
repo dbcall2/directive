@@ -219,7 +219,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
     expect(result.clauses[0]?.artifact_path).toBeNull();
   });
 
-  it("binds an exact declared directory named in the clause", () => {
+  it("does not bind a declared directory stand-in named in the clause (#4840)", () => {
     const result = bindClausesToDeclaredScope(
       [
         {
@@ -232,10 +232,10 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
       ["src/ui/ledger-table"],
     );
     expect(result.ok).toBe(true);
-    expect(result.clauses[0]?.artifact_path).toBe("src/ui/ledger-table");
+    expect(result.clauses[0]?.artifact_path).toBeNull();
   });
 
-  it("binds ./ and backslash spellings of a declared directory", () => {
+  it("does not bind ./ or backslash directory stand-ins (#4840)", () => {
     const declared = ["src/ui/ledger-table"];
     const dotted = bindClausesToDeclaredScope(
       [
@@ -249,7 +249,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
       declared,
     );
     expect(dotted.ok).toBe(true);
-    expect(dotted.clauses[0]?.artifact_path).toBe("src/ui/ledger-table");
+    expect(dotted.clauses[0]?.artifact_path).toBeNull();
     const win = bindClausesToDeclaredScope(
       [
         {
@@ -262,7 +262,68 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
       declared,
     );
     expect(win.ok).toBe(true);
-    expect(win.clauses[0]?.artifact_path).toBe("src/ui/ledger-table");
+    expect(win.clauses[0]?.artifact_path).toBeNull();
+  });
+
+  it("binds a stored non-glob matchAny file under a glob file_scope (#4840)", () => {
+    const result = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "unit covers packages/a/index.ts",
+          artifact_path: "packages/a/index.ts",
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+    );
+    expect(result.ok).toBe(true);
+    expect(result.clauses[0]?.artifact_path).toBe("packages/a/index.ts");
+  });
+
+  it("binds a file token in clause text under a glob file_scope (#4840)", () => {
+    const result = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "unit covers packages/a/index.ts",
+          artifact_path: null,
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+    );
+    expect(result.ok).toBe(true);
+    expect(result.clauses[0]?.artifact_path).toBe("packages/a/index.ts");
+  });
+
+  it("refuses glob-shaped stored paths and declared-member glob text hits (#4840)", () => {
+    const stored = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "covers glob",
+          artifact_path: "packages/a/**",
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+    );
+    expect(stored.ok).toBe(false);
+    expect(stored.failures[0]?.kind).toBe("undeclared-binding");
+    const fromText = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "covers `packages/a/**`",
+          artifact_path: null,
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+    );
+    expect(fromText.ok).toBe(false);
+    expect(fromText.failures[0]?.kind).toBe("unbound-path");
   });
 
   it("is a no-op when file_scope is empty", () => {
@@ -288,6 +349,14 @@ describe("isDeclaredArtifactPath basename refuse (#4008)", () => {
     expect(isDeclaredArtifactPath("useDensity.ts", ["src/ui/ledger-table/useDensity.ts"])).toBe(
       false,
     );
+  });
+});
+
+describe("isDeclaredArtifactPath glob-refusing matchAny (#4840)", () => {
+  it("accepts a non-glob file under a glob file_scope and refuses glob-shaped pointers", () => {
+    expect(isDeclaredArtifactPath("packages/a/index.ts", ["packages/a/**"])).toBe(true);
+    expect(isDeclaredArtifactPath("packages/a/**", ["packages/a/**"])).toBe(false);
+    expect(isDeclaredArtifactPath("packages/a/foo*.ts", ["packages/a/**"])).toBe(false);
   });
 });
 
@@ -403,6 +472,43 @@ describe("walkAcceptanceClauses (#3323)", () => {
     expect(report.clauses[0]?.outcome).toBe("verified");
     expect(report.clauses[1]?.outcome).toBe("failed");
     expect(report.clauses[1]?.detail).toMatch(/buffer\/scratch/);
+  });
+
+  it("walks a matchAny file under glob file_scope and fails a directory stand-in (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-glob-"));
+    mkdirSync(join(root, "packages", "a", "src"), { recursive: true });
+    writeFileSync(join(root, "packages", "a", "index.ts"), "export {}\n", "utf8");
+    const report = walkAcceptanceClauses(
+      [
+        {
+          id: 1,
+          text: "artifact exists at packages/a/index.ts",
+          artifact_path: "packages/a/index.ts",
+          ambiguous: false,
+        },
+        {
+          id: 2,
+          text: "artifact exists at packages/a",
+          artifact_path: "packages/a",
+          ambiguous: false,
+        },
+        {
+          id: 3,
+          text: "covers packages/a/**",
+          artifact_path: "packages/a/**",
+          ambiguous: false,
+        },
+      ],
+      root,
+      { declaredScope: ["packages/a/**"] },
+    );
+    expect(report.clauses[0]?.outcome).toBe("verified");
+    expect(report.clauses[0]?.adjudicable).toBe(true);
+    expect(report.clauses[1]?.outcome).toBe("failed");
+    expect(report.clauses[1]?.adjudicable).toBe(true);
+    expect(report.clauses[1]?.detail).toMatch(/not a shipped file/);
+    expect(report.clauses[2]?.outcome).toBe("unverifiable");
+    expect(report.clauses[2]?.adjudicable).toBe(false);
   });
 
   // #3826 changed the absent half of this pair: a negation matched against the

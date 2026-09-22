@@ -969,6 +969,21 @@ export const registryData = {
       see_also: ["task scope:block", "#1119 / #845"],
       placeholder: false,
     },
+    "task scope:stamp-evidence": {
+      name: "task scope:stamp-evidence",
+      summary: "stamp kind:test evidence for matchAny files (#4840)",
+      refs: "(#4840)",
+      description:
+        "Evidence-only in-place stamp. Writes x-directive/evidence via stampNamespacedEvidence for a non-glob file that matchAny(file_scope) accepts. No disposition argv. --pr / --merge-commit stay off this field. Null-path persist-default rows stay unstamped.",
+      usage: "task scope:stamp-evidence -- <file>",
+      flags: [
+        ["<file>", "(required)", "Path to vBRIEF."],
+        ["--project-root PATH", "(detected)", "Consumer project root override."],
+      ],
+      examples: ["task scope:stamp-evidence -- xbrief/active/story.xbrief.json"],
+      see_also: ["task scope:complete", "task scope:unblock", "#4840"],
+      placeholder: false,
+    },
     "task scope:undo": {
       name: "task scope:undo",
       summary: "Undo demote/cancel/restore via audit-log id",
@@ -1086,6 +1101,7 @@ export const registryData = {
         "task scope:cancel",
         "task scope:block",
         "task scope:unblock",
+        "task scope:stamp-evidence",
       ],
     ],
     ["Reversibility", ["task scope:undo", "task scope:restore"]],
@@ -1157,6 +1173,7 @@ export const registryData = {
       restore: "task scope:restore",
       block: "task scope:block",
       unblock: "task scope:unblock",
+      "stamp-evidence": "task scope:stamp-evidence",
     },
     scope_demote: {
       __default__: "task scope:demote",

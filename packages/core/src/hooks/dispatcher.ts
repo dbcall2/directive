@@ -143,6 +143,7 @@ import {
   type ActiveScopeInspection,
   type InspectActiveScopeOptions,
   inspectActiveScope,
+  STAMP_EVIDENCE_VERB,
 } from "./scope.js";
 import { classifyShellWriteTargets, isInRepoShellWritePath } from "./shell-write-targets.js";
 import {
@@ -1959,6 +1960,13 @@ function inspectMutationGates(
           " For a new proposal under xbrief/proposed/, include a lifecycle artifact " +
           "filename (*.xbrief.json) in the Write/Edit payload so the gate can exempt " +
           "planning writes (#2625).";
+      } else if (scope.denyKind === "zero-eligible-blocked") {
+        proposedPathHint = " Recovery: run `deft scope:unblock -- <blocked-brief>`.";
+      } else if (scope.denyKind === "multiple-eligible") {
+        proposedPathHint =
+          ` Recovery: record acceptance with \`deft ${STAMP_EVIDENCE_VERB} -- <brief>\` ` +
+          "(evidence-only; no Edit of the brief), or set DEFT_ACTIVE_SCOPE to the " +
+          "dispatched story path.";
       } else {
         proposedPathHint = options.proposedLifecycleExempt
           ? " Recovery: no approved xBRIEF is available to activate " +

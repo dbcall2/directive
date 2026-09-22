@@ -26,6 +26,8 @@ export {
   formatClauseWalkMessage,
   formatZeroClauseAcceptanceShapedNotice,
   isDeclaredArtifactPath,
+  isFileShapedPointer,
+  isMatchAnyFilePointer,
   isScratchArtifactPath,
   readAcceptanceClauses,
   readDeclaredArtifactScope,
