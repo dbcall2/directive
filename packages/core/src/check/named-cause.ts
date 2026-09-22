@@ -53,6 +53,46 @@ const GATE_REMEDIES: Readonly<Record<string, string>> = {
     "Trim AGENTS.md managed section or raise plan.policy.agentsMdBudget deliberately",
 };
 
+/**
+ * Basename miss on vbrief:validate (#4844). Names the non-renaming scope.
+ * Schema failures keep the static schema sentence.
+ */
+const VBRIEF_VALIDATE_BASENAME_REMEDY =
+  "An unchanged completed name that already landed does not fail this gate. " +
+  "A basename the change set adds or renames stays a hard filename error, including dots and uppercase, on create, promote, activate, and on that change-set name. " +
+  "Do not edit JSON for a basename miss, and do not rename landed records.";
+
+/**
+ * Canonical filename diagnostic (filename 'name' does not match convention ... (D7)).
+ * The printed path may contain spaces. A basename may contain an apostrophe;
+ * the closing quote is the one before " does not match convention".
+ * A schema line that only quotes (D7) or "does not match convention" is not a miss.
+ */
+const BASENAME_MISS_MARKER = ": filename '";
+const BASENAME_MISS_TAIL = /^[^\r\n]+?' does not match convention .+ \(D7\)$/;
+
+function lineIsBasenameMiss(line: string): boolean {
+  let text = line.trim();
+  const failPrefix = /^FAIL:\s+/.exec(text);
+  if (failPrefix !== null) text = text.slice(failPrefix[0].length);
+  const at = text.lastIndexOf(BASENAME_MISS_MARKER);
+  if (at <= 0) return false;
+  return BASENAME_MISS_TAIL.test(text.slice(at + BASENAME_MISS_MARKER.length));
+}
+
+function isVbriefBasenameMiss(text: string): boolean {
+  for (const line of text.split(/\r?\n/)) {
+    if (lineIsBasenameMiss(line)) return true;
+  }
+  return false;
+}
+
+function vbriefBasenameRemedy(gateId: string, cause: string, raw: string): string | null {
+  if (gateId !== "vbrief:validate") return null;
+  if (!isVbriefBasenameMiss(raw) && !isVbriefBasenameMiss(cause)) return null;
+  return VBRIEF_VALIDATE_BASENAME_REMEDY;
+}
+
 const SPAWN_ERROR_REMEDY =
   "Install go-task (https://taskfile.dev/installation/) and ensure `task` is on PATH; then re-run task check";
 
@@ -247,6 +287,8 @@ export function remedyForGate(gateId: string, cause: string): string {
   if (/\bnpm(?: binary not found|: (?:NOT FOUND|FAILED|ERROR))/i.test(cause)) {
     return "Install or repair Node 20+ (npm is bundled), then re-run the consumer check";
   }
+  const basenameRemedy = vbriefBasenameRemedy(gateId, cause, cause);
+  if (basenameRemedy !== null) return basenameRemedy;
   return (
     GATE_REMEDIES[gateId] ??
     `Re-run the gate for details: task ${gateId}  (or task check); fix the reported product/process defect`
@@ -272,7 +314,9 @@ export function formatNamedCauseFailure(input: {
     input.gateId,
     input.hangTimeout,
   );
-  const remedy = remedyForGate(input.gateId, cause);
+  const raw = `${input.stdout ?? ""}\n${input.stderr ?? ""}`;
+  const remedy =
+    vbriefBasenameRemedy(input.gateId, cause, raw) ?? remedyForGate(input.gateId, cause);
   const lines = [
     `check: gate ${input.gateId} failed (exit ${input.exitCode})`,
     `  cause: ${cause}`,
