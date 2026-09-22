@@ -5,7 +5,7 @@ import {
   DEST_CONTENTION_IT_TIMEOUT_MS,
   destContentionItTimeout,
   WIN32_SPAWN_IT_TIMEOUT_MS,
-} from "./dest-contention-it-timeout.helper.test.js";
+} from "./dest-contention-it-timeout.js";
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
 
