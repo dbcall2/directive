@@ -1,11 +1,12 @@
 {
   "xBRIEFInfo": {
     "version": "0.8",
-    "description": "Scope xBRIEF ingested from GitHub issue #4917"
+    "description": "Scope xBRIEF ingested from GitHub issue #4917",
+    "updated": "2026-09-22T20:02:14Z"
   },
   "plan": {
     "title": "bug(release): adoption-blocker punch list must not block a tag",
-    "status": "proposed",
+    "status": "completed",
     "narratives": {
       "Description": "bug(release): adoption-blocker punch list must not block a tag",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/4917",
@@ -39,6 +40,7 @@
         "id": "github.issue.5544410988"
       }
     },
-    "id": "github.issue.5544410988"
+    "id": "github.issue.5544410988",
+    "updated": "2026-09-22T20:02:14Z"
   }
 }
