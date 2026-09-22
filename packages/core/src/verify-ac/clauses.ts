@@ -651,7 +651,7 @@ function isContained(root: string, child: string): boolean {
   return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }
 
-/** File-token shape: non-glob path. Bind still requires isFile via isMatchAnyFilePointer. */
+/** File-token shape: non-glob path. Bind still refuses glob-shaped pointers. */
 export function isFileShapedPointer(path: string): boolean {
   const candidate = normalizeScopePath(path);
   return candidate.length > 0 && !hasGlobMagic(candidate);
@@ -680,7 +680,36 @@ function isShippedFilePointer(projectRoot: string, pointer: string): boolean {
   }
 }
 
-/** Stored/extracted pointer that bind may copy onto artifact_path (#4840 / #4008). */
+/**
+ * Promotion bind matcher (#4840 / #4008).
+ * Glob-shaped pointers are refused. An existing directory (exists && isDirectory,
+ * or exists && !isFile) is refused. A missing matchAny path may bind so
+ * promotion can name a future in-scope file. Stamp and walk still require isFile.
+ */
+export function isBindableMatchAnyFilePointer(
+  path: string,
+  declaredScope: readonly string[],
+  projectRoot: string,
+): boolean {
+  const candidate = normalizeScopePath(path);
+  if (!isFileShapedPointer(candidate) || !matchAny(declaredScope, candidate)) {
+    return false;
+  }
+  const abs = resolve(projectRoot, candidate);
+  if (!isContained(projectRoot, abs)) {
+    return false;
+  }
+  try {
+    if (!existsSync(abs)) {
+      return true;
+    }
+    return statSync(abs).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/** Stamp matcher: bindable shape plus a contained regular file (#4840). */
 export function isMatchAnyFilePointer(
   path: string,
   declaredScope: readonly string[],
@@ -768,13 +797,13 @@ function uniqueMatchAnyFileHits(
   const hits = new Set<string>();
   for (const token of tokens) {
     const normalized = normalizeScopePath(token);
-    if (isMatchAnyFilePointer(normalized, declared, projectRoot)) {
+    if (isBindableMatchAnyFilePointer(normalized, declared, projectRoot)) {
       hits.add(normalized);
     }
   }
   for (const member of declared) {
     const normalized = normalizeScopePath(member);
-    if (!isMatchAnyFilePointer(normalized, declared, projectRoot)) {
+    if (!isBindableMatchAnyFilePointer(normalized, declared, projectRoot)) {
       continue;
     }
     if (memberAppearsInText(text, member) || memberAppearsInText(text, normalized)) {
@@ -792,7 +821,7 @@ function bindStoredOrTokens(
 ): BoundPathResult {
   if (storedPath !== null && storedPath.trim().length > 0) {
     const normalized = normalizeScopePath(storedPath);
-    if (isMatchAnyFilePointer(normalized, declared, projectRoot)) {
+    if (isBindableMatchAnyFilePointer(normalized, declared, projectRoot)) {
       return { ok: true, path: normalized };
     }
     return {
@@ -905,8 +934,10 @@ function formatBindFailures(failures: readonly ClauseBindFailure[]): string {
  *
  * Empty declared scope is a no-op: there is no approved member to bind to.
  * Glob-shaped stored paths, extracted tokens, and declared-member text hits
- * are refused. A shipped file that `matchAny` accepts becomes `artifact_path`.
- * Directory stand-ins are not copied. Basename matching stays refused.
+ * are refused. A matchAny path becomes `artifact_path` even when the file is
+ * still missing (promotion-time future file). Existing directories are not
+ * copied. Stamp and walk still require a contained regular file. Basename
+ * matching stays refused.
  */
 export function bindClausesToDeclaredScope(
   clauses: readonly AcceptanceClause[],

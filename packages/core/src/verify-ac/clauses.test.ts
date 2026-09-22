@@ -356,6 +356,39 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
     expect(result.clauses[0]?.artifact_path).toBe(pointer);
   });
 
+  it("binds a missing matchAny file named in the clause under glob file_scope (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-bind-future-"));
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    const fromText = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "Add packages/a/new-file.ts",
+          artifact_path: null,
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      root,
+    );
+    expect(fromText.ok).toBe(true);
+    expect(fromText.clauses[0]?.artifact_path).toBe("packages/a/new-file.ts");
+    const stored = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "Add packages/a/new-file.ts",
+          artifact_path: "packages/a/new-file.ts",
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      root,
+    );
+    expect(stored.ok).toBe(true);
+    expect(stored.clauses[0]?.artifact_path).toBe("packages/a/new-file.ts");
+  });
+
   it("binds a file token in clause text under a glob file_scope (#4840)", () => {
     const pointer = "packages/a/index.ts";
     const result = bindClausesToDeclaredScope(
@@ -602,6 +635,26 @@ describe("walkAcceptanceClauses (#3323)", () => {
     expect(report.clauses[1]?.detail).toMatch(/not a shipped file/);
     expect(report.clauses[2]?.outcome).toBe("unverifiable");
     expect(report.clauses[2]?.adjudicable).toBe(false);
+  });
+
+  it("fails a missing matchAny path at walk (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-walk-missing-"));
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    const report = walkAcceptanceClauses(
+      [
+        {
+          id: 1,
+          text: "artifact exists at packages/a/new-file.ts",
+          artifact_path: "packages/a/new-file.ts",
+          ambiguous: false,
+        },
+      ],
+      root,
+      { declaredScope: ["packages/a/**"] },
+    );
+    expect(report.clauses[0]?.outcome).toBe("failed");
+    expect(report.clauses[0]?.adjudicable).toBe(true);
+    expect(report.clauses[0]?.detail).toMatch(/missing/);
   });
 
   it("walks an extensionless Dockerfile as a shipped file (#4840)", () => {

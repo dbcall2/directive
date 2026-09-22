@@ -1895,6 +1895,39 @@ describe("stampMatchAnyFileEvidence (#4840)", () => {
     expect(item[ACCEPTANCE_EVIDENCE_KEY]).toBeUndefined();
   });
 
+  it("refuses a missing matchAny path (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "matchany-missing-"));
+    temps.push(root);
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    const item: Record<string, unknown> = {
+      id: clauseKeyedItemId(1),
+      title: clauseKeyedItemId(1),
+      status: "pending",
+    };
+    const plan: Record<string, unknown> = {
+      items: [item],
+      acceptance: {
+        clauses: [
+          {
+            id: 1,
+            text: "Add packages/a/new-file.ts",
+            artifact_path: "packages/a/new-file.ts",
+            ambiguous: false,
+          },
+        ],
+      },
+      metadata: { swarm: { file_scope: ["packages/a/**"] } },
+    };
+    const result = stampMatchAnyFileEvidence(plan, {
+      recorded_by: "scope:stamp-evidence",
+      recorded_at: "2026-09-22T00:00:00Z",
+      projectRoot: root,
+    });
+    expect(result.stampedIds).toEqual([]);
+    expect(item[ACCEPTANCE_EVIDENCE_KEY]).toBeUndefined();
+    expect(result.skipped[0]?.reason).toBe("no-allowed-pointer");
+  });
+
   it("stamps an extensionless Dockerfile when matchAny and isFile", () => {
     const root = mkdtempSync(join(tmpdir(), "matchany-docker-"));
     temps.push(root);

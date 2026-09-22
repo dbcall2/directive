@@ -25,6 +25,7 @@ export {
   deriveAcceptanceClauses,
   formatClauseWalkMessage,
   formatZeroClauseAcceptanceShapedNotice,
+  isBindableMatchAnyFilePointer,
   isDeclaredArtifactPath,
   isFileShapedPointer,
   isMatchAnyFilePointer,

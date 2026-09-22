@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **#4008 bind refuses directory stand-ins at isFile time (#4840).** Bind uses stamp's realpath-contained `statSync.isFile` matcher. A directory is not copied onto `artifact_path`. Extensionless regular files still bind. Tracking #4840.
+- **#4008 bind allows missing matchAny files and still refuses directories (#4840).** Promotion binds a non-glob path that `matchAny(file_scope)` accepts even when the file does not exist yet. Existing directories stay off `artifact_path`. Stamp and the clause walk still require a contained regular file. Tracking #4840.
 - **MatchAny stamp accepts extensionless files, refuses symlink escape, and fences hook names (#4840).** `isFileShapedPointer` no longer requires FILE_EXT; directories still fail at `isFile`. Stamp realpath-contains the pointer under the project root. `inspectActiveScope` fences blocked/eligible basenames; `fenceUntrustedAcceptanceText` collapses newlines. Tracking #4840.
 - **#4008 bind and the clause walk accept a matchAny file under glob file_scope (#4840).** Glob-shaped stored paths and declared-member glob text hits stay refused. `inspectActiveScope` reports a structured zero-eligible-blocked reason; the write-fence suffix names `scope:unblock` or `scope:stamp-evidence`. Evidence `pointer` is fenced in detail and completion listings. Tracking #4840.
 - **Yolo first all-accept lean carries honest pain cites; Mid-arc EXIT does not wait after that lean (#4811).** Uncited first map stays Handoff. After first relieves, unresolved-pain-audit is a pain-audit brief while Dual-stop remains, not operator next-envelope. Dual-stop raise stays a raise. Do not recut evaluateHandoffPrint.
