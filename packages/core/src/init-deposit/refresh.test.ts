@@ -25,6 +25,7 @@ import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
 import type { ClassifySeams } from "../resolution/index.js";
 import type { AgentHookReadinessResult } from "../verify-env/agent-hook-readiness.js";
 import { evaluate as evaluateHooksInstalled } from "../verify-env/verify-hooks-installed.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { detectXbriefConvergence } from "../xbrief-migrate/detect.js";
 import { LOCKFILE_REFRESH_COMMANDS } from "./init-deposit.js";
 import { type LegacyLayoutDetection, LegacyLayoutRefusedError } from "./legacy-detect.js";
@@ -278,57 +279,63 @@ describe("runRefreshDeposit", () => {
     execFileSync("git", ["config", "user.name", "Test"], { cwd: root });
   }
 
-  it("refreshes .deft/core and rewrites a stale managed section", async () => {
-    const project = freshRoot("refresh-stale-");
-    const contentRoot = installFakeContentPackage(project);
-    initGitRepo(project);
+  it(
+    "refreshes .deft/core and rewrites a stale managed section",
+    destContentionItTimeout(),
+    async () => {
+      const project = freshRoot("refresh-stale-");
+      const contentRoot = installFakeContentPackage(project);
+      initGitRepo(project);
 
-    writeFileSync(
-      join(project, "AGENTS.md"),
-      `# Operator prose\n\n<!-- deft:managed-section v2 -->\nOld body\n${AGENTS_MANAGED_CLOSE}\n`,
-      "utf8",
-    );
-    mkdirSync(join(project, ".codex"), { recursive: true });
-    writeFileSync(
-      join(project, ".codex", "hooks.json"),
-      `${JSON.stringify({
-        hooks: {
-          PreToolUse: [
-            {
-              matcher: "Bash",
-              hooks: [{ type: "command", command: "./consumer-check.sh" }],
-            },
-          ],
+      writeFileSync(
+        join(project, "AGENTS.md"),
+        `# Operator prose\n\n<!-- deft:managed-section v2 -->\nOld body\n${AGENTS_MANAGED_CLOSE}\n`,
+        "utf8",
+      );
+      mkdirSync(join(project, ".codex"), { recursive: true });
+      writeFileSync(
+        join(project, ".codex", "hooks.json"),
+        `${JSON.stringify({
+          hooks: {
+            PreToolUse: [
+              {
+                matcher: "Bash",
+                hooks: [{ type: "command", command: "./consumer-check.sh" }],
+              },
+            ],
+          },
+        })}\n`,
+        "utf8",
+      );
+      writeFileSync(join(project, ".codex", "config.toml"), 'model = "gpt-5"\n', "utf8");
+
+      const lines: string[] = [];
+      const result = await runRefreshDeposit(
+        { projectDir: project, jsonOut: false, nonInteractive: true, upgrade: true },
+        { printf: (text) => lines.push(text) },
+        {
+          resolveContentRoot: async () => contentRoot,
+          readEngineVersion: () => "0.53.0",
+          nowIso: () => "2026-06-24T12:00:00Z",
+          gitPorcelain: () => " M AGENTS.md\n M .deft/core/VERSION\n",
         },
-      })}\n`,
-      "utf8",
-    );
-    writeFileSync(join(project, ".codex", "config.toml"), 'model = "gpt-5"\n', "utf8");
+      );
 
-    const lines: string[] = [];
-    const result = await runRefreshDeposit(
-      { projectDir: project, jsonOut: false, nonInteractive: true, upgrade: true },
-      { printf: (text) => lines.push(text) },
-      {
-        resolveContentRoot: async () => contentRoot,
-        readEngineVersion: () => "0.53.0",
-        nowIso: () => "2026-06-24T12:00:00Z",
-        gitPorcelain: () => " M AGENTS.md\n M .deft/core/VERSION\n",
-      },
-    );
-
-    const agents = readFileSync(join(project, "AGENTS.md"), "utf8");
-    expect(agents).toContain("Operator prose");
-    expect(agents).toContain("deft:managed-section v3");
-    expect(agents).not.toContain("Old body");
-    expect(result.agentsMdUpdated).toBe(true);
-    expect(lines.join("")).toContain("refresh side effects (#1671)");
-    expect(existsSync(join(result.deftDir, "main.md"))).toBe(true);
-    const codexHooks = readFileSync(join(project, ".codex", "hooks.json"), "utf8");
-    expect(codexHooks).toContain("./consumer-check.sh");
-    expect(codexHooks).toContain("deft-hook --host codex --event tool.before");
-    expect(readFileSync(join(project, ".codex", "config.toml"), "utf8")).toBe('model = "gpt-5"\n');
-  });
+      const agents = readFileSync(join(project, "AGENTS.md"), "utf8");
+      expect(agents).toContain("Operator prose");
+      expect(agents).toContain("deft:managed-section v3");
+      expect(agents).not.toContain("Old body");
+      expect(result.agentsMdUpdated).toBe(true);
+      expect(lines.join("")).toContain("refresh side effects (#1671)");
+      expect(existsSync(join(result.deftDir, "main.md"))).toBe(true);
+      const codexHooks = readFileSync(join(project, ".codex", "hooks.json"), "utf8");
+      expect(codexHooks).toContain("./consumer-check.sh");
+      expect(codexHooks).toContain("deft-hook --host codex --event tool.before");
+      expect(readFileSync(join(project, ".codex", "config.toml"), "utf8")).toBe(
+        'model = "gpt-5"\n',
+      );
+    },
+  );
 
   it("refuses refresh file-swap when a live procedure names a pruned Python helper (#3602 C3)", async () => {
     const project = freshRoot("refresh-c3-mut-");
@@ -1148,7 +1155,7 @@ describe("runRefreshDeposit", () => {
     expect(payload.staged_paths).toEqual(["AGENTS.md", "leftover.txt"]);
   });
 
-  it("wires Taskfile.yml and stages it on upgrade (#1576)", async () => {
+  it("wires Taskfile.yml and stages it on upgrade (#1576)", destContentionItTimeout(), async () => {
     const project = freshRoot("refresh-taskfile-");
     const contentRoot = installFakeContentPackage(project);
     initGitRepo(project);
@@ -2347,55 +2354,59 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(payload).not.toHaveProperty("update_state", "dirty");
   });
 
-  it("--allow-dirty-no-stage applies without git add and keeps hooksPath (#4158)", async () => {
-    const project = freshRoot("update-dirty-escape-");
-    const contentRoot = installFakeContentPackage(project, "0.54.0");
-    initGitRepo(project);
-    writeInitializedProject(project, { contentVersion: "0.53.0", pinVersion: "0.54.0" });
-    execFileSync("git", ["add", "-A"], { cwd: project });
-    execFileSync("git", ["commit", "-m", "baseline"], { cwd: project });
-    writeFileSync(join(project, "scratch.txt"), "operator work\n", "utf8");
-    const out: string[] = [];
-    const err: string[] = [];
+  it(
+    "--allow-dirty-no-stage applies without git add and keeps hooksPath (#4158)",
+    destContentionItTimeout(),
+    async () => {
+      const project = freshRoot("update-dirty-escape-");
+      const contentRoot = installFakeContentPackage(project, "0.54.0");
+      initGitRepo(project);
+      writeInitializedProject(project, { contentVersion: "0.53.0", pinVersion: "0.54.0" });
+      execFileSync("git", ["add", "-A"], { cwd: project });
+      execFileSync("git", ["commit", "-m", "baseline"], { cwd: project });
+      writeFileSync(join(project, "scratch.txt"), "operator work\n", "utf8");
+      const out: string[] = [];
+      const err: string[] = [];
 
-    const code = await runRefreshDepositCli({
-      projectDir: project,
-      jsonOut: true,
-      nonInteractive: true,
-      upgrade: true,
-      allowDirtyNoStage: true,
-      classifySeams: classifySeams({ reachable: true, version: "0.54.0" }),
-      writeOut: (t) => out.push(t),
-      writeErr: (t) => err.push(t),
-      seams: {
-        resolveContentRoot: async () => contentRoot,
-        readEngineVersion: () => "0.54.0",
-        nowIso: () => "2026-09-12T12:00:00Z",
-        evaluateAgentHookReadiness: () => agentHookReadiness(),
-      },
-    });
+      const code = await runRefreshDepositCli({
+        projectDir: project,
+        jsonOut: true,
+        nonInteractive: true,
+        upgrade: true,
+        allowDirtyNoStage: true,
+        classifySeams: classifySeams({ reachable: true, version: "0.54.0" }),
+        writeOut: (t) => out.push(t),
+        writeErr: (t) => err.push(t),
+        seams: {
+          resolveContentRoot: async () => contentRoot,
+          readEngineVersion: () => "0.54.0",
+          nowIso: () => "2026-09-12T12:00:00Z",
+          evaluateAgentHookReadiness: () => agentHookReadiness(),
+        },
+      });
 
-    expect(code).toBe(0);
-    const payload = parseJsonObject(out.join(""));
-    expect(payload.success).toBe(true);
-    expect(payload.allow_dirty_no_stage).toBe(true);
-    expect(payload.staging_skipped).toBe(true);
-    expect(payload.dirty_tree).toBe(true);
-    expect(payload.staged_paths).toEqual([]);
-    expect(readFileSync(join(project, ".deft", "core", "VERSION"), "utf8")).toContain("v0.54.0");
-    const cached = execFileSync("git", ["diff", "--cached", "--name-only"], {
-      cwd: project,
-      encoding: "utf8",
-    });
-    expect(cached.trim()).toBe("");
-    expect(err.join("")).toMatch(/git commit -- /);
-    expect(err.join("")).not.toMatch(/The installer already staged/);
-    const hooksPath = execFileSync("git", ["config", "--get", "core.hooksPath"], {
-      cwd: project,
-      encoding: "utf8",
-    }).trim();
-    expect(hooksPath).toBe(".githooks");
-  });
+      expect(code).toBe(0);
+      const payload = parseJsonObject(out.join(""));
+      expect(payload.success).toBe(true);
+      expect(payload.allow_dirty_no_stage).toBe(true);
+      expect(payload.staging_skipped).toBe(true);
+      expect(payload.dirty_tree).toBe(true);
+      expect(payload.staged_paths).toEqual([]);
+      expect(readFileSync(join(project, ".deft", "core", "VERSION"), "utf8")).toContain("v0.54.0");
+      const cached = execFileSync("git", ["diff", "--cached", "--name-only"], {
+        cwd: project,
+        encoding: "utf8",
+      });
+      expect(cached.trim()).toBe("");
+      expect(err.join("")).toMatch(/git commit -- /);
+      expect(err.join("")).not.toMatch(/The installer already staged/);
+      const hooksPath = execFileSync("git", ["config", "--get", "core.hooksPath"], {
+        cwd: project,
+        encoding: "utf8",
+      }).trim();
+      expect(hooksPath).toBe(".githooks");
+    },
+  );
 
   it("unreadable repo refuses even with --allow-dirty-no-stage (#4158)", async () => {
     const project = freshRoot("update-unreadable-");
@@ -2667,40 +2678,44 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(destPlanIsEmpty(planned.mutations)).toBe(false);
   });
 
-  it("uses yarn install argv for yarn.lock, not silent npm (#4710)", async () => {
-    const project = freshRoot("update-pin-yarn-");
-    const contentRoot = installFakeContentPackage(project, "0.54.0");
-    writeInitializedProject(project, { contentVersion: "0.54.0", pinVersion: "0.53.0" });
-    writeFileSync(join(project, "yarn.lock"), "# yarn lockfile v1\n", "utf8");
-    const containedDestExec = vi.fn(() => ({ ok: true, stdout: "" }));
+  it(
+    "uses yarn install argv for yarn.lock, not silent npm (#4710)",
+    destContentionItTimeout(),
+    async () => {
+      const project = freshRoot("update-pin-yarn-");
+      const contentRoot = installFakeContentPackage(project, "0.54.0");
+      writeInitializedProject(project, { contentVersion: "0.54.0", pinVersion: "0.53.0" });
+      writeFileSync(join(project, "yarn.lock"), "# yarn lockfile v1\n", "utf8");
+      const containedDestExec = vi.fn(() => ({ ok: true, stdout: "" }));
 
-    await runRefreshDeposit(
-      { projectDir: project, jsonOut: false, nonInteractive: true, upgrade: true },
-      { printf: () => {} },
-      {
-        resolveContentRoot: async () => contentRoot,
-        copyContent: async () => {
-          throw new Error("copyContent must not run for skip-copy");
+      await runRefreshDeposit(
+        { projectDir: project, jsonOut: false, nonInteractive: true, upgrade: true },
+        { printf: () => {} },
+        {
+          resolveContentRoot: async () => contentRoot,
+          copyContent: async () => {
+            throw new Error("copyContent must not run for skip-copy");
+          },
+          readEngineVersion: () => "0.54.0",
+          gitPorcelain: () => null,
+          gitLsFiles: () => null,
+          containedDestExec,
+          resolveLockfileManager: (name) => `/stub/${name}`,
         },
-        readEngineVersion: () => "0.54.0",
-        gitPorcelain: () => null,
-        gitLsFiles: () => null,
-        containedDestExec,
-        resolveLockfileManager: (name) => `/stub/${name}`,
-      },
-    );
+      );
 
-    expect(containedDestExec).toHaveBeenCalledWith(
-      expect.objectContaining({
-        destTarget: "yarn.lock",
-        file: "/stub/yarn",
-        args: ["install"],
-      }),
-    );
-    expect(containedDestExec).not.toHaveBeenCalledWith(
-      expect.objectContaining({ file: "/stub/npm" }),
-    );
-  });
+      expect(containedDestExec).toHaveBeenCalledWith(
+        expect.objectContaining({
+          destTarget: "yarn.lock",
+          file: "/stub/yarn",
+          args: ["install"],
+        }),
+      );
+      expect(containedDestExec).not.toHaveBeenCalledWith(
+        expect.objectContaining({ file: "/stub/npm" }),
+      );
+    },
+  );
 
   it("reverts the pin and fails the update verb when lock exec is not ok (#4710)", async () => {
     const project = freshRoot("update-pin-fail-");

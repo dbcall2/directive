@@ -20,6 +20,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { buildHeadlessManifest } from "./headless-manifest.js";
 import { runInitDeposit } from "./init-deposit.js";
 import { ensurePackageJsonPin, PIN_DEPENDENCY_NAME } from "./scaffold.js";
@@ -130,37 +131,41 @@ describe("greenfield pin clone harness (#4429)", () => {
     expect(headless.devDependencies?.[PIN_DEPENDENCY_NAME]).toBe("0.53.0");
   });
 
-  it("after init + commit + fresh clone, the pin is present and .deft/core is reconstitutable", async () => {
-    const project = freshRoot("greenfield-pin-clone-src-");
-    const contentRoot = installFakeContentPackage(project);
+  it(
+    "after init + commit + fresh clone, the pin is present and .deft/core is reconstitutable",
+    destContentionItTimeout(),
+    async () => {
+      const project = freshRoot("greenfield-pin-clone-src-");
+      const contentRoot = installFakeContentPackage(project);
 
-    await runInitDeposit(
-      { projectDir: project, jsonOut: false, nonInteractive: true },
-      { printf: () => {} },
-      {
-        resolveContentRoot: async () => contentRoot,
-        gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
-      },
-    );
+      await runInitDeposit(
+        { projectDir: project, jsonOut: false, nonInteractive: true },
+        { printf: () => {} },
+        {
+          resolveContentRoot: async () => contentRoot,
+          gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+        },
+      );
 
-    git(project, ["init", "-q"]);
-    git(project, ["config", "user.email", "t@t.dev"]);
-    git(project, ["config", "user.name", "t"]);
-    git(project, ["add", "-A"]);
-    git(project, ["commit", "-q", "-m", "greenfield init"]);
+      git(project, ["init", "-q"]);
+      git(project, ["config", "user.email", "t@t.dev"]);
+      git(project, ["config", "user.name", "t"]);
+      git(project, ["add", "-A"]);
+      git(project, ["commit", "-q", "-m", "greenfield init"]);
 
-    const cloneParent = freshRoot("greenfield-pin-clone-dst-");
-    const cloneDir = join(cloneParent, "clone");
-    git(cloneParent, ["clone", "-q", project, cloneDir]);
+      const cloneParent = freshRoot("greenfield-pin-clone-dst-");
+      const cloneDir = join(cloneParent, "clone");
+      git(cloneParent, ["clone", "-q", project, cloneDir]);
 
-    const pkg = JSON.parse(readFileSync(join(cloneDir, "package.json"), "utf8")) as {
-      private?: boolean;
-      devDependencies?: Record<string, string>;
-    };
-    expect(pkg.private).toBe(true);
-    expect(pkg.devDependencies?.[PIN_DEPENDENCY_NAME]).toBe("0.53.0");
-    expect(readFileSync(join(cloneDir, ".gitignore"), "utf8")).toContain(".deft/core/");
-    expect(existsSync(join(cloneDir, ".deft", "core"))).toBe(false);
-    expect(existsSync(join(project, ".deft", "core", "main.md"))).toBe(true);
-  }, 20_000);
+      const pkg = JSON.parse(readFileSync(join(cloneDir, "package.json"), "utf8")) as {
+        private?: boolean;
+        devDependencies?: Record<string, string>;
+      };
+      expect(pkg.private).toBe(true);
+      expect(pkg.devDependencies?.[PIN_DEPENDENCY_NAME]).toBe("0.53.0");
+      expect(readFileSync(join(cloneDir, ".gitignore"), "utf8")).toContain(".deft/core/");
+      expect(existsSync(join(cloneDir, ".deft", "core"))).toBe(false);
+      expect(existsSync(join(project, ".deft", "core", "main.md"))).toBe(true);
+    },
+  );
 });
