@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4656",
-    "updated": "2026-09-22T20:51:42Z"
+    "updated": "2026-09-22T21:23:47Z"
   },
   "plan": {
     "title": "[UAT Tester 1] directive init first-run output is unusable (many next actions, maintainer dump)",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "[UAT Tester 1] directive init first-run output is unusable (many next actions, maintainer dump)",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/4656",
@@ -16,28 +16,58 @@
     "items": [
       {
         "title": "First-run success already names what was created.",
-        "status": "proposed",
-        "id": "clause.1"
+        "status": "completed",
+        "id": "clause.1",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4922",
+          "recorded_at": "2026-09-22T21:23:15Z",
+          "recorded_by": "scope:complete"
+        }
       },
       {
         "title": "The edit stops the init success path from using the upgrade recipe (printCommitGuidance).",
-        "status": "proposed",
-        "id": "clause.2"
+        "status": "completed",
+        "id": "clause.2",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4922",
+          "recorded_at": "2026-09-22T21:23:15Z",
+          "recorded_by": "scope:complete"
+        }
       },
       {
         "title": "The edit stops printMigrateNudgeIfNeeded on the fresh-init success path, where the VERSION manifest has no managedBy.",
-        "status": "proposed",
-        "id": "clause.3"
+        "status": "completed",
+        "id": "clause.3",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4922",
+          "recorded_at": "2026-09-22T21:23:15Z",
+          "recorded_by": "scope:complete"
+        }
       },
       {
         "title": "One next step remains, from the list printNextSteps already prints.",
-        "status": "proposed",
-        "id": "clause.4"
+        "status": "completed",
+        "id": "clause.4",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4922",
+          "recorded_at": "2026-09-22T21:23:15Z",
+          "recorded_by": "scope:complete"
+        }
       },
       {
         "title": "That kept step is the only imperative the success path prints.",
-        "status": "proposed",
-        "id": "clause.5"
+        "status": "completed",
+        "id": "clause.5",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4922",
+          "recorded_at": "2026-09-22T21:23:15Z",
+          "recorded_by": "scope:complete"
+        }
       }
     ],
     "tags": [
@@ -528,9 +558,34 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "3941396c5cc903d8fcd28ccf586e124a321021abc6a2bc974ef08e3e374a3732"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4922,
+        "prBase": null,
+        "mergeCommit": "2482f3557ff1450fe55b60888dd7e9501b56a34b",
+        "deliveryBranch": "master",
+        "deliveryCommit": "2482f3557ff1450fe55b60888dd7e9501b56a34b",
+        "verifiedAt": "2026-09-22T21:23:47Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:grok:v1:MDFhMGNhZGUtYzA4ZC03MWIzLTkyNTgtZjE3NWY3M2ZkYTA4"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-22T21:23:47Z",
+      "completedSessionId": "host:grok:v1:MDFhMGNhZGUtYzA4ZC03MWIzLTkyNTgtZjE3NWY3M2ZkYTA4",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-22T21:23:47Z"
       }
     },
     "id": "github.issue.5480357281",
-    "updated": "2026-09-22T20:51:42Z"
+    "updated": "2026-09-22T21:23:47Z"
   }
 }
