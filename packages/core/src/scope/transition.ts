@@ -283,7 +283,7 @@ export function runTransition(
       derivationNotice = derivation.notice;
     }
     if (shouldApplyPromoteClauseFileScopeBind(planObj)) {
-      const bind = applyPromoteClauseFileScopeBind(planObj);
+      const bind = applyPromoteClauseFileScopeBind(planObj, projectRoot);
       if (!bind.ok) {
         return { ok: false, message: bind.message };
       }

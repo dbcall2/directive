@@ -33,6 +33,7 @@ import {
 import { resolveProjectRoot } from "./project-context.js";
 import { promoteFromIssue } from "./promote-from-issue.js";
 import { promotePath } from "./promote-path.js";
+import { STAMP_EVIDENCE_ACTION, stampEvidenceOnBrief } from "./stamp-evidence.js";
 import { runTransition, type TransitionOptions } from "./transition.js";
 import {
   findByDecisionId,
@@ -89,7 +90,8 @@ const LIFECYCLE_USAGE_STDERR =
   "                          [--force] [--project-root PATH] [--strict] [--force-no-cache]\n" +
   "                          [--path PATH]\n" +
   "  complete also accepts: --merge-commit SHA --pr N [--pr-base BRANCH] [--delivery-branch BRANCH]\n" +
-  "  actions: activate, block, cancel, complete, fail, promote, restore, unblock\n" +
+  "  stamp-evidence is evidence-only: no --pr / --merge-commit / disposition argv (#4840)\n" +
+  "  actions: activate, block, cancel, complete, fail, promote, restore, stamp-evidence, unblock\n" +
   "The verb already encodes the action (e.g. deft scope:promote <file>). Do not pass the action again.\n" +
   "(promote --batch may omit file and promotes all proposed/ scopes; #3011)\n" +
   "(promote --from-issue=N may omit file; #1136)\n" +
@@ -100,7 +102,7 @@ function parseLifecycleArgv(argv: string[]): { args: LifecycleArgs | null; error
     return { args: null, error: "usage" };
   }
   const action = argv[0] ?? "";
-  if (!(action in TRANSITIONS)) {
+  if (!(action in TRANSITIONS) && action !== STAMP_EVIDENCE_ACTION) {
     return { args: null, error: "usage" };
   }
   let file = "";
@@ -272,6 +274,19 @@ function parseLifecycleArgv(argv: string[]): { args: LifecycleArgs | null; error
   if (file.length === 0) {
     return { args: null, error: "usage" };
   }
+  if (action === STAMP_EVIDENCE_ACTION) {
+    if (deliveryEvidence !== undefined || nonDeliveryDisposition !== undefined) {
+      return { args: null, error: "usage" };
+    }
+    return {
+      args: {
+        action,
+        file,
+        projectRoot,
+        force,
+      },
+    };
+  }
   return {
     args: {
       action,
@@ -370,6 +385,16 @@ export function lifecycleMain(argv: string[]): number {
   if (error !== null || filePath === null) {
     process.stderr.write(`Error: ${error}\n`);
     return 2;
+  }
+
+  if (action === STAMP_EVIDENCE_ACTION) {
+    const stamped = stampEvidenceOnBrief(filePath, { projectRoot });
+    if (stamped.ok) {
+      process.stdout.write(`${stamped.message}\n`);
+      return 0;
+    }
+    process.stderr.write(`Error: ${stamped.message}\n`);
+    return 1;
   }
 
   // Path-based promote uses shared promotePath for WIP + optional audit consistency (#1136).

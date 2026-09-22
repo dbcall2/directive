@@ -151,6 +151,60 @@ describe("lifecycleMain", () => {
     expect(lifecycleMain(["promote", file, "--project-root", root, "--nope"])).toBe(2);
   });
 
+  it("stamp-evidence writes matchAny file evidence and refuses --pr (#4840)", () => {
+    root = mkdtempSync(join(tmpdir(), "cli-stamp-"));
+    mkdirSync(join(root, "xbrief", "active"), { recursive: true });
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    writeFileSync(join(root, "packages", "a", "index.ts"), "export {}\n", "utf8");
+    const file = join(root, "xbrief", "active", "story.xbrief.json");
+    writeFileSync(
+      file,
+      formatBriefJson(
+        minimalScopeBrief({
+          title: "T",
+          status: "running",
+          items: [{ id: "clause.1", title: "clause.1", status: "pending" }],
+          acceptance: {
+            commands: [],
+            none_stated: true,
+            clauses: [
+              {
+                id: 1,
+                text: "unit covers packages/a/index.ts",
+                artifact_path: "packages/a/index.ts",
+                ambiguous: false,
+              },
+            ],
+          },
+          metadata: { swarm: { file_scope: ["packages/a/**"] } },
+        }),
+      ),
+      "utf8",
+    );
+    const out: string[] = [];
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      out.push(String(chunk));
+      return true;
+    });
+    try {
+      expect(lifecycleMain(["stamp-evidence", file, "--project-root", root])).toBe(0);
+    } finally {
+      stdoutSpy.mockRestore();
+    }
+    expect(out.join("")).toContain("scope:stamp-evidence");
+    const parsed = JSON.parse(readFileSync(file, "utf8")) as {
+      plan: { items: Array<Record<string, unknown>> };
+    };
+    expect(parsed.plan.items[0]?.["x-directive/evidence"]).toMatchObject({
+      kind: "test",
+      pointer: "packages/a/index.ts",
+    });
+    expect(lifecycleMain(["stamp-evidence", file, "--project-root", root, "--pr", "1"])).toBe(2);
+    expect(
+      lifecycleMain(["stamp-evidence", file, "--project-root", root, "--merge-commit", "abc"]),
+    ).toBe(2);
+  });
+
   it("returns 1 for invalid transition", () => {
     root = mkdtempSync(join(tmpdir(), "cli-bad-"));
     mkdirSync(join(root, "xbrief", "active"), { recursive: true });

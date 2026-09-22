@@ -1,6 +1,6 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, parse } from "node:path";
+import { dirname, join, parse } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   bindClausesToDeclaredScope,
@@ -12,7 +12,9 @@ import {
   extractExpectedTokens,
   formatClauseWalkMessage,
   formatZeroClauseAcceptanceShapedNotice,
+  isBindableMatchAnyFilePointer,
   isDeclaredArtifactPath,
+  isFileShapedPointer,
   isScratchArtifactPath,
   readAcceptanceClauses,
   serializeAcceptanceClauses,
@@ -112,6 +114,16 @@ AcceptanceCriteria: Third constraint binds CHANGELOG.md
 describe("bindClausesToDeclaredScope (#4008)", () => {
   const declared = ["src/ui/ledger-table/useDensity.ts", "src/ui/ledger-table/useTableKeyboard.ts"];
 
+  function rootWith(files: string[]): string {
+    const root = mkdtempSync(join(tmpdir(), "clause-bind-"));
+    for (const file of files) {
+      const abs = join(root, file);
+      mkdirSync(dirname(abs), { recursive: true });
+      writeFileSync(abs, "ok\n", "utf8");
+    }
+    return root;
+  }
+
   it("binds a clause to the exact file_scope member named in the text", () => {
     const result = bindClausesToDeclaredScope(
       [
@@ -123,6 +135,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       declared,
+      rootWith(declared),
     );
     expect(result.ok).toBe(true);
     expect(result.changed).toBe(true);
@@ -140,6 +153,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       declared,
+      rootWith(declared),
     );
     expect(result.ok).toBe(false);
     expect(result.failures[0]?.kind).toBe("unbound-path");
@@ -157,6 +171,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       declared,
+      rootWith(declared),
     );
     expect(result.ok).toBe(false);
     expect(result.failures[0]?.kind).toBe("ambiguous-scope");
@@ -178,6 +193,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       declared,
+      rootWith(declared),
     );
     expect(result.ok).toBe(false);
     expect(result.failures[0]?.kind).toBe("undeclared-binding");
@@ -201,6 +217,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       declared,
+      rootWith(declared),
     );
     expect(result.ok).toBe(true);
     expect(result.clauses[0]?.artifact_path).toBe("src/ui/ledger-table/useTableKeyboard.ts");
@@ -213,30 +230,51 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
     const result = bindClausesToDeclaredScope(
       [{ id: 1, text: "No clause-count cap is introduced", artifact_path: null, ambiguous: false }],
       declared,
+      rootWith(declared),
     );
     expect(result.ok).toBe(true);
     expect(result.changed).toBe(false);
     expect(result.clauses[0]?.artifact_path).toBeNull();
   });
 
-  it("binds an exact declared directory named in the clause", () => {
-    const result = bindClausesToDeclaredScope(
+  it("does not bind a directory stand-in mentioned in a clause (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-bind-dir-"));
+    mkdirSync(join(root, "packages", "a", "src"), { recursive: true });
+    const mentioned = bindClausesToDeclaredScope(
       [
         {
           id: 1,
-          text: "Ship helpers under src/ui/ledger-table/",
+          text: "Ship helpers under packages/a",
           artifact_path: null,
           ambiguous: false,
         },
       ],
-      ["src/ui/ledger-table"],
+      ["packages/a"],
+      root,
     );
-    expect(result.ok).toBe(true);
-    expect(result.clauses[0]?.artifact_path).toBe("src/ui/ledger-table");
+    expect(mentioned.ok).toBe(true);
+    expect(mentioned.clauses[0]?.artifact_path).toBeNull();
+    const stored = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "Ship helpers under packages/a",
+          artifact_path: "packages/a",
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      root,
+    );
+    expect(stored.ok).toBe(false);
+    expect(stored.failures[0]?.kind).toBe("undeclared-binding");
+    expect(stored.clauses[0]?.artifact_path).toBe("packages/a");
   });
 
-  it("binds ./ and backslash spellings of a declared directory", () => {
-    const declared = ["src/ui/ledger-table"];
+  it("does not copy ./ or backslash directory prefixes onto artifact_path (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-bind-dir-prefix-"));
+    mkdirSync(join(root, "src", "ui", "ledger-table"), { recursive: true });
+    const dirDeclared = ["src/ui/ledger-table"];
     const dotted = bindClausesToDeclaredScope(
       [
         {
@@ -246,10 +284,11 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
           ambiguous: false,
         },
       ],
-      declared,
+      dirDeclared,
+      root,
     );
     expect(dotted.ok).toBe(true);
-    expect(dotted.clauses[0]?.artifact_path).toBe("src/ui/ledger-table");
+    expect(dotted.clauses[0]?.artifact_path).toBeNull();
     const win = bindClausesToDeclaredScope(
       [
         {
@@ -259,10 +298,146 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
           ambiguous: false,
         },
       ],
-      declared,
+      dirDeclared,
+      root,
     );
     expect(win.ok).toBe(true);
-    expect(win.clauses[0]?.artifact_path).toBe("src/ui/ledger-table");
+    expect(win.clauses[0]?.artifact_path).toBeNull();
+  });
+
+  it("binds a stored extensionless Dockerfile under matchAny when it is a file (#4840)", () => {
+    const result = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "ship Dockerfile",
+          artifact_path: "Dockerfile",
+          ambiguous: false,
+        },
+      ],
+      ["Dockerfile"],
+      rootWith(["Dockerfile"]),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.clauses[0]?.artifact_path).toBe("Dockerfile");
+  });
+
+  it("binds Dockerfile under glob file_scope when it is a regular file (#4840)", () => {
+    const result = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "ship Dockerfile",
+          artifact_path: "Dockerfile",
+          ambiguous: false,
+        },
+      ],
+      ["*"],
+      rootWith(["Dockerfile"]),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.clauses[0]?.artifact_path).toBe("Dockerfile");
+  });
+
+  it("binds a stored non-glob matchAny file under a glob file_scope (#4840)", () => {
+    const pointer = "packages/a/index.ts";
+    const result = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "unit covers packages/a/index.ts",
+          artifact_path: pointer,
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      rootWith([pointer]),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.clauses[0]?.artifact_path).toBe(pointer);
+  });
+
+  it("binds a missing matchAny file named in the clause under glob file_scope (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-bind-future-"));
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    const fromText = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "Add packages/a/new-file.ts",
+          artifact_path: null,
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      root,
+    );
+    expect(fromText.ok).toBe(true);
+    expect(fromText.clauses[0]?.artifact_path).toBe("packages/a/new-file.ts");
+    const stored = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "Add packages/a/new-file.ts",
+          artifact_path: "packages/a/new-file.ts",
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      root,
+    );
+    expect(stored.ok).toBe(true);
+    expect(stored.clauses[0]?.artifact_path).toBe("packages/a/new-file.ts");
+  });
+
+  it("binds a file token in clause text under a glob file_scope (#4840)", () => {
+    const pointer = "packages/a/index.ts";
+    const result = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "unit covers packages/a/index.ts",
+          artifact_path: null,
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      rootWith([pointer]),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.clauses[0]?.artifact_path).toBe(pointer);
+  });
+
+  it("refuses glob-shaped stored paths and declared-member glob text hits (#4840)", () => {
+    const root = rootWith(["packages/a/index.ts"]);
+    const stored = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "covers glob",
+          artifact_path: "packages/a/**",
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      root,
+    );
+    expect(stored.ok).toBe(false);
+    expect(stored.failures[0]?.kind).toBe("undeclared-binding");
+    const fromText = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "covers `packages/a/**`",
+          artifact_path: null,
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      root,
+    );
+    expect(fromText.ok).toBe(false);
+    expect(fromText.failures[0]?.kind).toBe("unbound-path");
   });
 
   it("is a no-op when file_scope is empty", () => {
@@ -276,6 +451,7 @@ describe("bindClausesToDeclaredScope (#4008)", () => {
         },
       ],
       [],
+      rootWith(declared),
     );
     expect(result.ok).toBe(true);
     expect(result.changed).toBe(false);
@@ -288,6 +464,89 @@ describe("isDeclaredArtifactPath basename refuse (#4008)", () => {
     expect(isDeclaredArtifactPath("useDensity.ts", ["src/ui/ledger-table/useDensity.ts"])).toBe(
       false,
     );
+  });
+});
+
+describe("isDeclaredArtifactPath glob-refusing matchAny (#4840)", () => {
+  it("accepts a non-glob file under a glob file_scope and refuses glob-shaped pointers", () => {
+    expect(isDeclaredArtifactPath("packages/a/index.ts", ["packages/a/**"])).toBe(true);
+    expect(isDeclaredArtifactPath("packages/a/**", ["packages/a/**"])).toBe(false);
+    expect(isDeclaredArtifactPath("packages/a/foo*.ts", ["packages/a/**"])).toBe(false);
+  });
+});
+
+describe("isFileShapedPointer (#4840)", () => {
+  it("accepts extensionless files and refuses glob-shaped pointers", () => {
+    expect(isFileShapedPointer("Dockerfile")).toBe(true);
+    expect(isFileShapedPointer("Makefile")).toBe(true);
+    expect(isFileShapedPointer("LICENSE")).toBe(true);
+    expect(isFileShapedPointer("packages/a/index.ts")).toBe(true);
+    expect(isFileShapedPointer("packages/a/**")).toBe(false);
+    expect(isFileShapedPointer("foo*.ts")).toBe(false);
+    expect(isFileShapedPointer("")).toBe(false);
+  });
+});
+
+describe("isBindableMatchAnyFilePointer (#4840)", () => {
+  it("binds a missing in-scope file", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-bindable-missing-"));
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    expect(isBindableMatchAnyFilePointer("packages/a/new-file.ts", ["packages/a/**"], root)).toBe(
+      true,
+    );
+  });
+
+  it("binds an existing in-scope regular file", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-bindable-file-"));
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    writeFileSync(join(root, "packages", "a", "index.ts"), "export {}\n", "utf8");
+    expect(isBindableMatchAnyFilePointer("packages/a/index.ts", ["packages/a/**"], root)).toBe(
+      true,
+    );
+  });
+
+  it("does not bind an in-repo symlink to an external regular file", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-bindable-symlink-"));
+    const outsideDir = mkdtempSync(join(tmpdir(), "clause-bindable-outside-"));
+    const outsideFile = join(outsideDir, "secret.ts");
+    writeFileSync(outsideFile, "export {}\n", "utf8");
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    const pointer = "packages/a/index.ts";
+    try {
+      symlinkSync(outsideFile, join(root, pointer));
+    } catch {
+      // Windows without symlink privilege: skip rather than fail the suite
+      return;
+    }
+    expect(isBindableMatchAnyFilePointer(pointer, ["packages/a/**"], root)).toBe(false);
+    const stored = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "unit covers packages/a/index.ts",
+          artifact_path: pointer,
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      root,
+    );
+    expect(stored.ok).toBe(false);
+    expect(stored.failures[0]?.kind).toBe("undeclared-binding");
+    const fromText = bindClausesToDeclaredScope(
+      [
+        {
+          id: 1,
+          text: "unit covers packages/a/index.ts",
+          artifact_path: null,
+          ambiguous: false,
+        },
+      ],
+      ["packages/a/**"],
+      root,
+    );
+    expect(fromText.ok).toBe(false);
+    expect(fromText.failures[0]?.kind).toBe("unbound-path");
   });
 });
 
@@ -403,6 +662,82 @@ describe("walkAcceptanceClauses (#3323)", () => {
     expect(report.clauses[0]?.outcome).toBe("verified");
     expect(report.clauses[1]?.outcome).toBe("failed");
     expect(report.clauses[1]?.detail).toMatch(/buffer\/scratch/);
+  });
+
+  it("walks a matchAny file under glob file_scope and fails a directory stand-in (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-glob-"));
+    mkdirSync(join(root, "packages", "a", "src"), { recursive: true });
+    writeFileSync(join(root, "packages", "a", "index.ts"), "export {}\n", "utf8");
+    const report = walkAcceptanceClauses(
+      [
+        {
+          id: 1,
+          text: "artifact exists at packages/a/index.ts",
+          artifact_path: "packages/a/index.ts",
+          ambiguous: false,
+        },
+        {
+          id: 2,
+          text: "artifact exists at packages/a",
+          artifact_path: "packages/a",
+          ambiguous: false,
+        },
+        {
+          id: 3,
+          text: "covers packages/a/**",
+          artifact_path: "packages/a/**",
+          ambiguous: false,
+        },
+      ],
+      root,
+      { declaredScope: ["packages/a/**"] },
+    );
+    expect(report.clauses[0]?.outcome).toBe("verified");
+    expect(report.clauses[0]?.adjudicable).toBe(true);
+    expect(report.clauses[1]?.outcome).toBe("failed");
+    expect(report.clauses[1]?.adjudicable).toBe(true);
+    expect(report.clauses[1]?.detail).toMatch(/not a shipped file/);
+    expect(report.clauses[2]?.outcome).toBe("unverifiable");
+    expect(report.clauses[2]?.adjudicable).toBe(false);
+  });
+
+  it("fails a missing matchAny path at walk (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-walk-missing-"));
+    mkdirSync(join(root, "packages", "a"), { recursive: true });
+    const report = walkAcceptanceClauses(
+      [
+        {
+          id: 1,
+          text: "artifact exists at packages/a/new-file.ts",
+          artifact_path: "packages/a/new-file.ts",
+          ambiguous: false,
+        },
+      ],
+      root,
+      { declaredScope: ["packages/a/**"] },
+    );
+    expect(report.clauses[0]?.outcome).toBe("failed");
+    expect(report.clauses[0]?.adjudicable).toBe(true);
+    expect(report.clauses[0]?.detail).toMatch(/missing/);
+  });
+
+  it("walks an extensionless Dockerfile as a shipped file (#4840)", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-docker-"));
+    writeFileSync(join(root, "Dockerfile"), "FROM scratch\n", "utf8");
+    const report = walkAcceptanceClauses(
+      [
+        {
+          id: 1,
+          text: "artifact exists at Dockerfile",
+          artifact_path: "Dockerfile",
+          ambiguous: false,
+        },
+      ],
+      root,
+      { declaredScope: ["Dockerfile"] },
+    );
+    expect(report.clauses[0]?.outcome).toBe("verified");
+    expect(report.clauses[0]?.adjudicable).toBe(true);
   });
 
   // #3826 changed the absent half of this pair: a negation matched against the

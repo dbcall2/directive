@@ -1,8 +1,9 @@
 /**
  * Promote-time bind of derived clauses to approved file_scope members (#4008).
  *
- * Walk-time basename matching is refused (#3835). This gate copies an exact
- * declared member onto the clause, or refuses the lifecycle write.
+ * Walk-time basename matching is refused (#3835). This gate copies a shipped
+ * matchAny file onto the clause, or refuses the lifecycle write. Directory
+ * stand-ins are not copied.
  */
 
 import {
@@ -21,10 +22,12 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 export function evaluatePromoteClauseFileScopeBind(
   plan: Record<string, unknown>,
+  projectRoot: string,
 ): ClauseFileScopeBindResult {
   return bindClausesToDeclaredScope(
     readAcceptanceClauses(plan.acceptance),
     readDeclaredArtifactScope(plan),
+    projectRoot,
   );
 }
 
@@ -36,8 +39,9 @@ export function shouldApplyPromoteClauseFileScopeBind(plan: Record<string, unkno
 
 export function applyPromoteClauseFileScopeBind(
   plan: Record<string, unknown>,
+  projectRoot: string,
 ): ClauseFileScopeBindResult {
-  const result = evaluatePromoteClauseFileScopeBind(plan);
+  const result = evaluatePromoteClauseFileScopeBind(plan, projectRoot);
   if (!result.ok || !result.changed) {
     return result;
   }

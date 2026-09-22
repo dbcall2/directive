@@ -17,6 +17,7 @@ export * from "./project-context.js";
 export * from "./project-invariant-coverage.js";
 export * from "./promote-from-issue.js";
 export * from "./promote-path.js";
+export * from "./stamp-evidence.js";
 export * from "./transition.js";
 export * from "./undo.js";
 export * from "./vbrief-json.js";

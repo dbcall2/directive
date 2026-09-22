@@ -2,15 +2,27 @@ import { readdirSync } from "node:fs";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { hasArtifactSuffix } from "../layout/resolve.js";
 import { evaluate } from "../preflight/evaluate.js";
+import { fenceUntrustedAcceptanceText } from "../scope/acceptance-evidence.js";
 
 /** Hook/process env pin for the dispatched story when more than one brief is active (#4007). */
 export const ACTIVE_SCOPE_PIN_ENV = "DEFT_ACTIVE_SCOPE";
+
+/** Why inspectActiveScope is not ready (#4840). */
+export type ActiveScopeDenyKind =
+  | "multiple-eligible"
+  | "zero-eligible-blocked"
+  | "zero-eligible"
+  | "pin-miss";
 
 export interface ActiveScopeInspection {
   readonly ready: boolean;
   readonly path: string | null;
   readonly message: string;
+  readonly denyKind?: ActiveScopeDenyKind;
 }
+
+/** Evidence-only lifecycle verb named on the multiple-eligible deny (#4840). */
+export const STAMP_EVIDENCE_VERB = "scope:stamp-evidence";
 
 export interface InspectActiveScopeOptions {
   /** Explicit dispatched story path; wins over {@link ACTIVE_SCOPE_PIN_ENV}. */
@@ -91,14 +103,32 @@ export function matchPinnedActiveScope(
   return null;
 }
 
+/**
+ * Assumptions: deny copy is operator-visible hook text; basenames come from the filesystem.
+ * Guarantees: names are fenced and CR/LF-collapsed so they cannot break markdown or inject copy.
+ * Non-goals: pin env values, preflight evaluator copy, origin-freshness messages.
+ */
+function fenceActiveScopeName(path: string): string {
+  return fenceUntrustedAcceptanceText(toPosix(basename(path)));
+}
+
 function formatMultipleActiveMessage(eligible: readonly EligibleScope[]): string {
-  const names = eligible.map((item) => toPosix(basename(item.path))).join(", ");
+  const names = eligible.map((item) => fenceActiveScopeName(item.path)).join(", ");
   return (
     `Multiple active xBRIEF artifacts are eligible (${names}). ` +
     "The write fence cannot bind the first-sorted story: a cohort would share that " +
     "story's file_scope and over-permit every other worker (#4007). " +
-    `Set ${ACTIVE_SCOPE_PIN_ENV} to the dispatched story path, or keep one running ` +
-    "brief in xbrief/active/."
+    `Set ${ACTIVE_SCOPE_PIN_ENV} to the dispatched story path, or record acceptance ` +
+    `with \`deft ${STAMP_EVIDENCE_VERB} -- <brief>\`. ` +
+    "Or keep one running brief in xbrief/active/."
+  );
+}
+
+function formatZeroEligibleBlockedMessage(blocked: readonly string[]): string {
+  const names = blocked.map((path) => fenceActiveScopeName(path)).join(", ");
+  return (
+    `No eligible running xBRIEF under xbrief/active/. Scanned candidate(s) are ` +
+    `blocked (${names}).`
   );
 }
 
@@ -139,6 +169,7 @@ export function inspectActiveScope(
   candidates.sort();
   const eligible: EligibleScope[] = [];
   const rejections = new Map<string, string>();
+  const blocked: string[] = [];
   let firstRejection: string | null = null;
   for (const candidate of candidates) {
     // #3736: origin freshness remains fail-closed at explicit xbrief:preflight.
@@ -149,6 +180,9 @@ export function inspectActiveScope(
     } else {
       rejections.set(candidate, result.message);
       firstRejection ??= result.message;
+      if (result.message.includes("plan.status is 'blocked'")) {
+        blocked.push(candidate);
+      }
     }
   }
 
@@ -167,10 +201,15 @@ export function inspectActiveScope(
       }
       const rejected = rejections.get(matched);
       if (rejected !== undefined) {
-        return { ready: false, path: null, message: rejected };
+        return { ready: false, path: null, message: rejected, denyKind: "pin-miss" };
       }
     }
-    return { ready: false, path: null, message: formatMissingPinMessage(pin) };
+    return {
+      ready: false,
+      path: null,
+      message: formatMissingPinMessage(pin),
+      denyKind: "pin-miss",
+    };
   }
 
   const only = eligible[0];
@@ -178,10 +217,28 @@ export function inspectActiveScope(
     return { ready: true, path: only.path, message: only.message };
   }
   if (eligible.length > 1) {
-    return { ready: false, path: null, message: formatMultipleActiveMessage(eligible) };
+    return {
+      ready: false,
+      path: null,
+      message: formatMultipleActiveMessage(eligible),
+      denyKind: "multiple-eligible",
+    };
+  }
+  if (blocked.length > 0) {
+    return {
+      ready: false,
+      path: null,
+      message: formatZeroEligibleBlockedMessage(blocked),
+      denyKind: "zero-eligible-blocked",
+    };
   }
   if (firstRejection !== null) {
-    return { ready: false, path: null, message: firstRejection };
+    return {
+      ready: false,
+      path: null,
+      message: firstRejection,
+      denyKind: "zero-eligible",
+    };
   }
   return {
     ready: false,
@@ -189,5 +246,6 @@ export function inspectActiveScope(
     message:
       "No active xBRIEF artifact was found under xbrief/active/ " +
       "(or the legacy vbrief/active/ compatibility path).",
+    denyKind: "zero-eligible",
   };
 }

@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fenceUntrustedAcceptanceText } from "../scope/acceptance-evidence.js";
 import { ACTIVE_SCOPE_PIN_ENV, inspectActiveScope, matchPinnedActiveScope } from "./index.js";
 
 const originFreshness = vi.hoisted(() => ({
@@ -127,9 +128,44 @@ describe("shared-active write-fence bind (#4007)", () => {
     const result = inspectActiveScope(project, { env: {} });
     expect(result.ready).toBe(false);
     expect(result.path).toBeNull();
+    expect(result.denyKind).toBe("multiple-eligible");
     expect(result.message).toContain("Multiple active xBRIEF artifacts");
     expect(result.message).toContain(ACTIVE_SCOPE_PIN_ENV);
     expect(result.message).toContain("#4007");
+    expect(result.message).toContain("scope:stamp-evidence");
+  });
+
+  it("reports structured zero-eligible-blocked when scanned candidates are blocked (#4840)", () => {
+    const project = root();
+    const active = join(project, "xbrief", "active");
+    mkdirSync(active, { recursive: true });
+    writeFileSync(
+      join(active, "a-story.xbrief.json"),
+      JSON.stringify({ plan: { status: "blocked" } }),
+      "utf8",
+    );
+    writeFileSync(
+      join(active, "b-story.xbrief.json"),
+      JSON.stringify({ plan: { status: "blocked" } }),
+      "utf8",
+    );
+    const result = inspectActiveScope(project, { env: {} });
+    expect(result.ready).toBe(false);
+    expect(result.denyKind).toBe("zero-eligible-blocked");
+    expect(result.message).toContain("blocked");
+  });
+
+  it("fences a blocked basename that contains a newline (#4840)", () => {
+    const project = root();
+    const active = join(project, "xbrief", "active");
+    mkdirSync(active, { recursive: true });
+    const injected = "evil\ninject.xbrief.json";
+    writeFileSync(join(active, injected), JSON.stringify({ plan: { status: "blocked" } }), "utf8");
+    const result = inspectActiveScope(project, { env: {} });
+    expect(result.ready).toBe(false);
+    expect(result.denyKind).toBe("zero-eligible-blocked");
+    expect(result.message).not.toContain("\n");
+    expect(result.message).toContain(fenceUntrustedAcceptanceText(injected));
   });
 
   it("binds the dispatched story when DEFT_ACTIVE_SCOPE names it", () => {
