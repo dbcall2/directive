@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { collectBrokenLinks } from "../validate-content/validate-links.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.js";
 import {
   REWRITE_MARKER_PREFIX,
   resolveSourceTargetRel,
@@ -58,57 +59,61 @@ describe("stageContentPack (#3937)", () => {
     );
   });
 
-  it("validate-links on a packed fixture fails closed except unmapped unshipped residuals", () => {
-    const dest = join(tempDir("stage-pack-live-"), "pack");
-    stageContentPack({ repoRoot: process.cwd(), destDir: dest });
-    expect(existsSync(join(dest, "main.md"))).toBe(true);
-    expect(existsSync(join(dest, "content"))).toBe(false);
+  it(
+    "validate-links on a packed fixture fails closed except unmapped unshipped residuals",
+    destContentionItTimeout(),
+    () => {
+      const dest = join(tempDir("stage-pack-live-"), "pack");
+      stageContentPack({ repoRoot: process.cwd(), destDir: dest });
+      expect(existsSync(join(dest, "main.md"))).toBe(true);
+      expect(existsSync(join(dest, "content"))).toBe(false);
 
-    const packedMain = readFileSync(join(dest, "main.md"), "utf8");
-    expect(packedMain).toContain(REWRITE_MARKER_PREFIX);
-    expect(packedMain).not.toContain("./content/coding/coding.md");
-    expect(packedMain).not.toContain("](./REFERENCES.md)");
+      const packedMain = readFileSync(join(dest, "main.md"), "utf8");
+      expect(packedMain).toContain(REWRITE_MARKER_PREFIX);
+      expect(packedMain).not.toContain("./content/coding/coding.md");
+      expect(packedMain).not.toContain("](./REFERENCES.md)");
 
-    const broken = collectBrokenLinks(dest);
-    const unexpected: string[] = [];
-    const residuals = new Set<string>();
-    const repoRoot = process.cwd();
-    for (const item of broken) {
-      const packFileRel = item.file.replace(/\\/g, "/");
-      const sourceFileRel = sourceRelForPackRel(packFileRel);
-      const mapped = rewriteRelativeLink({
-        sourceFileRel,
-        packFileRel,
-        target: item.target,
-      });
-      const rawPath = splitLinkHash(item.target).path;
-      const sourceTarget = resolveSourceTargetRel(sourceFileRel, rawPath);
-      const sourceExists = existsSync(join(repoRoot, ...sourceTarget.split("/")));
-      if (mapped.packMapped && sourceExists) {
-        unexpected.push(`${item.file}:${item.line} -> ${item.target}`);
-      } else {
-        residuals.add(rawPath || item.target);
+      const broken = collectBrokenLinks(dest);
+      const unexpected: string[] = [];
+      const residuals = new Set<string>();
+      const repoRoot = process.cwd();
+      for (const item of broken) {
+        const packFileRel = item.file.replace(/\\/g, "/");
+        const sourceFileRel = sourceRelForPackRel(packFileRel);
+        const mapped = rewriteRelativeLink({
+          sourceFileRel,
+          packFileRel,
+          target: item.target,
+        });
+        const rawPath = splitLinkHash(item.target).path;
+        const sourceTarget = resolveSourceTargetRel(sourceFileRel, rawPath);
+        const sourceExists = existsSync(join(repoRoot, ...sourceTarget.split("/")));
+        if (mapped.packMapped && sourceExists) {
+          unexpected.push(`${item.file}:${item.line} -> ${item.target}`);
+        } else {
+          residuals.add(rawPath || item.target);
+        }
       }
-    }
-    expect(unexpected, unexpected.join("\n")).toEqual([]);
+      expect(unexpected, unexpected.join("\n")).toEqual([]);
 
-    const mainBroken = broken.filter((item) => item.file.replace(/\\/g, "/") === "main.md");
-    const mainUnexpected = mainBroken.filter((item) => {
-      const mapped = rewriteRelativeLink({
-        sourceFileRel: "main.md",
-        packFileRel: "main.md",
-        target: item.target,
+      const mainBroken = broken.filter((item) => item.file.replace(/\\/g, "/") === "main.md");
+      const mainUnexpected = mainBroken.filter((item) => {
+        const mapped = rewriteRelativeLink({
+          sourceFileRel: "main.md",
+          packFileRel: "main.md",
+          target: item.target,
+        });
+        return mapped.packMapped;
       });
-      return mapped.packMapped;
-    });
-    expect(mainUnexpected).toEqual([]);
+      expect(mainUnexpected).toEqual([]);
 
-    const namedResiduals = [...residuals].sort();
-    expect(namedResiduals).toEqual(NAMED_PACK_RESIDUALS);
-    expect(readFileSync(join(process.cwd(), "main.md"), "utf8")).toContain(
-      "./content/coding/coding.md",
-    );
-  });
+      const namedResiduals = [...residuals].sort();
+      expect(namedResiduals).toEqual(NAMED_PACK_RESIDUALS);
+      expect(readFileSync(join(process.cwd(), "main.md"), "utf8")).toContain(
+        "./content/coding/coding.md",
+      );
+    },
+  );
 });
 
 /** Unshipped or source-broken targets remaining after the flatten-aware rewrite. */

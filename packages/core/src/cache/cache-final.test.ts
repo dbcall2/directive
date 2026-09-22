@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.js";
 import { CacheValidationError } from "./errors.js";
 import {
   FetchAllReportImpl,
@@ -56,7 +57,7 @@ describe("cache final branch coverage", () => {
     expect(() => validateMeta(base)).toThrow(/match_count/);
   });
 
-  it("emitFetchProgress survives flusher failures", () => {
+  it("emitFetchProgress survives flusher failures", destContentionItTimeout(), () => {
     setProgressWriter(
       () => {},
       () => {

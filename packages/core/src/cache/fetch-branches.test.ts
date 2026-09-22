@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { GhRestError, InvalidRepoError, restIssueView } from "../scm/gh-rest.js";
 import { CURRENT_SHAPE_SIDECAR, RAW_ISSUE_COMMENTS_KEY } from "../umbrella-current-shape/index.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.js";
 import {
   cacheFetchAll,
   cacheRefreshClosed,
@@ -141,7 +142,7 @@ describe("fetch branches", () => {
     }
   });
 
-  it("emits progress on large cohorts", () => {
+  it("emits progress on large cohorts", destContentionItTimeout(), () => {
     const lines: string[] = [];
     setProgressWriter((l) => lines.push(l));
     setPaginatedLister(() =>

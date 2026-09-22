@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Darwin dest-class tests no longer time out under contention (#4847).** Selected spawn- and filesystem-heavy tests now use platform-specific per-test timeout budgets. Tracking #4847.
 - **#4008 bind allows missing matchAny files and still refuses directories (#4840).** Promotion binds a non-glob path that `matchAny(file_scope)` accepts even when the file does not exist yet. Existing directories stay off `artifact_path`. Stamp and the clause walk still require a contained regular file. Tracking #4840.
 - **#4008 bind reuses stamp realpath containment for existing matchAny files (#4840).** An in-repo symlink to an external regular file is not bindable. Missing in-scope files still bind; existing in-scope regular files still bind. Glob-shaped pointers and directories stay refused. Tracking #4840.
 - **MatchAny stamp accepts extensionless files, refuses symlink escape, and fences hook names (#4840).** `isFileShapedPointer` no longer requires FILE_EXT; directories still fail at `isFile`. Stamp realpath-contains the pointer under the project root. `inspectActiveScope` fences blocked/eligible basenames; `fenceUntrustedAcceptanceText` collapses newlines. Tracking #4840.
