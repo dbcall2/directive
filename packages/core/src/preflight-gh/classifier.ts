@@ -356,8 +356,32 @@ function gitPushArgTokens(tokens: readonly string[]): string[] | null {
   return tokens.slice(subIdx + 1);
 }
 
+function repoFromPushArgs(pushArgs: readonly string[]): string | null {
+  for (let i = 0; i < pushArgs.length; i++) {
+    const token = pushArgs[i] ?? "";
+    if (token.startsWith("--repo=")) {
+      const value = token.slice("--repo=".length);
+      return value.length > 0 ? value : null;
+    }
+    if (token === "--repo") {
+      const next = pushArgs[i + 1] ?? "";
+      return next.length > 0 && !next.startsWith("-") ? next : null;
+    }
+  }
+  return null;
+}
+
+function hasBulkDefaultUpdate(pushArgs: readonly string[]): boolean {
+  return pushArgs.some((t) => t === "--all" || t === "--mirror");
+}
+
 function destRefspecs(pushArgs: readonly string[]): string[] {
-  return collectPositionals(pushArgs, GIT_PUSH_VALUE_OPTS).slice(1);
+  const positionals = collectPositionals(pushArgs, GIT_PUSH_VALUE_OPTS);
+  // `--repo` already named the remote, so every positional is a dest refspec.
+  if (repoFromPushArgs(pushArgs) !== null) {
+    return positionals;
+  }
+  return positionals.slice(1);
 }
 
 function refspecDest(spec: string): string {
@@ -390,6 +414,7 @@ function targetsDefaultBranch(
   pushArgs: readonly string[],
   defaultBranches: ReadonlySet<string>,
 ): boolean {
+  if (hasBulkDefaultUpdate(pushArgs)) return true;
   const branchesLower = new Set([...defaultBranches].map((b) => b.toLowerCase()));
   return destRefspecs(pushArgs).some((spec) =>
     destLooksLikeDefaultBranch(refspecDest(spec), branchesLower),
@@ -565,6 +590,14 @@ export const SELF_TEST_CASES: readonly Fixture[] = [
   ["git push origin master", "push_default"],
   ["git push -u origin master", "push_default"],
   ["git push origin main", "push_default"],
+  ["git push --repo=origin master", "push_default"],
+  ["git push --repo origin master", "push_default"],
+  ["git push --all origin", "push_default"],
+  ["git push origin --all", "push_default"],
+  ["git push --mirror origin", "push_default"],
+  ["git push --repo=origin --all", "push_default"],
+  ["git push --force --repo=origin master", "force_push_default"],
+  ["git push --repo=origin feat/my-branch", null],
   ["gh pr create --title Test --body foo", null],
 ] as const;
 

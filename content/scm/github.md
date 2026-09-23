@@ -637,7 +637,7 @@ A detection-bound gate (`deft preflight-gh`) refuses destructive GitHub verbs an
 - `push_default` -- non-force `git push` with an explicit default-branch dest (`git push origin master`). Bare `git push` has no dest in argv and stays unclassified; hook stdin is still the authority for that shape.
 - `admin_merge` -- `gh pr merge --admin` (bypasses branch-protection required reviews).
 
-`--command` and `--pre-push-stdin` are settled as one default-branch-touch policy: an explicit `git push origin master` is refused on both surfaces. Zero-OID create of `master`/`main` is not an empty-remote exemption.
+`--command` and `--pre-push-stdin` are settled as one default-branch-touch policy: an explicit `git push origin master` is refused on both surfaces. `--repo=origin master` names the remote in the option, so the remaining positional is the dest. `--all` and `--mirror` update the default branch without an explicit dest refspec and refuse. Zero-OID create of `master`/`main` is not an empty-remote exemption.
 
 Three enforcement surfaces back the gate:
 

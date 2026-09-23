@@ -196,6 +196,53 @@ describe("classifyCommand -- push_default two-surface settlement", () => {
     expect(v.allowed).toBe(false);
     expect(v.category).toBe("push_default");
   });
+
+  it("refuses git push --repo=origin master", () => {
+    const v = classifyCommand("git push --repo=origin master");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("refuses git push --repo origin master", () => {
+    const v = classifyCommand("git push --repo origin master");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("refuses git push --force --repo=origin master", () => {
+    const v = classifyCommand("git push --force --repo=origin master");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("force_push_default");
+  });
+
+  it("refuses git push --all origin", () => {
+    const v = classifyCommand("git push --all origin");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("refuses git push --mirror origin", () => {
+    const v = classifyCommand("git push --mirror origin");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("refuses git push origin --all", () => {
+    const v = classifyCommand("git push origin --all");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("refuses git push --repo=origin --all", () => {
+    const v = classifyCommand("git push --repo=origin --all");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("allows git push --repo=origin feat/my-branch", () => {
+    const v = classifyCommand("git push --repo=origin feat/my-branch");
+    expect(v.allowed).toBe(true);
+  });
 });
 
 describe("classifyCommand -- allowed (negatives)", () => {

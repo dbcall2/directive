@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **preflight-gh parses the git `push` subcommand and dest refspec (#4384).** `git remote add push master` and `git push main my-feature` are not default-branch pushes. Every non-null policy resolver error stays exit 2. `policy:allow-destructive-gh-verbs` catches mutation I/O as a config diagnostic. Tracking #4384.
+- **preflight-gh parses the git `push` subcommand and dest refspec (#4384).** `git remote add push master` and `git push main my-feature` are not default-branch pushes. `--repo=origin master` keeps the dest after `--repo` names the remote. `--all` and `--mirror` refuse as default-branch updates. Every non-null policy resolver error stays exit 2. `policy:allow-destructive-gh-verbs` catches mutation I/O as a config diagnostic. Tracking #4384.
 
 ### Removed
 
