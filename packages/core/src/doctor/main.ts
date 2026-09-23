@@ -6,7 +6,10 @@ import {
   formatConsumerGateIntegrityFailure,
 } from "../check/consumer-gate-integrity.js";
 import { contentRoot } from "../content-root.js";
-import { type AgentHookInspection, inspectAgentHookDeposit } from "../init-deposit/agent-hooks.js";
+import {
+  inspectSessionStartNotice,
+  type SessionStartNoticeInspection,
+} from "../init-deposit/agent-hooks.js";
 import { resolveLifecycleLayout } from "../layout/resolve.js";
 import {
   DEFT_DIRECTIVE_DISABLE_FLAG_NAME,
@@ -310,10 +313,10 @@ function depositHygieneJson(seams: DoctorSeams): Record<string, unknown> | undef
 }
 
 function sessionStartNoticeLinesFromInspections(
-  inspections: readonly AgentHookInspection[],
+  inspections: readonly SessionStartNoticeInspection[],
 ): string[] {
   return inspections.map((entry) => {
-    const registered = entry.status === "healthy" ? "registered" : "not registered";
+    const registered = entry.registered ? "registered" : "not registered";
     const line = `${entry.host}: agent notice via SessionStart ${registered}`;
     return entry.host === "codex" ? `${line} (docs-best-effort; no compact re-fire)` : line;
   });
@@ -324,7 +327,7 @@ function collectKillSwitchSessionStartNoticeLines(
   seams: DoctorSeams,
 ): string[] {
   try {
-    const inspect = seams.inspectAgentHookDeposit ?? inspectAgentHookDeposit;
+    const inspect = seams.inspectSessionStartNotice ?? inspectSessionStartNotice;
     return sessionStartNoticeLinesFromInspections(inspect(projectRoot));
   } catch {
     return [];

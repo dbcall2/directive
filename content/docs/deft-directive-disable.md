@@ -28,7 +28,7 @@ Tracker: [#3039](https://github.com/deftai/directive/issues/3039).
 
 | Surface | When flag present |
 |---------|-------------------|
-| **Doctor** | Status **disabled (test kill-switch)**; **not** the #2926 flag+deposit dirty path; prints full recovery (file gone + new session) and one SessionStart registration line per host. |
+| **Doctor** | Status **disabled (test kill-switch)**; **not** the #2926 flag+deposit dirty path; prints full recovery (file gone + new session) and one SessionStart registration line per host from that host's SessionStart check. |
 | **Agent** | Always-on AGENTS contract: stop further Directive process load; echo recovery. |
 | **CLI** (`session:start`, ritual paths) | Disabled + recovery; no ritual write / no half-DD automation. |
 | **Host hooks** | SessionStart / PreToolUse / compact skip ritual and enforcement. |

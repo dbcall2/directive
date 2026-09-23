@@ -1,7 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { inspectAgentHookDeposit, writeAgentHookDeposit } from "../init-deposit/agent-hooks.js";
 import { CANONICAL_INSTALL_ROOT } from "../init-deposit/constants.js";
 import {
   DEFT_DIRECTIVE_DISABLE_FLAG_NAME,
@@ -52,7 +53,7 @@ describe("cmdDoctor — .deft-directive-disable short-circuit (#3039)", () => {
     );
   });
 
-  it("reports SessionStart registered from per-host valid() on DISABLED (#4884)", () => {
+  it("reports SessionStart registered from per-host SessionStart inspection on DISABLED (#4884)", () => {
     const root = tempRoot();
     writeFileSync(join(root, DEFT_DIRECTIVE_DISABLE_FLAG_NAME), "", "utf8");
     const stdout: string[] = [];
@@ -63,35 +64,11 @@ describe("cmdDoctor — .deft-directive-disable short-circuit (#3039)", () => {
       return true;
     }) as typeof process.stdout.write);
     const code = cmdDoctor(["--project-root", root, "--full"], {
-      inspectAgentHookDeposit: () => [
-        {
-          host: "claude",
-          path: ".claude/settings.json",
-          status: "healthy",
-          detail: "ok",
-          compactSupport: "deposited",
-        },
-        {
-          host: "grok",
-          path: ".grok/hooks/deft.json",
-          status: "missing",
-          detail: "missing",
-          compactSupport: "deposited",
-        },
-        {
-          host: "cursor",
-          path: ".cursor/hooks.json",
-          status: "healthy",
-          detail: "ok",
-          compactSupport: "deposited",
-        },
-        {
-          host: "codex",
-          path: ".codex/hooks.json",
-          status: "healthy",
-          detail: "ok",
-          compactSupport: "unsupported",
-        },
+      inspectSessionStartNotice: () => [
+        { host: "claude", registered: true },
+        { host: "grok", registered: false },
+        { host: "cursor", registered: true },
+        { host: "codex", registered: true },
       ],
     });
     stdoutSpy.mockRestore();
@@ -105,6 +82,63 @@ describe("cmdDoctor — .deft-directive-disable short-circuit (#3039)", () => {
     );
   });
 
+  it("keeps SessionStart registered when PreToolUse or compact has drifted (#4884)", () => {
+    const root = tempRoot();
+    writeFileSync(join(root, DEFT_DIRECTIVE_DISABLE_FLAG_NAME), "", "utf8");
+    writeAgentHookDeposit(root);
+    const claudePath = join(root, ".claude/settings.json");
+    const claude = JSON.parse(readFileSync(claudePath, "utf8")) as {
+      hooks: Record<string, unknown>;
+    };
+    delete claude.hooks.PreToolUse;
+    delete claude.hooks.PreCompact;
+    delete claude.hooks.PostCompact;
+    writeFileSync(claudePath, `${JSON.stringify(claude, null, 2)}\n`, "utf8");
+    expect(inspectAgentHookDeposit(root).find((entry) => entry.host === "claude")?.status).toBe(
+      "drifted",
+    );
+    const stdout: string[] = [];
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(((
+      chunk: string | Uint8Array,
+    ) => {
+      stdout.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write);
+    const code = cmdDoctor(["--project-root", root, "--full"]);
+    stdoutSpy.mockRestore();
+    expect(code).toBe(0);
+    const out = stdout.join("");
+    expect(out).toContain("claude: agent notice via SessionStart registered");
+    expect(out).toContain("grok: agent notice via SessionStart registered");
+    expect(out).toContain("cursor: agent notice via SessionStart registered");
+    expect(out).toContain(
+      "codex: agent notice via SessionStart registered (docs-best-effort; no compact re-fire)",
+    );
+  });
+
+  it("reports SessionStart not registered when only that event is missing (#4884)", () => {
+    const root = tempRoot();
+    writeFileSync(join(root, DEFT_DIRECTIVE_DISABLE_FLAG_NAME), "", "utf8");
+    writeAgentHookDeposit(root);
+    const claudePath = join(root, ".claude/settings.json");
+    const claude = JSON.parse(readFileSync(claudePath, "utf8")) as {
+      hooks: Record<string, unknown>;
+    };
+    delete claude.hooks.SessionStart;
+    writeFileSync(claudePath, `${JSON.stringify(claude, null, 2)}\n`, "utf8");
+    const stdout: string[] = [];
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(((
+      chunk: string | Uint8Array,
+    ) => {
+      stdout.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write);
+    const code = cmdDoctor(["--project-root", root, "--full"]);
+    stdoutSpy.mockRestore();
+    expect(code).toBe(0);
+    expect(stdout.join("")).toContain("claude: agent notice via SessionStart not registered");
+  });
+
   it("stays DISABLED when SessionStart registration probe throws (#4884)", () => {
     const root = tempRoot();
     writeFileSync(join(root, DEFT_DIRECTIVE_DISABLE_FLAG_NAME), "", "utf8");
@@ -116,7 +150,7 @@ describe("cmdDoctor — .deft-directive-disable short-circuit (#3039)", () => {
       return true;
     }) as typeof process.stdout.write);
     const code = cmdDoctor(["--project-root", root], {
-      inspectAgentHookDeposit: () => {
+      inspectSessionStartNotice: () => {
         throw new Error("registration probe failed");
       },
     });

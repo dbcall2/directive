@@ -87,6 +87,12 @@ export interface AgentHookInspection {
   readonly compactSupport: AgentHookCompactSupport;
 }
 
+/** Per-host SessionStart registration only (not PreToolUse/compact health). */
+export interface SessionStartNoticeInspection {
+  readonly host: HookHost;
+  readonly registered: boolean;
+}
+
 export interface AgentHookDepositResult {
   readonly changed: boolean;
   readonly changedPaths: AgentHookPath[];
@@ -466,6 +472,28 @@ export function writeAgentHookDeposit(
   };
 }
 
+function hasNestedSessionStart(config: Record<string, unknown>, host: NestedHookHost): boolean {
+  const hooks = object(config.hooks);
+  if (hooks === null) return false;
+  const session = Array.isArray(hooks.SessionStart) ? hooks.SessionStart : [];
+  const sessionCommand = command(host, "session.start");
+  return session.some((entry) => {
+    const group = object(entry);
+    return group?.matcher === undefined && nestedCommands(entry).includes(sessionCommand);
+  });
+}
+
+function hasCursorSessionStart(config: Record<string, unknown>): boolean {
+  const hooks = object(config.hooks);
+  if (hooks === null) return false;
+  const session = Array.isArray(hooks.sessionStart) ? hooks.sessionStart : [];
+  return session.some((entry) => object(entry)?.command === command("cursor", "session.start"));
+}
+
+function hasSessionStartRegistration(config: Record<string, unknown>, host: HookHost): boolean {
+  return host === "cursor" ? hasCursorSessionStart(config) : hasNestedSessionStart(config, host);
+}
+
 function hasNestedRegistration(
   config: Record<string, unknown>,
   host: NestedHookHost,
@@ -473,16 +501,11 @@ function hasNestedRegistration(
 ): boolean {
   const hooks = object(config.hooks);
   if (hooks === null) return false;
-  const session = Array.isArray(hooks.SessionStart) ? hooks.SessionStart : [];
   const preTool = Array.isArray(hooks.PreToolUse) ? hooks.PreToolUse : [];
-  const sessionCommand = command(host, "session.start");
   const toolCommand = command(host, "tool.before");
   const compactCommand = command(host, "session.compact");
   const base =
-    session.some((entry) => {
-      const group = object(entry);
-      return group?.matcher === undefined && nestedCommands(entry).includes(sessionCommand);
-    }) &&
+    hasNestedSessionStart(config, host) &&
     NESTED_PRE_TOOL_MATCHERS.every((matcher) =>
       preTool.some((entry) => {
         const group = object(entry);
@@ -513,11 +536,10 @@ function isCursorToolBeforeEntry(value: unknown, matcher: string): boolean {
 function hasCursorRegistration(config: Record<string, unknown>): boolean {
   const hooks = object(config.hooks);
   if (hooks === null || config.version !== 1) return false;
-  const session = Array.isArray(hooks.sessionStart) ? hooks.sessionStart : [];
   const preTool = Array.isArray(hooks.preToolUse) ? hooks.preToolUse : [];
   const preCompact = Array.isArray(hooks.preCompact) ? hooks.preCompact : [];
   return (
-    session.some((entry) => object(entry)?.command === command("cursor", "session.start")) &&
+    hasCursorSessionStart(config) &&
     NESTED_PRE_TOOL_MATCHERS.every((matcher) =>
       preTool.some((entry) => isCursorToolBeforeEntry(entry, matcher)),
     ) &&
@@ -556,6 +578,24 @@ export function depositedPreToolUseMatchers(
   }
   const entries = Array.isArray(hooks.PreToolUse) ? hooks.PreToolUse : [];
   return entries.filter((entry) => isManagedNestedGroupForHost(entry, host)).flatMap(matcherOf);
+}
+
+/** SessionStart-only registration probe for kill-switch doctor notice (#4884). */
+export function inspectSessionStartNotice(
+  projectRoot: string,
+  hostHooksPolicy: HostHooksPolicy = loadHostHooksPolicyFromProject(projectRoot),
+): SessionStartNoticeInspection[] {
+  return (Object.keys(AGENT_HOOK_PATH_BY_HOST) as HookHost[]).map((host) => {
+    if (!isHostHookDepositEnabled(host, hostHooksPolicy)) {
+      return { host, registered: false };
+    }
+    const absolute = join(projectRoot, AGENT_HOOK_PATH_BY_HOST[host]);
+    if (!existsSync(absolute)) {
+      return { host, registered: false };
+    }
+    const config = readConfig(absolute);
+    return { host, registered: hasSessionStartRegistration(config, host) };
+  });
 }
 
 /** Read-only registration probe shared by verify and doctor. */
