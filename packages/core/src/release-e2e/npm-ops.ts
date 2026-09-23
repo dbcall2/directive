@@ -232,15 +232,39 @@ function moduleResolutionFailure(output: string): string | null {
   return null;
 }
 
+/** Displayed CLI package identity from `directive --version` stdout (#4766). */
+function parseDisplayedCliPackageVersion(versionStdout: string): string | null {
+  const match = versionStdout.match(
+    /package:\s+@deftai\/directive@(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)/,
+  );
+  return match?.[1] ?? null;
+}
+
+function installedCliPackageVersion(consumerDir: string): string | null {
+  try {
+    const pkgPath = join(consumerDir, "node_modules", "@deftai", "directive", "package.json");
+    const parsed: unknown = JSON.parse(readFileSync(pkgPath, "utf8"));
+    if (parsed === null || typeof parsed !== "object") {
+      return null;
+    }
+    const version = (parsed as { version?: unknown }).version;
+    return typeof version === "string" && version.length > 0 ? version : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Publish-layout install+run smoke (#1996, #2010): pack the four
+ * Publish-layout install+run smoke (#1996, #2010, #4766): pack the four
  * @deftai/directive* packages, install the tarballs into a clean flat
- * node_modules, then run `directive --version` (exit-0 liveness) and
- * `directive doctor` (deep-import coverage) so import-resolution bugs like
- * #1993 sub-problem 1 surface before a real npm publish. The smoke gates on
- * module-not-found markers, NOT on the doctor's pass/fail verdict -- a full
- * doctor check exits non-zero in a bare consumer layout, which is benign
- * (#2010).
+ * node_modules, then run `directive --version` (exit-0 liveness + stamped
+ * package identity) and `directive doctor` (deep-import coverage) so
+ * import-resolution bugs like #1993 sub-problem 1 surface before a real npm
+ * publish. The smoke gates on module-not-found markers, NOT on the doctor's
+ * pass/fail verdict -- a full doctor check exits non-zero in a bare consumer
+ * layout, which is benign (#2010). Dest-tree unit tests may use workspace
+ * `0.0.0` or mocks; this packed install must not treat that as production
+ * identity.
  */
 export function rehearseNpmInstallAndRun(
   cloneDir: string,
@@ -366,6 +390,23 @@ export function rehearseNpmInstallAndRun(
     ];
   }
 
+  // Packed-install identity (#4766): dest-tree tests can pass with workspace
+  // 0.0.0 or mocks. The installed CLI must print the stamped release version.
+  const installedVersion = installedCliPackageVersion(consumerDir);
+  if (installedVersion !== null && installedVersion !== version) {
+    return [
+      false,
+      `install+run smoke: installed CLI package.json version ${installedVersion} !== stamped ${version}`,
+    ];
+  }
+  const displayedPackage = parseDisplayedCliPackageVersion(versionRun.stdout ?? "");
+  if (displayedPackage !== version) {
+    return [
+      false,
+      `install+run smoke: --version package identity ${displayedPackage ?? "(missing)"} !== stamped ${version}: ${versionOut.trim().slice(-500)}`,
+    ];
+  }
+
   // Deep-import probe (#2010): run the doctor verb to exercise the deeper
   // cross-package import graph that #1993 sub-problem 1 broke. The doctor
   // legitimately exits non-zero in a bare consumer layout (e.g. no root
@@ -387,7 +428,7 @@ export function rehearseNpmInstallAndRun(
 
   return [
     true,
-    `packed + installed 4 packages at v${version}; ran directive --version (exit 0) + doctor without module-not-found`,
+    `packed + installed 4 packages at v${version}; ran directive --version (exit 0, package @${version}) + doctor without module-not-found`,
   ];
 }
 
