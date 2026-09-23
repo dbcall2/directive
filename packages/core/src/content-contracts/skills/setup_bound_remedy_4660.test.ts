@@ -74,11 +74,7 @@ describe("setup bound remedy (#4660)", () => {
       expect(phase1).toBeGreaterThanOrEqual(0);
       expect(phase2).toBeGreaterThan(phase1);
       expect(phase3).toBeGreaterThan(phase2);
-      const phase3Text = section(
-        text,
-        "## Phase 3",
-        "## Warp Auto-Approve Warning",
-      );
+      const phase3Text = section(text, "## Phase 3", "## Warp Auto-Approve Warning");
       expect(phase3Text).toContain("xbrief/proposed/");
       expect(phase3Text).toContain("./xbrief/PROJECT-DEFINITION.xbrief.json");
       expect(phase3Text).toContain("the file written in Phase 2");
