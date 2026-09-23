@@ -243,6 +243,8 @@ Ask: "How deep do you want to go?"
 
 Wait for answer. Then follow the track below.
 
+! That answer is `1`, `2`, or `3`. When Phase 1 runs, persist it on the USER.md write in the Personal section as one line, `**Depth**: {n}`. Phase 2 in that first session uses this selection and does not ask the depth question again.
+
 **Track 1 (technical) — 7 steps:**
 - Step 1: Ask their name
 - Step 2: Ask strategy preference (show Available Strategies numbered list from the Available Strategies section, with descriptions and recommended marker; fallback — projects can override)
@@ -292,6 +294,8 @@ Settings in this section have HIGHEST precedence — override all other deft rul
 including PROJECT-DEFINITION.xbrief.json.
 
 **Name**: Address the user as: **{name}**
+
+**Depth**: {n}
 
 **Custom Rules**:
 {custom rules or "No custom rules defined yet."}
@@ -418,6 +422,7 @@ for project-scoped settings (strategy, coverage).
 ! **Path Resolution Anchor**: Resolve ALL paths relative to the user's working directory (pwd) at skill entry -- never relative to the skill file location, AGENTS.md location, or any framework directory (e.g. `./deft/`). When deft is cloned as a subdirectory, the skill file lives inside the clone but all project artifacts (`./xbrief/PROJECT-DEFINITION.xbrief.json`, build files, etc.) must be resolved from the user's pwd.
 
 - ~ Skip if `./xbrief/PROJECT-DEFINITION.xbrief.json` exists (or `$DEFT_PROJECT_PATH` if set) and user doesn't want to replace
+- ! That existing file, including empty narrative strings, is not a missing-answers detector (#4668). Read it on a return visit. Do not ask for a previous setup summary.
 - ⊗ Count `./deft/PROJECT-DEFINITION.xbrief.json` or `./deft/core/project.md` as the user's project config — those are framework-internal
 
 ### Re-entry shadow guard (#3609)
@@ -437,20 +442,44 @@ for project-scoped settings (strategy, coverage).
 - ⊗ Run git commands inside `./deft/` to determine project identity — that directory is the framework repo, not the user's project.
 - ~ If no build files are found at the project root, default the project name to the current directory name and ask for confirmation.
 
-### Track Detection
+### Track Detection (#4668)
 
-! If Phase 1 was skipped (USER.md already existed), the user's track is unknown.
-Before asking any Phase 2 questions, ask the depth question:
+! Before any Phase 2 question, read Depth only inside the USER.md Personal section. The section starts at the `## Personal` heading and ends at the next line that begins with `## `. That is the same section bound the other USER.md field parsers use (Name, forge-outage retry). A `**Depth**:` line outside Personal is not the track.
+
+! A Personal Depth line is optional leading `- `, then `**Depth**:` or `Depth:`, then a value. Strip bold markers and surrounding space. Only `1`, `2`, and `3` are valid. `1` is Track 1 (technical), `2` is Track 2 (middle ground), `3` is Track 3 (non-technical).
+
+! Exactly one Personal line with a valid value is the track. When `**Depth**:` is `1`, `2`, or `3`, do not ask the depth question. Follow that track in the Question Sequence below. Skipping this question is not skipping Phase 2.
+
+! When Phase 1 ran in this session, its selection is already the track. The Phase 1 USER.md write persisted it as one Personal line, `**Depth**: {n}`. Phase 2 does not ask the depth question again in that first session.
+
+! When `**Depth**:` is absent from Personal, ask the depth question before any other Phase 2 question. A preferences file with no Depth field is asked once. A return visit whose Personal section has no Depth field is that case. A line outside Personal does not fill the absence.
+
+! Duplicate lines are two or more `**Depth**:` lines inside Personal, whether or not the values match. Do not pick one. Do not treat any of them as the track. Ask the depth question once, then replace every Personal Depth line with one `**Depth**: {n}` line.
+
+! An invalid value is one Personal Depth line whose value is not exactly `1`, `2`, or `3`. Do not treat that line as the track. Ask the depth question once, then replace it with `**Depth**: {n}`. Do not keep the invalid value. Two or more Personal Depth lines are duplicate lines, not an invalid value, even when one of them is `1`, `2`, or `3`.
 
 > "How deep do you want to go?"
 > 1. I'm technical — ask me everything
 > 2. I have some opinions but keep it simple
 > 3. Just pick good defaults — I care about the product, not the tools
 
-Wait for answer. Then follow the corresponding track in the Question Sequence below.
+! After the operator answers `1`, `2`, or `3`, write that number to USER.md before any other Phase 2 question. Insert or replace one Personal-section line, `**Depth**: {n}`. Write UTF-8 with no BOM. Leave every other USER.md line unchanged. On duplicate lines, the replacement leaves exactly one Personal Depth line. This field write is the exception to the end-of-phase confirmation gate. It is not the Phase 2 narrative write and it does not set policy keys. The next setup entry finds the field and does not ask again.
 
-⊗ Assume Track 1 (technical) because USER.md exists or contains strategy/coverage fields.
-⊗ Infer the track from USER.md content — always ask.
+! Depth is not an expected freshness field. A missing Depth field does not re-run Phase 1. When Phase 1 runs, it stores the opening answer in Personal. The Phase 2 store is the return visit that still has no Personal Depth field, and the replacement of duplicate lines or an invalid value.
+
+⊗ Infer the track from strategy, coverage, or any other USER.md field.
+⊗ Assume Track 1 (technical) because USER.md exists or contains strategy or coverage fields.
+⊗ Ask the depth question again when `**Depth**:` is already `1`, `2`, or `3`.
+⊗ Treat a `**Depth**:` line outside Personal as the track.
+
+### Existing project definition (#4668)
+
+! An existing `./xbrief/PROJECT-DEFINITION.xbrief.json` (or `$DEFT_PROJECT_PATH`), including a seed whose narrative strings are empty, is a file that exists. Read it. It is not a missing-answers detector.
+
+! Project identity strings are `deft project:write-narratives` (#4663). A return visit reads that file. Do not reimplement that writer. Do not set policy keys from the depth question or from empty narratives.
+
+⊗ Ask the operator to re-provide a previous setup summary because narratives are empty.
+⊗ Treat empty Overview, TechStack, Strategy, Quality, ProjectRules, or Branching as missing interview answers.
 
 ### Defaults in Agentic Mode
 
@@ -905,7 +934,7 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 
 ## Post-Interview Confirmation Gate
 
-! After completing ALL interview questions for any phase (Phase 1, Phase 2, or Phase 3), but BEFORE writing any files:
+! After completing ALL interview questions for any phase (Phase 1, Phase 2, or Phase 3), but BEFORE writing any files other than the Phase 2 `**Depth**:` line (#4668):
 
 1. ! Display a **summary of all captured values** in a clearly formatted list -- include every field that will be written to the output file (e.g. name, strategy, coverage, languages, project type, custom rules, etc.)
 2. ! Ask the user for explicit confirmation: "These are the values I captured. Write files? (yes/no)"
@@ -913,7 +942,7 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 4. ! If the user says `no`: re-display the values and ask which ones to correct, then re-confirm before writing
 5. ! If any value appears to be auto-generated filler (e.g. repeated default text, placeholder strings, or values that echo the question prompt), warn the user explicitly: "Some values look like they may have been auto-filled rather than provided by you. Please review carefully."
 
-⊗ Write USER.md, PROJECT-DEFINITION.xbrief.json, lifecycle scope xBRIEFs, or any other deft-directive-setup artifact without first displaying captured values and receiving explicit user confirmation.
+⊗ Write USER.md, PROJECT-DEFINITION.xbrief.json, lifecycle scope xBRIEFs, or any other deft-directive-setup artifact without first displaying captured values and receiving explicit user confirmation. The Phase 2 `**Depth**:` line (#4668) is the only exception, and it changes only that line.
 ⊗ Create `specification.xbrief.json` on a greenfield Light or Full path solely to satisfy export, cost, or build handoff.
 ⊗ Treat a broad "proceed" or "continue" as confirmation to write files -- the user must explicitly confirm the displayed values.
 
@@ -930,7 +959,7 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 - ⊗ Ask jargon-heavy questions to non-technical users
 - ⊗ Ask about things inferable from codebase (Phase 2+)
 - ⊗ Skip phases without asking
-- ⊗ Generate files without confirming content
+- ⊗ Generate files without confirming content, except the Phase 2 Depth line (#4668), which is confirmed by the operator's 1, 2, or 3 answer
 - ⊗ Present choices through a host UI that replaces the canonical numbers with alphabetic affordances or unlabeled buttons
 - ⊗ Resolve paths relative to the skill file, AGENTS.md, or framework directory instead of the user's pwd at skill entry
 - ⊗ Generate an authoritative PRD.md — PRD.md is a read-only export via `task prd:render`, never a source of truth
@@ -943,3 +972,7 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 - ⊗ Skip emit-hints after Phase 3 writes to `xbrief/proposed/` (#4426)
 - ⊗ Agent-asserted `parent_issue` / `plan.references` at setup emission (#4426)
 - ⊗ Fill speculative intent-constraint values at park, or mint `scope:record-intent-constraint` beside `scope:record-approved-scope` (#4587)
+- ⊗ Infer setup depth from strategy or coverage, or re-ask the Phase 2 depth question when USER.md already has `**Depth**:` `1`, `2`, or `3` (#4668)
+- ⊗ Treat a `**Depth**:` line outside the Personal section as the track, or pick among duplicate Personal Depth lines (#4668)
+- ⊗ Treat an existing PROJECT-DEFINITION seed, including empty narratives, as missing interview answers (#4668)
+- ⊗ Reimplement `deft project:write-narratives` or set policy keys from the depth answer (#4668 / #4663)
