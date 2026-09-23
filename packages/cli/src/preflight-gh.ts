@@ -7,21 +7,25 @@
  *   deft-ts preflight-gh --command "<gh ...>"
  *   deft-ts preflight-gh --pre-push-stdin  (reads from stdin)
  *
- * Thin shim -- delegates to @deftai/directive-core/preflight-gh.
+ * Thin shim -- delegates through @deftai/directive-core/preflight
+ * (re-exports the preflight-gh API; vitest already aliases that subpath).
+ * --project-root is consulted by evaluatePrePush / evaluateCommand (#4384).
  */
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import {
   DEFAULT_BRANCHES,
-  ENV_BYPASS,
   evaluateCommand,
+  evaluatePrePush,
+  parsePrePushStdin,
   runSelfTest,
-} from "@deftai/directive-core/preflight-gh";
+} from "@deftai/directive-core/preflight";
 
 interface ParsedArgs {
   mode?: "self-test" | "command" | "pre-push-stdin";
   command?: string;
   defaultBranches?: Set<string>;
+  projectRoot?: string;
   quiet?: boolean;
   error?: string;
 }
@@ -53,7 +57,11 @@ export function parseArgs(argv: string[]): ParsedArgs {
       parsed.defaultBranches.add(next);
       i++;
     } else if (arg === "--project-root") {
-      // accepted for parity with preflight_branch.py; ignored here
+      const next = argv[i + 1];
+      if (next === undefined) {
+        return { ...parsed, error: "argument --project-root: expected one argument" };
+      }
+      parsed.projectRoot = next;
       i++;
     } else {
       return { ...parsed, error: `unrecognized argument: ${arg}` };
@@ -83,7 +91,9 @@ export function run(argv: string[]): number | Promise<number> {
   }
 
   if (args.mode === "command" && args.command !== undefined) {
-    const [code, msg] = evaluateCommand(args.command, branches);
+    const [code, msg] = evaluateCommand(args.command, branches, {
+      projectRoot: args.projectRoot,
+    });
     if (code === 0) {
       if (!quiet) process.stdout.write(`${msg}\n`);
     } else {
@@ -93,7 +103,7 @@ export function run(argv: string[]): number | Promise<number> {
   }
 
   if (args.mode === "pre-push-stdin") {
-    return runPrePushStdin(branches, quiet);
+    return runPrePushStdin(branches, quiet, args.projectRoot);
   }
 
   process.stderr.write(
@@ -102,91 +112,18 @@ export function run(argv: string[]): number | Promise<number> {
   return 2;
 }
 
-interface RefLine {
-  localRef: string;
-  localOid: string;
-  remoteRef: string;
-  remoteOid: string;
-}
-
-function parsePrePushLines(text: string): RefLine[] {
-  return text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0)
-    .flatMap((l) => {
-      const parts = l.split(/\s+/);
-      if (parts.length !== 4) return [];
-      return [
-        {
-          localRef: parts[0] ?? "",
-          localOid: parts[1] ?? "",
-          remoteRef: parts[2] ?? "",
-          remoteOid: parts[3] ?? "",
-        },
-      ];
-    });
-}
-
-const ZERO_OID_RE = /^0+$/;
-
-function evaluatePrePush(refs: RefLine[], branches: ReadonlySet<string>): [number, string] {
-  if (refs.length === 0) {
-    return [0, "✓ deft destructive-gh-verb gate (pre-push): no refs in stdin -- nothing to gate."];
-  }
-
-  const branchesLower = new Set([...branches].map((b) => b.toLowerCase()));
-  const blocked: string[] = [];
-
-  for (const { localRef, localOid, remoteRef, remoteOid } of refs) {
-    const branch = remoteRef.replace(/^refs\/heads\//, "");
-    if (!branchesLower.has(branch.toLowerCase())) continue;
-    if (ZERO_OID_RE.test(remoteOid)) {
-      blocked.push(`create ${branch} (local=${localRef})`);
-    } else if (ZERO_OID_RE.test(localOid)) {
-      blocked.push(`delete ${branch}`);
-    } else {
-      blocked.push(`update ${branch} (local=${localRef})`);
-    }
-  }
-
-  if (blocked.length === 0) {
-    return [
-      0,
-      "✓ deft destructive-gh-verb gate (pre-push): no pushes to default branches detected -- proceeding.",
-    ];
-  }
-
-  const bypass = (process.env[ENV_BYPASS] ?? "").trim().toLowerCase();
-  if (["1", "true", "yes", "on"].includes(bypass)) {
-    return [
-      0,
-      `⚠ deft destructive-gh-verb gate (pre-push): default-branch push detected (${blocked.join("; ")}) but ${ENV_BYPASS}=1 is set -- policy bypassed for this invocation.`,
-    ];
-  }
-
-  return [
-    1,
-    [
-      "❌ deft destructive-gh-verb gate (pre-push): refusing to push directly to the default branch.",
-      `  Detail: ${blocked.join("; ")}`,
-      "",
-      "  How to proceed:",
-      "    • push to a feature branch and open a PR",
-      `    • or set the env-var bypass for this shell:  ${ENV_BYPASS}=1`,
-      "  See scm/github.md (## Destructive gh verbs (#1019)).",
-    ].join("\n"),
-  ];
-}
-
-function runPrePushStdin(branches: ReadonlySet<string>, quiet: boolean): Promise<number> {
+function runPrePushStdin(
+  branches: ReadonlySet<string>,
+  quiet: boolean,
+  projectRoot: string | undefined,
+): Promise<number> {
   return new Promise((resolve) => {
     const lines: string[] = [];
     const rl = createInterface({ input: process.stdin });
     rl.on("line", (l) => lines.push(l));
     rl.on("close", () => {
-      const refs = parsePrePushLines(lines.join("\n"));
-      const [code, msg] = evaluatePrePush(refs, branches);
+      const refs = parsePrePushStdin(lines.join("\n"));
+      const [code, msg] = evaluatePrePush(refs, { branches, projectRoot });
       if (code === 0) {
         if (!quiet) process.stdout.write(`${msg}\n`);
       } else {

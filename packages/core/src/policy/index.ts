@@ -39,6 +39,11 @@ import {
   inspectDeliveryBranch,
 } from "./delivery-branch.js";
 import {
+  FIELD_ALLOW_DESTRUCTIVE_GH_VERBS,
+  FIELD_ALLOW_DESTRUCTIVE_GH_VERBS_CLI_ALIAS,
+  inspectAllowDestructiveGhVerbs,
+} from "./destructive-gh-verbs.js";
+import {
   FIELD_FORGE_OUTAGE_RETRY_MINUTES,
   FIELD_FORGE_OUTAGE_RETRY_MINUTES_CLI_ALIAS,
   inspectForgeOutageRetryMinutes,
@@ -111,6 +116,7 @@ export * from "./coverage-debt.js";
 export * from "./decisions.js";
 export * from "./deft-directive-disable.js";
 export * from "./delivery-branch.js";
+export * from "./destructive-gh-verbs.js";
 export * from "./disclosure.js";
 export * from "./file-size-thresholds.js";
 export * from "./forge-outage-retry.js";
@@ -207,6 +213,19 @@ function getNarratives(data: Record<string, unknown> | null): Record<string, unk
 
 function defaultHoldMarkers(): string[] {
   return [...FALLBACK_HOLD_MARKERS];
+}
+
+function inspectDestructiveGhVerbsField(
+  data: Record<string, unknown> | null,
+  projectRoot?: string,
+): PolicyField {
+  const field = inspectAllowDestructiveGhVerbs(data, projectRoot);
+  return {
+    name: field.name,
+    current: field.current,
+    default: field.default,
+    source: field.source,
+  };
 }
 
 function inspectAllowDirectCommits(data: Record<string, unknown> | null): PolicyField {
@@ -645,6 +664,7 @@ function inspectProjectInvariantsField(
 
 const REGISTERED_POLICIES: readonly Inspector[] = [
   inspectAllowDirectCommits,
+  inspectDestructiveGhVerbsField,
   inspectWipCap,
   inspectSessionRitualStalenessHours,
   (data) => listFieldInspector(data, "triageScope", FIELD_TRIAGE_SCOPE, DEFAULT_TRIAGE_SCOPE_VALUE),
@@ -706,47 +726,49 @@ export function inspectAllPolicies(projectRoot: string): PolicyField[] {
 /** Look up a single registered field by canonical dotted-path name (or CLI alias). */
 export function inspectOnePolicy(name: string, projectRoot: string): PolicyField | null {
   const normalized =
-    name === FIELD_VALUE_FEEDBACK_CLI_ALIAS
-      ? FIELD_VALUE_FEEDBACK
-      : name === FIELD_PRODUCT_SIGNAL_CLI_ALIAS
-        ? FIELD_PRODUCT_SIGNAL
-        : name === FIELD_COVERAGE_DEBT_CLI_ALIAS
-          ? FIELD_COVERAGE_DEBT
-          : name === FIELD_CHECK_RESUME_CLI_ALIAS
-            ? FIELD_CHECK_RESUME
-            : name === FIELD_STALENESS_TICKLER_CLI_ALIAS
-              ? FIELD_STALENESS_TICKLER
-              : name === FIELD_RUNTIME_AUTHORITY_CLI_ALIAS
-                ? FIELD_RUNTIME_AUTHORITY
-                : name === FIELD_HOST_HOOKS_CLI_ALIAS
-                  ? FIELD_HOST_HOOKS
-                  : name === FIELD_HOST_SLASH_COMMANDS_CLI_ALIAS
-                    ? FIELD_HOST_SLASH_COMMANDS
-                    : name === FIELD_OPENCLAW_PRODUCT_COMMANDS_CLI_ALIAS
-                      ? FIELD_OPENCLAW_PRODUCT_COMMANDS
-                      : name === FIELD_HOST_SKILL_DISCOVERY_CLI_ALIAS
-                        ? FIELD_HOST_SKILL_DISCOVERY
-                        : name === FIELD_REQUIRE_HUMAN_MERGE_CLI_ALIAS
-                          ? FIELD_REQUIRE_HUMAN_MERGE
-                          : name === FIELD_HOTFIX_CRITERIA_CLI_ALIAS
-                            ? FIELD_HOTFIX_CRITERIA
-                            : name === FIELD_DELIVERY_BRANCH_CLI_ALIAS
-                              ? FIELD_DELIVERY_BRANCH
-                              : name === FIELD_BASE_BRANCH_CLI_ALIAS
-                                ? FIELD_BASE_BRANCH
-                                : name === FIELD_MIN_GREPTILE_CONFIDENCE_CLI_ALIAS
-                                  ? FIELD_MIN_GREPTILE_CONFIDENCE
-                                  : name === FIELD_CEREMONY_DIAL_CLI_ALIAS
-                                    ? FIELD_CEREMONY_DIAL
-                                    : name === FIELD_AC_PASS_BANKING_CLI_ALIAS
-                                      ? FIELD_AC_PASS_BANKING
-                                      : name === FIELD_SYNC_MAX_FILES_CLI_ALIAS
-                                        ? FIELD_SYNC_MAX_FILES
-                                        : name === FIELD_FORGE_OUTAGE_RETRY_MINUTES_CLI_ALIAS
-                                          ? FIELD_FORGE_OUTAGE_RETRY_MINUTES
-                                          : name === FIELD_PROJECT_INVARIANTS_CLI_ALIAS
-                                            ? FIELD_PROJECT_INVARIANTS
-                                            : name;
+    name === FIELD_ALLOW_DESTRUCTIVE_GH_VERBS_CLI_ALIAS || name === FIELD_ALLOW_DESTRUCTIVE_GH_VERBS
+      ? FIELD_ALLOW_DESTRUCTIVE_GH_VERBS
+      : name === FIELD_VALUE_FEEDBACK_CLI_ALIAS
+        ? FIELD_VALUE_FEEDBACK
+        : name === FIELD_PRODUCT_SIGNAL_CLI_ALIAS
+          ? FIELD_PRODUCT_SIGNAL
+          : name === FIELD_COVERAGE_DEBT_CLI_ALIAS
+            ? FIELD_COVERAGE_DEBT
+            : name === FIELD_CHECK_RESUME_CLI_ALIAS
+              ? FIELD_CHECK_RESUME
+              : name === FIELD_STALENESS_TICKLER_CLI_ALIAS
+                ? FIELD_STALENESS_TICKLER
+                : name === FIELD_RUNTIME_AUTHORITY_CLI_ALIAS
+                  ? FIELD_RUNTIME_AUTHORITY
+                  : name === FIELD_HOST_HOOKS_CLI_ALIAS
+                    ? FIELD_HOST_HOOKS
+                    : name === FIELD_HOST_SLASH_COMMANDS_CLI_ALIAS
+                      ? FIELD_HOST_SLASH_COMMANDS
+                      : name === FIELD_OPENCLAW_PRODUCT_COMMANDS_CLI_ALIAS
+                        ? FIELD_OPENCLAW_PRODUCT_COMMANDS
+                        : name === FIELD_HOST_SKILL_DISCOVERY_CLI_ALIAS
+                          ? FIELD_HOST_SKILL_DISCOVERY
+                          : name === FIELD_REQUIRE_HUMAN_MERGE_CLI_ALIAS
+                            ? FIELD_REQUIRE_HUMAN_MERGE
+                            : name === FIELD_HOTFIX_CRITERIA_CLI_ALIAS
+                              ? FIELD_HOTFIX_CRITERIA
+                              : name === FIELD_DELIVERY_BRANCH_CLI_ALIAS
+                                ? FIELD_DELIVERY_BRANCH
+                                : name === FIELD_BASE_BRANCH_CLI_ALIAS
+                                  ? FIELD_BASE_BRANCH
+                                  : name === FIELD_MIN_GREPTILE_CONFIDENCE_CLI_ALIAS
+                                    ? FIELD_MIN_GREPTILE_CONFIDENCE
+                                    : name === FIELD_CEREMONY_DIAL_CLI_ALIAS
+                                      ? FIELD_CEREMONY_DIAL
+                                      : name === FIELD_AC_PASS_BANKING_CLI_ALIAS
+                                        ? FIELD_AC_PASS_BANKING
+                                        : name === FIELD_SYNC_MAX_FILES_CLI_ALIAS
+                                          ? FIELD_SYNC_MAX_FILES
+                                          : name === FIELD_FORGE_OUTAGE_RETRY_MINUTES_CLI_ALIAS
+                                            ? FIELD_FORGE_OUTAGE_RETRY_MINUTES
+                                            : name === FIELD_PROJECT_INVARIANTS_CLI_ALIAS
+                                              ? FIELD_PROJECT_INVARIANTS
+                                              : name;
   for (const field of inspectAllPolicies(projectRoot)) {
     if (field.name === normalized) return field;
   }

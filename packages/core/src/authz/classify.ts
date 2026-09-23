@@ -188,6 +188,8 @@ const AUTHZ_MUTATING_SUBCOMMANDS = new Set(["grant", "uat-start", "uat-suspend",
 const POLICY_AUTHORITY_MUTATORS = new Set([
   "allow-bot-merge",
   "allow-direct-commits",
+  "allow-destructive-gh-verbs",
+  "enforce-destructive-gh-verbs",
   "disable-directive",
   "enable-directive",
 ]);

@@ -241,6 +241,7 @@ describe("classifyShellAuthzOps (#2944)", () => {
       "echo x > .no-deft-directive",
       "deft policy:allow-bot-merge -- --confirm",
       "task policy:allow-direct-commits -- --confirm",
+      "deft policy:allow-destructive-gh-verbs -- --confirm",
       "directive policy:disable-directive -- --confirm",
       "npx deft policy allow-bot-merge --confirm",
       "env FOO=1 deft policy:enable-directive",

@@ -90,6 +90,8 @@ export const SUBCOMMAND_ROUTES: Readonly<Record<string, readonly [string, string
   "policy:enable-directive": ["policy", "enable-directive"],
   "policy:enforce-branches": ["policy", "enforce-branches"],
   "policy:allow-direct-commits": ["policy", "allow-direct-commits"],
+  "policy:allow-destructive-gh-verbs": ["policy", "allow-destructive-gh-verbs"],
+  "policy:enforce-destructive-gh-verbs": ["policy", "enforce-destructive-gh-verbs"],
   "policy:allow-bot-merge": ["policy", "allow-bot-merge"],
   "policy:enable-value-feedback": ["policy", "enable-value-feedback"],
   "policy:disable-host-hooks": ["policy", "disable-host-hooks"],

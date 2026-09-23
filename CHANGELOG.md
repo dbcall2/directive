@@ -16,9 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **#1019 has a typed policy path for pre-push (#4384).** `plan.policy.allowDestructiveGhVerbs` with `policy:allow-destructive-gh-verbs --confirm` (reverse `policy:enforce-destructive-gh-verbs`). `evaluatePrePush` consults that field through the `--project-root` the hook already passes. How to proceed names that verb; `DEFT_ALLOW_DESTRUCTIVE_GH_VERBS` stays an override, not bootstrap. `--command git push origin master` now refuses as `push_default` so the two surfaces agree. Zero-OID create of master/main is not an empty-remote exemption. Tracking #4384.
+
 ### Changed
 
 ### Fixed
+
+- **preflight-gh parses the git `push` subcommand and dest refspec (#4384).** `git remote add push master` and `git push main my-feature` are not default-branch pushes. Every non-null policy resolver error stays exit 2. `policy:allow-destructive-gh-verbs` catches mutation I/O as a config diagnostic. Tracking #4384.
 
 ### Removed
 
