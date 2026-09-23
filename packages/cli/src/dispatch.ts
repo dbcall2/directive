@@ -46,6 +46,7 @@ import {
   type ProjectDefinitionMutation,
   withProjectDefinitionMutation,
 } from "@deftai/directive-core/vbrief-build";
+import { identityBanner } from "./identity-banner.js";
 
 export type CommandHandler = (argv: string[]) => number | Promise<number>;
 
@@ -3260,8 +3261,6 @@ async function invokeHandler(handler: CommandHandler, argv: string[]): Promise<n
   return typeof code === "number" ? code : 0;
 }
 
-const CLI_PACKAGE = "@deftai/directive" as const;
-
 const PLAN_SEQUENCE_VERBS = "set|current|clear|advance";
 
 /**
@@ -3286,8 +3285,7 @@ export function unknownColonVerbHint(verb: string): string {
 }
 
 function versionBanner(): string {
-  const info = engineInfo();
-  return `${CLI_PACKAGE} (engine: ${info.name}@${info.version})\n`;
+  return `${identityBanner()}\n`;
 }
 
 /** Dispatch argv to a registered verb; returns the handler exit code. */

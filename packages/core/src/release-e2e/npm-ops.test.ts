@@ -93,6 +93,11 @@ function ok(): SpawnResult {
   return { status: 0, stdout: "", stderr: "" };
 }
 
+/** Display-both --version line with engine first (#4766). */
+function stampedVersionBanner(version: string): string {
+  return `@deftai/directive (engine: @deftai/directive-core@${version}; package: @deftai/directive@${version})\n`;
+}
+
 describe("deposit journey e2e legs (#1942 S5)", () => {
   const created: string[] = [];
 
@@ -395,6 +400,9 @@ describe("rehearseNpmInstallAndRun (#1996)", () => {
         calls.push({ cmd: [cmd, ...args], cwd: options?.cwd });
         const full = [cmd, ...args];
         if (full.some((part) => String(part).includes("bin.js"))) {
+          if (full.includes("--version")) {
+            return { status: 0, stdout: stampedVersionBanner("0.0.1"), stderr: "" };
+          }
           return { status: 0, stdout: "Usage: directive doctor\n", stderr: "" };
         }
         return ok();
@@ -403,6 +411,7 @@ describe("rehearseNpmInstallAndRun (#1996)", () => {
     const [okFlag, reason] = rehearseNpmInstallAndRun(clone, "0.0.1", seams);
     expect(okFlag).toBe(true);
     expect(reason).toContain("without module-not-found");
+    expect(reason).toContain("package @0.0.1");
     expect(calls.some((c) => c.cmd.includes("pack"))).toBe(true);
     expect(calls.some((c) => c.cmd.includes("install"))).toBe(true);
     expect(calls.some((c) => c.cmd.some((part) => String(part).includes("bin.js")))).toBe(true);
@@ -418,6 +427,9 @@ describe("rehearseNpmInstallAndRun (#1996)", () => {
         const full = [cmd, ...args];
         calls.push(full);
         if (full.some((part) => String(part).includes("bin.js"))) {
+          if (full.includes("--version")) {
+            return { status: 0, stdout: stampedVersionBanner("0.0.1"), stderr: "" };
+          }
           return { status: 0, stdout: "Usage: directive doctor\n", stderr: "" };
         }
         return ok();
@@ -461,7 +473,7 @@ describe("rehearseNpmInstallAndRun (#1996)", () => {
         const full = [cmd, ...args];
         if (full.some((part) => String(part).includes("bin.js"))) {
           if (full.includes("--version")) {
-            return { status: 0, stdout: "@deftai/directive (engine: core@0.0.1)\n", stderr: "" };
+            return { status: 0, stdout: stampedVersionBanner("0.0.1"), stderr: "" };
           }
           // doctor: benign non-zero verdict in a bare consumer layout (#2010)
           return {
@@ -497,6 +509,144 @@ describe("rehearseNpmInstallAndRun (#1996)", () => {
     const [okFlag, reason] = rehearseNpmInstallAndRun(clone, "0.0.1", seams);
     expect(okFlag).toBe(false);
     expect(reason).toContain("directive --version exited 7");
+  });
+
+  it("fails when --version prints dest-tree 0.0.0 instead of the stamped package (#4766)", () => {
+    const clone = mkdtempSync(join(tmpdir(), "deft-npm-install-run-dest-tree-"));
+    scaffoldPackages(clone);
+    const seams: E2ESeams = {
+      which: (n) => `/usr/bin/${n}`,
+      spawnText: (cmd, args) => {
+        const full = [cmd, ...args];
+        if (full.some((part) => String(part).includes("bin.js")) && full.includes("--version")) {
+          return { status: 0, stdout: stampedVersionBanner("0.0.0"), stderr: "" };
+        }
+        if (full.some((part) => String(part).includes("bin.js"))) {
+          return { status: 0, stdout: "Usage: directive doctor\n", stderr: "" };
+        }
+        return ok();
+      },
+    };
+    const [okFlag, reason] = rehearseNpmInstallAndRun(clone, "0.0.1", seams);
+    expect(okFlag).toBe(false);
+    expect(reason).toContain("package identity 0.0.0 !== stamped 0.0.1");
+  });
+
+  it("fails when --version exits 0 without a stamped package identity (#4766)", () => {
+    const clone = mkdtempSync(join(tmpdir(), "deft-npm-install-run-no-package-"));
+    scaffoldPackages(clone);
+    const seams: E2ESeams = {
+      which: (n) => `/usr/bin/${n}`,
+      spawnText: (cmd, args) => {
+        const full = [cmd, ...args];
+        if (full.some((part) => String(part).includes("bin.js")) && full.includes("--version")) {
+          return {
+            status: 0,
+            stdout: "@deftai/directive (engine: @deftai/directive-core@0.0.1)\n",
+            stderr: "",
+          };
+        }
+        if (full.some((part) => String(part).includes("bin.js"))) {
+          return { status: 0, stdout: "Usage: directive doctor\n", stderr: "" };
+        }
+        return ok();
+      },
+    };
+    const [okFlag, reason] = rehearseNpmInstallAndRun(clone, "0.0.1", seams);
+    expect(okFlag).toBe(false);
+    expect(reason).toContain("package identity (missing) !== stamped 0.0.1");
+  });
+
+  it("passes when installed package.json and --version both match the stamp (#4766)", () => {
+    const clone = mkdtempSync(join(tmpdir(), "deft-npm-install-run-stamped-pkg-"));
+    scaffoldPackages(clone);
+    const seams: E2ESeams = {
+      which: (n) => `/usr/bin/${n}`,
+      spawnText: (cmd, args) => {
+        const full = [cmd, ...args];
+        if (full.includes("install") && full.some((part) => String(part).endsWith(".tgz"))) {
+          const pkgDir = join(clone, ".deft-e2e-consumer", "node_modules", "@deftai", "directive");
+          mkdirSync(pkgDir, { recursive: true });
+          writeFileSync(
+            join(pkgDir, "package.json"),
+            JSON.stringify({ name: "@deftai/directive", version: "0.0.1" }),
+            "utf8",
+          );
+        }
+        if (full.some((part) => String(part).includes("bin.js")) && full.includes("--version")) {
+          return { status: 0, stdout: stampedVersionBanner("0.0.1"), stderr: "" };
+        }
+        if (full.some((part) => String(part).includes("bin.js"))) {
+          return { status: 0, stdout: "Usage: directive doctor\n", stderr: "" };
+        }
+        return ok();
+      },
+    };
+    const [okFlag, reason] = rehearseNpmInstallAndRun(clone, "0.0.1", seams);
+    expect(okFlag).toBe(true);
+    expect(reason).toContain("package @0.0.1");
+  });
+
+  it.each([
+    ["invalid JSON", "not json"],
+    ["JSON null", "null"],
+    ["non-object", "42"],
+    ["missing version", JSON.stringify({ name: "@deftai/directive" })],
+    ["empty version", JSON.stringify({ name: "@deftai/directive", version: "" })],
+  ])("treats unreadable installed package.json (%s) as absent and still checks --version (#4766)", (_label, raw) => {
+    const clone = mkdtempSync(join(tmpdir(), "deft-npm-install-run-unreadable-pkg-"));
+    scaffoldPackages(clone);
+    const seams: E2ESeams = {
+      which: (n) => `/usr/bin/${n}`,
+      spawnText: (cmd, args) => {
+        const full = [cmd, ...args];
+        if (full.includes("install") && full.some((part) => String(part).endsWith(".tgz"))) {
+          const pkgDir = join(clone, ".deft-e2e-consumer", "node_modules", "@deftai", "directive");
+          mkdirSync(pkgDir, { recursive: true });
+          writeFileSync(join(pkgDir, "package.json"), raw, "utf8");
+        }
+        if (full.some((part) => String(part).includes("bin.js")) && full.includes("--version")) {
+          return { status: 0, stdout: stampedVersionBanner("0.0.1"), stderr: "" };
+        }
+        if (full.some((part) => String(part).includes("bin.js"))) {
+          return { status: 0, stdout: "Usage: directive doctor\n", stderr: "" };
+        }
+        return ok();
+      },
+    };
+    const [okFlag] = rehearseNpmInstallAndRun(clone, "0.0.1", seams);
+    expect(okFlag).toBe(true);
+  });
+
+  it("fails when the installed CLI package.json version is not the stamp (#4766)", () => {
+    const clone = mkdtempSync(join(tmpdir(), "deft-npm-install-run-installed-pkg-"));
+    scaffoldPackages(clone);
+    const seams: E2ESeams = {
+      which: (n) => `/usr/bin/${n}`,
+      spawnText: (cmd, args) => {
+        const full = [cmd, ...args];
+        if (full.includes("install") && full.some((part) => String(part).endsWith(".tgz"))) {
+          const consumerDir = join(clone, ".deft-e2e-consumer");
+          const pkgDir = join(consumerDir, "node_modules", "@deftai", "directive");
+          mkdirSync(pkgDir, { recursive: true });
+          writeFileSync(
+            join(pkgDir, "package.json"),
+            JSON.stringify({ name: "@deftai/directive", version: "0.0.0" }),
+            "utf8",
+          );
+        }
+        if (full.some((part) => String(part).includes("bin.js")) && full.includes("--version")) {
+          return { status: 0, stdout: stampedVersionBanner("0.0.1"), stderr: "" };
+        }
+        if (full.some((part) => String(part).includes("bin.js"))) {
+          return { status: 0, stdout: "Usage: directive doctor\n", stderr: "" };
+        }
+        return ok();
+      },
+    };
+    const [okFlag, reason] = rehearseNpmInstallAndRun(clone, "0.0.1", seams);
+    expect(okFlag).toBe(false);
+    expect(reason).toContain("installed CLI package.json version 0.0.0 !== stamped 0.0.1");
   });
 });
 

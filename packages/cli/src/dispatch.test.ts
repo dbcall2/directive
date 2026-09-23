@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { engineInfo } from "@deftai/directive-core";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { readCliPackageVersion } from "./cli-package-version.js";
 import { routeAndDispatch, routeArgv } from "./cli-router/index.js";
 import { SUBCOMMAND_ROUTES } from "./cli-router/route-argv.js";
 import {
@@ -47,7 +48,8 @@ import {
 } from "./dispatch.js";
 
 const engineVersion = engineInfo().version;
-const VERSION_BANNER = `@deftai/directive (engine: @deftai/directive-core@${engineVersion})\n`;
+const cliVersion = readCliPackageVersion();
+const VERSION_BANNER = `@deftai/directive (engine: @deftai/directive-core@${engineVersion}; package: @deftai/directive@${cliVersion})\n`;
 
 afterEach(() => {
   resetHandlerCacheForTests();
