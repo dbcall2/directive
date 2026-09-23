@@ -3284,6 +3284,52 @@ function sessionStartDisableNotice(decision: HookDecision): string | null {
 }
 
 /**
+ * Cursor session.start discoverability (#1708).
+ *
+ * Host-conditional additional_context only. Not a SOFT_AGENTS_REBIND_CHECKLIST
+ * id and not appended onto decision.message.
+ */
+export const CURSOR_SESSION_START_PLANNING_LINE =
+  "Directive planning is available via /deft:directive:run:interview (or /deft:directive:run:discuss). " +
+  "A native host plan does not itself approve a Directive scope.";
+
+function cursorSessionStartPlanningLine(decision: HookDecision): string | null {
+  if (decision.event !== "session.start") {
+    return null;
+  }
+  if (decision.code === "session-start" || decision.code === "session-start-degraded") {
+    return CURSOR_SESSION_START_PLANNING_LINE;
+  }
+  return null;
+}
+
+/**
+ * Compose Cursor session.start additional_context.
+ *
+ * Soft re-bind (#3171) stays first when present. The planning line appends on
+ * session-start / session-start-degraded only. Disabled codes omit it so
+ * sibling disable-injection of decision.message (#4884) can compose onto this
+ * field without replacing the append.
+ */
+function composeCursorSessionStartAdditionalContext(
+  decision: HookDecision,
+  soft: string | null,
+): string | undefined {
+  const parts: string[] = [];
+  if (soft !== null) {
+    parts.push(soft);
+  }
+  const planning = cursorSessionStartPlanningLine(decision);
+  if (planning !== null) {
+    parts.push(planning);
+  }
+  if (parts.length === 0) {
+    return undefined;
+  }
+  return parts.join("\n\n");
+}
+
+/**
  * Render host-facing hook output.
  *
  * Cursor deposits use `failClosed: true` with a tool.before timeout above the
@@ -3323,15 +3369,28 @@ export function renderHostDecision(host: HookHost, decision: HookDecision): stri
         },
       });
     }
-    const injected = sessionStartDisableNotice(decision) ?? softAgentsRebindWireText(decision);
+    const soft = softAgentsRebindWireText(decision);
+    const disableNotice = sessionStartDisableNotice(decision);
+    const injected = disableNotice ?? soft;
     if (host === "cursor") {
-      if (decision.event === "session.start" && injected !== null) {
-        // Cursor sessionStart injects additional_context into the conversation.
-        return JSON.stringify({
-          permission: "allow",
-          code: decision.code,
-          additional_context: injected,
-        });
+      if (decision.event === "session.start") {
+        if (disableNotice !== null) {
+          // Cursor sessionStart injects additional_context into the conversation.
+          return JSON.stringify({
+            permission: "allow",
+            code: decision.code,
+            additional_context: disableNotice,
+          });
+        }
+        const additionalContext = composeCursorSessionStartAdditionalContext(decision, soft);
+        if (additionalContext !== undefined) {
+          // Cursor sessionStart injects additional_context into the conversation.
+          return JSON.stringify({
+            permission: "allow",
+            code: decision.code,
+            additional_context: additionalContext,
+          });
+        }
       }
       if (decision.event === "session.compact" && injected !== null) {
         // Cursor preCompact is observational; user_message surfaces the soft cue.

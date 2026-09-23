@@ -302,6 +302,14 @@ describe("soft AGENTS re-bind SoT (#3171 / #2769)", () => {
       expect(text.toLowerCase()).toMatch(/never authorizes skipping/);
     }
   });
+
+  it("keeps the shared checklist and OpenClaw skill free of the Cursor planning line (#1708)", () => {
+    expect(formatSoftAgentsRebindChecklist()).not.toContain("/deft:directive:run:interview");
+    expect(formatOpenClawSoftRebindSkillMarkdown()).not.toContain("/deft:directive:run:interview");
+    expect(SOFT_AGENTS_REBIND_CHECKLIST.map((item) => item.id)).not.toContain(
+      "cursor-session-start-planning",
+    );
+  });
 });
 
 describe("OpenClaw soft re-bind skill deposit (#3171)", () => {
