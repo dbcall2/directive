@@ -109,7 +109,7 @@ export function parseWorkClaimArgs(extra: readonly string[]): WorkClaimArgs {
   const leftoverFlags = remainder.filter((t) => t.startsWith("-"));
   if (leftoverFlags.length > 0) {
     throw new Error(
-      `unrecognized flags: ${pyRepr(leftoverFlags)}. Supported: --issue, --repo, -R, --project-root, --json, --read-only.`,
+      `unrecognized flags: ${pyRepr(leftoverFlags)}. Supported: --issue, --repo, --project-root, --json, --read-only.`,
     );
   }
 

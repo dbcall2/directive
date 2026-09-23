@@ -106,7 +106,7 @@ export function parseDesignCritiqueChipArgs(extra: readonly string[]): DesignCri
   const leftoverFlags = remainder.filter((t) => t.startsWith("-"));
   if (leftoverFlags.length > 0) {
     throw new Error(
-      `unrecognized flags: ${pyRepr(leftoverFlags)}. Supported: --issue, --chip, --repo, -R, --json.`,
+      `unrecognized flags: ${pyRepr(leftoverFlags)}. Supported: --issue, --chip, --repo, --json.`,
     );
   }
 

@@ -136,7 +136,25 @@
           "provenance": "statement"
         }
       ],
-      "ambiguity_attestation": "none_found"
+      "ambiguity_attestation": "none_found",
+      "confessions": [
+        "bug(scm): the enforcing SCM readiness gate never invokes the worker-principal validator",
+        "Property is credential-class ban only: no App installation credential may drive `scm issue *`, `issue:ingest`, and `reconcile:issues`.",
+        "Any user-bearing login is acceptable when no expected principal is supplied.",
+        "Do not claim identity-gated SCM authorization or that the repo GET authorizes the operation.",
+        "Those three callers must invoke the installation-class check (`validateGithubAuthForWorker` / `/user` inapplicability).",
+        "Doctor and default `session:start` stay shallow; they do not call `requireScmReady`.",
+        "`requireScmReady` honors requested authorization depth.",
+        "Do not reuse a cached shallow-ready report for a principal/deep request.",
+        "Restrict the hermetic skip to `VITEST`; `DEFT_SCM_SKIP_AUTH_PROBE` must not authorize production when a token is present.",
+        "Parse `--repo` / `-R` before `requireScmReady` on the three callers and pass that repo through, so non-checkout `--repo` does not regress.",
+        "The class-ban still does not claim target-bound authorization.",
+        "CHANGELOG and `content/scm/github.md` § 2275 name the three verbs exactly.",
+        "`SCM_DEPENDENT_GATES` stays a diagnostic skip-list.",
+        "`pr:*` merge-path modules stay a different issue.",
+        "Swarm `prepareWorkerCredentialInjection` stays the expected-user injected-token path.",
+        "#3693 observation path and #3859 classifier stay out of this number."
+      ]
     },
     "metadata": {
       "intended_placement": {
