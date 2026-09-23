@@ -1,4 +1,4 @@
-import { extractValueFlag, filterJsonFields } from "./argv.js";
+import { extractRepoFlag, extractValueFlag, filterJsonFields } from "./argv.js";
 import {
   GhRestError,
   type GhRestSeams,
@@ -25,7 +25,7 @@ export function runRestView(
   stderr: string;
 } {
   let remainder = [...extra];
-  const [repo, afterRepo] = extractValueFlag(remainder, "--repo");
+  const [repo, afterRepo] = extractRepoFlag(remainder);
   remainder = afterRepo;
   const [jsonSpec, afterJson] = extractValueFlag(remainder, "--json");
   remainder = afterJson;
@@ -107,7 +107,7 @@ export function runRestList(
   stderr: string;
 } {
   let remainder = [...extra];
-  const [repo, afterRepo] = extractValueFlag(remainder, "--repo");
+  const [repo, afterRepo] = extractRepoFlag(remainder);
   remainder = afterRepo;
   const [state, afterState] = extractValueFlag(remainder, "--state", "open");
   remainder = afterState;

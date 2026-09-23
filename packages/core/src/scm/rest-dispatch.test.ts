@@ -109,6 +109,17 @@ describe("runRestView", () => {
     expect(result.stderr).toContain("--repo OWNER/NAME");
   });
 
+  it("accepts -R as the repository flag (#3858)", () => {
+    vi.spyOn(ghRest, "restIssueView").mockReturnValue({
+      number: 1,
+      title: "REST migration smoke",
+      state: "open",
+    });
+    const result = restDispatch.runRestView(["1", "-R", "deftai/directive"]);
+    expect(result.exitCode).toBe(0);
+    vi.restoreAllMocks();
+  });
+
   it("rejects unknown flags", () => {
     const result = restDispatch.runRestView([
       "1",

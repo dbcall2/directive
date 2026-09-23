@@ -21,7 +21,7 @@ import { fetchIssueComments, IssueCommentFetchError } from "../intake/issue-inge
 import { parseGithubOwnerRepo } from "../policy/sync-default.js";
 import { ScmLabelClient } from "../vbrief-reconcile/labels.js";
 import type { LabelClient } from "../vbrief-reconcile/types.js";
-import { extractFlag, extractValueFlag } from "./argv.js";
+import { extractFlag, extractRepoFlag, extractValueFlag } from "./argv.js";
 import { InvalidRepoError, splitRepo } from "./gh-rest.js";
 import { pyRepr } from "./py-format.js";
 
@@ -96,7 +96,7 @@ export function parseDesignCritiqueChipArgs(extra: readonly string[]): DesignCri
 
   const [json, afterJson] = extractFlag(remainder, "--json");
   remainder = afterJson;
-  const [repoRaw, afterRepo] = extractValueFlag(remainder, "--repo");
+  const [repoRaw, afterRepo] = extractRepoFlag(remainder);
   remainder = afterRepo;
   const [chipRaw, afterChip] = extractValueFlag(remainder, "--chip");
   remainder = afterChip;
@@ -106,7 +106,7 @@ export function parseDesignCritiqueChipArgs(extra: readonly string[]): DesignCri
   const leftoverFlags = remainder.filter((t) => t.startsWith("-"));
   if (leftoverFlags.length > 0) {
     throw new Error(
-      `unrecognized flags: ${pyRepr(leftoverFlags)}. Supported: --issue, --chip, --repo, --json.`,
+      `unrecognized flags: ${pyRepr(leftoverFlags)}. Supported: --issue, --chip, --repo, -R, --json.`,
     );
   }
 

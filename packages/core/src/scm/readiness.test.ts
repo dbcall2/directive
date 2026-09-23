@@ -486,6 +486,33 @@ describe("requireScmReady credential-class ban (#3858)", () => {
     expect(authCalls).toBe(afterDeep);
   });
 
+  it("does not reuse a cached ready report for a different repo", () => {
+    clearScmReadyCache();
+    const repos: string[] = [];
+    const runGh = (args: readonly string[]) => {
+      if (args[0] === "auth") return okProc("Logged in");
+      if (args[0] === "api" && args[1] === "user") return okProc('"alice"');
+      if (args[0] === "api" && String(args[1]).startsWith("repos/")) {
+        repos.push(String(args[1]));
+        return okProc("{}");
+      }
+      return failProc(`unexpected ${args.join(" ")}`);
+    };
+    const common = {
+      whichFn: whichGh,
+      env: {},
+      githubAuthMode: "host-gh" as const,
+      runtimeReport: { runtimeMode: "local-unsandboxed" as const },
+      runGh,
+      expectedPrincipal: null as const,
+      checkAuthStatus: true as const,
+      depth: "deep" as const,
+    };
+    requireScmReady({ ...common, repo: "owner/one", force: true });
+    requireScmReady({ ...common, repo: "owner/two" });
+    expect(repos).toEqual(["repos/owner/one", "repos/owner/two"]);
+  });
+
   it("passes --repo other than origin through to the validator", () => {
     clearScmReadyCache();
     const seen: string[][] = [];

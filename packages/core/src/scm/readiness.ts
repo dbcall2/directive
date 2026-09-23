@@ -533,11 +533,26 @@ export function assertScmBinaryPresent(whichFn: WhichFn = defaultWhich): ScmBina
  * (tests / after credential injection).
  */
 let cachedReadyReport: ScmReadinessReport | null = null;
+let cachedReadyKey: { repo: string; principal: string } | null = null;
+
+function readyCacheIdentity(options: ProbeScmReadinessOptions & { force?: boolean }): {
+  repo: string;
+  principal: string;
+} {
+  return {
+    repo: options.repo ?? "",
+    principal: options.expectedPrincipal ?? "",
+  };
+}
 
 function cachedReportCoversRequestedDepth(
   cached: ScmReadinessReport,
   requestedDepth: ScmProbeDepth,
+  key: { repo: string; principal: string },
 ): boolean {
+  if (cachedReadyKey === null) return false;
+  if (cachedReadyKey.repo !== key.repo) return false;
+  if (cachedReadyKey.principal !== key.principal) return false;
   if (requestedDepth === "deep") {
     return cached.depth === "deep";
   }
@@ -548,10 +563,11 @@ export function requireScmReady(
   options: ProbeScmReadinessOptions & { force?: boolean } = {},
 ): ScmReadinessReport {
   const requestedDepth: ScmProbeDepth = options.depth ?? "shallow";
+  const identity = readyCacheIdentity(options);
   if (
     !options.force &&
     cachedReadyReport !== null &&
-    cachedReportCoversRequestedDepth(cachedReadyReport, requestedDepth)
+    cachedReportCoversRequestedDepth(cachedReadyReport, requestedDepth, identity)
   ) {
     return cachedReadyReport;
   }
@@ -580,6 +596,7 @@ export function requireScmReady(
       failureKind: null,
     };
     cachedReadyReport = report;
+    cachedReadyKey = identity;
     return report;
   }
   const report = probeScmReadiness({
@@ -591,6 +608,7 @@ export function requireScmReady(
     throw scmNotReadyError(report);
   }
   cachedReadyReport = report;
+  cachedReadyKey = identity;
   return report;
 }
 
@@ -600,6 +618,7 @@ export function requireScmReady(
  */
 export function clearScmReadyCache(): void {
   cachedReadyReport = null;
+  cachedReadyKey = null;
 }
 
 export { findInjectedToken, GITHUB_AUTH_MODE_HOST_GH, GITHUB_AUTH_MODE_INJECTED_TOKEN };

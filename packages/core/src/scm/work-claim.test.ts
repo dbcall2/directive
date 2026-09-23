@@ -97,6 +97,17 @@ describe("parseWorkClaimArgs", () => {
     });
   });
 
+  it("parses -R as the repository flag (#3858)", () => {
+    expect(parseWorkClaimArgs(["claim", "--issue", "123", "-R", "owner/repo"])).toEqual({
+      action: "claim",
+      issue: 123,
+      repo: "owner/repo",
+      projectRoot: null,
+      json: false,
+      readOnly: false,
+    });
+  });
+
   it("accepts positional issue after action", () => {
     expect(parseWorkClaimArgs(["claim", "4200"])).toEqual({
       action: "claim",
