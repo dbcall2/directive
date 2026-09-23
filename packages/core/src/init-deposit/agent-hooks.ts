@@ -485,7 +485,7 @@ function hasNestedSessionStart(config: Record<string, unknown>, host: NestedHook
 
 function hasCursorSessionStart(config: Record<string, unknown>): boolean {
   const hooks = object(config.hooks);
-  if (hooks === null) return false;
+  if (hooks === null || config.version !== 1) return false;
   const session = Array.isArray(hooks.sessionStart) ? hooks.sessionStart : [];
   return session.some((entry) => object(entry)?.command === command("cursor", "session.start"));
 }

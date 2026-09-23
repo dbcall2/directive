@@ -672,6 +672,33 @@ describe("inspectSessionStartNotice", () => {
       registered: false,
     });
   });
+
+  it("reports Cursor SessionStart not registered when hooks.json version is missing or not 1", () => {
+    const root = project();
+    writeAgentHookDeposit(root);
+    const cursorPath = join(root, ".cursor/hooks.json");
+    const cursor = JSON.parse(readFileSync(cursorPath, "utf8")) as {
+      version?: number;
+    };
+    expect(inspectSessionStartNotice(root).find((entry) => entry.host === "cursor")).toEqual({
+      host: "cursor",
+      registered: true,
+    });
+
+    cursor.version = 2;
+    writeFileSync(cursorPath, `${JSON.stringify(cursor, null, 2)}\n`, "utf8");
+    expect(inspectSessionStartNotice(root).find((entry) => entry.host === "cursor")).toEqual({
+      host: "cursor",
+      registered: false,
+    });
+
+    delete cursor.version;
+    writeFileSync(cursorPath, `${JSON.stringify(cursor, null, 2)}\n`, "utf8");
+    expect(inspectSessionStartNotice(root).find((entry) => entry.host === "cursor")).toEqual({
+      host: "cursor",
+      registered: false,
+    });
+  });
 });
 
 describe("inspectAgentHookDeposit", () => {
