@@ -164,6 +164,13 @@ const WORK_CLAIM_MARKERS = [
   "warn is success",
 ] as const;
 
+/** Consumer stale-ritual recovery pointer (#4290 / #1309). */
+const STALE_RITUAL_RECOVERY_MARKERS = [
+  "Stale-ritual (#4290)",
+  "primary-claim-exception=operator-default-branch",
+  "linked-worktree same-actor",
+] as const;
+
 /** Always-on through-merge dispatch doctrine (#3032) — parent must not implement. */
 /** Pointer bodies for Rule Authority / #3265 — headings alone are not enough (#3313). */
 const RULE_AUTHORITY_THIN_FAIL_CLOSED_POINTER_MARKERS = [
@@ -510,6 +517,8 @@ const POINTER_RELOCATED_RULES: readonly PointerRuleSpec[] = [
       "identity-only",
       "Starting-new",
       "Rapid",
+      "#4290",
+      "primary-claim-exception",
     ],
     canonicalBodyMarkers: [
       "read-only posture",
@@ -524,6 +533,8 @@ const POINTER_RELOCATED_RULES: readonly PointerRuleSpec[] = [
       "#3267",
       "session:start --prompt",
       "contentRoot",
+      "Stale-ritual recovery matches ceremony eligibility",
+      "primary-claim-exception=operator-default-branch",
     ],
     retiredFullTextMarkers: [
       "Global-first ladder (prose",
@@ -923,6 +934,11 @@ describe("test_agents_entry_contract", () => {
   it("work_claim_markers_present_in_both_files", () => {
     expect(missingMarkers(template, WORK_CLAIM_MARKERS)).toEqual([]);
     expect(missingMarkers(agents, WORK_CLAIM_MARKERS)).toEqual([]);
+  });
+
+  it("stale_ritual_recovery_markers_present_in_both_files (#4290 / #1309)", () => {
+    expect(missingMarkers(template, STALE_RITUAL_RECOVERY_MARKERS)).toEqual([]);
+    expect(missingMarkers(agents, STALE_RITUAL_RECOVERY_MARKERS)).toEqual([]);
   });
 
   it("portable_shell_orientation_markers_present_in_both_files", () => {
