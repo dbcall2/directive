@@ -508,6 +508,25 @@ func install(debug bool, branch string, legacyLayout bool, nonInteractive, upgra
 		return 1
 	}
 
+	// Re-assert before staging so a concurrent overwrite is not left in the
+	// index while the working tree is repaired (#4533 Greptile P1).
+	if err := ReassertInstallConsumerInvariant(w, result.ProjectDir); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		if jsonOut {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			if encErr := enc.Encode(map[string]any{
+				"success":           false,
+				"error":             err.Error(),
+				"error_code":        "init_consumer_invariant",
+				"deposit_completed": true,
+			}); encErr != nil {
+				fmt.Fprintf(os.Stderr, "Warning: JSON encode failed: %v\n", encErr)
+			}
+		}
+		return 1
+	}
+
 	// #1453 Layer 2: scoped staging + commit guidance. After every deposit,
 	// best-effort stage ONLY the framework + installer-managed paths (never
 	// `git add -A`, never consumer app files) and (below) print the exact scoped
