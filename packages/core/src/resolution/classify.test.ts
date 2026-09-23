@@ -225,6 +225,29 @@ describe("resolution/classify defaultEngineProbe (#2606)", () => {
     expect(spawnSpy).toHaveBeenCalledWith(shim, ["--version"], { timeoutMs: 5000 });
   });
 
+  it("keeps the first semver as the engine on a display-both --version line (#4766)", () => {
+    existsSyncMock.mockImplementation((path) => {
+      const normalized = String(path).replace(/\\/g, "/");
+      if (normalized.endsWith("/packages/core/package.json")) {
+        return false;
+      }
+      return actualExistsSync.fn?.(path) ?? false;
+    });
+    readCorePackageVersionMock.mockReturnValue("0.0.0");
+    const shim = "C:\\Users\\test\\AppData\\Roaming\\npm\\directive.CMD";
+    resolveSpy.mockImplementation((cmd) => (cmd === "directive" ? shim : null));
+    spawnSpy.mockReturnValueOnce({
+      status: 0,
+      stdout:
+        "@deftai/directive (engine: @deftai/directive-core@0.119.2; package: @deftai/directive@0.119.0)\n",
+      stderr: "",
+    });
+
+    const result = defaultEngineProbe();
+
+    expect(result).toEqual({ reachable: true, version: "0.119.2" });
+  });
+
   it("falls back to shell:true bare-name probe when PATH resolution misses", () => {
     existsSyncMock.mockImplementation((path) => {
       const normalized = String(path).replace(/\\/g, "/");

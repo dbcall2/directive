@@ -3,8 +3,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { engineInfo } from "@deftai/directive-core";
 import { describe, expect, it } from "vitest";
+import { readCliPackageVersion } from "./cli-package-version.js";
 
-const VERSION_LINE = `@deftai/directive (engine: @deftai/directive-core@${engineInfo().version})\n`;
+const VERSION_LINE = `@deftai/directive (engine: @deftai/directive-core@${engineInfo().version}; package: @deftai/directive@${readCliPackageVersion()})\n`;
 
 describe("dist/bin.js entrypoint", () => {
   const binPath = join(dirname(fileURLToPath(import.meta.url)), "../dist/bin.js");

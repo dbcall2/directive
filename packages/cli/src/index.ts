@@ -1,4 +1,4 @@
-import { engineInfo } from "@deftai/directive-core";
+import { identityBanner } from "./identity-banner.js";
 
 /**
  * `@deftai/directive` — entrypoint for the deft directive TypeScript engine.
@@ -8,10 +8,9 @@ import { engineInfo } from "@deftai/directive-core";
  * resolves end-to-end. Real commands land in later migration waves.
  */
 
-export const CLI_PACKAGE = "@deftai/directive" as const;
+export { CLI_PACKAGE } from "./identity-banner.js";
 
-/** Renders the engine banner string, sourcing core engine metadata. */
+/** Renders CLI package and engine identity. First semver is the engine (#4766). */
 export function banner(): string {
-  const info = engineInfo();
-  return `${CLI_PACKAGE} (engine: ${info.name}@${info.version})`;
+  return identityBanner();
 }
