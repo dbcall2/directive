@@ -1653,6 +1653,7 @@ export function runSessionStart(
   lines.push(
     formatCeremonyDialStatusLine(ceremonyDialSelection, {
       startTierProvenance,
+      frameworkRoot: options.frameworkRoot ?? projectRoot,
     }),
   );
   const pinBypassLine = formatCeremonyDialPinBypassLine(startTierProvenance);

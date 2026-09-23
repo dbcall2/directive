@@ -45,6 +45,12 @@ import {
 } from "./gate-lists.js";
 import { formatDegradedSkipReport, formatNamedCauseFailure, remedyForGate } from "./named-cause.js";
 import {
+  projectHasLifecycleBrief,
+  RAPID_SOFT_MISSING_NO_BRIEF_NOTICE,
+  rapidCheckWarnsSoftMissingNoBrief,
+  sessionRecordedProductWrite,
+} from "./rapid-soft-missing-no-brief.js";
+import {
   RAPID_ZERO_VERIFIED_CHECK_NOTICE,
   rapidCheckRejectsZeroVerifiedWalk,
 } from "./rapid-zero-verified.js";
@@ -617,6 +623,20 @@ export function dispatchCachedTaskCheck(
       return finish(result.exitCode, degraded);
     }
 
+    // #4544: rapid + product writes + no brief names the verify:ac soft-skip.
+    const acText = `${result.stdout}\n${result.stderr}`;
+    if (
+      rapidCheckWarnsSoftMissingNoBrief({
+        mode: modeResolution.mode,
+        gateId,
+        acText,
+        hasLifecycleBrief: projectHasLifecycleBrief(resolvedProject),
+        sessionChangedProductFiles: sessionRecordedProductWrite(resolvedProject),
+      })
+    ) {
+      process.stderr.write(RAPID_SOFT_MISSING_NO_BRIEF_NOTICE);
+    }
+
     // #4866: rapid check exit only. verify:ac already returned 0; do not
     // relabel that gate as a failure of unverifiable clauses, and do not
     // start the gates rapid mode already dropped.
@@ -624,7 +644,7 @@ export function dispatchCachedTaskCheck(
       rapidCheckRejectsZeroVerifiedWalk({
         mode: modeResolution.mode,
         gateId,
-        text: `${result.stdout}\n${result.stderr}`,
+        text: acText,
       })
     ) {
       process.stderr.write(RAPID_ZERO_VERIFIED_CHECK_NOTICE);

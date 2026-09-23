@@ -47,6 +47,12 @@ describe("test_agents_md_session_start", () => {
     // #2535: mutation discoverability via "mutation intent" / "Mutation →" pointer tokens.
     expect(entrySection.toLowerCase()).toContain("mutation intent");
     expect(entrySection).toContain("Mutation →");
+    // #4544: identity-only + product mutation joins Phase 3 Starting-new / Rapid.
+    expect(entrySection.toLowerCase()).toContain("identity-only");
+    expect(entrySection).toContain("Starting-new");
+    expect(entrySection).toContain("Rapid");
+    expect(entrySection).toContain("Process-only");
+    expect(entrySection).toContain("--prompt");
     // #2544: Windows USER.md path surfaced in always-on bootstrap.
     expect(entrySection).toContain("%APPDATA%\\deft\\USER.md");
     expect(entrySection).toContain("USER.md resolved");

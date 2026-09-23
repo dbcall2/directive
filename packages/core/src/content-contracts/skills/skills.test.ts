@@ -800,6 +800,13 @@ describe("test_skills", () => {
     expect(text.toLowerCase()).toContain("brownfield-install");
     // default: identity-only / greenfield → Starting new; scoped → Add scope
     expect(text.toLowerCase()).toContain("default when identity-only or greenfield");
+    // #4544 — identity-only + product mutation joins Phase 3 Starting-new / Rapid
+    expect(text).toContain("#4544");
+    expect(text.toLowerCase()).toContain("product mutation");
+    expect(text).toContain("session:start --prompt");
+    expect(text).toContain("compareAndSetConsumerHeaderOneLiner");
+    expect(text).toContain("product-write-with-no-brief");
+    expect(text).toContain("Rapid Strategy Gate STOP");
     expect(text.toLowerCase()).toContain("default when brownfield");
     // deterministic-questions: final two options Discuss then Back
     expect(text).toMatch(

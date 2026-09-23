@@ -23,6 +23,7 @@ import {
   normalizeCeremonyTaskSize,
   readCeremonyDialAudit,
   resolveCeremonyDial,
+  resolveCeremonyRapidStrategyPointer,
   resolveSessionCeremonyDialInputs,
   selectCeremonyColdStartDepth,
   selectCeremonyDepth,
@@ -264,6 +265,7 @@ describe("selectCeremonyDepth precedence", () => {
     expect(rapid.depth).toBe("rapid");
     expect(rapid.source).toBe("matrix");
     expect(rapid.composition.rapidStrategy).toBe(CEREMONY_RAPID_STRATEGY_POINTER);
+    expect(rapid.composition.rapidStrategy).toBe("strategies/rapid.md");
     expect(rapid.composition.minimalAgentsProfile).toBeNull();
 
     const minimal = selectCeremonyDepth({
@@ -272,6 +274,25 @@ describe("selectCeremonyDepth precedence", () => {
     expect(minimal.depth).toBe("minimal");
     expect(minimal.composition.minimalAgentsProfile).toBe(CEREMONY_MINIMAL_AGENTS_PROFILE_POINTER);
     expect(minimal.composition.rapidStrategy).toBeNull();
+  });
+
+  it("resolves rapid compose through contentRoot / flattened deposit (#4544)", () => {
+    const source = makeProject();
+    mkdirSync(join(source, "content", "strategies"), { recursive: true });
+    writeFileSync(join(source, "content", "strategies", "rapid.md"), "# Rapid\n", "utf8");
+    expect(resolveCeremonyRapidStrategyPointer(source)).toBe(
+      join(source, "content", "strategies", "rapid.md"),
+    );
+
+    const consumer = makeProject();
+    mkdirSync(join(consumer, "strategies"), { recursive: true });
+    writeFileSync(join(consumer, "strategies", "rapid.md"), "# Rapid\n", "utf8");
+    expect(resolveCeremonyRapidStrategyPointer(consumer)).toBe(
+      join(consumer, "strategies", "rapid.md"),
+    );
+    expect(resolveCeremonyRapidStrategyPointer(consumer)).not.toContain(
+      `${join("content", "strategies")}`,
+    );
   });
 
   it("rapid/minimal profiles auto-defer cold triage only (not gated readiness)", () => {

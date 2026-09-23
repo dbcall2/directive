@@ -16,7 +16,8 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 **⚠️ See also**: [strategies/interview.md](./interview.md) | [strategies/yolo.md](./yolo.md) | [strategies/README.md](./README.md) | [strategies/v0-20-contract.md](./v0-20-contract.md) | [artifact-guards.md](./artifact-guards.md)
 
-> Ship a throwaway prototype fast. Skip the PRD, skip approval gates, produce a
+> Ship a throwaway prototype fast. Skip the PRD. Skip PRD approval gates. When
+> joined from identity-only + product mutation, Phase 3 confirmation still applies (#4544). Produce a
 > date-prefixed vBRIEF in proposed/ + PROJECT-DEFINITION and start building. Suited for spikes, proof-of-concepts, and
 > disposable experiments where learning speed matters more than long-term quality.
 
@@ -39,8 +40,10 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 ! Describe the prototype goal in one sentence: what are you trying to learn or prove?
 
 - ! Record the goal in a new date-prefixed story vBRIEF written to `xbrief/proposed/YYYY-MM-DD-<kebab-slug>.xbrief.json` (e.g. as the plan title or a brief narrative in the v0.6 schema). Use today's date for the prefix and a descriptive slug.
+- ! Step 1 is not storing the live spec. Persist the live request's requirement list through Step 3 and #3267 capture after Phase 3 confirmation (#4544).
 - ~ Include a time-box if applicable (e.g. "4-hour spike")
 - ⊗ Skip this step -- even throwaway work needs a clear objective
+- ⊗ Treat Step 1's one-liner as sufficient capture of a complete first prompt (#4544)
 
 ### Step 2: Minimal Interview
 
@@ -54,13 +57,15 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 ! Before writing output artifacts, follow the guards in [artifact-guards.md](./artifact-guards.md) (Preparatory Guard for proposed/ scope items; Spec-Generating Guard for PROJECT-DEFINITION).
 
-! Write a slim story scope vBRIEF to `xbrief/proposed/YYYY-MM-DD-<kebab-slug>.xbrief.json` -- no PRD, no approval gate. Decompose the rapid plan into one or more focused, buildable story vBRIEFs (v0.6 schema) rather than a monolithic legacy spec.
+! Write a slim story scope vBRIEF to `xbrief/proposed/YYYY-MM-DD-<kebab-slug>.xbrief.json` -- no PRD, no PRD approval gate. Decompose the rapid plan into one or more focused, buildable story vBRIEFs (v0.6 schema) rather than a monolithic legacy spec.
 
 - ! Use the Light path from [interview.md](./interview.md) unconditionally
+- ! When joined from identity-only + product mutation, run after Phase 3 confirmation. Carry the live requirement list into the proposed draft and #3267 capture. Rapid Strategy Gate STOP must not skip confirmed Overview (#4544).
 - ! Mark `plan.status` as `draft` (not `approved`) to signal prototype quality
 - ! After the proposed/ vBRIEF(s) are written, invoke `task project:render` (from repo root) to generate/refresh the complete `xbrief/PROJECT-DEFINITION.xbrief.json`
+- ⊗ Auto-write `xbrief/active/` — promote and activate stay the existing verbs (#4544)
 - ~ Keep tasks coarse-grained -- 3-5 tasks is typical for a spike
-- ⊗ Generate a PRD or require approval -- rapid skips both
+- ⊗ Generate a PRD or require PRD approval -- rapid skips both. Phase 3 confirmation is not PRD approval (#4544).
 - ⊗ Hand-author `SPECIFICATION.md` directly -- it is a rendered derivative only (see v0.20 Output Shape)
 
 ! After emitting the proposed/ story vBRIEF(s), surface the GitHub-issue tracking hint from [emit-hints.md](./emit-hints.md) — name all three patterns (none / `--umbrella` / `--per-vbrief`).
@@ -108,6 +113,7 @@ Rapid lightens cold ceremony only. The **positive verification content** of the 
 - ! Capture stated shell commands at intake into `plan.acceptance.commands` (and #3267 `literal_acceptance_commands`) — do not paraphrase. Empty requires `none_stated: true` with a ladder rung (`derived` or `project_floor`).
 - ! Before done, run `task verify:ac -- <active-story-path>` (verbatim flags/cwd). Fail closed on non-zero. (`verify:literal-ac` remains the #3267 mechanism alias.)
 - ! Ceremony dial rapid/minimal = **AC-only** verification for `task check` composition (#3284): hygiene degrades away; AC never degrades when commands exist.
+- ! Under rapid, if this session changed product files and no brief exists, `deft check` reports the verify:ac soft-skip as a named warning (#4544).
 - ⊗ Treat self-chosen approximate checks as sufficient when the statement named exact commands.
 - ⊗ Skip AC because ceremony is rapid — rapid's job is to keep exactly this check.
 

@@ -476,7 +476,7 @@ describe("runSessionStart ceremony dial (#3214)", () => {
     });
     expect(result.code).toBe(0);
     expect(result.lines.join("\n")).toContain("depth=rapid");
-    expect(result.lines.join("\n")).toContain("content/strategies/rapid.md");
+    expect(result.lines.join("\n")).toContain("strategies/rapid.md");
     const dial = result.payload.ceremony_dial as {
       depth: string;
       composition: { rapidStrategy: string | null };
