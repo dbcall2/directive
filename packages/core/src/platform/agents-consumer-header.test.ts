@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  CONSUMER_HEADER_PLACEHOLDER_ONELINER,
+  compareAndSetConsumerHeaderOneLiner,
   composeGreenfieldAgentsMd,
   containsRetiredUnmanagedHeaderPatterns,
   RETIRED_UNMANAGED_HEADER_SECTIONS,
@@ -36,6 +38,52 @@ describe("agents-consumer-header", () => {
   it("does not false-positive on 'Next:' appearing mid-sentence (#2170 review)", () => {
     const prose = "See UPGRADING.md for detail. Next: run `deft triage:queue` to see the queue.";
     expect(containsRetiredUnmanagedHeaderPatterns(prose)).toBe(false);
+  });
+
+  it("compare-and-set replaces only the placeholder from confirmed Overview (#4544)", () => {
+    const managed = `${AGENTS_MANAGED_OPEN_V3_LITERAL}\n# Deft\n<!-- /deft:managed-section -->`;
+    const composed = composeGreenfieldAgentsMd(managed);
+    expect(composed).toContain(CONSUMER_HEADER_PLACEHOLDER_ONELINER);
+    const cas = compareAndSetConsumerHeaderOneLiner({
+      agentsMd: composed,
+      confirmedOverview: "A tiny CRUD app for garden notes.\n\nMore spec stays in the brief.",
+    });
+    expect(cas.changed).toBe(true);
+    expect(cas.reason).toBe("replaced-placeholder");
+    expect(cas.agentsMd).toContain("A tiny CRUD app for garden notes.");
+    expect(cas.agentsMd).not.toContain(CONSUMER_HEADER_PLACEHOLDER_ONELINER);
+    expect(cas.agentsMd).not.toContain("More spec stays in the brief.");
+  });
+
+  it("compare-and-set keeps Overview $&, $`, $', $$ literally (#4544)", () => {
+    const managed = `${AGENTS_MANAGED_OPEN_V3_LITERAL}\n# Deft\n<!-- /deft:managed-section -->`;
+    const composed = composeGreenfieldAgentsMd(managed);
+    const overview = "Garden notes cost $& $` $' $$ today.";
+    const cas = compareAndSetConsumerHeaderOneLiner({
+      agentsMd: composed,
+      confirmedOverview: overview,
+    });
+    expect(cas.changed).toBe(true);
+    expect(cas.reason).toBe("replaced-placeholder");
+    expect(cas.agentsMd).toContain(overview);
+    expect(cas.agentsMd).not.toContain(CONSUMER_HEADER_PLACEHOLDER_ONELINER);
+  });
+
+  it("compare-and-set does not interpolate a custom header or empty Overview (#4544)", () => {
+    const custom = "# Garden Notes\n\nCustom one-liner.\n\n## Session orientation\n";
+    const skipCustom = compareAndSetConsumerHeaderOneLiner({
+      agentsMd: custom,
+      confirmedOverview: "Should not land.",
+    });
+    expect(skipCustom.changed).toBe(false);
+    expect(skipCustom.reason).toBe("not-placeholder");
+    expect(skipCustom.agentsMd).toBe(custom);
+    const skipEmpty = compareAndSetConsumerHeaderOneLiner({
+      agentsMd: `${CONSUMER_HEADER_PLACEHOLDER_ONELINER}\n`,
+      confirmedOverview: "   \n",
+    });
+    expect(skipEmpty.changed).toBe(false);
+    expect(skipEmpty.reason).toBe("empty-overview");
   });
 
   it("fallback header (no template) has no extra blank line before the managed section", () => {

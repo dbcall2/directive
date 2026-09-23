@@ -507,6 +507,9 @@ const POINTER_RELOCATED_RULES: readonly PointerRuleSpec[] = [
       "%APPDATA%\\deft\\USER.md",
       "USER.md resolved",
       "#2544",
+      "identity-only",
+      "Starting-new",
+      "Rapid",
     ],
     canonicalBodyMarkers: [
       "read-only posture",
@@ -515,6 +518,12 @@ const POINTER_RELOCATED_RULES: readonly PointerRuleSpec[] = [
       "task session:start -- --read-only",
       "%APPDATA%\\deft\\USER.md",
       "USER.md resolved",
+      "identity-only",
+      "Starting-new",
+      "Rapid Step 3",
+      "#3267",
+      "session:start --prompt",
+      "contentRoot",
     ],
     retiredFullTextMarkers: [
       "Global-first ladder (prose",

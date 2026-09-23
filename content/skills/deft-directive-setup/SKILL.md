@@ -707,6 +707,7 @@ omit = [
 - ! If **Update project definition**: run a delta interview; apply Spec-Generating Guard against `./xbrief/PROJECT-DEFINITION.xbrief.json` (or legacy `./vbrief/PROJECT-DEFINITION.vbrief.json` if that is the existing identity); merge narratives (do not wholesale replace unless the user confirmed scrap)
 - ! If **Replace specification (scrap)**: require explicit `yes`/`confirmed`, then proceed to the Strategy Gate as a greenfield-style full path
 - ! If **Starting new**: proceed to the Strategy Gate below. Ask what to build before writing a scope. On identity-only, this invocation MAY skip the interview Chaining Gate (see [strategies/interview.md](../../strategies/interview.md#chaining-gate) Starting-new skip) because the identity-only default is already Proceed.
+- ! **Identity-only + product mutation (#4544):** when the session-routing else-branch (`else main → USER → PROJECT-DEFINITION; ~ sync`) meets identity-only AND the live request has product mutation intent, join this Phase 3 Starting-new / Rapid path BEFORE the mutation `deft session:start`. Process-only stays an explicit exit. ⊗ Add `session:start --prompt`.
 - ! If **Process-only (keep Phase 2 identity)**: same exit as Phase 2 option 2. Do not write a scope xBRIEF. Do not merge or scrap PROJECT-DEFINITION narratives. Skip Lifecycle Bridge, End-of-Phase-3 Export Prompt, Acceptance Gate, and build handoff. Point at session ritual / `deft check` / later Add scope. GitHub issues stay cache/queue inputs. Docs stay described content.
 - ⊗ Treat brownfield repos as "Starting new" by default
 - ⊗ Default identity-only to Add-scope because PROJECT-DEFINITION exists
@@ -733,11 +734,16 @@ omit = [
   4. ! For `research`, after the research artifact is written, surface the strategy's Then: Chaining Gate and wait for a user selection; do NOT create scope xBRIEFs from research output unless the user later chooses a spec-generating path; do NOT fall through to the interview output path after research.
   5. ! **STOP reading this section** — do NOT use the interview process below
 
+- ! When this join is Rapid (ceremony dial or Rapid strategy): Rapid Strategy Gate STOP must not skip the confirmed Overview write. Write site is Light narrative merge (`Overview` + `Architecture`) or an explicit `plan.narratives.Overview` patch before render. Confirmation stays this skill's Post-Interview Confirmation Gate.
+- ! After that confirmation: persist the live request's requirement list through Rapid Step 3 and #3267 capture onto one `xbrief/proposed/` draft. ⊗ Auto-write `xbrief/active/` — promote and activate stay the existing verbs.
+- ! Unmanaged header one-liner: placeholder-only compare-and-set from user-confirmed Overview (`compareAndSetConsumerHeaderOneLiner`). Not a prompt interpolator. Not identity source of truth.
+- ! Handback reports the actual lifecycle outcome: `proposed <path>`, Process-only, or product-write-with-no-brief as a gate anomaly.
 - ⊗ Default to interview without reading PROJECT-DEFINITION.xbrief.json
 - ⊗ Continue reading below when PROJECT-DEFINITION.xbrief.json specifies a non-interview strategy
 - ⊗ Assume interview because the sections below describe the interview process
 - ⊗ Fabricate justification for using interview when the user chose a different strategy
 - ⊗ Announce the strategy choice and then stop — you must immediately read the file and start
+- ⊗ Skip the confirmed Overview write because Rapid Strategy Gate says STOP (#4544)
 
 ---
 
@@ -968,6 +974,9 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 - ⊗ Invent a full `deft config` verb family for experimental meta when setup re-entry suffices (#46)
 - ⊗ Default identity-only Phase 3 to Add-scope because PROJECT-DEFINITION exists (#4390)
 - ⊗ Synthesize the first proposed scope from Overview, directory name, or init seed (#4390)
+- ⊗ Add `session:start --prompt` for identity-only product mutation (#4544)
+- ⊗ Auto-write `xbrief/active/` from the identity-only mutation join (#4544)
+- ⊗ Interpolate the live prompt into the unmanaged AGENTS.md header (#4544)
 - ⊗ Patch `xbrief/PROJECT-DEFINITION.xbrief.json` or the `$DEFT_PROJECT_PATH` file to store Phase 2 narratives. Use `deft project:write-narratives`.
 - ⊗ Skip emit-hints after Phase 3 writes to `xbrief/proposed/` (#4426)
 - ⊗ Agent-asserted `parent_issue` / `plan.references` at setup emission (#4426)

@@ -77,6 +77,20 @@ describe("test_strategy_outputs.py", () => {
       expect(step1).toContain("xbrief/proposed/YYYY-MM-DD-");
       expect(step1).not.toContain("specification.vbrief.json");
     });
+    it("test_identity_only_join_persists_live_spec_through_step3 (#4544)", () => {
+      expect(text).toContain("#4544");
+      expect(text).toContain("Step 1 is not storing the live spec");
+      expect(text).toContain("Step 3");
+      expect(text).toContain("#3267");
+      expect(text).toContain("xbrief/active/");
+      expect(text).toContain("named warning");
+    });
+    it("test_new_writes_use_xbriefinfo_0_8_not_v0_6 (#4544)", () => {
+      const step1 = text.split("### Step 1:")[1]?.split("### Step 2:")[0] ?? "";
+      expect(step1).toContain("xBRIEFInfo");
+      expect(step1).toContain("0.8");
+      expect(step1).not.toContain("v0.6 schema");
+    });
   });
 
   describe("TestBddVbriefOutput", () => {

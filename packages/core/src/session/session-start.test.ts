@@ -451,6 +451,31 @@ describe("runSessionStart ceremony dial (#3214)", () => {
     expect(state.ceremony_dial.depth).toBe("rapid");
   });
 
+  it("rapid compose pointer names .deft/core/strategies/rapid.md on consumers (#4544)", () => {
+    const root = tempRoot();
+    const deposit = join(root, ".deft", "core");
+    mkdirSync(join(deposit, "strategies"), { recursive: true });
+    writeFileSync(join(deposit, "strategies", "rapid.md"), "# Rapid\n", "utf8");
+    vi.stubEnv("DEFT_ROOT", "");
+    try {
+      const result = runSessionStart(root, {
+        ...baseOptions(root, () => userMdResult()),
+        ceremonyDialInputs: {
+          taskSize: "S",
+          modelTier: "frontier",
+          projectShape: "project",
+        },
+        runStalenessTickler: () => ({ lines: [], prompted: false }),
+      });
+      expect(result.code).toBe(0);
+      const joined = result.lines.join("\n");
+      expect(joined).toContain(`compose=${join(deposit, "strategies", "rapid.md")}`);
+      expect(joined).not.toContain(`compose=${join(root, "strategies", "rapid.md")}`);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("S × frontier selects rapid, skips ceremony fat path, keeps readiness", () => {
     const root = tempRoot();
     let toolsCalled = false;
@@ -476,7 +501,7 @@ describe("runSessionStart ceremony dial (#3214)", () => {
     });
     expect(result.code).toBe(0);
     expect(result.lines.join("\n")).toContain("depth=rapid");
-    expect(result.lines.join("\n")).toContain("content/strategies/rapid.md");
+    expect(result.lines.join("\n")).toContain("strategies/rapid.md");
     const dial = result.payload.ceremony_dial as {
       depth: string;
       composition: { rapidStrategy: string | null };

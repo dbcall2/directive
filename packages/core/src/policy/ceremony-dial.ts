@@ -20,6 +20,7 @@
 
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { contentRoot } from "../content-root.js";
 import { RunSummaryEmitter } from "../run-summary/emit.js";
 import { withProjectDefinitionMutation } from "../vbrief-build/project-definition-mutation.js";
 import { migrateLegacyPolicyKey, PLAN_POLICY_KEY, readPlanPolicy } from "./plan-extensions.js";
@@ -56,10 +57,15 @@ export type CeremonyModelTier = (typeof CEREMONY_MODEL_TIERS)[number];
 export const CEREMONY_PROJECT_SHAPES = ["project", "non-project"] as const;
 export type CeremonyProjectShape = (typeof CEREMONY_PROJECT_SHAPES)[number];
 
-/** Pointers for composition (not loaded as a subsystem — discovery only). */
-export const CEREMONY_RAPID_STRATEGY_POINTER = "content/strategies/rapid.md";
+/** Content-root-relative rapid strategy pointer. Join with contentRoot() (#4544). */
+export const CEREMONY_RAPID_STRATEGY_POINTER = "strategies/rapid.md";
 export const CEREMONY_MINIMAL_AGENTS_PROFILE_POINTER =
   "docs/analysis/2026-07-31-minimal-consumer-agents-profile-research.md (#3014)";
+
+/** Resolve the rapid compose pointer through contentRoot / consumer deposit. */
+export function resolveCeremonyRapidStrategyPointer(frameworkRoot: string): string {
+  return join(contentRoot(frameworkRoot), CEREMONY_RAPID_STRATEGY_POINTER);
+}
 
 export interface CeremonyDialConfig {
   /** When false, selection always returns standard (full ceremony). Default true. */
@@ -531,6 +537,8 @@ export function formatCeremonyDialStatusLine(
   selection: CeremonyDialSelection,
   extras?: {
     readonly startTierProvenance?: string;
+    /** When set, resolve rapid compose through contentRoot (#4544). */
+    readonly frameworkRoot?: string;
   },
 ): string {
   const parts = [
@@ -545,7 +553,11 @@ export function formatCeremonyDialStatusLine(
     parts.push(`provenance=${extras.startTierProvenance}`);
   }
   if (selection.composition.rapidStrategy) {
-    parts.push(`compose=${selection.composition.rapidStrategy}`);
+    const composed =
+      extras?.frameworkRoot !== undefined
+        ? resolveCeremonyRapidStrategyPointer(extras.frameworkRoot)
+        : selection.composition.rapidStrategy;
+    parts.push(`compose=${composed}`);
   }
   if (selection.composition.minimalAgentsProfile) {
     parts.push(`compose=${selection.composition.minimalAgentsProfile}`);

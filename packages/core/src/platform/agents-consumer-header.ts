@@ -14,6 +14,56 @@ const RETIRED_NEXT_LABEL_PATTERN = /(^|\n)\s*Next:/;
 
 const CONSUMER_HEADER_TEMPLATE = "templates/agents-consumer-header.md";
 
+/** Placeholder one-liner shipped by composeGreenfieldAgentsMd (#2065 / #4544). */
+export const CONSUMER_HEADER_PLACEHOLDER_ONELINER = "One-line project description (edit me).";
+
+export type HeaderOneLinerCasReason =
+  | "replaced-placeholder"
+  | "not-placeholder"
+  | "empty-overview"
+  | "already-matches";
+
+/** First non-empty line of confirmed Overview. Not a live-prompt interpolator. */
+export function oneLinerFromConfirmedOverview(overview: string): string {
+  for (const raw of overview.replace(/\r\n/g, "\n").split("\n")) {
+    const line = raw.trim().replace(/^#+\s*/, "");
+    if (line.length > 0) return line;
+  }
+  return "";
+}
+
+/**
+ * Placeholder-only compare-and-set of the unmanaged AGENTS.md one-liner from
+ * user-confirmed Overview. Leaves a custom header untouched. Overview is not
+ * identity source of truth (#4544).
+ */
+export function compareAndSetConsumerHeaderOneLiner(input: {
+  readonly agentsMd: string;
+  readonly confirmedOverview: string;
+}): {
+  readonly agentsMd: string;
+  readonly changed: boolean;
+  readonly reason: HeaderOneLinerCasReason;
+} {
+  const oneLiner = oneLinerFromConfirmedOverview(input.confirmedOverview);
+  if (oneLiner.length === 0) {
+    return { agentsMd: input.agentsMd, changed: false, reason: "empty-overview" };
+  }
+  const normalized = input.agentsMd.replace(/\r\n/g, "\n");
+  if (!normalized.includes(CONSUMER_HEADER_PLACEHOLDER_ONELINER)) {
+    return { agentsMd: input.agentsMd, changed: false, reason: "not-placeholder" };
+  }
+  if (oneLiner === CONSUMER_HEADER_PLACEHOLDER_ONELINER) {
+    return { agentsMd: input.agentsMd, changed: false, reason: "already-matches" };
+  }
+  // Function replacer: string replacement expands $&, $`, $', $$ in Overview.
+  return {
+    agentsMd: normalized.replace(CONSUMER_HEADER_PLACEHOLDER_ONELINER, () => oneLiner),
+    changed: true,
+    reason: "replaced-placeholder",
+  };
+}
+
 export interface ConsumerHeaderSeams {
   readonly frameworkRoot?: string;
   readonly readTemplate?: () => string | null;
@@ -38,7 +88,7 @@ export function renderConsumerHeader(seams: ConsumerHeaderSeams = {}): string {
     return [
       "# Project",
       "",
-      "One-line project description (edit me).",
+      CONSUMER_HEADER_PLACEHOLDER_ONELINER,
       "",
       "## Session orientation",
       "",
