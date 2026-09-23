@@ -20,6 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+### Removed
+
+## [0.119.8] - 2026-09-23
+
+> CLI package version (#4766), durable grant readiness (#4950), finalize the given brief (#4937), clean MERGE-READY (#4883), and spaced Windows argv (#4772)
+
+### Added
+
+### Changed
+
+### Fixed
+
 - **verify:story-ready reads the durable one-PR-unit store (#4950).** The ordinary readiness path uses the same absolute store as human mint. A relative path, the forbidden `.deft/one-pr-unit` path, a failed directory create, and an unreadable or malformed claims file are configuration failures, not a request to mint again. A directory with no claims file, including one this check just created, stays a missing grant. Tracking #4950.
 - **`directive --version` names the installed CLI package and the engine (#4766).** The first version number is still the engine, so identity probes keep seeing core. Tracking #4766.
 - **Dirty or unreadable `directive update --json` no longer lists planned dest files as writes (#4773).** A refuse before writes now reports empty mutation keys. The dest plan still runs before the Git gate so a dirty tree is still refused. Successful dry-run dest-plan JSON is unchanged. Tracking #4773.
@@ -6459,7 +6471,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.119.7...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.119.8...HEAD
+[0.119.8]: https://github.com/deftai/directive/compare/v0.119.7...v0.119.8
 [0.119.7]: https://github.com/deftai/directive/compare/v0.119.6...v0.119.7
 [0.119.6]: https://github.com/deftai/directive/compare/v0.119.5...v0.119.6
 [0.119.5]: https://github.com/deftai/directive/compare/v0.119.4...v0.119.5

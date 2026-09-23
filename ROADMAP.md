@@ -40,8 +40,20 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1602 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1614 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4950** -- BLOCKER: one-PR-unit story-readiness cannot resolve durable grants (0.119.7) -- `[completed]`
+- **#4937** -- bug(swarm): through-merge should complete the xbrief for the issue it was given -- `[completed]`
+- **#4665** -- [UAT Tester 1] session:start fatal on repo with no commits; first commit blocked on main -- `[completed]`
+- **#4886** -- Default doctor stays UNRESOLVED after init while doctor --full says proceed -- `[completed]`
+- **#4668** -- [UAT Tester 1] Setup asks user to re-provide interview answers after saying not to repeat the interview -- `[completed]`
+- **#4772** -- [UAT Tester 4] Windows paths containing spaces break Directive gates and Taskfile wrappers -- `[completed]`
+- **#4866** -- deft check rapid mode exits 0 on a 0-verified acceptance walk -- `[completed]`
+- **#4867** -- Clause derivation uses plan-item titles and ignores narratives.AcceptanceCriteria -- `[completed]`
+- **#4883** -- pr:merge-ready prints MERGE-READY while GitHub mergeable is CONFLICTING -- `[completed]`
+- **#4755** -- directive doctor: help promises "one next step" but resolution is "proceed" and warning contains two commands -- `[completed]`
+- **#4663** -- [UAT Tester 1] Setup cannot write PROJECT-DEFINITION: requirements posture vs mutation needing an active xBRIEF -- `[completed]`
+- **#4656** -- [UAT Tester 1] directive init first-run output is unusable (many next actions, maintainer dump) -- `[completed]`
 - **#4917** -- bug(release): adoption-blocker punch list must not block a tag -- `[completed]`
 - **#4906** -- bug(lifecycle): a leftover active brief cannot be deleted once its completed twin is already on the base -- `[completed]`
 - **#4907** -- bug(test): Windows release Step 5 dies on symlink and illegal-filename fixtures -- `[completed]`
@@ -55,16 +67,4 @@ _Showing 25 of 1602 completed scopes (newest first). Full history: lifecycle `co
 - **#4839** -- swarm:finalize-cohort --dry-run reports FINALIZE CLEAN for a cohort that fails closed on #3240 acceptance evidence -- `[completed]`
 - **#4812** -- migrate/update/doctor chain: VERSION.bak in .deft/core fails deposit hygiene, update's prune silently no-ops, doctor omits the failure from its summary -- `[completed]`
 - **#4811** -- bug(design-critique): yolo standing still next-envelopes after an all-accept successor lean when Stop 1 pain is uncited -- `[completed]`
-- **#4702** -- UAT Tester 6: verify:ac rejects python -m pytest on a Python project -- `[completed]`
-- **#4824** -- leftover(#167): Tracking/Refs merge plus xBRIEF complete can leave GitHub issues open -- `[completed]`
-- **#4822** -- leftover(#4821,#4820): wait-merge must not swallow the pr:watch babysit wait -- `[completed]`
-- **#4821** -- leftover(#4529): Grok parent-retained review must not skip dest review-cycle worker -- `[completed]`
-- **#4765** -- leftover(#4749): unenumerated residual 20 of the xbrief:validate exit-code pain -- `[completed]`
-- **#4511** -- bug(spec:render): renders only depth-1 of plan.items, discarding the phase/subphase/task tree make-spec.md mandates (+5 presentation defects) -- `[completed]`
-- **#4813** -- BLOCKER: intent-constraint validates the wrong diff in main/develop consumers -- `[completed]`
-- **#4163** -- [framework-gap] migrate:xbrief no-ops dual-envelope files that the 0.111 commit gate rejects -- `[completed]`
-- **#4129** -- [framework-gap] Detect a current ordered-plan entry whose lifecycle entity is already terminal -- `[completed]`
-- **#4801** -- bug(release): Step 5 hang detector is suite-only; hung non-suite gates never 124 -- `[completed]`
-- **#4798** -- bug(release): v0.119.4 Windows Step 5 exceeded 20m hang detector after leftover-complete #4744 -- `[completed]`
-- **#4796** -- rfc(swarm,ux): Gap D parent-chat interactivity is not first-class on Grok Build — harness matrix + workaround evidence -- `[completed]`
 
