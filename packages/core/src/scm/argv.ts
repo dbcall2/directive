@@ -37,6 +37,21 @@ export function extractValueFlag(
   return [value, out];
 }
 
+/**
+ * Peek `--repo` / `-R` from pass-through argv without requiring a checkout.
+ * Prefers `--repo` over `-R`. Compact `-Rowner/repo` is not parsed.
+ */
+export function peekRepoFlag(argv: readonly string[]): string | undefined {
+  const [fromRepo] = extractValueFlag(argv, "--repo");
+  const repo = fromRepo?.trim() ?? "";
+  if (repo.length > 0) {
+    return repo;
+  }
+  const [fromR] = extractValueFlag(argv, "-R");
+  const short = fromR?.trim() ?? "";
+  return short.length > 0 ? short : undefined;
+}
+
 /** Project `obj` (dict or list[dict]) onto `fields`. */
 export function filterJsonFields(obj: unknown, fields: readonly string[]): unknown {
   if (fields.length === 0) {

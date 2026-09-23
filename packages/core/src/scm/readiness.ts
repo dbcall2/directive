@@ -16,7 +16,9 @@
  *
  * Hot-path rule (#2991): the default "shallow" probe is local-only (PATH +
  * env token presence + optional short `gh auth status`). Deep API validation
- * is opt-in via `deep: true` (session:start --with-network).
+ * is opt-in via `depth: "deep"` (session:start --with-network, `scm:status
+ * --deep`). `requireScmReady` on `scm issue *`, `issue:ingest`, and
+ * `reconcile:issues` requests deep for the #3858 credential-class ban.
  */
 
 import { spawnSync } from "node:child_process";
@@ -52,7 +54,11 @@ interface CompletedProcess {
   readonly stderr: string;
 }
 
-/** Named SCM-dependent surfaces that need gh/ghx + auth (#2275). */
+/**
+ * Diagnostic skip-list of surfaces that will not work when SCM is not ready
+ * (#2275). This is not the set of verbs the #3858 credential-class ban
+ * authorizes (`scm issue *`, `issue:ingest`, `reconcile:issues`).
+ */
 export const SCM_DEPENDENT_GATES = [
   "triage:queue",
   "triage:welcome (network hydrate)",
@@ -510,29 +516,49 @@ export function assertScmBinaryPresent(whichFn: WhichFn = defaultWhich): ScmBina
 }
 
 /**
- * Fail-loud gate for SCM-dependent verbs (#2275).
- * Throws ScmStubError when binary is absent or auth is not ready so agents
- * never fall through into opaque gh spawn/auth-prompt failures.
+ * Fail-loud gate for `scm issue *`, `issue:ingest`, and `reconcile:issues`
+ * (#2275 / #3858). Throws ScmStubError when binary is absent or auth is not
+ * ready so agents never fall through into opaque gh spawn/auth-prompt failures.
  *
- * Process-scoped cache: the first successful probe is reused for the rest of
- * the process so hot call paths do not re-run `gh auth status` every time.
- * Pass `force: true` to re-probe (tests / after credential injection).
+ * Those three callers request `depth: "deep"` so `validateGithubAuthForWorker`
+ * runs the installation-class `/user` check. Cost: two extra REST calls and
+ * up to 60 s added worst-case latency per gated process. Transient API
+ * failure refuses the verb (same posture as #3422). This is a credential-class
+ * ban: any user-bearing login is acceptable when no expected principal is
+ * supplied. The repo GET does not authorize the operation.
+ *
+ * Process-scoped cache: a successful report is reused only when it covers the
+ * requested authorization depth. A cached shallow-ready report does not
+ * satisfy a later principal/deep request. Pass `force: true` to re-probe
+ * (tests / after credential injection).
  */
 let cachedReadyReport: ScmReadinessReport | null = null;
+
+function cachedReportCoversRequestedDepth(
+  cached: ScmReadinessReport,
+  requestedDepth: ScmProbeDepth,
+): boolean {
+  if (requestedDepth === "deep") {
+    return cached.depth === "deep";
+  }
+  return true;
+}
 
 export function requireScmReady(
   options: ProbeScmReadinessOptions & { force?: boolean } = {},
 ): ScmReadinessReport {
-  if (!options.force && cachedReadyReport !== null && cachedReadyReport.ready) {
+  const requestedDepth: ScmProbeDepth = options.depth ?? "shallow";
+  if (
+    !options.force &&
+    cachedReadyReport !== null &&
+    cachedReportCoversRequestedDepth(cachedReadyReport, requestedDepth)
+  ) {
     return cachedReadyReport;
   }
-  // Hermetic unit tests (vitest) and DEFT_SCM_SKIP_AUTH_PROBE only require
-  // binary presence so CI cloud-headless without injected tokens can exercise
-  // CLI argv/REST seams. Production agents get full shallow auth probing.
-  // Session-start / scm:status always report full auth state regardless.
-  const hermeticAuthSkip =
-    options.checkAuthStatus === undefined &&
-    (process.env.VITEST === "true" || process.env.DEFT_SCM_SKIP_AUTH_PROBE === "1");
+  // Hermetic unit tests (VITEST) only require binary presence so CI
+  // cloud-headless without injected tokens can exercise CLI argv/REST seams.
+  // DEFT_SCM_SKIP_AUTH_PROBE does not skip production probes.
+  const hermeticAuthSkip = options.checkAuthStatus === undefined && process.env.VITEST === "true";
   if (hermeticAuthSkip) {
     // Production path uses assertScmBinaryPresent (not test-only).
     const binary = assertScmBinaryPresent(options.whichFn);

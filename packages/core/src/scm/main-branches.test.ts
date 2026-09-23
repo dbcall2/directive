@@ -6,6 +6,7 @@ vi.mock("node:child_process", () => ({
   spawnSync: (...args: unknown[]) => spawnSyncMock(...args),
 }));
 
+import { peekRepoFlag } from "./argv.js";
 import * as buildCommand from "./build-command.js";
 import { ScmStubError } from "./errors.js";
 import { main } from "./main.js";
@@ -111,6 +112,11 @@ describe("main non-rest branches", () => {
     vi.spyOn(buildCommand, "buildCommand").mockReturnValue(["/usr/bin/gh", "issue", "view", "1"]);
     spawnSyncMock.mockReturnValue({ status: null });
     expect(main(["issue", "view", "1"], { skipReadiness: true })).toBe(1);
+  });
+
+  it("parses --repo other than origin from pass-through extra (#3858)", () => {
+    expect(peekRepoFlag(["view", "12", "--repo", "other/thing"])).toBe("other/thing");
+    expect(peekRepoFlag(["view", "12", "-R", "other/thing"])).toBe("other/thing");
   });
 });
 

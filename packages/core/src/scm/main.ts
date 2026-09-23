@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import type { LabelClient } from "../vbrief-reconcile/types.js";
-import { extractFlag } from "./argv.js";
+import { extractFlag, peekRepoFlag } from "./argv.js";
 import { buildCommand } from "./build-command.js";
 import { REST_OPT_IN_VERBS } from "./constants.js";
 import { DESIGN_CRITIQUE_CHIP_VERB, runDesignCritiqueChip } from "./design-critique-chip.js";
@@ -26,12 +26,19 @@ export interface MainOptions {
 }
 
 /**
- * #2275 fail-loud gate after argv validation, before network/binary work.
+ * #2275 / #3858 fail-loud credential-class gate after argv validation,
+ * before network/binary work. Parses `--repo` / `-R` from pass-through
+ * extra so a non-checkout explicit repo reaches the validator.
  */
-function guardScmReady(options: MainOptions): number | null {
+function guardScmReady(options: MainOptions, extra: readonly string[] = []): number | null {
   if (options.skipReadiness) return null;
   try {
-    requireScmReady({ whichFn: options.whichFn });
+    requireScmReady({
+      whichFn: options.whichFn,
+      depth: "deep",
+      repo: peekRepoFlag(extra),
+      expectedPrincipal: null,
+    });
     return null;
   } catch (err: unknown) {
     if (err instanceof ScmStubError) {
@@ -61,7 +68,7 @@ export function main(argv: readonly string[], options: MainOptions = {}): number
   let extra = argv.slice(2);
 
   if (namespace === "issue" && verb === DESIGN_CRITIQUE_CHIP_VERB) {
-    const blocked = guardScmReady(options);
+    const blocked = guardScmReady(options, extra);
     if (blocked !== null) return blocked;
     const result = runDesignCritiqueChip(extra, { client: options.labelClient });
     if (result.stdout.length > 0) {
@@ -74,7 +81,7 @@ export function main(argv: readonly string[], options: MainOptions = {}): number
   }
 
   if (namespace === "issue" && verb === WORK_CLAIM_VERB) {
-    const blocked = guardScmReady(options);
+    const blocked = guardScmReady(options, extra);
     if (blocked !== null) return blocked;
     const result = runWorkClaim(extra, {
       client: options.labelClient,
@@ -106,8 +113,8 @@ export function main(argv: readonly string[], options: MainOptions = {}): number
       );
       return 2;
     }
-    // Argv-valid REST path: still fail loud when SCM is unusable (#2275).
-    const blocked = guardScmReady(options);
+    // Argv-valid REST path: still fail loud when SCM is unusable (#2275 / #3858).
+    const blocked = guardScmReady(options, extra);
     if (blocked !== null) return blocked;
     const seams: GhRestSeams = {
       whichFn: options.whichFn,
@@ -126,7 +133,7 @@ export function main(argv: readonly string[], options: MainOptions = {}): number
   try {
     // Build/validate argv first so unknown namespace errors surface before readiness.
     const cmd = buildCommand(namespace, verb, extra, { whichFn: options.whichFn });
-    const blocked = guardScmReady(options);
+    const blocked = guardScmReady(options, extra);
     if (blocked !== null) return blocked;
     const binary = cmd[0];
     if (binary === undefined) {
