@@ -6,7 +6,7 @@ import {
   emitBypassWarning,
   emitVerifyJson,
   formatCacheFreshDeferSoftPath,
-  formatRitualRecoveryInstruction,
+  occupancyAwareDenialMessage,
   type VerifyResult,
   verifySessionRitual,
 } from "@deftai/directive-core/session";
@@ -138,8 +138,10 @@ export function run(argv: string[], deps: VerifySessionRitualRunDeps = {}): numb
       process.stdout.write(`${result.message}\n`);
     }
   } else if (result.code === 1) {
-    const recovery = formatRitualRecoveryInstruction(result.recoveryTier ?? "cold");
-    const lines = [result.message, recovery];
+    const recoveryTier = result.recoveryTier ?? "cold";
+    const lines = [
+      occupancyAwareDenialMessage(projectRoot, result.message, { env: process.env }, recoveryTier),
+    ];
     if (isCacheFreshFailureMessage(result.message)) {
       lines.push(formatCacheFreshDeferSoftPath());
     }

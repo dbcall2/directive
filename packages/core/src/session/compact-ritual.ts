@@ -70,8 +70,11 @@ export const SOFT_AGENTS_REBIND_CHECKLIST = [
       "Mutation vs read-only: read-only / advisory / pure orientation → soft " +
       "checklist only (do not force full cold session:start). Mutation intent " +
       "(writes, implement, start-of-story) → soft checklist plus hard re-arm " +
-      "where the host supports it (session:ready / session:start --rearm or cold) " +
-      "before gated tools. Soft never authorizes skipping the mutation ritual for writes.",
+      "where the host supports it (session:ready / session:start --rearm or cold, " +
+      "only when occupancy would admit that ceremony) before gated tools. Soft never " +
+      "authorizes skipping the mutation ritual for writes. Dedicated Write/Edit and " +
+      "recognized in-repository shell forms are gated; unrecognized shell forms remain " +
+      "outside that coverage.",
   },
 ] as const;
 

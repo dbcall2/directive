@@ -918,6 +918,45 @@ function primaryCheckoutHasLiveSiblingLease(projectRoot: string, now: Date): boo
   );
 }
 
+/**
+ * Whether an ordinary mutation claim on this tree would hit the #4445 sibling
+ * fence. Same-owner heartbeat and the trusted argv exception still admit.
+ * Preview (`write: false`) uses this same predicate so it cannot report
+ * success for an operation persist would refuse (#4290).
+ */
+function primaryCheckoutClaimBlocked(
+  projectRoot: string,
+  incoming: string,
+  now: Date,
+  exception: string | undefined,
+  live: OccupancyRecord | null,
+): boolean {
+  if (isPrimaryClaimException(exception)) return false;
+  if (live !== null && live.sessionId === incoming) return false;
+  return primaryCheckoutHasLiveSiblingLease(projectRoot, now);
+}
+
+export function formatPrimaryClaimRefusalMessage(incoming: string): string {
+  const presented =
+    incoming.trim().length > 0
+      ? ` This process presented session ${incoming}. Tree/HEAD continuity does not establish operator identity.`
+      : " Tree/HEAD continuity does not establish operator identity.";
+  const exceptionCmd = commandSessionId(incoming, "<same-session-id>");
+  const sessionFlag =
+    incoming.trim().length > 0 && SHELL_SAFE_SESSION_ID.test(incoming)
+      ? ` --session-id=${exceptionCmd}`
+      : " --session-id=<same-session-id>";
+  return (
+    "occupancy refuses a mutation claim on the primary checkout. Spawned mutating work " +
+    "takes a linked worktree. Primary occupancy is the exception " +
+    `(${PRIMARY_CLAIM_EXCEPTIONS.join(", ")}) from a trusted producer.` +
+    presented +
+    ` Run \`deft session:start --primary-claim-exception=operator-default-branch${sessionFlag}\` ` +
+    "from a trusted producer (CLI argv). Use another worktree and claim that tree with the " +
+    "same actor identity. `--read-only` never claims."
+  );
+}
+
 function primaryClaimRefusal(
   projectRoot: string,
   incoming: string,
@@ -928,12 +967,154 @@ function primaryClaimRefusal(
     sessionId: incoming,
     record: readOccupancy(projectRoot),
     path,
-    message:
-      "occupancy refuses a mutation claim on the primary checkout. Spawned mutating work " +
-      "takes a linked worktree. Primary occupancy is the exception " +
-      `(${PRIMARY_CLAIM_EXCEPTIONS.join(", ")}) from a trusted producer. ` +
-      "Run `deft session:start --primary-claim-exception=operator-default-branch`. Use another worktree. `--read-only` never claims.",
+    message: formatPrimaryClaimRefusalMessage(incoming),
     code: 1,
+  };
+}
+
+/** Occupancy relation the stale-ritual recovery must name (#4290). */
+export const OCCUPANCY_CEREMONY_CASES = [
+  "absent",
+  "live-same-owner",
+  "heartbeat-expired-residue",
+  "age-capped-residue",
+  "live-foreign-owner",
+  "granted-member",
+  "inherited-child",
+  "restricted-primary",
+  "refuse-mint",
+] as const;
+export type OccupancyCeremonyCase = (typeof OCCUPANCY_CEREMONY_CASES)[number];
+
+export interface OccupancyCeremonyEligibility {
+  readonly admitCeremony: boolean;
+  readonly occupancyCase: OccupancyCeremonyCase;
+  readonly sessionId: string;
+  readonly occupantId: string | null;
+  readonly restrictedPrimary: boolean;
+  readonly denialMessage: string | null;
+}
+
+/**
+ * Side-effect-free eligibility for the occupancy step of session:start /
+ * session:ready. Matches persist, including the sibling-lease primary fence.
+ */
+export function evaluateOccupancyCeremonyEligibility(
+  projectRoot: string,
+  input: ApplyOccupancyInput = {},
+): OccupancyCeremonyEligibility {
+  const now = input.now ?? new Date();
+  const claim = resolveOccupancySessionClaim(input);
+  if (claim.status === "refuse-mint") {
+    return {
+      admitCeremony: false,
+      occupancyCase: "refuse-mint",
+      sessionId: "",
+      occupantId: readOccupancy(projectRoot)?.sessionId ?? null,
+      restrictedPrimary: false,
+      denialMessage: claim.message,
+    };
+  }
+  const incoming = claim.sessionId;
+  const existing = readOccupancy(projectRoot);
+  const stored =
+    existing !== null && occupancyWorktreeMatches(existing.worktreePath, projectRoot)
+      ? existing
+      : null;
+  const live = liveOccupancyOnTree(projectRoot, existing, now);
+  const restrictedPrimary = primaryCheckoutClaimBlocked(
+    projectRoot,
+    incoming,
+    now,
+    input.primaryClaimException,
+    live,
+  );
+  if (live !== null && isOwnInheritedPresentation(live.sessionId, incoming)) {
+    return {
+      admitCeremony: false,
+      occupancyCase: "inherited-child",
+      sessionId: incoming,
+      occupantId: live.sessionId,
+      restrictedPrimary,
+      denialMessage: formatOccupancyRemediation(live, now, incoming, input.env),
+    };
+  }
+  if (live !== null) {
+    const admission = occupancyAdmission(live, incoming, now);
+    if (admission === "member") {
+      const grant = occupancyGrantFor(live, incoming, now);
+      const memberText =
+        grant === null
+          ? formatOccupancyRemediation(live, now, incoming, input.env)
+          : formatOccupancyMemberAdministrationRefusal(live, grant, "session:start");
+      return {
+        admitCeremony: false,
+        occupancyCase: "granted-member",
+        sessionId: incoming,
+        occupantId: live.sessionId,
+        restrictedPrimary,
+        denialMessage: `${memberText} A member's write permission does not authorize an owner claim.`,
+      };
+    }
+    if (live.sessionId !== incoming) {
+      return {
+        admitCeremony: false,
+        occupancyCase: "live-foreign-owner",
+        sessionId: incoming,
+        occupantId: live.sessionId,
+        restrictedPrimary,
+        denialMessage: formatOccupancyRemediation(live, now, incoming, input.env),
+      };
+    }
+    return {
+      admitCeremony: true,
+      occupancyCase: "live-same-owner",
+      sessionId: incoming,
+      occupantId: live.sessionId,
+      restrictedPrimary: false,
+      denialMessage: null,
+    };
+  }
+  if (restrictedPrimary) {
+    return {
+      admitCeremony: false,
+      occupancyCase: "restricted-primary",
+      sessionId: incoming,
+      occupantId: stored?.sessionId ?? null,
+      restrictedPrimary: true,
+      denialMessage: formatPrimaryClaimRefusalMessage(incoming),
+    };
+  }
+  if (stored !== null) {
+    const liveness = occupancyLiveness(stored, now);
+    if (liveness === "age-capped") {
+      return {
+        admitCeremony: true,
+        occupancyCase: "age-capped-residue",
+        sessionId: incoming,
+        occupantId: stored.sessionId,
+        restrictedPrimary: false,
+        denialMessage: null,
+      };
+    }
+    if (liveness === "heartbeat-stale") {
+      return {
+        admitCeremony: true,
+        occupancyCase: "heartbeat-expired-residue",
+        sessionId: incoming,
+        occupantId: stored.sessionId,
+        restrictedPrimary: false,
+        denialMessage: null,
+      };
+    }
+  }
+  return {
+    admitCeremony: true,
+    occupancyCase: "absent",
+    sessionId: incoming,
+    occupantId: null,
+    restrictedPrimary: false,
+    denialMessage: null,
   };
 }
 
@@ -951,17 +1132,20 @@ export function applyWorktreeOccupancy(
   const incoming = claim.sessionId;
   const existing = readOccupancy(projectRoot);
   const live = liveOccupancyOnTree(projectRoot, existing, now);
-  const primaryBlocked =
-    input.write !== false &&
-    primaryCheckoutHasLiveSiblingLease(projectRoot, now) &&
-    !isPrimaryClaimException(input.primaryClaimException);
+  const primaryBlocked = primaryCheckoutClaimBlocked(
+    projectRoot,
+    incoming,
+    now,
+    input.primaryClaimException,
+    live,
+  );
 
   if (input.steal === true) {
     if (primaryBlocked) return primaryClaimRefusal(projectRoot, incoming, path);
     return stealOccupancy(projectRoot, { ...input, sessionId: incoming, now });
   }
 
-  if (primaryBlocked && (live === null || live.sessionId !== incoming)) {
+  if (primaryBlocked) {
     return primaryClaimRefusal(projectRoot, incoming, path);
   }
 
@@ -998,6 +1182,17 @@ export function applyWorktreeOccupancy(
     (fence) => {
       const existingLocked = readOccupancy(projectRoot);
       const liveLocked = liveOccupancyOnTree(projectRoot, existingLocked, now);
+      if (
+        primaryCheckoutClaimBlocked(
+          projectRoot,
+          incoming,
+          now,
+          input.primaryClaimException,
+          liveLocked,
+        )
+      ) {
+        return primaryClaimRefusal(projectRoot, incoming, path);
+      }
       if (liveLocked !== null && liveLocked.sessionId !== incoming) {
         return {
           action: "denied" as const,
@@ -1096,9 +1291,13 @@ export function stealOccupancy(
   if (claim.status === "refuse-mint") return occupancyMintRefusalDecision(projectRoot, claim);
   const incoming = claim.sessionId;
   if (
-    input.write !== false &&
-    primaryCheckoutHasLiveSiblingLease(projectRoot, now) &&
-    !isPrimaryClaimException(input.primaryClaimException)
+    primaryCheckoutClaimBlocked(
+      projectRoot,
+      incoming,
+      now,
+      input.primaryClaimException,
+      liveOccupancyOnTree(projectRoot, readOccupancy(projectRoot), now),
+    )
   ) {
     return primaryClaimRefusal(projectRoot, incoming, path);
   }
@@ -1177,6 +1376,17 @@ export function stealOccupancy(
     (fence) => {
       const existingLocked = readOccupancy(projectRoot);
       const liveLocked = liveOccupancyOnTree(projectRoot, existingLocked, now);
+      if (
+        primaryCheckoutClaimBlocked(
+          projectRoot,
+          incoming,
+          now,
+          input.primaryClaimException,
+          liveLocked,
+        )
+      ) {
+        return primaryClaimRefusal(projectRoot, incoming, path);
+      }
       const lockedStealerGrant =
         liveLocked === null ? null : occupancyGrantFor(liveLocked, incoming, now);
       if (liveLocked !== null && lockedStealerGrant !== null) {
