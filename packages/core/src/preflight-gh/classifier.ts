@@ -377,8 +377,10 @@ function hasBulkDefaultUpdate(pushArgs: readonly string[]): boolean {
 
 function destRefspecs(pushArgs: readonly string[]): string[] {
   const positionals = collectPositionals(pushArgs, GIT_PUSH_VALUE_OPTS);
-  // `--repo` already named the remote, so every positional is a dest refspec.
-  if (repoFromPushArgs(pushArgs) !== null) {
+  // One positional with `--repo` is the dest (`git push --repo=origin master`).
+  // Two or more positionals: the first is the repository and overrides `--repo`
+  // (`git push --repo=backup main feat/x`).
+  if (repoFromPushArgs(pushArgs) !== null && positionals.length <= 1) {
     return positionals;
   }
   return positionals.slice(1);
@@ -598,6 +600,7 @@ export const SELF_TEST_CASES: readonly Fixture[] = [
   ["git push --repo=origin --all", "push_default"],
   ["git push --force --repo=origin master", "force_push_default"],
   ["git push --repo=origin feat/my-branch", null],
+  ["git push --repo=backup main feat/x", null],
   ["gh pr create --title Test --body foo", null],
 ] as const;
 

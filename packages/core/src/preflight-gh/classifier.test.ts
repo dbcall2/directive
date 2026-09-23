@@ -243,6 +243,11 @@ describe("classifyCommand -- push_default two-surface settlement", () => {
     const v = classifyCommand("git push --repo=origin feat/my-branch");
     expect(v.allowed).toBe(true);
   });
+
+  it("allows git push --repo=backup main feat/x when main is the remote", () => {
+    const v = classifyCommand("git push --repo=backup main feat/x");
+    expect(v.allowed).toBe(true);
+  });
 });
 
 describe("classifyCommand -- allowed (negatives)", () => {
