@@ -1273,17 +1273,13 @@ function emitGitRefusal(
   projectDir: string,
   classification: UpdateClassification | null,
   decision: { error_code?: string; message?: string; preflight: UpdateGitPreflight },
-  destMutations: MutationSummary,
   dryRun: boolean,
 ): number {
   const message = decision.message ?? "directive update: Git preflight refused";
   io.printf(`${message}\n`);
   printMeasuredDirt(io, decision.preflight);
-  const reported = dryRun
-    ? omitReportedDeletesStillPresent(destMutations, (rel) => existsSync(join(projectDir, rel)))
-        .summary
-    : destMutations;
   if (options.jsonOut) {
+    // #4773: dest-plan is not applied writes; refuse JSON keeps empty mutations.
     options.writeOut(
       `${JSON.stringify(
         {
@@ -1296,7 +1292,7 @@ function emitGitRefusal(
           ...gitPreflightJsonFields(decision.preflight),
           ...(options.allowDirtyNoStage === true ? { allow_dirty_no_stage: true } : {}),
           ...(dryRun ? { dry_run: true } : {}),
-          mutations: mutationSummaryJson(reported),
+          mutations: mutationSummaryJson(emptyMutationSummary()),
         },
         null,
         2,
@@ -1475,7 +1471,6 @@ export async function runRefreshDepositCli(options: RunRefreshDepositCliOptions)
         projectDir,
         classification,
         decision,
-        destMutations,
         options.dryRun === true,
       );
     }

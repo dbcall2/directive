@@ -20,7 +20,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { evaluateLiveProcedureTargets } from "../deposit/live-procedure-targets.js";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
 import { runChecksImpl } from "../doctor/checks.js";
-import { emptyMutationSummary, runInPortRecordMode } from "../fs/mutation-ledger.js";
+import {
+  emptyMutationSummary,
+  mutationSummaryJson,
+  runInPortRecordMode,
+} from "../fs/mutation-ledger.js";
 import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
 import type { ClassifySeams } from "../resolution/index.js";
 import type { AgentHookReadinessResult } from "../verify-env/agent-hook-readiness.js";
@@ -2318,6 +2322,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
       execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: project, encoding: "utf8" }),
     ).toBe(beforeCached);
     expect(err.join("")).toMatch(/working tree is dirty/);
+    expect(payload.mutations).toEqual(mutationSummaryJson(emptyMutationSummary()));
   });
 
   it("dry-run JSON carries measured dirty_tree/dirty_files without writing (#4158)", async () => {
@@ -2352,6 +2357,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(payload.dirty_tree).toBe(true);
     expect(payload.dirty_files).toEqual(["scratch.txt"]);
     expect(payload).not.toHaveProperty("update_state", "dirty");
+    expect(payload.mutations).toEqual(mutationSummaryJson(emptyMutationSummary()));
   });
 
   it(
@@ -2439,6 +2445,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(payload.error_code).toBe("unreadable_repo");
     expect(payload.allow_dirty_no_stage).toBe(true);
     expect(readFileSync(join(project, ".deft", "core", "VERSION"), "utf8")).toBe(beforeVersion);
+    expect(payload.mutations).toEqual(mutationSummaryJson(emptyMutationSummary()));
   });
 
   it("alreadyCurrent dirty still preflights and refuses (#4158)", async () => {
@@ -2472,6 +2479,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(payload.error_code).toBe("dirty_tree");
     expect(payload.update_state).toBe("current");
     expect(readFileSync(join(project, ".deft", "core", "VERSION"), "utf8")).toBe(beforeVersion);
+    expect(payload.mutations).toEqual(mutationSummaryJson(emptyMutationSummary()));
   });
 
   it("includes tree-replace and prune mutations in the refresh snapshot (#3392 residual)", async () => {

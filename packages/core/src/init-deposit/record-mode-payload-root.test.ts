@@ -13,7 +13,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
-import { runInPortRecordMode } from "../fs/mutation-ledger.js";
+import {
+  emptyMutationSummary,
+  mutationSummaryJson,
+  runInPortRecordMode,
+} from "../fs/mutation-ledger.js";
 import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
 import type { ClassifySeams } from "../resolution/index.js";
 import {
@@ -383,7 +387,6 @@ describe("directive update record-mode payload-root (#4446)", () => {
     const payload = parseJsonObject(out.join(""));
     expect(payload.error_code).toBe("dirty_tree");
     expect(payload.dry_run).toBe(true);
-    const mutations = payload.mutations as { wrote: string[] };
-    expect(mutations.wrote.length).toBeGreaterThan(0);
+    expect(payload.mutations).toEqual(mutationSummaryJson(emptyMutationSummary()));
   });
 });
