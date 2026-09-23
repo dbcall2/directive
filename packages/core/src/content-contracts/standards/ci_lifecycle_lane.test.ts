@@ -188,6 +188,22 @@ describe("artifact-only lifecycle CI lane (#3678)", () => {
     }
   });
 
+  it("windows-task-dispatch promote fixture has a derivable list item (#4768 / #577)", () => {
+    const windows = jobBlock(readText(".github/workflows/ci.yml"), "windows-task-dispatch");
+    expect(windows).toContain("2026-04-22-scope-cli-args-windows-ci.xbrief.json");
+    expect(windows).toContain("- promote proposed scope via relative Windows path (#577)");
+    expect(windows).toContain(
+      "scope:promote -- .\\xbrief\\proposed\\2026-04-22-scope-cli-args-windows-ci.xbrief.json",
+    );
+    const jsonMatch = /\$scopeJson = '(\{.*\})'/.exec(windows);
+    expect(jsonMatch?.[1]).toBeTruthy();
+    const fixture = JSON.parse(jsonMatch?.[1] ?? "") as {
+      plan: { narratives?: { AcceptanceCriteria?: string }; items?: { title?: string }[] };
+    };
+    expect(fixture.plan.narratives?.AcceptanceCriteria).toMatch(/^- /);
+    expect(fixture.plan.items?.[0]?.title).toMatch(/relative Windows path/);
+  });
+
   it("TypeScript aggregator stays ungated by the artifact-only predicate", () => {
     const ci = readText(".github/workflows/ci.yml");
     const job = jobBlock(ci, "ts");
