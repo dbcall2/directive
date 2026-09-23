@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   chmodSync,
   copyFileSync,
@@ -309,6 +309,13 @@ describe("runInitDeposit", () => {
     }
     const payload = parsed as Record<string, unknown>;
     expect(payload.success).toBe(true);
+    expect(payload.commit_command).toBe('git commit -m "chore(deft): update framework payload"');
+    expect(JSON.stringify(payload)).not.toContain("git push");
+    expect(JSON.stringify(payload)).not.toContain("gh pr");
+    expect(JSON.stringify(payload)).not.toContain("pull request");
+    expect(JSON.stringify(payload)).not.toContain("feature branch");
+    expect(JSON.stringify(payload)).not.toContain("git switch");
+    expect(JSON.stringify(payload)).not.toContain("feat/first-project");
     expect(payload.deposit_completed).toBe(true);
     expect(payload.action).toBe("install");
     expect(payload.taskfile_wired).toBe(true);
@@ -325,10 +332,16 @@ describe("runInitDeposit", () => {
     expect(errText).not.toContain("Commit hygiene");
     expect(errText).not.toContain("directive migrate");
     const nextSteps = errText.slice(errText.indexOf("Next steps:"));
-    expect(nextSteps).toContain(`1. Open your AI coding assistant in ${project}`);
+    expect(nextSteps).toContain('git commit -m "chore(deft): update framework payload"');
+    expect(nextSteps).not.toContain("feat/first-project");
+    expect(nextSteps).not.toContain("git switch");
     expect(nextSteps.match(/^\s*\d+\..*$/gm)).toEqual([
-      `  1. Open your AI coding assistant in ${project}`,
+      '  1. Create a new feature branch first, then git commit -m "chore(deft): update framework payload"',
     ]);
+    expect(nextSteps).not.toContain("git push");
+    expect(nextSteps).not.toContain("gh pr");
+    expect(nextSteps).not.toContain("pull request");
+    expect(nextSteps).not.toContain("Open your AI coding assistant");
     expect(nextSteps).not.toContain("Use AGENTS.md");
     expect(nextSteps).not.toContain("project:render");
     expect(nextSteps).not.toContain("`");
@@ -358,6 +371,7 @@ describe("runInitDeposit", () => {
     expect(existsSync(join(project, ".codex", "hooks.json"))).toBe(true);
     expect(parseJsonObject(out.join(""))).toMatchObject({
       success: false,
+      commit_command: 'git commit -m "chore(deft): update framework payload"',
       deposit_completed: true,
       agent_hook_readiness: {
         ready: false,
@@ -384,9 +398,14 @@ describe("runInitDeposit", () => {
     expect(summary.missing_tools).toEqual([]);
     expect(summary.dirty_files).toEqual([]);
     expect(summary.staged_paths).toEqual(["Taskfile.yml", ".deft/core"]);
+    expect(summary.success).toBe(true);
+    expect(summary.commit_command).toBe('git commit -m "chore(deft): update framework payload"');
+    expect(JSON.stringify(summary)).not.toContain("git push");
+    expect(JSON.stringify(summary)).not.toContain("gh pr");
+    expect(JSON.stringify(summary)).not.toContain("pull request");
   });
 
-  it("printNextSteps names what was created and one next step (#4656)", () => {
+  it("printNextSteps names what was created and the payload commit (#4665)", () => {
     const lines: string[] = [];
     printNextSteps(
       {
@@ -405,11 +424,80 @@ describe("runInitDeposit", () => {
     expect(text).toContain("AGENTS.md    : updated");
     expect(text).toContain("Skills       : .agents/skills/ created");
     expect(text).toContain("User config  : /cfg");
-    expect(text).toContain("1. Open your AI coding assistant in /proj");
-    expect(text.match(/^\s*\d+\..*$/gm)).toEqual(["  1. Open your AI coding assistant in /proj"]);
+    expect(text).toContain('git commit -m "chore(deft): update framework payload"');
+    expect(text).not.toContain("feat/first-project");
+    expect(text).not.toContain("git switch");
+    expect(text.match(/^\s*\d+\..*$/gm)).toEqual([
+      '  1. Create a new feature branch first, then git commit -m "chore(deft): update framework payload"',
+    ]);
+    expect(text).not.toContain("git push");
+    expect(text).not.toContain("gh pr");
+    expect(text).not.toContain("pull request");
+    expect(text).not.toContain("Open your AI coding assistant");
     expect(text).not.toContain("Use AGENTS.md");
     expect(text).not.toContain("project:render");
     expect(text).not.toContain("`");
+  });
+
+  it("printNextSteps follows the current branch and does not name one (#4665)", () => {
+    const commitOnly = '  1. git commit -m "chore(deft): update framework payload"';
+    const createFirst =
+      '  1. Create a new feature branch first, then git commit -m "chore(deft): update framework payload"';
+
+    function git(cwd: string, args: readonly string[]): void {
+      const env = { ...process.env };
+      for (const key of Object.keys(env)) {
+        const upper = key.toUpperCase();
+        if (upper === "GIT_DIR" || upper === "GIT_WORK_TREE") delete env[key];
+      }
+      execFileSync("git", [...args], { cwd, env, stdio: "ignore", windowsHide: true });
+    }
+
+    function repo(branch: string, withCommit: boolean): string {
+      const root = freshRoot(`init-next-${branch.replace(/[^\w.-]+/g, "-")}-`);
+      git(root, ["init", "-q", "-b", branch]);
+      if (!withCommit) return root;
+      git(root, ["config", "user.email", "t@example.com"]);
+      git(root, ["config", "user.name", "t"]);
+      writeFileSync(join(root, "keep.txt"), "x\n", "utf8");
+      git(root, ["add", "keep.txt"]);
+      git(root, ["-c", "commit.gpgsign=false", "commit", "-qm", "init"]);
+      return root;
+    }
+
+    function step(projectDir: string): string {
+      const lines: string[] = [];
+      printNextSteps(
+        {
+          projectDir,
+          deftDir: join(projectDir, ".deft", "core"),
+          skillsCreated: true,
+          taskfileWired: true,
+          configDir: "/cfg",
+          legacyLayout: false,
+          stagedPaths: [],
+        },
+        { printf: (text) => lines.push(text) },
+      );
+      const text = lines.join("");
+      expect(text).not.toContain("feat/first-project");
+      expect(text).not.toContain("git push");
+      expect(text).not.toContain("gh pr");
+      expect(text).not.toContain("pull request");
+      expect(text).not.toContain("`");
+      return text.match(/^\s*\d+\..*$/gm)?.join("\n") ?? "";
+    }
+
+    expect(step(repo("feat/work", true))).toBe(commitOnly);
+    expect(step(repo("feat/work", false))).toBe(commitOnly);
+    expect(step(repo("main", true))).toBe(createFirst);
+    expect(step(repo("main", false))).toBe(createFirst);
+    expect(step(repo("master", true))).toBe(createFirst);
+    expect(step(repo("master", false))).toBe(createFirst);
+    const detached = repo("feat/work", true);
+    git(detached, ["checkout", "--detach"]);
+    expect(step(detached)).toBe(createFirst);
+    expect(step(freshRoot("init-next-norepo-"))).toBe(createFirst);
   });
 
   it("printNextSteps does not nudge migrate when fresh init has no managedBy (#4656)", () => {
