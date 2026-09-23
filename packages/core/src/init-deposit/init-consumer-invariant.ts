@@ -55,13 +55,6 @@ export function formatInitConsumerInvariantRefuseMessage(gap: InitConsumerInvari
   return `${listed} missing after re-assert. ${INIT_CONSUMER_INVARIANT_REFUSE_RECOVERY}`;
 }
 
-/** Covering wording for every TS-checked consumer file. Prefer the gap formatter. */
-export const INIT_CONSUMER_INVARIANT_REFUSE_MESSAGE = formatInitConsumerInvariantRefuseMessage({
-  pinMissing: true,
-  agentsMissing: true,
-  gitignoreMissing: true,
-});
-
 export interface InitConsumerInvariantWriters {
   readonly ensurePackageJsonPin?: (
     projectDir: string,

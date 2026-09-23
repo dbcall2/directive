@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PIN_DEPENDENCY_NAME, readPin } from "../resolution/pin.js";
 import {
   formatInitConsumerInvariantRefuseMessage,
-  INIT_CONSUMER_INVARIANT_REFUSE_MESSAGE,
   inspectInitConsumerInvariant,
   reassertInitConsumerInvariant,
   restoreNullPinAtRecordedDepositVersion,
@@ -49,8 +48,6 @@ describe("formatInitConsumerInvariantRefuseMessage (#4533)", () => {
         gitignoreMissing: true,
       }),
     ).toMatch(/pin.*AGENTS\.md managed section.*\.gitignore/);
-    expect(INIT_CONSUMER_INVARIANT_REFUSE_MESSAGE).toContain(".gitignore");
-    expect(INIT_CONSUMER_INVARIANT_REFUSE_MESSAGE).toContain("@deftai/directive pin");
   });
 });
 
