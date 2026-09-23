@@ -10,6 +10,8 @@
  */
 
 import * as os from "node:os";
+import { resolveAllowDestructiveGhVerbs } from "../policy/destructive-gh-verbs.js";
+import { policyColonInvocation } from "../policy/policy-invocation.js";
 
 /** Environment variable that enables the per-shell bypass (mirrors Python). */
 export const ENV_BYPASS = "DEFT_ALLOW_DESTRUCTIVE_GH_VERBS";
@@ -221,7 +223,8 @@ function detectDeleteRepo(tokens: readonly string[]): Verdict | null {
       detail: `gh repo delete ${target}`,
       recovery: [
         "  Repo deletion is irreversible. If this is intentional:",
-        `    • set the env-var bypass for this shell:  ${ENV_BYPASS}=1`,
+        `    • opt out via the typed surface:  ${policyColonInvocation("allow-destructive-gh-verbs", " -- --confirm")}`,
+        `    • or set the env-var override for this invocation:  ${ENV_BYPASS}=1`,
         "    • or run the deletion via the GitHub web UI so the",
         "      reversible-archive prompt fires (preferred).",
       ].join(os.EOL),
@@ -239,7 +242,8 @@ function detectDeleteRepo(tokens: readonly string[]): Verdict | null {
         recovery: [
           "  Repo / repo-subresource deletion via the API is",
           "  irreversible. If this is intentional:",
-          `    • set the env-var bypass for this shell:  ${ENV_BYPASS}=1`,
+          `    • opt out via the typed surface:  ${policyColonInvocation("allow-destructive-gh-verbs", " -- --confirm")}`,
+          `    • or set the env-var override for this invocation:  ${ENV_BYPASS}=1`,
         ].join(os.EOL),
       };
     }
@@ -263,65 +267,183 @@ function detectAdminMerge(tokens: readonly string[]): Verdict | null {
     recovery: [
       "  `gh pr merge --admin` bypasses required branch-protection reviews.",
       "  Document the rationale before using. If genuinely required:",
-      `    • set the env-var bypass for this shell:  ${ENV_BYPASS}=1`,
+      `    • opt out via the typed surface:  ${policyColonInvocation("allow-destructive-gh-verbs", " -- --confirm")}`,
+      `    • or set the env-var override for this invocation:  ${ENV_BYPASS}=1`,
     ].join(os.EOL),
   };
+}
+
+/** Git globals that consume the next argv token when written without `=`. */
+const GIT_GLOBAL_VALUE_OPTS: ReadonlySet<string> = new Set([
+  "-C",
+  "-c",
+  "--git-dir",
+  "--work-tree",
+  "--namespace",
+  "--exec-path",
+  "--config-env",
+  "--super-prefix",
+  "--list-cmds",
+  "--attr-source",
+  "--shallow-file",
+]);
+
+/** `git push` options that consume the next argv token when written without `=`. */
+const GIT_PUSH_VALUE_OPTS: ReadonlySet<string> = new Set([
+  "-o",
+  "--push-option",
+  "--receive-pack",
+  "--exec",
+  "--repo",
+  "--recurse-submodules",
+]);
+
+function optionName(token: string): string {
+  const eq = token.indexOf("=");
+  return eq === -1 ? token : token.slice(0, eq);
+}
+
+function skipOption(
+  tokens: readonly string[],
+  index: number,
+  valueOpts: ReadonlySet<string>,
+): number {
+  const token = tokens[index] ?? "";
+  const name = optionName(token);
+  if (!token.includes("=") && valueOpts.has(name)) {
+    return index + 2;
+  }
+  return index + 1;
+}
+
+function firstNonOptionIndex(
+  tokens: readonly string[],
+  start: number,
+  valueOpts: ReadonlySet<string>,
+): number {
+  let i = start;
+  while (i < tokens.length) {
+    const token = tokens[i] ?? "";
+    if (token === "--") return i + 1;
+    if (!token.startsWith("-")) return i;
+    i = skipOption(tokens, i, valueOpts);
+  }
+  return i;
+}
+
+function collectPositionals(tokens: readonly string[], valueOpts: ReadonlySet<string>): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i] ?? "";
+    if (token === "--") {
+      out.push(...tokens.slice(i + 1));
+      break;
+    }
+    if (token.startsWith("-")) {
+      i = skipOption(tokens, i, valueOpts) - 1;
+      continue;
+    }
+    out.push(token);
+  }
+  return out;
+}
+
+function gitPushArgTokens(tokens: readonly string[]): string[] | null {
+  if (tokens.length < 2) return null;
+  if ((tokens[0] ?? "").toLowerCase() !== "git") return null;
+  const subIdx = firstNonOptionIndex(tokens, 1, GIT_GLOBAL_VALUE_OPTS);
+  if ((tokens[subIdx] ?? "").toLowerCase() !== "push") return null;
+  return tokens.slice(subIdx + 1);
+}
+
+function repoFromPushArgs(pushArgs: readonly string[]): string | null {
+  for (let i = 0; i < pushArgs.length; i++) {
+    const token = pushArgs[i] ?? "";
+    if (token.startsWith("--repo=")) {
+      const value = token.slice("--repo=".length);
+      return value.length > 0 ? value : null;
+    }
+    if (token === "--repo") {
+      const next = pushArgs[i + 1] ?? "";
+      return next.length > 0 && !next.startsWith("-") ? next : null;
+    }
+  }
+  return null;
+}
+
+function hasBulkDefaultUpdate(pushArgs: readonly string[]): boolean {
+  return pushArgs.some((t) => t === "--all" || t === "--mirror");
+}
+
+function destRefspecs(pushArgs: readonly string[]): string[] {
+  const positionals = collectPositionals(pushArgs, GIT_PUSH_VALUE_OPTS);
+  // One positional with `--repo` is the dest (`git push --repo=origin master`).
+  // Two or more positionals: the first is the repository and overrides `--repo`
+  // (`git push --repo=backup main feat/x`).
+  if (repoFromPushArgs(pushArgs) !== null && positionals.length <= 1) {
+    return positionals;
+  }
+  return positionals.slice(1);
+}
+
+function refspecDest(spec: string): string {
+  const withoutForce = spec.startsWith("+") ? spec.slice(1) : spec;
+  const colon = withoutForce.lastIndexOf(":");
+  return colon === -1 ? withoutForce : withoutForce.slice(colon + 1);
+}
+
+function hasForcePush(pushArgs: readonly string[]): boolean {
+  if (
+    pushArgs.some(
+      (t) =>
+        t === "--force" ||
+        t === "-f" ||
+        t === "--force-with-lease" ||
+        t.startsWith("--force-with-lease="),
+    )
+  ) {
+    return true;
+  }
+  return destRefspecs(pushArgs).some((spec) => spec.startsWith("+") && !spec.startsWith("+-"));
+}
+
+function destLooksLikeDefaultBranch(dest: string, branchesLower: ReadonlySet<string>): boolean {
+  const stripped = dest.replace(/^refs\/heads\//, "");
+  return branchesLower.has(dest.toLowerCase()) || branchesLower.has(stripped.toLowerCase());
+}
+
+function targetsDefaultBranch(
+  pushArgs: readonly string[],
+  defaultBranches: ReadonlySet<string>,
+): boolean {
+  if (hasBulkDefaultUpdate(pushArgs)) return true;
+  const branchesLower = new Set([...defaultBranches].map((b) => b.toLowerCase()));
+  return destRefspecs(pushArgs).some((spec) =>
+    destLooksLikeDefaultBranch(refspecDest(spec), branchesLower),
+  );
+}
+
+function policyHowToProceed(): string {
+  return [
+    `    • opt out via the typed surface:  ${policyColonInvocation("allow-destructive-gh-verbs", " -- --confirm")}`,
+    `    • or set the env-var override for this invocation:  ${ENV_BYPASS}=1`,
+  ].join(os.EOL);
 }
 
 function detectForcePushDefault(
   tokens: readonly string[],
   defaultBranches: ReadonlySet<string> = DEFAULT_BRANCHES,
 ): Verdict | null {
-  if (tokens.length < 2) return null;
-  const head = tokens[0] ?? "";
-  if (head.toLowerCase() !== "git") return null;
+  const allTokens = gitPushArgTokens(tokens);
+  if (allTokens === null) return null;
+  if (!hasForcePush(allTokens)) return null;
+  if (!targetsDefaultBranch(allTokens, defaultBranches)) return null;
 
-  const allTokens = tokens.slice(1);
-
-  // detect push sub-command
-  if (!allTokens.some((t) => t.toLowerCase() === "push")) return null;
-
-  // detect force flags or refspec shorthand (+branch)
-  const hasForce =
-    allTokens.some((t) => t === "--force" || t === "-f") ||
-    allTokens.some((t) => t === "--force-with-lease");
-  const hasPlus = allTokens.some((t) => t.startsWith("+") && !t.startsWith("+-"));
-
-  if (!hasForce && !hasPlus) return null;
-
-  // check if targeting a default branch
-  const branchesLower = new Set([...defaultBranches].map((b) => b.toLowerCase()));
-  const targetsBranch = allTokens.some((t) => {
-    if (t.startsWith("-")) return false;
-    if (t.startsWith("+")) {
-      // +master or +refs/heads/master or HEAD:master
-      const ref = t.slice(1);
-      const parts = ref.split(":");
-      const dest = parts[parts.length - 1] ?? "";
-      return (
-        branchesLower.has(dest.toLowerCase()) ||
-        branchesLower.has(dest.replace(/^refs\/heads\//, "").toLowerCase())
-      );
-    }
-    // HEAD:master or origin/master notation
-    if (t.includes(":")) {
-      const dest = t.split(":")[1] ?? "";
-      return (
-        branchesLower.has(dest.toLowerCase()) ||
-        branchesLower.has(dest.replace(/^refs\/heads\//, "").toLowerCase())
-      );
-    }
-    return (
-      branchesLower.has(t.toLowerCase()) ||
-      branchesLower.has(t.replace(/^refs\/heads\//, "").toLowerCase())
-    );
-  });
-
-  if (!targetsBranch) return null;
-
-  const forceKind = allTokens.some((t) => t === "--force-with-lease")
+  const forceKind = allTokens.some(
+    (t) => t === "--force-with-lease" || t.startsWith("--force-with-lease="),
+  )
     ? "--force-with-lease"
-    : allTokens.some((t) => t.startsWith("+") && !t.startsWith("+-"))
+    : destRefspecs(allTokens).some((t) => t.startsWith("+") && !t.startsWith("+-"))
       ? "refspec +"
       : "--force";
 
@@ -332,8 +454,30 @@ function detectForcePushDefault(
     recovery: [
       "  Force-pushing to the default branch is irreversible and rewrites",
       "  public history. If genuinely required:",
-      `    • set the env-var bypass for this shell:  ${ENV_BYPASS}=1`,
+      policyHowToProceed(),
       "    • or push to a feature branch and use a PR.",
+    ].join(os.EOL),
+  };
+}
+
+function detectPushDefault(
+  tokens: readonly string[],
+  defaultBranches: ReadonlySet<string> = DEFAULT_BRANCHES,
+): Verdict | null {
+  const allTokens = gitPushArgTokens(tokens);
+  if (allTokens === null) return null;
+  if (hasForcePush(allTokens)) return null;
+  if (!targetsDefaultBranch(allTokens, defaultBranches)) return null;
+
+  return {
+    allowed: false,
+    category: "push_default",
+    detail: "git push to default branch",
+    recovery: [
+      "  Pushing directly to the default branch is refused (#1019).",
+      "  How to proceed:",
+      "    • push to a feature branch and open a PR",
+      policyHowToProceed(),
     ].join(os.EOL),
   };
 }
@@ -358,6 +502,7 @@ export function classifyCommand(
     detectDeleteRepo(tokens) ??
     detectAdminMerge(tokens) ??
     detectForcePushDefault(tokens, defaultBranches) ??
+    detectPushDefault(tokens, defaultBranches) ??
     OK_VERDICT
   );
 }
@@ -370,6 +515,7 @@ export function classifyCommand(
 export function evaluateCommand(
   command: string,
   defaultBranches: ReadonlySet<string> = DEFAULT_BRANCHES,
+  options: { projectRoot?: string } = {},
 ): [number, string] {
   if (envBypassActive()) {
     return [
@@ -380,6 +526,25 @@ export function evaluateCommand(
   const verdict = classifyCommand(command, defaultBranches);
   if (verdict.allowed) {
     return [0, `✓ deft destructive-gh-verb gate: '${command}' -- not destructive.`];
+  }
+  const projectRoot = options.projectRoot;
+  if (projectRoot !== undefined && projectRoot.length > 0) {
+    const policy = resolveAllowDestructiveGhVerbs(projectRoot);
+    if (policy.error) {
+      return [
+        2,
+        [
+          "❌ deft destructive-gh-verb gate: PROJECT-DEFINITION cannot be resolved.",
+          `  Detail: ${policy.error}`,
+        ].join(os.EOL),
+      ];
+    }
+    if (policy.allowDestructiveGhVerbs) {
+      return [
+        0,
+        `⚠ deft destructive-gh-verb gate: refusing '${command}' would apply, but plan.policy.allowDestructiveGhVerbs=true -- policy allowed for this invocation.`,
+      ];
+    }
   }
   const msg = [
     `❌ deft destructive-gh-verb gate: refusing '${command}'.`,
@@ -422,6 +587,20 @@ export const SELF_TEST_CASES: readonly Fixture[] = [
   ["git push --force origin feat/my-branch", null],
   ["git push --force-with-lease origin feat/my-branch", null],
   ["git push", null],
+  ["git remote add push master", null],
+  ["git push main my-feature", null],
+  ["git push origin master", "push_default"],
+  ["git push -u origin master", "push_default"],
+  ["git push origin main", "push_default"],
+  ["git push --repo=origin master", "push_default"],
+  ["git push --repo origin master", "push_default"],
+  ["git push --all origin", "push_default"],
+  ["git push origin --all", "push_default"],
+  ["git push --mirror origin", "push_default"],
+  ["git push --repo=origin --all", "push_default"],
+  ["git push --force --repo=origin master", "force_push_default"],
+  ["git push --repo=origin feat/my-branch", null],
+  ["git push --repo=backup main feat/x", null],
   ["gh pr create --title Test --body foo", null],
 ] as const;
 

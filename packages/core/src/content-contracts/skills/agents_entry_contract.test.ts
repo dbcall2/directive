@@ -120,6 +120,7 @@ const PROPAGATION_HEADER_MARKERS = [
   "### Story Start Gate",
   "## Contextual guardrails (runtime-detect lazy-load)",
   "## Content packs",
+  "## Destructive gh verbs (#1019)",
 ] as const;
 
 /** Always-on mid-scope gate capability tier (#3158) — retain vs split-dispatch. */

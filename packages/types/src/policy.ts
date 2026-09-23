@@ -22,6 +22,11 @@ export interface HotfixCriteria {
 
 export interface PlanPolicy {
   readonly allowDirectCommitsToMaster?: boolean;
+  /**
+   * When true, the #1019 preflight-gh gate is opted out (#4384).
+   * Default false. Writer: policy:allow-destructive-gh-verbs --confirm.
+   */
+  readonly allowDestructiveGhVerbs?: boolean;
   readonly wipCap?: number;
   readonly sessionRitualStalenessHours?: number | null;
   /**
@@ -144,6 +149,7 @@ export interface ProjectionProviderPolicy {
 /** Canonical dotted policy field names registered by the directive engine. */
 export const REGISTERED_POLICY_FIELD_NAMES = [
   "plan.policy.allowDirectCommitsToMaster",
+  "plan.policy.allowDestructiveGhVerbs",
   "plan.policy.wipCap",
   "plan.policy.sessionRitualStalenessHours",
   "plan.policy.forgeOutageRetryMinutes",

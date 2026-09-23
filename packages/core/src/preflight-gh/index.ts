@@ -8,3 +8,5 @@ export {
   SELF_TEST_CASES,
   tokensFromString,
 } from "./classifier.js";
+export type { EvaluatePrePushOptions, PrePushRef } from "./pre-push.js";
+export { evaluatePrePush, parsePrePushStdin } from "./pre-push.js";

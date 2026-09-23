@@ -609,6 +609,10 @@
           "type": "boolean",
           "description": "When true, the project explicitly opts out of the deft branch-protection policy and allows direct commits to the default branch (master/main). Default: false (enforce feature branches)."
         },
+        "allowDestructiveGhVerbs": {
+          "type": "boolean",
+          "description": "When true, the #1019 preflight-gh gate is opted out (#4384). Default: false. Writer: policy:allow-destructive-gh-verbs --confirm. The env-var DEFT_ALLOW_DESTRUCTIVE_GH_VERBS remains an override, not the documented bootstrap step."
+        },
         "sessionRitualStalenessHours": {
           "type": "integer",
           "minimum": 1,

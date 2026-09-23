@@ -1,5 +1,14 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { classifyCommand, runSelfTest, SELF_TEST_CASES, tokensFromString } from "./classifier.js";
+import {
+  classifyCommand,
+  evaluateCommand,
+  runSelfTest,
+  SELF_TEST_CASES,
+  tokensFromString,
+} from "./classifier.js";
 
 describe("tokensFromString", () => {
   it("splits simple space-separated tokens", () => {
@@ -142,6 +151,105 @@ describe("classifyCommand -- force_push_default", () => {
   });
 });
 
+describe("classifyCommand -- push_default two-surface settlement", () => {
+  it("refuses git push origin master", () => {
+    const v = classifyCommand("git push origin master");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+    expect(v.recovery).toContain("deft policy:allow-destructive-gh-verbs -- --confirm");
+  });
+
+  it("refuses git push -u origin master", () => {
+    const v = classifyCommand("git push -u origin master");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("refuses git push origin main", () => {
+    const v = classifyCommand("git push origin main");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("keeps force-push as force_push_default", () => {
+    const v = classifyCommand("git push --force origin master");
+    expect(v.category).toBe("force_push_default");
+  });
+
+  it("allows git remote add when a token is named push", () => {
+    const v = classifyCommand("git remote add push master");
+    expect(v.allowed).toBe(true);
+  });
+
+  it("allows git push when main is the remote and dest is a feature branch", () => {
+    const v = classifyCommand("git push main my-feature");
+    expect(v.allowed).toBe(true);
+  });
+
+  it("allows git push master when master is only the remote", () => {
+    const v = classifyCommand("git push master");
+    expect(v.allowed).toBe(true);
+  });
+
+  it("refuses git -C <path> push origin master", () => {
+    const v = classifyCommand("git -C /tmp push origin master");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("refuses git push --repo=origin master", () => {
+    const v = classifyCommand("git push --repo=origin master");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("refuses git push --repo origin master", () => {
+    const v = classifyCommand("git push --repo origin master");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("refuses git push --force --repo=origin master", () => {
+    const v = classifyCommand("git push --force --repo=origin master");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("force_push_default");
+  });
+
+  it("refuses git push --all origin", () => {
+    const v = classifyCommand("git push --all origin");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("refuses git push --mirror origin", () => {
+    const v = classifyCommand("git push --mirror origin");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("refuses git push origin --all", () => {
+    const v = classifyCommand("git push origin --all");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("refuses git push --repo=origin --all", () => {
+    const v = classifyCommand("git push --repo=origin --all");
+    expect(v.allowed).toBe(false);
+    expect(v.category).toBe("push_default");
+  });
+
+  it("allows git push --repo=origin feat/my-branch", () => {
+    const v = classifyCommand("git push --repo=origin feat/my-branch");
+    expect(v.allowed).toBe(true);
+  });
+
+  it("allows git push --repo=backup main feat/x when main is the remote", () => {
+    const v = classifyCommand("git push --repo=backup main feat/x");
+    expect(v.allowed).toBe(true);
+  });
+});
+
 describe("classifyCommand -- allowed (negatives)", () => {
   it.each([
     "gh pr merge 123 --squash",
@@ -152,6 +260,8 @@ describe("classifyCommand -- allowed (negatives)", () => {
     "git push --force origin feat/my-branch",
     "git push --force-with-lease origin feat/my-branch",
     "git push",
+    "git remote add push master",
+    "git push main my-feature",
     "gh pr create --title Test --body foo",
   ])("allows: %s", (cmd) => {
     const v = classifyCommand(cmd);
@@ -242,5 +352,74 @@ describe("ENV_BYPASS integration (evaluateCommand)", () => {
     const [code, msg] = evaluateCommand("gh pr merge 123 --squash");
     expect(code).toBe(0);
     expect(msg).toContain("not destructive");
+  });
+
+  it("refuses git push origin master without policy", () => {
+    const [code, msg] = evaluateCommand("git push origin master");
+    expect(code).toBe(1);
+    expect(msg).toContain("push_default");
+    expect(msg).toContain("deft policy:allow-destructive-gh-verbs -- --confirm");
+  });
+
+  it("exits 2 when PROJECT-DEFINITION is missing", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-evalcmd-missing-"));
+    const [code, msg] = evaluateCommand("git push origin master", undefined, { projectRoot: r });
+    expect(code).toBe(2);
+    expect(msg).toContain("cannot be resolved");
+    expect(msg).toContain("not found");
+  });
+
+  it("exits 2 when plan is not an object", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-evalcmd-plan-"));
+    mkdirSync(join(r, "xbrief"), { recursive: true });
+    writeFileSync(
+      join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify({ xBRIEFInfo: { version: "0.8" }, plan: [] }),
+      "utf8",
+    );
+    const [code, msg] = evaluateCommand("git push origin master", undefined, { projectRoot: r });
+    expect(code).toBe(2);
+    expect(msg).toContain("cannot be resolved");
+    expect(msg).toContain("'plan' is not an object");
+  });
+
+  it("exits 2 when typed policy is not a boolean", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-evalcmd-bad-"));
+    mkdirSync(join(r, "xbrief"), { recursive: true });
+    writeFileSync(
+      join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8" },
+        plan: {
+          title: "t",
+          status: "running",
+          "x-directive/policy": { allowDestructiveGhVerbs: "yes" },
+        },
+      }),
+      "utf8",
+    );
+    const [code, msg] = evaluateCommand("git push origin master", undefined, { projectRoot: r });
+    expect(code).toBe(2);
+    expect(msg).toContain("must be a boolean");
+  });
+
+  it("consults allowDestructiveGhVerbs through projectRoot", () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-evalcmd-"));
+    mkdirSync(join(r, "xbrief"), { recursive: true });
+    writeFileSync(
+      join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8" },
+        plan: {
+          title: "t",
+          status: "running",
+          "x-directive/policy": { allowDestructiveGhVerbs: true },
+        },
+      }),
+      "utf8",
+    );
+    const [code, msg] = evaluateCommand("git push origin master", undefined, { projectRoot: r });
+    expect(code).toBe(0);
+    expect(msg).toContain("allowDestructiveGhVerbs=true");
   });
 });

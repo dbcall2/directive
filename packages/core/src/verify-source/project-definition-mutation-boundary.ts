@@ -148,8 +148,8 @@ function skipStringLiteral(text: string, startIndex: number): number {
 /**
  * Production mutation call expressions, per file.
  *
- * The counts are the #3796 census: **18** call expressions across 13 core files
- * that previously took the shared lock, plus the **2** `packages/cli` policy
+ * The counts are the #3796 census: **19** call expressions across 14 core files
+ * that take the shared lock, plus the **2** `packages/cli` policy
  * writers (`wipCap`, `swarmSubagentBackend`) that previously wrote
  * PROJECT-DEFINITION with no lock at all. `parity-scenarios.ts` is the fixture
  * harness for the same protocol and is counted separately below.
@@ -157,6 +157,7 @@ function skipStringLiteral(text: string, startIndex: number): number {
 export const PRODUCTION_MUTATION_INVENTORY: Readonly<Record<string, number>> = Object.freeze({
   "packages/cli/src/dispatch.ts": 2,
   "packages/core/src/policy/ceremony-dial.ts": 1,
+  "packages/core/src/policy/destructive-gh-verbs.ts": 1,
   "packages/core/src/policy/host-hooks.ts": 1,
   "packages/core/src/policy/org-force-on-migration.ts": 1,
   "packages/core/src/policy/product-signal.ts": 1,
@@ -174,12 +175,25 @@ export const PRODUCTION_MUTATION_INVENTORY: Readonly<Record<string, number>> = O
 
 /**
  * The #3796 census, split by provenance so a drift failure says which family
- * moved. 18 core call expressions across 13 files already took the shared lock;
+ * moved. Core call/file counts are derived from PRODUCTION_MUTATION_INVENTORY
+ * so a new locked writer is an inventory edit, not a second numeric stamp.
  * the 2 `packages/cli` policy writers did not; `parity-scenarios.ts` is the
  * fixture harness for the same protocol.
  */
-export const PREVIOUSLY_LOCKED_CORE_CALL_EXPRESSIONS = 18;
-export const PREVIOUSLY_LOCKED_CORE_FILES = 13;
+function coreLockedInventoryEntries(
+  inv: Readonly<Record<string, number>>,
+): readonly (readonly [string, number])[] {
+  return Object.entries(inv).filter(
+    ([path]) => path.startsWith("packages/core/") && !path.includes("parity-scenarios"),
+  );
+}
+
+export const PREVIOUSLY_LOCKED_CORE_CALL_EXPRESSIONS = coreLockedInventoryEntries(
+  PRODUCTION_MUTATION_INVENTORY,
+).reduce((sum, [, n]) => sum + n, 0);
+export const PREVIOUSLY_LOCKED_CORE_FILES = coreLockedInventoryEntries(
+  PRODUCTION_MUTATION_INVENTORY,
+).length;
 export const PREVIOUSLY_UNLOCKED_CLI_WRITERS = 2;
 export const PARITY_HARNESS_CALL_EXPRESSIONS = 1;
 

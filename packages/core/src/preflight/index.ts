@@ -1,3 +1,15 @@
+export type { Verdict } from "../preflight-gh/classifier.js";
+export {
+  classifyCommand,
+  DEFAULT_BRANCHES,
+  ENV_BYPASS,
+  evaluateCommand,
+  runSelfTest,
+  SELF_TEST_CASES,
+  tokensFromString,
+} from "../preflight-gh/classifier.js";
+export type { EvaluatePrePushOptions, PrePushRef } from "../preflight-gh/pre-push.js";
+export { evaluatePrePush, parsePrePushStdin } from "../preflight-gh/pre-push.js";
 export type { EvaluateOptions, EvaluateResult } from "./evaluate.js";
 export {
   ACTIVATE_HINT,

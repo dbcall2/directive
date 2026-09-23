@@ -8,6 +8,7 @@ import { resolve as pathResolve, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   ALLOW_BOT_MERGE_CAPABILITY_COST,
+  ALLOW_DESTRUCTIVE_GH_VERBS_CAPABILITY_COST,
   CEREMONY_DEPTHS,
   type CeremonyDepth,
   clearValueFeedback,
@@ -42,6 +43,7 @@ import {
   resolveHumanMergePolicy,
   resolvePolicy,
   resolveValueFeedback,
+  setAllowDestructiveGhVerbs,
   setCeremonyDial,
   setPolicy,
   setRequireHumanMerge,
@@ -74,6 +76,8 @@ interface SetArgs {
     | "show"
     | "enforce-branches"
     | "allow-direct-commits"
+    | "allow-destructive-gh-verbs"
+    | "enforce-destructive-gh-verbs"
     | "allow-bot-merge"
     | "enable-value-feedback"
     | "clear-value-feedback"
@@ -187,7 +191,7 @@ export function parseShowArgs(argv: string[]): ShowArgs {
 export function parseArgs(argv: string[]): SetArgs {
   if (argv.length === 0) {
     const usage =
-      "usage: policy [show|enforce-branches|allow-direct-commits|allow-bot-merge|enable-value-feedback|clear-value-feedback|set-ceremony-dial|disable-host-hooks|disable-directive|enable-directive|resolve] ...";
+      "usage: policy [show|enforce-branches|allow-direct-commits|allow-destructive-gh-verbs|enforce-destructive-gh-verbs|allow-bot-merge|enable-value-feedback|clear-value-feedback|set-ceremony-dial|disable-host-hooks|disable-directive|enable-directive|resolve] ...";
     return makeSetError(usage);
   }
 
@@ -225,6 +229,8 @@ export function parseArgs(argv: string[]): SetArgs {
   if (
     cmd === "enforce-branches" ||
     cmd === "allow-direct-commits" ||
+    cmd === "allow-destructive-gh-verbs" ||
+    cmd === "enforce-destructive-gh-verbs" ||
     cmd === "allow-bot-merge" ||
     cmd === "enable-value-feedback" ||
     cmd === "clear-value-feedback" ||
@@ -239,19 +245,23 @@ export function parseArgs(argv: string[]): SetArgs {
         ? policyColonInvocation("enforce-branches")
         : cmd === "allow-direct-commits"
           ? policyColonInvocation("allow-direct-commits")
-          : cmd === "allow-bot-merge"
-            ? policyColonInvocation("allow-bot-merge")
-            : cmd === "enable-value-feedback"
-              ? policyColonInvocation("enable-value-feedback")
-              : cmd === "clear-value-feedback"
-                ? policyColonInvocation("clear-value-feedback")
-                : cmd === "set-ceremony-dial"
-                  ? policyColonInvocation("set-ceremony-dial")
-                  : cmd === "disable-host-hooks"
-                    ? policyColonInvocation("disable-host-hooks")
-                    : cmd === "disable-directive"
-                      ? policyColonInvocation("disable-directive")
-                      : policyColonInvocation("enable-directive");
+          : cmd === "allow-destructive-gh-verbs"
+            ? policyColonInvocation("allow-destructive-gh-verbs")
+            : cmd === "enforce-destructive-gh-verbs"
+              ? policyColonInvocation("enforce-destructive-gh-verbs")
+              : cmd === "allow-bot-merge"
+                ? policyColonInvocation("allow-bot-merge")
+                : cmd === "enable-value-feedback"
+                  ? policyColonInvocation("enable-value-feedback")
+                  : cmd === "clear-value-feedback"
+                    ? policyColonInvocation("clear-value-feedback")
+                    : cmd === "set-ceremony-dial"
+                      ? policyColonInvocation("set-ceremony-dial")
+                      : cmd === "disable-host-hooks"
+                        ? policyColonInvocation("disable-host-hooks")
+                        : cmd === "disable-directive"
+                          ? policyColonInvocation("disable-directive")
+                          : policyColonInvocation("enable-directive");
     let note = "";
     let projectRoot = ".";
     let host: HookHost | undefined;
@@ -563,6 +573,54 @@ function runEnableDirective(args: SetArgs): number {
   return 0;
 }
 
+/** Allow or re-enforce the #1019 destructive-gh-verb gate. */
+function runDestructiveGhVerbs(args: SetArgs): number {
+  const projectRoot = pathResolve(args.projectRoot);
+  const allow = args.cmd === "allow-destructive-gh-verbs";
+  if (allow && !args.confirm) {
+    process.stdout.write(`${ALLOW_DESTRUCTIVE_GH_VERBS_CAPABILITY_COST}\n\n`);
+    process.stdout.write(
+      `Re-run with --confirm to apply: ${policyColonInvocation("allow-destructive-gh-verbs", " -- --confirm")}\n`,
+    );
+    return 1;
+  }
+  try {
+    const result = setAllowDestructiveGhVerbs(projectRoot, {
+      allowDestructiveGhVerbs: allow,
+      actor: args.actor,
+      note: args.note,
+    });
+    if (!result.ok) {
+      process.stderr.write(`\u274c ${result.message}\n`);
+      if (result.message.includes("PROJECT-DEFINITION not found")) {
+        const pdRel = relative(projectRoot, projectDefinitionPath(projectRoot));
+        process.stderr.write(`  Recovery: run \`task setup\` to generate ${pdRel}.\n`);
+      }
+      return 2;
+    }
+    process.stdout.write(
+      `\u2713 plan.policy.allowDestructiveGhVerbs=${allow ? "true" : "false"} ` +
+        `(#1019 gate ${allow ? "OFF" : "ON"}).\n`,
+    );
+    if (result.changed) {
+      process.stdout.write(`  audit: meta/policy-changes.log :: ${result.auditEntry}\n`);
+    } else {
+      process.stdout.write(`${POLICY_AUDIT_NOOP_STDOUT}\n`);
+    }
+    return 0;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("PROJECT-DEFINITION not found")) {
+      process.stderr.write(`\u274c ${message}\n`);
+      const pdRel = relative(projectRoot, projectDefinitionPath(projectRoot));
+      process.stderr.write(`  Recovery: run \`task setup\` to generate ${pdRel}.\n`);
+      return 2;
+    }
+    process.stderr.write(`\u274c Config error: ${message}\n`);
+    return 2;
+  }
+}
+
 /** Allow agent/bot merge by writing requireHumanMerge=false (#1193). */
 function runAllowBotMerge(args: SetArgs): number {
   const projectRoot = pathResolve(args.projectRoot);
@@ -629,6 +687,9 @@ export function run(argv: string[]): number {
   }
   if (args.cmd === "enforce-branches" || args.cmd === "allow-direct-commits") {
     return runSet(args);
+  }
+  if (args.cmd === "allow-destructive-gh-verbs" || args.cmd === "enforce-destructive-gh-verbs") {
+    return runDestructiveGhVerbs(args);
   }
   if (args.cmd === "allow-bot-merge") {
     return runAllowBotMerge(args);

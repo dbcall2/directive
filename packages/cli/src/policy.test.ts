@@ -268,6 +268,51 @@ describe("run show + set integration", async () => {
     expect(err).not.toContain("vbrief/PROJECT-DEFINITION.vbrief.json");
   });
 
+  it("refuses allow-destructive-gh-verbs without confirm", async () => {
+    const r = project();
+    const { code, out } = captureRun(["allow-destructive-gh-verbs", "--project-root", r]);
+    expect(code).toBe(1);
+    expect(out).toContain("Capability-cost disclosure");
+    expect(out).toContain("allow-destructive-gh-verbs");
+  });
+
+  it("runs allow-destructive-gh-verbs with confirm", async () => {
+    const r = project();
+    const { code, out } = captureRun([
+      "allow-destructive-gh-verbs",
+      "--confirm",
+      "--project-root",
+      r,
+      "--actor",
+      "test",
+    ]);
+    expect(code).toBe(0);
+    expect(out).toContain("allowDestructiveGhVerbs=true");
+  });
+
+  it("runs enforce-destructive-gh-verbs", async () => {
+    const r = project();
+    captureRun(["allow-destructive-gh-verbs", "--confirm", "--project-root", r]);
+    const { code, out } = captureRun(["enforce-destructive-gh-verbs", "--project-root", r]);
+    expect(code).toBe(0);
+    expect(out).toContain("allowDestructiveGhVerbs=false");
+  });
+
+  it("returns config error for malformed project definition on allow-destructive-gh-verbs", async () => {
+    const r = mkdtempSync(join(tmpdir(), "deft-policy-dgh-malformed-"));
+    roots.push(r);
+    mkdirSync(join(r, "xbrief"), { recursive: true });
+    writeFileSync(join(r, "xbrief", "PROJECT-DEFINITION.xbrief.json"), "{", { encoding: "utf8" });
+    const { code, err } = captureRun([
+      "allow-destructive-gh-verbs",
+      "--confirm",
+      "--project-root",
+      r,
+    ]);
+    expect(code).toBe(2);
+    expect(err).toContain("Config error");
+  });
+
   it("runs allow-direct-commits with confirm", async () => {
     const r = project();
     const { code, out } = captureRun([

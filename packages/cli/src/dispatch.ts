@@ -295,6 +295,8 @@ export const POLICY_ACTION_ALIAS_SUBCOMMANDS: Readonly<Record<string, string>> =
   "policy:show": "show",
   "policy:enforce-branches": "enforce-branches",
   "policy:allow-direct-commits": "allow-direct-commits",
+  "policy:allow-destructive-gh-verbs": "allow-destructive-gh-verbs",
+  "policy:enforce-destructive-gh-verbs": "enforce-destructive-gh-verbs",
   "policy:allow-bot-merge": "allow-bot-merge",
   "policy:enable-value-feedback": "enable-value-feedback",
   "policy:disable-host-hooks": "disable-host-hooks",

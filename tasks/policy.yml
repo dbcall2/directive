@@ -52,6 +52,26 @@ tasks:
         vars:
           ENGINE_CMD: 'policy allow-direct-commits --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
 
+  allow-destructive-gh-verbs:
+    desc: "Set plan.policy.allowDestructiveGhVerbs=true (capability-cost: #1019 preflight-gh OFF). Requires --confirm to apply. (#4384)"
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'policy allow-destructive-gh-verbs --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
+
+  enforce-destructive-gh-verbs:
+    desc: "Set plan.policy.allowDestructiveGhVerbs=false (enforce #1019 preflight-gh). Audits to meta/policy-changes.log. (#4384)"
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'policy enforce-destructive-gh-verbs --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
+
   enable-value-feedback:
     desc: "Opt in to value-feedback surfaces (#1709). Requires --confirm after the capability-cost disclosure prints. -- task policy:enable-value-feedback -- [--confirm] [--json]"
     dir: '{{.USER_WORKING_DIR}}'

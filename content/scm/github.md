@@ -630,21 +630,25 @@ Project-root `.githooks/` enforce branch policy and encoding gates through the *
 
 ## Destructive gh verbs (#1019)
 
-A detection-bound gate (`deft preflight-gh`) refuses three classes of destructive surface before they execute, complementing the #747 branch-protection gate which already refuses commits to the default branch:
+A detection-bound gate (`deft preflight-gh`) refuses destructive GitHub verbs and default-branch pushes, complementing the #747 branch-protection gate which already refuses commits to the default branch:
 
 - `delete_repo` -- `gh repo delete <owner/repo>` and `gh api -X DELETE repos/<owner>/<repo>[/...]`. Irreversible.
 - `force_push_default` -- `git push --force` / `--force-with-lease` / `+refspec` targeting `master` or `main`.
+- `push_default` -- non-force `git push` with an explicit default-branch dest (`git push origin master`). Bare `git push` has no dest in argv and stays unclassified; hook stdin is still the authority for that shape.
 - `admin_merge` -- `gh pr merge --admin` (bypasses branch-protection required reviews).
+
+`--command` and `--pre-push-stdin` are settled as one default-branch-touch policy: an explicit `git push origin master` is refused on both surfaces. `--repo=origin master` (one dest positional) names the remote in the option. Two or more positionals treat the first as the repository and override `--repo` (`git push --repo=backup main feat/x`). `--all` and `--mirror` update the default branch without an explicit dest refspec and refuse. Zero-OID create of `master`/`main` is not an empty-remote exemption.
 
 Three enforcement surfaces back the gate:
 
-1. `.githooks/pre-push` invokes `deft preflight-gh --pre-push-stdin` after the #747 branch gate (on pre-commit), refusing any push that touches the default branch (force-push or otherwise). Install via `deft setup` (idempotent `git config core.hooksPath .githooks`); verify via `deft verify:hooks-installed`.
+1. `.githooks/pre-push` invokes `deft preflight-gh --pre-push-stdin --project-root "$REPO_ROOT"` after the #747 branch gate (on pre-commit), refusing any push that touches the default branch (force-push or otherwise). `evaluatePrePush` consults `plan.policy.allowDestructiveGhVerbs` through that `--project-root`. Install via `deft setup` (idempotent `git config core.hooksPath .githooks`); verify via `deft verify:hooks-installed`.
 2. `deft verify:destructive-gh-verbs` (or `task verify:destructive-gh-verbs` in framework source repos) is wired into the `deft check` aggregate. It runs `deft preflight-gh --self-test`, which drives a built-in fixture table through the classifier so a future edit that introduces a false negative / false positive fails CI immediately.
-3. Agent pre-execution callers can invoke `deft preflight-gh --command "<full command>"` to classify a candidate verb before it executes. Three-state exit (0 allowed / 1 destructive refused / 2 config error) mirrors `deft verify:branch`.
+3. Agent pre-execution callers can invoke `deft preflight-gh --command "<full command>" --project-root <root>` to classify a candidate verb before it executes. Three-state exit (0 allowed / 1 destructive refused / 2 config error) mirrors `deft verify:branch`. Pass `--project-root` so the typed policy is consulted.
 
 **Override paths:**
 
-- `DEFT_ALLOW_DESTRUCTIVE_GH_VERBS=1` -- per-shell emergency env-var bypass. Mirrors `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT` (#747). The gate prints an explicit `policy bypassed for this session` line so the bypass is auditable after the fact.
+- `deft policy:allow-destructive-gh-verbs -- --confirm` -- typed `plan.policy.allowDestructiveGhVerbs=true`, audited to `meta/policy-changes.log`. Reverse: `deft policy:enforce-destructive-gh-verbs`. This is the documented bootstrap / opt-out path.
+- `DEFT_ALLOW_DESTRUCTIVE_GH_VERBS=1` -- per-invocation env-var **override**, not the documented bootstrap step. Mirrors `DEFT_ALLOW_DEFAULT_BRANCH_COMMIT` (#747). Do not export it for a session. The gate prints an explicit `policy bypassed for this invocation` line so the bypass is auditable after the fact.
 - For repo deletion specifically: prefer the GitHub web UI's archive-or-delete prompt -- archiving is reversible, the gate is not opining on it.
 - For an admin merge: the canonical recovery is to request review through the normal flow. The `--admin` flag is gated because the most-common legitimate use case (release hot-fix) is rare enough that documenting an explicit bypass is cheaper than letting the verb pass by default.
 

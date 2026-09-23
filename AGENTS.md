@@ -160,7 +160,7 @@ Same `!` / `⊗` rules as managed below; `task issue:ingest` (#2143).
 
 Note: root-relative paths (this repo IS deft/); run `task agents:refresh` after agents-entry edits (#1309).
 
-<!-- deft:managed-section v3 sha=19d4aaed2608 refreshed=2026-09-22T21:49:12Z session=afc55cfac2a1 -->
+<!-- deft:managed-section v3 sha=3d4837b9c7b9 refreshed=2026-09-23T14:42:13Z session=7590ee30e5c9 -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
@@ -303,6 +303,10 @@ Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
 ## Branch Policy Disclosure (#746)
 
 ! When `plan.policy.allowDirectCommitsToMaster = true`, surface via `deft policy:show --field=allowDirectCommitsToMaster` (#746) — `.deft/core/scm/github.md` § Branch policy.
+
+## Destructive gh verbs (#1019)
+
+! Default-branch push and destructive gh verbs: `deft preflight-gh`. Typed opt-out `deft policy:allow-destructive-gh-verbs -- --confirm` (reverse `policy:enforce-destructive-gh-verbs`). Env `DEFT_ALLOW_DESTRUCTIVE_GH_VERBS` is a per-invocation override. `--repo=origin master`, `--all`, and `--mirror` refuse as default-branch updates. Depth: `.deft/core/scm/github.md` § Destructive gh verbs.
 
 ## Windows PowerShell: multi-line git/gh bodies (#2646 / #2744)
 
