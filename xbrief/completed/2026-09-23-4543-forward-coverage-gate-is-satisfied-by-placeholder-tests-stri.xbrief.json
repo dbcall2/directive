@@ -166,12 +166,7 @@
           "provenance": "statement"
         }
       ],
-      "ambiguity_attestation": "none_found",
-      "confessions": [
-        "Forward-coverage gate is satisfied by placeholder tests (string-search / typeof)",
-        "Recut: the next build is the Bound remedy list on this lean.",
-        "relieves: P1 Target-digest: sha256:1ecaa5e021e7e8e42dc3aaf0e6c733f9d94b6e826cc070fc2273634e66d28ad5"
-      ]
+      "ambiguity_attestation": "none_found"
     },
     "metadata": {
       "intended_placement": {
