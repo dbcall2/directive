@@ -56,8 +56,9 @@ export function compareAndSetConsumerHeaderOneLiner(input: {
   if (oneLiner === CONSUMER_HEADER_PLACEHOLDER_ONELINER) {
     return { agentsMd: input.agentsMd, changed: false, reason: "already-matches" };
   }
+  // Function replacer: string replacement expands $&, $`, $', $$ in Overview.
   return {
-    agentsMd: normalized.replace(CONSUMER_HEADER_PLACEHOLDER_ONELINER, oneLiner),
+    agentsMd: normalized.replace(CONSUMER_HEADER_PLACEHOLDER_ONELINER, () => oneLiner),
     changed: true,
     reason: "replaced-placeholder",
   };

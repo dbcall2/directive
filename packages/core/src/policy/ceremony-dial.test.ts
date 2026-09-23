@@ -426,6 +426,19 @@ describe("resolveCeremonyDial + policy surface", () => {
     expect(merged.cache_fresh).toBeUndefined();
   });
 
+  it("compose status names the deposit rapid.md on a consumer frameworkRoot (#4544)", () => {
+    root = makeProject();
+    const deposit = join(root, ".deft", "core");
+    mkdirSync(join(deposit, "strategies"), { recursive: true });
+    writeFileSync(join(deposit, "strategies", "rapid.md"), "# Rapid\n", "utf8");
+    const s = selectCeremonyDepth({
+      inputs: { taskSize: "S", modelTier: "frontier", projectShape: "project" },
+    });
+    const line = formatCeremonyDialStatusLine(s, { frameworkRoot: deposit });
+    expect(line).toContain(`compose=${join(deposit, "strategies", "rapid.md")}`);
+    expect(line).not.toContain(`compose=${join(root, "strategies", "rapid.md")}`);
+  });
+
   it("format + dict helpers are stable", () => {
     const s = selectCeremonyDepth({
       inputs: { taskSize: "S", modelTier: "frontier", projectShape: "project" },

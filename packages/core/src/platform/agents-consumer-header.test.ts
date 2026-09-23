@@ -55,6 +55,20 @@ describe("agents-consumer-header", () => {
     expect(cas.agentsMd).not.toContain("More spec stays in the brief.");
   });
 
+  it("compare-and-set keeps Overview $&, $`, $', $$ literally (#4544)", () => {
+    const managed = `${AGENTS_MANAGED_OPEN_V3_LITERAL}\n# Deft\n<!-- /deft:managed-section -->`;
+    const composed = composeGreenfieldAgentsMd(managed);
+    const overview = "Garden notes cost $& $` $' $$ today.";
+    const cas = compareAndSetConsumerHeaderOneLiner({
+      agentsMd: composed,
+      confirmedOverview: overview,
+    });
+    expect(cas.changed).toBe(true);
+    expect(cas.reason).toBe("replaced-placeholder");
+    expect(cas.agentsMd).toContain(overview);
+    expect(cas.agentsMd).not.toContain(CONSUMER_HEADER_PLACEHOLDER_ONELINER);
+  });
+
   it("compare-and-set does not interpolate a custom header or empty Overview (#4544)", () => {
     const custom = "# Garden Notes\n\nCustom one-liner.\n\n## Session orientation\n";
     const skipCustom = compareAndSetConsumerHeaderOneLiner({

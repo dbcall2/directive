@@ -39,7 +39,7 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 ! Describe the prototype goal in one sentence: what are you trying to learn or prove?
 
-- ! Record the goal in a new date-prefixed story vBRIEF written to `xbrief/proposed/YYYY-MM-DD-<kebab-slug>.xbrief.json` (e.g. as the plan title or a brief narrative in the v0.6 schema). Use today's date for the prefix and a descriptive slug.
+- ! Record the goal in a new date-prefixed story vBRIEF written to `xbrief/proposed/YYYY-MM-DD-<kebab-slug>.xbrief.json` (e.g. as the plan title or a brief narrative in the v0.8 schema (`xBRIEFInfo` version 0.8)). Use today's date for the prefix and a descriptive slug.
 - ! Step 1 is not storing the live spec. Persist the live request's requirement list through Step 3 and #3267 capture after Phase 3 confirmation (#4544).
 - ~ Include a time-box if applicable (e.g. "4-hour spike")
 - ⊗ Skip this step -- even throwaway work needs a clear objective
@@ -57,7 +57,7 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 ! Before writing output artifacts, follow the guards in [artifact-guards.md](./artifact-guards.md) (Preparatory Guard for proposed/ scope items; Spec-Generating Guard for PROJECT-DEFINITION).
 
-! Write a slim story scope vBRIEF to `xbrief/proposed/YYYY-MM-DD-<kebab-slug>.xbrief.json` -- no PRD, no PRD approval gate. Decompose the rapid plan into one or more focused, buildable story vBRIEFs (v0.6 schema) rather than a monolithic legacy spec.
+! Write a slim story scope vBRIEF to `xbrief/proposed/YYYY-MM-DD-<kebab-slug>.xbrief.json` -- no PRD, no PRD approval gate. Decompose the rapid plan into one or more focused, buildable story vBRIEFs (`xBRIEFInfo` version 0.8) rather than a monolithic legacy spec.
 
 - ! Use the Light path from [interview.md](./interview.md) unconditionally
 - ! When joined from identity-only + product mutation, run after Phase 3 confirmation. Carry the live requirement list into the proposed draft and #3267 capture. Rapid Strategy Gate STOP must not skip confirmed Overview (#4544).
@@ -133,7 +133,7 @@ Rapid lightens cold ceremony only. The **positive verification content** of the 
 This strategy has been migrated to the full v0.20 output shape so rapid-generated projects are accepted by the build skill Pre-Cutover Detection Guard with zero errors on first attempt (resolves the rapid row from the #1166 inconsistency table and the s5 story acceptance criteria).
 
 - ! Seed the five lifecycle folders under `xbrief/` if any are missing: `proposed/`, `pending/`, `active/`, `completed/`, `cancelled/`.
-- ! Emit story scope items exclusively as date-prefixed scope vBRIEFs: `xbrief/proposed/YYYY-MM-DD-<kebab-slug>.xbrief.json` (use the run's creation date for the prefix; choose descriptive slugs). Decompose the rapid plan into one or more focused, buildable story vBRIEFs (v0.6 schema) rather than a monolithic legacy spec.
+- ! Emit story scope items exclusively as date-prefixed scope vBRIEFs: `xbrief/proposed/YYYY-MM-DD-<kebab-slug>.xbrief.json` (use the run's creation date for the prefix; choose descriptive slugs). Decompose the rapid plan into one or more focused, buildable story vBRIEFs (`xBRIEFInfo` version 0.8) rather than a monolithic legacy spec.
 - ! After the proposed/ stories are written, invoke `task project:render` (run from the repo root) to generate/refresh the complete `xbrief/PROJECT-DEFINITION.xbrief.json` (items registry is derived from the lifecycle folders).
 - ⊗ Never emit `vbrief/specification.vbrief.json` (or any legacy dual-write).
 - ~ `SPECIFICATION.md` at the project root, if produced at all, must be only a read-only derivative (e.g. via `task spec:render` after the vbriefs exist) that includes the v0.20 deprecated-redirect sentinel. The source of truth is the xbrief/ lifecycle stories + PROJECT-DEFINITION.

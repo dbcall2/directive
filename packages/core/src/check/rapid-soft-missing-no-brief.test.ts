@@ -86,7 +86,10 @@ describe("rapidCheckWarnsSoftMissingNoBrief (#4544)", () => {
     mkdirSync(join(withBrief, "xbrief", "proposed"), { recursive: true });
     writeFileSync(
       join(withBrief, "xbrief", "proposed", "2026-09-23-spike.xbrief.json"),
-      "{}",
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8" },
+        plan: { title: "spike", status: "draft" },
+      }),
       "utf8",
     );
     expect(projectHasLifecycleBrief(withBrief)).toBe(true);
@@ -104,5 +107,21 @@ describe("rapidCheckWarnsSoftMissingNoBrief (#4544)", () => {
     );
     expect(sessionRecordedProductWrite(wrote)).toBe(true);
     expect(sessionRecordedProductWrite(empty)).toBe(false);
+  });
+
+  it("ignores premigrate backups and unparseable artifacts (#4544)", () => {
+    const root = tempRoot();
+    mkdirSync(join(root, "xbrief", "proposed"), { recursive: true });
+    writeFileSync(
+      join(root, "xbrief", "proposed", "2026-09-23-spike.premigrate.xbrief.json"),
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8" },
+        plan: { title: "backup", status: "draft" },
+      }),
+      "utf8",
+    );
+    writeFileSync(join(root, "xbrief", "proposed", "2026-09-23-broken.xbrief.json"), "{", "utf8");
+    writeFileSync(join(root, "xbrief", "proposed", "not-a-brief.xbrief.json"), "{}", "utf8");
+    expect(projectHasLifecycleBrief(root)).toBe(false);
   });
 });

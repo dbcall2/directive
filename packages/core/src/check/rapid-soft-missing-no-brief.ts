@@ -7,10 +7,10 @@
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { hasArtifactSuffix, LIFECYCLE_DIR_NAMES } from "../layout/resolve.js";
 import { isProductAcGate } from "../product-first-done-gate/check-mode.js";
-
-const LIFECYCLE_TREES = ["xbrief", "vbrief"] as const;
-const LIFECYCLE_FOLDERS = ["proposed", "pending", "active", "completed", "cancelled"] as const;
+import { LIFECYCLE_FOLDERS, VALID_INFO_ROOT_KEYS } from "../vbrief-validate/constants.js";
+import { matchesFilenameConvention } from "../vbrief-validate/filename.js";
 
 export const RAPID_SOFT_MISSING_NO_BRIEF_CAUSE =
   "verify:ac soft-skip with product writes and no lifecycle brief";
@@ -23,14 +23,40 @@ export function isSoftMissingAcText(text: string): boolean {
   return /verify:ac skipped \(#3284 soft-missing\)/i.test(text);
 }
 
+function isPremigrateBackup(name: string): boolean {
+  return name.includes(".premigrate.");
+}
+
+/** True when a lifecycle candidate is convention-valid and parseable (#4544). */
+function isValidLifecycleBriefFile(dir: string, name: string): boolean {
+  if (!hasArtifactSuffix(name) || isPremigrateBackup(name) || !matchesFilenameConvention(name)) {
+    return false;
+  }
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(join(dir, name), "utf8"));
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return false;
+    }
+    const rec = parsed as Record<string, unknown>;
+    const hasInfo = [...VALID_INFO_ROOT_KEYS].some((key) => {
+      const info = rec[key];
+      return typeof info === "object" && info !== null && !Array.isArray(info);
+    });
+    const plan = rec.plan;
+    return hasInfo && typeof plan === "object" && plan !== null && !Array.isArray(plan);
+  } catch {
+    return false;
+  }
+}
+
 export function projectHasLifecycleBrief(projectRoot: string): boolean {
-  for (const tree of LIFECYCLE_TREES) {
+  for (const tree of LIFECYCLE_DIR_NAMES) {
     for (const folder of LIFECYCLE_FOLDERS) {
       const dir = join(projectRoot, tree, folder);
       if (!existsSync(dir)) continue;
       try {
         for (const name of readdirSync(dir)) {
-          if (name.endsWith(".xbrief.json") || name.endsWith(".vbrief.json")) {
+          if (isValidLifecycleBriefFile(dir, name)) {
             return true;
           }
         }

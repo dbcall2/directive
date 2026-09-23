@@ -1,4 +1,4 @@
-import { runningInsideDeftRepo } from "../doctor/paths.js";
+import { resolveFrameworkRootForProject, runningInsideDeftRepo } from "../doctor/paths.js";
 import { emitSessionEvalReadback } from "../eval/readback.js";
 import { bindSessionGeneration } from "../freshness/bind.js";
 import { readLiveGeneration } from "../freshness/generation.js";
@@ -1653,7 +1653,7 @@ export function runSessionStart(
   lines.push(
     formatCeremonyDialStatusLine(ceremonyDialSelection, {
       startTierProvenance,
-      frameworkRoot: options.frameworkRoot ?? projectRoot,
+      frameworkRoot: options.frameworkRoot ?? resolveFrameworkRootForProject(projectRoot),
     }),
   );
   const pinBypassLine = formatCeremonyDialPinBypassLine(startTierProvenance);

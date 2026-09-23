@@ -85,6 +85,12 @@ describe("test_strategy_outputs.py", () => {
       expect(text).toContain("xbrief/active/");
       expect(text).toContain("named warning");
     });
+    it("test_new_writes_use_xbriefinfo_0_8_not_v0_6 (#4544)", () => {
+      const step1 = text.split("### Step 1:")[1]?.split("### Step 2:")[0] ?? "";
+      expect(step1).toContain("xBRIEFInfo");
+      expect(step1).toContain("0.8");
+      expect(step1).not.toContain("v0.6 schema");
+    });
   });
 
   describe("TestBddVbriefOutput", () => {
