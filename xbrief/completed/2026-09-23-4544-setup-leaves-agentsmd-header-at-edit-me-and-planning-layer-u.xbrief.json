@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4544",
-    "updated": "2026-09-23T12:43:59Z"
+    "updated": "2026-09-23T16:06:29Z"
   },
   "plan": {
     "title": "Setup leaves AGENTS.md header at \"edit me\" and planning layer unused on a single-prompt greenfield build",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Setup leaves AGENTS.md header at \"edit me\" and planning layer unused on a single-prompt greenfield build",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/4544",
@@ -16,38 +16,157 @@
     "items": [
       {
         "title": "In `content/templates/agents-entry.md` session-routing else-branch (`else main → USER → PROJECT-DEFINITION; ~ sync` then Mutation → `deft session:start`): when identity-only and the live request has product mutation intent, join existing setup Phase 3 Starting-new / Rapid before that mutation `session:start`. Confirmed `plan.narratives.Overview` plus one `xbrief/proposed/` draft that carries the live request's requirement list through Rapid Step 3 and #3267 capture, after Phase 3 confirmation. Process-only stays an explicit exit. Do not add `session:start --prompt`.",
-        "status": "proposed",
-        "id": "clause-1"
+        "status": "completed",
+        "id": "clause-1",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/content-contracts/skills/agents_md_session_start.test.ts",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
       },
       {
         "title": "Rapid Step 1 is not storing the prompt. Persist the live spec through Rapid Step 3 and #3267 after Phase 3 confirmation.",
-        "status": "proposed",
-        "id": "clause-2"
+        "status": "completed",
+        "id": "clause-2",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/content-contracts/skills/agents_entry_contract.test.ts",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
       },
       {
         "title": "Do not auto-write `xbrief/active/`. Promote and activate stay the existing verbs.",
-        "status": "proposed",
-        "id": "clause-3"
+        "status": "completed",
+        "id": "clause-3",
+        "x-directive/evidence": {
+          "kind": "review",
+          "pointer": "content/templates/agents-entry.md",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
       },
       {
         "title": "Unmanaged header one-liner: placeholder-only compare-and-set from user-confirmed Overview. Not a prompt interpolator. Not identity source of truth.",
-        "status": "proposed",
-        "id": "clause-4"
+        "status": "completed",
+        "id": "clause-4",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/platform/agents-consumer-header.test.ts",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
       },
       {
         "title": "Handback reports the actual lifecycle outcome (`proposed <path>`, Process-only, or product-write-with-no-brief as a gate anomaly).",
-        "status": "proposed",
-        "id": "clause-5"
+        "status": "completed",
+        "id": "clause-5",
+        "x-directive/evidence": {
+          "kind": "review",
+          "pointer": "content/templates/agents-entry.md",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
       },
       {
         "title": "Resolve the rapid compose pointer through `contentRoot` / the consumer deposit path.",
-        "status": "proposed",
-        "id": "clause-6"
+        "status": "completed",
+        "id": "clause-6",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/policy/ceremony-dial.test.ts",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
       },
       {
         "title": "Under rapid, if this session changed product files and no brief exists, `deft check` reports the verify:ac soft-skip as a named warning.",
-        "status": "proposed",
-        "id": "clause-7"
+        "status": "completed",
+        "id": "clause-7",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/check/rapid-soft-missing-no-brief.test.ts",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
+      },
+      {
+        "id": "clause.1",
+        "title": "clause.1",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/content-contracts/skills/agents_md_session_start.test.ts",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
+      },
+      {
+        "id": "clause.2",
+        "title": "clause.2",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/content-contracts/skills/agents_entry_contract.test.ts",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
+      },
+      {
+        "id": "clause.3",
+        "title": "clause.3",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "review",
+          "pointer": "content/templates/agents-entry.md",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
+      },
+      {
+        "id": "clause.4",
+        "title": "clause.4",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/platform/agents-consumer-header.test.ts",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
+      },
+      {
+        "id": "clause.5",
+        "title": "clause.5",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "review",
+          "pointer": "content/templates/agents-entry.md",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
+      },
+      {
+        "id": "clause.6",
+        "title": "clause.6",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/policy/ceremony-dial.test.ts",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
+      },
+      {
+        "id": "clause.7",
+        "title": "clause.7",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/check/rapid-soft-missing-no-brief.test.ts",
+          "recorded_at": "2026-09-23T16:05:39Z",
+          "recorded_by": "vitest"
+        }
       }
     ],
     "tags": [
@@ -761,6 +880,31 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "2ddcbd7dda7021f6e2f278edf2aeaae367b3e5471259a879ad25b5c8915caa8d"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4953,
+        "prBase": null,
+        "mergeCommit": "9ebaed92ba058bcdcf638e09a42c1a7ac2e51b4a",
+        "deliveryBranch": "master",
+        "deliveryCommit": "9ebaed92ba058bcdcf638e09a42c1a7ac2e51b4a",
+        "verifiedAt": "2026-09-23T16:06:29Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:grok:v1:MDFhMGNlNDQtZDE5ZS03ZmYwLWIwNWItZWQzZjBjY2ZkYmIz"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-23T16:06:29Z",
+      "completedSessionId": "host:grok:v1:MDFhMGNlNDQtZDE5ZS03ZmYwLWIwNWItZWQzZjBjY2ZkYmIz",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-23T16:06:29Z"
       }
     },
     "acceptance": {
@@ -822,6 +966,6 @@
       "ambiguity_attestation": "none_found"
     },
     "id": "github.issue.5453269518",
-    "updated": "2026-09-23T12:43:59Z"
+    "updated": "2026-09-23T16:06:29Z"
   }
 }
