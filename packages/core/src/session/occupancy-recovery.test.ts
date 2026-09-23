@@ -2,7 +2,14 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { OccupancyCeremonyEligibility } from "./occupancy.js";
+import { canonicalHostSessionId } from "./host-session-owner.js";
+import {
+  applyWorktreeOccupancy,
+  evaluateOccupancyCeremonyEligibility,
+  formatOccupancyRemediation,
+  type OccupancyCeremonyEligibility,
+  readOccupancy,
+} from "./occupancy.js";
 import {
   applyOccupancyEligibilityToDenial,
   formatOccupancyAwareRitualRecovery,
@@ -85,6 +92,52 @@ describe("occupancy-aware ritual recovery (#4290)", () => {
       "cold",
     );
     expect(text).toBe(SHELL_COVERAGE_HONESTY);
+  });
+
+  it("preserves minted-identity session:start --session-id recovery", () => {
+    const root = mkdtempSync(join(tmpdir(), "occ-rec-mint-"));
+    temps.push(root);
+    mkdirSync(join(root, ".deft"), { recursive: true });
+    const now = new Date("2026-09-23T12:00:00Z");
+    applyWorktreeOccupancy(root, {
+      env: {},
+      newSessionId: () => "minted-uuid",
+      now,
+      intent: "mutation",
+    });
+    const record = readOccupancy(root);
+    expect(record?.identityProvenance).toBe("minted");
+    const claudeRaw = "01a0a66a-9b86-7423-82f9-98d97cf5b099";
+    const claudeOwner = canonicalHostSessionId("claude", claudeRaw);
+    const env = {
+      CLAUDECODE: "1",
+      CLAUDE_CODE_SESSION_ID: claudeRaw,
+    };
+    const remediation = formatOccupancyRemediation(
+      record as NonNullable<typeof record>,
+      now,
+      "stranger",
+      env,
+    );
+    expect(remediation).toContain(`session:start --session-id=${claudeOwner}`);
+    const eligibility = evaluateOccupancyCeremonyEligibility(root, {
+      sessionId: "stranger",
+      now,
+      env,
+    });
+    const whole =
+      "Directive denied Write: stale. Run `deft session:start --rearm` to re-arm " +
+      "(or `deft session:start` for a full cold ceremony). " +
+      "Recovery: run `deft session:ready` (one-shot). " +
+      remediation.replaceAll(
+        `session:start --session-id=${claudeOwner}`,
+        `deft session:start --session-id=${claudeOwner}`,
+      );
+    const rewritten = applyOccupancyEligibilityToDenial(whole, eligibility, "rearm");
+    expect(rewritten).toContain(`session:start --session-id=${claudeOwner}`);
+    expect(rewritten).not.toMatch(/host-published owner \(\)/);
+    expect(rewritten).not.toMatch(/session:ready/);
+    expect(rewritten).not.toMatch(/session:start --rearm/);
   });
 
   it("occupancyAwareDenialMessage admits a vacant uncontended tree", () => {

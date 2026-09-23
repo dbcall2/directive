@@ -60,8 +60,8 @@ function stripUnauthorizedCeremonyCommands(text: string): string {
     /(?:deft|directive|task)\s+session:ready(?:\s+--(?:\s+)?\S+)*/gi,
     /`(?:deft|directive|task)\s+session:start\s+--rearm(?:\s+--session-id=\S+)?(?:\s+--\s+\S+)*`/gi,
     /(?:deft|directive|task)\s+session:start\s+--rearm(?:\s+--session-id=\S+)?/gi,
-    /`(?:deft|directive|task)\s+session:start(?:\s+--session-id=\S+)?`/gi,
-    /(?:deft|directive|task)\s+session:start(?!\s+--(?:primary-claim-exception|read-only|rearm)|\s+--\s+--defer)/gi,
+    /`(?:deft|directive|task)\s+session:start`/gi,
+    /(?:deft|directive|task)\s+session:start(?!\s+--)/gi,
   ];
   for (const pattern of patterns) {
     next = next.replace(pattern, "");

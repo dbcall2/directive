@@ -3033,4 +3033,30 @@ describe("live sibling-lease discriminator (#4445)", () => {
     expect(denied.action).toBe("denied");
     expect(dirname(bad)).toBe(root);
   });
+
+  it("linked claims wait on the primary occupancy lock (#4290)", () => {
+    const root = gitRepo();
+    const linked = addLinked(root);
+    mkdirSync(join(root, ".deft"), { recursive: true });
+    writeFileSync(`${occupancyPath(root)}.lock`, `${process.pid}\n${Date.now()}\n`, "utf8");
+    let clock = 0;
+    expect(() =>
+      applyWorktreeOccupancy(linked, {
+        sessionId: "peer",
+        now: new Date("2026-09-14T12:00:00Z"),
+        intent: "mutation",
+        lockDeps: {
+          now: () => {
+            clock += 1;
+            return clock;
+          },
+          acquisitionBudgetMs: 0,
+          sleepMs: () => {
+            /* no-op */
+          },
+        },
+      }),
+    ).toThrow(/timed out acquiring lock/);
+    expect(readOccupancy(linked)).toBeNull();
+  });
 });

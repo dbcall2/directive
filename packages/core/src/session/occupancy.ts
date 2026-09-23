@@ -76,7 +76,12 @@ import {
   printCompanionHostOwner,
 } from "./host-session-owner.js";
 import { stableJson } from "./json.js";
-import { isMainWorktreePath, listLinkedWorktreeCheckouts } from "./main-worktree.js";
+import {
+  isLinkedWorktreePath,
+  isMainWorktreePath,
+  listLinkedWorktreeCheckouts,
+  mainWorktreeRoot,
+} from "./main-worktree.js";
 import { parseTimestamp, timestampIso } from "./time.js";
 
 export const OCCUPANCY_SCHEMA_VERSION = 1;
@@ -1182,6 +1187,8 @@ export function applyWorktreeOccupancy(
     (fence) => {
       const existingLocked = readOccupancy(projectRoot);
       const liveLocked = liveOccupancyOnTree(projectRoot, existingLocked, now);
+      // Linked persist holds this same primary lock (occupancyLockProjectRoot),
+      // so a sibling cannot land between this scan and writeOccupancyRecord.
       if (
         primaryCheckoutClaimBlocked(
           projectRoot,
@@ -2505,19 +2512,33 @@ function removeOccupancyFile(projectRoot: string, fence: () => void): void {
   containedRemove({ root, target: occupancyPath(root) });
 }
 
+/**
+ * Sidecar lock root for occupancy persist. Linked worktree claims take the
+ * primary occupancy lock so a sibling cannot persist between the primary's
+ * sibling scan and its lease write (#4290 / #4445).
+ */
+function occupancyLockProjectRoot(projectRoot: string): string {
+  const resolved = resolve(projectRoot);
+  if (!isLinkedWorktreePath(resolved)) return resolved;
+  return mainWorktreeRoot(resolved) ?? resolved;
+}
+
 function withOccupancyLock<T>(
   projectRoot: string,
   fn: (fence: () => void) => T,
   deps: LockDeps = {},
 ): T {
+  const lockRoot = occupancyLockProjectRoot(projectRoot);
+  const lockDeps =
+    deps.containmentRoot !== undefined ? { ...deps, containmentRoot: lockRoot } : deps;
   return withAppendLock(
-    occupancyPath(projectRoot),
+    occupancyPath(lockRoot),
     (held) => {
       const fence = (): void => {
         assertAppendLockOwned(held);
       };
       return fn(fence);
     },
-    deps,
+    lockDeps,
   );
 }

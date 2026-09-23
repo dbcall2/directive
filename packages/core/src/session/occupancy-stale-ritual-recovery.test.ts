@@ -1,9 +1,11 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { decideHook, type HookPolicySeams } from "../hooks/dispatcher.js";
+import type { EnvironmentContext } from "../platform/shell-context.js";
 import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { canonicalHostSessionId } from "./host-session-owner.js";
 import {
@@ -20,7 +22,13 @@ import {
   occupancyAwareDenialMessage,
   SHELL_COVERAGE_HONESTY,
 } from "./occupancy-recovery.js";
-import { newRitualStatePayload, ritualStep, writeRitualState } from "./ritual-sentinel.js";
+import {
+  newRitualStatePayload,
+  readRitualState,
+  ritualStep,
+  writeRitualState,
+} from "./ritual-sentinel.js";
+import { runSessionStart, type SessionStartOptions } from "./session-start.js";
 
 const temps: string[] = [];
 afterEach(() => {
@@ -137,6 +145,95 @@ function readySeams(boundSessionId: string): HookPolicySeams {
     inspectScope: () => READY_SCOPE,
     runningInsideDeftRepo: () => true,
   };
+}
+
+const ceremonyEnvironment: EnvironmentContext = {
+  hostPlatform: "darwin",
+  shell: { name: "zsh", path: "/bin/zsh", kind: "default", source: "SHELL" },
+};
+
+function ceremonyOptions(root: string, sessionId: string, now: Date): SessionStartOptions {
+  return {
+    sessionId,
+    writeHistory: false,
+    now,
+    env: { DEFT_SESSION_ID: sessionId },
+    verifyTools: () => ({ exitCode: 0 }),
+    runTriageWelcome: () => ({ exitCode: 0 }),
+    resolveUserMd: () => ({
+      path: join(root, ".deft", "USER.md"),
+      rung: "workspace-local",
+      found: true,
+      diagnostic: "USER.md resolved from workspace-local config",
+      searched: [],
+    }),
+    probeEnvironment: () => ceremonyEnvironment,
+    probeScm: () => ({
+      ready: true,
+      binary: "gh",
+      binaryPath: "/usr/bin/gh",
+      authState: "authenticated",
+      githubAuthMode: "host-gh",
+      runtimeMode: "local-unsandboxed",
+      injectedTokenPresent: false,
+      depth: "shallow",
+      detail: "SCM ready: gh present, host-gh authenticated (shallow)",
+      remediation: null,
+      skippedGates: [],
+      login: null,
+      failureKind: null,
+    }),
+    probeReleaseAvailability: () => ({ lines: [] }),
+    runStalenessTickler: () => ({ lines: [], prompted: false }),
+  };
+}
+
+function claimFenceChild(
+  tree: string,
+  sessionId: string,
+): Promise<{
+  readonly code: number;
+  readonly action: string;
+  readonly sessionId: string | null;
+  readonly claimedAt: string | null;
+}> {
+  return new Promise((resolvePromise, reject) => {
+    const tsxCli = fileURLToPath(import.meta.resolve("tsx/cli"));
+    const workerFile = fileURLToPath(
+      new URL("./occupancy-sibling-fence-worker.ts", import.meta.url),
+    );
+    const child = spawn(process.execPath, [tsxCli, workerFile], {
+      env: {
+        ...process.env,
+        OCCUPANCY_FENCE_ROOT: tree,
+        OCCUPANCY_FENCE_SESSION: sessionId,
+      },
+      cwd: dirname(workerFile),
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+    child.once("error", reject);
+    child.once("exit", (code) => {
+      if (code !== 0) {
+        reject(new Error(`fence worker ${sessionId} exited ${code}: ${stderr}`));
+        return;
+      }
+      resolvePromise(
+        JSON.parse(stdout.trim()) as {
+          readonly code: number;
+          readonly action: string;
+          readonly sessionId: string | null;
+          readonly claimedAt: string | null;
+        },
+      );
+    });
+  });
 }
 
 function writeDecision(root: string, sessionId: string, target: string, seams: HookPolicySeams) {
@@ -442,14 +539,14 @@ describe("printed recovery through ceremony and next write (#4290)", () => {
       expect(unauthorized.action).toBe("denied");
       expect(readOccupancy(root)).toBeNull();
 
-      const recovered = applyWorktreeOccupancy(root, {
-        sessionId: "solo",
-        now,
-        intent: "mutation",
+      const recovered = runSessionStart(root, {
+        ...ceremonyOptions(root, "solo", now),
         primaryClaimException: "operator-default-branch",
       });
       expect(recovered.code).toBe(0);
-      writeFreshRitual(root, "solo", now);
+      expect(readOccupancy(root)?.sessionId).toBe("solo");
+      const [ritual] = readRitualState(root);
+      expect(ritual?.sessionId).toBe("solo");
       const next = writeDecision(root, "solo", product, readySeams("solo"));
       expect(next.verdict).toBe("allow");
       expect(readOccupancy(root)?.sessionId).toBe("solo");
@@ -536,4 +633,30 @@ describe("printed recovery through ceremony and next write (#4290)", () => {
     expect(rewritten).not.toMatch(/session:start --rearm/);
     expect(rewritten).toContain("Worktree occupied");
   });
+});
+
+describe("primary vs linked claim serialization (#4290)", () => {
+  it(
+    "concurrent ordinary primary and linked claims cannot both land with the sibling first",
+    destContentionItTimeout(),
+    async () => {
+      const root = gitRepo();
+      const linked = addLinked(root);
+      const rounds = process.platform === "win32" ? 2 : 4;
+      for (let i = 0; i < rounds; i += 1) {
+        rmSync(join(root, ".deft"), { recursive: true, force: true });
+        rmSync(join(linked, ".deft"), { recursive: true, force: true });
+        await Promise.all([claimFenceChild(root, "solo"), claimFenceChild(linked, "peer")]);
+        const primary = readOccupancy(root);
+        const sibling = readOccupancy(linked);
+        if (primary !== null && sibling !== null) {
+          expect(primary.claimedAt.getTime()).toBeLessThanOrEqual(sibling.claimedAt.getTime());
+        } else if (primary !== null) {
+          expect(sibling).toBeNull();
+        } else {
+          expect(sibling?.sessionId).toBe("peer");
+        }
+      }
+    },
+  );
 });
