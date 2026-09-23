@@ -541,7 +541,7 @@ function readyCacheIdentity(options: ProbeScmReadinessOptions & { force?: boolea
 } {
   return {
     repo: options.repo ?? "",
-    principal: options.expectedPrincipal ?? "",
+    principal: options.expectedPrincipal?.login ?? "",
   };
 }
 
