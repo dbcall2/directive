@@ -511,6 +511,8 @@ describe("requireScmReady credential-class ban (#3858)", () => {
     requireScmReady({ ...common, repo: "owner/one", force: true });
     requireScmReady({ ...common, repo: "owner/two" });
     expect(repos).toEqual(["repos/owner/one", "repos/owner/two"]);
+    requireScmReady({ ...common, repo: "owner/one" });
+    expect(repos).toEqual(["repos/owner/one", "repos/owner/two"]);
   });
 
   it("passes --repo other than origin through to the validator", () => {

@@ -527,13 +527,12 @@ export function assertScmBinaryPresent(whichFn: WhichFn = defaultWhich): ScmBina
  * ban: any user-bearing login is acceptable when no expected principal is
  * supplied. The repo GET does not authorize the operation.
  *
- * Process-scoped cache: a successful report is reused only when it covers the
- * requested authorization depth. A cached shallow-ready report does not
- * satisfy a later principal/deep request. Pass `force: true` to re-probe
- * (tests / after credential injection).
+ * Process-scoped cache: keyed by repo + expected principal so alternating
+ * `--repo` checks do not evict each other. A cached shallow-ready report does
+ * not satisfy a later principal/deep request for that same key. Pass
+ * `force: true` to re-probe (tests / after credential injection).
  */
-let cachedReadyReport: ScmReadinessReport | null = null;
-let cachedReadyKey: { repo: string; principal: string } | null = null;
+const cachedReadyReports = new Map<string, ScmReadinessReport>();
 
 function readyCacheIdentity(options: ProbeScmReadinessOptions & { force?: boolean }): {
   repo: string;
@@ -545,14 +544,14 @@ function readyCacheIdentity(options: ProbeScmReadinessOptions & { force?: boolea
   };
 }
 
+function readyCacheKey(identity: { repo: string; principal: string }): string {
+  return `${identity.repo}\0${identity.principal}`;
+}
+
 function cachedReportCoversRequestedDepth(
   cached: ScmReadinessReport,
   requestedDepth: ScmProbeDepth,
-  key: { repo: string; principal: string },
 ): boolean {
-  if (cachedReadyKey === null) return false;
-  if (cachedReadyKey.repo !== key.repo) return false;
-  if (cachedReadyKey.principal !== key.principal) return false;
   if (requestedDepth === "deep") {
     return cached.depth === "deep";
   }
@@ -564,12 +563,14 @@ export function requireScmReady(
 ): ScmReadinessReport {
   const requestedDepth: ScmProbeDepth = options.depth ?? "shallow";
   const identity = readyCacheIdentity(options);
+  const cacheKey = readyCacheKey(identity);
+  const cached = cachedReadyReports.get(cacheKey);
   if (
     !options.force &&
-    cachedReadyReport !== null &&
-    cachedReportCoversRequestedDepth(cachedReadyReport, requestedDepth, identity)
+    cached !== undefined &&
+    cachedReportCoversRequestedDepth(cached, requestedDepth)
   ) {
-    return cachedReadyReport;
+    return cached;
   }
   // Hermetic unit tests (VITEST) only require binary presence so CI
   // cloud-headless without injected tokens can exercise CLI argv/REST seams.
@@ -595,8 +596,7 @@ export function requireScmReady(
       login: null,
       failureKind: null,
     };
-    cachedReadyReport = report;
-    cachedReadyKey = identity;
+    cachedReadyReports.set(cacheKey, report);
     return report;
   }
   const report = probeScmReadiness({
@@ -607,8 +607,7 @@ export function requireScmReady(
   if (!report.ready) {
     throw scmNotReadyError(report);
   }
-  cachedReadyReport = report;
-  cachedReadyKey = identity;
+  cachedReadyReports.set(cacheKey, report);
   return report;
 }
 
@@ -617,8 +616,7 @@ export function requireScmReady(
  * Used by tests and by long-running processes after credential injection.
  */
 export function clearScmReadyCache(): void {
-  cachedReadyReport = null;
-  cachedReadyKey = null;
+  cachedReadyReports.clear();
 }
 
 export { findInjectedToken, GITHUB_AUTH_MODE_HOST_GH, GITHUB_AUTH_MODE_INJECTED_TOKEN };
