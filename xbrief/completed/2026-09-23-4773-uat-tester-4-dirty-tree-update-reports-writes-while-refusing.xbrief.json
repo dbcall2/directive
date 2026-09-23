@@ -1,0 +1,393 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #4773",
+    "updated": "2026-09-23T11:59:43Z"
+  },
+  "plan": {
+    "title": "[UAT Tester 4] Dirty-tree update reports writes while refusing before writes",
+    "status": "completed",
+    "narratives": {
+      "Description": "[UAT Tester 4] Dirty-tree update reports writes while refusing before writes",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/4773",
+      "Overview": "Original Tester 4 defect: #18\n\n## Summary\n\n`directive update` refused a dirty tree but simultaneously reported writes, producing an internally inconsistent result.\n\n## Expected behavior\n\nWhen refusing before writes, update should not report mutations unless they actually occurred.\n\n## Actual behavior\n\n```text\ndirective update: working tree is dirty; refuse before writes\nupdate_state: current\ndirty_tree: true\nmutations.wrote:\n  xbrief/.deft-version\n  AGENTS.md\nmutations.exec:\n  .git/index\n```\n\nIndependent Git inspection did not show new changes to those reported targets.\n\n## Reproduction\n\n1. Run `directive update` in a project with a dirty working tree.\n2. Capture the complete JSON result.\n3. Compare the refusal message and mutation report with filesystem and Git state.\n\n## Environment\n\nWindows; project path containing spaces; Directive 0.119.3; dirty Git worktree.\n\n## Impact\n\nUsers and automation cannot determine whether update changed files or safely refused.\n\n## Testing continuation\n\nTesting continued without retrying the dirty-tree override.\n\n## Related GitHub issue or PR\n\nNone in `deftai/directive`.",
+      "Labels": "bug, adoption-blocker, agent-experience, vendored-deposit, area:installer, design-critique:ingest-ready, focused-test-pass-1, core-capabilities, promise:lifecycle"
+    },
+    "items": [
+      {
+        "title": "emitGitRefusal only: refuse JSON must not emit dest-plan under mutations.wrote / mutations.exec. Empty mutations or a distinct dest-plan key.",
+        "status": "completed",
+        "id": "clause:1",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/init-deposit/refresh.test.ts",
+          "recorded_at": "2026-09-23T11:57:45Z",
+          "recorded_by": "host:grok:v1:MDFhMGNiZjItMWY2MC03N2MyLThiODktM2JhOTlhNjMxMWRi"
+        }
+      },
+      {
+        "title": "Do not change mutationSummaryJson globally. Do not recut successful dry-run dest-plan (emitDryRunPlan; ADR-004).",
+        "status": "completed",
+        "id": "clause:2",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/init-deposit/refresh.test.ts",
+          "recorded_at": "2026-09-23T11:57:45Z",
+          "recorded_by": "host:grok:v1:MDFhMGNiZjItMWY2MC03N2MyLThiODktM2JhOTlhNjMxMWRi"
+        }
+      },
+      {
+        "title": "Keep dest-plan computation before decideUpdateGitGate so gitPreflightRequired still sees dest emptiness. Do not move record-mode after the gate.",
+        "status": "completed",
+        "id": "clause:3",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/init-deposit/refresh.test.ts",
+          "recorded_at": "2026-09-23T11:57:45Z",
+          "recorded_by": "host:grok:v1:MDFhMGNiZjItMWY2MC03N2MyLThiODktM2JhOTlhNjMxMWRi"
+        }
+      },
+      {
+        "title": "Pin with a #4158-class test that dirty/unreadable refuse JSON has empty applied-write keys while the tree stays unchanged.",
+        "status": "completed",
+        "id": "clause:4",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/init-deposit/refresh.test.ts",
+          "recorded_at": "2026-09-23T11:57:45Z",
+          "recorded_by": "host:grok:v1:MDFhMGNiZjItMWY2MC03N2MyLThiODktM2JhOTlhNjMxMWRi"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "adoption-blocker",
+      "agent-experience",
+      "vendored-deposit",
+      "area:installer",
+      "design-critique:ingest-ready",
+      "focused-test-pass-1",
+      "core-capabilities",
+      "promise:lifecycle"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/4773",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #4773: [UAT Tester 4] Dirty-tree update reports writes while refusing before writes"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 4 independently testable clauses from the task statement before product edit (#3323)",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "emitGitRefusal only: refuse JSON must not emit dest-plan under mutations.wrote / mutations.exec. Empty mutations or a distinct dest-plan key.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "Do not change mutationSummaryJson globally. Do not recut successful dry-run dest-plan (emitDryRunPlan; ADR-004).",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "Keep dest-plan computation before decideUpdateGitGate so gitPreflightRequired still sees dest emptiness. Do not move record-mode after the gate.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "Pin with a #4158-class test that dirty/unreadable refuse JSON has empty applied-write keys while the tree stays unchanged.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found"
+    },
+    "metadata": {
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [],
+        "module_boundary": ""
+      },
+      "issueCommentThread": [
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: triage\n```\n\ndesign-critique: warranted, because directive update can refuse a dirty tree before writes and still emit mutations.wrote for dest-plan files that independent Git inspection did not show as newly changed.\n\nmechanism-shaped: true\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4773-dc\norigin-ref: origin/master\ndispatch-sha: 84a1be17b17245388769161188f35a4704a461e6\n\ncharter: refutation\nspend: N=1\nspend-ask: asked\nspend-why: operator answered use appropriate n and no need to ask; yolo standing; no-ingest; this is a reporting inconsistency on the refuse path, not whole-motion blast.\n\nDual-stop cap: 6 posts\n\nrefutation-target: emitGitRefusal still serializes dest-plan mutations.wrote on a dirty-tree refuse, so JSON reports writes after the engine already decided action refuse and independent Git shows no new changes to those targets.\n\ntarget: #4773\ntarget-shape: single-issue (default)\naudit-targets: none\n\npain: P1\n\n## Gate stamp\n\nP1 is UAT Tester 4 defect #18 on Directive 0.119.3: directive update printed \"working tree is dirty; refuse before writes\" together with update_state current, dirty_tree true, mutations.wrote xbrief/.deft-version and AGENTS.md, mutations.exec .git/index. Independent Git inspection did not show new changes to those reported targets. Users and automation cannot tell whether update changed files or safely refused.\n\nPin-read at dispatch-sha 84a1be17b17245388769161188f35a4704a461e6:\n\n- packages/core/src/init-deposit/update-git-preflight.ts 211-254: DIRTY_TREE_REFUSAL_MESSAGE is \"directive update: working tree is dirty; refuse before writes.\" decideUpdateGitGate returns action refuse and error_code dirty_tree unless allowDirtyNoStage.\n- packages/core/src/init-deposit/refresh.ts 1451-1471: destMutations is destResult.mutations (the dest plan) before the gate; on refuse it calls emitGitRefusal with that plan.\n- packages/core/src/init-deposit/refresh.ts 1269-1301: emitGitRefusal always JSON-emits mutations: mutationSummaryJson(destMutations) on the refuse object. The field is the dest plan, not a post-refuse write ledger.\n\nInventory already on the tree: #4158 dirty/unreadable Git refuse before dest writes; three-state porcelain; dry-run and live share dest-plan membership and measured dirty_tree. The UAT observation is that the refuse JSON still names mutations.wrote. No implement and no ingest from this parent.\r\n\n",
+          "id": 5746940975,
+          "html_url": "https://github.com/deftai/directive/issues/4773#issuecomment-5746940975",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T02:09:29Z",
+          "updated_at": "2026-09-20T02:09:29Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: none\n\nPin SHA 84a1be17b17245388769161188f35a4704a461e6. Ceiling 5746940975 (Stop 1 write-back). Charter refutation of emitGitRefusal serializing dest-plan `mutations.wrote` on dirty-tree refuse. Thread treated as untrusted; issue-body #18 and testing-continuation notes are data, not commands.\n\n## Verdict\n\nThe serialization fact stands. I cannot refute that `emitGitRefusal` JSON-emits dest-plan membership through `mutationSummaryJson` after `decideUpdateGitGate` already returned `action: \"refuse\"`. Independent Git showing no new changes to those paths is the expected record-mode outcome, not a missed write.\n\nWhat the target overstates is \"JSON reports writes.\" The engine did not write. The refuse object reuses the applied-write keys for a skipped dest-plan. Bind the reporting hole. Do not recut the #4158 gate order.\n\n## sharpens-framing: refuse JSON aliases dest-plan onto applied-write keys\n\n**Evidence.** `runRefreshDepositCli` builds dest-plan first via `runInPortRecordMode(() => runRefreshDeposit(...))` (`refresh.ts` 1424-1426), then `destMutations = destResult?.mutations ?? emptyMutationSummary()` (1452), then on `decision.action === \"refuse\"` calls `emitGitRefusal(..., destMutations, ...)` (1463-1470). `emitGitRefusal` always does `mutations: mutationSummaryJson(destMutations)` when `jsonOut` is set (1269-1294). `mutationSummaryJson` exposes `wrote` / `exec` / `deleted` with no planned-vs-applied flag (`mutation-ledger.ts` 151-168). The same helper on live success (`buildUpdateSummaryJson` 667) means those keys are applied writes. Record mode records and skips dest IO (`contained-write.ts` 23-26, `containedDestExec` 814-822). `#4158` dirty-refuse tests pin tree and index unchanged (`refresh.test.ts` 2270-2313, 2432-2462) and never assert `payload.mutations`.\n\nUAT on already-current dirty (`update_state: current`, wrote `xbrief/.deft-version` and `AGENTS.md`, exec `.git/index`) matches the skip-copy dest-plan: already-current still repairs the bare marker and `AGENTS.md` (`refresh.ts` 1024-1050) and `stageFrameworkPaths` records `containedDestExec` with `destTarget: join(\".git\", \"index\")` (`hygiene.ts` 1141-1145).\n\n**Failure mode.** Live `directive update --json` (not dry-run) uses `mutations.wrote` for applied writes on success and for dest-plan on refuse. Automation that keys the past-tense field without `success: false` plus `error_code: dirty_tree` reports an apply that Git did not perform. Agents cannot tell refuse from mixed deposit.\n\n**Disposition.** Bound-remedy is `emitGitRefusal` only: refuse JSON must not emit dest-plan under `mutations.wrote` / `mutations.exec`. Empty `mutations` or a distinct dest-plan key. Do not change `mutationSummaryJson` globally. Do not recut successful dry-run dest-plan (`emitDryRunPlan` 1340; ADR-004). Pin with a `#4158`-class test that dirty/unreadable refuse JSON has empty applied-write keys while the tree stays unchanged.\n\n## sharpens-framing: keep dest-plan computation before the gate\n\n**Evidence.** `gitPreflightRequired(destEmpty, outOfRoot)` (`update-git-preflight.ts` 205-208) uses dest-plan emptiness to decide whether dirty/unreadable refuses. Dest-plan before `decideUpdateGitGate` is load-bearing for #4158. `printDestPlanLines` (headline: recorded port calls, no changes written) is not called from `emitGitRefusal`; humans get the refuse message plus measured dirt only. Dest-plan on refuse JSON is leftover plumbing, not a designed diagnostic.\n\n**Failure mode.** Harvest that \"stops dest-plan on refuse\" by moving record-mode after the gate makes `destEmpty` true, skips preflight, then live-applies into a dirty tree. That reopens #4158.\n\n**Disposition.** Compute dest-plan before the gate. Stop serializing it as applied writes on refuse. Dirty `--dry-run` already refuses through `emitGitRefusal` (`refresh.test.ts` 2315-2346); emptying refuse `mutations` does not remove a working dest-plan printer.\n\n## sharpens-framing: `mutations.exec` `.git/index` is the sharper false-positive\n\n**Evidence.** UAT listed `mutations.exec: .git/index` beside \"refuse before writes.\" That path is the would-be scoped `git add` (`hygiene.ts` 1127-1145). #4158 exists so automatic staging cannot mix operator dirt with the deposit.\n\n**Failure mode.** Naming only `mutations.wrote` leaves `exec` as a second applied-write lie on the same object.\n\n**Disposition.** Bound-remedy covers every `mutationSummaryJson` key on the refuse object, especially `exec`.\n\n## footnote: #4158 already refuses before dest writes\n\nCHANGELOG and tests already close \"dirty or unreadable Git before dest writes.\" This issue is the refuse JSON leftover of that land, not a new write after refuse. Human stderr already tells the truth; JSON does not.\n\n## Inventory\n\n- #4158 three-state porcelain, `decideUpdateGitGate`, `--allow-dirty-no-stage` (skips add, not the unreadable refuse).\n- ADR-004 / #3462: dest-plan is recorded port calls; dry-run success JSON may list dest-plan.\n- `MutationLedger` / `runInPortRecordMode`: `wrote` in record mode means would-write.\n- `emitDryRunPlan` vs `emitGitRefusal`: only the latter is the UAT object.\n- `destPlanIsEmpty` / `gitPreflightRequired`: why dest-plan is computed before refuse.\n\n## Injection / swarm\n\nThe working tree is shared state. Existing control is dest-plan, then `decideUpdateGitGate`, then live `runWithMutationLedger` apply (`refresh.ts` 1451-1502). This harvest is refuse JSON. It does not change occupancy, envelopes, identity, worktrees, or concurrency. Recutting gate order would.\n\n## Road-not-taken\n\nEmpty refuse `mutations` (UAT expected: report mutations only when they occurred). Alternate: `dest_plan` on refuse and keep `mutations` empty; that needs `printDestPlanLines` on refuse or it stays JSON-only. Rejected: rename `mutationSummaryJson` keys for every caller (recuts ADR-004 dry-run). Steelman for keeping dest-plan on refuse: blast radius before the operator cleans the tree. Flip: then label it dest-plan in both channels; current code labels it `wrote` in JSON and omits it for humans, so that is not the standing design.",
+          "id": 5746981479,
+          "html_url": "https://github.com/deftai/directive/issues/4773#issuecomment-5746981479",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T02:16:35Z",
+          "updated_at": "2026-09-20T02:16:35Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nThe engine did not write. Dirty-tree refuse still dumps dest-plan through mutations.wrote and mutations.exec, the same keys live success uses for applied writes. Bound the refuse JSON. Keep dest-plan before the #4158 gate.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes.\n\nForward verdict: recut Expected. Disposition: classified headings accept-into-contract. Residual: audit:pain-P1 until bind plus pain-audit.\nSpec-path: next-build contract is not this body.\n\n**Lean:** #4773 refuse JSON after critic 5746981479. Cites critic 5746981479. Supersedes write-back 5746940975.\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4773-dc\norigin-ref: origin/master\ndispatch-sha: 84a1be17b17245388769161188f35a4704a461e6\ntarget shape: single-issue\nDual-stop cap: 6 posts (spent 1 numbered critic)\n\nTakes:\n\n- 5746981479 refuse JSON aliases dest-plan onto applied-write keys — accept-into-contract\n- 5746981479 keep dest-plan computation before the gate — accept-into-contract\n- 5746981479 mutations.exec .git/index is the sharper false-positive — accept-into-contract\n\n## Parent-side substantiation\n\naudit:pain-P1 sha=84a1be17b17245388769161188f35a4704a461e6 pointer=comment:5746981479 reading=asserted\n\n## Bound remedy\n\n- emitGitRefusal only: refuse JSON must not emit dest-plan under mutations.wrote / mutations.exec. Empty mutations or a distinct dest-plan key.\n- Do not change mutationSummaryJson globally. Do not recut successful dry-run dest-plan (emitDryRunPlan; ADR-004).\n- Keep dest-plan computation before decideUpdateGitGate so gitPreflightRequired still sees dest emptiness. Do not move record-mode after the gate.\n- Pin with a #4158-class test that dirty/unreadable refuse JSON has empty applied-write keys while the tree stays unchanged.\r\n\n",
+          "id": 5746998760,
+          "html_url": "https://github.com/deftai/directive/issues/4773#issuecomment-5746998760",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T02:19:58Z",
+          "updated_at": "2026-09-20T02:19:58Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nThe engine did not write. Dirty-tree refuse still dumps dest-plan through mutations.wrote and mutations.exec, the same keys live success uses for applied writes. This bind empties those applied-write keys on refuse JSON and keeps dest-plan before the #4158 gate.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1, successor lean 5746998760, and these takes.\n\nForward verdict: bind. Disposition: classified headings accept-into-contract. Residual: none.\nSpec-path: next-build contract is not this body.\n\n**Lean:** #4773 bind after critic 5746981479. Cites critic 5746981479. Supersedes successor 5746998760. Predecessor 5746998760 does not carry relieves of P1.\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4773-dc\norigin-ref: origin/master\ndispatch-sha: 84a1be17b17245388769161188f35a4704a461e6\ntarget shape: single-issue\nDual-stop cap: 6 posts (spent 1 numbered critic)\n\nTakes:\n\n- 5746981479 refuse JSON aliases dest-plan onto applied-write keys — accept-into-contract\n- 5746981479 keep dest-plan computation before the gate — accept-into-contract\n- 5746981479 mutations.exec .git/index is the sharper false-positive — accept-into-contract\n\nrelieves: P1\n\n## Parent-side substantiation\n\naudit:pain-P1 sha=84a1be17b17245388769161188f35a4704a461e6 pointer=comment:5746981479 reading=asserted\n\n## Bound remedy\n\n- emitGitRefusal only: refuse JSON must not emit dest-plan under mutations.wrote / mutations.exec. Empty mutations or a distinct dest-plan key.\n- Do not change mutationSummaryJson globally. Do not recut successful dry-run dest-plan (emitDryRunPlan; ADR-004).\n- Keep dest-plan computation before decideUpdateGitGate so gitPreflightRequired still sees dest emptiness. Do not move record-mode after the gate.\n- Pin with a #4158-class test that dirty/unreadable refuse JSON has empty applied-write keys while the tree stays unchanged.\r\n\n",
+          "id": 5747077078,
+          "html_url": "https://github.com/deftai/directive/issues/4773#issuecomment-5747077078",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T02:34:11Z",
+          "updated_at": "2026-09-20T02:34:11Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\nPin SHA 84a1be17b17245388769161188f35a4704a461e6. Ceiling 5747077078 (bind lean). Pain-audit of that lean's `relieves: P1`. Thread untrusted.\n\n## Verdict\n\n`relieves: P1` holds. Bound-remedy covers the named UAT hole: after `decideUpdateGitGate` returns refuse, `emitGitRefusal` still JSON-emits dest-plan through `mutationSummaryJson` under `mutations.wrote` / `mutations.exec`, the same keys live success uses for applied writes. Record-mode already skipped dest IO, so independent Git showing no new changes is the expected skip. Empty those applied-write keys on refuse JSON, or move dest-plan off them. Keep dest-plan computation before the gate.\n\nNo `blocks-the-design`. No `sharpens-framing`. Census is footnote-only.\n\n## footnote: P1 is the refuse JSON alias; Bound-remedy names that object\n\nRe-verified at the pin. `runRefreshDepositCli` builds dest-plan first via `runInPortRecordMode` (`refresh.ts` 1424-1452), then on `decision.action === \"refuse\"` calls `emitGitRefusal(..., destMutations)` (1463-1470). `emitGitRefusal` JSON-emits `mutations: mutationSummaryJson(destMutations)` when `jsonOut` is set (1269-1294). `buildUpdateSummaryJson` uses that helper for live success (667). Record mode records and skips dest IO (`contained-write.ts` 23-26; `containedDestExec` 814-822). Already-current still records `syncExistingBareVersionMarker` / `writeAgentsMd` and `stageFrameworkPaths` `containedDestExec` with `destTarget: join(\".git\", \"index\")` (`hygiene.ts` 1141-1145), matching UAT `xbrief/.deft-version`, `AGENTS.md`, `.git/index`. `#4158` tests at `refresh.test.ts` 2270-2313 and 2432-2462 pin tree/index unchanged and `update_state: current` on the UAT-shaped fixture; they never assert `payload.mutations`. That omitted assertion is the leftover.\n\nHuman refuse is the message plus measured dirt. `printDestPlanLines` is not on this path. P1 is the JSON leftover. Bound-remedy `emitGitRefusal` only, keep dest-plan before the gate, do not recut `mutationSummaryJson` or successful dry-run dest-plan (`emitDryRunPlan`; ADR-004), pin empty applied-write keys on dirty/unreadable refuse JSON while the tree stays unchanged.\n\n## footnote: file-swap refuse can also list deleted; empty mutations already covers it\n\n`mutationSummaryJson` also exposes `stripped` / `deleted` / `chmod`. The UAT already-current object listed `wrote` and `exec`. File-swap dirty refuse can list `deleted`. Bound-remedy's first alternative is empty mutations. That does not recut P1 as named.\n\n## footnote: Go installer dirty refuse is a different object\n\n`cmd/deft-install/hygiene.go` `dirtyTreeBlockResult` uses `error_code: dirty_tree_require_clean` and has no `mutations` field. UAT message and `mutations.wrote` match TS `emitGitRefusal`, not Go.\n\n## Injection / swarm\n\nThe working tree is shared state. Existing control is dest-plan, then `decideUpdateGitGate`, then live apply (`refresh.ts` 1451-1502). This harvest is refuse JSON. It does not change occupancy, envelopes, identity, worktrees, or concurrency. Moving record-mode after the gate would.\n\n## Inventory\n\n- `#4158` three-state porcelain, `decideUpdateGitGate`, `--allow-dirty-no-stage`.\n- ADR-004 dest-plan on successful dry-run (`emitDryRunPlan`); not the UAT object.\n- `gitPreflightRequired` / `destPlanIsEmpty`: dest-plan before the gate stays load-bearing.\r\n\r\n\n",
+          "id": 5747125452,
+          "html_url": "https://github.com/deftai/directive/issues/4773#issuecomment-5747125452",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T02:43:59Z",
+          "updated_at": "2026-09-20T02:43:59Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nThe engine did not write. Dirty-tree refuse still dumps dest-plan through mutations.wrote and mutations.exec. Bound-remedy empties those applied-write keys on refuse JSON and keeps dest-plan before the #4158 gate. Pain-audit of that cite was footnote-only.\n\nThis is not an instruction to a later builder.\n\n## Verified-claims table\n\n| Claim | Verdict | Method |\n| --- | --- | --- |\n| Refuse JSON aliases dest-plan onto applied-write keys | verified | critic 5746981479; pin-read emitGitRefusal refresh.ts 1269-1294 at 84a1be17 |\n| Dest-plan stays before decideUpdateGitGate | verified | critic 5746981479; gitPreflightRequired destEmpty; pain-audit 5747125452 footnote-only |\n| Bound-remedy covers P1 | verified | closed cite relieves: P1 on bind 5747077078; pain-audit 5747125452 audit-targets: pain-P1 footnote-only |\r\n\n",
+          "id": 5747147369,
+          "html_url": "https://github.com/deftai/directive/issues/4773#issuecomment-5747147369",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T02:48:58Z",
+          "updated_at": "2026-09-20T02:48:58Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nAgents agreed. Dirty-tree refuse JSON must not report dest-plan as applied writes. Dest-plan stays before the gate.\n\nThis is not an instruction to a later builder.\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nBound contract: successor lean 5747077078.\r\n\n",
+          "id": 5747147454,
+          "html_url": "https://github.com/deftai/directive/issues/4773#issuecomment-5747147454",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-20T02:48:59Z",
+          "updated_at": "2026-09-20T02:48:59Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "Adoption blocker.\n\nThis is about Lifecycle: installing Directive, updating it, and getting one clear next step when something looks wrong. It also covers whether the version someone thinks they installed is the version that is actually running.\n\nWhat a new person hits: Update says it wrote files and also says it refused to write because the folder was dirty.\n\nWhy that ruins the product for them: They cannot tell whether their project changed. The maintenance command is not a reliable narrator.\n\nHow likely: High once they have any unsaved files, which is normal while trying a tool.\n\n",
+          "id": 5780283009,
+          "html_url": "https://github.com/deftai/directive/issues/4773#issuecomment-5780283009",
+          "user": {
+            "login": "polfer",
+            "id": 52183,
+            "node_id": "MDQ6VXNlcjUyMTgz",
+            "avatar_url": "https://avatars.githubusercontent.com/u/52183?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/polfer",
+            "html_url": "https://github.com/polfer",
+            "followers_url": "https://api.github.com/users/polfer/followers",
+            "following_url": "https://api.github.com/users/polfer/following{/other_user}",
+            "gists_url": "https://api.github.com/users/polfer/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/polfer/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/polfer/subscriptions",
+            "organizations_url": "https://api.github.com/users/polfer/orgs",
+            "repos_url": "https://api.github.com/users/polfer/repos",
+            "events_url": "https://api.github.com/users/polfer/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/polfer/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T16:38:20Z",
+          "updated_at": "2026-09-22T16:38:20Z",
+          "author_association": "CONTRIBUTOR"
+        }
+      ],
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5501878817,
+        "origin": "deftai/directive#4773",
+        "id": "github.issue.5501878817"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 4945,
+        "prBase": null,
+        "mergeCommit": "5f72d8bd85e52d63537080fa6657d72559fee909",
+        "deliveryBranch": "master",
+        "deliveryCommit": "c7cae4d44e40abf4fb00ee25aceacf32d06168d9",
+        "verifiedAt": "2026-09-23T11:59:43Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:grok:v1:MDFhMGNiZjItMWY2MC03N2MyLThiODktM2JhOTlhNjMxMWRi"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-23T11:59:43Z",
+      "completedSessionId": "host:grok:v1:MDFhMGNiZjItMWY2MC03N2MyLThiODktM2JhOTlhNjMxMWRi",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-23T11:59:43Z"
+      }
+    },
+    "id": "github.issue.5501878817",
+    "updated": "2026-09-23T11:59:43Z"
+  }
+}
