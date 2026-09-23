@@ -1,4 +1,5 @@
 import type { AdvisoryEvaluateResult } from "../agents-md-advisory/evaluate.js";
+import type { AgentHookInspection } from "../init-deposit/agent-hooks.js";
 import type { ShadowedPlanExtension } from "../policy/plan-extensions.js";
 import type { EngineProbeResult } from "../resolution/classify.js";
 import type { ResolutionMode } from "../resolution/index.js";
@@ -203,6 +204,8 @@ export interface DoctorSeams {
   ) => Record<string, unknown>;
   /** Read-only agent-host hook registration probe (#2438). */
   readonly evaluateAgentHooks?: (projectRoot: string) => AgentHookHealthResult;
+  /** Per-host valid() registration probe for kill-switch SessionStart notice (#4884). */
+  readonly inspectAgentHookDeposit?: (projectRoot: string) => readonly AgentHookInspection[];
   /** Live hook spawn probe for doctor --full (#2852). */
   readonly probeAgentHooksLive?: (
     projectRoot: string,

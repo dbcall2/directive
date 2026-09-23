@@ -28,7 +28,7 @@ Tracker: [#3039](https://github.com/deftai/directive/issues/3039).
 
 | Surface | When flag present |
 |---------|-------------------|
-| **Doctor** | Status **disabled (test kill-switch)**; **not** the #2926 flag+deposit dirty path; prints full recovery (file gone + new session). |
+| **Doctor** | Status **disabled (test kill-switch)**; **not** the #2926 flag+deposit dirty path; prints full recovery (file gone + new session) and one SessionStart registration line per host. |
 | **Agent** | Always-on AGENTS contract: stop further Directive process load; echo recovery. |
 | **CLI** (`session:start`, ritual paths) | Disabled + recovery; no ritual write / no half-DD automation. |
 | **Host hooks** | SessionStart / PreToolUse / compact skip ritual and enforcement. |
@@ -47,6 +47,7 @@ Canonical recovery message:
 ```text
 Directive is DISABLED for this project via root `.deft-directive-disable` (test/local kill-switch).
 Deposit may still be present; enforcement (hooks, session ritual, automation) will not run.
+The flag is present: stop Directive process load (AGENTS.md Temporary test kill-switch #3039).
 
 To fully re-enable Directive:
   1. Delete the file:  rm .deft-directive-disable   (or equivalent)

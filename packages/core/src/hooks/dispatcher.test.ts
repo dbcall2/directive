@@ -12,6 +12,10 @@ import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_RUNTIME_AUTHORITY_POLICY } from "../policy/runtime-authority.js";
 import {
+  decisionCarriesSoftAgentsRebind,
+  softAgentsRebindForbiddenHits,
+} from "../session/compact-ritual.js";
+import {
   applyWorktreeOccupancy,
   OCCUPANCY_MAX_LEASE_MS,
   OCCUPANCY_STALE_WARN_MS,
@@ -33,6 +37,8 @@ import {
   CURSOR_TASK_SPAWN_READ_ONLY_RECOVERY,
   DIRECT_WRITE_TOOL_NAMES,
   decideHook,
+  HOOK_HOSTS,
+  type HookHost,
   type HookPolicySeams,
   hookPayloadTopLevelKeys,
   hookShellCommand,
@@ -67,6 +73,17 @@ afterEach(() => {
 
 function hasDoubledWindowsDrivePrefix(path: string): boolean {
   return /^[A-Za-z]:\\[A-Za-z]:\\/i.test(path.replace(/\//g, "\\"));
+}
+
+function sessionStartInjectionField(host: HookHost, rendered: string): string {
+  const wire = JSON.parse(rendered) as {
+    additional_context?: string;
+    hookSpecificOutput?: { additionalContext?: string };
+  };
+  if (host === "cursor" || host === "grok") {
+    return wire.additional_context ?? "";
+  }
+  return wire.hookSpecificOutput?.additionalContext ?? "";
 }
 
 const READY_RITUAL = {
@@ -2004,6 +2021,72 @@ describe("direct-write hook policy", () => {
     );
     expect(tool).toMatchObject({ verdict: "allow", code: "directive-disabled" });
     expect(tool.message).toContain("rm .deft-directive-disable");
+  });
+
+  it("injects session.start disable notice as decision.message on all four hosts (#4884)", () => {
+    const killSeams = readySeams({
+      detectDeftDirectiveDisable: () => ({
+        present: true,
+        flagPath: "/project/.deft-directive-disable",
+        depositPresent: true,
+        trackedByGit: false,
+        active: true,
+      }),
+    });
+
+    for (const host of HOOK_HOSTS) {
+      const decision = decideHook(
+        {
+          host,
+          event: "session.start",
+          projectRoot: "/project",
+          payload: {},
+        },
+        killSeams,
+      );
+      expect(decision).toMatchObject({ verdict: "allow", code: "session-start-disabled" });
+      expect(decisionCarriesSoftAgentsRebind({ event: decision.event, code: decision.code })).toBe(
+        false,
+      );
+      expect(softAgentsRebindForbiddenHits(decision.message)).toEqual([]);
+
+      const injected = sessionStartInjectionField(host, renderHostDecision(host, decision));
+      expect(injected).toBe(decision.message);
+    }
+  });
+
+  it("keeps directive-disabled tool.before as empty allow on all four hosts (#4884)", () => {
+    const killSeams = readySeams({
+      detectDeftDirectiveDisable: () => ({
+        present: true,
+        flagPath: "/project/.deft-directive-disable",
+        depositPresent: true,
+        trackedByGit: false,
+        active: true,
+      }),
+    });
+
+    for (const host of HOOK_HOSTS) {
+      const decision = decideHook(
+        {
+          host,
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: { tool_name: "Write", tool_input: { path: "/project/x.ts" } },
+        },
+        killSeams,
+      );
+      expect(decision).toMatchObject({ verdict: "allow", code: "directive-disabled" });
+      const rendered = renderHostDecision(host, decision);
+      if (host === "cursor") {
+        expect(JSON.parse(rendered)).toEqual({
+          permission: "allow",
+          code: "directive-disabled",
+        });
+      } else {
+        expect(rendered).toBe("");
+      }
+    }
   });
 
   it("combines kill-switch and permanent opt-out messages when both flags present (#3039)", () => {
