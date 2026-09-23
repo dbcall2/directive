@@ -74,8 +74,8 @@
         "status": "completed",
         "id": "clause-6",
         "x-directive/evidence": {
-          "kind": "review",
-          "pointer": "content/strategies/rapid.md",
+          "kind": "test",
+          "pointer": "packages/core/src/policy/ceremony-dial.test.ts",
           "recorded_at": "2026-09-23T16:05:39Z",
           "recorded_by": "vitest"
         }
@@ -151,8 +151,8 @@
         "title": "clause.6",
         "status": "completed",
         "x-directive/evidence": {
-          "kind": "review",
-          "pointer": "content/strategies/rapid.md",
+          "kind": "test",
+          "pointer": "packages/core/src/policy/ceremony-dial.test.ts",
           "recorded_at": "2026-09-23T16:05:39Z",
           "recorded_by": "vitest"
         }
