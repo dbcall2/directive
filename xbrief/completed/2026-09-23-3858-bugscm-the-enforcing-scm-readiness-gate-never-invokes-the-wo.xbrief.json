@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #3858",
-    "updated": "2026-09-23T17:50:07Z"
+    "updated": "2026-09-24T17:47:44Z"
   },
   "plan": {
     "title": "bug(scm): the enforcing SCM readiness gate never invokes the worker-principal validator",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "bug(scm): the enforcing SCM readiness gate never invokes the worker-principal validator",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/3858",
@@ -16,43 +16,91 @@
     "items": [
       {
         "title": "Property is credential-class ban only: no App installation credential may drive `scm issue *`, `issue:ingest`, and `reconcile:issues`. Any user-bearing login is acceptable when no expected principal is supplied. Do not claim identity-gated SCM authorization or that the repo GET authorizes the operation.",
-        "status": "proposed",
-        "id": "clause.1"
+        "status": "completed",
+        "id": "clause.1",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4979#19a9c4077fc7489bba99c19dc431a0f01a0aec74",
+          "recorded_at": "2026-09-24T17:47:33.000Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "Those three callers must invoke the installation-class check (`validateGithubAuthForWorker` / `/user` inapplicability). Doctor and default `session:start` stay shallow; they do not call `requireScmReady`.",
-        "status": "proposed",
-        "id": "clause.2"
+        "status": "completed",
+        "id": "clause.2",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4979#19a9c4077fc7489bba99c19dc431a0f01a0aec74",
+          "recorded_at": "2026-09-24T17:47:33.000Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "`requireScmReady` honors requested authorization depth. Do not reuse a cached shallow-ready report for a principal/deep request. Restrict the hermetic skip to `VITEST`; `DEFT_SCM_SKIP_AUTH_PROBE` must not authorize production when a token is present.",
-        "status": "proposed",
-        "id": "clause.3"
+        "status": "completed",
+        "id": "clause.3",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4979#19a9c4077fc7489bba99c19dc431a0f01a0aec74",
+          "recorded_at": "2026-09-24T17:47:33.000Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "Parse `--repo` / `-R` before `requireScmReady` on the three callers and pass that repo through, so non-checkout `--repo` does not regress. The class-ban still does not claim target-bound authorization.",
-        "status": "proposed",
-        "id": "clause.4"
+        "status": "completed",
+        "id": "clause.4",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4979#19a9c4077fc7489bba99c19dc431a0f01a0aec74",
+          "recorded_at": "2026-09-24T17:47:33.000Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "Tests at `requireScmReady`: installation-shaped `/user` 403 is not ready; shallow-ready then principal/deep with that 403 fails; skip env does not silently authorize production; `--repo` other than origin reaches the validator.",
-        "status": "proposed",
-        "id": "clause.5"
+        "status": "completed",
+        "id": "clause.5",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "https://github.com/deftai/directive/blob/19a9c4077fc7489bba99c19dc431a0f01a0aec74/packages/core/src/scm/readiness.test.ts",
+          "recorded_at": "2026-09-24T17:47:33.000Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "CHANGELOG and `content/scm/github.md` § 2275 name the three verbs exactly. `SCM_DEPENDENT_GATES` stays a diagnostic skip-list. `pr:*` merge-path modules stay a different issue.",
-        "status": "proposed",
-        "id": "clause.6"
+        "status": "completed",
+        "id": "clause.6",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4979#19a9c4077fc7489bba99c19dc431a0f01a0aec74",
+          "recorded_at": "2026-09-24T17:47:33.000Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "Recorded cost: two extra REST calls and up to 60 s added worst-case latency per gated process; refuse on transient API failure (same posture as #3422).",
-        "status": "proposed",
-        "id": "clause.7"
+        "status": "completed",
+        "id": "clause.7",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4979#19a9c4077fc7489bba99c19dc431a0f01a0aec74",
+          "recorded_at": "2026-09-24T17:47:33.000Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "Swarm `prepareWorkerCredentialInjection` stays the expected-user injected-token path. #3693 observation path and #3859 classifier stay out of this number.",
-        "status": "proposed",
-        "id": "clause.8"
+        "status": "completed",
+        "id": "clause.8",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4979#19a9c4077fc7489bba99c19dc431a0f01a0aec74",
+          "recorded_at": "2026-09-24T17:47:33.000Z",
+          "recorded_by": "dbcall2"
+        }
       }
     ],
     "tags": [
@@ -524,9 +572,34 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "e24a494028a58144e3183a565f30c96213b3bc3558b35132a9e16febb36b2390"
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": "79c0d042bbe3cb66b1964ba56f7aa185a94b84a8",
+        "prNumber": 4979,
+        "prBase": "master",
+        "mergeCommit": "19a9c4077fc7489bba99c19dc431a0f01a0aec74",
+        "deliveryBranch": "master",
+        "deliveryCommit": "92b74e960919ac41b922abc9e0498b66e4066383",
+        "verifiedAt": "2026-09-24T17:47:44Z",
+        "verifier": "swarm:finalize-cohort",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:claude:v1:Zjk3MzNiNjQtZGQwMS00MDVkLWJjNzQtYzFhM2FmZmU4ZmU5"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-24T17:47:44Z",
+      "completedSessionId": "host:claude:v1:Zjk3MzNiNjQtZGQwMS00MDVkLWJjNzQtYzFhM2FmZmU4ZmU5",
+      "capacityBucket": "new-capability",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-24T17:47:44Z"
       }
     },
     "id": "github.issue.5280329187",
-    "updated": "2026-09-23T17:50:07Z"
+    "updated": "2026-09-24T17:47:44Z"
   }
 }
