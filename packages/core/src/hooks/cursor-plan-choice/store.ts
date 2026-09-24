@@ -3,25 +3,21 @@
  * Result-typed: no throw/reject/abort sites.
  */
 
-import {
-  chmodSync,
-  closeSync,
-  existsSync,
-  fsyncSync,
-  lstatSync,
-  mkdirSync,
-  openSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  unlinkSync,
-  writeSync,
-} from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
+import {
+  ContainedWriteError,
+  ContainedWriteErrorCode,
+  containedChmod,
+  containedRemove,
+  containedRename,
+  containedWrite,
+} from "../../fs/contained-write.js";
 import type {
   CursorPlanChoiceDeps,
   CursorPlanChoiceIdentity,
   CursorPlanChoiceRecord,
+  CursorPlanChoiceStoreError,
   CursorPlanChoiceStoreResult,
   PlanChoicePending,
   PlanChoiceSelected,
@@ -115,18 +111,6 @@ function ensureDir(path: string, deps: CursorPlanChoiceDeps): CursorPlanChoiceSt
   return { ok: true, value: undefined };
 }
 
-function fsyncPath(path: string): void {
-  let fd: number | undefined;
-  try {
-    fd = openSync(path, "r");
-    fsyncSync(fd);
-  } catch {
-    /* directory fsync is best-effort on win32 */
-  } finally {
-    if (fd !== undefined) closeSync(fd);
-  }
-}
-
 function parseRecord(raw: string): CursorPlanChoiceStoreResult<CursorPlanChoiceRecord> {
   let parsed: unknown;
   try {
@@ -176,66 +160,189 @@ export function isSelectedLive(selected: PlanChoiceSelected | null, nowMs: numbe
   return Number.isFinite(last) && nowMs - last <= CURSOR_PLAN_CHOICE_LIMITS.selectedIdleMs;
 }
 
-type LockHeld = { readonly lockPath: string; readonly fd: number };
+type LockHeld = {
+  readonly lockPath: string;
+  readonly token: string;
+  readonly pid: number;
+};
+
+function containedFail(err: unknown, fallback: string): CursorPlanChoiceStoreError {
+  if (err instanceof ContainedWriteError) {
+    if (
+      err.code === ContainedWriteErrorCode.ESCAPE ||
+      err.code === ContainedWriteErrorCode.SYMLINK
+    ) {
+      return fail("unsafe-path", err.message);
+    }
+  }
+  return fail("storage-failure", fallback);
+}
+
+function writeExclusive(
+  root: string,
+  path: string,
+  data: string,
+): "created" | "exists" | CursorPlanChoiceStoreError {
+  try {
+    containedWrite({
+      root,
+      target: path,
+      data,
+      mode: "create",
+      mutation: false,
+    });
+    try {
+      containedChmod({
+        root,
+        target: path,
+        mode: CURSOR_PLAN_CHOICE_LIMITS.fileMode,
+        mutation: false,
+      });
+    } catch {
+      /* win32 may ignore mode */
+    }
+    return "created";
+  } catch (err) {
+    if (err instanceof ContainedWriteError && err.code === ContainedWriteErrorCode.EXISTS) {
+      return "exists";
+    }
+    return containedFail(err, `lock open failed at ${path}`);
+  }
+}
+
+function removeContained(root: string, path: string): boolean {
+  try {
+    containedRemove({ root, target: path, mutation: false });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readLockOwner(lockPath: string): { pid: number | null; token: string | null } {
+  try {
+    const body = readFileSync(lockPath, "utf8");
+    const lines = body.split(/\r?\n/);
+    const parsed = Number(lines[0]);
+    const pid = Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+    const tokenLine = lines[2] ?? "";
+    const token = tokenLine.length > 0 ? tokenLine : null;
+    return { pid, token };
+  } catch {
+    return { pid: null, token: null };
+  }
+}
+
+function ownerlessLockStale(lockPath: string, nowMs: number): boolean {
+  let mtimeMs: number;
+  try {
+    mtimeMs = lstatSync(lockPath).mtimeMs;
+  } catch {
+    return true;
+  }
+  if (!Number.isFinite(mtimeMs)) return true;
+  const injectedAge = nowMs - mtimeMs;
+  if (injectedAge >= CURSOR_PLAN_CHOICE_LIMITS.lockWaitMs) return true;
+  const wallAge = Date.now() - mtimeMs;
+  return wallAge >= CURSOR_PLAN_CHOICE_LIMITS.lockWaitMs;
+}
+
+function lockReclaimable(
+  ownerPid: number | null,
+  lockPath: string,
+  deps: CursorPlanChoiceDeps,
+  waitExhausted: boolean,
+): boolean {
+  if (ownerPid !== null) return !deps.processExists(ownerPid);
+  return waitExhausted || ownerlessLockStale(lockPath, deps.now());
+}
+
+function lockBody(deps: CursorPlanChoiceDeps, token: string): string {
+  return `${deps.pid}\n${deps.now()}\n${token}\n`;
+}
+
+function acquireReclaimTicket(
+  root: string,
+  reclaimPath: string,
+  body: string,
+  deps: CursorPlanChoiceDeps,
+): CursorPlanChoiceStoreResult<void> {
+  const created = writeExclusive(root, reclaimPath, body);
+  if (created === "created") return { ok: true, value: undefined };
+  if (created !== "exists") return created;
+  const owner = readLockOwner(reclaimPath);
+  if (owner.pid !== null && deps.processExists(owner.pid)) {
+    return fail("lock-busy", "timed out waiting for planning-choice lock");
+  }
+  if (owner.pid === null && !ownerlessLockStale(reclaimPath, deps.now())) {
+    return fail("lock-busy", "timed out waiting for planning-choice lock");
+  }
+  if (!removeContained(root, reclaimPath)) {
+    return fail("lock-ambiguous", "could not reclaim a dead lock owner");
+  }
+  const retry = writeExclusive(root, reclaimPath, body);
+  if (retry === "created") return { ok: true, value: undefined };
+  if (retry === "exists") {
+    return fail("lock-busy", "timed out waiting for planning-choice lock");
+  }
+  return retry;
+}
 
 function acquireLock(
   lockPath: string,
   deps: CursorPlanChoiceDeps,
 ): CursorPlanChoiceStoreResult<LockHeld> {
+  const root = deps.configDir;
+  const reclaimPath = `${lockPath}.reclaim`;
+  const token = deps.randomBytes(CURSOR_PLAN_CHOICE_LIMITS.tokenBytes).toString("hex");
+  const body = lockBody(deps, token);
   let waited = 0;
   while (true) {
+    const created = writeExclusive(root, lockPath, body);
+    if (created === "created") {
+      return { ok: true, value: { lockPath, token, pid: deps.pid } };
+    }
+    if (created !== "exists") return created;
+    const owner = readLockOwner(lockPath);
+    const waitExhausted = waited >= CURSOR_PLAN_CHOICE_LIMITS.lockWaitMs;
+    if (!lockReclaimable(owner.pid, lockPath, deps, waitExhausted)) {
+      if (waitExhausted) {
+        return fail("lock-busy", "timed out waiting for planning-choice lock");
+      }
+      waited += CURSOR_PLAN_CHOICE_LIMITS.lockSleepMs;
+      deps.sleepMs(CURSOR_PLAN_CHOICE_LIMITS.lockSleepMs);
+      continue;
+    }
+    const ticket = acquireReclaimTicket(root, reclaimPath, body, deps);
+    if (!ticket.ok) return ticket;
     try {
-      const fd = openSync(lockPath, "wx");
-      writeSync(fd, Buffer.from(`${deps.pid}\n${deps.now()}\n`));
-      try {
-        fsyncSync(fd);
-      } catch {
-        /* ignore */
+      const again = readLockOwner(lockPath);
+      if (!lockReclaimable(again.pid, lockPath, deps, true)) {
+        return fail("lock-busy", "timed out waiting for planning-choice lock");
       }
-      return { ok: true, value: { lockPath, fd } };
-    } catch (err: unknown) {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code !== "EEXIST") {
-        return fail("storage-failure", `lock open failed at ${lockPath}`);
+      if (!removeContained(root, lockPath) && existsSync(lockPath)) {
+        return fail("lock-ambiguous", "could not reclaim a dead lock owner");
       }
-      let ownerPid: number | null = null;
-      try {
-        const body = readFileSync(lockPath, "utf8");
-        const parsed = Number(body.split(/\r?\n/)[0]);
-        ownerPid = Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-      } catch {
-        ownerPid = null;
+      const retry = writeExclusive(root, lockPath, body);
+      if (retry === "created") {
+        return { ok: true, value: { lockPath, token, pid: deps.pid } };
       }
-      if (ownerPid !== null && !deps.processExists(ownerPid)) {
-        try {
-          unlinkSync(lockPath);
-          continue;
-        } catch {
-          return fail("lock-ambiguous", "could not reclaim a dead lock owner");
-        }
-      }
-      if (ownerPid === null) {
-        return fail("lock-ambiguous", "lock owner cannot be proven");
-      }
+      if (retry !== "exists") return retry;
       waited += CURSOR_PLAN_CHOICE_LIMITS.lockSleepMs;
       if (waited >= CURSOR_PLAN_CHOICE_LIMITS.lockWaitMs) {
         return fail("lock-busy", "timed out waiting for planning-choice lock");
       }
       deps.sleepMs(CURSOR_PLAN_CHOICE_LIMITS.lockSleepMs);
+    } finally {
+      removeContained(root, reclaimPath);
     }
   }
 }
 
-function releaseLock(held: LockHeld): void {
-  try {
-    closeSync(held.fd);
-  } catch {
-    /* already closed */
-  }
-  try {
-    unlinkSync(held.lockPath);
-  } catch {
-    /* already gone */
+function releaseLock(held: LockHeld, deps: CursorPlanChoiceDeps): void {
+  const owner = readLockOwner(held.lockPath);
+  if (owner.pid === held.pid && owner.token === held.token) {
+    removeContained(deps.configDir, held.lockPath);
   }
 }
 
@@ -244,36 +351,35 @@ function atomicWriteFile(
   body: string,
   deps: CursorPlanChoiceDeps,
 ): CursorPlanChoiceStoreResult<void> {
+  const root = deps.configDir;
   const dir = dirname(path);
   const tmp = join(dir, `${deps.pid}.${deps.now()}.tmp`);
   if (!contained(planChoiceStoreRoot(deps), path) || !contained(planChoiceStoreRoot(deps), tmp)) {
     return fail("unsafe-path", "path escape");
   }
-  let fd: number | undefined;
   try {
-    fd = openSync(tmp, "wx");
-    writeSync(fd, Buffer.from(body, "utf8"));
-    fsyncSync(fd);
-    closeSync(fd);
-    fd = undefined;
-    chmodSync(tmp, CURSOR_PLAN_CHOICE_LIMITS.fileMode);
-    renameSync(tmp, path);
-    fsyncPath(dir);
-    return { ok: true, value: undefined };
-  } catch {
-    if (fd !== undefined) {
-      try {
-        closeSync(fd);
-      } catch {
-        /* ignore */
-      }
-    }
+    containedWrite({
+      root,
+      target: tmp,
+      data: body,
+      mode: "create",
+      mutation: false,
+    });
     try {
-      unlinkSync(tmp);
+      containedChmod({
+        root,
+        target: tmp,
+        mode: CURSOR_PLAN_CHOICE_LIMITS.fileMode,
+        mutation: false,
+      });
     } catch {
-      /* ignore */
+      /* win32 may ignore mode */
     }
-    return fail("storage-failure", `atomic write failed for ${path}`);
+    containedRename({ root, from: tmp, to: path, mutation: false });
+    return { ok: true, value: undefined };
+  } catch (err) {
+    removeContained(root, tmp);
+    return containedFail(err, `atomic write failed for ${path}`);
   }
 }
 
@@ -306,11 +412,7 @@ function cleanupWorkspace(deps: CursorPlanChoiceDeps, workspaceHash: string): vo
     const livePending = isPendingLive(parsed.value.pending, now);
     const liveSelected = isSelectedLive(parsed.value.selected, now);
     if (livePending || liveSelected) continue;
-    try {
-      unlinkSync(path);
-    } catch {
-      /* never count deletion as consent */
-    }
+    removeContained(deps.configDir, path);
   }
 }
 
@@ -362,9 +464,7 @@ export function withPlanChoiceRecord(
     if (!next.ok) return next;
     if (next.value === null) {
       if (existsSync(recordPath)) {
-        try {
-          unlinkSync(recordPath);
-        } catch {
+        if (!removeContained(deps.configDir, recordPath) && existsSync(recordPath)) {
           return fail("storage-failure", "could not remove planning-choice record");
         }
       }
@@ -374,7 +474,7 @@ export function withPlanChoiceRecord(
     if (!written.ok) return written;
     return { ok: true, value: next.value };
   } finally {
-    releaseLock(lock.value);
+    releaseLock(lock.value, deps);
   }
 }
 

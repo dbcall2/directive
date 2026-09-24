@@ -1,4 +1,13 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -84,5 +93,40 @@ describe("withPlanChoiceRecord", () => {
     const result = withPlanChoiceRecord(locked, id, (current) => ({ ok: true, value: current }));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("lock-busy");
+  });
+
+  it("reclaims a lock whose recorded owner process is dead", () => {
+    const d = deps();
+    const id = identity();
+    const root = join(d.configDir, "runtime", "cursor-plan-choice", "v1", id.workspaceHash);
+    mkdirSync(root, { recursive: true });
+    writeFileSync(join(root, `${id.conversationHash}.json.lock`), "999999\n1\ndead\n");
+    const result = withPlanChoiceRecord(d, id, () => {
+      const pending = newPending(d);
+      return { ok: true, value: emptyPendingRecord(id, pending) };
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value?.status).toBe("pending");
+  });
+
+  it("reclaims a stale ownerless lock through exclusive-create and a reclaim ticket", () => {
+    const d = deps();
+    const id = identity();
+    const root = join(d.configDir, "runtime", "cursor-plan-choice", "v1", id.workspaceHash);
+    mkdirSync(root, { recursive: true });
+    const lockPath = join(root, `${id.conversationHash}.json.lock`);
+    writeFileSync(lockPath, "\n");
+    utimesSync(lockPath, new Date(0), new Date(0));
+    const result = withPlanChoiceRecord(d, id, () => {
+      const pending = newPending(d);
+      return { ok: true, value: emptyPendingRecord(id, pending) };
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value?.pending?.token).toHaveLength(32);
+    expect(existsSync(lockPath)).toBe(false);
+    const record = readFileSync(join(root, `${id.conversationHash}.json`), "utf8");
+    expect(record).toContain("pending");
   });
 });

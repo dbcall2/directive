@@ -65,4 +65,58 @@ describe("versioned redacted Cursor 3.21.16 fixtures", () => {
     expect(agentDecision.verdict).toBe("allow");
     expect(agentDecision.code).toBe("plan-choice-allow-non-plan");
   });
+
+  it("acks a matching afterAgentResponse fixture generation after Directive handoff", () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "plan-choice-fix-ws-")));
+    temps.push(root);
+    mkdirSync(root, { recursive: true });
+    const plan = loadFixture("plan-first-submit.json");
+    plan.workspace_roots = [root];
+    const d = deps();
+    const question = decideCursorPlanChoice(
+      { host: "cursor", event: "prompt.submit", projectRoot: root, payload: plan },
+      d,
+    );
+    const token = /DEFT-PLAN-CHOICE ([0-9a-f]{32})/.exec(question.message)?.[1];
+    expect(token).toHaveLength(32);
+    decideCursorPlanChoice(
+      {
+        host: "cursor",
+        event: "prompt.submit",
+        projectRoot: root,
+        payload: { ...plan, prompt: `DEFT-PLAN-CHOICE ${token} 1` },
+      },
+      d,
+    );
+    const ackFixture = loadFixture("after-agent-response.json");
+    const generationId = ackFixture.generation_id;
+    expect(typeof generationId).toBe("string");
+    expect(Array.isArray(ackFixture.workspace_roots)).toBe(true);
+    const handoff = decideCursorPlanChoice(
+      {
+        host: "cursor",
+        event: "prompt.submit",
+        projectRoot: root,
+        payload: {
+          ...plan,
+          prompt: "/deft:directive:run:interview design the planning join",
+          generation_id: generationId,
+        },
+      },
+      d,
+    );
+    expect(handoff.code).toBe("plan-choice-allow-interview");
+    ackFixture.workspace_roots = [root];
+    const ack = decideCursorPlanChoice(
+      {
+        host: "cursor",
+        event: "agent.response",
+        projectRoot: root,
+        payload: ackFixture,
+      },
+      d,
+    );
+    expect(ack.verdict).toBe("allow");
+    expect(ack.code).toBe("plan-choice-ack-observed");
+  });
 });

@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Cursor planning-choice locks recover from an empty or unreadable owner (#4973).** Lock and record writes go through `containedWrite`. A stale ownerless lock is reclaimed with exclusive-create plus a reclaim ticket. A live owner is still not reclaimed by age. Tracking #4973.
 - **`verify:class-checks` treats signal-killed git as enumeration failure (#4980).** A non-null `spawnSync` signal returns exit 2 instead of a coerced status path. Tracking #4980.
 - **`verify:class-checks` class-4 companions are exact registration paths only (#4980).** `check/`, `consumer-check-contract/`, and `evaluator-surface/` directory blankets no longer treat substantive runtime edits as non-story; gate-lists, named-cause, dispatch, and the two evaluate registration files stay composition companions. Tracking #4980.
 - **`verify:class-checks` fail-closed paths return results instead of throw sites (#4980).** Git/policy load failures map to exit 2 (or skip when not a git tree) so `verify:intent-constraint` needs no mint. Tracking #4980.
