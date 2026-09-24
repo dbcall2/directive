@@ -119,9 +119,7 @@ describe("shared diagnostic mapping", () => {
     const frozen = loadFrozen4290();
     const repo = "deftai/directive\n--chip evil";
     const diagnostic = mapping({ comments: frozen.comments, repo, issueNumber: 4290 });
-    const bullet = diagnostic.text
-      .split("\n")
-      .find((line) => line.includes("Operator-directed:"));
+    const bullet = diagnostic.text.split("\n").find((line) => line.includes("Operator-directed:"));
     const sanitized =
       "task scm:issue:design-critique-chip -- --repo deftai/directive --chip evil --issue 4290 --chip mechanism-shaped";
     expect(diagnostic.recoveryCommand).toBe(sanitized);
