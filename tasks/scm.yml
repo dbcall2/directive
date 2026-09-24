@@ -14,6 +14,7 @@ version: '3'
 #   - scm:issue:close   (thin wrapper over `ghx|gh issue close`)
 #   - scm:issue:edit    (thin wrapper over `ghx|gh issue edit`)
 #   - scm:issue:design-critique-chip (#3642 closed catalog remaining-set)
+#   - scm:issue:design-critique-stale-ready (#4970 read-only stale ingest-ready scan)
 #   - scm:issue:work-claim (#4200 same-issue busy flag)
 #   - scm:body:*        (#1555 safe Markdown body posting via github-body TS CLI)
 #
@@ -37,8 +38,9 @@ version: '3'
 #
 # Forward-compat marker: v1 was issue:* plus #1555 body-posting. #3391
 # adds scm:sync-default (dest-targeted staged sync PRs). #3642 adds
-# scm:issue:design-critique-chip (closed catalog remaining-set). Other PR
-# verbs remain #881.
+# scm:issue:design-critique-chip (closed catalog remaining-set). #4970
+# adds scm:issue:design-critique-stale-ready (read-only stale ingest-ready
+# scan). Other PR verbs remain #881.
 # ---------------------------------------------------------------------------
 
 vars:
@@ -101,6 +103,16 @@ tasks:
       - task: :engine:invoke
         vars:
           ENGINE_CMD: 'scm issue design-critique-chip {{.CLI_ARGS}}'
+
+  issue:design-critique-stale-ready:
+    desc: "[#4970] Read-only stale ingest-ready scan -- task scm:issue:design-critique-stale-ready -- [--repo OWNER/NAME] [--json]"
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'scm issue design-critique-stale-ready {{.CLI_ARGS}}'
 
   issue:work-claim:
     desc: "[#4200] Same-issue busy flag -- task scm:issue:work-claim -- claim|show|release --issue N [--repo OWNER/NAME] [--json]"

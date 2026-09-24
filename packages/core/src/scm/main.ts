@@ -4,6 +4,11 @@ import { extractFlag, peekRepoFlag } from "./argv.js";
 import { buildCommand } from "./build-command.js";
 import { REST_OPT_IN_VERBS } from "./constants.js";
 import { DESIGN_CRITIQUE_CHIP_VERB, runDesignCritiqueChip } from "./design-critique-chip.js";
+import {
+  DESIGN_CRITIQUE_STALE_READY_VERB,
+  runDesignCritiqueStaleReady,
+  type StaleReadyScanSeams,
+} from "./design-critique-stale-ready.js";
 import { ScmStubError } from "./errors.js";
 import type { GhRestSeams } from "./gh-rest.js";
 import { requireScmReady } from "./readiness.js";
@@ -23,6 +28,8 @@ export interface MainOptions {
   readonly labelClient?: LabelClient;
   /** Occupancy probe seam for `issue work-claim` (#4200). */
   readonly occupancyLive?: (projectRoot: string) => boolean;
+  /** Seams for `issue design-critique-stale-ready` (#4970). */
+  readonly staleReadySeams?: StaleReadyScanSeams;
 }
 
 /**
@@ -57,7 +64,7 @@ export function main(argv: readonly string[], options: MainOptions = {}): number
   if (argv.length < 2) {
     process.stderr.write(
       "usage: scm.py <namespace> <verb> [pass-through args...]\n" +
-        "       (v1 stub: namespace=issue, verb=list|view|close|edit|design-critique-chip|work-claim)\n" +
+        "       (v1 stub: namespace=issue, verb=list|view|close|edit|design-critique-chip|design-critique-stale-ready|work-claim)\n" +
         "       --rest opt-in is supported on issue view/list (#976)\n",
     );
     return 2;
@@ -71,6 +78,19 @@ export function main(argv: readonly string[], options: MainOptions = {}): number
     const blocked = guardScmReady(options, extra);
     if (blocked !== null) return blocked;
     const result = runDesignCritiqueChip(extra, { client: options.labelClient });
+    if (result.stdout.length > 0) {
+      process.stdout.write(result.stdout);
+    }
+    if (result.stderr.length > 0) {
+      process.stderr.write(result.stderr);
+    }
+    return result.exitCode;
+  }
+
+  if (namespace === "issue" && verb === DESIGN_CRITIQUE_STALE_READY_VERB) {
+    const blocked = guardScmReady(options, extra);
+    if (blocked !== null) return blocked;
+    const result = runDesignCritiqueStaleReady(extra, options.staleReadySeams);
     if (result.stdout.length > 0) {
       process.stdout.write(result.stdout);
     }

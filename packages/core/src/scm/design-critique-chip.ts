@@ -17,6 +17,10 @@ import {
   applyDesignCritiqueCatalogChip,
   type DesignCritiqueCatalogChip,
 } from "../design-critique/exclusive-chip.js";
+import {
+  formatStaleIngestReadyDiagnostic,
+  INGEST_READY_CHIP,
+} from "../design-critique/stale-ingest-ready-diagnostic.js";
 import { fetchIssueComments, IssueCommentFetchError } from "../intake/issue-ingest.js";
 import { parseGithubOwnerRepo } from "../policy/sync-default.js";
 import { ScmLabelClient } from "../vbrief-reconcile/labels.js";
@@ -231,11 +235,27 @@ export function runDesignCritiqueChip(
       const comments = fetchComments(repo, args.issue);
       const outcome = applyIngestReadyRemainingSet(client, repo, args.issue, comments);
       if (!outcome.ok) {
-        return proofFailResult(
-          args,
-          repo,
-          new IngestReadyCompletedArcProofError(args.issue, outcome.verdict, comments),
+        const proofErr = new IngestReadyCompletedArcProofError(
+          args.issue,
+          outcome.verdict,
+          comments,
         );
+        let standingLabels: string[] = [];
+        try {
+          standingLabels = client.fetchLabels(repo, args.issue);
+        } catch {
+          standingLabels = [];
+        }
+        if (standingLabels.includes(INGEST_READY_CHIP)) {
+          const overlay = formatStaleIngestReadyDiagnostic({
+            repo,
+            issueNumber: args.issue,
+            labels: standingLabels,
+            verdict: outcome.verdict,
+          }).text;
+          return proofFailResult(args, repo, new Error(`${proofErr.message}\n${overlay}`));
+        }
+        return proofFailResult(args, repo, proofErr);
       }
       applied = outcome;
     } else {

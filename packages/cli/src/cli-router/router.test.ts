@@ -199,6 +199,15 @@ describe("routeArgv", () => {
     ]);
   });
 
+  it("maps scm:issue:design-critique-stale-ready colon and space forms (#4970)", () => {
+    expect(
+      routeArgv(["scm", "issue", "design-critique-stale-ready", "--repo", "deftai/directive"]).argv,
+    ).toEqual(["scm", "issue", "design-critique-stale-ready", "--repo", "deftai/directive"]);
+    expect(
+      routeArgv(["scm:issue:design-critique-stale-ready", "--repo", "deftai/directive"]).argv,
+    ).toEqual(["scm", "issue", "design-critique-stale-ready", "--repo", "deftai/directive"]);
+  });
+
   it("preserves legacy flat verbs", () => {
     expect(routeArgv(["verify:encoding", "--help"]).argv).toEqual(["verify:encoding", "--help"]);
     expect(routeArgv(["verify-encoding"]).argv).toEqual(["verify-encoding"]);
