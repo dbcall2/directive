@@ -788,10 +788,12 @@ export function containedChmod(input: ContainedChmodInput): { path: string } {
 
 /**
  * Open `dirAbs` as a directory (no-follow when the platform supports it) and
- * `fsyncSync` the fd so a preceding same-dir rename is durable. Windows
- * directory fsync is best-effort.
+ * `fsyncSync` the fd so a preceding same-dir rename is durable.
+ * Returns true when that fsync completed. Open/stat/fsync failure is
+ * best-effort: return false, never throw/reject/abort (Windows directory
+ * fsync already behaved this way).
  */
-export function fsyncContainedDirectory(dirAbs: string): void {
+export function fsyncContainedDirectory(dirAbs: string): boolean {
   let flags = constants.O_RDONLY;
   if (typeof constants.O_DIRECTORY === "number") flags |= constants.O_DIRECTORY;
   if (typeof constants.O_NOFOLLOW === "number") flags |= constants.O_NOFOLLOW;
@@ -800,28 +802,12 @@ export function fsyncContainedDirectory(dirAbs: string): void {
     fd = openSync(dirAbs, flags);
     const st = fstatSync(fd);
     if (!st.isDirectory()) {
-      throw new ContainedWriteError(`contained write I/O failed: ${dirAbs} is not a directory`, {
-        code: ContainedWriteErrorCode.IO,
-        root: dirname(dirAbs),
-        target: dirAbs,
-        offendingPath: dirAbs,
-      });
+      return false;
     }
     fsyncSync(fd);
-  } catch (err) {
-    if (process.platform === "win32") {
-      return;
-    }
-    if (err instanceof ContainedWriteError) {
-      throw err;
-    }
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new ContainedWriteError(`contained write I/O failed: ${msg}`, {
-      code: ContainedWriteErrorCode.IO,
-      root: dirname(dirAbs),
-      target: dirAbs,
-      offendingPath: dirAbs,
-    });
+    return true;
+  } catch {
+    return false;
   } finally {
     if (fd !== undefined) {
       try {

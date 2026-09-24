@@ -555,33 +555,21 @@ describe("containedRemove (#3392)", () => {
 describe("fsyncContainedDirectory", () => {
   it("fsyncs a real directory", () => {
     const root = freshDir("cw-dir-fsync-");
-    expect(() => fsyncContainedDirectory(root)).not.toThrow();
+    const ok = fsyncContainedDirectory(root);
+    expect(typeof ok).toBe("boolean");
+    if (process.platform !== "win32") expect(ok).toBe(true);
   });
 
-  it("refuses a file on posix", () => {
-    if (process.platform === "win32") return;
+  it("returns false for a file without throwing", () => {
     const root = freshDir("cw-dir-fsync-file-");
     const file = join(root, "not-dir.txt");
     writeFileSync(file, "x\n");
-    try {
-      fsyncContainedDirectory(file);
-      expect.fail("expected ContainedWriteError");
-    } catch (err) {
-      expect(err).toBeInstanceOf(ContainedWriteError);
-      expect((err as ContainedWriteError).code).toBe(ContainedWriteErrorCode.IO);
-    }
+    expect(fsyncContainedDirectory(file)).toBe(false);
   });
 
-  it("refuses a missing path on posix", () => {
-    if (process.platform === "win32") return;
+  it("returns false for a missing path without throwing", () => {
     const root = freshDir("cw-dir-fsync-missing-");
-    try {
-      fsyncContainedDirectory(join(root, "nope"));
-      expect.fail("expected ContainedWriteError");
-    } catch (err) {
-      expect(err).toBeInstanceOf(ContainedWriteError);
-      expect((err as ContainedWriteError).code).toBe(ContainedWriteErrorCode.IO);
-    }
+    expect(fsyncContainedDirectory(join(root, "nope"))).toBe(false);
   });
 });
 
@@ -593,7 +581,8 @@ describe("containedRename durability", () => {
     expect(existsSync(join(root, "src.txt"))).toBe(false);
     expect(readFileSync(join(root, "dst.txt"), "utf8")).toBe("BODY\n");
     expect(result.to).toBe(join(root, "dst.txt"));
-    expect(() => fsyncContainedDirectory(root)).not.toThrow();
+    const durable = fsyncContainedDirectory(root);
+    if (process.platform !== "win32") expect(durable).toBe(true);
   });
 
   it("throws IO when the source file is missing", () => {

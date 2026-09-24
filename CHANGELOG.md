@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Cursor planning-choice record rename fsyncs the destination directory (#4973).** After the contained replace, the store opens the dest dir and `fsyncSync`s it so an acknowledged record is not lost on crash. Tracking #4973.
+- **Cursor planning-choice dest-directory fsync is best-effort and does not throw (#4973).** After the contained replace, POSIX still `fsyncSync`s the dest dir on success. Open/stat/fsync failure returns false; the store logs (non-Windows) and keeps the renamed record. Tracking #4973.
 - **Cursor planning-choice locks recover from an empty or unreadable owner (#4973).** Lock and record writes go through `containedWrite`. A stale ownerless lock is reclaimed with exclusive-create plus a reclaim ticket. A live owner is still not reclaimed by age. Tracking #4973.
 - **`verify:class-checks` treats signal-killed git as enumeration failure (#4980).** A non-null `spawnSync` signal returns exit 2 instead of a coerced status path. Tracking #4980.
 - **`verify:class-checks` class-4 companions are exact registration paths only (#4980).** `check/`, `consumer-check-contract/`, and `evaluator-surface/` directory blankets no longer treat substantive runtime edits as non-story; gate-lists, named-cause, dispatch, and the two evaluate registration files stay composition companions. Tracking #4980.

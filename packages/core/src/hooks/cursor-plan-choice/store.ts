@@ -377,7 +377,11 @@ function atomicWriteFile(
       /* win32 may ignore mode */
     }
     containedRename({ root, from: tmp, to: path, mutation: false });
-    fsyncContainedDirectory(dir);
+    if (!fsyncContainedDirectory(dir) && deps.platform !== "win32") {
+      process.stderr.write(
+        `deft: cursor-plan-choice dest-directory fsync best-effort failed for ${dir}\n`,
+      );
+    }
     return { ok: true, value: undefined };
   } catch (err) {
     removeContained(root, tmp);

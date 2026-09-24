@@ -22,15 +22,16 @@ vi.mock("../../fs/contained-write.js", async (importOriginal) => {
   return {
     ...actual,
     fsyncContainedDirectory: (dirAbs: string) => {
-      fsyncDir(dirAbs);
-      actual.fsyncContainedDirectory(dirAbs);
+      const override = fsyncDir(dirAbs);
+      if (override === false) return false;
+      return actual.fsyncContainedDirectory(dirAbs);
     },
   };
 });
 
 const temps: string[] = [];
 afterEach(() => {
-  fsyncDir.mockClear();
+  fsyncDir.mockReset();
   for (const dir of temps.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -155,5 +156,26 @@ describe("withPlanChoiceRecord", () => {
     const dir = join(d.configDir, "runtime", "cursor-plan-choice", "v1", id.workspaceHash);
     expect(fsyncDir).toHaveBeenCalledWith(dir);
     expect(existsSync(join(dir, `${id.conversationHash}.json`))).toBe(true);
+  });
+
+  it("keeps the renamed record when dest-directory fsync returns false", () => {
+    fsyncDir.mockReturnValue(false);
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    try {
+      const d = deps();
+      const id = identity();
+      const written = withPlanChoiceRecord(d, id, () => {
+        const pending = newPending(d);
+        return { ok: true, value: emptyPendingRecord(id, pending) };
+      });
+      expect(written.ok).toBe(true);
+      const dir = join(d.configDir, "runtime", "cursor-plan-choice", "v1", id.workspaceHash);
+      expect(existsSync(join(dir, `${id.conversationHash}.json`))).toBe(true);
+      if (d.platform !== "win32") {
+        expect(String(stderr.mock.calls.flat().join(""))).toContain("best-effort");
+      }
+    } finally {
+      stderr.mockRestore();
+    }
   });
 });
