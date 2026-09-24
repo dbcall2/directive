@@ -13,6 +13,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_RUNTIME_AUTHORITY_POLICY } from "../policy/runtime-authority.js";
 import {
   decisionCarriesSoftAgentsRebind,
+  formatOpenClawSoftRebindSkillMarkdown,
+  formatSoftAgentsRebindChecklist,
   softAgentsRebindForbiddenHits,
 } from "../session/compact-ritual.js";
 import {
@@ -33,11 +35,13 @@ import {
 import { fixtureCaseById, fixtureCasesFor, HOOK_FIXTURE_CASES } from "./fixtures/index.js";
 import {
   ASSIST_SESSION_POSTURE_ENV,
+  CURSOR_SESSION_START_PLANNING_LINE,
   CURSOR_TASK_SPAWN_CLASS_RECOVERY,
   CURSOR_TASK_SPAWN_READ_ONLY_RECOVERY,
   DIRECT_WRITE_TOOL_NAMES,
   decideHook,
   HOOK_HOSTS,
+  type HookDecision,
   type HookHost,
   type HookPolicySeams,
   hookPayloadTopLevelKeys,
@@ -4145,6 +4149,101 @@ describe("provider codecs", () => {
     expect(cursorWire.additional_context).toContain(
       "Directive soft post-compact AGENTS re-bind (#3171 / #2769)",
     );
+    expect(cursorWire.additional_context).toContain(CURSOR_SESSION_START_PLANNING_LINE);
+    expect(claudeWire.hookSpecificOutput.additionalContext).not.toContain(
+      CURSOR_SESSION_START_PLANNING_LINE,
+    );
+    expect(codexWire.hookSpecificOutput.additionalContext).not.toContain(
+      CURSOR_SESSION_START_PLANNING_LINE,
+    );
+    expect(grokWire.additional_context).not.toContain(CURSOR_SESSION_START_PLANNING_LINE);
+  });
+
+  it("appends Cursor session.start planning line on session-start and session-start-degraded only (#1708)", () => {
+    const parseCursorStart = (decision: HookDecision) =>
+      JSON.parse(renderHostDecision("cursor", decision)) as {
+        permission: string;
+        code: string;
+        additional_context?: string;
+      };
+
+    const healthy = decideHook(
+      {
+        host: "cursor",
+        event: "session.start",
+        projectRoot: "/project",
+        payload: {},
+      },
+      readySeams(),
+    );
+    const healthyWire = parseCursorStart(healthy);
+    expect(healthyWire.code).toBe("session-start");
+    expect(healthyWire.additional_context).toContain(CURSOR_SESSION_START_PLANNING_LINE);
+    expect(healthyWire.additional_context).toContain(
+      "Directive soft post-compact AGENTS re-bind (#3171 / #2769)",
+    );
+    expect(healthy.message).not.toContain(CURSOR_SESSION_START_PLANNING_LINE);
+
+    const degraded = decideHook(
+      {
+        host: "cursor",
+        event: "session.start",
+        projectRoot: "/project",
+        payload: {},
+      },
+      readySeams({ sessionStart: () => ({ code: 1, stdout: "", stderr: "" }) }),
+    );
+    const degradedWire = parseCursorStart(degraded);
+    expect(degradedWire.code).toBe("session-start-degraded");
+    expect(degradedWire.additional_context).toContain(CURSOR_SESSION_START_PLANNING_LINE);
+
+    const optOut = decideHook(
+      {
+        host: "cursor",
+        event: "session.start",
+        projectRoot: "/project",
+        payload: {},
+      },
+      readySeams({
+        detectNoDeftDirective: () => ({
+          present: true,
+          flagPath: "/project/.no-deft-directive",
+          depositPresent: false,
+          inconsistent: false,
+        }),
+      }),
+    );
+    const optOutWire = parseCursorStart(optOut);
+    expect(optOutWire.code).toBe("session-start-disabled");
+    expect(optOutWire.additional_context).toBe(optOut.message);
+    expect(optOutWire.additional_context).not.toContain(CURSOR_SESSION_START_PLANNING_LINE);
+
+    const killSwitch: HookDecision = {
+      verdict: "allow",
+      code: "directive-disabled",
+      event: "session.start",
+      host: "cursor",
+      toolName: null,
+      projectRoot: "/project",
+      message: "Directive disabled via `.deft-directive-disable`.",
+      scopePath: null,
+    };
+    const killWire = parseCursorStart(killSwitch);
+    expect(killWire.code).toBe("directive-disabled");
+    expect(killWire.additional_context).toBe(killSwitch.message);
+    expect(killWire.additional_context).not.toContain(CURSOR_SESSION_START_PLANNING_LINE);
+
+    expect(formatSoftAgentsRebindChecklist()).not.toContain("/deft:directive:run:interview");
+    expect(formatOpenClawSoftRebindSkillMarkdown()).not.toContain("/deft:directive:run:interview");
+    expect(CURSOR_SESSION_START_PLANNING_LINE).toContain("/deft:directive:run:interview");
+    expect(CURSOR_SESSION_START_PLANNING_LINE).toContain("/deft:directive:run:discuss");
+    expect(CURSOR_SESSION_START_PLANNING_LINE).toContain(
+      "A native host plan does not itself approve a Directive scope.",
+    );
+    // AC1b / AC4: no live Cursor capture on this ship. Fixture wire is the
+    // coverage. A later live capture is agent relay in one session and must
+    // record whether the observed tool name was in the deposited preToolUse
+    // matcher at capture time.
   });
 
   it("injects soft AGENTS re-bind on session.compact for file hosts (#3171)", () => {
@@ -4168,6 +4267,8 @@ describe("provider codecs", () => {
     };
     expect(cursorWire.code).toBe("session-compact-rearm");
     expect(cursorWire.user_message).toContain("Soft AGENTS re-bind checklist");
+    expect(cursorWire.user_message).not.toContain(CURSOR_SESSION_START_PLANNING_LINE);
+    expect(JSON.stringify(cursorWire)).not.toContain(CURSOR_SESSION_START_PLANNING_LINE);
 
     const claude = decideHook(
       {
