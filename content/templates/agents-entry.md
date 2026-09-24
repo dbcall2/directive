@@ -96,10 +96,9 @@ Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
 ## Envelope selection SLA (#3153)
 
 ! Default story / through-merge unit of work is `drive-to: merge-ready`. Deliberate `stop-at: pr-open` is allowed only when a **partner merge-path owner** is planned (review-cycle babysit / Approach 1 lease / parent-retained) for Greptile + CI + post-merge `scope:complete` — triggers: capacity stall, wall-clock budget, large multi-gate, host nest limits (Cursor / Claude Code / Grok Build #4130; swarm Phase 0 decision tree). Depth: `deft-directive-swarm` + `deft-directive-review-cycle` partner merge-path.
-! **Grok through-merge (#4529 / #4821):** implement MUST be `stop-at: pr-open`. Dest class A residual, then Approach 1 wait, then parent-retained closer after CLEAN. Not a global SLA recut. ⊗ Harvest option 2 / `merge-release` / parent-inline residual. Related: #4421.
+! **Grok through-merge (#4529 / #4821):** implement MUST be `stop-at: pr-open`. Dest class A residual, then Approach 1 wait, then parent-retained closer after CLEAN. Not a global SLA recut. ⊗ Harvest option 2 / `merge-release` / parent-inline residual.
 ! Under human-merge policy, a **durable** owner (parent/monitor sticky lease or Phase 6 closer) MUST remain for post-merge `scope:complete` — CLEAN alone is not lifecycle complete; ⊗ stand down at CLEAN with no reachable owner.
-⊗ Silent PR-open handback for a worker already scoped `drive-to: merge-ready`.
-⊗ `stop-at: pr-open` without a named babysit / merge-path owner, or dual review-monitor leases on recovery (#3044 / #2261).
+⊗ Silent PR-open handback for a worker already scoped `drive-to: merge-ready`. ⊗ `stop-at: pr-open` without a named babysit / merge-path owner, or dual review-monitor leases on recovery (#3044 / #2261).
 ! After merge of issue `#N`, `deft verify:orphan-active -- --issue N` MUST exit 0 before `DONE` (#3429). After `scope:complete`, `deft verify:completed-tracked -- --issue N` MUST exit 0 on `origin/<deliveryBranch>` before `DONE` (#3476). Exit 1 shipped → printed `scope:complete`; missing tracked land → `swarm:finalize-cohort` or a lifecycle PR; unresolved lookup → retry / `BLOCKED` (⊗ complete unfinished scope). **Grok leftover (#4529):** Phase 6 `swarm:finalize-cohort`, not the implement dest.
 ⊗ Emit `ISSUE: closed` while that brief is still in `active/`.
 
