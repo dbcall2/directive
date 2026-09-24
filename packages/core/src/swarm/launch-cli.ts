@@ -20,6 +20,8 @@ export function parseLaunchArgv(argv: readonly string[]): Parameters<typeof swar
   let projectRoot = ".";
   let sessionId: string | null = null;
   let parseError: string | null = null;
+  let workerGithubAuthMode: string | null = null;
+  let expectedWorkerLogin: string | null = null;
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -76,6 +78,14 @@ export function parseLaunchArgv(argv: readonly string[]): Parameters<typeof swar
     } else if (arg?.startsWith("--session-id=") === true) {
       const value = arg.slice("--session-id=".length);
       sessionId = value.startsWith("--") ? "" : value;
+    } else if (arg === "--worker-github-auth-mode") {
+      workerGithubAuthMode = takeValue();
+    } else if (arg?.startsWith("--worker-github-auth-mode=") === true) {
+      workerGithubAuthMode = arg.slice("--worker-github-auth-mode=".length);
+    } else if (arg === "--expected-worker-login") {
+      expectedWorkerLogin = takeValue();
+    } else if (arg?.startsWith("--expected-worker-login=") === true) {
+      expectedWorkerLogin = arg.slice("--expected-worker-login=".length);
     }
   }
 
@@ -97,6 +107,11 @@ export function parseLaunchArgv(argv: readonly string[]): Parameters<typeof swar
     noAudit,
     projectRoot,
     sessionId,
+    workerGithubAuthMode,
+    expectedPrincipal:
+      expectedWorkerLogin !== null && expectedWorkerLogin.trim().length > 0
+        ? { kind: "user", login: expectedWorkerLogin.trim() }
+        : null,
   };
 }
 

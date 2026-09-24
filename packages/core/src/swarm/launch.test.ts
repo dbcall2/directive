@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,6 +19,11 @@ import {
   type ResolvedStory,
   swarmLaunch,
 } from "./launch.js";
+import {
+  ENV_WORKER_CREDENTIAL_DELIVERY_ID,
+  WORKER_AUTH_LOCK_NAME,
+  writeWorkerAuthAssignment,
+} from "./worker-auth-assignment.js";
 
 const story: ResolvedStory = {
   token: "story-a",
@@ -29,6 +35,24 @@ const story: ResolvedStory = {
 const TARGET_REPO = "acme/widgets";
 const WORKER_LOGIN = "deft-swarm-bot";
 const FAKE_TOKEN = "gho_test_injection_token_1351";
+const DELIVERY_ID = "delivery-fixture-1";
+const WORKER_PRINCIPAL = { kind: "user" as const, login: WORKER_LOGIN };
+const INJECTION_AUTH = {
+  expectedPrincipal: WORKER_PRINCIPAL,
+  credentialDeliveryId: DELIVERY_ID,
+};
+const LAUNCH_INJECTED_AUTH = {
+  workerGithubAuthMode: "injected-token" as const,
+  expectedPrincipal: WORKER_PRINCIPAL,
+};
+const LAUNCH_HOST_AUTH = {
+  workerGithubAuthMode: "host-gh" as const,
+  expectedPrincipal: WORKER_PRINCIPAL,
+};
+
+function gitInit(project: string): void {
+  execFileSync("git", ["init", "-q"], { cwd: project });
+}
 const PREAMBLE_PATH = join(process.cwd(), "content/templates/agent-prompt-preamble.md");
 
 function proc(
@@ -99,12 +123,14 @@ describe("prepareWorkerCredentialInjection (#1351)", () => {
       runtimeMode: "cloud-headless",
       dispatchPath: "grok-build",
       runGh: stubGh({}),
+      ...INJECTION_AUTH,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
     }
     expect(result.injected).toBe(true);
+    expect(result.spawnEnv.DEFT_WORKER_CREDENTIAL_DELIVERY_ID).toBe(DELIVERY_ID);
     expect(result.githubAuthMode).toBe("injected-token");
     expect(result.expectedLogin).toBe(WORKER_LOGIN);
     expect(result.spawnEnv.GH_TOKEN).toBe(FAKE_TOKEN);
@@ -121,6 +147,7 @@ describe("prepareWorkerCredentialInjection (#1351)", () => {
       runtimeMode: "local-unsandboxed",
       dispatchPath: "local-hybrid",
       runGh: stubGh({}),
+      ...INJECTION_AUTH,
     });
     expect(result.ok).toBe(true);
     if (!result.ok || !result.injected) {
@@ -179,6 +206,7 @@ describe("prepareWorkerCredentialInjection (#1351)", () => {
       runtimeMode: "cloud-headless",
       dispatchPath: "grok-build",
       runGh: stubGh({ user: INSTALLATION_USER_403 }),
+      ...INJECTION_AUTH,
     });
     expect(result.ok).toBe(false);
     if (result.ok) {
@@ -200,6 +228,7 @@ describe("prepareWorkerCredentialInjection (#1351)", () => {
       runtimeMode: "cloud-headless",
       dispatchPath: "grok-build",
       runGh: stubGh({}),
+      ...INJECTION_AUTH,
     });
     expect(match.ok).toBe(true);
     if (match.ok && match.injected) {
@@ -216,6 +245,8 @@ describe("prepareWorkerCredentialInjection (#1351)", () => {
       runtimeMode: "cloud-headless",
       dispatchPath: "grok-build",
       runGh: stubGh({}),
+      expectedPrincipal: { kind: "user", login: "someone-else" },
+      credentialDeliveryId: DELIVERY_ID,
     });
     expect(mismatch.ok).toBe(false);
     if (!mismatch.ok) {
@@ -250,6 +281,7 @@ describe("prepareWorkerCredentialInjection (#1351)", () => {
       runtimeMode: "cloud-headless",
       dispatchPath: "grok-build",
       runGh,
+      ...INJECTION_AUTH,
     });
     expect(result.ok).toBe(true);
     if (!result.ok || !result.injected) {
@@ -360,7 +392,7 @@ describe("buildManifest auth-mode and identity stamps (#1351)", () => {
   });
 });
 
-describe("swarmLaunch identity-bound injection (#1351)", () => {
+describe("swarmLaunch identity-bound injection (#1351)", { timeout: 20_000 }, () => {
   const savedRouting = process.env.DEFT_ROUTING_PATH;
   const cleanups: string[] = [];
   afterEach(() => {
@@ -380,6 +412,7 @@ describe("swarmLaunch identity-bound injection (#1351)", () => {
   function launchProject(): string {
     const project = mkdtempSync(join(tmpdir(), "launch-inject-"));
     cleanups.push(project);
+    gitInit(project);
     writeReadyStory(project, "story-a", 1351);
     const routePath = join(project, "routing.local.json");
     writeFileSync(
@@ -404,13 +437,270 @@ describe("swarmLaunch identity-bound injection (#1351)", () => {
       environ: { CURSOR_AGENT: "1", GH_TOKEN: FAKE_TOKEN, GH_REPO: TARGET_REPO },
       sessionId: "test-session",
       runGh: stubGh({}),
+      ...LAUNCH_INJECTED_AUTH,
     });
     expect(result.exitCode).toBe(0);
     const manifest = JSON.parse(result.stdout) as Record<string, unknown>[];
     expect(manifest[0]?.github_auth_mode).toBe("injected-token");
     expect(manifest[0]?.expected_github_login).toBe(WORKER_LOGIN);
+    expect(typeof manifest[0]?.credential_delivery_id).toBe("string");
+    expect(String(manifest[0]?.credential_delivery_id).length).toBeGreaterThan(0);
+    expect(result.spawnEnvByStory?.get("story-a")?.[ENV_WORKER_CREDENTIAL_DELIVERY_ID]).toBe(
+      manifest[0]?.credential_delivery_id,
+    );
     expect(result.stdout).not.toContain(FAKE_TOKEN);
     expect(JSON.stringify(manifest)).not.toContain(FAKE_TOKEN);
+  });
+
+  it("exposes a distinct delivery id per dest in spawn env and C2", () => {
+    const project = launchProject();
+    writeReadyStory(project, "story-b", 3663);
+    const destA = join(project, "wt-a");
+    const destB = join(project, "wt-b");
+    mkdirSync(destA, { recursive: true });
+    mkdirSync(destB, { recursive: true });
+    const mapPath = join(project, "worktree-map.json");
+    writeFileSync(
+      mapPath,
+      JSON.stringify([
+        { story_id: "story-a", worktree_path: destA, base_branch: "master" },
+        { story_id: "story-b", worktree_path: destB, base_branch: "master" },
+      ]),
+    );
+    const result = swarmLaunch({
+      stories: ["story-a", "story-b"],
+      projectRoot: project,
+      autonomous: true,
+      allocationPlanId: "plan-3663",
+      batchingRationale: "two dest delivery ids",
+      worktreeMap: mapPath,
+      worktreeResolver: (mapping) =>
+        mapping.map((row) => ({
+          story_id: String(row.story_id),
+          worktree_path: String(row.worktree_path),
+          base_branch: String(row.base_branch),
+        })),
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["cloud-headless", "injected-token"],
+      environ: { CURSOR_AGENT: "1", GH_TOKEN: FAKE_TOKEN, GH_REPO: TARGET_REPO },
+      sessionId: "test-session",
+      runGh: stubGh({}),
+      ...LAUNCH_INJECTED_AUTH,
+    });
+    expect(result.exitCode, result.stderr).toBe(0);
+    const manifest = JSON.parse(result.stdout) as Record<string, unknown>[];
+    expect(manifest).toHaveLength(2);
+    const ids = manifest.map((entry) => entry.credential_delivery_id);
+    expect(ids.every((id) => typeof id === "string" && id.length > 0)).toBe(true);
+    expect(new Set(ids).size).toBe(2);
+    expect(result.spawnEnvByStory?.size).toBe(2);
+    for (const entry of manifest) {
+      const storyId = String(entry.story_id);
+      expect(result.spawnEnvByStory?.get(storyId)?.[ENV_WORKER_CREDENTIAL_DELIVERY_ID]).toBe(
+        entry.credential_delivery_id,
+      );
+    }
+    expect(result.stdout).not.toContain(FAKE_TOKEN);
+  });
+
+  it("rolls back dest assignments when a later launch write fails", () => {
+    const project = launchProject();
+    const outputDirectory = join(project, "existing-output-directory");
+    mkdirSync(outputDirectory, { recursive: true });
+    const result = swarmLaunch({
+      stories: ["1351"],
+      projectRoot: project,
+      autonomous: true,
+      output: outputDirectory,
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      environ: { CURSOR_AGENT: "1" },
+      sessionId: "test-session",
+      ...LAUNCH_HOST_AUTH,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("could not write --output");
+    const store = join(project, ".git", "deft-worker-auth", "index.json");
+    if (existsSync(store)) {
+      const index = JSON.parse(readFileSync(store, "utf8")) as { entries: unknown[] };
+      expect(index.entries).toEqual([]);
+    }
+  });
+
+  it("rolls back dest 1 when dest 2 assignment persist fails", () => {
+    const project = launchProject();
+    writeReadyStory(project, "story-b", 3663);
+    let writes = 0;
+    const result = swarmLaunch({
+      stories: ["story-a", "story-b"],
+      projectRoot: project,
+      autonomous: true,
+      allocationPlanId: "plan-3663",
+      batchingRationale: "rollback second dest",
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      environ: { CURSOR_AGENT: "1" },
+      sessionId: "test-session",
+      writeWorkerAuthAssignmentFn: (input) => {
+        writes += 1;
+        if (writes === 2) {
+          return {
+            ok: false,
+            failureKind: "registry_corruption",
+            detail: "injected dest-2 persist failure",
+            dispatchId: null,
+            expectedLogin: null,
+            observedLogin: null,
+          };
+        }
+        return writeWorkerAuthAssignment(input);
+      },
+      ...LAUNCH_HOST_AUTH,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/dest-2 persist failure/);
+    const store = join(project, ".git", "deft-worker-auth", "index.json");
+    if (existsSync(store)) {
+      const index = JSON.parse(readFileSync(store, "utf8")) as { entries: unknown[] };
+      expect(index.entries).toEqual([]);
+    }
+  });
+
+  it("reports a locked worker-auth rollback instead of leaving it silent", () => {
+    const project = launchProject();
+    writeReadyStory(project, "story-b", 3663);
+    let writes = 0;
+    const result = swarmLaunch({
+      stories: ["story-a", "story-b"],
+      projectRoot: project,
+      autonomous: true,
+      allocationPlanId: "plan-3663",
+      batchingRationale: "locked rollback",
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      environ: { CURSOR_AGENT: "1" },
+      sessionId: "test-session",
+      writeWorkerAuthAssignmentFn: (input) => {
+        writes += 1;
+        if (writes === 2) {
+          const lockAbs = join(project, ".git", "deft-worker-auth", WORKER_AUTH_LOCK_NAME);
+          mkdirSync(join(project, ".git", "deft-worker-auth"), { recursive: true });
+          writeFileSync(
+            lockAbs,
+            `${JSON.stringify({
+              pid: process.pid,
+              token: "hold",
+              startedAt: "2026-01-01T00:00:00Z",
+            })}\n`,
+          );
+          return {
+            ok: false,
+            failureKind: "registry_corruption",
+            detail: "injected dest-2 persist failure",
+            dispatchId: null,
+            expectedLogin: null,
+            observedLogin: null,
+          };
+        }
+        return writeWorkerAuthAssignment(input);
+      },
+      ...LAUNCH_HOST_AUTH,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/dest-2 persist failure/);
+    expect(result.stderr).toMatch(/Worker auth assignment rollback failed/);
+    expect(result.stderr).toMatch(/locked/);
+    const store = join(project, ".git", "deft-worker-auth", "index.json");
+    expect(existsSync(store)).toBe(true);
+    const index = JSON.parse(readFileSync(store, "utf8")) as { entries: unknown[] };
+    expect(index.entries.length).toBeGreaterThan(0);
+  });
+
+  it("reports { ok: false } from assignment rollback without requiring a throw", () => {
+    const project = launchProject();
+    writeReadyStory(project, "story-b", 3663);
+    let writes = 0;
+    const result = swarmLaunch({
+      stories: ["story-a", "story-b"],
+      projectRoot: project,
+      autonomous: true,
+      allocationPlanId: "plan-3663",
+      batchingRationale: "ok-false rollback",
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      environ: { CURSOR_AGENT: "1" },
+      sessionId: "test-session",
+      writeWorkerAuthAssignmentFn: (input) => {
+        writes += 1;
+        if (writes === 2) {
+          return {
+            ok: false,
+            failureKind: "registry_corruption",
+            detail: "injected dest-2 persist failure",
+            dispatchId: null,
+            expectedLogin: null,
+            observedLogin: null,
+          };
+        }
+        return writeWorkerAuthAssignment(input);
+      },
+      removeWorkerAuthAssignmentFn: () => ({
+        ok: false,
+        failureKind: "registry_corruption",
+        detail: "injected locked remove",
+        dispatchId: "test-session",
+        expectedLogin: null,
+        observedLogin: null,
+      }),
+      ...LAUNCH_HOST_AUTH,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/dest-2 persist failure/);
+    expect(result.stderr).toMatch(/Worker auth assignment rollback failed: injected locked remove/);
+  });
+
+  it("reports a thrown worker-auth rollback without replacing the launch error", () => {
+    const project = launchProject();
+    writeReadyStory(project, "story-b", 3663);
+    let writes = 0;
+    const result = swarmLaunch({
+      stories: ["story-a", "story-b"],
+      projectRoot: project,
+      autonomous: true,
+      allocationPlanId: "plan-3663",
+      batchingRationale: "thrown rollback",
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      environ: { CURSOR_AGENT: "1" },
+      sessionId: "test-session",
+      writeWorkerAuthAssignmentFn: (input) => {
+        writes += 1;
+        if (writes === 2) {
+          return {
+            ok: false,
+            failureKind: "registry_corruption",
+            detail: "injected dest-2 persist failure",
+            dispatchId: null,
+            expectedLogin: null,
+            observedLogin: null,
+          };
+        }
+        return writeWorkerAuthAssignment(input);
+      },
+      removeWorkerAuthAssignmentFn: () => {
+        throw new Error("boom-remove");
+      },
+      ...LAUNCH_HOST_AUTH,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/dest-2 persist failure/);
+    expect(result.stderr).toMatch(/Worker auth assignment rollback failed: Error: boom-remove/);
   });
 
   it("does not auto-promote host-gh to injected-token just because GH_TOKEN is set", () => {
@@ -425,11 +715,13 @@ describe("swarmLaunch identity-bound injection (#1351)", () => {
       environ: { CURSOR_AGENT: "1", GH_TOKEN: FAKE_TOKEN, GH_REPO: TARGET_REPO },
       sessionId: "test-session",
       runGh: stubGh({}),
+      ...LAUNCH_HOST_AUTH,
     });
     expect(result.exitCode).toBe(0);
     const manifest = JSON.parse(result.stdout) as Record<string, unknown>[];
     expect(manifest[0]?.github_auth_mode).toBe("host-gh");
-    expect(manifest[0]?.expected_github_login).toBeUndefined();
+    expect(Object.keys(manifest[0] ?? {})).not.toContain("expected_github_login");
+    expect(Object.keys(manifest[0] ?? {})).not.toContain("credential_delivery_id");
     expect(result.stdout).not.toContain(FAKE_TOKEN);
   });
 
@@ -445,6 +737,7 @@ describe("swarmLaunch identity-bound injection (#1351)", () => {
       environ: { CURSOR_AGENT: "1", GH_REPO: TARGET_REPO },
       sessionId: "test-session",
       runGh: stubGh({}),
+      ...LAUNCH_INJECTED_AUTH,
     });
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toMatch(/BLOCKED/i);
@@ -465,6 +758,7 @@ describe("swarmLaunch identity-bound injection (#1351)", () => {
       environ: { CURSOR_AGENT: "1", GH_TOKEN: FAKE_TOKEN, GH_REPO: TARGET_REPO },
       sessionId: "test-session",
       runGh: stubGh({ user: INSTALLATION_USER_403 }),
+      ...LAUNCH_INJECTED_AUTH,
     });
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toMatch(/BLOCKED/i);
@@ -493,6 +787,7 @@ describe("swarmLaunch occupancy-before-create (#3649)", () => {
   function launchProject(): string {
     const project = mkdtempSync(join(tmpdir(), "launch-occ-"));
     cleanups.push(project);
+    gitInit(project);
     writeReadyStory(project, "story-a", 3649);
     const routePath = join(project, "routing.local.json");
     writeFileSync(
@@ -536,6 +831,7 @@ describe("swarmLaunch occupancy-before-create (#3649)", () => {
       },
       environ: { CURSOR_AGENT: "1" },
       sessionId: "test-session",
+      ...LAUNCH_HOST_AUTH,
     });
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toMatch(/occupied|occupancy/i);
@@ -558,6 +854,7 @@ describe("swarmLaunch occupancy-before-create (#3649)", () => {
       runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
       environ: { CURSOR_AGENT: "1" },
       sessionId: "test-session",
+      ...LAUNCH_HOST_AUTH,
     });
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toMatch(/worktree-map|JSON array/i);
@@ -579,6 +876,7 @@ describe("swarmLaunch occupancy-before-create (#3649)", () => {
       runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
       environ: { CURSOR_AGENT: "1" },
       sessionId: "test-session",
+      ...LAUNCH_HOST_AUTH,
     });
 
     expect(result.exitCode).not.toBe(0);
@@ -603,6 +901,7 @@ describe("swarmLaunch occupancy-before-create (#3649)", () => {
       },
       environ: { CURSOR_AGENT: "1" },
       sessionId: "test-session",
+      ...LAUNCH_HOST_AUTH,
     });
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toMatch(/worktree-map|JSON array/i);
@@ -626,6 +925,7 @@ describe("swarmLaunch occupancy-before-create (#3649)", () => {
       readinessGate: () => ({ exitCode: 0, report: "" }),
       runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
       environ: { CURSOR_AGENT: "1", DEFT_SESSION_ID: "owner" },
+      ...LAUNCH_HOST_AUTH,
     });
     expect(result.exitCode).not.toBe(0);
     expect(readOccupancy(project)?.sessionId).toBe("owner");
@@ -649,6 +949,7 @@ describe("swarmLaunch occupancy-before-create (#3649)", () => {
       readinessGate: () => ({ exitCode: 0, report: "" }),
       runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
       environ: { CURSOR_AGENT: "1" },
+      ...LAUNCH_HOST_AUTH,
     });
 
     expect(result.exitCode).not.toBe(0);
@@ -690,6 +991,7 @@ describe("swarmLaunch occupancy-before-create (#3649)", () => {
         throw new Error("worktree resolver must not run after occupancy deny");
       },
       environ: { CURSOR_AGENT: "1" },
+      ...LAUNCH_HOST_AUTH,
     });
 
     expect(result.exitCode).not.toBe(0);

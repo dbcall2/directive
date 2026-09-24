@@ -5,12 +5,14 @@ import {
   ENV_EXPECTED_GITHUB_LOGIN,
   type ExpectedGithubWorkerPrincipal,
   FAILURE_INSTALLATION_IDENTITY_UNVERIFIABLE,
+  FAILURE_MISSING_EXPECTED_PRINCIPAL,
   FAILURE_MISSING_INJECTED_TOKEN,
   findInjectedToken,
   type GhRunner,
   GITHUB_AUTH_MODE_HOST_GH,
   GITHUB_AUTH_MODE_INJECTED_TOKEN,
   inferGithubAuthMode,
+  PRINCIPAL_KIND_USER,
   validateGithubAuthForWorker,
 } from "../intake/github-auth-modes.js";
 import { getPlatformCapabilities } from "../intake/platform-capabilities.js";
@@ -43,6 +45,17 @@ import {
   resolveRoutingPath,
 } from "./routing.js";
 import { dispatchProviderFor, enforceSubagentBackendPolicy } from "./subagent-backend.js";
+import {
+  ENV_WORKER_CREDENTIAL_DELIVERY_ID,
+  FAILURE_MISSING_DELIVERY,
+  mintCredentialDeliveryId,
+  type RemoveWorkerAuthAssignmentInput,
+  type RemoveWorkerAuthAssignmentResult,
+  removeWorkerAuthAssignment,
+  type WriteWorkerAuthAssignmentInput,
+  type WriteWorkerAuthAssignmentResult,
+  writeWorkerAuthAssignment,
+} from "./worker-auth-assignment.js";
 import { resolveWorktreeMap, type WorktreeRecord } from "./worktrees.js";
 
 export interface ResolvedStory {
@@ -127,20 +140,25 @@ function isolateHeldWorkerToken(environ: NodeJS.ProcessEnv, token: string): Node
   return isolated;
 }
 
-function boundWorkerSpawnEnv(
-  token: string,
-  expectedLogin: string,
-): {
+export type WorkerInjectedSpawnEnv = {
   GH_TOKEN: string;
   GITHUB_TOKEN: string;
   GH_ENTERPRISE_TOKEN: string;
   DEFT_EXPECTED_GITHUB_LOGIN: string;
-} {
+  DEFT_WORKER_CREDENTIAL_DELIVERY_ID: string;
+};
+
+function boundWorkerSpawnEnv(
+  token: string,
+  expectedLogin: string,
+  credentialDeliveryId: string,
+): WorkerInjectedSpawnEnv {
   return {
     GH_TOKEN: token,
     GITHUB_TOKEN: token,
     GH_ENTERPRISE_TOKEN: token,
     [ENV_EXPECTED_GITHUB_LOGIN]: expectedLogin,
+    [ENV_WORKER_CREDENTIAL_DELIVERY_ID]: credentialDeliveryId,
   };
 }
 
@@ -176,6 +194,7 @@ export interface WorkerCredentialInjectionRequest {
   runtimeMode?: string | null;
   dispatchPath?: WorkerCredentialDispatchPath;
   expectedPrincipal?: ExpectedGithubWorkerPrincipal | null;
+  credentialDeliveryId?: string | null;
   repo?: string;
   runGh?: GhRunner;
   cwd?: string;
@@ -188,12 +207,7 @@ export type WorkerCredentialInjectionResult =
       githubAuthMode: typeof GITHUB_AUTH_MODE_INJECTED_TOKEN;
       runtimeMode: string | null;
       expectedLogin: string;
-      spawnEnv: {
-        GH_TOKEN: string;
-        GITHUB_TOKEN: string;
-        GH_ENTERPRISE_TOKEN: string;
-        DEFT_EXPECTED_GITHUB_LOGIN: string;
-      };
+      spawnEnv: WorkerInjectedSpawnEnv;
       envelopeSection: string;
     }
   | {
@@ -288,13 +302,37 @@ export function prepareWorkerCredentialInjection(
     });
   }
 
+  const explicitLogin =
+    request.expectedPrincipal?.kind === PRINCIPAL_KIND_USER
+      ? request.expectedPrincipal.login.trim()
+      : "";
+  if (explicitLogin.length === 0) {
+    return blockedInjection({
+      githubAuthMode: GITHUB_AUTH_MODE_INJECTED_TOKEN,
+      runtimeMode,
+      failureKind: FAILURE_MISSING_EXPECTED_PRINCIPAL,
+      detail:
+        "injected-token dispatch requires an explicit expectedPrincipal.login; /user cannot generate it",
+    });
+  }
+  const deliveryId = request.credentialDeliveryId?.trim() ?? "";
+  if (deliveryId.length === 0) {
+    return blockedInjection({
+      githubAuthMode: GITHUB_AUTH_MODE_INJECTED_TOKEN,
+      runtimeMode,
+      failureKind: FAILURE_MISSING_DELIVERY,
+      detail:
+        "injected-token dispatch requires credentialDeliveryId for DEFT_WORKER_CREDENTIAL_DELIVERY_ID",
+    });
+  }
+
   const isolatedEnviron = isolateHeldWorkerToken(environ, token);
   const validated = validateGithubAuthForWorker(GITHUB_AUTH_MODE_INJECTED_TOKEN, {
     environ: isolatedEnviron,
     runtimeReport: { runtimeMode: runtimeMode ?? "cloud-headless" },
     repo: request.repo,
     runGh: request.runGh,
-    expectedPrincipal: request.expectedPrincipal,
+    expectedPrincipal: { kind: PRINCIPAL_KIND_USER, login: explicitLogin },
     cwd: request.cwd,
   });
 
@@ -310,9 +348,9 @@ export function prepareWorkerCredentialInjection(
     });
   }
 
-  const expectedLogin = validated.login.trim();
+  const expectedLogin = explicitLogin;
   assertNoCredentialValue(expectedLogin, "expected_github_login");
-  const spawnEnv = boundWorkerSpawnEnv(token, expectedLogin);
+  const spawnEnv = boundWorkerSpawnEnv(token, expectedLogin, deliveryId);
   return {
     ok: true,
     injected: true,
@@ -947,6 +985,7 @@ export function buildManifest(
     githubAuthMode?: string | null;
     expectedGithubLogin?: string | null;
     occupancySessionId?: string | null;
+    credentialDeliveryByStory?: ReadonlyMap<string, string | null>;
   },
 ): Record<string, unknown>[] {
   const cohortVbriefs = resolved.map((s) => s.relpath);
@@ -1003,6 +1042,11 @@ export function buildManifest(
     if (options.expectedGithubLogin !== undefined && options.expectedGithubLogin !== null) {
       assertNoCredentialValue(options.expectedGithubLogin, "expected_github_login");
       entry.expected_github_login = options.expectedGithubLogin;
+    }
+    const deliveryId = options.credentialDeliveryByStory?.get(story.story_id);
+    if (typeof deliveryId === "string" && deliveryId.length > 0) {
+      assertNoCredentialValue(deliveryId, "credential_delivery_id");
+      entry.credential_delivery_id = deliveryId;
     }
     manifest.push(entry);
   }
@@ -1079,12 +1123,57 @@ export interface LaunchArgs {
   /** Optional gh runner for identity-bound credential injection (#1351). */
   runGh?: GhRunner;
   expectedPrincipal?: ExpectedGithubWorkerPrincipal | null;
+  /** Explicit worker assignment; never inferred from the parent probe (#3663). */
+  workerGithubAuthMode?: string | null;
+  /** Test seam: persist dest assignment (defaults to writeWorkerAuthAssignment). */
+  writeWorkerAuthAssignmentFn?: (
+    input: WriteWorkerAuthAssignmentInput,
+  ) => WriteWorkerAuthAssignmentResult;
+  /** Test seam: rollback dest assignment (defaults to removeWorkerAuthAssignment). */
+  removeWorkerAuthAssignmentFn?: (
+    input: RemoveWorkerAuthAssignmentInput,
+  ) => RemoveWorkerAuthAssignmentResult;
+}
+
+function resolveAssignedWorkerAuth(args: LaunchArgs):
+  | {
+      ok: true;
+      mode: typeof GITHUB_AUTH_MODE_HOST_GH | typeof GITHUB_AUTH_MODE_INJECTED_TOKEN;
+      principal: ExpectedGithubWorkerPrincipal;
+    }
+  | { ok: false; stderr: string } {
+  const mode = args.workerGithubAuthMode?.trim() ?? "";
+  if (mode.length === 0) {
+    return {
+      ok: false,
+      stderr:
+        "Error: --worker-github-auth-mode=host-gh|injected-token is required and is not inferred from the parent probe, token /user, or DEFT_EXPECTED_GITHUB_LOGIN.\n",
+    };
+  }
+  if (mode !== GITHUB_AUTH_MODE_HOST_GH && mode !== GITHUB_AUTH_MODE_INJECTED_TOKEN) {
+    return {
+      ok: false,
+      stderr: `Error: unknown --worker-github-auth-mode ${JSON.stringify(mode)}; expected host-gh|injected-token.\n`,
+    };
+  }
+  const login =
+    args.expectedPrincipal?.kind === PRINCIPAL_KIND_USER ? args.expectedPrincipal.login.trim() : "";
+  if (login.length === 0) {
+    return {
+      ok: false,
+      stderr:
+        "Error: --expected-worker-login is required and is not filled from the parent probe, token /user, or DEFT_EXPECTED_GITHUB_LOGIN.\n",
+    };
+  }
+  return { ok: true, mode, principal: { kind: PRINCIPAL_KIND_USER, login } };
 }
 
 export function swarmLaunch(args: LaunchArgs): {
   exitCode: number;
   stdout: string;
   stderr: string;
+  /** In-process spawn env by story_id. Never serialized onto C2 (token values). */
+  spawnEnvByStory?: ReadonlyMap<string, WorkerInjectedSpawnEnv>;
 } {
   if (args.parseError !== undefined && args.parseError !== null) {
     return {
@@ -1113,6 +1202,11 @@ export function swarmLaunch(args: LaunchArgs): {
       stdout: "",
       stderr: "Error: no stories supplied. Pass --stories <ids|paths> and/or --paths <paths>.\n",
     };
+  }
+
+  const assigned = resolveAssignedWorkerAuth(args);
+  if (!assigned.ok) {
+    return { exitCode: EXIT_CONFIG_ERROR, stdout: "", stderr: assigned.stderr };
   }
 
   if (!existsSync(resolveLifecycleFolder(projectRoot, "active"))) {
@@ -1237,10 +1331,26 @@ export function swarmLaunch(args: LaunchArgs): {
   // this process just minted (#3649 paired failure clause).
   const newlyClaimed = occupancy.action === "claimed";
   let persistedCohortKey: string | null = null;
+  const writtenDests: Array<{ worktreePath: string }> = [];
   const failAfterClaim = (
     exitCode: number,
     stderr: string,
   ): { exitCode: number; stdout: string; stderr: string } => {
+    const removeAssignment = args.removeWorkerAuthAssignmentFn ?? removeWorkerAuthAssignment;
+    for (const dest of writtenDests.splice(0)) {
+      try {
+        const removed = removeAssignment({
+          projectRoot,
+          worktreePath: dest.worktreePath,
+          dispatchId: occupancy.sessionId,
+        });
+        if (!removed.ok) {
+          stderr = `${stderr}\nWorker auth assignment rollback failed: ${removed.detail}\n`;
+        }
+      } catch (exc: unknown) {
+        stderr = `${stderr}\nWorker auth assignment rollback failed: ${String(exc)}\n`;
+      }
+    }
     if (persistedCohortKey !== null) {
       try {
         retractLaunchOccupancyRecord(projectRoot, { cohortKey: persistedCohortKey });
@@ -1300,10 +1410,11 @@ export function swarmLaunch(args: LaunchArgs): {
   }
 
   let runtimeMode: string;
-  let githubAuthMode: string;
   try {
     const probe = args.runtimeAuthProbe ?? defaultRuntimeAuthProbe;
-    [runtimeMode, githubAuthMode] = probe();
+    const probed = probe();
+    runtimeMode = probed[0];
+    void probed[1];
   } catch (exc: unknown) {
     return failAfterClaim(EXIT_CONFIG_ERROR, `Error: ${String(exc)}\n`);
   }
@@ -1339,48 +1450,96 @@ export function swarmLaunch(args: LaunchArgs): {
   const workerRoleValue = routingFile !== null || backend !== null ? LEAF_CODING_WORKER_ROLE : null;
 
   const launchEnviron = args.environ ?? process.env;
-  let expectedGithubLogin: string | null = null;
-  // Only the injected-token launch path auto-validates (and fail-closes on a
-  // missing token). An ambient GH_TOKEN on a host-gh probe is often the
-  // maintainer workaround, not a worker credential; local-hybrid injection is
-  // the explicit prepareWorkerCredentialInjection call.
-  if (githubAuthMode === GITHUB_AUTH_MODE_INJECTED_TOKEN) {
-    const injection = prepareWorkerCredentialInjection({
-      environ: launchEnviron,
-      githubAuthMode,
-      runtimeMode,
-      dispatchPath: "grok-build",
-      runGh: args.runGh,
-      expectedPrincipal: args.expectedPrincipal,
-      cwd: projectRoot,
-    });
-    if (!injection.ok) {
-      return failAfterClaim(EXIT_GATE_FAILED, `${injection.detail}\n${injection.remedy}\n`);
-    }
-    if (injection.injected) {
-      expectedGithubLogin = injection.expectedLogin;
+  const expectedGithubLogin =
+    assigned.mode === GITHUB_AUTH_MODE_INJECTED_TOKEN ? assigned.principal.login : null;
+  const dests = ordered.map((story) => {
+    const record = worktreeRecordMap.get(story.story_id);
+    const worktreePath =
+      record !== undefined && typeof record.worktree_path === "string"
+        ? record.worktree_path
+        : defaultWorktree(projectRoot, story.story_id);
+    return { story, worktreePath };
+  });
+  const deliveryByStory = new Map<string, string | null>();
+  for (const dest of dests) {
+    deliveryByStory.set(
+      dest.story.story_id,
+      assigned.mode === GITHUB_AUTH_MODE_INJECTED_TOKEN ? mintCredentialDeliveryId() : null,
+    );
+  }
+  const spawnEnvByStory = new Map<string, WorkerInjectedSpawnEnv>();
+  // Assigned injected-token fail-closes at PREP per dest. spawnEnv is in-process
+  // only; C2 carries the non-secret credential_delivery_id (#1351 / #3663).
+  if (assigned.mode === GITHUB_AUTH_MODE_INJECTED_TOKEN) {
+    for (const dest of dests) {
+      const deliveryId = deliveryByStory.get(dest.story.story_id);
+      if (deliveryId === null || deliveryId === undefined || deliveryId.length === 0) {
+        return failAfterClaim(
+          EXIT_CONFIG_ERROR,
+          "Error: injected-token dest is missing credential_delivery_id.\n",
+        );
+      }
+      const injection = prepareWorkerCredentialInjection({
+        environ: launchEnviron,
+        githubAuthMode: assigned.mode,
+        runtimeMode,
+        dispatchPath: "grok-build",
+        runGh: args.runGh,
+        expectedPrincipal: assigned.principal,
+        credentialDeliveryId: deliveryId,
+        cwd: projectRoot,
+      });
+      if (!injection.ok) {
+        return failAfterClaim(EXIT_GATE_FAILED, `${injection.detail}\n${injection.remedy}\n`);
+      }
+      if (injection.injected) {
+        spawnEnvByStory.set(dest.story.story_id, injection.spawnEnv);
+      }
     }
   }
 
-  const manifest = buildManifest(ordered, {
-    projectRoot,
-    group: args.group ?? null,
-    worktreeRecords: worktreeRecordMap,
-    dispatchKind,
-    allocationPlanId,
-    batchingRationale,
-    operatorApprovalEvidence: operatorApproval,
-    gateClearances,
-    subagentBackend: backend?.backend_id ?? null,
-    dispatchProvider: dispatchProviderValue,
-    workerRole: workerRoleValue,
-    resolvedModel,
-    modelSource,
-    runtimeMode,
-    githubAuthMode,
-    expectedGithubLogin,
-    occupancySessionId: occupancy.sessionId,
-  });
+  const persistAssignment = args.writeWorkerAuthAssignmentFn ?? writeWorkerAuthAssignment;
+  for (const dest of dests) {
+    const written = persistAssignment({
+      projectRoot,
+      worktreePath: dest.worktreePath,
+      dispatchId: occupancy.sessionId,
+      storyId: dest.story.story_id,
+      githubAuthMode: assigned.mode,
+      expectedPrincipal: assigned.principal,
+      credentialDeliveryId: deliveryByStory.get(dest.story.story_id) ?? null,
+    });
+    if (!written.ok) {
+      return failAfterClaim(EXIT_CONFIG_ERROR, `Error: ${written.detail}\n`);
+    }
+    writtenDests.push({ worktreePath: dest.worktreePath });
+  }
+
+  let manifest: Record<string, unknown>[];
+  try {
+    manifest = buildManifest(ordered, {
+      projectRoot,
+      group: args.group ?? null,
+      worktreeRecords: worktreeRecordMap,
+      dispatchKind,
+      allocationPlanId,
+      batchingRationale,
+      operatorApprovalEvidence: operatorApproval,
+      gateClearances,
+      subagentBackend: backend?.backend_id ?? null,
+      dispatchProvider: dispatchProviderValue,
+      workerRole: workerRoleValue,
+      resolvedModel,
+      modelSource,
+      runtimeMode,
+      githubAuthMode: assigned.mode,
+      expectedGithubLogin,
+      occupancySessionId: occupancy.sessionId,
+      credentialDeliveryByStory: deliveryByStory,
+    });
+  } catch (exc: unknown) {
+    return failAfterClaim(EXIT_CONFIG_ERROR, `Error: ${String(exc)}\n`);
+  }
 
   const rendered = `${JSON.stringify(manifest, null, 2)}\n`;
   const storyIds = ordered.map((story) => story.story_id);
@@ -1431,7 +1590,7 @@ export function swarmLaunch(args: LaunchArgs): {
   }
 
   void args.noAudit;
-  return { exitCode: EXIT_OK, stdout: rendered, stderr: "" };
+  return { exitCode: EXIT_OK, stdout: rendered, stderr: "", spawnEnvByStory };
 }
 
 export function assertDestWorkerInstallationPermissions(requested: unknown): void {

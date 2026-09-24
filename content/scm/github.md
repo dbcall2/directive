@@ -418,8 +418,9 @@ by Windows "My Machines" workers, so it cannot decide the runtime by itself.
   runtime is **ambiguous**. Deft does not guess from `process.platform`. Host
   credentials then require an explicit selection:
   `DEFT_GITHUB_AUTH_MODE=host-gh`, set in the execution environment on a
-  machine you control. Dispatchers should export the same `github_auth_mode`
-  label they already record in the dispatch envelope.
+  machine you control. That opt-in is for a local manual session. An inferred
+  PREP `github_auth_mode` stamp is not a registered worker's explicit host
+  opt-in (#3663); those workers validate the independently stored assignment.
 - ! Absent that selection, behaviour is unchanged: the runtime stays
   `cloud-headless` and SCM-dependent gates are skipped. The skip names its
   reason (`runtime_mode_reason` in `scm:status --json`, and in the `[deft scm]`

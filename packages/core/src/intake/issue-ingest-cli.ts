@@ -38,7 +38,8 @@ function parseArgs(argv: string[]) {
 
 export function mainEntry(argv: string[] = process.argv.slice(2)): number {
   const parsed = parseArgs(argv);
-  // #2275 / #3858: credential-class ban; parse --repo / -R before the gate.
+  // #2275 / #3858 / #3663: credential-class ban; parse --repo / -R before the gate.
+  // Registered workers resolve assignment inside requireScmReady first.
   try {
     requireScmReady({
       depth: "deep",

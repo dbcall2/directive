@@ -16,6 +16,7 @@ import { collectChildUris, collectPlanRefs, resolveVbriefRef } from "../scope/vb
 import { readOccupancy, releaseSwarmOccupancy } from "../session/occupancy.js";
 import { MAX_FIXPOINT_PASSES, TERMINAL_FOLDERS } from "./constants.js";
 import { resolveLaunchOccupancySessionId } from "./launch.js";
+import { cleanupWorkerAuthAssignmentsForDispatch } from "./worker-auth-assignment.js";
 
 /** Per-story or default delivery evidence for cohort completion (#3041). */
 export interface CohortDeliveryContext {
@@ -749,8 +750,20 @@ export function completeCohort(args: {
       } else {
         sessionId = resolved.sessionId;
       }
+    } else if (resolved.reason === "ok" && resolved.sessionId.length > 0) {
+      sessionId = resolved.sessionId;
     }
     if (result.ok && sessionId.length > 0) {
+      const cleaned = cleanupWorkerAuthAssignmentsForDispatch({
+        projectRoot,
+        dispatchId: sessionId,
+      });
+      if (!cleaned.ok) {
+        result.ok = false;
+        result.errors.push(cleaned.detail);
+      }
+    }
+    if (result.ok && sessionId.length > 0 && liveOccupancy !== null) {
       // Launcher occupancy only. Child owner leases release on the
       // orchestration terminal transition (#3999), not here.
       const released = releaseSwarmOccupancy(projectRoot, {

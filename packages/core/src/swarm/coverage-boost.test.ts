@@ -13,6 +13,10 @@ import { evaluatePr, renderReviewCleanText, verifyReviewClean } from "./verify-r
 import { compareKey, loadWorktreeMapFile, WorktreeMapConfigError } from "./worktrees.js";
 import { worktreesMain } from "./worktrees-cli.js";
 
+const TEST_WORKER_AUTH = {
+  workerGithubAuthMode: "host-gh" as const,
+  expectedPrincipal: { kind: "user" as const, login: "test-worker" },
+};
 describe("swarm coverage boost", () => {
   it("covers subprocess and compareKey helpers", () => {
     expect(compareKey("/Foo/Bar")).toBe("/foo/bar");
@@ -44,7 +48,11 @@ describe("swarm coverage boost", () => {
   });
 
   it("covers launch config errors", () => {
-    const result = swarmLaunch({ stories: [], projectRoot: "/tmp" });
+    const result = swarmLaunch({
+      ...TEST_WORKER_AUTH,
+      stories: [],
+      projectRoot: "/tmp",
+    });
     expect(result.exitCode).toBe(2);
   });
 
