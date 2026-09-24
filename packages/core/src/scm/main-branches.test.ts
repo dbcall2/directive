@@ -51,6 +51,22 @@ describe("main non-rest branches", () => {
     stdout.mockRestore();
   });
 
+  it("dispatches issue design-critique-stale-ready without forwarding to gh (#4970)", () => {
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    expect(
+      main(["issue", "design-critique-stale-ready", "--repo", "deftai/directive"], {
+        skipReadiness: true,
+        staleReadySeams: {
+          listOpenIngestReady: () => [],
+          fetchIssue: () => ({ number: 1, body: "", labels: [] }),
+          fetchComments: () => [],
+        },
+      }),
+    ).toBe(0);
+    expect(spawnSyncMock).not.toHaveBeenCalled();
+    stdout.mockRestore();
+  });
+
   it("dispatches issue work-claim without forwarding to gh (#4200)", () => {
     const apply = vi.fn();
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);

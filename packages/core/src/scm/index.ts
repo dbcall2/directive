@@ -5,6 +5,7 @@ export * from "./call.js";
 export * from "./call-shape.js";
 export * from "./constants.js";
 export * from "./design-critique-chip.js";
+export * from "./design-critique-stale-ready.js";
 export * from "./errors.js";
 export * from "./gh-rest.js";
 export * from "./main.js";

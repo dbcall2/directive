@@ -487,6 +487,7 @@ Presence, shape, and authority only. Do not score the because-clause.
 
 - ⊗ Add a `design-critique:halted` issue label.
 - ! Halt leaves the standing in-flight catalog chip in place. No clear-to-none verb. Orphan query confirms halt on the thread.
+- ! Standing `design-critique:ingest-ready` that the live completed-arc record no longer admits is queried with `task scm:issue:design-critique-stale-ready -- [--repo OWNER/NAME]` (read-only; labels select candidates; no writes). Recovery commands keep the evaluated issue's repository and number.
 - ! Resume after halt is a new operator verb, not a silent retry.
 
 ## Stop 5 — Verified synthesis
@@ -642,6 +643,7 @@ The intake cross-ref scanners (`packages/core/src/intake/markdown-scanners.ts`) 
 
 - ! Publish a reason in that table before the evaluator returns it. An unpublished reason code is the same gap as an unpublished citation form.
 - ⊗ Merge two states under one reason when their remedies differ. `missing-table-cite` and `unshaped-table-cite` were one reason and one detail until #3942, and the shared detail asserted an absent id in both, so an author whose table was on the thread read a true citation being called false and had no path to the missing heading.
+- ! Gate evolution: each new completed-arc refusal reason published in this table MUST name treatment of previously accepted ingest-ready records and a reason-specific recovery or an explicit manual-diagnosis path, with a regression fixture. `missing-pain` recovery is later-arc (new Stop 1 with an operative nonempty `pain:` list, operator `task scm:issue:design-critique-chip -- --repo OWNER/NAME --issue N --chip mechanism-shaped`, successor lean, later critic `audit-targets:`, completed-arc record, guarded ingest-ready write). `malformed-pain`, `unrelieved-pain`, and `unresolved-pain-audit` keep evaluator detail and the #4496 requirement without a blanket restart. Other reasons report status/reason only. Discovery: `task scm:issue:design-critique-stale-ready`.
 
 The `unshaped-table-cite` detail names the heading because the diagnostics rule above already requires a detail to report what was found and the accepted form. That is conformance to it, not a second rule.
 

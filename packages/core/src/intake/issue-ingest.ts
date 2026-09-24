@@ -14,10 +14,13 @@ import { leanCarriesSpecPathToken } from "../design-critique/auto-stamp-chip.js"
 import {
   assertCompletedArcAllowsIngest,
   DesignCritiqueIngestBlockedError,
+  evaluateCompletedArcRecord,
   evaluateTargetDigestAdmission,
   hasOperativeTargetDigestLine,
+  setPendingIngestDiagnosticOverlay,
   type ThreadComment,
 } from "../design-critique/completed-arc-record.js";
+import { formatStaleIngestReadyDiagnostic } from "../design-critique/stale-ingest-ready-diagnostic.js";
 import { assertWriteTargetSafe, ProjectionContainmentError } from "../fs/projection-containment.js";
 import { hasArtifactSuffix, resolveLifecycleRoot } from "../layout/resolve.js";
 import { captureAndAttachLiteralAcceptance } from "../literal-acceptance/index.js";
@@ -2104,9 +2107,22 @@ export function ingestOne(
       cacheRoot: options.cacheRoot,
     });
     const comments = threadCommentsFromIssue(enriched);
+    const labels = issueLabelNames(enriched);
+    const preview = evaluateCompletedArcRecord({ comments, issueNumber: number });
+    const repoSlug = repoSlugFromUrl(options.repoUrl);
+    if (preview.status === "blocked" && repoSlug !== null) {
+      setPendingIngestDiagnosticOverlay(
+        formatStaleIngestReadyDiagnostic({
+          repo: repoSlug,
+          issueNumber: number,
+          labels,
+          verdict: preview,
+        }).text,
+      );
+    }
     const verdict = assertCompletedArcAllowsIngest({
       issueNumber: number,
-      labels: issueLabelNames(enriched),
+      labels,
       comments,
     });
     let admittedDigest: string | null = null;
@@ -2139,6 +2155,19 @@ export function ingestOne(
           liveIssueBody: liveBody,
         });
         if (pin.status === "blocked") {
+          if (repoSlug !== null) {
+            setPendingIngestDiagnosticOverlay(
+              formatStaleIngestReadyDiagnostic({
+                repo: repoSlug,
+                issueNumber: number,
+                labels,
+                verdict,
+                digestAdmission: pin,
+                liveIssueBody: liveBody,
+                citedLeanBody: citedBody,
+              }).text,
+            );
+          }
           throw new DesignCritiqueIngestBlockedError(number, pin.reason, pin.detail);
         }
         if (pin.status === "match") {

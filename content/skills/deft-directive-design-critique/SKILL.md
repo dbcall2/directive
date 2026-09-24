@@ -49,7 +49,7 @@ Yolo standing confirm of a posted all-accept map: Operator verbs. Confirm conjun
 Yolo leftover-pain (split/defer/deliver): Dual stop. Pain coverage. Confirm conjunct only. Not ingest.
 Yolo first-lean cites: Yolo leftover-pain. Honest pain cites. Not operator next-envelope.
 Walk / walk all. Auto-stamp when agents agree: Operator verbs.
-Parent chip write: scm:issue:design-critique-chip.
+Parent chip write: scm:issue:design-critique-chip. Stale ingest-ready query: scm:issue:design-critique-stale-ready.
 Chip apply miss is non-blocking convenience; do not halt. Ingest waits on the completed-arc record, not a catalog chip.
 Run posture: parse closed tokens; else ask. Field lives in the contract.
 Spend: parse closed tokens; else ask. Field lives in the contract. Consume parseOperatorSpend.

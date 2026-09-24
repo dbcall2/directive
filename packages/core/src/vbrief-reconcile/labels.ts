@@ -3,12 +3,17 @@ import { join, resolve } from "node:path";
 import {
   applyIngestReadyRemainingSet,
   assertCompletedArcAllowsIngest,
+  setPendingIngestDiagnosticOverlay,
   threadCommentsFromIssueComments,
 } from "../design-critique/completed-arc-record.js";
 import {
   applyDesignCritiqueCatalogChip,
   isDesignCritiqueCatalogChip,
 } from "../design-critique/exclusive-chip.js";
+import {
+  formatStaleIngestReadyDiagnostic,
+  INGEST_READY_CHIP,
+} from "../design-critique/stale-ingest-ready-diagnostic.js";
 import { fetchIssueComments } from "../intake/issue-ingest.js";
 import { hasArtifactSuffix, resolveLifecycleRoot, stripArtifactSuffix } from "../layout/resolve.js";
 import { call } from "../scm/call.js";
@@ -114,6 +119,21 @@ export class ScmLabelClient implements LabelClient {
         const outcome = applyIngestReadyRemainingSet(inner, repo, issueNumber, comments);
         if (!outcome.ok) {
           if (outcome.verdict.status === "blocked") {
+            let overlay: string | undefined;
+            try {
+              const currentLabels = inner.fetchLabels(repo, issueNumber);
+              if (currentLabels.includes(INGEST_READY_CHIP)) {
+                overlay = formatStaleIngestReadyDiagnostic({
+                  repo,
+                  issueNumber,
+                  labels: currentLabels,
+                  verdict: outcome.verdict,
+                }).text;
+              }
+            } catch {
+              overlay = undefined;
+            }
+            setPendingIngestDiagnosticOverlay(overlay);
             assertCompletedArcAllowsIngest({ issueNumber, comments });
           }
           if (!applied && (restAdd.length > 0 || restRemove.length > 0)) {

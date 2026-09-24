@@ -99,17 +99,32 @@ const DETAIL_ID_LIMIT = 5;
 
 const CATALOG = new Set<string>(DESIGN_CRITIQUE_CATALOG_CHIPS);
 
+let pendingIngestDiagnosticOverlay: string | undefined;
+
+/** Attach shared stale-ready mapping text to the next ingest blocked throw (#4970). */
+export function setPendingIngestDiagnosticOverlay(overlay: string | undefined): void {
+  pendingIngestDiagnosticOverlay = overlay;
+}
+
 export class DesignCritiqueIngestBlockedError extends Error {
   readonly issueNumber: number;
   readonly reason: CompletedArcBlockReason;
+  readonly detail: string;
 
   constructor(issueNumber: number, reason: CompletedArcBlockReason, detail: string) {
+    const base = `issue:ingest refused #${issueNumber}: design-critique ${reason} (${detail}) -- nothing written.`;
+    const extra = pendingIngestDiagnosticOverlay;
+    pendingIngestDiagnosticOverlay = undefined;
     super(
-      `issue:ingest refused #${issueNumber}: design-critique ${reason} (${detail}) -- nothing written.`,
+      extra !== undefined && extra.length > 0
+        ? `${base}
+${extra}`
+        : base,
     );
     this.name = "DesignCritiqueIngestBlockedError";
     this.issueNumber = issueNumber;
     this.reason = reason;
+    this.detail = detail;
   }
 }
 
