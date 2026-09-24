@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #1708",
-    "updated": "2026-09-23T20:32:17Z"
+    "updated": "2026-09-24T15:59:59Z"
   },
   "plan": {
     "title": "Cursor Plan Mode silently bypasses directive planning; needs host-UI planning bridge + visibility",
-    "status": "running",
+    "status": "completed",
     "narratives": {
       "Description": "Cursor Plan Mode silently bypasses directive planning; needs host-UI planning bridge + visibility",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/1708",
@@ -16,48 +16,102 @@
     "items": [
       {
         "title": "Keep Plan Mode as host UX. Hard write contract stays deposited Cursor preToolUse / scope-not-ready. Do not invent a Plan Mode signal.",
-        "status": "proposed",
-        "id": "clause.1"
+        "status": "completed",
+        "id": "clause.1",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4989#e540692c76022a8241090e7c4de7852884c210f1",
+          "recorded_at": "2026-09-24T15:59:02.270Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "First-ship discoverability is a Cursor-only host-conditional append on `host === \"cursor\"` and `event === \"session.start\"` in `renderHostDecision`, carried on `additional_context`. Do not append to `formatSoftAgentsRebindChecklist` or the shared message object. `session.compact` wire stays unchanged on every host. OpenClaw skill body stays unchanged.",
-        "status": "proposed",
-        "id": "clause.2"
+        "status": "completed",
+        "id": "clause.2",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4989#e540692c76022a8241090e7c4de7852884c210f1",
+          "recorded_at": "2026-09-24T15:59:02.270Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "AC1 splits: (a) fixture-verified, the Cursor session.start wire carries the planning line on codes `session-start` and `session-start-degraded` and not on `session-start-disabled` or `directive-disabled`; (b) a live capture, if taken, is labelled agent relay in one session and is not user-facing delivery coverage.",
-        "status": "proposed",
-        "id": "clause.3"
+        "status": "completed",
+        "id": "clause.3",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4989#e540692c76022a8241090e7c4de7852884c210f1",
+          "recorded_at": "2026-09-24T15:59:02.270Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "Name a usable Directive entrypoint (`/deft:run:interview` or `/deft:run:discuss`) and state that a native plan does not itself approve a Directive scope. Keep that text separate from SOFT_AGENTS_REBIND_CHECKLIST ids.",
-        "status": "proposed",
-        "id": "clause.4"
+        "status": "completed",
+        "id": "clause.4",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4989#e540692c76022a8241090e7c4de7852884c210f1",
+          "recorded_at": "2026-09-24T15:59:02.270Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "Do not mint an activatable xBRIEF or plan.xbrief.json from a host plan file. No afterFileEdit auto-convert. Injected context is not consent.",
-        "status": "proposed",
-        "id": "clause.5"
+        "status": "completed",
+        "id": "clause.5",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4989#e540692c76022a8241090e7c4de7852884c210f1",
+          "recorded_at": "2026-09-24T15:59:02.270Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "Do not add plan.policy.planBridge keyed on Plan Mode. Do not overload session:start --defer. Do not reuse the Grok plan / process_only skip class as a trigger. Do not add beforeSubmitPrompt on this ship.",
-        "status": "proposed",
-        "id": "clause.6"
+        "status": "completed",
+        "id": "clause.6",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4989#e540692c76022a8241090e7c4de7852884c210f1",
+          "recorded_at": "2026-09-24T15:59:02.270Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "AC4 records whether the observed Cursor tool name was in the deposited preToolUse matcher at capture time.",
-        "status": "proposed",
-        "id": "clause.7"
+        "status": "completed",
+        "id": "clause.7",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4989#e540692c76022a8241090e7c4de7852884c210f1",
+          "recorded_at": "2026-09-24T15:59:02.270Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "Grok Plan-entry observation stays out of first-ship product matchers. Observing it needs a local unshipped matcher or a Grok host log.",
-        "status": "proposed",
-        "id": "clause.8"
+        "status": "completed",
+        "id": "clause.8",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4989#e540692c76022a8241090e7c4de7852884c210f1",
+          "recorded_at": "2026-09-24T15:59:02.270Z",
+          "recorded_by": "dbcall2"
+        }
       },
       {
         "title": "Name live xBRIEF 0.8 paths in any later acceptance text.",
-        "status": "proposed",
-        "id": "clause.9"
+        "status": "completed",
+        "id": "clause.9",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/4989#e540692c76022a8241090e7c4de7852884c210f1",
+          "recorded_at": "2026-09-24T15:59:02.270Z",
+          "recorded_by": "dbcall2"
+        }
       }
     ],
     "tags": [
@@ -996,9 +1050,32 @@
         "schema": "deft.scope.admitted-target-digest.v1",
         "algorithm": "sha256",
         "sha256": "dab96b76d2d48cf82e0e1be234849c546a6c7a0f55b5fec6faba4e35c4f93a5c"
+      },
+      "completionProvenance": {
+        "repository": "deftai/directive",
+        "implementationCommit": "aee6df5daac17ff8907583de60667a962519220e",
+        "prNumber": 4989,
+        "prBase": "master",
+        "mergeCommit": "e540692c76022a8241090e7c4de7852884c210f1",
+        "deliveryBranch": "master",
+        "deliveryCommit": "78ed42c1eeab72fe0bcc7294448eaa5c338d2fe7",
+        "verifiedAt": "2026-09-24T15:59:59Z",
+        "verifier": "swarm:finalize-cohort",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-24T15:59:59Z",
+      "capacityBucket": "new-capability",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-24T15:59:59Z"
       }
     },
     "id": "github.issue.4692567193",
-    "updated": "2026-09-23T20:32:17Z"
+    "updated": "2026-09-24T15:59:59Z"
   }
 }
