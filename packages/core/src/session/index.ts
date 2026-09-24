@@ -11,6 +11,7 @@ export * from "./host-session-owner.js";
 export * from "./json.js";
 export * from "./main-worktree.js";
 export * from "./occupancy.js";
+export * from "./occupancy-recovery.js";
 export * from "./openclaw-soft-rebind-deposit.js";
 export * from "./orientation-compression.js";
 export * from "./orientation-state.js";

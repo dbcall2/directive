@@ -59,6 +59,7 @@ import {
 } from "../session/git.js";
 import { isLinkedWorktreePath } from "../session/main-worktree.js";
 import { evaluateOccupancyWriteGate } from "../session/occupancy.js";
+import { occupancyAwareDenialMessage } from "../session/occupancy-recovery.js";
 import {
   ENV_SESSION_POSTURE,
   isRequirementsPosture,
@@ -84,7 +85,6 @@ import {
 } from "../session/spawn-occupancy.js";
 import {
   type DetectWorkSelection,
-  formatRitualRecoveryInstruction,
   inspectSessionRitual,
   type RitualRunner,
   type VerifyResult,
@@ -1526,6 +1526,17 @@ function inspectMutationGates(
   //
   // Ritual detail on an occupancy deny is telemetry and message decoration, so
   // an inspect failure must not convert an occupancy verdict into a ritual one.
+  const occupancyAwareText = (message: string, recoveryTier: "rearm" | "cold" = "cold"): string =>
+    occupancyAwareDenialMessage(
+      effectiveRoot,
+      message,
+      {
+        sessionId: actor?.sessionId ?? environ.DEFT_SESSION_ID,
+        env: environ,
+      },
+      recoveryTier,
+    );
+
   const ritualDetailForOccupancyDeny = (): VerifyResult | null => {
     try {
       return (
@@ -1589,7 +1600,10 @@ function inspectMutationGates(
       input,
       "occupancy-occupied",
       toolName,
-      `Directive denied ${toolName}: ${occupancyGate.message}${ritualNote}${rootsNote}`,
+      occupancyAwareText(
+        `Directive denied ${toolName}: ${occupancyGate.message}${ritualNote}${rootsNote}`,
+        inspected?.recoveryTier === "rearm" ? "rearm" : "cold",
+      ),
     );
   }
 
@@ -1707,9 +1721,10 @@ function inspectMutationGates(
         input,
         "ritual-not-ready",
         toolName,
-        `Directive could not inspect the gated session ritual: ${String(cause)}. ` +
-          formatRitualRecoveryInstruction("cold") +
-          rootsNote,
+        occupancyAwareText(
+          `Directive could not inspect the gated session ritual: ${String(cause)}.${rootsNote}`,
+          "cold",
+        ),
       );
     }
   }
@@ -1744,11 +1759,14 @@ function inspectMutationGates(
         input,
         "occupancy-ritual-mismatch",
         toolName,
-        `Directive denied ${toolName}: ${detail}. ` +
-          "Run `deft session:start --rearm --session-id=<same-session-id>` when re-arm is eligible; " +
-          "otherwise run `deft session:start --session-id=<same-session-id>` for a cold ceremony. " +
-          "Intermediate lease/ritual mismatches fail closed." +
-          rootsNote,
+        occupancyAwareText(
+          `Directive denied ${toolName}: ${detail}. ` +
+            "Run `deft session:start --rearm --session-id=<same-session-id>` when re-arm is eligible; " +
+            "otherwise run `deft session:start --session-id=<same-session-id>` for a cold ceremony. " +
+            "Intermediate lease/ritual mismatches fail closed." +
+            rootsNote,
+          ritual.recoveryTier === "rearm" ? "rearm" : "cold",
+        ),
       );
     }
   }
@@ -1769,8 +1787,10 @@ function inspectMutationGates(
       input,
       "ritual-not-ready",
       toolName,
-      `Directive denied ${toolName}: ${ritual.message} ${formatRitualRecoveryInstruction(recoveryTier)}` +
-        rootsNote,
+      occupancyAwareText(
+        `Directive denied ${toolName}: ${ritual.message}${rootsNote}`,
+        recoveryTier,
+      ),
     );
   }
 
@@ -1833,11 +1853,14 @@ function inspectMutationGates(
         input,
         "occupancy-ritual-mismatch",
         toolName,
-        `Directive denied ${toolName}: final lease owner ${finalExpectedOwner} does not match ` +
-          `the exact verified ritual owner ${ritual?.boundSessionId ?? "<unbound>"}. ` +
-          "Run `deft session:start --rearm --session-id=<same-session-id>` when re-arm is eligible; " +
-          "otherwise run `deft session:start --session-id=<same-session-id>` for a cold ceremony." +
-          rootsNote,
+        occupancyAwareText(
+          `Directive denied ${toolName}: final lease owner ${finalExpectedOwner} does not match ` +
+            `the exact verified ritual owner ${ritual?.boundSessionId ?? "<unbound>"}. ` +
+            "Run `deft session:start --rearm --session-id=<same-session-id>` when re-arm is eligible; " +
+            "otherwise run `deft session:start --session-id=<same-session-id>` for a cold ceremony." +
+            rootsNote,
+          ritual?.recoveryTier === "rearm" ? "rearm" : "cold",
+        ),
       );
     }
     return null;

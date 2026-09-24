@@ -1,6 +1,20 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { VerifyResult } from "@deftai/directive-core/session";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseArgs, run } from "./verify-session-ritual.js";
+
+const cliTemps: string[] = [];
+afterEach(() => {
+  for (const t of cliTemps.splice(0)) rmSync(t, { recursive: true, force: true });
+});
+
+function isolatedProjectRoot(): string {
+  const root = mkdtempSync(join(tmpdir(), "verify-ritual-cli-"));
+  cliTemps.push(root);
+  return root;
+}
 
 function failedCacheFreshResult(overrides: Partial<VerifyResult> = {}): VerifyResult {
   return {
@@ -159,7 +173,7 @@ describe("run ritual failure (#3506)", () => {
     const err = vi.spyOn(process.stderr, "write").mockReturnValue(true);
     const result = failedCacheFreshResult();
     expect(
-      run(["--tier=gated"], {
+      run(["--tier=gated", "--project-root", isolatedProjectRoot()], {
         verifySessionRitual: () => result,
       }),
     ).toBe(1);
@@ -175,7 +189,7 @@ describe("run ritual failure (#3506)", () => {
   it("omits cache_fresh defer copy when the failed step is not cache_fresh", () => {
     const err = vi.spyOn(process.stderr, "write").mockReturnValue(true);
     expect(
-      run(["--tier=gated"], {
+      run(["--tier=gated", "--project-root", isolatedProjectRoot()], {
         verifySessionRitual: () =>
           failedCacheFreshResult({
             message: "session ritual gated step 'doctor' failed: doctor exited 1",

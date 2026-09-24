@@ -96,6 +96,10 @@ The fallback is a **direct-write** behaviour. It does not generalise across tran
 | Generic server-prefixed MCP | `tasks__search_replace` | **No** | Routed only through push/merge runtime classification; unrecognized there, so `shell-op-unclassifiable` (fail open). |
 | Recognized Shell file-write | `Set-Content -Path <os-temp>/note.md …` | **No** | `isInRepoShellWritePath` rejects destinations resolving outside the project root, so the #3987 reissue path skips them (fail open). |
 
+Dedicated Write/Edit and recognized in-repository shell forms are gated; unrecognized
+shell forms remain outside that coverage. This document does not claim universal shell
+interception and does not add a general shell parser.
+
 Catalogued MCP push/merge names (`git_push`, `merge_pull_request`, …) *are* gated — by runtime
 authority scopes, which is a different gate and does not consult root admission either.
 

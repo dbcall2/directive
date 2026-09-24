@@ -237,6 +237,7 @@ export function runSessionReady(
     intent: options.sessionStartOptions?.occupancyIntent ?? "mutation",
     write,
     identityProvenance: claim.provenance,
+    primaryClaimException: options.sessionStartOptions?.primaryClaimException,
   });
   const requestedSteal = options.sessionStartOptions?.steal === true;
   const previewOccupancy = applyOccupancy(projectRoot, occupancyInput(false, requestedSteal));
