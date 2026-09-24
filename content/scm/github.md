@@ -358,6 +358,37 @@ auth.
   prompts, transcripts, logs, or `--json` payloads -- report presence only
   (`injected_token_present`).
 
+### Credential-class ban on three enforcing verbs (#3858)
+
+Property: no GitHub App installation credential may drive `scm issue *`,
+`issue:ingest`, and `reconcile:issues`. Any user-bearing login is acceptable
+when no expected principal is supplied. Those three callers pass
+`expectedPrincipal: null` so leftover `DEFT_EXPECTED_GITHUB_LOGIN` does not
+become an env principal match.
+
+- ! Those three callers MUST invoke the installation-class check
+  (`validateGithubAuthForWorker` / `/user` inapplicability) via
+  `requireScmReady({ depth: "deep" })`.
+- ! `doctor` and default `session:start` stay shallow; they do not call
+  `requireScmReady`.
+- ! `requireScmReady` MUST honor requested authorization depth. A cached
+  shallow-ready report MUST NOT satisfy a later principal/deep request.
+- ! The hermetic skip is `VITEST` only. `DEFT_SCM_SKIP_AUTH_PROBE` MUST NOT
+  authorize production when a token is present.
+- ! Those three callers MUST parse `--repo` / `-R` before `requireScmReady`
+  and pass that repo through, so non-checkout `--repo` does not regress.
+- ⊗ Claim identity-gated SCM authorization, or that the `repos/` GET
+  authorizes the operation.
+- ! `SCM_DEPENDENT_GATES` stays a diagnostic skip-list of surfaces that will
+  not work when SCM is not ready. `pr:*` merge-path modules stay a different
+  issue.
+- ! Recorded cost: two extra REST calls (`/user` and `repos/<owner>/<name>`)
+  and up to 60 s added worst-case latency per gated process. Transient API
+  failure refuses the verb (same posture as #3422).
+- ! Swarm `prepareWorkerCredentialInjection` stays the expected-user
+  injected-token path. #3693 observation and #3859 classifier stay out of
+  this number.
+
 ### Making SCM gates runnable in a mismatched env
 
 1. **Host-gh (local / unsandboxed):** install GitHub CLI (or `task setup:ghx`)

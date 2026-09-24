@@ -14,7 +14,7 @@ import { liveOccupant } from "../session/occupancy.js";
 import { extractIssueRef } from "../triage/reconcile/parse-uri.js";
 import { ScmLabelClient } from "../vbrief-reconcile/labels.js";
 import type { LabelClient } from "../vbrief-reconcile/types.js";
-import { extractFlag, extractValueFlag } from "./argv.js";
+import { extractFlag, extractRepoFlag, extractValueFlag } from "./argv.js";
 import { resolveRepoFromGitOrigin } from "./design-critique-chip.js";
 import { InvalidRepoError, splitRepo } from "./gh-rest.js";
 import { pyRepr } from "./py-format.js";
@@ -99,7 +99,7 @@ export function parseWorkClaimArgs(extra: readonly string[]): WorkClaimArgs {
   remainder = afterJson;
   const [readOnly, afterReadOnly] = extractFlag(remainder, "--read-only");
   remainder = afterReadOnly;
-  const [repoRaw, afterRepo] = extractValueFlag(remainder, "--repo");
+  const [repoRaw, afterRepo] = extractRepoFlag(remainder);
   remainder = afterRepo;
   const [issueFlag, afterIssue] = extractValueFlag(remainder, "--issue");
   remainder = afterIssue;

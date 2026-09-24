@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { extractFlag, extractValueFlag, filterJsonFields } from "./argv.js";
+import {
+  extractFlag,
+  extractRepoFlag,
+  extractValueFlag,
+  filterJsonFields,
+  peekRepoFlag,
+} from "./argv.js";
 
 describe("argv helpers", () => {
   it("extractFlag removes all occurrences", () => {
@@ -35,6 +41,29 @@ describe("argv helpers", () => {
   it("extractValueFlag uses first occurrence", () => {
     const [value] = extractValueFlag(["--state", "open", "--state", "closed"], "--state");
     expect(value).toBe("open");
+  });
+
+  it("peekRepoFlag reads --repo space, equals, and -R (#3858)", () => {
+    expect(peekRepoFlag(["view", "12", "--repo", "other/thing"])).toBe("other/thing");
+    expect(peekRepoFlag(["view", "12", "--repo=other/thing"])).toBe("other/thing");
+    expect(peekRepoFlag(["view", "12", "-R", "other/thing"])).toBe("other/thing");
+    expect(peekRepoFlag(["view", "12", "-R=other/thing"])).toBe("other/thing");
+    expect(peekRepoFlag(["view", "12", "--repo", "other/thing", "-R", "ignored/r"])).toBe(
+      "other/thing",
+    );
+    expect(peekRepoFlag(["--repo", "", "-R", "other/thing"])).toBe("other/thing");
+    expect(peekRepoFlag(["view", "12"])).toBeUndefined();
+  });
+
+  it("extractRepoFlag consumes --repo and -R (#3858)", () => {
+    expect(extractRepoFlag(["show", "--issue", "1", "-R", "o/r"])).toEqual([
+      "o/r",
+      ["show", "--issue", "1"],
+    ]);
+    expect(extractRepoFlag(["show", "--repo", "a/b", "-R", "c/d"])).toEqual([
+      "a/b",
+      ["show", "-R", "c/d"],
+    ]);
   });
 
   it("filterJsonFields projects dict keys", () => {

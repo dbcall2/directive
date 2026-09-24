@@ -31,9 +31,10 @@ export interface CallOptions {
  * Mirrors `scripts/scm.py::call`.
  *
  * Binary absence still throws ScmStubError via resolveBinaryForRole with the
- * #2275 diagnostic. Full auth readiness is enforced at SCM CLI entry points
- * (`scm/main`, issue-ingest, reconcile-issues) via requireScmReady — not on
- * every call() — so unit tests that inject binary/seams stay hermetic.
+ * #2275 diagnostic. Credential-class readiness for `scm issue *`,
+ * `issue:ingest`, and `reconcile:issues` is enforced at those CLI entry
+ * points via requireScmReady — not on every call() — so unit tests that
+ * inject binary/seams stay hermetic (#3858).
  *
  * Call-shape selection (#3737): ghx only for single-path GET. An explicit
  * `binary` override skips selection and spawn-failure fallback.

@@ -144,6 +144,24 @@ describe("parseDesignCritiqueChipArgs", () => {
     });
   });
 
+  it("parses -R as the repository flag (#3858)", () => {
+    expect(
+      parseDesignCritiqueChipArgs([
+        "--issue",
+        "3642",
+        "--chip",
+        "ingest-ready",
+        "-R",
+        "owner/repo",
+      ]),
+    ).toEqual({
+      issue: 3642,
+      chip: "design-critique:ingest-ready",
+      repo: "owner/repo",
+      json: false,
+    });
+  });
+
   it("accepts positional issue number", () => {
     expect(
       parseDesignCritiqueChipArgs([

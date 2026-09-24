@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
+import { peekRepoFlag } from "../scm/argv.js";
 import { ScmStubError } from "../scm/errors.js";
 import { requireScmReady } from "../scm/readiness.js";
 import { reconcileMain } from "./reconcile-issues.js";
@@ -20,18 +21,29 @@ function parseArgs(argv: string[]) {
     else if (arg === "--report-unlinked") out.reportUnlinked = true;
     else if (arg === "--vbrief-dir") out.vbriefDir = argv[++i];
     else if (arg === "--repo") out.repo = argv[++i];
+    else if (arg.startsWith("--repo=")) out.repo = arg.slice("--repo=".length);
+    else if (arg === "-R") out.repo = argv[++i];
+    else if (arg.startsWith("-R=") && arg.length > 3) out.repo = arg.slice(3);
     else if (arg === "--project-root") out.projectRoot = argv[++i];
     else if (arg === "--format") out.format = argv[++i] as "json" | "markdown";
     else if (arg === "--max-open-issues")
       out.maxOpenIssues = Number.parseInt(argv[++i] as string, 10);
   }
+  if (out.repo === undefined) {
+    out.repo = peekRepoFlag(argv);
+  }
   return out;
 }
 
 export function mainEntry(argv: string[] = process.argv.slice(2)): number {
-  // #2275: fail loud when gh/auth is missing in this execution env.
+  const parsed = parseArgs(argv);
+  // #2275 / #3858: credential-class ban; parse --repo / -R before the gate.
   try {
-    requireScmReady();
+    requireScmReady({
+      depth: "deep",
+      repo: parsed.repo,
+      expectedPrincipal: null,
+    });
   } catch (err: unknown) {
     if (err instanceof ScmStubError) {
       process.stderr.write(`error: ${err.message}\n`);
@@ -39,7 +51,7 @@ export function mainEntry(argv: string[] = process.argv.slice(2)): number {
     }
     throw err;
   }
-  return reconcileMain(parseArgs(argv));
+  return reconcileMain(parsed);
 }
 
 if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1]) {

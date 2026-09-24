@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   probeRuntimeCapabilities,
   type RuntimeCapabilityReport,
@@ -8,8 +8,10 @@ import type { CompletedProcess } from "./call.js";
 import { ScmStubError } from "./errors.js";
 import {
   assertScmBinaryPresent,
+  clearScmReadyCache,
   formatScmReadinessLines,
   probeScmReadiness,
+  requireScmReady,
   SCM_DEPENDENT_GATES,
   scmNotReadyError,
   scmReadinessToDict,
@@ -360,5 +362,182 @@ describe("managed-runtime read outranks the explicit selection (#3859)", () => {
     expect(report.githubAuthMode).toBe("injected-token");
     expect(report.ready).toBe(false);
     expect(scmReadinessToDict(report).runtime_mode_reason).toBe("ci-marker");
+  });
+});
+
+const INSTALLATION_USER_403: CompletedProcess = {
+  args: [],
+  returncode: 1,
+  stdout: '{"message":"Resource not accessible by integration","status":"403"}',
+  stderr: "gh: Resource not accessible by integration (HTTP 403)",
+};
+
+describe("requireScmReady credential-class ban (#3858)", () => {
+  const whichGh = (name: string) => (name === "gh" ? "/usr/bin/gh" : null);
+
+  afterEach(() => {
+    clearScmReadyCache();
+    vi.unstubAllEnvs();
+  });
+
+  it("treats an installation-shaped /user 403 as not ready", () => {
+    clearScmReadyCache();
+    expect(() =>
+      requireScmReady({
+        force: true,
+        checkAuthStatus: true,
+        depth: "deep",
+        repo: "owner/name",
+        expectedPrincipal: null,
+        whichFn: whichGh,
+        env: {},
+        githubAuthMode: "host-gh",
+        runtimeReport: { runtimeMode: "local-unsandboxed" },
+        runGh: (args) => {
+          if (args[0] === "auth") return okProc("Logged in");
+          if (args[0] === "api" && args[1] === "user") return INSTALLATION_USER_403;
+          return failProc(`unexpected ${args.join(" ")}`);
+        },
+      }),
+    ).toThrow(/installation|inapplicable|not ready/i);
+  });
+
+  it("does not reuse a cached shallow-ready report for a later deep 403", () => {
+    clearScmReadyCache();
+    let userCalls = 0;
+    const runGh = (args: readonly string[]) => {
+      if (args[0] === "auth") return okProc("Logged in");
+      if (args[0] === "api" && args[1] === "user") {
+        userCalls += 1;
+        return INSTALLATION_USER_403;
+      }
+      return failProc(`unexpected ${args.join(" ")}`);
+    };
+    const common = {
+      whichFn: whichGh,
+      env: {},
+      githubAuthMode: "host-gh" as const,
+      runtimeReport: { runtimeMode: "local-unsandboxed" as const },
+      runGh,
+      repo: "owner/name",
+      expectedPrincipal: null as const,
+      checkAuthStatus: true as const,
+    };
+    const shallow = requireScmReady({ ...common, depth: "shallow", force: true });
+    expect(shallow.ready).toBe(true);
+    expect(userCalls).toBe(0);
+    expect(() => requireScmReady({ ...common, depth: "deep" })).toThrow(ScmStubError);
+    expect(userCalls).toBe(1);
+  });
+
+  it("does not let DEFT_SCM_SKIP_AUTH_PROBE authorize production when a token is present", () => {
+    vi.stubEnv("VITEST", "");
+    vi.stubEnv("DEFT_SCM_SKIP_AUTH_PROBE", "1");
+    clearScmReadyCache();
+    expect(() =>
+      requireScmReady({
+        force: true,
+        depth: "deep",
+        repo: "owner/name",
+        expectedPrincipal: null,
+        whichFn: whichGh,
+        env: { GH_TOKEN: "ghs_install_not_a_real_token" },
+        githubAuthMode: "injected-token",
+        runtimeReport: { runtimeMode: "cloud-headless" },
+        runGh: (args) => {
+          if (args[0] === "auth") return okProc();
+          if (args[0] === "api" && args[1] === "user") return INSTALLATION_USER_403;
+          return failProc(`unexpected ${args.join(" ")}`);
+        },
+      }),
+    ).toThrow(ScmStubError);
+  });
+
+  it("reuses a cached deep-ready report for a later shallow request", () => {
+    clearScmReadyCache();
+    let authCalls = 0;
+    const runGh = (args: readonly string[]) => {
+      if (args[0] === "auth") {
+        authCalls += 1;
+        return okProc("Logged in");
+      }
+      if (args[0] === "api" && args[1] === "user") return okProc('"alice"');
+      if (args[0] === "api" && String(args[1]).startsWith("repos/")) return okProc("{}");
+      return failProc(`unexpected ${args.join(" ")}`);
+    };
+    const common = {
+      whichFn: whichGh,
+      env: {},
+      githubAuthMode: "host-gh" as const,
+      runtimeReport: { runtimeMode: "local-unsandboxed" as const },
+      runGh,
+      repo: "owner/name",
+      expectedPrincipal: null as const,
+      checkAuthStatus: true as const,
+    };
+    const deep = requireScmReady({ ...common, depth: "deep", force: true });
+    expect(deep.ready).toBe(true);
+    expect(deep.depth).toBe("deep");
+    const afterDeep = authCalls;
+    expect(afterDeep).toBeGreaterThan(0);
+    const shallow = requireScmReady({ ...common, depth: "shallow" });
+    expect(shallow.ready).toBe(true);
+    expect(shallow.depth).toBe("deep");
+    expect(authCalls).toBe(afterDeep);
+  });
+
+  it("does not reuse a cached ready report for a different repo", () => {
+    clearScmReadyCache();
+    const repos: string[] = [];
+    const runGh = (args: readonly string[]) => {
+      if (args[0] === "auth") return okProc("Logged in");
+      if (args[0] === "api" && args[1] === "user") return okProc('"alice"');
+      if (args[0] === "api" && String(args[1]).startsWith("repos/")) {
+        repos.push(String(args[1]));
+        return okProc("{}");
+      }
+      return failProc(`unexpected ${args.join(" ")}`);
+    };
+    const common = {
+      whichFn: whichGh,
+      env: {},
+      githubAuthMode: "host-gh" as const,
+      runtimeReport: { runtimeMode: "local-unsandboxed" as const },
+      runGh,
+      expectedPrincipal: null as const,
+      checkAuthStatus: true as const,
+      depth: "deep" as const,
+    };
+    requireScmReady({ ...common, repo: "owner/one", force: true });
+    requireScmReady({ ...common, repo: "owner/two" });
+    expect(repos).toEqual(["repos/owner/one", "repos/owner/two"]);
+    requireScmReady({ ...common, repo: "owner/one" });
+    expect(repos).toEqual(["repos/owner/one", "repos/owner/two"]);
+  });
+
+  it("passes --repo other than origin through to the validator", () => {
+    clearScmReadyCache();
+    const seen: string[][] = [];
+    const report = requireScmReady({
+      force: true,
+      checkAuthStatus: true,
+      depth: "deep",
+      repo: "other/thing",
+      expectedPrincipal: null,
+      whichFn: whichGh,
+      env: {},
+      githubAuthMode: "host-gh",
+      runtimeReport: { runtimeMode: "local-unsandboxed" },
+      runGh: (args) => {
+        seen.push([...args]);
+        if (args[0] === "auth") return okProc("Logged in");
+        if (args[0] === "api" && args[1] === "user") return okProc('"alice"');
+        if (args[0] === "api" && args[1] === "repos/other/thing") return okProc("{}");
+        return failProc(`unexpected ${args.join(" ")}`);
+      },
+    });
+    expect(report.ready).toBe(true);
+    expect(report.login).toBe("alice");
+    expect(seen.some((a) => a[0] === "api" && a[1] === "repos/other/thing")).toBe(true);
   });
 });

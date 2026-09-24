@@ -1,6 +1,7 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import type { EnvironmentContext } from "../platform/shell-context.js";
 import type { ScmReadinessReport } from "../scm/readiness.js";
@@ -159,5 +160,27 @@ describe("session:start SCM readiness reporting (#2275)", () => {
       runGit: gitOk(root),
     });
     expect(seenDepth).toBe("deep");
+  });
+
+  it("default session:start stays shallow and does not call requireScmReady", () => {
+    const root = tempRoot();
+    let seenDepth: string | undefined;
+    const result = runSessionStart(root, {
+      writeHistory: false,
+      resolveUserMd: () => userMd(),
+      verifyTools: () => ({ exitCode: 0 }),
+      runTriageWelcome: () => ({ exitCode: 0 }),
+      probeEnvironment: () => environment,
+      probeScm: (opts) => {
+        seenDepth = opts.depth;
+        return scmReady();
+      },
+      runGit: gitOk(root),
+    });
+    expect(result.code).toBe(0);
+    expect(seenDepth).toBe("shallow");
+    const sessionStartPath = join(dirname(fileURLToPath(import.meta.url)), "session-start.ts");
+    const src = readFileSync(sessionStartPath, "utf8");
+    expect(src).not.toMatch(/requireScmReady/);
   });
 });
