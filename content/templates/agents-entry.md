@@ -135,7 +135,7 @@ Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
 ## Branch policy & branch verification
 
 ! Feature branches — `deft verify:branch`, `deft verify:forward-coverage` (90% warn-first, #3514), `deft coverage:hotspots`, hooks, `deft check` (#746 / #747) — `.deft/core/scm/github.md`. One origin/PR else one-PR-unit grant (not #1378/`--allow-close`).
-! Test placement + scope provenance (#3145 / #4956) — `deft verify:test-boundary` (warn-only), `deft verify:scope-provenance` (merge-base `file_scope` fence; production allowance 2–5; test roots free), `deft verify:consumer-check-contract`, `deft verify:evaluator-surface`, `deft verify:observable-scope`, `deft verify:intent-constraint`, `deft verify:consumer-test-lane` (docs: `docs/test-boundary.md`, `docs/scope-provenance.md`).
+! Test placement + scope provenance (#3145 / #4956) — `deft verify:test-boundary` (warn-only), `deft verify:scope-provenance` (merge-base `file_scope` fence; production allowance 2–5; test roots free), `deft verify:consumer-check-contract`, `deft verify:evaluator-surface`, `deft verify:class-checks`, `deft verify:observable-scope`, `deft verify:intent-constraint`, `deft verify:consumer-test-lane` (docs: `docs/test-boundary.md`, `docs/scope-provenance.md`).
 ! After proceed: no scope ceremony (#4956). No approved-scope digest on proceed; head brief does not widen the fence; over-budget splits (no remint). Class checks #4980. #4383 still open. Depth: `docs/scope-provenance.md`.
 
 ## Branch Policy Disclosure (#746)

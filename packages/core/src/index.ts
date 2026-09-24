@@ -17,6 +17,7 @@ export * as branch from "./branch/index.js";
 export * as cache from "./cache/index.js";
 export * as capacity from "./capacity/index.js";
 export * as check from "./check/index.js";
+export * as classChecks from "./class-checks/index.js";
 export * as codebase from "./codebase/index.js";
 export * as consumerCheckContract from "./consumer-check-contract/index.js";
 export * from "./coverage-hotspots/index.js";
