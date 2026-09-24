@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { CANONICAL_INSTALL_ROOT } from "../init-deposit/constants.js";
+import { softAgentsRebindForbiddenHits } from "../session/compact-ritual.js";
 import {
   DEFT_DIRECTIVE_DISABLE_FLAG_NAME,
   DEFT_DIRECTIVE_DISABLE_GITIGNORE_LINE,
@@ -131,6 +132,10 @@ describe("detectDeftDirectiveDisable (#3039)", () => {
     expect(DEFT_DIRECTIVE_DISABLE_STATUS).toBe("disabled-test-kill-switch");
     expect(DEFT_DIRECTIVE_DISABLE_RECOVERY_MESSAGE).toContain("rm .deft-directive-disable");
     expect(DEFT_DIRECTIVE_DISABLE_RECOVERY_MESSAGE).toContain("NEW agent session");
+    expect(DEFT_DIRECTIVE_DISABLE_RECOVERY_MESSAGE).toContain(
+      "The flag is present: stop Directive process load (AGENTS.md Temporary test kill-switch #3039).",
+    );
+    expect(softAgentsRebindForbiddenHits(DEFT_DIRECTIVE_DISABLE_RECOVERY_MESSAGE)).toEqual([]);
     expect(DEFT_DIRECTIVE_DISABLE_ONE_LINE).toContain("test/local kill-switch");
     expect(DEFT_DIRECTIVE_DISABLE_TRACKED_WARNING).toContain("gitignored");
     expect(DEFT_DIRECTIVE_DISABLE_TRACKED_WARNING).toContain("NOT disabled");

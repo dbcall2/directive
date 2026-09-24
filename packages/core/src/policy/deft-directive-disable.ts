@@ -37,6 +37,7 @@ export const DEFT_DIRECTIVE_DISABLE_GITIGNORE_LINE = DEFT_DIRECTIVE_DISABLE_FLAG
 export const DEFT_DIRECTIVE_DISABLE_RECOVERY_MESSAGE =
   "Directive is DISABLED for this project via root `.deft-directive-disable` (test/local kill-switch).\n" +
   "Deposit may still be present; enforcement (hooks, session ritual, automation) will not run.\n" +
+  "The flag is present: stop Directive process load (AGENTS.md Temporary test kill-switch #3039).\n" +
   "\n" +
   "To fully re-enable Directive:\n" +
   "  1. Delete the file:  rm .deft-directive-disable   (or equivalent)\n" +

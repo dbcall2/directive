@@ -6,6 +6,10 @@ import {
   formatConsumerGateIntegrityFailure,
 } from "../check/consumer-gate-integrity.js";
 import { contentRoot } from "../content-root.js";
+import {
+  inspectSessionStartNotice,
+  type SessionStartNoticeInspection,
+} from "../init-deposit/agent-hooks.js";
 import { resolveLifecycleLayout } from "../layout/resolve.js";
 import {
   DEFT_DIRECTIVE_DISABLE_FLAG_NAME,
@@ -308,6 +312,28 @@ function depositHygieneJson(seams: DoctorSeams): Record<string, unknown> | undef
   };
 }
 
+function sessionStartNoticeLinesFromInspections(
+  inspections: readonly SessionStartNoticeInspection[],
+): string[] {
+  return inspections.map((entry) => {
+    const registered = entry.registered ? "registered" : "not registered";
+    const line = `${entry.host}: agent notice via SessionStart ${registered}`;
+    return entry.host === "codex" ? `${line} (docs-best-effort; no compact re-fire)` : line;
+  });
+}
+
+function collectKillSwitchSessionStartNoticeLines(
+  projectRoot: string,
+  seams: DoctorSeams,
+): string[] {
+  try {
+    const inspect = seams.inspectSessionStartNotice ?? inspectSessionStartNotice;
+    return sessionStartNoticeLinesFromInspections(inspect(projectRoot));
+  } catch {
+    return [];
+  }
+}
+
 export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): number {
   const flags = parseDoctorFlags(args);
   if (flags.unknown.length > 0) {
@@ -351,6 +377,8 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
       permanentOptOutAlsoPresent: optOutAlso.present,
       trackedByGit: false,
     });
+    const noticeLines = collectKillSwitchSessionStartNoticeLines(projectRoot, seams);
+    const fullMessage = noticeLines.length > 0 ? `${message}\n${noticeLines.join("\n")}` : message;
     if (jsonMode) {
       const payload = {
         status: DEFT_DIRECTIVE_DISABLE_STATUS,
@@ -361,11 +389,11 @@ export function cmdDoctor(args: readonly string[], seams: DoctorSeams = {}): num
         deposit_present: killSwitch.depositPresent,
         tracked_by_git: false,
         permanent_opt_out_also_present: optOutAlso.present,
-        message,
+        message: fullMessage,
       };
       process.stdout.write(`${pythonJsonDump(payload)}\n`);
     } else if (!quietMode) {
-      process.stdout.write(`${message}\n`);
+      process.stdout.write(`${fullMessage}\n`);
     }
     return 0;
   }

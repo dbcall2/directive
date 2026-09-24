@@ -27,6 +27,7 @@ import {
   CURSOR_TOOL_BEFORE_TIMEOUT_SECONDS,
   DIRECT_WRITE_HOOK_MATCHER,
   inspectAgentHookDeposit,
+  inspectSessionStartNotice,
   MCP_HOOK_MATCHER,
   NESTED_HOOK_TIMEOUT_SECONDS,
   SHELL_HOOK_MATCHER,
@@ -635,6 +636,68 @@ describe("writeAgentHookDeposit", () => {
     const content = readFileSync(join(root, ".cursor/hooks.json"), "utf8");
     expect(content).toContain("./custom-session.sh");
     expect(content).not.toContain("deft-cursor-hook-adapter.mjs");
+  });
+});
+
+describe("inspectSessionStartNotice", () => {
+  it("keeps SessionStart registered when PreToolUse and compact have drifted", () => {
+    const root = project();
+    writeAgentHookDeposit(root);
+    const claudePath = join(root, ".claude/settings.json");
+    const claude = JSON.parse(readFileSync(claudePath, "utf8")) as {
+      hooks: Record<string, unknown>;
+    };
+    delete claude.hooks.PreToolUse;
+    delete claude.hooks.PreCompact;
+    delete claude.hooks.PostCompact;
+    writeFileSync(claudePath, `${JSON.stringify(claude, null, 2)}\n`, "utf8");
+
+    expect(inspectAgentHookDeposit(root).find((entry) => entry.host === "claude")?.status).toBe(
+      "drifted",
+    );
+    expect(inspectSessionStartNotice(root).find((entry) => entry.host === "claude")).toEqual({
+      host: "claude",
+      registered: true,
+    });
+  });
+
+  it("reports not registered when hostHooks disables the host", () => {
+    const root = project();
+    writeAgentHookDeposit(root);
+    const policy = { ...DEFAULT_HOST_HOOKS_POLICY, claude: false };
+    expect(
+      inspectSessionStartNotice(root, policy).find((entry) => entry.host === "claude"),
+    ).toEqual({
+      host: "claude",
+      registered: false,
+    });
+  });
+
+  it("reports Cursor SessionStart not registered when hooks.json version is missing or not 1", () => {
+    const root = project();
+    writeAgentHookDeposit(root);
+    const cursorPath = join(root, ".cursor/hooks.json");
+    const cursor = JSON.parse(readFileSync(cursorPath, "utf8")) as {
+      version?: number;
+    };
+    expect(inspectSessionStartNotice(root).find((entry) => entry.host === "cursor")).toEqual({
+      host: "cursor",
+      registered: true,
+    });
+
+    cursor.version = 2;
+    writeFileSync(cursorPath, `${JSON.stringify(cursor, null, 2)}\n`, "utf8");
+    expect(inspectSessionStartNotice(root).find((entry) => entry.host === "cursor")).toEqual({
+      host: "cursor",
+      registered: false,
+    });
+
+    delete cursor.version;
+    writeFileSync(cursorPath, `${JSON.stringify(cursor, null, 2)}\n`, "utf8");
+    expect(inspectSessionStartNotice(root).find((entry) => entry.host === "cursor")).toEqual({
+      host: "cursor",
+      registered: false,
+    });
   });
 });
 

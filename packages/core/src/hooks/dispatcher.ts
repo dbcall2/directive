@@ -3274,6 +3274,15 @@ function softAgentsRebindWireText(decision: HookDecision): string | null {
   return formatSoftAgentsRebindChecklist();
 }
 
+/** SessionStart kill-switch / opt-out notice. Hard message only; not #3171 soft rebind. */
+function sessionStartDisableNotice(decision: HookDecision): string | null {
+  if (decision.event !== "session.start") return null;
+  if (decision.code !== "session-start-disabled" && decision.code !== "directive-disabled") {
+    return null;
+  }
+  return decision.message;
+}
+
 /**
  * Render host-facing hook output.
  *
@@ -3314,28 +3323,28 @@ export function renderHostDecision(host: HookHost, decision: HookDecision): stri
         },
       });
     }
-    const soft = softAgentsRebindWireText(decision);
+    const injected = sessionStartDisableNotice(decision) ?? softAgentsRebindWireText(decision);
     if (host === "cursor") {
-      if (decision.event === "session.start" && soft !== null) {
+      if (decision.event === "session.start" && injected !== null) {
         // Cursor sessionStart injects additional_context into the conversation.
         return JSON.stringify({
           permission: "allow",
           code: decision.code,
-          additional_context: soft,
+          additional_context: injected,
         });
       }
-      if (decision.event === "session.compact" && soft !== null) {
+      if (decision.event === "session.compact" && injected !== null) {
         // Cursor preCompact is observational; user_message surfaces the soft cue.
         // Hard re-arm still ran via bookkeeping; agent path also gets SessionStart on resume.
         return JSON.stringify({
-          user_message: soft,
+          user_message: injected,
           code: decision.code,
         });
       }
       return JSON.stringify({ permission: "allow", code: decision.code });
     }
     if (
-      soft !== null &&
+      injected !== null &&
       (decision.event === "session.start" || decision.event === "session.compact")
     ) {
       if (host === "claude" || host === "codex") {
@@ -3343,15 +3352,15 @@ export function renderHostDecision(host: HookHost, decision: HookDecision): stri
         return JSON.stringify({
           hookSpecificOutput: {
             hookEventName,
-            additionalContext: soft,
+            additionalContext: injected,
           },
         });
       }
       if (host === "grok") {
         return JSON.stringify({
           decision: "allow",
-          reason: soft,
-          additional_context: soft,
+          reason: injected,
+          additional_context: injected,
         });
       }
     }
