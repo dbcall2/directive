@@ -399,6 +399,111 @@ describe("worker-auth-assignment (#3663)", { timeout: 20_000 }, () => {
     expect(read.assignment?.dispatch_id).toBe("dispatch-2");
   });
 
+  it("does not steal a live replacement lock after inspecting a dead-pid lock", () => {
+    const { main, worktree } = linkedPair();
+    const first = writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-1",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-a" },
+      credentialDeliveryId: null,
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const lockAbs = join(workerAuthStoreDir(first.commonDir), WORKER_AUTH_LOCK_NAME);
+    writeFileSync(
+      lockAbs,
+      `${JSON.stringify({
+        pid: 2_147_483_647,
+        token: "dead-owner",
+        startedAt: "2020-01-01T00:00:00Z",
+      })}\n`,
+    );
+    setWorkerAuthLockTestHooks({
+      beforeReclaimRename: () => {
+        writeFileSync(
+          lockAbs,
+          `${JSON.stringify({
+            pid: process.pid,
+            token: "live-replacement",
+            startedAt: "2026-01-01T00:00:00Z",
+          })}\n`,
+        );
+      },
+    });
+    const stolen = writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-2",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-b" },
+      credentialDeliveryId: null,
+    });
+    expect(stolen.ok).toBe(false);
+    if (!stolen.ok) {
+      expect(stolen.failureKind).toBe(FAILURE_REGISTRY_CORRUPTION);
+      expect(stolen.detail).toMatch(/locked/);
+    }
+    expect(readFileSync(lockAbs, "utf8")).toMatch(/live-replacement/);
+    const read = readWorkerAuthAssignment(worktree);
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.assignment?.dispatch_id).toBe("dispatch-1");
+  });
+
+  it("does not steal a live replacement lock after inspecting a stale unreadable lock", () => {
+    const { main, worktree } = linkedPair();
+    const first = writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-1",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-a" },
+      credentialDeliveryId: null,
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const lockAbs = join(workerAuthStoreDir(first.commonDir), WORKER_AUTH_LOCK_NAME);
+    writeFileSync(lockAbs, "locked\n");
+    const staleAt = (Date.now() - WORKER_AUTH_LOCK_STALE_MS - 1000) / 1000;
+    utimesSync(lockAbs, staleAt, staleAt);
+    setWorkerAuthLockTestHooks({
+      beforeReclaimRename: () => {
+        writeFileSync(
+          lockAbs,
+          `${JSON.stringify({
+            pid: process.pid,
+            token: "live-replacement",
+            startedAt: "2026-01-01T00:00:00Z",
+          })}\n`,
+        );
+      },
+    });
+    const stolen = writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-2",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-b" },
+      credentialDeliveryId: null,
+    });
+    expect(stolen.ok).toBe(false);
+    if (!stolen.ok) {
+      expect(stolen.failureKind).toBe(FAILURE_REGISTRY_CORRUPTION);
+      expect(stolen.detail).toMatch(/locked/);
+    }
+    expect(readFileSync(lockAbs, "utf8")).toMatch(/live-replacement/);
+    const read = readWorkerAuthAssignment(worktree);
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.assignment?.dispatch_id).toBe("dispatch-1");
+  });
+
   it("owner-bound remove leaves a foreign dispatch record", () => {
     const { main, worktree } = linkedPair();
     expect(

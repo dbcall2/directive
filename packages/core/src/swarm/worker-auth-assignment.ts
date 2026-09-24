@@ -302,6 +302,7 @@ interface WorkerAuthLockRecord {
 
 let workerAuthLockTestHooks:
   | {
+      beforeReclaimRename?: (commonDir: string) => void;
       afterStaleReclaim?: (commonDir: string) => void;
       afterAcquire?: (commonDir: string) => void;
     }
@@ -311,6 +312,7 @@ let workerAuthLockTestHooks:
 export function setWorkerAuthLockTestHooks(
   hooks:
     | {
+        beforeReclaimRename?: (commonDir: string) => void;
         afterStaleReclaim?: (commonDir: string) => void;
         afterAcquire?: (commonDir: string) => void;
       }
@@ -362,12 +364,14 @@ function lockIsStale(commonDir: string): boolean {
   }
 }
 
-function lockIsReclaimable(commonDir: string): boolean {
-  const rec = readLockRecord(commonDir);
-  if (rec !== null) {
-    return !isProcessAlive(rec.pid);
+function lockIdentityMatches(
+  inspected: WorkerAuthLockRecord | null,
+  current: WorkerAuthLockRecord | null,
+): boolean {
+  if (inspected === null) {
+    return current === null;
   }
-  return lockIsStale(commonDir);
+  return current !== null && current.pid === inspected.pid && current.token === inspected.token;
 }
 
 function releaseLock(commonDir: string, token: string): void {
@@ -406,21 +410,32 @@ function acquireLock(commonDir: string): { token: string } | WorkerAuthAssignmen
     if (!(err instanceof ContainedWriteError && err.code === "CONTAINED_WRITE_EXISTS")) {
       return failed(err);
     }
-    if (!lockIsReclaimable(commonDir)) {
+    const inspected = readLockRecord(commonDir);
+    const reclaimable =
+      inspected !== null ? !isProcessAlive(inspected.pid) : lockIsStale(commonDir);
+    if (!reclaimable) {
       return locked();
     }
-    const abs = join(commonDir, lockPathRel());
-    const reclaimRel = join(
-      WORKER_AUTH_STORE_DIR,
-      `${WORKER_AUTH_LOCK_NAME}.reclaim.${randomUUID()}`,
-    );
-    try {
-      renameSync(abs, join(commonDir, reclaimRel));
-      containedRemove({ root: commonDir, target: reclaimRel });
-    } catch {
-      // Lost the rename race or the lock is already gone.
+    // Reclaim only the inspected pid+token (or still-stale unreadable lock).
+    // A live writer can occupy index.lock between that check and rename.
+    workerAuthLockTestHooks?.beforeReclaimRename?.(commonDir);
+    const current = readLockRecord(commonDir);
+    const identityHolds = lockIdentityMatches(inspected, current);
+    const stillReclaimable = inspected !== null || lockIsStale(commonDir);
+    if (identityHolds && stillReclaimable) {
+      const abs = join(commonDir, lockPathRel());
+      const reclaimRel = join(
+        WORKER_AUTH_STORE_DIR,
+        `${WORKER_AUTH_LOCK_NAME}.reclaim.${randomUUID()}`,
+      );
+      try {
+        renameSync(abs, join(commonDir, reclaimRel));
+        containedRemove({ root: commonDir, target: reclaimRel });
+      } catch {
+        // Lost the rename race or the lock is already gone.
+      }
+      workerAuthLockTestHooks?.afterStaleReclaim?.(commonDir);
     }
-    workerAuthLockTestHooks?.afterStaleReclaim?.(commonDir);
     try {
       writeLock();
       workerAuthLockTestHooks?.afterAcquire?.(commonDir);
