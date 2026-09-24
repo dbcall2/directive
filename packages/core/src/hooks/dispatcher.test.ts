@@ -5262,6 +5262,8 @@ describe("provider input normalization", () => {
     expect(isHookHost("opencode")).toBe(false);
     expect(isHookEvent("session.start")).toBe(true);
     expect(isHookEvent("session.compact")).toBe(true);
+    expect(isHookEvent("prompt.submit")).toBe(true);
+    expect(isHookEvent("agent.response")).toBe(true);
     expect(isHookEvent("tool.after")).toBe(false);
   });
 

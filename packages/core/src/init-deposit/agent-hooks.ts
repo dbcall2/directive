@@ -255,7 +255,13 @@ function stripManagedCursorConfig(
 ): Record<string, unknown> {
   const hooks = hooksObject(config, path);
   const nextHooks: Record<string, unknown> = {};
-  for (const key of ["sessionStart", "preToolUse", "preCompact"] as const) {
+  for (const key of [
+    "sessionStart",
+    "preToolUse",
+    "preCompact",
+    "beforeSubmitPrompt",
+    "afterAgentResponse",
+  ] as const) {
     if (!(key in hooks)) continue;
     const filtered = eventArray(hooks, key, path).filter(
       (entry) => !isManagedCursorEntryForHost(entry),
@@ -280,6 +286,12 @@ function mergeCursorConfig(config: Record<string, unknown>, path: string): Recor
   const preCompact = eventArray(hooks, "preCompact", path).filter(
     (entry) => !isManagedCursorEntry(entry),
   );
+  const beforeSubmit = eventArray(hooks, "beforeSubmitPrompt", path).filter(
+    (entry) => !isManagedCursorEntry(entry),
+  );
+  const afterResponse = eventArray(hooks, "afterAgentResponse", path).filter(
+    (entry) => !isManagedCursorEntry(entry),
+  );
   hooks.sessionStart = [
     ...session,
     {
@@ -300,6 +312,20 @@ function mergeCursorConfig(config: Record<string, unknown>, path: string): Recor
     ...preCompact,
     {
       command: command("cursor", "session.compact"),
+      timeout: CURSOR_SESSION_HOOK_TIMEOUT_SECONDS,
+    },
+  ];
+  hooks.beforeSubmitPrompt = [
+    ...beforeSubmit,
+    {
+      command: command("cursor", "prompt.submit"),
+      timeout: CURSOR_SESSION_HOOK_TIMEOUT_SECONDS,
+    },
+  ];
+  hooks.afterAgentResponse = [
+    ...afterResponse,
+    {
+      command: command("cursor", "agent.response"),
       timeout: CURSOR_SESSION_HOOK_TIMEOUT_SECONDS,
     },
   ];
@@ -538,12 +564,26 @@ function hasCursorRegistration(config: Record<string, unknown>): boolean {
   if (hooks === null || config.version !== 1) return false;
   const preTool = Array.isArray(hooks.preToolUse) ? hooks.preToolUse : [];
   const preCompact = Array.isArray(hooks.preCompact) ? hooks.preCompact : [];
+  const beforeSubmit = Array.isArray(hooks.beforeSubmitPrompt) ? hooks.beforeSubmitPrompt : [];
+  const afterResponse = Array.isArray(hooks.afterAgentResponse) ? hooks.afterAgentResponse : [];
   return (
     hasCursorSessionStart(config) &&
     NESTED_PRE_TOOL_MATCHERS.every((matcher) =>
       preTool.some((entry) => isCursorToolBeforeEntry(entry, matcher)),
     ) &&
-    preCompact.some((entry) => object(entry)?.command === command("cursor", "session.compact"))
+    preCompact.some((entry) => object(entry)?.command === command("cursor", "session.compact")) &&
+    beforeSubmit.some(
+      (entry) =>
+        object(entry)?.command === command("cursor", "prompt.submit") &&
+        object(entry)?.timeout === CURSOR_SESSION_HOOK_TIMEOUT_SECONDS &&
+        object(entry)?.failClosed !== true,
+    ) &&
+    afterResponse.some(
+      (entry) =>
+        object(entry)?.command === command("cursor", "agent.response") &&
+        object(entry)?.timeout === CURSOR_SESSION_HOOK_TIMEOUT_SECONDS &&
+        object(entry)?.failClosed !== true,
+    )
   );
 }
 
@@ -668,7 +708,7 @@ export function inspectAgentHookDeposit(
           status: "healthy",
           compactSupport: definition.compactSupport,
           detail:
-            "SessionStart, direct-write + spawn PreToolUse, and compact re-arm registrations are current." +
+            "SessionStart, direct-write + spawn PreToolUse, compact re-arm, and Cursor planning-choice prompt/response registrations are current." +
             (definition.compactSupport === "unsupported" ? compactNote : ""),
         };
       }

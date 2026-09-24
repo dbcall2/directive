@@ -54,3 +54,13 @@ The hook exit contract already decouples the exit code from the verdict: exit `0
 They stay fail-closed because fail-open-on-absence is a bypass primitive, not a lenience: removing the binary is an ordinary shell call, so treating absence as allow would convert a self-inflicted denial into a bypass of the write fence, the intent ceiling, the session ritual, and the occupancy lease ([#3156](https://github.com/deftai/directive/issues/3156)). What these cases need is legibility and an out-of-band escape — this page — not a relaxed fence.
 
 For a timeout specifically, retry the gated ritual first when machine load is the likely cause; the Cursor `tool.before` budget is sized for a gated ritual plus live readiness, so a repeated timeout is a real signal rather than noise.
+
+
+## Cursor planning-choice prompt hook (#4973)
+
+`beforeSubmitPrompt` / `afterAgentResponse` deposits use a finite 5s timeout
+and do **not** set `failClosed`. Missing runtime, timeout, and malformed
+stdout on that event follow Cursor's default fail-open command-hook rule.
+This is a disclosed coverage gap, not an unconditional interlock. Mutation
+`preToolUse` remains fail-closed as above. Planning-choice store path and
+protocol: [cursor-plan-choice.md](./cursor-plan-choice.md).

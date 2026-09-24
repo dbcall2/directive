@@ -18,6 +18,7 @@ Specialist pages below are pointers. Recovery command bytes stay in doctor and t
 | Stale deposit | `directive doctor --full` | Follow `Next command:` |
 | Permissions / unwritable global prefix | Pre-CLI: README cold-start. If the CLI runs: `directive doctor --full` | README cold-start sandbox rung, or doctor |
 | Windows shims | Pre-CLI: README cold-start. If the CLI runs: `directive doctor --full` | README cold-start |
+| Cursor Plan request blocked for a planning choice | Expected on local Cursor 3.21.16 until `DEFT-PLAN-CHOICE` is submitted | [Cursor planning choice](./cursor-plan-choice.md) |
 | Hook runtime (opaque exit 127 on every mutation) | `directive doctor --full` if the CLI runs; otherwise README cold-start | [Hook runtime unavailable](./hook-runtime-unavailable.md). The recovery command lives on the [agents-entry](../templates/agents-entry.md) card. This index does not restate it. |
 | Want to fully stop Directive (uninstall, leftover hooks) | CLI still installed: [full stop](./full-stop.md). Do not uninstall first. | [Full stop](./full-stop.md) owns leftover classes and order. README already names `.deft-cache/` beside `.deft`. This index does not restate the recipe. |
 | Migration / pre-v0.20 layout | `directive doctor --full` | Doctor signposts the current path. Version-specific steps stay in [UPGRADING](../UPGRADING.md) and [BROWNFIELD](./BROWNFIELD.md) (history). |

@@ -120,6 +120,13 @@ import {
   toolInputRecord,
 } from "./classify/index.js";
 import {
+  type CursorPlanChoiceDeps,
+  decideCursorPlanChoice,
+  defaultCursorPlanChoiceDeps,
+  isCursorPlanChoiceManagedPath,
+  storeDenyMessage,
+} from "./cursor-plan-choice/index.js";
+import {
   classifyGitDestructive,
   classifyProductDestForms,
   type GitDestructiveForm,
@@ -203,7 +210,13 @@ export {
 export const HOOK_HOSTS = ["claude", "grok", "cursor", "codex"] as const;
 export type HookHost = (typeof HOOK_HOSTS)[number];
 
-export const HOOK_EVENTS = ["session.start", "session.compact", "tool.before"] as const;
+export const HOOK_EVENTS = [
+  "session.start",
+  "session.compact",
+  "tool.before",
+  "prompt.submit",
+  "agent.response",
+] as const;
 export type HookEvent = (typeof HOOK_EVENTS)[number];
 
 /** Hosts that receive compact/resume hook deposits via init/update (#2113). */
@@ -276,7 +289,28 @@ export type HookDecisionCode =
   /** Tree-wide destructive git aimed at this checkout (#3917). */
   | "git-destructive-deny"
   /** Tree-wide destructive git aimed at an absolute out-of-root fixture (#3917). */
-  | "git-destructive-fixture";
+  | "git-destructive-fixture"
+  | "plan-choice-allow-non-plan"
+  | "plan-choice-question"
+  | "plan-choice-selected-receipt"
+  | "plan-choice-idempotent-receipt"
+  | "plan-choice-discuss"
+  | "plan-choice-back"
+  | "plan-choice-handoff-required"
+  | "plan-choice-allow-host-only"
+  | "plan-choice-allow-interview"
+  | "plan-choice-allow-followup"
+  | "plan-choice-unsupported-surface"
+  | "plan-choice-identity-invalid"
+  | "plan-choice-malformed"
+  | "plan-choice-unknown-mode"
+  | "plan-choice-storage-failure"
+  | "plan-choice-lock-busy"
+  | "plan-choice-lock-ambiguous"
+  | "plan-choice-ack-observed"
+  | "plan-choice-ack-ignored"
+  | "plan-choice-opt-out"
+  | "plan-choice-store-deny";
 
 export interface HookDecision {
   readonly verdict: HookVerdict;
@@ -466,6 +500,8 @@ export interface HookPolicySeams {
   readonly restampOwnerLiveness?: (input: OwnerLivenessInput) => OwnerLivenessOutcome;
   /** Test seam for Stop 1 dest prepare on process-only critic spawn (#4296). */
   readonly prepareArcDest?: typeof prepareGithubOnlyDest;
+  /** Test seam for Cursor planning-choice store/clock (#4973). */
+  readonly cursorPlanChoice?: CursorPlanChoiceDeps;
 }
 
 /** POSIX-ish project-relative path for lifecycle matching. */
@@ -1450,6 +1486,13 @@ function inspectMutationGates(
   const environ = input.environ ?? process.env;
   const dispatchGit = memoizeGitRunner(seams.ritualRunGit ?? defaultGitRunner);
   const mutationTargets = isSpawnTool(toolName) ? [] : hookMutationTargetPaths(input.payload);
+  if (!isSpawnTool(toolName)) {
+    for (const target of mutationTargets) {
+      if (isCursorPlanChoiceManagedPath(target, environ)) {
+        return deny(input, "plan-choice-store-deny", toolName, storeDenyMessage(toolName));
+      }
+    }
+  }
   const admission: EffectiveHookRootAdmission = isSpawnTool(toolName)
     ? { root: payloadRoot, foreign: false, candidate: null, refusal: null }
     : admitMutationTargetSet(payloadRoot, mutationTargets, dispatchGit);
@@ -2954,6 +2997,13 @@ function routeHookDecision(
     }
   }
 
+  if (input.event === "prompt.submit" || input.event === "agent.response") {
+    return decideCursorPlanChoice(
+      input,
+      seams.cursorPlanChoice ?? defaultCursorPlanChoiceDeps(input.environ ?? process.env),
+    );
+  }
+
   if (input.event === "session.compact") {
     // #3769 Path 2: compact stays always-allow and never routes through
     // inspectMutationGates — entering the mutation gates would re-run the
@@ -3422,6 +3472,9 @@ export function renderHostDecision(host: HookHost, decision: HookDecision): stri
           code: decision.code,
         });
       }
+      if (decision.event === "prompt.submit" || decision.event === "agent.response") {
+        return JSON.stringify({ continue: true, code: decision.code });
+      }
       return JSON.stringify({ permission: "allow", code: decision.code });
     }
     if (
@@ -3460,6 +3513,13 @@ export function renderHostDecision(host: HookHost, decision: HookDecision): stri
     case "grok":
       return JSON.stringify({ decision: "deny", reason: decision.message });
     case "cursor":
+      if (decision.event === "prompt.submit" || decision.event === "agent.response") {
+        return JSON.stringify({
+          continue: false,
+          user_message: decision.message,
+          code: decision.code,
+        });
+      }
       return JSON.stringify({
         permission: "deny",
         user_message: decision.message,

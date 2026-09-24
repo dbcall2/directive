@@ -114,6 +114,8 @@ describe("writeAgentHookDeposit", () => {
           command?: string;
         }>;
         preCompact: Array<{ timeout?: number }>;
+        beforeSubmitPrompt: Array<{ timeout?: number; command?: string; failClosed?: boolean }>;
+        afterAgentResponse: Array<{ timeout?: number; command?: string; failClosed?: boolean }>;
       };
     };
     expect(CURSOR_TOOL_BEFORE_TIMEOUT_SECONDS).toBeGreaterThanOrEqual(30);
@@ -128,6 +130,22 @@ describe("writeAgentHookDeposit", () => {
     ).toBe(true);
     expect(
       cursor.hooks.preCompact.some((e) => e.timeout === CURSOR_SESSION_HOOK_TIMEOUT_SECONDS),
+    ).toBe(true);
+    expect(
+      cursor.hooks.beforeSubmitPrompt.some(
+        (e) =>
+          e.command?.includes("--event prompt.submit") &&
+          e.timeout === CURSOR_SESSION_HOOK_TIMEOUT_SECONDS &&
+          e.failClosed !== true,
+      ),
+    ).toBe(true);
+    expect(
+      cursor.hooks.afterAgentResponse.some(
+        (e) =>
+          e.command?.includes("--event agent.response") &&
+          e.timeout === CURSOR_SESSION_HOOK_TIMEOUT_SECONDS &&
+          e.failClosed !== true,
+      ),
     ).toBe(true);
     // Spawn matcher is one of the failClosed preToolUse deposits.
     expect(
@@ -806,7 +824,13 @@ describe("inspectAgentHookDeposit", () => {
     }
     writeFileSync(claudePath, claudeOriginal, "utf8");
 
-    for (const eventName of ["sessionStart", "preToolUse", "preCompact"] as const) {
+    for (const eventName of [
+      "sessionStart",
+      "preToolUse",
+      "preCompact",
+      "beforeSubmitPrompt",
+      "afterAgentResponse",
+    ] as const) {
       const cursor = JSON.parse(cursorOriginal) as {
         hooks: Record<string, unknown>;
       };

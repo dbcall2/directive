@@ -1,0 +1,16 @@
+{
+  "event": "beforeSubmitPrompt",
+  "composer_mode": "plan",
+  "conversation_id": "conversation-1",
+  "generation_id": "generation-1",
+  "session_id": "conversation-1",
+  "cursor_version": "3.21.16",
+  "transcript_path": null,
+  "prompt": "plan the leftover join",
+  "attachments": [
+    {
+      "type": "rule",
+      "file_path": "/Users/tester/.cursor/rules/global.mdc"
+    }
+  ]
+}
