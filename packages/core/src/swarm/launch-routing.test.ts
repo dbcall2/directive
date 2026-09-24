@@ -1,9 +1,21 @@
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildManifest, type ResolvedStory, swarmLaunch } from "./launch.js";
 
+const TEST_WORKER_AUTH = {
+  workerGithubAuthMode: "host-gh" as const,
+  expectedPrincipal: { kind: "user" as const, login: "test-worker" },
+};
+function gitInitIfNeeded(project: string): void {
+  try {
+    execFileSync("git", ["rev-parse", "--git-common-dir"], { cwd: project, stdio: "ignore" });
+  } catch {
+    execFileSync("git", ["init", "-q"], { cwd: project });
+  }
+}
 const story: ResolvedStory = {
   token: "story-a",
   story_id: "story-a",
@@ -97,6 +109,7 @@ describe("swarmLaunch route-file integration (#1739)", () => {
   it("threads the pinned model into the manifest and bypasses the enum gate", () => {
     const project = mkdtempSync(join(tmpdir(), "launch-route-"));
     cleanups.push(project);
+    gitInitIfNeeded(project);
     writeReadyStory(project, "story-a", 8801);
     const routePath = join(project, "routing.local.json");
     writeFileSync(
@@ -108,6 +121,7 @@ describe("swarmLaunch route-file integration (#1739)", () => {
     process.env.DEFT_ROUTING_PATH = routePath;
 
     const result = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["8801"],
       projectRoot: project,
       autonomous: true,
@@ -135,6 +149,7 @@ describe("swarmLaunch route-file integration (#1739)", () => {
   it("fails loud (exit 2) when the gated role's decision object is malformed", () => {
     const project = mkdtempSync(join(tmpdir(), "launch-route-"));
     cleanups.push(project);
+    gitInitIfNeeded(project);
     writeReadyStory(project, "story-a", 8801);
     const routePath = join(project, "routing.local.json");
     writeFileSync(
@@ -144,6 +159,7 @@ describe("swarmLaunch route-file integration (#1739)", () => {
     process.env.DEFT_ROUTING_PATH = routePath;
 
     const result = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["8801"],
       projectRoot: project,
       autonomous: true,

@@ -141,7 +141,7 @@ When present, document the fields in a separate `## Runtime and GitHub auth mode
 - `github_auth_mode`: one of `host-gh` or `injected-token` -- which GitHub credential rule applies to this worker (#1557b).
 - `expected_github_login`: the bound user login when the dispatcher injected a user-bearing credential (#1351 / #3665). Login only -- never a token value. Omit when `github_auth_mode` is `host-gh` and no injection occurred.
 
-Launch-manifest entries (#1387 C2 contract) carry the same two fields at the top level alongside `allocation_context`. Workers MUST read the dispatch envelope (or launch manifest) and apply the identity-separation rules in §8 according to `github_auth_mode`, not the historical one-size-fits-all injected-token default.
+Launch-manifest entries (#1387 C2 contract) carry the same two fields at the top level alongside `allocation_context`. Workers MUST read the dispatch envelope (or launch manifest) and apply the identity-separation rules in §8 according to `github_auth_mode`, not the historical one-size-fits-all injected-token default. The PREP manifest field is intent only. Registered local worktree workers validate the independently stored assignment at `requireScmReady`; an inferred parent stamp is never exported as `DEFT_GITHUB_AUTH_MODE=host-gh` for those workers (#3663).
 
 Worked example (local interactive worker with validated host gh):
 

@@ -41,6 +41,17 @@ import {
 } from "./worktrees.js";
 import { parseWorktreesArgv, worktreesMain } from "./worktrees-cli.js";
 
+const TEST_WORKER_AUTH = {
+  workerGithubAuthMode: "host-gh" as const,
+  expectedPrincipal: { kind: "user" as const, login: "test-worker" },
+};
+function gitInitIfNeeded(project: string): void {
+  try {
+    execFileSync("git", ["rev-parse", "--git-common-dir"], { cwd: project, stdio: "ignore" });
+  } catch {
+    execFileSync("git", ["init", "-q"], { cwd: project });
+  }
+}
 const EMPTY_REVIEW_THREADS = JSON.stringify({
   data: {
     repository: {
@@ -64,6 +75,7 @@ function gitInit(repo: string): void {
 }
 
 function writeProjectDef(project: string, backend = "grok-build"): void {
+  gitInitIfNeeded(project);
   mkdirSync(join(project, "xbrief"), { recursive: true });
   writeFileSync(
     join(project, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
@@ -182,6 +194,7 @@ describe("swarm launch deep coverage", () => {
     const clearancesPath = join(project, "clearances.json");
     writeFileSync(clearancesPath, JSON.stringify([{ gate: "test" }]), "utf8");
     const result = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       paths: [storyPath],
       projectRoot: project,
       output: outPath,
@@ -202,6 +215,7 @@ describe("swarm launch deep coverage", () => {
     writeReadyStory(project, "coh-a", 8002);
     writeReadyStory(project, "coh-b", 8003);
     const result = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["coh-a,coh-b"],
       group: "wave7",
       allocationPlanId: "plan-1",
@@ -224,10 +238,16 @@ describe("swarm launch deep coverage", () => {
     const badClear = join(project, "bad-clear.json");
     writeFileSync(badClear, "{}", "utf8");
     expect(
-      swarmLaunch({ stories: ["missing"], projectRoot: project, ...stubLaunchGates() }).exitCode,
+      swarmLaunch({
+        ...TEST_WORKER_AUTH,
+        stories: ["missing"],
+        projectRoot: project,
+        ...stubLaunchGates(),
+      }).exitCode,
     ).toBe(1);
     expect(
       swarmLaunch({
+        ...TEST_WORKER_AUTH,
         stories: ["x"],
         projectRoot: project,
         gateClearancesPath: badClear,
@@ -262,6 +282,7 @@ describe("swarm launch deep coverage", () => {
     writeFileSync(mapPath, JSON.stringify({ not: "array" }), "utf8");
     expect(
       swarmLaunch({
+        ...TEST_WORKER_AUTH,
         stories: ["gate-a"],
         projectRoot: project,
         worktreeMap: mapPath,
@@ -273,6 +294,7 @@ describe("swarm launch deep coverage", () => {
     ).toContain("preflight");
     expect(
       swarmLaunch({
+        ...TEST_WORKER_AUTH,
         stories: ["gate-a"],
         projectRoot: project,
         preflightGate: () => ({ exitCode: 0, message: "ok" }),
@@ -283,6 +305,7 @@ describe("swarm launch deep coverage", () => {
     ).toContain("readiness");
     expect(
       swarmLaunch({
+        ...TEST_WORKER_AUTH,
         paths: [storyPath],
         projectRoot: project,
         worktreeMap: mapPath,
@@ -291,6 +314,7 @@ describe("swarm launch deep coverage", () => {
     ).toBe(2);
     expect(
       swarmLaunch({
+        ...TEST_WORKER_AUTH,
         ...stubLaunchGates(),
         stories: ["gate-a"],
         projectRoot: project,
@@ -313,6 +337,7 @@ describe("swarm launch deep coverage", () => {
       "utf8",
     );
     const result = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["wt-a"],
       projectRoot: project,
       worktreeMap: mapPath,
@@ -389,8 +414,12 @@ describe("swarm launch deep coverage", () => {
       "--project-root",
       "/tmp",
       "--session-id=host:codex:v1:c2Vzc2lvbi1h",
+      "--worker-github-auth-mode=host-gh",
+      "--expected-worker-login=worker-a",
     ]);
     expect(parsed.group).toBe("g");
+    expect(parsed.workerGithubAuthMode).toBe("host-gh");
+    expect(parsed.expectedPrincipal).toEqual({ kind: "user", login: "worker-a" });
     expect(parsed.autonomous).toBe(true);
     expect(parsed.enforceGatesFlag).toBe(true);
     expect(parsed.sessionId).toBe("host:codex:v1:c2Vzc2lvbi1h");
@@ -410,7 +439,10 @@ describe("swarm launch deep coverage", () => {
       exitCode: 2,
       stderr: expect.stringContaining("--operator-approval: expected one argument"),
     });
-    const blankSession = swarmLaunch({ sessionId: "" });
+    const blankSession = swarmLaunch({
+      ...TEST_WORKER_AUTH,
+      sessionId: "",
+    });
     expect(blankSession.exitCode).not.toBe(0);
     expect(blankSession).toMatchObject({
       stdout: "",

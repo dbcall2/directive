@@ -266,6 +266,7 @@ export const EXPLICIT_SELECTION_REMEDIATION =
   `    worker, or an unreachable managed VM. Deft will not guess from the OS.\n` +
   `  - On a machine you control, where the host gh credential store is the right\n` +
   `    credential, opt in explicitly: set ${GITHUB_AUTH_MODE_ENV}=${HOST_GH_SELECTION}\n` +
-  `  - Dispatchers should export the same github_auth_mode label they record in the\n` +
-  `    dispatch envelope\n` +
+  `  - That opt-in is for a local manual session. An inferred PREP github_auth_mode\n` +
+  `    stamp is not the worker's explicit host opt-in (#3663). Registered workers\n` +
+  `    validate the independently stored assignment instead\n` +
   `  - A positive managed-runtime read always wins; this opt-in cannot override it`;

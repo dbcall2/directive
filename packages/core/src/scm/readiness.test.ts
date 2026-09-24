@@ -4,6 +4,11 @@ import {
   type RuntimeCapabilityReport,
 } from "../intake/platform-capabilities.js";
 import type { ManagedRuntimeProbe } from "../platform/cursor-managed-runtime.js";
+import {
+  ENV_WORKER_CREDENTIAL_DELIVERY_ID,
+  type ReadWorkerAuthAssignmentResult,
+  type WorkerAuthAssignment,
+} from "../swarm/worker-auth-assignment.js";
 import type { CompletedProcess } from "./call.js";
 import { ScmStubError } from "./errors.js";
 import {
@@ -539,5 +544,150 @@ describe("requireScmReady credential-class ban (#3858)", () => {
     expect(report.ready).toBe(true);
     expect(report.login).toBe("alice");
     expect(seen.some((a) => a[0] === "api" && a[1] === "repos/other/thing")).toBe(true);
+  });
+});
+
+const REGISTERED: WorkerAuthAssignment = {
+  schema_version: Number.parseInt("1", 10),
+  dispatch_id: "dispatch-1",
+  story_id: "story-a",
+  worktree_path: "/tmp/worker",
+  github_auth_mode: "host-gh",
+  expected_principal: { kind: "user", login: "worker-a" },
+  credential_delivery_id: null,
+};
+
+function assignmentRead(assignment: WorkerAuthAssignment | null): ReadWorkerAuthAssignmentResult {
+  return { ok: true, assignment, commonDir: "/tmp/git" };
+}
+
+describe("requireScmReady registered worker (#3663)", () => {
+  it("T3: assigned login A refuses observed login B even when the caller supplied null", () => {
+    clearScmReadyCache();
+    expect(() =>
+      requireScmReady({
+        force: true,
+        cwd: "/tmp/worker",
+        env: {},
+        whichFn: (n) => (n === "gh" ? "/bin/gh" : null),
+        expectedPrincipal: null,
+        repo: "acme/widgets",
+        readWorkerAuthAssignment: () => assignmentRead(REGISTERED),
+        runGh: (args) => {
+          if (args[0] === "auth")
+            return { args: [...args], returncode: 0, stdout: "ok", stderr: "" };
+          if (args[0] === "api" && args[1] === "user") {
+            return { args: [...args], returncode: 0, stdout: '{"login":"worker-b"}', stderr: "" };
+          }
+          return { args: [...args], returncode: 0, stdout: "{}", stderr: "" };
+        },
+      }),
+    ).toThrow(/principal_mismatch|identity mismatch|worker-a/);
+  });
+
+  it("T6: skip flags and a prior unregistered cache do not bypass a registered worker", () => {
+    clearScmReadyCache();
+    requireScmReady({
+      force: true,
+      cwd: "/tmp/other",
+      env: {},
+      whichFn: (n) => (n === "gh" ? "/bin/gh" : null),
+      githubAuthMode: "host-gh",
+      runtimeReport: { runtimeMode: "local-unsandboxed" },
+      runGh: () => ({ args: [], returncode: 0, stdout: "ok", stderr: "" }),
+      readWorkerAuthAssignment: () => assignmentRead(null),
+    });
+    expect(() =>
+      requireScmReady({
+        cwd: "/tmp/worker",
+        env: { VITEST: "true", DEFT_SCM_SKIP_AUTH_PROBE: "1" },
+        skipReadiness: true,
+        whichFn: (n) => (n === "gh" ? "/bin/gh" : null),
+        expectedPrincipal: null,
+        readWorkerAuthAssignment: () => assignmentRead(REGISTERED),
+        runGh: (args) => {
+          if (args[0] === "auth")
+            return { args: [...args], returncode: 1, stdout: "", stderr: "no" };
+          return { args: [...args], returncode: 1, stdout: "", stderr: "no" };
+        },
+      }),
+    ).toThrow(/SCM not ready|gh auth status failed|worker auth failed|unauthenticated/);
+  });
+
+  it("T8: unregistered explicit-null keeps identity suppression", () => {
+    clearScmReadyCache();
+    const report = requireScmReady({
+      force: true,
+      cwd: "/tmp/unregistered",
+      env: {},
+      whichFn: (n) => (n === "gh" ? "/bin/gh" : null),
+      expectedPrincipal: null,
+      githubAuthMode: "host-gh",
+      runtimeReport: { runtimeMode: "local-unsandboxed" },
+      readWorkerAuthAssignment: () => assignmentRead(null),
+      runGh: () => ({ args: [], returncode: 0, stdout: "ok", stderr: "" }),
+    });
+    expect(report.ready).toBe(true);
+    expect(report.login).toBeNull();
+  });
+
+  it("matching host identity with no ambient token proceeds", () => {
+    clearScmReadyCache();
+    const report = requireScmReady({
+      force: true,
+      cwd: "/tmp/worker",
+      env: {},
+      whichFn: (n) => (n === "gh" ? "/bin/gh" : null),
+      repo: "acme/widgets",
+      expectedPrincipal: null,
+      readWorkerAuthAssignment: () => assignmentRead(REGISTERED),
+      runGh: (args) => {
+        if (args[0] === "auth") return { args: [...args], returncode: 0, stdout: "ok", stderr: "" };
+        if (args[0] === "api" && args[1] === "user") {
+          return { args: [...args], returncode: 0, stdout: '{"login":"worker-a"}', stderr: "" };
+        }
+        if (String(args[1] ?? "").includes("acme/widgets")) {
+          return { args: [...args], returncode: 0, stdout: "{}", stderr: "" };
+        }
+        return {
+          args: [...args],
+          returncode: 1,
+          stdout: "",
+          stderr: `unexpected ${args.join(" ")}`,
+        };
+      },
+    });
+    expect(report.ready).toBe(true);
+    expect(report.login).toBe("worker-a");
+  });
+
+  it("injected matching delivery id and principal proceeds", () => {
+    clearScmReadyCache();
+    const injected: WorkerAuthAssignment = {
+      ...REGISTERED,
+      github_auth_mode: "injected-token",
+      credential_delivery_id: "del-1",
+    };
+    const report = requireScmReady({
+      force: true,
+      cwd: "/tmp/worker",
+      env: {
+        GH_TOKEN: "gho_not_a_real_token",
+        [ENV_WORKER_CREDENTIAL_DELIVERY_ID]: "del-1",
+      },
+      whichFn: (n) => (n === "gh" ? "/bin/gh" : null),
+      repo: "acme/widgets",
+      expectedPrincipal: null,
+      readWorkerAuthAssignment: () => assignmentRead(injected),
+      runGh: (args) => {
+        if (args[0] === "auth") return { args: [...args], returncode: 0, stdout: "ok", stderr: "" };
+        if (args[0] === "api" && args[1] === "user") {
+          return { args: [...args], returncode: 0, stdout: '{"login":"worker-a"}', stderr: "" };
+        }
+        return { args: [...args], returncode: 0, stdout: "{}", stderr: "" };
+      },
+    });
+    expect(report.ready).toBe(true);
+    expect(report.login).toBe("worker-a");
   });
 });

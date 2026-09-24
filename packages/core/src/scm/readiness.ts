@@ -24,6 +24,7 @@
 import { spawnSync } from "node:child_process";
 import {
   type ExpectedGithubWorkerPrincipal,
+  FAILURE_MISSING_INJECTED_TOKEN,
   findInjectedToken,
   type GhRunner,
   GITHUB_AUTH_MODE_HOST_GH,
@@ -35,13 +36,25 @@ import {
 import {
   getPlatformCapabilities,
   probeRuntimeCapabilities,
+  RUNTIME_MODE_CLOUD_HEADLESS,
   type RuntimeCapabilityReport,
 } from "../intake/platform-capabilities.js";
 import {
   EXPLICIT_SELECTION_REMEDIATION,
   GITHUB_AUTH_MODE_ENV,
   RUNTIME_REASON_CURSOR_MARKER_AMBIGUOUS,
+  RUNTIME_REASON_MANAGED_RUNTIME_PROBE,
 } from "../platform/cursor-managed-runtime.js";
+import {
+  FAILURE_AMBIENT_TOKEN_CONFLICT,
+  FAILURE_DELIVERY_MISMATCH,
+  FAILURE_MISSING_DELIVERY,
+  FAILURE_RUNTIME_MODE_DENIED,
+  observedCredentialDeliveryId,
+  type ReadWorkerAuthAssignmentResult,
+  readWorkerAuthAssignment,
+  type WorkerAuthAssignment,
+} from "../swarm/worker-auth-assignment.js";
 import { defaultWhich, type WhichFn } from "./binary.js";
 import { BINARY_PREFERENCE } from "./constants.js";
 import { ScmStubError } from "./errors.js";
@@ -125,6 +138,15 @@ export interface ProbeScmReadinessOptions {
   readonly runGh?: GhRunner;
   /** When false, skip even `gh auth status` on the shallow path (tests / pure PATH). */
   readonly checkAuthStatus?: boolean;
+  /**
+   * Caller skip for unregistered destinations only (#3663). Registered workers
+   * still validate after assignment resolution.
+   */
+  readonly skipReadiness?: boolean;
+  /** Worktree used to resolve the worker-auth assignment. Defaults to cwd. */
+  readonly cwd?: string;
+  /** Test seam for assignment lookup. */
+  readonly readWorkerAuthAssignment?: (cwd: string) => ReadWorkerAuthAssignmentResult;
 }
 
 const REMEDIATION_BINARY_ABSENT =
@@ -558,57 +580,252 @@ function cachedReportCoversRequestedDepth(
   return true;
 }
 
+function formatWorkerAuthDetail(
+  failureKind: string,
+  message: string,
+  extras: {
+    dispatchId?: string | null;
+    expectedLogin?: string | null;
+    observedLogin?: string | null;
+  },
+): string {
+  const parts = [`worker auth failed: ${failureKind}: ${message}`];
+  if (extras.dispatchId) {
+    parts.push(`dispatch_id=${extras.dispatchId}`);
+  }
+  if (extras.expectedLogin) {
+    parts.push(`expected_login=${extras.expectedLogin}`);
+  }
+  if (extras.observedLogin) {
+    parts.push(`observed_login=${extras.observedLogin}`);
+  }
+  return parts.join(" ");
+}
+
+function workerAuthNotReady(
+  failureKind: string,
+  detail: string,
+  extras: {
+    githubAuthMode?: string;
+    runtimeReport?: RuntimeCapabilityReport;
+    binary?: ScmBinaryName | null;
+    binaryPath?: string | null;
+    login?: string | null;
+    injectedTokenPresent?: boolean;
+  } = {},
+): ScmReadinessReport {
+  const runtimeReport = extras.runtimeReport ?? getPlatformCapabilities();
+  return {
+    ready: false,
+    binary: extras.binary ?? null,
+    binaryPath: extras.binaryPath ?? null,
+    authState: "unauthenticated",
+    githubAuthMode: extras.githubAuthMode ?? GITHUB_AUTH_MODE_HOST_GH,
+    runtimeMode: runtimeReport.runtimeMode,
+    runtimeModeReason: runtimeReport.runtimeModeReason ?? null,
+    injectedTokenPresent: extras.injectedTokenPresent ?? false,
+    depth: "deep",
+    detail,
+    remediation: REMEDIATION_UNAUTHENTICATED,
+    skippedGates: [...SCM_DEPENDENT_GATES],
+    login: extras.login ?? null,
+    failureKind,
+  };
+}
+
+function classificationEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const copy: NodeJS.ProcessEnv = { ...env };
+  delete copy[GITHUB_AUTH_MODE_ENV];
+  return copy;
+}
+
+function hostRuntimeAdmitsHostGh(report: RuntimeCapabilityReport): boolean {
+  if (report.runtimeMode === RUNTIME_MODE_CLOUD_HEADLESS) {
+    return false;
+  }
+  if (report.runtimeModeReason === RUNTIME_REASON_CURSOR_MARKER_AMBIGUOUS) {
+    return false;
+  }
+  if (report.runtimeModeReason === RUNTIME_REASON_MANAGED_RUNTIME_PROBE) {
+    return false;
+  }
+  return true;
+}
+
+function unregisteredSkipReport(options: ProbeScmReadinessOptions): ScmReadinessReport {
+  const hermeticRuntime = options.runtimeReport ?? getPlatformCapabilities();
+  return {
+    ready: true,
+    binary: "gh",
+    binaryPath: null,
+    authState: "unknown",
+    githubAuthMode: GITHUB_AUTH_MODE_HOST_GH,
+    runtimeMode: hermeticRuntime.runtimeMode,
+    runtimeModeReason: hermeticRuntime.runtimeModeReason ?? null,
+    injectedTokenPresent: findInjectedToken(options.env ?? process.env) !== null,
+    depth: "shallow",
+    detail: "SCM readiness skipped for unregistered destination",
+    remediation: null,
+    skippedGates: [],
+    login: null,
+    failureKind: null,
+  };
+}
+
+function enforceRegisteredWorker(
+  assignment: WorkerAuthAssignment,
+  options: ProbeScmReadinessOptions,
+): ScmReadinessReport {
+  const env = options.env ?? process.env;
+  const classified = probeRuntimeCapabilities(classificationEnv(env));
+  const injectedPresent = findInjectedToken(env) !== null;
+  const expectedLogin = assignment.expected_principal.login;
+  const dispatchId = assignment.dispatch_id;
+  const whichFn = options.whichFn ?? defaultWhich;
+  const { binary, binaryPath } = resolveBinaryPresence(whichFn);
+
+  const deny = (kind: string, message: string, observed?: string | null): ScmReadinessReport =>
+    workerAuthNotReady(
+      kind,
+      formatWorkerAuthDetail(kind, message, {
+        dispatchId,
+        expectedLogin,
+        observedLogin: observed ?? null,
+      }),
+      {
+        githubAuthMode: assignment.github_auth_mode,
+        runtimeReport: classified,
+        binary,
+        binaryPath,
+        login: observed ?? null,
+        injectedTokenPresent: injectedPresent,
+      },
+    );
+
+  if (assignment.github_auth_mode === GITHUB_AUTH_MODE_HOST_GH) {
+    if (!hostRuntimeAdmitsHostGh(classified)) {
+      const reason = classified.runtimeModeReason ? ` (${classified.runtimeModeReason})` : "";
+      return deny(
+        FAILURE_RUNTIME_MODE_DENIED,
+        `assigned host-gh is not admitted by worker runtime ${classified.runtimeMode}${reason}`,
+      );
+    }
+    if (injectedPresent) {
+      return deny(
+        FAILURE_AMBIENT_TOKEN_CONFLICT,
+        "assigned host-gh refuses GH_TOKEN, GITHUB_TOKEN, or GH_ENTERPRISE_TOKEN in the worker environment",
+      );
+    }
+  } else {
+    const expectedDelivery = assignment.credential_delivery_id;
+    const observedDelivery = observedCredentialDeliveryId(env);
+    if (expectedDelivery === null || expectedDelivery.length === 0) {
+      return deny(
+        FAILURE_MISSING_DELIVERY,
+        "injected-token assignment is missing credential_delivery_id",
+      );
+    }
+    if (observedDelivery === null) {
+      return deny(
+        FAILURE_MISSING_DELIVERY,
+        "worker env is missing DEFT_WORKER_CREDENTIAL_DELIVERY_ID",
+      );
+    }
+    if (observedDelivery !== expectedDelivery) {
+      return deny(
+        FAILURE_DELIVERY_MISMATCH,
+        "credential_delivery_id does not match the assignment",
+      );
+    }
+    if (!injectedPresent) {
+      return deny(
+        FAILURE_MISSING_INJECTED_TOKEN,
+        "injected-token assignment requires a worker token",
+      );
+    }
+  }
+
+  return probeScmReadiness({
+    ...options,
+    env,
+    runtimeReport: classified,
+    githubAuthMode: assignment.github_auth_mode,
+    expectedPrincipal: assignment.expected_principal,
+    depth: "deep",
+    checkAuthStatus: true,
+  });
+}
+
 export function requireScmReady(
   options: ProbeScmReadinessOptions & { force?: boolean } = {},
 ): ScmReadinessReport {
-  const requestedDepth: ScmProbeDepth = options.depth ?? "shallow";
-  const identity = readyCacheIdentity(options);
-  const cacheKey = readyCacheKey(identity);
-  const cached = cachedReadyReports.get(cacheKey);
-  if (
-    !options.force &&
-    cached !== undefined &&
-    cachedReportCoversRequestedDepth(cached, requestedDepth)
-  ) {
-    return cached;
+  const cwd = options.cwd ?? process.cwd();
+  const reader = options.readWorkerAuthAssignment ?? readWorkerAuthAssignment;
+  const read = reader(cwd);
+  let report: ScmReadinessReport;
+  if (!read.ok) {
+    report = workerAuthNotReady(
+      read.failureKind,
+      formatWorkerAuthDetail(read.failureKind, read.detail, read),
+      { login: read.observedLogin },
+    );
+  } else if (read.assignment !== null) {
+    report = enforceRegisteredWorker(read.assignment, options);
+    if (report.ready) {
+      return report;
+    }
+  } else if (options.skipReadiness === true) {
+    return unregisteredSkipReport(options);
+  } else {
+    const requestedDepth: ScmProbeDepth = options.depth ?? "shallow";
+    const identity = readyCacheIdentity(options);
+    const cacheKey = readyCacheKey(identity);
+    const cached = cachedReadyReports.get(cacheKey);
+    if (
+      !options.force &&
+      cached !== undefined &&
+      cachedReportCoversRequestedDepth(cached, requestedDepth)
+    ) {
+      return cached;
+    }
+    // Hermetic unit tests (VITEST) only require binary presence so CI
+    // cloud-headless without injected tokens can exercise CLI argv/REST seams.
+    // DEFT_SCM_SKIP_AUTH_PROBE does not skip production probes.
+    // Registered workers above never take this branch (#3663).
+    const hermeticAuthSkip = options.checkAuthStatus === undefined && process.env.VITEST === "true";
+    if (hermeticAuthSkip) {
+      const binary = assertScmBinaryPresent(options.whichFn);
+      const hermeticRuntime = options.runtimeReport ?? getPlatformCapabilities();
+      const hermetic: ScmReadinessReport = {
+        ready: true,
+        binary,
+        binaryPath: options.whichFn?.(binary) ?? null,
+        authState: "unknown",
+        githubAuthMode: GITHUB_AUTH_MODE_HOST_GH,
+        runtimeMode: hermeticRuntime.runtimeMode,
+        runtimeModeReason: hermeticRuntime.runtimeModeReason ?? null,
+        injectedTokenPresent: findInjectedToken(options.env ?? process.env) !== null,
+        depth: "shallow",
+        detail: `SCM binary present (${binary}); auth status not checked (hermetic)`,
+        remediation: null,
+        skippedGates: [],
+        login: null,
+        failureKind: null,
+      };
+      cachedReadyReports.set(cacheKey, hermetic);
+      return hermetic;
+    }
+    report = probeScmReadiness({
+      ...options,
+      depth: options.depth ?? "shallow",
+      checkAuthStatus: options.checkAuthStatus ?? true,
+    });
+    if (report.ready) {
+      cachedReadyReports.set(cacheKey, report);
+      return report;
+    }
   }
-  // Hermetic unit tests (VITEST) only require binary presence so CI
-  // cloud-headless without injected tokens can exercise CLI argv/REST seams.
-  // DEFT_SCM_SKIP_AUTH_PROBE does not skip production probes.
-  const hermeticAuthSkip = options.checkAuthStatus === undefined && process.env.VITEST === "true";
-  if (hermeticAuthSkip) {
-    // Production path uses assertScmBinaryPresent (not test-only).
-    const binary = assertScmBinaryPresent(options.whichFn);
-    const hermeticRuntime = options.runtimeReport ?? getPlatformCapabilities();
-    const report: ScmReadinessReport = {
-      ready: true,
-      binary,
-      binaryPath: options.whichFn?.(binary) ?? null,
-      authState: "unknown",
-      githubAuthMode: GITHUB_AUTH_MODE_HOST_GH,
-      runtimeMode: hermeticRuntime.runtimeMode,
-      runtimeModeReason: hermeticRuntime.runtimeModeReason ?? null,
-      injectedTokenPresent: findInjectedToken(options.env ?? process.env) !== null,
-      depth: "shallow",
-      detail: `SCM binary present (${binary}); auth status not checked (hermetic)`,
-      remediation: null,
-      skippedGates: [],
-      login: null,
-      failureKind: null,
-    };
-    cachedReadyReports.set(cacheKey, report);
-    return report;
-  }
-  const report = probeScmReadiness({
-    ...options,
-    depth: options.depth ?? "shallow",
-    checkAuthStatus: options.checkAuthStatus ?? true,
-  });
-  if (!report.ready) {
-    throw scmNotReadyError(report);
-  }
-  cachedReadyReports.set(cacheKey, report);
-  return report;
+  throw scmNotReadyError(report);
 }
 
 /**

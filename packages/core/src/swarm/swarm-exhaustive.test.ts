@@ -12,6 +12,10 @@ import {
 import { readinessReport } from "./readiness.js";
 import { verifyReviewCleanMain } from "./verify-review-clean-cli.js";
 
+const TEST_WORKER_AUTH = {
+  workerGithubAuthMode: "host-gh" as const,
+  expectedPrincipal: { kind: "user" as const, login: "test-worker" },
+};
 function writePlan(project: string, relPath: string, plan: Record<string, unknown>): string {
   const full = join(project, relPath);
   mkdirSync(dirname(full), { recursive: true });
@@ -130,6 +134,7 @@ describe("launch and readiness exhaustive branches", () => {
     const empty = mkdtempSync(join(tmpdir(), "sw-edge-"));
     expect(
       swarmLaunch({
+        ...TEST_WORKER_AUTH,
         stories: ["x"],
         projectRoot: empty,
         ...{

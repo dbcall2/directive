@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -71,6 +71,17 @@ import {
 import { READ_ONLY_POSTURE, REARM_CEREMONY_TIER, runSessionStart } from "./session-start.js";
 import { verifySessionRitual, writeGateRitualOptions } from "./verify-session-ritual.js";
 
+const TEST_WORKER_AUTH = {
+  workerGithubAuthMode: "host-gh" as const,
+  expectedPrincipal: { kind: "user" as const, login: "test-worker" },
+};
+function gitInitIfNeeded(project: string): void {
+  try {
+    execFileSync("git", ["rev-parse", "--git-common-dir"], { cwd: project, stdio: "ignore" });
+  } catch {
+    execFileSync("git", ["init", "-q"], { cwd: project });
+  }
+}
 const temps: string[] = [];
 afterEach(() => {
   for (const t of temps) rmSync(t, { recursive: true, force: true });
@@ -78,8 +89,10 @@ afterEach(() => {
 });
 
 function tempRoot(): string {
+  // #3663 assignment write needs a Git common directory
   const root = mkdtempSync(join(tmpdir(), "occupancy-"));
   temps.push(root);
+  gitInitIfNeeded(root);
   return root;
 }
 
@@ -1428,7 +1441,9 @@ describe("worktree occupancy lease (#3433)", () => {
       }),
       "utf8",
     );
+    gitInitIfNeeded(root);
     const launched = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["story-a"],
       projectRoot: root,
       autonomous: true,
@@ -1501,7 +1516,9 @@ describe("worktree occupancy lease (#3433)", () => {
       }),
       "utf8",
     );
+    gitInitIfNeeded(root);
     const launched = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["story-a"],
       projectRoot: root,
       autonomous: true,
@@ -1573,7 +1590,9 @@ describe("worktree occupancy lease (#3433)", () => {
       }),
       "utf8",
     );
+    gitInitIfNeeded(root);
     const launched = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["story-a"],
       projectRoot: root,
       autonomous: true,
@@ -1651,7 +1670,9 @@ describe("worktree occupancy lease (#3433)", () => {
       }),
       "utf8",
     );
+    gitInitIfNeeded(root);
     const launched = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["story-a"],
       projectRoot: root,
       autonomous: true,

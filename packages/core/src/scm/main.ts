@@ -38,12 +38,12 @@ export interface MainOptions {
  * extra so a non-checkout explicit repo reaches the validator.
  */
 function guardScmReady(options: MainOptions, extra: readonly string[] = []): number | null {
-  if (options.skipReadiness) return null;
   try {
     requireScmReady({
       whichFn: options.whichFn,
       depth: "deep",
       repo: peekRepoFlag(extra),
+      skipReadiness: options.skipReadiness,
       expectedPrincipal: null,
     });
     return null;
@@ -133,7 +133,7 @@ export function main(argv: readonly string[], options: MainOptions = {}): number
       );
       return 2;
     }
-    // Argv-valid REST path: still fail loud when SCM is unusable (#2275 / #3858).
+    // Argv-valid REST path: still fail loud when SCM is unusable (#2275 / #3858 / #3663).
     const blocked = guardScmReady(options, extra);
     if (blocked !== null) return blocked;
     const seams: GhRestSeams = {

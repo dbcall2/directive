@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -21,6 +22,18 @@ import {
   retractLaunchOccupancyRecord,
   swarmLaunch,
 } from "./launch.js";
+
+const TEST_WORKER_AUTH = {
+  workerGithubAuthMode: "host-gh" as const,
+  expectedPrincipal: { kind: "user" as const, login: "test-worker" },
+};
+function gitInitIfNeeded(project: string): void {
+  try {
+    execFileSync("git", ["rev-parse", "--git-common-dir"], { cwd: project, stdio: "ignore" });
+  } catch {
+    execFileSync("git", ["init", "-q"], { cwd: project });
+  }
+}
 
 function acceptanceEvidence(pointer: string): Record<string, unknown> {
   return {
@@ -389,6 +402,7 @@ describe("launch occupancy record lifecycle (#4595)", () => {
   }
 
   function writeProjectDef(project: string): void {
+    gitInitIfNeeded(project);
     mkdirSync(join(project, "xbrief"), { recursive: true });
     writeFileSync(
       join(project, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
@@ -465,6 +479,7 @@ describe("launch occupancy record lifecycle (#4595)", () => {
     const outputDirectory = join(project, "existing-output-directory");
     mkdirSync(outputDirectory, { recursive: true });
     const result = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["story-a"],
       projectRoot: project,
       autonomous: true,
@@ -491,6 +506,7 @@ describe("launch occupancy record lifecycle (#4595)", () => {
     if (missing.ok) throw new Error("expected missing sequence");
     expect(missing.code).toBe("missing");
     const denied = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["coh-a", "coh-b"],
       projectRoot: project,
       autonomous: true,
@@ -501,6 +517,7 @@ describe("launch occupancy record lifecycle (#4595)", () => {
     expect(denied.exitCode).not.toBe(0);
     expect(denied.stderr).toContain("ordered-plan sequence");
     const allowed = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["coh-a", "coh-b"],
       group: "wave7",
       allocationPlanId: "plan-1",
@@ -612,6 +629,7 @@ describe("launch occupancy record lifecycle (#4595)", () => {
     writeProjectDef(project);
     writeLaunchStory(project, "story-a", 4595);
     const first = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["story-a"],
       projectRoot: project,
       autonomous: true,
@@ -625,6 +643,7 @@ describe("launch occupancy record lifecycle (#4595)", () => {
     const outputDirectory = join(project, "existing-output-directory");
     mkdirSync(outputDirectory, { recursive: true });
     const second = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["story-a"],
       projectRoot: project,
       autonomous: true,
@@ -662,6 +681,7 @@ describe("launch occupancy record lifecycle (#4595)", () => {
       "utf8",
     );
     const denied = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["coh-a", "coh-b"],
       projectRoot: project,
       autonomous: true,
@@ -672,6 +692,7 @@ describe("launch occupancy record lifecycle (#4595)", () => {
     expect(denied.exitCode).not.toBe(0);
     expect(denied.stderr).toContain("ordered-plan sequence");
     const groupOnly = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["coh-a", "coh-b"],
       group: "wave7",
       projectRoot: project,
@@ -682,6 +703,7 @@ describe("launch occupancy record lifecycle (#4595)", () => {
     });
     expect(groupOnly.exitCode).not.toBe(0);
     const allowed = swarmLaunch({
+      ...TEST_WORKER_AUTH,
       stories: ["coh-a", "coh-b"],
       allocationPlanId: "plan-1",
       batchingRationale: "approved",
