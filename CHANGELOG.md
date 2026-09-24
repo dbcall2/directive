@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`xbrief:verify` fails when `plan.id` disagrees with the stored plan-id binding (#4963).** The check is read-only and includes the other stored-mint clauses. It does not mint or scan sibling briefs. The disagree line names `xbrief:adopt-stored-plan-id`, which copies the stored binding id onto `plan.id` and onto the paired markdown frontmatter `id` without rewriting the rest of that file. It refuses when another artifact already has that id. Tracking #4963.
 - **scope:activate and scope:promote refuse a 0-clause derivation no-op (#4768).** When clause derivation applies false and leaves no clauses, the transition stops and names list items, `test:` lines, or `acceptance:` lines. The intake floor stays legal before that step and is not moved into `active/`. A derived stamp that still has `none_stated: true` plus clauses stays legal. Empty-resolution readers are unchanged. Tracking #4768.
 - **Placeholder tests no longer satisfy verify:forward-coverage (#4543).** The existence result fails when a paired test only says an export is a function, or reads the paired source as text and expects strings, including an exact comparison. A dynamic import is not that read. Staged mode does not use a worktree test that has no index blob. One remediation. An empty paired file still counts. Tracking #4543.
 - **After install, directive, deft, deft-ts, deft-hook, and deft-verify-encoding resolve to the .cmd when PowerShell refuses scripts (#4654).** Tracking #4654.
