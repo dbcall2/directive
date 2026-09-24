@@ -47,6 +47,10 @@ export function mechanismShapedChipCommand(repo: string, issueNumber: number): s
   );
 }
 
+function oneLineCommand(command: string): string {
+  return command.replace(/\r?\n/g, " ");
+}
+
 /** Parse the operator chip argv out of mapping text. Null when the command is absent. */
 export function extractChipCommandArgv(text: string): string[] | null {
   const match = CHIP_COMMAND_RE.exec(text);
@@ -90,7 +94,7 @@ function standingMismatchLine(
 }
 
 function missingPainRecovery(repo: string, issueNumber: number): string[] {
-  const command = mechanismShapedChipCommand(repo, issueNumber);
+  const command = oneLineCommand(mechanismShapedChipCommand(repo, issueNumber));
   return [
     "Recovery (missing-pain later-arc; do not edit the old Stop 1, invent audit evidence, or grandfather missing pain coverage):",
     "1. Post a new Stop 1 with an operative nonempty pain: list.",
@@ -191,7 +195,9 @@ export function formatStaleIngestReadyDiagnostic(
   }
 
   const recoveryCommand =
-    reason === "missing-pain" ? mechanismShapedChipCommand(repo, issueNumber) : null;
+    reason === "missing-pain"
+      ? oneLineCommand(mechanismShapedChipCommand(repo, issueNumber))
+      : null;
   return {
     text: lines.join("\n"),
     recoveryCommand,

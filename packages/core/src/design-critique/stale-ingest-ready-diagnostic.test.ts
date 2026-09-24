@@ -115,6 +115,20 @@ describe("shared diagnostic mapping", () => {
     ]);
   });
 
+  it("sanitizes newlines in the recovery command before the recovery bullet", () => {
+    const frozen = loadFrozen4290();
+    const repo = "deftai/directive\n--chip evil";
+    const diagnostic = mapping({ comments: frozen.comments, repo, issueNumber: 4290 });
+    const bullet = diagnostic.text
+      .split("\n")
+      .find((line) => line.includes("Operator-directed:"));
+    const sanitized =
+      "task scm:issue:design-critique-chip -- --repo deftai/directive --chip evil --issue 4290 --chip mechanism-shaped";
+    expect(diagnostic.recoveryCommand).toBe(sanitized);
+    expect(bullet).toBe(`2. Operator-directed: ${sanitized}`);
+    expect(extractChipCommandArgv(diagnostic.text)).toBeNull();
+  });
+
   it("keeps evaluator detail for malformed-pain without a chip command or restart", () => {
     const warrant = stop1(
       "role: parent\n\ndesign-critique: warranted, because x.\n\npain: P1\npain: P1\n",

@@ -47,6 +47,8 @@ export interface StaleReadyCandidate {
   readonly number: number;
   readonly body: string;
   readonly labels: readonly string[];
+  /** Live REST `state` from the refreshed issue. Absent on older seams. */
+  readonly state?: string;
 }
 
 export interface StaleReadyScanSeams {
@@ -95,11 +97,19 @@ function restLabelNames(issue: Record<string, unknown>): string[] {
   return names;
 }
 
+function restIssueState(issue: Record<string, unknown>): string | undefined {
+  return typeof issue.state === "string" ? issue.state : undefined;
+}
+
 function candidateFromRestIssue(issue: Record<string, unknown>): StaleReadyCandidate | null {
   const number = issue.number;
   if (typeof number !== "number" || !Number.isInteger(number) || number <= 0) return null;
   const body = typeof issue.body === "string" ? issue.body : "";
-  return { number, body, labels: restLabelNames(issue) };
+  return { number, body, labels: restLabelNames(issue), state: restIssueState(issue) };
+}
+
+function isRefreshedIssueOpen(candidate: StaleReadyCandidate): boolean {
+  return candidate.state === undefined || candidate.state === "open";
 }
 
 function defaultListOpenIngestReady(repo: string, ghRest: GhRestSeams): StaleReadyCandidate[] {
@@ -124,7 +134,7 @@ function defaultFetchIssue(
   const viewed = restIssueView(repo, issueNumber, ghRest);
   const candidate = candidateFromRestIssue(viewed);
   if (candidate === null) {
-    return { number: issueNumber, body: "", labels: [] };
+    return { number: issueNumber, body: "", labels: [], state: restIssueState(viewed) };
   }
   return candidate;
 }
@@ -170,9 +180,27 @@ export function scanStaleIngestReady(
 
   for (const listedCandidate of listed) {
     let viewed: StaleReadyCandidate;
-    let comments: readonly ThreadComment[];
     try {
       viewed = fetchIssue(repo, listedCandidate.number);
+    } catch (err: unknown) {
+      unknown += 1;
+      const diagnostic = formatStaleIngestReadyDiagnostic({
+        repo,
+        issueNumber: listedCandidate.number,
+        labels: listedCandidate.labels,
+        verdict: { status: "unknown", detail: errMessage(err) },
+      });
+      reports.push({ issueNumber: listedCandidate.number, diagnostic });
+      continue;
+    }
+
+    if (!isRefreshedIssueOpen(viewed)) {
+      checked += 1;
+      continue;
+    }
+
+    let comments: readonly ThreadComment[];
+    try {
       comments = fetchComments(repo, listedCandidate.number);
     } catch (err: unknown) {
       unknown += 1;

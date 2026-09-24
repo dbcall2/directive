@@ -185,6 +185,59 @@ describe("scanStaleIngestReady", () => {
       "mechanism-shaped",
     ]);
   });
+
+  it("skips evaluation when the refreshed REST issue is no longer open", () => {
+    const frozen = loadFrozen4290();
+    const result = scanStaleIngestReady(SCANNED_B, {
+      listOpenIngestReady: () => [{ number: 4290, body: frozen.body, labels: frozen.labels }],
+      fetchIssue: () => ({
+        number: 4290,
+        body: frozen.body,
+        labels: frozen.labels,
+        state: "closed",
+      }),
+      fetchComments: () => {
+        throw new Error("comments must not be fetched for a closed issue");
+      },
+    });
+    expect(result.complete).toBe(true);
+    expect(result.checked).toBe(1);
+    expect(result.mismatch).toBe(0);
+    expect(result.unknown).toBe(0);
+    expect(result.reports).toHaveLength(0);
+  });
+
+  it("preserves restIssueView state and does not mismatch a close between list and refresh", () => {
+    const frozen = loadFrozen4290();
+    const listed = {
+      number: 4290,
+      body: frozen.body,
+      labels: frozen.labels.map((name) => ({ name })),
+      state: "open",
+    };
+    const viewed = { ...listed, state: "closed" };
+    const result = scanStaleIngestReady(SCANNED_B, {
+      ghRest: {
+        runGhApiFn: (args) => {
+          const path = args[0] ?? "";
+          if (/\/issues\/\d+$/.test(path)) {
+            return { returncode: 0, stdout: JSON.stringify(viewed), stderr: "" };
+          }
+          if (path.endsWith("/issues")) {
+            return { returncode: 0, stdout: JSON.stringify([listed]), stderr: "" };
+          }
+          return { returncode: 1, stdout: "", stderr: `unexpected ${path}` };
+        },
+      },
+      fetchComments: () => {
+        throw new Error("comments must not be fetched for a closed issue");
+      },
+    });
+    expect(result.complete).toBe(true);
+    expect(result.checked).toBe(1);
+    expect(result.mismatch).toBe(0);
+    expect(result.reports).toHaveLength(0);
+  });
 });
 
 describe("callers emit the shared mapping", () => {
