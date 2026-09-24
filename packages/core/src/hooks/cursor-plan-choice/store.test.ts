@@ -10,13 +10,27 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { hashPlanChoiceTuple } from "./identity.js";
 import { emptyPendingRecord, newPending, withPlanChoiceRecord } from "./store.js";
 import type { CursorPlanChoiceDeps, CursorPlanChoiceIdentity } from "./types.js";
 
+const { fsyncDir } = vi.hoisted(() => ({ fsyncDir: vi.fn() }));
+
+vi.mock("../../fs/contained-write.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../fs/contained-write.js")>();
+  return {
+    ...actual,
+    fsyncContainedDirectory: (dirAbs: string) => {
+      fsyncDir(dirAbs);
+      actual.fsyncContainedDirectory(dirAbs);
+    },
+  };
+});
+
 const temps: string[] = [];
 afterEach(() => {
+  fsyncDir.mockClear();
   for (const dir of temps.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -128,5 +142,18 @@ describe("withPlanChoiceRecord", () => {
     expect(existsSync(lockPath)).toBe(false);
     const record = readFileSync(join(root, `${id.conversationHash}.json`), "utf8");
     expect(record).toContain("pending");
+  });
+
+  it("invokes dest-directory fsync after renaming the acknowledged record", () => {
+    const d = deps();
+    const id = identity();
+    const written = withPlanChoiceRecord(d, id, () => {
+      const pending = newPending(d);
+      return { ok: true, value: emptyPendingRecord(id, pending) };
+    });
+    expect(written.ok).toBe(true);
+    const dir = join(d.configDir, "runtime", "cursor-plan-choice", "v1", id.workspaceHash);
+    expect(fsyncDir).toHaveBeenCalledWith(dir);
+    expect(existsSync(join(dir, `${id.conversationHash}.json`))).toBe(true);
   });
 });

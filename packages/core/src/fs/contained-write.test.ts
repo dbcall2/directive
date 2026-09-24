@@ -22,6 +22,7 @@ import {
   containedRemove,
   containedRename,
   containedWrite,
+  fsyncContainedDirectory,
   resolveContainedTarget,
 } from "./contained-write.js";
 import {
@@ -548,6 +549,62 @@ describe("containedRemove (#3392)", () => {
       expect((err as ContainedWriteError).code).toBe(ContainedWriteErrorCode.SYMLINK);
     }
     expect(readFileSync(victim, "utf8")).toBe("KEEP\n");
+  });
+});
+
+describe("fsyncContainedDirectory", () => {
+  it("fsyncs a real directory", () => {
+    const root = freshDir("cw-dir-fsync-");
+    expect(() => fsyncContainedDirectory(root)).not.toThrow();
+  });
+
+  it("refuses a file on posix", () => {
+    if (process.platform === "win32") return;
+    const root = freshDir("cw-dir-fsync-file-");
+    const file = join(root, "not-dir.txt");
+    writeFileSync(file, "x\n");
+    try {
+      fsyncContainedDirectory(file);
+      expect.fail("expected ContainedWriteError");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ContainedWriteError);
+      expect((err as ContainedWriteError).code).toBe(ContainedWriteErrorCode.IO);
+    }
+  });
+
+  it("refuses a missing path on posix", () => {
+    if (process.platform === "win32") return;
+    const root = freshDir("cw-dir-fsync-missing-");
+    try {
+      fsyncContainedDirectory(join(root, "nope"));
+      expect.fail("expected ContainedWriteError");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ContainedWriteError);
+      expect((err as ContainedWriteError).code).toBe(ContainedWriteErrorCode.IO);
+    }
+  });
+});
+
+describe("containedRename durability", () => {
+  it("moves the file then fsyncs the destination directory", () => {
+    const root = freshDir("cw-rename-durable-");
+    writeFileSync(join(root, "src.txt"), "BODY\n");
+    const result = containedRename({ root, from: "src.txt", to: "dst.txt" });
+    expect(existsSync(join(root, "src.txt"))).toBe(false);
+    expect(readFileSync(join(root, "dst.txt"), "utf8")).toBe("BODY\n");
+    expect(result.to).toBe(join(root, "dst.txt"));
+    expect(() => fsyncContainedDirectory(root)).not.toThrow();
+  });
+
+  it("throws IO when the source file is missing", () => {
+    const root = freshDir("cw-rename-missing-");
+    try {
+      containedRename({ root, from: "nope.txt", to: "dst.txt" });
+      expect.fail("expected ContainedWriteError");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ContainedWriteError);
+      expect((err as ContainedWriteError).code).toBe(ContainedWriteErrorCode.IO);
+    }
   });
 });
 

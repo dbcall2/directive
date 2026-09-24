@@ -12,6 +12,7 @@ import {
   containedRemove,
   containedRename,
   containedWrite,
+  fsyncContainedDirectory,
 } from "../../fs/contained-write.js";
 import type {
   CursorPlanChoiceDeps,
@@ -376,6 +377,7 @@ function atomicWriteFile(
       /* win32 may ignore mode */
     }
     containedRename({ root, from: tmp, to: path, mutation: false });
+    fsyncContainedDirectory(dir);
     return { ok: true, value: undefined };
   } catch (err) {
     removeContained(root, tmp);
