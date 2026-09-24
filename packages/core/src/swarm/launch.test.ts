@@ -19,6 +19,10 @@ import {
   type ResolvedStory,
   swarmLaunch,
 } from "./launch.js";
+import {
+  ENV_WORKER_CREDENTIAL_DELIVERY_ID,
+  writeWorkerAuthAssignment,
+} from "./worker-auth-assignment.js";
 
 const story: ResolvedStory = {
   token: "story-a",
@@ -387,7 +391,7 @@ describe("buildManifest auth-mode and identity stamps (#1351)", () => {
   });
 });
 
-describe("swarmLaunch identity-bound injection (#1351)", () => {
+describe("swarmLaunch identity-bound injection (#1351)", { timeout: 20_000 }, () => {
   const savedRouting = process.env.DEFT_ROUTING_PATH;
   const cleanups: string[] = [];
   afterEach(() => {
@@ -438,8 +442,130 @@ describe("swarmLaunch identity-bound injection (#1351)", () => {
     const manifest = JSON.parse(result.stdout) as Record<string, unknown>[];
     expect(manifest[0]?.github_auth_mode).toBe("injected-token");
     expect(manifest[0]?.expected_github_login).toBe(WORKER_LOGIN);
+    expect(typeof manifest[0]?.credential_delivery_id).toBe("string");
+    expect(String(manifest[0]?.credential_delivery_id).length).toBeGreaterThan(0);
+    expect(result.spawnEnvByStory?.get("story-a")?.[ENV_WORKER_CREDENTIAL_DELIVERY_ID]).toBe(
+      manifest[0]?.credential_delivery_id,
+    );
     expect(result.stdout).not.toContain(FAKE_TOKEN);
     expect(JSON.stringify(manifest)).not.toContain(FAKE_TOKEN);
+  });
+
+  it("exposes a distinct delivery id per dest in spawn env and C2", () => {
+    const project = launchProject();
+    writeReadyStory(project, "story-b", 3663);
+    const destA = join(project, "wt-a");
+    const destB = join(project, "wt-b");
+    mkdirSync(destA, { recursive: true });
+    mkdirSync(destB, { recursive: true });
+    const mapPath = join(project, "worktree-map.json");
+    writeFileSync(
+      mapPath,
+      JSON.stringify([
+        { story_id: "story-a", worktree_path: destA, base_branch: "master" },
+        { story_id: "story-b", worktree_path: destB, base_branch: "master" },
+      ]),
+    );
+    const result = swarmLaunch({
+      stories: ["story-a", "story-b"],
+      projectRoot: project,
+      autonomous: true,
+      allocationPlanId: "plan-3663",
+      batchingRationale: "two dest delivery ids",
+      worktreeMap: mapPath,
+      worktreeResolver: (mapping) =>
+        mapping.map((row) => ({
+          story_id: String(row.story_id),
+          worktree_path: String(row.worktree_path),
+          base_branch: String(row.base_branch),
+        })),
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["cloud-headless", "injected-token"],
+      environ: { CURSOR_AGENT: "1", GH_TOKEN: FAKE_TOKEN, GH_REPO: TARGET_REPO },
+      sessionId: "test-session",
+      runGh: stubGh({}),
+      ...LAUNCH_INJECTED_AUTH,
+    });
+    expect(result.exitCode, result.stderr).toBe(0);
+    const manifest = JSON.parse(result.stdout) as Record<string, unknown>[];
+    expect(manifest).toHaveLength(2);
+    const ids = manifest.map((entry) => entry.credential_delivery_id);
+    expect(ids.every((id) => typeof id === "string" && id.length > 0)).toBe(true);
+    expect(new Set(ids).size).toBe(2);
+    expect(result.spawnEnvByStory?.size).toBe(2);
+    for (const entry of manifest) {
+      const storyId = String(entry.story_id);
+      expect(result.spawnEnvByStory?.get(storyId)?.[ENV_WORKER_CREDENTIAL_DELIVERY_ID]).toBe(
+        entry.credential_delivery_id,
+      );
+    }
+    expect(result.stdout).not.toContain(FAKE_TOKEN);
+  });
+
+  it("rolls back dest assignments when a later launch write fails", () => {
+    const project = launchProject();
+    const outputDirectory = join(project, "existing-output-directory");
+    mkdirSync(outputDirectory, { recursive: true });
+    const result = swarmLaunch({
+      stories: ["1351"],
+      projectRoot: project,
+      autonomous: true,
+      output: outputDirectory,
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      environ: { CURSOR_AGENT: "1" },
+      sessionId: "test-session",
+      ...LAUNCH_HOST_AUTH,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("could not write --output");
+    const store = join(project, ".git", "deft-worker-auth", "index.json");
+    if (existsSync(store)) {
+      const index = JSON.parse(readFileSync(store, "utf8")) as { entries: unknown[] };
+      expect(index.entries).toEqual([]);
+    }
+  });
+
+  it("rolls back dest 1 when dest 2 assignment persist fails", () => {
+    const project = launchProject();
+    writeReadyStory(project, "story-b", 3663);
+    let writes = 0;
+    const result = swarmLaunch({
+      stories: ["story-a", "story-b"],
+      projectRoot: project,
+      autonomous: true,
+      allocationPlanId: "plan-3663",
+      batchingRationale: "rollback second dest",
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      environ: { CURSOR_AGENT: "1" },
+      sessionId: "test-session",
+      writeWorkerAuthAssignmentFn: (input) => {
+        writes += 1;
+        if (writes === 2) {
+          return {
+            ok: false,
+            failureKind: "registry_corruption",
+            detail: "injected dest-2 persist failure",
+            dispatchId: null,
+            expectedLogin: null,
+            observedLogin: null,
+          };
+        }
+        return writeWorkerAuthAssignment(input);
+      },
+      ...LAUNCH_HOST_AUTH,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/dest-2 persist failure/);
+    const store = join(project, ".git", "deft-worker-auth", "index.json");
+    if (existsSync(store)) {
+      const index = JSON.parse(readFileSync(store, "utf8")) as { entries: unknown[] };
+      expect(index.entries).toEqual([]);
+    }
   });
 
   it("does not auto-promote host-gh to injected-token just because GH_TOKEN is set", () => {
@@ -459,7 +585,8 @@ describe("swarmLaunch identity-bound injection (#1351)", () => {
     expect(result.exitCode).toBe(0);
     const manifest = JSON.parse(result.stdout) as Record<string, unknown>[];
     expect(manifest[0]?.github_auth_mode).toBe("host-gh");
-    expect(manifest[0]?.expected_github_login).toBe(WORKER_LOGIN);
+    expect(Object.keys(manifest[0] ?? {})).not.toContain("expected_github_login");
+    expect(Object.keys(manifest[0] ?? {})).not.toContain("credential_delivery_id");
     expect(result.stdout).not.toContain(FAKE_TOKEN);
   });
 

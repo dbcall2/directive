@@ -123,6 +123,14 @@ function runWorkerCli(options: {
       ...options.env,
     },
   });
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status === null) {
+    throw new Error(
+      `worker CLI spawn failed: ${result.signal ?? "no status"} ${result.stderr ?? ""}`,
+    );
+  }
   return { status: result.status, stderr: result.stderr ?? "", stdout: result.stdout ?? "" };
 }
 
@@ -294,6 +302,41 @@ describe("registered worker CLI entry points (#3663)", { timeout: 30_000 }, () =
     });
     expect(result.status).toBe(2);
     expect(result.stderr).toMatch(/runtime_mode_denied|host-gh is not admitted/);
+    expect(readFileSync(ops, "utf8").trim()).toBe("");
+  });
+
+  it("covered SCM from a dest subdirectory still finds the assignment", () => {
+    const { main, worktree } = linkedPair();
+    writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-1",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-a" },
+      credentialDeliveryId: null,
+    });
+    const nested = join(worktree, "packages", "core");
+    mkdirSync(nested, { recursive: true });
+    const fakeGh = mkdtempSync(join(tmpdir(), "fake-gh-"));
+    temps.push(fakeGh);
+    writeFakeGh(fakeGh);
+    const log = join(fakeGh, "calls.log");
+    const ops = join(fakeGh, "ops.log");
+    writeFileSync(log, "");
+    writeFileSync(ops, "");
+    const runner = writeRunner(fakeGh, SCM_MAIN, "main");
+    const result = runWorkerCli({
+      worktree: nested,
+      fakeGh,
+      log,
+      ops,
+      runner,
+      args: ["issue", "list", "--repo", "acme/widgets"],
+      env: { GH_TOKEN: "gho_not_a_real_token", DEFT_FAKE_GH_AUTH_EXIT: "0" },
+    });
+    expect(result.status).toBe(2);
+    expect(result.stderr).toMatch(/ambient_token_conflict|GH_TOKEN/);
     expect(readFileSync(ops, "utf8").trim()).toBe("");
   });
 });

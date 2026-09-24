@@ -22,6 +22,7 @@ import {
   retractLaunchOccupancyRecord,
   swarmLaunch,
 } from "./launch.js";
+import { readWorkerAuthAssignment, writeWorkerAuthAssignment } from "./worker-auth-assignment.js";
 
 const TEST_WORKER_AUTH = {
   workerGithubAuthMode: "host-gh" as const,
@@ -373,6 +374,45 @@ describe("complete cohort live sweep with mocked transition", () => {
     expect(result.exitCode).toBe(1);
     expect(result.sweep?.errors.join("\n")).toContain("different cohort");
     expect(readOccupancy(project)?.sessionId).toBe(laterOwner);
+    rmSync(project, { recursive: true, force: true });
+  });
+
+  it("cleans owner-bound worker auth assignments on terminal close-out", {
+    timeout: 20_000,
+  }, () => {
+    const project = mkdtempSync(join(tmpdir(), "sw-auth-clean-"));
+    gitInitIfNeeded(project);
+    execFileSync("git", ["config", "user.email", "t@t.local"], { cwd: project });
+    execFileSync("git", ["config", "user.name", "T"], { cwd: project });
+    execFileSync("git", ["commit", "--allow-empty", "-q", "-m", "init"], { cwd: project });
+    const storyId = "cohort-auth";
+    const storyPath = writeActiveStory(project, storyId);
+    const launchOwner = "host:codex:v1:YXV0aC1jbGVhbg";
+    persistLaunchOccupancyRecord(project, {
+      allocation_plan_id: null,
+      occupancy_session_id: launchOwner,
+      story_ids: [storyId],
+      cohort_key: occupancyCohortKey(null, [storyId]),
+    });
+    applyWorktreeOccupancy(project, { sessionId: launchOwner, intent: "swarm" });
+    const written = writeWorkerAuthAssignment({
+      projectRoot: project,
+      worktreePath: project,
+      dispatchId: launchOwner,
+      storyId,
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "test-worker" },
+      credentialDeliveryId: null,
+    });
+    expect(written.ok).toBe(true);
+    const result = completeCohort({
+      projectRoot: project,
+      stories: [storyPath],
+      env: { DEFT_SESSION_ID: launchOwner },
+    });
+    expect(result.exitCode).toBe(0);
+    const read = readWorkerAuthAssignment(project);
+    expect(read).toEqual({ ok: true, assignment: null, commonDir: expect.any(String) });
     rmSync(project, { recursive: true, force: true });
   });
 });

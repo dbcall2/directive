@@ -717,6 +717,7 @@ function enforceRegisteredWorker(
       );
     }
   } else {
+    // Non-secret PREP correlation id (UUID). Not a GitHub credential.
     const expectedDelivery = assignment.credential_delivery_id;
     const observedDelivery = observedCredentialDeliveryId(env);
     if (expectedDelivery === null || expectedDelivery.length === 0) {

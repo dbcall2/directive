@@ -7,7 +7,7 @@
  */
 
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { ContainedWriteError, containedRemove, containedWrite } from "../fs/contained-write.js";
 import {
@@ -16,13 +16,20 @@ import {
   GITHUB_AUTH_MODE_INJECTED_TOKEN,
   PRINCIPAL_KIND_USER,
 } from "../intake/github-auth-modes.js";
-import { defaultGitRunner, type GitRunner, gitCommonDir } from "../session/git.js";
+import {
+  defaultGitRunner,
+  type GitRunner,
+  gitCommonDir,
+  worktreePathOrNull,
+} from "../session/git.js";
 
 export const WORKER_AUTH_ASSIGNMENT_SCHEMA_VERSION = Number.parseInt("1", 10);
 export const WORKER_AUTH_STORE_DIR = "deft-worker-auth";
 export const WORKER_AUTH_INDEX_NAME = "index.json";
 export const WORKER_AUTH_LOCK_NAME = "index.lock";
 export const ENV_WORKER_CREDENTIAL_DELIVERY_ID = "DEFT_WORKER_CREDENTIAL_DELIVERY_ID";
+/** Crash/OOM can leave index.lock; writers may steal a lock older than this. */
+export const WORKER_AUTH_LOCK_STALE_MS = 5 * 60 * 1000;
 
 export const FAILURE_MISSING_ASSIGNMENT = "missing_assignment";
 export const FAILURE_MALFORMED_ASSIGNMENT = "malformed_assignment";
@@ -131,6 +138,18 @@ export function resolveWorkerAuthCommonDir(
   runGit: GitRunner = defaultGitRunner,
 ): string | null {
   return gitCommonDir(startDir, runGit);
+}
+
+/**
+ * Assignment keys hash the Git worktree root, not the invoking cwd.
+ * PREP writes under the dest root; workers may run from a subdirectory.
+ */
+export function resolveWorkerAuthDestPath(
+  startDir: string,
+  runGit: GitRunner = defaultGitRunner,
+): string {
+  const root = worktreePathOrNull(startDir, runGit);
+  return canonicalWorktreePath(root ?? startDir);
 }
 
 function indexPathRel(): string {
@@ -265,23 +284,60 @@ function samePath(left: string, right: string): boolean {
   return left === right;
 }
 
-function withLock(
-  commonDir: string,
-  body: () => WriteWorkerAuthAssignmentResult,
-): WriteWorkerAuthAssignmentResult {
+function lockIsStale(commonDir: string): boolean {
+  const abs = join(commonDir, lockPathRel());
   try {
+    const info = lstatSync(abs);
+    return Date.now() - info.mtimeMs >= WORKER_AUTH_LOCK_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+
+function acquireLock(commonDir: string): WorkerAuthAssignmentError | null {
+  const writeLock = (): void => {
     containedWrite({
       root: commonDir,
       target: lockPathRel(),
       data: "locked\n",
       mode: "create",
     });
+  };
+  try {
+    writeLock();
+    return null;
   } catch (err: unknown) {
     if (err instanceof ContainedWriteError && err.code === "CONTAINED_WRITE_EXISTS") {
+      if (lockIsStale(commonDir)) {
+        containedRemove({ root: commonDir, target: lockPathRel() });
+        try {
+          writeLock();
+          return null;
+        } catch (retryErr: unknown) {
+          if (
+            retryErr instanceof ContainedWriteError &&
+            retryErr.code === "CONTAINED_WRITE_EXISTS"
+          ) {
+            return fail(FAILURE_REGISTRY_CORRUPTION, "worker auth registry is locked");
+          }
+          const message = retryErr instanceof Error ? retryErr.message : String(retryErr);
+          return fail(FAILURE_REGISTRY_CORRUPTION, `worker auth registry lock failed: ${message}`);
+        }
+      }
       return fail(FAILURE_REGISTRY_CORRUPTION, "worker auth registry is locked");
     }
     const message = err instanceof Error ? err.message : String(err);
     return fail(FAILURE_REGISTRY_CORRUPTION, `worker auth registry lock failed: ${message}`);
+  }
+}
+
+function withLock<T extends { readonly ok: boolean }>(
+  commonDir: string,
+  body: () => T | WorkerAuthAssignmentError,
+): T | WorkerAuthAssignmentError {
+  const lockErr = acquireLock(commonDir);
+  if (lockErr !== null) {
+    return lockErr;
   }
   try {
     return body();
@@ -334,12 +390,17 @@ function persistIndexAndRecord(
       data: `${JSON.stringify(assignment, null, 2)}\n`,
       mode: "replace",
     });
-    containedWrite({
-      root: commonDir,
-      target: indexPathRel(),
-      data: `${JSON.stringify(index, null, 2)}\n`,
-      mode: "replace",
-    });
+    try {
+      containedWrite({
+        root: commonDir,
+        target: indexPathRel(),
+        data: `${JSON.stringify(index, null, 2)}\n`,
+        mode: "replace",
+      });
+    } catch (indexErr: unknown) {
+      containedRemove({ root: commonDir, target: recordPathRel(recordName) });
+      throw indexErr;
+    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return fail(FAILURE_REGISTRY_CORRUPTION, `worker auth registry write failed: ${message}`, {
@@ -347,6 +408,27 @@ function persistIndexAndRecord(
     });
   }
   return null;
+}
+
+function stripIndexEntry(commonDir: string, worktreePath: string, recordName: string): void {
+  containedRemove({ root: commonDir, target: recordPathRel(recordName) });
+  const indexState = loadIndex(commonDir);
+  if (indexState === "missing" || indexState === "corrupt") {
+    return;
+  }
+  const nextEntries = indexState.entries.filter(
+    (entry) => !(samePath(entry.worktree_path, worktreePath) || entry.record_name === recordName),
+  );
+  containedWrite({
+    root: commonDir,
+    target: indexPathRel(),
+    data: `${JSON.stringify(
+      { schema_version: WORKER_AUTH_ASSIGNMENT_SCHEMA_VERSION, entries: nextEntries },
+      null,
+      2,
+    )}\n`,
+    mode: "replace",
+  });
 }
 
 function recordsAgree(
@@ -432,6 +514,7 @@ export function writeWorkerAuthAssignment(
       return persistErr;
     }
     if (!recordsAgree(commonDir, assignment, recordName)) {
+      stripIndexEntry(commonDir, assignment.worktree_path, recordName);
       return fail(
         FAILURE_REGISTRY_CORRUPTION,
         "worker auth record and index do not agree after write",
@@ -452,7 +535,7 @@ export function readWorkerAuthAssignment(
   if (commonDir === null) {
     return { ok: true, assignment: null, commonDir: null };
   }
-  const canonical = canonicalWorktreePath(cwd);
+  const canonical = resolveWorkerAuthDestPath(cwd, runGit);
   const recordName = workerAuthRecordName(canonical);
   const recordAbs = join(commonDir, recordPathRel(recordName));
   const indexState = loadIndex(commonDir);
@@ -515,6 +598,143 @@ export function readWorkerAuthAssignment(
     );
   }
   return { ok: true, assignment: parsed, commonDir };
+}
+
+export type RemoveWorkerAuthAssignmentResult =
+  | { readonly ok: true; readonly removed: boolean; readonly commonDir: string }
+  | WorkerAuthAssignmentError;
+
+export type CleanupWorkerAuthAssignmentsResult =
+  | { readonly ok: true; readonly removed: number; readonly commonDir: string }
+  | WorkerAuthAssignmentError;
+
+export interface RemoveWorkerAuthAssignmentInput {
+  readonly projectRoot: string;
+  readonly worktreePath: string;
+  readonly dispatchId: string;
+  readonly runGit?: GitRunner;
+}
+
+export interface CleanupWorkerAuthAssignmentsInput {
+  readonly projectRoot: string;
+  readonly dispatchId: string;
+  readonly runGit?: GitRunner;
+}
+
+function resolveCommonDirForProject(
+  projectRoot: string,
+  worktreePath: string | null,
+  runGit: GitRunner,
+): string | null {
+  const start = worktreePath !== null && existsSync(worktreePath) ? worktreePath : projectRoot;
+  return resolveWorkerAuthCommonDir(start, runGit);
+}
+
+/**
+ * Owner-bound dest cleanup. Removes the dest record only when dispatch_id matches.
+ */
+export function removeWorkerAuthAssignment(
+  input: RemoveWorkerAuthAssignmentInput,
+): RemoveWorkerAuthAssignmentResult {
+  const dispatchId = input.dispatchId.trim();
+  if (dispatchId.length === 0) {
+    return fail(FAILURE_MALFORMED_ASSIGNMENT, "worker auth cleanup requires dispatch_id");
+  }
+  const runGit = input.runGit ?? defaultGitRunner;
+  const commonDir = resolveCommonDirForProject(input.projectRoot, input.worktreePath, runGit);
+  if (commonDir === null) {
+    return { ok: true, removed: false, commonDir: input.projectRoot };
+  }
+  if (!existsSync(join(commonDir, WORKER_AUTH_STORE_DIR))) {
+    return { ok: true, removed: false, commonDir };
+  }
+  const canonical = canonicalWorktreePath(input.worktreePath);
+  const recordName = workerAuthRecordName(canonical);
+  return withLock(commonDir, () => {
+    const recordAbs = join(commonDir, recordPathRel(recordName));
+    const raw = existsSync(recordAbs) ? readJsonFile(recordAbs) : undefined;
+    const parsed = raw === undefined ? null : parseAssignment(raw);
+    if (parsed !== null && parsed.dispatch_id !== dispatchId) {
+      return { ok: true, removed: false, commonDir };
+    }
+    const indexState = loadIndex(commonDir);
+    const indexed =
+      indexState !== "missing" && indexState !== "corrupt"
+        ? indexState.entries.some(
+            (entry) => samePath(entry.worktree_path, canonical) || entry.record_name === recordName,
+          )
+        : false;
+    if (parsed === null && !indexed && !existsSync(recordAbs)) {
+      return { ok: true, removed: false, commonDir };
+    }
+    stripIndexEntry(commonDir, canonical, recordName);
+    return { ok: true, removed: true, commonDir };
+  });
+}
+
+/**
+ * Owner-bound terminal cleanup for every dest registered under dispatch_id.
+ */
+export function cleanupWorkerAuthAssignmentsForDispatch(
+  input: CleanupWorkerAuthAssignmentsInput,
+): CleanupWorkerAuthAssignmentsResult {
+  const dispatchId = input.dispatchId.trim();
+  if (dispatchId.length === 0) {
+    return fail(FAILURE_MALFORMED_ASSIGNMENT, "worker auth cleanup requires dispatch_id");
+  }
+  const runGit = input.runGit ?? defaultGitRunner;
+  const commonDir = resolveCommonDirForProject(input.projectRoot, null, runGit);
+  if (commonDir === null) {
+    return { ok: true, removed: 0, commonDir: input.projectRoot };
+  }
+  if (!existsSync(join(commonDir, WORKER_AUTH_STORE_DIR))) {
+    return { ok: true, removed: 0, commonDir };
+  }
+  return withLock(commonDir, () => {
+    const indexState = loadIndex(commonDir);
+    if (indexState === "corrupt") {
+      return fail(FAILURE_REGISTRY_CORRUPTION, "worker auth index is unreadable or malformed");
+    }
+    const entries = indexState === "missing" ? [] : [...indexState.entries];
+    const keep: WorkerAuthIndexEntry[] = [];
+    let removed = 0;
+    const seenRecords = new Set<string>();
+    for (const entry of entries) {
+      const raw = readJsonFile(join(commonDir, recordPathRel(entry.record_name)));
+      const parsed = parseAssignment(raw);
+      seenRecords.add(entry.record_name);
+      if (parsed !== null && parsed.dispatch_id === dispatchId) {
+        containedRemove({ root: commonDir, target: recordPathRel(entry.record_name) });
+        removed += 1;
+      } else {
+        keep.push(entry);
+      }
+    }
+    const storeDir = join(commonDir, WORKER_AUTH_STORE_DIR);
+    if (existsSync(storeDir)) {
+      for (const name of readdirSync(storeDir)) {
+        if (!/^[0-9a-f]{64}\.json$/i.test(name) || seenRecords.has(name)) {
+          continue;
+        }
+        const parsed = parseAssignment(readJsonFile(join(storeDir, name)));
+        if (parsed !== null && parsed.dispatch_id === dispatchId) {
+          containedRemove({ root: commonDir, target: recordPathRel(name) });
+          removed += 1;
+        }
+      }
+    }
+    containedWrite({
+      root: commonDir,
+      target: indexPathRel(),
+      data: `${JSON.stringify(
+        { schema_version: WORKER_AUTH_ASSIGNMENT_SCHEMA_VERSION, entries: keep },
+        null,
+        2,
+      )}\n`,
+      mode: "replace",
+    });
+    return { ok: true, removed, commonDir };
+  });
 }
 
 export function observedCredentialDeliveryId(environ: NodeJS.ProcessEnv): string | null {

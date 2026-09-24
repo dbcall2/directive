@@ -171,6 +171,13 @@ const STALE_RITUAL_RECOVERY_MARKERS = [
   "linked-worktree same-actor",
 ] as const;
 
+/** Consumer registered-worker GitHub auth (#3663 / #1309). */
+const REGISTERED_WORKER_AUTH_MARKERS = [
+  "Registered-worker auth (#3663)",
+  "independently stored assignment",
+  "DEFT_GITHUB_AUTH_MODE=host-gh",
+] as const;
+
 /** Always-on through-merge dispatch doctrine (#3032) — parent must not implement. */
 /** Pointer bodies for Rule Authority / #3265 — headings alone are not enough (#3313). */
 const RULE_AUTHORITY_THIN_FAIL_CLOSED_POINTER_MARKERS = [
@@ -939,6 +946,11 @@ describe("test_agents_entry_contract", () => {
   it("stale_ritual_recovery_markers_present_in_both_files (#4290 / #1309)", () => {
     expect(missingMarkers(template, STALE_RITUAL_RECOVERY_MARKERS)).toEqual([]);
     expect(missingMarkers(agents, STALE_RITUAL_RECOVERY_MARKERS)).toEqual([]);
+  });
+
+  it("registered_worker_auth_markers_present_in_both_files (#3663 / #1309)", () => {
+    expect(missingMarkers(template, REGISTERED_WORKER_AUTH_MARKERS)).toEqual([]);
+    expect(missingMarkers(agents, REGISTERED_WORKER_AUTH_MARKERS)).toEqual([]);
   });
 
   it("portable_shell_orientation_markers_present_in_both_files", () => {
