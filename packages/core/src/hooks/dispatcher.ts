@@ -288,7 +288,7 @@ export type HookDecisionCode =
   | "intent-ceiling-deny"
   /** Tree-wide destructive git aimed at this checkout (#3917). */
   | "git-destructive-deny"
-  /** Tree-wide destructive git aimed at an absolute out-of-root fixture (#3917). */
+  /** Tree-wide destructive git aimed at an absolute out-of-root fixture. Tracking #3917. */
   | "git-destructive-fixture"
   | "plan-choice-allow-non-plan"
   | "plan-choice-question"
