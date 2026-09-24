@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   utimesSync,
@@ -20,6 +21,7 @@ import {
   readWorkerAuthAssignment,
   removeWorkerAuthAssignment,
   setWorkerAuthLockTestHooks,
+  WORKER_AUTH_INDEX_NAME,
   WORKER_AUTH_LOCK_NAME,
   WORKER_AUTH_LOCK_STALE_MS,
   workerAuthRecordName,
@@ -303,6 +305,36 @@ describe("worker-auth-assignment (#3663)", { timeout: 20_000 }, () => {
     expect(read.ok).toBe(true);
     if (!read.ok) return;
     expect(read.assignment?.dispatch_id).toBe("dispatch-1");
+  });
+
+  it("returns { ok: false } when index persist fails after the dest record write", () => {
+    const { main, worktree } = linkedPair();
+    setWorkerAuthLockTestHooks({
+      beforeIndexWrite: (commonDir) => {
+        mkdirSync(join(workerAuthStoreDir(commonDir), WORKER_AUTH_INDEX_NAME), {
+          recursive: true,
+        });
+      },
+    });
+    const written = writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-1",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-a" },
+      credentialDeliveryId: null,
+    });
+    expect(written.ok).toBe(false);
+    if (!written.ok) {
+      expect(written.failureKind).toBe(FAILURE_REGISTRY_CORRUPTION);
+      expect(written.detail).toMatch(/write failed/);
+    }
+    const store = join(main, ".git", "deft-worker-auth");
+    const leftover = existsSync(store)
+      ? readdirSync(store).filter((name) => name.endsWith(".json") && name !== "index.json")
+      : [];
+    expect(leftover).toEqual([]);
   });
 
   it("overlapping writers after stale reclaim do not clobber each other", () => {

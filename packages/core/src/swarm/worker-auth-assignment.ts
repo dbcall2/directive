@@ -300,24 +300,17 @@ interface WorkerAuthLockRecord {
   readonly startedAt: string;
 }
 
-let workerAuthLockTestHooks:
-  | {
-      beforeReclaimRename?: (commonDir: string) => void;
-      afterStaleReclaim?: (commonDir: string) => void;
-      afterAcquire?: (commonDir: string) => void;
-    }
-  | undefined;
+type WorkerAuthLockTestHooks = {
+  beforeReclaimRename?: (commonDir: string) => void;
+  afterStaleReclaim?: (commonDir: string) => void;
+  afterAcquire?: (commonDir: string) => void;
+  beforeIndexWrite?: (commonDir: string) => void;
+};
+
+let workerAuthLockTestHooks: WorkerAuthLockTestHooks | undefined;
 
 /** Test-only: reset in afterEach. Production stays unset. */
-export function setWorkerAuthLockTestHooks(
-  hooks:
-    | {
-        beforeReclaimRename?: (commonDir: string) => void;
-        afterStaleReclaim?: (commonDir: string) => void;
-        afterAcquire?: (commonDir: string) => void;
-      }
-    | undefined,
-): void {
+export function setWorkerAuthLockTestHooks(hooks: WorkerAuthLockTestHooks | undefined): void {
   workerAuthLockTestHooks = hooks;
 }
 
@@ -501,6 +494,12 @@ function persistIndexAndRecord(
     schema_version: WORKER_AUTH_ASSIGNMENT_SCHEMA_VERSION,
     entries: nextEntries,
   };
+  const writeFailed = (err: unknown): WorkerAuthAssignmentError => {
+    const message = err instanceof Error ? err.message : String(err);
+    return fail(FAILURE_REGISTRY_CORRUPTION, `worker auth registry write failed: ${message}`, {
+      dispatchId: assignment.dispatch_id,
+    });
+  };
   try {
     containedWrite({
       root: commonDir,
@@ -508,22 +507,20 @@ function persistIndexAndRecord(
       data: `${JSON.stringify(assignment, null, 2)}\n`,
       mode: "replace",
     });
-    try {
-      containedWrite({
-        root: commonDir,
-        target: indexPathRel(),
-        data: `${JSON.stringify(index, null, 2)}\n`,
-        mode: "replace",
-      });
-    } catch (indexErr: unknown) {
-      containedRemove({ root: commonDir, target: recordPathRel(recordName) });
-      throw indexErr;
-    }
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    return fail(FAILURE_REGISTRY_CORRUPTION, `worker auth registry write failed: ${message}`, {
-      dispatchId: assignment.dispatch_id,
+    return writeFailed(err);
+  }
+  workerAuthLockTestHooks?.beforeIndexWrite?.(commonDir);
+  try {
+    containedWrite({
+      root: commonDir,
+      target: indexPathRel(),
+      data: `${JSON.stringify(index, null, 2)}\n`,
+      mode: "replace",
     });
+  } catch (indexErr: unknown) {
+    containedRemove({ root: commonDir, target: recordPathRel(recordName) });
+    return writeFailed(indexErr);
   }
   return null;
 }
