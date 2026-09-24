@@ -101,6 +101,14 @@ describe("hook-dispatch CLI", () => {
       host: "cursor",
       event: "session.compact",
     });
+    expect(parseArgs(["--host", "cursor", "--event", "prompt.submit"])).toEqual({
+      host: "cursor",
+      event: "prompt.submit",
+    });
+    expect(parseArgs(["--host", "cursor", "--event", "agent.response"])).toEqual({
+      host: "cursor",
+      event: "agent.response",
+    });
   });
 
   it("rejects unsupported providers and events as configuration errors", () => {

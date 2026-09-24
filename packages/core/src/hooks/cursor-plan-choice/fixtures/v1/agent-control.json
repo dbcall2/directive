@@ -1,0 +1,16 @@
+{
+  "event": "beforeSubmitPrompt",
+  "composer_mode": "agent",
+  "conversation_id": "conversation-1",
+  "generation_id": "generation-agent",
+  "session_id": "conversation-1",
+  "cursor_version": "3.21.16",
+  "transcript_path": null,
+  "prompt": "implement the slice",
+  "attachments": [
+    {
+      "type": "rule",
+      "file_path": "/Users/tester/.cursor/rules/global.mdc"
+    }
+  ]
+}

@@ -22,6 +22,7 @@ import {
   containedRemove,
   containedRename,
   containedWrite,
+  fsyncContainedDirectory,
   resolveContainedTarget,
 } from "./contained-write.js";
 import {
@@ -548,6 +549,51 @@ describe("containedRemove (#3392)", () => {
       expect((err as ContainedWriteError).code).toBe(ContainedWriteErrorCode.SYMLINK);
     }
     expect(readFileSync(victim, "utf8")).toBe("KEEP\n");
+  });
+});
+
+describe("fsyncContainedDirectory", () => {
+  it("fsyncs a real directory", () => {
+    const root = freshDir("cw-dir-fsync-");
+    const ok = fsyncContainedDirectory(root);
+    expect(typeof ok).toBe("boolean");
+    if (process.platform !== "win32") expect(ok).toBe(true);
+  });
+
+  it("returns false for a file without throwing", () => {
+    const root = freshDir("cw-dir-fsync-file-");
+    const file = join(root, "not-dir.txt");
+    writeFileSync(file, "x\n");
+    expect(fsyncContainedDirectory(file)).toBe(false);
+  });
+
+  it("returns false for a missing path without throwing", () => {
+    const root = freshDir("cw-dir-fsync-missing-");
+    expect(fsyncContainedDirectory(join(root, "nope"))).toBe(false);
+  });
+});
+
+describe("containedRename durability", () => {
+  it("moves the file then fsyncs the destination directory", () => {
+    const root = freshDir("cw-rename-durable-");
+    writeFileSync(join(root, "src.txt"), "BODY\n");
+    const result = containedRename({ root, from: "src.txt", to: "dst.txt" });
+    expect(existsSync(join(root, "src.txt"))).toBe(false);
+    expect(readFileSync(join(root, "dst.txt"), "utf8")).toBe("BODY\n");
+    expect(result.to).toBe(join(root, "dst.txt"));
+    const durable = fsyncContainedDirectory(root);
+    if (process.platform !== "win32") expect(durable).toBe(true);
+  });
+
+  it("throws IO when the source file is missing", () => {
+    const root = freshDir("cw-rename-missing-");
+    try {
+      containedRename({ root, from: "nope.txt", to: "dst.txt" });
+      expect.fail("expected ContainedWriteError");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ContainedWriteError);
+      expect((err as ContainedWriteError).code).toBe(ContainedWriteErrorCode.IO);
+    }
   });
 });
 

@@ -1,0 +1,10 @@
+{
+  "event": "afterAgentResponse",
+  "conversation_id": "conversation-1",
+  "generation_id": "generation-1",
+  "session_id": "conversation-1",
+  "cursor_version": "3.21.16",
+  "transcript_path": null,
+  "workspace_roots": ["/Users/tester/project"],
+  "text": "[redacted]"
+}

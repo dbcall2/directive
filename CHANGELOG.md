@@ -16,8 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Cursor records a planning choice before the first submitted Plan request (#4973).** Local Cursor 3.21.16 `beforeSubmitPrompt` blocks Plan until `DEFT-PLAN-CHOICE` selects Directive (`/deft:directive:run:interview`) or host-only planning. Global-rule attachments do not veto an exact answer. State is host-owned under the platform config dir. `failClosed` is not claimed for this event. Tracking #4973.
 - **`verify:class-checks` fails closed on the #3145 class set (#4980).** Diff-scoped vs merge base: test artifact under a non-test root, production reference to a test root, test identity/role/principal/credential in infra, and protected-glob touch mixed into a story change set. Independent of brief/`file_scope`, of `verify:test-boundary` warn mode, and of author role. Allow lists and enforcementMode come from the merge-base policy copy; same-PR allow or warn flips that would clear a hit fail with the policy edit named. Exempt: configured test roots and `CHANGELOG.md`. Remediation is move or remove — no approve/skip/phrase. Wired into framework and consumer `task check`. Consumer agents-entry pin; `agentsMdBudget.absoluteMaxBytes` 20336→20364. Tracking #4980.
 - **Cursor session.start additional_context names Directive planning via `/deft:directive:run:interview` (#1708).** A native host plan does not approve a Directive scope. The line is Cursor-only on `session-start` and `session-start-degraded`. Soft re-bind checklist, session.compact, and OpenClaw skill text stay unchanged. Tracking #1708.
+
 - **#1019 has a typed policy path for pre-push (#4384).** `plan.policy.allowDestructiveGhVerbs` with `policy:allow-destructive-gh-verbs --confirm` (reverse `policy:enforce-destructive-gh-verbs`). `evaluatePrePush` consults that field through the `--project-root` the hook already passes. How to proceed names that verb; `DEFT_ALLOW_DESTRUCTIVE_GH_VERBS` stays an override, not bootstrap. `--command git push origin master` now refuses as `push_default` so the two surfaces agree. Zero-OID create of master/main is not an empty-remote exemption. Tracking #4384.
 
 ### Changed
@@ -26,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Cursor planning-choice dest-directory fsync is best-effort and does not throw (#4973).** After the contained replace, POSIX still `fsyncSync`s the dest dir on success. Open/stat/fsync failure returns false; the store logs (non-Windows) and keeps the renamed record. Tracking #4973.
+- **Cursor planning-choice locks recover from an empty or unreadable owner (#4973).** Lock and record writes go through `containedWrite`. A stale ownerless lock is reclaimed with exclusive-create plus a reclaim ticket. A live owner is still not reclaimed by age. Tracking #4973.
 - **`verify:class-checks` treats signal-killed git as enumeration failure (#4980).** A non-null `spawnSync` signal returns exit 2 instead of a coerced status path. Tracking #4980.
 - **`verify:class-checks` class-4 companions are exact registration paths only (#4980).** `check/`, `consumer-check-contract/`, and `evaluator-surface/` directory blankets no longer treat substantive runtime edits as non-story; gate-lists, named-cause, dispatch, and the two evaluate registration files stay composition companions. Tracking #4980.
 - **`verify:class-checks` fail-closed paths return results instead of throw sites (#4980).** Git/policy load failures map to exit 2 (or skip when not a git tree) so `verify:intent-constraint` needs no mint. Tracking #4980.
