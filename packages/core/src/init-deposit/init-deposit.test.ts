@@ -14,6 +14,7 @@ import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
 import type { AgentHookReadinessResult } from "../verify-env/agent-hook-readiness.js";
+import { INIT_CONSUMER_INVARIANT_REFUSE_RECOVERY } from "./init-consumer-invariant.js";
 import {
   buildInstallSummaryJson,
   createUserConfigDir,
@@ -707,5 +708,127 @@ describe("runInitDeposit", () => {
     expect(code).toBe(0);
     expect(out.join("")).toContain("Deft installed successfully");
     expect(out.join("")).toContain("deft agent hook readiness: live green");
+  });
+
+  it("re-asserts pin and managed AGENTS.md when a scaffolder overwrites them before return (#4533)", async () => {
+    const project = freshRoot("init-deposit-race-restore-");
+    const contentRoot = installFakeContentPackage(project);
+
+    await runInitDeposit(
+      { projectDir: project, jsonOut: false, nonInteractive: true },
+      { printf: () => {} },
+      {
+        resolveContentRoot: async () => contentRoot,
+        gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+        afterFirstConsumerWrites: (projectDir) => {
+          writeFileSync(
+            join(projectDir, "package.json"),
+            JSON.stringify({ name: "create-next-app", private: true }, null, 2),
+            "utf8",
+          );
+          writeFileSync(join(projectDir, "AGENTS.md"), "# My App\n", "utf8");
+        },
+      },
+    );
+
+    const pkg = parseJsonObject(readFileSync(join(project, "package.json"), "utf8"));
+    expect((pkg.devDependencies as Record<string, string>)[PIN_DEPENDENCY_NAME]).toBe("0.53.0");
+    expect(readFileSync(join(project, "AGENTS.md"), "utf8")).toContain("deft:managed-section");
+  });
+
+  it("stages repaired consumer files after a concurrent overwrite (#4533)", async () => {
+    const project = freshRoot("init-deposit-race-restage-");
+    const env = { ...process.env };
+    for (const key of Object.keys(env)) {
+      const upper = key.toUpperCase();
+      if (upper === "GIT_DIR" || upper === "GIT_WORK_TREE") delete env[key];
+    }
+    const git = (args: readonly string[]): string =>
+      execFileSync("git", [...args], {
+        cwd: project,
+        env,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+      });
+    execFileSync("git", ["init", "-q"], {
+      cwd: project,
+      env,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    const contentRoot = installFakeContentPackage(project);
+
+    await runInitDeposit(
+      { projectDir: project, jsonOut: false, nonInteractive: true },
+      { printf: () => {} },
+      {
+        resolveContentRoot: async () => contentRoot,
+        gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+        afterFirstConsumerWrites: (projectDir) => {
+          writeFileSync(
+            join(projectDir, "package.json"),
+            JSON.stringify({ name: "create-next-app", private: true }, null, 2),
+            "utf8",
+          );
+          writeFileSync(join(projectDir, "AGENTS.md"), "# My App\n", "utf8");
+          writeFileSync(join(projectDir, ".gitignore"), "node_modules\n", "utf8");
+        },
+      },
+    );
+
+    const indexedPkg = parseJsonObject(git(["show", ":package.json"]));
+    expect((indexedPkg.devDependencies as Record<string, string>)[PIN_DEPENDENCY_NAME]).toBe(
+      "0.53.0",
+    );
+    expect(git(["show", ":AGENTS.md"])).toContain("deft:managed-section");
+    expect(git(["show", ":.gitignore"])).toContain(".deft-cache/");
+  });
+
+  it("refuses success when the re-assert still cannot restore pin or AGENTS.md (#4533)", async () => {
+    const project = freshRoot("init-deposit-race-refuse-");
+    const contentRoot = installFakeContentPackage(project);
+    const out: string[] = [];
+    const err: string[] = [];
+
+    const code = await runInitDepositCli({
+      projectDir: project,
+      jsonOut: true,
+      nonInteractive: true,
+      writeOut: (text) => out.push(text),
+      writeErr: (text) => err.push(text),
+      seams: {
+        resolveContentRoot: async () => contentRoot,
+        gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+        afterFirstConsumerWrites: (projectDir) => {
+          writeFileSync(
+            join(projectDir, "package.json"),
+            JSON.stringify({ name: "create-next-app" }, null, 2),
+            "utf8",
+          );
+          writeFileSync(join(projectDir, "AGENTS.md"), "# My App\n", "utf8");
+        },
+        consumerInvariantWriters: {
+          ensurePackageJsonPin: () => ({ changed: false, pinVersion: "0.53.0", created: false }),
+          writeAgentsMd: () => false,
+          ensureInitGitignoreLines: () => ({
+            changed: false,
+            deftCoreIgnored: false,
+            skippedDeftCoreBecauseTracked: false,
+          }),
+        },
+      },
+    });
+
+    expect(code).toBe(1);
+    expect(err.join("")).toContain("@deftai/directive pin");
+    expect(err.join("")).toContain("AGENTS.md managed section");
+    expect(err.join("")).toContain(INIT_CONSUMER_INVARIANT_REFUSE_RECOVERY);
+    expect(err.join("")).toContain("directive init");
+    expect(err.join("")).toContain("directive update");
+    expect(err.join("")).not.toContain("Deft installed successfully");
+    const payload = parseJsonObject(out.join(""));
+    expect(payload.success).toBe(false);
+    expect(payload.error_code).toBe("init_consumer_invariant");
   });
 });

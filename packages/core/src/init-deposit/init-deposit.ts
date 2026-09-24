@@ -32,6 +32,10 @@ import { writeAgentHookDeposit } from "./agent-hooks.js";
 import { ensureInitGitignoreLines, reconstituteDepositFromContent } from "./gitignore.js";
 import { depositStagePaths } from "./hygiene.js";
 import {
+  type InitConsumerInvariantWriters,
+  reassertInitConsumerInvariant,
+} from "./init-consumer-invariant.js";
+import {
   buildLegacyRefusalJson,
   buildLegacyRefusalMessage,
   detectLegacyLayout,
@@ -71,6 +75,8 @@ export interface InitDepositResult {
   readonly configDir: string;
   readonly legacyLayout: boolean;
   readonly stagedPaths: string[];
+  /** Present when the #4533 consumer-file postcondition still fails after one re-assert. */
+  readonly consumerInvariantError?: string;
 }
 
 export interface InitDepositSeams {
@@ -81,6 +87,9 @@ export interface InitDepositSeams {
   gitHooks?: Parameters<typeof writeConsumerGitHooks>[3];
   detectLegacy?: (projectDir: string) => LegacyLayoutDetection;
   evaluateAgentHookReadiness?: (projectRoot: string) => AgentHookReadinessResult;
+  /** Test fixture: overwrite consumer files after the first pin/agents/gitignore write (#4533). */
+  afterFirstConsumerWrites?: (projectDir: string) => void;
+  consumerInvariantWriters?: InitConsumerInvariantWriters;
 }
 
 export function parseInitArgv(
@@ -367,6 +376,7 @@ export async function runInitDeposit(
   writeInstallManifest(projectDir, deftDir, manifestFields);
 
   writeAgentsMd(projectDir, deftDir, io);
+  seams.afterFirstConsumerWrites?.(projectDir);
   const skillsCreated = writeAgentsSkills(projectDir, io);
   writeMultiHostSkillDiscovery(projectDir, io);
   await depositNeutralization(projectDir, io);
@@ -396,6 +406,28 @@ export async function runInitDeposit(
   }
 
   const configDir = createUserConfigDir(io);
+
+  // Re-assert before staging so a concurrent overwrite is not left in the index
+  // while the working tree is repaired (#4533 Greptile P1).
+  const invariant = reassertInitConsumerInvariant({
+    projectDir,
+    deftDir,
+    pinVersion: version,
+    io,
+    writers: seams.consumerInvariantWriters,
+  });
+  if (invariant.refuseMessage !== null) {
+    return {
+      projectDir,
+      deftDir,
+      skillsCreated,
+      taskfileWired,
+      configDir,
+      legacyLayout: false,
+      stagedPaths: [],
+      consumerInvariantError: invariant.refuseMessage,
+    };
+  }
 
   // Upgrade commit recipe stays on update. Fresh-init success does not print it (#4656).
   const { stagedPaths } = depositStagePaths(projectDir, {
@@ -442,6 +474,24 @@ export async function runInitDepositCli(options: RunInitDepositCliOptions): Prom
 
   try {
     const result = await runInitDeposit(options, io, options.seams);
+    if (result.consumerInvariantError) {
+      options.writeErr(`directive init: ${result.consumerInvariantError}\n`);
+      if (options.jsonOut) {
+        options.writeOut(
+          `${JSON.stringify(
+            {
+              success: false,
+              error: result.consumerInvariantError,
+              error_code: "init_consumer_invariant",
+              deposit_completed: true,
+            },
+            null,
+            2,
+          )}\n`,
+        );
+      }
+      return 1;
+    }
     const readiness = evaluateAgentHookReadinessSafely(
       result.projectDir,
       options.seams?.evaluateAgentHookReadiness ?? evaluateAgentHookReadiness,

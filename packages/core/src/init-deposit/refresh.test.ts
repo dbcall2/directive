@@ -2852,7 +2852,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(readFileSync(join(project, "package.json"), "utf8")).toBe(before);
   });
 
-  it("does not write a missing pin (row 3c) and ignores engine-skew env as a write-gate (#4710)", async () => {
+  it("restores a missing pin at the recorded deposit version without lockfile spawn (#4533)", async () => {
     const project = freshRoot("update-pin-null-");
     const contentRoot = installFakeContentPackage(project, "0.54.0");
     const deftDir = join(project, ".deft", "core");
@@ -2891,7 +2891,8 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
         },
       );
       expect(result.alreadyCurrent).toBe(true);
-      expect(existsSync(join(project, "package.json"))).toBe(false);
+      const pkg = parseJsonObject(readFileSync(join(project, "package.json"), "utf8"));
+      expect((pkg.devDependencies as Record<string, string>)[PIN_DEPENDENCY_NAME]).toBe("0.54.0");
       expect(containedDestExec).not.toHaveBeenCalled();
     } finally {
       if (prev === undefined) delete process.env.DEFT_ACCEPT_ENGINE_SKEW;
@@ -2935,5 +2936,44 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
       ["pnpm-lock.yaml", "pnpm", "install", "--lockfile-only"],
       ["yarn.lock", "yarn", "install"],
     ]);
+  });
+
+  it("restores a missing pin beside an existing lockfile without dest-exec (#4533 leftover #4429)", async () => {
+    const project = freshRoot("update-pin-null-lock-");
+    const contentRoot = installFakeContentPackage(project, "0.54.0");
+    writeInitializedProject(project, { contentVersion: "0.54.0", pinVersion: "0.54.0" });
+    writeFileSync(
+      join(project, "package.json"),
+      JSON.stringify({ name: "app", private: true }, null, 2),
+      "utf8",
+    );
+    writeFileSync(
+      join(project, "package-lock.json"),
+      JSON.stringify({ lockfileVersion: 3, packages: {} }, null, 2),
+      "utf8",
+    );
+    const containedDestExec = vi.fn(() => ({ ok: true, stdout: "" }));
+
+    const result = await runRefreshDeposit(
+      { projectDir: project, jsonOut: false, nonInteractive: true, upgrade: true },
+      { printf: () => {} },
+      {
+        resolveContentRoot: async () => contentRoot,
+        copyContent: async () => {
+          throw new Error("copyContent must not run for skip-copy");
+        },
+        readEngineVersion: () => "0.54.0",
+        gitPorcelain: () => null,
+        gitLsFiles: () => null,
+        containedDestExec,
+        resolveLockfileManager: (name) => `/stub/${name}`,
+      },
+    );
+
+    expect(result.alreadyCurrent).toBe(true);
+    expect(result.pinLockRefreshError).toBeUndefined();
+    expect(containedDestExec).not.toHaveBeenCalled();
+    const pkg = parseJsonObject(readFileSync(join(project, "package.json"), "utf8"));
+    expect((pkg.devDependencies as Record<string, string>)[PIN_DEPENDENCY_NAME]).toBe("0.54.0");
   });
 });

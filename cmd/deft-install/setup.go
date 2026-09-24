@@ -987,6 +987,89 @@ func EnsureGitignoreLines(w *Wizard, projectDir string) (bool, error) {
 	return true, nil
 }
 
+const installConsumerInvariantRefuseRecovery = "Re-run `directive init` / `directive update` after the other scaffolder is quiet."
+
+func joinOrList(parts []string) string {
+	switch len(parts) {
+	case 0:
+		return ""
+	case 1:
+		return parts[0]
+	case 2:
+		return parts[0] + " or " + parts[1]
+	default:
+		return strings.Join(parts[:len(parts)-1], ", ") + ", or " + parts[len(parts)-1]
+	}
+}
+
+// installConsumerInvariantRefuseMessage names AGENTS.md and .gitignore,
+// the files this Go invariant checks.
+func installConsumerInvariantRefuseMessage(missingAgents, missingGitignore bool) string {
+	var parts []string
+	if missingAgents {
+		parts = append(parts, "AGENTS.md managed section")
+	}
+	if missingGitignore {
+		parts = append(parts, ".gitignore")
+	}
+	listed := joinOrList(parts)
+	if listed == "" {
+		listed = "AGENTS.md managed section or .gitignore"
+	}
+	return listed + " missing after re-assert. " + installConsumerInvariantRefuseRecovery
+}
+
+func agentsMDHasManagedSection(projectDir string) bool {
+	b, err := os.ReadFile(filepath.Join(projectDir, "AGENTS.md"))
+	if err != nil {
+		return false
+	}
+	return agentsMDManagedOpenPattern.Match(b)
+}
+
+func gitignoreHasCanonicalCacheLine(projectDir string) bool {
+	b, err := os.ReadFile(filepath.Join(projectDir, ".gitignore"))
+	if err != nil {
+		return false
+	}
+	for _, raw := range strings.Split(string(b), "\n") {
+		stripped := stripGitignoreInlineComment(raw)
+		if stripped == ".deft-cache/" || stripped == ".deft-cache" {
+			return true
+		}
+	}
+	return false
+}
+
+// ReassertInstallConsumerInvariant re-reads AGENTS.md and .gitignore after the
+// first write and, if either invariant is missing, calls the existing writers
+// once. Still missing is a non-zero refuse (#4533).
+func ReassertInstallConsumerInvariant(w *Wizard, projectDir string) error {
+	missingAgents := !agentsMDHasManagedSection(projectDir)
+	missingGitignore := !gitignoreHasCanonicalCacheLine(projectDir)
+	if !missingAgents && !missingGitignore {
+		return nil
+	}
+	if missingAgents {
+		if err := WriteAgentsMD(w, projectDir); err != nil {
+			return err
+		}
+	}
+	if missingGitignore {
+		if _, err := EnsureGitignoreLines(w, projectDir); err != nil {
+			return err
+		}
+	}
+	stillMissingAgents := !agentsMDHasManagedSection(projectDir)
+	stillMissingGitignore := !gitignoreHasCanonicalCacheLine(projectDir)
+	if stillMissingAgents || stillMissingGitignore {
+		return errors.New(
+			installConsumerInvariantRefuseMessage(stillMissingAgents, stillMissingGitignore),
+		)
+	}
+	return nil
+}
+
 // isForbiddenBlanketEvalLine reports whether s (an already inline-comment-
 // stripped gitignore line) is one of the forbidden blanket eval lines mirrored
 // from the Python rails (#1464).

@@ -120,6 +120,27 @@ export interface EnsureInitGitignoreResult {
   readonly skippedDeftCoreBecauseTracked: boolean;
 }
 
+/**
+ * True when `.gitignore` is absent or does not carry the canonical cache
+ * entry init always deposits. Used by the #4533 consumer-invariant re-read.
+ */
+export function initGitignoreInvariantMissing(projectDir: string): boolean {
+  const path = join(projectDir, ".gitignore");
+  if (!existsSync(path)) return true;
+  let existing: string;
+  try {
+    existing = readFileSync(path, { encoding: "utf8" });
+  } catch {
+    return true;
+  }
+  const present = new Set<string>();
+  for (const raw of existing.split("\n")) {
+    const stripped = stripGitignoreInlineComment(raw);
+    if (stripped) present.add(stripped);
+  }
+  return !gitignoreCoversLine(present, CANONICAL_GITIGNORE_BASELINE[0] ?? ".deft-cache/");
+}
+
 export interface ReconstituteDepositResult {
   readonly reconstituted: boolean;
 }

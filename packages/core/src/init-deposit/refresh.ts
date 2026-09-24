@@ -84,6 +84,7 @@ import {
   printDirtyEscapeCommitGuidance,
   reconcileDepositToContentPackage,
 } from "./hygiene.js";
+import { restoreNullPinAtRecordedDepositVersion } from "./init-consumer-invariant.js";
 import { type InitDepositArgs, parseInitArgv, presentLockfiles } from "./init-deposit.js";
 import {
   buildLegacyRefusalJson,
@@ -829,7 +830,7 @@ function defaultResolveLockfileManager(execFile: string): string | null {
 /**
  * Write the consumer pin when it lags the reconstituted content version, then
  * mutate any present lockfile in-process with closed lockfile-only argv (#4710).
- * Spawn failure reverts the pin and any lockfiles already mutated in this pass. Missing pin (`pinVersion === null`) stays #4429 row 3c.
+ * Spawn failure reverts the pin and any lockfiles already mutated in this pass. Missing pin (`pinVersion === null`) is restored separately with `ensurePackageJsonPin` at the recorded deposit version (#4533); lockfile-only spawn stays leftover on #4429.
  */
 function reconstituteConsumerPinAndLock(
   projectDir: string,
@@ -1022,6 +1023,12 @@ export async function runRefreshDeposit(
       pinLockRefreshError,
     };
   }
+  restoreNullPinAtRecordedDepositVersion({
+    projectDir,
+    deftDir,
+    recordedVersion: readRecordedDepositVersion(deftDir) ?? previousDepositVersion,
+    io,
+  });
 
   // #2595: payload freshness and consumer derivative freshness are independent.
   // Always repair these cheap projections, including on the #2118 no-op path.
