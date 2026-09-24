@@ -21,7 +21,7 @@ Three layers: **Rules** (lazy-loaded guidance under `content/`), **Tasks** (the 
 | ci-cd | CI runner and pipeline guidance, loaded when migrating or configuring CI. | 6 | 5 | 4 | 6 | 0 | 0 |
 | coding | Core software-development rules for agents: hygiene, testing, debugging, security, build output. | 10 | 198 | 57 | 141 | 2 | 5 |
 | context | How to feed agents context well: examples, deterministic splits, spec deltas. | 8 | 42 | 67 | 30 | 16 | 13 |
-| contracts | Interface/behavioral contracts the framework enforces. | 16 | 193 | 16 | 138 | 0 | 5 |
+| contracts | Interface/behavioral contracts the framework enforces. | 16 | 195 | 16 | 138 | 0 | 5 |
 | conventions | Cross-cutting naming, formatting, and repo conventions. | 4 | 16 | 2 | 16 | 0 | 3 |
 | deployments | Provider-specific deployment playbooks (AWS, Azure, GCP, Cloudflare, Vercel, fly.io…). | 52 | 107 | 74 | 24 | 13 | 6 |
 | docs | Explanatory docs and the framework glossary. | 38 | 21 | 12 | 62 | 1 | 2 |
@@ -420,7 +420,7 @@ _How agents prove work is done: gates, validators, coverage, review._
 | reconcile | Reconcile GitHub issues against vBRIEF references -- report linked, unlinked, and resolved | 1 |
 | review-monitor | Claim PR-anchored review-owner lease via sticky GitHub comment (#2814). Does not write local JSON. | 2 |
 | roadmap | Render and validate the ROADMAP from vBRIEF source. | 2 |
-| scm | Source-control / Git workflow tasks. | 15 |
+| scm | Source-control / Git workflow tasks. | 16 |
 | scope | Scope lifecycle: promote / activate / complete / fail / cancel. | 15 |
 | scope-undo | Reverse a scope-lifecycle audit entry (#1134). Single: `task scope:undo -- <decision_id>` / `task scope:undo -- --decision-id=<uuid>`.… | 1 |
 | session | Claim occupancy and run the quick-tier ritual for one owner (#1348/#3611). Flags: --session-id <id> / --steal --confirm --occupant… | 3 |
