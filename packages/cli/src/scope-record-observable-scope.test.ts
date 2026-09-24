@@ -31,6 +31,15 @@ describe("scope-record-observable-scope CLI (#4495)", () => {
     ).toBe(2);
   });
 
+  it("refuses agent shells even with mintedVia in-harness-ask (#5010)", () => {
+    expect(
+      run(["story.xbrief.json", "--actor", "scott", "--confirm", "--minted-via=in-harness-ask"], {
+        ...humanSeams,
+        environ: { CURSOR_AGENT: "1" },
+      }),
+    ).toBe(2);
+  });
+
   it("mints a human record from the namespaced contract", () => {
     const root = mkdtempSync(join(tmpdir(), "obs-mint-"));
     temps.push(root);
@@ -61,6 +70,49 @@ describe("scope-record-observable-scope CLI (#4495)", () => {
     ) as { humanApproval: { kind: string }; allowedChanges: unknown[] };
     expect(rec.humanApproval.kind).toBe("operator");
     expect(rec.allowedChanges).toEqual([{ kind: "control", op: "add", name: "email" }]);
+  });
+
+  it("records mintedVia in-harness-ask attestation (#5010)", () => {
+    const root = mkdtempSync(join(tmpdir(), "os-mint-via-"));
+    temps.push(root);
+    mkdirSync(join(root, "xbrief", "pending"), { recursive: true });
+    const xbrief = join(root, "xbrief", "pending", "story.xbrief.json");
+    writeFileSync(
+      xbrief,
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8" },
+        plan: {
+          id: "story-ui",
+          title: "T",
+          status: "pending",
+          items: [],
+          "x-directive/observableChange": {
+            changeKind: "fields-only",
+            allowedChanges: [{ kind: "heading", op: "add", name: "Title" }],
+          },
+        },
+      }),
+      "utf8",
+    );
+    expect(
+      run(
+        [
+          xbrief,
+          "--actor",
+          "david",
+          "--confirm",
+          "--minted-via",
+          "in-harness-ask",
+          "--project-root",
+          root,
+        ],
+        humanSeams,
+      ),
+    ).toBe(0);
+    const rec = JSON.parse(
+      readFileSync(join(root, ".deft", "observable-scope", "story-ui.json"), "utf8"),
+    ) as { humanApproval: { mintedVia?: string } };
+    expect(rec.humanApproval.mintedVia).toBe("in-harness-ask");
   });
 
   it("refuses worker-declared baselineRef", () => {
