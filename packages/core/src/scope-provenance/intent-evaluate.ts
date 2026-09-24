@@ -51,9 +51,20 @@ export interface IntentEvaluateInput {
   readonly currentScopeNonEmpty: boolean;
   readonly baseRef: string | null;
   readonly changedFiles: readonly string[];
-  readonly readAtBase?: (relPath: string) => string | null;
+  /**
+   * Merge-base file read. Return text, `null` for a true missing path, or
+   * `{ error }` on Git/read failure — errors must not be collapsed to `null`
+   * (#4956). Throwing is still accepted for older test seams and is mapped to
+   * the same fail-closed finding (no new production throw-site).
+   */
+  readonly readAtBase?: (relPath: string) => string | null | { readonly error: string };
   readonly approvedReposSeed?: readonly string[];
 }
+
+type IntentBaseContent =
+  | { readonly status: "ok"; readonly text: string }
+  | { readonly status: "missing" }
+  | { readonly status: "error"; readonly message: string };
 
 export function parseIntentPreimageRaw(raw: string): IntentPreimage | null {
   try {
@@ -99,14 +110,36 @@ function finding(
   };
 }
 
-function readBase(input: IntentEvaluateInput, rel: string): string | null {
-  if (input.readAtBase !== undefined) return input.readAtBase(rel);
-  return null;
+function readBase(input: IntentEvaluateInput, rel: string): IntentBaseContent {
+  if (input.readAtBase === undefined) return { status: "missing" };
+  try {
+    const raw = input.readAtBase(rel);
+    if (raw === null) return { status: "missing" };
+    if (typeof raw === "object" && "error" in raw) {
+      return { status: "error", message: raw.error };
+    }
+    return { status: "ok", text: raw };
+  } catch (err) {
+    return {
+      status: "error",
+      message: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+function baseReadFailed(input: IntentEvaluateInput, rel: string, message: string): IntentFinding {
+  return finding(
+    input,
+    "intent-parse-error",
+    `merge-base read failed for ${rel}: ${message}; fail closed (#4956)`,
+  );
 }
 
 function decisionExists(input: IntentEvaluateInput, rel: string): boolean {
   const fromBase = readBase(input, rel);
-  if (fromBase !== null) return true;
+  if (fromBase.status === "ok") return true;
+  // Read/Git errors are not authoritative absence; fall through to the
+  // working tree. Missing both ways may surface as intent-drift (fail closed).
   const full = join(resolve(input.projectRoot), ...rel.split("/"));
   return existsSync(full);
 }
@@ -155,8 +188,11 @@ export function evaluateIntentForXbrief(input: IntentEvaluateInput): IntentFindi
   }
 
   const preimageRel = approvedScopeIntentRel(input.planId);
-  const basePreimageRaw = readBase(input, preimageRel);
-  if (basePreimageRaw === null) {
+  const basePreimageRead = readBase(input, preimageRel);
+  if (basePreimageRead.status === "error") {
+    return [baseReadFailed(input, preimageRel, basePreimageRead.message)];
+  }
+  if (basePreimageRead.status === "missing") {
     if (input.currentScopeNonEmpty) {
       return [
         finding(
@@ -169,7 +205,7 @@ export function evaluateIntentForXbrief(input: IntentEvaluateInput): IntentFindi
     return [];
   }
 
-  const basePreimage = parseIntentPreimageRaw(basePreimageRaw);
+  const basePreimage = parseIntentPreimageRaw(basePreimageRead.text);
   if (basePreimage === null) {
     return [finding(input, "intent-digest-mismatch", "base preimage is malformed")];
   }
@@ -192,11 +228,14 @@ export function evaluateIntentForXbrief(input: IntentEvaluateInput): IntentFindi
 }
 
 function evaluateLegacyIntent(input: IntentEvaluateInput, live: IntentPreimage): IntentFinding[] {
-  const baseRaw = readBase(input, input.xbriefRelPath);
-  if (baseRaw === null) {
+  const baseRead = readBase(input, input.xbriefRelPath);
+  if (baseRead.status === "error") {
+    return [baseReadFailed(input, input.xbriefRelPath, baseRead.message)];
+  }
+  if (baseRead.status === "missing") {
     return [];
   }
-  const baseExtract = extractIntentFromRaw(baseRaw, {
+  const baseExtract = extractIntentFromRaw(baseRead.text, {
     projectRoot: input.projectRoot,
     approvedReposSeed: input.approvedReposSeed,
   });

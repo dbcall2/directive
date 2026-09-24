@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   evaluateRuntimeAuthorityDirectWrite,
@@ -5,7 +8,12 @@ import {
   resolveRuntimeAuthorityPolicy,
 } from "./runtime-authority.js";
 import {
+  clearWriteFenceMemosForTests,
   extractStoryFileScope,
+  isStoryWriteFenceUnreadable,
+  loadStoryWriteFenceFromBaseRaw,
+  loadStoryWriteFenceFromMergeBase,
+  loadStoryWriteFenceFromPath,
   normalizeStoryWriteScope,
   resolveWriteFence,
 } from "./write-fence.js";
@@ -194,5 +202,69 @@ describe("writeScope alias normalization (no dual engine)", () => {
     expect(evaluateRuntimeAuthorityPath(fenceA.policy, "src/a.ts")).toBe("allow");
     expect(evaluateRuntimeAuthorityPath(fenceA.policy, ".env")).toBe("deny-denylist");
     expect(evaluateRuntimeAuthorityPath(fenceA.policy, "docs/x.md")).toBe("deny-story-scope");
+  });
+});
+
+describe("story write fence fail-closed (#4956)", () => {
+  it("treats a missing live brief path as an inactive fence", () => {
+    expect(loadStoryWriteFenceFromPath(join(tmpdir(), "missing-story-4956.xbrief.json"))).toEqual({
+      fileScope: [],
+      denyPaths: [],
+    });
+  });
+
+  it("returns unreadableDetail when the live brief path exists but is unreadable JSON", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fence-corrupt-4956-"));
+    const path = join(dir, "story.xbrief.json");
+    writeFileSync(path, "{not-json");
+    const loaded = loadStoryWriteFenceFromPath(path);
+    expect(isStoryWriteFenceUnreadable(loaded)).toBe(true);
+    expect(loaded.unreadableDetail).toMatch(/unreadable/);
+  });
+
+  it("returns unreadableDetail when base raw is malformed JSON", () => {
+    const loaded = loadStoryWriteFenceFromBaseRaw("{not-json", "base:story");
+    expect(isStoryWriteFenceUnreadable(loaded)).toBe(true);
+    expect(loaded.unreadableDetail).toMatch(/base:story/);
+  });
+
+  it("treats a non-git project root as an inactive fence (hook fixtures)", () => {
+    clearWriteFenceMemosForTests();
+    const dir = mkdtempSync(join(tmpdir(), "fence-nogit-4956-"));
+    const brief = join(dir, "story.xbrief.json");
+    writeFileSync(
+      brief,
+      JSON.stringify({
+        plan: { metadata: { swarm: { file_scope: ["packages/core/**"] } } },
+      }),
+    );
+    expect(loadStoryWriteFenceFromMergeBase(dir, brief)).toEqual({
+      fileScope: [],
+      denyPaths: [],
+    });
+  });
+
+  it("treats an outside-root stub scope path as an inactive fence", () => {
+    clearWriteFenceMemosForTests();
+    const dir = mkdtempSync(join(tmpdir(), "fence-escape-4956-"));
+    expect(
+      loadStoryWriteFenceFromMergeBase(dir, "/project/xbrief/active/story.xbrief.json"),
+    ).toEqual({ fileScope: [], denyPaths: [] });
+  });
+
+  it("treats null base raw as inactive fence", () => {
+    expect(loadStoryWriteFenceFromBaseRaw(null)).toEqual({ fileScope: [], denyPaths: [] });
+  });
+
+  it("parses a readable base brief", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fence-4956-"));
+    const path = join(dir, "story.xbrief.json");
+    writeFileSync(
+      path,
+      JSON.stringify({
+        plan: { metadata: { swarm: { file_scope: ["packages/core/src/a.ts"] } } },
+      }),
+    );
+    expect(loadStoryWriteFenceFromPath(path).fileScope).toEqual(["packages/core/src/a.ts"]);
   });
 });
