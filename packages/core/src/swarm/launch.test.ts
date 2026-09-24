@@ -21,6 +21,7 @@ import {
 } from "./launch.js";
 import {
   ENV_WORKER_CREDENTIAL_DELIVERY_ID,
+  WORKER_AUTH_LOCK_NAME,
   writeWorkerAuthAssignment,
 } from "./worker-auth-assignment.js";
 
@@ -566,6 +567,140 @@ describe("swarmLaunch identity-bound injection (#1351)", { timeout: 20_000 }, ()
       const index = JSON.parse(readFileSync(store, "utf8")) as { entries: unknown[] };
       expect(index.entries).toEqual([]);
     }
+  });
+
+  it("reports a locked worker-auth rollback instead of leaving it silent", () => {
+    const project = launchProject();
+    writeReadyStory(project, "story-b", 3663);
+    let writes = 0;
+    const result = swarmLaunch({
+      stories: ["story-a", "story-b"],
+      projectRoot: project,
+      autonomous: true,
+      allocationPlanId: "plan-3663",
+      batchingRationale: "locked rollback",
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      environ: { CURSOR_AGENT: "1" },
+      sessionId: "test-session",
+      writeWorkerAuthAssignmentFn: (input) => {
+        writes += 1;
+        if (writes === 2) {
+          const lockAbs = join(project, ".git", "deft-worker-auth", WORKER_AUTH_LOCK_NAME);
+          mkdirSync(join(project, ".git", "deft-worker-auth"), { recursive: true });
+          writeFileSync(
+            lockAbs,
+            `${JSON.stringify({
+              pid: process.pid,
+              token: "hold",
+              startedAt: "2026-01-01T00:00:00Z",
+            })}\n`,
+          );
+          return {
+            ok: false,
+            failureKind: "registry_corruption",
+            detail: "injected dest-2 persist failure",
+            dispatchId: null,
+            expectedLogin: null,
+            observedLogin: null,
+          };
+        }
+        return writeWorkerAuthAssignment(input);
+      },
+      ...LAUNCH_HOST_AUTH,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/dest-2 persist failure/);
+    expect(result.stderr).toMatch(/Worker auth assignment rollback failed/);
+    expect(result.stderr).toMatch(/locked/);
+    const store = join(project, ".git", "deft-worker-auth", "index.json");
+    expect(existsSync(store)).toBe(true);
+    const index = JSON.parse(readFileSync(store, "utf8")) as { entries: unknown[] };
+    expect(index.entries.length).toBeGreaterThan(0);
+  });
+
+  it("reports { ok: false } from assignment rollback without requiring a throw", () => {
+    const project = launchProject();
+    writeReadyStory(project, "story-b", 3663);
+    let writes = 0;
+    const result = swarmLaunch({
+      stories: ["story-a", "story-b"],
+      projectRoot: project,
+      autonomous: true,
+      allocationPlanId: "plan-3663",
+      batchingRationale: "ok-false rollback",
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      environ: { CURSOR_AGENT: "1" },
+      sessionId: "test-session",
+      writeWorkerAuthAssignmentFn: (input) => {
+        writes += 1;
+        if (writes === 2) {
+          return {
+            ok: false,
+            failureKind: "registry_corruption",
+            detail: "injected dest-2 persist failure",
+            dispatchId: null,
+            expectedLogin: null,
+            observedLogin: null,
+          };
+        }
+        return writeWorkerAuthAssignment(input);
+      },
+      removeWorkerAuthAssignmentFn: () => ({
+        ok: false,
+        failureKind: "registry_corruption",
+        detail: "injected locked remove",
+        dispatchId: "test-session",
+        expectedLogin: null,
+        observedLogin: null,
+      }),
+      ...LAUNCH_HOST_AUTH,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/dest-2 persist failure/);
+    expect(result.stderr).toMatch(/Worker auth assignment rollback failed: injected locked remove/);
+  });
+
+  it("reports a thrown worker-auth rollback without replacing the launch error", () => {
+    const project = launchProject();
+    writeReadyStory(project, "story-b", 3663);
+    let writes = 0;
+    const result = swarmLaunch({
+      stories: ["story-a", "story-b"],
+      projectRoot: project,
+      autonomous: true,
+      allocationPlanId: "plan-3663",
+      batchingRationale: "thrown rollback",
+      preflightGate: () => ({ exitCode: 0, message: "" }),
+      readinessGate: () => ({ exitCode: 0, report: "" }),
+      runtimeAuthProbe: () => ["local-unsandboxed", "host-gh"],
+      environ: { CURSOR_AGENT: "1" },
+      sessionId: "test-session",
+      writeWorkerAuthAssignmentFn: (input) => {
+        writes += 1;
+        if (writes === 2) {
+          return {
+            ok: false,
+            failureKind: "registry_corruption",
+            detail: "injected dest-2 persist failure",
+            dispatchId: null,
+            expectedLogin: null,
+            observedLogin: null,
+          };
+        }
+        return writeWorkerAuthAssignment(input);
+      },
+      removeWorkerAuthAssignmentFn: () => {
+        throw new Error("boom-remove");
+      },
+      ...LAUNCH_HOST_AUTH,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/dest-2 persist failure/);
+    expect(result.stderr).toMatch(/Worker auth assignment rollback failed: Error: boom-remove/);
   });
 
   it("does not auto-promote host-gh to injected-token just because GH_TOKEN is set", () => {

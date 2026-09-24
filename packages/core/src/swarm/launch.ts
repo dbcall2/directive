@@ -49,6 +49,8 @@ import {
   ENV_WORKER_CREDENTIAL_DELIVERY_ID,
   FAILURE_MISSING_DELIVERY,
   mintCredentialDeliveryId,
+  type RemoveWorkerAuthAssignmentInput,
+  type RemoveWorkerAuthAssignmentResult,
   removeWorkerAuthAssignment,
   type WriteWorkerAuthAssignmentInput,
   type WriteWorkerAuthAssignmentResult,
@@ -1127,6 +1129,10 @@ export interface LaunchArgs {
   writeWorkerAuthAssignmentFn?: (
     input: WriteWorkerAuthAssignmentInput,
   ) => WriteWorkerAuthAssignmentResult;
+  /** Test seam: rollback dest assignment (defaults to removeWorkerAuthAssignment). */
+  removeWorkerAuthAssignmentFn?: (
+    input: RemoveWorkerAuthAssignmentInput,
+  ) => RemoveWorkerAuthAssignmentResult;
 }
 
 function resolveAssignedWorkerAuth(args: LaunchArgs):
@@ -1330,13 +1336,17 @@ export function swarmLaunch(args: LaunchArgs): {
     exitCode: number,
     stderr: string,
   ): { exitCode: number; stdout: string; stderr: string } => {
+    const removeAssignment = args.removeWorkerAuthAssignmentFn ?? removeWorkerAuthAssignment;
     for (const dest of writtenDests.splice(0)) {
       try {
-        removeWorkerAuthAssignment({
+        const removed = removeAssignment({
           projectRoot,
           worktreePath: dest.worktreePath,
           dispatchId: occupancy.sessionId,
         });
+        if (!removed.ok) {
+          stderr = `${stderr}\nWorker auth assignment rollback failed: ${removed.detail}\n`;
+        }
       } catch (exc: unknown) {
         stderr = `${stderr}\nWorker auth assignment rollback failed: ${String(exc)}\n`;
       }
@@ -1505,26 +1515,31 @@ export function swarmLaunch(args: LaunchArgs): {
     writtenDests.push({ worktreePath: dest.worktreePath });
   }
 
-  const manifest = buildManifest(ordered, {
-    projectRoot,
-    group: args.group ?? null,
-    worktreeRecords: worktreeRecordMap,
-    dispatchKind,
-    allocationPlanId,
-    batchingRationale,
-    operatorApprovalEvidence: operatorApproval,
-    gateClearances,
-    subagentBackend: backend?.backend_id ?? null,
-    dispatchProvider: dispatchProviderValue,
-    workerRole: workerRoleValue,
-    resolvedModel,
-    modelSource,
-    runtimeMode,
-    githubAuthMode: assigned.mode,
-    expectedGithubLogin,
-    occupancySessionId: occupancy.sessionId,
-    credentialDeliveryByStory: deliveryByStory,
-  });
+  let manifest: Record<string, unknown>[];
+  try {
+    manifest = buildManifest(ordered, {
+      projectRoot,
+      group: args.group ?? null,
+      worktreeRecords: worktreeRecordMap,
+      dispatchKind,
+      allocationPlanId,
+      batchingRationale,
+      operatorApprovalEvidence: operatorApproval,
+      gateClearances,
+      subagentBackend: backend?.backend_id ?? null,
+      dispatchProvider: dispatchProviderValue,
+      workerRole: workerRoleValue,
+      resolvedModel,
+      modelSource,
+      runtimeMode,
+      githubAuthMode: assigned.mode,
+      expectedGithubLogin,
+      occupancySessionId: occupancy.sessionId,
+      credentialDeliveryByStory: deliveryByStory,
+    });
+  } catch (exc: unknown) {
+    return failAfterClaim(EXIT_CONFIG_ERROR, `Error: ${String(exc)}\n`);
+  }
 
   const rendered = `${JSON.stringify(manifest, null, 2)}\n`;
   const storyIds = ordered.map((story) => story.story_id);

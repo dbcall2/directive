@@ -7,7 +7,14 @@
  */
 
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import { ContainedWriteError, containedRemove, containedWrite } from "../fs/contained-write.js";
 import {
@@ -28,7 +35,10 @@ export const WORKER_AUTH_STORE_DIR = "deft-worker-auth";
 export const WORKER_AUTH_INDEX_NAME = "index.json";
 export const WORKER_AUTH_LOCK_NAME = "index.lock";
 export const ENV_WORKER_CREDENTIAL_DELIVERY_ID = "DEFT_WORKER_CREDENTIAL_DELIVERY_ID";
-/** Crash/OOM can leave index.lock; writers may steal a lock older than this. */
+/**
+ * Crash leftover with no PID: writers may steal a lock older than this.
+ * Live owner PIDs are never time-reclaimed.
+ */
 export const WORKER_AUTH_LOCK_STALE_MS = 5 * 60 * 1000;
 
 export const FAILURE_MISSING_ASSIGNMENT = "missing_assignment";
@@ -284,6 +294,64 @@ function samePath(left: string, right: string): boolean {
   return left === right;
 }
 
+interface WorkerAuthLockRecord {
+  readonly pid: number;
+  readonly token: string;
+  readonly startedAt: string;
+}
+
+let workerAuthLockTestHooks:
+  | {
+      afterStaleReclaim?: (commonDir: string) => void;
+      afterAcquire?: (commonDir: string) => void;
+    }
+  | undefined;
+
+/** Test-only: reset in afterEach. Production stays unset. */
+export function setWorkerAuthLockTestHooks(
+  hooks:
+    | {
+        afterStaleReclaim?: (commonDir: string) => void;
+        afterAcquire?: (commonDir: string) => void;
+      }
+    | undefined,
+): void {
+  workerAuthLockTestHooks = hooks;
+}
+
+function isProcessAlive(pid: number): boolean {
+  if (!Number.isFinite(pid) || pid <= 0) {
+    return false;
+  }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    // EPERM → exists but this user cannot signal it; treat as alive.
+    return code === "EPERM";
+  }
+}
+
+function readLockRecord(commonDir: string): WorkerAuthLockRecord | null {
+  try {
+    const raw = JSON.parse(readFileSync(join(commonDir, lockPathRel()), "utf8")) as unknown;
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+      return null;
+    }
+    const rec = raw as Record<string, unknown>;
+    const pid = typeof rec.pid === "number" ? rec.pid : Number.NaN;
+    const token = typeof rec.token === "string" ? rec.token : "";
+    const startedAt = typeof rec.startedAt === "string" ? rec.startedAt : "";
+    if (!Number.isFinite(pid) || token.length === 0) {
+      return null;
+    }
+    return { pid, token, startedAt };
+  } catch {
+    return null;
+  }
+}
+
 function lockIsStale(commonDir: string): boolean {
   const abs = join(commonDir, lockPathRel());
   try {
@@ -294,40 +362,75 @@ function lockIsStale(commonDir: string): boolean {
   }
 }
 
-function acquireLock(commonDir: string): WorkerAuthAssignmentError | null {
+function lockIsReclaimable(commonDir: string): boolean {
+  const rec = readLockRecord(commonDir);
+  if (rec !== null) {
+    return !isProcessAlive(rec.pid);
+  }
+  return lockIsStale(commonDir);
+}
+
+function releaseLock(commonDir: string, token: string): void {
+  const rec = readLockRecord(commonDir);
+  if (rec === null || rec.token !== token || rec.pid !== process.pid) {
+    return;
+  }
+  containedRemove({ root: commonDir, target: lockPathRel() });
+}
+
+function acquireLock(commonDir: string): { token: string } | WorkerAuthAssignmentError {
+  const token = randomUUID();
   const writeLock = (): void => {
     containedWrite({
       root: commonDir,
       target: lockPathRel(),
-      data: "locked\n",
+      data: `${JSON.stringify({
+        pid: process.pid,
+        token,
+        startedAt: new Date().toISOString(),
+      })}\n`,
       mode: "create",
     });
   };
-  try {
-    writeLock();
-    return null;
-  } catch (err: unknown) {
-    if (err instanceof ContainedWriteError && err.code === "CONTAINED_WRITE_EXISTS") {
-      if (lockIsStale(commonDir)) {
-        containedRemove({ root: commonDir, target: lockPathRel() });
-        try {
-          writeLock();
-          return null;
-        } catch (retryErr: unknown) {
-          if (
-            retryErr instanceof ContainedWriteError &&
-            retryErr.code === "CONTAINED_WRITE_EXISTS"
-          ) {
-            return fail(FAILURE_REGISTRY_CORRUPTION, "worker auth registry is locked");
-          }
-          const message = retryErr instanceof Error ? retryErr.message : String(retryErr);
-          return fail(FAILURE_REGISTRY_CORRUPTION, `worker auth registry lock failed: ${message}`);
-        }
-      }
-      return fail(FAILURE_REGISTRY_CORRUPTION, "worker auth registry is locked");
-    }
+  const locked = (): WorkerAuthAssignmentError =>
+    fail(FAILURE_REGISTRY_CORRUPTION, "worker auth registry is locked");
+  const failed = (err: unknown): WorkerAuthAssignmentError => {
     const message = err instanceof Error ? err.message : String(err);
     return fail(FAILURE_REGISTRY_CORRUPTION, `worker auth registry lock failed: ${message}`);
+  };
+  try {
+    writeLock();
+    workerAuthLockTestHooks?.afterAcquire?.(commonDir);
+    return { token };
+  } catch (err: unknown) {
+    if (!(err instanceof ContainedWriteError && err.code === "CONTAINED_WRITE_EXISTS")) {
+      return failed(err);
+    }
+    if (!lockIsReclaimable(commonDir)) {
+      return locked();
+    }
+    const abs = join(commonDir, lockPathRel());
+    const reclaimRel = join(
+      WORKER_AUTH_STORE_DIR,
+      `${WORKER_AUTH_LOCK_NAME}.reclaim.${randomUUID()}`,
+    );
+    try {
+      renameSync(abs, join(commonDir, reclaimRel));
+      containedRemove({ root: commonDir, target: reclaimRel });
+    } catch {
+      // Lost the rename race or the lock is already gone.
+    }
+    workerAuthLockTestHooks?.afterStaleReclaim?.(commonDir);
+    try {
+      writeLock();
+      workerAuthLockTestHooks?.afterAcquire?.(commonDir);
+      return { token };
+    } catch (retryErr: unknown) {
+      if (retryErr instanceof ContainedWriteError && retryErr.code === "CONTAINED_WRITE_EXISTS") {
+        return locked();
+      }
+      return failed(retryErr);
+    }
   }
 }
 
@@ -335,14 +438,14 @@ function withLock<T extends { readonly ok: boolean }>(
   commonDir: string,
   body: () => T | WorkerAuthAssignmentError,
 ): T | WorkerAuthAssignmentError {
-  const lockErr = acquireLock(commonDir);
-  if (lockErr !== null) {
-    return lockErr;
+  const acquired = acquireLock(commonDir);
+  if ("failureKind" in acquired) {
+    return acquired;
   }
   try {
     return body();
   } finally {
-    containedRemove({ root: commonDir, target: lockPathRel() });
+    releaseLock(commonDir, acquired.token);
   }
 }
 

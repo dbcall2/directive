@@ -1,5 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -11,6 +19,7 @@ import {
   FAILURE_REGISTRY_CORRUPTION,
   readWorkerAuthAssignment,
   removeWorkerAuthAssignment,
+  setWorkerAuthLockTestHooks,
   WORKER_AUTH_LOCK_NAME,
   WORKER_AUTH_LOCK_STALE_MS,
   workerAuthRecordName,
@@ -20,6 +29,7 @@ import {
 
 const temps: string[] = [];
 afterEach(() => {
+  setWorkerAuthLockTestHooks(undefined);
   for (const dir of temps.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -214,6 +224,179 @@ describe("worker-auth-assignment (#3663)", { timeout: 20_000 }, () => {
     if (!read.ok) return;
     expect(read.assignment?.dispatch_id).toBe("dispatch-2");
     expect(read.assignment?.expected_principal.login).toBe("worker-b");
+  });
+
+  it("does not steal a live owner lock even when mtime is stale", () => {
+    const { main, worktree } = linkedPair();
+    const first = writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-1",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-a" },
+      credentialDeliveryId: null,
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const lockAbs = join(workerAuthStoreDir(first.commonDir), WORKER_AUTH_LOCK_NAME);
+    writeFileSync(
+      lockAbs,
+      `${JSON.stringify({
+        pid: process.pid,
+        token: "live-owner",
+        startedAt: "2020-01-01T00:00:00Z",
+      })}\n`,
+    );
+    const staleAt = (Date.now() - WORKER_AUTH_LOCK_STALE_MS - 1000) / 1000;
+    utimesSync(lockAbs, staleAt, staleAt);
+    const stolen = writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-2",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-b" },
+      credentialDeliveryId: null,
+    });
+    expect(stolen.ok).toBe(false);
+    if (!stolen.ok) {
+      expect(stolen.failureKind).toBe(FAILURE_REGISTRY_CORRUPTION);
+      expect(stolen.detail).toMatch(/locked/);
+    }
+    expect(readFileSync(lockAbs, "utf8")).toMatch(/live-owner/);
+    const read = readWorkerAuthAssignment(worktree);
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.assignment?.dispatch_id).toBe("dispatch-1");
+  });
+
+  it("owner cleanup does not unlink a replacement lock", () => {
+    const { main, worktree } = linkedPair();
+    setWorkerAuthLockTestHooks({
+      afterAcquire: (commonDir) => {
+        writeFileSync(
+          join(workerAuthStoreDir(commonDir), WORKER_AUTH_LOCK_NAME),
+          `${JSON.stringify({
+            pid: process.pid,
+            token: "replacement",
+            startedAt: "2026-01-01T00:00:00Z",
+          })}\n`,
+        );
+      },
+    });
+    const written = writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-1",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-a" },
+      credentialDeliveryId: null,
+    });
+    expect(written.ok).toBe(true);
+    if (!written.ok) return;
+    const lockAbs = join(workerAuthStoreDir(written.commonDir), WORKER_AUTH_LOCK_NAME);
+    expect(existsSync(lockAbs)).toBe(true);
+    expect(readFileSync(lockAbs, "utf8")).toMatch(/replacement/);
+    const read = readWorkerAuthAssignment(worktree);
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.assignment?.dispatch_id).toBe("dispatch-1");
+  });
+
+  it("overlapping writers after stale reclaim do not clobber each other", () => {
+    const { main, worktree } = linkedPair();
+    const other = mkdtempSync(join(tmpdir(), "wa-wt-overlap-"));
+    temps.push(other);
+    rmSync(other, { recursive: true, force: true });
+    execFileSync("git", ["worktree", "add", "-q", other, "HEAD"], { cwd: main });
+    const first = writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-seed",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-a" },
+      credentialDeliveryId: null,
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const lockAbs = join(workerAuthStoreDir(first.commonDir), WORKER_AUTH_LOCK_NAME);
+    writeFileSync(lockAbs, "locked\n");
+    const staleAt = (Date.now() - WORKER_AUTH_LOCK_STALE_MS - 1000) / 1000;
+    utimesSync(lockAbs, staleAt, staleAt);
+    setWorkerAuthLockTestHooks({
+      afterStaleReclaim: () => {
+        const inner = writeWorkerAuthAssignment({
+          projectRoot: main,
+          worktreePath: other,
+          dispatchId: "dispatch-inner",
+          storyId: "story-b",
+          githubAuthMode: "host-gh",
+          expectedPrincipal: { kind: "user", login: "worker-b" },
+          credentialDeliveryId: null,
+        });
+        expect(inner.ok).toBe(true);
+      },
+    });
+    const outer = writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-outer",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-a" },
+      credentialDeliveryId: null,
+    });
+    expect(outer.ok).toBe(true);
+    const keptInner = readWorkerAuthAssignment(other);
+    expect(keptInner.ok).toBe(true);
+    if (!keptInner.ok) return;
+    expect(keptInner.assignment?.dispatch_id).toBe("dispatch-inner");
+    const keptOuter = readWorkerAuthAssignment(worktree);
+    expect(keptOuter.ok).toBe(true);
+    if (!keptOuter.ok) return;
+    expect(keptOuter.assignment?.dispatch_id).toBe("dispatch-outer");
+  });
+
+  it("reclaims a dead-pid lock without waiting for mtime", () => {
+    const { main, worktree } = linkedPair();
+    const first = writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-1",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-a" },
+      credentialDeliveryId: null,
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const lockAbs = join(workerAuthStoreDir(first.commonDir), WORKER_AUTH_LOCK_NAME);
+    writeFileSync(
+      lockAbs,
+      `${JSON.stringify({
+        pid: 2_147_483_647,
+        token: "dead-owner",
+        startedAt: "2020-01-01T00:00:00Z",
+      })}\n`,
+    );
+    const recovered = writeWorkerAuthAssignment({
+      projectRoot: main,
+      worktreePath: worktree,
+      dispatchId: "dispatch-2",
+      storyId: "story-a",
+      githubAuthMode: "host-gh",
+      expectedPrincipal: { kind: "user", login: "worker-b" },
+      credentialDeliveryId: null,
+    });
+    expect(recovered.ok).toBe(true);
+    if (!recovered.ok) return;
+    const read = readWorkerAuthAssignment(worktree);
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.assignment?.dispatch_id).toBe("dispatch-2");
   });
 
   it("owner-bound remove leaves a foreign dispatch record", () => {
