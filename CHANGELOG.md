@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **fix(release,tests): scrub DEFT_ALLOW_* from Step 5 check env; Windows path assertions for ceremony dial and cursor plan store (Tracking #5022).**
+
+
 ### Added
 
 - **Cursor records a planning choice before the first submitted Plan request (#4973).** Local Cursor 3.21.16 `beforeSubmitPrompt` blocks Plan until `DEFT-PLAN-CHOICE` selects Directive (`/deft:directive:run:interview`) or host-only planning. Global-rule attachments do not veto an exact answer. State is host-owned under the platform config dir. `failClosed` is not claimed for this event. Tracking #4973.

@@ -16,7 +16,6 @@ import {
   ENV_HYGIENE_ADVISORY,
 } from "../product-first-done-gate/index.js";
 import { COVERAGE_DEBT_ENV, RELEASE_CHECK_TIMEOUT_MS, RELEASE_PREFLIGHT_ENV } from "./constants.js";
-import { releaseSubprocessEnv } from "./git.js";
 
 export interface ReleaseCheckEnvOptions {
   readonly base?: NodeJS.ProcessEnv;
@@ -28,18 +27,19 @@ export function releaseCheckEnv(options: ReleaseCheckEnvOptions = {}): NodeJS.Pr
   const base = options.base ?? process.env;
   const allowCoverageDebtIssue = options.allowCoverageDebtIssue ?? null;
   const env: NodeJS.ProcessEnv = {
-    ...releaseSubprocessEnv(base),
+    ...base,
     [RELEASE_PREFLIGHT_ENV]: "1",
     [ENV_CHECK_MODE]: "full",
   };
   delete env[ENV_CHECK_AC_ONLY];
   delete env[ENV_HYGIENE_ADVISORY];
+  // Step 5 must not inherit DEFT_ALLOW_* from releaseSubprocessEnv / parent shell —
+  // assertNoDeftAllowEscape unit tests treat any DEFT_ALLOW_* as a measured violation.
+  for (const key of Object.keys(env)) {
+    if (key.startsWith("DEFT_ALLOW_")) delete env[key];
+  }
   if (allowCoverageDebtIssue !== null) {
     env[COVERAGE_DEBT_ENV] = String(allowCoverageDebtIssue);
-  } else {
-    // Scrub ambient parent-shell debt so nested unit tests and unpaid checks
-    // do not inherit a prior --allow-coverage-debt from the release process (#2618).
-    delete env[COVERAGE_DEBT_ENV];
   }
   return env;
 }

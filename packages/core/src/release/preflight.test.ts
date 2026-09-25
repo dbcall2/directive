@@ -11,6 +11,21 @@ import { RELEASE_CHECK_TIMEOUT_MS } from "./constants.js";
 import { releaseCheckEnv, runReleaseCheck } from "./preflight.js";
 
 describe("releaseCheckEnv", () => {
+
+  it("scrubs ambient DEFT_ALLOW_* so Step 5 unit tests stay uncontaminated", () => {
+    const env = releaseCheckEnv({
+      base: {
+        DEFT_ALLOW_DEFAULT_BRANCH_COMMIT: "1",
+        DEFT_ALLOW_DESTRUCTIVE_GH_VERBS: "1",
+        DEFT_ALLOW_RELEASE_PUBLISH: "1",
+        DEFT_ALLOW_COVERAGE_DEBT: "999",
+      },
+    });
+    expect(env.DEFT_ALLOW_DEFAULT_BRANCH_COMMIT).toBeUndefined();
+    expect(env.DEFT_ALLOW_DESTRUCTIVE_GH_VERBS).toBeUndefined();
+    expect(env.DEFT_ALLOW_RELEASE_PUBLISH).toBeUndefined();
+    expect(env.DEFT_ALLOW_COVERAGE_DEBT).toBeUndefined();
+  });
   it("sets preflight env and scrubs ambient coverage debt", () => {
     const env = releaseCheckEnv({
       base: { DEFT_ALLOW_COVERAGE_DEBT: "999" },
