@@ -680,7 +680,8 @@ omit = [
 
 ! **Path Resolution Anchor**: Same rule as Phase 2 -- resolve ALL paths relative to the user's pwd at skill entry, never relative to the skill file, AGENTS.md, or any framework directory.
 
-! Phase 3 waits on the Phase 2 identity write (`deft project:write-narratives`) (#4660). Do not emit a proposed work brief before that write.
+! When this setup run performs Phase 2, Phase 3 waits for the successful identity write (`deft project:write-narratives`) (#4660). Do not emit a proposed work brief before that write succeeds.
+! When setup legitimately skips Phase 2 because a project definition already exists, Phase 3 MAY proceed from that existing identity; do not require a new `project:write-narratives` invocation on the skip path.
 
 - ~ Skip if user already has scope xBRIEFs in `./xbrief/` they're happy with
 - ! Check `./xbrief/PROJECT-DEFINITION.xbrief.json` and `./xbrief/proposed/` for existing greenfield authority; treat `./xbrief/specification.xbrief.json` as a full-spec compatibility artifact only
@@ -1005,4 +1006,4 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 - ⊗ Treat a `**Depth**:` line outside the Personal section as the track, or pick among duplicate Personal Depth lines (#4668)
 - ⊗ Treat an existing PROJECT-DEFINITION seed, including empty narratives, as missing interview answers (#4668)
 - ⊗ Reimplement `deft project:write-narratives` or set policy keys from the depth answer (#4668 / #4663)
-- ⊗ Emit a proposed work brief before the Phase 2 identity write (#4660)
+- ⊗ Emit a proposed work brief before a required Phase 2 identity write succeeds, or require that write after Phase 2 was legitimately skipped (#4660)

@@ -80,7 +80,13 @@ describe("setup bound remedy (#4660)", () => {
       expect(phase3Text).toContain("./xbrief/PROJECT-DEFINITION.xbrief.json");
       expect(phase3Text).toContain("the file written in Phase 2");
       expect(phase3Text).toContain(
-        "Phase 3 waits on the Phase 2 identity write (`deft project:write-narratives`) (#4660)",
+        "When this setup run performs Phase 2, Phase 3 waits for the successful identity write (`deft project:write-narratives`) (#4660)",
+      );
+      expect(phase3Text).toContain(
+        "When setup legitimately skips Phase 2 because a project definition already exists, Phase 3 MAY proceed from that existing identity",
+      );
+      expect(phase3Text).toContain(
+        "do not require a new `project:write-narratives` invocation on the skip path",
       );
       expect(phase3Text).toContain("## Phase 3 — Specification");
     });
