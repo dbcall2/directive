@@ -191,28 +191,40 @@ const subpathAliases: Record<string, string> = {
   "@deftai/directive-core": src("core"),
 };
 
-// #4591 / #4744: spawn leftovers that must stay out of process. CLI parity tests
-// use in-process routeAndDispatch. Leftover git-worktree clones use share-plus-reset.
-// Occupancy leftover CLI/child-occupancy/mint-refusal fixtures use share-plus-reset
-// (afterEach deletes occupancy.json / child-occupancy; cases stay independent).
-// Occupancy-stress stays spawn-heavy. Remaining Windows --coverage cost after #4591:
-// leftover execPath boots (pack-smoke tsc, cursor-managed-runtime, ci_lifecycle_lane)
-// and occupancy-stress children. Spawn-heavy uses Number(isWin32) workers so it does
-// not double the unit fork cap. In-process 240s suites stay in unit (second-pool
-// overlap is slower).
-// Hang-detector timeout stays last
+// #4591 / #4744 / #5022: spawn leftovers that must stay out of process. CLI parity
+// tests use in-process routeAndDispatch. Leftover git-worktree clones use
+// share-plus-reset. Occupancy leftover CLI/child-occupancy/mint-refusal fixtures
+// use share-plus-reset (afterEach deletes occupancy.json / child-occupancy; cases
+// stay independent). occupancy.test.ts itself is share-plus-reset in unit so its
+// ~70 git-inits stop contending the Windows spawn chokepoint. Occupancy-stress
+// stays spawn-heavy. #5022 also moves ranked Step 5 git-spawn leftovers
+// (dispatcher-owner-liveness, hook-dispatch-worktree, vbrief extra-coverage,
+// release-input-pipeline, swarm-deep-coverage, spawn-occupancy, session
+// extra-coverage, swarm worktrees, observable-scope evaluate-git) out of the
+// unit pool. In-process fakes (session-start-scm-readiness / session-start-rearm)
+// and install-upgrade stay in unit. Spawn-heavy uses Number(isWin32) workers so
+// it does not double the unit fork cap. Hang-detector timeout stays last
 // (operator lock 5685476402). Do not raise RELEASE_CHECK_TIMEOUT_MS.
 const spawnHeavyGlobs = [
   "packages/cli/src/cli-bin-symlink-entrypoint.test.ts",
   "packages/cli/src/hook-host-identity-lifetime.test.ts",
+  "packages/cli/src/hook-dispatch-worktree.test.ts",
   "packages/core/src/session/occupancy-stress.test.ts",
+  "packages/core/src/session/spawn-occupancy.test.ts",
+  "packages/core/src/session/extra-coverage.test.ts",
   "packages/core/src/platform/ts-build-fresh.test.ts",
   "packages/core/src/deposit/run-stage-content-pack.test.ts",
   "packages/core/src/content-contracts/standards/taskfile_engine_dispatch.test.ts",
   "packages/core/src/one-pr-unit/store.test.ts",
   "packages/core/src/observable-scope/pack-smoke.test.ts",
+  "packages/core/src/observable-scope/evaluate-git.test.ts",
   "packages/core/src/platform/cursor-managed-runtime.test.ts",
   "packages/core/src/content-contracts/standards/ci_lifecycle_lane.test.ts",
+  "packages/core/src/hooks/dispatcher-owner-liveness.test.ts",
+  "packages/core/src/vbrief-validate/extra-coverage.test.ts",
+  "packages/core/src/release/release-input-pipeline.test.ts",
+  "packages/core/src/swarm/swarm-deep-coverage.test.ts",
+  "packages/core/src/swarm/worktrees.test.ts",
 ] as const;
 
 export default defineConfig({
@@ -279,13 +291,14 @@ export default defineConfig({
     // ⊗ Do not "fix" this by lowering maxWorkers or re-serialising files.
     // Spawn throughput is concurrency-independent, so capping parallelism buys
     // nothing but wall-clock and regresses #3480. Spawn-heavy leftovers that
-    // must stay out of process live in the spawn-heavy vitest project (#4591).
-    // Cost classes after #4567 / #4591 / #4744: CLI process boots (in-process
-    // routeAndDispatch; leftover execPath files in spawn-heavy), occupancy
-    // leftover CLI/child-occupancy (share-plus-reset), leftover git-worktree clones
-    // (share-plus-reset). Occupancy-stress stays spawn-heavy.
-    // New files since #4591 are in-process except posix-only fifo-child.
-    // Do not raise RELEASE_CHECK_TIMEOUT_MS; hang-detector stays last.
+    // must stay out of process live in the spawn-heavy vitest project (#4591 /
+    // #5022). Cost classes after #4567 / #4591 / #4744 / #5022: CLI process boots
+    // (in-process routeAndDispatch; leftover execPath files in spawn-heavy),
+    // occupancy leftover CLI/child-occupancy (share-plus-reset), occupancy.test
+    // share-plus-reset in unit, leftover git-worktree clones (share-plus-reset +
+    // spawn-heavy), ranked git-spawn coverage files (spawn-heavy). Occupancy-
+    // stress stays spawn-heavy. In-process fakes and install-upgrade stay in
+    // unit. Do not raise RELEASE_CHECK_TIMEOUT_MS; hang-detector stays last.
     testTimeout: isWin32 ? 240_000 : 5_000,
     ...(coverageEnabled
       ? {
