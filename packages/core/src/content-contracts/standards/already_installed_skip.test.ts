@@ -31,6 +31,7 @@ const PINNED_GLOBAL = "npm i -g @deftai/directive@<pin>";
 const LATEST_GLOBAL = "npm i -g @deftai/directive@latest";
 const NPX_INIT = "npx @deftai/directive init";
 const NPX_REFRESH_CARRIER = "npx -y @deftai/directive@<pin> agents:refresh";
+const NPX_REFRESH_CURRENT = "npx -y @deftai/directive@latest agents:refresh";
 const DOCTOR_RAN_AS_SKIP = "Already installed? Run `directive doctor`";
 
 describe("already-installed skip (#4539)", () => {
@@ -58,10 +59,17 @@ describe("already-installed skip (#4539)", () => {
     expect(block).toContain(NPX_INIT);
     expect(block.toLowerCase()).toMatch(/return to (this |the )?compare|then return to step 1/);
   });
+  it("README intro does not use PATH-version equality as the universal stop", () => {
+    const block = coldStartBlock(readText("README.md"));
+    expect(block).not.toContain("whose PATH version matches the pin");
+    expect(block).toMatch(/not the stop for every case/i);
+  });
   it("README names the npx agents:refresh carrier with a presence postcondition", () => {
     const block = coldStartBlock(readText("README.md"));
     expect(block).toContain(NPX_REFRESH_CARRIER);
     expect(block).toMatch(/Refresh exit 0 is not (that )?evidence/i);
+    expect(block).toContain(NPX_REFRESH_CURRENT);
+    expect(block).toContain("directive update");
   });
   it("README already-installed hop uses doctor --full", () => {
     const block = coldStartBlock(readText("README.md"));

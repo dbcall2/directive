@@ -2,7 +2,7 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #4539",
-    "updated": "2026-09-25T13:16:23Z"
+    "updated": "2026-09-25T14:21:00Z"
   },
   "plan": {
     "title": "bug(doctor): already-installed skip leaves a stale global engine",
