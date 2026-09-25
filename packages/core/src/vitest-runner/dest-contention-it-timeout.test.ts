@@ -48,6 +48,14 @@ const LOADED_LANE_EDGE_ITS: ReadonlyArray<{ file: string; titlePrefix: string }>
     titlePrefix:
       "after init + commit + fresh clone, the pin is present and .deft/core is reconstitutable",
   },
+  {
+    file: "packages/core/src/cache/scanner-branches.test.ts",
+    titlePrefix: "stays linear on pathological no-pipe space runs",
+  },
+  {
+    file: "packages/core/src/cache/scanner-branches.test.ts",
+    titlePrefix: "stays linear on long non-pipe runs after a pipe-less keyword",
+  },
 ];
 
 describe("destContentionItTimeout (#4847)", () => {
