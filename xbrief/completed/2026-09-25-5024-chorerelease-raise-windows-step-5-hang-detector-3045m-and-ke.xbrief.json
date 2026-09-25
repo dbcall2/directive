@@ -2,19 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #5024",
-<<<<<<<< HEAD:xbrief/completed/2026-09-25-5024-chorerelease-raise-windows-step-5-hang-detector-3045m-and-ke.xbrief.json
     "updated": "2026-09-25T19:07:55Z"
   },
   "plan": {
     "title": "chore(release): raise Windows Step 5 hang detector 30→45m and keep cheapening suite efficiency",
     "status": "completed",
-========
-    "updated": "2026-09-25T19:04:38Z"
-  },
-  "plan": {
-    "title": "chore(release): raise Windows Step 5 hang detector 30→45m and keep cheapening suite efficiency",
-    "status": "cancelled",
->>>>>>>> 04869e83c (docs(changelog): brief dest-contention note and stamp leftover #5024):xbrief/cancelled/2026-09-25-5024-chorerelease-raise-windows-step-5-hang-detector-3045m-and-ke.xbrief.json
     "narratives": {
       "Description": "chore(release): raise Windows Step 5 hang detector 30→45m and keep cheapening suite efficiency",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/5024",
@@ -24,7 +16,6 @@
     "items": [
       {
         "title": "Raise RELEASE_CHECK_TIMEOUT_MS / RELEASE_CHECK_TIMEOUT_MINUTES 30→45 with intent-constraint mint on the merge-base numeric-const (same #5022 in-harness ask + TTY land pattern). Update docs/RELEASING.md, content/skills/deft-directive-release/SKILL.md, CHANGELOG [Unreleased], and the 30m pin test so the wall matches.",
-<<<<<<<< HEAD:xbrief/completed/2026-09-25-5024-chorerelease-raise-windows-step-5-hang-detector-3045m-and-ke.xbrief.json
         "status": "completed",
         "id": "clause.1",
         "x-directive/evidence": {
@@ -84,30 +75,6 @@
           "recorded_at": "2026-09-25T19:07:54.379Z",
           "recorded_by": "MScottAdams"
         }
-========
-        "status": "cancelled",
-        "id": "clause.1"
-      },
-      {
-        "title": "Realign named-cause hang-detector remedy text with the deliberate-raise path: cheapen first for ordinary exit-124; numeric raise only through tracked gate change + mint.",
-        "status": "cancelled",
-        "id": "clause.2"
-      },
-      {
-        "title": "Keep --skip-ci / --allow-skip-ci as incident escape hatch only. First ship on this parent is the raise + docs/mint/named-cause alignment that aims the next production Windows Step 5 at finishing inside 45m without --skip-ci (or documents a measured shortfall with a new tracked residual).",
-        "status": "cancelled",
-        "id": "clause.3"
-      },
-      {
-        "title": "Portfolio framing: #5024 owns the hang raise and this framing. Children #5026 (coverage-at-Step-5 decision), #5027 (per-file durations artifact), and #5028 (slowest-first sequencing) remain separate bindable remediations. Do not silently widen this parent to implement those children.",
-        "status": "cancelled",
-        "id": "clause.4"
-      },
-      {
-        "title": "Keep Ubuntu GHA vitest coverage timeout-minutes a separate surface unless a later deliberate alignment lands. Tests lock the new 45m constant and the named-cause / docs wording that matches item 2.",
-        "status": "cancelled",
-        "id": "clause.5"
->>>>>>>> 04869e83c (docs(changelog): brief dest-contention note and stamp leftover #5024):xbrief/cancelled/2026-09-25-5024-chorerelease-raise-windows-step-5-hang-detector-3045m-and-ke.xbrief.json
       }
     ],
     "tags": [
@@ -392,7 +359,6 @@
           "CHANGELOG.md"
         ]
       },
-<<<<<<<< HEAD:xbrief/completed/2026-09-25-5024-chorerelease-raise-windows-step-5-hang-detector-3045m-and-ke.xbrief.json
       "completionProvenance": {
         "repository": null,
         "implementationCommit": null,
@@ -419,15 +385,6 @@
     },
     "id": "github.issue.5577165251",
     "updated": "2026-09-25T19:07:55Z",
-========
-      "lifecycleWrite": {
-        "action": "cancel",
-        "writtenAt": "2026-09-25T19:04:38Z"
-      }
-    },
-    "id": "github.issue.5577165251",
-    "updated": "2026-09-25T19:04:38Z",
->>>>>>>> 04869e83c (docs(changelog): brief dest-contention note and stamp leftover #5024):xbrief/cancelled/2026-09-25-5024-chorerelease-raise-windows-step-5-hang-detector-3045m-and-ke.xbrief.json
     "x-directive/intentConstraint": {
       "constraints": [
         {
