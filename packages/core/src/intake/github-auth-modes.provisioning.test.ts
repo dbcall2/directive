@@ -90,6 +90,18 @@ describe("provisioning-trust host and source (#5016)", () => {
     ).toBe("ghe.internal");
   });
 
+  it("keeps a non-default GHES port from the remote URL", () => {
+    expect(parseGithubHostFromRemote("https://ghe.internal:8443/acme/widgets.git")).toBe(
+      "ghe.internal:8443",
+    );
+    expect(
+      resolveGithubHost({
+        environ: {},
+        gitRemoteUrl: "https://ghe.internal:8443/acme/widgets.git",
+      }),
+    ).toBe("ghe.internal:8443");
+  });
+
   it("applies host-family tokens and ignores the other family", () => {
     expect(findApplicableInjectedToken({ GH_TOKEN: "t" }, "github.com")?.name).toBe("GH_TOKEN");
     expect(findApplicableInjectedToken({ GH_ENTERPRISE_TOKEN: "t" }, "github.com")).toBeNull();

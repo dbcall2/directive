@@ -150,8 +150,8 @@ export function parseGithubHostFromRemote(url: string): string | null {
   try {
     const withProto = raw.includes("://") ? raw : `https://${raw}`;
     const parsed = new URL(withProto);
-    if (parsed.hostname.length > 0) {
-      return normalizeGithubHostname(parsed.hostname);
+    if (parsed.host.length > 0) {
+      return normalizeGithubHostname(parsed.host);
     }
   } catch {
     return null;

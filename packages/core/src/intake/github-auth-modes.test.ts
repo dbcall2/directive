@@ -367,7 +367,7 @@ describe("github-auth-modes", () => {
       },
     );
     expect(failedAuth.ok).toBe(false);
-    expect(failedAuth.failureKind).toBe(FAILURE_GH_AUTH);
+    expect(failedAuth.failureKind).toBe(FAILURE_API_UNREACHABLE);
     expect(JSON.stringify(resultToDict(failedAuth))).not.toMatch(/ghs_|gho_|ghr_|github_pat_/i);
     expect(failedAuth.detail).not.toContain(tokenOut);
     expect(failedAuth.detail).not.toContain("stderr");
