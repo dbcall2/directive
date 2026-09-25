@@ -201,6 +201,11 @@ export interface RefreshDepositSeams {
   resolveLockfileManager?: (execFile: string) => string | null;
   /** Injected git exec for the #4120 generation rewind gate. */
   execGit?: GitExecFn;
+  /**
+   * This-run generation decision from the CLI preflight. When set, skip a
+   * second invocation-owned fetch inside {@link runRefreshDeposit}.
+   */
+  generationGate?: GenerationGateResult;
 }
 
 /**
@@ -941,12 +946,14 @@ export async function runRefreshDeposit(
 
   let generationGate: GenerationGateResult | null = null;
   if (!isPortRecordMode()) {
-    generationGate = evaluateGenerationGate({
-      projectDir,
-      contentVersion,
-      increment: !alreadyCurrent,
-      execGit: seams.execGit,
-    });
+    generationGate =
+      seams.generationGate ??
+      evaluateGenerationGate({
+        projectDir,
+        contentVersion,
+        increment: !alreadyCurrent,
+        execGit: seams.execGit,
+      });
     if (generationGate.action === "refuse") {
       return {
         projectDir,
@@ -1501,6 +1508,7 @@ export async function runRefreshDepositCli(options: RunRefreshDepositCliOptions)
   const detectLegacy = options.seams?.detectLegacy ?? detectLegacyLayout;
   let classification: UpdateClassification | null = null;
   let gitPreflight: UpdateGitPreflight | undefined;
+  let liveGenerationGate: GenerationGateResult | undefined;
   if (!detectLegacy(projectDir).legacy) {
     classification = classifyUpdateState(projectDir, options.classifySeams ?? {});
     if (classification.state === "not-initialized") {
@@ -1597,18 +1605,18 @@ export async function runRefreshDepositCli(options: RunRefreshDepositCliOptions)
       );
     }
 
-    const liveGate = evaluateGenerationGate({
+    liveGenerationGate = evaluateGenerationGate({
       projectDir,
       contentVersion: versions.contentVersion,
       increment,
       execGit: options.seams?.execGit,
     });
-    if (liveGate.action === "refuse") {
+    if (liveGenerationGate.action === "refuse") {
       return emitGenerationRewindRefusal(
         options,
         io,
         projectDir,
-        liveGate.message,
+        liveGenerationGate.message,
         false,
         gitPreflight,
       );
@@ -1637,7 +1645,10 @@ export async function runRefreshDepositCli(options: RunRefreshDepositCliOptions)
 
   return runWithMutationLedger(projectDir, async () => {
     try {
-      const result = await runRefreshDeposit(options, io, options.seams);
+      const result = await runRefreshDeposit(options, io, {
+        ...options.seams,
+        ...(liveGenerationGate !== undefined ? { generationGate: liveGenerationGate } : {}),
+      });
       if (result.generationRewindError !== undefined) {
         return emitGenerationRewindRefusal(
           options,

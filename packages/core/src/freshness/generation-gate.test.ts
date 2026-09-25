@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { GitExecFn, GitExecResult } from "../init-deposit/update-git-preflight.js";
+import { resolveDeliveryBranch } from "../policy/delivery-branch.js";
 import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { bindSessionGeneration } from "./bind.js";
 import {
@@ -95,16 +96,27 @@ afterEach(() => {
 describe("decideGenerationStamp (#4120 R1)", () => {
   it("refuses increment unless proposed > tip", () => {
     const decision = decideGenerationStamp({
-      local: { kind: "absent" },
+      local: { kind: "valid", token: validLocal(2), raw: token(2) },
       tip: { kind: "known-at-oid", generation: 4, oid: "abc" },
       increment: true,
-      contentVersion: "0.110.0",
+      contentVersion: "0.111.0",
     });
     expect(decision.action).toBe("refuse");
     if (decision.action === "refuse") {
       expect(decision.error_code).toBe(GENERATION_REWIND_ERROR_CODE);
       expect(decision.recovery).toMatch(/pull or rebase/);
     }
+  });
+
+  it("stamps tip+1 when local token is absent against a known tip", () => {
+    expect(
+      decideGenerationStamp({
+        local: { kind: "absent" },
+        tip: { kind: "known-at-oid", generation: 4, oid: "abc" },
+        increment: true,
+        contentVersion: "0.110.0",
+      }),
+    ).toEqual({ action: "stamp", generation: 5 });
   });
 
   it("allows increment when proposed > tip", () => {
@@ -241,12 +253,13 @@ function enoentGit(): GitExecResult {
 
 describe("listRemotes (#4120 R3)", () => {
   it("treats not-a-git-repository as no remotes", () => {
+    const root = tempDir("deft-gen-nongit-");
     const execGit: GitExecFn = () => ({
       status: 128,
       stdout: "",
       stderr: "fatal: not a git repository",
     });
-    expect(listRemotes(execGit, "/proj").kind).toBe("no-remotes");
+    expect(listRemotes(execGit, root).kind).toBe("no-remotes");
   });
 
   it("treats git-binary ENOENT on an empty directory as no remotes and allows stamp", () => {
@@ -272,6 +285,31 @@ describe("listRemotes (#4120 R3)", () => {
       expect(gate.generation).toBe(1);
     }
   });
+
+  it(
+    "does not treat an ancestor git checkout as remote-free on ENOENT",
+    destContentionItTimeout(),
+    () => {
+      const root = tempDir("deft-gen-enoent-ancestor-");
+      initRepo(root);
+      git(root, ["remote", "add", "origin", "https://example.test/repo.git"]);
+      const sub = join(root, "packages", "app");
+      mkdirSync(sub, { recursive: true });
+      const execGit: GitExecFn = () => enoentGit();
+      expect(listRemotes(execGit, sub)).toEqual({
+        kind: "unreadable",
+        remotes: [],
+        detail: "git binary not found",
+      });
+      const gate = evaluateGenerationGate({
+        projectDir: sub,
+        contentVersion: "1.0.0",
+        increment: true,
+        execGit,
+      });
+      expect(gate.action).toBe("refuse");
+    },
+  );
 
   it("keeps git-binary ENOENT unreadable when the dest has a git directory", () => {
     const root = tempDir("deft-gen-enoent-gitdir-");
@@ -330,7 +368,8 @@ describe("git fixtures (#4120 R0/R3)", destContentionItTimeout(), () => {
       increment: true,
       contentVersion: "0.110.0",
     });
-    expect(decision.action).toBe("refuse");
+    // Raw OID generation is 4 (not the replaced 1); missing local stamps tip+1.
+    expect(decision).toEqual({ action: "stamp", generation: 5 });
   });
 
   it("tri-state ls-tree distinguishes present, absent, and unreadable", () => {
@@ -417,6 +456,42 @@ describe("git fixtures (#4120 R0/R3)", destContentionItTimeout(), () => {
       ).toThrow();
     },
   );
+
+  it("does not treat empty ls-remote of fallback master as absence when upstream has main", () => {
+    const bare = tempDir("deft-gen-fallback-bare-");
+    git(bare, ["init", "--bare", "-b", "main"]);
+    const seed = tempDir("deft-gen-fallback-seed-");
+    git(seed, ["init", "-b", "main"]);
+    git(seed, ["config", "user.email", "4120@example.test"]);
+    git(seed, ["config", "user.name", "4120 fixture"]);
+    git(seed, ["remote", "add", "origin", bare]);
+    commitGeneration(seed, 4, "main-gen4");
+    git(seed, ["push", "-u", "origin", "main"]);
+
+    const dest = tempDir("deft-gen-fallback-dest-");
+    git(dest, ["init", "-b", "feature"]);
+    git(dest, ["config", "user.email", "4120@example.test"]);
+    git(dest, ["config", "user.name", "4120 fixture"]);
+    git(dest, ["remote", "add", "upstream", bare]);
+    writeFileSync(join(dest, "README"), "x\n");
+    git(dest, ["add", "README"]);
+    git(dest, ["commit", "-m", "local-feature"]);
+
+    const delivery = resolveDeliveryBranch(dest);
+    expect(delivery.source).toBe("default-fallback");
+    expect(delivery.branch).toBe("master");
+
+    const gate = evaluateGenerationGate({
+      projectDir: dest,
+      contentVersion: "0.110.0",
+      increment: true,
+    });
+    expect(gate.action).toBe("refuse");
+    expect(gate.tip.kind).toBe("remote-configured-unreadable");
+    if (gate.tip.kind === "remote-configured-unreadable") {
+      expect(gate.tip.detail).toMatch(/fallback name is not absence/);
+    }
+  });
 
   it("classifies missing remote ref as absence only when ls-remote is empty", () => {
     const bare = tempDir("deft-gen-absent-bare-");
@@ -511,5 +586,10 @@ describe("evaluateGenerationMonotonicVsBase (#4120 R5)", () => {
     expect(
       evaluateGenerationMonotonicVsBase({ changed: true, baseBlob: null, headBlob: token(1) }).ok,
     ).toBe(true);
+  });
+  it("refuses bootstrap generation 0 when the origin base blob is absent", () => {
+    expect(
+      evaluateGenerationMonotonicVsBase({ changed: true, baseBlob: null, headBlob: token(0) }).ok,
+    ).toBe(false);
   });
 });
