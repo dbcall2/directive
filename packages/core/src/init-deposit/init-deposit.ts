@@ -39,7 +39,7 @@ import {
 import { removeStaleMigratedFrameworkNarrative } from "../xbrief-migrate/migrate-project.js";
 import { writeAgentHookDeposit } from "./agent-hooks.js";
 import { ensureInitGitignoreLines, reconstituteDepositFromContent } from "./gitignore.js";
-import { depositStagePaths, unstageFrameworkPaths } from "./hygiene.js";
+import { depositStagePaths, snapshotGitIndex, unstageFrameworkPaths } from "./hygiene.js";
 import {
   type InitConsumerInvariantWriters,
   reassertInitConsumerInvariant,
@@ -411,6 +411,7 @@ export async function runInitDeposit(
   generationGate = preWrite;
 
   const payloadSnapshot = await snapshotExistingTree(deftDir);
+  const priorIndex = snapshotGitIndex(projectDir);
   try {
     await reconstituteDepositFromContent(contentRoot, deftDir, copyContent);
     await prunePythonArtifactsFromDeposit(deftDir, projectDir, io);
@@ -504,9 +505,11 @@ export async function runInitDeposit(
           dest: deftDir,
           projectDir,
         });
-        // Restore the index for every path this refused init staged so a later
-        // commit cannot pick up the rolled-back deposit (#4120 Greptile P1).
-        unstageFrameworkPaths(projectDir, staged.stagePaths);
+        // Restore pre-init index rows for installer paths; reset only names
+        // this run staged that were absent from the snapshot (#4120).
+        unstageFrameworkPaths(projectDir, staged.stagePaths, {
+          priorIndex: priorIndex ?? undefined,
+        });
         return {
           projectDir,
           deftDir,

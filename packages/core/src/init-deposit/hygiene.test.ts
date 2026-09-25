@@ -51,6 +51,7 @@ import {
   prunePackageAbsentDepositPaths,
   pruneStrayDepositPaths,
   reconcileDepositToContentPackage,
+  snapshotGitIndex,
   splitLedgerForStaging,
   stageFrameworkPaths,
   unstageFrameworkPaths,
@@ -1526,6 +1527,67 @@ describe("ledger intersection staging (#3394)", () => {
       encoding: "utf8",
     });
     expect(cachedAfter).not.toContain("AGENTS.md");
+  });
+
+  it("unstageFrameworkPaths restores a pre-staged installer path instead of resetting it (#4120)", () => {
+    const project = freshRoot("hygiene-unstage-keep-");
+    writeFileSync(join(project, "AGENTS.md"), "# original\n", "utf8");
+    initGitRepo(project);
+    writeFileSync(join(project, "AGENTS.md"), "# consumer staged\n", "utf8");
+    execFileSync("git", ["add", "--", "AGENTS.md"], { cwd: project });
+    const priorIndex = snapshotGitIndex(project);
+    expect(priorIndex).not.toBeNull();
+    writeFileSync(join(project, "AGENTS.md"), "# init deposit\n", "utf8");
+    execFileSync("git", ["add", "--", "AGENTS.md"], { cwd: project });
+    expect(execFileSync("git", ["show", ":AGENTS.md"], { cwd: project, encoding: "utf8" })).toBe(
+      "# init deposit\n",
+    );
+
+    const result = unstageFrameworkPaths(project, ["AGENTS.md"], {
+      priorIndex: priorIndex ?? [],
+    });
+    expect(result.unstaged).toBe(true);
+    expect(result.error).toBeNull();
+    expect(execFileSync("git", ["show", ":AGENTS.md"], { cwd: project, encoding: "utf8" })).toBe(
+      "# consumer staged\n",
+    );
+    const porcelain = execFileSync("git", ["status", "--porcelain"], {
+      cwd: project,
+      encoding: "utf8",
+    });
+    const agents = porcelain.split("\n").find((line) => line.includes("AGENTS.md"));
+    expect(agents).toBeDefined();
+    expect(agents?.[0]).not.toBe(" ");
+    expect(agents?.[0]).not.toBe("?");
+  });
+
+  it("unstageFrameworkPaths with priorIndex restores matching rows and resets extras (#4120)", () => {
+    const restored: { mode: string; sha: string; stage: number; path: string }[][] = [];
+    const unstaged: string[][] = [];
+    const prior = [{ mode: "100644", sha: "abc", stage: 0, path: "AGENTS.md" }];
+    const result = unstageFrameworkPaths("/tmp", ["AGENTS.md", ".deft/core"], {
+      gitPorcelain: () => "M  AGENTS.md\nA  .deft/core/main.md\n",
+      priorIndex: prior,
+      readIndexEntries: () => [
+        { mode: "100644", sha: "def", stage: 0, path: "AGENTS.md" },
+        { mode: "100644", sha: "fff", stage: 0, path: ".deft/core/main.md" },
+      ],
+      runGitRestoreIndex: (_root, entries) => {
+        restored.push([...entries]);
+      },
+      runGitUnstage: (_root, paths) => {
+        unstaged.push([...paths]);
+      },
+    });
+    expect(result.unstaged).toBe(true);
+    expect(result.error).toBeNull();
+    expect(restored).toEqual([prior]);
+    expect(unstaged).toEqual([[".deft/core/main.md"]]);
+  });
+
+  it("snapshotGitIndex is null outside git", () => {
+    const project = freshRoot("hygiene-snap-nogit-");
+    expect(snapshotGitIndex(project)).toBeNull();
   });
 
   it("unstages deposit paths on an unborn HEAD (#4120)", () => {
