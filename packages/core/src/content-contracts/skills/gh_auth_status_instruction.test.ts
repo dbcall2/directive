@@ -33,7 +33,9 @@ export function classifyGhAuthStatusLine(line: string): GhAuthStatusLineClass | 
     /check gh auth status/.test(line) ||
     /verify gh auth status/.test(line) ||
     /requires `gh auth status`/.test(line) ||
-    /!\s+Verify `gh auth status`/.test(line)
+    /!\s+Verify `gh auth status`/.test(line) ||
+    /!\s+(?:Run|Execute|Invoke|Call)\s+`gh auth status`/.test(line) ||
+    /\b(?:Run|Execute|Invoke|Call) `gh auth status`/.test(line)
   ) {
     return "imperative";
   }
@@ -111,6 +113,7 @@ describe("gh auth status instruction class (#3664 R2)", () => {
       "imperative",
     );
     expect(classifyGhAuthStatusLine('hint: "check gh auth status"')).toBe("imperative");
+    expect(classifyGhAuthStatusLine("! Run `gh auth status` before filing")).toBe("imperative");
     expect(classifyGhAuthStatusLine("no mention")).toBeNull();
   });
 

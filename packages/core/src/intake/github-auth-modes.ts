@@ -336,13 +336,17 @@ function stripGhAnsi(text: string): string {
 }
 
 /** Token-shaped prefixes that must never appear in login/detail/remediation (#3664 R4). */
-export const TOKEN_SHAPED_RE = /\b(?:ghp_|gho_|ghu_|ghs_|ghr_|github_pat_)[A-Za-z0-9_]+/i;
+export const TOKEN_SHAPED_RE = /\b(?:ghp_|gho_|ghu_|ghs_|ghr_|github_pat_)[A-Za-z0-9_]+/gi;
 
 export function containsTokenShapedText(text: string): boolean {
-  return TOKEN_SHAPED_RE.test(text);
+  TOKEN_SHAPED_RE.lastIndex = 0;
+  const found = TOKEN_SHAPED_RE.test(text);
+  TOKEN_SHAPED_RE.lastIndex = 0;
+  return found;
 }
 
 function redactTokenShaped(text: string): string {
+  TOKEN_SHAPED_RE.lastIndex = 0;
   return text.replace(TOKEN_SHAPED_RE, "[redacted]");
 }
 
@@ -388,11 +392,10 @@ export function isInstallationUserEndpointInapplicable(proc: CompletedProcess): 
 }
 
 function parseGhApiMessage(proc: CompletedProcess): string | null {
-  for (const chunk of [proc.stdout, proc.stderr]) {
-    const text = stripGhAnsi(chunk).trim();
-    if (text.length === 0) {
-      continue;
-    }
+  const chunks = [proc.stdout, proc.stderr]
+    .map((chunk) => stripGhAnsi(chunk).trim())
+    .filter((text) => text.length > 0);
+  for (const text of chunks) {
     try {
       const payload = JSON.parse(text) as unknown;
       if (payload !== null && typeof payload === "object" && !Array.isArray(payload)) {
@@ -406,7 +409,13 @@ function parseGhApiMessage(proc: CompletedProcess): string | null {
         }
       }
     } catch {
-      // fall through to raw text
+      // Prefer JSON from a later chunk before using sanitized non-JSON text.
+    }
+  }
+  for (const text of chunks) {
+    const firstLine = redactTokenShaped(text).split(/\r?\n/, 1)[0]?.trim() ?? "";
+    if (firstLine.length > 0 && !containsTokenShapedText(firstLine)) {
+      return firstLine;
     }
   }
   return null;

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CompletedProcess } from "../scm/call.js";
 import {
   containsTokenShapedText,
@@ -282,6 +282,55 @@ describe("github-auth-modes", () => {
     expect(parseLogin("")).toBeNull();
     expect(containsTokenShapedText("Token: ghs_liveinstallationtokenvalue")).toBe(true);
     expect(containsTokenShapedText("ghr_refreshshaped")).toBe(true);
+    expect(containsTokenShapedText("ghs_liveinstallationtokenvalue")).toBe(true);
+  });
+
+  it("redacts every token-shaped occurrence in CLI and JSON diagnostics (#3664)", () => {
+    const tokenA = `ghp_${"A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"}`;
+    const tokenB = `gho_${"Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2"}`;
+    const dualRepo = `${tokenA} ${tokenB}`;
+    const chunks: string[] = [];
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      chunks.push(String(chunk));
+      return true;
+    });
+    try {
+      const jsonCode = githubAuthModesMain({
+        githubAuthMode: "host-gh",
+        repo: dualRepo,
+        json: true,
+        runGh: stubGh({}),
+      });
+      expect(jsonCode).toBe(1);
+      const jsonOut = chunks.join("");
+      expect(jsonOut).not.toContain(tokenA);
+      expect(jsonOut).not.toContain(tokenB);
+      expect(jsonOut).toMatch(/\[redacted\].*\[redacted\]/s);
+
+      chunks.length = 0;
+      const cliCode = githubAuthModesMain({
+        githubAuthMode: "host-gh",
+        repo: dualRepo,
+        json: false,
+        runGh: stubGh({}),
+      });
+      expect(cliCode).toBe(1);
+      const cliOut = chunks.join("");
+      expect(cliOut).not.toContain(tokenA);
+      expect(cliOut).not.toContain(tokenB);
+      expect(cliOut).toMatch(/\[redacted\].*\[redacted\]/s);
+    } finally {
+      stdout.mockRestore();
+    }
+
+    const fromEnv = validateHostGhMode(
+      { GH_REPO: dualRepo },
+      { runGh: stubGh({}), readGitRemote: () => null },
+    );
+    expect(fromEnv.ok).toBe(false);
+    expect(fromEnv.detail).not.toContain(tokenA);
+    expect(fromEnv.detail).not.toContain(tokenB);
+    expect(fromEnv.detail).toMatch(/\[redacted\].*\[redacted\]/s);
   });
 
   it("does not emit raw gh streams or token-shaped text in detail/login/CLI (#3664 R1/R4)", () => {
@@ -312,7 +361,14 @@ describe("github-auth-modes", () => {
     );
     expect(userFail).not.toContain(tokenOut);
     expect(userFail).not.toMatch(/ghs_/);
-    expect(userFail).toMatch(/exit 1|unreachable|\/user failed/);
+    expect(userFail).toMatch(/exit 1|unreachable|\/user failed|\[redacted\]/);
+
+    const nonJsonCause = formatUserApiFailureDetail(
+      "host-gh",
+      proc(1, "", "gh: HTTP 401: Bad credentials (https://api.github.com/user)"),
+    );
+    expect(nonJsonCause).toMatch(/HTTP 401|Bad credentials/);
+    expect(nonJsonCause).not.toMatch(/exit 1/);
 
     const okAnsi = validateHostGhMode(
       {},
