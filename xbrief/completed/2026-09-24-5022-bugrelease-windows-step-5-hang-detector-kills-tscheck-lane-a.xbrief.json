@@ -2,11 +2,11 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #5022",
-    "updated": "2026-09-25T12:04:21Z"
+    "updated": "2026-09-25T02:33:38Z"
   },
   "plan": {
     "title": "bug(release): Windows Step 5 hang detector kills ts:check-lane at 52/1284 files during v0.119.9 cut",
-    "status": "cancelled",
+    "status": "completed",
     "narratives": {
       "Description": "bug(release): Windows Step 5 hang detector kills ts:check-lane at 52/1284 files during v0.119.9 cut",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/5022",
@@ -16,23 +16,66 @@
     "items": [
       {
         "title": "On this Windows host, `task release` Step 5 `ts:check-lane` (vitest with coverage) completes inside the existing 20-minute hang detector without `--skip-ci` and without raising `RELEASE_CHECK_TIMEOUT_MS`.",
-        "status": "cancelled",
-        "id": "clause.1"
+        "status": "completed",
+        "id": "clause.1",
+        "x-directive/disposition": {
+          "disposition": "deferred",
+          "reason": "v0.119.9 cut used --skip-ci=#5022 after 1272/1284 at 30m; successor #5024 raises 30→45 and further cheapen.",
+          "provenance": {
+            "kind": "operator-cli",
+            "actor": "MScottAdams",
+            "mintedAt": "2026-09-25T02:33:36.228Z",
+            "mintedVia": "in-harness-ask",
+            "eventRef": null
+          },
+          "recorded_at": "2026-09-25T02:33:36.228Z"
+        }
       },
       {
         "title": "Cheapening targets measured cost (named heavy files and/or host stale-binary / spawn cost). Success is Step 5 green under the existing timeout, not a higher timeout.",
-        "status": "cancelled",
-        "id": "clause.2"
+        "status": "completed",
+        "id": "clause.2",
+        "x-directive/disposition": {
+          "disposition": "deferred",
+          "reason": "PR #5023 landed measured cheapens and raised hang detector 20→30m; Step 5 still did not complete under that timeout on the v0.119.9 cut (1272/1284 at 30m → --skip-ci=#5022). Green under timeout without skip-ci is owed on successor #5024 (30→45 + further cheapen). Merge evidence alone does not satisfy clause 2 success criterion.",
+          "recorded_at": "2026-09-25T15:53:38.877Z",
+          "recorded_by": "MScottAdams",
+          "provenance": {
+            "kind": "operator-cli",
+            "actor": "MScottAdams",
+            "mintedAt": "2026-09-25T15:53:38.877Z",
+            "mintedVia": "parent-retained-leftover-complete",
+            "eventRef": "https://github.com/deftai/directive/issues/5024"
+          }
+        }
       },
       {
         "title": "CHANGELOG `[Unreleased]` records the cheapen with Tracking/Refs to this issue.",
-        "status": "cancelled",
-        "id": "clause.3"
+        "status": "completed",
+        "id": "clause.3",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "https://github.com/deftai/directive/pull/5023",
+          "recorded_at": "2026-09-25T02:33:36.228Z",
+          "recorded_by": "MScottAdams"
+        }
       },
       {
         "title": "After merge, the paused v0.119.9 cut can resume Phase 1 and pass Step 5 without `--skip-ci`.",
-        "status": "cancelled",
-        "id": "clause.4"
+        "status": "completed",
+        "id": "clause.4",
+        "x-directive/disposition": {
+          "disposition": "deferred",
+          "reason": "Cut resumed and shipped with --skip-ci=#5022; full Step 5 without skip-ci tracked on #5024.",
+          "provenance": {
+            "kind": "operator-cli",
+            "actor": "MScottAdams",
+            "mintedAt": "2026-09-25T02:33:36.228Z",
+            "mintedVia": "in-harness-ask",
+            "eventRef": null
+          },
+          "recorded_at": "2026-09-25T02:33:36.228Z"
+        }
       }
     ],
     "tags": [
@@ -178,13 +221,34 @@
           "packages/core/src/packs/pack-render.test.ts"
         ]
       },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 5023,
+        "prBase": null,
+        "mergeCommit": "552dbd6acbbec3306fd40b47dcff681cb340aabc",
+        "deliveryBranch": "master",
+        "deliveryCommit": "832f73ec9e9b5824f002d6ae52da5f3ec7bb5650",
+        "verifiedAt": "2026-09-25T02:33:38Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:grok:v1:MDFhMGQ1NDUtYWQ2Ni03N2UzLTlkYjgtMWYxNTYzYmFmMTlh"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-25T02:33:38Z",
+      "completedSessionId": "host:grok:v1:MDFhMGQ1NDUtYWQ2Ni03N2UzLTlkYjgtMWYxNTYzYmFmMTlh",
+      "capacityBucket": "technical-debt",
       "lifecycleWrite": {
-        "action": "cancel",
-        "writtenAt": "2026-09-25T12:04:21Z"
+        "action": "complete",
+        "writtenAt": "2026-09-25T02:33:38Z"
       }
     },
     "id": "github.issue.5575483807",
-    "updated": "2026-09-25T12:04:21Z",
+    "updated": "2026-09-25T02:33:38Z",
     "x-directive/intentConstraint": {
       "constraints": [
         {
