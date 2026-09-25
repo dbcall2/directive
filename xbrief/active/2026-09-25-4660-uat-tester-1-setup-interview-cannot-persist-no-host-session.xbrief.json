@@ -1,0 +1,426 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #4660",
+    "updated": "2026-09-25T18:24:59Z"
+  },
+  "plan": {
+    "title": "[UAT Tester 1] Setup interview cannot persist: no host session identity / read-only session:start",
+    "status": "running",
+    "narratives": {
+      "Description": "A Codex setup session that starts with deft session:start -- --read-only already wrote USER.md. The recorded command does not require a host owner. This story locks that non-claiming start, keeps Phase 1 as the preferences-file write, and routes project identity to the writer landed on issue 4663.",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/4660",
+      "Overview": "\n\n- Read-only session start stays a non-claiming command.\n- Phase 1 remains the preferences-file write.\n- Project identity is the writer on issue 4663: the Phase 2 narrative strings in xbrief/PROJECT-DEFINITION.xbrief.json while xbrief/active/ is empty, not an agent patch of that file, and without setting policy keys.\n- The proposed work brief stays Phase 3 and waits on that identity write.\n\noperator-deferred: P1 #4663\n\nTarget-digest: sha256:5630aa538480c9cf2d29188d6e7d3121fe39a6962c3265135b5c2377cfdea4d4\r\n\n",
+      "Labels": "bug, adoption-blocker, agent-experience, process, harness, area:cli, design-critique:ingest-ready, focused-test-pass-1, core-capabilities, promise:planning",
+      "ImplementationPlan": "1. Update the host-session-identity source module and its test file so the four-token read-only session:start form keeps requiresOwner false.\n2. Align the setup skill source so Phase 1 remains the USER.md write, Phase 2 calls the project identity writer, and Phase 3 waits on that write; add targeted tests that record the expected evidence.",
+      "UserStory": "As a first-session operator, I want read-only session start to stay non-claiming while Phase 1 writes USER.md and Phase 2 uses the project identity writer, so that a Codex setup interview does not fail by demanding a host owner on the recorded command."
+    },
+    "items": [
+      {
+        "title": "Read-only session start stays a non-claiming command.",
+        "status": "proposed",
+        "id": "clause.1",
+        "narrative": {
+          "Acceptance": "Given deft session:start -- --read-only, when the hook classifies the command, then requiresOwner stays false and occupancy is not claimed."
+        }
+      },
+      {
+        "title": "Phase 1 remains the preferences-file write.",
+        "status": "proposed",
+        "id": "clause.2",
+        "narrative": {
+          "Acceptance": "Given setup Phase 1, when the interview completes, then USER.md is written at the platform path and that write is the Phase 1 persist."
+        }
+      },
+      {
+        "title": "Project identity is the writer on issue 4663: the Phase 2 narrative strings in xbrief/PROJECT-DEFINITION.xbrief.json while xbrief/active/ is empty, not an agent patch of that file, and without setting policy keys.",
+        "status": "proposed",
+        "id": "clause.3",
+        "narrative": {
+          "Acceptance": "Given an empty xbrief/active set, when Phase 2 stores project identity, then the writer stores Overview TechStack Strategy Quality ProjectRules and Branching on xbrief/PROJECT-DEFINITION.xbrief.json without an agent patch and without setting policy keys."
+        }
+      },
+      {
+        "title": "The proposed work brief stays Phase 3 and waits on that identity write.",
+        "status": "proposed",
+        "id": "clause.4",
+        "narrative": {
+          "Acceptance": "Given Phase 2 identity is not yet written, when setup reaches the proposed work brief, then Phase 3 waits on that identity write and does not emit the brief first."
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "adoption-blocker",
+      "agent-experience",
+      "process",
+      "harness",
+      "area:cli",
+      "design-critique:ingest-ready",
+      "focused-test-pass-1",
+      "core-capabilities",
+      "promise:planning"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/4660",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #4660: [UAT Tester 1] Setup interview cannot persist: no host session identity / read-only session:start"
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 4 independently testable clauses from the task statement before product edit (#3323)",
+      "sentences": [
+        "[UAT Tester 1] Setup interview cannot persist: no host session identity / read-only session:start",
+        "Read-only session start stays a non-claiming command.",
+        "Phase 1 remains the preferences-file write.",
+        "Project identity is the writer on issue 4663: the Phase 2 narrative strings in xbrief/PROJECT-DEFINITION.xbrief.json while xbrief/active/ is empty, not an agent patch of that file, and without setting policy keys.",
+        "The proposed work brief stays Phase 3 and waits on that identity write.",
+        "operator-deferred: P1 #4663 Target-digest: sha256:5630aa538480c9cf2d29188d6e7d3121fe39a6962c3265135b5c2377cfdea4d4"
+      ],
+      "clauses": [
+        {
+          "id": 1,
+          "text": "Read-only session start stays a non-claiming command.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "Phase 1 remains the preferences-file write.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "Project identity is the writer on issue 4663: the Phase 2 narrative strings in xbrief/PROJECT-DEFINITION.xbrief.json while xbrief/active/ is empty, not an agent patch of that file, and without setting policy keys.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "The proposed work brief stays Phase 3 and waits on that identity write.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found"
+    },
+    "metadata": {
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [],
+        "module_boundary": ""
+      },
+      "issueCommentThread": [
+        {
+          "body": "UAT: **focused-test-pass-1**\n\n`nheroux-bit` cannot apply labels on this repo (`AddLabelsToLabelable` denied). Please add the `focused-test-pass-1` label to this issue.",
+          "id": 5705168514,
+          "html_url": "https://github.com/deftai/directive/issues/4660#issuecomment-5705168514",
+          "user": {
+            "login": "nheroux-bit",
+            "id": 278998440,
+            "node_id": "U_kgDOEKEtqA",
+            "avatar_url": "https://avatars.githubusercontent.com/u/278998440?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/nheroux-bit",
+            "html_url": "https://github.com/nheroux-bit",
+            "followers_url": "https://api.github.com/users/nheroux-bit/followers",
+            "following_url": "https://api.github.com/users/nheroux-bit/following{/other_user}",
+            "gists_url": "https://api.github.com/users/nheroux-bit/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/nheroux-bit/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/nheroux-bit/subscriptions",
+            "organizations_url": "https://api.github.com/users/nheroux-bit/orgs",
+            "repos_url": "https://api.github.com/users/nheroux-bit/repos",
+            "events_url": "https://api.github.com/users/nheroux-bit/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/nheroux-bit/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-16T21:58:49Z",
+          "updated_at": "2026-09-16T21:58:49Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "Adoption blocker.\n\nThis is about Planning: the conversation before any code. Directive is supposed to learn what the person wants, write down the project, and agree the scope before an agent starts building.\n\nWhat a new person hits: They answer the setup questions, and the answers cannot be saved because the session is not allowed to write.\n\nWhy that ruins the product for them: The form was wasted. They did the part that feels like work, and the product kept none of it.\n\nHow likely: High whenever setup is started from a host that opens the session as read-only. That is a normal first launch, not an edge case.\n\n",
+          "id": 5780265432,
+          "html_url": "https://github.com/deftai/directive/issues/4660#issuecomment-5780265432",
+          "user": {
+            "login": "polfer",
+            "id": 52183,
+            "node_id": "MDQ6VXNlcjUyMTgz",
+            "avatar_url": "https://avatars.githubusercontent.com/u/52183?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/polfer",
+            "html_url": "https://github.com/polfer",
+            "followers_url": "https://api.github.com/users/polfer/followers",
+            "following_url": "https://api.github.com/users/polfer/following{/other_user}",
+            "gists_url": "https://api.github.com/users/polfer/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/polfer/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/polfer/subscriptions",
+            "organizations_url": "https://api.github.com/users/polfer/orgs",
+            "repos_url": "https://api.github.com/users/polfer/repos",
+            "events_url": "https://api.github.com/users/polfer/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/polfer/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T16:37:12Z",
+          "updated_at": "2026-09-22T16:37:12Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.7\n```quarantined\nrole: triage\n```\n\ndesign-critique: warranted, because a Codex setup session that starts read-only still cannot bind a lifecycle write when the hook payload has no session_id, so the interview does not persist into PROJECT-DEFINITION.\n\nmechanism-shaped: true\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\Mini-Slayer\\.grok\\worktrees\\deft-directive\\issue-4660-dc\norigin-ref: origin/HEAD\ndispatch-sha: b6425115eab5a25877735acd70ca7d693594dda8\n\ncharter: refutation\nspend: N=1\nspend-ask: asked\nspend-why: operator said appropriate n, which is the asked N-pick; the Desired shape is one named failure, so N=1.\n\nrefutation-target: Completing setup Phase 1 cannot persist project identity because the Codex session has no host session identity for the lifecycle write, while USER.md can still be written outside the project and PROJECT-DEFINITION stays the empty init seed.\n\ntarget: #4660\ntarget-shape: single-issue (default)\naudit-targets: none\n\npain: P1\n\n## Gate stamp\n\nP1 is that persistence hole: the lifecycle owner bind refuses, and the project identity file never updates.\n\nPin-read at dispatch-sha b6425115eab5a25877735acd70ca7d693594dda8: packages/core/src/hooks/classify/host-session-identity.ts resolves Codex from payload session_id. packages/core/src/hooks/dispatcher.ts, when that resolution is not ok and the lifecycle command requires an owner, denies occupancy-identity-unavailable. The fallback sentence is \"host session identity is unavailable\" and the next sentence is \"Directive cannot bind the occupancy claim without a stable host owner\". The issue quote \"lacks the host-provided session identity required for writes\" is the session paraphrase of that deny, not a second string in the tree. CHANGELOG at this SHA does not name #4660. No open PR. Distinct from #4663 (requirements-class path) and #4668 (resume copy after the miss).\n\nNo implement and no ingest from this parent.\r\n\n",
+          "id": 5782790532,
+          "html_url": "https://github.com/deftai/directive/issues/4660#issuecomment-5782790532",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T19:38:30Z",
+          "updated_at": "2026-09-22T19:38:30Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.7\n```quarantined\nrole: critic\n```\n\naudit-targets: none\n\nblocks-the-design: Setup Phase 1 persists USER.md, and the recorded Codex command is the non-claiming read-only start.\n\nEvidence. Pin b6425115eab5a25877735acd70ca7d693594dda8. Phase 1 is the USER.md write (content/skills/deft-directive-setup/SKILL.md:183) to `%APPDATA%\\deft\\USER.md` on Windows (SKILL.md:124). Issue 4660 records that write. Project identity is Phase 2 (SKILL.md:414). The proposed brief is Phase 3 (SKILL.md:639). Codex already has a host owner source: payload `session_id`, stored as `host:codex:v1:` (packages/core/src/session/host-session-owner.ts:30). `requiresOwner` is false when the verb is `session:start` and the command is read-only (packages/core/src/hooks/classify/host-session-identity.ts:523). The four-token form `deft session:start -- --read-only` is that case (packages/core/src/hooks/classify/host-session-identity.test.ts:331, :338). `attachLifecycleIdentityRewrite` returns the prior decision before any identity deny when `requiresOwner` is false (packages/core/src/hooks/dispatcher.ts:2565). A Codex hook with an empty environment allows `deft session:start --read-only` (packages/core/src/hooks/dispatcher.test.ts:3579). The sentences \"host session identity is unavailable\" and \"Directive cannot bind the occupancy claim without a stable host owner\" sit on the owner-requiring arm (dispatcher.ts:2597). A direct write takes `occupancy-identity-unavailable` only when a live occupant is present and the actor is unresolved (dispatcher.ts:1547). No live lease allows the occupancy gate (packages/core/src/session/occupancy.ts:1779). Init seeds PROJECT-DEFINITION and leaves an existing file intact (packages/core/src/init-deposit/init-deposit.ts:262). Phase 2 skips that file unless the user asks to replace it (SKILL.md:420).\n\nFailure mode. A lean that binds the recorded sentence repairs Phase 1 and a missing Codex identity contract. Phase 1's file is the out-of-project USER.md write the issue recorded. The lifecycle command the issue recorded is allowed with no host owner, so supplying an owner there leaves PROJECT-DEFINITION on the init seed. `seedMinimalProjectDefinition` keeps an existing file. Claiming an owner inside read-only `session:start` removes the #3611 alignment exemption. Adding a Codex environment variable uses the channel host-session-owner.ts:36 refuses for payload hosts (#4431): the value is shell-reachable and shared across agent sessions. Owner ids are cooperative and same-user forgeable (host-session-owner.ts:6), so a project-identity write with no bound lease is a write any same-user process can perform while this session holds nothing.\n\nDisposition. The recorded refutation-target cannot bind. A later lean needs a different premise: an owner-requiring lifecycle command, other than read-only `session:start`, whose Codex payload omitted or invalidated `session_id`, with decision code `occupancy-identity-unavailable`, and that decision is what stopped the Phase 2 replace. The issue body has the read-only start and a paraphrase. It has no such decision.\n\nRoad not taken. The strongest rejected reading is that a missing payload `session_id` still sits upstream: mutation `session:start` would deny, ritual would stay unbound, and the seed would stay. That chain exists on the owner-requiring arm. It is a different premise from the recorded sentence, which names Phase 1, the lifecycle command the session already ran, and a Codex session with no host identity. What flips this verdict is a hook decision in envelope for that owner-requiring command on this session.\n\nIdentity and shared state. The control already in the tree is payload `session_id` for Codex, no owner on read-only `session:start`, and the identity deny only for owner-requiring lifecycle commands and for direct writes against a live lease.\n\nfootnote: Issue 4660 names @deftai/directive@0.119.1. The checks above are the dispatch SHA.\r\n\n",
+          "id": 5782970904,
+          "html_url": "https://github.com/deftai/directive/issues/4660#issuecomment-5782970904",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T19:49:02Z",
+          "updated_at": "2026-09-22T19:49:02Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.7\n```quarantined\nrole: parent\n```\n\n**Lean:** The recorded cause does not bind. Phase 1 already wrote USER.md. The recorded command is a read-only session start, and that command does not require a host owner.\n\n## In plain English\n\nPhase 1 of setup writes the preferences file, and that write is what the report already saw. The recorded command was a read-only session start, which does not require a host owner. The project-definition file stays the initial seed for a different reason than that command. The accepted account leaves the read-only start non-claiming and does not treat a missing Codex owner on that command as the cause. Confirming this map asserts that the recorded cause does not hold. It does not supply a replacement cause. The same parent wrote the opening warrant and these takes. The named pain stays open.\n\n## Takes\n\n- Setup Phase 1 persists USER.md, and the recorded Codex command is the non-claiming read-only start. Class blocks-the-design. Take accept-into-contract. Critic comment 5782970904.\n\nSupersedes comment 5782790532.\n\nRound 1 siblings: 1. Cited critic comment 5782970904.\n\nFootnote kept in the census, outside the take map: the report names package 0.119.1 and the checks are the dispatch SHA. Critic comment 5782970904.\n\nSpec-path:\n\n## Bound remedy\n\n- Read-only session start stays a non-claiming command.\n- Phase 1 remains the preferences-file write.\n- The recorded refutation target does not bind.\n\ndoes-not-relieve: P1\n\nTarget-digest: sha256:5630aa538480c9cf2d29188d6e7d3121fe39a6962c3265135b5c2377cfdea4d4\r\n\n",
+          "id": 5783136452,
+          "html_url": "https://github.com/deftai/directive/issues/4660#issuecomment-5783136452",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T19:57:38Z",
+          "updated_at": "2026-09-22T19:57:38Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.7\n```quarantined\nrole: parent\n```\n\nHandoff\n\nThe round-1 critic comment 5782970904 blocked the recorded cause, and the successor map comment 5783136452 accepts that block. The named pain stays unmet. The deliverable remainder is a different premise: an owner-requiring lifecycle command other than read-only session start, decision code occupancy-identity-unavailable, that stopped a Phase 2 replace of the project-definition file. One leftover path is a new issue for that premise. The other is to halt this arc. This comment does not file that issue.\n\nopen-question: Should a later issue name an owner-requiring lifecycle command, other than read-only session start, whose occupancy-identity-unavailable decision stopped a Phase 2 replace?\r\n\n",
+          "id": 5783148027,
+          "html_url": "https://github.com/deftai/directive/issues/4660#issuecomment-5783148027",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T19:58:15Z",
+          "updated_at": "2026-09-22T19:58:15Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.7\n```quarantined\nrole: parent\n```\n\n**Lean:** Read-only session start stays non-claiming. Saving project identity is the writer already accepted on issue 4663.\n\n## In plain English\n\nThe recorded session wrote the preferences file and did not save project identity. The command that session ran was a read-only session start, which does not require a host owner. The accepted account leaves that command non-claiming. Saving the interview into the project-definition file is the writer already accepted on issue 4663. The proposed work brief stays a later phase and waits on that file. Confirming this map sends the named pain to that issue. The same parent wrote the opening warrant and these takes.\n\n## Takes\n\n- Setup Phase 1 persists USER.md, and the recorded Codex command is the non-claiming read-only start. Class blocks-the-design. Take accept-into-contract. Critic comment 5782970904.\n\nSupersedes comment 5783136452.\n\n## Parent-side substantiation\n\naudit:identity-is-4663 sha=b6425115eab5a25877735acd70ca7d693594dda8 pointer=comment:5783900527 reading=asserted\n\nSpec-path:\n\n## Bound remedy\n\n- Read-only session start stays a non-claiming command.\n- Phase 1 remains the preferences-file write.\n- Project identity is the writer on issue 4663: the Phase 2 narrative strings in xbrief/PROJECT-DEFINITION.xbrief.json while xbrief/active/ is empty, not an agent patch of that file, and without setting policy keys.\n- The proposed work brief stays Phase 3 and waits on that identity write.\n\noperator-deferred: P1 #4663\n\nTarget-digest: sha256:5630aa538480c9cf2d29188d6e7d3121fe39a6962c3265135b5c2377cfdea4d4\r\n\n",
+          "id": 5786133015,
+          "html_url": "https://github.com/deftai/directive/issues/4660#issuecomment-5786133015",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T23:33:46Z",
+          "updated_at": "2026-09-22T23:33:46Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.7\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\n## Deferral to issue 4663 covers P1\n\nfootnote\n\nEvidence. Pinned at b6425115eab5a25877735acd70ca7d693594dda8. Stop 1 comment 5782790532 names P1 as the persistence hole: the lifecycle owner bind refuses, and the project identity file never updates. Successor lean 5786133015 places that pain on issue 4663. The bound remedy keeps read-only session start non-claiming, keeps Phase 1 as the preferences-file write, and names project identity as the writer on issue 4663.\n\nThe recorded command stays non-claiming. `deft session:start -- --read-only` is exact and `requiresOwner` is false (packages/core/src/hooks/classify/host-session-identity.ts:523; host-session-identity.test.ts:331). `attachLifecycleIdentityRewrite` returns the prior allow when `requiresOwner` is false (packages/core/src/hooks/dispatcher.ts:2565). The sentences \"host session identity is unavailable\" and \"Directive cannot bind the occupancy claim without a stable host owner\" are on the owner-requiring arm (dispatcher.ts:2597). A direct write takes `occupancy-identity-unavailable` when a live occupant is present and the actor is unresolved (dispatcher.ts:1547). Phase 1 writes USER.md (content/skills/deft-directive-setup/SKILL.md:183; Windows path at :124). Phase 2 is the project-definition file (SKILL.md:414).\n\nProject identity is the writer accepted on issue 4663. Comment 5783900527 binds a writer that stores the Phase 2 narrative strings Overview, TechStack, Strategy, Quality, ProjectRules, and Branching in xbrief/PROJECT-DEFINITION.xbrief.json while xbrief/active/ is empty. That same bullet keeps the write off an agent patch of that file and leaves policy keys unset. Synthesis comment 5784060517 accepts that lean. Issue 4663 is closed completed. At this pin, createSkeleton copies empty SKELETON_NARRATIVES and takes no interview text (packages/core/src/render/project-render.ts:244; packages/core/src/render/constants.ts:104). seedMinimalProjectDefinition leaves an existing file intact (packages/core/src/init-deposit/init-deposit.ts:261). An agent patch of xbrief/PROJECT-DEFINITION.xbrief.json sits outside REQUIREMENTS_DEFAULT_ALLOW_PATHS (packages/core/src/session/posture.ts:41) and is denied `write-requirements-out-of-class` (dispatcher.ts:1635). With an empty active set that patch is denied `scope-not-ready` (packages/core/src/hooks/scope.ts:247; dispatcher.ts:1983). Session start with an empty active set returns exit 0 (packages/core/src/session/session-start-hook.ts:84). Codex owner source remains payload `session_id` (packages/core/src/session/host-session-owner.ts:30).\n\nThe harvested bound remedy stays that writer on issue 4663.\n\nClose comment 5785028772 names landing commits 5ba75913e and c96cc0122. Those objects are absent from this pin. Coverage here is accepted lean 5783900527 together with the pin-read above.\n\nIdentity. The recorded command stays non-claiming. Narrative persistence stays the writer on issue 4663, and that writer leaves policy keys unset. Codex stays on payload `session_id` for owner-requiring commands.\n\nRoad not taken. An owner requirement on the recorded read-only command. That command returns at dispatcher.ts:2565, before the owner deny. This note flips if a pin-read shows `requiresOwner` true for `deft session:start -- --read-only`, or if comment 5783900527 accepts a store other than those Phase 2 strings in xbrief/PROJECT-DEFINITION.xbrief.json while xbrief/active/ is empty.\n\n## Work brief stays outside this pain\n\nfootnote\n\nStop 1 limits P1 to the project-identity file. The proposed work brief is Phase 3 and waits on that file (content/skills/deft-directive-setup/SKILL.md:639). Lean 5786133015 already places the brief there. The harvest stays the deferral of P1.",
+          "id": 5786326737,
+          "html_url": "https://github.com/deftai/directive/issues/4660#issuecomment-5786326737",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T23:45:10Z",
+          "updated_at": "2026-09-22T23:45:10Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.7\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nThe recorded session wrote the preferences file and did not save project identity. The command was a read-only session start, which does not require a host owner. Saving the interview into the project-definition file is the writer already accepted on issue 4663. The proposed work brief stays a later phase and waits on that file.\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nBound contract: successor lean 5786133015.\r\n\n",
+          "id": 5786366796,
+          "html_url": "https://github.com/deftai/directive/issues/4660#issuecomment-5786366796",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T23:47:15Z",
+          "updated_at": "2026-09-22T23:47:15Z",
+          "author_association": "COLLABORATOR"
+        }
+      ],
+      "issueBody": "## Tester 1 (Codex / Windows / @deftai/directive@0.119.1)\n\n**Checks:** C5 FAIL\n**Defect:** 7\n\n### Expected\nCompleting setup Phase 1 writes USER.md, updates PROJECT-DEFINITION, and produces a proposed work brief.\n\n### What happened\nCodex started `deft session:start -- --read-only`. After the interview: \"Saving is blocked... this Codex session lacks the host-provided session identity required for writes.\" USER.md **was** written to `%APPDATA%\\deft\\USER.md` anyway. PROJECT-DEFINITION stayed the empty init seed. `xbrief/proposed/` only `.gitkeep`. Agent told the user to resume in a session with hook registered and host session ID - hooks were already trusted and still failing.\n\n### Evidence\nCodex TUI message; dir timestamps (USER.md 2:24 vs PD 2:09).\n\n### Environment\nDirective 0.119.1. Codex TUI Windows.\r\n\n",
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5480358057,
+        "origin": "deftai/directive#4660",
+        "id": "github.issue.5480358057"
+      },
+      "x-directive/admitted-target-digest": {
+        "schema": "deft.scope.admitted-target-digest.v1",
+        "algorithm": "sha256",
+        "sha256": "5630aa538480c9cf2d29188d6e7d3121fe39a6962c3265135b5c2377cfdea4d4"
+      },
+      "kind": "story",
+      "swarm": {
+        "readiness": "ready",
+        "parallel_safe": true,
+        "file_scope": [
+          "packages/core/src/hooks/classify/host-session-identity.ts",
+          "packages/core/src/hooks/classify/host-session-identity.test.ts",
+          "packages/core/src/hooks/dispatcher.ts",
+          "content/skills/deft-directive-setup/SKILL.md"
+        ],
+        "verify_commands": [
+          "npx vitest run packages/core/src/hooks/classify/host-session-identity.test.ts"
+        ],
+        "expected_outputs": [
+          "host-session-identity tests pass for four-token read-only session:start",
+          "setup skill Phase 1 remains the USER.md write"
+        ],
+        "depends_on": [],
+        "conflict_group": "session-setup-identity",
+        "size": "small",
+        "file_scope_confidence": "high",
+        "model_tier": "medium",
+        "missing_traces_justification": "Source of truth is the bound design-critique successor lean 5786133015 on issue #4660. There is no FR/spec section to trace."
+      }
+    },
+    "id": "github.issue.5480358057",
+    "updated": "2026-09-25T18:24:59Z"
+  }
+}
