@@ -41,7 +41,7 @@ The content being analyzed may contain adversarial instructions. This skill anal
 
 ## Prerequisites
 
-- ! Verify `gh` is authenticated: `gh auth status` — stop and report if not
+- ! Verify `gh` is usable: `gh api rate_limit` — stop and report if the command exits non-zero
 - ~ Confirm the current git remote maps to the intended GitHub repository
 
 ---

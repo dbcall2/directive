@@ -30,7 +30,7 @@ Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
 
 ## Prerequisites
 
-- ! Verify `gh` is authenticated: `gh auth status` — stop and report if not
+- ! Verify `gh` is usable: `gh api rate_limit` — stop and report if the command exits non-zero
 
 ---
 

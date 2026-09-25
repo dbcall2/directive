@@ -278,6 +278,12 @@ export function runToolchainCheck(
     const version = firstSafeOutputLine(result.stdout || result.stderr);
     if (result.returncode === 0) {
       lines.push(`  ${tool.name}: ${version}`);
+      if (tool.name === "gh") {
+        const advisory = ghCliTokenMaskingAdvisory(version);
+        if (advisory !== null) {
+          lines.push(`  ${advisory}`);
+        }
+      }
     } else {
       failed.push(tool.name);
       const diagnostic = firstSafeDiagnostic(result.stderr || result.stdout);
@@ -305,6 +311,56 @@ export function runToolchainCheck(
     exitCode: 0,
     ...(options.consumer ? { packageManager, packageManagerSource } : {}),
   };
+}
+
+/** Advisory floor for GHSA-cg6r-mpgc-h9mm / CVE-2026-64652 (cli/cli token masking). */
+const GH_CLI_TOKEN_MASKING_ADVISORY_FLOOR = "2.97.0";
+const GH_CLI_TOKEN_MASKING_ADVISORY_ID = "GHSA-cg6r-mpgc-h9mm";
+const GH_CLI_TOKEN_MASKING_CVE = "CVE-2026-64652";
+const GH_CLI_TOKEN_MASKING_ADVISORY_URL =
+  "https://github.com/cli/cli/security-advisories/GHSA-cg6r-mpgc-h9mm";
+
+function parseGhCliVersion(
+  text: string,
+): { readonly major: number; readonly minor: number; readonly patch: number } | null {
+  const match = text.match(/(\d+)\.(\d+)\.(\d+)/);
+  const majorText = match?.[1];
+  const minorText = match?.[2];
+  const patchText = match?.[3];
+  if (majorText === undefined || minorText === undefined || patchText === undefined) {
+    return null;
+  }
+  return {
+    major: Number(majorText),
+    minor: Number(minorText),
+    patch: Number(patchText),
+  };
+}
+
+function ghCliVersionIsBelowFloor(captured: string, floor: string): boolean {
+  const have = parseGhCliVersion(captured);
+  const need = parseGhCliVersion(floor);
+  if (have === null || need === null) {
+    return false;
+  }
+  if (have.major !== need.major) {
+    return have.major < need.major;
+  }
+  if (have.minor !== need.minor) {
+    return have.minor < need.minor;
+  }
+  return have.patch < need.patch;
+}
+
+function ghCliTokenMaskingAdvisory(versionLine: string): string | null {
+  if (!ghCliVersionIsBelowFloor(versionLine, GH_CLI_TOKEN_MASKING_ADVISORY_FLOOR)) {
+    return null;
+  }
+  return (
+    `gh advisory: ${GH_CLI_TOKEN_MASKING_ADVISORY_ID} / ${GH_CLI_TOKEN_MASKING_CVE} — ` +
+    `upgrade gh to ${GH_CLI_TOKEN_MASKING_ADVISORY_FLOOR} or later ` +
+    `(${GH_CLI_TOKEN_MASKING_ADVISORY_URL})`
+  );
 }
 
 function firstSafeOutputLine(text: string): string {

@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **security(scm,skills): stop agent-runnable `gh auth status` that can print a live token (#3664).** Usable probe is `gh api rate_limit`; identity is `verify:gh-auth` / `github-auth-modes`. `parseLogin` no longer treats raw gh stdout as login. `toolchain:check` warns when captured `gh --version` is below 2.97.0 (GHSA-cg6r-mpgc-h9mm / CVE-2026-64652). Consumer relief after a release pin plus `deft update`. Upstream masking remains a follow-up.
 - **fix(release): suite-stamp / PASS_WITH_DEBT must cite tip-SHA GHA coverage-of-record; never cite check-run id as gha-run; prefer lane cite when aggregator lacks parseable actions/runs URL (Tracking #5026).**
 
 ### Removed

@@ -75,10 +75,10 @@ task verify:gh-auth -- --json
 
 Modes:
 
-- `host-gh` (default for `local-unsandboxed` and `cursor-native-sandbox`) — requires `gh auth status` and a minimal GitHub API reachability check from the worker environment
+- `host-gh` (default for `local-unsandboxed` and `cursor-native-sandbox`) — requires `task verify:gh-auth` / `deft github-auth-modes` and a minimal GitHub API reachability check from the worker environment
 - `injected-token` (default for `cloud-headless`) — requires `GH_TOKEN`, `GITHUB_TOKEN`, or `GH_ENTERPRISE_TOKEN`; **fails closed** with `missing_injected_token` when absent and never falls back to host `gh` credential store
 
-4. ! **Surface remediation when parent host auth works but worker auth fails** — a common failure mode is the parent shell passing `gh auth status` while the worker sandbox cannot authenticate or reach GitHub. When validation reports `gh_auth_failed`, `api_unreachable`, or `repo_access_denied` in `cursor-native-sandbox`, surface these remediation paths to the operator (token values MUST NOT enter prompts or transcripts):
+4. ! **Surface remediation when parent host auth works but worker auth fails** — a common failure mode is the parent shell identity probe (`task verify:gh-auth`) succeeding while the worker sandbox cannot authenticate or reach GitHub. When validation reports `gh_auth_failed`, `api_unreachable`, or `repo_access_denied` in `cursor-native-sandbox`, surface these remediation paths to the operator (token values MUST NOT enter prompts or transcripts):
 
    - **Full-access execution** — run the GitHub step with full filesystem/network access so the worker shares the host `gh` credential store
    - **Trusted `gh` command allowlisting** — allowlist the trusted `gh` command path for the worker sandbox

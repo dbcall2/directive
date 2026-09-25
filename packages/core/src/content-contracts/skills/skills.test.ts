@@ -848,7 +848,7 @@ describe("test_skills", () => {
     expect(text).toContain("cache fetch-all");
     expect(text).toContain("Distinct from ritual-stale");
     expect(text).toContain("cache refresh when ritual-stale");
-    expect(text).toContain("10. ! **Treat orientation-dirty");
+    expect(text).toContain("11. ! **Treat orientation-dirty");
   });
   it("deft_directive_setup_pre_pr_release_dual_invoke_verify_branch", () => {
     const _RELEASE_PATH = "skills/deft-directive-release/SKILL.md";

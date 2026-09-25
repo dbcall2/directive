@@ -96,7 +96,7 @@ export const defaultRuntimeAuthProbe: RuntimeAuthProbeFn = () => {
 
 export type WorkerCredentialDispatchPath = "grok-build" | "local-hybrid";
 
-const CREDENTIAL_VALUE_PATTERN = /^(ghp_|gho_|ghu_|ghs_|github_pat_)/i;
+const CREDENTIAL_VALUE_PATTERN = /^(ghp_|gho_|ghu_|ghs_|ghr_|github_pat_)/i;
 
 const INJECTION_MISSING_CREDENTIAL = "GH_TOKEN (or GITHUB_TOKEN / GH_ENTERPRISE_TOKEN)";
 

@@ -466,10 +466,10 @@ Why: maintainer and workers sharing a single PAT couples the human review/merge 
 
 ### host-gh mode (permitted only when `github_auth_mode: host-gh`)
 
-Applies to local interactive workers (`runtime_mode: local-unsandboxed` or, after validation, `cursor-native-sandbox`) where swarm launch preflight confirmed `gh auth status` and repo access from the worker environment.
+Applies to local interactive workers (`runtime_mode: local-unsandboxed` or, after validation, `cursor-native-sandbox`) where swarm launch preflight confirmed host `gh` identity (`task verify:gh-auth` / `deft github-auth-modes`) and repo access from the worker environment.
 
 - ! Use the worker environment's `gh` credential store -- the dispatch envelope explicitly authorises host `gh` for this worker. Do NOT require an injected `GH_TOKEN` when host gh auth is already valid in the worker shell.
-- ! Still verify identity before GitHub operations: `gh auth status` must pass. For a user-bearing credential, `gh api user --jq .login` must return the expected account. For a GitHub App installation credential, `/user` cannot return an account and the token cannot disclose which App it belongs to -- fail closed and point at #3693. Do not accept the credential from a declared App slug or from endpoint reachability, including a target-repo GET. User-login mismatch is `BLOCKED: identity mismatch`.
+- ! Still verify identity before GitHub operations: `task verify:gh-auth` (or `deft github-auth-modes --json`) must pass. For a user-bearing credential, `gh api user --jq .login` must return the expected account. For a GitHub App installation credential, `/user` cannot return an account and the token cannot disclose which App it belongs to -- fail closed and point at #3693. Do not accept the credential from a declared App slug or from endpoint reachability, including a target-repo GET. User-login mismatch is `BLOCKED: identity mismatch`.
 - ⊗ Fall back to host `gh` when `github_auth_mode` is `injected-token` or `runtime_mode` is `cloud-headless` -- those modes forbid host credential store use regardless of what is available on the host.
 - ~ When `runtime_mode: cursor-native-sandbox`, host `gh` may fail inside the sandbox even when the parent session is authenticated. Fail loud with remediation (full-access execution, trusted-path allowlist, or switch to injected-token handoff) rather than assuming parent auth is visible to the worker.
 

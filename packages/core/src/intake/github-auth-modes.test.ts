@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CompletedProcess } from "../scm/call.js";
 import {
+  containsTokenShapedText,
   deriveValidationRepo,
   ENV_EXPECTED_GITHUB_LOGIN,
   type ExpectedGithubWorkerPrincipal,
@@ -20,6 +21,7 @@ import {
   inferGithubAuthMode,
   isInstallationUserEndpointInapplicable,
   PRINCIPAL_KIND_USER,
+  parseLogin,
   parseOwnerRepoSlug,
   resultToDict,
   validateGithubAuth,
@@ -267,8 +269,72 @@ describe("github-auth-modes", () => {
         runGh: stubGh({ user: { code: 0, stdout: "not-json-login" } }),
       },
     );
-    expect(bareText.ok).toBe(true);
-    expect(bareText.login).toBe("not-json-login");
+    expect(bareText.ok).toBe(false);
+    expect(bareText.login).toBeNull();
+    expect(bareText.detail).not.toContain("not-json-login");
+  });
+
+  it("parseLogin accepts ANSI-colored /user JSON and rejects token-shaped login (#3664)", () => {
+    const ansi =
+      '\u001b[1;37m{\u001b[m\n  \u001b[1;34m"login"\u001b[m: \u001b[32m"octocat"\u001b[m\n\u001b[1;37m}\u001b[m\n';
+    expect(parseLogin(ansi)).toBe("octocat");
+    expect(parseLogin('{"login":"ghs_liveinstallationtokenvalue"}')).toBeNull();
+    expect(parseLogin("")).toBeNull();
+    expect(containsTokenShapedText("Token: ghs_liveinstallationtokenvalue")).toBe(true);
+    expect(containsTokenShapedText("ghr_refreshshaped")).toBe(true);
+  });
+
+  it("does not emit raw gh streams or token-shaped text in detail/login/CLI (#3664 R1/R4)", () => {
+    const tokenOut = "Token: ghs_liveinstallationtokenvalue";
+    const ansiUser =
+      '\u001b[1;37m{\u001b[m"login":"octo","token":"gho_shouldneverappear"\u001b[1;37m}\u001b[m';
+    const failedAuth = validateHostGhMode(
+      {},
+      {
+        repo: TARGET_REPO,
+        runGh: (args) => {
+          if (args[0] === "auth") {
+            return proc(1, tokenOut, `stderr ${tokenOut}`, args);
+          }
+          return proc(1, "", "unexpected", args);
+        },
+      },
+    );
+    expect(failedAuth.ok).toBe(false);
+    expect(failedAuth.failureKind).toBe(FAILURE_GH_AUTH);
+    expect(JSON.stringify(resultToDict(failedAuth))).not.toMatch(/ghs_|gho_|ghr_|github_pat_/i);
+    expect(failedAuth.detail).not.toContain(tokenOut);
+    expect(failedAuth.detail).not.toContain("stderr");
+
+    const userFail = formatUserApiFailureDetail(
+      "host-gh",
+      proc(1, tokenOut, `gh: boom ${tokenOut}`),
+    );
+    expect(userFail).not.toContain(tokenOut);
+    expect(userFail).not.toMatch(/ghs_/);
+    expect(userFail).toMatch(/exit 1|unreachable|\/user failed/);
+
+    const okAnsi = validateHostGhMode(
+      {},
+      {
+        repo: TARGET_REPO,
+        runGh: stubGh({ user: { code: 0, stdout: ansiUser } }),
+      },
+    );
+    expect(okAnsi.ok).toBe(true);
+    expect(okAnsi.login).toBe("octo");
+    expect(JSON.stringify(resultToDict(okAnsi))).not.toMatch(/gho_shouldneverappear/);
+
+    const jsonCode = githubAuthModesMain({
+      githubAuthMode: "host-gh",
+      repo: TARGET_REPO,
+      json: true,
+      runGh: stubGh({
+        authCode: 1,
+        user: { code: 1, stdout: tokenOut, stderr: tokenOut },
+      }),
+    });
+    expect(jsonCode).toBe(1);
   });
 
   it("validateGithubAuthForWorker infers mode and resultToDict/cli emit (#3027)", () => {

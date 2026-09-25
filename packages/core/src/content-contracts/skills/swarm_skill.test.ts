@@ -111,30 +111,6 @@ const _PROVIDER_NEUTRAL_PREAMBLE_TOKENS = [
 ];
 const _STEP1A_HEADER = "### Step 1a: Worker Runtime and GitHub Auth Preflight (#1557)";
 const _STEP1A_END = "### Step 1b: Provider-neutral sub-agent routing (#1531)";
-const _SANDBOX_AUTH_TOKENS = [
-  "packages/core/src/platform/platform-capabilities.ts",
-  "packages/core/src/intake/github-auth-modes.ts",
-  "local-unsandboxed",
-  "cursor-native-sandbox",
-  "cloud-headless",
-  "sandbox_uid_remap",
-  "sandbox-remapped-local-user",
-  "sandbox view",
-  "host-gh",
-  "injected-token",
-  "missing_injected_token",
-  "gh auth status",
-  "Full-access execution",
-  "Trusted `gh` command allowlisting",
-  "Injected-token handoff",
-  "docs/subagent-heartbeat.md",
-  "#1557",
-];
-const _SANDBOX_AUTH_ANTI_PATTERN_TOKENS = [
-  "parent-shell `gh auth status`",
-  "sandbox UID 0",
-  "#1557",
-];
 const _PHASE0_BACKEND_HEADER =
   "#### Phase 0e -- Interactive sub-agent backend selection (DEPRECATED -- #1568 / superseded by #1739)";
 const _PHASE0_BACKEND_END = "#### Phase 0f -- Greenfield swarm-ready bootstrap (#1053)";
@@ -536,7 +512,8 @@ describe("test_swarm_skill", () => {
     "host-gh",
     "injected-token",
     "missing_injected_token",
-    "gh auth status",
+    "verify:gh-auth",
+    "github-auth-modes",
     "Full-access execution",
     "Trusted `gh` command allowlisting",
     "Injected-token handoff",
