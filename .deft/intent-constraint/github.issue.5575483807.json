@@ -1,0 +1,20 @@
+{
+  "schema": "deft.intent-constraint.v1",
+  "planId": "github.issue.5575483807",
+  "xbriefRelPath": ".deft-scratch/worktrees/pr-5022/xbrief/active/2026-09-24-5022-bugrelease-windows-step-5-hang-detector-kills-tscheck-lane-a.xbrief.json",
+  "approvedAt": "2026-09-25T00:38:38Z",
+  "constraints": [
+    {
+      "value": "30",
+      "unit": "minutes",
+      "rejectionScope": "operation"
+    }
+  ],
+  "humanApproval": {
+    "kind": "operator",
+    "actor": "MScottAdams",
+    "mintedAt": "2026-09-25T00:38:38Z",
+    "mintedVia": "in-harness-ask"
+  },
+  "contractDigest": "2f5b95b2e86c3782c05b632d1f65b9688cf420b97e1222975b5a181395b890db"
+}
