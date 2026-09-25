@@ -284,6 +284,8 @@ Wait for answer. Then follow the track below.
 Resolve using Platform Detection above. Write to the platform-appropriate path
 (or `$DEFT_USER_PATH` if set). Create parent directories as needed.
 
+! Phase 1 persist is that USER.md write (#4660). It is not the project-identity write.
+
 ### Template
 
 ```markdown
@@ -678,6 +680,8 @@ omit = [
 
 ! **Path Resolution Anchor**: Same rule as Phase 2 -- resolve ALL paths relative to the user's pwd at skill entry, never relative to the skill file, AGENTS.md, or any framework directory.
 
+! Phase 3 waits on the Phase 2 identity write (`deft project:write-narratives`) (#4660). Do not emit a proposed work brief before that write.
+
 - ~ Skip if user already has scope xBRIEFs in `./xbrief/` they're happy with
 - ! Check `./xbrief/PROJECT-DEFINITION.xbrief.json` and `./xbrief/proposed/` for existing greenfield authority; treat `./xbrief/specification.xbrief.json` as a full-spec compatibility artifact only
 - ⊗ Count ANY file inside `./deft/` as the project's spec — those are framework-internal
@@ -1001,3 +1005,4 @@ Per [strategies/interview.md](../../strategies/interview.md#interview-rules-shar
 - ⊗ Treat a `**Depth**:` line outside the Personal section as the track, or pick among duplicate Personal Depth lines (#4668)
 - ⊗ Treat an existing PROJECT-DEFINITION seed, including empty narratives, as missing interview answers (#4668)
 - ⊗ Reimplement `deft project:write-narratives` or set policy keys from the depth answer (#4668 / #4663)
+- ⊗ Emit a proposed work brief before the Phase 2 identity write (#4660)

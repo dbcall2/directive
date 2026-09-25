@@ -85,33 +85,37 @@
         {
           "id": 1,
           "text": "Read-only session start stays a non-claiming command.",
-          "artifact_path": null,
+          "artifact_path": "packages/core/src/hooks/classify/host-session-identity.ts",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 2,
           "text": "Phase 1 remains the preferences-file write.",
-          "artifact_path": null,
+          "artifact_path": "content/skills/deft-directive-setup/SKILL.md",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 3,
           "text": "Project identity is the writer on issue 4663: the Phase 2 narrative strings in xbrief/PROJECT-DEFINITION.xbrief.json while xbrief/active/ is empty, not an agent patch of that file, and without setting policy keys.",
-          "artifact_path": null,
+          "artifact_path": "content/skills/deft-directive-setup/SKILL.md",
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 4,
           "text": "The proposed work brief stays Phase 3 and waits on that identity write.",
-          "artifact_path": null,
+          "artifact_path": "content/skills/deft-directive-setup/SKILL.md",
           "ambiguous": false,
           "provenance": "statement"
         }
       ],
-      "ambiguity_attestation": "none_found"
+      "ambiguity_attestation": "none_found",
+      "confessions": [
+        "[UAT Tester 1] Setup interview cannot persist: no host session identity / read-only session:start",
+        "operator-deferred: P1 #4663 Target-digest: sha256:5630aa538480c9cf2d29188d6e7d3121fe39a6962c3265135b5c2377cfdea4d4"
+      ]
     },
     "metadata": {
       "intended_placement": {
