@@ -160,6 +160,7 @@ Same `!` / `⊗` rules as managed below; `task issue:ingest` (#2143).
 
 Note: root-relative paths (this repo IS deft/); run `task agents:refresh` after agents-entry edits (#1309).
 
+<!-- deft:managed-section v3 sha=bd59e99fc0c4 refreshed=2026-09-25T14:44:21Z session=898d763b0c45 -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
