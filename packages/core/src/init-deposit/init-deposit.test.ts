@@ -298,6 +298,28 @@ describe("runInitDeposit", destContentionItTimeout(), () => {
     expect(stamped.generation).toBe(5);
   });
 
+  it("rolls back the init payload when a post-write generation recheck refuses (#4120)", async () => {
+    const project = freshRoot("init-deposit-gen-unreadable-");
+    const contentRoot = installFakeContentPackage(project);
+    const result = await runInitDeposit(
+      { projectDir: project, jsonOut: false, nonInteractive: true },
+      { printf: () => {} },
+      {
+        resolveContentRoot: async () => contentRoot,
+        nowIso: () => "2026-06-24T12:00:00Z",
+        gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+        execGit: () => ({ status: 0, stdout: "", stderr: "" }),
+        afterFirstConsumerWrites: (projectDir) => {
+          mkdirSync(join(projectDir, ".deft"), { recursive: true });
+          writeFileSync(join(projectDir, ".deft", "GENERATION.json"), "{not json\n", "utf8");
+        },
+      },
+    );
+    expect(result.generationRewindError).toMatch(/invalid/);
+    expect(existsSync(join(project, ".deft", "core"))).toBe(false);
+    expect(readFileSync(join(project, ".deft", "GENERATION.json"), "utf8")).toBe("{not json\n");
+  });
+
   it("directive init adds the canonical pin to an existing package.json (#4429)", async () => {
     const project = freshRoot("init-deposit-existing-pkg-");
     const contentRoot = installFakeContentPackage(project);
