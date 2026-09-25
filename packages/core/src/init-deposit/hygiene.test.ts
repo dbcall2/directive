@@ -1561,6 +1561,81 @@ describe("ledger intersection staging (#3394)", () => {
     expect(agents?.[0]).not.toBe("?");
   });
 
+  it("snapshotGitIndex records a staged AGENTS.md deletion as missing (#4120)", () => {
+    const project = freshRoot("hygiene-snap-delete-");
+    writeFileSync(join(project, "AGENTS.md"), "# original\n", "utf8");
+    initGitRepo(project);
+    execFileSync("git", ["rm", "--cached", "-q", "--", "AGENTS.md"], { cwd: project });
+    const prior = snapshotGitIndex(project);
+    expect(prior?.some((entry) => entry.path === "AGENTS.md" && entry.missing === true)).toBe(true);
+    expect(prior?.some((entry) => entry.path === "AGENTS.md" && !entry.missing)).toBe(false);
+  });
+
+  it("unstageFrameworkPaths restores a staged AGENTS.md deletion instead of HEAD (#4120)", () => {
+    const project = freshRoot("hygiene-unstage-delete-");
+    writeFileSync(join(project, "AGENTS.md"), "# original\n", "utf8");
+    initGitRepo(project);
+    execFileSync("git", ["rm", "--cached", "-q", "--", "AGENTS.md"], { cwd: project });
+    const priorIndex = snapshotGitIndex(project);
+    writeFileSync(join(project, "AGENTS.md"), "# init deposit\n", "utf8");
+    execFileSync("git", ["add", "--", "AGENTS.md"], { cwd: project });
+    expect(execFileSync("git", ["show", ":AGENTS.md"], { cwd: project, encoding: "utf8" })).toBe(
+      "# init deposit\n",
+    );
+
+    const result = unstageFrameworkPaths(project, ["AGENTS.md"], {
+      priorIndex: priorIndex ?? [],
+    });
+    expect(result.unstaged).toBe(true);
+    expect(result.error).toBeNull();
+    expect(
+      execFileSync("git", ["ls-files", "--stage", "--", "AGENTS.md"], {
+        cwd: project,
+        encoding: "utf8",
+      }),
+    ).toBe("");
+    expect(
+      execFileSync("git", ["diff", "--cached", "--name-status", "--", "AGENTS.md"], {
+        cwd: project,
+        encoding: "utf8",
+      }),
+    ).toMatch(/^D\tAGENTS.md/);
+  });
+
+  it("unstageFrameworkPaths restores a staged AGENTS.md rename instead of resetting the source (#4120)", () => {
+    const project = freshRoot("hygiene-unstage-rename-");
+    writeFileSync(join(project, "AGENTS.md"), "# original\n", "utf8");
+    initGitRepo(project);
+    execFileSync("git", ["mv", "--", "AGENTS.md", "CONSUMER.md"], { cwd: project });
+    const priorIndex = snapshotGitIndex(project);
+    writeFileSync(join(project, "AGENTS.md"), "# init deposit\n", "utf8");
+    execFileSync("git", ["add", "--", "AGENTS.md"], { cwd: project });
+
+    const result = unstageFrameworkPaths(project, ["AGENTS.md"], {
+      priorIndex: priorIndex ?? [],
+    });
+    expect(result.unstaged).toBe(true);
+    expect(result.error).toBeNull();
+    expect(
+      execFileSync("git", ["ls-files", "--stage", "--", "AGENTS.md"], {
+        cwd: project,
+        encoding: "utf8",
+      }),
+    ).toBe("");
+    expect(
+      execFileSync("git", ["ls-files", "--stage", "--", "CONSUMER.md"], {
+        cwd: project,
+        encoding: "utf8",
+      }),
+    ).toMatch(/CONSUMER.md/);
+    expect(
+      execFileSync("git", ["diff", "--cached", "--name-status", "--find-renames"], {
+        cwd: project,
+        encoding: "utf8",
+      }),
+    ).toMatch(/R\d+\tAGENTS.md\tCONSUMER.md/);
+  });
+
   it("unstageFrameworkPaths with priorIndex restores matching rows and resets extras (#4120)", () => {
     const restored: { mode: string; sha: string; stage: number; path: string }[][] = [];
     const unstaged: string[][] = [];
@@ -1583,6 +1658,85 @@ describe("ledger intersection staging (#3394)", () => {
     expect(result.error).toBeNull();
     expect(restored).toEqual([prior]);
     expect(unstaged).toEqual([[".deft/core/main.md"]]);
+  });
+
+  it("unstageFrameworkPaths with priorIndex force-removes staged deletions instead of resetting extras (#4120)", () => {
+    const restored: { mode: string; sha: string; stage: number; path: string }[][] = [];
+    const removed: string[][] = [];
+    const unstaged: string[][] = [];
+    const prior = [
+      {
+        mode: "000000",
+        sha: "0".repeat(40),
+        stage: 0,
+        path: "AGENTS.md",
+        missing: true as const,
+      },
+    ];
+    const result = unstageFrameworkPaths("/tmp", ["AGENTS.md", ".deft/core"], {
+      gitPorcelain: () => "A  AGENTS.md\nA  .deft/core/main.md\n",
+      priorIndex: prior,
+      readIndexEntries: () => [
+        { mode: "100644", sha: "def", stage: 0, path: "AGENTS.md" },
+        { mode: "100644", sha: "fff", stage: 0, path: ".deft/core/main.md" },
+      ],
+      runGitRestoreIndex: (_root, entries) => {
+        restored.push([...entries]);
+      },
+      runGitRemoveIndex: (_root, paths) => {
+        removed.push([...paths]);
+      },
+      runGitUnstage: (_root, paths) => {
+        unstaged.push([...paths]);
+      },
+    });
+    expect(result.unstaged).toBe(true);
+    expect(result.error).toBeNull();
+    expect(restored).toEqual([]);
+    expect(removed).toEqual([["AGENTS.md"]]);
+    expect(unstaged).toEqual([[".deft/core/main.md"]]);
+  });
+
+  it("unstageFrameworkPaths returns the force-remove error instead of throwing", () => {
+    const result = unstageFrameworkPaths("/tmp", ["AGENTS.md"], {
+      gitPorcelain: () => "A  AGENTS.md\n",
+      priorIndex: [
+        {
+          mode: "000000",
+          sha: "0".repeat(40),
+          stage: 0,
+          path: "AGENTS.md",
+          missing: true,
+        },
+      ],
+      readIndexEntries: () => [{ mode: "100644", sha: "def", stage: 0, path: "AGENTS.md" }],
+      runGitRemoveIndex: () => {
+        throw new Error("git update-index --force-remove (restore) failed");
+      },
+    });
+    expect(result.unstaged).toBe(false);
+    expect(result.error?.message).toMatch(/force-remove/);
+  });
+
+  it("unstageFrameworkPaths wraps non-Error force-remove throws", () => {
+    const result = unstageFrameworkPaths("/tmp", ["AGENTS.md"], {
+      gitPorcelain: () => "A  AGENTS.md\n",
+      priorIndex: [
+        {
+          mode: "000000",
+          sha: "0".repeat(40),
+          stage: 0,
+          path: "AGENTS.md",
+          missing: true,
+        },
+      ],
+      readIndexEntries: () => [{ mode: "100644", sha: "def", stage: 0, path: "AGENTS.md" }],
+      runGitRemoveIndex: () => {
+        throw "nope-remove";
+      },
+    });
+    expect(result.unstaged).toBe(false);
+    expect(result.error?.message).toBe("nope-remove");
   });
 
   it("snapshotGitIndex is null outside git", () => {

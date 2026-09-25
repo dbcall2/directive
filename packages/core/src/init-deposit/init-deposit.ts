@@ -505,8 +505,9 @@ export async function runInitDeposit(
           dest: deftDir,
           projectDir,
         });
-        // Restore pre-init index rows for installer paths; reset only names
-        // this run staged that were absent from the snapshot (#4120).
+        // Restore pre-init index rows (including staged deletions/renames)
+        // for installer paths; reset only names this run staged that were
+        // absent from the snapshot (#4120).
         unstageFrameworkPaths(projectDir, staged.stagePaths, {
           priorIndex: priorIndex ?? undefined,
         });
