@@ -1159,16 +1159,139 @@ export function stageFrameworkPaths(
   }
 }
 
+/** One `git ls-files --stage` row. Stage 0 is the only restore target (#4120). */
+export interface GitIndexEntry {
+  readonly mode: string;
+  readonly sha: string;
+  readonly stage: number;
+  readonly path: string;
+}
+
 export interface UnstageFrameworkPathsSeams {
   gitPorcelain?: StageFrameworkPathsSeams["gitPorcelain"];
   runGitUnstage?: (projectDir: string, paths: readonly string[]) => void;
   readCachedNames?: (projectDir: string) => string[];
+  /**
+   * Index rows from {@link snapshotGitIndex} taken before dest writes. When
+   * set, refuse rollback restores those rows instead of resetting every path.
+   */
+  priorIndex?: readonly GitIndexEntry[];
+  readIndexEntries?: (projectDir: string) => GitIndexEntry[];
+  runGitRestoreIndex?: (projectDir: string, entries: readonly GitIndexEntry[]) => void;
+}
+
+function parseGitIndexEntries(out: string): GitIndexEntry[] {
+  const entries: GitIndexEntry[] = [];
+  for (const rec of out.split("\0")) {
+    if (rec.length === 0) continue;
+    const tab = rec.indexOf("\t");
+    if (tab <= 0) continue;
+    const meta = rec.slice(0, tab);
+    const path = normalizeRelativePath(rec.slice(tab + 1));
+    const parts = meta.split(" ");
+    if (parts.length !== 3) continue;
+    const [mode, sha, stageRaw] = parts;
+    if (!mode || !sha || stageRaw === undefined) continue;
+    const stage = Number(stageRaw);
+    if (!Number.isInteger(stage) || stage < 0) continue;
+    entries.push({ mode, sha, stage, path });
+  }
+  return entries;
+}
+
+function readGitIndexEntries(projectDir: string): GitIndexEntry[] {
+  try {
+    const out = execFileSync("git", ["ls-files", "--stage", "-z"], {
+      cwd: projectDir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return parseGitIndexEntries(out);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Snapshot the index before dest writes so a later generation-rewind refuse
+ * can restore pre-existing staged installer edits (#4120).
+ *
+ * Returns `null` when the dest is not a git checkout.
+ */
+export function snapshotGitIndex(projectDir: string): GitIndexEntry[] | null {
+  if (gitPorcelain(projectDir) === null) return null;
+  return readGitIndexEntries(projectDir);
+}
+
+function indexPathMatches(entryPath: string, candidates: readonly string[]): boolean {
+  const path = normalizeRelativePath(entryPath);
+  return candidates.some((candidate) => {
+    const normalized = normalizeRelativePath(candidate);
+    return (
+      path === normalized || path.startsWith(`${normalized}/`) || normalized.startsWith(`${path}/`)
+    );
+  });
+}
+
+function resetIndexPaths(root: string, indexPaths: readonly string[]): Error | null {
+  const result = containedDestExec({
+    root,
+    destTarget: join(".git", "index"),
+    file: "git",
+    args: ["reset", "-q", "--", ...indexPaths],
+  });
+  if (!result.ok) {
+    return new Error("git reset -- (unstage) failed");
+  }
+  return null;
+}
+
+function unstageError(cause: unknown): Error {
+  return cause instanceof Error ? cause : new Error(String(cause));
+}
+
+function applyGitUnstage(
+  projectDir: string,
+  indexPaths: readonly string[],
+  runGitUnstage: UnstageFrameworkPathsSeams["runGitUnstage"],
+): Error | null {
+  if (runGitUnstage) {
+    try {
+      runGitUnstage(projectDir, indexPaths);
+      return null;
+    } catch (cause) {
+      return unstageError(cause);
+    }
+  }
+  return resetIndexPaths(projectDir, indexPaths);
+}
+
+function restoreIndexEntries(root: string, entries: readonly GitIndexEntry[]): Error | null {
+  for (const entry of entries) {
+    const result = containedDestExec({
+      root,
+      destTarget: join(".git", "index"),
+      file: "git",
+      args: ["update-index", "--add", "--cacheinfo", entry.mode, entry.sha, entry.path],
+    });
+    if (!result.ok) {
+      return new Error("git update-index --cacheinfo (restore) failed");
+    }
+  }
+  return null;
 }
 
 /**
  * Best-effort inverse of {@link stageFrameworkPaths}: restore the index for
  * paths this run staged. A later generation-rewind refuse must not leave the
  * refused deposit in the index (#4120).
+ *
+ * Assumptions: `priorIndex` is `git ls-files --stage` from before dest writes.
+ * Guarantees: matching prior rows are written back with `update-index
+ * --cacheinfo` (working tree untouched); names this run staged that were
+ * absent from the snapshot are `git reset`. Missing `priorIndex` keeps the
+ * reset-all path.
+ * Non-goals: merge stages > 0, skip-worktree bits, non-installer paths.
  */
 export function unstageFrameworkPaths(
   projectDir: string,
@@ -1178,29 +1301,45 @@ export function unstageFrameworkPaths(
   if (paths.length === 0) return { unstaged: false, error: null };
   const readPorcelain = seams.gitPorcelain ?? gitPorcelain;
   if (readPorcelain(projectDir) === null) return { unstaged: false, error: null };
+  if (seams.priorIndex !== undefined) {
+    const readEntries = seams.readIndexEntries ?? readGitIndexEntries;
+    const matchingPrior = seams.priorIndex.filter((entry) => indexPathMatches(entry.path, paths));
+    const matchingCurrent = readEntries(projectDir).filter((entry) =>
+      indexPathMatches(entry.path, paths),
+    );
+    const priorPaths = new Set(matchingPrior.map((entry) => entry.path));
+    const extras = [
+      ...new Set(
+        matchingCurrent.filter((entry) => !priorPaths.has(entry.path)).map((entry) => entry.path),
+      ),
+    ];
+    if (matchingPrior.length === 0 && extras.length === 0) {
+      return { unstaged: false, error: null };
+    }
+    try {
+      if (matchingPrior.length > 0) {
+        if (seams.runGitRestoreIndex) {
+          seams.runGitRestoreIndex(projectDir, matchingPrior);
+        } else {
+          const restoreError = restoreIndexEntries(projectDir, matchingPrior);
+          if (restoreError) return { unstaged: false, error: restoreError };
+        }
+      }
+      if (extras.length > 0) {
+        const extraError = applyGitUnstage(projectDir, extras, seams.runGitUnstage);
+        if (extraError) return { unstaged: false, error: extraError };
+      }
+      return { unstaged: true, error: null };
+    } catch (cause) {
+      return { unstaged: false, error: unstageError(cause) };
+    }
+  }
   const readCachedNames = seams.readCachedNames ?? defaultCachedNames;
   const restorePaths = actuallyStagedPaths(paths, readCachedNames(projectDir));
   if (restorePaths.length === 0) return { unstaged: false, error: null };
-  const runGitUnstage =
-    seams.runGitUnstage ??
-    ((root: string, indexPaths: readonly string[]) => {
-      const result = containedDestExec({
-        root,
-        destTarget: join(".git", "index"),
-        file: "git",
-        args: ["reset", "-q", "--", ...indexPaths],
-      });
-      if (!result.ok) {
-        throw new Error("git reset -- (unstage) failed");
-      }
-    });
-  try {
-    runGitUnstage(projectDir, restorePaths);
-    return { unstaged: true, error: null };
-  } catch (cause) {
-    const error = cause instanceof Error ? cause : new Error(String(cause));
-    return { unstaged: false, error };
-  }
+  const resetError = applyGitUnstage(projectDir, restorePaths, seams.runGitUnstage);
+  if (resetError) return { unstaged: false, error: resetError };
+  return { unstaged: true, error: null };
 }
 
 /**

@@ -358,6 +358,51 @@ describe("runInitDeposit", destContentionItTimeout(), () => {
     expect(stagedLines).toEqual([]);
   });
 
+  it("keeps a pre-staged installer path staged after refused-init rollback (#4120)", async () => {
+    const project = freshRoot("init-deposit-gen-keep-staged-");
+    writeFileSync(join(project, "README.md"), "seed\n", "utf8");
+    writeFileSync(join(project, "AGENTS.md"), "# original\n", "utf8");
+    execFileSync("git", ["init", "-q"], { cwd: project });
+    execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: project });
+    execFileSync("git", ["config", "user.name", "Test"], { cwd: project });
+    execFileSync("git", ["add", "-A"], { cwd: project });
+    execFileSync("git", ["commit", "-m", "baseline"], { cwd: project });
+    writeFileSync(join(project, "AGENTS.md"), "# consumer staged\n", "utf8");
+    execFileSync("git", ["add", "--", "AGENTS.md"], { cwd: project });
+    expect(execFileSync("git", ["show", ":AGENTS.md"], { cwd: project, encoding: "utf8" })).toBe(
+      "# consumer staged\n",
+    );
+
+    const contentRoot = installFakeContentPackage(project);
+    const result = await runInitDeposit(
+      { projectDir: project, jsonOut: false, nonInteractive: true },
+      { printf: () => {} },
+      {
+        resolveContentRoot: async () => contentRoot,
+        nowIso: () => "2026-06-24T12:00:00Z",
+        gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+        execGit: () => ({ status: 0, stdout: "", stderr: "" }),
+        afterFirstConsumerWrites: (projectDir) => {
+          mkdirSync(join(projectDir, ".deft"), { recursive: true });
+          writeFileSync(join(projectDir, ".deft", "GENERATION.json"), "{not json\n", "utf8");
+        },
+      },
+    );
+    expect(result.generationRewindError).toMatch(/invalid/);
+    expect(result.stagedPaths).toEqual([]);
+    expect(execFileSync("git", ["show", ":AGENTS.md"], { cwd: project, encoding: "utf8" })).toBe(
+      "# consumer staged\n",
+    );
+    const porcelain = execFileSync("git", ["status", "--porcelain"], {
+      cwd: project,
+      encoding: "utf8",
+    });
+    const agents = porcelain.split("\n").find((line) => line.includes("AGENTS.md"));
+    expect(agents).toBeDefined();
+    expect(agents?.[0]).not.toBe(" ");
+    expect(agents?.[0]).not.toBe("?");
+  });
+
   it("directive init adds the canonical pin to an existing package.json (#4429)", async () => {
     const project = freshRoot("init-deposit-existing-pkg-");
     const contentRoot = installFakeContentPackage(project);
