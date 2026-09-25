@@ -2650,6 +2650,7 @@ function attachLifecycleIdentityRewrite(
       uninspectableLifecycleDenyMessage(hinted, named, input.payload),
     );
   }
+  // #4660: non-claiming read-only session:start keeps the prior allow.
   if (!lifecycle.requiresOwner) return decision;
   type LifecycleIdentityCode = Extract<
     HookDecisionCode,

@@ -480,6 +480,7 @@ function analyzeLifecycleArguments(
 
     if (!policy.valueFlags.has(token)) {
       // Direct-CLI -- is unknown for rewrite, not uninspectable (#4780).
+      // Keep scanning so a later --read-only still sets readOnly (#4660).
       rewriteSafe = false;
       continue;
     }
@@ -497,6 +498,11 @@ function analyzeLifecycleArguments(
     index += 1;
   }
   return { rewriteSafe, readOnly };
+}
+
+/** #4660: read-only session:start, including four-token `-- --read-only`, stays non-claiming. */
+function lifecycleRequiresOwner(verb: ExactLifecycleVerb, readOnly: boolean): boolean {
+  return verb !== "session:start" || !readOnly;
 }
 
 /**
@@ -520,7 +526,7 @@ function exactLifecycleInvocation(command: string): ExactInvocation | null {
     if (typedVerb === undefined) return null;
     const forwardedArgs = tokens.slice(start + 2);
     const { rewriteSafe, readOnly } = analyzeLifecycleArguments(typedVerb, forwardedArgs);
-    const requiresOwner = typedVerb !== "session:start" || !readOnly;
+    const requiresOwner = lifecycleRequiresOwner(typedVerb, readOnly);
     return {
       verb: typedVerb,
       task: false,
@@ -546,7 +552,7 @@ function exactLifecycleInvocation(command: string): ExactInvocation | null {
   if (tokens[start + 2] !== "--") return null;
   const forwardedArgs = tokens.slice(start + 3);
   const { rewriteSafe, readOnly } = analyzeLifecycleArguments(typedVerb, forwardedArgs);
-  const requiresOwner = typedVerb !== "session:start" || !readOnly;
+  const requiresOwner = lifecycleRequiresOwner(typedVerb, readOnly);
   return {
     verb: typedVerb,
     task: true,
