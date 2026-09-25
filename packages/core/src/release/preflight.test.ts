@@ -11,7 +11,6 @@ import { RELEASE_CHECK_TIMEOUT_MS } from "./constants.js";
 import { releaseCheckEnv, runReleaseCheck } from "./preflight.js";
 
 describe("releaseCheckEnv", () => {
-
   it("scrubs ambient DEFT_ALLOW_* so Step 5 unit tests stay uncontaminated", () => {
     const env = releaseCheckEnv({
       base: {
