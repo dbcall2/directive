@@ -48,6 +48,22 @@ const LOADED_LANE_EDGE_ITS: ReadonlyArray<{ file: string; titlePrefix: string }>
     titlePrefix:
       "after init + commit + fresh clone, the pin is present and .deft/core is reconstitutable",
   },
+  {
+    file: "packages/cli/src/verify-ac.test.ts",
+    titlePrefix: "runs stated plan.acceptance.commands and exits 0 on pass",
+  },
+  {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "writes the .gitignore entry but NEVER un-tracks .deft/core",
+  },
+  {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "#2148: does NOT deposit deft-core-guard.yml when .deft/core is gitignored",
+  },
+  {
+    file: "packages/core/src/content-contracts/standards/deposit_required_closure.test.ts",
+    titlePrefix: "every declared required path exists after running content-package prepack",
+  },
 ];
 
 describe("destContentionItTimeout (#4847)", () => {
