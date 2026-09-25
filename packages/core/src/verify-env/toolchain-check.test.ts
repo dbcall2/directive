@@ -8,6 +8,7 @@ import {
   CONSUMER_TOOLS,
   childEnvWithResolvedPackageManagerShim,
   defaultCommandRunner,
+  envWithoutGithubTokens,
   RESOLVED_PACKAGE_MANAGER_SHIM_ENV,
   runToolchainCheck,
 } from "./toolchain-check.js";
@@ -433,6 +434,66 @@ describe("runToolchainCheck", () => {
       "https://github.com/cli/cli/security-advisories/GHSA-cg6r-mpgc-h9mm",
     );
     expect(advisory[0]).not.toContain("gh auth status");
+  });
+
+  it("strips GitHub tokens from the gh --version child env", () => {
+    const calls: Array<{ env?: NodeJS.ProcessEnv }> = [];
+    const result = defaultCommandRunner(["gh", "--version"], 1_000, {
+      env: {
+        PATH: "/usr/bin",
+        GH_TOKEN: "secret-token",
+        GITHUB_TOKEN: "ghs_secret",
+        GH_ENTERPRISE_TOKEN: "ghe_secret",
+        FORCE_COLOR: "1",
+      },
+      execFileSync: (_bin, _args, options) => {
+        calls.push({ env: options.env });
+        return "gh version 2.97.0\n";
+      },
+    });
+    expect(result).toMatchObject({ returncode: 0, stdout: "gh version 2.97.0\n" });
+    expect(calls[0]?.env?.GH_TOKEN).toBeUndefined();
+    expect(calls[0]?.env?.GITHUB_TOKEN).toBeUndefined();
+    expect(calls[0]?.env?.GH_ENTERPRISE_TOKEN).toBeUndefined();
+    expect(calls[0]?.env?.FORCE_COLOR).toBe("1");
+    expect(envWithoutGithubTokens({ GH_TOKEN: "x", Path: "C:\\bin" }).GH_TOKEN).toBeUndefined();
+  });
+
+  it("resolves Windows gh --version on PATH without forge tokens", () => {
+    const calls: Array<{
+      bin: string;
+      args: readonly string[];
+      env?: NodeJS.ProcessEnv;
+    }> = [];
+    const ghPath = "C:\\Program Files\\GitHub CLI\\gh.EXE";
+    const result = defaultCommandRunner(["gh", "--version"], 1_000, {
+      platform: "win32",
+      cwd: "C:\\consumer",
+      env: {
+        Path: "C:\\Program Files\\GitHub CLI",
+        PATHEXT: ".EXE;.CMD",
+        SystemRoot: "C:\\Windows",
+        GH_TOKEN: "secret-token",
+      },
+      exists: (path) => path === ghPath,
+      execFileSync: (bin, args, options) => {
+        calls.push({ bin, args, env: options.env });
+        return "gh version 2.97.0\r\n";
+      },
+    });
+    expect(result).toMatchObject({ returncode: 0, stdout: "gh version 2.97.0\r\n" });
+    expect(calls).toEqual([
+      {
+        bin: ghPath,
+        args: ["--version"],
+        env: {
+          Path: "C:\\Program Files\\GitHub CLI",
+          PATHEXT: ".EXE;.CMD",
+          SystemRoot: "C:\\Windows",
+        },
+      },
+    ]);
+    expect(calls[0]?.env?.GH_TOKEN).toBeUndefined();
   });
 
   it("does not warn when captured gh --version meets the advisory floor (#3664 R3)", () => {
