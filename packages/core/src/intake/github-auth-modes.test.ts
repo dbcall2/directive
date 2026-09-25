@@ -1,11 +1,7 @@
-<<<<<<< HEAD
-import { describe, expect, it, vi } from "vitest";
-=======
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
->>>>>>> 123c3b431 (fix(scm): bind SCM ready-cache to host-store identity (#5016))
+import { describe, expect, it, vi } from "vitest";
 import type { CompletedProcess } from "../scm/call.js";
 import {
   containsTokenShapedText,
