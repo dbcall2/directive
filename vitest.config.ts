@@ -3,6 +3,7 @@ import { cpus, tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 import { resolveCoverageDebtIssue } from "./packages/core/src/vitest-runner/coverage-debt.ts";
+import { DurationSequencer } from "./packages/core/src/vitest-runner/duration-sequencer.ts";
 
 // macOS exposes the same temporary directory through /var and /private/var.
 // Give test workers the canonical spelling so cwd/git comparisons and cleanup
@@ -247,6 +248,18 @@ export default defineConfig({
       resolve(import.meta.dirname, "packages/core/src/ts-check-lane/progress-reporter.ts"),
       "default",
     ],
+    // #5028: committed durations + DurationSequencer arm slowest-first on cold
+    // release worktrees (no host-global cache.dir). Do not set sequence.groupOrder
+    // here: Vitest finishes group N before group N+1, so spawn-heavy=0/unit=1
+    // would serialize the unit pool behind the one-worker drain and worsen the
+    // idle-tail. Keep both projects on the default group so they overlap; the
+    // sequencer sorts longest listed files first within each project. Fixture:
+    // packages/core/fixtures/vitest-file-durations.json (interim seed until
+    // #5027 tee ranking refreshes it). groupOrder remains a measured fallback
+    // only if a future pin proves concurrent projects still leave an idle tail.
+    sequence: {
+      sequencer: DurationSequencer,
+    },
     env: testEnvironment,
     // Windows CI runs single files without tsc. Projects must inherit root
     // resolve.alias or @deftai/directive-types fails to resolve. Refs #4591.

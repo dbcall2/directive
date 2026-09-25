@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **perf(vitest): committed durations + DurationSequencer arm slowest-first on cold release worktrees (Tracking #5028).** Fresh trees no longer depend on host-global vitest cache.dir. Fixture packages/core/fixtures/vitest-file-durations.json (interim until #5027). Refs #5028, #5027, #5024.
+
 ### Changed
 
 ### Fixed
