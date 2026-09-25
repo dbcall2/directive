@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   defaultSurfaceFingerprints,
   liveGenerationPath,
+  nextLiveGenerationNumber,
   parseLiveGeneration,
   readLiveGeneration,
   stampLiveGeneration,
@@ -124,5 +125,11 @@ describe("stampLiveGeneration (#3117)", () => {
         stampedBy: "x",
       }),
     ).toMatchObject({ generation: 1 });
+  });
+});
+
+describe("nextLiveGenerationNumber (#4120)", () => {
+  it("bootstraps at 1 when prior is absent", () => {
+    expect(nextLiveGenerationNumber(null, { increment: true, contentVersion: "1.0.0" })).toBe(1);
   });
 });

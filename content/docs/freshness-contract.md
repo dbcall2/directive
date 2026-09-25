@@ -29,6 +29,22 @@ the counter. Fields include `generation` (integer ≥ 1), `contentVersion`,
 Already-current update paths ensure the token exists without advancing the
 counter when the content version is unchanged.
 
+`directive update` (CLI and the exported refresh entry) decides that stamp
+against the delivery-branch tip **this run**, not the local working tree alone.
+Live apply pins an invocation-owned fetch ref, reads `.deft/GENERATION.json`
+with `--no-replace-objects`, and refuses increment arms unless proposed is
+greater than that tip (`error_code: generation_rewind`; recovery: pull or rebase
+onto the delivery branch, then re-run update). Local arithmetic is allowed only
+when `git remote` prints no remotes, or when the remote asserts the delivery
+ref is absent this run. Bind never mints a missing token. Dry-run does not
+fetch: it reports that live apply performs an invocation-owned refresh.
+
+Monotonic means monotonic relative to the current default-branch base
+(`origin/$BASE_REF`), not a global counter. When `.deft/GENERATION.json` changes,
+deposited `deft-core-guard` requires `head.generation` greater than that base
+blob whether or not `.deft/core/**` changed.
+
+
 ## Session bind
 
 When a mutation `session:start` (cold or re-arm) loads payload surfaces into
@@ -141,4 +157,4 @@ valid on the same worktree — re-arm also rebinds generation.
 
 - `content/commands.md` § Session-start ritual / freshness pointer
 - Doctor `payload-staleness` (disk/registry currency) — complementary, not a substitute
-- Issue #3117
+- Issue #3117, issue #4120
