@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Windows consumer `toolchain-check` retries a hung `gh --version` and names ETIMEDOUT (#3610).** Cache-fresh-consumer was reporting `gh: FAILED (exit 1)` with no diagnostic after the 10s spawn timeout. The probe still uses `gh --version`. Tracking #4539. Refs #3610, #3664.
 - **verify:ac stated-command run uses dest-contention per-it timeout on loaded merge-gate (#4539).** Spawn under dest contention was failing the unit timeout on CI. The same pairing covers loaded-lane refresh (gitignore and tracked) and C1 prepack closure. Unit and root timeouts and the coverage floor stay unchanged. Tracking #4539.
 - **Already-installed skip compares PATH `directive` / `deft` version to the pin (#4539).** A clean doctor run is not skip. Engine behind the pin is installed then re-probed; a supported ahead-of-pin engine is not downgraded. No pin runs init then returns to the compare. Older deposits pick up the compare line through pin-ladder refresh. One ladder; doctor --full on the already-installed hop. Tracking #4539.
 - **GHES host parsing keeps a non-default port (#5016).** HTTPS remotes such as `https://ghe.example:8443/org/repo` resolve to `ghe.example:8443` so credential lookup and `gh --hostname` use the same host:port.
