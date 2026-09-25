@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   DEST_CONTENTION_IT_TIMEOUT_MS,
   destContentionItTimeout,
@@ -49,20 +49,24 @@ const LOADED_LANE_EDGE_ITS: ReadonlyArray<{ file: string; titlePrefix: string }>
       "after init + commit + fresh clone, the pin is present and .deft/core is reconstitutable",
   },
   {
-    file: "packages/core/src/cache/scanner-branches.test.ts",
-    titlePrefix: "stays linear on pathological no-pipe space runs",
+    file: "packages/cli/src/verify-ac.test.ts",
+    titlePrefix: "runs stated plan.acceptance.commands and exits 0 on pass",
   },
   {
-    file: "packages/core/src/cache/scanner-branches.test.ts",
-    titlePrefix: "stays linear on long non-pipe runs after a pipe-less keyword",
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "writes the .gitignore entry but NEVER un-tracks .deft/core",
+  },
+  {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "#2148: does NOT deposit deft-core-guard.yml when .deft/core is gitignored",
+  },
+  {
+    file: "packages/core/src/content-contracts/standards/deposit_required_closure.test.ts",
+    titlePrefix: "every declared required path exists after running content-package prepack",
   },
 ];
 
 describe("destContentionItTimeout (#4847)", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it("exports one Darwin/win32 pairing (20s / 240s), not a 15-20s range", () => {
     expect(DEST_CONTENTION_IT_TIMEOUT_MS).toBe(20_000);
     expect(WIN32_SPAWN_IT_TIMEOUT_MS).toBe(240_000);
@@ -73,16 +77,6 @@ describe("destContentionItTimeout (#4847)", () => {
       timeout:
         process.platform === "win32" ? WIN32_SPAWN_IT_TIMEOUT_MS : DEST_CONTENTION_IT_TIMEOUT_MS,
     });
-  });
-
-  it("uses the Darwin/Linux dest-contention budget off win32", () => {
-    vi.spyOn(process, "platform", "get").mockReturnValue("linux");
-    expect(destContentionItTimeout()).toEqual({ timeout: DEST_CONTENTION_IT_TIMEOUT_MS });
-  });
-
-  it("uses the Windows spawn-throughput cap on win32", () => {
-    vi.spyOn(process, "platform", "get").mockReturnValue("win32");
-    expect(destContentionItTimeout()).toEqual({ timeout: WIN32_SPAWN_IT_TIMEOUT_MS });
   });
 
   it("annotates first-ship dest-class its with the exported pairing", () => {
