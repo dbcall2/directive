@@ -358,22 +358,18 @@ inspect on behalf of an agent that has gone dark.
 
 Workers that stall in `validating` or `pushing` with GitHub failures often
 show healthy heartbeats while `gh` operations fail inside the worker sandbox.
-The parent monitor shell may pass `gh auth status` even when the worker
+The parent monitor shell may pass identity validation even when the worker
 execution envelope cannot authenticate or reach GitHub.
 
-! When a worker reports GitHub auth or API failures (in `last_message`,
-`terminal_state`, or `extra` diagnostics), classify the worker runtime and
-validate auth from the **worker worktree**, not the parent shell:
-
+! When a worker reports GitHub auth or API failures (in `last_message`, `terminal_state`, or `extra` diagnostics), classify the worker runtime and validate auth from the **worker worktree**, not the parent shell:
 ```pwsh path=null start=null
 cd <worker-worktree>
-uv --project . run python scripts/platform_capabilities.py --json
-uv --project . run python scripts/github_auth_modes.py --json
+deft github-auth-modes --json
 ```
 
 ### Runtime modes
 
-The capability probe (`scripts/platform_capabilities.py`, #1557a) classifies:
+The capability probe (`packages/core/src/platform/platform-capabilities.ts`, #1557a) classifies:
 
 - `local-unsandboxed` -- interactive local shell without Cursor native sandbox
 - `cursor-native-sandbox` -- Cursor native sandbox; UID 0 is remapped to the
@@ -387,10 +383,10 @@ of the host filesystem.
 
 ### Auth modes and failure shapes
 
-The auth validator (`scripts/github_auth_modes.py`, #1557b) checks from the
+The auth validator (`packages/core/src/intake/github-auth-modes.ts`, #1557b) checks from the
 same envelope that will run `gh`:
 
-- `host-gh` -- `gh auth status` plus minimal API reachability from the worker
+- `host-gh` -- `deft github-auth-modes` plus minimal API reachability from the worker
 - `injected-token` -- requires `GH_TOKEN`, `GITHUB_TOKEN`, or
   `GH_ENTERPRISE_TOKEN`; fails closed with `missing_injected_token` when
   absent (typical for `cloud-headless` workers)
@@ -413,7 +409,7 @@ injected-token handoff or switch to a local interactive runtime. Do not assume
 host `gh` state is visible across the cloud boundary.
 
 Cross-references: `skills/deft-directive-swarm/SKILL.md` Phase 3 Step 1a,
-`scripts/platform_capabilities.py`, `scripts/github_auth_modes.py`. Refs #1557.
+`packages/core/src/platform/platform-capabilities.ts`, `packages/core/src/intake/github-auth-modes.ts`. Refs #1557.
 
 ## Parent-steer inbox (#4286)
 

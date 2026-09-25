@@ -315,24 +315,66 @@ function mergeRemediation(runtimeMode: string | null, failureKind: string): stri
   return parts.length > 0 ? parts.join("\n\n") : null;
 }
 
-function parseLogin(stdout: string): string | null {
-  const text = stdout.trim();
+/** CSI/SGR only — gh color wraps `/user` JSON (`CLICOLOR_FORCE`). */
+function stripGhAnsi(text: string): string {
+  let out = "";
+  for (let i = 0; i < text.length; i += 1) {
+    if (text.charCodeAt(i) !== 27 || text[i + 1] !== "[") {
+      out += text[i];
+      continue;
+    }
+    i += 2;
+    while (i < text.length) {
+      const code = text.charCodeAt(i);
+      if (code >= 64 && code <= 126) {
+        break;
+      }
+      i += 1;
+    }
+  }
+  return out;
+}
+
+/** Token-shaped prefixes that must never appear in login/detail/remediation (#3664 R4). */
+export const TOKEN_SHAPED_RE = /\b(?:ghp_|gho_|ghu_|ghs_|ghr_|github_pat_)[A-Za-z0-9_]+/gi;
+
+export function containsTokenShapedText(text: string): boolean {
+  TOKEN_SHAPED_RE.lastIndex = 0;
+  const found = TOKEN_SHAPED_RE.test(text);
+  TOKEN_SHAPED_RE.lastIndex = 0;
+  return found;
+}
+
+function redactTokenShaped(text: string): string {
+  TOKEN_SHAPED_RE.lastIndex = 0;
+  return text.replace(TOKEN_SHAPED_RE, "[redacted]");
+}
+
+function isUsableLogin(value: string): boolean {
+  if (value.length === 0 || value.includes("\n") || value.includes("{")) {
+    return false;
+  }
+  return !containsTokenShapedText(value);
+}
+
+export function parseLogin(stdout: string): string | null {
+  const text = stripGhAnsi(stdout).trim();
   if (text.length === 0) {
     return null;
   }
   try {
     const payload = JSON.parse(text) as unknown;
-    if (typeof payload === "string" && payload.length > 0) {
+    if (typeof payload === "string" && isUsableLogin(payload)) {
       return payload;
     }
     if (payload !== null && typeof payload === "object" && !Array.isArray(payload)) {
       const login = (payload as Record<string, unknown>).login;
-      if (typeof login === "string" && login.length > 0) {
+      if (typeof login === "string" && isUsableLogin(login)) {
         return login;
       }
     }
   } catch {
-    return text;
+    return null;
   }
   return null;
 }
@@ -349,23 +391,11 @@ export function isInstallationUserEndpointInapplicable(proc: CompletedProcess): 
   );
 }
 
-function clipFailureText(text: string, max = 240): string {
-  const compact = text.replace(/\s+/g, " ").trim();
-  if (compact.length === 0) {
-    return "";
-  }
-  if (compact.length <= max) {
-    return compact;
-  }
-  return `${compact.slice(0, max - 3)}...`;
-}
-
 function parseGhApiMessage(proc: CompletedProcess): string | null {
-  for (const chunk of [proc.stdout, proc.stderr]) {
-    const text = chunk.trim();
-    if (text.length === 0) {
-      continue;
-    }
+  const chunks = [proc.stdout, proc.stderr]
+    .map((chunk) => stripGhAnsi(chunk).trim())
+    .filter((text) => text.length > 0);
+  for (const text of chunks) {
     try {
       const payload = JSON.parse(text) as unknown;
       if (payload !== null && typeof payload === "object" && !Array.isArray(payload)) {
@@ -379,7 +409,13 @@ function parseGhApiMessage(proc: CompletedProcess): string | null {
         }
       }
     } catch {
-      // fall through to raw text
+      // Prefer JSON from a later chunk before using sanitized non-JSON text.
+    }
+  }
+  for (const text of chunks) {
+    const firstLine = redactTokenShaped(text).split(/\r?\n/, 1)[0]?.trim() ?? "";
+    if (firstLine.length > 0 && !containsTokenShapedText(firstLine)) {
+      return firstLine;
     }
   }
   return null;
@@ -393,16 +429,18 @@ function isNetworkUnreachableText(text: string): boolean {
 
 export function formatUserApiFailureDetail(mode: string, proc: CompletedProcess): string {
   const parsed = parseGhApiMessage(proc);
-  const raw = clipFailureText(combinedGhText(proc));
-  const cause = parsed ?? (raw.length > 0 ? raw : `exit ${proc.returncode}`);
   const prefix =
     mode === GITHUB_AUTH_MODE_INJECTED_TOKEN
       ? "injected token present but GitHub /user failed"
       : "gh auth status passed but GitHub /user failed";
-  if (isNetworkUnreachableText(cause) || isNetworkUnreachableText(raw)) {
-    return `${prefix}: GitHub API is unreachable (${cause})`;
+  const classifyBlob = `${parsed ?? ""}\n${combinedGhText(proc)}`;
+  if (isNetworkUnreachableText(parsed ?? "") || isNetworkUnreachableText(classifyBlob)) {
+    return `${prefix}: GitHub API is unreachable`;
   }
-  return `${prefix}: ${cause}`;
+  if (parsed !== null && !containsTokenShapedText(parsed)) {
+    return `${prefix}: ${parsed}`;
+  }
+  return `${prefix}: exit ${proc.returncode}`;
 }
 
 function emptyResult(
@@ -418,14 +456,16 @@ function emptyResult(
   } = {},
 ): GitHubAuthValidationResult {
   const ok = options.ok ?? false;
+  const login = options.login ?? null;
+  const remediation = ok ? null : mergeRemediation(runtimeMode, failureKind ?? "");
   return {
     ok,
     githubAuthMode: mode,
     runtimeMode,
     failureKind: ok ? null : failureKind,
-    detail,
-    remediation: ok ? null : mergeRemediation(runtimeMode, failureKind ?? ""),
-    login: options.login ?? null,
+    detail: redactTokenShaped(detail),
+    remediation: remediation === null ? null : redactTokenShaped(remediation),
+    login: login !== null && containsTokenShapedText(login) ? null : login,
     principal: options.principal ?? null,
     validationRepo: options.validationRepo ?? null,
   };
@@ -687,9 +727,9 @@ export function resultToDict(result: GitHubAuthValidationResult): Record<string,
     github_auth_mode: result.githubAuthMode,
     runtime_mode: result.runtimeMode,
     failure_kind: result.failureKind,
-    detail: result.detail,
-    remediation: result.remediation,
-    login: result.login,
+    detail: redactTokenShaped(result.detail),
+    remediation: result.remediation === null ? null : redactTokenShaped(result.remediation),
+    login: result.login !== null && containsTokenShapedText(result.login) ? null : result.login,
     principal_kind: result.principal?.kind ?? null,
     validation_repo: result.validationRepo,
   };

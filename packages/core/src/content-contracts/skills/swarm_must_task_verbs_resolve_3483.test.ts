@@ -275,8 +275,11 @@ function extractFromFenceLine(line: string, file: string, lineNo: number): Presc
  * extractor is the consumer-projection walk that #3483's source resolve
  * (which strips `deft:`) cannot catch.
  */
-export function bindingFenceCommands(rel: string = SWARM_SKILL_REL): readonly PrescribedCmd[] {
-  const lines = readRepoFile(rel).split("\n");
+export function bindingFenceCommands(
+  rel: string = SWARM_SKILL_REL,
+  source?: string,
+): readonly PrescribedCmd[] {
+  const lines = (source ?? readRepoFile(rel)).split("\n");
   const found: PrescribedCmd[] = [];
   for (const [idx, line] of lines.entries()) {
     if (!isBindingLine(line)) {
@@ -353,5 +356,74 @@ describe("consumer-projection oracle (#3439)", () => {
     expect(slice).toContain("plan-sequence:status");
     expect(slice).not.toMatch(/`task plan-sequence:/);
     expect(slice).not.toMatch(/`task triage:queue`/);
+  });
+});
+
+describe("subagent-heartbeat auth fence (#3664 R2)", () => {
+  const HEARTBEAT_REL = "docs/subagent-heartbeat.md";
+
+  function isTargetedAuthCommand(cmd: PrescribedCmd): boolean {
+    return cmd.form === "deft" && cmd.verb === "github-auth-modes";
+  }
+
+  it("bindingFenceCommands returns deft github-auth-modes from the heartbeat fence", () => {
+    const cmds = bindingFenceCommands(HEARTBEAT_REL);
+    const auth = cmds.filter(isTargetedAuthCommand);
+    expect(
+      auth.length,
+      "targeted auth command must be present before taskVerbResolves",
+    ).toBeGreaterThan(0);
+    expect(auth[0]?.raw).toBe("deft github-auth-modes");
+  });
+
+  it("one-line binding intro yields the fence command; three-line wrap yields none", () => {
+    const threeLine = [
+      "! When a worker reports GitHub auth or API failures (in `last_message`,",
+      "`terminal_state`, or `extra` diagnostics), classify the worker runtime and",
+      "validate auth from the **worker worktree**, not the parent shell:",
+      "",
+      "```",
+      "deft github-auth-modes --json",
+      "```",
+      "",
+    ].join("\n");
+    expect(bindingFenceCommands("fixture.md", threeLine).filter(isTargetedAuthCommand)).toEqual([]);
+
+    const oneLine = [
+      "! When a worker reports GitHub auth or API failures (in `last_message`, `terminal_state`, or `extra` diagnostics), classify the worker runtime and validate auth from the **worker worktree**, not the parent shell:",
+      "```",
+      "deft github-auth-modes --json",
+      "```",
+      "",
+    ].join("\n");
+    const one = bindingFenceCommands("fixture.md", oneLine).filter(isTargetedAuthCommand);
+    expect(one).toHaveLength(1);
+    expect(one[0]?.raw).toBe("deft github-auth-modes");
+  });
+
+  it("a nonempty fence that only names verify:subagent-alive is not the auth pin", () => {
+    const fixture = [
+      "! Validate worker liveness:",
+      "```",
+      "deft verify:subagent-alive --require-agent <id>",
+      "```",
+      "",
+    ].join("\n");
+    const cmds = bindingFenceCommands("fixture.md", fixture);
+    expect(cmds.length).toBeGreaterThan(0);
+    expect(cmds.filter(isTargetedAuthCommand)).toEqual([]);
+  });
+
+  it("unknown auth verb in a fence is not github-auth-modes", () => {
+    const fixture = [
+      "! Validate auth from the worker worktree:",
+      "```",
+      "deft not-a-real-auth-verb --json",
+      "```",
+      "",
+    ].join("\n");
+    const cmds = bindingFenceCommands("fixture.md", fixture);
+    expect(cmds.some((c) => c.verb === "not-a-real-auth-verb")).toBe(true);
+    expect(cmds.filter(isTargetedAuthCommand)).toEqual([]);
   });
 });

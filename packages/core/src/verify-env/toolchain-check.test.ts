@@ -409,4 +409,41 @@ describe("runToolchainCheck", () => {
     expect(result).toEqual({ error: "not-found", message: "" });
     expect(called).toBe(false);
   });
+
+  it("warns when captured gh --version is below the GHSA token-masking floor (#3664 R3)", () => {
+    const result = runToolchainCheck((command) => {
+      const name = command[0] ?? "";
+      if (name === "gh") {
+        return {
+          returncode: 0,
+          stdout:
+            "gh version 2.88.1 (2026-03-12)\nhttps://github.com/cli/cli/releases/tag/v2.88.1\n",
+          stderr: "",
+        };
+      }
+      return { returncode: 0, stdout: `${name} version test\n`, stderr: "" };
+    });
+    expect(result.exitCode).toBe(0);
+    const advisory = result.lines.filter((line) => line.includes("gh advisory:"));
+    expect(advisory).toHaveLength(1);
+    expect(advisory[0]).toContain("GHSA-cg6r-mpgc-h9mm");
+    expect(advisory[0]).toContain("CVE-2026-64652");
+    expect(advisory[0]).toContain("2.97.0");
+    expect(advisory[0]).toContain(
+      "https://github.com/cli/cli/security-advisories/GHSA-cg6r-mpgc-h9mm",
+    );
+    expect(advisory[0]).not.toContain("gh auth status");
+  });
+
+  it("does not warn when captured gh --version meets the advisory floor (#3664 R3)", () => {
+    const result = runToolchainCheck((command) => {
+      const name = command[0] ?? "";
+      if (name === "gh") {
+        return { returncode: 0, stdout: "gh version 2.97.0\n", stderr: "" };
+      }
+      return { returncode: 0, stdout: `${name} version test\n`, stderr: "" };
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.lines.some((line) => line.includes("gh advisory:"))).toBe(false);
+  });
 });

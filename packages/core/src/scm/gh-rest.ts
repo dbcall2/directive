@@ -271,7 +271,7 @@ export function restIssueView(
   return execApi([endpoint], {
     endpoint,
     payload: null,
-    hint: "verify repo and issue number; check gh auth status",
+    hint: "verify repo and issue number; check GitHub authentication (deft github-auth-modes)",
     runGhApiFn: seams.runGhApiFn,
     whichFn: seams.whichFn,
   }) as Record<string, unknown>;
@@ -418,7 +418,7 @@ export function restUpdateComment(
   return execMutation([endpoint, "--method", "PATCH"], {
     endpoint,
     payload: { body },
-    hint: "verify repo permissions and comment id; check gh auth status",
+    hint: "verify repo permissions and comment id; check GitHub authentication (deft github-auth-modes)",
     ...seams,
   });
 }
@@ -434,7 +434,7 @@ export function restDeleteComment(
   return execMutation([endpoint, "--method", "DELETE"], {
     endpoint,
     payload: {},
-    hint: "verify repo permissions and comment id; check gh auth status",
+    hint: "verify repo permissions and comment id; check GitHub authentication (deft github-auth-modes)",
     ...seams,
   });
 }
@@ -444,7 +444,7 @@ export function restGetUser(seams: GhRestSeams = {}): Record<string, unknown> {
   return execApi(["user"], {
     endpoint: "user",
     payload: null,
-    hint: "verify gh auth status (`gh auth login`)",
+    hint: "verify GitHub authentication (deft github-auth-modes)",
     runGhApiFn: seams.runGhApiFn,
     whichFn: seams.whichFn,
   }) as Record<string, unknown>;
@@ -461,7 +461,7 @@ export function restUpdateIssue(
   return execMutation([endpoint, "--method", "PATCH"], {
     endpoint,
     payload: patch,
-    hint: "verify repo permissions and issue number; check gh auth status",
+    hint: "verify repo permissions and issue number; check GitHub authentication (deft github-auth-modes)",
     ...seams,
   });
 }
@@ -565,7 +565,7 @@ export function restPrView(
   return execApi([endpoint], {
     endpoint,
     payload: null,
-    hint: "verify repo and PR number; check gh auth status",
+    hint: "verify repo and PR number; check GitHub authentication (deft github-auth-modes)",
     runGhApiFn: seams.runGhApiFn,
     whichFn: seams.whichFn,
   }) as Record<string, unknown>;
