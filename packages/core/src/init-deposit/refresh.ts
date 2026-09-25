@@ -23,6 +23,12 @@ import { whichAllFromPath } from "../doctor/which.js";
 import { readCorePackageVersion } from "../engine-version.js";
 import { readLiveGeneration, stampLiveGeneration } from "../freshness/generation.js";
 import {
+  describeDryRunGenerationGate,
+  evaluateGenerationGate,
+  GENERATION_REWIND_ERROR_CODE,
+  type GenerationGateResult,
+} from "../freshness/generation-gate.js";
+import {
   type ContainedDestExecInput,
   type ContainedDestExecResult,
   containedDestExec,
@@ -114,6 +120,7 @@ import {
   assertKnownUpdateFlags,
   decideUpdateGitGate,
   destPlanIsEmpty,
+  type GitExecFn,
   gitPreflightRequired,
   outOfRootWriterMightFire,
   probeUpdateGit,
@@ -148,6 +155,8 @@ export interface RefreshDepositResult {
   readonly mutations: MutationSummary;
   /** Pin+lock reconstitution failed; pin was reverted (#4710). */
   readonly pinLockRefreshError?: string;
+  /** #4120 generation rewind gate refused before dest writes. */
+  readonly generationRewindError?: string;
 }
 
 function hasCanonicalXbriefLifecycle(projectDir: string): boolean {
@@ -190,6 +199,8 @@ export interface RefreshDepositSeams {
   containedDestExec?: (input: ContainedDestExecInput) => ContainedDestExecResult;
   /** PATH resolve for lockfile manager binaries. Default {@link whichAllFromPath}. */
   resolveLockfileManager?: (execFile: string) => string | null;
+  /** Injected git exec for the #4120 generation rewind gate. */
+  execGit?: GitExecFn;
 }
 
 /**
@@ -925,7 +936,36 @@ export async function runRefreshDeposit(
     previousDepositVersion !== null &&
     normalizeVersion(previousDepositVersion) === normalizeVersion(contentVersion);
   const strategy: RefreshDepositStrategy = alreadyCurrent ? "no-op" : "file-swap";
+
   const payloadReadRoot = recordModePayloadRoot({ contentRoot, deftDir, alreadyCurrent });
+
+  let generationGate: GenerationGateResult | null = null;
+  if (!isPortRecordMode()) {
+    generationGate = evaluateGenerationGate({
+      projectDir,
+      contentVersion,
+      increment: !alreadyCurrent,
+      execGit: seams.execGit,
+    });
+    if (generationGate.action === "refuse") {
+      return {
+        projectDir,
+        deftDir,
+        contentVersion,
+        engineVersion,
+        previousDepositVersion,
+        alreadyCurrent,
+        strategy,
+        agentsMdUpdated: false,
+        versionSkewNotice,
+        legacyLayout: false,
+        taskfileWired: false,
+        stagedPaths: [],
+        mutations: emptyMutationSummary(),
+        generationRewindError: generationGate.message,
+      };
+    }
+  }
 
   if (alreadyCurrent) {
     io.printf("[deft update] Framework payload already current; skipping payload copy.\n");
@@ -948,17 +988,22 @@ export async function runRefreshDeposit(
     const generationMatches =
       priorGen !== null &&
       normalizeVersion(priorGen.contentVersion) === normalizeVersion(contentVersion);
-    try {
-      stampLiveGeneration(projectDir, {
-        contentVersion,
-        stampedBy: "directive-update",
-        increment: false,
-      });
-    } catch (err) {
-      if (!generationMatches) {
-        throw err;
+    if (generationGate?.action !== "keep-prior") {
+      try {
+        stampLiveGeneration(projectDir, {
+          contentVersion,
+          stampedBy: "directive-update",
+          increment: false,
+          ...(generationGate?.action === "stamp"
+            ? { forcedGeneration: generationGate.generation }
+            : {}),
+        });
+      } catch (err) {
+        if (!generationMatches) {
+          throw err;
+        }
+        // Token already matches content; ensure write failure is non-fatal noise.
       }
-      // Token already matches content; ensure write failure is non-fatal noise.
     }
   } else {
     // Full-tree replace (or injected seam). Additive copy is no longer the default.
@@ -996,12 +1041,17 @@ export async function runRefreshDeposit(
     // #3117: monotonic live generation MUST advance after a successful payload
     // swap. Suppressing stamp failure would leave a prior bound/live match
     // reporting `current` while the on-disk payload already changed (Greptile P1).
-    stampLiveGeneration(projectDir, {
-      contentVersion,
-      stampedBy: "directive-update",
-      increment: true,
-      nowIso: stampedAt,
-    });
+    if (generationGate?.action !== "keep-prior") {
+      stampLiveGeneration(projectDir, {
+        contentVersion,
+        stampedBy: "directive-update",
+        increment: true,
+        nowIso: stampedAt,
+        ...(generationGate?.action === "stamp"
+          ? { forcedGeneration: generationGate.generation }
+          : {}),
+      });
+    }
   }
 
   const pinLockRefreshError = reconstituteConsumerPinAndLock(projectDir, contentVersion, io, seams);
@@ -1309,6 +1359,36 @@ function emitGitRefusal(
   return UPDATE_REFUSED_EXIT_CODE;
 }
 
+function emitGenerationRewindRefusal(
+  options: RunRefreshDepositCliOptions,
+  io: InitDepositIo,
+  projectDir: string,
+  message: string,
+  dryRun: boolean,
+  gitPreflight: UpdateGitPreflight | undefined,
+): number {
+  io.printf(`${message}\n`);
+  if (options.jsonOut) {
+    options.writeOut(
+      `${JSON.stringify(
+        {
+          success: false,
+          action: "update",
+          error_code: GENERATION_REWIND_ERROR_CODE,
+          message,
+          project_dir: projectDir,
+          ...gitPreflightJsonFields(gitPreflight),
+          ...(dryRun ? { dry_run: true } : {}),
+          mutations: mutationSummaryJson(emptyMutationSummary()),
+        },
+        null,
+        2,
+      )}\n`,
+    );
+  }
+  return UPDATE_REFUSED_EXIT_CODE;
+}
+
 /** Emit the classified plan plus recorded port dest mutations (ADR-004). */
 async function emitDryRunPlan(
   options: RunRefreshDepositCliOptions,
@@ -1317,6 +1397,7 @@ async function emitDryRunPlan(
   classification: UpdateClassification,
   destResult: RefreshDepositResult,
   gitPreflight: UpdateGitPreflight,
+  generationGate?: ReturnType<typeof describeDryRunGenerationGate>,
 ): Promise<number> {
   const { previousVersion, contentVersion } = await readDryRunVersions(
     projectDir,
@@ -1352,6 +1433,7 @@ async function emitDryRunPlan(
           mutations: mutationSummaryJson(mutations),
           exclusions: [...UPDATE_DRY_RUN_EXCLUSIONS],
           ...gitPreflightJsonFields(gitPreflight),
+          ...(generationGate ? { generation_gate: generationGate } : {}),
           ...(options.allowDirtyNoStage === true
             ? {
                 allow_dirty_no_stage: true,
@@ -1482,11 +1564,54 @@ export async function runRefreshDepositCli(options: RunRefreshDepositCliOptions)
       );
     }
 
+    const versions = await readDryRunVersions(projectDir, options.seams ?? {});
+    const increment = depositRefreshPending(versions.previousVersion, versions.contentVersion);
     if (options.dryRun) {
+      const dryGate = describeDryRunGenerationGate({
+        projectDir,
+        contentVersion: versions.contentVersion,
+        increment,
+        execGit: options.seams?.execGit,
+      });
+      if (dryGate.verdict === "refuse") {
+        return emitGenerationRewindRefusal(
+          options,
+          io,
+          projectDir,
+          dryGate.message ?? "directive update: generation rewind refused",
+          true,
+          gitPreflight,
+        );
+      }
       if (destResult === null) {
         return 1;
       }
-      return emitDryRunPlan(options, io, projectDir, classification, destResult, gitPreflight);
+      return emitDryRunPlan(
+        options,
+        io,
+        projectDir,
+        classification,
+        destResult,
+        gitPreflight,
+        dryGate,
+      );
+    }
+
+    const liveGate = evaluateGenerationGate({
+      projectDir,
+      contentVersion: versions.contentVersion,
+      increment,
+      execGit: options.seams?.execGit,
+    });
+    if (liveGate.action === "refuse") {
+      return emitGenerationRewindRefusal(
+        options,
+        io,
+        projectDir,
+        liveGate.message,
+        false,
+        gitPreflight,
+      );
     }
 
     if (options.allowDirtyNoStage === true && gitPreflight.kind === "dirty") {
@@ -1513,6 +1638,16 @@ export async function runRefreshDepositCli(options: RunRefreshDepositCliOptions)
   return runWithMutationLedger(projectDir, async () => {
     try {
       const result = await runRefreshDeposit(options, io, options.seams);
+      if (result.generationRewindError !== undefined) {
+        return emitGenerationRewindRefusal(
+          options,
+          io,
+          projectDir,
+          result.generationRewindError,
+          false,
+          gitPreflight,
+        );
+      }
       if (result.pinLockRefreshError !== undefined) {
         options.writeErr(`directive update: ${result.pinLockRefreshError}\n`);
         if (options.jsonOut) {

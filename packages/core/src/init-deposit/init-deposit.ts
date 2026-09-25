@@ -17,6 +17,7 @@ import { prunePythonArtifactsFromDeposit } from "../deposit/python-free.js";
 import { resolveInstalledContentRoot } from "../deposit/resolve-content.js";
 import { readCorePackageVersion } from "../engine-version.js";
 import { stampLiveGeneration } from "../freshness/generation.js";
+import { evaluateGenerationGate } from "../freshness/generation-gate.js";
 import { renderProjectDefinition } from "../render/project-render.js";
 import { readPin } from "../resolution/pin.js";
 import { depositOpenClawSoftRebindSkill } from "../session/openclaw-soft-rebind-deposit.js";
@@ -59,6 +60,7 @@ import {
 } from "./scaffold.js";
 import { writeMultiHostSkillDiscovery } from "./skill-discovery-deposit.js";
 import { writeSlashCommandDeposit } from "./slash-deposit.js";
+import type { GitExecFn } from "./update-git-preflight.js";
 import { syncBareVersionMarker } from "./xbrief-projections.js";
 
 export interface InitDepositArgs {
@@ -77,6 +79,8 @@ export interface InitDepositResult {
   readonly stagedPaths: string[];
   /** Present when the #4533 consumer-file postcondition still fails after one re-assert. */
   readonly consumerInvariantError?: string;
+  /** #4120 generation rewind gate refused before dest writes. */
+  readonly generationRewindError?: string;
 }
 
 export interface InitDepositSeams {
@@ -90,6 +94,7 @@ export interface InitDepositSeams {
   /** Test fixture: overwrite consumer files after the first pin/agents/gitignore write (#4533). */
   afterFirstConsumerWrites?: (projectDir: string) => void;
   consumerInvariantWriters?: InitConsumerInvariantWriters;
+  execGit?: GitExecFn;
 }
 
 export function parseInitArgv(
@@ -351,6 +356,25 @@ export async function runInitDeposit(
     contentRoot,
     seams.readPackageVersion ?? readCorePackageVersion,
   );
+  const generationGate = evaluateGenerationGate({
+    projectDir,
+    contentVersion: version,
+    increment: true,
+    execGit: seams.execGit,
+  });
+  if (generationGate.action === "refuse") {
+    return {
+      projectDir,
+      deftDir,
+      skillsCreated: false,
+      taskfileWired: false,
+      configDir: "",
+      legacyLayout: false,
+      stagedPaths: [],
+      generationRewindError: generationGate.message,
+    };
+  }
+
   // #4429: refuse a lockfile mismatch before any deposit mutation so a throw
   // cannot leave .deft/core materialized without a pin. Then write the pin
   // before ensureInitGitignoreLines. Headless already emits the same pin
@@ -436,12 +460,15 @@ export async function runInitDeposit(
 
   // #3117: stamp live generation only after required init projections succeed.
   // Stamping earlier would advance authority for a failed/partial init (Greptile).
-  stampLiveGeneration(projectDir, {
-    contentVersion: version,
-    stampedBy: "directive-init",
-    increment: true,
-    nowIso: nowIso(),
-  });
+  if (generationGate.action !== "keep-prior") {
+    stampLiveGeneration(projectDir, {
+      contentVersion: version,
+      stampedBy: "directive-init",
+      increment: true,
+      nowIso: nowIso(),
+      ...(generationGate.action === "stamp" ? { forcedGeneration: generationGate.generation } : {}),
+    });
+  }
 
   return {
     projectDir,
@@ -474,6 +501,24 @@ export async function runInitDepositCli(options: RunInitDepositCliOptions): Prom
 
   try {
     const result = await runInitDeposit(options, io, options.seams);
+    if (result.generationRewindError) {
+      options.writeErr(`${result.generationRewindError}\n`);
+      if (options.jsonOut) {
+        options.writeOut(
+          `${JSON.stringify(
+            {
+              success: false,
+              error: result.generationRewindError,
+              error_code: "generation_rewind",
+              deposit_completed: false,
+            },
+            null,
+            2,
+          )}\n`,
+        );
+      }
+      return 1;
+    }
     if (result.consumerInvariantError) {
       options.writeErr(`directive init: ${result.consumerInvariantError}\n`);
       if (options.jsonOut) {

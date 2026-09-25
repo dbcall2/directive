@@ -885,7 +885,9 @@ export function classifyMixedCoreAndAppForPr(
  * Starts from path classification (#3127 allowlist), then when `.deft/core/**`
  * is present reclassifies package.json / lockfile paths as **app** unless their
  * base→head content is the Directive pin unit (or lock follow-through).
- * `.deft/GENERATION.json` remains path-allowlisted with no content constraint.
+ * `.deft/GENERATION.json` remains path-allowlisted for mixed-core-and-app.
+ * When that path changes, deposited deft-core-guard also requires
+ * `head.generation` greater than `origin/$BASE_REF` (#4120).
  *
  * Missing content for a pin path co-travelling with core fails closed (treated
  * as app) so partial fixtures cannot silently re-open the path-only hole.
