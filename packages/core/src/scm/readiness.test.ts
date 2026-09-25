@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   probeRuntimeCapabilities,
@@ -130,9 +133,10 @@ describe("probeScmReadiness (#2275)", () => {
       runGh: () => okProc("Logged in"),
     });
     expect(report.ready).toBe(true);
-    expect(report.authState).toBe("authenticated");
+    expect(report.authState).toBe("unknown");
     expect(report.skippedGates).toEqual([]);
     expect(report.detail).toMatch(/SCM ready/);
+    expect(report.detail).toMatch(/provisioned/);
   });
 
   it("deep path validates via github-auth-modes and surfaces login", () => {
@@ -795,5 +799,51 @@ describe("requireScmReady registered worker (#3663)", () => {
     expect(userCalls).toBe(1);
     requireScmReady({ ...common, env: { GH_TOKEN: "two" } });
     expect(userCalls).toBe(2);
+  });
+
+  it("re-probes when the host-store user changes", () => {
+    clearScmReadyCache();
+    const dir = mkdtempSync(join(tmpdir(), "deft-gh-store-"));
+    const hostsPath = join(dir, "hosts.yml");
+    const writeHosts = (user: string) => {
+      writeFileSync(
+        hostsPath,
+        `github.com:\n    git_protocol: https\n    users:\n        ${user}:\n            oauth_token: gho_${user}_secret\n    user: ${user}\n`,
+        "utf8",
+      );
+    };
+    let userCalls = 0;
+    const runGh = (args: readonly string[]) => {
+      if (args.join(" ").includes("user")) {
+        userCalls += 1;
+        return okProc('"alice"');
+      }
+      if (args.join(" ").includes("repos/")) return okProc("{}");
+      return failProc(`unexpected ${args.join(" ")}`);
+    };
+    const common = {
+      whichFn: (n: string) => (n === "gh" ? "/usr/bin/gh" : null),
+      githubAuthMode: "host-gh" as const,
+      runtimeReport: { runtimeMode: "local-unsandboxed" as const },
+      runGh,
+      repo: "owner/name",
+      expectedPrincipal: null as const,
+      checkAuthStatus: true as const,
+      depth: "deep" as const,
+      readWorkerAuthAssignment: () => assignmentRead(null),
+    };
+    try {
+      writeHosts("alice");
+      requireScmReady({ ...common, env: { GH_CONFIG_DIR: dir }, force: true });
+      expect(userCalls).toBe(1);
+      requireScmReady({ ...common, env: { GH_CONFIG_DIR: dir } });
+      expect(userCalls).toBe(1);
+      writeHosts("bob");
+      requireScmReady({ ...common, env: { GH_CONFIG_DIR: dir } });
+      expect(userCalls).toBe(2);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+      clearScmReadyCache();
+    }
   });
 });

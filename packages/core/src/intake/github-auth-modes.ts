@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { CompletedProcess } from "../scm/call.js";
 import { pyRepr } from "../scm/py-format.js";
 import {
@@ -211,6 +213,47 @@ export function tokenPresenceFingerprint(environ: NodeJS.ProcessEnv, host: strin
       return `${name}:${digest}`;
     })
     .join(",");
+}
+
+/**
+ * Non-secret fingerprint of the gh host-store for ready-cache identity.
+ * Paths come only from the env bag (`GH_CONFIG_DIR`, `XDG_CONFIG_HOME`,
+ * `HOME` / `USERPROFILE`, `APPDATA`). A stub env without those keys does
+ * not read the process home store.
+ */
+export function hostStoreIdentityFingerprint(environ: NodeJS.ProcessEnv, host: string): string {
+  const configDir = resolveGhConfigDir(environ);
+  if (configDir === null) {
+    return "hosts:missing";
+  }
+  const hostsPath = join(configDir, "hosts.yml");
+  let raw: string;
+  try {
+    raw = readFileSync(hostsPath, "utf8");
+  } catch {
+    return "hosts:missing";
+  }
+  const digest = createHash("sha256")
+    .update(host)
+    .update("\n")
+    .update(raw)
+    .digest("hex")
+    .slice(0, 16);
+  return `hosts:${digest}`;
+}
+
+function resolveGhConfigDir(environ: NodeJS.ProcessEnv): string | null {
+  const fromEnv = environ.GH_CONFIG_DIR?.trim();
+  if (fromEnv) return fromEnv;
+  const xdg = environ.XDG_CONFIG_HOME?.trim();
+  if (xdg) return join(xdg, "gh");
+  if (process.platform === "win32") {
+    const appData = environ.APPDATA?.trim();
+    if (appData) return join(appData, "GitHub CLI");
+  }
+  const home = environ.HOME?.trim() || environ.USERPROFILE?.trim();
+  if (home) return join(home, ".config", "gh");
+  return null;
 }
 
 function environFromInferInput(

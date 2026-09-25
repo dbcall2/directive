@@ -386,7 +386,9 @@ become an env principal match.
   `requireScmReady`.
 - ! `requireScmReady` MUST honor requested authorization depth. A cached
   ready report MUST NOT authorize changed credentials, source, principal, or
-  target. Mutation preflight uses `force: true`.
+  target. The cache key includes the injected-token fingerprint and the
+  host-store identity (`hosts.yml` digest), so a `gh auth switch` revalidates.
+  Mutation preflight uses `force: true`.
 - ! The hermetic skip is `VITEST` only. `DEFT_SCM_SKIP_AUTH_PROBE` MUST NOT
   authorize production when a token is present.
 - ! Those three callers MUST parse `--repo` / `-R` before `requireScmReady`

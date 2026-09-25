@@ -1,4 +1,11 @@
+<<<<<<< HEAD
 import { describe, expect, it, vi } from "vitest";
+=======
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+>>>>>>> 123c3b431 (fix(scm): bind SCM ready-cache to host-store identity (#5016))
 import type { CompletedProcess } from "../scm/call.js";
 import {
   containsTokenShapedText,
@@ -17,6 +24,7 @@ import {
   type GhRunner,
   githubApiPath,
   githubAuthModesMain,
+  hostStoreIdentityFingerprint,
   INSTALLATION_IDENTITY_ISSUE_URL,
   inferGithubAuthMode,
   isInstallationUserEndpointInapplicable,
@@ -644,5 +652,36 @@ describe("expected GitHub worker principal (#3665)", () => {
 
   it("CLI App-installation flags are deferred to #3693", () => {
     expect(githubAuthModesCliMain(["--expected-app-slug", "deft-worker"])).toBe(2);
+  });
+});
+
+describe("hostStoreIdentityFingerprint (#5016)", () => {
+  it("does not read the process home store from a stub env", () => {
+    expect(hostStoreIdentityFingerprint({}, "github.com")).toBe("hosts:missing");
+  });
+
+  it("changes when the host-store user changes and never echoes the token", () => {
+    const dir = mkdtempSync(join(tmpdir(), "deft-gh-fp-"));
+    try {
+      writeFileSync(
+        join(dir, "hosts.yml"),
+        "github.com:\n    user: alice\n    users:\n        alice:\n            oauth_token: gho_secret_alice\n",
+        "utf8",
+      );
+      const alice = hostStoreIdentityFingerprint({ GH_CONFIG_DIR: dir }, "github.com");
+      writeFileSync(
+        join(dir, "hosts.yml"),
+        "github.com:\n    user: bob\n    users:\n        bob:\n            oauth_token: gho_secret_bob\n",
+        "utf8",
+      );
+      const bob = hostStoreIdentityFingerprint({ GH_CONFIG_DIR: dir }, "github.com");
+      expect(alice).toMatch(/^hosts:[0-9a-f]{16}$/);
+      expect(bob).toMatch(/^hosts:[0-9a-f]{16}$/);
+      expect(alice).not.toBe(bob);
+      expect(alice).not.toContain("gho_");
+      expect(bob).not.toContain("alice");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

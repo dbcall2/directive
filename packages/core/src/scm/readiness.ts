@@ -31,6 +31,7 @@ import {
   GITHUB_AUTH_MODE_HOST_GH,
   GITHUB_AUTH_MODE_INJECTED_TOKEN,
   type GitHubAuthValidationResult,
+  hostStoreIdentityFingerprint,
   inferGithubAuthMode,
   resolveGithubHost,
   tokenPresenceFingerprint,
@@ -332,6 +333,7 @@ export function probeScmReadiness(options: ProbeScmReadinessOptions = {}): ScmRe
   // Shallow path: binary + applicable-token presence. Aggregate `gh auth status`
   // (including hostname-only listings of inactive accounts) does not veto a
   // working effective credential. Deep admission uses selected-credential APIs.
+  // authState stays unknown until a deep selected-credential API result.
   const checkAuth = options.checkAuthStatus !== false;
   const detail = checkAuth
     ? `SCM ready: ${binary} present, ${githubAuthMode} provisioned for ${githubHost} (shallow)`
@@ -341,7 +343,7 @@ export function probeScmReadiness(options: ProbeScmReadinessOptions = {}): ScmRe
     ready: true,
     binary,
     binaryPath,
-    authState: checkAuth ? "authenticated" : "unknown",
+    authState: "unknown",
     githubAuthMode,
     runtimeMode: runtimeReport.runtimeMode,
     runtimeModeReason: runtimeReport.runtimeModeReason ?? null,
@@ -458,10 +460,12 @@ export function assertScmBinaryPresent(whichFn: WhichFn = defaultWhich): ScmBina
  * ban: any user-bearing login is acceptable when no expected principal is
  * supplied. The repo GET does not authorize the operation.
  *
- * Process-scoped cache: keyed by repo + expected principal so alternating
- * `--repo` checks do not evict each other. A cached shallow-ready report does
- * not satisfy a later principal/deep request for that same key. Pass
- * `force: true` to re-probe (tests / after credential injection).
+ * Process-scoped cache: keyed by repo + expected principal + credential
+ * identity (injected-token fingerprint and host-store hosts.yml digest) so
+ * alternating `--repo` checks do not evict each other and a host-store user
+ * change revalidates. A cached shallow-ready report does not satisfy a later
+ * principal/deep request for that same key. Pass `force: true` to re-probe
+ * (tests / after credential injection).
  */
 const cachedReadyReports = new Map<string, ScmReadinessReport>();
 
@@ -471,6 +475,7 @@ function readyCacheIdentity(options: ProbeScmReadinessOptions & { force?: boolea
   host: string;
   mode: string;
   tokens: string;
+  store: string;
 } {
   const env = options.env ?? process.env;
   const host = resolveGithubHost({ host: options.host, environ: env, cwd: options.cwd });
@@ -481,6 +486,7 @@ function readyCacheIdentity(options: ProbeScmReadinessOptions & { force?: boolea
     host,
     mode,
     tokens: tokenPresenceFingerprint(env, host),
+    store: hostStoreIdentityFingerprint(env, host),
   };
 }
 
@@ -490,8 +496,9 @@ function readyCacheKey(identity: {
   host: string;
   mode: string;
   tokens: string;
+  store: string;
 }): string {
-  return `${identity.repo}\0${identity.principal}\0${identity.host}\0${identity.mode}\0${identity.tokens}`;
+  return `${identity.repo}\0${identity.principal}\0${identity.host}\0${identity.mode}\0${identity.tokens}\0${identity.store}`;
 }
 
 function cachedReportCoversRequestedDepth(

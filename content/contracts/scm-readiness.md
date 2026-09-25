@@ -46,7 +46,8 @@ JSON field shape (`session:start --json` → `scm`, or `scm:status --json`):
 - `binary` (`ghx` \| `gh` \| null)
 - `binary_path`
 - `auth_state` (`authenticated` \| `unauthenticated` \| `missing-token` \|
-  `binary-absent` \| `unknown`)
+  `binary-absent` \| `unknown`). Shallow ready reports `unknown`;
+  `authenticated` is a deep selected-credential API result.
 - `github_auth_mode` (`host-gh` \| `injected-token`)
 - `runtime_mode`
 - `injected_token_present` (bool; never the value)

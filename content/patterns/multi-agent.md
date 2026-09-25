@@ -104,25 +104,28 @@ The canonical preamble at `templates/agent-prompt-preamble.md` carries
 this rule verbatim alongside the existing REST-default,
 max-1-Draft-toggle, and rate-limit-throttle rules:
 
-> Workers MUST consume the GitHub credential injected by the dispatcher
-> (typically `GH_TOKEN` in the prompt-supplied env). Workers MUST NOT
-> fall back to the host's `gh auth status` token. If `GH_TOKEN` is
-> unset and no other dispatcher-supplied credential is present, the
-> worker MUST fail loud with a clear error rather than silently
-> running under the host identity.
+> Assigned injected-token workers MUST consume the dispatcher-injected
+> credential (`GH_TOKEN` / `GITHUB_TOKEN` on github.com and ghe.com;
+> `GH_ENTERPRISE_TOKEN` / `GITHUB_ENTERPRISE_TOKEN` on GHES) and MUST
+> NOT fall back to the host store. Assigned host-gh workers MUST use
+> the target-host store and refuse an applicable ambient token.
+> Unassigned processes use gh's effective credentials for the target
+> host; runtime/cloud labels do not authorize (#5016). If the assigned
+> source is missing, the worker MUST fail loud rather than silently
+> switching identity.
 
 The rule is enforced at two points:
 
-1. **Dispatch time** (orchestrator side). The orchestrator (swarm
-   skill, monitor agent, scheduled run) injects the worker
-   credential into the dispatch envelope -- usually as `GH_TOKEN` in
-   the env, with the maintainer's `gh auth` state untouched. Workers
-   inherit this env at spawn time.
-2. **Worker side**. The worker's first action (after AGENTS.md read)
-   verifies `GH_TOKEN` is set and matches the expected bot/App
-   identity (e.g. `gh api user --jq .login` returns the bot login).
-   Mismatch is a hard refusal: stop the tool loop, send `BLOCKED:
-   identity mismatch` to the parent.
+1. **Dispatch time** (orchestrator side). Assigned injected-token
+   dests receive the worker credential in the env. Assigned host-gh
+   dests do not receive an applicable ambient token. Unassigned dests
+   inherit the provisioned effective source. The maintainer's `gh auth`
+   state stays untouched for assigned injected-token workers.
+2. **Worker side**. After AGENTS.md read, honor the assignment (or the
+   effective source when unassigned). Assigned workers verify
+   authenticated `/user` matches the recorded login. Mismatch is a
+   hard refusal: stop the tool loop, send `BLOCKED: identity mismatch`
+   to the parent.
 
 The two-sided enforcement means a missing/malformed credential surfaces
 at the earliest possible point rather than mid-dispatch when the worker
