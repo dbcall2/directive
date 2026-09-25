@@ -12,7 +12,7 @@
  * The frozen Go list in cmd/deft-install/deposit.go is not that referent
  * (GO_1430_DENYLIST_STATUS is frozen source-only).
  *
- * Refs #1576, #1453, #1430, #3029, #3030, #3127, #3117, #3193, #3393, #4271.
+ * Refs #1576, #1453, #1430, #3029, #3030, #3127, #3117, #3193, #3393, #4271, #4120.
  */
 
 import { execFileSync } from "node:child_process";
@@ -1156,6 +1156,50 @@ export function stageFrameworkPaths(
   } catch (cause) {
     const error = cause instanceof Error ? cause : new Error(String(cause));
     return { staged: false, error };
+  }
+}
+
+export interface UnstageFrameworkPathsSeams {
+  gitPorcelain?: StageFrameworkPathsSeams["gitPorcelain"];
+  runGitUnstage?: (projectDir: string, paths: readonly string[]) => void;
+  readCachedNames?: (projectDir: string) => string[];
+}
+
+/**
+ * Best-effort inverse of {@link stageFrameworkPaths}: restore the index for
+ * paths this run staged. A later generation-rewind refuse must not leave the
+ * refused deposit in the index (#4120).
+ */
+export function unstageFrameworkPaths(
+  projectDir: string,
+  paths: readonly string[],
+  seams: UnstageFrameworkPathsSeams = {},
+): { unstaged: boolean; error: Error | null } {
+  if (paths.length === 0) return { unstaged: false, error: null };
+  const readPorcelain = seams.gitPorcelain ?? gitPorcelain;
+  if (readPorcelain(projectDir) === null) return { unstaged: false, error: null };
+  const readCachedNames = seams.readCachedNames ?? defaultCachedNames;
+  const restorePaths = actuallyStagedPaths(paths, readCachedNames(projectDir));
+  if (restorePaths.length === 0) return { unstaged: false, error: null };
+  const runGitUnstage =
+    seams.runGitUnstage ??
+    ((root: string, indexPaths: readonly string[]) => {
+      const result = containedDestExec({
+        root,
+        destTarget: join(".git", "index"),
+        file: "git",
+        args: ["reset", "-q", "--", ...indexPaths],
+      });
+      if (!result.ok) {
+        throw new Error("git reset -- (unstage) failed");
+      }
+    });
+  try {
+    runGitUnstage(projectDir, restorePaths);
+    return { unstaged: true, error: null };
+  } catch (cause) {
+    const error = cause instanceof Error ? cause : new Error(String(cause));
+    return { unstaged: false, error };
   }
 }
 
