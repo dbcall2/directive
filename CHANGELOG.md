@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.119.9] - 2026-09-25
+
+> Cursor planning choice (#4973), class-checks (#4980), in-harness intent ask (#5010), setup file_scope (#4988), and merge-path arm (#4882)
+
 ### Fixed
 - **fix(release,tests): scrub DEFT_ALLOW_* from Step 5 check env; Windows path assertions for ceremony dial and cursor plan store (Tracking #5022).**
 
@@ -6519,7 +6531,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.119.8...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.119.9...HEAD
+[0.119.9]: https://github.com/deftai/directive/compare/v0.119.8...v0.119.9
 [0.119.8]: https://github.com/deftai/directive/compare/v0.119.7...v0.119.8
 [0.119.7]: https://github.com/deftai/directive/compare/v0.119.6...v0.119.7
 [0.119.6]: https://github.com/deftai/directive/compare/v0.119.5...v0.119.6

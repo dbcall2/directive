@@ -5,6 +5,10 @@
 
 # Roadmap
 
+## Active
+
+- **#5022** -- bug(release): Windows Step 5 hang detector kills ts:check-lane at 52/1284 files during v0.119.9 cut -- `[running]`
+
 ## Proposed
 
 _Scopes not yet promoted to pending. Orientation only — not a substitute for `task triage:queue`._
@@ -40,31 +44,31 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1614 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1637 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#4882** -- Parent-retained merge babysit stands down with no live wait -- `[completed]`
+- **#3858** -- bug(scm): the enforcing SCM readiness gate never invokes the worker-principal validator -- `[completed]`
+- **#5010** -- design(verify): retire TTY intent-constraint and observable-scope mint mid-build — detect + in-harness ask, returned failures free -- `[completed]`
+- **#3663** -- bug(swarm): worker github_auth_mode is stamped from the parent process and never re-validated in the worker envelope -- `[completed]`
+- **#4973** -- leftover(#1708): recorded planning choice before the first Cursor Plan prompt -- `[completed]`
+- **#4970** -- Previously accepted critiques retain ingest-ready after stricter gates invalidate their records -- `[completed]`
+- **#1708** -- Cursor Plan Mode silently bypasses directive planning; needs host-UI planning bridge + visibility -- `[completed]`
+- **#4986** -- bug(scope): derived clauses never get test evidence, so through-merge cannot complete the brief -- `[completed]`
+- **#4980** -- feat(verify): class checks fail closed regardless of file_scope or digest — test artifact under production root, production reference to test root, test identity in infra, protected globs (#3145 class) -- `[completed]`
+- **#4988** -- feat(setup): write swarm.file_scope at authoring for every setup-created scope and show the paths at the confirmation gate — declaration only, no approval verb (supersedes #4383) -- `[completed]`
+- **#4956** -- bug(swarm,scope): operator proceed still forces leave-harness multi-stop scope:record-approved-scope ("mint") mid-cohort — not the intended run-with-it flow -- `[completed]`
+- **#4290** -- bug(session,hooks): compaction staleness on the primary checkout has no recovery -- both printed remedies refuse as occupancy claims, and the gate denies paths outside the repo -- `[completed]`
+- **#4884** -- Kill-switch is doctor-true and the agent is never told to stop -- `[completed]`
+- **#4963** -- BLOCKER: xbrief:verify passes a brief that scope:activate rejects on plan.id, and remediation names an internal function -- `[completed]`
+- **#4543** -- Forward-coverage gate is satisfied by placeholder tests (string-search / typeof) -- `[completed]`
+- **#4768** -- [UAT Tester 4] Active xBRIEFs can be created without acceptance commands -- `[completed]`
+- **#4654** -- [UAT Tester 1] Windows PowerShell blocks npx/directive/deft via .ps1 execution policy -- `[completed]`
+- **#3550** -- bug(intake,verify-ac): #3398 attestation enforcement absent in the field and noun-traceability admits behavior-free clauses - two existence greps + zero commands = verified-pass -- `[completed]`
+- **#4947** -- bug(doctor,setup): existing root check can stay green without Directive, and setup still says task check -- `[completed]`
+- **#4544** -- Setup leaves AGENTS.md header at "edit me" and planning layer unused on a single-prompt greenfield build -- `[completed]`
+- **#4384** -- design(scm,setup): the first push to a new repository must create the default branch, the gate has no bootstrap exemption, and the only documented path is the "emergency" bypass — so day one teaches the bypass -- `[completed]`
 - **#4950** -- BLOCKER: one-PR-unit story-readiness cannot resolve durable grants (0.119.7) -- `[completed]`
+- **#4773** -- [UAT Tester 4] Dirty-tree update reports writes while refusing before writes -- `[completed]`
+- **#4766** -- [UAT Tester 4] Older Directive package resolves to a different engine version -- `[completed]`
 - **#4937** -- bug(swarm): through-merge should complete the xbrief for the issue it was given -- `[completed]`
-- **#4665** -- [UAT Tester 1] session:start fatal on repo with no commits; first commit blocked on main -- `[completed]`
-- **#4886** -- Default doctor stays UNRESOLVED after init while doctor --full says proceed -- `[completed]`
-- **#4668** -- [UAT Tester 1] Setup asks user to re-provide interview answers after saying not to repeat the interview -- `[completed]`
-- **#4772** -- [UAT Tester 4] Windows paths containing spaces break Directive gates and Taskfile wrappers -- `[completed]`
-- **#4866** -- deft check rapid mode exits 0 on a 0-verified acceptance walk -- `[completed]`
-- **#4867** -- Clause derivation uses plan-item titles and ignores narratives.AcceptanceCriteria -- `[completed]`
-- **#4883** -- pr:merge-ready prints MERGE-READY while GitHub mergeable is CONFLICTING -- `[completed]`
-- **#4755** -- directive doctor: help promises "one next step" but resolution is "proceed" and warning contains two commands -- `[completed]`
-- **#4663** -- [UAT Tester 1] Setup cannot write PROJECT-DEFINITION: requirements posture vs mutation needing an active xBRIEF -- `[completed]`
-- **#4656** -- [UAT Tester 1] directive init first-run output is unusable (many next actions, maintainer dump) -- `[completed]`
-- **#4917** -- bug(release): adoption-blocker punch list must not block a tag -- `[completed]`
-- **#4906** -- bug(lifecycle): a leftover active brief cannot be deleted once its completed twin is already on the base -- `[completed]`
-- **#4907** -- bug(test): Windows release Step 5 dies on symlink and illegal-filename fixtures -- `[completed]`
-- **#4840** -- Multi-story cohort closeout can deadlock: #3240 evidence needs a write, #4007 fence denies it, and no verb reduces the active set -- `[completed]`
-- **#4707** -- bug(scope,schema): scope:complete emits PlanItem.id values the 0.8 schema forbids, and xbrief:validate passes them -- `[completed]`
-- **#4819** -- leftover(#4814): add .js to forward-coverage SOURCE_EXTENSIONS -- `[completed]`
-- **#4854** -- bug(hooks): update strip line does not say a hook refusal can clear -- `[completed]`
-- **#4844** -- bug(xbrief): vbrief:validate fails deft check on legacy completed filenames -- `[completed]`
-- **#4843** -- bug(plan-sequence): current throws sequence_kind required on older sequence files -- `[completed]`
-- **#4841** -- .deft-scratch/ is the swarm worktree default but is not in the framework-generated .gitignore -- `[completed]`
-- **#4839** -- swarm:finalize-cohort --dry-run reports FINALIZE CLEAN for a cohort that fails closed on #3240 acceptance evidence -- `[completed]`
-- **#4812** -- migrate/update/doctor chain: VERSION.bak in .deft/core fails deposit hygiene, update's prune silently no-ops, doctor omits the failure from its summary -- `[completed]`
-- **#4811** -- bug(design-critique): yolo standing still next-envelopes after an all-accept successor lean when Stop 1 pain is uncited -- `[completed]`
 
