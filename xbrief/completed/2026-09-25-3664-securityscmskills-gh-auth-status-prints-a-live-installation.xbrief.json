@@ -53,7 +53,7 @@
         "id": "clause.4",
         "x-directive/evidence": {
           "kind": "test",
-          "pointer": "packages/core/src/intake/toolchain-check.ts",
+          "pointer": "packages/core/src/verify-env/toolchain-check.ts",
           "recorded_at": "2026-09-25T15:28:59Z",
           "recorded_by": "host:grok:v1:MDFhMGQ4YWMtOGE3ZS03N2YyLWI1ODctOTAzYWEyMWM1MGUz"
         }
