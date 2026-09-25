@@ -745,7 +745,7 @@ describe("evaluateCompletedWriteGuard (#3766 active deletion)", () => {
     expect(result.findings).toHaveLength(0);
   });
 
-  it("refuses proposed park when the origin issue is cached closed", () => {
+  it("does not refuse proposed park from stale cached closure", () => {
     const root = mkdtempSync(join(tmpdir(), "closed-park-cache-"));
     try {
       const proposed = "xbrief/proposed/2026-08-25-story.xbrief.json";
@@ -770,12 +770,63 @@ describe("evaluateCompletedWriteGuard (#3766 active deletion)", () => {
           [active, withOrigin(runningSource(), ISSUE_URI)],
         ]),
       });
-      expect(result.code).toBe(1);
-      expect(result.findings.some((f) => f.relPath === active)).toBe(true);
-      expect(result.message).toContain(CLOSED_ISSUE_PARK_REMEDIATION);
+      expect(result.code).toBe(0);
+      expect(result.findings).toHaveLength(0);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it("uses live open state over stale cached closure", () => {
+    const root = mkdtempSync(join(tmpdir(), "reopened-park-cache-"));
+    try {
+      const proposed = "xbrief/proposed/2026-08-25-story.xbrief.json";
+      const dest = withOrigin(
+        JSON.stringify({
+          xBRIEFInfo: { version: "0.8" },
+          plan: { title: "stamped", status: "proposed" },
+        }),
+        ISSUE_URI,
+      );
+      const cacheDir = join(root, ".deft-cache", "github-issue", "deftai", "directive", "4784");
+      mkdirSync(cacheDir, { recursive: true });
+      writeFileSync(join(cacheDir, "raw.json"), JSON.stringify({ state: "closed" }), "utf8");
+
+      const result = evaluateCompletedWriteGuard(root, {
+        nameStatus: `D\t${active}\nA\t${proposed}`,
+        payloads: new Map([
+          [proposed, dest],
+          [active, withOrigin(runningSource(), ISSUE_URI)],
+        ]),
+        runGh: () => ({ returncode: 0, stdout: JSON.stringify({ state: "open" }) }),
+      });
+
+      expect(result.code).toBe(0);
+      expect(result.findings).toHaveLength(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses proposed park when the live issue is closed", () => {
+    const proposed = "xbrief/proposed/2026-08-25-story.xbrief.json";
+    const dest = withOrigin(
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8" },
+        plan: { title: "stamped", status: "proposed" },
+      }),
+      ISSUE_URI,
+    );
+    const result = evaluateCompletedWriteGuard("/tmp/proj", {
+      nameStatus: `R100\t${active}\t${proposed}`,
+      payloads: new Map([
+        [proposed, dest],
+        [active, withOrigin(runningSource(), ISSUE_URI)],
+      ]),
+      runGh: () => ({ returncode: 0, stdout: JSON.stringify({ state: "closed" }) }),
+    });
+    expect(result.code).toBe(1);
+    expect(result.message).toContain(CLOSED_ISSUE_PARK_REMEDIATION);
   });
 
   it("accepts a delete of active/ paired with a cancel-stamped cancelled dest of the same title", () => {
