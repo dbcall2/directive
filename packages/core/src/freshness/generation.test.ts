@@ -99,6 +99,31 @@ describe("stampLiveGeneration (#3117)", () => {
     expect(readFileSync(liveGenerationPath(root), "utf8")).toBe(before);
   });
 
+  it("does not write an older forced generation over a newer local token", () => {
+    const root = tempProject();
+    stampLiveGeneration(root, {
+      contentVersion: "1.0.0",
+      stampedBy: "concurrent",
+      increment: true,
+      forcedGeneration: 5,
+    });
+    const swapped = stampLiveGeneration(root, {
+      contentVersion: "1.1.0",
+      stampedBy: "directive-update",
+      increment: true,
+      forcedGeneration: 2,
+    });
+    expect(swapped.generation).toBe(6);
+    const kept = stampLiveGeneration(root, {
+      contentVersion: "1.1.0",
+      stampedBy: "directive-update",
+      increment: false,
+      forcedGeneration: 2,
+    });
+    expect(kept.generation).toBe(6);
+    expect(readLiveGeneration(root)?.generation).toBe(6);
+  });
+
   it("bumps when content version changes even without increment flag", () => {
     const root = tempProject();
     stampLiveGeneration(root, {

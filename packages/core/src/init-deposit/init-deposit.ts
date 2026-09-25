@@ -17,7 +17,10 @@ import { prunePythonArtifactsFromDeposit } from "../deposit/python-free.js";
 import { resolveInstalledContentRoot } from "../deposit/resolve-content.js";
 import { readCorePackageVersion } from "../engine-version.js";
 import { stampLiveGeneration } from "../freshness/generation.js";
-import { evaluateGenerationGate } from "../freshness/generation-gate.js";
+import {
+  evaluateGenerationGate,
+  recheckGenerationGateLocal,
+} from "../freshness/generation-gate.js";
 import { renderProjectDefinition } from "../render/project-render.js";
 import { readPin } from "../resolution/pin.js";
 import { depositOpenClawSoftRebindSkill } from "../session/openclaw-soft-rebind-deposit.js";
@@ -460,14 +463,34 @@ export async function runInitDeposit(
 
   // #3117: stamp live generation only after required init projections succeed.
   // Stamping earlier would advance authority for a failed/partial init (Greptile).
-  if (generationGate.action !== "keep-prior") {
-    stampLiveGeneration(projectDir, {
-      contentVersion: version,
-      stampedBy: "directive-init",
+  // #4120: stamp the gate's proposed generation (tip+1 when a delivery tip exists).
+  // Never fall through to stampLiveGeneration's bootstrap 1.
+  if (generationGate.action === "stamp") {
+    const gate = recheckGenerationGateLocal(generationGate, projectDir, {
       increment: true,
-      nowIso: nowIso(),
-      ...(generationGate.action === "stamp" ? { forcedGeneration: generationGate.generation } : {}),
+      contentVersion: version,
     });
+    if (gate.action === "refuse") {
+      return {
+        projectDir,
+        deftDir,
+        skillsCreated,
+        taskfileWired,
+        configDir,
+        legacyLayout: false,
+        stagedPaths: [],
+        generationRewindError: gate.message,
+      };
+    }
+    if (gate.action === "stamp") {
+      stampLiveGeneration(projectDir, {
+        contentVersion: version,
+        stampedBy: "directive-init",
+        increment: true,
+        nowIso: nowIso(),
+        forcedGeneration: gate.generation,
+      });
+    }
   }
 
   return {
