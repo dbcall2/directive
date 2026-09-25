@@ -24,6 +24,7 @@ import {
   listRemotes,
   pinDeliveryTipOid,
   probeGenerationAtOid,
+  recheckGenerationGateLocal,
   retiredSingletonTipRef,
 } from "./generation-gate.js";
 import type { LiveGeneration } from "./types.js";
@@ -169,6 +170,50 @@ describe("decideGenerationStamp (#4120 R1)", () => {
       contentVersion: "0.110.0",
     });
     expect(decision).toEqual({ action: "stamp", generation: 1 });
+  });
+
+  it("rechecks a stale cached stamp against a newer local token", () => {
+    const root = tempDir("deft-gen-recheck-");
+    mkdirSync(join(root, ".deft"), { recursive: true });
+    stampLiveGeneration(root, {
+      contentVersion: "0.110.0",
+      stampedBy: "concurrent",
+      increment: true,
+      forcedGeneration: 5,
+    });
+    const cached = {
+      action: "stamp" as const,
+      generation: 2,
+      tip: { kind: "known-at-oid" as const, generation: 1, oid: "abc" },
+      local: { kind: "absent" as const },
+    };
+    const gate = recheckGenerationGateLocal(cached, root, {
+      increment: true,
+      contentVersion: "0.111.0",
+    });
+    expect(gate).toEqual(expect.objectContaining({ action: "stamp", generation: 6 }));
+  });
+
+  it("keeps a sufficient newer local token on already-current recheck", () => {
+    const root = tempDir("deft-gen-recheck-keep-");
+    mkdirSync(join(root, ".deft"), { recursive: true });
+    stampLiveGeneration(root, {
+      contentVersion: "0.110.0",
+      stampedBy: "concurrent",
+      increment: true,
+      forcedGeneration: 5,
+    });
+    const cached = {
+      action: "stamp" as const,
+      generation: 2,
+      tip: { kind: "known-at-oid" as const, generation: 1, oid: "abc" },
+      local: { kind: "absent" as const },
+    };
+    const gate = recheckGenerationGateLocal(cached, root, {
+      increment: false,
+      contentVersion: "0.110.0",
+    });
+    expect(gate.action).toBe("keep-prior");
   });
 
   it("allows local arithmetic only on no-remote or remote-asserted absence", () => {

@@ -27,6 +27,7 @@ import {
   evaluateGenerationGate,
   GENERATION_REWIND_ERROR_CODE,
   type GenerationGateResult,
+  recheckGenerationGateLocal,
 } from "../freshness/generation-gate.js";
 import {
   type ContainedDestExecInput,
@@ -896,6 +897,48 @@ function reconstituteConsumerPinAndLock(
   return null;
 }
 
+/**
+ * Stamp from a this-run gate after rechecking the local token. A CLI-cached
+ * decideGenerationStamp can lag a concurrent writer (#4120).
+ */
+function stampRefreshGeneration(
+  projectDir: string,
+  generationGate: GenerationGateResult | null,
+  input: {
+    readonly contentVersion: string;
+    readonly increment: boolean;
+    readonly nowIso?: string;
+  },
+): string | undefined {
+  if (generationGate === null) {
+    stampLiveGeneration(projectDir, {
+      contentVersion: input.contentVersion,
+      stampedBy: "directive-update",
+      increment: input.increment,
+      nowIso: input.nowIso,
+    });
+    return undefined;
+  }
+  const gate = recheckGenerationGateLocal(generationGate, projectDir, {
+    increment: input.increment,
+    contentVersion: input.contentVersion,
+  });
+  if (gate.action === "refuse") {
+    return gate.message;
+  }
+  if (gate.action === "keep-prior") {
+    return undefined;
+  }
+  stampLiveGeneration(projectDir, {
+    contentVersion: input.contentVersion,
+    stampedBy: "directive-update",
+    increment: input.increment,
+    nowIso: input.nowIso,
+    forcedGeneration: gate.generation,
+  });
+  return undefined;
+}
+
 export async function runRefreshDeposit(
   args: RefreshDepositArgs,
   io: InitDepositIo,
@@ -995,22 +1038,34 @@ export async function runRefreshDeposit(
     const generationMatches =
       priorGen !== null &&
       normalizeVersion(priorGen.contentVersion) === normalizeVersion(contentVersion);
-    if (generationGate?.action !== "keep-prior") {
-      try {
-        stampLiveGeneration(projectDir, {
+    try {
+      const rewind = stampRefreshGeneration(projectDir, generationGate, {
+        contentVersion,
+        increment: false,
+      });
+      if (rewind !== undefined) {
+        return {
+          projectDir,
+          deftDir,
           contentVersion,
-          stampedBy: "directive-update",
-          increment: false,
-          ...(generationGate?.action === "stamp"
-            ? { forcedGeneration: generationGate.generation }
-            : {}),
-        });
-      } catch (err) {
-        if (!generationMatches) {
-          throw err;
-        }
-        // Token already matches content; ensure write failure is non-fatal noise.
+          engineVersion,
+          previousDepositVersion,
+          alreadyCurrent,
+          strategy,
+          agentsMdUpdated: false,
+          versionSkewNotice,
+          legacyLayout: false,
+          taskfileWired: false,
+          stagedPaths: [],
+          mutations: snapshotMutationSummary(),
+          generationRewindError: rewind,
+        };
       }
+    } catch (err) {
+      if (!generationMatches) {
+        throw err;
+      }
+      // Token already matches content; ensure write failure is non-fatal noise.
     }
   } else {
     // Full-tree replace (or injected seam). Additive copy is no longer the default.
@@ -1048,16 +1103,29 @@ export async function runRefreshDeposit(
     // #3117: monotonic live generation MUST advance after a successful payload
     // swap. Suppressing stamp failure would leave a prior bound/live match
     // reporting `current` while the on-disk payload already changed (Greptile P1).
-    if (generationGate?.action !== "keep-prior") {
-      stampLiveGeneration(projectDir, {
+    // Recheck local GENERATION.json before reusing a CLI-cached decision (#4120).
+    const rewind = stampRefreshGeneration(projectDir, generationGate, {
+      contentVersion,
+      increment: true,
+      nowIso: stampedAt,
+    });
+    if (rewind !== undefined) {
+      return {
+        projectDir,
+        deftDir,
         contentVersion,
-        stampedBy: "directive-update",
-        increment: true,
-        nowIso: stampedAt,
-        ...(generationGate?.action === "stamp"
-          ? { forcedGeneration: generationGate.generation }
-          : {}),
-      });
+        engineVersion,
+        previousDepositVersion,
+        alreadyCurrent,
+        strategy,
+        agentsMdUpdated: false,
+        versionSkewNotice,
+        legacyLayout: false,
+        taskfileWired: false,
+        stagedPaths: [],
+        mutations: snapshotMutationSummary(),
+        generationRewindError: rewind,
+      };
     }
   }
 

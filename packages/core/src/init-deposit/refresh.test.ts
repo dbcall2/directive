@@ -20,6 +20,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { evaluateLiveProcedureTargets } from "../deposit/live-procedure-targets.js";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
 import { runChecksImpl } from "../doctor/checks.js";
+import { readLiveGeneration, stampLiveGeneration } from "../freshness/generation.js";
+import type { GenerationGateResult } from "../freshness/generation-gate.js";
 import {
   emptyMutationSummary,
   mutationSummaryJson,
@@ -904,6 +906,46 @@ describe("runRefreshDeposit", () => {
     expect(readFileSync(join(project, ".deft", "core", "VERSION"), "utf8")).toContain(
       "tag: 'v0.61.0'",
     );
+  });
+
+  it("does not write a stale cached generation over a newer local token (#4120)", async () => {
+    const project = freshRoot("refresh-stale-gen-cache-");
+    const contentRoot = installFakeContentPackage(project, "0.53.0");
+    mkdirSync(join(project, ".deft", "core"), { recursive: true });
+    writeFileSync(
+      join(project, ".deft", "core", "VERSION"),
+      "tag: 'v0.52.0'\nsha: old\ninstall_root: '.deft/core'\n",
+      "utf8",
+    );
+    writeFileSync(join(project, ".deft", "core", "main.md"), "prior\n", "utf8");
+    stampLiveGeneration(project, {
+      contentVersion: "0.52.0",
+      stampedBy: "concurrent",
+      increment: true,
+      forcedGeneration: 5,
+    });
+    const cached: GenerationGateResult = {
+      action: "stamp",
+      generation: 2,
+      tip: {
+        kind: "known-at-oid",
+        generation: 1,
+        oid: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      local: { kind: "absent" },
+    };
+    await runRefreshDeposit(
+      { projectDir: project, jsonOut: false, nonInteractive: true, upgrade: true },
+      { printf: () => {} },
+      {
+        resolveContentRoot: async () => contentRoot,
+        readEngineVersion: () => "0.53.0",
+        nowIso: () => "2026-09-25T12:00:00Z",
+        gitPorcelain: () => null,
+        generationGate: cached,
+      },
+    );
+    expect(readLiveGeneration(project)?.generation).toBe(6);
   });
 
   it("leaves a legacy .deft/VERSION in place when it already agrees (#2064)", async () => {

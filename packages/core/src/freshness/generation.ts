@@ -207,21 +207,31 @@ export function stampLiveGeneration(
 
   let generation: number;
   if (options.forcedGeneration !== undefined) {
-    generation = options.forcedGeneration;
+    // A cached decideGenerationStamp can lag a concurrent local stamp. Never
+    // write an older generation over a newer one (#4120).
+    if (prior !== null && options.forcedGeneration <= prior.generation) {
+      generation = nextLiveGenerationNumber(prior, {
+        increment: options.increment,
+        contentVersion,
+      });
+    } else {
+      generation = options.forcedGeneration;
+    }
   } else {
     generation = nextLiveGenerationNumber(prior, {
       increment: options.increment,
       contentVersion,
     });
-    if (
-      prior !== null &&
-      !options.increment &&
-      normalizeVersion(prior.contentVersion) === contentVersion
-    ) {
-      // Already current: do not rewrite GENERATION.json (avoids dirty trees under
-      // core.autocrlf=true after idempotent `directive update` — Windows #2118).
-      return prior;
-    }
+  }
+  if (
+    prior !== null &&
+    !options.increment &&
+    generation === prior.generation &&
+    normalizeVersion(prior.contentVersion) === contentVersion
+  ) {
+    // Already current: do not rewrite GENERATION.json (avoids dirty trees under
+    // core.autocrlf=true after idempotent `directive update` — Windows #2118).
+    return prior;
   }
 
   const token: LiveGeneration = {

@@ -105,13 +105,20 @@ export interface EvaluateGenerationGateInput {
   readonly nowIso?: string;
 }
 
-export interface GenerationGateProceed {
-  readonly action: "stamp" | "keep-prior";
-  readonly generation?: number;
-  readonly tip: GenerationTipState;
-  readonly local: LocalGenerationInspection;
-  readonly fetchArgs?: readonly string[];
-}
+export type GenerationGateProceed =
+  | {
+      readonly action: "stamp";
+      readonly generation: number;
+      readonly tip: GenerationTipState;
+      readonly local: LocalGenerationInspection;
+      readonly fetchArgs?: readonly string[];
+    }
+  | {
+      readonly action: "keep-prior";
+      readonly tip: GenerationTipState;
+      readonly local: LocalGenerationInspection;
+      readonly fetchArgs?: readonly string[];
+    };
 
 export interface GenerationGateRefuse {
   readonly action: "refuse";
@@ -521,6 +528,15 @@ export function evaluateGenerationGate(input: EvaluateGenerationGateInput): Gene
     increment: input.increment,
     contentVersion: input.contentVersion,
   });
+  return resultFromDecision(decision, tip, local, fetchArgs);
+}
+
+function resultFromDecision(
+  decision: GenerationDecision,
+  tip: GenerationTipState,
+  local: LocalGenerationInspection,
+  fetchArgs?: readonly string[],
+): GenerationGateResult {
   if (decision.action === "refuse") {
     return {
       action: "refuse",
@@ -542,6 +558,52 @@ export function evaluateGenerationGate(input: EvaluateGenerationGateInput): Gene
     local,
     fetchArgs,
   };
+}
+
+function localInspectionsEquivalent(
+  left: LocalGenerationInspection,
+  right: LocalGenerationInspection,
+): boolean {
+  if (left.kind === "absent" && right.kind === "absent") {
+    return true;
+  }
+  if (left.kind === "unreadable" && right.kind === "unreadable") {
+    return left.reason === right.reason;
+  }
+  if (left.kind === "valid" && right.kind === "valid") {
+    return (
+      left.token.generation === right.token.generation &&
+      left.token.contentVersion === right.token.contentVersion
+    );
+  }
+  return false;
+}
+
+/**
+ * Re-run {@link decideGenerationStamp} against the current local token, keeping
+ * the cached tip. Callers that reuse a prior gate (CLI preflight → refresh
+ * apply) MUST recheck `.deft/GENERATION.json` so a concurrent stamp cannot be
+ * overwritten with an older generation (#4120).
+ */
+export function recheckGenerationGateLocal(
+  cached: GenerationGateResult,
+  projectDir: string,
+  input: { readonly increment: boolean; readonly contentVersion: string },
+): GenerationGateResult {
+  if (cached.action === "refuse") {
+    return cached;
+  }
+  const local = inspectLocalGeneration(projectDir);
+  if (localInspectionsEquivalent(cached.local, local)) {
+    return cached;
+  }
+  const decision = decideGenerationStamp({
+    local,
+    tip: cached.tip,
+    increment: input.increment,
+    contentVersion: input.contentVersion,
+  });
+  return resultFromDecision(decision, cached.tip, local, cached.fetchArgs);
 }
 
 export function describeDryRunGenerationGate(input: {
