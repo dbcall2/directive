@@ -1,11 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEST_CONTENTION_IT_TIMEOUT_MS,
   destContentionItTimeout,
   WIN32_SPAWN_IT_TIMEOUT_MS,
-} from "./dest-contention-it-timeout.helper.test.js";
+} from "./dest-contention-it-timeout.js";
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
 
@@ -59,6 +59,10 @@ const LOADED_LANE_EDGE_ITS: ReadonlyArray<{ file: string; titlePrefix: string }>
 ];
 
 describe("destContentionItTimeout (#4847)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("exports one Darwin/win32 pairing (20s / 240s), not a 15-20s range", () => {
     expect(DEST_CONTENTION_IT_TIMEOUT_MS).toBe(20_000);
     expect(WIN32_SPAWN_IT_TIMEOUT_MS).toBe(240_000);
@@ -69,6 +73,16 @@ describe("destContentionItTimeout (#4847)", () => {
       timeout:
         process.platform === "win32" ? WIN32_SPAWN_IT_TIMEOUT_MS : DEST_CONTENTION_IT_TIMEOUT_MS,
     });
+  });
+
+  it("uses the Darwin/Linux dest-contention budget off win32", () => {
+    vi.spyOn(process, "platform", "get").mockReturnValue("linux");
+    expect(destContentionItTimeout()).toEqual({ timeout: DEST_CONTENTION_IT_TIMEOUT_MS });
+  });
+
+  it("uses the Windows spawn-throughput cap on win32", () => {
+    vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+    expect(destContentionItTimeout()).toEqual({ timeout: WIN32_SPAWN_IT_TIMEOUT_MS });
   });
 
   it("annotates first-ship dest-class its with the exported pairing", () => {
