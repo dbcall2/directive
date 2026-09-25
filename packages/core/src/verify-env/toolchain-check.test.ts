@@ -439,6 +439,7 @@ describe("runToolchainCheck", () => {
   it("strips GitHub tokens from the gh --version child env", () => {
     const calls: Array<{ env?: NodeJS.ProcessEnv }> = [];
     const result = defaultCommandRunner(["gh", "--version"], 1_000, {
+      platform: "linux",
       env: {
         PATH: "/usr/bin",
         GH_TOKEN: "secret-token",
