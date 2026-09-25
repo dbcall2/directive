@@ -14,7 +14,12 @@ import { platform as osPlatform } from "node:os";
 import { join, resolve } from "node:path";
 import type { ResolutionFacts, ResolutionPlan } from "@deftai/directive-types";
 import { assertDepositContained } from "../deposit/contain.js";
-import { replaceTree } from "../deposit/copy-tree.js";
+import {
+  discardTreeSnapshot,
+  replaceTree,
+  restoreExistingTree,
+  snapshotExistingTree,
+} from "../deposit/copy-tree.js";
 import { assertLiveProcedureDepositClean } from "../deposit/live-procedure-targets.js";
 import { prunePythonArtifactsFromDeposit } from "../deposit/python-free.js";
 import { resolveInstalledContentRoot } from "../deposit/resolve-content.js";
@@ -1068,64 +1073,102 @@ export async function runRefreshDeposit(
       // Token already matches content; ensure write failure is non-fatal noise.
     }
   } else {
-    // Full-tree replace (or injected seam). Additive copy is no longer the default.
-    // C3 the incoming package BEFORE replace so a reject cannot leave a broken deposit.
-    assertLiveProcedureDepositClean(contentRoot);
-    await copyContent(contentRoot, deftDir);
-    await prunePythonArtifactsFromDeposit(deftDir, projectDir, io);
-    // Port-record skips dest IO; dest C3 would read the unreplaced tree (#4389).
-    if (!isPortRecordMode()) {
-      assertLiveProcedureDepositClean(deftDir);
-    }
-    // #2913 / #2804 / #2347: fail-closed delete-not-in-source BEFORE VERSION stamp.
-    // replaceTree already drops dst-only paths; reconcile verifies and covers
-    // additive seams. Throws => no VERSION rewrite (refuse stamp until clean).
-    await reconcileDepositToContentPackage(deftDir, contentRoot, io);
-
-    const nowIso = seams.nowIso ?? (() => new Date().toISOString().replace(/\.\d{3}Z$/, "Z"));
-    const stampedAt = nowIso();
-    const manifestFields: InstallManifestFields = {
-      ref: contentVersion.startsWith("v") ? contentVersion : `v${contentVersion}`,
-      sha: "content-package",
-      tag: contentVersion.startsWith("v") ? contentVersion : `v${contentVersion}`,
-      installRoot: CANONICAL_INSTALL_ROOT,
-      fetchedAt: stampedAt,
-      fetchedBy: "directive-update",
-      ...(previousManagedBy ? { managedBy: previousManagedBy } : {}),
-    };
-    const writtenManifestPath = writeInstallManifest(projectDir, deftDir, manifestFields);
-
-    // #2064: retire a stale legacy .deft/VERSION now that the canonical
-    // .deft/core/VERSION has been rewritten (folded in from install-upgrade so no
-    // manifest behavior is lost by the redirect). Best-effort; never fatal.
-    migrateLegacyInstallManifest(projectDir, writtenManifestPath);
-
-    // #3117: monotonic live generation MUST advance after a successful payload
-    // swap. Suppressing stamp failure would leave a prior bound/live match
-    // reporting `current` while the on-disk payload already changed (Greptile P1).
-    // Recheck local GENERATION.json before reusing a CLI-cached decision (#4120).
-    const rewind = stampRefreshGeneration(projectDir, generationGate, {
-      contentVersion,
-      increment: true,
-      nowIso: stampedAt,
-    });
-    if (rewind !== undefined) {
-      return {
-        projectDir,
-        deftDir,
+    // Recheck the local token before payload/VERSION swap so a concurrent
+    // unreadable stamp cannot report generation_rewind after dest mutation (#4120).
+    if (generationGate !== null) {
+      const preSwap = recheckGenerationGateLocal(generationGate, projectDir, {
+        increment: true,
         contentVersion,
-        engineVersion,
-        previousDepositVersion,
-        alreadyCurrent,
-        strategy,
-        agentsMdUpdated: false,
-        versionSkewNotice,
-        legacyLayout: false,
-        taskfileWired: false,
-        stagedPaths: [],
-        mutations: snapshotMutationSummary(),
-        generationRewindError: rewind,
+      });
+      if (preSwap.action === "refuse") {
+        return {
+          projectDir,
+          deftDir,
+          contentVersion,
+          engineVersion,
+          previousDepositVersion,
+          alreadyCurrent,
+          strategy,
+          agentsMdUpdated: false,
+          versionSkewNotice,
+          legacyLayout: false,
+          taskfileWired: false,
+          stagedPaths: [],
+          mutations: emptyMutationSummary(),
+          generationRewindError: preSwap.message,
+        };
+      }
+      generationGate = preSwap;
+    }
+
+    const payloadSnapshot = await snapshotExistingTree(deftDir);
+    try {
+      // Full-tree replace (or injected seam). Additive copy is no longer the default.
+      // C3 the incoming package BEFORE replace so a reject cannot leave a broken deposit.
+      assertLiveProcedureDepositClean(contentRoot);
+      await copyContent(contentRoot, deftDir);
+      await prunePythonArtifactsFromDeposit(deftDir, projectDir, io);
+      // Port-record skips dest IO; dest C3 would read the unreplaced tree (#4389).
+      if (!isPortRecordMode()) {
+        assertLiveProcedureDepositClean(deftDir);
+      }
+      // #2913 / #2804 / #2347: fail-closed delete-not-in-source BEFORE VERSION stamp.
+      // replaceTree already drops dst-only paths; reconcile verifies and covers
+      // additive seams. Throws => no VERSION rewrite (refuse stamp until clean).
+      await reconcileDepositToContentPackage(deftDir, contentRoot, io);
+
+      const nowIso = seams.nowIso ?? (() => new Date().toISOString().replace(/\.\d{3}Z$/, "Z"));
+      const stampedAt = nowIso();
+      const manifestFields: InstallManifestFields = {
+        ref: contentVersion.startsWith("v") ? contentVersion : `v${contentVersion}`,
+        sha: "content-package",
+        tag: contentVersion.startsWith("v") ? contentVersion : `v${contentVersion}`,
+        installRoot: CANONICAL_INSTALL_ROOT,
+        fetchedAt: stampedAt,
+        fetchedBy: "directive-update",
+        ...(previousManagedBy ? { managedBy: previousManagedBy } : {}),
       };
+      const writtenManifestPath = writeInstallManifest(projectDir, deftDir, manifestFields);
+
+      // #2064: retire a stale legacy .deft/VERSION now that the canonical
+      // .deft/core/VERSION has been rewritten (folded in from install-upgrade so no
+      // manifest behavior is lost by the redirect). Best-effort; never fatal.
+      migrateLegacyInstallManifest(projectDir, writtenManifestPath);
+
+      // #3117: monotonic live generation MUST advance after a successful payload
+      // swap. Suppressing stamp failure would leave a prior bound/live match
+      // reporting `current` while the on-disk payload already changed (Greptile P1).
+      // Recheck local GENERATION.json before reusing a CLI-cached decision (#4120).
+      const rewind = stampRefreshGeneration(projectDir, generationGate, {
+        contentVersion,
+        increment: true,
+        nowIso: stampedAt,
+      });
+      if (rewind !== undefined) {
+        await restoreExistingTree({
+          snapshot: payloadSnapshot,
+          dest: deftDir,
+          projectDir,
+        });
+        return {
+          projectDir,
+          deftDir,
+          contentVersion,
+          engineVersion,
+          previousDepositVersion,
+          alreadyCurrent,
+          strategy,
+          agentsMdUpdated: false,
+          versionSkewNotice,
+          legacyLayout: false,
+          taskfileWired: false,
+          stagedPaths: [],
+          mutations: emptyMutationSummary(),
+          generationRewindError: rewind,
+        };
+      }
+    } finally {
+      await discardTreeSnapshot(payloadSnapshot);
     }
   }
 
