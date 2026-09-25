@@ -745,7 +745,7 @@ describe("evaluateCompletedWriteGuard (#3766 active deletion)", () => {
     expect(result.findings).toHaveLength(0);
   });
 
-  it("does not refuse proposed park from stale cached closure", () => {
+  it("refuses cached closure when the live issue lookup fails", () => {
     const root = mkdtempSync(join(tmpdir(), "closed-park-cache-"));
     try {
       const proposed = "xbrief/proposed/2026-08-25-story.xbrief.json";
@@ -769,9 +769,10 @@ describe("evaluateCompletedWriteGuard (#3766 active deletion)", () => {
           [proposed, dest],
           [active, withOrigin(runningSource(), ISSUE_URI)],
         ]),
+        runGh: () => ({ returncode: 1, stdout: "" }),
       });
-      expect(result.code).toBe(0);
-      expect(result.findings).toHaveLength(0);
+      expect(result.code).toBe(1);
+      expect(result.message).toContain(CLOSED_ISSUE_PARK_REMEDIATION);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -806,6 +807,35 @@ describe("evaluateCompletedWriteGuard (#3766 active deletion)", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it("uses the issue URI hostname for a GitHub Enterprise lookup", () => {
+    const enterpriseUri = "https://github.example.com/acme/widgets/issues/42";
+    const proposed = "xbrief/proposed/2026-08-25-story.xbrief.json";
+    const dest = withOrigin(
+      JSON.stringify({
+        xBRIEFInfo: { version: "0.8" },
+        plan: { title: "stamped", status: "proposed" },
+      }),
+      enterpriseUri,
+    );
+    const calls: readonly string[][] = [];
+    const mutableCalls = calls as string[][];
+    const result = evaluateCompletedWriteGuard("/tmp/proj", {
+      nameStatus: `R100\t${active}\t${proposed}`,
+      payloads: new Map([
+        [proposed, dest],
+        [active, withOrigin(runningSource(), enterpriseUri)],
+      ]),
+      runGh: (args) => {
+        mutableCalls.push([...args]);
+        return { returncode: 0, stdout: JSON.stringify({ state: "open" }) };
+      },
+    });
+    expect(result.code).toBe(0);
+    expect(calls).toEqual([
+      ["gh", "api", "--hostname", "github.example.com", "repos/acme/widgets/issues/42"],
+    ]);
   });
 
   it("refuses proposed park when the live issue is closed", () => {
