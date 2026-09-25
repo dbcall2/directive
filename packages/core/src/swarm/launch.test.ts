@@ -9,6 +9,7 @@ import {
   FAILURE_MISSING_INJECTED_TOKEN,
   FAILURE_PRINCIPAL_MISMATCH,
   type GhRunner,
+  githubApiPath,
 } from "../intake/github-auth-modes.js";
 import type { CompletedProcess } from "../scm/call.js";
 import { applyWorktreeOccupancy, occupancyPath, readOccupancy } from "../session/occupancy.js";
@@ -73,11 +74,12 @@ function stubGh(options: {
     if (args[0] === "auth") {
       return proc(options.authCode ?? 0, "ok", "", args);
     }
-    if (args[0] === "api" && args[1] === "user") {
+    const apiPath = githubApiPath(args);
+    if (apiPath === "user") {
       const user = options.user ?? { code: 0, stdout: `{"login":"${WORKER_LOGIN}"}` };
       return proc(user.code, user.stdout ?? "", user.stderr ?? "", args);
     }
-    if (args[0] === "api" && String(args[1]).startsWith("repos/")) {
+    if (apiPath?.startsWith("repos/")) {
       const code = options.repoCode ?? 0;
       return proc(code, code === 0 ? "{}" : "", code === 0 ? "" : "denied", args);
     }

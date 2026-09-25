@@ -247,11 +247,12 @@ describe("test_agent_prompt_preamble_template", () => {
     expect(templateText).toContain("mode-aware GitHub credential rules");
     expect(templateText).toContain("github_auth_mode: injected-token");
     expect(templateText).toContain("runtime_mode: cloud-headless");
+    expect(templateText).toContain("Provisioning trust (#5016)");
     expect(templateText).toContain(
-      "Host `gh` fallback is forbidden in injected-token and cloud-headless modes",
+      "Inherit the maintainer's host store when the assignment or effective source is injected-token",
     );
     expect(templateText).toContain("github_auth_mode: host-gh");
-    expect(templateText).toContain("explicitly authorises host `gh`");
+    expect(templateText).toContain("Substitute a maintainer account for an assigned worker");
   });
   it("template_contract_carries_mode_labels_not_token_values", () => {
     expect(templateText).toContain("GH_TOKEN");

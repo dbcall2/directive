@@ -70,9 +70,12 @@ blast radius. Those require partitioning the identity itself.
 - ! Maintainer PATs MUST be reserved for human-driven work: review,
   merge, release publication, manual triage. Worker dispatch envelopes
   MUST NOT inject a maintainer PAT.
-- ⊗ Workers MUST NOT fall back to the host's `gh auth status` token.
-  The dispatch envelope is the contract; an implicit fallback re-
-  introduces the coupling this pattern eliminates.
+- ⊗ Assigned workers MUST NOT fall back to a maintainer host-store
+  session, or to an applicable ambient token, in place of the recorded
+  source and expected user. Unassigned processes use gh's effective
+  credentials for the target host; runtime/cloud labels do not authorize
+  (#5016). The dispatch envelope / assignment registry is the contract
+  for registered workers.
 
 ### Bucket partitioning model
 

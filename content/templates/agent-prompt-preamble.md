@@ -27,8 +27,8 @@ The gate also requires an explicit action-verb directive from the user (`build`,
 
 ! Author `plan["x-directive/intentConstraint"]` when the operator already names value/unit/rejectionScope, before the implementation PR that introduces throw/reject/abort or numeric-const facts. File-scope can be named at allocation. Throw values usually cannot.
 ! Prefer returned failures over new throw/abort/numeric-const facts. Returned-failure-only changes are already free in extract.
-! When a remaining hard fact appears: attended → ask the human in the parent chat and land merge-base `.deft/intent-constraint/` with humanApproval (`mintedVia` in-harness-ask); unattended/C1 → rewrite or park. Leave-harness TTY `scope:record-intent-constraint` is not the primary fail path (legacy repair only). Parent-agent auto-approve is out of scope.
-⊗ Recut `evaluateIntentConstraint`. ⊗ Let an approved-scope digest authorize throw sites. ⊗ Paste a mint argv into the agent shell. ⊗ Sibling mint at `record-approved-scope` or park. ⊗ Ask an empty room or invent substitute approval.
+! When a remaining hard fact appears: attended ΓåÆ ask the human in the parent chat and land merge-base `.deft/intent-constraint/` with humanApproval (`mintedVia` in-harness-ask); unattended/C1 ΓåÆ rewrite or park. Leave-harness TTY `scope:record-intent-constraint` is not the primary fail path (legacy repair only). Parent-agent auto-approve is out of scope.
+Γèù Recut `evaluateIntentConstraint`. Γèù Let an approved-scope digest authorize throw sites. Γèù Paste a mint argv into the agent shell. Γèù Sibling mint at `record-approved-scope` or park. Γèù Ask an empty room or invent substitute approval.
 
 ## 2.5 Allocation context -- swarm-cohort consent token (#1378)
 
@@ -56,11 +56,11 @@ Worked example (a swarm-cohort member):
 
 A `solo` dispatch sets `dispatch_kind: solo`, MAY leave `allocation_plan_id` / `batching_rationale` null, and lists only its own xBRIEF in `cohort_vbriefs`; such a section does NOT by itself satisfy the consent token, so the Story Start Gate falls through to the #1371 prose carve-out for a lone interactive dispatch.
 
-! Implement-class `solo` lists exactly one xBRIEF in `cohort_vbriefs` unless a distinct `one_pr_unit_id` names an operator-origin one-PR-unit grant. `|cohort_vbriefs| > 1` with `dispatch_kind: solo` and no such grant is a config error. `one_pr_unit_id` is not an #1378 recognition field — do not reuse `allocation_plan_id` / `batching_rationale` / `operator_approval_evidence` as close consent. `--allow-close` is not that grant. Review-monitor envelopes may use `cohort_vbriefs: []`.
+! Implement-class `solo` lists exactly one xBRIEF in `cohort_vbriefs` unless a distinct `one_pr_unit_id` names an operator-origin one-PR-unit grant. `|cohort_vbriefs| > 1` with `dispatch_kind: solo` and no such grant is a config error. `one_pr_unit_id` is not an #1378 recognition field ΓÇö do not reuse `allocation_plan_id` / `batching_rationale` / `operator_approval_evidence` as close consent. `--allow-close` is not that grant. Review-monitor envelopes may use `cohort_vbriefs: []`.
 
 ## 2.55 Ordered-plan continuation boundary (#2402)
 
-When the operator supplies an ordered plan (delivery sequence, cohort, checklist, review batch, or phase list), continuation language is bounded by that sequence — not by the triage queue, skill chaining, or adjacent backlog memory.
+When the operator supplies an ordered plan (delivery sequence, cohort, checklist, review batch, or phase list), continuation language is bounded by that sequence ΓÇö not by the triage queue, skill chaining, or adjacent backlog memory.
 
 ! Record the active sequence with `deft plan-sequence:set --file <json>` (persists `.deft/plan-sequence.json`). Inspect with `deft plan-sequence:current`; advance with `deft plan-sequence:advance`; clear with `deft plan-sequence:clear`.
 
@@ -72,13 +72,13 @@ When the operator supplies an ordered plan (delivery sequence, cohort, checklist
 
 ! Explicit queue/backlog asks ("what's the queue?", "build a cohort") remain queue-driven even mid-plan. Bare "what's next?" is **not** such an ask while a sequence is active.
 
-! Skill-exit chaining instructions are advisory entrypoints only — they do not authorize adjacent work unless it matches the current ordered-plan entry or a fresh operator directive.
+! Skill-exit chaining instructions are advisory entrypoints only ΓÇö they do not authorize adjacent work unless it matches the current ordered-plan entry or a fresh operator directive.
 
 ! Review-cycle exit returns to the ordered-plan context and authorizes at most the next sequence entry (after `plan-sequence:advance` for the completed PR). Cohort/build flows stop after the final approved entry.
 
-⊗ Reuse triage queue `continuationNumbers` / `continuationOrder` for ordered-plan state — those fields are for `[RESUME]` / stale-defer ordering only.
+Γèù Reuse triage queue `continuationNumbers` / `continuationOrder` for ordered-plan state ΓÇö those fields are for `[RESUME]` / stale-defer ordering only.
 
-⊗ Treat affirmative continuation ("yes", "proceed") as permission to widen past the approved sequence.
+Γèù Treat affirmative continuation ("yes", "proceed") as permission to widen past the approved sequence.
 
 ## 2.6 Provider-neutral worker metadata (#1531)
 
@@ -90,7 +90,7 @@ When present, the section documents these fields in order:
 
 - `dispatch_provider`: the runtime primitive that launched this worker -- e.g. `spawn_subagent`, `start_agent`, `sessions_spawn` (OpenClaw host; platform descriptor `openclaw` per #2874 / #2875), `cursor-composer`, `cursor-cloud-agent`, `claude-code` (Claude Code host; register primitive `claude-agent` per #3134), `grok-bot` (Grok Bot host; register primitive `grok-bot-executor` per #4201; not Grok Build), or a future adapter id. Names the harness surface, not the model.
 - `worker_role`: the role boundary for this dispatch -- one of `leaf-implementation`, `orchestrator`, `review-monitor`, or `merge-release` (stable ids from `packages/core/src/swarm/routing.ts` `SWARM_WORKER_ROLES`). Tells the worker which preamble rules and skill surfaces apply.
-- `selected_backend`: the stable backend id from `plan.policy.swarmSubagentBackend` / `deft policy:subagent-backends` (accepted set today: `composer`, `grok-build`, `cursor-cloud` only — see `KNOWN_SUBAGENT_BACKEND_IDS`) | null -- which catalogued **coding** backend the operator selected for this role. OpenClaw is a **host / dispatch_provider** (`sessions_spawn` / descriptor `openclaw`), not a `swarmSubagentBackend` enum value; do not write `selected_backend: openclaw` into policy (#2879 Greptile P1).
+- `selected_backend`: the stable backend id from `plan.policy.swarmSubagentBackend` / `deft policy:subagent-backends` (accepted set today: `composer`, `grok-build`, `cursor-cloud` only ΓÇö see `KNOWN_SUBAGENT_BACKEND_IDS`) | null -- which catalogued **coding** backend the operator selected for this role. OpenClaw is a **host / dispatch_provider** (`sessions_spawn` / descriptor `openclaw`), not a `swarmSubagentBackend` enum value; do not write `selected_backend: openclaw` into policy (#2879 Greptile P1).
 - `routing_policy`: <path or reference to the operator's routing file / tiering policy> | null -- when backend selection is delegated to harness routing instead of a typed policy field, cite the policy handle here so postmortems can reconstruct the route. The canonical handle is the gitignored, per-machine `.deft/routing.local.json` (#1739), keyed by `(dispatch_provider, worker_role)`; set decisions with `deft swarm:routing-set --role <role> (--model <slug> | --harness-default)`.
 - `resolved_model` (#1739): the concrete model slug the operator pinned for this `(provider, role)` | null for an explicit harness default. Resolved from `.deft/routing.local.json` and stamped into the `deft swarm:launch` manifest. **This is the field the dispatch primitive must actually honor** -- see the threading rule below.
 - `model_source` (#1739): provenance of `resolved_model` -- e.g. `cursor-route`, `harness-default explicit`. Lets a postmortem tell a pinned model from a harness default.
@@ -106,14 +106,14 @@ Populate `selected_backend` OR `routing_policy` (or both when the operator sets 
 **Role-boundary expectations (all providers):** the same boundaries apply whether the worker runs on Composer, Grok Build, Cursor/cloud, Claude Code, OpenClaw, or a future adapter:
 
 - ! `leaf-implementation` workers implement scoped xBRIEF work in their assigned worktree only -- gates (prefer `deft check`; else tree-correct `task deft:check` on include-only consumers or `task check` in framework source; file-scope audit; Greptile review cycle) are model-agnostic and MUST still pass. These are one gate, not two sequential runs. Do not add a fourth probe (#2893 / #4379).
-- ! **Spawned mutating workers take their own worktree (#4066 / #4295).** Implement-class spawn must dest-place before occupancy claim. Grok `spawn_subagent` dest is `cwd` only (cannot rewrite PreToolUse input). Claude/Codex keep `isolation=worktree` or a linked path. Cursor Task has no local dest field — dest-placing is a dest-rooted window (nursery inherit) or `@cursor/sdk` `Agent.create({ local: { cwd } })`; do not advertise Task dest keys. Sharing the primary checkout with a live occupant is refuse, not `occupancy:grant` across hosts. Master/primary occupancy is the exception (`release-cut`, `policy-restore`, operator-directed default-branch work). `--read-only` never claims. On DONE/terminal the dispatcher compare-and-releases the recorded child tree (incarnation + parent-id); do not steal the parent's lease to recover.
+- ! **Spawned mutating workers take their own worktree (#4066 / #4295).** Implement-class spawn must dest-place before occupancy claim. Grok `spawn_subagent` dest is `cwd` only (cannot rewrite PreToolUse input). Claude/Codex keep `isolation=worktree` or a linked path. Cursor Task has no local dest field ΓÇö dest-placing is a dest-rooted window (nursery inherit) or `@cursor/sdk` `Agent.create({ local: { cwd } })`; do not advertise Task dest keys. Sharing the primary checkout with a live occupant is refuse, not `occupancy:grant` across hosts. Master/primary occupancy is the exception (`release-cut`, `policy-restore`, operator-directed default-branch work). `--read-only` never claims. On DONE/terminal the dispatcher compare-and-releases the recorded child tree (incarnation + parent-id); do not steal the parent's lease to recover.
 - ! `orchestrator`, `review-monitor`, and `merge-release` roles MUST run on strong or review-capable agents; dispatchers MUST NOT route these roles to cheap leaf backends.
-- ⊗ Route a cheap leaf backend onto the merge cascade, Phase 5->6 release gate, conflict-resolution rebase, or review-cycle merge-ready decision -- these are irreversible-damage surfaces that stay on the strong tier regardless of provider.
+- Γèù Route a cheap leaf backend onto the merge cascade, Phase 5->6 release gate, conflict-resolution rebase, or review-cycle merge-ready decision -- these are irreversible-damage surfaces that stay on the strong tier regardless of provider.
 
 **Audit visibility:** review cycles and postmortems MUST be able to reconstruct which backend and role produced a change without inferring it from harness-specific prose.
 
 - ! Dispatchers MUST populate `## Worker metadata` in the dispatch envelope whenever backend routing is intentional (headless `deft swarm:launch`, monitor dispatch, or manual orchestrator spawn).
-- ! Workers MUST echo `dispatch_provider`, `worker_role`, and `selected_backend` or `routing_policy` (plus `resolved_model` when set, #1739) in the final status message per §11 (e.g. `DONE: ... (commit <sha>, PR #N, role leaf-implementation, model composer-2.5-fast via cursor-route)`). Omitting backend/role/model from the terminal message when metadata was present in the envelope is a hard `⊗`.
+- ! Workers MUST echo `dispatch_provider`, `worker_role`, and `selected_backend` or `routing_policy` (plus `resolved_model` when set, #1739) in the final status message per ┬º11 (e.g. `DONE: ... (commit <sha>, PR #N, role leaf-implementation, model composer-2.5-fast via cursor-route)`). Omitting backend/role/model from the terminal message when metadata was present in the envelope is a hard `Γèù`.
 
 Worked example (a tiered leaf worker on Composer):
 
@@ -128,7 +128,7 @@ Worked example (a tiered leaf worker on Composer):
 - model_source: cursor-route
 ```
 
-! Pre-dispatch gate (#1739 / #1877): run `deft verify:routing` before spawning ANY sub-agent (cohort OR solo) — it fails when a dispatched worker role has no decision (pinned model or explicit harness default) for the active provider. `deft verify:story-ready` chains the same routing gate for single Cursor/Grok Task dispatches (#1877). Session start runs `deft verify:routing -- --advise` (non-blocking disclosure).
+! Pre-dispatch gate (#1739 / #1877): run `deft verify:routing` before spawning ANY sub-agent (cohort OR solo) ΓÇö it fails when a dispatched worker role has no decision (pinned model or explicit harness default) for the active provider. `deft verify:story-ready` chains the same routing gate for single Cursor/Grok Task dispatches (#1877). Session start runs `deft verify:routing -- --advise` (non-blocking disclosure).
 
 Reference: `.deft/routing.local.json` + `deft swarm:routing-set` + `deft verify:routing` (#1739, supersedes the `plan.policy.swarmSubagentBackend` enum of #1531a / #1735), `packages/core/src/swarm/routing.ts` `SWARM_WORKER_ROLES`, issue #1531 scope update (dispatch provider / worker role / model selection are three separate concerns).
 
@@ -142,7 +142,7 @@ When present, document the fields in a separate `## Runtime and GitHub auth mode
 - `github_auth_mode`: one of `host-gh` or `injected-token` -- which GitHub credential rule applies to this worker (#1557b).
 - `expected_github_login`: the bound user login when the dispatcher injected a user-bearing credential (#1351 / #3665). Login only -- never a token value. Omit when `github_auth_mode` is `host-gh` and no injection occurred.
 
-Launch-manifest entries (#1387 C2 contract) carry the same two fields at the top level alongside `allocation_context`. Injected-token dests also carry non-secret `credential_delivery_id` so spawn can set `DEFT_WORKER_CREDENTIAL_DELIVERY_ID`. Omit `expected_github_login` when `github_auth_mode` is `host-gh` and no injection occurred. Workers MUST read the dispatch envelope (or launch manifest) and apply the identity-separation rules in §8 according to `github_auth_mode`, not the historical one-size-fits-all injected-token default. The PREP manifest field is intent only. Registered local worktree workers validate the independently stored assignment at `requireScmReady`; an inferred parent stamp is never exported as `DEFT_GITHUB_AUTH_MODE=host-gh` for those workers (#3663).
+Launch-manifest entries (#1387 C2 contract) carry the same two fields at the top level alongside `allocation_context`. Injected-token dests also carry non-secret `credential_delivery_id` so spawn can set `DEFT_WORKER_CREDENTIAL_DELIVERY_ID`. Omit `expected_github_login` when `github_auth_mode` is `host-gh` and no injection occurred. Workers MUST read the dispatch envelope (or launch manifest) and apply the identity-separation rules in ┬º8 according to `github_auth_mode`, not the historical one-size-fits-all injected-token default. The PREP manifest field is intent only. Registered local worktree workers validate the independently stored assignment at `requireScmReady`; an inferred parent stamp is never exported as `DEFT_GITHUB_AUTH_MODE=host-gh` for those workers (#3663).
 
 Worked example (local interactive worker with validated host gh):
 
@@ -167,20 +167,20 @@ Reference: `packages/core/src/platform/platform-capabilities.ts` (#1557a), `pack
 
 ## 2.75 Identity-bound worker credential injection (#1351)
 
-When a dispatcher holds a user-bearing worker credential, it MUST inject that credential at spawn on the grok-build and local hybrid paths. Injection binds an identity; it does not only place a token. This helper is the operator-implemented injection the §8 conjunction names -- a dispatcher-invoked function, not a prompt-embedded token.
+When a dispatcher holds a user-bearing worker credential, it MUST inject that credential at spawn on the grok-build and local hybrid paths. Injection binds an identity; it does not only place a token. This helper is the operator-implemented injection the ┬º8 conjunction names -- a dispatcher-invoked function, not a prompt-embedded token.
 
 - ! Before spawn, call `prepareWorkerCredentialInjection` (`packages/core/src/swarm/launch.ts`). It validates the held credential as a **user** principal with the existing `validateGithubAuthForWorker`. Do not write a second validator and do not invent a second approval surface.
 - ! On success, apply the returned `spawnEnv` to the worker **process environment** (`GH_TOKEN` plus `DEFT_EXPECTED_GITHUB_LOGIN`) and copy `envelopeSection` into the dispatch envelope. Stamp `expected_github_login` on the launch-manifest entry when launch already validated the same credential.
 - ! On no available credential and a write-requiring injected-token operation, halt `BLOCKED`, naming the missing credential (`GH_TOKEN` / `GITHUB_TOKEN` / `GH_ENTERPRISE_TOKEN`) and the dispatcher-side remedy. Do not spawn.
-- ⊗ Inject an App-installation credential. Those fail closed as `installation_identity_unverifiable` (#3693).
-- ⊗ Continue under a detected host or maintainer identity, or fall back to the host `gh` token (`patterns/multi-agent.md` :70-75).
-- ⊗ Place a credential value in the dispatch prompt, a transcript, or a launch-manifest entry. `spawnEnv` is process-env only.
+- Γèù Inject an App-installation credential. Those fail closed as `installation_identity_unverifiable` (#3693).
+- Γèù Continue under a detected host or maintainer identity, or fall back to the host `gh` token (`patterns/multi-agent.md` :70-75).
+- Γèù Place a credential value in the dispatch prompt, a transcript, or a launch-manifest entry. `spawnEnv` is process-env only.
 
 Token minting remains an operator-owned #983 non-goal. This helper delivers a credential the dispatcher already holds; it does not mint one.
 
 ## 3. PowerShell 5.1 non-ASCII rule (#798)
 
-If your shell is `pwsh 5.x` on Windows AND you are editing a file containing any non-ASCII glyph (em dashes, en dashes, arrows, smart quotes, ⊗, ✓, ellipses, emoji, ...), you MUST route the read AND write through Python `pathlib`:
+If your shell is `pwsh 5.x` on Windows AND you are editing a file containing any non-ASCII glyph (em dashes, en dashes, arrows, smart quotes, Γèù, Γ£ô, ellipses, emoji, ...), you MUST route the read AND write through Python `pathlib`:
 
 ```pwsh path=null start=null
 python -c "import pathlib; p = pathlib.Path('path/to/file.md'); s = p.read_text(encoding='utf-8'); s = s.replace('old', 'new'); p.write_text(s, encoding='utf-8')"
@@ -238,7 +238,7 @@ A clean result under an isolated basetemp is attributable to your change, not to
 
 ## 3.8 Windows Cursor Task-tool console windows (#2563)
 
-On Windows, Cursor Task-tool local subagents historically opened a visible `cmd.exe` / `conhost` window per shell turn. Framework source checkouts amplified this when every `task <verb>` cold-ran `engine:_ts-build` → `pnpm`/`tsc` via `shell: true`.
+On Windows, Cursor Task-tool local subagents historically opened a visible `cmd.exe` / `conhost` window per shell turn. Framework source checkouts amplified this when every `task <verb>` cold-ran `engine:_ts-build` ΓåÆ `pnpm`/`tsc` via `shell: true`.
 
 **Shipped mitigations (keep; do not regress):**
 
@@ -247,18 +247,18 @@ On Windows, Cursor Task-tool local subagents historically opened a visible `cmd.
 
 **Directive rule for orchestrators on Windows:**
 
-- ! Use **local dest-placing Cursor** as the default dispatch path — same as other platforms (nursery inherit or dest-rooted `@cursor/sdk` `Agent.create`; not dest-binding Task). Do not route to cloud solely because the host is Windows.
+- ! Use **local dest-placing Cursor** as the default dispatch path ΓÇö same as other platforms (nursery inherit or dest-rooted `@cursor/sdk` `Agent.create`; not dest-binding Task). Do not route to cloud solely because the host is Windows.
 - ! Parallel local cohorts are allowed; do not force concurrency=1 because of #2563.
 - ~ Prefer the normal warm `task` / `dist/bin.js` path; avoid unnecessary `DEFT_FORCE_TS_BUILD=1` across a parallel cohort.
-- ⊗ Drop or weaken the #2563 `windowsHide` / warm-dist mitigations without a replacement that keeps Windows local swarm workable.
+- Γèù Drop or weaken the #2563 `windowsHide` / warm-dist mitigations without a replacement that keeps Windows local swarm workable.
 
 Reference: issue #2563; swarm skill Platform Requirements; env scrub + stdio inherit for nested Task recursion (#2554 / #2438).
 
 ## 3.9 Windows PowerShell: safe multi-line git/gh bodies (#2646 / #1417)
 
-! Multi-line git commit / gh issue|pr|comment bodies: write UTF-8 (no BOM) to OS temp, then `git commit -F` / `gh --body-file` / `deft github-body … --body-file`. ⊗ bash heredocs, `<<<`, inline multi-line `--body`, or multi-line PS here-strings in the agent command box on Windows PowerShell — those patterns fail at parse time, split arguments, or get rewritten by host shell wrappers before git/gh runs. This applies to your own commit and PR tooling on win32; do not use bash heredocs even when user rules show POSIX patterns. `ghx` is read-only — mutations stay on live `gh`. Detail: `content/scm/github.md` § #2646 (#1417, #240, #798).
+! Multi-line git commit / gh issue|pr|comment bodies: write UTF-8 (no BOM) to OS temp, then `git commit -F` / `gh --body-file` / `deft github-body ΓÇª --body-file`. Γèù bash heredocs, `<<<`, inline multi-line `--body`, or multi-line PS here-strings in the agent command box on Windows PowerShell ΓÇö those patterns fail at parse time, split arguments, or get rewritten by host shell wrappers before git/gh runs. This applies to your own commit and PR tooling on win32; do not use bash heredocs even when user rules show POSIX patterns. `ghx` is read-only ΓÇö mutations stay on live `gh`. Detail: `content/scm/github.md` ┬º #2646 (#1417, #240, #798).
 
-! Issue-body read-modify-write on win32: `deft github-body issue-fetch --out-file` then edit the body file then `deft github-body issue-edit --body-file` (fail-closed postcondition verify, #2607). ⊗ Capture-concat of `gh api repos/.../issues/<N> --jq .body` into PowerShell variables — PS string[]/$OFS collapses newlines to spaces and silently destroys live bodies (#2744, #2087, #2741, #1492). Detail: `content/scm/github.md` § #2744.
+! Issue-body read-modify-write on win32: `deft github-body issue-fetch --out-file` then edit the body file then `deft github-body issue-edit --body-file` (fail-closed postcondition verify, #2607). Γèù Capture-concat of `gh api repos/.../issues/<N> --jq .body` into PowerShell variables ΓÇö PS string[]/$OFS collapses newlines to spaces and silently destroys live bodies (#2744, #2087, #2741, #1492). Detail: `content/scm/github.md` ┬º #2744.
 
 ## 4. pre-pr and review-cycle skills
 
@@ -276,7 +276,7 @@ The active host harness may expose its own review-labeled surfaces. On Cursor th
 - ! Route ALL review work through the canonical `skills/deft-directive-review-cycle/SKILL.md` surface. Map a generic review request to the review cycle **by intent**, not by literal keyword -- "review this", "get this reviewed", and "use sub-agents for reviews" all mean run `deft-directive-review-cycle` (extends the #1862 / #2261 intent-routing fix).
 - ! Map **PR shepherding intent** the same way: `babysit`, `babysit this PR`, `shepherd`, `watch the PR`, and the Cursor product action **babysit-pull-request-in-cloud** all mean run `deft-directive-review-cycle` on Deft-managed repos (`.deft/core/` installed) -- NOT the Cursor-global `babysit` skill (`~/.cursor/skills-cursor/babysit/SKILL.md`) (#2261).
 - ~ Host review tools (Cursor `babysit` / `bugbot` / `security-review` subagent types, `review-bugbot` / `review-security` skills, or any future host equivalent) MAY be folded in as *advisory* finding sources INSIDE the review cycle -- the #2019 harness-aware-reviewer path -- with their findings batched alongside the Greptile / bot findings the cycle already processes.
-- ⊗ Substitute a host-native review subagent type, Cursor global `babysit`, or `review-*` skill for `deft-directive-review-cycle` as the review surface. The host tools are advisory inputs folded into the cycle, never a replacement for it. Reaching for them on a bare "review" or "babysit" request is the #1862 / #2261 wrong-review-surface class (see also #2019, #2018).
+- Γèù Substitute a host-native review subagent type, Cursor global `babysit`, or `review-*` skill for `deft-directive-review-cycle` as the review surface. The host tools are advisory inputs folded into the cycle, never a replacement for it. Reaching for them on a bare "review" or "babysit" request is the #1862 / #2261 wrong-review-surface class (see also #2019, #2018).
 
 ## 4.6 Cloud PR-shepherd dispatch -- review-monitor worked example (#2261)
 
@@ -360,22 +360,22 @@ deft github-body pr-edit --repo OWNER/REPO --pr 42 --body-file "$bodyFile"
 
 The wrapper reads UTF-8 body text from a file and invokes the `github-body` TS CLI (which routes through `gh api --input -` with explicit UTF-8 encoding), then prints the live post-mutation read-back object. Use live `gh` for immediate verification after mutations; do not use `ghx` for the first read-back because it may serve a cached stale GET.
 
-## 5.6 Issue reading — body then comments (#2143 / #2066)
+## 5.6 Issue reading ΓÇö body then comments (#2143 / #2066)
 
-Before ingesting a GitHub issue, building a worker dispatch envelope, or concluding what an issue actually asks for, satisfy the body→comments reading discipline for **any** issue (not only umbrellas):
+Before ingesting a GitHub issue, building a worker dispatch envelope, or concluding what an issue actually asks for, satisfy the bodyΓåÆcomments reading discipline for **any** issue (not only umbrellas):
 
 1. ! Fetch the issue via REST: `gh api repos/<owner>/<repo>/issues/<N>` (or `ghx api ...` for cached read-only GET).
 2. ! Fetch the comment thread via REST: `gh api repos/<owner>/<repo>/issues/<N>/comments` (or `ghx api ...` for cached read-only GET). The issue-ingest path fetches `/comments` by default and folds the thread into the ingested overview (#2143).
-3. ! Read body first, then the comment thread in chronological order. Later maintainer comments may supersede the original body — the #2126 recurrence shipped the wrong fix because dispatch used a body-only fetch.
+3. ! Read body first, then the comment thread in chronological order. Later maintainer comments may supersede the original body ΓÇö the #2126 recurrence shipped the wrong fix because dispatch used a body-only fetch.
 4. ! Any scope, fix, or status conclusion about the issue MUST reflect the full thread, not the body alone.
 
-**Umbrellas and epics (#1152):** when the issue is an umbrella or epic, the reading order extends to body → `## Current shape (as of pass-N)` comment → amendment comments. Prefer `deft umbrella:current-shape <N>` for the deterministic current-shape read path.
+**Umbrellas and epics (#1152):** when the issue is an umbrella or epic, the reading order extends to body ΓåÆ `## Current shape (as of pass-N)` comment ΓåÆ amendment comments. Prefer `deft umbrella:current-shape <N>` for the deterministic current-shape read path.
 
-Anti-pattern: reading only the issue body and building a dispatch envelope from it — e.g. `gh issue view <N> --json body` or REST `repos/.../issues/<N>` body field alone when `comments` count is greater than zero.
+Anti-pattern: reading only the issue body and building a dispatch envelope from it ΓÇö e.g. `gh issue view <N> --json body` or REST `repos/.../issues/<N>` body field alone when `comments` count is greater than zero.
 
-⊗ Conclude what an issue asks for, or build a dispatch envelope, from the issue body alone when the issue has comments (#2143 / #2066).
+Γèù Conclude what an issue asks for, or build a dispatch envelope, from the issue body alone when the issue has comments (#2143 / #2066).
 
-Reference: AGENTS.md `## Issue body→comments reading (#2143)`, `## Umbrella current-shape convention (#1152)`, issue #2143.
+Reference: AGENTS.md `## Issue bodyΓåÆcomments reading (#2143)`, `## Umbrella current-shape convention (#1152)`, issue #2143.
 
 ## 5.6.1 Typed escalation channel (#518 slim / #2948 Wave 5)
 
@@ -385,7 +385,7 @@ When blocked on human input under multi-agent load, file a **typed** escalation 
 - CLI: `deft escalation:file` / `list` / `resolve` / `batch-approve` (bulk only for non-dangerous `cmd_approval` + `question`)
 - Store: `.deft/escalations/<id>.json`
 - Mark write-scope shell / merge / release requests `dangerous: true` so they stay individual
-- Escalations are **not** implement authority — compose with `deft authz:grant` (Wave 1) after approval
+- Escalations are **not** implement authority ΓÇö compose with `deft authz:grant` (Wave 1) after approval
 
 Contract + residual full priority-inbox UI: `content/contracts/escalation.md`.
 
@@ -398,19 +398,19 @@ Value attribution, budgeted session readbacks, and upstream gap escalation are g
 - ! Value claims MUST cite concrete attributed ledger events; silence when nothing is attributable.
 - ! Session readback repeats suppress for 4 hours per attribution event id (same debounce class as #1279 triage welcome). Pull-based detail uses `deft value:show` / `deft value:show`, not ambient pushes.
 - ! Upstream gap filing is confirmation-gated -- route through `deft-directive-feedback`; draft + dedup with `deft feedback:file` / `deft feedback:file`, then re-run with `--confirm` only after explicit operator approval. Consumer projects only; maintainer repo no-ops unless `DEFT_VALUE_SELF_DOGFOOD=1`.
-- ⊗ File upstream issues without operator confirmation or past duplicate detection.
-- ⊗ Use `Closes`/`Fixes`/`Resolves` on upstream gap bodies -- use `Refs #1709` only.
+- Γèù File upstream issues without operator confirmation or past duplicate detection.
+- Γèù Use `Closes`/`Fixes`/`Resolves` on upstream gap bodies -- use `Refs #1709` only.
 
 Reference: AGENTS.md `## Value feedback and attribution (#1709)`, issue #1709.
 
 ## 5.8 Deterministic questions runtime self-check (#1470)
 
-The #767 contract applies to skill prose AND to agent-initiated structured questions at runtime. Prose-scanning tests cannot observe host `ask_user_question` tool calls — workers and orchestrators MUST self-enforce before every structured prompt.
+The #767 contract applies to skill prose AND to agent-initiated structured questions at runtime. Prose-scanning tests cannot observe host `ask_user_question` tool calls ΓÇö workers and orchestrators MUST self-enforce before every structured prompt.
 
-- ! Before calling any host structured-question tool (`ask_user_question`, Cursor `AskQuestion`, or equivalent) OR rendering any numbered decision menu in chat — inside or outside a skill — verify the final two options are `Discuss` then `Back`, in that order.
+- ! Before calling any host structured-question tool (`ask_user_question`, Cursor `AskQuestion`, or equivalent) OR rendering any numbered decision menu in chat ΓÇö inside or outside a skill ΓÇö verify the final two options are `Discuss` then `Back`, in that order.
 - ! On `Discuss` selection, halt immediately per the verbatim Discuss-pause semantic in `content/contracts/deterministic-questions.md`: no further tool calls beyond acknowledging the pause; prompt `What would you like to discuss?`; resume only on an explicit user signal (re-asking the original question, saying `resume`/`continue`, or re-issuing the prior selection).
-- ⊗ Rely on the host UI's `Other` affordance as the Discuss escape — it widens the answer space; `Discuss` exits the deterministic flow entirely (#767).
-- ⊗ Omit `Discuss`/`Back` on ad-hoc orchestration prompts (swarm approval, routing decisions, scope confirmations) — the highest-traffic runtime surface (#1470 recurrence).
+- Γèù Rely on the host UI's `Other` affordance as the Discuss escape ΓÇö it widens the answer space; `Discuss` exits the deterministic flow entirely (#767).
+- Γèù Omit `Discuss`/`Back` on ad-hoc orchestration prompts (swarm approval, routing decisions, scope confirmations) ΓÇö the highest-traffic runtime surface (#1470 recurrence).
 
 Reference: AGENTS.md `## Deterministic questions runtime obligation (#1470)`, `content/contracts/deterministic-questions.md`, issue #1470. Refs #767.
 
@@ -447,37 +447,47 @@ The probe itself is a `core`-bucket call, so polling it cheaply does not consume
 
 #3167 caps CI-holdout babysit loops. #3180 attributes weather holds. Neither replaces this drop-back.
 
-! On attributed platform outage (`attribution: platform`) or repeated REST 429/502/503: **drop back** GitHub I/O (empty-commit, close/reopen, tight polls, new poller children), **report once** to the human in chat (what is down, attribution/incident, parked work, next probe time), and **re-probe once per** `plan.policy.forgeOutageRetryMinutes` (default **30**; USER.md Personal wins; min 5; `deft policy:show --field=forgeOutageRetryMinutes`). Local work that does not need the forge MAY continue. Depth: `content/scm/github.md` § #3180 / #3422.
+! On attributed platform outage (`attribution: platform`) or repeated REST 429/502/503: **drop back** GitHub I/O (empty-commit, close/reopen, tight polls, new poller children), **report once** to the human in chat (what is down, attribution/incident, parked work, next probe time), and **re-probe once per** `plan.policy.forgeOutageRetryMinutes` (default **30**; USER.md Personal wins; min 5; `deft policy:show --field=forgeOutageRetryMinutes`). Local work that does not need the forge MAY continue. Depth: `content/scm/github.md` ┬º #3180 / #3422.
 
-⊗ Tight retry, empty-commit thrash, or sending the human to github.com as the only remediation.
-⊗ Auto-merge / `--skip-ci` because a status page is red (#3180).
+Γèù Tight retry, empty-commit thrash, or sending the human to github.com as the only remediation.
+Γèù Auto-merge / `--skip-ci` because a status page is red (#3180).
 
 ## 8. Identity separation -- mode-aware GitHub credential rules (#983 / #1557)
 
-Workers MUST follow the GitHub credential rule recorded in the dispatch envelope's `github_auth_mode` field (§2.7) or launch manifest. The rule prevents maintainer/worker bucket coupling and audit conflation when modes are mixed across a cohort.
+Workers MUST follow the GitHub credential rule recorded in the dispatch envelope's `github_auth_mode` field (┬º2.7) or launch manifest. The rule prevents maintainer/worker bucket coupling and audit conflation when modes are mixed across a cohort.
 
 Why: maintainer and workers sharing a single PAT couples the human review/merge workflow and N concurrent workers onto one 5,000-req/hr GraphQL bucket per identity. The architectural fix is bucket partitioning by identity -- the maintainer keeps their PAT for review/merge/release, workers consume a dedicated bot account or GitHub App installation token (injected-token mode) or an explicitly approved host `gh` session (host-gh mode). The full pattern lives at `patterns/multi-agent.md`.
 
-### injected-token mode (required for `github_auth_mode: injected-token` and always for `runtime_mode: cloud-headless`)
+### Provisioning trust (#5016)
 
-- ! Consume the GitHub credential injected by the dispatcher (typically `GH_TOKEN` / `GITHUB_TOKEN` / `GH_ENTERPRISE_TOKEN` in the prompt-supplied env). If unset and no other dispatcher-supplied credential is present, FAIL LOUD -- do not silently run under the host's `gh auth status` token.
-- ~ Confirm the credential is the expected worker principal before GitHub operations. For a user-bearing credential, `gh api user --jq .login` should return the expected bot/account login, not the maintainer login. For a GitHub App installation credential, `/user` is inapplicable (structural 403; no authenticated user) -- do not treat that 403 as API unreachability. Installation identity cannot be verified from the token; fail closed and point at #3693. Do not accept the credential from endpoint reachability or a declared App slug. A user-login mismatch is `BLOCKED: identity mismatch` to the parent.
-- ⊗ Inherit the maintainer's `gh auth status` token implicitly. Host `gh` fallback is forbidden in injected-token and cloud-headless modes.
+Unassigned processes use gh's effective credentials for the target host. Runtime mode, CI/cloud markers, socket presence/absence, and probe failure do not select the credential. `DEFT_GITHUB_AUTH_MODE` is not an auth admission opt-in. Assigned workers still honor the independently stored source and expected user (#3663). The GROK_BUILD vs intake classifier disagreement is a diagnostic limitation only; it cannot affect credential admission.
 
-### host-gh mode (permitted only when `github_auth_mode: host-gh`)
+- ! For github.com and `ghe.com` subdomains, nonempty `GH_TOKEN` then `GITHUB_TOKEN` override the host store. For GitHub Enterprise Server, `GH_ENTERPRISE_TOKEN` then `GITHUB_ENTERPRISE_TOKEN` do so. A token for another host family is neither this operation's injected source nor a source conflict.
+- ! An applicable invalid token fails without fallback to stored credentials. Selected-credential API results govern admission. Aggregate `gh auth status` (including inactive other-host accounts) must not veto a working target credential.
+- ! Assigned `host-gh` requires the target-host store and refuses an applicable ambient token even when `/user` names the expected login. Assigned `injected-token` requires an applicable token and matching delivery id, with no store fallback. Both require authenticated `/user` to match the recorded login case-insensitively.
+- ! A successful `/user` login establishes user identity. With no required user, a well-formed authenticated `GET /installation/repositories` plus target-repo access may admit installation authentication without recording a user login or issuing-App identity (#3693 recut). A `/user` 403, token prefix, declared App name, or public repo GET alone is insufficient. Installation credentials cannot satisfy a required user.
+- Γèù Substitute a maintainer account for an assigned worker. Γèù Treat runtime/socket classification as authorization.
 
-Applies to local interactive workers (`runtime_mode: local-unsandboxed` or, after validation, `cursor-native-sandbox`) where swarm launch preflight confirmed host `gh` identity (`task verify:gh-auth` / `deft github-auth-modes`) and repo access from the worker environment.
+### injected-token mode (required when `github_auth_mode: injected-token` or when an applicable token is the effective source)
 
-- ! Use the worker environment's `gh` credential store -- the dispatch envelope explicitly authorises host `gh` for this worker. Do NOT require an injected `GH_TOKEN` when host gh auth is already valid in the worker shell.
-- ! Still verify identity before GitHub operations: `task verify:gh-auth` (or `deft github-auth-modes --json`) must pass. For a user-bearing credential, `gh api user --jq .login` must return the expected account. For a GitHub App installation credential, `/user` cannot return an account and the token cannot disclose which App it belongs to -- fail closed and point at #3693. Do not accept the credential from a declared App slug or from endpoint reachability, including a target-repo GET. User-login mismatch is `BLOCKED: identity mismatch`.
-- ⊗ Fall back to host `gh` when `github_auth_mode` is `injected-token` or `runtime_mode` is `cloud-headless` -- those modes forbid host credential store use regardless of what is available on the host.
+- ! Consume the applicable injected credential (`GH_TOKEN` / `GITHUB_TOKEN` on github.com and ghe.com; `GH_ENTERPRISE_TOKEN` / `GITHUB_ENTERPRISE_TOKEN` on GHES). If assigned injected-token and no applicable token is present, FAIL LOUD -- do not silently run under the host store.
+- ~ Confirm the credential is the expected worker principal when one is assigned. For a user-bearing credential, `gh api user --jq .login` should return the expected login. For a GitHub App installation credential with no required user, admit only on positive authenticated installation evidence. Do not accept the credential from a declared App slug or token prefix. A user-login mismatch is `BLOCKED: identity mismatch` to the parent.
+- Γèù Inherit the maintainer's host store when the assignment or effective source is injected-token.
+
+### host-gh mode (when `github_auth_mode: host-gh` or when no applicable token is present for an unassigned process)
+
+Applies wherever the provisioned effective source is the host store, including local, CI, and cloud runtimes.
+
+- ! Use the worker environment's `gh` credential store for the target host. Do NOT require an injected token when host gh is the effective source.
+- ! For assigned host-gh, authenticated `/user` must match the recorded login. Installation credentials cannot satisfy that user principal.
+- Γèù Fall back to host `gh` when the assignment is `injected-token`.
 - ~ When `runtime_mode: cursor-native-sandbox`, host `gh` may fail inside the sandbox even when the parent session is authenticated. Fail loud with remediation (full-access execution, trusted-path allowlist, or switch to injected-token handoff) rather than assuming parent auth is visible to the worker.
 
 Dispatchers MUST inject worker credentials for injected-token / cloud-headless dispatches and MUST record the selected `github_auth_mode` in the launch manifest and dispatch envelope. v1 deliberately keeps token injection operator-implemented; mode labels make the contract explicit without placing token values in prompts or transcripts.
 
-#1351 supplies the identity-bound delivery helper in §2.75. Dispatchers on grok-build and local hybrid still record the mode on **both** the launch manifest and the dispatch envelope. They apply `prepareWorkerCredentialInjection` at spawn so the worker receives the token in process env and a stamped `DEFT_EXPECTED_GITHUB_LOGIN` / `expected_github_login`, not a prompt-embedded secret.
+#1351 supplies the identity-bound delivery helper in ┬º2.75. Dispatchers on grok-build and local hybrid still record the mode on **both** the launch manifest and the dispatch envelope. They apply `prepareWorkerCredentialInjection` at spawn so the worker receives the token in process env and a stamped `DEFT_EXPECTED_GITHUB_LOGIN` / `expected_github_login`, not a prompt-embedded secret.
 
-This rule is complementary to §5 (REST-by-default) and §7 (rate-limit-aware throttle): REST-by-default reduces GraphQL demand on whichever bucket the worker is using; rate-limit throttle keeps the worker from exhausting its own bucket; mode-aware identity separation prevents the worker bucket from being the maintainer's bucket when injected-token mode applies. All three are required for stable swarm operation.
+This rule is complementary to ┬º5 (REST-by-default) and ┬º7 (rate-limit-aware throttle): REST-by-default reduces GraphQL demand on whichever bucket the worker is using; rate-limit throttle keeps the worker from exhausting its own bucket; mode-aware identity separation prevents the worker bucket from being the maintainer's bucket when injected-token mode applies. All three are required for stable swarm operation.
 
 ## 9. Sub-agent spawn rules per #727
 
@@ -486,9 +496,9 @@ If you (the worker) need to spawn a sub-agent yourself:
 - Sub-agents MUST have non-overlapping file scopes. Use the parent xBRIEF's `files_owned` / `files_must_not_touch` to partition.
 - Destructive operations (worktree removal, branch deletion, force-push) run alone, never in parallel.
 - Each sub-agent receives its own dispatch envelope including this preamble (or a reference to it).
-- Each child dispatch MUST carry its own `## Worker metadata` section per §2.6 when backend routing applies: set `dispatch_provider` and `worker_role` for the child's actual harness and role; propagate or override `selected_backend` / `routing_policy` so audit trails remain reconstructable at every tree depth (#1531).
+- Each child dispatch MUST carry its own `## Worker metadata` section per ┬º2.6 when backend routing applies: set `dispatch_provider` and `worker_role` for the child's actual harness and role; propagate or override `selected_backend` / `routing_policy` so audit trails remain reconstructable at every tree depth (#1531).
 - Coordinate shared append-only files (CHANGELOG, lessons.md) with explicit ownership at dispatch time.
-- Sub-agents inherit the parent worker's credential policy: when the parent dispatch is `github_auth_mode: injected-token`, children MUST use the injected token; when `host-gh`, children inherit the same host-gh authorisation. They MUST NOT mint or fall back to a different credential mode than the parent envelope specifies. Identity separation per §8 cascades through the spawn tree.
+- Sub-agents inherit the parent worker's credential policy: when the parent dispatch is `github_auth_mode: injected-token`, children MUST use the injected token; when `host-gh`, children inherit the same host-gh authorisation. They MUST NOT mint or fall back to a different credential mode than the parent envelope specifies. Identity separation per ┬º8 cascades through the spawn tree.
 
 ### Orchestrator dispatch doctrine (#1880)
 
@@ -497,36 +507,36 @@ These rules bind **orchestrators** dispatching implementation, fix, or review-cy
 **Worker-owns-lifecycle (Gap C):**
 
 - ! When dispatching an implementation worker, the dispatch envelope MUST declare the unit-of-work boundary explicitly: `stop-at: pr-open` (worker opens PR and exits) OR `drive-to: merge-ready` (worker owns PR + Greptile review cycle + fix batches through merge-ready as ONE unit of work, following `skills/deft-directive-review-cycle/SKILL.md` monitoring tiers). On hosts whose leaves cannot nest a review-monitor (Cursor #2797, Claude Code #3134, Grok Build #4130), merge-ready means blocking `pr:watch` in **this** process -- not spawning a child poller. Default for story implementation dispatches is `drive-to: merge-ready`. **Grok through-merge (#4529 / #4821):** implement MUST be `stop-at: pr-open`; that is not Gap C silent handback when dest-cwd class A residual lands first, Approach 1 is wait owner, and parent-retained / Phase 6 squash-merges via `pr:wait-mergeable-and-merge` only after CLEAN, then post-merge `scope:complete`. `swarm:finalize-cohort` is leftover after merge.
-- ! **Envelope selection SLA (#3153):** Choose the boundary before spawn using the swarm decision tree (`skills/deft-directive-swarm/references/core-phase-0.md` — capacity stall, conf-only residual, wall-clock budget, large multi-gate, host nest limits). Happy-path default remains `drive-to: merge-ready`. A **deliberate** `stop-at: pr-open` is valid only with an immediate partner merge-path owner per `skills/deft-directive-review-cycle/SKILL.md` § Partner merge-path (babysit / Approach 1 lease / parent-retained — not freestyle global babysit). **Grok through-merge (#4529 / #4821):** implement `stop-at: pr-open` is required; dest-cwd class A residual first; Approach 1 wait; parent-retained is closer plus post-merge `scope:complete` after that dest worker exists; ⊗ harvest partner option 2 (Grok `drive-to: merge-ready` continuation) as that closer; ⊗ use `merge-release` as this closer; ⊗ parent-inline residual when dest spawn is available. Related: #4421. Under human-merge policy, that owner (or an explicit handoff recipient) remains responsible through merge + `scope:complete` — do not stand down at CLEAN alone. Consumer pin: `templates/agents-entry.md` § Envelope selection SLA. Silent PR-open handback for a worker already scoped merge-ready remains **forbidden**.
-- ! **Cursor Task ownership split (#2797 / #2814):** A Cursor `Task` implementation leaf MUST NOT spawn another Cursor `Task` review-monitor: nested Task (leaf spawning leaf) is unsupported/unreliable. A Cursor `drive-to: merge-ready` leaf instead owns a blocking `deft pr:watch -- <N>` in its own process. To use an Approach 1 monitor, scope the leaf `stop-at: pr-open`; the orchestrator that owns the Task primitive then launches the sibling monitor and runs `deft review-monitor:register -- --pr <N> --monitor-agent-id <id> --platform-primitive cursor-task` (GitHub sticky `<!-- deft:review-owner -->` lease — not local JSON).
-- ⊗ Let a Cursor leaf background `deft pr:watch` and claim review monitoring is active. The process dies with the leaf and has no GitHub review-owner lease; treat that claim as a regression/eval failure and let `deft verify:review-monitor -- --pr <N>` fail closed.
-- ! **Grok Build ownership split (#4130 / #2797 analogue):** A `spawn_subagent` implementation leaf MUST NOT nested-spawn a review-monitor or any other `spawn_subagent`. Nested spawn does not report to the parent, and the parent cannot re-prompt a live child (`resume_from` requires terminal). **Grok through-merge (#4529 / #4821):** implement MUST be `stop-at: pr-open`; the orchestrator that owns `spawn_subagent` dest-spawns the class A residual via native implementation-capable spawn (#4215), then Approach 1 wait; parent-retained is closer plus post-merge `scope:complete`. Dest spawn deny is `BLOCKED` or dest-cwd residual via a supported implementation-capable fallback — not parent-primary. ⊗ Send class-A residual through process-only CLI `grok --cwd` (cannot edit/push). Phase 6 monitor squash-merges via `pr:wait-mergeable-and-merge` only after CLEAN. `swarm:finalize-cohort` is leftover after merge. ⊗ Harvest a Grok `drive-to: merge-ready` continuation as that partner. A non-through-merge Grok `drive-to: merge-ready` leaf still owns blocking `deft pr:watch <N>` (or `task deft:pr:watch -- <N>`) in its own process — not a nested poller. If the leaf needs another agent, it stops and reports `BLOCKED`.
-- ⊗ Tell a grok-build leaf to spawn its own review poller, or let it nested-spawn `spawn_subagent` and claim monitoring is active.
-- ! **Post-merge scope lifecycle (#2321 / Gap C / #3429 / #3476):** Workers scoped `stop-at: pr-open` MUST NOT run `deft scope:complete` before exit — their activation checkpoint rides into master on merge. The **orchestrator** (or Phase 6 `deft swarm:finalize-cohort` / `deft swarm:complete-cohort` on the headless path) MUST run `deft scope:complete` or `deft scope:cancel` for each shipped story xBRIEF after its PR merges. Workers scoped `drive-to: merge-ready` (or `drive-to: merge`) MUST include `deft scope:complete` on their active xBRIEF as part of the same unit of work (after merge when appropriate). After merge (or observing merge) of issue `#N`, run `deft verify:orphan-active -- --issue N`. Exit `0` is required before `DONE`. Exit `1` shipped → run the printed `deft scope:complete -- <path>`. Exit `1` unresolved lookup → retry / emit `BLOCKED`; ⊗ complete unfinished scope. After `scope:complete`, `deft verify:completed-tracked -- --issue N` MUST be exit `0` against `origin/<deliveryBranch>` (not feature-worktree HEAD) before `DONE` (#3476). Exit `1` missing tracked artifact → not DONE; remediate with `deft swarm:finalize-cohort` or a lifecycle PR. `scope:complete` stays filesystem-only — ⊗ teach every leaf to commit on master.
-- ! Workers scoped `drive-to: merge-ready` MUST drive to merge-ready in their own tool loop — pre-PR, push, PR open, review-cycle poll/fix loop, and the #1259 Step 6 fail-closed exit — without handing back at PR-open for the orchestrator to re-dispatch separate leaf agents for review or fixes.
-- ⊗ Re-dispatch a separate review-monitor or fix agent after an implementation worker exits at PR-open when the original envelope scoped `drive-to: merge-ready` — that split recreates cross-agent state-handoff hazards and terminal lifecycle gaps (#1878 / Gap C).
-- ⊗ Dispatch `stop-at: pr-open` without a named review-cycle partner merge-path owner plan (#3153).
+- ! **Envelope selection SLA (#3153):** Choose the boundary before spawn using the swarm decision tree (`skills/deft-directive-swarm/references/core-phase-0.md` ΓÇö capacity stall, conf-only residual, wall-clock budget, large multi-gate, host nest limits). Happy-path default remains `drive-to: merge-ready`. A **deliberate** `stop-at: pr-open` is valid only with an immediate partner merge-path owner per `skills/deft-directive-review-cycle/SKILL.md` ┬º Partner merge-path (babysit / Approach 1 lease / parent-retained ΓÇö not freestyle global babysit). **Grok through-merge (#4529 / #4821):** implement `stop-at: pr-open` is required; dest-cwd class A residual first; Approach 1 wait; parent-retained is closer plus post-merge `scope:complete` after that dest worker exists; Γèù harvest partner option 2 (Grok `drive-to: merge-ready` continuation) as that closer; Γèù use `merge-release` as this closer; Γèù parent-inline residual when dest spawn is available. Related: #4421. Under human-merge policy, that owner (or an explicit handoff recipient) remains responsible through merge + `scope:complete` ΓÇö do not stand down at CLEAN alone. Consumer pin: `templates/agents-entry.md` ┬º Envelope selection SLA. Silent PR-open handback for a worker already scoped merge-ready remains **forbidden**.
+- ! **Cursor Task ownership split (#2797 / #2814):** A Cursor `Task` implementation leaf MUST NOT spawn another Cursor `Task` review-monitor: nested Task (leaf spawning leaf) is unsupported/unreliable. A Cursor `drive-to: merge-ready` leaf instead owns a blocking `deft pr:watch -- <N>` in its own process. To use an Approach 1 monitor, scope the leaf `stop-at: pr-open`; the orchestrator that owns the Task primitive then launches the sibling monitor and runs `deft review-monitor:register -- --pr <N> --monitor-agent-id <id> --platform-primitive cursor-task` (GitHub sticky `<!-- deft:review-owner -->` lease ΓÇö not local JSON).
+- Γèù Let a Cursor leaf background `deft pr:watch` and claim review monitoring is active. The process dies with the leaf and has no GitHub review-owner lease; treat that claim as a regression/eval failure and let `deft verify:review-monitor -- --pr <N>` fail closed.
+- ! **Grok Build ownership split (#4130 / #2797 analogue):** A `spawn_subagent` implementation leaf MUST NOT nested-spawn a review-monitor or any other `spawn_subagent`. Nested spawn does not report to the parent, and the parent cannot re-prompt a live child (`resume_from` requires terminal). **Grok through-merge (#4529 / #4821):** implement MUST be `stop-at: pr-open`; the orchestrator that owns `spawn_subagent` dest-spawns the class A residual via native implementation-capable spawn (#4215), then Approach 1 wait; parent-retained is closer plus post-merge `scope:complete`. Dest spawn deny is `BLOCKED` or dest-cwd residual via a supported implementation-capable fallback ΓÇö not parent-primary. Γèù Send class-A residual through process-only CLI `grok --cwd` (cannot edit/push). Phase 6 monitor squash-merges via `pr:wait-mergeable-and-merge` only after CLEAN. `swarm:finalize-cohort` is leftover after merge. Γèù Harvest a Grok `drive-to: merge-ready` continuation as that partner. A non-through-merge Grok `drive-to: merge-ready` leaf still owns blocking `deft pr:watch <N>` (or `task deft:pr:watch -- <N>`) in its own process ΓÇö not a nested poller. If the leaf needs another agent, it stops and reports `BLOCKED`.
+- Γèù Tell a grok-build leaf to spawn its own review poller, or let it nested-spawn `spawn_subagent` and claim monitoring is active.
+- ! **Post-merge scope lifecycle (#2321 / Gap C / #3429 / #3476):** Workers scoped `stop-at: pr-open` MUST NOT run `deft scope:complete` before exit ΓÇö their activation checkpoint rides into master on merge. The **orchestrator** (or Phase 6 `deft swarm:finalize-cohort` / `deft swarm:complete-cohort` on the headless path) MUST run `deft scope:complete` or `deft scope:cancel` for each shipped story xBRIEF after its PR merges. Workers scoped `drive-to: merge-ready` (or `drive-to: merge`) MUST include `deft scope:complete` on their active xBRIEF as part of the same unit of work (after merge when appropriate). After merge (or observing merge) of issue `#N`, run `deft verify:orphan-active -- --issue N`. Exit `0` is required before `DONE`. Exit `1` shipped ΓåÆ run the printed `deft scope:complete -- <path>`. Exit `1` unresolved lookup ΓåÆ retry / emit `BLOCKED`; Γèù complete unfinished scope. After `scope:complete`, `deft verify:completed-tracked -- --issue N` MUST be exit `0` against `origin/<deliveryBranch>` (not feature-worktree HEAD) before `DONE` (#3476). Exit `1` missing tracked artifact ΓåÆ not DONE; remediate with `deft swarm:finalize-cohort` or a lifecycle PR. `scope:complete` stays filesystem-only ΓÇö Γèù teach every leaf to commit on master.
+- ! Workers scoped `drive-to: merge-ready` MUST drive to merge-ready in their own tool loop ΓÇö pre-PR, push, PR open, review-cycle poll/fix loop, and the #1259 Step 6 fail-closed exit ΓÇö without handing back at PR-open for the orchestrator to re-dispatch separate leaf agents for review or fixes.
+- Γèù Re-dispatch a separate review-monitor or fix agent after an implementation worker exits at PR-open when the original envelope scoped `drive-to: merge-ready` ΓÇö that split recreates cross-agent state-handoff hazards and terminal lifecycle gaps (#1878 / Gap C).
+- Γèù Dispatch `stop-at: pr-open` without a named review-cycle partner merge-path owner plan (#3153).
 - ! **Durable live wait after stop-at:pr-open (#4882):** The named merge-path owner MUST keep a still-running phase-correct wait for each open merge-path PR (pre-CLEAN: blocking `pr:watch` / Approach 1 child; post-CLEAN: `pr:wait-mergeable-and-merge`) until CLEAN or an explicit option-C finish. A fresh sticky lease alone or a Path B prose promise without a live wait is unarmed stand-down. Probe: `deft verify:review-monitor -- --pr <N> --merge-path-arm` with `--live-wait` / `--explicit-finish`. Wrappers of `pr:watch --json` MUST parse the full stdout JSON (pretty multi-line is valid); line-split parsers miss CLEAN (#5015). Prefer Approach 1 / native `pr:watch` over homemade DONE scripts.
-- ⊗ Stand down unarmed on an open merge-path PR (no live phase-correct wait and no explicit finish), or treat lease-only / homemade line-parsed `pr-watch --json` as armed (#4882).
-- ⊗ Parent-inline residual when dest spawn is available for Grok through-merge (#4821). Dest spawn deny is `BLOCKED` or dest-cwd residual via native implementation-capable spawn (#4215), not parent-primary. ⊗ Send class-A residual through process-only CLI `grok --cwd` (cannot edit/push).
-- ⊗ Start `pr:wait-mergeable-and-merge` before `pr:watch` / `pr:merge-ready` is CLEAN (#4822). Review-cycle babysit wait is `pr:watch`. First-probe parse `clean_gate_holdout`; SHA-matched confidence plus class A leftover is dest residual or BLOCKED, not cap-wait. `sha_match` is blocking `pr:watch` until SHA match or cap. ⊗ Invent a third poller. ⊗ Harvest cascade.ts. Greptile CLEAN + SLizard/CI red stays on #4820. Do not recut #4821 dest-worker ownership.
-- ⊗ Leave an `xbrief/active/` brief with `plan.status == running` on master after the story's issue is closed or its PR merged, or emit `DONE` with `ISSUE: closed` while that brief remains in `active/` — `deft verify:orphan-active -- --issue N` must be exit `0` after merge (#2321 / #3429).
+- Γèù Stand down unarmed on an open merge-path PR (no live phase-correct wait and no explicit finish), or treat lease-only / homemade line-parsed `pr-watch --json` as armed (#4882).
+- Γèù Parent-inline residual when dest spawn is available for Grok through-merge (#4821). Dest spawn deny is `BLOCKED` or dest-cwd residual via native implementation-capable spawn (#4215), not parent-primary. Γèù Send class-A residual through process-only CLI `grok --cwd` (cannot edit/push).
+- Γèù Start `pr:wait-mergeable-and-merge` before `pr:watch` / `pr:merge-ready` is CLEAN (#4822). Review-cycle babysit wait is `pr:watch`. First-probe parse `clean_gate_holdout`; SHA-matched confidence plus class A leftover is dest residual or BLOCKED, not cap-wait. `sha_match` is blocking `pr:watch` until SHA match or cap. Γèù Invent a third poller. Γèù Harvest cascade.ts. Greptile CLEAN + SLizard/CI red stays on #4820. Do not recut #4821 dest-worker ownership.
+- Γèù Leave an `xbrief/active/` brief with `plan.status == running` on master after the story's issue is closed or its PR merged, or emit `DONE` with `ISSUE: closed` while that brief remains in `active/` ΓÇö `deft verify:orphan-active -- --issue N` must be exit `0` after merge (#2321 / #3429).
 
 **Background / independent dispatch (Gap D):**
 
-- ! Long-running workers (expected >~3 min: implementation, fix batches, review-cycle owners, pollers) MUST be dispatched independently / in the background so the parent conversation channel stays interactive and the orchestrator is notified on completion (`DONE` / `BLOCKED` / `FAILED` per §11).
-- ! On Cursor, background dispatch means the Task tool's background path (`run_in_background: true` on the Task invocation) — NOT blocking the orchestrator's turn for the worker's full wall-clock.
+- ! Long-running workers (expected >~3 min: implementation, fix batches, review-cycle owners, pollers) MUST be dispatched independently / in the background so the parent conversation channel stays interactive and the orchestrator is notified on completion (`DONE` / `BLOCKED` / `FAILED` per ┬º11).
+- ! On Cursor, background dispatch means the Task tool's background path (`run_in_background: true` on the Task invocation) ΓÇö NOT blocking the orchestrator's turn for the worker's full wall-clock.
 - ! On OpenClaw, background dispatch means `sessions_spawn` (optionally with `visible` so the Control UI can watch the subagent) so the parent session stays interactive; the completion channel is **parent push / announce**, not `get_command_or_subagent_output` and not Cursor Task completion (#2874 / #2879). Nested leaf-spawn-leaf limits mirror Cursor #2797 when the platform does not support reliable nested `sessions_spawn`.
-- ⊗ Foreground/blocking dispatch for long-running implementation, fix, or review-cycle workers when a background/independent dispatch primitive is available — blocking locks the conversation and prevents user steerability (#1878 / Gap D).
+- Γèù Foreground/blocking dispatch for long-running implementation, fix, or review-cycle workers when a background/independent dispatch primitive is available ΓÇö blocking locks the conversation and prevents user steerability (#1878 / Gap D).
 - ~ Foreground dispatch is reserved for short tasks (<~3 min): quick probes, single-command checks, terse status reads.
 
 **Deliberate model routing before ANY dispatch (doctrine; enforcement #1877):**
 
-- ! Before dispatching ANY sub-agent (cohort OR single), the orchestrator MUST make a deliberate per-`worker_role` model-routing decision — consult `deft verify:routing` / `deft swarm:routing-set`, populate `## Worker metadata` per §2.6, and pass `resolved_model` into the actual dispatch primitive when non-null. Never silently inherit the parent orchestrator's model.
-- ⊗ Dispatch a worker without a recorded routing decision for its `(dispatch_provider, worker_role)` pair when backend routing applies — silent inheritance of the parent model is forbidden.
+- ! Before dispatching ANY sub-agent (cohort OR single), the orchestrator MUST make a deliberate per-`worker_role` model-routing decision ΓÇö consult `deft verify:routing` / `deft swarm:routing-set`, populate `## Worker metadata` per ┬º2.6, and pass `resolved_model` into the actual dispatch primitive when non-null. Never silently inherit the parent orchestrator's model.
+- Γèù Dispatch a worker without a recorded routing decision for its `(dispatch_provider, worker_role)` pair when backend routing applies ΓÇö silent inheritance of the parent model is forbidden.
 - ~ Deterministic gate enforcement for undecided routes is tracked in #1877; this subsection is the behavioral rule only.
 
-Reference: issue #1880 (doctrine), #1877 (gate enforcement), #954 (multi-agent discipline). Cross-references: `skills/deft-directive-swarm/SKILL.md` Phase 3 dispatch + Phase 5→6, `skills/deft-directive-review-cycle/SKILL.md` Review Monitoring.
+Reference: issue #1880 (doctrine), #1877 (gate enforcement), #954 (multi-agent discipline). Cross-references: `skills/deft-directive-swarm/SKILL.md` Phase 3 dispatch + Phase 5ΓåÆ6, `skills/deft-directive-review-cycle/SKILL.md` Review Monitoring.
 
 ## 10. Dispatcher lifecycle hygiene -- workers are all-or-nothing (capability-tiered, #3158)
 
@@ -541,7 +551,7 @@ Reference: issue #1880 (doctrine), #1877 (gate enforcement), #954 (multi-agent d
 
 Lifecycle events (`succeeded`, `failed`, `blocked`, `in_progress`, `cancelled`, `errored`) are emitted by the platform observing the worker's process state -- the worker does not choose them directly. A worker that finishes its tool loop with a "paused" message will be observed as `succeeded` (terminal); the agent_id becomes unreachable. The only ways for a worker to remain reachable mid-flight are: keep the tool loop alive (long-lived poll / sleep) or be observed by the platform as `blocked` via a sanctioned blocked_action. Neither is a natural fit for "I finished sub-task A and want approval before sub-task B" **when the host cannot re-attach**.
 
-**Capability tier (#3158):** On hosts that **retain** a live, addressable child (continue-by-agent-id / resume-by-name / steerable mid-flight session — see host adapter retained notes and `swarm/swarm.md` § Retained addressable sub-agents), a single dispatch MAY include a mid-scope gate: the parent re-messages the same child after approval instead of forcing a second full dispatch. Capability-gate first via platform descriptor; do not invent retain on one-shot hosts. Retention is for **orchestration** (message-later, steer-mid-flight) only — not mid-run constitution self-edit (#3164). Topology bounds: #3155 nuclear-family (retain does not license open mesh).
+**Capability tier (#3158):** On hosts that **retain** a live, addressable child (continue-by-agent-id / resume-by-name / steerable mid-flight session ΓÇö see host adapter retained notes and `swarm/swarm.md` ┬º Retained addressable sub-agents), a single dispatch MAY include a mid-scope gate: the parent re-messages the same child after approval instead of forcing a second full dispatch. Capability-gate first via platform descriptor; do not invent retain on one-shot hosts. Retention is for **orchestration** (message-later, steer-mid-flight) only ΓÇö not mid-run constitution self-edit (#3164). Topology bounds: #3155 nuclear-family (retain does not license open mesh).
 
 On hosts without retain, workers remain all-or-nothing on their dispatch envelope. Approval gates split scope at the dispatcher layer.
 
@@ -561,19 +571,19 @@ The contract in one paragraph:
 - The record is JSON with at least `agent_id` (matches filename), `parent_id`, `last_heartbeat_at` (ISO-8601 UTC, `Z`-suffix), `last_message` (one human-readable line), `phase` (one of `starting | implementing | validating | committing | pushing | polling | fixing | terminal`), and optional `terminal_state`.
 - Writes MUST be atomic (write-to-temp + rename) so the monitor never reads a half-written file.
 
-The parent monitor watches the heartbeat file directly (three-state exit 0 ok / 1 stale-or-malformed / 2 config error). Skipping the heartbeat is a hard `⊗` for any long-running sub-agent: a stalled agent with no heartbeat surface is the exact #1166 failure mode this contract closes.
+The parent monitor watches the heartbeat file directly (three-state exit 0 ok / 1 stale-or-malformed / 2 config error). Skipping the heartbeat is a hard `Γèù` for any long-running sub-agent: a stalled agent with no heartbeat surface is the exact #1166 failure mode this contract closes.
 
-! **Cursor false-alive / REDISPATCH_OK (#2824):** On the Cursor `Task` path, the host may report a leaf as "still running" after it has gone silent (empty transcript, no heartbeats, no DONE/FAILED). When `deft verify:subagent-alive` exits `1` for a registered in-flight `drive-to: merge*` worker — missing heartbeat, STALE heartbeat, or no recent git/PR activity — the monitor MUST treat the worker as dead and print `REDISPATCH_OK` to authorize takeover re-dispatch. Do NOT block on host resume when the liveness gate has failed closed.
+! **Cursor false-alive / REDISPATCH_OK (#2824):** On the Cursor `Task` path, the host may report a leaf as "still running" after it has gone silent (empty transcript, no heartbeats, no DONE/FAILED). When `deft verify:subagent-alive` exits `1` for a registered in-flight `drive-to: merge*` worker ΓÇö missing heartbeat, STALE heartbeat, or no recent git/PR activity ΓÇö the monitor MUST treat the worker as dead and print `REDISPATCH_OK` to authorize takeover re-dispatch. Do NOT block on host resume when the liveness gate has failed closed.
 
-! **OpenClaw `sessions_spawn` / heartbeat mapping (#2879):** Same file-heartbeat contract applies to OpenClaw review-monitors and long-running leaves. OpenClaw host session liveness, Control UI presence, or gateway channel reachability does NOT replace periodic heartbeats — those signals only prove the session exists, not that the tool loop is progressing. OpenClaw pollers write `.deft-scratch/subagent-status/<agent-id>.json` so `deft agent:monitor` / `deft verify:subagent-alive` can detect stalled monitors; OpenClaw-native session status MAY be a *supplementary* signal only. Host "still running" + missing/STALE heartbeat authorizes the same `REDISPATCH_OK` posture as Cursor #2824.
+! **OpenClaw `sessions_spawn` / heartbeat mapping (#2879):** Same file-heartbeat contract applies to OpenClaw review-monitors and long-running leaves. OpenClaw host session liveness, Control UI presence, or gateway channel reachability does NOT replace periodic heartbeats ΓÇö those signals only prove the session exists, not that the tool loop is progressing. OpenClaw pollers write `.deft-scratch/subagent-status/<agent-id>.json` so `deft agent:monitor` / `deft verify:subagent-alive` can detect stalled monitors; OpenClaw-native session status MAY be a *supplementary* signal only. Host "still running" + missing/STALE heartbeat authorizes the same `REDISPATCH_OK` posture as Cursor #2824.
 
-! **Parent ensures scratch dir + startup grace before REDISPATCH_OK (#2879 / #3730):** `deft verify:subagent-alive` exits `2` (config error, no `REDISPATCH_OK`) when the scratch directory is **missing** and has no records. Parents MUST `mkdir` the worker worktree's `.deft-scratch/subagent-status/` at dispatch time so a later missing record is exit `1` + `REDISPATCH_OK`. `deft swarm:launch` (worktree map) and `deft swarm:pre-dispatch --action begin` on a filesystem target mkdir this directory mechanically. Interactive Cursor/OpenClaw/Grok spawn without those verbs still MUST mkdir before the spawn primitive. Parents MUST ALSO wait a **startup grace** (default 3 minutes from dispatch, or until the first `phase: "starting"` heartbeat is observed) before treating a missing required-agent as takeover-eligible — probing an empty parent-created dir immediately races a healthy worker still writing its first heartbeat and can spawn a duplicate. Exit `2` remains reserved for true config errors (bad args / wrong path). ⊗ Put runtime liveness on the C2 launch manifest (written `mode: "replace"`) or in `occupancy.json`.
+! **Parent ensures scratch dir + startup grace before REDISPATCH_OK (#2879 / #3730):** `deft verify:subagent-alive` exits `2` (config error, no `REDISPATCH_OK`) when the scratch directory is **missing** and has no records. Parents MUST `mkdir` the worker worktree's `.deft-scratch/subagent-status/` at dispatch time so a later missing record is exit `1` + `REDISPATCH_OK`. `deft swarm:launch` (worktree map) and `deft swarm:pre-dispatch --action begin` on a filesystem target mkdir this directory mechanically. Interactive Cursor/OpenClaw/Grok spawn without those verbs still MUST mkdir before the spawn primitive. Parents MUST ALSO wait a **startup grace** (default 3 minutes from dispatch, or until the first `phase: "starting"` heartbeat is observed) before treating a missing required-agent as takeover-eligible ΓÇö probing an empty parent-created dir immediately races a healthy worker still writing its first heartbeat and can spawn a duplicate. Exit `2` remains reserved for true config errors (bad args / wrong path). Γèù Put runtime liveness on the C2 launch manifest (written `mode: "replace"`) or in `occupancy.json`.
 
 - Monitors run `deft verify:subagent-alive -- --require-agent <agent-id> [--scratch-dir <worktree>/.deft-scratch/subagent-status]` each poll iteration.
 - Workers run `deft agent:monitor` (raw sweep) or the gate verb above; both wrap `subagent-monitor` (#1365).
 - Workers MUST write the first heartbeat immediately (`phase: "starting"`) and keep the cadence in this section. A dispatch that never instructs the worker to heartbeat leaves the armed directory empty and a host-kill indistinguishable from "never started" until grace elapses.
 
-! **Commit early (#3730):** Long-running implementation workers MUST commit as soon as a coherent unit exists (source + tests that compile), then commit again at natural checkpoints. A host-kill leaves uncommitted work invisible to every gate. ⊗ Hold a complete correct diff uncommitted until PR time.
+! **Commit early (#3730):** Long-running implementation workers MUST commit as soon as a coherent unit exists (source + tests that compile), then commit again at natural checkpoints. A host-kill leaves uncommitted work invisible to every gate. Γèù Hold a complete correct diff uncommitted until PR time.
 
 ! **Killed-worker takeover (#3730 / #3228):** `REDISPATCH_OK` does not lift `DENY_DUPLICATE_ACTIVE`. A killed worker's delivery attempt stays `running` until cancelled. Takeover is `deft swarm:pre-dispatch -- --scope-id <id> --target-id <worktree> --action cancel` then the same command without `--action` (begin). Do not add a third liveness classifier.
 
@@ -582,53 +592,53 @@ The parent monitor watches the heartbeat file directly (three-state exit 0 ok / 
 ! **Parent-steer inbox (#4286):** Grok Build `spawn_subagent` has no child prompt and no live `resume_from`. That host gap does not invent retain, OpenClaw `sessions_yield`, or a replacement for split-dispatch mid-scope approval gates. Grok-build implementation leaves whose tool loop exceeds ~3 min MUST still have a parent-writable steer path because the host has no other channel.
 
 - Inbox path: `<worktree>/.deft-scratch/subagent-steer/<agent-id>.json` (sibling of heartbeat, not inside `subagent-status/`). Closed schema `deft.subagent.steer.v1`: bound to `agent_id`, `steer_id` apply-once ack, `expires_at`, `writer_kind` `occupancy-owner` | `dispatching-parent`. Ack file: `<agent-id>.ack.json` in the same steer dir. Distinct from the child-owned heartbeat JSON.
-- Tool-loop duty: no blocking wait longer than the heartbeat/steer poll interval (2-3 min) when the leaf must remain steerable. Between slices, read the inbox, apply unread once, rewrite heartbeat. A scratch path does not interrupt a blocked tool. Long `task check` recovery stays REDISPATCH_OK / split-dispatch — not "poll while blocked".
-- Parent-visible unread flag: `deft verify:subagent-steer` exit `1` prints `STEER_PENDING`. ⊗ Treat unread steer as missing heartbeat. ⊗ Print `REDISPATCH_OK` from the steer gate. ⊗ Put a second JSON schema in `.deft-scratch/subagent-status/` — `sweepScratchDirs` only reads top-level heartbeat `<agent-id>.json` and skips `deft.subagent.steer*` schema.
-- ⊗ Invent message-later / live `resume_from` on grok-build. ⊗ Treat steer `text` as a new dispatch envelope or constitution edit. Depth: `docs/subagent-heartbeat.md`.
+- Tool-loop duty: no blocking wait longer than the heartbeat/steer poll interval (2-3 min) when the leaf must remain steerable. Between slices, read the inbox, apply unread once, rewrite heartbeat. A scratch path does not interrupt a blocked tool. Long `task check` recovery stays REDISPATCH_OK / split-dispatch ΓÇö not "poll while blocked".
+- Parent-visible unread flag: `deft verify:subagent-steer` exit `1` prints `STEER_PENDING`. Γèù Treat unread steer as missing heartbeat. Γèù Print `REDISPATCH_OK` from the steer gate. Γèù Put a second JSON schema in `.deft-scratch/subagent-status/` ΓÇö `sweepScratchDirs` only reads top-level heartbeat `<agent-id>.json` and skips `deft.subagent.steer*` schema.
+- Γèù Invent message-later / live `resume_from` on grok-build. Γèù Treat steer `text` as a new dispatch envelope or constitution edit. Depth: `docs/subagent-heartbeat.md`.
 
 ## 10.55 Rule Authority and Thin Fail-Closed (#3313)
 
 Principle: `main.md` `## Rule Authority [AXIOM]`.
 Principle: `main.md` `## Thin Fail-Closed Design (#3265)`.
 
-## 10.56 Writing bar — clarity, simplicity, brevity (#3368)
+## 10.56 Writing bar ΓÇö clarity, simplicity, brevity (#3368)
 
-! Clarity, simplicity, brevity in documents and user communications, including sub-agent status and handbacks. Cut ceremony, not required fields. Depth: `.deft/core/docs/writing-ste100.md` (#2927 / #3368). ⊗ Full STE; ⊗ historical rewrite; ⊗ red CI style gate; ⊗ prefacing the rule.
+! Clarity, simplicity, brevity in documents and user communications, including sub-agent status and handbacks. Cut ceremony, not required fields. Depth: `.deft/core/docs/writing-ste100.md` (#2927 / #3368). Γèù Full STE; Γèù historical rewrite; Γèù red CI style gate; Γèù prefacing the rule.
 
 ## 10.57 Telemetry deliverable fixture (#3362)
 
 ! A telemetry deliverable is not done until a field-shaped fixture reads its events from the shared fake trial (`deft verify:telemetry-coverage`). Silence is the failure mode this gate exists for.
 
-⊗ Ship a new `RUN_SUMMARY_EVENT_KINDS` member or exported emitter method without a production caller and a fixture that asserts the kind in `DEFT_RUN_SUMMARY_PATH` JSONL.
+Γèù Ship a new `RUN_SUMMARY_EVENT_KINDS` member or exported emitter method without a production caller and a fixture that asserts the kind in `DEFT_RUN_SUMMARY_PATH` JSONL.
 
 ## 10.6 Dual stop for multi-iteration worker loops (#2442)
 
 Multi-iteration implement, pre-PR, repair, and monitor loops require **two** stops: **success** (goal / AC / checker met) and **failure or budget** (max iterations, no-progress, or time/token budget). Single-turn tasks are exempt. Principle and defaults: `main.md` `## Dual Stop Rule (#2442)`; build skill dual-stop table; swarm Phase 4 / core-ops.
 
-! On failure stop: halt; emit an operator-visible report (what was tried, what is missing, what human decision is needed). Prefer `BLOCKED:` over silent retry. ⊗ Thrash past the envelope. Durable delivery/acceptance mechanical enforcement is **#3143** (`packages/core/src/delivery-attempt/`; not prompt-only).
+! On failure stop: halt; emit an operator-visible report (what was tried, what is missing, what human decision is needed). Prefer `BLOCKED:` over silent retry. Γèù Thrash past the envelope. Durable delivery/acceptance mechanical enforcement is **#3143** (`packages/core/src/delivery-attempt/`; not prompt-only).
 
-! **Implement-leaf pre-dispatch (#3228 / #3730):** Before spawning a peer implement leaf on a unit (story/worktree), monitors/orchestrators MUST run `deft swarm:pre-dispatch -- --scope-id <id> --target-id <worktree-or-branch>` (exit **0** allow / **1** active deny / **2** config). Non-zero → do not spawn. Gate is #3143 `DENY_DUPLICATE_ACTIVE`. Takeover after `REDISPATCH_OK` = `--action cancel` then pre-dispatch begin again. A killed worker stays `running` until that cancel. Pointer only — skill depth: swarm `core-phase-4.md`.
+! **Implement-leaf pre-dispatch (#3228 / #3730):** Before spawning a peer implement leaf on a unit (story/worktree), monitors/orchestrators MUST run `deft swarm:pre-dispatch -- --scope-id <id> --target-id <worktree-or-branch>` (exit **0** allow / **1** active deny / **2** config). Non-zero ΓåÆ do not spawn. Gate is #3143 `DENY_DUPLICATE_ACTIVE`. Takeover after `REDISPATCH_OK` = `--action cancel` then pre-dispatch begin again. A killed worker stays `running` until that cancel. Pointer only ΓÇö skill depth: swarm `core-phase-4.md`.
 
 ## 11. Mandatory DONE message even on early exit
 
 Every worker MUST send a final status message before exiting its tool loop, regardless of outcome:
 
-- Success: `DONE: <one-line summary> (commit <sha>, PR #N)` -- when the dispatch envelope carried `## Worker metadata` per §2.6, extend the parenthetical with `role <worker_role>` and `backend <selected_backend|routing_policy>` (e.g. `DONE: ... (commit <sha>, PR #N, role leaf-implementation, backend composer)`).
+- Success: `DONE: <one-line summary> (commit <sha>, PR #N)` -- when the dispatch envelope carried `## Worker metadata` per ┬º2.6, extend the parenthetical with `role <worker_role>` and `backend <selected_backend|routing_policy>` (e.g. `DONE: ... (commit <sha>, PR #N, role leaf-implementation, backend composer)`).
 - Halted at cap: `BLOCKED: <reason> (review-cycle iter <i>/3, wall-clock <t>m/<cap>m)`
 - Failure: `FAILED: <reason> + recovery hint`
 - Stand-down: `STOOD-DOWN: <reason>` (e.g. user said "wait" with no follow-up dispatch)
 
-! **`drive-to: merge-ready` DONE reservation (#2843):** When the dispatch envelope scoped `drive-to: merge-ready` (or `drive-to: merge`), `DONE` is reserved for merge-ready completion — `deft pr:merge-ready -- <N>` exit 0 on current HEAD, or merge + `deft scope:complete` when the envelope included merge authority. After merge, `deft verify:orphan-active -- --issue <N>` MUST be exit 0 before `DONE` (#3429). Exit 1 shipped → run the printed `deft scope:complete -- <path>`. Exit 1 unresolved lookup → retry / emit `BLOCKED`; ⊗ complete unfinished scope. After `scope:complete`, `deft verify:completed-tracked -- --issue <N>` MUST be exit 0 against `origin/<deliveryBranch>` (not feature-worktree HEAD) before `DONE` (#3476). Exit 1 missing tracked artifact → not DONE; remediate with `deft swarm:finalize-cohort` or a lifecycle PR. Untracked laptop `xbrief/completed/` is not land. Greptile P0/P1 outstanding, CI failure, branch behind, review-cycle cap, or any other merge blocker MUST NOT exit as `DONE`. **Grok through-merge leftover (#4529):** leftover-complete / `completed-tracked` is Phase 6 `swarm:finalize-cohort` on the merger dest, not the implement dest. A Grok implement leaf scoped `stop-at: pr-open` MAY `DONE` at PR-open (designed handoff) without `completed-tracked`. Standalone non-through-merge Grok `drive-to: merge-ready` still runs `scope:complete` / `completed-tracked` in the worker. ⊗ Delegate standalone Grok drive-to leftover to Phase 6. ⊗ Use `merge-release` as this closer. Related: #4421.
+! **`drive-to: merge-ready` DONE reservation (#2843):** When the dispatch envelope scoped `drive-to: merge-ready` (or `drive-to: merge`), `DONE` is reserved for merge-ready completion ΓÇö `deft pr:merge-ready -- <N>` exit 0 on current HEAD, or merge + `deft scope:complete` when the envelope included merge authority. After merge, `deft verify:orphan-active -- --issue <N>` MUST be exit 0 before `DONE` (#3429). Exit 1 shipped ΓåÆ run the printed `deft scope:complete -- <path>`. Exit 1 unresolved lookup ΓåÆ retry / emit `BLOCKED`; Γèù complete unfinished scope. After `scope:complete`, `deft verify:completed-tracked -- --issue <N>` MUST be exit 0 against `origin/<deliveryBranch>` (not feature-worktree HEAD) before `DONE` (#3476). Exit 1 missing tracked artifact ΓåÆ not DONE; remediate with `deft swarm:finalize-cohort` or a lifecycle PR. Untracked laptop `xbrief/completed/` is not land. Greptile P0/P1 outstanding, CI failure, branch behind, review-cycle cap, or any other merge blocker MUST NOT exit as `DONE`. **Grok through-merge leftover (#4529):** leftover-complete / `completed-tracked` is Phase 6 `swarm:finalize-cohort` on the merger dest, not the implement dest. A Grok implement leaf scoped `stop-at: pr-open` MAY `DONE` at PR-open (designed handoff) without `completed-tracked`. Standalone non-through-merge Grok `drive-to: merge-ready` still runs `scope:complete` / `completed-tracked` in the worker. Γèù Delegate standalone Grok drive-to leftover to Phase 6. Γèù Use `merge-release` as this closer. Related: #4421.
 
 ! **Mid-cycle BLOCKED contract (#2843):** A `drive-to: merge-ready` worker that must exit before merge-ready (blocker, cap, context limit, host turn budget) MUST emit `BLOCKED:` (never `DONE`) with: PR number (or `no-pr`), HEAD SHA, blocker class (`greptile_p0_p1` / `ci_failures` / `behind_base` / `review_cycle_cap` / `context_limit` / other), worktree path, and `REDISPATCH_OK` when a continuation leaf should take over. Example: `BLOCKED: Greptile P1 on HEAD abc1234 (PR #2842, blocker greptile_p0_p1, worktree .deft-scratch/worktrees/2839-appsec, REDISPATCH_OK)`.
 
-⊗ Emit `DONE` from a `drive-to: merge-ready` worker while merge-ready is false — a false-terminal `DONE` pulls the cohort monitor into inline Greptile fixes and violates Gap D (#2843 monitor-as-implementer recurrence).
+Γèù Emit `DONE` from a `drive-to: merge-ready` worker while merge-ready is false ΓÇö a false-terminal `DONE` pulls the cohort monitor into inline Greptile fixes and violates Gap D (#2843 monitor-as-implementer recurrence).
 
-! **Thin DONE is not success (#2943):** A terminal message that lacks PR URL / merge evidence (no `PR #N`, no PR URL, no merge confirmation) is a **thin DONE** / failed-leaf signal for the parent monitor — re-dispatch or take over after ground truth. Prefer structured completion fields when the host supplies them (`prUrl`, `mergeStatus`, `emptyDiff`). Workers MUST NOT exit with mid-edit prose and call it `DONE` when the envelope required a PR or merge-ready outcome.
+! **Thin DONE is not success (#2943):** A terminal message that lacks PR URL / merge evidence (no `PR #N`, no PR URL, no merge confirmation) is a **thin DONE** / failed-leaf signal for the parent monitor ΓÇö re-dispatch or take over after ground truth. Prefer structured completion fields when the host supplies them (`prUrl`, `mergeStatus`, `emptyDiff`). Workers MUST NOT exit with mid-edit prose and call it `DONE` when the envelope required a PR or merge-ready outcome.
 
-! **Empty announce ≠ done / single review-monitor lease (#3044 / FC04 residual):** An empty settle, missing `STATUS:` line, or `status: unknown` from a review-monitor (`subagent_announce` with `(no output)` included) is **not** DONE/CLEAN/merge-ready. Parent MUST same-turn ground truth (`gh pr view` + checks + HEAD) and MUST NOT spawn a second monitor while the prior owner is running or only falsely settled. Prefer one sticky `<!-- deft:review-owner -->` lease and a non-empty `STATUS`/`HEAD`/`CHECKS`/`MERGE` handback. Full MUST language: `skills/deft-directive-review-cycle/SKILL.md` + OpenClaw host adapter residual.
+! **Empty announce Γëá done / single review-monitor lease (#3044 / FC04 residual):** An empty settle, missing `STATUS:` line, or `status: unknown` from a review-monitor (`subagent_announce` with `(no output)` included) is **not** DONE/CLEAN/merge-ready. Parent MUST same-turn ground truth (`gh pr view` + checks + HEAD) and MUST NOT spawn a second monitor while the prior owner is running or only falsely settled. Prefer one sticky `<!-- deft:review-owner -->` lease and a non-empty `STATUS`/`HEAD`/`CHECKS`/`MERGE` handback. Full MUST language: `skills/deft-directive-review-cycle/SKILL.md` + OpenClaw host adapter residual.
 
-! **`review_cycle` evidence enum (#3090):** Handoffs, swarm finish messages, and L4 process claims MUST use only `done` | `in_progress:<pr>#<monitor_or_lease_ref>` | `skipped:<reason>` | `n/a`. Freeform `started` / `pending` / `initiated` is forbidden. L4 `status: pass` is illegal unless `review_cycle: done` (Step 6 fail-closed on HEAD) or `review_cycle: in_progress:…` with a verifiable sticky lease / parent-retained ownership. After a drive-to:merge-ready / babysit / shepherd claim, the same turn MUST end in Owner Continuity Gate A/B/C (monitor+lease, parent-retained closer after dest worker / dest residual or engine wait — not parent-inline poll/fix when dest spawn is available, or explicit BLOCKED/FAILED finish) — never silent hold. Optional machine gate: `deft verify:l4-owner --pr <N>` / `deft verify:l4-owner -- --pr <N>`. Full MUST language: `skills/deft-directive-review-cycle/SKILL.md` Owner Continuity Gate.
+! **`review_cycle` evidence enum (#3090):** Handoffs, swarm finish messages, and L4 process claims MUST use only `done` | `in_progress:<pr>#<monitor_or_lease_ref>` | `skipped:<reason>` | `n/a`. Freeform `started` / `pending` / `initiated` is forbidden. L4 `status: pass` is illegal unless `review_cycle: done` (Step 6 fail-closed on HEAD) or `review_cycle: in_progress:ΓÇª` with a verifiable sticky lease / parent-retained ownership. After a drive-to:merge-ready / babysit / shepherd claim, the same turn MUST end in Owner Continuity Gate A/B/C (monitor+lease, parent-retained closer after dest worker / dest residual or engine wait ΓÇö not parent-inline poll/fix when dest spawn is available, or explicit BLOCKED/FAILED finish) ΓÇö never silent hold. Optional machine gate: `deft verify:l4-owner --pr <N>` / `deft verify:l4-owner -- --pr <N>`. Full MUST language: `skills/deft-directive-review-cycle/SKILL.md` Owner Continuity Gate.
 
 ! **Bound proof for remote artifact claims / invented-done (#3120):** Handoff evidence MUST distinguish at least three axes and a binding state:
 
@@ -639,56 +649,56 @@ Every worker MUST send a final status message before exiting its tool loop, rega
 | **gate** | Checks / review verdict on the claimed HEAD |
 | **`proof_status`** | `bound` \| `unbound` \| `n/a-no-remote-claim` |
 
-- ! **`proof_status` enum:** `bound` (same-turn probes bind every remote claim) \| `unbound` (remote claims present without probes — illegal under `status: pass`) \| `n/a-no-remote-claim` (no PR URL / PR number / SHA / CI-green / review-score fields filled).
-- ! **`status: pass` is forbidden** when any remote artifact is claimed (PR URL/number, commit/HEAD SHA, CI green/success, review score) unless `proof_status` is `bound` **and** each claim has a same-turn probe (`command` + short raw `snippet` from that command's stdout). Unbound remote claims → **invalid evidence (fail)**, not pass-with-notes.
-- ! **Binding = probe-then-fill (MUST):** run `git` / forge probe first (`git rev-parse HEAD`, `gh api repos/<o>/<r>/pulls/<N>`, `deft pr:watch -- <N> --one-shot`, checks API), then **copy** IDs/URLs/SHAs/scores from the probe JSON/text into the evidence block. ⊗ Fill PR/SHA/CI/review fields from recollection, narration, or prior-turn memory.
+- ! **`proof_status` enum:** `bound` (same-turn probes bind every remote claim) \| `unbound` (remote claims present without probes ΓÇö illegal under `status: pass`) \| `n/a-no-remote-claim` (no PR URL / PR number / SHA / CI-green / review-score fields filled).
+- ! **`status: pass` is forbidden** when any remote artifact is claimed (PR URL/number, commit/HEAD SHA, CI green/success, review score) unless `proof_status` is `bound` **and** each claim has a same-turn probe (`command` + short raw `snippet` from that command's stdout). Unbound remote claims ΓåÆ **invalid evidence (fail)**, not pass-with-notes.
+- ! **Binding = probe-then-fill (MUST):** run `git` / forge probe first (`git rev-parse HEAD`, `gh api repos/<o>/<r>/pulls/<N>`, `deft pr:watch -- <N> --one-shot`, checks API), then **copy** IDs/URLs/SHAs/scores from the probe JSON/text into the evidence block. Γèù Fill PR/SHA/CI/review fields from recollection, narration, or prior-turn memory.
 - ! **Fail ranking:** **invented-done** (false or unbound remote artifacts under pass) is **stricter** than **empty-done** (pass with no work/ship/gate substance and no remote claims). Empty returns are incomplete; invented complete returns are worse and MUST fail closed.
-- ! **Legal partial:** local work `done` + ship `not_started` / `blocked` **without** PR/SHA/CI/review fields and `proof_status: n/a-no-remote-claim` (or non-pass `status: partial`) is valid — do not invent ship state.
+- ! **Legal partial:** local work `done` + ship `not_started` / `blocked` **without** PR/SHA/CI/review fields and `proof_status: n/a-no-remote-claim` (or non-pass `status: partial`) is valid ΓÇö do not invent ship state.
 - Machine check (library): `validateHandoffEvidence` in `@deftai/directive-core` `handoff-evidence` (`packages/core/src/handoff-evidence/`). Skills: build / pre-pr / review-cycle final checklist.
 
-! **Parent tool-first after leaf completion (#2943 / hard-stop #3131):** When a parent / monitor receives a leaf completion event (`subagent_announce`, parent-push, or host completion notify), its **first response** MUST be exactly one of: (1) a **tool-first** ground-truth batch (`gh` / `git` / worktree or file status) then one consolidate, (2) a host **yield** (`sessions_yield` on OpenClaw, or equivalent), or (3) **one short user answer** that is **not** a repeated progress line. ⊗ Multi-sentence progress-only first response with zero tools / yield — the OpenClaw text-repetition hang class (#2943). ⊗ Emit **N>2** near-identical assistant sentences (or streaming text chunks) in one turn with no `tool_use` / yield — **FC14** illegal shape; hard-stop the turn (#3131). Soft skill prose is **not** sole mitigation.
+! **Parent tool-first after leaf completion (#2943 / hard-stop #3131):** When a parent / monitor receives a leaf completion event (`subagent_announce`, parent-push, or host completion notify), its **first response** MUST be exactly one of: (1) a **tool-first** ground-truth batch (`gh` / `git` / worktree or file status) then one consolidate, (2) a host **yield** (`sessions_yield` on OpenClaw, or equivalent), or (3) **one short user answer** that is **not** a repeated progress line. Γèù Multi-sentence progress-only first response with zero tools / yield ΓÇö the OpenClaw text-repetition hang class (#2943). Γèù Emit **N>2** near-identical assistant sentences (or streaming text chunks) in one turn with no `tool_use` / yield ΓÇö **FC14** illegal shape; hard-stop the turn (#3131). Soft skill prose is **not** sole mitigation.
 
-! **Machine check (FC14 hard-stop):** `evaluateParentTurnShape` in `@deftai/directive-core` `parent-turn-shape` (`packages/core/src/parent-turn-shape/`). Feed ordered turn events (`assistant_text` / `tool_use` / `yield`); when `ok === false` and `failClass` is `FC14` (or post-announce `progress-only-no-tool`), abort / force tool-or-yield. Operator recovery for current OpenClaw beta pins: `docs/openclaw-agent-host.md` § Operator recovery — FC14.
+! **Machine check (FC14 hard-stop):** `evaluateParentTurnShape` in `@deftai/directive-core` `parent-turn-shape` (`packages/core/src/parent-turn-shape/`). Feed ordered turn events (`assistant_text` / `tool_use` / `yield`); when `ok === false` and `failClass` is `FC14` (or post-announce `progress-only-no-tool`), abort / force tool-or-yield. Operator recovery for current OpenClaw beta pins: `docs/openclaw-agent-host.md` ┬º Operator recovery ΓÇö FC14.
 
-⊗ Treat thin DONE (no PR URL / merge evidence) as success (#2943).
-⊗ N>2 near-identical assistant sentences with no tool_use / yield, or soft-prose-only mitigation for the parent hang (FC14 / #3131).
-⊗ Treat empty/unknown review-monitor settle as DONE without same-turn ground truth, or dual-spawn a second monitor while the first lease is live (#3044).
-⊗ Emit freeform `review_cycle: started` / `pending` / `initiated` or L4 `status: pass` without `done` or verifiable `in_progress:<pr>#…` (#3090).
-⊗ Claim `status: pass` (or equivalent process-green handoff) with PR URL / SHA / CI green / review score filled from memory without same-turn probe binding — **invented-done** (#3120).
-⊗ Set `proof_status: n/a-no-remote-claim` while remote PR/SHA/CI/review fields are non-empty (#3120).
-⊗ Mark ship/gate `done` or fill PR fields when only local work completed — legal partial omits remote fields (#3120).
+Γèù Treat thin DONE (no PR URL / merge evidence) as success (#2943).
+Γèù N>2 near-identical assistant sentences with no tool_use / yield, or soft-prose-only mitigation for the parent hang (FC14 / #3131).
+Γèù Treat empty/unknown review-monitor settle as DONE without same-turn ground truth, or dual-spawn a second monitor while the first lease is live (#3044).
+Γèù Emit freeform `review_cycle: started` / `pending` / `initiated` or L4 `status: pass` without `done` or verifiable `in_progress:<pr>#ΓÇª` (#3090).
+Γèù Claim `status: pass` (or equivalent process-green handoff) with PR URL / SHA / CI green / review score filled from memory without same-turn probe binding ΓÇö **invented-done** (#3120).
+Γèù Set `proof_status: n/a-no-remote-claim` while remote PR/SHA/CI/review fields are non-empty (#3120).
+Γèù Mark ship/gate `done` or fill PR fields when only local work completed ΓÇö legal partial omits remote fields (#3120).
 
 Per-step acks during the run are noise. ONE start message, ONE final message; intermediate messages only on `BLOCKED` / `FAILED`. The final message lets the dispatcher distinguish a clean exit from a silent timeout when the lifecycle event arrives.
 
-## 11.5 Completion latch — one consolidate per runId (#3092)
+## 11.5 Completion latch ΓÇö one consolidate per runId (#3092)
 
 Multi-agent **orchestrators** (OpenClaw parent seats, Cursor Task parents, grok-build swarm monitors, any parent that receives child settle / completion events) MUST apply a portable **completion latch**. Host-level announce dedupe is complementary and imperfect; this is the **agent-side** default when the same settled batch is re-delivered.
 
 ### Completion latch (MUST)
 
-1. **One user- or caller-visible consolidate per child `runId` / settle batch** (or the explicit equivalent batch key the harness provides — e.g. spawn id, task id, announce id). Accept or reject for that batch still counts as the one consolidate.
-2. After that consolidate is emitted, **identical or equivalent completion replay** for the same key ⇒ **silent**: no tools, no re-QC, no second final answer. When the host defines a silent token (example: OpenClaw `NO_REPLY`), use it; otherwise emit no outbound user/caller message.
+1. **One user- or caller-visible consolidate per child `runId` / settle batch** (or the explicit equivalent batch key the harness provides ΓÇö e.g. spawn id, task id, announce id). Accept or reject for that batch still counts as the one consolidate.
+2. After that consolidate is emitted, **identical or equivalent completion replay** for the same key ΓçÆ **silent**: no tools, no re-QC, no second final answer. When the host defines a silent token (example: OpenClaw `NO_REPLY`), use it; otherwise emit no outbound user/caller message.
 3. **Re-open only when:**
    - new `runId` / new child batch key, **or**
    - caller / principal **explicit** steer to reopen, **or**
-   - the completion payload carries **materially new** evidence (new HEAD, new blocker class, new PR URL / merge state) — not a re-paste or fat re-embedding of the same rollup / full task text.
-4. If the harness **storms** replays with no new key: **at most one** fail-loud note to the caller (`completion replay storm; ignoring`), then silent. ⊗ Infinite consolidate loops.
+   - the completion payload carries **materially new** evidence (new HEAD, new blocker class, new PR URL / merge state) ΓÇö not a re-paste or fat re-embedding of the same rollup / full task text.
+4. If the harness **storms** replays with no new key: **at most one** fail-loud note to the caller (`completion replay storm; ignoring`), then silent. Γèù Infinite consolidate loops.
 5. Fat completion payloads that re-embed full task text, prior prompts, or prior consolidate prose **MUST NOT** be treated as a new mission or as material new evidence.
 
 ### Eval checklist (second settle same runId)
 
 Given: parent already emitted a consolidate for `runId=R` (or harness batch key `R`).  
 Second settle event for `R` arrives with the same claims / equivalent rollup.  
-**Expect:** silent / host silent-token path — **not** a new investigation narrative, dual-source re-fetch, or second user-visible final.
+**Expect:** silent / host silent-token path ΓÇö **not** a new investigation narrative, dual-source re-fetch, or second user-visible final.
 
 ### Normative anti-patterns
 
-- ⊗ Second+ user-visible "final" for the same settled `runId` without new evidence or explicit reopen
-- ⊗ Full dual-source / full test re-run solely because the settle event was delivered again
-- ⊗ Treating "send consolidated final **now**" wording on a **replay** as authorization to undo a prior consolidate for that batch
-- ⊗ Treating fat prompt / task-text re-embeds in completion payloads as a new mission (#3092)
+- Γèù Second+ user-visible "final" for the same settled `runId` without new evidence or explicit reopen
+- Γèù Full dual-source / full test re-run solely because the settle event was delivered again
+- Γèù Treating "send consolidated final **now**" wording on a **replay** as authorization to undo a prior consolidate for that batch
+- Γèù Treating fat prompt / task-text re-embeds in completion payloads as a new mission (#3092)
 
-Cross-links: swarm Phase 5 completion-notification / parent handback (`skills/deft-directive-swarm/references/core-phase-5-6.md`); review-monitor empty-settle DoD remains #3044 (empty ≠ done) and is orthogonal — empty is not a latch hit; identical non-empty replay after a prior consolidate **is** a latch hit.
+Cross-links: swarm Phase 5 completion-notification / parent handback (`skills/deft-directive-swarm/references/core-phase-5-6.md`); review-monitor empty-settle DoD remains #3044 (empty Γëá done) and is orthogonal ΓÇö empty is not a latch hit; identical non-empty replay after a prior consolidate **is** a latch hit.
 
 ## 12. Session ritual + `deft verify:cache-fresh` gates before `start_agent` (#1348 / #1127)
 
@@ -719,7 +729,7 @@ Required flow on any `cancelled` / `aborted` / `killed` tool result:
 3. If the retry also fails the same way, surface the actual error to the user and ASK whether they intended to cancel -- do not assert it.
 4. Reserve "you cancelled" / "you stopped" / "you declined" phrasing for cases where the user explicitly performed a cancellation gesture (terminal Ctrl-C, an explicit "stop" / "cancel" / "abort" instruction in chat, an explicit decline of a confirmation prompt).
 
-Dispatchers reading lifecycle events: the platform-emitted `cancelled` lifecycle state (see §10) is also subject to this rule -- a worker that the platform reports as `cancelled` is NOT necessarily a worker the user cancelled. Probe before attributing; the live incident motivating this rule was a parallel `gh issue edit` batch where three of four calls returned `{"cancelled":true}` from the runtime, the orchestrator told the operator "you cancelled the other three", and a sequential retry rescued all three immediately.
+Dispatchers reading lifecycle events: the platform-emitted `cancelled` lifecycle state (see ┬º10) is also subject to this rule -- a worker that the platform reports as `cancelled` is NOT necessarily a worker the user cancelled. Probe before attributing; the live incident motivating this rule was a parallel `gh issue edit` batch where three of four calls returned `{"cancelled":true}` from the runtime, the orchestrator told the operator "you cancelled the other three", and a sequential retry rescued all three immediately.
 
 Anti-pattern: a parallel batch returns `{"cancelled":true}` on N-1 of N calls, the agent reports "you cancelled the other N-1", and the operator has to correct the agent before a sequential retry rescues the work. The sequential retry is the rule; reaching for user-intent attribution before retrying is the failure mode.
 

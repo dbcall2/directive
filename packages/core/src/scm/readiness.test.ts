@@ -84,7 +84,7 @@ describe("probeScmReadiness (#2275)", () => {
     expect(report.ready).toBe(false);
     expect(report.authState).toBe("missing-token");
     expect(report.failureKind).toBe("missing_injected_token");
-    expect(report.detail).toMatch(/GH_TOKEN/);
+    expect(report.detail).toMatch(/applicable token/);
     expect(report.skippedGates.length).toBeGreaterThan(0);
   });
 
@@ -102,20 +102,22 @@ describe("probeScmReadiness (#2275)", () => {
     expect(JSON.stringify(scmReadinessToDict(report))).not.toContain("ghs_test");
   });
 
-  it("shallow path marks unauthenticated when gh auth status fails", () => {
+  it("shallow path does not veto provisioned host-gh when aggregate auth status would fail", () => {
+    let authCalls = 0;
     const report = probeScmReadiness({
       whichFn: (name) => (name === "gh" ? "/usr/bin/gh" : null),
       env: {},
       depth: "shallow",
       githubAuthMode: "host-gh",
       runtimeReport: { runtimeMode: "local-unsandboxed" },
-      runGh: () => failProc("not logged in"),
+      runGh: () => {
+        authCalls += 1;
+        return failProc("not logged in");
+      },
     });
-    expect(report.ready).toBe(false);
-    expect(report.authState).toBe("unauthenticated");
-    expect(report.detail).toMatch(/gh not authenticated/);
-    expect(report.skippedGates).toContain("triage:queue");
-    expect(report.skippedGates).toContain("pr:*");
+    expect(report.ready).toBe(true);
+    expect(authCalls).toBe(0);
+    expect(report.skippedGates).toEqual([]);
   });
 
   it("shallow path is ready when gh auth status succeeds", () => {
@@ -301,72 +303,44 @@ function readinessFor(
   });
 }
 
-describe("ambiguous Cursor runtime requires explicit selection (#3859)", () => {
+describe("provisioning trust does not authorize by runtime (#5016)", () => {
   const LOCAL_DESKTOP = { CURSOR_AGENT: "1", CURSOR_CONVERSATION_ID: "abc" };
 
-  it("is not ready without an explicit selection, unchanged from before", () => {
+  it("admits host-gh on an ambiguous Cursor desktop without an opt-in", () => {
     const report = readinessFor({ ...LOCAL_DESKTOP });
     expect(report.runtimeMode).toBe("cloud-headless");
-    expect(report.githubAuthMode).toBe("injected-token");
-    expect(report.ready).toBe(false);
-    expect(report.failureKind).toBe("missing_injected_token");
+    expect(report.githubAuthMode).toBe("host-gh");
+    expect(report.ready).toBe(true);
+    expect(report.skippedGates).toEqual([]);
+    expect(scmReadinessToDict(report).runtime_mode_reason).toBe("cursor-marker-runtime-ambiguous");
   });
 
-  it("names the ambiguity and the opt-in when it blocks", () => {
-    const report = readinessFor({ ...LOCAL_DESKTOP });
-    expect(scmReadinessToDict(report).runtime_mode_reason).toBe("cursor-marker-runtime-ambiguous");
-    expect(report.remediation).toContain("DEFT_GITHUB_AUTH_MODE=host-gh");
+  it("keeps runtime classification diagnostic when not ready for other reasons", () => {
+    const report = probeScmReadiness({
+      whichFn: () => null,
+      env: LOCAL_DESKTOP,
+      runtimeReport: runtimeFor(LOCAL_DESKTOP),
+    });
+    expect(report.ready).toBe(false);
     const lines = formatScmReadinessLines(report).join("\n");
     expect(lines).toContain("skipped gates:");
     expect(lines).toContain("reason: cursor-marker-runtime-ambiguous");
-    expect(lines).toContain("DEFT_GITHUB_AUTH_MODE=host-gh");
+    expect(lines).toMatch(/diagnostic only|provisioned source/i);
+    expect(lines).not.toContain("DEFT_GITHUB_AUTH_MODE=host-gh");
   });
 
-  it("is ready with an explicit selection and a healthy host gh", () => {
-    const report = readinessFor({ ...LOCAL_DESKTOP, DEFT_GITHUB_AUTH_MODE: "host-gh" });
-    expect(report.runtimeMode).toBe("local-unsandboxed");
-    expect(report.githubAuthMode).toBe("host-gh");
-    expect(report.injectedTokenPresent).toBe(false);
-    expect(report.ready).toBe(true);
-    expect(report.authState).toBe("authenticated");
-    expect(report.skippedGates).toEqual([]);
-    for (const gate of SCM_DEPENDENT_GATES) {
-      expect(report.skippedGates).not.toContain(gate);
-    }
-    expect(scmReadinessToDict(report).runtime_mode_reason).toBe("explicit-host-gh-selection");
-  });
-
-  it("does not accept a malformed selection value", () => {
-    for (const value of ["hostgh", "host_gh", "yes", "1", "injected-token", ""]) {
-      const report = readinessFor({ ...LOCAL_DESKTOP, DEFT_GITHUB_AUTH_MODE: value });
-      expect(report.ready).toBe(false);
-      expect(report.runtimeMode).toBe("cloud-headless");
-    }
-  });
-});
-
-describe("managed-runtime read outranks the explicit selection (#3859)", () => {
-  it("stays not-ready on a managed VM even when host-gh was selected", () => {
-    const report = readinessFor(
-      { CURSOR_AGENT: "1", DEFT_GITHUB_AUTH_MODE: "host-gh" },
-      REPORTS_MANAGED,
-    );
-    expect(report.runtimeMode).toBe("cloud-headless");
-    expect(report.githubAuthMode).toBe("injected-token");
-    expect(report.ready).toBe(false);
-    expect(scmReadinessToDict(report).runtime_mode_reason).toBe("cursor-managed-runtime-probe");
-  });
-
-  it("still reports not-ready for a Windows GitHub Actions runner", () => {
-    const report = readinessFor({
-      CURSOR_AGENT: "1",
-      GITHUB_ACTIONS: "true",
-      DEFT_GITHUB_AUTH_MODE: "host-gh",
-    });
-    expect(report.runtimeMode).toBe("cloud-headless");
-    expect(report.githubAuthMode).toBe("injected-token");
-    expect(report.ready).toBe(false);
-    expect(scmReadinessToDict(report).runtime_mode_reason).toBe("ci-marker");
+  it("identical credentials yield identical auth outcomes across local/CI/managed", () => {
+    const managed = readinessFor({ CURSOR_AGENT: "1" }, REPORTS_MANAGED);
+    const ci = readinessFor({ GITHUB_ACTIONS: "true" });
+    const desktop = readinessFor({ ...LOCAL_DESKTOP });
+    expect(managed.ready).toBe(true);
+    expect(ci.ready).toBe(true);
+    expect(desktop.ready).toBe(true);
+    expect(managed.githubAuthMode).toBe("host-gh");
+    expect(ci.githubAuthMode).toBe("host-gh");
+    expect(desktop.githubAuthMode).toBe("host-gh");
+    expect(scmReadinessToDict(managed).runtime_mode_reason).toBe("cursor-managed-runtime-probe");
+    expect(scmReadinessToDict(ci).runtime_mode_reason).toBe("ci-marker");
   });
 });
 
@@ -385,7 +359,35 @@ describe("requireScmReady credential-class ban (#3858)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("treats an installation-shaped /user 403 as not ready", () => {
+  it("admits unassigned installation authentication after a well-formed probe", () => {
+    clearScmReadyCache();
+    const report = requireScmReady({
+      force: true,
+      checkAuthStatus: true,
+      depth: "deep",
+      repo: "owner/name",
+      expectedPrincipal: null,
+      whichFn: whichGh,
+      env: {},
+      githubAuthMode: "host-gh",
+      runtimeReport: { runtimeMode: "local-unsandboxed" },
+      runGh: (args) => {
+        const joined = args.join(" ");
+        if (args[0] === "auth") return okProc("Logged in");
+        if (joined.includes("user") && !joined.includes("installation"))
+          return INSTALLATION_USER_403;
+        if (joined.includes("installation/repositories")) {
+          return okProc('{"total_count":1,"repositories":[]}');
+        }
+        if (joined.includes("repos/owner/name")) return okProc("{}");
+        return failProc(`unexpected ${args.join(" ")}`);
+      },
+    });
+    expect(report.ready).toBe(true);
+    expect(report.login).toBeNull();
+  });
+
+  it("treats an installation-shaped /user 403 without a successful probe as not ready", () => {
     clearScmReadyCache();
     expect(() =>
       requireScmReady({
@@ -400,11 +402,11 @@ describe("requireScmReady credential-class ban (#3858)", () => {
         runtimeReport: { runtimeMode: "local-unsandboxed" },
         runGh: (args) => {
           if (args[0] === "auth") return okProc("Logged in");
-          if (args[0] === "api" && args[1] === "user") return INSTALLATION_USER_403;
+          if (args.join(" ").includes("user")) return INSTALLATION_USER_403;
           return failProc(`unexpected ${args.join(" ")}`);
         },
       }),
-    ).toThrow(/installation|inapplicable|not ready/i);
+    ).toThrow(/not ready|installation|unauthenticated|Requires authentication/i);
   });
 
   it("does not reuse a cached shallow-ready report for a later deep 403", () => {
@@ -451,7 +453,7 @@ describe("requireScmReady credential-class ban (#3858)", () => {
         runtimeReport: { runtimeMode: "cloud-headless" },
         runGh: (args) => {
           if (args[0] === "auth") return okProc();
-          if (args[0] === "api" && args[1] === "user") return INSTALLATION_USER_403;
+          if (args.join(" ").includes("user")) return INSTALLATION_USER_403;
           return failProc(`unexpected ${args.join(" ")}`);
         },
       }),
@@ -484,7 +486,6 @@ describe("requireScmReady credential-class ban (#3858)", () => {
     expect(deep.ready).toBe(true);
     expect(deep.depth).toBe("deep");
     const afterDeep = authCalls;
-    expect(afterDeep).toBeGreaterThan(0);
     const shallow = requireScmReady({ ...common, depth: "shallow" });
     expect(shallow.ready).toBe(true);
     expect(shallow.depth).toBe("deep");
@@ -614,6 +615,21 @@ describe("requireScmReady registered worker (#3663)", () => {
     ).toThrow(/SCM not ready|gh auth status failed|worker auth failed|unauthenticated/);
   });
 
+  it("unregistered skipReadiness does not consult git origin", () => {
+    clearScmReadyCache();
+    const report = requireScmReady({
+      skipReadiness: true,
+      cwd: "/tmp/unregistered-skip",
+      env: {},
+      whichFn: (n) => (n === "gh" ? "/bin/gh" : null),
+      host: "github.com",
+      runtimeReport: { runtimeMode: "local-unsandboxed" },
+      readWorkerAuthAssignment: () => assignmentRead(null),
+    });
+    expect(report.ready).toBe(true);
+    expect(report.detail).toMatch(/skipped for unregistered/);
+  });
+
   it("T8: unregistered explicit-null keeps identity suppression", () => {
     clearScmReadyCache();
     const report = requireScmReady({
@@ -689,5 +705,95 @@ describe("requireScmReady registered worker (#3663)", () => {
     });
     expect(report.ready).toBe(true);
     expect(report.login).toBe("worker-a");
+  });
+
+  it("assigned host-gh is admitted on a cloud-classified runtime", () => {
+    clearScmReadyCache();
+    const report = requireScmReady({
+      force: true,
+      cwd: "/tmp/worker",
+      env: { CURSOR_AGENT: "1" },
+      whichFn: (n) => (n === "gh" ? "/bin/gh" : null),
+      repo: "acme/widgets",
+      runtimeReport: { runtimeMode: "cloud-headless", runtimeModeReason: "ci-marker" },
+      readWorkerAuthAssignment: () => assignmentRead(REGISTERED),
+      runGh: (args) => {
+        if (args.join(" ").includes("user")) {
+          return { args: [...args], returncode: 0, stdout: '{"login":"worker-a"}', stderr: "" };
+        }
+        return { args: [...args], returncode: 0, stdout: "{}", stderr: "" };
+      },
+    });
+    expect(report.ready).toBe(true);
+    expect(report.login).toBe("worker-a");
+  });
+
+  it("assigned host-gh rejects an applicable ambient token even when login matches", () => {
+    clearScmReadyCache();
+    expect(() =>
+      requireScmReady({
+        force: true,
+        cwd: "/tmp/worker",
+        env: { GH_TOKEN: "gho_not_a_real_token" },
+        whichFn: (n) => (n === "gh" ? "/bin/gh" : null),
+        repo: "acme/widgets",
+        readWorkerAuthAssignment: () => assignmentRead(REGISTERED),
+        runGh: (args) => {
+          if (args.join(" ").includes("user")) {
+            return { args: [...args], returncode: 0, stdout: '{"login":"worker-a"}', stderr: "" };
+          }
+          return { args: [...args], returncode: 0, stdout: "{}", stderr: "" };
+        },
+      }),
+    ).toThrow(/ambient_token_conflict|applicable ambient token/i);
+  });
+
+  it("does not treat a GHES token as a github.com source conflict", () => {
+    clearScmReadyCache();
+    const report = requireScmReady({
+      force: true,
+      cwd: "/tmp/worker",
+      env: { GH_ENTERPRISE_TOKEN: "ghe_not_this_host" },
+      whichFn: (n) => (n === "gh" ? "/bin/gh" : null),
+      repo: "acme/widgets",
+      readWorkerAuthAssignment: () => assignmentRead(REGISTERED),
+      runGh: (args) => {
+        if (args.join(" ").includes("user")) {
+          return { args: [...args], returncode: 0, stdout: '{"login":"worker-a"}', stderr: "" };
+        }
+        return { args: [...args], returncode: 0, stdout: "{}", stderr: "" };
+      },
+    });
+    expect(report.ready).toBe(true);
+  });
+
+  it("re-probes when the applicable token fingerprint changes", () => {
+    clearScmReadyCache();
+    let userCalls = 0;
+    const runGh = (args: readonly string[]) => {
+      if (args.join(" ").includes("user")) {
+        userCalls += 1;
+        return okProc('"alice"');
+      }
+      if (args.join(" ").includes("repos/")) return okProc("{}");
+      return failProc(`unexpected ${args.join(" ")}`);
+    };
+    const common = {
+      whichFn: (n: string) => (n === "gh" ? "/usr/bin/gh" : null),
+      githubAuthMode: "injected-token" as const,
+      runtimeReport: { runtimeMode: "local-unsandboxed" as const },
+      runGh,
+      repo: "owner/name",
+      expectedPrincipal: null as const,
+      checkAuthStatus: true as const,
+      depth: "deep" as const,
+      readWorkerAuthAssignment: () => assignmentRead(null),
+    };
+    requireScmReady({ ...common, env: { GH_TOKEN: "one" }, force: true });
+    expect(userCalls).toBe(1);
+    requireScmReady({ ...common, env: { GH_TOKEN: "one" } });
+    expect(userCalls).toBe(1);
+    requireScmReady({ ...common, env: { GH_TOKEN: "two" } });
+    expect(userCalls).toBe(2);
   });
 });

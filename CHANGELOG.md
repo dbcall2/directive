@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Windows release Step 5 drops host vitest `--coverage`; tip-SHA GHA is coverage-of-record (#5026).** Step-5-only seam: under `DEFT_RELEASE_PREFLIGHT`, `ts:check-lane` runs `pnpm exec vitest run` (assertions) instead of `pnpm run test` (which keeps `--coverage` for GHA). Success tee fail-closes on a green tip-SHA TypeScript coverage-bearing check and cites `coverage-of-record gha-run=<id>`. Host auto-hatch / `--allow-coverage-debt` soft-pass retired for that no-coverage lane. Win32 residual (Ubuntu-only floor reader) accepted. Not `--skip-ci`. Refs #5024. Tracking #5026.
+- **SCM readiness trusts provisioned GitHub credentials and enforces explicit worker assignments (#5016).** Unassigned processes use gh's effective source for the target host. Runtime/socket labels no longer select credentials. Assigned host-gh refuses an applicable ambient token; assigned injected-token still requires delivery correlation and the expected user. Installation authentication may be admitted without claiming App identity when no user is required. `runGhMerge` runs a fresh assignment/auth preflight. Refs #3693, #3663.
 
 ### Fixed
 
