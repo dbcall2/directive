@@ -123,6 +123,27 @@ function isFixedWindowsPackageManagerProbe(bin: string, args: readonly string[])
   return (bin === "npm" || bin === "pnpm") && args.length === 1 && args[0] === "--version";
 }
 
+function isGhVersionProbe(bin: string, args: readonly string[]): boolean {
+  return bin === "gh" && args.length === 1 && args[0] === "--version";
+}
+
+function isFixedWindowsPathVersionProbe(bin: string, args: readonly string[]): boolean {
+  return isFixedWindowsPackageManagerProbe(bin, args) || isGhVersionProbe(bin, args);
+}
+
+const GITHUB_TOKEN_ENV_KEYS = new Set(["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN"]);
+
+/** Version probes do not need forge credentials; strip them so `gh --version` cannot fail on Actions tokens. */
+export function envWithoutGithubTokens(baseEnv: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const childEnv: NodeJS.ProcessEnv = { ...baseEnv };
+  for (const key of Object.keys(childEnv)) {
+    if (GITHUB_TOKEN_ENV_KEYS.has(key.toUpperCase())) {
+      delete childEnv[key];
+    }
+  }
+  return childEnv;
+}
+
 /** Child-env transport for Windows shim paths (#3814 option F). */
 export const RESOLVED_PACKAGE_MANAGER_SHIM_ENV = "DEFT_RESOLVED_PACKAGE_MANAGER_SHIM";
 
@@ -157,6 +178,7 @@ export function defaultCommandRunner(
   const args = command.slice(1);
   const platform = options.platform ?? process.platform;
   const env = options.env ?? process.env;
+  const probeEnv = isGhVersionProbe(bin, args) ? envWithoutGithubTokens(env) : env;
   const execFileSync: ToolchainExecFileSync =
     options.execFileSync ??
     ((file, fileArgs, execOptions) =>
@@ -167,15 +189,17 @@ export function defaultCommandRunner(
     stdio: ["ignore", "pipe", "pipe"],
     shell: false,
     cwd: options.cwd,
-    env,
+    env: probeEnv,
   };
 
   // Windows package-manager shims are commonly .cmd files. Resolve an
   // absolute PATH candidate first so cmd.exe cannot select a repo-local shim,
   // then invoke the fixed `--version` probe through the system interpreter.
-  if (platform === "win32" && isFixedWindowsPackageManagerProbe(bin, args)) {
+  // `gh --version` uses the same PATH resolve so a `.cmd` shim or cwd-first
+  // lookup cannot turn the consumer dispatch probe into exit 1.
+  if (platform === "win32" && isFixedWindowsPathVersionProbe(bin, args)) {
     const resolvedBin = resolveCommandOnPath(bin, {
-      env,
+      env: probeEnv,
       platform,
       exists: options.exists,
     });
@@ -183,8 +207,10 @@ export function defaultCommandRunner(
       return { error: "not-found", message: "" };
     }
     const isCommandShim = /\.(?:cmd|bat)$/i.test(resolvedBin);
-    const executable = isCommandShim ? windowsCommandInterpreter(env) : resolvedBin;
-    const shimEnv = isCommandShim ? childEnvWithResolvedPackageManagerShim(env, resolvedBin) : env;
+    const executable = isCommandShim ? windowsCommandInterpreter(probeEnv) : resolvedBin;
+    const shimEnv = isCommandShim
+      ? childEnvWithResolvedPackageManagerShim(probeEnv, resolvedBin)
+      : probeEnv;
     const commandLine = `"%${RESOLVED_PACKAGE_MANAGER_SHIM_ENV}%" --version`;
     const executableArgs = isCommandShim ? ["/d", "/s", "/c", `"${commandLine}"`] : args;
     // Mirror Node's cmd.exe shell plan: the outer command quote satisfies /s,
