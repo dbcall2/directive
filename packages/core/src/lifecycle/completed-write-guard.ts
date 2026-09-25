@@ -5,8 +5,9 @@
  * proposed/ when plan.status is proposed or draft, there is no cancel
  * stamp, and no origin GitHub issue is closed. Parking an open issue off
  * origin/master active/ is proposed/, not cancelled/. A closed origin
- * issue refuses that park; closed work needs completed/ or cancelled/
- * plus evidence.
+ * issue refuses that park only when current forge state confirms closure;
+ * closed work needs completed/ or cancelled/ plus evidence. Cached closure
+ * alone is not authoritative because the issue may have been reopened.
  *
  * A modification of an existing completed/ file can pair an active deletion
  * when the net tree against the merge base differs on that path, the plan
@@ -71,6 +72,11 @@ export interface CompletedWriteGuardOptions {
    * Overrides the on-disk github-issue cache for the same URI.
    */
   readonly issueStates?: ReadonlyMap<string, "open" | "closed">;
+  /** Resolve current issue state from the forge. Cached closed state is never authoritative. */
+  readonly runGh?: (args: readonly string[]) => {
+    readonly returncode: number;
+    readonly stdout: string;
+  };
 }
 
 /**
@@ -245,8 +251,28 @@ function resolveOriginIssueState(
   if (injected === "open" || injected === "closed") {
     return injected;
   }
+  const [repo, number] = parseGithubIssueUri(key);
+  if (options.runGh !== undefined && repo !== null && number !== null) {
+    const live = options.runGh(["gh", "api", `repos/${repo}/issues/${number}`]);
+    if (live.returncode === 0) {
+      try {
+        const parsed: unknown = JSON.parse(live.stdout);
+        if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+          const state = String((parsed as Record<string, unknown>).state ?? "").toLowerCase();
+          if (state === "open" || state === "closed") {
+            return state;
+          }
+        }
+      } catch {
+        // A failed live parse is unknown; do not promote stale closed cache state.
+      }
+    }
+  }
   const cached = readCachedGithubIssueState(projectRoot, key);
-  if (cached === "open" || cached === "closed") {
+  // Cached open is safe for this guard: it permits parking. Cached closed can
+  // become stale after an issue is reopened, so only live/injected closure may
+  // refuse the move.
+  if (cached === "open") {
     return cached;
   }
   return "unknown";
@@ -625,7 +651,9 @@ export function evaluateCompletedWriteGuard(
   // park to proposed/ (plan.status proposed|draft, no cancel stamp, origin
   // GitHub issue not closed). Cancel stamps lifecycleWrite action=cancel.
   // Status-only cancelled dests do not pair. Closed origin issues refuse
-  // proposed/ pairing; they need completed/ or cancelled/ plus evidence.
+  // proposed/ pairing when live forge state confirms closure; they need
+  // completed/ or cancelled/ plus evidence. Cached closure is not authoritative
+  // because an issue may have been reopened after the cache write.
   // R dests are git-bound to src. D+A also requires pairingKey plus dest
   // plan.title and origin issue refs to match the recovered source so a copied
   // stamp cannot authorize an unrelated deletion. Item titles and narratives
