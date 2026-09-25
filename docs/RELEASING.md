@@ -38,9 +38,23 @@ See `skills/deft-directive-release/SKILL.md` § Branch-Protection Policy Guard f
 
 `task release` Step 5 starts with a read-only CHANGELOG node-type guard (regular file plus symlink-ancestor floor). `--skip-ci` skips the CI suite, not that guard. Step 6 is **Prepare release artifacts** (in-memory ROADMAP + CHANGELOG; pair-open existing destinations; no writes). Step 7 is **Write release artifacts** (ROADMAP to completion, then CHANGELOG). `--skip-build` skips Step 8 (`task build`), not prepare-artifacts.
 
+## Windows Step 5 host coverage decision (#5026)
+
+**Decision.** Windows release Step 5 (`ts:check-lane` under `DEFT_RELEASE_PREFLIGHT=1`) runs tip assertion pass/fail via `pnpm exec vitest run` **without** host `--coverage`. Shared `package.json` `"test": "vitest run --coverage"` stays instrumented so GHA `pnpm run test` / "Test with coverage (vitest)" remains the same instrument. This is **not** `--skip-ci` (assertions still run on the host).
+
+**Rationale.** Tip correctness is assertion pass/fail. Coverage-of-record authority is the green GHA coverage-bearing TypeScript check on the **tip SHA** being cut (aggregator `TypeScript (build + lint + test)` or lane `TypeScript (…) / run`). Host re-instrumentation was the largest remaining Step 5 wall-clock lever after #5022/#5023; "We always did" is not a rationale. Keep-coverage-plus-measure-only is outside this harvest.
+
+**Coverage-of-record cite (fail-closed).** On Step 5 success (full suite, suite-stamp hit, or legacy PASS_WITH_DEBT), the tee cites `coverage-of-record gha-run=<id> tip=<sha> check=<name>`. `gha-run` is the Actions **workflow run** id from a parseable `actions/runs/<id>` URL — never a check-run id. Merge-base prose alone is refused. Missing green tip-SHA GHA coverage fails closed. Suite stamp / prior local PASS_WITH_DEBT must not satisfy the cut without that cite.
+
+**Host auto-hatch / `--allow-coverage-debt` soft-pass.** Retired for the no-coverage host lane. Floor enforcement is the tip-SHA GHA cite, not a fresh local `coverage/coverage-final.json`. Do not expect local branch-hairline soft-pass from a lane that no longer regenerates coverage.
+
+**Win32 residual (accepted).** Ubuntu GHA is the sole coverage floor reader. Win32-only product branches the Ubuntu job never executes are an accepted residual of this bind; hang-detector / GHA timeout raises stay on #5024; spawn-heavy cheapen stays on #5027/#5028.
+
+**Measured wall clock (Windows host).** Before (coverage host): v0.119.9 production cut hit the Step 5 hang detector at 30m (exit 124) with host `--coverage` active. Package-scoped proxy on this host (`packages/core/src/ts-check-lane`, unit project): no-coverage 3.05s vs with-coverage 7.76s (~2.5x). After (full Step 5 no-coverage lane): record the first production Step 5 wall clock on the release tee after this lands.
+
 ## Vitest coverage hang recovery (#2652 / #4230)
 
-Release Step 5 runs `task check` on the **cached** path with a **30-minute hang detector** (`RELEASE_CHECK_TIMEOUT_MS`; `runReleaseCheck` arms `timeoutMs`). That is hang detection, not a success SLA. Ambient `task check` tees without that kill. `task release` does not take the uncached `--no-cache` path. Do **not** raise this constant casually -- further increases are a deliberate gate change via issue/PR (suite growth raised 20 to 30 under #5022).
+Release Step 5 runs `task check` on the **cached** path with a **30-minute hang detector** (`RELEASE_CHECK_TIMEOUT_MS`; `runReleaseCheck` arms `timeoutMs`). That is hang detection, not a success SLA. Ambient `task check` tees without that kill. Under #5026 the Step 5 host suite drops `--coverage` (assertions remain); ambient `task check` still uses `pnpm run test` with coverage. `task release` does not take the uncached `--no-cache` path. Do **not** raise this constant casually -- further increases are a deliberate gate change via issue/PR (suite growth raised 20 to 30 under #5022).
 
 **Stale-binary diagnostic (before treating 124 as a vitest hang).** If a single-shot `Measure-Command { node -e 0 }` is greater than about 100 ms or `git --version` is greater than about 150 ms, investigate before assuming a suite hang. Probe with a **repeated** measurement and read the **median** — the first invocation in a fresh shell is a warm. Confirm with the claimant's differential: rename the original binary, copy a fresh file onto the original path; the renamed original stays slow and the fresh copy at the same path goes fast. Then copy-over-self / reinstall. Measured 40 min → 3.6 min on deft01 2026-09-07. Bitdefender exceptions are optional (216–277 s across states, within noise).
 
@@ -77,9 +91,11 @@ The full agent contract (including the explicit rejection of AGENTS.md / agents-
 
 ## Coverage debt hatch during release (#2866 / #3187)
 
-When **`task release` Step 5** fails on Vitest coverage below the 85% goal, use this hatch **only** when **branches** is the **sole** metric below 85% (lines, functions, and statements all ≥ 85%). Confirm from the Step 5 output or `task coverage:hotspots`. Do not treat `coverage/coverage-final.json` as live until [#4244](https://github.com/deftai/directive/issues/4244). If any other metric also misses, or the failure is a hang / failing test / non-coverage defect, pause and follow § Fixable check failure during release (#2859).
+**#5026 host lane:** Windows Step 5 no longer regenerates local coverage, so host auto-hatch / `--allow-coverage-debt` soft-pass is **retired** for that path. Floor authority is the tip-SHA GHA coverage-of-record cite (§ Windows Step 5 host coverage decision). Do not follow the branch-hairline soft-pass steps below for a no-coverage host cut — if tip-SHA GHA coverage is missing or red, fail closed and fix CI / wait for a green tip check.
 
-**Runtime note:** `--allow-coverage-debt=#N` zeros all vitest coverage thresholds for the Step 5 run (`vitest.config.ts`, #2573). File debt only for branch-only hairlines; acceptance criteria must restore **all four metrics** to ≥ 85%.
+**Legacy / ambient note (pre-#5026 host coverage lane, or ambient `task check` with coverage):** When a coverage-bearing suite fails below the 85% goal, use this hatch **only** when **branches** is the **sole** metric below 85% (lines, functions, and statements all ≥ 85%). Confirm from suite output or `task coverage:hotspots`. Do not treat `coverage/coverage-final.json` as live until [#4244](https://github.com/deftai/directive/issues/4244). If any other metric also misses, or the failure is a hang / failing test / non-coverage defect, pause and follow § Fixable check failure during release (#2859).
+
+**Runtime note (coverage-bearing lane only):** `--allow-coverage-debt=#N` zeros all vitest coverage thresholds (`vitest.config.ts`, #2573). File debt only for branch-only hairlines; acceptance criteria must restore **all four metrics** to ≥ 85%.
 
 ### Auto-hatch after one suite (#3187)
 
@@ -100,7 +116,7 @@ Never soft-pass without a durable issue (file-before-continue). Manual `--allow-
 
 ### SHA suite stamp (#3187)
 
-After suite **green** or `PASS_WITH_DEBT`, release writes a local stamp at `.deft/release-suite-stamp.json` (gitignored) bound to `git rev-parse HEAD`. Re-invoke at the same **clean** HEAD skips the suite (logs `suite stamp hit`). Dirty tree, different HEAD, corrupt stamp, or **CI** (`CI` / `GITHUB_ACTIONS`) → stamp miss; suite runs again. CI never trusts laptop stamps. Gate ordering (fast before slow) is owned by #3188; the stamp is the re-entry skip.
+After suite **green** or `PASS_WITH_DEBT`, release writes a local stamp at `.deft/release-suite-stamp.json` (gitignored) bound to `git rev-parse HEAD`. Re-invoke at the same **clean** HEAD skips the suite (logs `suite stamp hit`) but **still** fail-closes on tip-SHA GHA coverage-of-record (#5026). Dirty tree, different HEAD, corrupt stamp, or **CI** (`CI` / `GITHUB_ACTIONS`) → stamp miss; suite runs again. CI never trusts laptop stamps. Gate ordering (fast before slow) is owned by #3188; the stamp is the re-entry assertion skip, not a coverage-of-record waiver.
 
 ### Scope
 
@@ -110,16 +126,15 @@ Canonical agent contract: `skills/deft-directive-release/SKILL.md` § **Step 5 b
 
 ## Routine vs hard cut for Step 5 (#2953)
 
-Release Step 5 (`task check` with Vitest coverage) is the longest local gate. Two operator modes share the **same safety bar for coverage** — they differ in hygiene and intent, not in silent soft-pass.
+Release Step 5 (`task check`; host assertions without `--coverage` per #5026) is the longest local gate. Coverage-of-record is tip-SHA GHA. Two operator modes share the **same safety bar for tip assertions + tip-SHA GHA cite** — they differ in hygiene and intent, not in silent soft-pass.
 
 ### Hard cut (default)
 
 - Run full Step 5: `task release -- <version>` with **no** `--skip-ci`.
 - Use when the tip is unproven, the change set is large, or you need maximum local certainty before the tag.
-- Coverage soft-pass remains **only** via the explicit hatches already documented:
-  - branch-only hairline → auto-hatch `PASS_WITH_DEBT(#N)` (#3187) or manual `--allow-coverage-debt=#N` (#2866 / #2573)
-  - incident hang / untested ship → `--skip-ci` + `--allow-skip-ci=#N` (#2652)
-- ⊗ Silent soft-pass of coverage (no `#N`, no loud WARN) is forbidden in every mode.
+- Coverage floor is tip-SHA GHA cite fail-closed (#5026). Host branch-hairline auto-hatch / `--allow-coverage-debt` soft-pass is **retired** for the no-coverage Step 5 lane.
+  - incident hang / untested ship → `--skip-ci` + `--allow-skip-ci=#N` (#2652) only
+- ⊗ Silent soft-pass of coverage (no tip-SHA GHA cite, no `#N` on incident skip) is forbidden in every mode.
 
 ### Routine cut (faster wall-clock, same gates)
 
@@ -128,17 +143,17 @@ Speed comes from **not scanning junk trees** and from **pre-cut hygiene**, not f
 1. **Default-exclude scratch / worktree noise (#2953).** Content, link, stub, codebase-map, and build-dist walks skip `.deft-scratch/` (and legacy `swarm-worktrees/`) by default. Release Step 5 must not enumerate `.deft-scratch/worktrees/**` unless you are deliberately debugging those trees.
 2. **Prefer a clean tip.** Confirm required CI checks are green on the `master` tip you will tag (`gh run list` / required status). Green tip CI is a **precondition for calm routine cuts**, not a substitute for Step 5.
 3. **Prune stale worktrees before the cut** when a maintainer clone is heavy: `git worktree list`, remove abandoned `.deft-scratch/worktrees/*` entries, or cut from a clean clone. This is operator hygiene, not a flag.
-4. **Still run full Step 5** unless you are in an explicit incident path (`--skip-ci` + `--allow-skip-ci=#N`). Routine does **not** mean “trust CI and skip coverage.”
+4. **Still run full Step 5** (host assertions + tip-SHA GHA coverage-of-record cite) unless you are in an explicit incident path (`--skip-ci` + `--allow-skip-ci=#N`). Routine does **not** mean “trust CI and skip the host assertion suite.”
 
 ### Trust CI vs full local check
 
 | Mode | When | Step 5 coverage | Soft-pass rule |
 | --- | --- | --- | --- |
-| **Hard cut** | Default; large / risky tip | Full `task check` + coverage | Only #2866 hatch or #2652 skip-ci with `#N` |
-| **Routine cut** | Calm tip; scratch excluded; CI green on tip | Full `task check` + coverage (same) | Same — no silent soft-pass |
+| **Hard cut** | Default; large / risky tip | Full `task check` assertions + tip-SHA GHA cite (#5026) | Tip-SHA GHA cite fail-closed; host debt hatch retired; #2652 skip-ci with `#N` |
+| **Routine cut** | Calm tip; scratch excluded; CI green on tip | Same host assertions + tip-SHA GHA cite | Same — no silent soft-pass |
 | **Incident skip** | Tracked hang / unblock with review | Skipped via `--skip-ci` | Requires `--allow-skip-ci=#N` + loud WARN |
 
-Optional future: a explicit “trust recent green required checks on tip” flag may land as a separate story. Until then, **hard cut = full Step 5** and **routine cut = full Step 5 + scratch exclude + hygiene**. Do not invent a silent lighter path that zeros coverage thresholds without `#N`.
+Optional future: a explicit “trust recent green required checks on tip” flag may land as a separate story. Until then, **hard cut = full Step 5** and **routine cut = full Step 5 + scratch exclude + hygiene**. Do not invent a silent lighter path that skips tip-SHA GHA coverage-of-record.
 
 ### Debugging scratch inclusion
 
