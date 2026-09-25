@@ -35,9 +35,11 @@ Live apply pins an invocation-owned fetch ref, reads `.deft/GENERATION.json`
 with `--no-replace-objects`, and refuses increment arms unless proposed is
 greater than that tip (`error_code: generation_rewind`; recovery: pull or rebase
 onto the delivery branch, then re-run update). Local arithmetic is allowed only
-when `git remote` prints no remotes, or when the remote asserts the delivery
-ref is absent this run. Bind never mints a missing token. Dry-run does not
-fetch: it reports that live apply performs an invocation-owned refresh.
+when `git remote` prints no remotes, when the dest has no git directory
+(including git spawn ENOENT on an empty directory), or when the remote asserts
+the delivery ref is absent this run. Empty-directory init stamps or keeps prior;
+dest-plan cannot skip the gate. Bind never mints a missing token. Dry-run does
+not fetch: it reports that live apply performs an invocation-owned refresh.
 
 Monotonic means monotonic relative to the current default-branch base
 (`origin/$BASE_REF`), not a global counter. When `.deft/GENERATION.json` changes,

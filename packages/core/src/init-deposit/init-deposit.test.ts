@@ -14,6 +14,7 @@ import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
 import type { AgentHookReadinessResult } from "../verify-env/agent-hook-readiness.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { INIT_CONSUMER_INVARIANT_REFUSE_RECOVERY } from "./init-consumer-invariant.js";
 import {
   buildInstallSummaryJson,
@@ -105,7 +106,7 @@ describe("parseInitArgv", () => {
   });
 });
 
-describe("runInitDeposit", () => {
+describe("runInitDeposit", destContentionItTimeout(), () => {
   const created: string[] = [];
 
   afterEach(() => {
@@ -208,6 +209,40 @@ describe("runInitDeposit", () => {
     expect(lines.join("")).not.toContain("git add");
     expect(spawnSpy).not.toHaveBeenCalled();
   });
+
+  it(
+    "does not exit 1 on git-binary ENOENT for empty-dir greenfield init (#4120)",
+    destContentionItTimeout(),
+    async () => {
+      const project = freshRoot("init-deposit-enoent-");
+      const contentRoot = installFakeContentPackage(project);
+      const out: string[] = [];
+      const err: string[] = [];
+
+      const code = await runInitDepositCli({
+        projectDir: project,
+        jsonOut: true,
+        nonInteractive: true,
+        writeOut: (text) => out.push(text),
+        writeErr: (text) => err.push(text),
+        seams: {
+          resolveContentRoot: async () => contentRoot,
+          nowIso: () => "2026-06-24T12:00:00Z",
+          gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+          evaluateAgentHookReadiness: () => agentHookReadiness(),
+          execGit: () => ({ status: 127, stdout: "", stderr: "", errorCode: "ENOENT" }),
+        },
+      });
+
+      expect(code).toBe(0);
+      expect(err.join("")).not.toMatch(/git binary not found/);
+      expect(out.join("")).not.toMatch(/generation_rewind/);
+      expect(parseJsonObject(out.join(""))).toMatchObject({
+        success: true,
+        deposit_completed: true,
+      });
+    },
+  );
 
   it("directive init adds the canonical pin to an existing package.json (#4429)", async () => {
     const project = freshRoot("init-deposit-existing-pkg-");

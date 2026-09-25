@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { GitExecFn, GitExecResult } from "../init-deposit/update-git-preflight.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { bindSessionGeneration } from "./bind.js";
 import {
   inspectLocalGeneration,
@@ -234,6 +235,10 @@ describe("pinDeliveryTipOid (#4120 R0)", () => {
   });
 });
 
+function enoentGit(): GitExecResult {
+  return { status: 127, stdout: "", stderr: "", errorCode: "ENOENT" };
+}
+
 describe("listRemotes (#4120 R3)", () => {
   it("treats not-a-git-repository as no remotes", () => {
     const execGit: GitExecFn = () => ({
@@ -243,9 +248,51 @@ describe("listRemotes (#4120 R3)", () => {
     });
     expect(listRemotes(execGit, "/proj").kind).toBe("no-remotes");
   });
+
+  it("treats git-binary ENOENT on an empty directory as no remotes and allows stamp", () => {
+    const root = tempDir("deft-gen-enoent-empty-");
+    const execGit: GitExecFn = () => enoentGit();
+    expect(listRemotes(execGit, root)).toEqual({ kind: "no-remotes", remotes: [] });
+    expect(
+      decideGenerationStamp({
+        local: { kind: "absent" },
+        tip: { kind: "no-remote" },
+        increment: true,
+        contentVersion: "1.0.0",
+      }),
+    ).toEqual({ action: "stamp", generation: 1 });
+    const gate = evaluateGenerationGate({
+      projectDir: root,
+      contentVersion: "1.0.0",
+      increment: true,
+      execGit,
+    });
+    expect(gate.action).toBe("stamp");
+    if (gate.action === "stamp") {
+      expect(gate.generation).toBe(1);
+    }
+  });
+
+  it("keeps git-binary ENOENT unreadable when the dest has a git directory", () => {
+    const root = tempDir("deft-gen-enoent-gitdir-");
+    mkdirSync(join(root, ".git"));
+    const execGit: GitExecFn = () => enoentGit();
+    expect(listRemotes(execGit, root)).toEqual({
+      kind: "unreadable",
+      remotes: [],
+      detail: "git binary not found",
+    });
+    const gate = evaluateGenerationGate({
+      projectDir: root,
+      contentVersion: "1.0.0",
+      increment: true,
+      execGit,
+    });
+    expect(gate.action).toBe("refuse");
+  });
 });
 
-describe("git fixtures (#4120 R0/R3)", () => {
+describe("git fixtures (#4120 R0/R3)", destContentionItTimeout(), () => {
   it("reads through git replace with --no-replace-objects", () => {
     const root = tempDir("deft-gen-replace-");
     initRepo(root);
@@ -321,51 +368,55 @@ describe("git fixtures (#4120 R0/R3)", () => {
     expect(missingTreeStatus).toBe(128);
   });
 
-  it("pins distinct OIDs for concurrent writers with distinct run ids", () => {
-    const bare = tempDir("deft-gen-bare-");
-    git(bare, ["init", "--bare", "-b", "master"]);
-    const seed = tempDir("deft-gen-seed-");
-    initRepo(seed);
-    git(seed, ["remote", "add", "origin", bare]);
-    const masterOid = commitGeneration(seed, 4, "master-gen4");
-    git(seed, ["push", "-u", "origin", "master"]);
-    git(seed, ["checkout", "-b", "older"]);
-    const olderOid = commitGeneration(seed, 1, "older-gen1");
-    git(seed, ["push", "-u", "origin", "older"]);
+  it(
+    "pins distinct OIDs for concurrent writers with distinct run ids",
+    destContentionItTimeout(),
+    () => {
+      const bare = tempDir("deft-gen-bare-");
+      git(bare, ["init", "--bare", "-b", "master"]);
+      const seed = tempDir("deft-gen-seed-");
+      initRepo(seed);
+      git(seed, ["remote", "add", "origin", bare]);
+      const masterOid = commitGeneration(seed, 4, "master-gen4");
+      git(seed, ["push", "-u", "origin", "master"]);
+      git(seed, ["checkout", "-b", "older"]);
+      const olderOid = commitGeneration(seed, 1, "older-gen1");
+      git(seed, ["push", "-u", "origin", "older"]);
 
-    const parent = tempDir("deft-gen-wt-parent-");
-    const a = join(parent, "a");
-    const b = join(parent, "b");
-    execFileSync("git", ["clone", bare, a], { encoding: "utf8" });
-    execFileSync("git", ["clone", "-b", "older", bare, b], { encoding: "utf8" });
-    git(a, ["config", "remote.origin.fetch", "+refs/heads/master:refs/remotes/origin/master"]);
-    git(b, ["config", "remote.origin.fetch", "+refs/heads/older:refs/remotes/origin/older"]);
+      const parent = tempDir("deft-gen-wt-parent-");
+      const a = join(parent, "a");
+      const b = join(parent, "b");
+      execFileSync("git", ["clone", bare, a], { encoding: "utf8" });
+      execFileSync("git", ["clone", "-b", "older", bare, b], { encoding: "utf8" });
+      git(a, ["config", "remote.origin.fetch", "+refs/heads/master:refs/remotes/origin/master"]);
+      git(b, ["config", "remote.origin.fetch", "+refs/heads/older:refs/remotes/origin/older"]);
 
-    const pinA = pinDeliveryTipOid({
-      projectDir: a,
-      remote: "origin",
-      branch: "master",
-      runId: "run-a",
-    });
-    const pinB = pinDeliveryTipOid({
-      projectDir: b,
-      remote: "origin",
-      branch: "older",
-      runId: "run-b",
-    });
-    expect(pinA.ok).toBe(true);
-    expect(pinB.ok).toBe(true);
-    if (pinA.ok && pinB.ok) {
-      expect(pinA.oid).toBe(masterOid);
-      expect(pinB.oid).toBe(olderOid);
-    }
-    expect(() =>
-      git(a, ["rev-parse", "--verify", "refs/deft/update/run-a/delivery-tip"]),
-    ).toThrow();
-    expect(() =>
-      git(b, ["rev-parse", "--verify", "refs/deft/update/run-b/delivery-tip"]),
-    ).toThrow();
-  });
+      const pinA = pinDeliveryTipOid({
+        projectDir: a,
+        remote: "origin",
+        branch: "master",
+        runId: "run-a",
+      });
+      const pinB = pinDeliveryTipOid({
+        projectDir: b,
+        remote: "origin",
+        branch: "older",
+        runId: "run-b",
+      });
+      expect(pinA.ok).toBe(true);
+      expect(pinB.ok).toBe(true);
+      if (pinA.ok && pinB.ok) {
+        expect(pinA.oid).toBe(masterOid);
+        expect(pinB.oid).toBe(olderOid);
+      }
+      expect(() =>
+        git(a, ["rev-parse", "--verify", "refs/deft/update/run-a/delivery-tip"]),
+      ).toThrow();
+      expect(() =>
+        git(b, ["rev-parse", "--verify", "refs/deft/update/run-b/delivery-tip"]),
+      ).toThrow();
+    },
+  );
 
   it("classifies missing remote ref as absence only when ls-remote is empty", () => {
     const bare = tempDir("deft-gen-absent-bare-");

@@ -7,6 +7,8 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
 import {
   defaultGitExec,
   type GitExecFn,
@@ -179,6 +181,11 @@ function notAGitRepository(stderr: string): boolean {
   return /not a git repository/i.test(stderr);
 }
 
+/** Dest-local `.git` only — parent worktrees are not this destination's remotes. */
+function destHasGitDir(projectDir: string): boolean {
+  return existsSync(join(resolve(projectDir), ".git"));
+}
+
 export function listRemotes(
   execGit: GitExecFn,
   projectDir: string,
@@ -189,6 +196,12 @@ export function listRemotes(
 } {
   const result = execGit(["--no-optional-locks", "remote"], gitCwd(projectDir));
   if (result.errorCode === "ENOENT") {
+    // Empty dest / missing cwd / missing git binary: no dest `.git` is
+    // affirmative no-remote evidence (R3). A dest that already has `.git`
+    // stays unreadable — remotes cannot be listed.
+    if (!destHasGitDir(projectDir)) {
+      return { kind: "no-remotes", remotes: [] };
+    }
     return { kind: "unreadable", remotes: [], detail: "git binary not found" };
   }
   if (result.status) {
