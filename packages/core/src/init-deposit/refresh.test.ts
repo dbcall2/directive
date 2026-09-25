@@ -2196,29 +2196,33 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     },
   );
 
-  it("#2148: DOES deposit deft-core-guard.yml when .deft/core is git-tracked (vendored layout)", async () => {
-    const project = freshRoot("refresh-guard-tracked-");
-    const contentRoot = installFakeContentPackage(project);
-    initGitRepo(project);
-    // Simulate a tracked deposit by making gitLsFiles return a tracked path.
-    mkdirSync(join(project, ".deft", "core"), { recursive: true });
-    writeFileSync(join(project, ".deft", "core", "main.md"), "# tracked\n", "utf8");
+  it(
+    "#2148: DOES deposit deft-core-guard.yml when .deft/core is git-tracked (vendored layout)",
+    destContentionItTimeout(),
+    async () => {
+      const project = freshRoot("refresh-guard-tracked-");
+      const contentRoot = installFakeContentPackage(project);
+      initGitRepo(project);
+      // Simulate a tracked deposit by making gitLsFiles return a tracked path.
+      mkdirSync(join(project, ".deft", "core"), { recursive: true });
+      writeFileSync(join(project, ".deft", "core", "main.md"), "# tracked\n", "utf8");
 
-    await runRefreshDeposit(
-      { projectDir: project, jsonOut: false, nonInteractive: false, upgrade: true },
-      { printf: () => {} },
-      {
-        resolveContentRoot: async () => contentRoot,
-        readEngineVersion: () => "0.53.0",
-        nowIso: () => "2026-06-24T12:00:00Z",
-        gitPorcelain: () => "",
-        // Simulate a tracked deposit.
-        gitLsFiles: () => ".deft/core/main.md\n",
-      },
-    );
+      await runRefreshDeposit(
+        { projectDir: project, jsonOut: false, nonInteractive: false, upgrade: true },
+        { printf: () => {} },
+        {
+          resolveContentRoot: async () => contentRoot,
+          readEngineVersion: () => "0.53.0",
+          nowIso: () => "2026-06-24T12:00:00Z",
+          gitPorcelain: () => "",
+          // Simulate a tracked deposit.
+          gitLsFiles: () => ".deft/core/main.md\n",
+        },
+      );
 
-    expect(existsSync(join(project, ".github", "workflows", "deft-core-guard.yml"))).toBe(true);
-  });
+      expect(existsSync(join(project, ".github", "workflows", "deft-core-guard.yml"))).toBe(true);
+    },
+  );
 
   it("prints Removed/wrote/stripped from the same ledger as refresh JSON (#3392)", async () => {
     const project = freshRoot("refresh-ledger-");

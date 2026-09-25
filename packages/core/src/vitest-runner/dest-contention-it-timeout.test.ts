@@ -9,7 +9,7 @@ import {
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
 
-/** First-ship dest-class titles from #4847 Bound (not the #2148 git-tracked case). */
+/** First-ship dest-class titles from #4847 Bound. */
 const FIRST_SHIP_DEST_CLASS_ITS: ReadonlyArray<{ file: string; titlePrefix: string }> = [
   {
     file: "packages/core/src/deposit/stage-content-pack.test.ts",
@@ -61,6 +61,10 @@ const LOADED_LANE_EDGE_ITS: ReadonlyArray<{ file: string; titlePrefix: string }>
     titlePrefix: "#2148: does NOT deposit deft-core-guard.yml when .deft/core is gitignored",
   },
   {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "#2148: DOES deposit deft-core-guard.yml when .deft/core is git-tracked",
+  },
+  {
     file: "packages/core/src/content-contracts/standards/deposit_required_closure.test.ts",
     titlePrefix: "every declared required path exists after running content-package prepack",
   },
@@ -110,16 +114,6 @@ describe("destContentionItTimeout (#4847)", () => {
       expect(source, file).not.toMatch(/describe\([^)]*\{\s*timeout\s*:/);
       expect(source, file).not.toMatch(/\btestTimeout\s*:/);
     }
-  });
-
-  it("does not annotate the #2148 git-tracked refresh case", () => {
-    const source = readFileSync(
-      join(repoRoot, "packages/core/src/init-deposit/refresh.test.ts"),
-      "utf8",
-    );
-    const match = /it\(\s*"#2148: DOES deposit deft-core-guard.yml[^"]*"([^)]*)\)/.exec(source);
-    expect(match).not.toBeNull();
-    expect(match?.[1] ?? "").not.toContain("destContentionItTimeout");
   });
 
   it("does not apply the 20s pairing to the F7 npm-ops pass-through that already exceeds 20s", () => {
