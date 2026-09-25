@@ -35,10 +35,10 @@ on interactive auth prompts in headless envs without a clear diagnostic.
 
 | Surface | Depth | Blocks session? |
 | --- | --- | --- |
-| `session:start` default | shallow (PATH + token + `gh auth status`) | no |
-| `session:start --with-network` | deep (API + optional repo) | no |
-| `deft scm:status` | shallow default; `--deep` opt-in (derives target repo; expected user login via flags/env) | n/a (exit 0/1/2) |
-| `deft github-auth-modes` | mode + principal validation (#1557 / #3665) | n/a |
+| `session:start` default | shallow (PATH + applicable-token presence; no aggregate auth-status veto) | no |
+| `session:start --with-network` | deep (selected-credential API + optional repo) | no |
+| `deft scm:status` | shallow default; `--deep` opt-in (derives target host/repo; expected user login via flags/env) | n/a (exit 0/1/2) |
+| `deft github-auth-modes` | effective source + principal / installation validation (#1557 / #3665 / #5016) | n/a |
 
 JSON field shape (`session:start --json` → `scm`, or `scm:status --json`):
 
@@ -46,7 +46,8 @@ JSON field shape (`session:start --json` → `scm`, or `scm:status --json`):
 - `binary` (`ghx` \| `gh` \| null)
 - `binary_path`
 - `auth_state` (`authenticated` \| `unauthenticated` \| `missing-token` \|
-  `binary-absent` \| `unknown`)
+  `binary-absent` \| `unknown`). Shallow ready reports `unknown`;
+  `authenticated` is a deep selected-credential API result.
 - `github_auth_mode` (`host-gh` \| `injected-token`)
 - `runtime_mode`
 - `injected_token_present` (bool; never the value)
@@ -63,8 +64,9 @@ When not ready, agents ! prefer one of:
 
 1. Install + auth in the **execution** env (`gh` / `ghx`, then
    `gh auth login` for host-gh).
-2. Inject `GH_TOKEN` / `GITHUB_TOKEN` / `GH_ENTERPRISE_TOKEN` for
-   injected-token / cloud-headless mode.
+2. Inject the host-family token (`GH_TOKEN` / `GITHUB_TOKEN` on github.com
+   and ghe.com; `GH_ENTERPRISE_TOKEN` / `GITHUB_ENTERPRISE_TOKEN` on GHES).
+   Runtime/cloud labels do not select the source (#5016).
 3. Run SCM-dependent gates from a matched authenticated environment.
 
 ⊗ Put token values into prompts, dispatch envelopes, or logs.

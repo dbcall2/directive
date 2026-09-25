@@ -186,7 +186,7 @@ describe("registered worker CLI entry points (#3663)", { timeout: 30_000 }, () =
         ops,
         runner,
         args: cli.args,
-        env: { DEFT_FAKE_GH_AUTH_EXIT: "1" },
+        env: { DEFT_FAKE_GH_USER_EXIT: "1" },
       });
       expect(result.status, `${cli.exportName} stderr=${result.stderr}`).toBe(2);
       expect(result.stderr).toMatch(
@@ -222,7 +222,7 @@ describe("registered worker CLI entry points (#3663)", { timeout: 30_000 }, () =
     writeFileSync(log, "");
     writeFileSync(ops, "");
     const runner = writeRunner(fakeGh, SCM_MAIN, "main");
-    for (const tokenVar of ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN"] as const) {
+    for (const tokenVar of ["GH_TOKEN", "GITHUB_TOKEN"] as const) {
       writeFileSync(ops, "");
       const result = runWorkerCli({
         worktree,
@@ -272,7 +272,7 @@ describe("registered worker CLI entry points (#3663)", { timeout: 30_000 }, () =
     expect(readFileSync(ops, "utf8").trim()).toBe("");
   });
 
-  it("T5: inherited DEFT_GITHUB_AUTH_MODE does not admit host-gh on an ambiguous runtime", () => {
+  it("T5: assigned host-gh is admitted on an ambiguous runtime; inherited DEFT_GITHUB_AUTH_MODE is not the gate", () => {
     const { main, worktree } = linkedPair();
     writeWorkerAuthAssignment({
       projectRoot: main,
@@ -300,9 +300,8 @@ describe("registered worker CLI entry points (#3663)", { timeout: 30_000 }, () =
       args: ["issue", "list", "--repo", "acme/widgets"],
       env: { CURSOR_AGENT: "1", DEFT_GITHUB_AUTH_MODE: "host-gh", DEFT_FAKE_GH_AUTH_EXIT: "0" },
     });
-    expect(result.status).toBe(2);
-    expect(result.stderr).toMatch(/runtime_mode_denied|host-gh is not admitted/);
-    expect(readFileSync(ops, "utf8").trim()).toBe("");
+    expect(result.status).toBe(0);
+    expect(result.stderr).not.toMatch(/runtime_mode_denied/);
   });
 
   it("covered SCM from a dest subdirectory still finds the assignment", () => {

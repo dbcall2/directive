@@ -1,10 +1,12 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { CompletedProcess } from "../scm/call.js";
 import { pyRepr } from "../scm/py-format.js";
 import {
   getPlatformCapabilities,
   probeRuntimeCapabilities,
-  RUNTIME_MODE_CLOUD_HEADLESS,
   RUNTIME_MODE_CURSOR_NATIVE_SANDBOX,
   type RuntimeCapabilityReport,
 } from "./platform-capabilities.js";
@@ -34,6 +36,12 @@ export const ENV_EXPECTED_GITHUB_LOGIN = "DEFT_EXPECTED_GITHUB_LOGIN";
 export const INSTALLATION_IDENTITY_ISSUE_URL = "https://github.com/deftai/directive/issues/3693";
 
 const INJECTED_TOKEN_ENV_VARS = ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN"] as const;
+const DOTCOM_OR_GHE_TOKEN_ENV_VARS = ["GH_TOKEN", "GITHUB_TOKEN"] as const;
+const GHES_TOKEN_ENV_VARS = ["GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"] as const;
+const DEFAULT_GITHUB_HOST = "github.com";
+
+export type GithubHostFamily = "dotcom-or-ghe" | "ghes";
+export type GithubCredentialSource = "injected-token" | "host-store";
 
 const SANDBOX_REMEDIATION =
   "Remediation options for worker sandbox GitHub auth failures:\n" +
@@ -75,6 +83,10 @@ export interface GitHubAuthValidationResult {
   readonly login: string | null;
   readonly principal: ExpectedGithubWorkerPrincipal | null;
   readonly validationRepo: string | null;
+  readonly githubHost: string | null;
+  readonly credentialSource: GithubCredentialSource | null;
+  readonly applicableTokenEnv: string | null;
+  readonly installationAuthenticated: boolean;
 }
 
 export type GhRunner = (args: readonly string[], environ: NodeJS.ProcessEnv) => CompletedProcess;
@@ -82,6 +94,7 @@ export type GitRemoteReader = (cwd?: string) => string | null;
 
 export interface GithubAuthValidationOptions {
   repo?: string;
+  host?: string | null;
   runtimeMode?: string | null;
   runGh?: GhRunner;
   expectedPrincipal?: ExpectedGithubWorkerPrincipal | null;
@@ -100,11 +113,234 @@ export function findInjectedToken(environ: NodeJS.ProcessEnv): string | null {
   return null;
 }
 
-export function inferGithubAuthMode(runtimeReport: RuntimeCapabilityReport): string {
-  if (runtimeReport.runtimeMode === RUNTIME_MODE_CLOUD_HEADLESS) {
-    return GITHUB_AUTH_MODE_INJECTED_TOKEN;
+export function normalizeGithubHostname(host: string): string {
+  const trimmed = host.trim().toLowerCase().replace(/\.$/, "");
+  if (trimmed === "api.github.com") {
+    return DEFAULT_GITHUB_HOST;
   }
-  return GITHUB_AUTH_MODE_HOST_GH;
+  return trimmed;
+}
+
+export function isDotcomOrGheHost(host: string): boolean {
+  const normalized = normalizeGithubHostname(host);
+  return (
+    normalized === DEFAULT_GITHUB_HOST ||
+    normalized === "ghe.com" ||
+    normalized.endsWith(".ghe.com")
+  );
+}
+
+export function githubHostFamily(host: string): GithubHostFamily {
+  return isDotcomOrGheHost(host) ? "dotcom-or-ghe" : "ghes";
+}
+
+export function applicableTokenEnvNames(host: string): readonly string[] {
+  return githubHostFamily(host) === "ghes" ? GHES_TOKEN_ENV_VARS : DOTCOM_OR_GHE_TOKEN_ENV_VARS;
+}
+
+export function parseGithubHostFromRemote(url: string): string | null {
+  const raw = url.trim();
+  if (raw.length === 0) {
+    return null;
+  }
+  const scp = raw.match(/^git@([^:]+):/);
+  if (scp?.[1]) {
+    return normalizeGithubHostname(scp[1]);
+  }
+  try {
+    const withProto = raw.includes("://") ? raw : `https://${raw}`;
+    const parsed = new URL(withProto);
+    if (parsed.host.length > 0) {
+      return normalizeGithubHostname(parsed.host);
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export function resolveGithubHost(options: {
+  host?: string | null;
+  environ?: NodeJS.ProcessEnv;
+  gitRemoteUrl?: string | null;
+  readGitRemote?: GitRemoteReader;
+  cwd?: string;
+}): string {
+  const explicit = options.host?.trim() ?? "";
+  if (explicit.length > 0) {
+    return normalizeGithubHostname(explicit);
+  }
+  const envHost = (options.environ?.GH_HOST ?? "").trim();
+  if (envHost.length > 0) {
+    return normalizeGithubHostname(envHost);
+  }
+  // Explicit null skips origin lookup (mode inference / skip-readiness).
+  // Undefined still honors repository context via origin.
+  const remote =
+    options.gitRemoteUrl !== undefined
+      ? options.gitRemoteUrl
+      : (options.readGitRemote ?? defaultReadGitOriginUrl)(options.cwd);
+  if (typeof remote === "string" && remote.trim().length > 0) {
+    const fromRemote = parseGithubHostFromRemote(remote);
+    if (fromRemote !== null) {
+      return fromRemote;
+    }
+  }
+  return DEFAULT_GITHUB_HOST;
+}
+
+export function findApplicableInjectedToken(
+  environ: NodeJS.ProcessEnv,
+  host: string,
+): { readonly name: string; readonly value: string } | null {
+  for (const name of applicableTokenEnvNames(host)) {
+    const value = environ[name]?.trim() ?? "";
+    if (value.length > 0) {
+      return { name, value };
+    }
+  }
+  return null;
+}
+
+export function tokenPresenceFingerprint(environ: NodeJS.ProcessEnv, host: string): string {
+  return applicableTokenEnvNames(host)
+    .map((name) => {
+      const value = (environ[name] ?? "").trim();
+      if (value.length === 0) {
+        return `${name}:0`;
+      }
+      const digest = createHash("sha256").update(value).digest("hex").slice(0, 16);
+      return `${name}:${digest}`;
+    })
+    .join(",");
+}
+
+/**
+ * Non-secret fingerprint of the gh host-store for ready-cache identity.
+ * Paths come only from the env bag (`GH_CONFIG_DIR`, `XDG_CONFIG_HOME`,
+ * `HOME` / `USERPROFILE`, `APPDATA`). A stub env without those keys does
+ * not read the process home store.
+ */
+export function hostStoreIdentityFingerprint(environ: NodeJS.ProcessEnv, host: string): string {
+  const configDir = resolveGhConfigDir(environ);
+  if (configDir === null) {
+    return "hosts:missing";
+  }
+  const hostsPath = join(configDir, "hosts.yml");
+  let raw: string;
+  try {
+    raw = readFileSync(hostsPath, "utf8");
+  } catch {
+    return "hosts:missing";
+  }
+  const digest = createHash("sha256")
+    .update(host)
+    .update("\n")
+    .update(raw)
+    .digest("hex")
+    .slice(0, 16);
+  return `hosts:${digest}`;
+}
+
+function resolveGhConfigDir(environ: NodeJS.ProcessEnv): string | null {
+  const fromEnv = environ.GH_CONFIG_DIR?.trim();
+  if (fromEnv) return fromEnv;
+  const xdg = environ.XDG_CONFIG_HOME?.trim();
+  if (xdg) return join(xdg, "gh");
+  if (process.platform === "win32") {
+    const appData = environ.APPDATA?.trim();
+    if (appData) return join(appData, "GitHub CLI");
+  }
+  const home = environ.HOME?.trim() || environ.USERPROFILE?.trim();
+  if (home) return join(home, ".config", "gh");
+  return null;
+}
+
+function environFromInferInput(
+  environOrReport: NodeJS.ProcessEnv | RuntimeCapabilityReport,
+): NodeJS.ProcessEnv {
+  if (
+    environOrReport !== null &&
+    typeof environOrReport === "object" &&
+    "runtimeMode" in environOrReport &&
+    typeof (environOrReport as RuntimeCapabilityReport).runtimeMode === "string" &&
+    !("PATH" in environOrReport)
+  ) {
+    return process.env;
+  }
+  return environOrReport as NodeJS.ProcessEnv;
+}
+
+/**
+ * Effective source for the target host. Runtime/socket labels are not inputs.
+ * A RuntimeCapabilityReport first argument is accepted for existing callers
+ * and is ignored for admission (#5016).
+ */
+export function inferGithubAuthMode(
+  environOrReport: NodeJS.ProcessEnv | RuntimeCapabilityReport = process.env,
+  options: { host?: string | null } = {},
+): string {
+  const environ = environFromInferInput(environOrReport);
+  const host = resolveGithubHost({
+    environ,
+    host: options.host,
+    gitRemoteUrl: null,
+  });
+  return findApplicableInjectedToken(environ, host) !== null
+    ? GITHUB_AUTH_MODE_INJECTED_TOKEN
+    : GITHUB_AUTH_MODE_HOST_GH;
+}
+
+export function githubApiArgs(path: string, host: string): string[] {
+  const normalized = path.replace(/^\//, "");
+  if (!host || host === DEFAULT_GITHUB_HOST) {
+    return ["api", normalized];
+  }
+  return ["api", "--hostname", host, normalized];
+}
+
+export function githubApiPath(args: readonly string[]): string | null {
+  if (args[0] !== "api") {
+    return null;
+  }
+  for (let i = 1; i < args.length; i += 1) {
+    const token = args[i] ?? "";
+    if (token === "--hostname" || token === "-H" || token === "--header" || token === "--jq") {
+      i += 1;
+      continue;
+    }
+    if (token.startsWith("-")) {
+      continue;
+    }
+    return token.replace(/^\//, "");
+  }
+  return null;
+}
+
+export function isWellFormedInstallationRepositories(stdout: string): boolean {
+  try {
+    const payload = JSON.parse(stdout) as unknown;
+    if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+      return false;
+    }
+    const rec = payload as Record<string, unknown>;
+    if (Array.isArray(rec.repositories)) {
+      return true;
+    }
+    return typeof rec.total_count === "number";
+  } catch {
+    return false;
+  }
+}
+
+function isUnauthenticatedInstallationProbe(proc: CompletedProcess): boolean {
+  const blob = combinedGhText(proc).toLowerCase();
+  return (
+    blob.includes("requires authentication") ||
+    blob.includes("bad credentials") ||
+    blob.includes("http 401") ||
+    /"status"\s*:\s*"?401"?/.test(blob)
+  );
 }
 
 /**
@@ -315,7 +551,7 @@ function mergeRemediation(runtimeMode: string | null, failureKind: string): stri
   return parts.length > 0 ? parts.join("\n\n") : null;
 }
 
-/** CSI/SGR only — gh color wraps `/user` JSON (`CLICOLOR_FORCE`). */
+/** CSI/SGR only ΓÇö gh color wraps `/user` JSON (`CLICOLOR_FORCE`). */
 function stripGhAnsi(text: string): string {
   let out = "";
   for (let i = 0; i < text.length; i += 1) {
@@ -453,6 +689,10 @@ function emptyResult(
     login?: string | null;
     principal?: ExpectedGithubWorkerPrincipal | null;
     validationRepo?: string | null;
+    githubHost?: string | null;
+    credentialSource?: GithubCredentialSource | null;
+    applicableTokenEnv?: string | null;
+    installationAuthenticated?: boolean;
   } = {},
 ): GitHubAuthValidationResult {
   const ok = options.ok ?? false;
@@ -468,6 +708,10 @@ function emptyResult(
     login: login !== null && containsTokenShapedText(login) ? null : login,
     principal: options.principal ?? null,
     validationRepo: options.validationRepo ?? null,
+    githubHost: options.githubHost ?? null,
+    credentialSource: options.credentialSource ?? null,
+    applicableTokenEnv: options.applicableTokenEnv ?? null,
+    installationAuthenticated: options.installationAuthenticated === true,
   };
 }
 
@@ -475,10 +719,44 @@ function loginsMatch(expected: string, observed: string): boolean {
   return expected.localeCompare(observed, undefined, { sensitivity: "accent" }) === 0;
 }
 
+interface SourceContext {
+  readonly githubHost: string;
+  readonly credentialSource: GithubCredentialSource;
+  readonly applicableTokenEnv: string | null;
+}
+
+function withSource(
+  source: SourceContext,
+  extras: {
+    ok?: boolean;
+    login?: string | null;
+    principal?: ExpectedGithubWorkerPrincipal | null;
+    validationRepo?: string | null;
+    installationAuthenticated?: boolean;
+  } = {},
+): {
+  ok?: boolean;
+  login?: string | null;
+  principal?: ExpectedGithubWorkerPrincipal | null;
+  validationRepo?: string | null;
+  githubHost: string;
+  credentialSource: GithubCredentialSource;
+  applicableTokenEnv: string | null;
+  installationAuthenticated?: boolean;
+} {
+  return {
+    ...extras,
+    githubHost: source.githubHost,
+    credentialSource: source.credentialSource,
+    applicableTokenEnv: source.applicableTokenEnv,
+  };
+}
+
 function failClosedInstallationCredential(
   mode: string,
   runtimeMode: string | null,
   repo: string,
+  source: SourceContext,
 ): GitHubAuthValidationResult {
   return emptyResult(
     mode,
@@ -486,8 +764,9 @@ function failClosedInstallationCredential(
     FAILURE_INSTALLATION_IDENTITY_UNVERIFIABLE,
     "GitHub /user is inapplicable to a GitHub App installation credential (no authenticated user). " +
       "The API is reachable. An installation token cannot disclose which App it belongs to, " +
-      `so identity cannot be verified. Deferred to ${INSTALLATION_IDENTITY_ISSUE_URL}.`,
-    { validationRepo: repo },
+      `so identity cannot be verified. Deferred to ${INSTALLATION_IDENTITY_ISSUE_URL}. ` +
+      "Installation credentials cannot satisfy a required user principal.",
+    withSource(source, { validationRepo: repo }),
   );
 }
 
@@ -499,30 +778,76 @@ function checkTargetRepoAccess(
   repo: string,
   login: string | null,
   principal: ExpectedGithubWorkerPrincipal | null,
+  source: SourceContext,
+  installationAuthenticated = false,
 ): GitHubAuthValidationResult {
   const [owner, name] = splitRepo(repo);
-  const repoApi = runner(["api", `repos/${owner}/${name}`], environ);
+  const repoApi = runner(githubApiArgs(`repos/${owner}/${name}`, source.githubHost), environ);
   if (repoApi.returncode !== 0) {
     const detail =
       mode === GITHUB_AUTH_MODE_INJECTED_TOKEN
         ? `injected token can reach GitHub API but cannot access ${repo}`
         : `GitHub API reachable but repository access failed for ${repo}`;
-    return emptyResult(mode, runtimeMode, FAILURE_REPO_ACCESS, detail, {
-      login,
-      principal,
-      validationRepo: repo,
-    });
+    return emptyResult(
+      mode,
+      runtimeMode,
+      FAILURE_REPO_ACCESS,
+      detail,
+      withSource(source, {
+        login,
+        principal,
+        validationRepo: repo,
+        installationAuthenticated,
+      }),
+    );
   }
-  const okDetail =
-    mode === GITHUB_AUTH_MODE_INJECTED_TOKEN
+  const okDetail = installationAuthenticated
+    ? "installation authentication admitted without verified user login or issuing-App identity"
+    : mode === GITHUB_AUTH_MODE_INJECTED_TOKEN
       ? "injected-token mode validated in worker environment"
       : "host-gh mode validated in worker environment";
   return emptyResult(mode, runtimeMode, null, okDetail, {
-    ok: true,
-    login,
-    principal,
-    validationRepo: repo,
+    ...withSource(source, {
+      ok: true,
+      login,
+      principal,
+      validationRepo: repo,
+      installationAuthenticated,
+    }),
   });
+}
+
+function validateInstallationAuth(
+  mode: string,
+  environ: NodeJS.ProcessEnv,
+  runtimeMode: string | null,
+  runner: GhRunner,
+  repo: string,
+  source: SourceContext,
+): GitHubAuthValidationResult {
+  const probe = runner(githubApiArgs("installation/repositories", source.githubHost), environ);
+  if (probe.returncode !== 0) {
+    const unauth = isUnauthenticatedInstallationProbe(probe);
+    return emptyResult(
+      mode,
+      runtimeMode,
+      FAILURE_API_UNREACHABLE,
+      unauth
+        ? "GET /installation/repositories rejected unauthenticated access; installation authentication was not established"
+        : formatUserApiFailureDetail(mode, probe),
+      withSource(source, { validationRepo: repo }),
+    );
+  }
+  if (!isWellFormedInstallationRepositories(probe.stdout)) {
+    return emptyResult(
+      mode,
+      runtimeMode,
+      FAILURE_API_UNREACHABLE,
+      "GET /installation/repositories did not return a well-formed authenticated installation payload",
+      withSource(source, { validationRepo: repo }),
+    );
+  }
+  return checkTargetRepoAccess(mode, runtimeMode, runner, environ, repo, null, null, source, true);
 }
 
 function validateAfterAuth(
@@ -531,6 +856,7 @@ function validateAfterAuth(
   options: GithubAuthValidationOptions,
   runtimeMode: string | null,
   runner: GhRunner,
+  source: SourceContext,
 ): GitHubAuthValidationResult {
   const derived = deriveValidationRepo({
     repo: options.repo,
@@ -540,7 +866,13 @@ function validateAfterAuth(
     cwd: options.cwd,
   });
   if (!derived.ok) {
-    return emptyResult(mode, runtimeMode, FAILURE_MISSING_TARGET_REPO, derived.detail);
+    return emptyResult(
+      mode,
+      runtimeMode,
+      FAILURE_MISSING_TARGET_REPO,
+      derived.detail,
+      withSource(source),
+    );
   }
   const repo = derived.repo;
   const expectedPrincipal = resolveExpectedGithubWorkerPrincipal(
@@ -553,23 +885,24 @@ function validateAfterAuth(
       runtimeMode,
       FAILURE_MISSING_EXPECTED_PRINCIPAL,
       expectedPrincipal.error,
-      {
-        validationRepo: repo,
-      },
+      withSource(source, { validationRepo: repo }),
     );
   }
 
-  const userApi = runner(["api", "user"], environ);
+  const userApi = runner(githubApiArgs("user", source.githubHost), environ);
   if (userApi.returncode !== 0) {
     if (isInstallationUserEndpointInapplicable(userApi)) {
-      return failClosedInstallationCredential(mode, runtimeMode, repo);
+      if (expectedPrincipal !== null) {
+        return failClosedInstallationCredential(mode, runtimeMode, repo, source);
+      }
+      return validateInstallationAuth(mode, environ, runtimeMode, runner, repo, source);
     }
     return emptyResult(
       mode,
       runtimeMode,
       FAILURE_API_UNREACHABLE,
       formatUserApiFailureDetail(mode, userApi),
-      { validationRepo: repo },
+      withSource(source, { validationRepo: repo }),
     );
   }
 
@@ -580,7 +913,7 @@ function validateAfterAuth(
       runtimeMode,
       FAILURE_PRINCIPAL_MISMATCH,
       "GitHub /user succeeded but returned no login",
-      { validationRepo: repo },
+      withSource(source, { validationRepo: repo }),
     );
   }
 
@@ -590,10 +923,10 @@ function validateAfterAuth(
       runtimeMode,
       FAILURE_MISSING_EXPECTED_PRINCIPAL,
       expectedPrincipal.error,
-      {
+      withSource(source, {
         login,
         validationRepo: repo,
-      },
+      }),
     );
   }
 
@@ -604,13 +937,32 @@ function validateAfterAuth(
         runtimeMode,
         FAILURE_PRINCIPAL_MISMATCH,
         `identity mismatch: expected ${expectedPrincipal.login}, observed ${login}`,
-        { login, validationRepo: repo },
+        withSource(source, { login, validationRepo: repo }),
       );
     }
   }
 
   const principal: ExpectedGithubWorkerPrincipal = { kind: PRINCIPAL_KIND_USER, login };
-  return checkTargetRepoAccess(mode, runtimeMode, runner, environ, repo, login, principal);
+  return checkTargetRepoAccess(mode, runtimeMode, runner, environ, repo, login, principal, source);
+}
+
+function resolveSourceContext(
+  environ: NodeJS.ProcessEnv,
+  options: GithubAuthValidationOptions,
+): SourceContext {
+  const githubHost = resolveGithubHost({
+    host: options.host,
+    environ,
+    gitRemoteUrl: options.gitRemoteUrl,
+    readGitRemote: options.readGitRemote,
+    cwd: options.cwd,
+  });
+  const applicable = findApplicableInjectedToken(environ, githubHost);
+  return {
+    githubHost,
+    credentialSource: applicable !== null ? "injected-token" : "host-store",
+    applicableTokenEnv: applicable?.name ?? null,
+  };
 }
 
 export function validateInjectedTokenMode(
@@ -619,27 +971,26 @@ export function validateInjectedTokenMode(
 ): GitHubAuthValidationResult {
   const runner = options.runGh ?? defaultRunGh;
   const runtimeMode = options.runtimeMode ?? null;
-  const tokenPresent = findInjectedToken(environ) !== null;
-  if (!tokenPresent) {
+  const source = resolveSourceContext(environ, options);
+  if (source.applicableTokenEnv === null) {
+    const names = applicableTokenEnvNames(source.githubHost).join(", ");
     return emptyResult(
       GITHUB_AUTH_MODE_INJECTED_TOKEN,
       runtimeMode,
       FAILURE_MISSING_INJECTED_TOKEN,
-      "injected-token mode requires GH_TOKEN, GITHUB_TOKEN, or GH_ENTERPRISE_TOKEN; host gh credential store is not used",
+      `injected-token mode requires an applicable token for ${source.githubHost} (${names}); host gh credential store is not used`,
+      withSource(source),
     );
   }
 
-  const authStatus = runner(["auth", "status"], environ);
-  if (authStatus.returncode !== 0) {
-    return emptyResult(
-      GITHUB_AUTH_MODE_INJECTED_TOKEN,
-      runtimeMode,
-      FAILURE_GH_AUTH,
-      "injected token present but gh auth status failed in worker",
-    );
-  }
-
-  return validateAfterAuth(GITHUB_AUTH_MODE_INJECTED_TOKEN, environ, options, runtimeMode, runner);
+  return validateAfterAuth(
+    GITHUB_AUTH_MODE_INJECTED_TOKEN,
+    environ,
+    options,
+    runtimeMode,
+    runner,
+    source,
+  );
 }
 
 export function validateHostGhMode(
@@ -648,18 +999,8 @@ export function validateHostGhMode(
 ): GitHubAuthValidationResult {
   const runner = options.runGh ?? defaultRunGh;
   const runtimeMode = options.runtimeMode ?? null;
-
-  const authStatus = runner(["auth", "status"], environ);
-  if (authStatus.returncode !== 0) {
-    return emptyResult(
-      GITHUB_AUTH_MODE_HOST_GH,
-      runtimeMode,
-      FAILURE_GH_AUTH,
-      "gh auth status failed in worker environment",
-    );
-  }
-
-  return validateAfterAuth(GITHUB_AUTH_MODE_HOST_GH, environ, options, runtimeMode, runner);
+  const source = resolveSourceContext(environ, options);
+  return validateAfterAuth(GITHUB_AUTH_MODE_HOST_GH, environ, options, runtimeMode, runner, source);
 }
 
 export function validateGithubAuth(
@@ -668,6 +1009,7 @@ export function validateGithubAuth(
     environ?: NodeJS.ProcessEnv;
     runtimeReport?: RuntimeCapabilityReport | null;
     repo?: string;
+    host?: string | null;
     runGh?: GhRunner;
     expectedPrincipal?: ExpectedGithubWorkerPrincipal | null;
     gitRemoteUrl?: string | null;
@@ -689,6 +1031,7 @@ export function validateGithubAuth(
 
   const shared: GithubAuthValidationOptions = {
     repo: options.repo,
+    host: options.host,
     runtimeMode,
     runGh: options.runGh,
     expectedPrincipal: options.expectedPrincipal,
@@ -709,6 +1052,7 @@ export function validateGithubAuthForWorker(
     environ?: NodeJS.ProcessEnv;
     runtimeReport?: RuntimeCapabilityReport | null;
     repo?: string;
+    host?: string | null;
     runGh?: GhRunner;
     expectedPrincipal?: ExpectedGithubWorkerPrincipal | null;
     gitRemoteUrl?: string | null;
@@ -716,9 +1060,22 @@ export function validateGithubAuthForWorker(
     cwd?: string;
   } = {},
 ): GitHubAuthValidationResult {
+  const env = options.environ ?? process.env;
   const report = options.runtimeReport ?? getPlatformCapabilities();
-  const mode = githubAuthMode ?? inferGithubAuthMode(report);
-  return validateGithubAuth(mode, { ...options, runtimeReport: report });
+  const host = resolveGithubHost({
+    host: options.host,
+    environ: env,
+    gitRemoteUrl: options.gitRemoteUrl,
+    readGitRemote: options.readGitRemote,
+    cwd: options.cwd,
+  });
+  const mode = githubAuthMode ?? inferGithubAuthMode(env, { host });
+  return validateGithubAuth(mode, {
+    ...options,
+    host,
+    environ: env,
+    runtimeReport: report,
+  });
 }
 
 export function resultToDict(result: GitHubAuthValidationResult): Record<string, unknown> {
@@ -732,6 +1089,10 @@ export function resultToDict(result: GitHubAuthValidationResult): Record<string,
     login: result.login !== null && containsTokenShapedText(result.login) ? null : result.login,
     principal_kind: result.principal?.kind ?? null,
     validation_repo: result.validationRepo,
+    github_host: result.githubHost,
+    credential_source: result.credentialSource,
+    applicable_token_env: result.applicableTokenEnv,
+    installation_authenticated: result.installationAuthenticated,
   };
 }
 

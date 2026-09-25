@@ -1,7 +1,29 @@
 import { existsSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import * as callShape from "../scm/call-shape.js";
+import { ScmStubError } from "../scm/errors.js";
 import * as wrappers from "./wrappers.js";
+
+const readyReport = {
+  ready: true,
+  binary: "gh" as const,
+  binaryPath: "/usr/bin/gh",
+  authState: "authenticated" as const,
+  githubAuthMode: "host-gh",
+  runtimeMode: "local-unsandboxed",
+  runtimeModeReason: null,
+  injectedTokenPresent: false,
+  depth: "deep" as const,
+  detail: "ready",
+  remediation: null,
+  skippedGates: [],
+  login: "octo",
+  failureKind: null,
+};
+
+function readyStub() {
+  return readyReport;
+}
 
 describe("captureExec", () => {
   it("returns stdout on success", () => {
@@ -70,7 +92,9 @@ describe("runGhMerge", () => {
     vi.spyOn(callShape, "resolveBinaryForArgv").mockImplementation(() => {
       throw new Error("missing");
     });
-    const [rc, , stderr] = wrappers.runGhMerge(1370, "deftai/directive");
+    const [rc, , stderr] = wrappers.runGhMerge(1370, "deftai/directive", {
+      requireScmReady: readyStub,
+    });
     expect(rc).toBe(-1);
     expect(stderr).toContain("gh CLI not found");
     vi.restoreAllMocks();
@@ -78,14 +102,17 @@ describe("runGhMerge", () => {
 
   it("maps merge failure exit code", () => {
     vi.spyOn(callShape, "resolveBinaryForArgv").mockReturnValue(process.execPath);
-    const [rc] = wrappers.runGhMerge(1370, "deftai/directive");
+    const [rc] = wrappers.runGhMerge(1370, "deftai/directive", { requireScmReady: readyStub });
     expect(rc).not.toBe(0);
     vi.restoreAllMocks();
   });
 
   it("maps gh merge timeout via captureExec", () => {
     vi.spyOn(callShape, "resolveBinaryForArgv").mockReturnValue(process.execPath);
-    const [rc, , stderr] = wrappers.runGhMerge(1370, null, { timeout: 0.001 });
+    const [rc, , stderr] = wrappers.runGhMerge(1370, null, {
+      timeout: 0.001,
+      requireScmReady: readyStub,
+    });
     expect(rc).toBe(-1);
     expect(stderr).toContain("gh pr merge timed out after 0.001s");
     vi.restoreAllMocks();
@@ -93,8 +120,21 @@ describe("runGhMerge", () => {
 
   it("omits repo flag when null", () => {
     vi.spyOn(callShape, "resolveBinaryForArgv").mockReturnValue(process.execPath);
-    const [rc] = wrappers.runGhMerge(1370, null);
+    const [rc] = wrappers.runGhMerge(1370, null, { requireScmReady: readyStub });
     expect(typeof rc).toBe("number");
+    vi.restoreAllMocks();
+  });
+
+  it("does not invoke the merge subprocess when auth preflight fails", () => {
+    const resolve = vi.spyOn(callShape, "resolveBinaryForArgv");
+    const [rc, , stderr] = wrappers.runGhMerge(1370, "deftai/directive", {
+      requireScmReady: () => {
+        throw new ScmStubError("SCM not ready: preflight");
+      },
+    });
+    expect(rc).toBe(-1);
+    expect(stderr).toMatch(/preflight/);
+    expect(resolve).not.toHaveBeenCalled();
     vi.restoreAllMocks();
   });
 });

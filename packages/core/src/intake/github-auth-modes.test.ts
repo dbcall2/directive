@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { CompletedProcess } from "../scm/call.js";
 import {
@@ -6,7 +9,6 @@ import {
   ENV_EXPECTED_GITHUB_LOGIN,
   type ExpectedGithubWorkerPrincipal,
   FAILURE_API_UNREACHABLE,
-  FAILURE_GH_AUTH,
   FAILURE_INSTALLATION_IDENTITY_UNVERIFIABLE,
   FAILURE_INVALID_MODE,
   FAILURE_MISSING_INJECTED_TOKEN,
@@ -16,7 +18,9 @@ import {
   findInjectedToken,
   formatUserApiFailureDetail,
   type GhRunner,
+  githubApiPath,
   githubAuthModesMain,
+  hostStoreIdentityFingerprint,
   INSTALLATION_IDENTITY_ISSUE_URL,
   inferGithubAuthMode,
   isInstallationUserEndpointInapplicable,
@@ -44,23 +48,32 @@ function proc(
   return { returncode, stdout, stderr, args: [...args] };
 }
 
+const INSTALLATION_REPOS_OK = '{"total_count":1,"repositories":[{"full_name":"acme/widgets"}]}';
+
 function stubGh(options: {
   authCode?: number;
   user?: { code: number; stdout?: string; stderr?: string };
   repoCode?: number;
+  installation?: { code: number; stdout?: string; stderr?: string };
 }): GhRunner {
   return (args) => {
     if (args[0] === "auth") {
       return proc(options.authCode ?? 0, "ok", "", args);
     }
-    if (args[0] === "api" && args[1] === "user") {
+    const apiPath = githubApiPath(args);
+    if (apiPath === "user") {
       const user = options.user ?? { code: 0, stdout: '{"login":"octo"}' };
       return proc(user.code, user.stdout ?? "", user.stderr ?? "", args);
     }
-    if (args[0] === "api" && String(args[1]).endsWith("/installation")) {
-      return proc(1, "", `unexpected JWT App probe: ${args.join(" ")}`, args);
+    if (apiPath === "installation/repositories") {
+      const installation = options.installation ?? {
+        code: 1,
+        stdout: "",
+        stderr: `unexpected JWT App probe: ${args.join(" ")}`,
+      };
+      return proc(installation.code, installation.stdout ?? "", installation.stderr ?? "", args);
     }
-    if (args[0] === "api" && String(args[1]).startsWith("repos/")) {
+    if (apiPath?.startsWith("repos/")) {
       const code = options.repoCode ?? 0;
       return proc(code, code === 0 ? "{}" : "", code === 0 ? "" : "denied", args);
     }
@@ -83,8 +96,11 @@ describe("github-auth-modes", () => {
     expect(findInjectedToken({})).toBeNull();
   });
 
-  it("infers injected-token for cloud headless", () => {
-    expect(inferGithubAuthMode({ runtimeMode: RUNTIME_MODE_CLOUD_HEADLESS })).toBe(
+  it("infers injected-token from an applicable token, not from runtime", () => {
+    expect(inferGithubAuthMode({ GH_TOKEN: "t" })).toBe("injected-token");
+    expect(inferGithubAuthMode({})).toBe("host-gh");
+    expect(inferGithubAuthMode({ GH_ENTERPRISE_TOKEN: "t" })).toBe("host-gh");
+    expect(inferGithubAuthMode({ GH_ENTERPRISE_TOKEN: "t" }, { host: "ghe.example.com" })).toBe(
       "injected-token",
     );
   });
@@ -132,17 +148,17 @@ describe("github-auth-modes", () => {
     expect(result.failureKind).toBe(FAILURE_MISSING_INJECTED_TOKEN);
   });
 
-  it("injected-token auth status failure includes sandbox remediation (#3027)", () => {
+  it("injected-token API failure includes sandbox remediation (#3027 / #5016)", () => {
     const result = validateInjectedTokenMode(
       { GH_TOKEN: "t" },
       {
         runtimeMode: RUNTIME_MODE_CURSOR_NATIVE_SANDBOX,
         repo: TARGET_REPO,
-        runGh: stubGh({ authCode: 1 }),
+        runGh: stubGh({ user: { code: 1, stdout: "", stderr: "timeout" } }),
       },
     );
     expect(result.ok).toBe(false);
-    expect(result.failureKind).toBe(FAILURE_GH_AUTH);
+    expect(result.failureKind).toBe(FAILURE_API_UNREACHABLE);
     expect(result.remediation).toMatch(/sandbox/i);
   });
 
@@ -160,7 +176,7 @@ describe("github-auth-modes", () => {
     expect(unreachable.detail).toMatch(/unreachable/i);
 
     const noRepo = validateInjectedTokenMode(
-      { GH_ENTERPRISE_TOKEN: "t" },
+      { GH_TOKEN: "t" },
       {
         repo: TARGET_REPO,
         expectedPrincipal: { kind: PRINCIPAL_KIND_USER, login: "u" },
@@ -175,15 +191,16 @@ describe("github-auth-modes", () => {
     expect(noRepo.remediation).toMatch(/repo-access|repository/i);
   });
 
-  it("host-gh mode auth failure and bare-string login parse (#3027)", () => {
+  it("host-gh mode API failure and bare-string login parse (#3027 / #5016)", () => {
     const badAuth = validateHostGhMode(
       {},
       {
+        repo: TARGET_REPO,
         runGh: () => proc(1, "", "auth"),
       },
     );
     expect(badAuth.ok).toBe(false);
-    expect(badAuth.failureKind).toBe(FAILURE_GH_AUTH);
+    expect(badAuth.failureKind).toBe(FAILURE_API_UNREACHABLE);
 
     const ok = validateHostGhMode(
       {},
@@ -350,7 +367,7 @@ describe("github-auth-modes", () => {
       },
     );
     expect(failedAuth.ok).toBe(false);
-    expect(failedAuth.failureKind).toBe(FAILURE_GH_AUTH);
+    expect(failedAuth.failureKind).toBe(FAILURE_API_UNREACHABLE);
     expect(JSON.stringify(resultToDict(failedAuth))).not.toMatch(/ghs_|gho_|ghr_|github_pat_/i);
     expect(failedAuth.detail).not.toContain(tokenOut);
     expect(failedAuth.detail).not.toContain("stderr");
@@ -399,12 +416,12 @@ describe("github-auth-modes", () => {
       runGh: () => proc(1, "", "auth"),
     });
     expect(worker.ok).toBe(false);
-    expect(worker.failureKind).toBe(FAILURE_GH_AUTH);
+    expect(worker.failureKind).toBe(FAILURE_API_UNREACHABLE);
 
     const dict = resultToDict(worker);
     expect(dict.ok).toBe(false);
     expect(dict.github_auth_mode).toBe("host-gh");
-    expect(dict.failure_kind).toBe(FAILURE_GH_AUTH);
+    expect(dict.failure_kind).toBe(FAILURE_API_UNREACHABLE);
 
     const missing = validateGithubAuth("injected-token", {
       environ: {},
@@ -430,16 +447,13 @@ describe("github-auth-modes", () => {
     expect(exitJson).toBe(1);
   });
 
-  it("infers injected mode for cloud headless and prints remediation on CLI fail (#3027)", () => {
-    expect(
-      inferGithubAuthMode({
-        runtimeMode: RUNTIME_MODE_CLOUD_HEADLESS,
-      } as never),
-    ).toBe("injected-token");
+  it("does not infer injected mode from runtime and prints remediation on CLI fail (#3027 / #5016)", () => {
+    expect(inferGithubAuthMode({})).toBe("host-gh");
 
     const failRemediation = validateHostGhMode(
       {},
       {
+        repo: TARGET_REPO,
         runtimeMode: RUNTIME_MODE_CURSOR_NATIVE_SANDBOX,
         runGh: () => proc(1, "", "auth"),
       },
@@ -455,12 +469,13 @@ describe("github-auth-modes", () => {
     expect(code).toBe(1);
 
     const inferred = validateGithubAuthForWorker(null, {
+      environ: {},
       runtimeReport: {
         runtimeMode: RUNTIME_MODE_CLOUD_HEADLESS,
       } as never,
       runGh: () => proc(1, "", "x"),
     });
-    expect(inferred.githubAuthMode).toBe("injected-token");
+    expect(inferred.githubAuthMode).toBe("host-gh");
   });
 });
 
@@ -538,17 +553,21 @@ describe("expected GitHub worker principal (#3665)", () => {
     expect(JSON.stringify(result)).not.toContain("present-not-captured");
   });
 
-  it("fails closed on an installation credential with no expected principal", () => {
+  it("admits unassigned installation authentication without claiming App identity", () => {
     const result = validateInjectedTokenMode(
       { GH_TOKEN: "present-not-captured" },
       {
         repo: TARGET_REPO,
-        runGh: stubGh({ user: INSTALLATION_USER_403 }),
+        runGh: stubGh({
+          user: INSTALLATION_USER_403,
+          installation: { code: 0, stdout: INSTALLATION_REPOS_OK },
+        }),
       },
     );
-    expect(result.ok).toBe(false);
-    expect(result.failureKind).toBe(FAILURE_INSTALLATION_IDENTITY_UNVERIFIABLE);
-    expect(result.detail).toMatch(/cannot disclose which App/i);
+    expect(result.ok).toBe(true);
+    expect(result.login).toBeNull();
+    expect(result.installationAuthenticated).toBe(true);
+    expect(result.detail).toMatch(/without verified user login or issuing-App identity/i);
     expect(JSON.stringify(resultToDict(result))).not.toContain("present-not-captured");
   });
 
@@ -566,12 +585,16 @@ describe("expected GitHub worker principal (#3665)", () => {
       {},
       {
         repo: TARGET_REPO,
-        runGh: stubGh({ user: INSTALLATION_USER_403 }),
+        runGh: stubGh({
+          user: INSTALLATION_USER_403,
+          installation: { code: 0, stdout: INSTALLATION_REPOS_OK },
+        }),
       },
     );
-    expect(result.failureKind).toBe(FAILURE_INSTALLATION_IDENTITY_UNVERIFIABLE);
+    expect(result.ok).toBe(true);
+    expect(result.installationAuthenticated).toBe(true);
+    expect(result.login).toBeNull();
     expect(result.detail).not.toMatch(/API is unreachable/);
-    expect(result.ok).toBe(false);
   });
 
   it("still reports a true unreachable detail when /user cannot be reached", () => {
@@ -608,7 +631,8 @@ describe("expected GitHub worker principal (#3665)", () => {
       },
     );
     expect(result.ok).toBe(false);
-    expect(result.failureKind).toBe(FAILURE_INSTALLATION_IDENTITY_UNVERIFIABLE);
+    expect(result.failureKind).toBe(FAILURE_API_UNREACHABLE);
+    expect(result.installationAuthenticated).toBe(false);
   });
 
   it("CLI expected-login mismatch fails closed", () => {
@@ -624,5 +648,36 @@ describe("expected GitHub worker principal (#3665)", () => {
 
   it("CLI App-installation flags are deferred to #3693", () => {
     expect(githubAuthModesCliMain(["--expected-app-slug", "deft-worker"])).toBe(2);
+  });
+});
+
+describe("hostStoreIdentityFingerprint (#5016)", () => {
+  it("does not read the process home store from a stub env", () => {
+    expect(hostStoreIdentityFingerprint({}, "github.com")).toBe("hosts:missing");
+  });
+
+  it("changes when the host-store user changes and never echoes the token", () => {
+    const dir = mkdtempSync(join(tmpdir(), "deft-gh-fp-"));
+    try {
+      writeFileSync(
+        join(dir, "hosts.yml"),
+        "github.com:\n    user: alice\n    users:\n        alice:\n            oauth_token: gho_secret_alice\n",
+        "utf8",
+      );
+      const alice = hostStoreIdentityFingerprint({ GH_CONFIG_DIR: dir }, "github.com");
+      writeFileSync(
+        join(dir, "hosts.yml"),
+        "github.com:\n    user: bob\n    users:\n        bob:\n            oauth_token: gho_secret_bob\n",
+        "utf8",
+      );
+      const bob = hostStoreIdentityFingerprint({ GH_CONFIG_DIR: dir }, "github.com");
+      expect(alice).toMatch(/^hosts:[0-9a-f]{16}$/);
+      expect(bob).toMatch(/^hosts:[0-9a-f]{16}$/);
+      expect(alice).not.toBe(bob);
+      expect(alice).not.toContain("gho_");
+      expect(bob).not.toContain("alice");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -75,16 +75,16 @@ task verify:gh-auth -- --json
 
 Modes:
 
-- `host-gh` (default for `local-unsandboxed` and `cursor-native-sandbox`) — requires `task verify:gh-auth` / `deft github-auth-modes` and a minimal GitHub API reachability check from the worker environment
-- `injected-token` (default for `cloud-headless`) — requires `GH_TOKEN`, `GITHUB_TOKEN`, or `GH_ENTERPRISE_TOKEN`; **fails closed** with `missing_injected_token` when absent and never falls back to host `gh` credential store
+- `host-gh` — unassigned sessions with no applicable token, or an assigned host-gh worker. Uses the target-host store. Selected-credential API results govern admission (#5016).
+- `injected-token` — an applicable host-family token is the effective source, or an assigned injected-token worker. Requires `GH_TOKEN` / `GITHUB_TOKEN` (github.com / ghe.com) or `GH_ENTERPRISE_TOKEN` / `GITHUB_ENTERPRISE_TOKEN` (GHES); **fails closed** with `missing_injected_token` when an assigned injected-token worker has no applicable token and never falls back to the host `gh` credential store. `cloud-headless` is a diagnostic runtime label, not the mode selector.
 
-4. ! **Surface remediation when parent host auth works but worker auth fails** — a common failure mode is the parent shell identity probe (`task verify:gh-auth`) succeeding while the worker sandbox cannot authenticate or reach GitHub. When validation reports `gh_auth_failed`, `api_unreachable`, or `repo_access_denied` in `cursor-native-sandbox`, surface these remediation paths to the operator (token values MUST NOT enter prompts or transcripts):
+4. ! **Surface remediation when parent host auth works but worker auth fails** — a common failure mode is the parent shell passing `gh auth status` while the worker sandbox cannot authenticate or reach GitHub. When validation reports `gh_auth_failed`, `api_unreachable`, or `repo_access_denied` in `cursor-native-sandbox`, surface these remediation paths to the operator (token values MUST NOT enter prompts or transcripts):
 
    - **Full-access execution** — run the GitHub step with full filesystem/network access so the worker shares the host `gh` credential store
    - **Trusted `gh` command allowlisting** — allowlist the trusted `gh` command path for the worker sandbox
    - **Injected-token handoff** — bind credentials at the invocation layer (`GH_TOKEN` / `GITHUB_TOKEN`) without pasting token values into dispatch envelopes
 
-5. ! **Cloud/headless injected-token failure** — when runtime mode is `cloud-headless` and no injected token is available, validation fails with `missing_injected_token`. Do NOT assume host `gh` state is visible to cloud workers; re-dispatch with injected-token handoff or switch to a local interactive runtime.
+5. ! **Cloud/headless injected-token failure** — when an assigned `injected-token` worker (or an unassigned session whose effective source is an applicable token) has no applicable token, validation fails with `missing_injected_token`. Unassigned `cloud-headless` sessions without a token use the host store. Do NOT assume parent-shell `gh` state is visible inside a sandbox; use Full-access execution, Trusted `gh` command allowlisting, or Injected-token handoff.
 
 ⊗ Assume parent-shell `gh auth status` proves worker-environment readiness — always validate from the worker envelope (#1557).
 ⊗ Present sandbox UID 0 or sandbox-root cwd ownership as host-root access — UID remap means sandbox identity is a view of the host user (#1557).

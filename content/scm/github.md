@@ -368,71 +368,78 @@ auth.
 
 ### Credential-class ban on three enforcing verbs (#3858)
 
-Property: no GitHub App installation credential may drive `scm issue *`,
-`issue:ingest`, and `reconcile:issues`. Any user-bearing login is acceptable
-when no expected principal is supplied. Those three callers pass
+Property: covered paths trust provisioned credentials for the target host
+and enforce explicit worker assignments (#5016). Unassigned processes use
+gh's effective credentials. Runtime/socket labels do not authorize.
+Assigned workers keep source, delivery, and expected-user checks (#3663).
+Installation authentication may be admitted without claiming App identity
+when no user is required (#3693 recut). Those three deep callers pass
 `expectedPrincipal: null` so leftover `DEFT_EXPECTED_GITHUB_LOGIN` does not
 become an env principal match.
 
-- ! Those three callers MUST invoke the installation-class check
-  (`validateGithubAuthForWorker` / `/user` inapplicability) via
-  `requireScmReady({ depth: "deep" })`.
+- ! Those three callers MUST invoke assignment-then-auth via
+  `requireScmReady({ depth: "deep" })` in `github-auth-modes.ts` /
+  `readiness.ts`. `runGhMerge` MUST run the same fresh preflight immediately
+  before the merge subprocess. Direct `gh`/`ghx`, remote envelopes (#4997),
+  and `release/gh.ts` writers stay outside this enforcement coverage.
 - ! `doctor` and default `session:start` stay shallow; they do not call
   `requireScmReady`.
 - ! `requireScmReady` MUST honor requested authorization depth. A cached
-  shallow-ready report MUST NOT satisfy a later principal/deep request.
+  ready report MUST NOT authorize changed credentials, source, principal, or
+  target. The cache key includes the injected-token fingerprint and the
+  host-store identity (`hosts.yml` digest), so a `gh auth switch` revalidates.
+  Mutation preflight uses `force: true`.
 - ! The hermetic skip is `VITEST` only. `DEFT_SCM_SKIP_AUTH_PROBE` MUST NOT
   authorize production when a token is present.
 - ! Those three callers MUST parse `--repo` / `-R` before `requireScmReady`
   and pass that repo through, so non-checkout `--repo` does not regress.
-- ⊗ Claim identity-gated SCM authorization, or that the `repos/` GET
-  authorizes the operation.
+- ⊗ Claim identity-gated SCM authorization, universal interception, or that
+  the `repos/` GET authorizes writes. GitHub enforces permission on the
+  actual operation.
 - ! `SCM_DEPENDENT_GATES` stays a diagnostic skip-list of surfaces that will
-  not work when SCM is not ready. `pr:*` merge-path modules stay a different
-  issue.
-- ! Recorded cost: two extra REST calls (`/user` and `repos/<owner>/<name>`)
-  and up to 60 s added worst-case latency per gated process. Transient API
-  failure refuses the verb (same posture as #3422).
+  not work when SCM is not ready.
+- ! Recorded cost: `/user` (and on installation, `GET /installation/repositories`)
+  plus `repos/<owner>/<name>`, and up to 60 s added worst-case latency per
+  gated process. Transient API failure refuses the verb (same posture as #3422).
 - ! Swarm `prepareWorkerCredentialInjection` stays the expected-user
-  injected-token path. #3693 observation and #3859 classifier stay out of
-  this number.
+  injected-token path. Classifier unification, including the GROK_BUILD
+  diagnostic disagreement, stays out of credential admission.
 
 ### Making SCM gates runnable in a mismatched env
 
 1. **Host-gh (local / unsandboxed):** install GitHub CLI (or `task setup:ghx`)
    in the *execution* environment, then `gh auth login`. Host credential
    stores are not shared into agent sandboxes.
-2. **Injected-token (cloud / headless):** set `GH_TOKEN`, `GITHUB_TOKEN`, or
-   `GH_ENTERPRISE_TOKEN` in the execution env via host secrets. Runtime mode
-   `cloud-headless` infers `github_auth_mode=injected-token` (#1557).
+2. **Injected-token:** set the host-family token in the execution env via host
+   secrets (`GH_TOKEN` then `GITHUB_TOKEN` for github.com / ghe.com;
+   `GH_ENTERPRISE_TOKEN` then `GITHUB_ENTERPRISE_TOKEN` for GHES). Runtime
+   mode does not infer auth mode (#5016).
 3. **Run SCM elsewhere:** keep framework-local work in the sandbox; run
    `triage:*` / `pr:*` / `issue:ingest` from a matched authenticated shell.
 4. **Deep check:** `deft scm:status --deep` or
-   `deft github-auth-modes --json` validates API reachability and optional
-   repo access.
+   `deft github-auth-modes --json` validates selected-credential API
+   reachability and optional repo access.
 
-### Ambiguous Cursor runtime and the host-gh opt-in (#3859)
+### Runtime classification is diagnostic (#3859 / #5016)
 
 `CURSOR_AGENT` is set by local desktop Cursor, by Cursor-managed cloud VMs, and
-by Windows "My Machines" workers, so it cannot decide the runtime by itself.
+by Windows "My Machines" workers, so it cannot decide the credential source.
 
 - ! Cursor-managed VMs serve a metadata API on `CURSOR_AGENT_SOCKET` whose
-  `agent/runtime` is `managed`. A positive read classifies `cloud-headless` at
-  higher precedence than any other Cursor signal **and** than the opt-in below.
-- ⊗ Treat absence of that socket as proof of local desktop. Absence means "not
-  managed, or unreachable" and MUST NOT select host credentials -- that is the
-  marker-absence grant this rule exists to prevent.
+  `agent/runtime` is `managed`. A positive read still classifies
+  `cloud-headless` for diagnostics. Classification does not select or refuse
+  credentials.
+- ⊗ Treat socket absence as authorization, or as a host-store grant. Absence
+  is "not managed, or unreachable" and is not an auth input.
 - ! When `CURSOR_AGENT` is set and the probe does not report `managed`, the
-  runtime is **ambiguous**. Deft does not guess from `process.platform`. Host
-  credentials then require an explicit selection:
-  `DEFT_GITHUB_AUTH_MODE=host-gh`, set in the execution environment on a
-  machine you control. That opt-in is for a local manual session. An inferred
-  PREP `github_auth_mode` stamp is not a registered worker's explicit host
-  opt-in (#3663); those workers validate the independently stored assignment.
-- ! Absent that selection, behaviour is unchanged: the runtime stays
-  `cloud-headless` and SCM-dependent gates are skipped. The skip names its
-  reason (`runtime_mode_reason` in `scm:status --json`, and in the `[deft scm]`
-  session-start lines) and points at this opt-in.
+  runtime remains **ambiguous** as a diagnostic label. Unassigned sessions
+  use the provisioned effective credential. Assigned workers validate the
+  independently stored assignment (#3663). `DEFT_GITHUB_AUTH_MODE=host-gh`
+  is not an auth admission opt-in.
+- ! The GROK_BUILD / `DEFT_AGENT_RUNTIME=grok-build` disagreement between the
+  intake classifier (CI/cloud) and the platform twin (local TUI, #3469) is a
+  diagnostic limitation. Classifier unification is separate and MUST NOT
+  affect credential admission.
 - ⊗ Use an OS predicate (`process.platform === "win32"`) as a cloud
   discriminator. Cursor's managed fleet being Ubuntu is a versioned fact about
   a third party's infrastructure, not a runtime invariant.
@@ -442,8 +449,9 @@ Reason ids: `cursor-managed-runtime-probe`, `cursor-marker-runtime-ambiguous`,
 `no-runtime-marker`.
 
 Contract file: `content/contracts/scm-readiness.md`. Implementation:
+`packages/core/src/intake/github-auth-modes.ts`,
 `packages/core/src/scm/readiness.ts`,
-`packages/core/src/platform/cursor-managed-runtime.ts`.
+`packages/core/src/pr-wait-mergeable/wrappers.ts`.
 
 ## Windows / ASCII Conventions for Machine-Editable Sections
 

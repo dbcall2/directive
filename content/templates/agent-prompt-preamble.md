@@ -458,19 +458,29 @@ Workers MUST follow the GitHub credential rule recorded in the dispatch envelope
 
 Why: maintainer and workers sharing a single PAT couples the human review/merge workflow and N concurrent workers onto one 5,000-req/hr GraphQL bucket per identity. The architectural fix is bucket partitioning by identity -- the maintainer keeps their PAT for review/merge/release, workers consume a dedicated bot account or GitHub App installation token (injected-token mode) or an explicitly approved host `gh` session (host-gh mode). The full pattern lives at `patterns/multi-agent.md`.
 
-### injected-token mode (required for `github_auth_mode: injected-token` and always for `runtime_mode: cloud-headless`)
+### Provisioning trust (#5016)
 
-- ! Consume the GitHub credential injected by the dispatcher (typically `GH_TOKEN` / `GITHUB_TOKEN` / `GH_ENTERPRISE_TOKEN` in the prompt-supplied env). If unset and no other dispatcher-supplied credential is present, FAIL LOUD -- do not silently run under the host's `gh auth status` token.
-- ~ Confirm the credential is the expected worker principal before GitHub operations. For a user-bearing credential, `gh api user --jq .login` should return the expected bot/account login, not the maintainer login. For a GitHub App installation credential, `/user` is inapplicable (structural 403; no authenticated user) -- do not treat that 403 as API unreachability. Installation identity cannot be verified from the token; fail closed and point at #3693. Do not accept the credential from endpoint reachability or a declared App slug. A user-login mismatch is `BLOCKED: identity mismatch` to the parent.
-- ⊗ Inherit the maintainer's `gh auth status` token implicitly. Host `gh` fallback is forbidden in injected-token and cloud-headless modes.
+Unassigned processes use gh's effective credentials for the target host. Runtime mode, CI/cloud markers, socket presence/absence, and probe failure do not select the credential. `DEFT_GITHUB_AUTH_MODE` is not an auth admission opt-in. Assigned workers still honor the independently stored source and expected user (#3663). The GROK_BUILD vs intake classifier disagreement is a diagnostic limitation only; it cannot affect credential admission.
 
-### host-gh mode (permitted only when `github_auth_mode: host-gh`)
+- ! For github.com and `ghe.com` subdomains, nonempty `GH_TOKEN` then `GITHUB_TOKEN` override the host store. For GitHub Enterprise Server, `GH_ENTERPRISE_TOKEN` then `GITHUB_ENTERPRISE_TOKEN` do so. A token for another host family is neither this operation's injected source nor a source conflict.
+- ! An applicable invalid token fails without fallback to stored credentials. Selected-credential API results govern admission. Aggregate `gh auth status` (including inactive other-host accounts) must not veto a working target credential.
+- ! Assigned `host-gh` requires the target-host store and refuses an applicable ambient token even when `/user` names the expected login. Assigned `injected-token` requires an applicable token and matching delivery id, with no store fallback. Both require authenticated `/user` to match the recorded login case-insensitively.
+- ! A successful `/user` login establishes user identity. With no required user, a well-formed authenticated `GET /installation/repositories` plus target-repo access may admit installation authentication without recording a user login or issuing-App identity (#3693 recut). A `/user` 403, token prefix, declared App name, or public repo GET alone is insufficient. Installation credentials cannot satisfy a required user.
+- ⊗ Substitute a maintainer account for an assigned worker. ⊗ Treat runtime/socket classification as authorization.
 
-Applies to local interactive workers (`runtime_mode: local-unsandboxed` or, after validation, `cursor-native-sandbox`) where swarm launch preflight confirmed host `gh` identity (`task verify:gh-auth` / `deft github-auth-modes`) and repo access from the worker environment.
+### injected-token mode (required when `github_auth_mode: injected-token` or when an applicable token is the effective source)
 
-- ! Use the worker environment's `gh` credential store -- the dispatch envelope explicitly authorises host `gh` for this worker. Do NOT require an injected `GH_TOKEN` when host gh auth is already valid in the worker shell.
-- ! Still verify identity before GitHub operations: `task verify:gh-auth` (or `deft github-auth-modes --json`) must pass. For a user-bearing credential, `gh api user --jq .login` must return the expected account. For a GitHub App installation credential, `/user` cannot return an account and the token cannot disclose which App it belongs to -- fail closed and point at #3693. Do not accept the credential from a declared App slug or from endpoint reachability, including a target-repo GET. User-login mismatch is `BLOCKED: identity mismatch`.
-- ⊗ Fall back to host `gh` when `github_auth_mode` is `injected-token` or `runtime_mode` is `cloud-headless` -- those modes forbid host credential store use regardless of what is available on the host.
+- ! Consume the applicable injected credential (`GH_TOKEN` / `GITHUB_TOKEN` on github.com and ghe.com; `GH_ENTERPRISE_TOKEN` / `GITHUB_ENTERPRISE_TOKEN` on GHES). If assigned injected-token and no applicable token is present, FAIL LOUD -- do not silently run under the host store.
+- ~ Confirm the credential is the expected worker principal when one is assigned. For a user-bearing credential, `gh api user --jq .login` should return the expected login. For a GitHub App installation credential with no required user, admit only on positive authenticated installation evidence. Do not accept the credential from a declared App slug or token prefix. A user-login mismatch is `BLOCKED: identity mismatch` to the parent.
+- ⊗ Inherit the maintainer's host store when the assignment or effective source is injected-token.
+
+### host-gh mode (when `github_auth_mode: host-gh` or when no applicable token is present for an unassigned process)
+
+Applies wherever the provisioned effective source is the host store, including local, CI, and cloud runtimes.
+
+- ! Use the worker environment's `gh` credential store for the target host. Do NOT require an injected token when host gh is the effective source.
+- ! For assigned host-gh, authenticated `/user` must match the recorded login. Installation credentials cannot satisfy that user principal.
+- ⊗ Fall back to host `gh` when the assignment is `injected-token`.
 - ~ When `runtime_mode: cursor-native-sandbox`, host `gh` may fail inside the sandbox even when the parent session is authenticated. Fail loud with remediation (full-access execution, trusted-path allowlist, or switch to injected-token handoff) rather than assuming parent auth is visible to the worker.
 
 Dispatchers MUST inject worker credentials for injected-token / cloud-headless dispatches and MUST record the selected `github_auth_mode` in the launch manifest and dispatch envelope. v1 deliberately keeps token injection operator-implemented; mode labels make the contract explicit without placing token values in prompts or transcripts.

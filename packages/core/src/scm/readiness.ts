@@ -25,31 +25,31 @@ import { spawnSync } from "node:child_process";
 import {
   type ExpectedGithubWorkerPrincipal,
   FAILURE_MISSING_INJECTED_TOKEN,
+  findApplicableInjectedToken,
   findInjectedToken,
   type GhRunner,
   GITHUB_AUTH_MODE_HOST_GH,
   GITHUB_AUTH_MODE_INJECTED_TOKEN,
   type GitHubAuthValidationResult,
+  hostStoreIdentityFingerprint,
   inferGithubAuthMode,
+  resolveGithubHost,
+  tokenPresenceFingerprint,
   validateGithubAuthForWorker,
 } from "../intake/github-auth-modes.js";
 import {
   getPlatformCapabilities,
   probeRuntimeCapabilities,
-  RUNTIME_MODE_CLOUD_HEADLESS,
   type RuntimeCapabilityReport,
 } from "../intake/platform-capabilities.js";
 import {
-  EXPLICIT_SELECTION_REMEDIATION,
   GITHUB_AUTH_MODE_ENV,
   RUNTIME_REASON_CURSOR_MARKER_AMBIGUOUS,
-  RUNTIME_REASON_MANAGED_RUNTIME_PROBE,
 } from "../platform/cursor-managed-runtime.js";
 import {
   FAILURE_AMBIENT_TOKEN_CONFLICT,
   FAILURE_DELIVERY_MISMATCH,
   FAILURE_MISSING_DELIVERY,
-  FAILURE_RUNTIME_MODE_DENIED,
   observedCredentialDeliveryId,
   type ReadWorkerAuthAssignmentResult,
   readWorkerAuthAssignment,
@@ -58,14 +58,6 @@ import {
 import { defaultWhich, type WhichFn } from "./binary.js";
 import { BINARY_PREFERENCE } from "./constants.js";
 import { ScmStubError } from "./errors.js";
-
-/** Local completed-process shape (avoids importing call.ts and creating a cycle). */
-interface CompletedProcess {
-  readonly args: readonly string[];
-  readonly returncode: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
 
 /**
  * Diagnostic skip-list of surfaces that will not work when SCM is not ready
@@ -134,6 +126,7 @@ export interface ProbeScmReadinessOptions {
   readonly runtimeReport?: RuntimeCapabilityReport;
   readonly githubAuthMode?: string | null;
   readonly repo?: string;
+  readonly host?: string | null;
   readonly expectedPrincipal?: ExpectedGithubWorkerPrincipal | null;
   readonly runGh?: GhRunner;
   /** When false, skip even `gh auth status` on the shallow path (tests / pure PATH). */
@@ -157,10 +150,10 @@ const REMEDIATION_BINARY_ABSENT =
   "  - Framework-local gates (session:start, verify:*, xbrief:preflight, doctor, scope:*) do not need SCM";
 
 const REMEDIATION_MISSING_TOKEN =
-  "Remediation for missing injected token (cloud/headless auth mode):\n" +
-  "  - Pass GH_TOKEN, GITHUB_TOKEN, or GH_ENTERPRISE_TOKEN into the execution env\n" +
+  "Remediation for missing injected token (assigned injected-token or applicable token mode):\n" +
+  "  - Pass the host-family token into the execution env (github.com/ghe.com: GH_TOKEN then GITHUB_TOKEN; GHES: GH_ENTERPRISE_TOKEN then GITHUB_ENTERPRISE_TOKEN)\n" +
   "  - Keep token values out of prompts and transcripts; inject via host secrets only\n" +
-  "  - Or run SCM-dependent gates from a matched host-gh env instead";
+  "  - Unassigned sessions without an applicable token use the host gh store";
 
 const REMEDIATION_UNAUTHENTICATED =
   "Remediation for unauthenticated gh in this execution env:\n" +
@@ -180,50 +173,6 @@ function resolveBinaryPresence(whichFn: WhichFn): {
     }
   }
   return { binary: null, binaryPath: null };
-}
-
-/**
- * Run gh/ghx argv directly (not via scm.call) so readiness probing never
- * re-enters call() / readiness and cannot mis-route `auth status` (#2275 P1).
- */
-/**
- * Prefer live `gh` for auth/status/api probes. ghx is a cached GET proxy
- * (#884 / #954) and is not a full passthrough for `auth status` / multi-arg
- * api forms — using it here false-negatives readiness when only ghx is
- * preferred on PATH.
- */
-function resolveAuthProbeBinary(whichFn: WhichFn): string {
-  return whichFn("gh") ?? whichFn("ghx") ?? "gh";
-}
-
-function defaultShallowRunGh(
-  args: readonly string[],
-  environ: NodeJS.ProcessEnv,
-  whichFn: WhichFn = defaultWhich,
-): CompletedProcess {
-  const resolved = resolveAuthProbeBinary(whichFn);
-  try {
-    const result = spawnSync(resolved, [...args], {
-      env: environ,
-      encoding: "utf8",
-      timeout: 15_000,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return {
-      args: [resolved, ...args],
-      returncode: result.status ?? 1,
-      stdout: typeof result.stdout === "string" ? result.stdout : "",
-      stderr: typeof result.stderr === "string" ? result.stderr : "",
-    };
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    return {
-      args: [resolved, ...args],
-      returncode: 1,
-      stdout: "",
-      stderr: message,
-    };
-  }
 }
 
 function mapDeepFailureToAuthState(result: GitHubAuthValidationResult): ScmAuthState {
@@ -253,8 +202,13 @@ export function probeScmReadiness(options: ProbeScmReadinessOptions = {}): ScmRe
   const whichFn = options.whichFn ?? defaultWhich;
   const depth: ScmProbeDepth = options.depth ?? "shallow";
   const runtimeReport = options.runtimeReport ?? probeRuntimeCapabilities(env);
-  const githubAuthMode = options.githubAuthMode ?? inferGithubAuthMode(runtimeReport);
-  const injectedTokenPresent = findInjectedToken(env) !== null;
+  const githubHost = resolveGithubHost({
+    host: options.host,
+    environ: env,
+    cwd: options.cwd,
+  });
+  const githubAuthMode = options.githubAuthMode ?? inferGithubAuthMode(env, { host: githubHost });
+  const injectedTokenPresent = findApplicableInjectedToken(env, githubHost) !== null;
   const { binary, binaryPath } = resolveBinaryPresence(whichFn);
 
   if (binary === null) {
@@ -279,15 +233,14 @@ export function probeScmReadiness(options: ProbeScmReadinessOptions = {}): ScmRe
     };
   }
 
-  // Injected-token mode without a token is a hard not-ready even before auth status.
+  // Injected-token mode without an applicable token is not-ready before API probes.
   if (githubAuthMode === GITHUB_AUTH_MODE_INJECTED_TOKEN && !injectedTokenPresent) {
-    const ambiguousRuntime =
-      runtimeReport.runtimeModeReason === RUNTIME_REASON_CURSOR_MARKER_AMBIGUOUS;
     const detail =
-      "injected-token mode requires GH_TOKEN, GITHUB_TOKEN, or GH_ENTERPRISE_TOKEN; " +
+      "injected-token mode requires an applicable token for the target GitHub host; " +
       `binary=${binary} present but SCM-dependent gates skipped ` +
       `(runtime_mode=${runtimeReport.runtimeMode}` +
-      `${runtimeReport.runtimeModeReason ? `, reason=${runtimeReport.runtimeModeReason}` : ""})`;
+      `${runtimeReport.runtimeModeReason ? `, reason=${runtimeReport.runtimeModeReason}` : ""}` +
+      `, host=${githubHost})`;
     return {
       ready: false,
       binary,
@@ -299,11 +252,7 @@ export function probeScmReadiness(options: ProbeScmReadinessOptions = {}): ScmRe
       injectedTokenPresent: false,
       depth,
       detail,
-      // An ambiguous Cursor runtime is the #3859 case: name the explicit opt-in
-      // here, because this is where the operator actually meets the block.
-      remediation: ambiguousRuntime
-        ? `${EXPLICIT_SELECTION_REMEDIATION}\n\n${REMEDIATION_MISSING_TOKEN}`
-        : REMEDIATION_MISSING_TOKEN,
+      remediation: REMEDIATION_MISSING_TOKEN,
       skippedGates: [...SCM_DEPENDENT_GATES],
       login: null,
       failureKind: "missing_injected_token",
@@ -339,6 +288,7 @@ export function probeScmReadiness(options: ProbeScmReadinessOptions = {}): ScmRe
       environ: env,
       runtimeReport,
       repo: options.repo,
+      host: githubHost,
       expectedPrincipal: options.expectedPrincipal,
       runGh: deepRunner,
     });
@@ -380,65 +330,26 @@ export function probeScmReadiness(options: ProbeScmReadinessOptions = {}): ScmRe
     };
   }
 
-  // Shallow path: optional gh auth status (local credential check, short timeout).
+  // Shallow path: binary + applicable-token presence. Aggregate `gh auth status`
+  // (including hostname-only listings of inactive accounts) does not veto a
+  // working effective credential. Deep admission uses selected-credential APIs.
+  // authState stays unknown until a deep selected-credential API result.
   const checkAuth = options.checkAuthStatus !== false;
-  if (!checkAuth) {
-    const detail =
-      `SCM binary present (${binary}); auth status not checked (shallow, checkAuthStatus=false); ` +
+  const detail = checkAuth
+    ? `SCM ready: ${binary} present, ${githubAuthMode} provisioned for ${githubHost} (shallow)`
+    : `SCM binary present (${binary}); auth status not checked (shallow, checkAuthStatus=false); ` +
       `github_auth_mode=${githubAuthMode}`;
-    return {
-      ready: true,
-      binary,
-      binaryPath,
-      authState: "unknown",
-      githubAuthMode,
-      runtimeMode: runtimeReport.runtimeMode,
-      runtimeModeReason: runtimeReport.runtimeModeReason ?? null,
-      injectedTokenPresent,
-      depth,
-      detail,
-      remediation: null,
-      skippedGates: [],
-      login: null,
-      failureKind: null,
-    };
-  }
-
-  const runner = options.runGh ?? ((args, environ) => defaultShallowRunGh(args, environ, whichFn));
-  const authStatus = runner(["auth", "status"], env);
-  if (authStatus.returncode !== 0) {
-    const detail =
-      `gh not authenticated in this execution env (binary=${binary}, ` +
-      `github_auth_mode=${githubAuthMode}); SCM-dependent gates skipped`;
-    return {
-      ready: false,
-      binary,
-      binaryPath,
-      authState: "unauthenticated",
-      githubAuthMode,
-      runtimeMode: runtimeReport.runtimeMode,
-      runtimeModeReason: runtimeReport.runtimeModeReason ?? null,
-      injectedTokenPresent,
-      depth,
-      detail,
-      remediation: REMEDIATION_UNAUTHENTICATED,
-      skippedGates: [...SCM_DEPENDENT_GATES],
-      login: null,
-      failureKind: "gh_auth_failed",
-    };
-  }
-
   return {
     ready: true,
     binary,
     binaryPath,
-    authState: "authenticated",
+    authState: "unknown",
     githubAuthMode,
     runtimeMode: runtimeReport.runtimeMode,
     runtimeModeReason: runtimeReport.runtimeModeReason ?? null,
     injectedTokenPresent,
     depth,
-    detail: `SCM ready: ${binary} present, ${githubAuthMode} authenticated (shallow)`,
+    detail,
     remediation: null,
     skippedGates: [],
     login: null,
@@ -485,8 +396,8 @@ export function formatScmReadinessLines(report: ScmReadinessReport): string[] {
     lines.push(`[deft scm] skipped gates: ${report.skippedGates.join(", ")}${reason}`);
     if (report.runtimeModeReason === RUNTIME_REASON_CURSOR_MARKER_AMBIGUOUS) {
       lines.push(
-        `[deft scm] runtime is ambiguous; set ${GITHUB_AUTH_MODE_ENV}=host-gh to authorize ` +
-          "the host gh credential store on a machine you control (#3859)",
+        "[deft scm] runtime classification is diagnostic only; credential admission uses " +
+          "the provisioned source for the target host plus any explicit worker assignment (#5016)",
       );
     }
   }
@@ -549,25 +460,45 @@ export function assertScmBinaryPresent(whichFn: WhichFn = defaultWhich): ScmBina
  * ban: any user-bearing login is acceptable when no expected principal is
  * supplied. The repo GET does not authorize the operation.
  *
- * Process-scoped cache: keyed by repo + expected principal so alternating
- * `--repo` checks do not evict each other. A cached shallow-ready report does
- * not satisfy a later principal/deep request for that same key. Pass
- * `force: true` to re-probe (tests / after credential injection).
+ * Process-scoped cache: keyed by repo + expected principal + credential
+ * identity (injected-token fingerprint and host-store hosts.yml digest) so
+ * alternating `--repo` checks do not evict each other and a host-store user
+ * change revalidates. A cached shallow-ready report does not satisfy a later
+ * principal/deep request for that same key. Pass `force: true` to re-probe
+ * (tests / after credential injection).
  */
 const cachedReadyReports = new Map<string, ScmReadinessReport>();
 
 function readyCacheIdentity(options: ProbeScmReadinessOptions & { force?: boolean }): {
   repo: string;
   principal: string;
+  host: string;
+  mode: string;
+  tokens: string;
+  store: string;
 } {
+  const env = options.env ?? process.env;
+  const host = resolveGithubHost({ host: options.host, environ: env, cwd: options.cwd });
+  const mode = options.githubAuthMode ?? inferGithubAuthMode(env, { host });
   return {
-    repo: options.repo ?? "",
+    repo: options.repo ?? env.GH_REPO ?? env.GITHUB_REPOSITORY ?? "",
     principal: options.expectedPrincipal?.login ?? "",
+    host,
+    mode,
+    tokens: tokenPresenceFingerprint(env, host),
+    store: hostStoreIdentityFingerprint(env, host),
   };
 }
 
-function readyCacheKey(identity: { repo: string; principal: string }): string {
-  return `${identity.repo}\0${identity.principal}`;
+function readyCacheKey(identity: {
+  repo: string;
+  principal: string;
+  host: string;
+  mode: string;
+  tokens: string;
+  store: string;
+}): string {
+  return `${identity.repo}\0${identity.principal}\0${identity.host}\0${identity.mode}\0${identity.tokens}\0${identity.store}`;
 }
 
 function cachedReportCoversRequestedDepth(
@@ -639,21 +570,15 @@ function classificationEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return copy;
 }
 
-function hostRuntimeAdmitsHostGh(report: RuntimeCapabilityReport): boolean {
-  if (report.runtimeMode === RUNTIME_MODE_CLOUD_HEADLESS) {
-    return false;
-  }
-  if (report.runtimeModeReason === RUNTIME_REASON_CURSOR_MARKER_AMBIGUOUS) {
-    return false;
-  }
-  if (report.runtimeModeReason === RUNTIME_REASON_MANAGED_RUNTIME_PROBE) {
-    return false;
-  }
-  return true;
-}
-
 function unregisteredSkipReport(options: ProbeScmReadinessOptions): ScmReadinessReport {
   const hermeticRuntime = options.runtimeReport ?? getPlatformCapabilities();
+  const env = options.env ?? process.env;
+  const host = resolveGithubHost({
+    host: options.host,
+    environ: env,
+    cwd: options.cwd,
+    gitRemoteUrl: null,
+  });
   return {
     ready: true,
     binary: "gh",
@@ -662,7 +587,7 @@ function unregisteredSkipReport(options: ProbeScmReadinessOptions): ScmReadiness
     githubAuthMode: GITHUB_AUTH_MODE_HOST_GH,
     runtimeMode: hermeticRuntime.runtimeMode,
     runtimeModeReason: hermeticRuntime.runtimeModeReason ?? null,
-    injectedTokenPresent: findInjectedToken(options.env ?? process.env) !== null,
+    injectedTokenPresent: findApplicableInjectedToken(env, host) !== null,
     depth: "shallow",
     detail: "SCM readiness skipped for unregistered destination",
     remediation: null,
@@ -678,7 +603,12 @@ function enforceRegisteredWorker(
 ): ScmReadinessReport {
   const env = options.env ?? process.env;
   const classified = probeRuntimeCapabilities(classificationEnv(env));
-  const injectedPresent = findInjectedToken(env) !== null;
+  const githubHost = resolveGithubHost({
+    host: options.host,
+    environ: env,
+    cwd: options.cwd,
+  });
+  const injectedPresent = findApplicableInjectedToken(env, githubHost) !== null;
   const expectedLogin = assignment.expected_principal.login;
   const dispatchId = assignment.dispatch_id;
   const whichFn = options.whichFn ?? defaultWhich;
@@ -703,17 +633,10 @@ function enforceRegisteredWorker(
     );
 
   if (assignment.github_auth_mode === GITHUB_AUTH_MODE_HOST_GH) {
-    if (!hostRuntimeAdmitsHostGh(classified)) {
-      const reason = classified.runtimeModeReason ? ` (${classified.runtimeModeReason})` : "";
-      return deny(
-        FAILURE_RUNTIME_MODE_DENIED,
-        `assigned host-gh is not admitted by worker runtime ${classified.runtimeMode}${reason}`,
-      );
-    }
     if (injectedPresent) {
       return deny(
         FAILURE_AMBIENT_TOKEN_CONFLICT,
-        "assigned host-gh refuses GH_TOKEN, GITHUB_TOKEN, or GH_ENTERPRISE_TOKEN in the worker environment",
+        "assigned host-gh refuses an applicable ambient token override for the target host even when it names the expected user",
       );
     }
   } else {
@@ -749,6 +672,7 @@ function enforceRegisteredWorker(
   return probeScmReadiness({
     ...options,
     env,
+    host: githubHost,
     runtimeReport: classified,
     githubAuthMode: assignment.github_auth_mode,
     expectedPrincipal: assignment.expected_principal,
@@ -805,7 +729,16 @@ export function requireScmReady(
         githubAuthMode: GITHUB_AUTH_MODE_HOST_GH,
         runtimeMode: hermeticRuntime.runtimeMode,
         runtimeModeReason: hermeticRuntime.runtimeModeReason ?? null,
-        injectedTokenPresent: findInjectedToken(options.env ?? process.env) !== null,
+        injectedTokenPresent:
+          findApplicableInjectedToken(
+            options.env ?? process.env,
+            resolveGithubHost({
+              host: options.host,
+              environ: options.env ?? process.env,
+              cwd: options.cwd,
+              gitRemoteUrl: null,
+            }),
+          ) !== null,
         depth: "shallow",
         detail: `SCM binary present (${binary}); auth status not checked (hermetic)`,
         remediation: null,
