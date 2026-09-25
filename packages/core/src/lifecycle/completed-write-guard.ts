@@ -234,7 +234,21 @@ function readCachedGithubIssueState(projectRoot: string, uri: string): "open" | 
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return null;
     }
-    const state = String((parsed as Record<string, unknown>).state ?? "").toLowerCase();
+    const record = parsed as Record<string, unknown>;
+    const requestedHost = githubIssueHostname(uri);
+    if (requestedHost !== null && requestedHost !== "github.com") {
+      const cachedUrl = String(record.html_url ?? "");
+      let cachedHost: string | null = null;
+      try {
+        cachedHost = new URL(cachedUrl).host.toLowerCase();
+      } catch {
+        // Enterprise cache entries must carry a URL that binds them to the host.
+      }
+      if (cachedHost !== requestedHost) {
+        return null;
+      }
+    }
+    const state = String(record.state ?? "").toLowerCase();
     return state === "open" || state === "closed" ? state : null;
   } catch {
     return null;
@@ -244,11 +258,8 @@ function readCachedGithubIssueState(projectRoot: string, uri: string): "open" | 
 function githubIssueHostname(uri: string): string | null {
   try {
     const parsed = new URL(uri);
-    if (
-      (parsed.protocol === "https:" || parsed.protocol === "http:") &&
-      parsed.hostname.length > 0
-    ) {
-      return parsed.hostname.toLowerCase();
+    if ((parsed.protocol === "https:" || parsed.protocol === "http:") && parsed.host.length > 0) {
+      return parsed.host.toLowerCase();
     }
   } catch {
     // Non-URL reference forms have no explicit Enterprise host.

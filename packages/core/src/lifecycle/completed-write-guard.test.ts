@@ -810,7 +810,7 @@ describe("evaluateCompletedWriteGuard (#3766 active deletion)", () => {
   });
 
   it("uses the issue URI hostname for a GitHub Enterprise lookup", () => {
-    const enterpriseUri = "https://github.example.com/acme/widgets/issues/42";
+    const enterpriseUri = "https://github.example.com:8443/acme/widgets/issues/42";
     const proposed = "xbrief/proposed/2026-08-25-story.xbrief.json";
     const dest = withOrigin(
       JSON.stringify({
@@ -834,8 +834,83 @@ describe("evaluateCompletedWriteGuard (#3766 active deletion)", () => {
     });
     expect(result.code).toBe(0);
     expect(calls).toEqual([
-      ["gh", "api", "--hostname", "github.example.com", "repos/acme/widgets/issues/42"],
+      ["gh", "api", "--hostname", "github.example.com:8443", "repos/acme/widgets/issues/42"],
     ]);
+  });
+
+  it("does not reuse github.com cached state for an Enterprise issue", () => {
+    const root = mkdtempSync(join(tmpdir(), "enterprise-cache-host-"));
+    try {
+      const enterpriseUri = "https://ghe.example:8443/acme/widgets/issues/42";
+      const proposed = "xbrief/proposed/2026-08-25-story.xbrief.json";
+      const dest = withOrigin(
+        JSON.stringify({
+          xBRIEFInfo: { version: "0.8" },
+          plan: { title: "stamped", status: "proposed" },
+        }),
+        enterpriseUri,
+      );
+      const cacheDir = join(root, ".deft-cache", "github-issue", "acme", "widgets", "42");
+      mkdirSync(cacheDir, { recursive: true });
+      writeFileSync(
+        join(cacheDir, "raw.json"),
+        JSON.stringify({
+          state: "closed",
+          html_url: "https://github.com/acme/widgets/issues/42",
+        }),
+        "utf8",
+      );
+
+      const result = evaluateCompletedWriteGuard(root, {
+        nameStatus: `D\t${active}\nA\t${proposed}`,
+        payloads: new Map([
+          [proposed, dest],
+          [active, withOrigin(runningSource(), enterpriseUri)],
+        ]),
+        runGh: () => ({ returncode: 1, stdout: "" }),
+      });
+
+      expect(result.code).toBe(0);
+      expect(result.findings).toHaveLength(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("uses cached Enterprise state only when its URL matches the requested host", () => {
+    const root = mkdtempSync(join(tmpdir(), "enterprise-cache-match-"));
+    try {
+      const enterpriseUri = "https://ghe.example:8443/acme/widgets/issues/42";
+      const proposed = "xbrief/proposed/2026-08-25-story.xbrief.json";
+      const dest = withOrigin(
+        JSON.stringify({
+          xBRIEFInfo: { version: "0.8" },
+          plan: { title: "stamped", status: "proposed" },
+        }),
+        enterpriseUri,
+      );
+      const cacheDir = join(root, ".deft-cache", "github-issue", "acme", "widgets", "42");
+      mkdirSync(cacheDir, { recursive: true });
+      writeFileSync(
+        join(cacheDir, "raw.json"),
+        JSON.stringify({ state: "closed", html_url: enterpriseUri }),
+        "utf8",
+      );
+
+      const result = evaluateCompletedWriteGuard(root, {
+        nameStatus: `D\t${active}\nA\t${proposed}`,
+        payloads: new Map([
+          [proposed, dest],
+          [active, withOrigin(runningSource(), enterpriseUri)],
+        ]),
+        runGh: () => ({ returncode: 1, stdout: "" }),
+      });
+
+      expect(result.code).toBe(1);
+      expect(result.message).toContain(CLOSED_ISSUE_PARK_REMEDIATION);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("refuses proposed park when the live issue is closed", () => {
