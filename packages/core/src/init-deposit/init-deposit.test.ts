@@ -27,6 +27,7 @@ import {
 } from "./init-deposit.js";
 import { type LegacyLayoutDetection, LegacyLayoutRefusedError } from "./legacy-detect.js";
 import { PIN_DEPENDENCY_NAME } from "./scaffold.js";
+import type { GitExecFn } from "./update-git-preflight.js";
 
 // `JSON.parse` returns top-level `null` (not a throw) for the literal `null`,
 // so a guarded parse keeps property reads from blowing up with a TypeError
@@ -243,6 +244,59 @@ describe("runInitDeposit", destContentionItTimeout(), () => {
       });
     },
   );
+
+  it("stamps tip+1 on fresh init when the delivery tip already has a token (#4120)", async () => {
+    const project = freshRoot("init-deposit-tip-token-");
+    const contentRoot = installFakeContentPackage(project);
+    const oid = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const remoteToken = `${JSON.stringify(
+      {
+        schemaVersion: 1,
+        generation: 4,
+        contentVersion: "0.110.0",
+        stampedAt: "2026-09-24T00:00:00Z",
+        stampedBy: "fixture",
+        surfaces: { payload: "0.110.0" },
+      },
+      null,
+      2,
+    )}\n`;
+    const execGit: GitExecFn = (args) => {
+      if (args.includes("remote")) {
+        return { status: 0, stdout: "origin\n", stderr: "" };
+      }
+      if (args.includes("fetch")) {
+        return { status: 0, stdout: "", stderr: "" };
+      }
+      if (args.includes("rev-parse")) {
+        return { status: 0, stdout: `${oid}\n`, stderr: "" };
+      }
+      if (args.includes("ls-tree")) {
+        return {
+          status: 0,
+          stdout: `100644 blob ${oid}\t.deft/GENERATION.json\n`,
+          stderr: "",
+        };
+      }
+      if (args.includes("show")) {
+        return { status: 0, stdout: remoteToken, stderr: "" };
+      }
+      return { status: 0, stdout: "", stderr: "" };
+    };
+    const result = await runInitDeposit(
+      { projectDir: project, jsonOut: false, nonInteractive: true },
+      { printf: () => {} },
+      {
+        resolveContentRoot: async () => contentRoot,
+        nowIso: () => "2026-06-24T12:00:00Z",
+        gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+        execGit,
+      },
+    );
+    expect(result.generationRewindError).toBeUndefined();
+    const stamped = parseJsonObject(readFileSync(join(project, ".deft/GENERATION.json"), "utf8"));
+    expect(stamped.generation).toBe(5);
+  });
 
   it("directive init adds the canonical pin to an existing package.json (#4429)", async () => {
     const project = freshRoot("init-deposit-existing-pkg-");

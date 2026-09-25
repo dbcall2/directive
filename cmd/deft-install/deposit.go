@@ -50,11 +50,11 @@ if code != 0:
     print("::error::cannot show head GENERATION.json (#4120)")
     sys.exit(1)
 head = json.loads(blob).get("generation")
-if type(head) is not int:
-    print("::error::head generation is not an int (#4120)")
+if type(head) is not int or head < 1:
+    print("::error::head generation is not an int >= 1 (#4120)")
     sys.exit(1)
 if base is not None:
-    if type(base) is not int or not (head > base):
+    if type(base) is not int or base < 1 or not (head > base):
         print("::error::GENERATION.json must increase vs origin/$BASE_REF (#4120)")
         sys.exit(1)
 print("OK: GENERATION.json monotonic vs origin/$BASE_REF")
@@ -383,12 +383,12 @@ func coreGuardWorkflowContent() string {
 
 	var genBody strings.Builder
 	for _, line := range strings.Split(strings.TrimSuffix(coreGuardGenerationPy, "\n"), "\n") {
-		genBody.WriteString("            ")
+		genBody.WriteString("          ")
 		genBody.WriteString(line)
 		genBody.WriteByte('\n')
 	}
 	genContent := "          if printf '%s\\n' \"$changed\" | grep -qx '.deft/GENERATION.json'; then\n" +
-		"            python3 - \"$BASE_REF\" \"$HEAD_SHA\" <<'PY'\n" + genBody.String() + "            PY\n          fi\n"
+		"          python3 - \"$BASE_REF\" \"$HEAD_SHA\" <<'PY'\n" + genBody.String() + "PY\n          fi\n"
 
 	return `name: deft-core-guard
 

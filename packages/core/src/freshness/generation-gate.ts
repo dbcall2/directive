@@ -8,7 +8,7 @@
 
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
   defaultGitExec,
   type GitExecFn,
@@ -181,9 +181,23 @@ function notAGitRepository(stderr: string): boolean {
   return /not a git repository/i.test(stderr);
 }
 
-/** Dest-local `.git` only — parent worktrees are not this destination's remotes. */
-function destHasGitDir(projectDir: string): boolean {
-  return existsSync(join(resolve(projectDir), ".git"));
+/**
+ * True when `projectDir` is inside a git checkout: this directory or an
+ * ancestor has `.git` (directory or gitfile). Empty-dir no-remote stamping is
+ * only for dests that are not inside a checkout.
+ */
+function gitCheckoutAtOrAbove(projectDir: string): boolean {
+  let current = resolve(projectDir);
+  for (;;) {
+    if (existsSync(join(current, ".git"))) {
+      return true;
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      return false;
+    }
+    current = parent;
+  }
 }
 
 export function listRemotes(
@@ -196,16 +210,17 @@ export function listRemotes(
 } {
   const result = execGit(["--no-optional-locks", "remote"], gitCwd(projectDir));
   if (result.errorCode === "ENOENT") {
-    // Empty dest / missing cwd / missing git binary: no dest `.git` is
-    // affirmative no-remote evidence (R3). A dest that already has `.git`
-    // stays unreadable — remotes cannot be listed.
-    if (!destHasGitDir(projectDir)) {
+    // Empty dest / missing cwd / missing git binary: no checkout at or above
+    // this directory is affirmative no-remote evidence (R3). A dest inside a
+    // git checkout stays unreadable — remotes cannot be listed, and ancestor
+    // `.git` must not be skipped.
+    if (!gitCheckoutAtOrAbove(projectDir)) {
       return { kind: "no-remotes", remotes: [] };
     }
     return { kind: "unreadable", remotes: [], detail: "git binary not found" };
   }
   if (result.status) {
-    if (notAGitRepository(result.stderr)) {
+    if (notAGitRepository(result.stderr) && !gitCheckoutAtOrAbove(projectDir)) {
       return { kind: "no-remotes", remotes: [] };
     }
     return {
@@ -363,7 +378,7 @@ export function decideGenerationStamp(input: {
     );
   }
   const prior: LiveGeneration | null = input.local.kind === "valid" ? input.local.token : null;
-  const proposed = nextLiveGenerationNumber(prior, {
+  let proposed = nextLiveGenerationNumber(prior, {
     increment: input.increment,
     contentVersion: input.contentVersion,
   });
@@ -404,6 +419,18 @@ export function decideGenerationStamp(input: {
   if (noWriteArm) {
     return { action: "keep-prior" };
   }
+  // Bootstrap 1 is only for proven-absent / no-remote / delivery-ref-absent.
+  // A missing local token against a known tip is an increment repair: stamp
+  // tip+1. Do not propose 1 (init would fail closed with no useful recovery).
+  if (input.local.kind === "absent") {
+    proposed = tipGeneration + 1;
+  }
+  if (!Number.isSafeInteger(proposed) || proposed < 1) {
+    return refuse(
+      "directive update: proposed generation successor is not a safe integer; refuse before dest writes.",
+      GENERATION_REWIND_RECOVERY,
+    );
+  }
   if (!(proposed > tipGeneration)) {
     return refuse(
       `directive update: generation rewind refused (proposed ${proposed} is not greater than delivery-tip ${tipGeneration}). ${GENERATION_REWIND_RECOVERY}.`,
@@ -440,14 +467,27 @@ function resolveTipState(input: {
     execGit: input.execGit,
   });
   if (!pin.ok) {
-    if (lsRemoteAssertsAbsence(input.execGit, input.projectDir, remote, delivery.branch)) {
+    const identityResolved = delivery.source === "typed" || delivery.source === "git-default";
+    const emptyLsRemote = lsRemoteAssertsAbsence(
+      input.execGit,
+      input.projectDir,
+      remote,
+      delivery.branch,
+    );
+    // R3: default-fallback / default-on-error never authorize local arithmetic.
+    // Empty ls-remote of the fallback name is not absence when another remote
+    // may hold the real delivery branch (e.g. upstream/main).
+    if (identityResolved && emptyLsRemote) {
       return { tip: { kind: "delivery-ref-absent-on-remote" }, fetchArgs: pin.fetchArgs };
     }
+    const detail =
+      !identityResolved && emptyLsRemote
+        ? "delivery branch identity unresolved; empty ls-remote of the fallback name is not absence"
+        : pin.stderr.length
+          ? pin.stderr
+          : "invocation-owned fetch failed";
     return {
-      tip: {
-        kind: "remote-configured-unreadable",
-        detail: pin.stderr.length ? pin.stderr : "invocation-owned fetch failed",
-      },
+      tip: { kind: "remote-configured-unreadable", detail },
       fetchArgs: pin.fetchArgs,
     };
   }
