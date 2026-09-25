@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **fix(scope): scope:complete fails closed on 0 verified / N unverifiable unless executable-pass (Tracking #4870).** Reuses #4866 detection on the complete-side walk; evidence markers and #3826 no-oracle alone cannot exit 0 on that printed walk after clause injection. verify:ac stays unreverted; #3497 green stated-command pathless completes remain allowed. Parent #4814 stays a tracker.
 - **fix(setup): USER.md freshness stamps the live install version, not deposited `0.20.0` (Tracking #4987).** Phase 1 compare/stamp uses `locateManifest` + `parseInstallManifest` + `manifestReportableVersion` (#2294); stamp only when `reportable.version` is non-null (sha/none/missing → omit, no rewrite, no `"dev"` probe fallback). Skills-pack + rendered setup skill drop the literal; Acceptance grep stays on setup + `content/packs/skills`. Live-reader install-manifest / VERSION lookup is an explicit exception to the pre-question framework-file scan ban. Version-stamp split from #4378. Refs #4981, #2294.
+- **test(cache): dest-contention timeout on scanner-branches ReDoS linear its (Tracking #5024).** Blacksmith merge-gate flake: `stays linear on pathological no-pipe space runs` measured 106ms vs a 100ms bound. Annotate both linear `lineHasShellVector` its with `destContentionItTimeout` (#4847 / #5035 pattern). Keep the tests; wall-clock bound is 500ms (same ReDoS class as `redos-safe.test.ts`). Coverage floor unchanged.
 - **GHES host parsing keeps a non-default port (#5016).** HTTPS remotes such as `https://ghe.example:8443/org/repo` resolve to `ghe.example:8443` so credential lookup and `gh --hostname` use the same host:port.
 - **security(scm,skills): stop agent-runnable `gh auth status` that can print a live token (#3664).** Usable probe is `gh api rate_limit`; identity is `verify:gh-auth` / `github-auth-modes`. `parseLogin` no longer treats raw gh stdout as login. Token-shaped redaction is global, so a second token in `--repo` / `GH_REPO` / error text is also masked. Non-JSON `/user` stderr keeps a sanitized cause. `toolchain:check` warns when captured `gh --version` is below 2.97.0 (GHSA-cg6r-mpgc-h9mm / CVE-2026-64652). Consumer relief after a release pin plus `deft update`. Upstream masking remains a follow-up.
 - **fix(release): suite-stamp / PASS_WITH_DEBT must cite tip-SHA GHA coverage-of-record; never cite check-run id as gha-run; prefer lane cite when aggregator lacks parseable actions/runs URL (Tracking #5026).**
@@ -6797,7 +6798,6 @@ If you have custom scripts or references to deft files, update these paths:
 [0.2.0]: https://github.com/visionik/warping/releases/tag/v0.2.0
 
 [0.1.0]: https://github.com/visionik/warping/releases/tag/v0.1.0
-
 
 
 
