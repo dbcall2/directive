@@ -320,6 +320,44 @@ describe("runInitDeposit", destContentionItTimeout(), () => {
     expect(readFileSync(join(project, ".deft", "GENERATION.json"), "utf8")).toBe("{not json\n");
   });
 
+  it("unstages refused init deposit so porcelain has no staged paths (#4120)", async () => {
+    const project = freshRoot("init-deposit-gen-unstage-");
+    writeFileSync(join(project, "README.md"), "seed\n", "utf8");
+    execFileSync("git", ["init", "-q"], { cwd: project });
+    execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: project });
+    execFileSync("git", ["config", "user.name", "Test"], { cwd: project });
+    execFileSync("git", ["add", "-A"], { cwd: project });
+    execFileSync("git", ["commit", "-m", "baseline"], { cwd: project });
+    const contentRoot = installFakeContentPackage(project);
+    const result = await runInitDeposit(
+      { projectDir: project, jsonOut: false, nonInteractive: true },
+      { printf: () => {} },
+      {
+        resolveContentRoot: async () => contentRoot,
+        nowIso: () => "2026-06-24T12:00:00Z",
+        gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+        execGit: () => ({ status: 0, stdout: "", stderr: "" }),
+        afterFirstConsumerWrites: (projectDir) => {
+          mkdirSync(join(projectDir, ".deft"), { recursive: true });
+          writeFileSync(join(projectDir, ".deft", "GENERATION.json"), "{not json\n", "utf8");
+        },
+      },
+    );
+    expect(result.generationRewindError).toMatch(/invalid/);
+    expect(result.stagedPaths).toEqual([]);
+    expect(existsSync(join(project, "AGENTS.md"))).toBe(true);
+    const porcelain = execFileSync("git", ["status", "--porcelain"], {
+      cwd: project,
+      encoding: "utf8",
+    });
+    const stagedLines = porcelain.split("\n").filter((line) => {
+      if (line.length === 0) return false;
+      const indexState = line[0];
+      return indexState !== " " && indexState !== "?";
+    });
+    expect(stagedLines).toEqual([]);
+  });
+
   it("directive init adds the canonical pin to an existing package.json (#4429)", async () => {
     const project = freshRoot("init-deposit-existing-pkg-");
     const contentRoot = installFakeContentPackage(project);

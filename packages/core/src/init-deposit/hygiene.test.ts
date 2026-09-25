@@ -53,6 +53,7 @@ import {
   reconcileDepositToContentPackage,
   splitLedgerForStaging,
   stageFrameworkPaths,
+  unstageFrameworkPaths,
 } from "./hygiene.js";
 import { CANONICAL_TASKFILE_INCLUDE } from "./scaffold.js";
 import { syncConsumerXbriefSchemas } from "./xbrief-projections.js";
@@ -1486,6 +1487,108 @@ describe("ledger intersection staging (#3394)", () => {
     expect(cached).toContain("AGENTS.md");
     expect(cached).not.toContain("package.json");
     expect(cached).not.toContain(".gitignore");
+  });
+
+  it("unstageFrameworkPaths restores the index so porcelain has no staged deposit paths (#4120)", () => {
+    const project = freshRoot("hygiene-unstage-");
+    mkdirSync(join(project, ".deft", "core"), { recursive: true });
+    writeFileSync(join(project, "AGENTS.md"), "# Agent\n", "utf8");
+    writeFileSync(join(project, ".deft", "core", "main.md"), "# Deft\n", "utf8");
+    initGitRepo(project);
+    writeFileSync(join(project, "AGENTS.md"), "# Agent\nupdated\n", "utf8");
+
+    const staged = runWithMutationLedger(project, () => {
+      activeMutationLedger()?.record("wrote", join(project, "AGENTS.md"));
+      return depositStagePaths(project);
+    });
+    expect(staged.stagedPaths).toContain("AGENTS.md");
+    const cachedBefore = execFileSync("git", ["diff", "--cached", "--name-only"], {
+      cwd: project,
+      encoding: "utf8",
+    });
+    expect(cachedBefore).toContain("AGENTS.md");
+
+    const result = unstageFrameworkPaths(project, staged.stagePaths);
+    expect(result.unstaged).toBe(true);
+    expect(result.error).toBeNull();
+    const porcelain = execFileSync("git", ["status", "--porcelain"], {
+      cwd: project,
+      encoding: "utf8",
+    });
+    const stagedLines = porcelain.split("\n").filter((line) => {
+      if (line.length === 0) return false;
+      const indexState = line[0];
+      return indexState !== " " && indexState !== "?";
+    });
+    expect(stagedLines).toEqual([]);
+    const cachedAfter = execFileSync("git", ["diff", "--cached", "--name-only"], {
+      cwd: project,
+      encoding: "utf8",
+    });
+    expect(cachedAfter).not.toContain("AGENTS.md");
+  });
+
+  it("unstages deposit paths on an unborn HEAD (#4120)", () => {
+    const project = freshRoot("hygiene-unstage-unborn-");
+    execFileSync("git", ["init", "-q"], { cwd: project });
+    execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: project });
+    execFileSync("git", ["config", "user.name", "Test"], { cwd: project });
+    writeFileSync(join(project, "AGENTS.md"), "# Agent\n", "utf8");
+    execFileSync("git", ["add", "--", "AGENTS.md"], { cwd: project });
+    expect(
+      execFileSync("git", ["status", "--porcelain"], { cwd: project, encoding: "utf8" }),
+    ).toMatch(/^A /m);
+
+    const result = unstageFrameworkPaths(project, ["AGENTS.md"]);
+    expect(result.unstaged).toBe(true);
+    expect(result.error).toBeNull();
+    const porcelain = execFileSync("git", ["status", "--porcelain"], {
+      cwd: project,
+      encoding: "utf8",
+    });
+    const stagedLines = porcelain.split("\n").filter((line) => {
+      if (line.length === 0) return false;
+      const indexState = line[0];
+      return indexState !== " " && indexState !== "?";
+    });
+    expect(stagedLines).toEqual([]);
+  });
+
+  it("unstageFrameworkPaths is a no-op for empty paths, missing git, or unstaged names", () => {
+    expect(unstageFrameworkPaths("/tmp", []).unstaged).toBe(false);
+    expect(
+      unstageFrameworkPaths("/tmp", ["AGENTS.md"], { gitPorcelain: () => null }).unstaged,
+    ).toBe(false);
+    expect(
+      unstageFrameworkPaths("/tmp", ["AGENTS.md"], {
+        gitPorcelain: () => "?? AGENTS.md\n",
+        readCachedNames: () => [],
+      }).unstaged,
+    ).toBe(false);
+  });
+
+  it("unstageFrameworkPaths returns the git error instead of throwing", () => {
+    const result = unstageFrameworkPaths("/tmp", ["AGENTS.md"], {
+      gitPorcelain: () => "A  AGENTS.md\n",
+      readCachedNames: () => ["AGENTS.md"],
+      runGitUnstage: () => {
+        throw new Error("git reset -- (unstage) failed");
+      },
+    });
+    expect(result.unstaged).toBe(false);
+    expect(result.error?.message).toMatch(/unstage/);
+  });
+
+  it("unstageFrameworkPaths wraps non-Error throws", () => {
+    const result = unstageFrameworkPaths("/tmp", ["AGENTS.md"], {
+      gitPorcelain: () => "A  AGENTS.md\n",
+      readCachedNames: () => ["AGENTS.md"],
+      runGitUnstage: () => {
+        throw "nope";
+      },
+    });
+    expect(result.unstaged).toBe(false);
+    expect(result.error?.message).toBe("nope");
   });
 
   it("never invokes git add -A", () => {

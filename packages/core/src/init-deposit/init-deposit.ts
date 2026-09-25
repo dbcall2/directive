@@ -39,7 +39,7 @@ import {
 import { removeStaleMigratedFrameworkNarrative } from "../xbrief-migrate/migrate-project.js";
 import { writeAgentHookDeposit } from "./agent-hooks.js";
 import { ensureInitGitignoreLines, reconstituteDepositFromContent } from "./gitignore.js";
-import { depositStagePaths } from "./hygiene.js";
+import { depositStagePaths, unstageFrameworkPaths } from "./hygiene.js";
 import {
   type InitConsumerInvariantWriters,
   reassertInitConsumerInvariant,
@@ -484,9 +484,10 @@ export async function runInitDeposit(
     }
 
     // Upgrade commit recipe stays on update. Fresh-init success does not print it (#4656).
-    const { stagedPaths } = depositStagePaths(projectDir, {
+    const staged = depositStagePaths(projectDir, {
       includeTaskfile: taskfileWired,
     });
+    const { stagedPaths } = staged;
 
     // #3117: stamp live generation only after required init projections succeed.
     // Stamping earlier would advance authority for a failed/partial init (Greptile).
@@ -503,6 +504,9 @@ export async function runInitDeposit(
           dest: deftDir,
           projectDir,
         });
+        // Restore the index for every path this refused init staged so a later
+        // commit cannot pick up the rolled-back deposit (#4120 Greptile P1).
+        unstageFrameworkPaths(projectDir, staged.stagePaths);
         return {
           projectDir,
           deftDir,
