@@ -403,6 +403,54 @@ describe("runInitDeposit", destContentionItTimeout(), () => {
     expect(agents?.[0]).not.toBe("?");
   });
 
+  it("keeps a staged AGENTS.md deletion after refused-init rollback (#4120)", async () => {
+    const project = freshRoot("init-deposit-gen-keep-deleted-");
+    writeFileSync(join(project, "README.md"), "seed\n", "utf8");
+    writeFileSync(join(project, "AGENTS.md"), "# original\n", "utf8");
+    execFileSync("git", ["init", "-q"], { cwd: project });
+    execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: project });
+    execFileSync("git", ["config", "user.name", "Test"], { cwd: project });
+    execFileSync("git", ["add", "-A"], { cwd: project });
+    execFileSync("git", ["commit", "-m", "baseline"], { cwd: project });
+    execFileSync("git", ["rm", "--cached", "-q", "--", "AGENTS.md"], { cwd: project });
+    expect(
+      execFileSync("git", ["ls-files", "--stage", "--", "AGENTS.md"], {
+        cwd: project,
+        encoding: "utf8",
+      }),
+    ).toBe("");
+
+    const contentRoot = installFakeContentPackage(project);
+    const result = await runInitDeposit(
+      { projectDir: project, jsonOut: false, nonInteractive: true },
+      { printf: () => {} },
+      {
+        resolveContentRoot: async () => contentRoot,
+        nowIso: () => "2026-06-24T12:00:00Z",
+        gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+        execGit: () => ({ status: 0, stdout: "", stderr: "" }),
+        afterFirstConsumerWrites: (projectDir) => {
+          mkdirSync(join(projectDir, ".deft"), { recursive: true });
+          writeFileSync(join(projectDir, ".deft", "GENERATION.json"), "{not json\n", "utf8");
+        },
+      },
+    );
+    expect(result.generationRewindError).toMatch(/invalid/);
+    expect(result.stagedPaths).toEqual([]);
+    expect(
+      execFileSync("git", ["ls-files", "--stage", "--", "AGENTS.md"], {
+        cwd: project,
+        encoding: "utf8",
+      }),
+    ).toBe("");
+    expect(
+      execFileSync("git", ["diff", "--cached", "--name-status", "--", "AGENTS.md"], {
+        cwd: project,
+        encoding: "utf8",
+      }),
+    ).toMatch(/^D\tAGENTS.md/);
+  });
+
   it("directive init adds the canonical pin to an existing package.json (#4429)", async () => {
     const project = freshRoot("init-deposit-existing-pkg-");
     const contentRoot = installFakeContentPackage(project);
