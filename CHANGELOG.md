@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 - **fix(scope): scope:complete fails closed on 0 verified / N unverifiable unless executable-pass (Tracking #4870).** Reuses #4866 detection on the complete-side walk; evidence markers and #3826 no-oracle alone cannot exit 0 on that printed walk after clause injection. verify:ac stays unreverted; #3497 green stated-command pathless completes remain allowed. Parent #4814 stays a tracker.
 - **fix(setup): USER.md freshness stamps the live install version, not deposited `0.20.0` (Tracking #4987).** Phase 1 compare/stamp uses `locateManifest` + `parseInstallManifest` + `manifestReportableVersion` (#2294); stamp only when `reportable.version` is non-null (sha/none/missing → omit, no rewrite, no `"dev"` probe fallback). Skills-pack + rendered setup skill drop the literal; Acceptance grep stays on setup + `content/packs/skills`. Live-reader install-manifest / VERSION lookup is an explicit exception to the pre-question framework-file scan ban. Version-stamp split from #4378. Refs #4981, #2294.
 - **Open leftover work can be parked so unrelated changes can proceed; closed work still requires terminal evidence (Tracking #5024).**
@@ -52,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 \
 >>>>>>> f7b9709b7 (docs(changelog): shorten Unreleased #4539 entries (#1242))
 ### Removed
+=======
+\### Removed
+>>>>>>> 6729e4dcc (fix(verify-env): retry hung Windows gh --version in toolchain-check (#3610))
 
 ## [0.119.9] - 2026-09-25
 
