@@ -26,36 +26,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
+- **fix(doctor): already-installed skip compares the PATH Directive version to the pin (Tracking #4539).** Skip only when the discovered global/PATH version matches the expected pin; a stale engine no longer silently skips. Refs #3610.
 - **fix(scope): scope:complete fails closed on 0 verified / N unverifiable unless executable-pass (Tracking #4870).** Reuses #4866 detection on the complete-side walk; evidence markers and #3826 no-oracle alone cannot exit 0 on that printed walk after clause injection. verify:ac stays unreverted; #3497 green stated-command pathless completes remain allowed. Parent #4814 stays a tracker.
 - **fix(setup): USER.md freshness stamps the live install version, not deposited `0.20.0` (Tracking #4987).** Phase 1 compare/stamp uses `locateManifest` + `parseInstallManifest` + `manifestReportableVersion` (#2294); stamp only when `reportable.version` is non-null (sha/none/missing → omit, no rewrite, no `"dev"` probe fallback). Skills-pack + rendered setup skill drop the literal; Acceptance grep stays on setup + `content/packs/skills`. Live-reader install-manifest / VERSION lookup is an explicit exception to the pre-question framework-file scan ban. Version-stamp split from #4378. Refs #4981, #2294.
 - **Open leftover work can be parked so unrelated changes can proceed; closed work still requires terminal evidence (Tracking #5024).**
 - **test(cache): cache scanner ReDoS checks stay stable under dest load (Tracking #5024).** Loaded merge-gate no longer flakes those checks. Coverage floor unchanged. Refs #4847, #5035.
 - **GHES host parsing keeps a non-default port (#5016).** HTTPS remotes such as `https://ghe.example:8443/org/repo` resolve to `ghe.example:8443` so credential lookup and `gh --hostname` use the same host:port.
 - **security(scm,skills): stop agent-runnable `gh auth status` that can print a live token (#3664).** Usable probe is `gh api rate_limit`; identity is `verify:gh-auth` / `github-auth-modes`. `parseLogin` no longer treats raw gh stdout as login. Token-shaped redaction is global, so a second token in `--repo` / `GH_REPO` / error text is also masked. Non-JSON `/user` stderr keeps a sanitized cause. `toolchain:check` warns when captured `gh --version` is below 2.97.0 (GHSA-cg6r-mpgc-h9mm / CVE-2026-64652). Consumer relief after a release pin plus `deft update`. Upstream masking remains a follow-up.
-=======
-\- **security(scm,skills): stop agent-runnable `gh auth status` that can print a live token (#3664).** Usable probe is `gh api rate_limit`; identity is `verify:gh-auth` / `github-auth-modes`. `parseLogin` no longer treats raw gh stdout as login. Token-shaped redaction is global, so a second token in `--repo` / `GH_REPO` / error text is also masked. Non-JSON `/user` stderr keeps a sanitized cause. `toolchain:check` warns when captured `gh --version` is below 2.97.0 (GHSA-cg6r-mpgc-h9mm / CVE-2026-64652). Consumer relief after a release pin plus `deft update`. Upstream masking remains a follow-up.
->>>>>>> a6fa04970 (fix(docs): already-installed skip compares PATH version to the pin)
 - **fix(release): suite-stamp / PASS_WITH_DEBT must cite tip-SHA GHA coverage-of-record; never cite check-run id as gha-run; prefer lane cite when aggregator lacks parseable actions/runs URL (Tracking #5026).**
-=======
-\- **fix(release): suite-stamp / PASS_WITH_DEBT must cite tip-SHA GHA coverage-of-record; never cite check-run id as gha-run; prefer lane cite when aggregator lacks parseable actions/runs URL (Tracking #5026).**
->>>>>>> 10396c55e (fix(agents): refresh skip-compare pin-ladder from agents-entry)
 - **SCM ready-cache binds host-store identity; shallow no longer claims authenticated (#5016).** A `gh auth switch` or hosts.yml credential change revalidates. Consumer agents-entry admits installation authentication when no user is required.
-=======
-\- **SCM ready-cache binds host-store identity; shallow no longer claims authenticated (#5016).** A `gh auth switch` or hosts.yml credential change revalidates. Consumer agents-entry admits installation authentication when no user is required.
->>>>>>> 119161c73 (fix(tests): dest-contention timeout for verify:ac stated-command run (#4539))
 
-=======
-\
->>>>>>> f7b9709b7 (docs(changelog): shorten Unreleased #4539 entries (#1242))
 ### Removed
-=======
-\### Removed
->>>>>>> 6729e4dcc (fix(verify-env): retry hung Windows gh --version in toolchain-check (#3610))
 
 ## [0.119.9] - 2026-09-25
 
