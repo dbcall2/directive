@@ -45,6 +45,7 @@ describe("setup bound remedy (#4660)", () => {
       const output = outputPath(phase1);
       expect(output).toContain("Write to the platform-appropriate path");
       expect(output).toContain("$DEFT_USER_PATH");
+      expect(output).toContain("Phase 1 persist is that USER.md write (#4660)");
       expect(output).not.toContain("PROJECT-DEFINITION");
       expect(output).not.toContain("project:write-narratives");
       const template = phase1.slice(phase1.indexOf("### Template"));
@@ -78,6 +79,15 @@ describe("setup bound remedy (#4660)", () => {
       expect(phase3Text).toContain("xbrief/proposed/");
       expect(phase3Text).toContain("./xbrief/PROJECT-DEFINITION.xbrief.json");
       expect(phase3Text).toContain("the file written in Phase 2");
+      expect(phase3Text).toContain(
+        "When this setup run performs Phase 2, Phase 3 waits for the successful identity write (`deft project:write-narratives`) (#4660)",
+      );
+      expect(phase3Text).toContain(
+        "When setup legitimately skips Phase 2 because a project definition already exists, Phase 3 MAY proceed from that existing identity",
+      );
+      expect(phase3Text).toContain(
+        "do not require a new `project:write-narratives` invocation on the skip path",
+      );
       expect(phase3Text).toContain("## Phase 3 — Specification");
     });
   }
