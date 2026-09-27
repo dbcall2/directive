@@ -26,7 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **fix(doctor): already-installed skip compares the PATH Directive version to the pin (Tracking #4539).** Skip only when the discovered global/PATH version matches the expected pin; a stale engine no longer silently skips. Refs #3610.
+- **fix(doctor): already-installed skip compares the PATH Directive version to the pin (Tracking #4539).**
+- **docs(agents): raise agentsMdBudget.absoluteMaxBytes 20552→20600 for #4539 session-routing bootstrap ladder.** Skip only when the discovered global/PATH version matches the expected pin; a stale engine no longer silently skips. Refs #3610.
 - **fix(literal-ac): closed node --test argv grammar (Tracking #4978).** Literal acceptance admits node only through exact --test with a closed reporter allow-set; quoted dash tokens and module-loading --test-global-setup are refused. Refs #4751.
 - **fix(scope): scope:complete fails closed on 0 verified / N unverifiable unless executable-pass (Tracking #4870).** Reuses #4866 detection on the complete-side walk; evidence markers and #3826 no-oracle alone cannot exit 0 on that printed walk after clause injection. verify:ac stays unreverted; #3497 green stated-command pathless completes remain allowed. Parent #4814 stays a tracker.
 - **fix(setup): USER.md freshness stamps the live install version, not deposited `0.20.0` (Tracking #4987).** Phase 1 compare/stamp uses `locateManifest` + `parseInstallManifest` + `manifestReportableVersion` (#2294); stamp only when `reportable.version` is non-null (sha/none/missing → omit, no rewrite, no `"dev"` probe fallback). Skills-pack + rendered setup skill drop the literal; Acceptance grep stays on setup + `content/packs/skills`. Live-reader install-manifest / VERSION lookup is an explicit exception to the pre-question framework-file scan ban. Version-stamp split from #4378. Refs #4981, #2294.
