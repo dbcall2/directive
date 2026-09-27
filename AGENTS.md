@@ -160,7 +160,7 @@ Same `!` / `⊗` rules as managed below; `task issue:ingest` (#2143).
 
 Note: root-relative paths (this repo IS deft/); run `task agents:refresh` after agents-entry edits (#1309).
 
-<!-- deft:managed-section v3 sha=bd59e99fc0c4 refreshed=2026-09-25T14:44:21Z session=898d763b0c45 -->
+<!-- deft:managed-section v3 sha=ed092f6beec2 refreshed=2026-09-27T00:46:45Z session=83ae946070ca -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
@@ -179,7 +179,7 @@ Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
 
 ## Session routing (#2176)
 
-! **Read-only default** until mutation intent: load AGENTS.md / main.md / USER.md / `xbrief/PROJECT-DEFINITION.xbrief.json`; resolve USER.md via `deft session:start` (`USER.md resolved …`; win32 `%APPDATA%\deft\USER.md`; unix `~/.config/deft/USER.md`; ⊗ invent `~/.config/deft` on Windows #2544); confirm Deft alignment + addressing-name; ⊗ no mutable `deft session:start` / triage welcome / sync / branch-policy unless asked or implementation-ready (#2176) — `.deft/core/commands.md` § Session routing. Bootstrap: Cold-start (#2273) → PATH `directive --version` / `deft --version` vs pin (doctor exit 0 is not skip) → #4090 (`directive doctor --full`; `evaluateSkew`: `reject-global`→`npm i -g @deftai/directive@<pin>`; else follow emitted decision; no pin and no deposit→ `npx @deftai/directive init` → re-compare) ⊗ never a payload path; pre-cutover → setup Pre-Cutover (#2068); missing USER.md / PROJECT-DEFINITION → setup Phase 1/2 (#1813) ⊗ before answering; else main → USER → PROJECT-DEFINITION; ~ sync. identity-only + product mutation → Phase 3 Starting-new / Rapid before Mutation (Process-only; ⊗ --prompt). Mutation → `deft session:start` then `deft verify:session-ritual -- --tier=gated` (#1149). Occupancy (#4625): not #3334/#3396; ritual does not bind complete/check (occupancyLive; #3729). ⊗#3805. Dest-wo: process-only, leftover complete, finalize-cohort. #4624. Stale-ritual (#4290): name ready/rearm/cold only when occupancy admits this actor; restricted primary → `--primary-claim-exception=operator-default-branch` or linked-worktree same-actor. ? `deft session:start -- --read-only` (#2176). ? Tracked docs: `deft session:start --posture=requirements` (#4444).
+! **Read-only default** until mutation intent: load AGENTS.md / main.md / USER.md / `xbrief/PROJECT-DEFINITION.xbrief.json`; resolve USER.md via `deft session:start` (`USER.md resolved …`; win32 `%APPDATA%\deft\USER.md`; unix `~/.config/deft/USER.md`; ⊗ invent `~/.config/deft` on Windows #2544); confirm Deft alignment + addressing-name; ⊗ no mutable `deft session:start` / triage welcome / sync / branch-policy unless asked or implementation-ready (#2176) — `.deft/core/commands.md` § Session routing. Bootstrap: Cold-start (#2273) → #4090 (`directive doctor --full`, then `npm i -g @deftai/directive@<pin>`) ⊗ never a payload path; pre-cutover → setup Pre-Cutover (#2068); missing USER.md / PROJECT-DEFINITION → setup Phase 1/2 (#1813) ⊗ before answering; else main → USER → PROJECT-DEFINITION; ~ sync. identity-only + product mutation → Phase 3 Starting-new / Rapid before Mutation (Process-only; ⊗ --prompt). Mutation → `deft session:start` then `deft verify:session-ritual -- --tier=gated` (#1149). Occupancy (#4625): not #3334/#3396; ritual does not bind complete/check (occupancyLive; #3729). ⊗#3805. Dest-wo: process-only, leftover complete, finalize-cohort. #4624. Stale-ritual (#4290): name ready/rearm/cold only when occupancy admits this actor; restricted primary → `--primary-claim-exception=operator-default-branch` or linked-worktree same-actor. ? `deft session:start -- --read-only` (#2176). ? Tracked docs: `deft session:start --posture=requirements` (#4444).
 
 ## Session-start ritual (#1149)
 
@@ -315,7 +315,7 @@ Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
 
 ! Detect OS/shell; use portable syntax or explicit shell (#2568). `.deft/core/scm/github.md` (#2157/#2369): PS encoding→`deft verify:encoding` (#798); TS capture; cascade→`deft pr:wait-mergeable-and-merge`; SCM→`deft verify:scm-boundary`.
 ! Forge outage (#3422): drop GitHub I/O on attributed outage or repeated 429/502/503; report once to the human; re-probe on `plan.policy.forgeOutageRetryMinutes` (default 30; USER.md Personal wins). Depth: `scm/github.md` § #3180.
-! Credential-class ban (#3858 / #2275): installation authentication may be admitted without claiming App identity when no user is required (#5016). Those three verbs parse `--repo` / `-R` before `requireScmReady` at depth deep. Doctor and default `session:start` stay shallow. Depth: `scm/github.md` § #2275.
+! Credential-class ban (#3858 / #2275): no GitHub App installation credential may drive `scm issue *`, `issue:ingest`, and `reconcile:issues`. Those three verbs parse `--repo` / `-R` before `requireScmReady` at depth deep. Doctor and default `session:start` stay shallow. Depth: `scm/github.md` § #2275.
 ! Registered-worker auth (#3663): local linked-worktree workers validate the independently stored assignment at `requireScmReady`; an inferred parent stamp is never exported as `DEFT_GITHUB_AUTH_MODE=host-gh` for those workers. Depth: `scm/github.md`.
 
 ## Development Process
