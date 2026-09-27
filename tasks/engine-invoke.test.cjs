@@ -182,6 +182,25 @@ describe("buildSpawnPlan — win32 global (subprocess-scm-01 / #2911)", () => {
     assert.equal(plan.windowsVerbatimArguments, true);
   });
 
+  it("keeps a spaced --project-root and #2547 apostrophe free-text as one token each (#3629)", () => {
+    const project = "E:/CSI Coding/csh-platform";
+    const summary = "It's a & test";
+    const argv = shellSplit(
+      `verify:branch --project-root "${project}" --summary "${summary}"`,
+    );
+    const plan = buildSpawnPlan("global", "deft", argv, WIN32);
+    assert.equal(plan.shell, false);
+    assert.equal(plan.windowsVerbatimArguments, true);
+    assert.deepEqual(splitCmdTokens(cmdSlashSPayload(plan.args[3])), [
+      "deft",
+      "verify:branch",
+      "--project-root",
+      project,
+      "--summary",
+      summary,
+    ]);
+  });
+
   const live = process.platform === "win32" ? it : it.skip;
   live("round-trips a spaced project dir, a spaced deft.cmd, and token a&b", () => {
     const root = mkdtempSync(join(tmpdir(), "deft-4772-"));
@@ -243,6 +262,65 @@ describe("buildSpawnPlan — win32 global (subprocess-scm-01 / #2911)", () => {
     ], captured);
     rmSync(root, { recursive: true, force: true });
   });
+
+  live("round-trips spaced project-root with apostrophe-and-ampersand summary (#3629)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-3629-"));
+    const projectDir = join(root, "directive uat");
+    const shimDir = join(root, "shim dir");
+    mkdirSync(projectDir, { recursive: true });
+    mkdirSync(shimDir, { recursive: true });
+    const shim = join(shimDir, "deft.cmd");
+    const capture = join(shimDir, "capture.ps1");
+    const outPath = join(projectDir, "argv.txt");
+    const projectSlash = projectDir.replace(/\\/g, "/");
+    const summary = "It's a & test";
+    writeFileSync(
+      capture,
+      [
+        "$argsJson = ($args | ConvertTo-Json -Compress)",
+        "Set-Content -LiteralPath $env:DEFT_ARGV_OUT -Value $argsJson -Encoding utf8",
+        "",
+      ].join("\r\n"),
+      "utf8",
+    );
+    writeFileSync(shim, `@echo off\r\npowershell.exe -NoProfile -File "${capture}" %*\r\n`, "utf8");
+    const cmd = `verify:branch --project-root "${projectSlash}" --summary "${summary}"`;
+    const argv = shellSplit(cmd);
+    const plan = buildSpawnPlan("global", shim, argv, WIN32);
+    assert.equal(plan.shell, false);
+    assert.equal(plan.windowsVerbatimArguments, true);
+    assert.deepEqual(splitCmdTokens(cmdSlashSPayload(plan.args[3])), [
+      shim,
+      "verify:branch",
+      "--project-root",
+      projectSlash,
+      "--summary",
+      summary,
+    ]);
+    const script = join(__dirname, "engine-invoke.cjs");
+    const result = spawnSync(process.execPath, [script, "global", shim], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        DEFT_ENGINE_CMD_JSON: JSON.stringify(cmd),
+        DEFT_ARGV_OUT: outPath,
+      },
+    });
+    assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    const raw = readFileSync(outPath);
+    const text = raw[0] === 0xef && raw[1] === 0xbb && raw[2] === 0xbf
+      ? raw.subarray(3).toString("utf8")
+      : raw.toString("utf8");
+    const captured = JSON.parse(text);
+    assert.deepEqual(captured, [
+      "verify:branch",
+      "--project-root",
+      projectSlash,
+      "--summary",
+      summary,
+    ]);
+    rmSync(root, { recursive: true, force: true });
+  });
 });
 
 describe("buildSpawnPlan — other paths keep shell:false", () => {
@@ -254,11 +332,23 @@ describe("buildSpawnPlan — other paths keep shell:false", () => {
     assert.deepEqual(plan.args, ["/bin.js", "release", "a&b"]);
   });
 
+  it("win32 global verbatim plan differs from vendored non-verbatim argv (#3629)", () => {
+    const argv = ["verify:branch", "--project-root", "E:/CSI Coding/csh-platform"];
+    const globalPlan = buildSpawnPlan("global", "deft", argv, WIN32);
+    const vendoredPlan = buildSpawnPlan("vendored", "/bin.js", argv, WIN32);
+    assert.equal(globalPlan.command, "cmd.exe");
+    assert.equal(globalPlan.windowsVerbatimArguments, true);
+    assert.equal(vendoredPlan.command, "/node");
+    assert.equal(vendoredPlan.windowsVerbatimArguments, undefined);
+    assert.deepEqual(vendoredPlan.args, ["/bin.js", ...argv]);
+  });
+
   it("posix global spawns the shim directly with shell:false", () => {
     const plan = buildSpawnPlan("global", "deft", ["release", "a&b"], POSIX);
     assert.equal(plan.shell, false);
     assert.equal(plan.command, "deft");
     assert.deepEqual(plan.args, ["release", "a&b"]);
+    assert.equal(plan.windowsVerbatimArguments, undefined);
   });
 
   it("posix vendored spawns node with shell:false", () => {
