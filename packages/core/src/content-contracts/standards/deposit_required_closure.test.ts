@@ -45,15 +45,19 @@ describe("declared deposit closure against staged pack (#3601 C1)", () => {
     },
   );
 
-  it("fails when a declared file is deleted from the staged pack output", () => {
-    const root = repoRoot();
-    const declaration = loadDepositRequiredDeclaration(resolveDeclarationFile(root) as string);
-    const pack = stageDeclaredPack(root);
-    rmSync(join(pack, "main.md"));
-    const mutated = evaluateDepositClosure({ packRoot: pack, paths: declaration.paths });
-    expect(mutated.ok).toBe(false);
-    expect(mutated.missing).toContain(".deft/core/main.md");
-  });
+  it(
+    "fails when a declared file is deleted from the staged pack output",
+    destContentionItTimeout(),
+    () => {
+      const root = repoRoot();
+      const declaration = loadDepositRequiredDeclaration(resolveDeclarationFile(root) as string);
+      const pack = stageDeclaredPack(root);
+      rmSync(join(pack, "main.md"));
+      const mutated = evaluateDepositClosure({ packRoot: pack, paths: declaration.paths });
+      expect(mutated.ok).toBe(false);
+      expect(mutated.missing).toContain(".deft/core/main.md");
+    },
+  );
 
   it("consumer template no longer mandates .deft/core/REFERENCES.md and names the pack-slice text form", () => {
     const template = readText("templates/agents-entry.md");

@@ -68,6 +68,10 @@ const LOADED_LANE_EDGE_ITS: ReadonlyArray<{ file: string; titlePrefix: string }>
     file: "packages/core/src/content-contracts/standards/deposit_required_closure.test.ts",
     titlePrefix: "every declared required path exists after running content-package prepack",
   },
+  {
+    file: "packages/core/src/content-contracts/standards/deposit_required_closure.test.ts",
+    titlePrefix: "fails when a declared file is deleted from the staged pack output",
+  },
 ];
 
 describe("destContentionItTimeout (#4847)", () => {

@@ -17,9 +17,16 @@ import { join } from "node:path";
 import type { ResolutionFacts } from "@deftai/directive-types";
 import { RESOLUTION_PLAN_SCHEMA_VERSION } from "@deftai/directive-types";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { replaceTree } from "../deposit/copy-tree.js";
 import { evaluateLiveProcedureTargets } from "../deposit/live-procedure-targets.js";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
 import { runChecksImpl } from "../doctor/checks.js";
+import {
+  inspectLocalGeneration,
+  readLiveGeneration,
+  stampLiveGeneration,
+} from "../freshness/generation.js";
+import type { GenerationGateResult } from "../freshness/generation-gate.js";
 import {
   emptyMutationSummary,
   mutationSummaryJson,
@@ -904,6 +911,133 @@ describe("runRefreshDeposit", () => {
     expect(readFileSync(join(project, ".deft", "core", "VERSION"), "utf8")).toContain(
       "tag: 'v0.61.0'",
     );
+  });
+
+  it("does not write a stale cached generation over a newer local token (#4120)", async () => {
+    const project = freshRoot("refresh-stale-gen-cache-");
+    const contentRoot = installFakeContentPackage(project, "0.53.0");
+    mkdirSync(join(project, ".deft", "core"), { recursive: true });
+    writeFileSync(
+      join(project, ".deft", "core", "VERSION"),
+      "tag: 'v0.52.0'\nsha: old\ninstall_root: '.deft/core'\n",
+      "utf8",
+    );
+    writeFileSync(join(project, ".deft", "core", "main.md"), "prior\n", "utf8");
+    stampLiveGeneration(project, {
+      contentVersion: "0.52.0",
+      stampedBy: "concurrent",
+      increment: true,
+      forcedGeneration: 5,
+    });
+    const cached: GenerationGateResult = {
+      action: "stamp",
+      generation: 2,
+      tip: {
+        kind: "known-at-oid",
+        generation: 1,
+        oid: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      local: { kind: "absent" },
+    };
+    await runRefreshDeposit(
+      { projectDir: project, jsonOut: false, nonInteractive: true, upgrade: true },
+      { printf: () => {} },
+      {
+        resolveContentRoot: async () => contentRoot,
+        readEngineVersion: () => "0.53.0",
+        nowIso: () => "2026-09-25T12:00:00Z",
+        gitPorcelain: () => null,
+        generationGate: cached,
+      },
+    );
+    expect(readLiveGeneration(project)?.generation).toBe(6);
+  });
+
+  it("refuses an unreadable token before swapping payload (#4120)", async () => {
+    const project = freshRoot("refresh-gen-unreadable-preswap-");
+    const contentRoot = installFakeContentPackage(project, "0.53.0");
+    const deftDir = join(project, ".deft", "core");
+    mkdirSync(deftDir, { recursive: true });
+    const priorVersion = "tag: 'v0.52.0'\nsha: old\ninstall_root: '.deft/core'\n";
+    writeFileSync(join(deftDir, "VERSION"), priorVersion, "utf8");
+    writeFileSync(join(deftDir, "main.md"), "prior\n", "utf8");
+    mkdirSync(join(project, ".deft"), { recursive: true });
+    writeFileSync(join(project, ".deft", "GENERATION.json"), "{not json\n", "utf8");
+    const cached: GenerationGateResult = {
+      action: "stamp",
+      generation: 2,
+      tip: {
+        kind: "known-at-oid",
+        generation: 1,
+        oid: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      local: { kind: "absent" },
+    };
+    const copyContent = vi.fn(async () => {
+      throw new Error("copyContent must not run after an unreadable local token");
+    });
+    const result = await runRefreshDeposit(
+      { projectDir: project, jsonOut: false, nonInteractive: true, upgrade: true },
+      { printf: () => {} },
+      {
+        resolveContentRoot: async () => contentRoot,
+        readEngineVersion: () => "0.53.0",
+        nowIso: () => "2026-09-25T12:00:00Z",
+        gitPorcelain: () => null,
+        generationGate: cached,
+        copyContent,
+      },
+    );
+    expect(result.generationRewindError).toMatch(/invalid/);
+    expect(copyContent).not.toHaveBeenCalled();
+    expect(readFileSync(join(deftDir, "VERSION"), "utf8")).toBe(priorVersion);
+    expect(readFileSync(join(deftDir, "main.md"), "utf8")).toBe("prior\n");
+  });
+
+  it("rolls back payload when a concurrent unreadable token refuses after swap (#4120)", async () => {
+    const project = freshRoot("refresh-gen-unreadable-midswap-");
+    const contentRoot = installFakeContentPackage(project, "0.53.0");
+    const deftDir = join(project, ".deft", "core");
+    mkdirSync(deftDir, { recursive: true });
+    const priorVersion = "tag: 'v0.52.0'\nsha: old\ninstall_root: '.deft/core'\n";
+    writeFileSync(join(deftDir, "VERSION"), priorVersion, "utf8");
+    writeFileSync(join(deftDir, "main.md"), "prior\n", "utf8");
+    stampLiveGeneration(project, {
+      contentVersion: "0.52.0",
+      stampedBy: "fixture",
+      increment: true,
+      forcedGeneration: 2,
+    });
+    const local = inspectLocalGeneration(project);
+    const cached: GenerationGateResult = {
+      action: "stamp",
+      generation: 3,
+      tip: {
+        kind: "known-at-oid",
+        generation: 1,
+        oid: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      local,
+    };
+    const result = await runRefreshDeposit(
+      { projectDir: project, jsonOut: false, nonInteractive: true, upgrade: true },
+      { printf: () => {} },
+      {
+        resolveContentRoot: async () => contentRoot,
+        readEngineVersion: () => "0.53.0",
+        nowIso: () => "2026-09-25T12:00:00Z",
+        gitPorcelain: () => null,
+        generationGate: cached,
+        copyContent: async (src, dst) => {
+          writeFileSync(join(project, ".deft", "GENERATION.json"), "{not json\n", "utf8");
+          await replaceTree(src, dst);
+        },
+      },
+    );
+    expect(result.generationRewindError).toMatch(/invalid/);
+    expect(readFileSync(join(deftDir, "VERSION"), "utf8")).toBe(priorVersion);
+    expect(readFileSync(join(deftDir, "main.md"), "utf8")).toBe("prior\n");
+    expect(readFileSync(join(project, ".deft", "GENERATION.json"), "utf8")).toBe("{not json\n");
   });
 
   it("leaves a legacy .deft/VERSION in place when it already agrees (#2064)", async () => {
