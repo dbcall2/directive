@@ -109,7 +109,7 @@ const subpathAliases: Record<string, string> = {
   "@deftai/directive-core/evaluator-surface": sub("core", "evaluator-surface"),
   "@deftai/directive-core/observable-scope": sub("core", "observable-scope"),
   "@deftai/directive-core/operator-scope-limit": sub("core", "operator-scope-limit"),
-  "@deftai/directive-core/presentation-ceiling": sub("core", "presentation-ceiling"),
+  "@deftai/directive-core/presentation-coverage": sub("core", "presentation-coverage"),
   "@deftai/directive-core/intent-constraint": sub("core", "intent-constraint"),
   "@deftai/directive-core/durable-effect-acquisition": sub("core", "durable-effect-acquisition"),
   "@deftai/directive-core/consumer-test-lane": sub("core", "consumer-test-lane"),

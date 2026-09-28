@@ -96,6 +96,8 @@ export interface DialEscalationEvaluationRunSummaryPayload {
 }
 
 export interface CheckGateOutcome {
+  /** Actual per-path compositor evidence (#5079); never inferred from stdout prose. */
+  readonly coverage?: readonly import("../presentation-coverage/types.js").ComposedGateCoverage[];
   readonly id: string;
   readonly status: "run" | "skipped" | "failed";
   readonly exit_code?: number;

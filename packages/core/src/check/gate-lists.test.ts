@@ -110,9 +110,9 @@ describe("gate-lists (#2791)", () => {
     expect(framework).not.toContain("verify:completed-tracked");
   });
 
-  it("includes verify:presentation-ceiling on framework and consumer lists (#5079)", () => {
-    expect(FRAMEWORK_CHECK_GATES.map(checkGateId)).toContain("verify:presentation-ceiling");
-    expect(CONSUMER_CHECK_GATES.map(checkGateId)).toContain("verify:presentation-ceiling");
+  it("includes verify:presentation-coverage on framework and consumer lists (#5079)", () => {
+    expect(FRAMEWORK_CHECK_GATES.map(checkGateId)).toContain("verify:presentation-coverage");
+    expect(CONSUMER_CHECK_GATES.map(checkGateId)).toContain("verify:presentation-coverage");
   });
 
   it("includes verify:telemetry-coverage on the framework list only (#3362)", () => {

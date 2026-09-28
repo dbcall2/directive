@@ -44,7 +44,7 @@ tasks:
   durable-effect-acquisition:
     cmds:
       - echo ok
-  presentation-ceiling:
+  presentation-coverage:
     cmds:
       - echo ok
   orphan-active:
@@ -98,7 +98,7 @@ tasks:
       - verify:observable-scope
       - verify:intent-constraint
       - verify:durable-effect-acquisition
-      - verify:presentation-ceiling
+      - verify:presentation-coverage
 ${orphanEntry}    cmds:
       - echo ok
 `;
@@ -135,7 +135,7 @@ describe("extractCheckDepEntries (#3893)", () => {
       "verify:observable-scope",
       "verify:intent-constraint",
       "verify:durable-effect-acquisition",
-      "verify:presentation-ceiling",
+      "verify:presentation-coverage",
       "verify:orphan-active",
     ]);
   });

@@ -71,7 +71,7 @@ tasks:
     cmds: [echo ok]
   durable-effect-acquisition:
     cmds: [echo ok]
-  presentation-ceiling:
+  presentation-coverage:
     cmds: [echo ok]
   consumer-test-lane:
     cmds: [echo ok]
@@ -159,7 +159,14 @@ describe("degraded skip report in check (#3282)", () => {
       },
       gateSpawnFn: (gateId, bin, args) => {
         spawned.push({ gateId, bin, args });
-        return { exitCode: 0, stdout: "", stderr: "" };
+        return {
+          exitCode: 0,
+          stdout:
+            gateId === "verify:presentation-coverage"
+              ? JSON.stringify({ code: 0, armed: false, coverage: [] })
+              : "",
+          stderr: "",
+        };
       },
     });
     expect(code).toBe(0);
@@ -205,7 +212,14 @@ describe("degraded skip report in check (#3282)", () => {
         packageManager: "npm",
         packageManagerSource: "package-manager-field",
       },
-      gateSpawnFn: () => ({ exitCode: 0, stdout: "", stderr: "" }),
+      gateSpawnFn: (gateId) => ({
+        exitCode: 0,
+        stdout:
+          gateId === "verify:presentation-coverage"
+            ? JSON.stringify({ code: 0, armed: false, coverage: [] })
+            : "",
+        stderr: "",
+      }),
     });
     expect(code).toBe(2);
     const msg = errWrite.mock.calls.map((call) => String(call[0])).join("");
@@ -275,7 +289,14 @@ describe("degraded skip report in check (#3282)", () => {
         probed.push(name);
         return `/bin/${name}`;
       },
-      gateSpawnFn: () => ({ exitCode: 0, stdout: "", stderr: "" }),
+      gateSpawnFn: (gateId) => ({
+        exitCode: 0,
+        stdout:
+          gateId === "verify:presentation-coverage"
+            ? JSON.stringify({ code: 0, armed: false, coverage: [] })
+            : "",
+        stderr: "",
+      }),
     });
     expect(code).toBe(2);
     expect(probed).not.toContain("npm");
@@ -296,7 +317,14 @@ describe("degraded skip report in check (#3282)", () => {
             stderr: "branch protection refused default branch\n",
           };
         }
-        return { exitCode: 0, stdout: "", stderr: "" };
+        return {
+          exitCode: 0,
+          stdout:
+            gateId === "verify:presentation-coverage"
+              ? JSON.stringify({ code: 0, armed: false, coverage: [] })
+              : "",
+          stderr: "",
+        };
       },
     });
     expect(code).toBe(1);

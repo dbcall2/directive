@@ -46,8 +46,8 @@ const GATE_REMEDIES: Readonly<Record<string, string>> = {
   "verify:observable-scope": OBSERVABLE_SCOPE_REMEDIATION,
   "verify:intent-constraint": INTENT_CONSTRAINT_REMEDIATION,
   "verify:durable-effect-acquisition": DURABLE_EFFECT_REMEDIATION,
-  "verify:presentation-ceiling":
-    "Under an armed presentation ceiling, cannot-evaluate is refuse or escalate. Continue only from a merge-base human-stamped mint or extraExtensions amendment covering the same paths.",
+  "verify:presentation-coverage":
+    "Under an armed presentation ceiling, cannot-evaluate is refuse or escalate. Continue only from a merge-base human-stamped mint or extensionAmendment covering the same paths.",
   "verify:consumer-test-lane":
     "Fix the project's declared test command, or set plan.policy.testCommand; do not invent a suite",
   "verify:forward-coverage":

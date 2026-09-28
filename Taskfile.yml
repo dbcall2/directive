@@ -452,7 +452,7 @@ tasks:
       - verify:observable-scope
       - verify:intent-constraint
       - verify:durable-effect-acquisition
-      - verify:presentation-ceiling
+      - verify:presentation-coverage
       - verify:telemetry-coverage
       - verify:vbrief-conformance
       - verify:destructive-gh-verbs
@@ -519,7 +519,7 @@ tasks:
       - verify:observable-scope
       - verify:intent-constraint
       - verify:durable-effect-acquisition
-      - verify:presentation-ceiling
+      - verify:presentation-coverage
       - vbrief:validate
       - verify-strategy-output
       - verify:consumer-test-lane

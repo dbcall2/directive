@@ -282,8 +282,8 @@ describe("named-cause gate failures (#3282)", () => {
     expect(lines.join("\n")).toContain("exit 1");
   });
 
-  it("names a remedy for verify:presentation-ceiling", () => {
-    expect(remedyForGate("verify:presentation-ceiling", "cannot evaluate")).toMatch(
+  it("names a remedy for verify:presentation-coverage", () => {
+    expect(remedyForGate("verify:presentation-coverage", "cannot evaluate")).toMatch(
       /armed presentation ceiling/,
     );
   });

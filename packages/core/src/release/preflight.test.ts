@@ -424,13 +424,15 @@ describe("cached remaining-time hang kill (#4801)", () => {
       emitRunSummary: false,
       deadlineAtMs: now + 5_000,
       nowMs: () => now,
-      superviseTimed: () => {
+      superviseTimed: (plan) => {
         timedCount += 1;
         return {
           exitCode: 0,
           timedOut: false,
           signal: null,
-          stdout: "ok",
+          stdout: plan.args.includes("verify:presentation-coverage")
+            ? JSON.stringify({ code: 0, armed: false, coverage: [] })
+            : "ok",
           stderr: "",
           teePath: "",
           teeRel: "",

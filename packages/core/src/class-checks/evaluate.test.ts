@@ -161,18 +161,16 @@ describe("evaluateClassChecks (#4980)", () => {
   it("does not fail a first PR solely because the ceiling artifact is unprotected (#5079)", () => {
     const result = evaluateClassChecks("/tmp/proj", {
       baseRef: "origin/master",
-      changedFiles: [".deft/presentation-ceilings/story.json", "src/View.tsx"],
+      changedFiles: [".deft/presentation-ceiling.json", "src/View.tsx"],
       baseTestBoundaryPolicy: baseTb({ sourceRoots: ["src/**"], testRoots: ["tests/**"] }),
       classChecksPolicy: classPolicy,
       fileContents: new Map([
-        [".deft/presentation-ceilings/story.json", '{"schema":"deft.presentation-ceiling.v1"}\n'],
+        [".deft/presentation-ceiling.json", '{"schema":"deft.presentation-ceiling.v1"}\n'],
         ["src/View.tsx", "export const View = () => null;\n"],
       ]),
     });
     expect(result.findings.some((f) => f.kind === "protected-glob")).toBe(false);
-    expect(result.findings.some((f) => f.path === ".deft/presentation-ceilings/story.json")).toBe(
-      false,
-    );
+    expect(result.findings.some((f) => f.path === ".deft/presentation-ceiling.json")).toBe(false);
   });
 
   it("allows a pure protected-glob landing (own diff, no story product)", () => {

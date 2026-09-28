@@ -9,6 +9,8 @@ import type { TaskRunResult } from "../cache/task-cache/types.js";
 import { defaultWhich } from "../doctor/which.js";
 import { readCorePackageVersion } from "../engine-version.js";
 import { containedRemove } from "../fs/contained-write.js";
+import { COMPOSED_GATE_IDS } from "../presentation-coverage/gates.js";
+import { parseCoverageReport } from "../presentation-coverage/report.js";
 import {
   applyProductFirstGateMode,
   EMPTY_AC_CAUSE,
@@ -209,6 +211,9 @@ export function dispatchCachedTaskCheck(
   const codeVersion = readCorePackageVersion();
   const sessionId = options.sessionId;
   const gateOutcomes: CheckGateOutcome[] = [];
+  let presentationArmed = false;
+  const presentationRequired = (id: string): boolean =>
+    COMPOSED_GATE_IDS.includes(id) || id === "verify:presentation-ceiling";
   let lastSuiteTeeText = "";
   let lastSuiteTeeRel: string | null = null;
   pruneSuiteTees({ projectRoot: resolvedProject });
@@ -401,7 +406,7 @@ export function dispatchCachedTaskCheck(
       projectRoot: cwd,
       contract,
       codeVersion,
-      noCache: options.noCache,
+      noCache: options.noCache || gateId === "verify:presentation-coverage",
       runner: () => {
         const now = options.nowMs?.() ?? Date.now();
         const remaining = remainingForDeadline(options.deadlineAtMs, now);
@@ -507,6 +512,42 @@ export function dispatchCachedTaskCheck(
         return spawned;
       },
     });
+    const coverageReport =
+      gateId === "verify:presentation-coverage"
+        ? parseCoverageReport(lastSpawn.stdout, result.exitCode)
+        : undefined;
+    if (coverageReport !== undefined && "error" in coverageReport) {
+      process.stderr.write(`check: ${coverageReport.error}\n`);
+      gateOutcomes.push({
+        id: gateId,
+        status: "failed",
+        exit_code: 2,
+        cause: coverageReport.error,
+      });
+      return finish(2, true);
+    }
+    if (coverageReport !== undefined && coverageReport.armed) {
+      presentationArmed = true;
+      // A second successful evaluation cannot erase an actual earlier refusal,
+      // including an advisory pressure-mode result or an unrun required gate.
+      const prior = gateOutcomes.find(
+        (outcome) =>
+          presentationRequired(outcome.id) && (outcome.status !== "run" || outcome.exit_code !== 0),
+      );
+      if (prior !== undefined) {
+        const code = prior.exit_code !== undefined && prior.exit_code !== 0 ? prior.exit_code : 2;
+        const cause = `armed presentation coverage preserves required ${prior.id} outcome`;
+        process.stderr.write(`check: ${cause} (exit ${code})\n`);
+        gateOutcomes.push({
+          id: gateId,
+          status: "failed",
+          exit_code: code,
+          cause,
+          coverage: coverageReport.coverage,
+        });
+        return finish(code, prior.status === "skipped");
+      }
+    }
     options.onGateComplete?.(gateId, result.exitCode, result.fromCache);
 
     // Fail-fast: do not start later gates (including suite) after a failure —
@@ -544,7 +585,12 @@ export function dispatchCachedTaskCheck(
         }
         return finish(1, true);
       }
-      if (modeResolution.hygieneAdvisory && isHygieneGate(gateId) && !isProductAcGate(gateId)) {
+      if (
+        modeResolution.hygieneAdvisory &&
+        isHygieneGate(gateId) &&
+        !isProductAcGate(gateId) &&
+        !(presentationArmed && presentationRequired(gateId))
+      ) {
         process.stderr.write(
           `check: hygiene gate ${gateId} failed (exit ${result.exitCode}) but is ADVISORY ` +
             `under ${modeResolution.mode} mode — continuing (#3284)\n`,
@@ -583,6 +629,7 @@ export function dispatchCachedTaskCheck(
       gateOutcomes.push({
         id: gateId,
         status: "failed",
+        ...(coverageReport === undefined ? {} : { coverage: coverageReport.coverage }),
         exit_code: result.exitCode,
         cause: named.cause,
         remedy: named.remedy,
@@ -670,6 +717,7 @@ export function dispatchCachedTaskCheck(
       status: "run",
       exit_code: 0,
       from_cache: result.fromCache,
+      ...(coverageReport === undefined ? {} : { coverage: coverageReport.coverage }),
     });
   }
 

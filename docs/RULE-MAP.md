@@ -159,6 +159,7 @@ _Explanatory docs and the framework glossary._
 - `operator-log-hygiene-consumer-pack-stub.md` — Skeleton for **consumer projects** that want a ship-gate for operator-facing logs. Wire this into *your* check aggregate only if you opt in.
 - `orphan-active-verdict-basis.md` — `verify:orphan-active` decides whether an `xbrief/active/` brief with `plan.status == running` is really still live work. Until #3767 it answered that question from a triage-cache hit returned **unconditionally** — no age
 - `plan-acceptance.md` — Fields the product AC gate actually reads. Not a schema dump. Derivation (`#3323` / `#3360`) owns the stamp. Setup stays silent on this block.
+- `presentation-coverage.md` — `deft verify:presentation-coverage` (#5079) checks that a candidate under a recorded presentation ceiling has successful required checks and merge-base authority for every changed product path. The independent…
 - `product-signal.md` — Phase 1 consented product-improvement signal under epic #2603 (#2693). Defaults **off**.
 - `project-invariants.md` — Refs: #3425 · Related: #3238 `coverage_map`, #3241 parent lineage, #516 / #3145 `file_scope`
 - `scope-provenance.md` — Refs: #3145 · #3205 · #4956 · Related: #1310, #2944 human-origin grants, #516 file scope · class checks: #4980 · generalizes under [gate-integrity.md](../content/docs/gate-integrity.md) (#3156) · UI structure:…

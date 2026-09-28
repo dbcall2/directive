@@ -16,7 +16,7 @@ describe("class-checks policy (#4980)", () => {
     expect(p.protectedGlobs.some((g) => g.includes("class-checks"))).toBe(true);
     expect(p.protectedGlobs.some((g) => g.includes("npm-publish"))).toBe(true);
     expect(p.protectedGlobs.some((g) => g.includes("approved-scope"))).toBe(true);
-    expect(p.protectedGlobs.some((g) => g.includes("presentation-ceiling"))).toBe(false);
+    expect(p.protectedGlobs.some((g) => g.includes("presentation-coverage"))).toBe(false);
   });
 
   it("parses injected file text", () => {

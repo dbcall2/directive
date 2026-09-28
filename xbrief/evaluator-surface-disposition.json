@@ -8,12 +8,16 @@
     "vitest.config.ts",
     "packages/core/src/check/gate-lists.ts",
     "packages/core/src/evaluator-surface/**",
-    "packages/core/src/presentation-ceiling/**",
+    "packages/core/src/presentation-coverage/**",
     "packages/core/src/intent-constraint/**",
     "packages/core/src/observable-scope/**",
     "packages/core/src/class-checks/**",
-    "packages/cli/src/verify-presentation-ceiling.ts",
-    "xbrief/evaluator-surface-disposition.json"
+    "packages/cli/src/verify-presentation-coverage.ts",
+    "xbrief/evaluator-surface-disposition.json",
+    "packages/core/src/check/**",
+    "packages/core/src/consumer-check-contract/**",
+    "packages/core/src/product-first-done-gate/**",
+    "packages/core/src/run-summary/types.ts"
   ],
-  "note": "Disclosure for #5079: presentation-ceiling compositor on check composition and evaluator-surface detector. Disclosure only; not #3164 authorization."
+  "note": "Disclosure for the operator-approved #5079 repair: real required gate composition, pinned Git candidate reads, base story/path admission, and mandatory aggregate/consumer coverage. Shared supplier #5056 remains an independent gate. Disclosure only; not #3164 authorization."
 }

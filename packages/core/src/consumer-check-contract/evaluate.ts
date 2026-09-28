@@ -23,6 +23,7 @@ export const REQUIRED_CONSUMER_ENFORCEMENT_GATES: readonly string[] = [
   "verify:observable-scope",
   "verify:intent-constraint",
   "verify:durable-effect-acquisition",
+  "verify:presentation-coverage",
 ];
 
 /**
