@@ -99,7 +99,24 @@ describe("verify-presentation-coverage CLI (#5079)", () => {
   });
 });
 
-it("parses a real cold Task build followed by the source CLI report", { timeout: 20000 }, () => {
+it("parses a real cold Task build followed by the source CLI report", { timeout: 20000 }, ({
+  skip,
+}) => {
+  // The TS-only lane does not install Task; the mandatory merge gate does.
+  // Only an absent executable skips this integration. A broken install fails.
+  const probe = spawnSync("task", ["--version"], { encoding: "utf8", timeout: 3000 });
+  if (probe.error && "code" in probe.error && probe.error.code === "ENOENT") {
+    skip();
+    return;
+  }
+  const probeDiagnostic = JSON.stringify({
+    error: probe.error?.message,
+    status: probe.status,
+    signal: probe.signal,
+    stderr: probe.stderr,
+  });
+  expect(probe.error, probeDiagnostic).toBeUndefined();
+  expect(probe.status, probeDiagnostic).toBe(0);
   const root = mkdtempSync(join(tmpdir(), "coverage-cold-task-"));
   const repo = resolve(import.meta.dirname, "../../..");
   const put = (path: string, text: string) => writeFileSync(join(root, path), text);
@@ -176,7 +193,14 @@ it("parses a real cold Task build followed by the source CLI report", { timeout:
       ["--silent", "verify:presentation-coverage", "--", "--origin-ref", "HEAD", "--json"],
       { cwd: root, env, encoding: "utf8", timeout: 15000 },
     );
-    expect(child.status, child.stderr).toBe(0);
+    const diagnostic = JSON.stringify({
+      error: child.error?.message,
+      status: child.status,
+      signal: child.signal,
+      stderr: child.stderr,
+    });
+    expect(child.error, diagnostic).toBeUndefined();
+    expect(child.status, diagnostic).toBe(0);
     expect(child.stdout).toContain("cold build diagnostic");
     expect(existsSync(join(root, "packages/cli/dist/bin.js"))).toBe(true);
     expect(readFileSync(join(root, "packages/cli/dist/bin.js"), "utf8")).toBe(shim);
