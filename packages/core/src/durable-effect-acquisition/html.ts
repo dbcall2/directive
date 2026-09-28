@@ -132,7 +132,7 @@ function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact
   if (tag === "base") {
     const href = attrs.get("href");
     const value = href?.value ?? "";
-    const hit = classifyLiteralUrlValue(value, "item-6", ctx.admittedOrigins);
+    const hit = classifyLiteralUrlValue(value, "item-6", [], "single");
     if (hit !== null) {
       facts.push({
         id: `base:${hit.id}`,

@@ -39,6 +39,16 @@ describe("evaluateDurableEffectAcquisition (#5080)", () => {
       humanApproval: { kind: "human", actor: "David", mintedAt: "2026-09-28T00:00:00Z" },
     });
     const base = { [PRESENTATION_CEILING_ARTIFACT_REL]: grants };
+    for (const path of ["index.html", "src/Base.tsx"]) {
+      expect(
+        evaluateDurableEffectAcquisition(
+          files({ [path]: '<base href="https://approved.example/" />' }, base),
+        ).code,
+      ).toBe(1);
+      expect(
+        evaluateDurableEffectAcquisition(files({ [path]: '<base href="/" />' }, base)).code,
+      ).toBe(0);
+    }
     expect(
       evaluateDurableEffectAcquisition(
         files(
