@@ -1,5 +1,9 @@
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { evaluateDurableEffectAcquisition } from "./evaluate.js";
+import { evaluateDurableEffectAcquisition, readLivePresentationSource } from "./evaluate.js";
 import { PRESENTATION_CEILING_ARTIFACT_REL, PRESENTATION_CEILING_SCHEMA } from "./types.js";
 
 const CEILING = `${JSON.stringify({
@@ -162,5 +166,38 @@ describe("evaluateDurableEffectAcquisition (#5080)", () => {
     const result = evaluateDurableEffectAcquisition(files({ "src/Page.tsx": src }));
     expect(result.code).toBe(0);
     expect(result.message).toMatch(/pass/);
+  });
+
+  it("refuses a second POST form as a new channel", () => {
+    const one = `<form method="post" action="/a"></form>\n`;
+    const two = `<form method="post" action="/a"></form>\n<form method="post" action="/b"></form>\n`;
+    const result = evaluateDurableEffectAcquisition(
+      files({ "src/A.html": two }, { "src/A.html": one }),
+    );
+    expect(result.code).toBe(1);
+    expect(result.message).toMatch(/form-method|durable-effect/);
+  });
+
+  it("reads working-tree bytes before committed HEAD", () => {
+    const root = mkdtempSync(join(tmpdir(), "dea-live-"));
+    try {
+      execFileSync("git", ["init", "-b", "master"], { cwd: root, stdio: "ignore" });
+      mkdirSync(join(root, "src"));
+      writeFileSync(join(root, "src/A.tsx"), "export const A = () => <a href='/ok' />;\n");
+      execFileSync("git", ["add", "src/A.tsx"], { cwd: root, stdio: "ignore" });
+      execFileSync("git", ["-c", "user.email=t@t.test", "-c", "user.name=t", "commit", "-m", "a"], {
+        cwd: root,
+        stdio: "ignore",
+      });
+      writeFileSync(
+        join(root, "src/A.tsx"),
+        "export const A = () => <a href='https://collector.example/p' />;\n",
+      );
+      const live = readLivePresentationSource(root, "src/A.tsx");
+      expect(live).toContain("collector.example");
+      expect(live).not.toContain("/ok");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

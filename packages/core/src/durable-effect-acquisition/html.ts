@@ -6,6 +6,8 @@ import {
   type AcquisitionFact,
   type ClassifyResult,
   CSS_FETCH_FUNCTIONS,
+  isRequestCapableAttrLocal,
+  locateFactId,
   META_HTTP_EQUIV_ALLOW,
 } from "./types.js";
 import { classifyLiteralUrlValue } from "./url.js";
@@ -42,6 +44,16 @@ function localName(el: P5Element): string {
   const raw = el.tagName;
   const colon = raw.indexOf(":");
   return (colon === -1 ? raw : raw.slice(colon + 1)).toLowerCase();
+}
+
+function elementStart(el: P5Element): number | undefined {
+  return el.sourceCodeLocation?.startOffset;
+}
+
+function attrStart(el: P5Element, attrName: string): number | undefined {
+  const attrs = el.sourceCodeLocation?.attrs;
+  const hit = attrs?.[attrName];
+  return hit?.startOffset ?? elementStart(el);
 }
 
 function attrLocal(name: string): string {
@@ -106,7 +118,7 @@ function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact
     const methodAttr = el.attrs.find((a) => attrLocal(a.name) === "method");
     if (methodAttr !== undefined && methodAttr.value.trim().toLowerCase() !== "get") {
       facts.push({
-        id: `form-method:${methodAttr.value}`,
+        id: locateFactId(`form-method:${methodAttr.value}`, elementStart(el)),
         rule: "item-4",
         detail: `form method ${methodAttr.value} is not GET`,
       });
@@ -166,8 +178,14 @@ function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact
       facts.push(...ctx.jsFacts(attr.value, `handler:${attr.name}`));
       continue;
     }
+    if (!isRequestCapableAttrLocal(local)) continue;
     const urlHit = classifyLiteralUrlValue(attr.value, "item-3", ctx.admittedOrigins);
-    if (urlHit !== null) facts.push({ ...urlHit, id: `attr:${tag}:${local}:${urlHit.id}` });
+    if (urlHit !== null) {
+      facts.push({
+        ...urlHit,
+        id: locateFactId(`attr:${tag}:${local}:${urlHit.id}`, attrStart(el, attr.name)),
+      });
+    }
   }
 
   if (isTemplate(el)) walkTree(el.content, ctx, facts);
@@ -188,6 +206,7 @@ export function classifyHtmlDocument(source: string, ctx: HtmlWalkContext): Clas
     const anomalies: string[] = [];
     const doc = parse(source, {
       scriptingEnabled,
+      sourceCodeLocationInfo: true,
       onParseError: (err: ParserError) => {
         if (INCOMPLETE_PARSE_CODES.has(err.code)) anomalies.push(err.code);
       },

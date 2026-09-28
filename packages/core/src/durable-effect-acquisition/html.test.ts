@@ -19,4 +19,14 @@ describe("html classify (#5080)", () => {
     const m = classifyHtmlUrlsForTest(`<button formmethod="post">x</button>`);
     expect(m.ok && m.facts.some((f) => f.id.includes("formmethod"))).toBe(true);
   });
+
+  it("does not treat title/alt/aria text as a request-capable URL", () => {
+    const r = classifyHtmlUrlsForTest(
+      `<img alt="https://example.com/img.png" title="See https://example.com" aria-label="https://example.com">`,
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.facts.filter((f) => f.rule === "item-3")).toEqual([]);
+    const href = classifyHtmlUrlsForTest(`<a href="https://example.com">x</a>`);
+    expect(href.ok && href.facts.length > 0).toBe(true);
+  });
 });

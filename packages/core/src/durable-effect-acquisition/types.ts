@@ -27,6 +27,30 @@ export const REQUEST_CAPABLE_SCHEMES = [
   "javascript",
 ] as const;
 
+/** HTML/JSX locals that can initiate a request. title/alt/aria text is not in this set. */
+export const REQUEST_CAPABLE_ATTR_LOCAL = [
+  "href",
+  "src",
+  "srcset",
+  "action",
+  "formaction",
+  "cite",
+  "data",
+  "poster",
+  "xlinkhref",
+] as const;
+
+const REQUEST_CAPABLE_ATTR_SET = new Set<string>(REQUEST_CAPABLE_ATTR_LOCAL);
+
+export function isRequestCapableAttrLocal(local: string): boolean {
+  return REQUEST_CAPABLE_ATTR_SET.has(local);
+}
+
+export function locateFactId(id: string, loc: number | undefined): string {
+  if (loc === undefined) return id;
+  return `${id}@${String(loc)}`;
+}
+
 export const CSS_FETCH_FUNCTIONS = [
   "url(",
   "image-set(",

@@ -117,6 +117,28 @@ function gitShow(projectRoot: string, ref: string, rel: string): string | null {
   return runGit(projectRoot, ["show", `${ref}:${rel}`]);
 }
 
+/**
+ * Classify live bytes for a tracked presentation path: working tree, then
+ * index, then committed HEAD. Uncommitted staged/unstaged edits must not be
+ * skipped just because HEAD still exists.
+ */
+export function readLivePresentationSource(projectRoot: string, rel: string): string | null {
+  try {
+    return readFileSync(join(projectRoot, rel), "utf8");
+  } catch {
+    /* missing on disk */
+  }
+  try {
+    return execFileSync("git", ["-C", projectRoot, "show", `:${rel}`], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 10 * 1024 * 1024,
+    });
+  } catch {
+    return runGit(projectRoot, ["show", `HEAD:${rel}`]);
+  }
+}
+
 function listPresentation(
   projectRoot: string,
   mergeBase: string,
@@ -228,22 +250,7 @@ export function evaluateDurableEffectAcquisition(options: EvaluateOptions = {}):
     options.readAtBase ?? ((rel: string): string | null => gitShow(projectRoot, mb, rel));
   const readHead =
     options.readAtHead ??
-    ((rel: string): string | null => {
-      const live = runGit(projectRoot, ["show", `HEAD:${rel}`]);
-      if (live !== null) return live;
-      try {
-        return execFileSync("git", ["-C", projectRoot, "show", `:${rel}`], {
-          encoding: "utf8",
-          stdio: ["ignore", "pipe", "ignore"],
-        });
-      } catch {
-        try {
-          return readFileSync(join(projectRoot, rel), "utf8");
-        } catch {
-          return null;
-        }
-      }
-    });
+    ((rel: string): string | null => readLivePresentationSource(projectRoot, rel));
 
   const ceilingRels = listCeilingRels(projectRoot, mb, changed);
   const baseCeil = loadCeilingFromMap(loadMap(ceilingRels, readBase));

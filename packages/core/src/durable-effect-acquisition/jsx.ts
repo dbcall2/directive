@@ -8,6 +8,8 @@ import {
   type AcquisitionFact,
   type ClassifyResult,
   CSS_FETCH_FUNCTIONS,
+  isRequestCapableAttrLocal,
+  locateFactId,
   META_HTTP_EQUIV_ALLOW,
 } from "./types.js";
 import { classifyLiteralUrlValue, listBoundaryInText, templateHeadPinsOrigin } from "./url.js";
@@ -226,6 +228,97 @@ function collectBindings(ts: TSModule, sf: TS.SourceFile): Map<string, BindingKi
   return map;
 }
 
+function matchBindingName(ts: TSModule, name: TS.BindingName, ident: string): boolean {
+  if (ts.isIdentifier(name)) return name.text === ident;
+  if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
+    for (const el of name.elements) {
+      if (ts.isBindingElement(el) && matchBindingName(ts, el.name, ident)) return true;
+    }
+  }
+  return false;
+}
+
+function localDeclInList(
+  ts: TSModule,
+  statements: readonly TS.Statement[],
+  ident: string,
+): BindingKind | undefined {
+  for (const stmt of statements) {
+    if (!ts.isVariableStatement(stmt)) continue;
+    for (const d of stmt.declarationList.declarations) {
+      if (ts.isIdentifier(d.name) && d.name.text === ident) {
+        return { kind: "local", init: d.initializer };
+      }
+    }
+  }
+  return undefined;
+}
+
+function lookupBinding(ts: TSModule, ident: TS.Identifier): BindingKind {
+  const name = ident.text;
+  let cur: TS.Node | undefined = ident.parent;
+  while (cur !== undefined) {
+    if (
+      ts.isFunctionDeclaration(cur) ||
+      ts.isFunctionExpression(cur) ||
+      ts.isArrowFunction(cur) ||
+      ts.isMethodDeclaration(cur) ||
+      ts.isConstructorDeclaration(cur)
+    ) {
+      for (const p of cur.parameters) {
+        if (matchBindingName(ts, p.name, name)) return { kind: "param" };
+      }
+    }
+    if (ts.isSourceFile(cur) || ts.isBlock(cur) || ts.isModuleBlock(cur)) {
+      const found = localDeclInList(ts, cur.statements, name);
+      if (found !== undefined) return found;
+    }
+    cur = cur.parent;
+  }
+  return { kind: "global", name };
+}
+
+function unwrapAlias(ts: TSModule, expr: TS.Expression): TS.Expression {
+  let cur: TS.Expression = expr;
+  for (let i = 0; i < 8; i += 1) {
+    if (
+      ts.isParenthesizedExpression(cur) ||
+      ts.isNonNullExpression(cur) ||
+      ts.isAsExpression(cur)
+    ) {
+      cur = cur.expression;
+      continue;
+    }
+    if (ts.isIdentifier(cur)) {
+      const binding = lookupBinding(ts, cur);
+      if (binding.kind === "local" && binding.init !== undefined) {
+        cur = binding.init;
+        continue;
+      }
+    }
+    break;
+  }
+  return cur;
+}
+
+function propertyNameIsMethod(ts: TSModule, name: TS.PropertyName): boolean {
+  if (
+    ts.isIdentifier(name) ||
+    ts.isStringLiteral(name) ||
+    ts.isNoSubstitutionTemplateLiteral(name) ||
+    ts.isPrivateIdentifier(name)
+  ) {
+    return name.text === "method";
+  }
+  if (ts.isComputedPropertyName(name)) {
+    const inner = name.expression;
+    if (ts.isStringLiteral(inner) || ts.isNoSubstitutionTemplateLiteral(inner)) {
+      return inner.text === "method";
+    }
+  }
+  return false;
+}
+
 function rootOfAccess(ts: TSModule, expr: TS.Expression): TS.Expression {
   let cur: TS.Expression = expr;
   while (
@@ -296,6 +389,7 @@ function classifyJsExpression(
   via: string,
 ): AcquisitionFact[] {
   const facts: AcquisitionFact[] = [];
+  const loc = expr.getStart();
   const names = accessNames(ts, expr);
   const rootName = names[0];
   if (rootName !== undefined) {
@@ -304,7 +398,7 @@ function classifyJsExpression(
       for (const n of names.slice(1)) {
         if (!allow.has(n)) {
           facts.push({
-            id: `js-member:${names.join(".")}`,
+            id: locateFactId(`js-member:${names.join(".")}`, loc),
             rule: "item-2",
             detail: `member ${n} is outside the ${rootName} allowlist`,
           });
@@ -315,7 +409,7 @@ function classifyJsExpression(
   }
   if (names.includes("*") || names.some((n) => /^\d+$/.test(n))) {
     facts.push({
-      id: `js-computed:${via}:${expr.getText()}`,
+      id: locateFactId(`js-computed:${via}:${expr.getText()}`, loc),
       rule: "item-2",
       detail: "numeric-only or unclassifiable computed access",
     });
@@ -324,7 +418,7 @@ function classifyJsExpression(
   for (const n of names) {
     if (REFUSED_PROPS.has(n) || DURABLE_GLOBALS.has(n) || n === "cookie") {
       facts.push({
-        id: `js-root:${via}:${names.join(".")}`,
+        id: locateFactId(`js-root:${via}:${names.join(".")}`, loc),
         rule: "item-2",
         detail: `durable or host-runtime access ${names.join(".")}`,
       });
@@ -332,14 +426,19 @@ function classifyJsExpression(
     }
   }
   if (ts.isCallExpression(expr) || ts.isNewExpression(expr)) {
-    const callee = expr.expression;
+    const callee = unwrapAlias(ts, expr.expression);
     const calleeNames = accessNames(ts, callee);
     const last = calleeNames[calleeNames.length - 1] ?? callee.getText();
     if (NETWORK_CALLEES.has(last) || last === "sendBeacon" || last === "open") {
       const args = expr.arguments ?? [];
-      if (last === "WebSocket" || last === "XMLHttpRequest" || last === "sendBeacon") {
+      if (
+        last === "WebSocket" ||
+        last === "XMLHttpRequest" ||
+        last === "sendBeacon" ||
+        last === "open"
+      ) {
         facts.push({
-          id: `js-network:${last}`,
+          id: locateFactId(`js-network:${last}`, loc),
           rule: "item-2",
           detail: `${last} is a non-GET network acquisition`,
         });
@@ -349,9 +448,17 @@ function classifyJsExpression(
         const opts = args[1];
         if (opts !== undefined) {
           if (ts.isObjectLiteralExpression(opts)) {
+            const hasSpread = opts.properties.some((p) => ts.isSpreadAssignment(p));
+            if (hasSpread) {
+              facts.push({
+                id: locateFactId("js-fetch-opts", loc),
+                rule: "item-2",
+                detail: "unclassifiable fetch options",
+              });
+              return facts;
+            }
             const method = opts.properties.find(
-              (p) =>
-                ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === "method",
+              (p) => ts.isPropertyAssignment(p) && propertyNameIsMethod(ts, p.name),
             );
             if (method !== undefined && ts.isPropertyAssignment(method)) {
               const init = method.initializer;
@@ -361,16 +468,27 @@ function classifyJsExpression(
                   : null;
               if (lit !== "get") {
                 facts.push({
-                  id: "js-fetch-non-get",
+                  id: locateFactId("js-fetch-non-get", loc),
                   rule: "item-2",
                   detail: "fetch with a non-GET method",
                 });
                 return facts;
               }
+            } else if (
+              opts.properties.some(
+                (p) => ts.isShorthandPropertyAssignment(p) && p.name.text === "method",
+              )
+            ) {
+              facts.push({
+                id: locateFactId("js-fetch-non-get", loc),
+                rule: "item-2",
+                detail: "fetch with a non-GET method",
+              });
+              return facts;
             }
           } else {
             facts.push({
-              id: "js-fetch-opts",
+              id: locateFactId("js-fetch-opts", loc),
               rule: "item-2",
               detail: "unclassifiable fetch options",
             });
@@ -386,7 +504,7 @@ function classifyJsExpression(
     if (last === "setItem" || last === "removeItem" || last === "clear" || last === "getItem") {
       if (calleeNames.some((n) => DURABLE_GLOBALS.has(n))) {
         facts.push({
-          id: `js-storage:${calleeNames.join(".")}`,
+          id: locateFactId(`js-storage:${calleeNames.join(".")}`, loc),
           rule: "item-2",
           detail: "storage API acquisition",
         });
@@ -398,7 +516,7 @@ function classifyJsExpression(
     const leftNames = accessNames(ts, expr.left);
     if (leftNames.includes("cookie") || leftNames.some((n) => DURABLE_GLOBALS.has(n))) {
       facts.push({
-        id: `js-assign:${leftNames.join(".")}`,
+        id: locateFactId(`js-assign:${leftNames.join(".")}`, loc),
         rule: "item-2",
         detail: "cookie or storage assignment",
       });
@@ -488,9 +606,9 @@ function classifyValueExpression(
     if (!ts.isIdentifier(root)) {
       return [{ id: `unresolved:${via}`, rule: "item-5", detail: "unclassifiable identity root" }];
     }
-    const binding = bindings.get(root.text);
-    if (binding?.kind === "param") return [];
-    if (binding?.kind === "local") {
+    const binding = lookupBinding(ts, root);
+    if (binding.kind === "param") return [];
+    if (binding.kind === "local") {
       if (binding.init === undefined) {
         return [{ id: `local-uninit:${root.text}`, rule: "item-5", detail: "uninitialized local" }];
       }
@@ -550,7 +668,7 @@ function classifyJsxAttributes(
         });
         continue;
       }
-      if (ts.isIdentifier(prop.expression) && bindings.get(prop.expression.text)?.kind === "param")
+      if (ts.isIdentifier(prop.expression) && lookupBinding(ts, prop.expression).kind === "param")
         continue;
       facts.push({
         id: `spread-component:${tag}`,
@@ -586,7 +704,7 @@ function classifyJsxAttributes(
       if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)) {
         if (init.text.trim().toLowerCase() !== "get") {
           facts.push({
-            id: `form-method:${init.text}`,
+            id: locateFactId(`form-method:${init.text}`, init.getStart()),
             rule: "item-4",
             detail: `form method ${init.text} is not GET`,
           });
@@ -600,7 +718,7 @@ function classifyJsxAttributes(
         ) {
           if (init.expression.text.trim().toLowerCase() !== "get") {
             facts.push({
-              id: `form-method:${init.expression.text}`,
+              id: locateFactId(`form-method:${init.expression.text}`, init.expression.getStart()),
               rule: "item-4",
               detail: `form method ${init.expression.text} is not GET`,
             });
@@ -684,6 +802,7 @@ function classifyJsxAttributes(
       }
       continue;
     }
+    if (!isRequestCapableAttrLocal(lower)) continue;
     const init = prop.initializer;
     if (init === undefined) continue;
     if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)) {
@@ -697,7 +816,12 @@ function classifyJsxAttributes(
         value = decoded.value ?? init.text;
       }
       const hit = classifyLiteralUrlValue(value, "item-3", ctx.admittedOrigins);
-      if (hit !== null) facts.push({ ...hit, id: `jsx:${tag}:${name}:${hit.id}` });
+      if (hit !== null) {
+        facts.push({
+          ...hit,
+          id: locateFactId(`jsx:${tag}:${name}:${hit.id}`, init.getStart()),
+        });
+      }
       continue;
     }
     if (ts.isJsxExpression(init) && init.expression !== undefined) {

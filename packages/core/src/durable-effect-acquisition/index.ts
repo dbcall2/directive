@@ -7,7 +7,11 @@ export {
   loadCeilingFromMap,
   parsePresentationCeiling,
 } from "./ceiling.js";
-export { type EvaluateOptions, evaluateDurableEffectAcquisition } from "./evaluate.js";
+export {
+  type EvaluateOptions,
+  evaluateDurableEffectAcquisition,
+  readLivePresentationSource,
+} from "./evaluate.js";
 export { classifyHtmlDocument, classifyHtmlUrlsForTest } from "./html.js";
 export { classifyHandlerText, classifyTsxSource, loadProjectTypeScript } from "./jsx.js";
 export {
@@ -19,6 +23,7 @@ export {
   PRESENTATION_CEILING_DIR_REL,
   PRESENTATION_CEILING_SCHEMA,
   type PresentationCeiling,
+  REQUEST_CAPABLE_ATTR_LOCAL,
   REQUEST_CAPABLE_SCHEMES,
   SENTINEL_BASE,
   SENTINEL_ORIGIN,
