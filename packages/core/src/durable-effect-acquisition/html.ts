@@ -7,6 +7,7 @@ import {
   type ClassifyResult,
   CSS_FETCH_FUNCTIONS,
   isInertNativeAttribute,
+  MARKUP_CHANNEL_ATTRIBUTES,
   META_HTTP_EQUIV_ALLOW,
 } from "./types.js";
 import { classifyLiteralUrlValue } from "./url.js";
@@ -152,7 +153,7 @@ function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact
       local === "dangerouslysetinnerhtml"
     ) {
       facts.push({
-        id: `attr:${tag}:${local}`,
+        id: `attr:${tag}:${local}:${attr.value}`,
         rule: "item-4",
         detail: `${attr.name} refuses regardless of value`,
       });
@@ -160,7 +161,7 @@ function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact
     }
     if (local === "style") {
       const css = classifyCssText(attr.value);
-      if (css !== null) facts.push(css);
+      if (css !== null) facts.push({ ...css, id: `${css.id}:${attr.value}` });
       continue;
     }
     if (isOnHandler(attr.name)) {
@@ -190,7 +191,7 @@ function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact
     tag,
     el.namespaceURI,
     el.attrs
-      .filter((a) => tag.includes("-") || a.namespace || !isInertNativeAttribute(attrLocal(a.name)))
+      .filter((a) => (MARKUP_CHANNEL_ATTRIBUTES[tag] ?? []).includes(attrLocal(a.name)))
       .map((a) => [a.namespace ?? "", a.name, a.value])
       .sort(),
   ]);

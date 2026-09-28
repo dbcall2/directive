@@ -14,6 +14,28 @@ function run(source: string) {
 
 describe("jsx classify (#5080)", () => {
   it.each([
+    `function send(client){client.fetch('/orders',{method:'POST'});}`,
+    `function send(client){client['fetch']('/orders',{method:'GET'});}`,
+    `function invoke(callback){callback();}`,
+    `function invoke({callback}){const alias=callback;alias();}`,
+    `function invoke(client){const callback=client.send;callback();}`,
+    `function construct(Supplied){new Supplied();}`,
+    "function invoke(tag){tag`payload`;}",
+  ])("refuses invocation instead of treating it as forwarding: %s", (source) => {
+    const result = run(source);
+    expect(result.ok && result.facts.some((f) => f.id.includes("unresolved-call"))).toBe(true);
+  });
+  it.each([
+    `function forward(callback){return callback;}`,
+    `function forward(client){return <Card onSave={client.save} />;}`,
+    `function forward({callback}){const alias=callback;return <Card onSave={alias} />;}`,
+    `function forward(client){return <img src={client.src}/>;}`,
+    `function render(){const text='hello';return text.toUpperCase();}`,
+  ])("retains value forwarding and classified calls: %s", (source) => {
+    const result = run(source);
+    expect(result.ok && result.facts).toEqual([]);
+  });
+  it.each([
     [`<style>&#64;import &quot;https://collector.example/p&quot;;</style>`, false],
     [`<Photo>&#104;ttps://collector.example/p</Photo>`, false],
     [`<Photo>&#47;image.png</Photo>`, true],

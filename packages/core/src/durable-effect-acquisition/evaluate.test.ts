@@ -28,6 +28,75 @@ function files(head: Record<string, string>, base?: Record<string, string>) {
 }
 
 describe("evaluateDurableEffectAcquisition (#5080)", () => {
+  it.each([
+    "src/Form.html",
+    "src/Form.tsx",
+  ])("keeps submission identity separate from independently checked attributes in %s", (path) => {
+    const base = '<form method="post" action="/orders"></form>';
+    for (const attr of ['data-testid="orders"', 'unknown="harmless"', 'class="wide"']) {
+      expect(
+        evaluateDurableEffectAcquisition(
+          files({ [path]: base.replace("<form", `<form ${attr}`) }, { [path]: base }),
+        ).code,
+      ).toBe(0);
+    }
+    for (const head of [
+      base.replace("/orders", "/different"),
+      base.replace("post", "delete"),
+      `${base}${base}`,
+      base.replace("<form", '<form data-testid="https://collector.example/p"'),
+    ]) {
+      expect(evaluateDurableEffectAcquisition(files({ [path]: head }, { [path]: base })).code).toBe(
+        1,
+      );
+    }
+  });
+  it("still executes expression analysis outside submission identity", () => {
+    const path = "src/Form.tsx";
+    const base = '<form method="post" action="/orders" />';
+    for (const attr of [
+      `data-testid={localStorage.setItem('key','value')}`,
+      `title={localStorage.setItem('key','value')}`,
+    ]) {
+      expect(
+        evaluateDurableEffectAcquisition(
+          files({ [path]: base.replace("<form", `<form ${attr}`) }, { [path]: base }),
+        ).code,
+      ).toBe(1);
+    }
+    expect(
+      evaluateDurableEffectAcquisition(
+        files(
+          { [path]: `const action='/new';<form method="post" action={action}/>` },
+          { [path]: `const action='/old';<form method="post" action={action}/>` },
+        ),
+      ).code,
+    ).toBe(1);
+  });
+  it.each([
+    "src/Page.html",
+    "src/Page.tsx",
+  ])("preserves other acquisition targets without unrelated-attribute churn in %s", (path) => {
+    for (const base of [
+      '<iframe src="/old"></iframe>',
+      '<script src="/old"></script>',
+      '<embed src="/old"/>',
+      '<object data="/old"></object>',
+      '<meta http-equiv="refresh" content="0;url=/old"/>',
+      '<div style="background:url(/old)"></div>',
+      '<button formaction="/old"></button>',
+    ]) {
+      const head = base.replace(/^(<\w+)/, '$1 data-testid="channel"');
+      expect(evaluateDurableEffectAcquisition(files({ [path]: head }, { [path]: base })).code).toBe(
+        0,
+      );
+      expect(
+        evaluateDurableEffectAcquisition(
+          files({ [path]: base.replace("/old", "/new") }, { [path]: base }),
+        ).code,
+      ).toBe(1);
+    }
+  });
   it("applies each typed merge-base grant at its supplying edge", () => {
     const grants = JSON.stringify({
       schema: PRESENTATION_CEILING_SCHEMA,

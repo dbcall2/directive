@@ -12,6 +12,7 @@ import {
   type ClassifyResult,
   CSS_FETCH_FUNCTIONS,
   isInertNativeAttribute,
+  MARKUP_CHANNEL_ATTRIBUTES,
   META_HTTP_EQUIV_ALLOW,
 } from "./types.js";
 import { classifyLiteralUrlValue, templateHeadPinsOrigin } from "./url.js";
@@ -286,15 +287,12 @@ function analyze(path: string, source: string, ctx: JsxContext): ClassifyResult 
   };
   const normalized = (node: TS.Node, seen = new Set<TS.Declaration>()): string => {
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
-      const native = ts.isIdentifier(node.tagName) && /^[a-z][a-z0-9]*$/.test(node.tagName.text);
+      const relevant = MARKUP_CHANNEL_ATTRIBUTES[node.tagName.getText(sf)] ?? [];
       return JSON.stringify([
         node.tagName.getText(sf),
         node.attributes.properties
           .filter(
-            (p) =>
-              !native ||
-              !ts.isJsxAttribute(p) ||
-              !isInertNativeAttribute(p.name.getText(sf).toLowerCase()),
+            (p) => !ts.isJsxAttribute(p) || relevant.includes(p.name.getText(sf).toLowerCase()),
           )
           .map((p) => normalized(p, seen))
           .sort(),
@@ -731,7 +729,7 @@ function analyze(path: string, source: string, ctx: JsxContext): ClassifyResult 
         ["formaction", "formmethod", "ping", "srcdoc", "dangerouslysetinnerhtml"].includes(name) ||
         (tag === "script" && name === "src")
       ) {
-        add(node, `jsx-attr:${name}`, `${name} refuses`, "item-4");
+        add(prop, `jsx-attr:${name}`, `${name} refuses`, "item-4");
         continue;
       }
       if (!init) continue;
@@ -895,13 +893,17 @@ function analyze(path: string, source: string, ctx: JsxContext): ClassifyResult 
     }
     if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
       const p = resolve(node.expression);
-      if (p.kind === "global" && p.name === "fetch" && p.members.length === 0) fetchCall(node);
+      if (p.kind === "parameter")
+        add(node, "unresolved-call", "invocation of a supplied callable is not value forwarding");
+      else if (p.kind === "global" && p.name === "fetch" && p.members.length === 0) fetchCall(node);
       else if (p.kind === "global" && (p.name === "XMLHttpRequest" || p.name === "WebSocket"))
         add(node, "js-network:open", "network constructor acquisition");
       else if (node.expression.kind === ts.SyntaxKind.ImportKeyword)
         add(node, "dynamic-import", "dynamic import refuses");
       else reference(node.expression);
     }
+    if (ts.isTaggedTemplateExpression(node) && resolve(node.tag).kind === "parameter")
+      add(node, "unresolved-call", "invocation of a supplied tag is not value forwarding");
     if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
       reference(node);
       if (ts.isElementAccessExpression(node)) walk(node.argumentExpression);

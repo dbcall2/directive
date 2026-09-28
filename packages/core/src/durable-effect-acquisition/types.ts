@@ -55,6 +55,15 @@ const INERT_NATIVE_ATTRIBUTES = new Set([
 export function isInertNativeAttribute(name: string): boolean {
   return INERT_NATIVE_ATTRIBUTES.has(name) || /^aria-[a-z]+$/.test(name);
 }
+/** Attributes that identify an element-level acquisition. Other attributes are analyzed independently. */
+export const MARKUP_CHANNEL_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
+  form: ["method", "action", "target", "enctype"],
+  meta: ["http-equiv", "httpequiv", "content"],
+  script: ["src"],
+  iframe: ["src", "srcdoc"],
+  embed: ["src"],
+  object: ["data", "codebase"],
+};
 export const CSS_FETCH_FUNCTIONS = [
   "url(",
   "image-set(",
