@@ -7,10 +7,10 @@
 import { createRequire } from "node:module";
 import { join, posix } from "node:path";
 import type * as TS from "typescript";
+import { classifyCssEffects } from "./css.js";
 import {
   type AcquisitionFact,
   type ClassifyResult,
-  CSS_FETCH_FUNCTIONS,
   isInertNativeAttribute,
   MARKUP_CHANNEL_ATTRIBUTES,
   META_HTTP_EQUIV_ALLOW,
@@ -160,17 +160,6 @@ type Provenance = {
 };
 type StaticValue = string | number | boolean | null;
 type ValueResult = { known: true; value: StaticValue } | { known: false };
-
-function cssFact(text: string): AcquisitionFact | null {
-  const fn = CSS_FETCH_FUNCTIONS.find((f) => text.toLowerCase().includes(f));
-  if (text.includes("\\") || fn !== undefined)
-    return {
-      id: `css:${text}`,
-      rule: "item-4",
-      detail: text.includes("\\") ? "CSS escape sequence" : `CSS fetch function ${fn}`,
-    };
-  return null;
-}
 
 function analyze(path: string, source: string, ctx: JsxContext): ClassifyResult {
   const ts = ctx.ts;
@@ -780,15 +769,14 @@ function analyze(path: string, source: string, ctx: JsxContext): ClassifyResult 
       }
       if (name === "style") {
         if (value.known) {
-          const hit = cssFact(String(value.value));
-          if (hit) add(init, hit.id, hit.detail, hit.rule);
+          facts.push(...classifyCssEffects(String(value.value), `${tag}:style-attribute`));
         } else if (expr && ts.isObjectLiteralExpression(expr)) {
           for (const p of expr.properties) {
             if (ts.isPropertyAssignment(p)) {
               const v = staticValue(p.initializer);
-              if (v.known) {
-                const hit = cssFact(String(v.value));
-                if (hit) add(p, hit.id, hit.detail, hit.rule);
+              const key = propertyKey(p.name, new Set());
+              if (v.known && key !== undefined) {
+                facts.push(...classifyCssEffects(String(v.value), `${tag}:style-property:${key}`));
               } else add(p, "style-nonliteral", "unresolved style value", "item-4");
             } else add(p, "style-nonliteral", "unresolved style property", "item-4");
           }
@@ -881,8 +869,7 @@ function analyze(path: string, source: string, ctx: JsxContext): ClassifyResult 
           } else if (!ts.isJsxExpression(child)) complete = false;
         if (!complete) add(node, `${tag}-unresolved`, `unresolved ${tag} body`, "item-4");
         if (tag === "style") {
-          const hit = cssFact(body);
-          if (hit) add(node, hit.id, hit.detail, hit.rule);
+          facts.push(...classifyCssEffects(body, "style-element"));
         }
         if (tag === "script" && body.trim()) {
           const r = analyze("script.tsx", body, ctx);

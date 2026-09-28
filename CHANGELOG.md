@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **fix(lifecycle): finalize leftover auto-merge requires bot-merge override (#3791 / PR #5113).** `evaluateFinalizeClassMergeCarveOut` arms only when durable `swarm/finalize/*` membership AND the documented #1193 bot-merge override (`policy:allow-bot-merge` / `DEFT_ALLOW_BOT_MERGE` / requireHumanMerge effective false) both hold. Branch prefix alone no longer bypasses requireHumanMerge; denied path names bot-merge policy or human merge. First-ship surface-3 assumption retained when the override is on.
 
 - **fix(lifecycle): harden #3791 unmarked compose + finalize carve-out residual.** Carve-out goes through `evaluateFinalizeClassMergeCarveOut` (durable `swarm/finalize/*` membership + recorded first-ship assumption), not a bare branch-prefix. Unmarked admit requires same-repo delivery identity for PR and origin issue; `firstMergedPrRef` is the sole merge probe so a second lookup failure cannot drop confirmed admission. Tracking #3791 / PR #5113.
+- **Durable-effect acquisition repair (#5080).** Resolve immutable URL and call provenance, preserve effect multiplicity across harmless markup and CSS edits, and compare live files without resurrecting deletions. Recognize all #5056 ceiling shapes and require typed human approval for grants. Refs PR #5101.
 
 ### Removed
 

@@ -29,6 +29,35 @@ function files(head: Record<string, string>, base?: Record<string, string>) {
 
 describe("evaluateDurableEffectAcquisition (#5080)", () => {
   it.each([
+    ["src/A.html", '<div style="CSS"></div>', "background:url(/a)"],
+    ["src/A.html", "<style>CSS</style>", ".a{background:url(/a)}"],
+    ["src/A.tsx", '<div style="CSS"/>', "background:url(/a)"],
+    ["src/A.tsx", '<div style={"CSS"}/>', "background:url(/a)"],
+    ["src/A.tsx", '<div style={{background:"CSS"}}/>', "url(/a)"],
+    ["src/A.tsx", '<style>{"CSS"}</style>', ".a{background:url(/a)}"],
+  ])("compares CSS occurrences rather than whole source in %s %s", (path, wrap, css) => {
+    const source = (value: string) => wrap.replace("CSS", () => value);
+    const base = source(css);
+    const color = wrap.includes('background:"CSS"')
+      ? base.replace("background:", 'color:"red",background:')
+      : source(css.replace("url(/a)", "url(/a);color:red"));
+    for (const head of [
+      color,
+      source(css.replace("url(/a)", "url( '/a' ) /*note*/")),
+      source("color:red"),
+    ])
+      expect(evaluateDurableEffectAcquisition(files({ [path]: head }, { [path]: base })).code).toBe(
+        0,
+      );
+    for (const head of [
+      source(css.replace("/a", "/b")),
+      source(css.replace("url(/a)", "url(/a),url(/a)")),
+    ])
+      expect(evaluateDurableEffectAcquisition(files({ [path]: head }, { [path]: base })).code).toBe(
+        1,
+      );
+  });
+  it.each([
     "src/Form.html",
     "src/Form.tsx",
   ])("keeps submission identity separate from independently checked attributes in %s", (path) => {

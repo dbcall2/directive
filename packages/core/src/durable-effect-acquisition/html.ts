@@ -2,10 +2,10 @@
  * HTML acquisition walk: parse5 both scripting modes, every namespace (#5080).
  */
 import { type DefaultTreeAdapterMap, type ParserError, parse } from "parse5";
+import { classifyCssEffects } from "./css.js";
 import {
   type AcquisitionFact,
   type ClassifyResult,
-  CSS_FETCH_FUNCTIONS,
   isInertNativeAttribute,
   MARKUP_CHANNEL_ATTRIBUTES,
   META_HTTP_EQUIV_ALLOW,
@@ -60,19 +60,6 @@ function collectText(parent: P5Parent): string {
   return out;
 }
 
-function classifyCssText(text: string): AcquisitionFact | null {
-  if (text.includes("\\")) {
-    return { id: "css-escape", rule: "item-4", detail: "CSS escape sequence" };
-  }
-  const lower = text.toLowerCase();
-  for (const fn of CSS_FETCH_FUNCTIONS) {
-    if (lower.includes(fn)) {
-      return { id: `css-fetch:${fn}`, rule: "item-4", detail: `CSS fetch function ${fn}` };
-    }
-  }
-  return null;
-}
-
 function isOnHandler(attrName: string): boolean {
   const local = attrLocal(attrName);
   return local.startsWith("on") && local.length > 2;
@@ -94,9 +81,7 @@ function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact
     facts.push({ id: `elem:${tag}`, rule: "item-4", detail: `<${tag}> refuses` });
   }
   if (tag === "style") {
-    const text = collectText(el);
-    const css = classifyCssText(text);
-    if (css !== null) facts.push({ ...css, id: `${css.id}:${text.trim().replace(/\s+/g, " ")}` });
+    facts.push(...classifyCssEffects(collectText(el), "style-element"));
   }
   if (tag === "script") {
     const src = attrs.get("src");
@@ -160,8 +145,7 @@ function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact
       continue;
     }
     if (local === "style") {
-      const css = classifyCssText(attr.value);
-      if (css !== null) facts.push({ ...css, id: `${css.id}:${attr.value}` });
+      facts.push(...classifyCssEffects(attr.value, "style-attribute"));
       continue;
     }
     if (isOnHandler(attr.name)) {

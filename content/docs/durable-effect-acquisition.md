@@ -37,6 +37,8 @@ Local checks read live working-tree bytes, including staged content unless super
 
 Acquisition facts preserve multiplicity and normalized source, arguments, receiver, and immutable dependencies. Adding a duplicate or changing a POST target refuses. Offsets do not identify facts, so comments, whitespace, and unrelated text inserted above an existing site do not make it new. HTML unions both scripting parse modes using the greater occurrence count per fact. Cross-file moves remain conservative and can appear as new acquisitions.
 
+Inline CSS facts identify individual modeled fetch constructs and import statements, including their arguments and rule/property context. Unrelated declarations and outside comments/spacing do not change an existing occurrence. URL and quoted-string contents retain their bytes and case; equivalent quote delimiters normalize. HTML and JSX style attributes, style objects, and style elements share this bounded analysis. Escaped or unresolved CSS retains a conservative refusal; this is not a general CSS equivalence check.
+
 ## Supported static language
 
 Every executable expression is analyzed, including JSX children, inert attributes, handlers, computed accesses, defaults, nested functions, and initializers. TypeScript lexical symbols separate shadowed bindings. Immutable aliases resolve with cycle detection; reassignment and mutations through aliases invalidate static provenance. Unknown globals, dynamic imports, reflection, unresolved receivers, and unsupported constructions refuse. Effect-free globals have explicit member allowlists. DOM/window/ref capabilities are conservative refusals. Declaring a local function does not exempt its body.
