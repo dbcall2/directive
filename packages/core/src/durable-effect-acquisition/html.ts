@@ -6,8 +6,7 @@ import {
   type AcquisitionFact,
   type ClassifyResult,
   CSS_FETCH_FUNCTIONS,
-  isRequestCapableAttrLocal,
-  locateFactId,
+  isInertNativeAttribute,
   META_HTTP_EQUIV_ALLOW,
 } from "./types.js";
 import { classifyLiteralUrlValue } from "./url.js";
@@ -44,16 +43,6 @@ function localName(el: P5Element): string {
   const raw = el.tagName;
   const colon = raw.indexOf(":");
   return (colon === -1 ? raw : raw.slice(colon + 1)).toLowerCase();
-}
-
-function elementStart(el: P5Element): number | undefined {
-  return el.sourceCodeLocation?.startOffset;
-}
-
-function attrStart(el: P5Element, attrName: string): number | undefined {
-  const attrs = el.sourceCodeLocation?.attrs;
-  const hit = attrs?.[attrName];
-  return hit?.startOffset ?? elementStart(el);
 }
 
 function attrLocal(name: string): string {
@@ -94,7 +83,9 @@ export type HtmlWalkContext = {
 };
 
 function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact[]): void {
+  const start = facts.length;
   const tag = localName(el);
+  const attrs = new Map(el.attrs.map((a) => [attrLocal(a.name), a]));
   if (tag === "noscript") {
     facts.push({ id: "elem:noscript", rule: "item-4", detail: "noscript is parse-mode ambiguous" });
   }
@@ -102,11 +93,12 @@ function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact
     facts.push({ id: `elem:${tag}`, rule: "item-4", detail: `<${tag}> refuses` });
   }
   if (tag === "style") {
-    const css = classifyCssText(collectText(el));
-    if (css !== null) facts.push(css);
+    const text = collectText(el);
+    const css = classifyCssText(text);
+    if (css !== null) facts.push({ ...css, id: `${css.id}:${text.trim().replace(/\s+/g, " ")}` });
   }
   if (tag === "script") {
-    const src = el.attrs.find((a) => attrLocal(a.name) === "src");
+    const src = attrs.get("src");
     if (src !== undefined) {
       facts.push({ id: "elem:script[src]", rule: "item-4", detail: "script[src] refuses" });
     } else {
@@ -115,20 +107,17 @@ function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact
     }
   }
   if (tag === "form") {
-    const methodAttr = el.attrs.find((a) => attrLocal(a.name) === "method");
+    const methodAttr = attrs.get("method");
     if (methodAttr !== undefined && methodAttr.value.trim().toLowerCase() !== "get") {
       facts.push({
-        id: locateFactId(`form-method:${methodAttr.value}`, elementStart(el)),
+        id: `form-method:${methodAttr.value}`,
         rule: "item-4",
         detail: `form method ${methodAttr.value} is not GET`,
       });
     }
   }
   if (tag === "meta") {
-    const http = el.attrs.find((a) => {
-      const n = attrLocal(a.name);
-      return n === "http-equiv" || n === "httpequiv";
-    });
+    const http = attrs.get("http-equiv") ?? attrs.get("httpequiv");
     if (http !== undefined) {
       const v = http.value.trim().toLowerCase();
       if (!(META_HTTP_EQUIV_ALLOW as readonly string[]).includes(v)) {
@@ -141,7 +130,7 @@ function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact
     }
   }
   if (tag === "base") {
-    const href = el.attrs.find((a) => attrLocal(a.name) === "href");
+    const href = attrs.get("href");
     const value = href?.value ?? "";
     const hit = classifyLiteralUrlValue(value, "item-6", ctx.admittedOrigins);
     if (hit !== null) {
@@ -178,16 +167,37 @@ function walkElement(el: P5Element, ctx: HtmlWalkContext, facts: AcquisitionFact
       facts.push(...ctx.jsFacts(attr.value, `handler:${attr.name}`));
       continue;
     }
-    if (!isRequestCapableAttrLocal(local)) continue;
-    const urlHit = classifyLiteralUrlValue(attr.value, "item-3", ctx.admittedOrigins);
+    if (!tag.includes("-") && !attr.namespace && isInertNativeAttribute(local)) continue;
+    const single =
+      !tag.includes("-") &&
+      ["href", "src", "action", "poster", "cite", "background", "data"].includes(local);
+    const urlHit = classifyLiteralUrlValue(
+      attr.value,
+      "item-3",
+      ctx.admittedOrigins,
+      single ? "single" : "list",
+    );
     if (urlHit !== null) {
       facts.push({
         ...urlHit,
-        id: locateFactId(`attr:${tag}:${local}:${urlHit.id}`, attrStart(el, attr.name)),
+        id: `attr:${tag}:${local}:${urlHit.id}`,
       });
     }
   }
 
+  // Stable site semantics retain the submission target and multiplicity, without offsets.
+  const signature = JSON.stringify([
+    tag,
+    el.namespaceURI,
+    el.attrs
+      .filter((a) => tag.includes("-") || a.namespace || !isInertNativeAttribute(attrLocal(a.name)))
+      .map((a) => [a.namespace ?? "", a.name, a.value])
+      .sort(),
+  ]);
+  for (let i = start; i < facts.length; i += 1) {
+    const fact = facts[i];
+    if (fact) facts[i] = { ...fact, id: `${signature}:${fact.id}` };
+  }
   if (isTemplate(el)) walkTree(el.content, ctx, facts);
   for (const child of el.childNodes) {
     if (isElement(child)) walkElement(child, ctx, facts);
@@ -201,8 +211,9 @@ function walkTree(parent: P5Parent, ctx: HtmlWalkContext, facts: AcquisitionFact
 }
 
 export function classifyHtmlDocument(source: string, ctx: HtmlWalkContext): ClassifyResult {
-  const facts: AcquisitionFact[] = [];
+  const union = new Map<string, AcquisitionFact[]>();
   for (const scriptingEnabled of [false, true]) {
+    const facts: AcquisitionFact[] = [];
     const anomalies: string[] = [];
     const doc = parse(source, {
       scriptingEnabled,
@@ -219,19 +230,13 @@ export function classifyHtmlDocument(source: string, ctx: HtmlWalkContext): Clas
       };
     }
     walkTree(doc, ctx, facts);
+    const mode = new Map<string, AcquisitionFact[]>();
+    for (const fact of facts) mode.set(fact.id, [...(mode.get(fact.id) ?? []), fact]);
+    for (const [id, occurrences] of mode) {
+      if (occurrences.length > (union.get(id)?.length ?? 0)) union.set(id, occurrences);
+    }
   }
-  return { ok: true, facts: dedupeFacts(facts) };
-}
-
-export function dedupeFacts(facts: readonly AcquisitionFact[]): AcquisitionFact[] {
-  const seen = new Set<string>();
-  const out: AcquisitionFact[] = [];
-  for (const f of facts) {
-    if (seen.has(f.id)) continue;
-    seen.add(f.id);
-    out.push(f);
-  }
-  return out;
+  return { ok: true, facts: [...union.values()].flat() };
 }
 
 /** Used by tests that only need parse-mode union of markup URLs. */

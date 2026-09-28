@@ -195,7 +195,7 @@ describe("evaluate table rows (#5080)", () => {
       schema: PRESENTATION_CEILING_SCHEMA,
       changeClass: "presentation",
       admittedOrigins: ["https://example.com"],
-      humanOrigin: true,
+      humanApproval: { kind: "human", actor: "David", mintedAt: "2026-09-28T00:00:00Z" },
     })}\n`;
     const result = evaluateDurableEffectAcquisition({
       projectRoot: process.cwd(),
@@ -218,7 +218,7 @@ describe("evaluate table rows (#5080)", () => {
       schema: PRESENTATION_CEILING_SCHEMA,
       changeClass: "presentation",
       admittedPackages: ["clsx"],
-      humanOrigin: true,
+      humanApproval: { kind: "human", actor: "David", mintedAt: "2026-09-28T00:00:00Z" },
     })}\n`;
     const result = evaluateDurableEffectAcquisition({
       projectRoot: process.cwd(),

@@ -6,7 +6,6 @@
  */
 
 export const PRESENTATION_CEILING_ARTIFACT_REL = ".deft/presentation-ceiling.json";
-export const PRESENTATION_CEILING_DIR_REL = ".deft/scope-ceilings";
 export const PRESENTATION_CEILING_SCHEMA = "deft.presentation-ceiling.v1" as const;
 
 export const SENTINEL_BASE = "https://deft.invalid/";
@@ -27,30 +26,35 @@ export const REQUEST_CAPABLE_SCHEMES = [
   "javascript",
 ] as const;
 
-/** HTML/JSX locals that can initiate a request. title/alt/aria text is not in this set. */
-export const REQUEST_CAPABLE_ATTR_LOCAL = [
-  "href",
-  "src",
-  "srcset",
-  "action",
-  "formaction",
-  "cite",
-  "data",
-  "poster",
-  "xlinkhref",
-] as const;
-
-const REQUEST_CAPABLE_ATTR_SET = new Set<string>(REQUEST_CAPABLE_ATTR_LOCAL);
-
-export function isRequestCapableAttrLocal(local: string): boolean {
-  return REQUEST_CAPABLE_ATTR_SET.has(local);
+/** Positive native inert-value exemption. Unknown/custom attributes stay conservative. */
+const INERT_NATIVE_ATTRIBUTES = new Set([
+  "title",
+  "alt",
+  "class",
+  "classname",
+  "id",
+  "role",
+  "lang",
+  "dir",
+  "hidden",
+  "tabindex",
+  "width",
+  "height",
+  "disabled",
+  "checked",
+  "selected",
+  "readonly",
+  "placeholder",
+  "name",
+  "value",
+  "type",
+  "for",
+  "htmlfor",
+  "rel",
+]);
+export function isInertNativeAttribute(name: string): boolean {
+  return INERT_NATIVE_ATTRIBUTES.has(name) || /^aria-[a-z]+$/.test(name);
 }
-
-export function locateFactId(id: string, loc: number | undefined): string {
-  if (loc === undefined) return id;
-  return `${id}@${String(loc)}`;
-}
-
 export const CSS_FETCH_FUNCTIONS = [
   "url(",
   "image-set(",
@@ -83,8 +87,13 @@ export type PresentationCeiling = {
     readonly members?: readonly string[];
   }[];
   readonly admittedPaths?: readonly string[];
-  readonly extraExtensions?: readonly string[];
   readonly humanOrigin?: boolean;
+  readonly humanApproval?: {
+    readonly kind: string;
+    readonly actor: string;
+    readonly mintedAt: string;
+    readonly mintedVia?: string;
+  };
 };
 
 export type AcquisitionFact = {
@@ -116,5 +125,10 @@ export type EvaluateResult = {
 };
 
 export type CeilingLoad =
-  | { readonly ok: true; readonly ceiling: PresentationCeiling | null; readonly rel: string | null }
+  | {
+      readonly ok: true;
+      readonly ceiling: PresentationCeiling | null;
+      readonly rel: string | null;
+      readonly records: ReadonlyMap<string, PresentationCeiling>;
+    }
   | { readonly ok: false; readonly detail: string };

@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **fix(update): partition dirty-deposit consumer projections; skip PROJECT-DEFINITION org-force-on (Tracking #5096).** Schema sync (#2595) and pin restore (#4533/#4710) stay intentional with mandatory report. Full skip/refuse/rewrite ledger is `consumer_projections`; `skipped_consumer_projections` lists skipped+refused only. Refs #3029, #3395, #4710.
 - **fix(hooks): Codex apply_patch `command` payloads extract mutation targets; empty targets deny (Refs #5094).** String `tool_input.command` is an ApplyPatch body when `isApplyPatchTool` matches (`ApplyPatch`, `apply_patch`, `apply-patch`). Conflicting `command` / `patch` / `unified_diff` / `diff` fields union. Canonical apply_patch with no extracted targets fails closed. Codex write-form audit is unobserved until a live payload. P2 class-check docs leftover.
 - **Durable-effect residual: live tree bytes, unique same-kind facts, fetch/XHR channels, scoped bindings, request-capable URL attrs (#5080).** Working-tree then index then HEAD; a second POST form is a new channel; quoted `method` keys, option spreads, `XMLHttpRequest.open`, and `const send = fetch` classify; inner same-name bindings do not hide an outer URL; title/alt/aria text is not a request channel. Refs PR #5101.
+- **Durable-effect acquisition repair (#5080).** Resolve immutable URL and call provenance, preserve effect multiplicity without source offsets, and compare live files without resurrecting deletions. Recognize all #5056 ceiling shapes and require typed human approval for grants. Refs PR #5101.
 - **test(win32): retry EPERM temp cleanup in doctor disable tests (Tracking #5089).**
 - **test(win32): raise two more Step 5 suite-load testTimeouts (Tracking #5086).**
 - **test(win32): raise suite-load timeouts for occupancy hooks + worker-auth cleanup (Tracking #5084).** Step 5 under full ts:check-lane no longer fails closed on 10s beforeAll / 20s testTimeout flakes.
@@ -6869,7 +6870,6 @@ If you have custom scripts or references to deft files, update these paths:
 [0.2.0]: https://github.com/visionik/warping/releases/tag/v0.2.0
 
 [0.1.0]: https://github.com/visionik/warping/releases/tag/v0.1.0
-
 
 
 

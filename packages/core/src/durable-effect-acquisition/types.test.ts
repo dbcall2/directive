@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   IN_CLASS_EXT,
-  isRequestCapableAttrLocal,
+  isInertNativeAttribute,
   PRESENTATION_CEILING_ARTIFACT_REL,
   PRESENTATION_CEILING_SCHEMA,
-  REQUEST_CAPABLE_ATTR_LOCAL,
   REQUEST_CAPABLE_SCHEMES,
   SENTINEL_ORIGIN,
 } from "./types.js";
@@ -22,9 +21,8 @@ describe("durable-effect-acquisition types (#5080)", () => {
     expect(REQUEST_CAPABLE_SCHEMES).toContain("https");
     expect(REQUEST_CAPABLE_SCHEMES).toContain("javascript");
     expect(REQUEST_CAPABLE_SCHEMES).not.toContain("mailto");
-    expect(REQUEST_CAPABLE_ATTR_LOCAL).toContain("href");
-    expect(isRequestCapableAttrLocal("srcset")).toBe(true);
-    expect(isRequestCapableAttrLocal("title")).toBe(false);
-    expect(isRequestCapableAttrLocal("alt")).toBe(false);
+    expect(isInertNativeAttribute("srcset")).toBe(false);
+    expect(isInertNativeAttribute("title")).toBe(true);
+    expect(isInertNativeAttribute("alt")).toBe(true);
   });
 });

@@ -1,20 +1,58 @@
 # Durable-effect acquisition (`verify:durable-effect-acquisition`)
 
-Refs: #5080 · Related: [intent-constraint.md](./intent-constraint.md) (#4541), [observable-scope.md](./observable-scope.md) (#4495), [consumer-check-contract.md](./consumer-check-contract.md) (#3145)
+Refs: #5080 · [Accepted design amendment](https://github.com/deftai/directive/issues/5080#issuecomment-5873701590) · [Consumer check contract](./consumer-check-contract.md)
 
-Under a recorded presentation ceiling, a changed in-class `.tsx` / `.jsx` / `.html` file must not acquire a durable-effect capability versus merge-base: storage APIs, cookies, network with a non-GET method or a non-sentinel origin, or markup submission and navigation channels.
+Under a presentation ceiling, this gate detects newly acquired storage, cookie, non-GET network, non-admitted-origin network, and markup submission capabilities in changed `.html`, `.jsx`, and `.tsx` files. It compares the checked snapshot with merge-base. Same-origin GET, in-memory state, and standalone CSS are outside this gate's warrant. A pass establishes the bounded static policy below; it does not establish general behavioral equivalence.
 
-Same-origin GET is owned by the server endpoint. In-memory state is #5079. `.css` is #5056. Do not widen `FACT_KINDS`. Do not harvest `.tsx` / `.jsx` into production intent-constraint suffixes.
+## Ceiling records and authority
 
-## Contract
+The gate recognizes the #5056 public shapes: `.deft/presentation-ceiling.json`, other repository files named `presentation-ceiling.json`, and `xbrief/{active,pending,proposed}/*.xbrief.json`. An xBRIEF can put `"presentation"` or a `{ "changeClass": "presentation" }` object at `plan["x-directive/changeClass"]` or `plan.metadata["x-directive/changeClass"]`. Every discovered restriction applies. Grants are intersected across restrictions, so a permissive record cannot override a restrictive one.
 
-1. Consume the #5056 presentation-ceiling artifact (`.deft/presentation-ceiling.json`). Do not mint a second store.
-2. Arming follows #5079: a merge-base artifact, or an add-only / tightening head restriction, arms. Head deletion or weakening cannot disarm.
-3. Under an armed ceiling the exits are refuse or pass citing the recomputed rule. `skipped` / N/A is not an exit.
-4. Markup values are decoded, WHATWG-preprocessed, and resolved against sentinel `https://deft.invalid/`. Request-capable non-sentinel origins refuse.
-5. Submitter `formmethod` / `formMethod`, new non-sentinel `<base href>`, and any-namespace `on*` handler source (including SVG `onbegin`) refuse.
-6. Same-PR rewrite of the ceiling allowlists or of this verifier refuses when the verifier already exists on the merge base.
+Merge-base restrictions survive deletion or weakening at head. New restrictions arm immediately, with no head-only grants. Changing an existing record's amendment fields in the same PR refuses. Missing records are distinct from malformed records or failed snapshot reads. The decoder follows #5056's public shapes as of its development commit `9d0455b8b`; this PR does not claim that the separate #5056 evaluator is integrated.
 
-The verb is composed on `task check` (`FRAMEWORK_CHECK_GATES`, `CONSUMER_CHECK_GATES`, and required consumer enforcement).
+An amendment belongs inside its ceiling object and requires a typed human approval present at merge-base. The enclosing object binds the approval to its grants. A bare `humanOrigin` boolean never grants authority.
 
-Three-state exit: `0` off-ceiling or pass / `1` refuse / `2` invalid configuration.
+```json
+{
+  "schema": "deft.presentation-ceiling.v1",
+  "changeClass": "presentation",
+  "admittedOrigins": ["https://example.com"],
+  "admittedPackages": ["clsx"],
+  "admittedGlobals": [{ "name": "approvedReader", "members": ["read"] }],
+  "admittedPaths": ["src/approved-helper.ts"],
+  "humanApproval": {
+    "kind": "human",
+    "actor": "David",
+    "mintedAt": "2026-09-28T00:00:00Z",
+    "mintedVia": "in-harness-ask"
+  }
+}
+```
+
+Origins are exact serialized origins, without paths or opaque `null` origins. Packages are exact import specifiers. Globals name an identifier and an explicit member list; an empty list permits no members. Paths are exact repository-relative paths with `/` separators and no `.` or `..` segments. They admit the named source file and imports that resolve to that exact path; relative imports resolve from their authoring file. Malformed amendment fields and unsupported fields refuse. #5056 extension/root metadata remains owned by that sibling gate and does not widen this gate's three file types.
+
+## Snapshot and occurrence rules
+
+Local checks read live working-tree bytes, including staged content unless superseded by another live edit. CI checks read the committed checkout in its working tree. Deletion is absence: neither the index nor HEAD resurrects a missing file. Git and I/O errors return a named configuration failure. The base snapshot is the resolved merge-base tree. Additions, deletions, edits, and renames use the same rules.
+
+Acquisition facts preserve multiplicity and normalized source, arguments, receiver, and immutable dependencies. Adding a duplicate or changing a POST target refuses. Offsets do not identify facts, so comments, whitespace, and unrelated text inserted above an existing site do not make it new. HTML unions both scripting parse modes using the greater occurrence count per fact. Cross-file moves remain conservative and can appear as new acquisitions.
+
+## Supported static language
+
+Every executable expression is analyzed, including JSX children, inert attributes, handlers, computed accesses, defaults, nested functions, and initializers. TypeScript lexical symbols separate shadowed bindings. Immutable aliases resolve with cycle detection; reassignment and mutations through aliases invalidate static provenance. Unknown globals, dynamic imports, reflection, unresolved receivers, and unsupported constructions refuse. Effect-free globals have explicit member allowlists. DOM/window/ref capabilities are conservative refusals. Declaring a local function does not exempt its body.
+
+Whole-value parameter/member forwarding retains supplying-edge ownership. Defaults and in-class component suppliers are checked. Fetch permits a completely resolved same-origin GET and honors the last `method` property, including supported computed names and immutable options. Unresolved options, spreads, keys, or getters refuse. Unsupported callback escape of the fetch capability refuses. XHR and WebSocket acquisition is conservative, including XHR GET construction.
+
+JavaScript string literals use JavaScript decoding. Quoted JSX attribute strings use TypeScript's JSX emitter decoding. Static templates assemble the complete value before URL classification. Known single-URL sinks can use a pinned path prefix with safe identity/member interpolation. URL lists and unknown component consumers require a complete static value or whole-value forwarding. Thus splitting `https://collector.example/p` across otherwise harmless template fragments still refuses.
+
+## Markup rules and disclosed costs
+
+Known native inert attributes such as title, alt, class/className, and ordinary ARIA text are exempt from URL-value analysis. Their expressions still execute and remain checked. Unknown attributes, namespaces, custom elements, and component props stay conservative; harmless numeric/boolean scalar values pass. Known single-URL sinks use the whole value. Lists and unknown consumers check the whole value plus whitespace/comma candidates against WHATWG URL parsing at `https://deft.invalid/`.
+
+Both HTML scripting modes, template contents, and namespaces are covered. Inline scripts, handlers, style attributes, and JSX script/style children are checked. CSS escapes and fetch functions refuse. Non-GET forms, submitter overrides, `ping`, `srcdoc`, embedded documents, and non-benign meta directives refuse. A non-sentinel or unresolved document base in either snapshot refuses independently of acquisition deltas; a statically same-origin base passes.
+
+This deliberately rejects some safe programs: arbitrary derived URL expressions, unknown string/object consumers, dynamic style values, unknown global/member APIs, escaped CSS, and unsupported provenance. `mailto:` and `tel:` are not request-capable schemes. Opaque request schemes such as `data:`, `blob:`, and `javascript:` refuse. Absolute own-domain links require an admitted origin.
+
+## Invocation
+
+`deft verify:durable-effect-acquisition` is composed on framework and consumer `deft check`. Exit `0` means off-ceiling or pass, `1` means refused, and `2` means configuration or snapshot failure. Under an armed ceiling, skipped/N/A is not an exit. Same-PR changes to an existing durable-effect verifier refuse.

@@ -1,1004 +1,915 @@
 /**
- * JSX/TSX + in-file JS text classifier (#5080 items 2, 3, 4, 5).
+ * Bounded, deny-by-default executable JS and JSX analysis (#5080).
+ * Lexical symbols identify bindings. Only immutable, unmutated aliases resolve;
+ * unsupported provenance is a refusal, never an effect-free assumption.
+ * Parameters retain supplying-edge ownership except host/reflection members.
  */
 import { createRequire } from "node:module";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 import type * as TS from "typescript";
 import {
   type AcquisitionFact,
   type ClassifyResult,
   CSS_FETCH_FUNCTIONS,
-  isRequestCapableAttrLocal,
-  locateFactId,
+  isInertNativeAttribute,
   META_HTTP_EQUIV_ALLOW,
 } from "./types.js";
-import { classifyLiteralUrlValue, listBoundaryInText, templateHeadPinsOrigin } from "./url.js";
+import { classifyLiteralUrlValue, templateHeadPinsOrigin } from "./url.js";
 
 type TSModule = typeof TS;
-
 const TS_CACHE = new Map<string, TSModule>();
-
 export type TsLoad =
   | { readonly ok: true; readonly ts: TSModule }
   | { readonly ok: false; readonly detail: string };
-
 export function loadProjectTypeScript(projectRoot: string): TsLoad {
   const cached = TS_CACHE.get(projectRoot);
   if (cached !== undefined) return { ok: true, ts: cached };
-  const req = createRequire(join(projectRoot, "package.json"));
-  let resolved: string;
   try {
-    resolved = req.resolve("typescript");
-  } catch {
-    return { ok: false, detail: `no typescript resolvable from ${projectRoot}` };
+    const req = createRequire(join(projectRoot, "package.json"));
+    const mod = req(req.resolve("typescript")) as TSModule;
+    if (typeof mod.createSourceFile !== "function")
+      return { ok: false, detail: "TypeScript parser unavailable" };
+    TS_CACHE.set(projectRoot, mod);
+    return { ok: true, ts: mod };
+  } catch (err) {
+    return { ok: false, detail: `no typescript resolvable from ${projectRoot}: ${String(err)}` };
   }
-  const mod = req(resolved) as TSModule | { default?: TSModule };
-  const ts = "createSourceFile" in mod ? mod : (mod as { default?: TSModule }).default;
-  if (ts === undefined || typeof ts.createSourceFile !== "function") {
-    return { ok: false, detail: `module at ${resolved} is not a TypeScript parser` };
-  }
-  TS_CACHE.set(projectRoot, ts);
-  return { ok: true, ts };
 }
-
-const DURABLE_GLOBALS = new Set([
-  "localStorage",
-  "sessionStorage",
-  "indexedDB",
-  "cookieStore",
-  "caches",
-]);
-const NETWORK_CALLEES = new Set(["fetch", "XMLHttpRequest", "WebSocket"]);
-const HOST_RUNTIME = new Set([
-  "view",
-  "target",
-  "currentTarget",
-  "nativeEvent",
-  "ownerDocument",
-  "defaultView",
-  "contentWindow",
-  "opener",
-]);
-const REFUSED_PROPS = new Set(["cookie", ...HOST_RUNTIME, ...DURABLE_GLOBALS]);
-const SAFE_GLOBALS: Readonly<Record<string, ReadonlySet<string>>> = {
-  console: new Set(["log", "info", "warn", "error", "debug", "dir", "table", "time", "timeEnd"]),
-  Math: new Set(),
-  JSON: new Set(),
-  Object: new Set(),
-  Array: new Set(),
-  Number: new Set(),
-  String: new Set(),
-  Boolean: new Set(),
-  Date: new Set(),
-  Intl: new Set(),
-  Map: new Set(),
-  Set: new Set(),
-  WeakMap: new Set(),
-  WeakSet: new Set(),
-  Promise: new Set(),
-  Error: new Set(),
-  URL: new Set(),
-  URLSearchParams: new Set(),
-  document: new Set([
-    "getElementById",
-    "querySelector",
-    "querySelectorAll",
-    "createElement",
-    "createTextNode",
-    "addEventListener",
-    "removeEventListener",
-    "body",
-    "documentElement",
-    "head",
-    "title",
-  ]),
-  window: new Set([
-    "addEventListener",
-    "removeEventListener",
-    "requestAnimationFrame",
-    "cancelAnimationFrame",
-    "setTimeout",
-    "clearTimeout",
-    "setInterval",
-    "clearInterval",
-    "console",
-    "document",
-    "Math",
-    "JSON",
-    "Map",
-    "Set",
-  ]),
-  globalThis: new Set(),
-};
-
-function classifyCssText(text: string): AcquisitionFact | null {
-  if (text.includes("\\")) {
-    return { id: "css-escape", rule: "item-4", detail: "CSS escape sequence" };
-  }
-  const lower = text.toLowerCase();
-  for (const fn of CSS_FETCH_FUNCTIONS) {
-    if (lower.includes(fn)) {
-      return { id: `css-fetch:${fn}`, rule: "item-4", detail: `CSS fetch function ${fn}` };
-    }
-  }
-  return null;
-}
-
 export type JsxContext = {
   readonly ts: TSModule;
   readonly admittedOrigins: readonly string[];
   readonly admittedPackages: readonly string[];
   readonly admittedPaths: readonly string[];
+  readonly admittedGlobals?: readonly {
+    readonly name: string;
+    readonly members?: readonly string[];
+  }[];
 };
+const SAFE_GLOBALS: Readonly<Record<string, readonly string[]>> = {
+  console: ["log", "info", "warn", "error", "debug", "dir", "table", "time", "timeEnd"],
+  Math: [
+    "abs",
+    "ceil",
+    "floor",
+    "round",
+    "trunc",
+    "max",
+    "min",
+    "pow",
+    "sqrt",
+    "sign",
+    "sin",
+    "cos",
+    "tan",
+    "random",
+    "PI",
+    "E",
+  ],
+  JSON: ["parse", "stringify"],
+  Object: ["keys", "values", "entries", "fromEntries", "is", "hasOwn", "freeze"],
+  Array: ["isArray", "from", "of"],
+  Number: ["isFinite", "isInteger", "isNaN", "parseInt", "parseFloat"],
+  String: ["fromCharCode", "fromCodePoint"],
+  Boolean: [],
+  Date: ["now", "parse", "UTC"],
+  Map: [],
+  Set: [],
+  WeakMap: [],
+  WeakSet: [],
+  Error: [],
+  URL: [],
+  URLSearchParams: [],
+  Intl: ["NumberFormat", "DateTimeFormat", "Collator", "RelativeTimeFormat"],
+  Promise: ["all", "allSettled", "race", "resolve", "reject"],
+  undefined: [],
+  NaN: [],
+  Infinity: [],
+  parseInt: [],
+  parseFloat: [],
+  isNaN: [],
+  isFinite: [],
+  encodeURIComponent: [],
+  decodeURIComponent: [],
+  encodeURI: [],
+  decodeURI: [],
+};
+const REFUSED_MEMBERS = new Set([
+  "constructor",
+  "prototype",
+  "__proto__",
+  "cookie",
+  "localStorage",
+  "sessionStorage",
+  "indexedDB",
+  "cookieStore",
+  "caches",
+  "view",
+  "target",
+  "currentTarget",
+  "nativeEvent",
+  "current",
+  "ownerDocument",
+  "defaultView",
+  "contentWindow",
+  "opener",
+]);
+const SINGLE_URL_ATTRIBUTES = new Set([
+  "src",
+  "href",
+  "action",
+  "poster",
+  "cite",
+  "background",
+  "data",
+  "xlink:href",
+]);
+const PURE_VALUE_MEMBERS = new Set([
+  "length",
+  "toString",
+  "trim",
+  "toLowerCase",
+  "toUpperCase",
+  "slice",
+  "substring",
+  "includes",
+  "startsWith",
+  "endsWith",
+  "split",
+  "join",
+  "map",
+  "filter",
+  "reduce",
+  "find",
+  "some",
+  "every",
+  "at",
+]);
+const MEMORY_INSTANCE_MEMBERS: Readonly<Record<string, readonly string[]>> = {
+  Map: ["size", "get", "set", "has", "delete", "clear", "keys", "values", "entries", "forEach"],
+  Set: ["size", "add", "has", "delete", "clear", "keys", "values", "entries", "forEach"],
+  WeakMap: ["get", "set", "has", "delete"],
+  WeakSet: ["add", "has", "delete"],
+};
+type Provenance = {
+  kind: "parameter" | "local" | "import" | "global" | "unknown";
+  name?: string;
+  members: string[];
+  value?: TS.Expression;
+  declaration?: TS.Declaration;
+};
+type StaticValue = string | number | boolean | null;
+type ValueResult = { known: true; value: StaticValue } | { known: false };
 
-function decodeJsxStringLiteral(
-  ts: TSModule,
-  literal: TS.StringLiteralLike,
-): ClassifyResult & { value?: string } {
-  const raw = literal.getText();
-  const source = `export default <x a=${raw} />;`;
-  const emitted = ts.transpileModule(source, {
-    compilerOptions: {
-      jsx: ts.JsxEmit.React,
-      target: ts.ScriptTarget.ES2020,
-      module: ts.ModuleKind.ESNext,
-    },
-    reportDiagnostics: true,
-    fileName: "durable-effect-decode.tsx",
-  });
-  const diags = emitted.diagnostics ?? [];
-  if (diags.length > 0) {
+function cssFact(text: string): AcquisitionFact | null {
+  const fn = CSS_FETCH_FUNCTIONS.find((f) => text.toLowerCase().includes(f));
+  if (text.includes("\\") || fn !== undefined)
     return {
-      ok: false,
-      rule: "item-3",
-      detail: "JSX emitter diagnostic while decoding a string literal",
+      id: `css:${text}`,
+      rule: "item-4",
+      detail: text.includes("\\") ? "CSS escape sequence" : `CSS fetch function ${fn}`,
     };
-  }
-  const m = /\ba\s*:\s*("(?:\\.|[^"\\])*")/.exec(emitted.outputText);
-  if (m === null || m[1] === undefined) {
-    return { ok: false, rule: "item-3", detail: "JSX emitter did not produce a string attribute" };
-  }
-  try {
-    return { ok: true, facts: [], value: JSON.parse(m[1]) as string };
-  } catch {
-    return { ok: false, rule: "item-3", detail: "JSX emitter string is not JSON-decodable" };
-  }
+  return null;
 }
 
-function isHostTag(ts: TSModule, tag: TS.JsxTagNameExpression): boolean {
-  if (ts.isIdentifier(tag)) {
-    const name = tag.text;
-    return name.length > 0 && name[0] === name[0]?.toLowerCase();
-  }
-  return false;
-}
-
-function tagNameText(tag: TS.JsxTagNameExpression): string {
-  return tag.getText();
-}
-
-type BindingKind =
-  | { readonly kind: "param" }
-  | { readonly kind: "local"; readonly init: TS.Expression | undefined }
-  | { readonly kind: "global"; readonly name: string };
-
-function collectBindings(ts: TSModule, sf: TS.SourceFile): Map<string, BindingKind> {
-  const map = new Map<string, BindingKind>();
-  for (const name of Object.keys(SAFE_GLOBALS)) map.set(name, { kind: "global", name });
-  for (const name of DURABLE_GLOBALS) map.set(name, { kind: "global", name });
-  map.set("document", { kind: "global", name: "document" });
-  map.set("window", { kind: "global", name: "window" });
-  map.set("globalThis", { kind: "global", name: "globalThis" });
-  map.set("navigator", { kind: "global", name: "navigator" });
-  map.set("location", { kind: "global", name: "location" });
-  map.set("fetch", { kind: "global", name: "fetch" });
-  map.set("XMLHttpRequest", { kind: "global", name: "XMLHttpRequest" });
-  map.set("WebSocket", { kind: "global", name: "WebSocket" });
-
-  const visit = (node: TS.Node, params: ReadonlySet<string>): void => {
+function analyze(path: string, source: string, ctx: JsxContext): ClassifyResult {
+  const ts = ctx.ts;
+  const sf = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const errors =
+    (sf as TS.SourceFile & { parseDiagnostics?: readonly TS.Diagnostic[] }).parseDiagnostics ?? [];
+  if (errors.length > 0) return { ok: false, rule: "item-9", detail: "TypeScript parse error" };
+  // An isolated compiler program supplies lexical binding identity without loading/executing project code.
+  const host: TS.CompilerHost = {
+    getSourceFile: (name) => (name === path ? sf : undefined),
+    getDefaultLibFileName: () => "",
+    writeFile: () => {},
+    getCurrentDirectory: () => "",
+    getDirectories: () => [],
+    fileExists: (name) => name === path,
+    readFile: (name) => (name === path ? source : undefined),
+    getCanonicalFileName: (name) => name,
+    useCaseSensitiveFileNames: () => true,
+    getNewLine: () => "\n",
+  };
+  const checker = ts
+    .createProgram([path], { noLib: true, noResolve: true, jsx: ts.JsxEmit.Preserve }, host)
+    .getTypeChecker();
+  const symbolAt = (node: TS.Identifier): TS.Symbol | undefined =>
+    ts.isShorthandPropertyAssignment(node.parent)
+      ? checker.getShorthandAssignmentValueSymbol(node.parent)
+      : checker.getSymbolAtLocation(node);
+  const facts: AcquisitionFact[] = [];
+  const mutations = new Set<TS.Symbol>();
+  const unwrap = (expr: TS.Expression): TS.Expression => {
+    let out = expr;
+    while (
+      ts.isParenthesizedExpression(out) ||
+      ts.isAsExpression(out) ||
+      ts.isNonNullExpression(out) ||
+      ts.isTypeAssertionExpression(out) ||
+      ts.isSatisfiesExpression(out)
+    )
+      out = out.expression;
+    return out;
+  };
+  const root = (expr: TS.Expression): TS.Expression => {
+    let out = unwrap(expr);
+    while (ts.isPropertyAccessExpression(out) || ts.isElementAccessExpression(out))
+      out = unwrap(out.expression);
+    return out;
+  };
+  const markMutation = (expr: TS.Expression, seen = new Set<TS.Symbol>()): void => {
+    const r = root(expr);
+    if (!ts.isIdentifier(r)) return;
+    const symbol = symbolAt(r);
+    if (!symbol || seen.has(symbol)) return;
+    mutations.add(symbol);
+    const next = new Set(seen);
+    next.add(symbol);
+    const d = symbol.valueDeclaration;
+    if (d && ts.isVariableDeclaration(d) && d.initializer) {
+      const init = unwrap(d.initializer);
+      if (
+        ts.isIdentifier(init) ||
+        ts.isPropertyAccessExpression(init) ||
+        ts.isElementAccessExpression(init)
+      )
+        markMutation(init, next);
+      if (ts.isObjectLiteralExpression(init))
+        for (const prop of init.properties) {
+          if (ts.isPropertyAssignment(prop)) markMutation(prop.initializer, next);
+          else if (ts.isShorthandPropertyAssignment(prop)) markMutation(prop.name, next);
+        }
+    }
+  };
+  const scanMutation = (node: TS.Node): void => {
+    let target: TS.Expression | undefined;
     if (
-      ts.isFunctionDeclaration(node) ||
-      ts.isFunctionExpression(node) ||
-      ts.isArrowFunction(node) ||
-      ts.isMethodDeclaration(node)
-    ) {
-      const next = new Set(params);
-      for (const p of node.parameters) {
-        if (ts.isIdentifier(p.name)) {
-          next.add(p.name.text);
-          map.set(p.name.text, { kind: "param" });
-        } else if (ts.isObjectBindingPattern(p.name)) {
-          for (const el of p.name.elements) {
-            if (ts.isBindingElement(el) && ts.isIdentifier(el.name)) {
-              next.add(el.name.text);
-              map.set(el.name.text, { kind: "param" });
-            }
-          }
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+      node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
+    )
+      target = node.left;
+    if (
+      (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) &&
+      (node.operator === ts.SyntaxKind.PlusPlusToken ||
+        node.operator === ts.SyntaxKind.MinusMinusToken)
+    )
+      target = node.operand;
+    if (ts.isDeleteExpression(node)) target = node.expression;
+    if (target !== undefined) markMutation(target);
+    ts.forEachChild(node, scanMutation);
+  };
+  scanMutation(sf);
+  // Passing a local object to an unmodelled call forfeits the immutable-object
+  // assumption, even when that call/assignment already existed at merge-base.
+  const objectBinding = (expr: TS.Expression, seen = new Set<TS.Symbol>()): boolean => {
+    const value = unwrap(expr);
+    if (ts.isObjectLiteralExpression(value) || ts.isArrayLiteralExpression(value)) return true;
+    if (!ts.isIdentifier(value)) return false;
+    const sym = symbolAt(value);
+    if (!sym || seen.has(sym)) return false;
+    const d = sym.valueDeclaration;
+    if (!d || !ts.isVariableDeclaration(d) || !d.initializer) return false;
+    const next = new Set(seen);
+    next.add(sym);
+    return objectBinding(d.initializer, next);
+  };
+  const scanEscape = (node: TS.Node): void => {
+    if (ts.isCallExpression(node)) {
+      const callee = resolve(node.expression);
+      const known =
+        callee.kind === "global" &&
+        (callee.name === "fetch" || SAFE_GLOBALS[callee.name ?? ""] !== undefined);
+      if (!known) for (const arg of node.arguments) if (objectBinding(arg)) markMutation(arg);
+    }
+    ts.forEachChild(node, scanEscape);
+  };
+  const normalized = (node: TS.Node, seen = new Set<TS.Declaration>()): string => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      const native = ts.isIdentifier(node.tagName) && /^[a-z][a-z0-9]*$/.test(node.tagName.text);
+      return JSON.stringify([
+        node.tagName.getText(sf),
+        node.attributes.properties
+          .filter(
+            (p) =>
+              !native ||
+              !ts.isJsxAttribute(p) ||
+              !isInertNativeAttribute(p.name.getText(sf).toLowerCase()),
+          )
+          .map((p) => normalized(p, seen))
+          .sort(),
+      ]);
+    }
+    const scanner = ts.createScanner(
+      ts.ScriptTarget.Latest,
+      true,
+      ts.LanguageVariant.JSX,
+      node.getText(sf),
+    );
+    const tokens: string[] = [];
+    let token = scanner.scan();
+    while (token !== ts.SyntaxKind.EndOfFileToken) {
+      tokens.push(
+        token === ts.SyntaxKind.StringLiteral ||
+          token === ts.SyntaxKind.NoSubstitutionTemplateLiteral
+          ? JSON.stringify(scanner.getTokenValue())
+          : scanner.getTokenText(),
+      );
+      token = scanner.scan();
+    }
+    const dependencies: string[] = [];
+    const visit = (child: TS.Node): void => {
+      if (ts.isIdentifier(child)) {
+        const d = symbolAt(child)?.valueDeclaration;
+        if (
+          d &&
+          ts.isVariableDeclaration(d) &&
+          d.initializer &&
+          ts.isVariableDeclarationList(d.parent) &&
+          d.parent.flags & ts.NodeFlags.Const &&
+          !seen.has(d)
+        ) {
+          const next = new Set(seen);
+          next.add(d);
+          dependencies.push(`${child.text}=${normalized(d.initializer, next)}`);
         }
       }
-      if (node.body !== undefined) visit(node.body, next);
+      ts.forEachChild(child, visit);
+    };
+    visit(node);
+    return tokens.join(" ") + JSON.stringify(dependencies);
+  };
+  const site = (node: TS.Node): TS.Node => {
+    let out = node;
+    while (
+      out.parent &&
+      (ts.isPropertyAccessExpression(out.parent) ||
+        ts.isElementAccessExpression(out.parent) ||
+        ts.isParenthesizedExpression(out.parent) ||
+        ts.isCallExpression(out.parent) ||
+        ts.isNewExpression(out.parent) ||
+        ts.isBinaryExpression(out.parent))
+    )
+      out = out.parent;
+    return out;
+  };
+  const seenSites = new Set<string>();
+  const add = (node: TS.Node, id: string, detail: string, rule = "item-2"): void => {
+    const location = site(node);
+    const key = `${location.pos}:${id}`;
+    if (seenSites.has(key)) return;
+    seenSites.add(key);
+    facts.push({ id: `${id}:${normalized(location)}`, rule, detail });
+  };
+  const propertyKey = (name: TS.PropertyName, seen: Set<TS.Node>): string | undefined => {
+    if (
+      ts.isIdentifier(name) ||
+      ts.isStringLiteral(name) ||
+      ts.isNumericLiteral(name) ||
+      ts.isNoSubstitutionTemplateLiteral(name)
+    )
+      return name.text;
+    if (ts.isComputedPropertyName(name)) {
+      const v = staticValue(name.expression, seen);
+      if (v.known && (typeof v.value === "string" || typeof v.value === "number"))
+        return String(v.value);
+    }
+    return undefined;
+  };
+  const resolve = (input: TS.Expression, seen = new Set<TS.Node>()): Provenance => {
+    const expr = unwrap(input);
+    if (seen.has(expr)) return { kind: "unknown", members: [] };
+    const next = new Set(seen);
+    next.add(expr);
+    if (ts.isIdentifier(expr)) {
+      const symbol = symbolAt(expr);
+      if (!symbol) return { kind: "global", name: expr.text, members: [] };
+      if (mutations.has(symbol)) return { kind: "unknown", members: [] };
+      const declaration = symbol.valueDeclaration ?? symbol.declarations?.[0];
+      if (!declaration) return { kind: "unknown", members: [] };
+      if (ts.isParameter(declaration)) return { kind: "parameter", members: [], declaration };
+      if (ts.isBindingElement(declaration)) {
+        let parent: TS.Node = declaration.parent;
+        while (
+          ts.isObjectBindingPattern(parent) ||
+          ts.isArrayBindingPattern(parent) ||
+          ts.isBindingElement(parent)
+        )
+          parent = parent.parent;
+        if (ts.isParameter(parent)) return { kind: "parameter", members: [], declaration };
+        return { kind: "unknown", members: [] };
+      }
+      if (ts.isVariableDeclaration(declaration)) {
+        if (
+          !ts.isVariableDeclarationList(declaration.parent) ||
+          !(declaration.parent.flags & ts.NodeFlags.Const) ||
+          !declaration.initializer
+        )
+          return { kind: "unknown", members: [] };
+        return resolve(declaration.initializer, next);
+      }
+      if (
+        ts.isImportSpecifier(declaration) ||
+        ts.isImportClause(declaration) ||
+        ts.isNamespaceImport(declaration)
+      )
+        return { kind: "import", members: [], declaration };
+      if (ts.isFunctionDeclaration(declaration) || ts.isClassDeclaration(declaration))
+        return { kind: "local", members: [], declaration };
+      return { kind: "unknown", members: [] };
+    }
+    if (ts.isPropertyAccessExpression(expr) || ts.isElementAccessExpression(expr)) {
+      const base = resolve(expr.expression, next);
+      const key = ts.isPropertyAccessExpression(expr)
+        ? expr.name.text
+        : staticValue(expr.argumentExpression, next);
+      const member =
+        typeof key === "string"
+          ? key
+          : key.known && (typeof key.value === "string" || typeof key.value === "number")
+            ? String(key.value)
+            : undefined;
+      if (member === undefined) return { kind: "unknown", members: [] };
+      if (base.kind === "local" && base.value && ts.isObjectLiteralExpression(base.value)) {
+        let found: TS.Expression | undefined;
+        for (const prop of base.value.properties) {
+          if (!ts.isPropertyAssignment(prop) && !ts.isShorthandPropertyAssignment(prop))
+            return { kind: "unknown", members: [] };
+          const key = propertyKey(prop.name, next);
+          if (key === undefined) return { kind: "unknown", members: [] };
+          if (key === member) found = ts.isPropertyAssignment(prop) ? prop.initializer : prop.name;
+        }
+        return found ? resolve(found, next) : { kind: "unknown", members: [] };
+      }
+      return { ...base, members: [...base.members, member] };
+    }
+    if (
+      ts.isStringLiteral(expr) ||
+      ts.isNoSubstitutionTemplateLiteral(expr) ||
+      ts.isNumericLiteral(expr) ||
+      ts.isObjectLiteralExpression(expr) ||
+      ts.isArrayLiteralExpression(expr) ||
+      ts.isArrowFunction(expr) ||
+      ts.isFunctionExpression(expr) ||
+      ts.isTemplateExpression(expr) ||
+      expr.kind === ts.SyntaxKind.TrueKeyword ||
+      expr.kind === ts.SyntaxKind.FalseKeyword ||
+      expr.kind === ts.SyntaxKind.NullKeyword
+    )
+      return { kind: "local", members: [], value: expr };
+    if (ts.isNewExpression(expr)) {
+      const p = resolve(expr.expression, next);
+      if (p.kind === "global" && p.members.length === 0 && MEMORY_INSTANCE_MEMBERS[p.name ?? ""])
+        return { kind: "local", members: [], value: expr, name: p.name };
+    }
+    return { kind: "unknown", members: [] };
+  };
+  function staticValue(input: TS.Expression, seen = new Set<TS.Node>()): ValueResult {
+    const expr = unwrap(input);
+    if (seen.has(expr)) return { known: false };
+    const next = new Set(seen);
+    next.add(expr);
+    if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr))
+      return { known: true, value: expr.text };
+    if (ts.isNumericLiteral(expr)) return { known: true, value: Number(expr.text) };
+    if (expr.kind === ts.SyntaxKind.TrueKeyword || expr.kind === ts.SyntaxKind.FalseKeyword)
+      return { known: true, value: expr.kind === ts.SyntaxKind.TrueKeyword };
+    if (expr.kind === ts.SyntaxKind.NullKeyword) return { known: true, value: null };
+    if (ts.isTemplateExpression(expr)) {
+      let value = expr.head.text;
+      for (const span of expr.templateSpans) {
+        const v = staticValue(span.expression, next);
+        if (!v.known) return { known: false };
+        value += String(v.value) + span.literal.text;
+      }
+      return { known: true, value };
+    }
+    const provenance = resolve(expr, seen);
+    if (
+      provenance.kind === "local" &&
+      provenance.value &&
+      provenance.value !== expr &&
+      provenance.members.length === 0
+    )
+      return staticValue(provenance.value, next);
+    return { known: false };
+  }
+  const approvedGlobal = (p: Provenance): boolean => {
+    const name = p.name ?? "";
+    const admitted = ctx.admittedGlobals?.find((g) => g.name === name);
+    const allowed = admitted?.members ?? SAFE_GLOBALS[name];
+    return (
+      (admitted !== undefined || allowed !== undefined) &&
+      (p.members.length === 0 ||
+        (p.members.length === 1 && (allowed ?? []).includes(p.members[0] ?? "")))
+    );
+  };
+  const reference = (expr: TS.Expression): void => {
+    const p = resolve(expr);
+    if (p.kind === "global" && approvedGlobal(p)) return;
+    if (p.members.some((m) => REFUSED_MEMBERS.has(m))) {
+      add(expr, "js-root", "durable, reflection, or host-runtime member");
       return;
     }
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
-      map.set(node.name.text, { kind: "local", init: node.initializer });
+    if (p.kind === "parameter" || p.kind === "import") return;
+    if (
+      p.kind === "local" &&
+      (p.members.length === 0 ||
+        p.members.every(
+          (m) =>
+            PURE_VALUE_MEMBERS.has(m) ||
+            /^\d+$/.test(m) ||
+            (MEMORY_INSTANCE_MEMBERS[p.name ?? ""] ?? []).includes(m),
+        ))
+    )
+      return;
+    // A fetch reference may only be used as a call target or an immutable alias. The call is checked separately.
+    if (p.kind === "global" && p.name === "fetch" && p.members.length === 0) {
+      let use: TS.Node = expr;
+      while (
+        use.parent &&
+        (ts.isParenthesizedExpression(use.parent) ||
+          ts.isAsExpression(use.parent) ||
+          ts.isNonNullExpression(use.parent))
+      )
+        use = use.parent;
+      const parent = use.parent;
+      if (parent && ts.isCallExpression(parent) && parent.expression === use) return;
+      if (
+        parent &&
+        ts.isVariableDeclaration(parent) &&
+        parent.initializer === use &&
+        ts.isVariableDeclarationList(parent.parent) &&
+        parent.parent.flags & ts.NodeFlags.Const
+      )
+        return;
     }
-    ts.forEachChild(node, (c) => visit(c, params));
+    add(
+      expr,
+      "js-root",
+      p.kind === "global"
+        ? `unapproved global/member ${p.name}.${p.members.join(".")}`
+        : "unclassifiable executable provenance",
+    );
   };
-  visit(sf, new Set());
-  return map;
-}
-
-function matchBindingName(ts: TSModule, name: TS.BindingName, ident: string): boolean {
-  if (ts.isIdentifier(name)) return name.text === ident;
-  if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
-    for (const el of name.elements) {
-      if (ts.isBindingElement(el) && matchBindingName(ts, el.name, ident)) return true;
+  const identityForward = (expr: TS.Expression): boolean => {
+    const p = resolve(expr);
+    return p.kind === "parameter" && !p.members.some((m) => REFUSED_MEMBERS.has(m));
+  };
+  const urlValue = (expr: TS.Expression, via: string, single: boolean): void => {
+    const v = staticValue(expr);
+    if (v.known) {
+      if (typeof v.value !== "string") return;
+      const hit = classifyLiteralUrlValue(
+        v.value,
+        "item-3",
+        ctx.admittedOrigins,
+        single ? "single" : "list",
+      );
+      if (hit) add(expr, `${via}:${hit.id}`, hit.detail, hit.rule);
+      return;
     }
-  }
-  return false;
-}
-
-function localDeclInList(
-  ts: TSModule,
-  statements: readonly TS.Statement[],
-  ident: string,
-): BindingKind | undefined {
-  for (const stmt of statements) {
-    if (!ts.isVariableStatement(stmt)) continue;
-    for (const d of stmt.declarationList.declarations) {
-      if (ts.isIdentifier(d.name) && d.name.text === ident) {
-        return { kind: "local", init: d.initializer };
-      }
-    }
-  }
-  return undefined;
-}
-
-function lookupBinding(ts: TSModule, ident: TS.Identifier): BindingKind {
-  const name = ident.text;
-  let cur: TS.Node | undefined = ident.parent;
-  while (cur !== undefined) {
+    if (identityForward(expr)) return;
+    const resolved = resolve(expr);
+    const value =
+      resolved.kind === "local" && resolved.members.length === 0 && resolved.value
+        ? resolved.value
+        : unwrap(expr);
     if (
-      ts.isFunctionDeclaration(cur) ||
-      ts.isFunctionExpression(cur) ||
-      ts.isArrowFunction(cur) ||
-      ts.isMethodDeclaration(cur) ||
-      ts.isConstructorDeclaration(cur)
-    ) {
-      for (const p of cur.parameters) {
-        if (matchBindingName(ts, p.name, name)) return { kind: "param" };
+      ts.isTemplateExpression(value) &&
+      single &&
+      templateHeadPinsOrigin(value.head.text) &&
+      value.templateSpans.every(
+        (s) => identityForward(s.expression) || staticValue(s.expression).known,
+      )
+    )
+      return;
+    if (ts.isObjectLiteralExpression(value)) {
+      for (const p of value.properties) {
+        if (ts.isPropertyAssignment(p)) urlValue(p.initializer, via, false);
+        else add(p, `derived:${via}`, "unsupported object supplier", "item-5");
       }
+      return;
     }
-    if (ts.isSourceFile(cur) || ts.isBlock(cur) || ts.isModuleBlock(cur)) {
-      const found = localDeclInList(ts, cur.statements, name);
-      if (found !== undefined) return found;
+    if (ts.isArrayLiteralExpression(value)) {
+      for (const el of value.elements) urlValue(el, via, false);
+      return;
     }
-    cur = cur.parent;
-  }
-  return { kind: "global", name };
-}
-
-function unwrapAlias(ts: TSModule, expr: TS.Expression): TS.Expression {
-  let cur: TS.Expression = expr;
-  for (let i = 0; i < 8; i += 1) {
-    if (
-      ts.isParenthesizedExpression(cur) ||
-      ts.isNonNullExpression(cur) ||
-      ts.isAsExpression(cur)
-    ) {
-      cur = cur.expression;
-      continue;
-    }
-    if (ts.isIdentifier(cur)) {
-      const binding = lookupBinding(ts, cur);
-      if (binding.kind === "local" && binding.init !== undefined) {
-        cur = binding.init;
-        continue;
-      }
-    }
-    break;
-  }
-  return cur;
-}
-
-function propertyNameIsMethod(ts: TSModule, name: TS.PropertyName): boolean {
-  if (
-    ts.isIdentifier(name) ||
-    ts.isStringLiteral(name) ||
-    ts.isNoSubstitutionTemplateLiteral(name) ||
-    ts.isPrivateIdentifier(name)
-  ) {
-    return name.text === "method";
-  }
-  if (ts.isComputedPropertyName(name)) {
-    const inner = name.expression;
-    if (ts.isStringLiteral(inner) || ts.isNoSubstitutionTemplateLiteral(inner)) {
-      return inner.text === "method";
-    }
-  }
-  return false;
-}
-
-function rootOfAccess(ts: TSModule, expr: TS.Expression): TS.Expression {
-  let cur: TS.Expression = expr;
-  while (
-    ts.isPropertyAccessExpression(cur) ||
-    ts.isElementAccessExpression(cur) ||
-    ts.isNonNullExpression(cur) ||
-    ts.isParenthesizedExpression(cur)
-  ) {
-    if (ts.isParenthesizedExpression(cur) || ts.isNonNullExpression(cur)) {
-      cur = cur.expression;
-      continue;
-    }
-    cur = cur.expression;
-  }
-  return cur;
-}
-
-function accessNames(ts: TSModule, expr: TS.Expression): string[] {
-  const names: string[] = [];
-  let cur: TS.Expression = expr;
-  while (
-    ts.isPropertyAccessExpression(cur) ||
-    ts.isElementAccessExpression(cur) ||
-    ts.isNonNullExpression(cur) ||
-    ts.isParenthesizedExpression(cur)
-  ) {
-    if (ts.isParenthesizedExpression(cur) || ts.isNonNullExpression(cur)) {
-      cur = cur.expression;
-      continue;
-    }
-    if (ts.isPropertyAccessExpression(cur)) names.push(cur.name.text);
-    else if (ts.isElementAccessExpression(cur)) {
-      const arg = cur.argumentExpression;
-      if (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) names.push(arg.text);
-      else if (ts.isNumericLiteral(arg)) names.push(arg.text);
-      else names.push("*");
-    }
-    cur = cur.expression;
-  }
-  if (ts.isIdentifier(cur)) names.push(cur.text);
-  return names.reverse();
-}
-
-function isIdentityOrMember(ts: TSModule, expr: TS.Expression): boolean {
-  if (ts.isParenthesizedExpression(expr) || ts.isNonNullExpression(expr))
-    return isIdentityOrMember(ts, expr.expression);
-  if (ts.isIdentifier(expr)) return true;
-  if (ts.isPropertyAccessExpression(expr)) return isIdentityOrMember(ts, expr.expression);
-  if (ts.isElementAccessExpression(expr)) {
-    const arg = expr.argumentExpression;
-    if (
-      ts.isStringLiteral(arg) ||
-      ts.isNumericLiteral(arg) ||
-      ts.isNoSubstitutionTemplateLiteral(arg)
-    ) {
-      return isIdentityOrMember(ts, expr.expression);
-    }
-    return false;
-  }
-  return false;
-}
-
-function classifyJsExpression(
-  ts: TSModule,
-  expr: TS.Expression,
-  bindings: Map<string, BindingKind>,
-  ctx: JsxContext,
-  via: string,
-): AcquisitionFact[] {
-  const facts: AcquisitionFact[] = [];
-  const loc = expr.getStart();
-  const names = accessNames(ts, expr);
-  const rootName = names[0];
-  if (rootName !== undefined) {
-    const allow = SAFE_GLOBALS[rootName];
-    if (allow !== undefined && allow.size > 0) {
-      for (const n of names.slice(1)) {
-        if (!allow.has(n)) {
-          facts.push({
-            id: locateFactId(`js-member:${names.join(".")}`, loc),
-            rule: "item-2",
-            detail: `member ${n} is outside the ${rootName} allowlist`,
-          });
-          return facts;
+    add(
+      expr,
+      `derived:${via}`,
+      "unresolved or derived URL value (list interpolation requires a complete static value)",
+      "item-5",
+    );
+  };
+  const fetchCall = (node: TS.CallExpression | TS.NewExpression): void => {
+    const args = node.arguments ?? [];
+    const options = args[1];
+    if (options) {
+      const p = resolve(options);
+      if (
+        p.kind !== "local" ||
+        p.members.length > 0 ||
+        !p.value ||
+        !ts.isObjectLiteralExpression(p.value)
+      )
+        add(node, "js-fetch-opts", "unclassifiable fetch options");
+      else {
+        let method: ValueResult = { known: true, value: "GET" };
+        let complete = true;
+        for (const prop of p.value.properties) {
+          if (!ts.isPropertyAssignment(prop) && !ts.isShorthandPropertyAssignment(prop)) {
+            complete = false;
+            continue;
+          }
+          const key = propertyKey(prop.name, new Set());
+          if (key === undefined) {
+            complete = false;
+            continue;
+          }
+          if (key === "method")
+            method = staticValue(ts.isPropertyAssignment(prop) ? prop.initializer : prop.name);
         }
+        if (!complete)
+          add(node, "js-fetch-opts", "unclassifiable fetch options keys/spreads/getters");
+        else if (
+          !method.known ||
+          typeof method.value !== "string" ||
+          method.value.toUpperCase() !== "GET"
+        )
+          add(
+            node,
+            "js-fetch-non-get",
+            `fetch non-GET method ${method.known ? String(method.value) : "unknown"}`,
+          );
       }
     }
-  }
-  if (names.includes("*") || names.some((n) => /^\d+$/.test(n))) {
-    facts.push({
-      id: locateFactId(`js-computed:${via}:${expr.getText()}`, loc),
-      rule: "item-2",
-      detail: "numeric-only or unclassifiable computed access",
+    if (args[0]) urlValue(args[0], "fetch-url", true);
+    else add(node, "js-fetch-url", "missing fetch URL");
+  };
+  const decodeAttribute = (literal: TS.StringLiteral): string | undefined => {
+    const emitted = ts.transpileModule(`export default <x a=${literal.getText(sf)} />;`, {
+      compilerOptions: {
+        jsx: ts.JsxEmit.React,
+        target: ts.ScriptTarget.ES2020,
+        module: ts.ModuleKind.ESNext,
+      },
+      reportDiagnostics: true,
+      fileName: "decode.tsx",
     });
-    return facts;
-  }
-  for (const n of names) {
-    if (REFUSED_PROPS.has(n) || DURABLE_GLOBALS.has(n) || n === "cookie") {
-      facts.push({
-        id: locateFactId(`js-root:${via}:${names.join(".")}`, loc),
-        rule: "item-2",
-        detail: `durable or host-runtime access ${names.join(".")}`,
-      });
-      return facts;
-    }
-  }
-  if (ts.isCallExpression(expr) || ts.isNewExpression(expr)) {
-    const callee = unwrapAlias(ts, expr.expression);
-    const calleeNames = accessNames(ts, callee);
-    const last = calleeNames[calleeNames.length - 1] ?? callee.getText();
-    if (NETWORK_CALLEES.has(last) || last === "sendBeacon" || last === "open") {
-      const args = expr.arguments ?? [];
+    if ((emitted.diagnostics ?? []).length > 0) return undefined;
+    const out = ts.createSourceFile(
+      "decode.js",
+      emitted.outputText,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.JS,
+    );
+    let value: string | undefined;
+    const visit = (node: TS.Node): void => {
       if (
-        last === "WebSocket" ||
-        last === "XMLHttpRequest" ||
-        last === "sendBeacon" ||
-        last === "open"
+        ts.isPropertyAssignment(node) &&
+        ts.isIdentifier(node.name) &&
+        node.name.text === "a" &&
+        ts.isStringLiteral(node.initializer)
+      )
+        value = node.initializer.text;
+      ts.forEachChild(node, visit);
+    };
+    visit(out);
+    return value;
+  };
+  const nativeTag = (tag: TS.JsxTagNameExpression): boolean =>
+    ts.isIdentifier(tag) && /^[a-z][a-z0-9]*$/.test(tag.text);
+  const jsx = (node: TS.JsxOpeningElement | TS.JsxSelfClosingElement): void => {
+    const tag = node.tagName.getText(sf);
+    const native = nativeTag(node.tagName);
+    if (native && ["noscript", "iframe", "embed", "object"].includes(tag))
+      add(node, `elem:${tag}`, `<${tag}> refuses`, "item-4");
+    for (const prop of node.attributes.properties) {
+      if (ts.isJsxSpreadAttribute(prop)) {
+        if (native || !identityForward(prop.expression))
+          add(prop, "spread", "unclassified JSX spread", "item-5");
+        continue;
+      }
+      const name = prop.name.getText(sf).toLowerCase();
+      const init = prop.initializer;
+      if (
+        ["formaction", "formmethod", "ping", "srcdoc", "dangerouslysetinnerhtml"].includes(name) ||
+        (tag === "script" && name === "src")
       ) {
-        facts.push({
-          id: locateFactId(`js-network:${last}`, loc),
-          rule: "item-2",
-          detail: `${last} is a non-GET network acquisition`,
-        });
-        return facts;
+        add(node, `jsx-attr:${name}`, `${name} refuses`, "item-4");
+        continue;
       }
-      if (last === "fetch") {
-        const opts = args[1];
-        if (opts !== undefined) {
-          if (ts.isObjectLiteralExpression(opts)) {
-            const hasSpread = opts.properties.some((p) => ts.isSpreadAssignment(p));
-            if (hasSpread) {
-              facts.push({
-                id: locateFactId("js-fetch-opts", loc),
-                rule: "item-2",
-                detail: "unclassifiable fetch options",
-              });
-              return facts;
-            }
-            const method = opts.properties.find(
-              (p) => ts.isPropertyAssignment(p) && propertyNameIsMethod(ts, p.name),
-            );
-            if (method !== undefined && ts.isPropertyAssignment(method)) {
-              const init = method.initializer;
-              const lit =
-                ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)
-                  ? init.text.toLowerCase()
-                  : null;
-              if (lit !== "get") {
-                facts.push({
-                  id: locateFactId("js-fetch-non-get", loc),
-                  rule: "item-2",
-                  detail: "fetch with a non-GET method",
-                });
-                return facts;
-              }
-            } else if (
-              opts.properties.some(
-                (p) => ts.isShorthandPropertyAssignment(p) && p.name.text === "method",
-              )
-            ) {
-              facts.push({
-                id: locateFactId("js-fetch-non-get", loc),
-                rule: "item-2",
-                detail: "fetch with a non-GET method",
-              });
-              return facts;
-            }
-          } else {
-            facts.push({
-              id: locateFactId("js-fetch-opts", loc),
-              rule: "item-2",
-              detail: "unclassifiable fetch options",
-            });
-            return facts;
-          }
+      if (!init) continue;
+      const expr = ts.isJsxExpression(init) ? init.expression : undefined;
+      const literal = ts.isStringLiteral(init) ? decodeAttribute(init) : undefined;
+      if (ts.isStringLiteral(init) && literal === undefined) {
+        add(init, "decode", "JSX emitter diagnostic", "item-9");
+        continue;
+      }
+      const value =
+        literal !== undefined
+          ? { known: true as const, value: literal }
+          : expr
+            ? staticValue(expr)
+            : { known: false as const };
+      if (tag === "base" && name === "href") {
+        const hit =
+          value.known && typeof value.value === "string"
+            ? classifyLiteralUrlValue(value.value, "item-6", [], "single")
+            : { id: "base-nonliteral", detail: "unresolved document base" };
+        if (hit) add(node, hit.id, hit.detail, "item-6");
+        continue;
+      }
+      if (name.startsWith("on")) {
+        if (literal !== undefined) {
+          const r = analyze("handler.tsx", literal, ctx);
+          if (r.ok) facts.push(...r.facts);
+          else add(init, "handler-parse", r.detail, "item-9");
         }
-        const urlArg = args[0];
-        if (urlArg !== undefined)
-          facts.push(...classifyValueExpression(ts, urlArg, bindings, ctx, "fetch-url"));
-        return facts;
-      }
-    }
-    if (last === "setItem" || last === "removeItem" || last === "clear" || last === "getItem") {
-      if (calleeNames.some((n) => DURABLE_GLOBALS.has(n))) {
-        facts.push({
-          id: locateFactId(`js-storage:${calleeNames.join(".")}`, loc),
-          rule: "item-2",
-          detail: "storage API acquisition",
-        });
-        return facts;
-      }
-    }
-  }
-  if (ts.isBinaryExpression(expr) && expr.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
-    const leftNames = accessNames(ts, expr.left);
-    if (leftNames.includes("cookie") || leftNames.some((n) => DURABLE_GLOBALS.has(n))) {
-      facts.push({
-        id: locateFactId(`js-assign:${leftNames.join(".")}`, loc),
-        rule: "item-2",
-        detail: "cookie or storage assignment",
-      });
-    }
-  }
-  return facts;
-}
-
-function walkJs(
-  ts: TSModule,
-  node: TS.Node,
-  bindings: Map<string, BindingKind>,
-  ctx: JsxContext,
-  facts: AcquisitionFact[],
-): void {
-  if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node)) {
-    return;
-  }
-  if (
-    ts.isCallExpression(node) ||
-    ts.isNewExpression(node) ||
-    ts.isBinaryExpression(node) ||
-    ts.isPropertyAccessExpression(node)
-  ) {
-    facts.push(...classifyJsExpression(ts, node as TS.Expression, bindings, ctx, "js"));
-  }
-  ts.forEachChild(node, (c) => walkJs(ts, c, bindings, ctx, facts));
-}
-
-function classifyValueExpression(
-  ts: TSModule,
-  expr: TS.Expression,
-  bindings: Map<string, BindingKind>,
-  ctx: JsxContext,
-  via: string,
-): AcquisitionFact[] {
-  if (
-    ts.isParenthesizedExpression(expr) ||
-    ts.isNonNullExpression(expr) ||
-    ts.isAsExpression(expr)
-  ) {
-    return classifyValueExpression(ts, expr.expression, bindings, ctx, via);
-  }
-  if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
-    const decoded = ts.isStringLiteral(expr)
-      ? decodeJsxStringLiteral(ts, expr)
-      : { ok: true as const, facts: [] as AcquisitionFact[], value: expr.text };
-    if (!decoded.ok) return [{ id: `decode:${via}`, rule: decoded.rule, detail: decoded.detail }];
-    const value = decoded.value ?? expr.text;
-    const hit = classifyLiteralUrlValue(value, "item-3", ctx.admittedOrigins);
-    return hit === null ? [] : [{ ...hit, id: `${via}:${hit.id}` }];
-  }
-  if (ts.isTemplateExpression(expr)) {
-    const chunks = [expr.head.text, ...expr.templateSpans.map((s) => s.literal.text)];
-    if (chunks.some((c) => listBoundaryInText(c))) {
-      return [
-        {
-          id: `tpl-list:${via}`,
-          rule: "item-5",
-          detail: "template static chunks contain a list boundary",
-        },
-      ];
-    }
-    if (!templateHeadPinsOrigin(expr.head.text)) {
-      return [
-        { id: `tpl-head:${via}`, rule: "item-5", detail: "template head does not pin origin" },
-      ];
-    }
-    const out: AcquisitionFact[] = [];
-    for (const span of expr.templateSpans) {
-      out.push(...classifyInterpolation(ts, span.expression, bindings, ctx, via));
-    }
-    return out;
-  }
-  if (ts.isObjectLiteralExpression(expr) || ts.isArrayLiteralExpression(expr)) {
-    const out: AcquisitionFact[] = [];
-    const kids = ts.isObjectLiteralExpression(expr)
-      ? expr.properties.map((p) => (ts.isPropertyAssignment(p) ? p.initializer : undefined))
-      : expr.elements.map((el) => (ts.isSpreadElement(el) ? el.expression : el));
-    for (const kid of kids) {
-      if (kid !== undefined) out.push(...classifyValueExpression(ts, kid, bindings, ctx, via));
-    }
-    return out;
-  }
-  if (isIdentityOrMember(ts, expr)) {
-    const root = rootOfAccess(ts, expr);
-    if (!ts.isIdentifier(root)) {
-      return [{ id: `unresolved:${via}`, rule: "item-5", detail: "unclassifiable identity root" }];
-    }
-    const binding = lookupBinding(ts, root);
-    if (binding.kind === "param") return [];
-    if (binding.kind === "local") {
-      if (binding.init === undefined) {
-        return [{ id: `local-uninit:${root.text}`, rule: "item-5", detail: "uninitialized local" }];
-      }
-      return classifyValueExpression(ts, binding.init, bindings, ctx, `local:${root.text}`);
-    }
-    return classifyJsExpression(ts, expr, bindings, ctx, via);
-  }
-  return [
-    {
-      id: `derived:${via}:${expr.getText()}`,
-      rule: "item-5",
-      detail: "derived expression at a value position",
-    },
-  ];
-}
-
-function classifyInterpolation(
-  ts: TSModule,
-  expr: TS.Expression,
-  bindings: Map<string, BindingKind>,
-  ctx: JsxContext,
-  via: string,
-): AcquisitionFact[] {
-  if (!isIdentityOrMember(ts, expr)) {
-    return [
-      {
-        id: `tpl-expr:${via}`,
-        rule: "item-5",
-        detail: "template interpolation is not identity or member",
-      },
-    ];
-  }
-  return classifyValueExpression(ts, expr, bindings, ctx, via);
-}
-
-function isOnHandlerName(name: string): boolean {
-  const n = name.toLowerCase();
-  return n.startsWith("on") && n.length > 2;
-}
-
-function classifyJsxAttributes(
-  ts: TSModule,
-  attrs: TS.JsxAttributes,
-  host: boolean,
-  tag: string,
-  bindings: Map<string, BindingKind>,
-  ctx: JsxContext,
-  facts: AcquisitionFact[],
-): void {
-  for (const prop of attrs.properties) {
-    if (ts.isJsxSpreadAttribute(prop)) {
-      if (host) {
-        facts.push({
-          id: `spread-host:${tag}`,
-          rule: "item-5",
-          detail: "spread on a host element",
-        });
         continue;
       }
-      if (ts.isIdentifier(prop.expression) && lookupBinding(ts, prop.expression).kind === "param")
+      if (
+        (tag === "form" && name === "method") ||
+        (tag === "meta" && ["http-equiv", "httpequiv"].includes(name))
+      ) {
+        const text =
+          value.known && typeof value.value === "string"
+            ? value.value.trim().toLowerCase()
+            : undefined;
+        if (tag === "form" ? text !== "get" : !META_HTTP_EQUIV_ALLOW.some((v) => v === text))
+          add(
+            node,
+            tag === "form" ? "form-method" : "meta-http-equiv",
+            "submission or meta directive",
+            "item-4",
+          );
         continue;
-      facts.push({
-        id: `spread-component:${tag}`,
-        rule: "item-5",
-        detail: "component spread is not unmodified caller props",
-      });
-      continue;
+      }
+      if (name === "style") {
+        if (value.known) {
+          const hit = cssFact(String(value.value));
+          if (hit) add(init, hit.id, hit.detail, hit.rule);
+        } else if (expr && ts.isObjectLiteralExpression(expr)) {
+          for (const p of expr.properties) {
+            if (ts.isPropertyAssignment(p)) {
+              const v = staticValue(p.initializer);
+              if (v.known) {
+                const hit = cssFact(String(v.value));
+                if (hit) add(p, hit.id, hit.detail, hit.rule);
+              } else add(p, "style-nonliteral", "unresolved style value", "item-4");
+            } else add(p, "style-nonliteral", "unresolved style property", "item-4");
+          }
+        } else add(init, "style-nonliteral", "unresolved style value", "item-4");
+        continue;
+      }
+      if (native && isInertNativeAttribute(name)) continue;
+      const single = native && SINGLE_URL_ATTRIBUTES.has(name);
+      if (literal !== undefined) {
+        const hit = classifyLiteralUrlValue(
+          literal,
+          "item-3",
+          ctx.admittedOrigins,
+          single ? "single" : "list",
+        );
+        if (hit) add(init, `jsx:${tag}:${name}:${hit.id}`, hit.detail, hit.rule);
+      } else if (expr) urlValue(expr, `jsx:${tag}:${name}`, single);
     }
-    if (!ts.isJsxAttribute(prop)) continue;
-    const name = prop.name.getText();
-    const lower = name.toLowerCase();
+  };
+  const importFact = (node: TS.ImportDeclaration | TS.ExportDeclaration): void => {
+    const spec = node.moduleSpecifier;
+    if (!spec || !ts.isStringLiteral(spec)) return;
+    const name = spec.text;
+    const relative = name.startsWith(".")
+      ? posix.normalize(posix.join(posix.dirname(path), name))
+      : name.startsWith("@/")
+        ? name.slice(2)
+        : name;
+    if (ctx.admittedPackages.includes(name) || ctx.admittedPaths.includes(relative)) return;
     if (
-      lower === "formaction" ||
-      lower === "formmethod" ||
-      lower === "ping" ||
-      lower === "srcdoc" ||
-      lower === "dangerouslysetinnerhtml"
-    ) {
-      facts.push({
-        id: `jsx-attr:${tag}:${name}`,
-        rule: "item-4",
-        detail: `${name} refuses regardless of value`,
-      });
-      continue;
+      (name.startsWith(".") || name.startsWith("/") || name.startsWith("@/")) &&
+      /\.(tsx|jsx|html)$/.test(name)
+    )
+      return;
+    add(
+      node,
+      `import:${name}`,
+      `import is not an admitted package/path or in-class module: ${name}`,
+    );
+  };
+  const walk = (node: TS.Node): void => {
+    if (ts.isTypeNode(node) || ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node))
+      return;
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+      importFact(node);
+      return;
     }
-    if (host && tag.toLowerCase() === "base") {
-      facts.push({ id: "jsx-base", rule: "item-4", detail: "base in JSX refuses" });
-      continue;
+    if (ts.isImportEqualsDeclaration(node)) {
+      add(node, "import-equals", "ESM-only classifier");
+      return;
     }
-    if (host && tag.toLowerCase() === "form" && lower === "method") {
-      const init = prop.initializer;
-      if (init === undefined) continue;
-      if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)) {
-        if (init.text.trim().toLowerCase() !== "get") {
-          facts.push({
-            id: locateFactId(`form-method:${init.text}`, init.getStart()),
-            rule: "item-4",
-            detail: `form method ${init.text} is not GET`,
-          });
-        }
-        continue;
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      jsx(node);
+      for (const p of node.attributes.properties) {
+        if (ts.isJsxSpreadAttribute(p)) walk(p.expression);
+        else if (p.initializer && ts.isJsxExpression(p.initializer) && p.initializer.expression)
+          walk(p.initializer.expression);
       }
-      if (ts.isJsxExpression(init) && init.expression !== undefined) {
-        if (
-          ts.isStringLiteral(init.expression) ||
-          ts.isNoSubstitutionTemplateLiteral(init.expression)
-        ) {
-          if (init.expression.text.trim().toLowerCase() !== "get") {
-            facts.push({
-              id: locateFactId(`form-method:${init.expression.text}`, init.expression.getStart()),
-              rule: "item-4",
-              detail: `form method ${init.expression.text} is not GET`,
-            });
-          }
-          continue;
-        }
-        facts.push({
-          id: "form-method-nonliteral",
-          rule: "item-4",
-          detail: "form method is not a static literal get",
-        });
-      }
-      continue;
+      return;
     }
-    if ((lower === "http-equiv" || lower === "httpequiv") && tag.toLowerCase() === "meta") {
-      const init = prop.initializer;
-      const lit =
-        init !== undefined && (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init))
-          ? init.text
-          : init !== undefined &&
-              ts.isJsxExpression(init) &&
-              init.expression !== undefined &&
-              (ts.isStringLiteral(init.expression) ||
-                ts.isNoSubstitutionTemplateLiteral(init.expression))
-            ? init.expression.text
-            : null;
+    if (ts.isJsxClosingElement(node) || ts.isJsxText(node)) return;
+    if (ts.isJsxElement(node)) {
+      const native = nativeTag(node.openingElement.tagName);
+      const tag = node.openingElement.tagName.getText(sf);
+      if (!native)
+        for (const child of node.children) {
+          if (ts.isJsxText(child) && child.text.trim()) {
+            const hit = classifyLiteralUrlValue(child.text, "item-3", ctx.admittedOrigins);
+            if (hit) add(child, hit.id, hit.detail, hit.rule);
+          } else if (ts.isJsxExpression(child) && child.expression)
+            urlValue(child.expression, "child", false);
+        }
+      if (tag === "style" || tag === "script") {
+        let body = "";
+        let complete = true;
+        for (const child of node.children)
+          if (ts.isJsxText(child)) body += child.text;
+          else if (ts.isJsxExpression(child) && child.expression) {
+            const v = staticValue(child.expression);
+            if (v.known) body += String(v.value);
+            else complete = false;
+          } else if (!ts.isJsxExpression(child)) complete = false;
+        if (!complete) add(node, `${tag}-unresolved`, `unresolved ${tag} body`, "item-4");
+        if (tag === "style") {
+          const hit = cssFact(body);
+          if (hit) add(node, hit.id, hit.detail, hit.rule);
+        }
+        if (tag === "script" && body.trim()) {
+          const r = analyze("script.tsx", body, ctx);
+          if (r.ok) facts.push(...r.facts);
+          else add(node, "script-parse", r.detail, "item-9");
+        }
+      }
+    }
+    if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+      const p = resolve(node.expression);
+      if (p.kind === "global" && p.name === "fetch" && p.members.length === 0) fetchCall(node);
+      else if (p.kind === "global" && (p.name === "XMLHttpRequest" || p.name === "WebSocket"))
+        add(node, "js-network:open", "network constructor acquisition");
+      else if (node.expression.kind === ts.SyntaxKind.ImportKeyword)
+        add(node, "dynamic-import", "dynamic import refuses");
+      else reference(node.expression);
+    }
+    if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+      reference(node);
+      if (ts.isElementAccessExpression(node)) walk(node.argumentExpression);
+      // Base expressions still execute (including calls and computed indices).
+      if (!ts.isIdentifier(node.expression)) walk(node.expression);
+      return;
+    }
+    if (ts.isIdentifier(node)) {
+      const p = node.parent;
+      const declarationName =
+        "name" in p && p.name === node && !ts.isShorthandPropertyAssignment(p);
       if (
-        lit === null ||
-        !(META_HTTP_EQUIV_ALLOW as readonly string[]).includes(lit.trim().toLowerCase())
-      ) {
-        facts.push({
-          id: `meta-http-equiv:${lit ?? "nonliteral"}`,
-          rule: "item-4",
-          detail: "meta httpEquiv outside the benign allowlist",
-        });
-      }
-      continue;
+        !declarationName &&
+        !ts.isBindingElement(p) &&
+        !ts.isJsxAttribute(p) &&
+        !ts.isJsxNamespacedName(p) &&
+        !ts.isLabeledStatement(p) &&
+        !ts.isBreakStatement(p) &&
+        !ts.isContinueStatement(p)
+      )
+        reference(node);
+      return;
     }
-    if (lower === "style") {
-      const init = prop.initializer;
-      if (
-        init !== undefined &&
-        (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init))
-      ) {
-        const css = classifyCssText(init.text);
-        if (css !== null) facts.push(css);
-      } else if (init !== undefined && ts.isJsxExpression(init) && init.expression !== undefined) {
-        if (
-          ts.isStringLiteral(init.expression) ||
-          ts.isNoSubstitutionTemplateLiteral(init.expression)
-        ) {
-          const css = classifyCssText(init.expression.text);
-          if (css !== null) facts.push(css);
-        } else if (ts.isObjectLiteralExpression(init.expression)) {
-          for (const p of init.expression.properties) {
-            if (
-              ts.isPropertyAssignment(p) &&
-              (ts.isStringLiteral(p.initializer) ||
-                ts.isNoSubstitutionTemplateLiteral(p.initializer))
-            ) {
-              const css = classifyCssText(p.initializer.text);
-              if (css !== null) facts.push(css);
-            }
-          }
-        } else {
-          facts.push({ id: "style-nonliteral", rule: "item-4", detail: "non-literal style value" });
-        }
-      }
-      continue;
-    }
-    if (isOnHandlerName(name)) {
-      const init = prop.initializer;
-      if (init === undefined) continue;
-      if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)) {
-        facts.push(...classifyJsSource(ts, init.text, bindings, ctx, `handler:${name}`));
-        continue;
-      }
-      if (ts.isJsxExpression(init) && init.expression !== undefined) {
-        facts.push(...classifyJsExpression(ts, init.expression, bindings, ctx, `handler:${name}`));
-        walkJs(ts, init.expression, bindings, ctx, facts);
-      }
-      continue;
-    }
-    if (!isRequestCapableAttrLocal(lower)) continue;
-    const init = prop.initializer;
-    if (init === undefined) continue;
-    if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)) {
-      let value = init.text;
-      if (ts.isStringLiteral(init)) {
-        const decoded = decodeJsxStringLiteral(ts, init);
-        if (!decoded.ok) {
-          facts.push({ id: `decode:${name}`, rule: decoded.rule, detail: decoded.detail });
-          continue;
-        }
-        value = decoded.value ?? init.text;
-      }
-      const hit = classifyLiteralUrlValue(value, "item-3", ctx.admittedOrigins);
-      if (hit !== null) {
-        facts.push({
-          ...hit,
-          id: locateFactId(`jsx:${tag}:${name}:${hit.id}`, init.getStart()),
-        });
-      }
-      continue;
-    }
-    if (ts.isJsxExpression(init) && init.expression !== undefined) {
-      facts.push(
-        ...classifyValueExpression(ts, init.expression, bindings, ctx, `jsx:${tag}:${name}`),
-      );
-    }
-  }
-}
-
-function classifyJsSource(
-  ts: TSModule,
-  source: string,
-  _bindings: Map<string, BindingKind>,
-  ctx: JsxContext,
-  via: string,
-): AcquisitionFact[] {
-  const sf = ts.createSourceFile(
-    `${via}.ts`,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  );
-  const facts: AcquisitionFact[] = [];
-  const bindings = collectBindings(ts, sf);
-  walkJs(ts, sf, bindings, ctx, facts);
-  return facts;
-}
-
-function walkJsx(
-  ts: TSModule,
-  node: TS.Node,
-  bindings: Map<string, BindingKind>,
-  ctx: JsxContext,
-  facts: AcquisitionFact[],
-): void {
-  if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
-    const host = isHostTag(ts, node.tagName);
-    const tag = tagNameText(node.tagName);
-    const lower = tag.toLowerCase();
+    if (node.kind === ts.SyntaxKind.ThisKeyword || node.kind === ts.SyntaxKind.SuperKeyword)
+      add(node, "host-this", "unclassified this/super provenance");
     if (
-      host &&
-      (lower === "noscript" || lower === "iframe" || lower === "embed" || lower === "object")
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+      node.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
+      (ts.isPropertyAccessExpression(node.left) || ts.isElementAccessExpression(node.left))
     ) {
-      facts.push({ id: `elem:${lower}`, rule: "item-4", detail: `<${lower}> refuses` });
+      if (resolve(node.left.expression).kind !== "local")
+        add(node, "mutation-provenance", "assignment to an unresolved receiver");
     }
-    if (host && lower === "script") {
-      const hasSrc = node.attributes.properties.some(
-        (p) => ts.isJsxAttribute(p) && p.name.getText().toLowerCase() === "src",
-      );
-      if (hasSrc)
-        facts.push({ id: "elem:script[src]", rule: "item-4", detail: "script[src] refuses" });
-    }
-    classifyJsxAttributes(ts, node.attributes, host, tag, bindings, ctx, facts);
-  }
-  if (ts.isJsxElement(node)) {
-    const open = node.openingElement;
-    const host = isHostTag(ts, open.tagName);
-    if (!host) {
-      for (const child of node.children) {
-        if (ts.isJsxText(child)) {
-          const text = child.text;
-          if (text.trim().length === 0) continue;
-          const hit = classifyLiteralUrlValue(text, "item-3", ctx.admittedOrigins);
-          if (hit !== null) facts.push({ ...hit, id: `child:${hit.id}` });
-        } else if (ts.isJsxExpression(child) && child.expression !== undefined) {
-          facts.push(...classifyValueExpression(ts, child.expression, bindings, ctx, "child"));
-        }
-      }
-    }
-    if (host && tagNameText(open.tagName).toLowerCase() === "style") {
-      const text = node.children.map((c) => (ts.isJsxText(c) ? c.text : "")).join("");
-      const css = classifyCssText(text);
-      if (css !== null) facts.push(css);
-    }
-    if (host && tagNameText(open.tagName).toLowerCase() === "script") {
-      const text = node.children.map((c) => (ts.isJsxText(c) ? c.text : "")).join("");
-      if (text.trim().length > 0)
-        facts.push(...classifyJsSource(ts, text, bindings, ctx, "script"));
-    }
-  }
-  ts.forEachChild(node, (c) => walkJsx(ts, c, bindings, ctx, facts));
+    // Parameter defaults are supplying edges, including destructuring defaults.
+    if ((ts.isParameter(node) || ts.isBindingElement(node)) && node.initializer)
+      urlValue(node.initializer, "parameter-default", false);
+    ts.forEachChild(node, walk);
+  };
+  scanEscape(sf);
+  walk(sf);
+  return { ok: true, facts };
 }
-
 export function classifyTsxSource(path: string, source: string, ctx: JsxContext): ClassifyResult {
-  const ts = ctx.ts;
-  const kind = path.toLowerCase().endsWith(".jsx") ? ts.ScriptKind.JSX : ts.ScriptKind.TSX;
-  const sf = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, kind);
-  const parseDiags =
-    (sf as TS.SourceFile & { parseDiagnostics?: readonly TS.Diagnostic[] }).parseDiagnostics ?? [];
-  if (parseDiags.length > 0) {
-    return { ok: false, rule: "item-9", detail: "TypeScript parse error" };
-  }
-  const facts: AcquisitionFact[] = [];
-  const bindings = collectBindings(ts, sf);
-  walkJsx(ts, sf, bindings, ctx, facts);
-  walkJs(ts, sf, bindings, ctx, facts);
-  const imports = collectImports(ts, sf);
-  for (const spec of imports) {
-    facts.push(...classifyImport(spec, ctx));
-  }
-  return { ok: true, facts: dedupe(facts) };
+  return analyze(path, source, ctx);
 }
-
-function collectImports(ts: TSModule, sf: TS.SourceFile): string[] {
-  const out: string[] = [];
-  for (const stmt of sf.statements) {
-    if (
-      ts.isImportDeclaration(stmt) &&
-      stmt.moduleSpecifier !== undefined &&
-      ts.isStringLiteral(stmt.moduleSpecifier)
-    ) {
-      out.push(stmt.moduleSpecifier.text);
-      if (
-        stmt.importClause?.namedBindings !== undefined &&
-        ts.isNamedImports(stmt.importClause.namedBindings)
-      ) {
-        for (const el of stmt.importClause.namedBindings.elements) {
-          out.push(`name:${el.name.text}`);
-        }
-      }
-    }
-  }
-  return out;
-}
-
-function classifyImport(spec: string, ctx: JsxContext): AcquisitionFact[] {
-  if (spec.startsWith("name:")) {
-    const name = spec.slice("name:".length);
-    if (DURABLE_GLOBALS.has(name) || name === "cookie") {
-      return [
-        {
-          id: `import-name:${name}`,
-          rule: "item-2",
-          detail: `import name ${name} is on the durable set`,
-        },
-      ];
-    }
-    return [];
-  }
-  if (ctx.admittedPackages.includes(spec)) return [];
-  const inRepo = spec.startsWith(".") || spec.startsWith("/") || spec.startsWith("@/");
-  if (inRepo && !IN_CLASS_IMPORT.test(spec)) {
-    return [
-      {
-        id: `import-helper:${spec}`,
-        rule: "item-2",
-        detail: `new in-repo out-of-class import ${spec}`,
-      },
-    ];
-  }
-  if (!inRepo) {
-    return [
-      {
-        id: `import-npm:${spec}`,
-        rule: "item-2",
-        detail: `npm import ${spec} is not on the merge-base package allowlist`,
-      },
-    ];
-  }
-  return [];
-}
-
-const IN_CLASS_IMPORT = /\.(html|jsx|tsx)(\?|$)/i;
-
-function dedupe(facts: readonly AcquisitionFact[]): AcquisitionFact[] {
-  const seen = new Set<string>();
-  const out: AcquisitionFact[] = [];
-  for (const f of facts) {
-    if (seen.has(f.id)) continue;
-    seen.add(f.id);
-    out.push(f);
-  }
-  return out;
-}
-
 export function classifyHandlerText(source: string, ctx: JsxContext): readonly AcquisitionFact[] {
-  return classifyJsSource(ctx.ts, source, new Map(), ctx, "handler");
+  const result = analyze("handler.tsx", source, ctx);
+  return result.ok
+    ? result.facts
+    : [{ id: `handler-parse:${source}`, rule: result.rule, detail: result.detail }];
 }

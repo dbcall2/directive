@@ -5,10 +5,16 @@
  * skipped / N/A is not an exit under an armed ceiling.
  */
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { emptyAmendments, evaluateArming, loadCeilingFromMap } from "./ceiling.js";
-import { classifyHtmlDocument, dedupeFacts } from "./html.js";
+import {
+  allowlistsDiffer,
+  combineCeilings,
+  emptyAmendments,
+  isCeilingCandidatePath,
+  loadCeilingFromMap,
+} from "./ceiling.js";
+import { classifyHtmlDocument } from "./html.js";
 import {
   classifyHandlerText,
   classifyTsxSource,
@@ -23,7 +29,6 @@ import {
   IN_CLASS_EXT,
   type OutputStream,
   PRESENTATION_CEILING_ARTIFACT_REL,
-  PRESENTATION_CEILING_DIR_REL,
   type PresentationCeiling,
   VERIFIER_PATHS,
 } from "./types.js";
@@ -34,21 +39,28 @@ export type EvaluateOptions = {
   readonly quiet?: boolean;
   readonly changedFiles?: readonly string[];
   readonly mergeBase?: string;
-  readonly readAtBase?: (relPath: string) => string | null;
-  readonly readAtHead?: (relPath: string) => string | null;
+  readonly readAtBase?: (relPath: string) => SnapshotRead;
+  readonly readAtHead?: (relPath: string) => SnapshotRead;
+  readonly ceilingFiles?: readonly string[];
   readonly presentationFiles?: readonly string[];
 };
 
-function runGit(projectRoot: string, args: readonly string[]): string | null {
+type ReadError = { readonly error: string };
+export type SnapshotRead = string | null | ReadError;
+function runGit(projectRoot: string, args: readonly string[]): string | ReadError {
   try {
     return execFileSync("git", ["-C", projectRoot, ...args], {
       encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: ["ignore", "pipe", "pipe"],
       maxBuffer: 10 * 1024 * 1024,
-    }).trim();
-  } catch {
-    return null;
+      timeout: 30_000,
+    });
+  } catch (err) {
+    return { error: `git ${args[0]} failed: ${String(err)}` };
   }
+}
+function readError(value: SnapshotRead): value is ReadError {
+  return value !== null && typeof value !== "string";
 }
 
 function posix(rel: string): string {
@@ -89,121 +101,57 @@ function resolveMergeBase(
   if (injected !== undefined && injected.length > 0) return injected;
   const origin = originRef !== undefined && originRef.length > 0 ? originRef : "origin/master";
   const mb = runGit(projectRoot, ["merge-base", "HEAD", origin]);
-  if (mb === null || mb.length === 0)
-    return { error: `could not compute merge-base with ${origin}` };
-  return mb;
+  if (typeof mb !== "string" || mb.trim().length === 0)
+    return {
+      error: `could not compute merge-base with ${origin}${typeof mb === "string" ? "" : `: ${mb.error}`}`,
+    };
+  return mb.trim();
 }
 
-function defaultChangedFiles(projectRoot: string, mergeBase: string): string[] {
-  const out = new Set<string>();
-  const add = (raw: string): void => {
-    for (const line of raw.split("\n")) {
-      const t = posix(line);
-      if (t.length > 0) out.add(t);
-    }
-  };
-  const diff = runGit(projectRoot, ["diff", "--name-only", `${mergeBase}...HEAD`]);
-  if (diff !== null) add(diff);
-  const vsHead = runGit(projectRoot, ["diff", "--name-only", "HEAD"]);
-  if (vsHead !== null) add(vsHead);
-  const staged = runGit(projectRoot, ["diff", "--name-only", "--cached"]);
-  if (staged !== null) add(staged);
-  const untracked = runGit(projectRoot, ["ls-files", "--others", "--exclude-standard"]);
-  if (untracked !== null) add(untracked);
-  return [...out];
-}
-
-function gitShow(projectRoot: string, ref: string, rel: string): string | null {
-  return runGit(projectRoot, ["show", `${ref}:${rel}`]);
-}
-
-/**
- * Classify live bytes for a tracked presentation path: working tree, then
- * index, then committed HEAD. Uncommitted staged/unstaged edits must not be
- * skipped just because HEAD still exists.
- */
-export function readLivePresentationSource(projectRoot: string, rel: string): string | null {
+/** Live snapshot only: deletion is absence, never an index/HEAD fallback. */
+export function readLivePresentationSource(projectRoot: string, rel: string): SnapshotRead {
   try {
     return readFileSync(join(projectRoot, rel), "utf8");
-  } catch {
-    /* missing on disk */
-  }
-  try {
-    return execFileSync("git", ["-C", projectRoot, "show", `:${rel}`], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      maxBuffer: 10 * 1024 * 1024,
-    });
-  } catch {
-    return runGit(projectRoot, ["show", `HEAD:${rel}`]);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+    return { error: `read ${rel} failed: ${String(err)}` };
   }
 }
-
-function listPresentation(
+function listSnapshot(
   projectRoot: string,
-  mergeBase: string,
-  extra: readonly string[],
-): string[] {
-  const out = new Set<string>(extra.filter(isInClassPath).map(posix));
-  const baseTree = runGit(projectRoot, ["ls-tree", "-r", "--name-only", mergeBase]);
-  if (baseTree !== null) {
-    for (const line of baseTree.split("\n")) {
-      if (isInClassPath(line)) out.add(posix(line));
-    }
-  }
-  const headTree = runGit(projectRoot, ["ls-files"]);
-  if (headTree !== null) {
-    for (const line of headTree.split("\n")) {
-      if (isInClassPath(line)) out.add(posix(line));
-    }
-  }
-  return [...out];
+  mb: string,
+): { base: string[]; head: string[]; changed: string[] } | ReadError {
+  const base = runGit(projectRoot, ["ls-tree", "-r", "--name-only", "-z", mb]);
+  if (typeof base !== "string") return base;
+  const tracked = runGit(projectRoot, ["ls-files", "-z"]);
+  if (typeof tracked !== "string") return tracked;
+  const untracked = runGit(projectRoot, ["ls-files", "--others", "--exclude-standard", "-z"]);
+  if (typeof untracked !== "string") return untracked;
+  const changed = runGit(projectRoot, ["diff", "--no-renames", "--name-only", "-z", mb, "--"]);
+  if (typeof changed !== "string") return changed;
+  const split = (s: string): string[] => s.split("\0").filter(Boolean).map(posix);
+  return {
+    base: split(base),
+    head: [...new Set([...split(tracked), ...split(untracked)])],
+    changed: [...new Set([...split(changed), ...split(untracked)])],
+  };
 }
-
-function listCeilingRels(
-  projectRoot: string,
-  mergeBase: string,
-  changed: readonly string[],
-): string[] {
-  const rels = new Set<string>([PRESENTATION_CEILING_ARTIFACT_REL]);
-  for (const c of changed) {
-    const p = posix(c);
-    if (p.startsWith(`${PRESENTATION_CEILING_DIR_REL}/`) && p.endsWith(".json")) rels.add(p);
-  }
-  const baseTree = runGit(projectRoot, [
-    "ls-tree",
-    "-r",
-    "--name-only",
-    mergeBase,
-    PRESENTATION_CEILING_DIR_REL,
-  ]);
-  if (baseTree !== null) {
-    for (const line of baseTree.split("\n")) {
-      if (line.endsWith(".json")) rels.add(posix(line));
-    }
-  }
-  try {
-    const dir = join(projectRoot, PRESENTATION_CEILING_DIR_REL);
-    for (const name of readdirSync(dir)) {
-      if (name.endsWith(".json")) rels.add(`${PRESENTATION_CEILING_DIR_REL}/${name}`);
-    }
-  } catch {
-    /* optional dir */
-  }
-  return [...rels];
-}
-
 function loadMap(
   rels: readonly string[],
-  read: (rel: string) => string | null,
-): Map<string, string | null> {
+  read: (rel: string) => SnapshotRead,
+): Map<string, string | null> | ReadError {
   const map = new Map<string, string | null>();
-  for (const rel of rels) map.set(rel, read(rel));
+  for (const rel of rels) {
+    const value = read(rel);
+    if (readError(value)) return value;
+    map.set(rel, value);
+  }
   return map;
 }
-
-function factIds(facts: readonly AcquisitionFact[]): Set<string> {
-  return new Set(facts.map((f) => f.id));
+function counts(facts: readonly AcquisitionFact[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const fact of facts) out.set(fact.id, (out.get(fact.id) ?? 0) + 1);
+  return out;
 }
 
 function classifyFile(
@@ -245,44 +193,77 @@ export function evaluateDurableEffectAcquisition(options: EvaluateOptions = {}):
   const quiet = options.quiet === true;
   const mb = resolveMergeBase(projectRoot, options.originRef, options.mergeBase);
   if (typeof mb !== "string") return config(mb.error);
-  const changed = (options.changedFiles ?? defaultChangedFiles(projectRoot, mb)).map(posix);
+  const injected =
+    options.readAtBase !== undefined &&
+    options.readAtHead !== undefined &&
+    options.changedFiles !== undefined;
+  const snapshot = injected
+    ? { base: [] as string[], head: [] as string[], changed: [...(options.changedFiles ?? [])] }
+    : listSnapshot(projectRoot, mb);
+  if ("error" in snapshot) return config(snapshot.error);
+  const changed = (options.changedFiles ?? snapshot.changed).map(posix);
+  const baseNames = new Set(snapshot.base);
   const readBase =
-    options.readAtBase ?? ((rel: string): string | null => gitShow(projectRoot, mb, rel));
+    options.readAtBase ??
+    ((rel: string): SnapshotRead =>
+      baseNames.has(rel) ? runGit(projectRoot, ["show", `${mb}:${rel}`]) : null);
   const readHead =
     options.readAtHead ??
-    ((rel: string): string | null => readLivePresentationSource(projectRoot, rel));
-
-  const ceilingRels = listCeilingRels(projectRoot, mb, changed);
-  const baseCeil = loadCeilingFromMap(loadMap(ceilingRels, readBase));
+    ((rel: string): SnapshotRead => readLivePresentationSource(projectRoot, rel));
+  const ceilingRels = [
+    ...new Set([
+      PRESENTATION_CEILING_ARTIFACT_REL,
+      ...snapshot.base,
+      ...snapshot.head,
+      ...changed,
+      ...(options.ceilingFiles ?? []),
+    ]),
+  ].filter(isCeilingCandidatePath);
+  const baseMap = loadMap(ceilingRels, readBase);
+  if ("error" in baseMap) return config(baseMap.error);
+  const headMap = loadMap(ceilingRels, readHead);
+  if ("error" in headMap) return config(headMap.error);
+  const baseCeil = loadCeilingFromMap(baseMap);
   if (!baseCeil.ok)
     return fail(
       `verify:durable-effect-acquisition: merge-base ceiling unreadable (${baseCeil.detail})`,
     );
-  const headCeil = loadCeilingFromMap(loadMap(ceilingRels, readHead));
+  const headCeil = loadCeilingFromMap(headMap);
   if (!headCeil.ok)
     return fail(`verify:durable-effect-acquisition: head ceiling unreadable (${headCeil.detail})`);
-  const arming = evaluateArming(baseCeil.ceiling, headCeil.ceiling, baseCeil.rel ?? headCeil.rel);
-  if (!arming.armed) {
+  if (baseCeil.records.size === 0 && headCeil.records.size === 0)
     return ok(
-      "verify:durable-effect-acquisition: off-ceiling — no presentation restriction at merge-base or add-only/tightening head.",
+      "verify:durable-effect-acquisition: off-ceiling — no presentation restriction at merge-base or head.",
       quiet,
     );
+  for (const [rel, base] of baseCeil.records) {
+    const head = headCeil.records.get(rel);
+    if (head && allowlistsDiffer(base, head))
+      return fail(
+        `verify:durable-effect-acquisition: same-PR rewrite of presentation-ceiling allowlists refuses (${rel}).`,
+      );
   }
-  if (arming.samePrAllowlistEdit) {
-    return fail(
-      "verify:durable-effect-acquisition: same-PR rewrite of the presentation-ceiling allowlists refuses.",
-    );
-  }
-
+  // Head-only ceilings restrict immediately; their grants have no base authority.
+  const effective = combineCeilings([
+    ...baseCeil.records.values(),
+    ...[...headCeil.records]
+      .filter(([rel]) => !baseCeil.records.has(rel))
+      .map(([, c]) => ({ ...c, humanApproval: undefined })),
+  ]);
   const verifierChanged = changed.filter(isVerifierPath);
-  const verifierExisted = verifierChanged.some((rel) => readBase(rel) !== null);
+  let verifierExisted = false;
+  for (const rel of verifierChanged) {
+    const value = readBase(rel);
+    if (readError(value)) return config(value.error);
+    if (value !== null) verifierExisted = true;
+  }
   if (verifierExisted) {
     return fail(
       "verify:durable-effect-acquisition: same-PR rewrite of the durable-effect verifier refuses.",
     );
   }
 
-  const amendments = emptyAmendments(arming.base);
+  const amendments = emptyAmendments(effective);
   const tsLoad = loadProjectTypeScript(projectRoot);
   const ctx: JsxContext | null = tsLoad.ok
     ? {
@@ -290,14 +271,18 @@ export function evaluateDurableEffectAcquisition(options: EvaluateOptions = {}):
         admittedOrigins: amendments.origins,
         admittedPackages: amendments.packages,
         admittedPaths: amendments.paths,
+        admittedGlobals: amendments.globals,
       }
     : null;
 
-  const presentation = options.presentationFiles ?? listPresentation(projectRoot, mb, changed);
+  const presentation =
+    options.presentationFiles ??
+    [...new Set([...snapshot.base, ...snapshot.head, ...changed])].filter(isInClassPath);
   for (const rel of presentation) {
     for (const reader of [readBase, readHead]) {
       const src = reader(rel);
       if (src === null) continue;
+      if (readError(src)) return config(src.error);
       const classified = classifyFile(rel, src, ctx, amendments.origins);
       if (!classified.ok) {
         return fail(`verify:durable-effect-acquisition: ${rel}: ${classified.detail}`, [
@@ -318,6 +303,8 @@ export function evaluateDurableEffectAcquisition(options: EvaluateOptions = {}):
   for (const rel of changed.filter(isInClassPath)) {
     const headSrc = readHead(rel);
     if (headSrc === null) continue;
+    if (readError(headSrc)) return config(headSrc.error);
+    if (amendments.paths.includes(rel)) continue;
     const headClass = classifyFile(rel, headSrc, ctx, amendments.origins);
     if (!headClass.ok) {
       return fail(`verify:durable-effect-acquisition: ${rel}: ${headClass.detail}`, [
@@ -325,21 +312,26 @@ export function evaluateDurableEffectAcquisition(options: EvaluateOptions = {}):
       ]);
     }
     const baseSrc = readBase(rel);
-    let baseIds = new Set<string>();
+    if (readError(baseSrc)) return config(baseSrc.error);
+    let baseIds = new Map<string, number>();
     if (baseSrc !== null) {
       const baseClass = classifyFile(rel, baseSrc, ctx, amendments.origins);
       if (!baseClass.ok) {
         return fail(`verify:durable-effect-acquisition: merge-base ${rel}: ${baseClass.detail}`);
       }
-      baseIds = factIds(baseClass.facts);
+      baseIds = counts(baseClass.facts);
     }
     for (const fact of headClass.facts) {
-      if (baseIds.has(fact.id)) continue;
+      const remaining = baseIds.get(fact.id) ?? 0;
+      if (remaining > 0) {
+        baseIds.set(fact.id, remaining - 1);
+        continue;
+      }
       findings.push({ ...fact, id: `${rel}:${fact.id}` });
     }
   }
 
-  const unique = dedupeFacts(findings);
+  const unique = findings;
   if (unique.length > 0) {
     const listed = unique.map((f) => f.id).join(", ");
     return fail(

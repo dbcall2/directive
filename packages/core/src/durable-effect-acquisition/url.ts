@@ -79,9 +79,10 @@ export function classifyLiteralUrlValue(
   raw: string,
   rule: string,
   admittedOrigins: readonly string[],
+  grammar: "single" | "list" = "list",
 ): AcquisitionFact | null {
   const pre = preprocessUrlInput(raw);
-  for (const candidate of splitUrlCandidates(pre)) {
+  for (const candidate of grammar === "single" ? [pre] : splitUrlCandidates(pre)) {
     const resolved = resolveAgainstSentinel(candidate);
     if (!resolved.ok) {
       return {

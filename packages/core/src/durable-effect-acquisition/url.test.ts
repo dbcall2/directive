@@ -36,6 +36,10 @@ describe("url preprocessing (#5080 item 3)", () => {
   });
 
   it("pins a template head only after a path has begun", () => {
+    expect(templateHeadPinsOrigin("/\\collector/")).toBe(false);
+    expect(templateHeadPinsOrigin("https://collector/")).toBe(false);
+    expect(templateHeadPinsOrigin("//collector/")).toBe(false);
+    expect(templateHeadPinsOrigin("relative:part/path")).toBe(false);
     expect(templateHeadPinsOrigin("/img/")).toBe(true);
     expect(templateHeadPinsOrigin("images/")).toBe(true);
     expect(templateHeadPinsOrigin("./p/")).toBe(true);
@@ -51,6 +55,8 @@ describe("url preprocessing (#5080 item 3)", () => {
   });
 
   it("resolves protocol-relative tokens as non-sentinel https", () => {
+    expect(resolveAgainstSentinel("http://[").ok).toBe(false);
+    expect(classifyLiteralUrlValue("http://[", "item-3", [])?.detail).toMatch(/URL|Invalid/i);
     const r = resolveAgainstSentinel("//collector.example/c");
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.origin).toBe("https://collector.example");
