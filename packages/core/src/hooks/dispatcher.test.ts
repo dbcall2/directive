@@ -1614,6 +1614,99 @@ describe("direct-write hook policy", () => {
     });
   });
 
+  describe("apply_patch empty-target deny (#5094)", () => {
+    const unclassified =
+      "apply_patch body named no classifiable mutation target, so the write fence cannot authorize it";
+    const proposed = "xbrief/proposed/2026-08-21-story.xbrief.json";
+    const commandPatch = (body: string) => ({
+      host: "codex" as const,
+      event: "tool.before" as const,
+      projectRoot: "/project",
+      payload: {
+        tool_name: "apply_patch",
+        tool_input: { command: body },
+      },
+    });
+    const noScope = () =>
+      readySeams({
+        inspectScope: () => ({
+          ready: false,
+          path: null,
+          message: "No active xBRIEF artifact was found under xbrief/active/",
+        }),
+      });
+    const fenceSeams = () =>
+      readySeams({
+        loadRuntimeAuthority: () => ({
+          enabled: true,
+          allowPaths: ["xbrief/**"],
+          denyPaths: [".github/**", "src/**"],
+          scopes: { edits: true, push: false, merge: false },
+        }),
+      });
+
+    it("allows string command Add File of a proposed xBRIEF", () => {
+      const body = `*** Begin Patch\n*** Add File: ${proposed}\n+{}\n*** End Patch`;
+      const decision = decideHook(commandPatch(body), noScope());
+      expect(decision).toMatchObject({ verdict: "allow", code: "write-propose-ready" });
+    });
+
+    it("denies argv command, raw-string tool_input, renamed field, and empty tool_input", () => {
+      const cases: unknown[] = [
+        { command: ["apply_patch", "*** Begin Patch\n*** Add File: a.ts\n+x\n*** End Patch"] },
+        "*** Begin Patch\n*** Add File: a.ts\n+x\n*** End Patch",
+        { patch_text: "*** Begin Patch\n*** Add File: a.ts\n+x\n*** End Patch" },
+        { input: "*** Begin Patch\n*** Add File: a.ts\n+x\n*** End Patch" },
+        {},
+      ];
+      for (const tool_input of cases) {
+        const decision = decideHook(
+          {
+            host: "codex",
+            event: "tool.before",
+            projectRoot: "/project",
+            payload: { tool_name: "apply_patch", tool_input },
+          },
+          readySeams(),
+        );
+        expect(decision).toMatchObject({
+          verdict: "deny",
+          code: "runtime-policy-deny-path",
+        });
+        expect(decision.message).toContain(unclassified);
+      }
+    });
+
+    it("denies command-shaped patches to fence denyPaths", () => {
+      const body =
+        "*** Begin Patch\n*** Add File: .github/workflows/release.yml\n+name: pwn\n*** End Patch";
+      const decision = decideHook(commandPatch(body), fenceSeams());
+      expect(decision).toMatchObject({
+        verdict: "deny",
+        code: "runtime-policy-deny-path",
+      });
+    });
+
+    it("denies command-shaped patches to src/** under the write fence", () => {
+      const body = "*** Begin Patch\n*** Update File: src/index.ts\n+x\n*** End Patch";
+      const decision = decideHook(commandPatch(body), fenceSeams());
+      expect(decision).toMatchObject({
+        verdict: "deny",
+        code: "runtime-policy-deny-path",
+      });
+    });
+
+    it("denies command-shaped patches outside file_scope", () => {
+      const body =
+        "*** Begin Patch\n*** Update File: packages/core/src/hooks/tools.ts\n+x\n*** End Patch";
+      const decision = decideHook(commandPatch(body), fenceSeams());
+      expect(decision).toMatchObject({
+        verdict: "deny",
+        code: "runtime-policy-deny-path",
+      });
+    });
+  });
+
   it("allows a direct write only when both canonical predicates pass", () => {
     const decision = decideHook(
       {

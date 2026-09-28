@@ -63,6 +63,11 @@ export function isDirectWriteTool(toolName: string): boolean {
   return DIRECT_WRITE_TOOLS.has(normalizedToolName(toolName));
 }
 
+/** Cursor ApplyPatch and Codex apply_patch spellings (#5094). */
+export function isApplyPatchTool(toolName: string): boolean {
+  return normalizedToolName(toolName) === "applypatch";
+}
+
 export function isSpawnTool(toolName: string): boolean {
   return SPAWN_TOOLS.has(normalizedToolName(toolName));
 }
@@ -265,13 +270,14 @@ export const HOST_TOOL_SURFACE_AUDIT: Readonly<Record<ClassifyHookHost, HostTool
     source: "Issue #3987 comment 5471374558 finding F8.",
   },
   codex: {
-    mutation: { directWrite: ["apply_patch"], shell: ["shell"], spawn: [] },
+    mutation: { directWrite: [], shell: ["shell"], spawn: [] },
     nonMutation: {},
     unobservedReason:
-      "Shell (`shell`) and the apply_patch write form are established — F8 for the shell " +
-      "spelling, #3614 for the Codex apply_patch payload path. The rest of this host's surface " +
-      "has not been observed in this tree.",
-    source: "Issue #3987 comment 5471374558 finding F8; #3614 Codex apply_patch handling.",
+      "Shell (`shell`) is established (F8). The apply_patch write-form record is downgraded " +
+      "until a live PreToolUse payload is observed in this tree (#5094); assumed command vs " +
+      "patch field shapes are not coverage.",
+    source:
+      "Issue #3987 comment 5471374558 finding F8; #5094 Codex apply_patch payload observation.",
   },
   cursor: {
     mutation: { directWrite: [], shell: [], spawn: [] },

@@ -82,7 +82,7 @@ not a coverage fact ([#3987 comment 5471374558](https://github.com/deftai/direct
 | Host | Established | Unobserved |
 |------|-------------|------------|
 | Claude Code | shell `Bash` | direct-write and spawn spellings |
-| Codex | shell `shell`; `apply_patch` write form (#3614) | everything else |
+| Codex | shell `shell` | apply_patch write form until a live payload is observed (#5094); everything else |
 | Cursor | nothing | the whole surface |
 
 Cursor is the one that matters: nothing in this tree observes which tool names

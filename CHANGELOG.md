@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **fix(update): partition dirty-deposit consumer projections; skip PROJECT-DEFINITION org-force-on (Tracking #5096).** Schema sync (#2595) and pin restore (#4533/#4710) stay intentional with mandatory report. Full skip/refuse/rewrite ledger is `consumer_projections`; `skipped_consumer_projections` lists skipped+refused only. Refs #3029, #3395, #4710.
+- **fix(hooks): Codex apply_patch `command` payloads extract mutation targets; empty targets deny (Refs #5094).** String `tool_input.command` is an ApplyPatch body only for declared `ApplyPatch` / `apply_patch`. Conflicting `command` / `patch` / `unified_diff` / `diff` fields union. Canonical apply_patch with no extracted targets fails closed. Codex write-form audit is unobserved until a live payload. P2 class-check docs leftover.
 - **test(win32): retry EPERM temp cleanup in doctor disable tests (Tracking #5089).**
 - **test(win32): raise two more Step 5 suite-load testTimeouts (Tracking #5086).**
 - **test(win32): raise suite-load timeouts for occupancy hooks + worker-auth cleanup (Tracking #5084).** Step 5 under full ts:check-lane no longer fails closed on 10s beforeAll / 20s testTimeout flakes.

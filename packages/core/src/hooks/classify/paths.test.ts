@@ -21,6 +21,33 @@ describe("path/shell extractors (#2950)", () => {
     expect(hookApplyPatchBodyText({})).toBeNull();
   });
 
+  it("hookApplyPatchBodyText reads string command only on declared apply_patch (#5094)", () => {
+    const patch = "*** Begin Patch\n*** Update File: body.ts\n+x\n*** End Patch";
+    expect(
+      hookApplyPatchBodyText({
+        tool_name: "apply_patch",
+        tool_input: { command: patch },
+      }),
+    ).toBe(patch);
+    expect(
+      hookApplyPatchBodyText({
+        tool_name: "Bash",
+        tool_input: { command: patch },
+      }),
+    ).toBeNull();
+  });
+
+  it("hookApplyPatchBodyText unions conflicting body fields (#5094)", () => {
+    const patchA = "*** Begin Patch\n*** Update File: a.ts\n+x\n*** End Patch";
+    const patchB = "*** Begin Patch\n*** Update File: b.ts\n+y\n*** End Patch";
+    expect(
+      hookMutationTargetPaths({
+        tool_name: "apply_patch",
+        tool_input: { patch: patchA, command: patchB },
+      }),
+    ).toEqual(["a.ts", "b.ts"]);
+  });
+
   it("hookMutationTargetPaths includes ApplyPatch body members", () => {
     expect(
       hookMutationTargetPaths({
@@ -48,5 +75,49 @@ describe("path/shell extractors (#2950)", () => {
     expect(hookShellCommand({ tool_input: { command: "git push" } })).toBe("git push");
     expect(hookMcpArgsText({ tool_input: { x: 1 } })).toBe('{"x":1}');
     expect(hookPathSet({ tool_input: { path: "p.ts" } })).toEqual(["p.ts"]);
+  });
+
+  it("string command Add/Update/Delete/Move-to recover mutation targets (#5094)", () => {
+    expect(
+      hookMutationTargetPaths({
+        tool_name: "apply_patch",
+        tool_input: {
+          command: "*** Begin Patch\n*** Add File: added.ts\n+x\n*** End Patch",
+        },
+      }),
+    ).toEqual(["added.ts"]);
+    expect(
+      hookMutationTargetPaths({
+        tool_name: "ApplyPatch",
+        tool_input: {
+          command: "*** Begin Patch\n*** Update File: updated.ts\n+x\n*** End Patch",
+        },
+      }),
+    ).toEqual(["updated.ts"]);
+    expect(
+      hookMutationTargetPaths({
+        tool_name: "apply_patch",
+        tool_input: {
+          command: "*** Begin Patch\n*** Delete File: gone.ts\n*** End Patch",
+        },
+      }),
+    ).toEqual(["gone.ts"]);
+    expect(
+      hookMutationTargetPaths({
+        tool_name: "apply_patch",
+        tool_input: {
+          command:
+            "*** Begin Patch\n*** Update File: from.ts\n*** Move to: to.ts\n+x\n*** End Patch",
+        },
+      }),
+    ).toEqual(["from.ts", "to.ts"]);
+  });
+
+  it("Bash heredoc with Update File keeps shell targets unchanged (#5094)", () => {
+    const command = "cat > notes.md <<'EOF'\n*** Update File: secret.ts\nEOF";
+    const payload = { tool_name: "Bash", tool_input: { command } };
+    expect(hookApplyPatchBodyText(payload)).toBeNull();
+    expect(hookMutationTargetPaths(payload)).toEqual([]);
+    expect(hookShellCommand(payload)).toBe(command);
   });
 });

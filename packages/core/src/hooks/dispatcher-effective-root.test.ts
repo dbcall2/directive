@@ -389,6 +389,32 @@ describe("direct-write occupancy/ritual follow the target worktree (#3794)", () 
     expect(ritualRoots).not.toContain(resolve(primary));
   });
 
+  it("refuses command-shaped apply_patch whose body lands in a foreign repository (#5094)", () => {
+    const { primary, foreign } = linkedFixture();
+    const { ritualRoots, seams } = recordingSeams("owner");
+    const decision = decideHook(
+      {
+        host: "codex",
+        event: "tool.before",
+        projectRoot: primary,
+        payload: {
+          tool_name: "apply_patch",
+          tool_input: {
+            command:
+              "*** Begin Patch\n*** Update File: " +
+              join(foreign, "src", "b.ts") +
+              "\n+x\n*** End Patch",
+          },
+        },
+        environ: { DEFT_SESSION_ID: "owner" },
+      },
+      seams,
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "foreign-repository-deny" });
+    expect(decision.message).toContain("different Git repository");
+    expect(ritualRoots).toEqual([]);
+  });
+
   it("refuses ApplyPatch when declared path and patch body land in different worktrees", () => {
     const { primary, wtA, wtB } = linkedFixture();
     const { ritualRoots, seams } = recordingSeams("owner");

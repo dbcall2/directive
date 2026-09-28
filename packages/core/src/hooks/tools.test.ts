@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   DIRECT_WRITE_HOOK_MATCHER,
+  HOST_TOOL_SURFACE_AUDIT,
+  isApplyPatchTool,
   isDirectWriteTool,
   isMcpTool,
   isShellTool,
@@ -47,6 +49,17 @@ describe("hooks tools classifiers (#2711 / #2952)", () => {
     expect(isDirectWriteTool("Shell")).toBe(false);
     expect(isSpawnTool("Task")).toBe(true);
     expect(isSpawnTool("Shell")).toBe(false);
+    expect(isApplyPatchTool("ApplyPatch")).toBe(true);
+    expect(isApplyPatchTool("apply_patch")).toBe(true);
+    expect(isApplyPatchTool("Write")).toBe(false);
+    expect(isApplyPatchTool("Bash")).toBe(false);
+  });
+
+  it("downgrades Codex apply_patch write-form until a live payload is observed (#5094)", () => {
+    expect(HOST_TOOL_SURFACE_AUDIT.codex.mutation.directWrite).toEqual([]);
+    expect(HOST_TOOL_SURFACE_AUDIT.codex.mutation.shell).toContain("shell");
+    expect(HOST_TOOL_SURFACE_AUDIT.codex.unobservedReason).toMatch(/apply_patch/i);
+    expect(HOST_TOOL_SURFACE_AUDIT.codex.unobservedReason).toMatch(/#5094/);
   });
 
   it("SHELL / MCP hook matchers include expected tokens", () => {

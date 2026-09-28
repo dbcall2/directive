@@ -4,6 +4,7 @@
  */
 
 import { firstString, record, toolInputRecord } from "./payload.js";
+import { applyPatchBodyTextFromParsed, applyPatchMutationPaths } from "./stdin.js";
 
 const PATHISH_KEYS = [
   "file_path",
@@ -33,8 +34,6 @@ function collectPathishFields(value: unknown, into: string[], depth: number): vo
   collectPathishFields(rec.params, into, depth + 1);
 }
 
-import { applyPatchMutationPaths } from "./stdin.js";
-
 /**
  * Best-effort write-target path from host PreToolUse payloads (#2625).
  * Hosts disagree on nesting (`tool_input.file_path` vs top-level `path`).
@@ -61,19 +60,14 @@ export function hookWriteTargetPath(payload: unknown): string | null {
   ]);
 }
 
-/** Raw ApplyPatch body text from patch / unified_diff / diff fields. */
+/**
+ * Raw ApplyPatch body text. Legacy fields (`patch` / `unified_diff` / `diff`)
+ * plus string `command` when the payload declares ApplyPatch / apply_patch.
+ * Conflicting fields union; `command` is not on the host-agnostic firstString
+ * list (#5094).
+ */
 export function hookApplyPatchBodyText(payload: unknown): string | null {
-  const input = record(payload);
-  if (input === null) return null;
-  const toolInput = toolInputRecord(input);
-  return firstString([
-    toolInput?.patch,
-    toolInput?.unified_diff,
-    toolInput?.diff,
-    input.patch,
-    input.unified_diff,
-    input.diff,
-  ]);
+  return applyPatchBodyTextFromParsed(payload);
 }
 
 /** ApplyPatch body paths from patch / unified_diff / diff fields. */

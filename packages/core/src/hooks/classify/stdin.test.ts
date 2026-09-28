@@ -87,6 +87,43 @@ describe("applyPatchMutationPaths (#3794)", () => {
     expect(parseHookStdin(freeForm)).toEqual({ payload: {}, context: { parseFailed: true } });
   });
 
+  it("fills tool_input.path from string command on JSON apply_patch (#5094)", () => {
+    const patch = [
+      "*** Begin Patch",
+      "*** Add File: xbrief/proposed/2026-08-21-story.xbrief.json",
+      "+{}",
+      "*** End Patch",
+    ].join("\n");
+    const stdin = JSON.stringify({
+      tool_name: "apply_patch",
+      tool_input: { command: patch },
+    });
+    const parsed = parseHookStdin(stdin);
+    const payload = parsed.payload as { tool_input?: { path?: string; command?: string } };
+    expect(payload.tool_input?.path).toBe("xbrief/proposed/2026-08-21-story.xbrief.json");
+    expect(payload.tool_input?.command).toBe(patch);
+    expect(parsed.context).toEqual({});
+  });
+
+  it("does not synthesize path from Bash command that contains Begin Patch (#5094)", () => {
+    const command = [
+      "cat > notes.md <<'EOF'",
+      "*** Begin Patch",
+      "*** Add File: only.txt",
+      "+x",
+      "*** End Patch",
+      "EOF",
+    ].join("\n");
+    const stdin = JSON.stringify({
+      tool_name: "Bash",
+      tool_input: { command },
+    });
+    const parsed = parseHookStdin(stdin);
+    const payload = parsed.payload as { tool_input?: { path?: string; command?: string } };
+    expect(payload.tool_input?.path).toBeUndefined();
+    expect(payload.tool_input?.command).toBe(command);
+  });
+
   it("fills tool_input.path on valid JSON ApplyPatch with no declared path (#3614)", () => {
     const patch = [
       "*** Begin Patch",

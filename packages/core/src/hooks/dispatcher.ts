@@ -160,6 +160,7 @@ import {
 import { classifyShellWriteTargets, isInRepoShellWritePath } from "./shell-write-targets.js";
 import {
   effectiveHookToolName,
+  isApplyPatchTool,
   isDirectWriteTool,
   isMcpTool,
   isMcpWriteShaped,
@@ -191,6 +192,7 @@ export {
   HOST_TOOL_SURFACE_AUDIT,
   type HostMutationToolCatalog,
   type HostToolSurfaceAudit,
+  isApplyPatchTool,
   isDirectWriteTool,
   isMcpProxyWrapper,
   isMcpTool,
@@ -551,6 +553,9 @@ function applyPatchBodyUnclassified(payload: unknown): boolean {
   const text = hookApplyPatchBodyText(payload);
   return text !== null && hookApplyPatchBodyPaths(payload).length === 0;
 }
+
+const APPLY_PATCH_UNCLASSIFIED_BODY_MESSAGE =
+  "Directive denied this direct write: apply_patch body named no classifiable mutation target, so the write fence cannot authorize it.";
 
 /**
  * Lifecycle exemption is universally quantified over every mutated path, not
@@ -1135,8 +1140,7 @@ function runtimeAuthorityForDirectWrite(
       input,
       "runtime-policy-deny-path",
       toolName,
-      "Directive denied this direct write: apply_patch body named no classifiable mutation target, so the write fence cannot authorize it." +
-        fenceRootNote,
+      APPLY_PATCH_UNCLASSIFIED_BODY_MESSAGE + fenceRootNote,
       scopePath,
     );
   }
@@ -1486,6 +1490,9 @@ function inspectMutationGates(
   const environ = input.environ ?? process.env;
   const dispatchGit = memoizeGitRunner(seams.ritualRunGit ?? defaultGitRunner);
   const mutationTargets = isSpawnTool(toolName) ? [] : hookMutationTargetPaths(input.payload);
+  if (isApplyPatchTool(toolName) && mutationTargets.length === 0) {
+    return deny(input, "runtime-policy-deny-path", toolName, APPLY_PATCH_UNCLASSIFIED_BODY_MESSAGE);
+  }
   if (!isSpawnTool(toolName)) {
     for (const target of mutationTargets) {
       if (isCursorPlanChoiceManagedPath(target, environ)) {

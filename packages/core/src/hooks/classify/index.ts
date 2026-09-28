@@ -49,7 +49,13 @@ export {
   record,
   toolInputRecord,
 } from "./payload.js";
-export { applyPatchMutationPaths, parseHookStdin, stripUtf8Bom } from "./stdin.js";
+export {
+  applyPatchBodyFieldTexts,
+  applyPatchBodyTextFromParsed,
+  applyPatchMutationPaths,
+  parseHookStdin,
+  stripUtf8Bom,
+} from "./stdin.js";
 export {
   hookToolName,
   inferCursorDirectWriteToolName,
