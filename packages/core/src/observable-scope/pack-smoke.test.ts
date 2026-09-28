@@ -11,7 +11,7 @@ const corePkgPath = fileURLToPath(new URL("../../package.json", import.meta.url)
 const repoPkgPath = fileURLToPath(new URL("../../../../package.json", import.meta.url));
 
 describe("packed/installed oracle smoke (#4495)", () => {
-  it("publishes parse5 (and not jsdom or typescript) as runtime deps of the owning package", () => {
+  it("publishes parse5 without jsdom and keeps the observable reader independent of TypeScript", () => {
     const pkg = JSON.parse(readFileSync(corePkgPath, "utf8")) as {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;

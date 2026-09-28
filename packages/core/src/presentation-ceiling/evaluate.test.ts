@@ -353,7 +353,10 @@ describe("evaluatePresentationCeilingFromSnapshot (#5056 tests lock)", () => {
         headArtifacts: [artifact(CEILING)],
         baseActiveXbriefPath: ACTIVE_A,
         standingFileContents: new Map([
-          ["src/index.js", "const rec = loadRecord(id);\nuse(rec.seedSql);\n"],
+          [
+            "src/index.js",
+            "import { loadRecord } from '../packages/core/src/scope-provenance/digest.js';\nconst rec = loadRecord(id);\nuse(rec.seedSql);\n",
+          ],
         ]),
       }),
     );
@@ -369,7 +372,10 @@ describe("evaluatePresentationCeilingFromSnapshot (#5056 tests lock)", () => {
         baseArtifacts: [artifact(CEILING)],
         headArtifacts: [artifact(CEILING)],
         standingFileContents: new Map([
-          ["src/boot.js", "const rec = readApprovedScopeRecord(root, id);\n"],
+          [
+            "src/boot.js",
+            "import { readApprovedScopeRecord } from '@deftai/directive-core/scope-provenance';\nconst rec = readApprovedScopeRecord(root, id);\n",
+          ],
         ]),
       }),
     );
@@ -467,4 +473,221 @@ describe("evaluatePresentationCeilingFromSnapshot (#5056 tests lock)", () => {
     expect(result.exitCode).toBe(1);
     expect(result.findings[0]?.kind).toBe("extra-ceremony");
   });
+});
+
+describe("review regressions: monotonic ceilings and reader evidence", () => {
+  it("intersects every baseline allowlist, preserving only extra amended dialects", () => {
+    const ceilings = [
+      artifact(CEILING, {
+        allowedExtensions: [".jsx"],
+        extensionAmendment: { extensions: [".sql", ".jsx"], humanApproval: HUMAN },
+      }),
+      artifact(ACTIVE_A, { allowedExtensions: [".html"] }),
+    ];
+    const result = evaluatePresentationCeilingFromSnapshot(
+      snap({
+        changedFiles: ["View.jsx", "page.html", "save.sql"],
+        baseArtifacts: ceilings,
+        headArtifacts: ceilings,
+      }),
+    );
+    expect(result.findings.map((f) => f.path)).toEqual(["View.jsx", "page.html"]);
+  });
+  it.each([
+    "import React from 'react'; const help = 'CHANGELOG.md';",
+    "const example = `readFileSync('CHANGELOG.md')`;",
+    "console.log('CHANGELOG.md');",
+  ])("does not turn labels or source snippets into readers: %s", (content) => {
+    const result = evaluatePresentationCeilingFromSnapshot(
+      snap({
+        changedFiles: ["CHANGELOG.md"],
+        baseArtifacts: [artifact(CEILING)],
+        headArtifacts: [artifact(CEILING)],
+        standingFileContents: new Map([["View.tsx", content]]),
+      }),
+    );
+    expect(result.exitCode).toBe(0);
+  });
+  it("follows a local path variable into an executable read", () => {
+    const result = evaluatePresentationCeilingFromSnapshot(
+      snap({
+        changedFiles: ["CHANGELOG.md"],
+        baseArtifacts: [artifact(CEILING)],
+        headArtifacts: [artifact(CEILING)],
+        standingFileContents: new Map([
+          ["View.tsx", "const path = 'CHANGELOG.md'; readFileSync(path);"],
+        ]),
+      }),
+    );
+    expect(result.findings[0]?.kind).toBe("changelog-production-reader");
+  });
+  it("does not manufacture loader imports and calls from a source snippet string", () => {
+    const result = evaluatePresentationCeilingFromSnapshot(
+      snap({
+        changedFiles: [".deft/approved-scope/story.json"],
+        baseArtifacts: [artifact(CEILING)],
+        headArtifacts: [artifact(CEILING)],
+        standingFileContents: new Map([
+          [
+            "View.tsx",
+            "const example = `import { loadRecord } from '@deftai/directive-core'; loadRecord(id);`; ",
+          ],
+        ]),
+      }),
+    );
+    expect(result.exitCode).toBe(0);
+  });
+});
+
+it("refuses widening a baseline allowlist on the same PR", () => {
+  const result = evaluatePresentationCeilingFromSnapshot(
+    snap({
+      changedFiles: [CEILING],
+      baseArtifacts: [artifact(CEILING, { allowedExtensions: [".html"] })],
+      headArtifacts: [artifact(CEILING, { allowedExtensions: [".html", ".jsx"] })],
+    }),
+  );
+  expect(result.findings[0]?.kind).toBe("ceiling-weaken");
+});
+
+it.each([
+  ['if (label === "CHANGELOG.md") { showBadge(); }', 0],
+  ['export function View() { return (<code>{"CHANGELOG.md"}</code>); }', 0],
+  ['const data = `${readFileSync("CHANGELOG.md")}`;', 1],
+])("distinguishes syntax from executable template readers: %s", (content, expected) => {
+  const result = evaluatePresentationCeilingFromSnapshot(
+    snap({
+      changedFiles: ["CHANGELOG.md"],
+      baseArtifacts: [artifact(CEILING)],
+      headArtifacts: [artifact(CEILING)],
+      standingFileContents: new Map([["View.tsx", content as string]]),
+    }),
+  );
+  expect(result.exitCode).toBe(expected);
+});
+it("finds a real approved-scope loader inside template interpolation", () => {
+  const result = evaluatePresentationCeilingFromSnapshot(
+    snap({
+      changedFiles: [".deft/approved-scope/story.json"],
+      baseArtifacts: [artifact(CEILING)],
+      headArtifacts: [artifact(CEILING)],
+      standingFileContents: new Map([
+        [
+          "View.tsx",
+          "import { readApprovedScopeRecord as read } from '@deftai/directive-core'; const data = `${read(root,id).seedSql}`;",
+        ],
+      ]),
+    }),
+  );
+  expect(result.findings[0]?.kind).toBe("json-exemption-referenced");
+});
+
+it.each([false, true])("removal stamps authorize only isolated removal (mixed=%s)", (mixed) => {
+  const result = evaluatePresentationCeilingFromSnapshot(
+    snap({
+      changedFiles: [CEILING, ...(mixed ? ["View.tsx"] : [])],
+      baseArtifacts: [artifact(CEILING, { removalStamp: HUMAN })],
+      headArtifacts: [],
+    }),
+  );
+  expect(result.exitCode).toBe(mixed ? 1 : 0);
+});
+it("rejects an unstamped isolated removal", () => {
+  const result = evaluatePresentationCeilingFromSnapshot(
+    snap({ changedFiles: [CEILING], baseArtifacts: [artifact(CEILING)], headArtifacts: [] }),
+  );
+  expect(result.findings[0]?.kind).toBe("ceiling-removal");
+});
+it("subtracts only baseline-approved presentation fixture roots", () => {
+  const ceiling = artifact(CEILING, { allowedExtensions: ["html"] });
+  const result = evaluatePresentationCeilingFromSnapshot(
+    snap({
+      changedFiles: ["src/fixtures/View.tsx", "tests/test.css", "unapproved/extra.tsx"],
+      baseArtifacts: [ceiling],
+      headArtifacts: [ceiling],
+      baseTestRoots: ["tests/**"],
+      baseFixtureRoots: ["**/fixtures/**"],
+    }),
+  );
+  expect(result.findings.map((f) => f.path)).toEqual(["unapproved/extra.tsx"]);
+});
+it("keeps a bound active brief exempt while gate-only consumers read it", () => {
+  const result = evaluatePresentationCeilingFromSnapshot(
+    snap({
+      changedFiles: [ACTIVE_A],
+      baseActiveXbriefPath: ACTIVE_A,
+      baseArtifacts: [artifact(CEILING)],
+      headArtifacts: [artifact(CEILING)],
+    }),
+  );
+  expect(result.exitCode).toBe(0);
+});
+it.each([
+  ".deft/approved-scope/file.json.bak",
+  ".deft/approved-scope/file.json.tmp",
+  ".deft/approved-scope/file.json.lock.tmp",
+])("does not exempt temporary record %s", (path) => {
+  expect(isApprovedScopeRecordPath(path)).toBe(false);
+});
+it("finds dynamically joined protected record paths with compact syntax", () => {
+  const result = evaluatePresentationCeilingFromSnapshot(
+    snap({
+      changedFiles: [".deft/approved-scope/story.json"],
+      baseArtifacts: [artifact(CEILING)],
+      headArtifacts: [artifact(CEILING)],
+      standingFileContents: new Map([
+        ["View.tsx", "readFileSync(join('.deft','approved-scope',id))"],
+      ]),
+    }),
+  );
+  expect(result.findings[0]?.kind).toBe("dynamic-exempt-path");
+});
+it("reads nested template expressions and preserves comment markers in literal URLs", () => {
+  const result = evaluatePresentationCeilingFromSnapshot(
+    snap({
+      changedFiles: ["CHANGELOG.md"],
+      baseArtifacts: [artifact(CEILING)],
+      headArtifacts: [artifact(CEILING)],
+      standingFileContents: new Map([
+        ["View.tsx", 'const data = `${readFileSync(/* input */ "https://assets/CHANGELOG.md")}`;'],
+      ]),
+    }),
+  );
+  expect(result.findings[0]?.kind).toBe("changelog-production-reader");
+});
+
+it.each([
+  ["const value = getName()\nconst help = 'CHANGELOG.md'\nrender(value)", 0],
+  [String.raw`readFileSync('\x43HANGELOG.md')`, 1],
+])("uses language syntax for ASI and escaped path literals: %s", (content, expected) => {
+  const result = evaluatePresentationCeilingFromSnapshot(
+    snap({
+      changedFiles: ["CHANGELOG.md"],
+      baseArtifacts: [artifact(CEILING)],
+      headArtifacts: [artifact(CEILING)],
+      standingFileContents: new Map([["View.tsx", content as string]]),
+    }),
+  );
+  expect(result.exitCode).toBe(expected);
+});
+
+it.each([
+  "packages/core/src/presentation-coverage/evaluate.ts",
+  "packages/cli/src/verify-presentation-coverage.ts",
+])("keeps coverage-gate approval reads exempt: %s", (path) => {
+  const record = ".deft/approved-scope/story.json";
+  const result = evaluatePresentationCeilingFromSnapshot(
+    snap({
+      changedFiles: [record],
+      baseArtifacts: [artifact(CEILING)],
+      headArtifacts: [artifact(CEILING)],
+      standingFileContents: new Map([
+        [
+          path,
+          "import { readApprovedScopeRecord } from '@deftai/directive-core'; const record = readApprovedScopeRecord(root,id);",
+        ],
+      ]),
+    }),
+  );
+  expect(result.exitCode).toBe(0);
 });

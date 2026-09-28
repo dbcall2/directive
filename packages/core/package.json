@@ -429,7 +429,8 @@
     "@deftai/directive-content": "workspace:*",
     "@deftai/directive-types": "workspace:*",
     "archiver": "^8.0.0",
-    "parse5": "^7.3.0"
+    "parse5": "^7.3.0",
+    "typescript": "^5.9.3"
   },
   "scripts": {
     "build": "tsc -b",

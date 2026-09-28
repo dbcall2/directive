@@ -12,8 +12,7 @@
     "packages/core/src/observable-scope/parity/own-corpus.compare.test.ts",
     "packages/core/src/observable-scope/pack-smoke.test.ts",
     "packages/cli/src/verify-presentation-ceiling.ts",
-    "xbrief/evaluator-surface-disposition.json",
-    "packages/core/src/observable-scope/pack-smoke.test.ts"
+    "xbrief/evaluator-surface-disposition.json"
   ],
   "note": "Renewed disclosure for #5056: verify:presentation-ceiling sibling gate wiring. The observable-scope pack smoke replaces its package-wide TypeScript ban with a real no-eager-load check; the ceiling owns the lazy runtime parser while observable extraction retains consumer-root parser resolution. Disclosure only; not #3164 authorization."
 }

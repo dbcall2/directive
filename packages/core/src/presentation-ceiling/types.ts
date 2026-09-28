@@ -43,7 +43,9 @@ export const GATE_TOOLING_PREFIXES = [
   "packages/core/src/observable-scope/",
   "packages/core/src/test-boundary/",
   "packages/core/src/presentation-ceiling/",
+  "packages/core/src/presentation-coverage/",
   "packages/cli/src/verify-presentation-ceiling.ts",
+  "packages/cli/src/verify-presentation-coverage.ts",
 ] as const;
 
 export const LOADER_NAMES = [
@@ -71,6 +73,8 @@ export interface PresentationCeilingArtifact {
   readonly changeClass: PresentationChangeClass;
   readonly path: string;
   readonly allowedExtensions: readonly string[];
+  /** Absent means unrestricted; an explicit empty list permits no built-in extensions. */
+  readonly hasExtensionRestriction?: boolean;
   readonly componentRoots: readonly string[];
   readonly extensionAmendment: PresentationExtensionAmendment | null;
   readonly removalStamp: PresentationHumanApproval | null;
@@ -106,8 +110,10 @@ export interface PresentationCeilingSnapshot {
   readonly baseArtifacts: readonly PresentationCeilingArtifact[];
   readonly headArtifacts: readonly PresentationCeilingArtifact[];
   readonly baseActiveXbriefPath: string | null;
+  readonly baseActiveXbriefPaths?: readonly string[];
   readonly headFileContents: ReadonlyMap<string, string>;
   readonly standingFileContents: ReadonlyMap<string, string>;
+  readonly baseFileContents?: ReadonlyMap<string, string>;
   readonly baseTestRoots: readonly string[];
   readonly baseFixtureRoots: readonly string[];
   readonly defaultTestRoots: readonly string[];
