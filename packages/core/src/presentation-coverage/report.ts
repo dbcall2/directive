@@ -10,7 +10,18 @@ export function parseCoverageReport(
   try {
     raw = JSON.parse(text);
   } catch {
-    return { error: "presentation coverage result missing or invalid JSON" };
+    // Task dependencies may print build diagnostics before the CLI's single-line
+    // JSON report. Only that terminal report is evidence. JSON-like prefixes
+    // are ambiguous (including duplicate/pretty-printed reports), never logs.
+    const lines = text.trim().split(/\r?\n/);
+    const terminal = lines.pop() ?? "";
+    if (lines.some((line) => /^\s*(?:\{|\[\s*\{)/.test(line)))
+      return { error: "presentation coverage result has ambiguous JSON prefix" };
+    try {
+      raw = JSON.parse(terminal);
+    } catch {
+      return { error: "presentation coverage result missing or invalid JSON" };
+    }
   }
   if (
     !isRecord(raw) ||

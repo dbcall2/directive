@@ -20,6 +20,29 @@ export function effectiveExtensions(art: PresentationCeilingArtifact): readonly 
 function subset(inner: readonly string[], outer: readonly string[]): boolean {
   return inner.every((x) => outer.includes(x));
 }
+/** Prove containment only for literal roots and their recursive subtrees.
+ * A bare root includes the exact path; root/** includes only descendants.
+ * Other glob relationships stay unknown unless the patterns are identical.
+ */
+function rootSubset(inner: readonly string[], outer: readonly string[]): boolean {
+  const literal = (root: string) => {
+    const descendantsOnly = root.endsWith("/**") || root.endsWith("/");
+    const prefix = root.replace(/\/\*\*$/, "").replace(/\/$/, "");
+    return prefix.length > 0 && !/[?*[\]{}]/.test(prefix) ? { prefix, descendantsOnly } : null;
+  };
+  return inner.every((root) =>
+    outer.some((parent) => {
+      if (root === parent || parent === "**") return true;
+      const child = literal(root),
+        base = literal(parent);
+      if (child === null || base === null) return false;
+      return (
+        child.prefix.startsWith(`${base.prefix}/`) ||
+        (child.prefix === base.prefix && (!base.descendantsOnly || child.descendantsOnly))
+      );
+    }),
+  );
+}
 export function compareRestrictions(
   base: readonly LoadedArtifact[],
   head: readonly LoadedArtifact[],
@@ -38,9 +61,9 @@ export function compareRestrictions(
       he = effectiveExtensions(h.artifact);
     const br = b.artifact.componentRoots,
       hr = h.artifact.componentRoots;
-    if (!subset(he, be) || (br.length > 0 && (hr.length === 0 || !subset(hr, br))))
+    if (!subset(he, be) || (br.length > 0 && (hr.length === 0 || !rootSubset(hr, br))))
       return { kind: "weakening", armed: true, refuseWeakenOrRemove: true, artifactRels: rels };
-    if (!subset(be, he) || (br.length === 0 && hr.length > 0) || !subset(br, hr))
+    if (!subset(be, he) || (br.length === 0 && hr.length > 0) || !rootSubset(br, hr))
       kind = "tightening";
   }
   if (removed)

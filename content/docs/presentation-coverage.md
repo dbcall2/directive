@@ -37,3 +37,7 @@ For each changed product path, continuation requires the current active story an
 Exit codes are `0` (off-ceiling or authorized continuation), `1` (refusal), and `2` (configuration/unknown execution). `--json` emits typed coverage rows, uncovered paths, and admissions naming each path, rule and exact base record. `--quiet` suppresses prose. Off-ceiling candidates keep independent gates' existing behavior.
 
 Rapid mode retains both presentation gates; coverage runs its seven evaluators itself. Pressure mode cannot downgrade an armed required failure, including one observed before the compositor. The check aggregate consumes the typed JSON report and rejects missing or inconsistent results. Consumer composition omitting coverage is an enforcement-contract violation.
+
+Root comparison proves containment for literal roots and recursive literal subtrees (`db/**` to `db/narrow/**`). Bare `db` also includes the exact path `db`; changing `db/**` to bare `db` therefore widens authority. Other glob relationships remain unproved unless identical and are refused conservatively.
+
+The check adapter accepts one terminal single-line JSON report after non-JSON build diagnostics, because a cold Task invocation may build the CLI first. Duplicate reports, JSON-like prefixes, trailing diagnostics, invalid report rows, and a report/process exit mismatch remain configuration errors.

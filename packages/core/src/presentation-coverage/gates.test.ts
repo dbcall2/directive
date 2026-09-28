@@ -353,3 +353,30 @@ it.each([
   });
   expect(r.message).toContain("must be a JSON object");
 });
+
+it("executes real gates for a nested root tightening and keeps outside paths refused", () => {
+  const { root, git, write } = repo();
+  const rel = ".deft/presentation-ceiling.json";
+  const record = JSON.parse(readFileSync(join(root, rel), "utf8"));
+  record.componentRoots = ["db/**"];
+  write(rel, JSON.stringify(record));
+  git("add", ".");
+  git("commit", "-qm", "base root");
+  const base = git("rev-parse", "HEAD");
+  record.componentRoots = ["db/narrow/**"];
+  write(rel, JSON.stringify(record));
+  write("db/narrow/002.sql", "select 2;\n");
+  git("add", ".");
+  const options = { projectRoot: root, originRef: base, staged: true, planId: "current" };
+  const allowed = evaluatePresentationCoverage(options);
+  expect(allowed, allowed.message).toMatchObject({ code: 0, compare: { kind: "tightening" } });
+  expect(allowed.coverage).toHaveLength(COMPOSED_GATE_IDS.length);
+  expect(allowed.coverage.every((row) => row.code === 0)).toBe(true);
+  write("db/001.sql", "select 3;\n");
+  git("add", ".");
+  expect(evaluatePresentationCoverage(options)).toMatchObject({
+    code: 1,
+    compare: { kind: "tightening" },
+    uncoveredPaths: ["db/001.sql"],
+  });
+});

@@ -1,8 +1,19 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it, vi } from "vitest";
+import { parseCoverageReport } from "../../core/src/presentation-coverage/report.js";
 import { parseArgs, run } from "./verify-presentation-coverage.js";
 
 describe("verify-presentation-coverage CLI (#5079)", () => {
@@ -86,4 +97,94 @@ describe("verify-presentation-coverage CLI (#5079)", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+});
+
+it("parses a real cold Task build followed by the source CLI report", { timeout: 20000 }, () => {
+  const root = mkdtempSync(join(tmpdir(), "coverage-cold-task-"));
+  const repo = resolve(import.meta.dirname, "../../..");
+  const put = (path: string, text: string) => writeFileSync(join(root, path), text);
+  try {
+    mkdirSync(join(root, "tasks"));
+    mkdirSync(join(root, "packages/cli"), { recursive: true });
+    for (const file of [
+      "engine.yml",
+      "verify.yml",
+      "engine-invoke.cjs",
+      "engine-pm-run.cjs",
+      "ts-build-fresh.cjs",
+    ])
+      copyFileSync(join(repo, "tasks", file), join(root, "tasks", file));
+    put(
+      "Taskfile.yml",
+      "version: '3'\nincludes:\n  engine: ./tasks/engine.yml\n  verify: ./tasks/verify.yml\n",
+    );
+    put(
+      "package.json",
+      JSON.stringify({
+        name: "cold-coverage-fixture",
+        private: true,
+        scripts: { build: "node build.cjs" },
+      }),
+    );
+    put("packages/cli/package.json", "{}");
+    put(
+      "tsconfig.json",
+      JSON.stringify({
+        compilerOptions: {
+          baseUrl: repo,
+          paths: {
+            "@deftai/directive-core": [join(repo, "packages/core/src/index.ts")],
+            "@deftai/directive-core/*": [join(repo, "packages/core/src/*")],
+            "@deftai/directive-types": [join(repo, "packages/types/src/index.ts")],
+          },
+        },
+      }),
+    );
+    const loader = pathToFileURL(createRequire(import.meta.url).resolve("tsx/esm")).href;
+    const cli = join(repo, "packages/cli/src/verify-presentation-coverage.ts");
+    const shim = `const {spawnSync}=require('node:child_process'); const r=spawnSync(process.execPath, ${JSON.stringify(["--import", loader, cli])}.concat(process.argv.slice(3)), {stdio:'inherit'}); process.exit(r.status ?? 2);`;
+    put(
+      "build.cjs",
+      `const fs=require('node:fs'); console.log('cold build diagnostic'); fs.mkdirSync('packages/cli/dist',{recursive:true}); fs.writeFileSync('packages/cli/dist/bin.js',${JSON.stringify(shim)});`,
+    );
+    execFileSync("git", ["init", "--quiet", "--template=", root]);
+    execFileSync(
+      "git",
+      [
+        "-C",
+        root,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.invalid",
+        "commit",
+        "--allow-empty",
+        "-m",
+        "base",
+      ],
+      { stdio: "ignore" },
+    );
+    expect(existsSync(join(root, "packages/cli/dist/bin.js"))).toBe(false);
+    const env = {
+      ...process.env,
+      DEFT_PACKAGE_MANAGER: "npm",
+      TSX_TSCONFIG_PATH: join(root, "tsconfig.json"),
+    };
+    delete env.DEFT_SKIP_TS_BUILD;
+    const child = spawnSync(
+      "task",
+      ["--silent", "verify:presentation-coverage", "--", "--origin-ref", "HEAD", "--json"],
+      { cwd: root, env, encoding: "utf8", timeout: 15000 },
+    );
+    expect(child.status, child.stderr).toBe(0);
+    expect(child.stdout).toContain("cold build diagnostic");
+    expect(existsSync(join(root, "packages/cli/dist/bin.js"))).toBe(true);
+    expect(readFileSync(join(root, "packages/cli/dist/bin.js"), "utf8")).toBe(shim);
+    expect(parseCoverageReport(child.stdout, child.status!)).toEqual({
+      armed: false,
+      coverage: [],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

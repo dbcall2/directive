@@ -152,7 +152,14 @@ describe("presentation coverage composition", () => {
       }),
       [STORY]: story,
     });
-    expect(evaluate({ ...s, head: next }).code).toBe(1);
+    expect(evaluate({ ...s, head: next })).toMatchObject({
+      code: 1,
+      compare: { kind: "tightening" },
+    });
+    expect(evaluate({ ...s, head: next, changed: ["db/narrow/001.sql"] })).toMatchObject({
+      code: 0,
+      compare: { kind: "tightening" },
+    });
   });
   it("recomputes a matching observable mint with a real parser; stale/unrelated mints fail", () => {
     const mint = buildObservableScopeRecord({

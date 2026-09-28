@@ -788,6 +788,22 @@ describe("armed coverage aggregate preserves real required outcomes (#5079)", ()
     });
     expect(code).toBe(0);
   });
+  it("accepts cold-build stdout before a complete armed report in rapid mode", () => {
+    expect(
+      dispatchCachedTaskCheck("/fw-5079-cold", "/fw-5079-cold", {
+        noCache: true,
+        preflight: null,
+        emitRunSummary: false,
+        env: { DEFT_CHECK_MODE: "rapid" },
+        gateSpawnFn: (gateId) => ({
+          exitCode: 0,
+          stderr: "",
+          stdout:
+            gateId === "verify:presentation-coverage" ? `> build\n$ tsc -b\n${report(true)}\n` : "",
+        }),
+      }),
+    ).toBe(0);
+  });
   it("refuses a rapid green exit without required typed coverage", () => {
     expect(
       dispatchCachedTaskCheck("/fw-5079-rapid", "/fw-5079-rapid", {

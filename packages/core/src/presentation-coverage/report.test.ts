@@ -79,3 +79,26 @@ it("validates every typed row and keeps complete armed evidence", () => {
     coverage: raw.coverage,
   });
 });
+
+it("accepts a terminal report after build diagnostics but rejects ambiguous streams", () => {
+  const report = JSON.stringify({ code: 0, armed: false, coverage: [] });
+  expect(
+    parseCoverageReport(`> framework build\n[build] compiling\n$ tsc -b\n${report}\n`, 0),
+  ).toEqual({ armed: false, coverage: [] });
+  for (const text of [
+    `${report}\n${report}`,
+    `${report}\ntrailing diagnostics`,
+    `{bad prefix}\n${report}`,
+    `${JSON.stringify(JSON.parse(report), null, 2)}\n${report}`,
+    `[{"code":2}]\n${report}`,
+    `build complete\n`,
+  ])
+    expect(parseCoverageReport(text, 0)).toHaveProperty("error");
+  expect(parseCoverageReport(`build\n${report}`, 1)).toHaveProperty("error");
+  expect(
+    parseCoverageReport(
+      `build\n${JSON.stringify({ code: 0, armed: true, coverage: [], uncoveredPaths: [] })}`,
+      0,
+    ),
+  ).toHaveProperty("error");
+});

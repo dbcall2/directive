@@ -61,3 +61,37 @@ describe("restriction comparison", () => {
   it("an allowlist cannot grant a new extension", () =>
     expect(effectiveExtensions(a({ allowedExtensions: [".sql"] }).artifact)).toEqual([]));
 });
+
+it.each([
+  ["db/**", "db/narrow/**", "tightening"],
+  ["db/**", "db/narrow", "tightening"],
+  ["db", "db/**", "tightening"],
+  ["db/**", "db/", "unchanged-base"],
+  ["**", "db/**", "tightening"],
+  ["db/**", "db", "weakening"],
+  ["ui.ts/**", "ui.ts", "weakening"],
+  ["db/narrow/**", "db/**", "weakening"],
+  ["db/**", "db2/**", "weakening"],
+  ["db/**", "other/**", "weakening"],
+  ["db/*/sql/**", "db/narrow/sql/**", "weakening"],
+  ["db/**", "db/*/**", "weakening"],
+  ["db/*/**", "db/*/**", "unchanged-base"],
+])("compares root %s to %s conservatively", (base, head, kind) => {
+  expect(
+    compareRestrictions([a({ componentRoots: [base] })], [a({ componentRoots: [head] })]),
+  ).toHaveProperty("kind", kind);
+});
+it("requires every candidate root to stay within an existing root", () => {
+  expect(
+    compareRestrictions(
+      [a({ componentRoots: ["db/**", "ui/**"] })],
+      [a({ componentRoots: ["db/narrow/**", "ui/components/**"] })],
+    ),
+  ).toHaveProperty("kind", "tightening");
+  expect(
+    compareRestrictions(
+      [a({ componentRoots: ["db/**"] })],
+      [a({ componentRoots: ["db/narrow/**", "outside/**"] })],
+    ),
+  ).toHaveProperty("kind", "weakening");
+});
