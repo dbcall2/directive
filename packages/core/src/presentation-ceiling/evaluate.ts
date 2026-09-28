@@ -320,52 +320,254 @@ function fallbackReaderEvidence(content: string): ReaderEvidence {
       return ` ${key} `;
     },
   );
-  const bindings = new Map<string, string[]>();
-  for (const match of executable.matchAll(/\b([A-Za-z_]\w*)\s*=(?!=)([^\n;]+)/g)) {
-    const name = match[1] ?? "";
-    bindings.set(name, [...(bindings.get(name) ?? []), match[2] ?? ""]);
+  // Preserve multiline calls and expand Python's single-line suites before
+  // applying statement order. Literal/comment masking makes delimiter counts
+  // independent of prose inside strings.
+  const logicalLines: string[] = [];
+  let pending = "",
+    depth = 0;
+  for (const line of executable.split("\n")) {
+    pending += pending ? ` ${line.trim()}` : line;
+    for (const char of line) {
+      if ("([{".includes(char)) depth++;
+      if (")]}".includes(char)) depth--;
+    }
+    if (depth > 0 || /\\\s*$/.test(line)) continue;
+    if (
+      /^\s*(?:(?:async\s+)?def|class|if|elif|else|for|while|try|except|finally|with)\b/.test(
+        pending,
+      )
+    ) {
+      let nested = 0,
+        colon = -1;
+      for (let i = 0; i < pending.length; i++) {
+        const char = pending[i] ?? "";
+        if ("([{".includes(char)) nested++;
+        if (")]}".includes(char)) nested--;
+        if (char === ":" && nested === 0) {
+          colon = i;
+          break;
+        }
+      }
+      if (colon >= 0 && pending.slice(colon + 1).trim()) {
+        logicalLines.push(
+          pending.slice(0, colon + 1),
+          `${pending.match(/^\s*/)?.[0] ?? ""}    ${pending.slice(colon + 1).trim()}`,
+        );
+      } else logicalLines.push(pending);
+    } else logicalLines.push(pending);
+    pending = "";
   }
-  const resolveInputs = (text: string, seen = new Set<string>()): string[] => {
-    const paths: string[] = [];
+  if (pending) logicalLines.push(pending);
+  type Inputs = ReadonlySet<string>;
+  type Environment = Map<string, Inputs>;
+  const merge = (...environments: Environment[]): Environment => {
+    const result: Environment = new Map();
+    for (const env of environments)
+      for (const [name, paths] of env)
+        result.set(name, new Set([...(result.get(name) ?? []), ...paths]));
+    return result;
+  };
+  const resolveInputs = (text: string, env: Environment): Inputs => {
+    const paths = new Set<string>();
     for (const match of text.matchAll(/\b[A-Za-z_]\w*\b/g)) {
-      const name = match[0];
-      if (seen.has(name)) continue;
-      seen.add(name);
-      const value = values.get(name);
-      if (value !== undefined) paths.push(value);
-      for (const binding of bindings.get(name) ?? []) paths.push(...resolveInputs(binding, seen));
+      const literal = values.get(match[0]);
+      if (literal !== undefined) paths.add(literal);
+      for (const path of env.get(match[0]) ?? []) paths.add(path);
     }
     return paths;
   };
   const inputPaths = new Set<string>();
-  for (const match of executable.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)) {
-    const name = match[1] ?? "";
-    // A Python signature is not a call. Nested executable default expressions
-    // and body calls are still visited by subsequent matches.
-    if (/\b(?:def|class)\s+$/.test(executable.slice(0, match.index))) continue;
-    if (DISPLAY_CALL.test(name) || /^(?:if|while|for|switch|return|def|class)$/.test(name))
-      continue;
-    const start = match.index + match[0].length;
-    let end = start;
-    let depth = 1;
-    while (end < executable.length && depth > 0) {
-      if (executable[end] === "(") depth++;
-      if (executable[end] === ")") depth--;
-      end++;
+  let dynamic = false;
+  const scan = (expression: string, env: Environment): void => {
+    for (const match of expression.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)) {
+      const name = match[1] ?? "";
+      if (/\b(?:def|class)\s+$/.test(expression.slice(0, match.index))) continue;
+      if (DISPLAY_CALL.test(name) || /^(?:if|while|for|switch|return|def|class)$/.test(name))
+        continue;
+      const start = match.index + match[0].length;
+      let end = start,
+        depth = 1;
+      while (end < expression.length && depth > 0) {
+        if (expression[end] === "(") depth++;
+        if (expression[end] === ")") depth--;
+        end++;
+      }
+      for (const path of resolveInputs(expression.slice(start, end - 1), env)) inputPaths.add(path);
     }
-    for (const path of resolveInputs(executable.slice(start, end - 1))) inputPaths.add(path);
+    if (
+      /\+|\$\{|\b(?:join|resolve)\s*\(/.test(expression) &&
+      [...resolveInputs(expression, env)].some(protectedJsonText)
+    )
+      dynamic = true;
+  };
+  const possible: Environment = new Map();
+  let version = 0;
+  const remember = (name: string, paths: Inputs): void => {
+    const previous = possible.get(name) ?? new Set<string>();
+    const next = new Set([...previous, ...paths]);
+    if (next.size !== previous.size) {
+      possible.set(name, next);
+      version++;
+    }
+  };
+  type Deferred = {
+    lines: string[];
+    captured: Environment;
+    parentLocals: ReadonlySet<string>;
+    parentKey: string;
+    parameters: Environment;
+  };
+  const deferred = new Map<string, Deferred>();
+  const localPossibilities = new Map<string, Environment>();
+  const indent = (line: string): number =>
+    line.match(/^\s*/)?.[0].replace(/\t/g, "    ").length ?? 0;
+  const localAssignments = (lines: string[]): string[] => {
+    const names: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i] ?? "";
+      if (/^\s*(?:(?:async\s+)?def|class)\b/.test(line)) {
+        const level = indent(line);
+        while (
+          i + 1 < lines.length &&
+          (!(lines[i + 1] ?? "").trim() || indent(lines[i + 1] ?? "") > level)
+        )
+          i++;
+        continue;
+      }
+      for (const part of line.split(";")) {
+        const name = part.match(/^\s*([A-Za-z_]\w*)\s*=(?!=)/)?.[1];
+        if (name) names.push(name);
+      }
+    }
+    return names;
+  };
+  const run = (
+    lines: string[],
+    env: Environment,
+    locals: ReadonlySet<string> = new Set(),
+    scopeKey = "file",
+    functionKey = scopeKey,
+  ): void => {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i] ?? "";
+      const header = line.trim();
+      const isDefinition = /^(?:async\s+)?def\s+/.test(header);
+      const isBlock =
+        /^(?:(?:async\s+)?def|class|if|elif|else|for|while|try|except|finally|with)\b/.test(
+          header,
+        ) && header.endsWith(":");
+      if (isBlock) {
+        scan(header, env);
+        let end = i + 1;
+        while (
+          end < lines.length &&
+          (!(lines[end] ?? "").trim() || indent(lines[end] ?? "") > indent(line))
+        )
+          end++;
+        const body = lines.slice(i + 1, end);
+        if (isDefinition) {
+          const parameters: Environment = new Map();
+          const signature = header.slice(header.indexOf("(") + 1, header.lastIndexOf(")"));
+          for (const part of signature.split(",")) {
+            const name = part.trim().match(/^\**([A-Za-z_]\w*)/)?.[1];
+            if (name)
+              parameters.set(
+                name,
+                resolveInputs(part.includes("=") ? part.slice(part.indexOf("=") + 1) : "", env),
+              );
+          }
+          const key = `${scopeKey}:${i}`;
+          const existing = deferred.get(key);
+          deferred.set(key, {
+            lines: body,
+            captured: merge(existing?.captured ?? new Map(), env),
+            parentLocals: locals,
+            parentKey: functionKey,
+            parameters: merge(existing?.parameters ?? new Map(), parameters),
+          });
+        } else {
+          let entry = new Map(env);
+          const repeats = /^(?:for|while)\b/.test(header);
+          for (;;) {
+            const outcome = new Map(entry);
+            run(body, outcome, locals, `${scopeKey}:${i}:block`, functionKey);
+            const next = merge(entry, outcome);
+            const stable = [...next].every(
+              ([name, paths]) => paths.size === (entry.get(name)?.size ?? 0),
+            );
+            entry = next;
+            if (!repeats || stable) break;
+          }
+          env.clear();
+          for (const [name, paths] of entry) env.set(name, paths);
+        }
+        i = end - 1;
+        continue;
+      }
+      // Supported simple statements execute in source order. Each assignment
+      // snapshots its RHS before replacing the binding; later writes cannot
+      // retroactively change a prior call or alias.
+      for (const statement of line.split(";")) {
+        scan(statement, env);
+        const match = statement.match(/^\s*([A-Za-z_]\w*)\s*=(?!=)(.*)$/);
+        if (!match?.[1]) continue;
+        const paths = resolveInputs(match[2] ?? "", env);
+        env.set(match[1], paths);
+        if (!locals.has(match[1])) remember(match[1], paths);
+        else {
+          const summary = localPossibilities.get(functionKey) ?? new Map<string, Inputs>();
+          const previous = summary.get(match[1]) ?? new Set<string>();
+          const next = new Set([...previous, ...paths]);
+          if (next.size !== previous.size) version++;
+          summary.set(match[1], next);
+          localPossibilities.set(functionKey, summary);
+        }
+      }
+    }
+  };
+  run(logicalLines, new Map());
+  // Python bodies are deferred. Unknown invocation order keeps possible outer
+  // values, while parameters and local assignments have their own bindings.
+  for (;;) {
+    const before = version,
+      count = deferred.size;
+    for (const [key, item] of deferred) {
+      const body = item.lines;
+      const globals = new Set(
+        body.flatMap((line) =>
+          line.trim().startsWith("global ")
+            ? line
+                .trim()
+                .slice(7)
+                .split(",")
+                .map((name) => name.trim())
+            : [],
+        ),
+      );
+      const ownLocals = new Set(
+        [...item.parameters.keys(), ...localAssignments(body)].filter((name) => !globals.has(name)),
+      );
+      const env = merge(item.captured, possible);
+      for (const name of item.parentLocals)
+        env.set(
+          name,
+          new Set([
+            ...(item.captured.get(name) ?? []),
+            ...(localPossibilities.get(item.parentKey)?.get(name) ?? []),
+          ]),
+        );
+      for (const name of ownLocals) env.delete(name);
+      for (const [name, paths] of item.parameters) env.set(name, paths);
+      run(body, env, new Set([...item.parentLocals, ...ownLocals]), key);
+    }
+    if (before === version && count === deferred.size) break;
   }
   return {
     inputPaths: [...inputPaths],
     changelog: [...inputPaths].some(changelogPath),
     loader: false,
-    dynamic: executable
-      .split(/[\n;]/)
-      .some(
-        (expression) =>
-          /\+|\$\{|\b(?:join|resolve)\s*\(/.test(expression) &&
-          resolveInputs(expression).some(protectedJsonText),
-      ),
+    dynamic,
   };
 }
 
@@ -388,117 +590,372 @@ function readerEvidence(path: string, content: string): ReaderEvidence {
     /\.[jt]sx$/i.test(path) ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   );
   const inputPaths = new Set<string>();
-  const bindings = new Set<string>();
-  const namespaces = new Set<string>();
-  const variables = new Map<string, TypeScript.Expression[]>();
-  const recordValue = (name: string, value: TypeScript.Expression): void => {
-    variables.set(name, [...(variables.get(name) ?? []), value]);
+  type Value = { paths: ReadonlySet<string>; loader: boolean; namespace: boolean };
+  type Binding = { name: string; scope: Scope };
+  type Scope = { parent?: Scope; functionScope: boolean; bindings: Map<string, Binding> };
+  type State = Map<Binding, Value>;
+  const emptyValue: Value = { paths: new Set(), loader: false, namespace: false };
+  const mergeValues = (...values: Value[]): Value => ({
+    paths: new Set(values.flatMap((value) => [...value.paths])),
+    loader: values.some((value) => value.loader),
+    namespace: values.some((value) => value.namespace),
+  });
+  const root: Scope = { functionScope: true, bindings: new Map() };
+  const scopes = new Map<TypeScript.Node, Scope>();
+  const declare = (name: TypeScript.BindingName, scope: Scope): void => {
+    if (ts.isIdentifier(name)) {
+      if (!scope.bindings.has(name.text)) scope.bindings.set(name.text, { name: name.text, scope });
+    } else
+      for (const element of name.elements)
+        if (ts.isBindingElement(element)) declare(element.name, scope);
   };
-  const registerBinding = (name: TypeScript.BindingName): void => {
-    if (ts.isIdentifier(name)) namespaces.add(name.text);
-    else if (ts.isObjectBindingPattern(name))
-      for (const element of name.elements) {
-        const original = element.propertyName?.getText(source) ?? element.name.getText(source);
-        if (!ts.isIdentifier(element.name)) continue;
-        if (LOADER_NAMES.some((loader) => loader === original)) bindings.add(element.name.text);
-        if (original === "scopeProvenance") namespaces.add(element.name.text);
-      }
-  };
-  const collect = (node: TypeScript.Node): void => {
-    if (
-      ts.isImportDeclaration(node) &&
-      ts.isStringLiteral(node.moduleSpecifier) &&
-      approvedScopeModule(node.moduleSpecifier.text)
-    ) {
-      const clause = node.importClause;
-      const named = clause?.namedBindings;
-      if (named && ts.isNamedImports(named))
-        for (const element of named.elements) {
-          const original = element.propertyName?.text ?? element.name.text;
-          if (LOADER_NAMES.some((loader) => loader === original)) bindings.add(element.name.text);
-          if (original === "scopeProvenance") namespaces.add(element.name.text);
-        }
-      if (named && ts.isNamespaceImport(named)) namespaces.add(named.name.text);
-      if (clause?.name) namespaces.add(clause.name.text);
-    }
-    if (ts.isVariableDeclaration(node) && node.initializer) {
-      if (ts.isIdentifier(node.name)) recordValue(node.name.text, node.initializer);
-      const init = node.initializer;
+  const index = (node: TypeScript.Node, outer: Scope): void => {
+    if ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) && node.name)
+      declare(node.name, outer);
+    const isFunction = ts.isFunctionLike(node);
+    const scope =
+      isFunction ||
+      ts.isBlock(node) ||
+      ts.isCatchClause(node) ||
+      ts.isForStatement(node) ||
+      ts.isForOfStatement(node) ||
+      ts.isForInStatement(node)
+        ? { parent: outer, functionScope: isFunction, bindings: new Map<string, Binding>() }
+        : outer;
+    scopes.set(node, scope);
+    if (ts.isFunctionExpression(node) && node.name) declare(node.name, scope);
+    if (ts.isParameter(node)) declare(node.name, scope);
+    if (ts.isVariableDeclaration(node)) {
+      let owner = scope;
       if (
-        ts.isCallExpression(init) &&
-        init.expression.getText(source) === "require" &&
-        init.arguments.some((arg) => ts.isStringLiteralLike(arg) && approvedScopeModule(arg.text))
+        ts.isVariableDeclarationList(node.parent) &&
+        !(node.parent.flags & ts.NodeFlags.BlockScoped)
       )
-        registerBinding(node.name);
+        while (!owner.functionScope && owner.parent) owner = owner.parent;
+      declare(node.name, owner);
     }
-    if (
-      ts.isBinaryExpression(node) &&
-      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-      ts.isIdentifier(node.left)
-    )
-      recordValue(node.left.text, node.right);
-    ts.forEachChild(node, collect);
+    if (ts.isImportClause(node) && node.name) declare(node.name, scope);
+    if (ts.isImportSpecifier(node) || ts.isNamespaceImport(node)) declare(node.name, scope);
+    ts.forEachChild(node, (child) => index(child, scope));
   };
-  collect(source);
-  const contains = (
-    node: TypeScript.Node,
-    predicate: (value: string) => boolean,
-    seen = new Set<string>(),
-  ): boolean => {
-    if (ts.isStringLiteralLike(node)) return predicate(node.text);
-    if (ts.isIdentifier(node) && !seen.has(node.text)) {
-      seen.add(node.text);
-      // Retain every possible same-file value; a later write cannot erase an
-      // earlier protected read. This is conservative syntax, not control flow.
-      for (const value of variables.get(node.text) ?? []) {
-        if (contains(value, predicate, seen)) return true;
-      }
+  index(source, root);
+  const binding = (node: TypeScript.Identifier): Binding => {
+    let scope: Scope | undefined = scopes.get(node) ?? root;
+    while (scope) {
+      const found = scope.bindings.get(node.text);
+      if (found) return found;
+      scope = scope.parent;
     }
-    let hit = false;
-    ts.forEachChild(node, (child) => {
-      if (contains(child, predicate, seen)) hit = true;
-    });
-    return hit;
+    // Undeclared assignments share the file's global binding, not a shadowed local.
+    let found = root.bindings.get(node.text);
+    if (!found) {
+      found = { name: node.text, scope: root };
+      root.bindings.set(node.text, found);
+    }
+    return found;
+  };
+  const possible: State = new Map();
+  let possibleVersion = 0;
+  const sameValue = (a: Value, b: Value): boolean =>
+    a.loader === b.loader &&
+    a.namespace === b.namespace &&
+    a.paths.size === b.paths.size &&
+    [...a.paths].every((path) => b.paths.has(path));
+  const write = (id: Binding, value: Value, state: State): void => {
+    state.set(id, value);
+    const before = possible.get(id) ?? emptyValue;
+    const after = mergeValues(before, value);
+    if (!sameValue(before, after)) {
+      possible.set(id, after);
+      possibleVersion++;
+    }
+  };
+  const joinStates = (...states: State[]): State => {
+    const joined: State = new Map();
+    for (const state of states)
+      for (const [id, value] of state)
+        joined.set(id, mergeValues(joined.get(id) ?? emptyValue, value));
+    return joined;
+  };
+  const replaceState = (state: State, next: State): void => {
+    state.clear();
+    for (const [id, value] of next) state.set(id, value);
+  };
+  const assign = (name: TypeScript.BindingName, value: Value, state: State): void => {
+    if (ts.isIdentifier(name)) write(binding(name), value, state);
+    else
+      for (const element of name.elements) {
+        if (!ts.isBindingElement(element)) continue;
+        const original = element.propertyName?.getText(source) ?? element.name.getText(source);
+        assign(
+          element.name,
+          {
+            paths: value.paths,
+            loader:
+              value.loader || (value.namespace && LOADER_NAMES.some((known) => known === original)),
+            namespace: value.namespace && original === "scopeProvenance",
+          },
+          state,
+        );
+      }
   };
   let loader = false;
   let dynamic = false;
-  const collectInput = (node: TypeScript.Node): void => {
-    contains(node, (value) => {
-      inputPaths.add(value);
-      return false;
-    });
+  const deferred = new Map<TypeScript.Node, State>();
+  const assignUnknownTarget = (target: TypeScript.Node, value: Value, state: State): void => {
+    if (ts.isIdentifier(target)) {
+      const id = binding(target);
+      write(id, mergeValues(state.get(id) ?? emptyValue, value), state);
+    } else if (ts.isPropertyAccessExpression(target) || ts.isElementAccessExpression(target)) {
+      assignUnknownTarget(target.expression, value, state);
+    } else if (ts.isPropertyAssignment(target))
+      assignUnknownTarget(target.initializer, value, state);
+    else ts.forEachChild(target, (child) => assignUnknownTarget(child, value, state));
   };
-  const visit = (node: TypeScript.Node): void => {
-    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier)
-      collectInput(node.moduleSpecifier);
-    if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
-      const expression = node.expression;
-      const name = ts.isIdentifier(expression)
-        ? expression.text
-        : ts.isPropertyAccessExpression(expression)
-          ? expression.name.text
-          : "";
-      if (!DISPLAY_CALL.test(name)) node.arguments?.forEach(collectInput);
-      if (ts.isIdentifier(expression) && bindings.has(expression.text)) loader = true;
-      if (
-        ts.isPropertyAccessExpression(expression) &&
-        LOADER_NAMES.some((known) => known === name)
-      ) {
-        let root: TypeScript.Expression = expression.expression;
-        while (ts.isPropertyAccessExpression(root)) root = root.expression;
-        if (ts.isIdentifier(root) && namespaces.has(root.text)) loader = true;
+  const read = (node: TypeScript.Node, state: State): Value => {
+    if (ts.isStringLiteralLike(node)) return { ...emptyValue, paths: new Set([node.text]) };
+    if (ts.isIdentifier(node)) return state.get(binding(node)) ?? emptyValue;
+    if (ts.isFunctionLike(node)) {
+      deferred.set(node, joinStates(deferred.get(node) ?? new Map(), state));
+      return emptyValue;
+    }
+    if (ts.isConditionalExpression(node)) {
+      read(node.condition, state);
+      const yes = new Map(state),
+        no = new Map(state);
+      const values = mergeValues(read(node.whenTrue, yes), read(node.whenFalse, no));
+      replaceState(state, joinStates(yes, no));
+      return values;
+    }
+    if (ts.isBinaryExpression(node)) {
+      if (node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+        const value = read(node.right, state);
+        if (ts.isIdentifier(node.left)) write(binding(node.left), value, state);
+        else {
+          read(node.left, state);
+          // Unsupported member/destructuring writes retain MAY values on their
+          // receiving bindings rather than silently dropping a protected path.
+          assignUnknownTarget(node.left, value, state);
+        }
+        return value;
       }
-      if (/^(?:join|resolve)$/.test(name) && contains(node, protectedJsonText)) dynamic = true;
+      const left = read(node.left, state);
+      const beforeRight = new Map(state);
+      const right = read(node.right, state);
+      if (
+        [
+          ts.SyntaxKind.AmpersandAmpersandToken,
+          ts.SyntaxKind.BarBarToken,
+          ts.SyntaxKind.QuestionQuestionToken,
+        ].includes(node.operatorToken.kind)
+      )
+        replaceState(state, joinStates(beforeRight, state));
+      const value = mergeValues(left, right);
+      if (
+        [ts.SyntaxKind.PlusToken, ts.SyntaxKind.PlusEqualsToken].includes(
+          node.operatorToken.kind,
+        ) &&
+        [...value.paths].some(protectedJsonText)
+      )
+        dynamic = true;
+      if (node.operatorToken.kind === ts.SyntaxKind.PlusEqualsToken && ts.isIdentifier(node.left))
+        write(binding(node.left), value, state);
+      return value;
+    }
+    if (ts.isPropertyAccessExpression(node)) {
+      const value = read(node.expression, state);
+      return {
+        ...value,
+        loader:
+          value.loader ||
+          (value.namespace && LOADER_NAMES.some((known) => known === node.name.text)),
+      };
+    }
+    if (ts.isPropertyAssignment(node))
+      return mergeValues(
+        ts.isComputedPropertyName(node.name) || ts.isStringLiteralLike(node.name)
+          ? read(node.name, state)
+          : emptyValue,
+        read(node.initializer, state),
+      );
+    if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+      const callee = read(node.expression, state);
+      const args = (node.arguments ?? []).map((arg) => read(arg, state));
+      const value = mergeValues(...args);
+      const name = ts.isIdentifier(node.expression)
+        ? node.expression.text
+        : ts.isPropertyAccessExpression(node.expression)
+          ? node.expression.name.text
+          : "";
+      if (!DISPLAY_CALL.test(name)) for (const path of value.paths) inputPaths.add(path);
+      if (callee.loader) loader = true;
+      if (/^(?:join|resolve)$/.test(name) && [...value.paths].some(protectedJsonText))
+        dynamic = true;
+      if (name === "require" && [...value.paths].some(approvedScopeModule))
+        return { ...value, namespace: true };
+      return value;
+    }
+    const children: Value[] = [];
+    ts.forEachChild(node, (child) => {
+      children.push(read(child, state));
+    });
+    const value = mergeValues(...children);
+    if (ts.isTemplateExpression(node) && [...value.paths].some(protectedJsonText)) dynamic = true;
+    return value;
+  };
+  const run = (node: TypeScript.Node, state: State): void => {
+    if (ts.isFunctionLike(node)) {
+      read(node, state);
+      return;
+    }
+    if (ts.isVariableDeclaration(node)) {
+      // A repeated `var p;` does not overwrite an earlier initialized value.
+      if (
+        !node.initializer &&
+        ts.isIdentifier(node.name) &&
+        ts.isVariableDeclarationList(node.parent) &&
+        !(node.parent.flags & ts.NodeFlags.BlockScoped) &&
+        state.has(binding(node.name))
+      )
+        return;
+      assign(node.name, node.initializer ? read(node.initializer, state) : emptyValue, state);
+      return;
+    }
+    if (ts.isImportDeclaration(node)) {
+      const value = read(node.moduleSpecifier, state);
+      for (const path of value.paths) inputPaths.add(path);
+      const ownsLoader = [...value.paths].some(approvedScopeModule);
+      const clause = node.importClause;
+      if (clause?.name) assign(clause.name, { ...emptyValue, namespace: ownsLoader }, state);
+      const named = clause?.namedBindings;
+      if (named && ts.isNamespaceImport(named))
+        assign(named.name, { ...emptyValue, namespace: ownsLoader }, state);
+      if (named && ts.isNamedImports(named))
+        for (const element of named.elements) {
+          const original = element.propertyName?.text ?? element.name.text;
+          assign(
+            element.name,
+            {
+              ...emptyValue,
+              loader: ownsLoader && LOADER_NAMES.some((known) => known === original),
+              namespace: ownsLoader && original === "scopeProvenance",
+            },
+            state,
+          );
+        }
+      return;
+    }
+    if (ts.isExportDeclaration(node) && node.moduleSpecifier) {
+      for (const path of read(node.moduleSpecifier, state).paths) inputPaths.add(path);
+      return;
+    }
+    if (ts.isIfStatement(node)) {
+      read(node.expression, state);
+      const yes = new Map(state),
+        no = new Map(state);
+      run(node.thenStatement, yes);
+      if (node.elseStatement) run(node.elseStatement, no);
+      replaceState(state, joinStates(yes, no));
+      return;
     }
     if (
-      (ts.isTemplateExpression(node) ||
-        (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken)) &&
-      contains(node, protectedJsonText)
-    )
-      dynamic = true;
-    ts.forEachChild(node, visit);
+      ts.isForStatement(node) ||
+      ts.isForOfStatement(node) ||
+      ts.isForInStatement(node) ||
+      ts.isWhileStatement(node) ||
+      ts.isDoStatement(node)
+    ) {
+      if (ts.isForStatement(node) && node.initializer) run(node.initializer, state);
+      if (ts.isForOfStatement(node) || ts.isForInStatement(node)) {
+        const value = read(node.expression, state);
+        if (ts.isVariableDeclarationList(node.initializer))
+          for (const declaration of node.initializer.declarations)
+            assign(declaration.name, value, state);
+        else if (ts.isIdentifier(node.initializer)) write(binding(node.initializer), value, state);
+      }
+      // Finite MAY-value fixed point: include zero iterations and loop-carried
+      // values, so a read before a write in one iteration is checked next time.
+      let entry = new Map(state);
+      for (;;) {
+        const iteration = new Map(entry);
+        if (ts.isForStatement(node)) {
+          if (node.condition) read(node.condition, iteration);
+        } else read(node.expression, iteration);
+        run(node.statement, iteration);
+        if (ts.isForStatement(node) && node.incrementor) read(node.incrementor, iteration);
+        const next = joinStates(entry, iteration);
+        const stable =
+          next.size === entry.size &&
+          [...next].every(([id, value]) => sameValue(value, entry.get(id) ?? emptyValue));
+        entry = next;
+        if (stable) break;
+      }
+      replaceState(state, entry);
+      return;
+    }
+    if (ts.isSwitchStatement(node)) {
+      read(node.expression, state);
+      const outcomes = [new Map(state)];
+      let fallthrough = new Map(state);
+      for (const clause of node.caseBlock.clauses) {
+        fallthrough = joinStates(state, fallthrough);
+        if (ts.isCaseClause(clause)) read(clause.expression, fallthrough);
+        for (const statement of clause.statements) run(statement, fallthrough);
+        outcomes.push(new Map(fallthrough));
+      }
+      replaceState(state, joinStates(...outcomes));
+      return;
+    }
+    if (ts.isTryStatement(node)) {
+      const body = new Map(state);
+      run(node.tryBlock, body);
+      const caught = joinStates(state, body, possible);
+      if (node.catchClause) run(node.catchClause, caught);
+      replaceState(state, joinStates(state, body, caught));
+      if (node.finallyBlock) run(node.finallyBlock, state);
+      return;
+    }
+    if (ts.isExpressionStatement(node) || ts.isReturnStatement(node) || ts.isThrowStatement(node)) {
+      if (node.expression) read(node.expression, state);
+      return;
+    }
+    // Expressions also execute in exports, class fields, decorators and bases.
+    if (ts.isExpression(node)) {
+      read(node, state);
+      return;
+    }
+    ts.forEachChild(node, (child) => run(child, state));
   };
-  visit(source);
+  const initial: State = new Map();
+  // ESM bindings exist before module execution, even when their declaration is
+  // textually after a use. CommonJS require retains ordinary assignment order.
+  for (const statement of source.statements)
+    if (ts.isImportDeclaration(statement)) run(statement, initial);
+  run(source, initial);
+  // A closure may execute after a later outer assignment. Keep that uncertainty
+  // local to deferred bodies; it must not contaminate earlier straight-line uses.
+  for (;;) {
+    const version = possibleVersion,
+      count = deferred.size;
+    for (const [node, captured] of deferred) {
+      if (!ts.isFunctionLike(node) || !("body" in node) || !node.body) continue;
+      const state = joinStates(captured, possible);
+      for (const id of state.keys()) {
+        let owner: Scope | undefined = id.scope;
+        while (owner && owner !== scopes.get(node)) owner = owner.parent;
+        if (owner) state.delete(id);
+      }
+      for (const parameter of node.parameters)
+        assign(
+          parameter.name,
+          parameter.initializer ? read(parameter.initializer, state) : emptyValue,
+          state,
+        );
+      if (ts.isBlock(node.body)) run(node.body, state);
+      else read(node.body, state);
+    }
+    if (version === possibleVersion && count === deferred.size) break;
+  }
   return {
     inputPaths: [...inputPaths],
     changelog: [...inputPaths].some(changelogPath),

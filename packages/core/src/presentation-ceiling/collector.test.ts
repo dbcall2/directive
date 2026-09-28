@@ -150,6 +150,113 @@ describe("presentation ceiling real Git collector", () => {
     f.write(path, '{"seedSql":"INSERT"}');
     expect(f.run().exitCode).toBe(1);
   });
+  it.each(
+    [RECORD, "CHANGELOG.md"].flatMap((path) => {
+      const sources: readonly [string, number][] = [
+        [`let p = 'other'; readFileSync(p); p = '${path}'; console.log(p);`, 0],
+        [`let p = '${path}'; p = 'other'; readFileSync(p);`, 0],
+        [`let p = 'other'; const alias = p; p = '${path}'; readFileSync(alias);`, 0],
+        [`const p = '${path}'; { const p = 'other'; readFileSync(p); }`, 0],
+        [`const p = '${path}'; function f() { const p = 'other'; readFileSync(p); }`, 0],
+        [`const p = '${path}'; function read(p) { readFileSync(p); } read('other');`, 0],
+        [`let p = 'other'; p = '${path}'; readFileSync(p);`, 1],
+        [`let p = '${path}'; readFileSync(p); p = 'other';`, 1],
+        [`let p = '${path}'; const alias = p; p = 'other'; readFileSync(alias);`, 1],
+        [`let p = 'other'; if (flag) p = '${path}'; readFileSync(p);`, 1],
+        [`let p = 'other'; if (flag) { p = '${path}'; } else { p = 'other'; } readFileSync(p);`, 1],
+        [`let p = '${path}'; if (flag) p = 'other'; else p = 'another'; readFileSync(p);`, 0],
+        [`let p = 'other'; function later() { readFileSync(p); } p = '${path}'; later();`, 1],
+        [`let p = 'other'; while (flag) { readFileSync(p); p = '${path}'; }`, 1],
+        [`var p = '${path}'; var p; readFileSync(p);`, 1],
+        [`export default readFileSync('${path}');`, 1],
+        [`class X { data = readFileSync('${path}'); }`, 1],
+        [`export default '${path}';`, 0],
+        [`class X { label = '${path}'; }`, 0],
+        [`function f() { var p; readFileSync(p); p = '${path}'; console.log(p); }`, 0],
+        [`let p; ({p} = {p: '${path}'}); readFileSync(p);`, 1],
+        [`const data = {}; data.path = '${path}'; readFileSync(data.path);`, 1],
+        [`let p = 'other'; for (let i = 0; flag; i++) { readFileSync(p); p = '${path}'; }`, 1],
+        [`for (const p of ['${path}']) readFileSync(p);`, 1],
+        [`let p; for (p of ['${path}']) readFileSync(p);`, 1],
+        [`for (const p in {['${path}']: true}) readFileSync(p);`, 1],
+        [`let p = 'other'; do { readFileSync(p); p = '${path}'; } while (flag);`, 1],
+        [`const p = flag ? '${path}' : 'other'; readFileSync(p);`, 1],
+        [`let p = '${path}'; flag ? p = 'other' : p = 'another'; readFileSync(p);`, 0],
+        [`let p = 'other'; flag && (p = '${path}'); readFileSync(p);`, 1],
+        [
+          `let p = 'other'; switch (flag) { case 1: p = '${path}'; break; default: p = 'other'; } readFileSync(p);`,
+          1,
+        ],
+        [
+          `let p = 'other'; try { p = '${path}'; risky(); } catch (e) { readFileSync(p); } finally { console.log(p); }`,
+          1,
+        ],
+        [`const {path: p} = {path: '${path}'}; readFileSync(p);`, 1],
+        [`const [p] = ['${path}']; readFileSync(p);`, 1],
+        [`p = '${path}'; readFileSync(p);`, 1],
+        [`const f = function named() { readFileSync('${path}'); };`, 1],
+        [`const f = () => readFileSync('${path}');`, 1],
+        [`new Consumer('${path}');`, 1],
+      ];
+      return sources.map(([source, expected]) => ({ path, source, expected }));
+    }),
+  )("uses ordered lexical values for $path: $source", ({ path, source, expected }) => {
+    const f = fixture({ [CEILING]: ceiling, [path]: "{}", "src/app.tsx": source });
+    f.write(path, '{"seedSql":"INSERT"}');
+    expect(f.run().exitCode, source).toBe(expected);
+  });
+  it.each(
+    [RECORD, "CHANGELOG.md"].flatMap((path) => {
+      const sources: readonly [string, number][] = [
+        [`p = 'other'\nopen(p)\np = '${path}'\nprint(p)`, 0],
+        [`p = '${path}'\np = 'other'\nopen(p)`, 0],
+        [`p = 'other'\nalias = p\np = '${path}'\nopen(alias)`, 0],
+        [`p = '${path}'\nalias = p\np = 'other'\nopen(alias)`, 1],
+        [`p = 'other'\nif flag:\n    p = '${path}'\nopen(p)`, 1],
+        [`p = 'other'\nif flag: p = '${path}'\nopen(p)`, 1],
+        [`p = '${path}'\nopen(\n    p\n)`, 1],
+        [`p = '${path}'\ndef outer():\n    open(p)\n    def inner():\n        p = 'other'`, 1],
+        [`p = 'other'\nwhile flag:\n    open(p)\n    p = '${path}'`, 1],
+        [`def read(p = '${path}'):\n    open(p)`, 1],
+        [
+          `p = 'other'\ndef writer():\n    global p\n    p = '${path}'\ndef reader():\n    open(p)`,
+          1,
+        ],
+        [`p = 'other'\ndef later():\n    open(p)\np = '${path}'\nlater()`, 1],
+        [
+          `def outer():\n    p = 'other'\n    def later():\n        open(p)\n    p = '${path}'\n    later()`,
+          1,
+        ],
+      ];
+      return sources.map(([source, expected]) => ({ path, source, expected }));
+    }),
+  )("snapshots ordered fallback assignments for $path: $source", ({ path, source, expected }) => {
+    const f = fixture({ [CEILING]: ceiling, [path]: "{}", "src/app.py": source });
+    f.write(path, '{"seedSql":"INSERT"}');
+    expect(f.run().exitCode, source).toBe(expected);
+  });
+  it.each([
+    [
+      "import { loadRecord as read } from '../packages/core/src/scope-provenance/digest.js'; function f(read) { read('other'); }",
+      0,
+    ],
+    [
+      "import * as records from '../packages/core/src/scope-provenance/digest.js'; { const records = unrelated; records.loadRecord('other'); }",
+      0,
+    ],
+    [
+      "import { loadRecord as read } from '../packages/core/src/scope-provenance/digest.js'; const alias = read; alias(root,id);",
+      1,
+    ],
+    [
+      "read(root,id); import { loadRecord as read } from '../packages/core/src/scope-provenance/digest.js';",
+      1,
+    ],
+  ])("keeps loader import identities: %s", (source, expected) => {
+    const f = fixture({ [CEILING]: ceiling, [RECORD]: "{}", "src/app.tsx": source });
+    f.write(RECORD, '{"seedSql":"INSERT"}');
+    expect(f.run().exitCode, source).toBe(expected);
+  });
   it.each([RECORD, "CHANGELOG.md"])("retains earlier protected values for %s", (path) => {
     const f = fixture({
       [CEILING]: ceiling,

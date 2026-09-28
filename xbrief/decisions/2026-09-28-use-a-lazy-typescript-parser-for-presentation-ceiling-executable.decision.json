@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "deft.decision.v1",
+  "id": "use-a-lazy-typescript-parser-for-presentation-ceiling-executable",
+  "decision": "Use a lazy TypeScript parser for presentation-ceiling executable readers",
+  "governingRule": {
+    "description": "Issue 5056 requires executable reader detection while preserving existing semantic gate boundaries",
+    "path": "content/docs/presentation-ceiling.md",
+    "rfc2119": "MUST"
+  },
+  "alternativesConsidered": [
+    {
+      "option": "Regex or custom lexer: mishandles ASI, encoded literals and template interpolation"
+    },
+    {
+      "option": "Eager compiler import: adds startup work for unarmed and unrelated CLI operations"
+    },
+    {
+      "option": "File-wide assignment union or source-position-only filtering: wrongly connects future values, overwrites, aliases and shadowed bindings to a read"
+    }
+  ],
+  "whyWinner": "Parse-only TypeScript handles ordinary JavaScript syntax; lazy loading confines runtime cost to armed presentation analysis. The reader uses lexical binding identities and ordered abstract values for declarations and simple assignment, snapshots aliases, joins branch possibilities, and conservatively analyzes deferred closures, loops and unsupported flow. This bounded per-file analysis implements the renewed operator continuation after the third review batch; it does not infer whole-program execution or helper purity. Observable-scope remains independent of the compiler.",
+  "confidence": "high",
+  "activeScopeRefs": [
+    "xbrief/active/2026-09-28-5056-framework-gap-presentation-only-work-can-include-sql-and-bac.xbrief.json"
+  ],
+  "timestamp": "2026-09-28T17:53:55Z",
+  "revisitTrigger": "A supported parser without the compiler package can satisfy the same Git integration and negative-control regressions",
+  "tags": [
+    "architecture"
+  ],
+  "relatedIssues": [
+    5056
+  ]
+}
