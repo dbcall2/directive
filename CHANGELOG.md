@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.119.10] - 2026-09-28
+
+> Dirty-deposit update partition (#5096), Step 5 hang detector 45 to 60 minutes (#5091), win32 gh.cmd SCM spawn (#5081), finalize-owed backstop (#4919), Tracking origin-close after leftover (#4864), coverage-of-record Step 5 (#5026), Target-digest ingest-ready (#4995), operator scope-limit (#4545), and suite-load testTimeout (#5107). Step 5 skipped with --allow-skip-ci=5107 after nearly-green 44m suite (1 timeout flake) per operator approval.
+
+### Added
 - **Operator scope-limit ceiling + warn-first untraceable-surface check (#4545).** Closed-lexicon phrases (`do not add`, `nothing beyond`, `initial version only`, …) seed a hard ceiling on the proposed brief (or durable artifact) even when rapid/greenfield has no `xbrief/active/` brief; `deft verify:operator-scope-limit` lists exported actions/routes/pages not traceable to a requirement line (warn-first; remediation: remove, or add to the brief and get operator approval). Distinct from slash-verb intent-ceiling (#1193). Refs #4545.
 - **perf(vitest): committed durations + DurationSequencer arm slowest-first on cold release worktrees (Tracking #5028).** Fresh trees no longer depend on host-global vitest cache.dir. Fixture packages/core/fixtures/vitest-file-durations.json (interim until #5027). Refs #5028, #5027, #5024.
 - **Step 5 tee duration ranking helper (#5027).** Scrape flushed `ts:check-lane timeline file <path> <ms>` lines from `.deft/check-tees/**` and print top-N by duration (`packages/core/src/ts-check-lane/duration-rank.ts`). Sub-30s files are omitted (progress reporter heartbeat gate). Does not claim stock vitest JsonReporter flushes on hang kill. RELEASING.md documents tee location, ranking command, and the #5024 top-20 paste. Tracking #5027. Refs #5024, #5023, #4567.
@@ -27,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCM readiness trusts provisioned GitHub credentials and enforces explicit worker assignments (#5016).** Unassigned processes use gh's effective source for the target host. Runtime/socket labels no longer select credentials. Assigned host-gh refuses an applicable ambient token; assigned injected-token still requires delivery correlation and the expected user. Installation authentication may be admitted without claiming App identity when no user is required. `runGhMerge` runs a fresh assignment/auth preflight. Refs #3693, #3663.
 
 ### Fixed
+- **test(win32): raise worker-auth-assignment owner-bound-remove suite-load testTimeout (Tracking #5107).**
 - **fix(update): partition dirty-deposit consumer projections; skip PROJECT-DEFINITION org-force-on (Tracking #5096).** Schema sync (#2595) and pin restore (#4533/#4710) stay intentional with mandatory report. Full skip/refuse/rewrite ledger is `consumer_projections`; `skipped_consumer_projections` lists skipped+refused only. Refs #3029, #3395, #4710.
 - **fix(hooks): Codex apply_patch `command` payloads extract mutation targets; empty targets deny (Refs #5094).** String `tool_input.command` is an ApplyPatch body when `isApplyPatchTool` matches (`ApplyPatch`, `apply_patch`, `apply-patch`). Conflicting `command` / `patch` / `unified_diff` / `diff` fields union. Canonical apply_patch with no extracted targets fails closed. Codex write-form audit is unobserved until a live payload. P2 class-check docs leftover.
 - **test(win32): retry EPERM temp cleanup in doctor disable tests (Tracking #5089).**
@@ -6585,7 +6598,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.119.9...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.119.10...HEAD
+[0.119.10]: https://github.com/deftai/directive/compare/v0.119.9...v0.119.10
 [0.119.9]: https://github.com/deftai/directive/compare/v0.119.8...v0.119.9
 [0.119.8]: https://github.com/deftai/directive/compare/v0.119.7...v0.119.8
 [0.119.7]: https://github.com/deftai/directive/compare/v0.119.6...v0.119.7

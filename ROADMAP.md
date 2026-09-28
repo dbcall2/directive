@@ -5,10 +5,6 @@
 
 # Roadmap
 
-## Active
-
-- **#5022** -- bug(release): Windows Step 5 hang detector kills ts:check-lane at 52/1284 files during v0.119.9 cut -- `[running]`
-
 ## Proposed
 
 _Scopes not yet promoted to pending. Orientation only — not a substitute for `task triage:queue`._
@@ -44,31 +40,31 @@ _Scopes not yet promoted to pending. Orientation only — not a substitute for `
 
 ## Completed
 
-_Showing 25 of 1637 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
+_Showing 25 of 1657 completed scopes (newest first). Full history: lifecycle `completed/` (or `task report` when available)._
 
+- **#5081** -- bug(scm,win32): worker-auth T5 fails Step 5 — host gh.exe wins over fake gh.cmd (/user exit 1) -- `[completed]`
+- **#4919** -- bug(swarm): a merged Tracking story is finalized by hand, one brief at a time -- `[completed]`
+- **#5020** -- verify:review-monitor --live-wait must evidence still-running wait (not lease+flag alone) -- `[completed]`
+- **#4864** -- bug(pr): a finished story cannot say Closes while its brief is still active -- `[completed]`
+- **#4995** -- design-critique: ingest-ready writes omit target-digest admission -- `[completed]`
+- **#4774** -- [UAT Tester 4] PR scope verification does not detect unrelated baseline files -- `[completed]`
+- **#4545** -- Explicit operator scope limit ("do not add features beyond the requirements") not treated as a ceiling -- `[completed]`
+- **#5055** -- [framework-gap] Acceptance checks lose original scope restrictions when an agent rewrites an ingested brief -- `[completed]`
+- **#4539** -- bug(doctor): already-installed skip leaves a stale global engine -- `[completed]`
+- **#4978** -- leftover(#4751): closed node --test grammar including exact built-in --test-reporter names -- `[completed]`
+- **#4660** -- [UAT Tester 1] Setup interview cannot persist: no host session identity / read-only session:start -- `[completed]`
+- **#4870** -- scope:complete exits 0 when the clause walk verified nothing -- `[completed]`
+- **#4987** -- fix(setup): USER.md freshness stamps the literal 0.20.0 — read the installed version (version-stamp split from #4378) -- `[completed]`
+- **#5024** -- chore(release): raise Windows Step 5 hang detector 30→45m and keep cheapening suite efficiency -- `[completed]`
+- **#5016** -- design(scm): trust provisioned GitHub credentials and enforce explicit worker assignments -- `[completed]`
+- **#3664** -- security(scm,skills): gh auth status prints a live installation token that deft guidance tells agents to run -- `[completed]`
+- **#5027** -- chore(release): Step 5 tee leaves a per-file vitest durations artifact so "what is slow" is a sort -- `[completed]`
+- **#5028** -- perf(vitest): persist slowest-first sequencing across release worktrees so Step 5 has no idle tail -- `[completed]`
+- **#5026** -- chore(release): decide whether Windows Step 5 runs vitest without --coverage (coverage-of-record from GHA) -- `[completed]`
+- **#5022** -- bug(release): Windows Step 5 hang detector kills ts:check-lane at 52/1284 files during v0.119.9 cut -- `[completed]`
 - **#4882** -- Parent-retained merge babysit stands down with no live wait -- `[completed]`
 - **#3858** -- bug(scm): the enforcing SCM readiness gate never invokes the worker-principal validator -- `[completed]`
 - **#5010** -- design(verify): retire TTY intent-constraint and observable-scope mint mid-build — detect + in-harness ask, returned failures free -- `[completed]`
 - **#3663** -- bug(swarm): worker github_auth_mode is stamped from the parent process and never re-validated in the worker envelope -- `[completed]`
 - **#4973** -- leftover(#1708): recorded planning choice before the first Cursor Plan prompt -- `[completed]`
-- **#4970** -- Previously accepted critiques retain ingest-ready after stricter gates invalidate their records -- `[completed]`
-- **#1708** -- Cursor Plan Mode silently bypasses directive planning; needs host-UI planning bridge + visibility -- `[completed]`
-- **#4986** -- bug(scope): derived clauses never get test evidence, so through-merge cannot complete the brief -- `[completed]`
-- **#4980** -- feat(verify): class checks fail closed regardless of file_scope or digest — test artifact under production root, production reference to test root, test identity in infra, protected globs (#3145 class) -- `[completed]`
-- **#4988** -- feat(setup): write swarm.file_scope at authoring for every setup-created scope and show the paths at the confirmation gate — declaration only, no approval verb (supersedes #4383) -- `[completed]`
-- **#4956** -- bug(swarm,scope): operator proceed still forces leave-harness multi-stop scope:record-approved-scope ("mint") mid-cohort — not the intended run-with-it flow -- `[completed]`
-- **#4290** -- bug(session,hooks): compaction staleness on the primary checkout has no recovery -- both printed remedies refuse as occupancy claims, and the gate denies paths outside the repo -- `[completed]`
-- **#4884** -- Kill-switch is doctor-true and the agent is never told to stop -- `[completed]`
-- **#4963** -- BLOCKER: xbrief:verify passes a brief that scope:activate rejects on plan.id, and remediation names an internal function -- `[completed]`
-- **#4543** -- Forward-coverage gate is satisfied by placeholder tests (string-search / typeof) -- `[completed]`
-- **#4768** -- [UAT Tester 4] Active xBRIEFs can be created without acceptance commands -- `[completed]`
-- **#4654** -- [UAT Tester 1] Windows PowerShell blocks npx/directive/deft via .ps1 execution policy -- `[completed]`
-- **#3550** -- bug(intake,verify-ac): #3398 attestation enforcement absent in the field and noun-traceability admits behavior-free clauses - two existence greps + zero commands = verified-pass -- `[completed]`
-- **#4947** -- bug(doctor,setup): existing root check can stay green without Directive, and setup still says task check -- `[completed]`
-- **#4544** -- Setup leaves AGENTS.md header at "edit me" and planning layer unused on a single-prompt greenfield build -- `[completed]`
-- **#4384** -- design(scm,setup): the first push to a new repository must create the default branch, the gate has no bootstrap exemption, and the only documented path is the "emergency" bypass — so day one teaches the bypass -- `[completed]`
-- **#4950** -- BLOCKER: one-PR-unit story-readiness cannot resolve durable grants (0.119.7) -- `[completed]`
-- **#4773** -- [UAT Tester 4] Dirty-tree update reports writes while refusing before writes -- `[completed]`
-- **#4766** -- [UAT Tester 4] Older Directive package resolves to a different engine version -- `[completed]`
-- **#4937** -- bug(swarm): through-merge should complete the xbrief for the issue it was given -- `[completed]`
 
