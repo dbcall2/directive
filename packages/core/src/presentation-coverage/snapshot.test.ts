@@ -74,3 +74,20 @@ it("records unreadable and non-file authority instead of interpreting it as abse
   expect(s.base.errors[0]).toContain("unreadable");
   expect(loadSnapshot({ projectRoot: root, originRef: "nonexistent" })).toHaveProperty("error");
 });
+
+it("preserves spaces, tabs, newlines and Unicode in Git path names", () => {
+  const { root, git } = repo();
+  const paths = [
+    "two words.html",
+    "é.html",
+    // Windows forbids control characters in filenames.
+    ...(process.platform === "win32" ? [] : ["tab\tname.sql", "line\nname.txt"]),
+  ];
+  for (const path of paths) writeFileSync(join(root, path), `pinned ${path}`);
+  git("add", ".");
+  const s = loadSnapshot({ projectRoot: root, originRef: "HEAD", staged: true });
+  if ("error" in s) throw new Error(s.error);
+  expect([...s.changed].sort()).toEqual([...paths].sort());
+  for (const path of paths) expect(s.head.read(path)).toBe(`pinned ${path}`);
+  expect(s.head.errors).toEqual([]);
+});

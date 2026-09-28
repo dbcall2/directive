@@ -294,3 +294,62 @@ it.each([
     uncoveredPaths: ["db/001.sql"],
   });
 });
+
+it("evaluates candidate test-boundary tightening against all pinned files", () => {
+  const { root, git, write } = repo();
+  write("public/test_widget.py", "assert True\n");
+  git("add", ".");
+  git("commit", "-qm", "existing fixture outside default source roots");
+  const baseline = git("rev-parse", "HEAD");
+  write(
+    ".deft/test-boundary.policy.json",
+    JSON.stringify({ sourceRoots: ["public/**"], testRoots: ["tests/**"] }),
+  );
+  write("public/index.html", "<h1 class='blue'>Hello</h1>\n");
+  git("add", ".");
+  const r = evaluatePresentationCoverage({
+    projectRoot: root,
+    originRef: baseline,
+    staged: true,
+    planId: "current",
+  });
+  expect(r.coverage.find((c) => c.gateId === "verify:test-boundary")).toMatchObject({
+    code: 1,
+    analyzedPaths: [],
+  });
+  expect(r.message).toContain("public/test_widget.py");
+  expect(r.code).toBe(1);
+});
+
+it.each([
+  "base-file",
+  "head-file",
+  "base-project",
+  "head-project",
+])("fails closed on invalid class policy shape at %s", (where) => {
+  const { root, git, write, base } = repo();
+  const path = where.endsWith("file")
+    ? ".deft/class-checks.policy.json"
+    : "xbrief/PROJECT-DEFINITION.xbrief.json";
+  write(
+    path,
+    where.endsWith("file") ? "[]" : JSON.stringify({ plan: { policy: { classChecks: [] } } }),
+  );
+  git("add", ".");
+  if (where.startsWith("base")) git("commit", "-qm", "invalid base class policy");
+  const baseline = where.startsWith("base") ? git("rev-parse", "HEAD") : base;
+  write("public/index.html", "<h1 class='blue'>Hello</h1>\n");
+  git("add", ".");
+  const r = evaluatePresentationCoverage({
+    projectRoot: root,
+    originRef: baseline,
+    staged: true,
+    planId: "current",
+  });
+  expect(r.code).toBe(2);
+  expect(r.coverage.find((c) => c.gateId === "verify:class-checks")).toMatchObject({
+    code: 2,
+    analyzedPaths: [],
+  });
+  expect(r.message).toContain("must be a JSON object");
+});

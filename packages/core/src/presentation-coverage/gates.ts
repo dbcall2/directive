@@ -1,11 +1,16 @@
 /** Execute the closed required set using pinned candidate inputs. No synthetic
  * success records: absent adapter/results are unrun; exceptions are errors.
- * Policy parsing delegates to the existing loaders in temporary snapshot dirs.
+ * Policy parsing delegates to existing loaders in temporary snapshot dirs.
+ * Class checks use base authority and compare candidate boundaries; the
+ * independent test-boundary gate uses candidate policy, as its normal CLI does.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { evaluateClassChecks } from "../class-checks/evaluate.js";
+import {
+  evaluateClassChecks,
+  parseClassChecksFromProjectDefinition,
+} from "../class-checks/evaluate.js";
 import { loadClassChecksPolicy } from "../class-checks/policy.js";
 import {
   evaluateConsumerCheckContract,
@@ -16,6 +21,7 @@ import {
   evaluate as evaluateSurface,
   isEvaluatorSurfacePath,
 } from "../evaluator-surface/evaluate.js";
+import { containedWrite } from "../fs/contained-write.js";
 import { evaluateIntentConstraint } from "../intent-constraint/evaluate.js";
 import { evaluateObservableScope } from "../observable-scope/evaluate.js";
 import { parseApprovedScopeRecordRaw } from "../scope-provenance/evaluate.js";
@@ -46,12 +52,20 @@ function policies(tree: SnapshotTree) {
       const text = tree.read(path);
       if (text === null) continue;
       // Validate even project-definition JSON, whose legacy loader defaults on parse failure.
-      JSON.parse(text);
-      mkdirSync(join(dir, path.substring(0, path.lastIndexOf("/"))), { recursive: true });
-      writeFileSync(join(dir, path), text);
+      try {
+        JSON.parse(text);
+      } catch (error) {
+        throw new Error(`${path}: ${String(error)}`);
+      }
+      containedWrite({ root: dir, target: path, data: text, mode: "create" });
     }
     const boundary = loadTestBoundaryPolicy(dir);
-    const classes = loadClassChecksPolicy(dir);
+    let classes = loadClassChecksPolicy(dir);
+    const pd = tree.read("xbrief/PROJECT-DEFINITION.xbrief.json");
+    if (tree.read(".deft/class-checks.policy.json") === null && pd !== null) {
+      const parsed = parseClassChecksFromProjectDefinition(pd, dir);
+      if (!parsed.ok) classes = { error: parsed.message.replace(/^merge-base /, "") };
+    }
     return { boundary, classes };
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -146,7 +160,17 @@ export function runComposedGates(
     const b = policies(base),
       h = policies(head);
     if ("error" in b.classes)
-      return outcome("verify:class-checks", { code: 2, message: b.classes.error }, []);
+      return outcome(
+        "verify:class-checks",
+        { code: 2, message: `base policy: ${b.classes.error}` },
+        [],
+      );
+    if ("error" in h.classes)
+      return outcome(
+        "verify:class-checks",
+        { code: 2, message: `head policy: ${h.classes.error}` },
+        [],
+      );
     const contents = readTexts(head, (p) => changed.includes(p));
     return outcome(
       "verify:class-checks",
@@ -162,7 +186,7 @@ export function runComposedGates(
     );
   });
   run("verify:test-boundary", () => {
-    const p = policies(base);
+    const p = policies(head);
     return outcome(
       "verify:test-boundary",
       evaluateTestBoundary(projectRoot, {

@@ -110,6 +110,8 @@ describe("presentation coverage composition", () => {
     });
     expect(r.code).toBe(2);
     expect(r.message).toContain("unreadable");
+    expect(r.message).toContain("Repair the reported snapshot");
+    expect(r.message).not.toContain("obtain merge-base human authority");
   });
   it("base restriction cannot be weakened by a signed head amendment", () => {
     const s = snapshot(
@@ -294,4 +296,11 @@ it.each([
     : { [REL]: stamped, [second]: narrow };
   const r = evaluate(snapshot([REL, second], records, { [second]: ceiling }));
   expect(r).toMatchObject({ code: 1, compare: { kind: "weakening" } });
+});
+
+it("distinguishes malformed active-story configuration from missing authority", () => {
+  const malformed = snapshot(["public/index.html"], { [REL]: ceiling, [STORY]: "{" });
+  expect(evaluate(malformed).code).toBe(2);
+  const missing = snapshot(["public/index.html"], { [REL]: ceiling });
+  expect(evaluate(missing).code).toBe(1);
 });

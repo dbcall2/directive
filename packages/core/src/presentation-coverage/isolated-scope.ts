@@ -3,9 +3,10 @@
  * read-tree/commit-tree do not run repository hooks; the new repo has no template.
  */
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { containedWrite } from "../fs/contained-write.js";
 import {
   evaluateScopeProvenance,
   type ScopeProvenanceOptions,
@@ -43,11 +44,12 @@ export function evaluateIsolatedScope(
     if (objects.status !== 0) return error(`scope snapshot objects unavailable: ${objects.stderr}`);
     const init = git(directory, ["init", "--quiet", "--template="]);
     if (init.status !== 0) return error(`scope snapshot init failed: ${init.stderr}`);
-    mkdirSync(join(directory, ".git", "objects", "info"), { recursive: true });
-    writeFileSync(
-      join(directory, ".git", "objects", "info", "alternates"),
-      `${objects.stdout.trim()}\n`,
-    );
+    containedWrite({
+      root: directory,
+      target: ".git/objects/info/alternates",
+      data: `${objects.stdout.trim()}\n`,
+      mode: "create",
+    });
     const tree = git(directory, ["rev-parse", `${snapshot.candidate}^{tree}`]);
     if (tree.status !== 0) return error(`scope snapshot tree unavailable: ${tree.stderr}`);
     const commit = git(directory, [

@@ -54,7 +54,13 @@ function result(
 ): PresentationCoverageEvaluateResult {
   return {
     code,
-    message: `${CEILING_COMPOSITOR_GATE_ID}: ${message}${code === 0 ? "" : ` ${CEILING_COMPOSITOR_REMEDIATION}`}`,
+    message: `${CEILING_COMPOSITOR_GATE_ID}: ${message}${
+      code === 0
+        ? ""
+        : code === 2
+          ? " Repair the reported snapshot or required-gate configuration and rerun; unknown coverage cannot authorize continuation."
+          : ` ${CEILING_COMPOSITOR_REMEDIATION}`
+    }`,
     stream: code === 0 ? "stdout" : "stderr",
     skipped: !compare.armed,
     armed: compare.armed,
