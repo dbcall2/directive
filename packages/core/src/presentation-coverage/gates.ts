@@ -52,11 +52,7 @@ function policies(tree: SnapshotTree) {
       const text = tree.read(path);
       if (text === null) continue;
       // Validate even project-definition JSON, whose legacy loader defaults on parse failure.
-      try {
-        JSON.parse(text);
-      } catch (error) {
-        throw new Error(`${path}: ${String(error)}`);
-      }
+      JSON.parse(text);
       containedWrite({ root: dir, target: path, data: text, mode: "create" });
     }
     const boundary = loadTestBoundaryPolicy(dir);
