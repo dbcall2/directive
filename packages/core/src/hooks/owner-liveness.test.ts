@@ -2,7 +2,6 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import {
   applyWorktreeOccupancy,
   evaluateOccupancyWriteGate,
@@ -12,6 +11,7 @@ import {
   occupancyPath,
   readOccupancy,
 } from "../session/occupancy.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { restampOwnerLivenessOnHookEvent } from "./owner-liveness.js";
 
 const temps: string[] = [];
@@ -56,31 +56,35 @@ describe("owner liveness on non-write hook activity (#3987)", () => {
     expect(readOccupancy(root)?.lastWriteAt).toBeNull();
   });
 
-  it("does not advance claimed_at, so the absolute lease cap is unmoved", destContentionItTimeout(), () => {
-    const root = leasedRoot();
-    let at = PAST_FLOOR;
-    // Renew repeatedly across more than the whole cap window; every renewal is
-    // a fresh heartbeat, so only the cap can end this lease.
-    for (let step = 0; step < 40; step += 1) {
-      restampOwnerLivenessOnHookEvent({
-        projectRoot: root,
-        ownerSessionId: "owner",
-        hostAuthoritative: true,
-        now: at,
-      });
-      at = new Date(at.getTime() + OCCUPANCY_TTL_MS / 2);
-    }
-    expect(readOccupancy(root)?.claimedAt.toISOString()).toBe(CLAIMED_AT.toISOString());
-    const pastCap = new Date(CLAIMED_AT.getTime() + OCCUPANCY_MAX_LEASE_MS + 1_000);
-    expect(
-      restampOwnerLivenessOnHookEvent({
-        projectRoot: root,
-        ownerSessionId: "owner",
-        hostAuthoritative: true,
-        now: pastCap,
-      }),
-    ).toEqual({ restamped: false, reason: "no-live-lease" });
-  });
+  it(
+    "does not advance claimed_at, so the absolute lease cap is unmoved",
+    destContentionItTimeout(),
+    () => {
+      const root = leasedRoot();
+      let at = PAST_FLOOR;
+      // Renew repeatedly across more than the whole cap window; every renewal is
+      // a fresh heartbeat, so only the cap can end this lease.
+      for (let step = 0; step < 40; step += 1) {
+        restampOwnerLivenessOnHookEvent({
+          projectRoot: root,
+          ownerSessionId: "owner",
+          hostAuthoritative: true,
+          now: at,
+        });
+        at = new Date(at.getTime() + OCCUPANCY_TTL_MS / 2);
+      }
+      expect(readOccupancy(root)?.claimedAt.toISOString()).toBe(CLAIMED_AT.toISOString());
+      const pastCap = new Date(CLAIMED_AT.getTime() + OCCUPANCY_MAX_LEASE_MS + 1_000);
+      expect(
+        restampOwnerLivenessOnHookEvent({
+          projectRoot: root,
+          ownerSessionId: "owner",
+          hostAuthoritative: true,
+          now: pastCap,
+        }),
+      ).toEqual({ restamped: false, reason: "no-live-lease" });
+    },
+  );
 
   it("refuses an ambient identity even when the id matches the occupant", () => {
     const root = leasedRoot();

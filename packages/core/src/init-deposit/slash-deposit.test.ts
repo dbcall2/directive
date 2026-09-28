@@ -2,11 +2,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { runWithMutationLedger, snapshotMutationSummary } from "../fs/mutation-ledger.js";
 import { emitHostCommandFiles, HOST_COMMAND_LAYOUTS } from "../slash/emitters.js";
 import { isThinWrapperMarkdown } from "../slash/generator.js";
 import { PRODUCT_COMMAND_COUNT } from "../slash/product-set.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { isInstallerManagedPath } from "./hygiene.js";
 import { slashCommandManagedExactPaths, writeSlashCommandDeposit } from "./slash-deposit.js";
 
@@ -91,17 +91,21 @@ describe("writeSlashCommandDeposit (#3054)", () => {
     expect(emitHostCommandFiles("claude")).toHaveLength(PRODUCT_COMMAND_COUNT);
   });
 
-  it("does not overwrite non-thin consumer customizations at product paths", destContentionItTimeout(), () => {
-    const root = project();
-    writeSlashCommandDeposit(root);
-    const target = join(root, ".claude/commands/deft-continue.md");
-    writeFileSync(target, "# my custom continue command\n", "utf8");
+  it(
+    "does not overwrite non-thin consumer customizations at product paths",
+    destContentionItTimeout(),
+    () => {
+      const root = project();
+      writeSlashCommandDeposit(root);
+      const target = join(root, ".claude/commands/deft-continue.md");
+      writeFileSync(target, "# my custom continue command\n", "utf8");
 
-    const result = writeSlashCommandDeposit(root);
-    expect(result.writtenPaths).not.toContain(".claude/commands/deft-continue.md");
-    expect(result.preservedCustomPaths).toContain(".claude/commands/deft-continue.md");
-    expect(readFileSync(target, "utf8")).toBe("# my custom continue command\n");
-  });
+      const result = writeSlashCommandDeposit(root);
+      expect(result.writtenPaths).not.toContain(".claude/commands/deft-continue.md");
+      expect(result.preservedCustomPaths).toContain(".claude/commands/deft-continue.md");
+      expect(readFileSync(target, "utf8")).toBe("# my custom continue command\n");
+    },
+  );
 
   it("skips opted-out host without breaking other hosts", () => {
     const root = project();
@@ -116,34 +120,40 @@ describe("writeSlashCommandDeposit (#3054)", () => {
     expect(existsSync(join(root, ".codex/prompts/deft-continue.md"))).toBe(true);
   });
 
-  it("removes managed thin wrappers on opt-out but leaves user customizations", destContentionItTimeout(), () => {
-    const root = project();
-    writeSlashCommandDeposit(root);
-    expect(existsSync(join(root, ".claude/commands/deft-continue.md"))).toBe(true);
+  it(
+    "removes managed thin wrappers on opt-out but leaves user customizations",
+    destContentionItTimeout(),
+    () => {
+      const root = project();
+      writeSlashCommandDeposit(root);
+      expect(existsSync(join(root, ".claude/commands/deft-continue.md"))).toBe(true);
 
-    const customPath = join(root, ".claude/commands/user-custom.md");
-    mkdirSync(join(root, ".claude/commands"), { recursive: true });
-    writeFileSync(customPath, "# user owned\n", "utf8");
+      const customPath = join(root, ".claude/commands/user-custom.md");
+      mkdirSync(join(root, ".claude/commands"), { recursive: true });
+      writeFileSync(customPath, "# user owned\n", "utf8");
 
-    const customizedManaged = join(root, ".claude/commands/deft-checkpoint.md");
-    writeFileSync(customizedManaged, "# heavily customized non-thin wrapper\n", "utf8");
+      const customizedManaged = join(root, ".claude/commands/deft-checkpoint.md");
+      writeFileSync(customizedManaged, "# heavily customized non-thin wrapper\n", "utf8");
 
-    writeProjectDefinition(root, { claude: false });
-    const lines: string[] = [];
-    const result = writeSlashCommandDeposit(root, { printf: (t) => lines.push(t) });
+      writeProjectDefinition(root, { claude: false });
+      const lines: string[] = [];
+      const result = writeSlashCommandDeposit(root, { printf: (t) => lines.push(t) });
 
-    expect(result.skippedHosts).toContain("claude");
-    expect(result.removedPaths).toContain(".claude/commands/deft-continue.md");
-    expect(existsSync(join(root, ".claude/commands/deft-continue.md"))).toBe(false);
-    // Non-thin customization of a product filename is left alone.
-    expect(existsSync(customizedManaged)).toBe(true);
-    expect(readFileSync(customizedManaged, "utf8")).toBe("# heavily customized non-thin wrapper\n");
-    // Unrelated user file left alone.
-    expect(existsSync(customPath)).toBe(true);
-    expect(lines.some((l) => l.includes("hostSlashCommands opt-out"))).toBe(true);
-    // Other hosts still deposited / current.
-    expect(existsSync(join(root, ".cursor/commands/deft-continue.md"))).toBe(true);
-  });
+      expect(result.skippedHosts).toContain("claude");
+      expect(result.removedPaths).toContain(".claude/commands/deft-continue.md");
+      expect(existsSync(join(root, ".claude/commands/deft-continue.md"))).toBe(false);
+      // Non-thin customization of a product filename is left alone.
+      expect(existsSync(customizedManaged)).toBe(true);
+      expect(readFileSync(customizedManaged, "utf8")).toBe(
+        "# heavily customized non-thin wrapper\n",
+      );
+      // Unrelated user file left alone.
+      expect(existsSync(customPath)).toBe(true);
+      expect(lines.some((l) => l.includes("hostSlashCommands opt-out"))).toBe(true);
+      // Other hosts still deposited / current.
+      expect(existsSync(join(root, ".cursor/commands/deft-continue.md"))).toBe(true);
+    },
+  );
 
   it("exposes product paths as installer-managed exacts (L8 prefer commit)", () => {
     const exacts = slashCommandManagedExactPaths();

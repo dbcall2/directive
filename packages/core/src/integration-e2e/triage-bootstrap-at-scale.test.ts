@@ -1,10 +1,10 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { cacheFetchAll, setPaginatedLister, setSleepFn } from "../cache/fetch.js";
 import { runBootstrap, runWithTimeout, stepPopulateCache } from "../triage/bootstrap/index.js";
 import type { FetchAllReport } from "../triage/bootstrap/types.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { bootstrapCacheModule } from "./bootstrap-cache-module.js";
 import { fakeIssue, makeTempRoot, REPO, SCALE_ISSUE_COUNT } from "./helpers.js";
 
@@ -17,45 +17,49 @@ function wireScaleFixture(): void {
 describe("integration-e2e triage bootstrap at scale (mirrors test_triage_bootstrap_at_scale.py)", () => {
   // Linux full-suite load exceeds the 5s default on 60-write cachePut cases (#4638).
   // win32 keeps the suite cap (#3616). A bare 15s here would LOWER win32 (#4194).
-  it("runBootstrap completes at backlog scale without wall-clock sleep", destContentionItTimeout(), async () => {
-    const root = makeTempRoot("deft-bootstrap-scale-");
-    wireScaleFixture();
+  it(
+    "runBootstrap completes at backlog scale without wall-clock sleep",
+    destContentionItTimeout(),
+    async () => {
+      const root = makeTempRoot("deft-bootstrap-scale-");
+      wireScaleFixture();
 
-    const result = await runBootstrap(root, REPO, {
-      batchSize: 10,
-      delayMs: 0,
-      fetchTimeoutS: 30,
-      progress: null,
-      cacheModule: bootstrapCacheModule(cacheFetchAll),
-    });
+      const result = await runBootstrap(root, REPO, {
+        batchSize: 10,
+        delayMs: 0,
+        fetchTimeoutS: 30,
+        progress: null,
+        cacheModule: bootstrapCacheModule(cacheFetchAll),
+      });
 
-    expect(result.exitCode).toBe(0);
-    expect(result.steps).toHaveLength(5);
-    expect(result.steps.every((step) => step.ok)).toBe(true);
-    const populate = result.steps[0];
-    expect(populate?.details.succeeded).toBe(SCALE_ISSUE_COUNT);
-    expect(populate?.details.failed).toBe(0);
-    expect(populate?.details.skipped).toBe(0);
+      expect(result.exitCode).toBe(0);
+      expect(result.steps).toHaveLength(5);
+      expect(result.steps.every((step) => step.ok)).toBe(true);
+      const populate = result.steps[0];
+      expect(populate?.details.succeeded).toBe(SCALE_ISSUE_COUNT);
+      expect(populate?.details.failed).toBe(0);
+      expect(populate?.details.skipped).toBe(0);
 
-    const base = join(root, ".deft-cache", "github-issue", "deftai", "directive");
-    expect(existsSync(base)).toBe(true);
-    const cached = readdirSync(base)
-      .filter((name) => /^\d+$/.test(name))
-      .map((name) => Number.parseInt(name, 10))
-      .sort((a, b) => a - b);
-    expect(cached).toEqual(Array.from({ length: SCALE_ISSUE_COUNT }, (_, i) => i + 1));
+      const base = join(root, ".deft-cache", "github-issue", "deftai", "directive");
+      expect(existsSync(base)).toBe(true);
+      const cached = readdirSync(base)
+        .filter((name) => /^\d+$/.test(name))
+        .map((name) => Number.parseInt(name, 10))
+        .sort((a, b) => a - b);
+      expect(cached).toEqual(Array.from({ length: SCALE_ISSUE_COUNT }, (_, i) => i + 1));
 
-    const gitignore = readFileSync(join(root, ".gitignore"), "utf8");
-    expect(gitignore).toContain(".deft-cache/");
-    expect(gitignore).toContain("xbrief/.triage-cache/candidates.jsonl");
-    expect(gitignore).toContain("xbrief/.triage-cache/summary-history.jsonl");
-    expect(gitignore).toContain("xbrief/.triage-cache/scope-lifecycle.jsonl");
-    const activeLines = gitignore
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0 && !line.startsWith("#"));
-    expect(activeLines).not.toContain("xbrief/.triage-cache/");
-  });
+      const gitignore = readFileSync(join(root, ".gitignore"), "utf8");
+      expect(gitignore).toContain(".deft-cache/");
+      expect(gitignore).toContain("xbrief/.triage-cache/candidates.jsonl");
+      expect(gitignore).toContain("xbrief/.triage-cache/summary-history.jsonl");
+      expect(gitignore).toContain("xbrief/.triage-cache/scope-lifecycle.jsonl");
+      const activeLines = gitignore
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0 && !line.startsWith("#"));
+      expect(activeLines).not.toContain("xbrief/.triage-cache/");
+    },
+  );
 
   it("runBootstrap emits per-step progress lines", destContentionItTimeout(), async () => {
     const root = makeTempRoot("deft-bootstrap-progress-");
@@ -154,18 +158,22 @@ describe("integration-e2e triage bootstrap at scale (mirrors test_triage_bootstr
     expect(outcome.details.timed_out).toBeUndefined();
   });
 
-  it("fetch_timeout_s=0 disables watchdog and completes against hermetic fixture", destContentionItTimeout(), async () => {
-    const root = makeTempRoot("deft-bootstrap-no-watchdog-");
-    wireScaleFixture();
-    const outcome = await stepPopulateCache(root, REPO, {
-      batchSize: 10,
-      delayMs: 0,
-      fetchTimeoutS: 0,
-      cacheModule: bootstrapCacheModule(cacheFetchAll),
-    });
-    expect(outcome.ok).toBe(true);
-    expect(outcome.details.timed_out).toBeUndefined();
-    expect(outcome.details.succeeded).toBe(SCALE_ISSUE_COUNT);
-    expect(outcome.details.fetch_timeout_s).toBe(0);
-  });
+  it(
+    "fetch_timeout_s=0 disables watchdog and completes against hermetic fixture",
+    destContentionItTimeout(),
+    async () => {
+      const root = makeTempRoot("deft-bootstrap-no-watchdog-");
+      wireScaleFixture();
+      const outcome = await stepPopulateCache(root, REPO, {
+        batchSize: 10,
+        delayMs: 0,
+        fetchTimeoutS: 0,
+        cacheModule: bootstrapCacheModule(cacheFetchAll),
+      });
+      expect(outcome.ok).toBe(true);
+      expect(outcome.details.timed_out).toBeUndefined();
+      expect(outcome.details.succeeded).toBe(SCALE_ISSUE_COUNT);
+      expect(outcome.details.fetch_timeout_s).toBe(0);
+    },
+  );
 });

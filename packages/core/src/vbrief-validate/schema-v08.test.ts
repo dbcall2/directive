@@ -9,8 +9,8 @@ import {
   RESERVED_REFERENCE_TYPE_ALIASES,
 } from "@deftai/directive-types";
 import { describe, expect, it } from "vitest";
-import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { atomicWriteBrief, validateBriefForPersist } from "../scope/brief-io.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { scanVbrief } from "./conformance.js";
 import { runValidate } from "./main.js";
 import { validateOriginProvenance } from "./origin.js";
@@ -508,18 +508,22 @@ describe("Class B reserved-prefix compatibility (#4746 / #4765 / #4846)", () => 
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("CLI exits 0 for each of the twenty-four names under both prefixes and 1 with --warnings-as-errors", destContentionItTimeout(), () => {
-    for (const prefix of CLASS_B_PREFIXES) {
-      for (const bare of CLASS_B_BARES) {
-        const root = mkdtempSync(join(tmpdir(), "vb-4746-matrix-"));
-        const type = prefix + bare;
-        const vbrief = writeProposedBrief(root, "2026-09-18-matrix.xbrief.json", type);
-        expect(runValidate(["--vbrief-dir", vbrief]), type).toBe(0);
-        expect(runValidate(["--vbrief-dir", vbrief, "--warnings-as-errors"]), type).toBe(1);
-        rmSync(root, { recursive: true, force: true });
+  it(
+    "CLI exits 0 for each of the twenty-four names under both prefixes and 1 with --warnings-as-errors",
+    destContentionItTimeout(),
+    () => {
+      for (const prefix of CLASS_B_PREFIXES) {
+        for (const bare of CLASS_B_BARES) {
+          const root = mkdtempSync(join(tmpdir(), "vb-4746-matrix-"));
+          const type = prefix + bare;
+          const vbrief = writeProposedBrief(root, "2026-09-18-matrix.xbrief.json", type);
+          expect(runValidate(["--vbrief-dir", vbrief]), type).toBe(0);
+          expect(runValidate(["--vbrief-dir", vbrief, "--warnings-as-errors"]), type).toBe(1);
+          rmSync(root, { recursive: true, force: true });
+        }
       }
-    }
-  });
+    },
+  );
 
   it("CLI keeps aliases as errors and mixed origin plus github_pr as error", () => {
     const aliasRoot = mkdtempSync(join(tmpdir(), "vb-4746-alias-"));

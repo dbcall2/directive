@@ -12,12 +12,12 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
 import { runInitDeposit } from "../init-deposit/init-deposit.js";
 import { runRefreshDeposit } from "../init-deposit/refresh.js";
 import type { SpawnResult } from "../release/types.js";
 import * as commandSpawn from "../verify-env/command-spawn.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import {
   alignNpmPackageVersions,
   assertPass2Precondition,
@@ -115,102 +115,110 @@ describe("deposit journey e2e legs (#1942 S5)", () => {
     return root;
   }
 
-  it("greenfield leg: directive init deposits hybrid shape without Go binary", destContentionItTimeout(), async () => {
-    const spawnSpy = vi.spyOn(spawnSync as never, "apply" as never).mockImplementation(() => {
-      throw new Error("spawnSync should not be called on TS-native init happy path");
-    });
+  it(
+    "greenfield leg: directive init deposits hybrid shape without Go binary",
+    destContentionItTimeout(),
+    async () => {
+      const spawnSpy = vi.spyOn(spawnSync as never, "apply" as never).mockImplementation(() => {
+        throw new Error("spawnSync should not be called on TS-native init happy path");
+      });
 
-    const project = freshRoot("e2e-greenfield-");
-    const contentRoot = installFakeContentPackage(project);
+      const project = freshRoot("e2e-greenfield-");
+      const contentRoot = installFakeContentPackage(project);
 
-    const result = await runInitDeposit(
-      { projectDir: project, jsonOut: false, nonInteractive: true },
-      { printf: () => {} },
-      {
+      const result = await runInitDeposit(
+        { projectDir: project, jsonOut: false, nonInteractive: true },
+        { printf: () => {} },
+        {
+          resolveContentRoot: async () => contentRoot,
+          nowIso: () => "2026-06-24T12:00:00Z",
+          gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
+          execGit: () => ({ status: 0, stdout: "", stderr: "" }),
+        },
+      );
+
+      expect(result.deftDir).toBe(join(project, ".deft/core"));
+      expect(readFileSync(join(result.deftDir, "main.md"), "utf8")).toContain("# Deft");
+      expect(readFileSync(join(project, "AGENTS.md"), "utf8")).toContain("deft:managed-section");
+      expect(existsSync(join(project, "xbrief", "active", ".gitkeep"))).toBe(true);
+      expect(readFileSync(join(project, ".gitignore"), "utf8")).toContain(".deft/core/");
+      // #1967: the deposited .deft/core carries the branch-policy hooks and a
+      // resolvable Taskfile (with its tasks/ fragments + helper scripts), not a
+      // graceful "absent — skipping" deposit.
+      expect(existsSync(join(result.deftDir, ".githooks", "pre-commit"))).toBe(true);
+      expect(existsSync(join(result.deftDir, ".githooks", "_deft-run.sh"))).toBe(true);
+      expect(existsSync(join(result.deftDir, "Taskfile.yml"))).toBe(true);
+      expect(existsSync(join(result.deftDir, "tasks", "swarm.yml"))).toBe(true);
+      expect(existsSync(join(result.deftDir, "scripts"))).toBe(false);
+      // ...and `directive init` wires the hooks to the consumer root + include.
+      expect(existsSync(join(project, ".githooks", "pre-commit"))).toBe(true);
+      expect(existsSync(join(project, ".githooks", "_deft-run.sh"))).toBe(true);
+      expect(readFileSync(join(project, "Taskfile.yml"), "utf8")).toContain(
+        "./.deft/core/Taskfile.yml",
+      );
+      expect(spawnSpy).not.toHaveBeenCalled();
+    },
+  );
+
+  it(
+    "upgrade leg: directive update refresh is idempotent with no spurious AGENTS.md diff",
+    destContentionItTimeout(),
+    async () => {
+      const project = freshRoot("e2e-upgrade-");
+      const contentRoot = installFakeContentPackage(project, "0.53.0");
+      const io = { printf: vi.fn() };
+      const execGit = () => ({ status: 0, stdout: "", stderr: "" });
+      const seams = {
         resolveContentRoot: async () => contentRoot,
+        readEngineVersion: () => "0.53.0",
         nowIso: () => "2026-06-24T12:00:00Z",
+        gitPorcelain: () => "",
+        execGit,
+      };
+      const args = {
+        projectDir: project,
+        jsonOut: false,
+        nonInteractive: true,
+        upgrade: true,
+      };
+
+      await runInitDeposit(args, io, {
+        ...seams,
         gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
-        execGit: () => ({ status: 0, stdout: "", stderr: "" }),
-      },
-    );
+      });
+      const initVersion = readFileSync(join(project, ".deft/core", "VERSION"), "utf8");
+      const copyContent = vi.fn(async () => {
+        throw new Error("copyContent must not run for an already-current update");
+      });
+      const updateSeams = {
+        ...seams,
+        copyContent,
+        nowIso: () => "2026-06-25T12:00:00Z",
+        gitSemanticDiffNames: () => [],
+      };
 
-    expect(result.deftDir).toBe(join(project, ".deft/core"));
-    expect(readFileSync(join(result.deftDir, "main.md"), "utf8")).toContain("# Deft");
-    expect(readFileSync(join(project, "AGENTS.md"), "utf8")).toContain("deft:managed-section");
-    expect(existsSync(join(project, "xbrief", "active", ".gitkeep"))).toBe(true);
-    expect(readFileSync(join(project, ".gitignore"), "utf8")).toContain(".deft/core/");
-    // #1967: the deposited .deft/core carries the branch-policy hooks and a
-    // resolvable Taskfile (with its tasks/ fragments + helper scripts), not a
-    // graceful "absent — skipping" deposit.
-    expect(existsSync(join(result.deftDir, ".githooks", "pre-commit"))).toBe(true);
-    expect(existsSync(join(result.deftDir, ".githooks", "_deft-run.sh"))).toBe(true);
-    expect(existsSync(join(result.deftDir, "Taskfile.yml"))).toBe(true);
-    expect(existsSync(join(result.deftDir, "tasks", "swarm.yml"))).toBe(true);
-    expect(existsSync(join(result.deftDir, "scripts"))).toBe(false);
-    // ...and `directive init` wires the hooks to the consumer root + include.
-    expect(existsSync(join(project, ".githooks", "pre-commit"))).toBe(true);
-    expect(existsSync(join(project, ".githooks", "_deft-run.sh"))).toBe(true);
-    expect(readFileSync(join(project, "Taskfile.yml"), "utf8")).toContain(
-      "./.deft/core/Taskfile.yml",
-    );
-    expect(spawnSpy).not.toHaveBeenCalled();
-  });
+      io.printf.mockClear();
+      const first = await runRefreshDeposit(args, io, updateSeams);
+      const firstAgents = readFileSync(join(project, "AGENTS.md"), "utf8");
+      const firstVersion = readFileSync(join(project, ".deft/core", "VERSION"), "utf8");
 
-  it("upgrade leg: directive update refresh is idempotent with no spurious AGENTS.md diff", destContentionItTimeout(), async () => {
-    const project = freshRoot("e2e-upgrade-");
-    const contentRoot = installFakeContentPackage(project, "0.53.0");
-    const io = { printf: vi.fn() };
-    const execGit = () => ({ status: 0, stdout: "", stderr: "" });
-    const seams = {
-      resolveContentRoot: async () => contentRoot,
-      readEngineVersion: () => "0.53.0",
-      nowIso: () => "2026-06-24T12:00:00Z",
-      gitPorcelain: () => "",
-      execGit,
-    };
-    const args = {
-      projectDir: project,
-      jsonOut: false,
-      nonInteractive: true,
-      upgrade: true,
-    };
+      io.printf.mockClear();
+      const second = await runRefreshDeposit(args, io, updateSeams);
+      const secondAgents = readFileSync(join(project, "AGENTS.md"), "utf8");
+      const secondVersion = readFileSync(join(project, ".deft/core", "VERSION"), "utf8");
 
-    await runInitDeposit(args, io, {
-      ...seams,
-      gitHooks: { getHooksPath: () => "", setHooksPath: () => true },
-    });
-    const initVersion = readFileSync(join(project, ".deft/core", "VERSION"), "utf8");
-    const copyContent = vi.fn(async () => {
-      throw new Error("copyContent must not run for an already-current update");
-    });
-    const updateSeams = {
-      ...seams,
-      copyContent,
-      nowIso: () => "2026-06-25T12:00:00Z",
-      gitSemanticDiffNames: () => [],
-    };
-
-    io.printf.mockClear();
-    const first = await runRefreshDeposit(args, io, updateSeams);
-    const firstAgents = readFileSync(join(project, "AGENTS.md"), "utf8");
-    const firstVersion = readFileSync(join(project, ".deft/core", "VERSION"), "utf8");
-
-    io.printf.mockClear();
-    const second = await runRefreshDeposit(args, io, updateSeams);
-    const secondAgents = readFileSync(join(project, "AGENTS.md"), "utf8");
-    const secondVersion = readFileSync(join(project, ".deft/core", "VERSION"), "utf8");
-
-    expect(secondAgents).toBe(firstAgents);
-    expect(firstVersion).toBe(initVersion);
-    expect(secondVersion).toBe(initVersion);
-    expect(first.alreadyCurrent).toBe(true);
-    expect(first.strategy).toBe("no-op");
-    expect(second.agentsMdUpdated).toBe(false);
-    expect(second.alreadyCurrent).toBe(true);
-    expect(second.strategy).toBe("no-op");
-    expect(copyContent).not.toHaveBeenCalled();
-    expect(existsSync(join(project, ".deft/core", "main.md"))).toBe(true);
-  });
+      expect(secondAgents).toBe(firstAgents);
+      expect(firstVersion).toBe(initVersion);
+      expect(secondVersion).toBe(initVersion);
+      expect(first.alreadyCurrent).toBe(true);
+      expect(first.strategy).toBe("no-op");
+      expect(second.agentsMdUpdated).toBe(false);
+      expect(second.alreadyCurrent).toBe(true);
+      expect(second.strategy).toBe("no-op");
+      expect(copyContent).not.toHaveBeenCalled();
+      expect(existsSync(join(project, ".deft/core", "main.md"))).toBe(true);
+    },
+  );
 });
 
 describe("resolvePnpm", () => {

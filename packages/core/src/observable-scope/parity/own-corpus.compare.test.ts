@@ -22,22 +22,26 @@ const snippets: Record<string, string> = {
 };
 
 describe("parent corpus fixtures (#4495 recut)", () => {
-  it("extracts committed page goldens and refuses truncated tab markup", destContentionItTimeout(), () => {
-    const files = readdirSync(corpusDir)
-      .filter((n) => n.endsWith(".html"))
-      .sort()
-      .map((n) => [n, readFileSync(join(corpusDir, n), "utf8")] as const);
-    expect(files.length).toBe(18);
-    for (const [name, src] of files) {
-      expect(viaLite(src, name).length, name).toBeGreaterThan(0);
-    }
-    expect(Object.keys(snippets).length).toBe(10);
-    for (const [name, src] of Object.entries(snippets)) {
-      if (name === "adversarial-7") {
-        expect(() => viaLite(src, "x.html"), name).toThrow(/observable-scope-markup-unresolved/);
-        continue;
+  it(
+    "extracts committed page goldens and refuses truncated tab markup",
+    destContentionItTimeout(),
+    () => {
+      const files = readdirSync(corpusDir)
+        .filter((n) => n.endsWith(".html"))
+        .sort()
+        .map((n) => [n, readFileSync(join(corpusDir, n), "utf8")] as const);
+      expect(files.length).toBe(18);
+      for (const [name, src] of files) {
+        expect(viaLite(src, name).length, name).toBeGreaterThan(0);
       }
-      expect(viaLite(src, "x.html").length, name).toBeGreaterThan(0);
-    }
-  });
+      expect(Object.keys(snippets).length).toBe(10);
+      for (const [name, src] of Object.entries(snippets)) {
+        if (name === "adversarial-7") {
+          expect(() => viaLite(src, "x.html"), name).toThrow(/observable-scope-markup-unresolved/);
+          continue;
+        }
+        expect(viaLite(src, "x.html").length, name).toBeGreaterThan(0);
+      }
+    },
+  );
 });

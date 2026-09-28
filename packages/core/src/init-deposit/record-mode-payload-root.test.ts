@@ -13,7 +13,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
-import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import {
   emptyMutationSummary,
   mutationSummaryJson,
@@ -21,6 +20,7 @@ import {
 } from "../fs/mutation-ledger.js";
 import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
 import type { ClassifySeams } from "../resolution/index.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import {
   recordModePayloadRoot,
   runRefreshDepositCli,
@@ -260,100 +260,108 @@ describe("directive update record-mode payload-root (#4446)", () => {
     expect(existsSync(join(project, ".githooks", "pre-commit"))).toBe(true);
   });
 
-  it("dry-run and live agree when pre-swap dest template is missing (#4446)", destContentionItTimeout(), async () => {
-    const project = freshRoot("payload-root-missing-");
-    const contentRoot = installIncomingAway("0.103.0", repoTemplate());
-    writeInitializedProject(project, "0.78.0");
-    rmSync(join(project, ".deft", "core", "templates", "agents-entry.md"));
-    const dryOut: string[] = [];
-    const dryCode = await runRefreshDepositCli({
-      projectDir: project,
-      jsonOut: true,
-      nonInteractive: true,
-      upgrade: true,
-      dryRun: true,
-      classifySeams: classifySeams({ reachable: true, version: "0.103.0" }),
-      writeOut: (t) => dryOut.push(t),
-      writeErr: () => undefined,
-      seams: {
-        resolveContentRoot: async () => contentRoot,
-        readEngineVersion: () => "0.103.0",
-      },
-    });
-    expect(dryCode).toBe(0);
-    const dryPayload = parseJsonObject(dryOut.join(""));
-    expect(dryPayload.success).toBe(true);
-    expect(dryPayload.error_code).toBeUndefined();
-    const liveOut: string[] = [];
-    const liveCode = await runRefreshDepositCli({
-      projectDir: project,
-      jsonOut: true,
-      nonInteractive: true,
-      upgrade: true,
-      classifySeams: classifySeams({ reachable: true, version: "0.103.0" }),
-      writeOut: (t) => liveOut.push(t),
-      writeErr: () => undefined,
-      seams: {
-        resolveContentRoot: async () => contentRoot,
-        readEngineVersion: () => "0.103.0",
-        nowIso: () => "2026-09-14T12:00:00Z",
-        gitPorcelain: () => null,
-        gitLsFiles: () => null,
-        evaluateAgentHookReadiness: () => agentHookReadiness(),
-      },
-    });
-    expect(liveCode).toBe(0);
-    const livePayload = parseJsonObject(liveOut.join(""));
-    expect(livePayload.success).toBe(true);
-  });
+  it(
+    "dry-run and live agree when pre-swap dest template is missing (#4446)",
+    destContentionItTimeout(),
+    async () => {
+      const project = freshRoot("payload-root-missing-");
+      const contentRoot = installIncomingAway("0.103.0", repoTemplate());
+      writeInitializedProject(project, "0.78.0");
+      rmSync(join(project, ".deft", "core", "templates", "agents-entry.md"));
+      const dryOut: string[] = [];
+      const dryCode = await runRefreshDepositCli({
+        projectDir: project,
+        jsonOut: true,
+        nonInteractive: true,
+        upgrade: true,
+        dryRun: true,
+        classifySeams: classifySeams({ reachable: true, version: "0.103.0" }),
+        writeOut: (t) => dryOut.push(t),
+        writeErr: () => undefined,
+        seams: {
+          resolveContentRoot: async () => contentRoot,
+          readEngineVersion: () => "0.103.0",
+        },
+      });
+      expect(dryCode).toBe(0);
+      const dryPayload = parseJsonObject(dryOut.join(""));
+      expect(dryPayload.success).toBe(true);
+      expect(dryPayload.error_code).toBeUndefined();
+      const liveOut: string[] = [];
+      const liveCode = await runRefreshDepositCli({
+        projectDir: project,
+        jsonOut: true,
+        nonInteractive: true,
+        upgrade: true,
+        classifySeams: classifySeams({ reachable: true, version: "0.103.0" }),
+        writeOut: (t) => liveOut.push(t),
+        writeErr: () => undefined,
+        seams: {
+          resolveContentRoot: async () => contentRoot,
+          readEngineVersion: () => "0.103.0",
+          nowIso: () => "2026-09-14T12:00:00Z",
+          gitPorcelain: () => null,
+          gitLsFiles: () => null,
+          evaluateAgentHookReadiness: () => agentHookReadiness(),
+        },
+      });
+      expect(liveCode).toBe(0);
+      const livePayload = parseJsonObject(liveOut.join(""));
+      expect(livePayload.success).toBe(true);
+    },
+  );
 
-  it("dry-run and live agree when pre-swap dest template is malformed (#4446)", destContentionItTimeout(), async () => {
-    const project = freshRoot("payload-root-malformed-");
-    const contentRoot = installIncomingAway("0.103.0", repoTemplate());
-    writeInitializedProject(project, "0.78.0");
-    writeFileSync(
-      join(project, ".deft", "core", "templates", "agents-entry.md"),
-      "not a managed template\n",
-      "utf8",
-    );
-    const dryOut: string[] = [];
-    const dryCode = await runRefreshDepositCli({
-      projectDir: project,
-      jsonOut: true,
-      nonInteractive: true,
-      upgrade: true,
-      dryRun: true,
-      classifySeams: classifySeams({ reachable: true, version: "0.103.0" }),
-      writeOut: (t) => dryOut.push(t),
-      writeErr: () => undefined,
-      seams: {
-        resolveContentRoot: async () => contentRoot,
-        readEngineVersion: () => "0.103.0",
-      },
-    });
-    expect(dryCode).toBe(0);
-    expect(parseJsonObject(dryOut.join("")).success).toBe(true);
-    const liveOut: string[] = [];
-    const liveCode = await runRefreshDepositCli({
-      projectDir: project,
-      jsonOut: true,
-      nonInteractive: true,
-      upgrade: true,
-      classifySeams: classifySeams({ reachable: true, version: "0.103.0" }),
-      writeOut: (t) => liveOut.push(t),
-      writeErr: () => undefined,
-      seams: {
-        resolveContentRoot: async () => contentRoot,
-        readEngineVersion: () => "0.103.0",
-        nowIso: () => "2026-09-14T12:00:00Z",
-        gitPorcelain: () => null,
-        gitLsFiles: () => null,
-        evaluateAgentHookReadiness: () => agentHookReadiness(),
-      },
-    });
-    expect(liveCode).toBe(0);
-    expect(parseJsonObject(liveOut.join("")).success).toBe(true);
-  });
+  it(
+    "dry-run and live agree when pre-swap dest template is malformed (#4446)",
+    destContentionItTimeout(),
+    async () => {
+      const project = freshRoot("payload-root-malformed-");
+      const contentRoot = installIncomingAway("0.103.0", repoTemplate());
+      writeInitializedProject(project, "0.78.0");
+      writeFileSync(
+        join(project, ".deft", "core", "templates", "agents-entry.md"),
+        "not a managed template\n",
+        "utf8",
+      );
+      const dryOut: string[] = [];
+      const dryCode = await runRefreshDepositCli({
+        projectDir: project,
+        jsonOut: true,
+        nonInteractive: true,
+        upgrade: true,
+        dryRun: true,
+        classifySeams: classifySeams({ reachable: true, version: "0.103.0" }),
+        writeOut: (t) => dryOut.push(t),
+        writeErr: () => undefined,
+        seams: {
+          resolveContentRoot: async () => contentRoot,
+          readEngineVersion: () => "0.103.0",
+        },
+      });
+      expect(dryCode).toBe(0);
+      expect(parseJsonObject(dryOut.join("")).success).toBe(true);
+      const liveOut: string[] = [];
+      const liveCode = await runRefreshDepositCli({
+        projectDir: project,
+        jsonOut: true,
+        nonInteractive: true,
+        upgrade: true,
+        classifySeams: classifySeams({ reachable: true, version: "0.103.0" }),
+        writeOut: (t) => liveOut.push(t),
+        writeErr: () => undefined,
+        seams: {
+          resolveContentRoot: async () => contentRoot,
+          readEngineVersion: () => "0.103.0",
+          nowIso: () => "2026-09-14T12:00:00Z",
+          gitPorcelain: () => null,
+          gitLsFiles: () => null,
+          evaluateAgentHookReadiness: () => agentHookReadiness(),
+        },
+      });
+      expect(liveCode).toBe(0);
+      expect(parseJsonObject(liveOut.join("")).success).toBe(true);
+    },
+  );
 
   it("recorded dest plan does not waive dirty-tree refuse (#4446)", async () => {
     const project = freshRoot("payload-root-dirty-");
