@@ -87,6 +87,21 @@ describe("applyPatchMutationPaths (#3794)", () => {
     expect(parseHookStdin(freeForm)).toEqual({ payload: {}, context: { parseFailed: true } });
   });
 
+  it("fills tool_input.path from string command on hyphenated apply-patch (#5094)", () => {
+    const patch = ["*** Begin Patch", "*** Add File: src/hyphen.ts", "+x", "*** End Patch"].join(
+      "\n",
+    );
+    const stdin = JSON.stringify({
+      tool_name: "apply-patch",
+      tool_input: { command: patch },
+    });
+    const parsed = parseHookStdin(stdin);
+    const payload = parsed.payload as { tool_input?: { path?: string; command?: string } };
+    expect(payload.tool_input?.path).toBe("src/hyphen.ts");
+    expect(payload.tool_input?.command).toBe(patch);
+    expect(parsed.context).toEqual({});
+  });
+
   it("fills tool_input.path from string command on JSON apply_patch (#5094)", () => {
     const patch = [
       "*** Begin Patch",

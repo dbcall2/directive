@@ -62,9 +62,9 @@ export function hookWriteTargetPath(payload: unknown): string | null {
 
 /**
  * Raw ApplyPatch body text. Legacy fields (`patch` / `unified_diff` / `diff`)
- * plus string `command` when the payload declares ApplyPatch / apply_patch.
- * Conflicting fields union; `command` is not on the host-agnostic firstString
- * list (#5094).
+ * plus string `command` when the payload declares an ApplyPatch tool
+ * (`isApplyPatchTool`, including `apply-patch`). Conflicting fields union;
+ * `command` is not on the host-agnostic firstString list (#5094).
  */
 export function hookApplyPatchBodyText(payload: unknown): string | null {
   return applyPatchBodyTextFromParsed(payload);

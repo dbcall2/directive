@@ -51,6 +51,7 @@ describe("hooks tools classifiers (#2711 / #2952)", () => {
     expect(isSpawnTool("Shell")).toBe(false);
     expect(isApplyPatchTool("ApplyPatch")).toBe(true);
     expect(isApplyPatchTool("apply_patch")).toBe(true);
+    expect(isApplyPatchTool("apply-patch")).toBe(true);
     expect(isApplyPatchTool("Write")).toBe(false);
     expect(isApplyPatchTool("Bash")).toBe(false);
   });

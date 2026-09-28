@@ -3,6 +3,7 @@
  * No process I/O — operates on an already-read string.
  */
 
+import { isApplyPatchTool } from "../tools.js";
 import {
   fieldString,
   firstString,
@@ -91,7 +92,11 @@ function declaredWritePathFromParsed(payload: unknown): string | null {
 
 const APPLY_PATCH_BODY_KEYS = ["patch", "unified_diff", "diff"] as const;
 
-/** Declared ApplyPatch / apply_patch tool name — not inferred from command text. */
+/**
+ * Declared ApplyPatch tool name — not inferred from command text.
+ * Same normalizer as dispatcher `isApplyPatchTool` so `apply-patch` admits
+ * command-body harvest (#5094 Greptile).
+ */
 function payloadDeclaresApplyPatchTool(payload: Record<string, unknown>): boolean {
   const toolObject = record(payload.tool);
   const toolCall = record(payload.tool_call) ?? record(payload.toolCall);
@@ -101,7 +106,7 @@ function payloadDeclaresApplyPatchTool(payload: Record<string, unknown>): boolea
     fieldString(payload, "tool") ??
     (toolObject !== null ? fieldString(toolObject, "name") : null) ??
     (toolCall !== null ? fieldString(toolCall, "name") : null);
-  return name === "ApplyPatch" || name === "apply_patch";
+  return name !== null && isApplyPatchTool(name);
 }
 
 function pushUniqueBodyText(into: string[], value: unknown): void {
@@ -113,8 +118,8 @@ function pushUniqueBodyText(into: string[], value: unknown): void {
 
 /**
  * ApplyPatch body field texts. `command` is admitted only when the payload
- * declares ApplyPatch / apply_patch — never via host-agnostic firstString,
- * and never for Shell/Bash command strings (#5094).
+ * declares an ApplyPatch tool (`isApplyPatchTool`) — never via host-agnostic
+ * firstString, and never for Shell/Bash command strings (#5094).
  */
 export function applyPatchBodyFieldTexts(payload: unknown): string[] {
   const input = record(payload);

@@ -37,6 +37,17 @@ describe("path/shell extractors (#2950)", () => {
     ).toBeNull();
   });
 
+  it("hyphenated apply-patch command-only payload extracts mutation targets (#5094)", () => {
+    expect(
+      hookMutationTargetPaths({
+        tool_name: "apply-patch",
+        tool_input: {
+          command: "*** Begin Patch\n*** Update File: hyphen.ts\n+x\n*** End Patch",
+        },
+      }),
+    ).toEqual(["hyphen.ts"]);
+  });
+
   it("hookApplyPatchBodyText unions conflicting body fields (#5094)", () => {
     const patchA = "*** Begin Patch\n*** Update File: a.ts\n+x\n*** End Patch";
     const patchB = "*** Begin Patch\n*** Update File: b.ts\n+y\n*** End Patch";
