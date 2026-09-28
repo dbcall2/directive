@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { extractMarkupFacts, SCRIPT_SENTINEL } from "./extract.js";
 
@@ -18,7 +18,25 @@ describe("packed/installed oracle smoke (#4495)", () => {
     };
     expect(pkg.dependencies?.parse5).toMatch(/\^7\.3/);
     expect(pkg.dependencies?.jsdom).toBeUndefined();
-    expect(pkg.dependencies?.typescript).toBeUndefined();
+    // #5056 owns a lazy TypeScript parser elsewhere in core. The observable
+    // reader retains its no-compiler runtime boundary.
+    const observableEntry = new URL("./extract.ts", import.meta.url).href;
+    const sourceLoader = pathToFileURL(createRequire(repoPkgPath).resolve("tsx")).href;
+    const loaded = execFileSync(
+      process.execPath,
+      [
+        "--import",
+        sourceLoader,
+        "--input-type=module",
+        "-e",
+        `import { createRequire } from 'node:module';
+         await import(${JSON.stringify(observableEntry)});
+         const req = createRequire(import.meta.url);
+         process.stdout.write(String(Object.keys(req.cache).some(path => /typescript[\\/]lib/.test(path))));`,
+      ],
+      { encoding: "utf8" },
+    );
+    expect(loaded).toBe("false");
     const req = createRequire(corePkgPath);
     const parse5Entry = req.resolve("parse5");
     expect(parse5Entry).toMatch(/parse5/);

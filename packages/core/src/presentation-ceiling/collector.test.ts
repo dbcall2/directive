@@ -141,6 +141,48 @@ describe("presentation ceiling real Git collector", () => {
     f.write(RECORD, '{"seedSql":"INSERT"}');
     expect(f.run().findings.some((x) => x.kind === "json-exemption-referenced")).toBe(true);
   });
+  it.each([RECORD, "CHANGELOG.md"])("follows later assignments to %s", (path) => {
+    const f = fixture({
+      [CEILING]: ceiling,
+      [path]: "{}",
+      "src/app.tsx": `let path; path = '${path}'; const alias = path; readFileSync(alias); path = 'unrelated';`,
+    });
+    f.write(path, '{"seedSql":"INSERT"}');
+    expect(f.run().exitCode).toBe(1);
+  });
+  it.each([RECORD, "CHANGELOG.md"])("retains earlier protected values for %s", (path) => {
+    const f = fixture({
+      [CEILING]: ceiling,
+      [path]: "{}",
+      "src/app.tsx": `let path = '${path}'; readFileSync(path); path = 'unrelated';`,
+    });
+    f.write(path, '{"seedSql":"INSERT"}');
+    expect(f.run().exitCode).toBe(1);
+  });
+  it.each([
+    RECORD,
+    "CHANGELOG.md",
+  ])("follows protected reassignment after an unrelated initializer: %s", (path) => {
+    const f = fixture({
+      [CEILING]: ceiling,
+      [path]: "{}",
+      "src/app.tsx": `let path = 'unrelated'; path = '${path}'; readFileSync(path);`,
+    });
+    f.write(path, '{"seedSql":"INSERT"}');
+    expect(f.run().exitCode).toBe(1);
+  });
+  it.each([
+    RECORD,
+    "CHANGELOG.md",
+  ])("keeps later assignments used only as printed labels exempt: %s", (path) => {
+    const f = fixture({
+      [CEILING]: ceiling,
+      [path]: "{}",
+      "src/app.tsx": `let label; label = '${path}'; console.log(label);`,
+    });
+    f.write(path, '{"seedSql":"INSERT"}');
+    expect(f.run().exitCode).toBe(0);
+  });
   it.each([
     ["path = 'CHANGELOG.md'\ndata = open(path).read()", 1],
     ['path = r"CHANGELOG.md"\ndata = open(path).read()', 1],
@@ -150,6 +192,14 @@ describe("presentation ceiling real Git collector", () => {
     ["help_text = \"open('CHANGELOG.md')\"\nprint(help_text)", 0],
     ['"""Example: open(\'CHANGELOG.md\')"""\nprint("hello")', 0],
     ['path = "CHANGELOG.md"\nexample = "open(path)"', 0],
+    ["def format_label(label='CHANGELOG.md'):\n    return label", 0],
+    ["async def format_label(label='CHANGELOG.md'):\n    return label", 0],
+    ["def format_label(label=open('CHANGELOG.md').read()):\n    return label", 1],
+    ["def read_label(label='CHANGELOG.md'):\n    return open(label).read()", 1],
+    ["label = 'CHANGELOG.md'\nformat_label(label)", 1],
+    ["class Label(object):\n    label = 'CHANGELOG.md'", 0],
+    ["class Label(make_base('CHANGELOG.md')):\n    pass", 1],
+    ["class Label(object):\n    label = open('CHANGELOG.md').read()", 1],
   ] as const)("recognizes executable fallback readers only: %s", (source, expected) => {
     const f = fixture({ [CEILING]: ceiling, "CHANGELOG.md": "old", "src/app.py": source });
     f.write("CHANGELOG.md", "SQL: INSERT");

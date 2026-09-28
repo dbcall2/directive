@@ -340,6 +340,9 @@ function fallbackReaderEvidence(content: string): ReaderEvidence {
   const inputPaths = new Set<string>();
   for (const match of executable.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)) {
     const name = match[1] ?? "";
+    // A Python signature is not a call. Nested executable default expressions
+    // and body calls are still visited by subsequent matches.
+    if (/\b(?:def|class)\s+$/.test(executable.slice(0, match.index))) continue;
     if (DISPLAY_CALL.test(name) || /^(?:if|while|for|switch|return|def|class)$/.test(name))
       continue;
     const start = match.index + match[0].length;
@@ -387,7 +390,10 @@ function readerEvidence(path: string, content: string): ReaderEvidence {
   const inputPaths = new Set<string>();
   const bindings = new Set<string>();
   const namespaces = new Set<string>();
-  const variables = new Map<string, TypeScript.Expression>();
+  const variables = new Map<string, TypeScript.Expression[]>();
+  const recordValue = (name: string, value: TypeScript.Expression): void => {
+    variables.set(name, [...(variables.get(name) ?? []), value]);
+  };
   const registerBinding = (name: TypeScript.BindingName): void => {
     if (ts.isIdentifier(name)) namespaces.add(name.text);
     else if (ts.isObjectBindingPattern(name))
@@ -416,7 +422,7 @@ function readerEvidence(path: string, content: string): ReaderEvidence {
       if (clause?.name) namespaces.add(clause.name.text);
     }
     if (ts.isVariableDeclaration(node) && node.initializer) {
-      if (ts.isIdentifier(node.name)) variables.set(node.name.text, node.initializer);
+      if (ts.isIdentifier(node.name)) recordValue(node.name.text, node.initializer);
       const init = node.initializer;
       if (
         ts.isCallExpression(init) &&
@@ -425,6 +431,12 @@ function readerEvidence(path: string, content: string): ReaderEvidence {
       )
         registerBinding(node.name);
     }
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isIdentifier(node.left)
+    )
+      recordValue(node.left.text, node.right);
     ts.forEachChild(node, collect);
   };
   collect(source);
@@ -435,9 +447,10 @@ function readerEvidence(path: string, content: string): ReaderEvidence {
   ): boolean => {
     if (ts.isStringLiteralLike(node)) return predicate(node.text);
     if (ts.isIdentifier(node) && !seen.has(node.text)) {
-      const value = variables.get(node.text);
-      if (value) {
-        seen.add(node.text);
+      seen.add(node.text);
+      // Retain every possible same-file value; a later write cannot erase an
+      // earlier protected read. This is conservative syntax, not control flow.
+      for (const value of variables.get(node.text) ?? []) {
         if (contains(value, predicate, seen)) return true;
       }
     }
