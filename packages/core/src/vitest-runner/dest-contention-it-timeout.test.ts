@@ -102,7 +102,8 @@ const LOADED_LANE_EDGE_ITS: ReadonlyArray<{ file: string; titlePrefix: string }>
   },
   {
     file: "packages/core/src/init-deposit/refresh.test.ts",
-    titlePrefix: "keeps a completed refresh but exits non-zero when post-deposit hook readiness fails",
+    titlePrefix:
+      "keeps a completed refresh but exits non-zero when post-deposit hook readiness fails",
   },
   {
     file: "packages/core/src/init-deposit/refresh.test.ts",
@@ -119,7 +120,8 @@ const LOADED_LANE_EDGE_ITS: ReadonlyArray<{ file: string; titlePrefix: string }>
   },
   {
     file: "packages/core/src/init-deposit/refresh.test.ts",
-    titlePrefix: "announces rewritten xbrief/schemas paths from the ledger and does not run prettier",
+    titlePrefix:
+      "announces rewritten xbrief/schemas paths from the ledger and does not run prettier",
   },
   {
     file: "packages/core/src/init-deposit/refresh.test.ts",
@@ -167,7 +169,8 @@ const LOADED_LANE_EDGE_ITS: ReadonlyArray<{ file: string; titlePrefix: string }>
   },
   {
     file: "packages/core/src/release-e2e/npm-ops.test.ts",
-    titlePrefix: "upgrade leg: directive update refresh is idempotent with no spurious AGENTS.md diff",
+    titlePrefix:
+      "upgrade leg: directive update refresh is idempotent with no spurious AGENTS.md diff",
   },
   {
     file: "packages/core/src/observable-scope/parity/own-corpus.compare.test.ts",
