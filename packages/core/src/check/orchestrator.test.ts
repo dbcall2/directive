@@ -443,6 +443,8 @@ tasks:
     cmds: [echo ok]
   intent-constraint:
     cmds: [echo ok]
+  presentation-ceiling:
+    cmds: [echo ok]
   durable-effect-acquisition:
     cmds: [echo ok]
   presentation-coverage:
@@ -571,6 +573,8 @@ tasks:
   observable-scope:
     cmds: [echo ok]
   intent-constraint:
+    cmds: [echo ok]
+  presentation-ceiling:
     cmds: [echo ok]
   durable-effect-acquisition:
     cmds: [echo ok]
