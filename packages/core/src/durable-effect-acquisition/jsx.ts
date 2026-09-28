@@ -681,6 +681,39 @@ function analyze(path: string, source: string, ctx: JsxContext): ClassifyResult 
   };
   const nativeTag = (tag: TS.JsxTagNameExpression): boolean =>
     ts.isIdentifier(tag) && /^[a-z][a-z0-9]*$/.test(tag.text);
+  const decodeChildText = (node: TS.JsxText): string | undefined => {
+    // JSX child entities and line trimming differ from both JS literals and
+    // quoted attributes. Let the same compiler that emits JSX determine bytes.
+    const emitted = ts.transpileModule(`export default <x>${node.text}</x>;`, {
+      compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2020 },
+      reportDiagnostics: true,
+      fileName: "decode.tsx",
+    });
+    if ((emitted.diagnostics ?? []).length > 0) return undefined;
+    const out = ts.createSourceFile(
+      "decode.js",
+      emitted.outputText,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.JS,
+    );
+    let value: string | undefined;
+    const visit = (n: TS.Node): void => {
+      if (
+        ts.isCallExpression(n) &&
+        n.arguments[0] &&
+        ts.isStringLiteral(n.arguments[0]) &&
+        n.arguments[0].text === "x"
+      ) {
+        const child = n.arguments[2];
+        if (!child) value = "";
+        else if (ts.isStringLiteral(child)) value = child.text;
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(out);
+    return value;
+  };
   const jsx = (node: TS.JsxOpeningElement | TS.JsxSelfClosingElement): void => {
     const tag = node.tagName.getText(sf);
     const native = nativeTag(node.tagName);
@@ -825,8 +858,13 @@ function analyze(path: string, source: string, ctx: JsxContext): ClassifyResult 
       if (!native)
         for (const child of node.children) {
           if (ts.isJsxText(child) && child.text.trim()) {
-            const hit = classifyLiteralUrlValue(child.text, "item-3", ctx.admittedOrigins);
-            if (hit) add(child, hit.id, hit.detail, hit.rule);
+            const text = decodeChildText(child);
+            if (text === undefined)
+              add(child, "child-decode", "JSX text emitter diagnostic", "item-9");
+            else {
+              const hit = classifyLiteralUrlValue(text, "item-3", ctx.admittedOrigins);
+              if (hit) add(child, hit.id, hit.detail, hit.rule);
+            }
           } else if (ts.isJsxExpression(child) && child.expression)
             urlValue(child.expression, "child", false);
         }
@@ -834,8 +872,11 @@ function analyze(path: string, source: string, ctx: JsxContext): ClassifyResult 
         let body = "";
         let complete = true;
         for (const child of node.children)
-          if (ts.isJsxText(child)) body += child.text;
-          else if (ts.isJsxExpression(child) && child.expression) {
+          if (ts.isJsxText(child)) {
+            const text = decodeChildText(child);
+            if (text === undefined) complete = false;
+            else body += text;
+          } else if (ts.isJsxExpression(child) && child.expression) {
             const v = staticValue(child.expression);
             if (v.known) body += String(v.value);
             else complete = false;

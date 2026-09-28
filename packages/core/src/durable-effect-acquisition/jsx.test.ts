@@ -14,6 +14,12 @@ function run(source: string) {
 
 describe("jsx classify (#5080)", () => {
   it.each([
+    [`<style>&#64;import &quot;https://collector.example/p&quot;;</style>`, false],
+    [`<Photo>&#104;ttps://collector.example/p</Photo>`, false],
+    [`<Photo>&#47;image.png</Photo>`, true],
+    [`<style>body &#123;color:red;&#125;</style>`, true],
+    [`<Photo>\n  &#104;ttps://collector.example/p\n</Photo>`, false],
+    [`<Photo>\n  &#47;image.png\n</Photo>`, true],
     [`<base href="/"/>`, true],
     [`<base href="https://collector.example/"/>`, false],
     [`function Page(p){return <base href={p.base}/>;}`, false],
