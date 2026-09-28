@@ -51,7 +51,7 @@ Known native inert attributes such as title, alt, class/className, and ordinary 
 
 Both HTML scripting modes, template contents, and namespaces are covered. Inline scripts, handlers, style attributes, and JSX script/style children are checked. CSS escapes and fetch functions refuse. Non-GET forms, submitter overrides, `ping`, `srcdoc`, embedded documents, and non-benign meta directives refuse. A non-sentinel or unresolved document base in either snapshot refuses independently of acquisition deltas; a statically same-origin base passes.
 
-This deliberately rejects some safe programs: arbitrary derived URL expressions, unknown string/object consumers, dynamic style values, unknown global/member APIs, escaped CSS, and unsupported provenance. `mailto:` and `tel:` are not request-capable schemes. Opaque request schemes such as `data:`, `blob:`, and `javascript:` refuse. Absolute own-domain links require an admitted origin.
+This deliberately rejects some safe programs: arbitrary derived URL expressions, unknown string/object consumers, dynamic style values, unknown global/member APIs, escaped CSS, and unsupported provenance. `mailto:` and `tel:` are not request-capable schemes. Request-capable values with opaque (`null`) or non-admitted external origins refuse, including `data:` and `javascript:`. A `blob:` URL follows its parsed origin; a same-origin blob retains the in-memory exclusion. Absolute own-domain links require an admitted origin.
 
 ## Invocation
 

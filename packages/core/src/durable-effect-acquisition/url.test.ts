@@ -24,6 +24,11 @@ describe("url preprocessing (#5080 item 3)", () => {
     expect(classifyLiteralUrlValue("data:image/png;base64,aaa", "item-3", [])?.detail).toMatch(
       /origin/,
     );
+    expect(classifyLiteralUrlValue("blob:https://deft.invalid/id", "item-3", [])).toBeNull();
+    expect(classifyLiteralUrlValue("blob:null/id", "item-3", [])?.detail).toMatch(/origin/);
+    expect(
+      classifyLiteralUrlValue("blob:https://collector.example/id", "item-3", [])?.detail,
+    ).toMatch(/collector/);
   });
 
   it("splits list candidates so srcset second tokens refuse", () => {
