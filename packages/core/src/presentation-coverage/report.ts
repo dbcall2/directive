@@ -37,6 +37,7 @@ export function parseCoverageReport(
   }
   if (raw.armed && exitCode === 0) {
     if (
+      rows.length !== COMPOSED_GATE_IDS.length ||
       !Array.isArray(raw.uncoveredPaths) ||
       raw.uncoveredPaths.length > 0 ||
       COMPOSED_GATE_IDS.some(

@@ -66,6 +66,10 @@ it("validates every typed row and keeps complete armed evidence", () => {
   for (const patch of [
     { uncoveredPaths: ["ui/a.html"] },
     { coverage: [...raw.coverage, row] },
+    { coverage: [...raw.coverage, { ...row, code: 1 }] },
+    { coverage: [...raw.coverage, { ...row, code: 2 }] },
+    { coverage: [...raw.coverage, { ...row, code: null, status: "unrun" }] },
+    { coverage: [...raw.coverage, { ...row, gateId: "unexpected-gate" }] },
     { coverage: raw.coverage.map((r) => ({ ...r, status: "unrun" })) },
   ]) {
     expect(parseCoverageReport(JSON.stringify({ ...raw, ...patch }), 0)).toHaveProperty("error");
