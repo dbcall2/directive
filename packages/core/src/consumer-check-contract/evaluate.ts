@@ -22,6 +22,7 @@ export const REQUIRED_CONSUMER_ENFORCEMENT_GATES: readonly string[] = [
   "verify:evaluator-surface",
   "verify:observable-scope",
   "verify:intent-constraint",
+  "verify:presentation-ceiling",
   "verify:durable-effect-acquisition",
   "verify:presentation-coverage",
 ];

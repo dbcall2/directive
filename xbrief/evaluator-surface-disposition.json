@@ -1,23 +1,18 @@
 {
   "schema": "deft.evaluator-surface-disposition.v1",
   "kind": "disclosure",
-  "issue": 5079,
+  "issue": 5056,
   "surfaces": [
     "Taskfile.yml",
     "tasks/verify.yml",
-    "vitest.config.ts",
     "packages/core/src/check/gate-lists.ts",
+    "packages/core/src/consumer-check-contract/evaluate.ts",
     "packages/core/src/evaluator-surface/**",
-    "packages/core/src/presentation-coverage/**",
-    "packages/core/src/intent-constraint/**",
-    "packages/core/src/observable-scope/**",
-    "packages/core/src/class-checks/**",
-    "packages/cli/src/verify-presentation-coverage.ts",
-    "xbrief/evaluator-surface-disposition.json",
-    "packages/core/src/check/**",
-    "packages/core/src/consumer-check-contract/**",
-    "packages/core/src/product-first-done-gate/**",
-    "packages/core/src/run-summary/types.ts"
+    "packages/core/src/presentation-ceiling/**",
+    "packages/core/src/observable-scope/parity/own-corpus.compare.test.ts",
+    "packages/core/src/observable-scope/pack-smoke.test.ts",
+    "packages/cli/src/verify-presentation-ceiling.ts",
+    "xbrief/evaluator-surface-disposition.json"
   ],
-  "note": "Disclosure for the operator-approved #5079 repair: real required gate composition, pinned Git candidate reads, base story/path admission, and mandatory aggregate/consumer coverage. Shared supplier #5056 remains an independent gate. Disclosure only; not #3164 authorization."
+  "note": "Renewed disclosure for #5056: verify:presentation-ceiling sibling gate wiring. The observable-scope pack smoke replaces its package-wide TypeScript ban with a real no-eager-load check; the ceiling owns the lazy runtime parser while observable extraction retains consumer-root parser resolution. Disclosure only; not #3164 authorization."
 }

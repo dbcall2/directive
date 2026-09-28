@@ -7,6 +7,7 @@
 import { DURABLE_EFFECT_REMEDIATION } from "../durable-effect-acquisition/types.js";
 import { INTENT_CONSTRAINT_REMEDIATION } from "../intent-constraint/types.js";
 import { OBSERVABLE_SCOPE_REMEDIATION } from "../observable-scope/types.js";
+import { PRESENTATION_CEILING_REMEDIATION } from "../presentation-ceiling/types.js";
 
 export interface NamedCauseMessage {
   readonly gateId: string;
@@ -45,6 +46,7 @@ const GATE_REMEDIES: Readonly<Record<string, string>> = {
     "Add xbrief/evaluator-surface-disposition.json covering the changed evaluator paths (disclosure only; not #3164 authorization)",
   "verify:observable-scope": OBSERVABLE_SCOPE_REMEDIATION,
   "verify:intent-constraint": INTENT_CONSTRAINT_REMEDIATION,
+  "verify:presentation-ceiling": PRESENTATION_CEILING_REMEDIATION,
   "verify:durable-effect-acquisition": DURABLE_EFFECT_REMEDIATION,
   "verify:presentation-coverage":
     "Under an armed presentation ceiling, cannot-evaluate is refuse or escalate. Continue only from a merge-base human-stamped mint or extensionAmendment covering the same paths.",

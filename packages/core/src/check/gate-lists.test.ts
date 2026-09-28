@@ -202,6 +202,7 @@ describe("gate-lists (#2791)", () => {
       "verify:evaluator-surface",
       "verify:observable-scope",
       "verify:intent-constraint",
+      "verify:presentation-ceiling",
       "verify:durable-effect-acquisition",
     ]) {
       expect(framework).toContain(gate);

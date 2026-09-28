@@ -41,6 +41,9 @@ tasks:
   intent-constraint:
     cmds:
       - echo ok
+  presentation-ceiling:
+    cmds:
+      - echo ok
   durable-effect-acquisition:
     cmds:
       - echo ok
@@ -97,6 +100,7 @@ tasks:
       - verify:evaluator-surface
       - verify:observable-scope
       - verify:intent-constraint
+      - verify:presentation-ceiling
       - verify:durable-effect-acquisition
       - verify:presentation-coverage
 ${orphanEntry}    cmds:
@@ -134,6 +138,7 @@ describe("extractCheckDepEntries (#3893)", () => {
       "verify:evaluator-surface",
       "verify:observable-scope",
       "verify:intent-constraint",
+      "verify:presentation-ceiling",
       "verify:durable-effect-acquisition",
       "verify:presentation-coverage",
       "verify:orphan-active",

@@ -38,6 +38,7 @@ tasks:
       - verify:evaluator-surface
       - verify:observable-scope
       - verify:intent-constraint
+      - verify:presentation-ceiling
       - verify:durable-effect-acquisition
       - verify:presentation-coverage
 `;
@@ -64,6 +65,9 @@ tasks:
     cmds:
       - echo ok
   intent-constraint:
+    cmds:
+      - echo ok
+  presentation-ceiling:
     cmds:
       - echo ok
   durable-effect-acquisition:
@@ -100,6 +104,7 @@ tasks:
       - verify:evaluator-surface
       - verify:observable-scope
       - verify:intent-constraint
+      - verify:presentation-ceiling
       - verify:durable-effect-acquisition
       - verify:presentation-coverage
       - verify:branch
@@ -134,6 +139,7 @@ describe("consumer-check-contract helpers (#3145)", () => {
     expect(REQUIRED_CONSUMER_ENFORCEMENT_GATES).toContain("verify:evaluator-surface");
     expect(REQUIRED_CONSUMER_ENFORCEMENT_GATES).toContain("verify:observable-scope");
     expect(REQUIRED_CONSUMER_ENFORCEMENT_GATES).toContain("verify:intent-constraint");
+    expect(REQUIRED_CONSUMER_ENFORCEMENT_GATES).toContain("verify:presentation-ceiling");
     expect(REQUIRED_CONSUMER_ENFORCEMENT_GATES).toContain("verify:durable-effect-acquisition");
     expect(REQUIRED_CONSUMER_ENFORCEMENT_GATES).not.toContain("verify:consumer-test-lane");
   });

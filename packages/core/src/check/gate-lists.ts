@@ -134,6 +134,7 @@ export const FRAMEWORK_CHECK_GATES: readonly CheckGateSpec[] = [
   { task: "verify:evaluator-surface", args: ["--base-ref", "origin/master"] },
   "verify:observable-scope",
   "verify:intent-constraint",
+  "verify:presentation-ceiling",
   "verify:durable-effect-acquisition",
   { task: "verify:presentation-coverage", args: ["--json"] },
   // #3362: dead-surface detector (warn-only this release; no --enforce)
@@ -182,6 +183,7 @@ export const CONSUMER_CHECK_GATES: readonly CheckGateSpec[] = [
   "verify:evaluator-surface",
   "verify:observable-scope",
   "verify:intent-constraint",
+  "verify:presentation-ceiling",
   "verify:durable-effect-acquisition",
   { task: "verify:presentation-coverage", args: ["--json"] },
   "vbrief:validate",

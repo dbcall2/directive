@@ -451,6 +451,7 @@ tasks:
           CLI_ARGS: "--base-ref origin/master"
       - verify:observable-scope
       - verify:intent-constraint
+      - verify:presentation-ceiling
       - verify:durable-effect-acquisition
       - verify:presentation-coverage
       - verify:telemetry-coverage
@@ -518,6 +519,7 @@ tasks:
       - verify:evaluator-surface
       - verify:observable-scope
       - verify:intent-constraint
+      - verify:presentation-ceiling
       - verify:durable-effect-acquisition
       - verify:presentation-coverage
       - vbrief:validate
