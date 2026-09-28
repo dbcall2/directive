@@ -329,6 +329,16 @@ tasks:
         vars:
           ENGINE_CMD: 'verify:observable-scope --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
 
+  presentation-ceiling:
+    desc: "Fail-closed presentation-ceiling compositor (#5079): under a recorded presentation ceiling, cannot-evaluate on a composed required gate is refuse or escalate, never pass. Arms from any add-only or tightening head restriction. Flags: --origin-ref / --staged / --quiet. Three-state exit (0 off-ceiling or continue / 1 refuse / 2 config). Does not accept --base-ref."
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'verify:presentation-ceiling --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
+
   intent-constraint:
     desc: "Fail-closed intent-constraint snapshot (#4541): throw/reject/abort sites and new numeric consts in changed production .ts/.js versus merge-base pin. Human mint for value/unit/rejectionScope. Tests and in-scope paths are not authority. Flags: --origin-ref / --staged / --quiet. Three-state exit (0 skip/pass / 1 unapproved fact or missing mint / 2 config). Does not accept --base-ref."
     dir: '{{.USER_WORKING_DIR}}'

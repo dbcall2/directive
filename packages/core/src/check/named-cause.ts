@@ -46,6 +46,8 @@ const GATE_REMEDIES: Readonly<Record<string, string>> = {
   "verify:observable-scope": OBSERVABLE_SCOPE_REMEDIATION,
   "verify:intent-constraint": INTENT_CONSTRAINT_REMEDIATION,
   "verify:durable-effect-acquisition": DURABLE_EFFECT_REMEDIATION,
+  "verify:presentation-ceiling":
+    "Under an armed presentation ceiling, cannot-evaluate is refuse or escalate. Continue only from a merge-base human-stamped mint or extraExtensions amendment covering the same paths.",
   "verify:consumer-test-lane":
     "Fix the project's declared test command, or set plan.policy.testCommand; do not invent a suite",
   "verify:forward-coverage":
@@ -344,11 +346,17 @@ export function formatDegradedSkipReport(input: {
   readonly failed?: readonly string[];
   /** Default 2 = config/environment (never green-pass skipped required gates). */
   readonly exitCode?: number;
+  /**
+   * Optional skip-list headline. Ceiling unknown-state (#5079) reuses this
+   * reporter so skipped required gates cannot be a green pass.
+   */
+  readonly skipHeadline?: string;
 }): readonly string[] {
   const exitCode = input.exitCode ?? 2;
   const lines: string[] = [
     `check: degraded mode — ${input.reason}`,
-    `check: skipped ${input.skipped.length} gate(s) due to missing framework toolchain (#3282):`,
+    input.skipHeadline ??
+      `check: skipped ${input.skipped.length} gate(s) due to missing framework toolchain (#3282):`,
   ];
   for (const gate of input.skipped) {
     lines.push(`  - ${gate.id}: cause: ${gate.cause}; remedy: ${gate.remedy}`);

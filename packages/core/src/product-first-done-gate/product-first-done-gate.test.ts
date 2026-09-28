@@ -394,6 +394,15 @@ describe("check mode (#3284)", () => {
     expect(applyProductFirstGateMode(gates, "pressure")).toEqual([...gates]);
   });
 
+  it("applyProductFirstGateMode keeps the presentation-ceiling compositor under rapid (#5079)", () => {
+    const gates = [PRODUCT_AC_GATE_ID, "verify:presentation-ceiling", "verify:branch"] as const;
+    expect(applyProductFirstGateMode(gates, "rapid")).toEqual([
+      PRODUCT_AC_GATE_ID,
+      "verify:presentation-ceiling",
+    ]);
+    expect(isHygieneGate("verify:presentation-ceiling")).toBe(false);
+  });
+
   it("classifies product vs hygiene gates", () => {
     expect(isProductAcGate("verify:ac")).toBe(true);
     expect(isProductAcGate("verify:literal-ac")).toBe(true);

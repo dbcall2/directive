@@ -40,6 +40,8 @@ export interface EvaluateResult {
   readonly stream: OutputStream;
   readonly skipped?: boolean;
   readonly findings?: readonly ObservableScopeFinding[];
+  /** Markup/matched paths this gate analyzed (#5079 item 10). */
+  readonly analyzedPaths?: readonly string[];
 }
 
 export interface EvaluateOptions {
@@ -219,6 +221,7 @@ function ok(
   skipped = false,
   quiet = false,
   findings?: readonly ObservableScopeFinding[],
+  analyzedPaths: readonly string[] = [],
 ): EvaluateResult {
   return {
     code: 0,
@@ -226,6 +229,7 @@ function ok(
     stream: "stdout",
     skipped,
     findings,
+    analyzedPaths,
   };
 }
 
@@ -349,6 +353,7 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
       false,
       options.quiet === true,
       findings,
+      uiChanged,
     );
   }
 
@@ -513,6 +518,8 @@ export function evaluateObservableScope(options: EvaluateOptions = {}): Evaluate
       `).`,
     false,
     options.quiet === true,
+    undefined,
+    uiPaths,
   );
 }
 

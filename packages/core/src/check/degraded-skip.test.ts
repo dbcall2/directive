@@ -71,6 +71,8 @@ tasks:
     cmds: [echo ok]
   durable-effect-acquisition:
     cmds: [echo ok]
+  presentation-ceiling:
+    cmds: [echo ok]
   consumer-test-lane:
     cmds: [echo ok]
 `,

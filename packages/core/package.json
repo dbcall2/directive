@@ -75,6 +75,10 @@
       "types": "./dist/operator-scope-limit/index.d.ts",
       "default": "./dist/operator-scope-limit/index.js"
     },
+    "./presentation-ceiling": {
+      "types": "./dist/presentation-ceiling/index.d.ts",
+      "default": "./dist/presentation-ceiling/index.js"
+    },
     "./class-checks": {
       "types": "./dist/class-checks/index.d.ts",
       "default": "./dist/class-checks/index.js"

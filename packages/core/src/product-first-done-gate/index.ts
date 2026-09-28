@@ -35,6 +35,7 @@ export {
 } from "./acceptance-resolver.js";
 export {
   applyProductFirstGateMode,
+  isCeilingCompositorGate,
   isHygieneGate,
   isProductAcGate,
   type ProductFirstCheckModeResolution,

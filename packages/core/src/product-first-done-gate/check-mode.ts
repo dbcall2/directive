@@ -167,12 +167,18 @@ export function isProductAcGate(gateId: string): boolean {
 /** True when this gate is classified as hygiene (may be advisory under pressure). */
 export function isHygieneGate(gateId: string): boolean {
   if (isProductAcGate(gateId)) return false;
+  if (isCeilingCompositorGate(gateId)) return false;
   return HYGIENE_GATE_ID_PREFIXES.includes(gateId);
+}
+
+/** Unavoidable fail-closed merge check under an armed presentation ceiling (#5079). */
+export function isCeilingCompositorGate(gateId: string): boolean {
+  return gateId === "verify:presentation-ceiling";
 }
 
 /**
  * Filter / annotate gate list for the resolved mode.
- * - rapid: only product AC gates
+ * - rapid: product AC gates plus the presentation-ceiling compositor (#5079)
  * - pressure/full: full list (pressure marks hygiene advisory at run time)
  */
 export function applyProductFirstGateMode<T extends string | { readonly task: string }>(
@@ -181,8 +187,10 @@ export function applyProductFirstGateMode<T extends string | { readonly task: st
   gateIdOf: (g: T) => string = (g) => (typeof g === "string" ? g : g.task),
 ): readonly T[] {
   if (mode === "rapid") {
-    const ac = gates.filter((g) => isProductAcGate(gateIdOf(g)));
-    return ac.length > 0 ? ac : gates.filter((g) => gateIdOf(g) === PRODUCT_AC_GATE_ID);
+    const kept = gates.filter(
+      (g) => isProductAcGate(gateIdOf(g)) || isCeilingCompositorGate(gateIdOf(g)),
+    );
+    return kept.length > 0 ? kept : gates.filter((g) => gateIdOf(g) === PRODUCT_AC_GATE_ID);
   }
   return gates;
 }

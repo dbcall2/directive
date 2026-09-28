@@ -84,6 +84,7 @@ describe("evaluateIntentConstraint (#4541)", () => {
     });
     expect(result.code).toBe(0);
     expect(result.skipped).toBe(true);
+    expect(result.analyzedPaths ?? []).toEqual([]);
   });
 
   it("fails posted fixture without merge-base mint", () => {

@@ -59,6 +59,8 @@ export interface EvaluateResult {
   readonly origin?: string;
   readonly originMode?: IntentConstraintOriginMode;
   readonly candidateMode?: string;
+  /** Production `.ts`/`.js` paths this gate analyzed (#5079 item 10). */
+  readonly analyzedPaths?: readonly string[];
 }
 
 export interface EvaluateOptions {
@@ -346,8 +348,13 @@ function config(message: string): EvaluateResult {
   return { code: 2, message: `verify:intent-constraint: ${message}`, stream: "stderr" };
 }
 
-function ok(message: string, skipped = false, quiet = false): EvaluateResult {
-  return { code: 0, message: quiet ? "" : message, stream: "stdout", skipped };
+function ok(
+  message: string,
+  skipped = false,
+  quiet = false,
+  analyzedPaths: readonly string[] = [],
+): EvaluateResult {
+  return { code: 0, message: quiet ? "" : message, stream: "stdout", skipped, analyzedPaths };
 }
 
 function listBaseRecords(
@@ -472,7 +479,7 @@ export function evaluateIntentConstraint(options: EvaluateOptions = {}): Evaluat
   const production = changed.filter((p) => isProductionSourcePath(p));
   if (production.length === 0) {
     return attach(
-      ok("verify:intent-constraint: N/A — no changed production .ts/.js files.", true, quiet),
+      ok("verify:intent-constraint: N/A — no changed production .ts/.js files.", true, quiet, []),
       origin,
       candidateMode,
       quiet,
@@ -511,6 +518,7 @@ export function evaluateIntentConstraint(options: EvaluateOptions = {}): Evaluat
         `verify:intent-constraint: no new throw/reject/abort sites or numeric consts in ${String(production.length)} production file(s).`,
         false,
         quiet,
+        production,
       ),
       origin,
       candidateMode,
@@ -627,6 +635,7 @@ export function evaluateIntentConstraint(options: EvaluateOptions = {}): Evaluat
       `verify:intent-constraint: merge-base mint covers ${String(deltas.length)} new fact(s) in ${String(production.length)} production file(s).`,
       false,
       quiet,
+      production,
     ),
     origin,
     candidateMode,

@@ -1,11 +1,19 @@
 {
   "schema": "deft.evaluator-surface-disposition.v1",
   "kind": "disclosure",
-  "issue": 5097,
+  "issue": 5079,
   "surfaces": [
-    "packages/core/src/class-checks/evaluate.ts",
-    "packages/core/src/class-checks/evaluate.test.ts",
+    "Taskfile.yml",
+    "tasks/verify.yml",
+    "vitest.config.ts",
+    "packages/core/src/check/gate-lists.ts",
+    "packages/core/src/evaluator-surface/**",
+    "packages/core/src/presentation-ceiling/**",
+    "packages/core/src/intent-constraint/**",
+    "packages/core/src/observable-scope/**",
+    "packages/core/src/class-checks/**",
+    "packages/cli/src/verify-presentation-ceiling.ts",
     "xbrief/evaluator-surface-disposition.json"
   ],
-  "note": "Disclosure for #5097: class-checks class-2 CI harness allowlist for .github/workflows (ci.yml family). Shipping/docs-site/unknown workflows stay fail-closed. Disclosure only; not #3164 authorization."
+  "note": "Disclosure for #5079: presentation-ceiling compositor on check composition and evaluator-surface detector. Disclosure only; not #3164 authorization."
 }

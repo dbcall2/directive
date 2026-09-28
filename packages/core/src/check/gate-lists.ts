@@ -135,6 +135,7 @@ export const FRAMEWORK_CHECK_GATES: readonly CheckGateSpec[] = [
   "verify:observable-scope",
   "verify:intent-constraint",
   "verify:durable-effect-acquisition",
+  "verify:presentation-ceiling",
   // #3362: dead-surface detector (warn-only this release; no --enforce)
   "verify:telemetry-coverage",
   "verify:vbrief-conformance",
@@ -182,6 +183,7 @@ export const CONSUMER_CHECK_GATES: readonly CheckGateSpec[] = [
   "verify:observable-scope",
   "verify:intent-constraint",
   "verify:durable-effect-acquisition",
+  "verify:presentation-ceiling",
   "vbrief:validate",
   "verify-strategy-output",
   // Declared project test command last (#4386). Skip when undeclared.

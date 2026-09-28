@@ -39,6 +39,7 @@ tasks:
       - verify:observable-scope
       - verify:intent-constraint
       - verify:durable-effect-acquisition
+      - verify:presentation-ceiling
 `;
 
 const VERIFY_YML_COMPLETE = `
@@ -66,6 +67,9 @@ tasks:
     cmds:
       - echo ok
   durable-effect-acquisition:
+    cmds:
+      - echo ok
+  presentation-ceiling:
     cmds:
       - echo ok
   consumer-test-lane:
@@ -97,6 +101,7 @@ tasks:
       - verify:observable-scope
       - verify:intent-constraint
       - verify:durable-effect-acquisition
+      - verify:presentation-ceiling
       - verify:branch
 `;
 

@@ -258,6 +258,36 @@ describe("named-cause gate failures (#3282)", () => {
     expect(lines.join("\n")).toContain("exit 2 (degraded/config)");
   });
 
+  it("grows the skip reporter for ceiling unknown-state without a green pass (#5079)", () => {
+    const lines = formatDegradedSkipReport({
+      reason: "armed presentation ceiling",
+      skipHeadline: "check: skipped 2 composed gate(s) as cannot-evaluate (#5079):",
+      skipped: [
+        {
+          id: "verify:intent-constraint",
+          cause: "N/A — no changed production .ts/.js files",
+          remedy: "refuse or escalate under an armed ceiling",
+        },
+        {
+          id: "verify:observable-scope",
+          cause: "inferred-defaults-warn",
+          remedy: "refuse or escalate under an armed ceiling",
+        },
+      ],
+      exitCode: 1,
+    });
+    expect(lines.join("\n")).toContain("cannot-evaluate");
+    expect(lines.join("\n")).toContain("verify:intent-constraint");
+    expect(lines.join("\n")).toContain("skipped required gates are not a green pass");
+    expect(lines.join("\n")).toContain("exit 1");
+  });
+
+  it("names a remedy for verify:presentation-ceiling", () => {
+    expect(remedyForGate("verify:presentation-ceiling", "cannot evaluate")).toMatch(
+      /armed presentation ceiling/,
+    );
+  });
+
   it("returns a generic remedy for unknown gates", () => {
     expect(remedyForGate("unknown:gate", "something broke")).toMatch(/Re-run the gate/);
   });
