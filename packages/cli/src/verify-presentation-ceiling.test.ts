@@ -10,13 +10,23 @@ describe("verify-presentation-ceiling CLI (#5056)", () => {
     expect(a.quiet).toBe(true);
   });
 
+  it("parses equals-form flags without accepting prefix lookalikes", () => {
+    expect(parseArgs(["--project-root=.", "--base-ref=topic(foo"])).toMatchObject({
+      projectRoot: ".",
+      baseRef: "topic(foo",
+    });
+    expect(parseArgs(["--base-reference=main"]).error).toMatch(/unrecognized/);
+    expect(parseArgs(["--base-ref"]).error).toMatch(/expected one argument/);
+    expect(parseArgs(["--project-root"]).error).toMatch(/expected one argument/);
+  });
+
   it("rejects unknown args", () => {
     const a = parseArgs(["--nope"]);
     expect(a.error).toMatch(/unrecognized/);
   });
 
-  it("runs against framework root without config error", () => {
-    const code = run(["--project-root", ".", "--quiet"]);
-    expect([0, 1, 2]).toContain(code);
+  it("runs against framework HEAD without requiring remote refs", () => {
+    const code = run(["--project-root", ".", "--base-ref", "HEAD", "--quiet"]);
+    expect(code).toBe(0);
   }, 30_000);
 });

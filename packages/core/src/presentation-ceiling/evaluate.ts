@@ -7,17 +7,14 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
+import type * as TypeScript from "typescript";
 import { isMarkupPath } from "../observable-scope/extract.js";
 import { isUnderConfiguredRoot } from "../scope-provenance/base-fence.js";
 import { isHumanApprovalStamp } from "../scope-provenance/digest.js";
-import { unquoteGitPath } from "../scope-provenance/evaluate.js";
-import {
-  DEFAULT_FIXTURE_ROOTS,
-  DEFAULT_TEST_ROOTS,
-  loadTestBoundaryPolicy,
-} from "../test-boundary/policy.js";
+import { DEFAULT_FIXTURE_ROOTS, DEFAULT_TEST_ROOTS } from "../test-boundary/policy.js";
 import {
   BUILTIN_PRESENTATION_EXTS,
   EXTRA_CEREMONY_REMEDIATION,
@@ -181,6 +178,7 @@ function parseChangeClassObject(
     changeClass: PRESENTATION_CHANGE_CLASS,
     path,
     allowedExtensions: stringList(raw.allowedExtensions ?? raw.allowlist),
+    hasExtensionRestriction: raw.allowedExtensions !== undefined || raw.allowlist !== undefined,
     componentRoots: stringList(raw.componentRoots),
     extensionAmendment,
     removalStamp: humanStamp(raw.removalStamp ?? raw.humanApproval),
@@ -223,40 +221,30 @@ export function effectivePresentationExts(
   baseArtifacts: readonly PresentationCeilingArtifact[],
 ): ReadonlySet<string> {
   const builtin = new Set<string>(BUILTIN_PRESENTATION_EXTS);
-  const out = new Set<string>(builtin);
-  let sawAllowlist = false;
-  const allow = new Set<string>();
+  const allowed = new Set<string>(builtin);
+  // All recorded ceilings constrain the built-in set. Explicit human amendments
+  // authorize additional dialects repository-wide, independently of allowlists.
   for (const art of baseArtifacts) {
-    if (art.allowedExtensions.length > 0) {
-      sawAllowlist = true;
-      for (const ext of art.allowedExtensions) {
-        const n = ext.startsWith(".") ? ext.toLowerCase() : `.${ext.toLowerCase()}`;
-        if (builtin.has(n)) allow.add(n);
-      }
-    }
-    if (art.extensionAmendment !== null) {
-      for (const ext of art.extensionAmendment.extensions) {
-        const n = ext.startsWith(".") ? ext.toLowerCase() : `.${ext.toLowerCase()}`;
-        if (n.length > 0) out.add(n);
-      }
+    if (art.allowedExtensions.length === 0 && !art.hasExtensionRestriction) continue;
+    const restriction = new Set(art.allowedExtensions.map(normalizeExtension));
+    for (const ext of allowed) {
+      if (!restriction.has(ext)) allowed.delete(ext);
     }
   }
-  if (sawAllowlist) {
-    const narrowed = new Set<string>();
-    for (const ext of out) {
-      if (builtin.has(ext)) {
-        if (allow.has(ext)) narrowed.add(ext);
-      } else {
-        narrowed.add(ext);
-      }
+  for (const art of baseArtifacts) {
+    for (const ext of art.extensionAmendment?.extensions ?? []) {
+      const normalized = normalizeExtension(ext);
+      if (!builtin.has(normalized)) allowed.add(normalized);
     }
-    return narrowed;
   }
-  return out;
+  return allowed;
+}
+
+function normalizeExtension(ext: string): string {
+  return ext.startsWith(".") ? ext.toLowerCase() : `.${ext.toLowerCase()}`;
 }
 
 function intersectRoots(defaults: readonly string[], base: readonly string[]): readonly string[] {
-  if (base.length === 0) return defaults;
   const baseSet = new Set(base.map((r) => r.replace(/\\/g, "/")));
   return defaults.filter((d) => baseSet.has(d.replace(/\\/g, "/")));
 }
@@ -264,7 +252,10 @@ function intersectRoots(defaults: readonly string[], base: readonly string[]): r
 function isJsonExemptCandidate(relPath: string, snapshot: PresentationCeilingSnapshot): boolean {
   const posix = normalizeRepoRelPath(relPath);
   if (isApprovedScopeRecordPath(posix)) return true;
-  if (snapshot.baseActiveXbriefPath !== null && posix === snapshot.baseActiveXbriefPath) {
+  if (
+    snapshot.baseActiveXbriefPaths?.includes(posix) ||
+    (snapshot.baseActiveXbriefPath !== null && posix === snapshot.baseActiveXbriefPath)
+  ) {
     return true;
   }
   for (const art of snapshot.baseArtifacts) {
@@ -276,53 +267,252 @@ function isJsonExemptCandidate(relPath: string, snapshot: PresentationCeilingSna
   return false;
 }
 
-function mentionsExemptPath(content: string, exemptPath: string): boolean {
-  if (content.includes(exemptPath)) return true;
-  if (exemptPath.startsWith(APPROVED_SCOPE_PREFIX) && content.includes(APPROVED_SCOPE_PREFIX)) {
-    return true;
-  }
-  return false;
+/**
+ * Parse-only reader analysis: executable imports/calls, local path aliases and
+ * approved-scope module bindings. It does not analyze persistence semantics.
+ * JS/TS uses the gate's bundled parser; other languages use conservative input
+ * syntax checks. Comments, labels and source examples do not execute. Unknown
+ * calls carrying an exempt path are conservatively treated as consumers.
+ */
+interface ReaderEvidence {
+  readonly inputPaths: readonly string[];
+  readonly changelog: boolean;
+  readonly loader: boolean;
+  readonly dynamic: boolean;
+}
+const requireParser = createRequire(import.meta.url);
+let parser: typeof TypeScript | undefined;
+
+function protectedJsonText(text: string): boolean {
+  return (
+    text.includes("approved-scope") ||
+    text.includes("xbrief/") ||
+    text.includes("presentation-ceiling")
+  );
 }
 
-function hasLoaderCall(content: string): boolean {
-  for (const name of LOADER_NAMES) {
-    if (content.includes(`${name}(`)) return true;
-  }
-  return false;
+function changelogPath(text: string): boolean {
+  return /(?:^|\/)CHANGELOG(?:\.md)?$/.test(text);
 }
 
-function hasDynamicExemptConstruction(content: string): boolean {
-  const mentions =
-    content.includes(APPROVED_SCOPE_PREFIX) ||
-    (content.includes(".deft/") && content.includes("approved-scope")) ||
-    content.includes(XBRIEF_PREFIX) ||
-    content.includes("presentation-ceiling");
-  if (!mentions) return false;
-  if (content.includes("${")) return true;
-  if (content.includes(" + ") || content.includes("+ '") || content.includes('+"')) return true;
-  if (content.includes("join(") || content.includes("path.join")) return true;
-  return false;
+function approvedScopeModule(specifier: string): boolean {
+  return (
+    /(?:^|\/)scope-provenance(?:\/|$)/.test(specifier) ||
+    /^@deftai\/directive-core(?:\/scope-provenance)?$/.test(specifier)
+  );
+}
+
+const DISPLAY_CALL = /^(?:log|warn|error|debug|info|print|printf|echo)$/;
+
+/** Bounded fallback: mask strings/comments, then follow same-file assignments
+ * into call arguments. This recognizes ordinary Python open(path) without
+ * executing source or mistaking quoted code examples for calls. */
+function fallbackReaderEvidence(content: string): ReaderEvidence {
+  const values = new Map<string, string>();
+  const executable = content.replace(
+    /"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\/\*[\s\S]*?\*\/|(?:#|\/\/)[^\n]*/g,
+    (token) => {
+      if (/^(?:#|\/\/|\/\*)/.test(token)) return token.replace(/[^\n]/g, " ");
+      const width = token.startsWith('"""') || token.startsWith("'''") ? 3 : 1;
+      const key = `__ceiling_literal_${values.size}`;
+      values.set(key, token.slice(width, -width));
+      // Keep Python r/b/u/f prefixes separate from the masked literal token.
+      return ` ${key} `;
+    },
+  );
+  const bindings = new Map<string, string[]>();
+  for (const match of executable.matchAll(/\b([A-Za-z_]\w*)\s*=(?!=)([^\n;]+)/g)) {
+    const name = match[1] ?? "";
+    bindings.set(name, [...(bindings.get(name) ?? []), match[2] ?? ""]);
+  }
+  const resolveInputs = (text: string, seen = new Set<string>()): string[] => {
+    const paths: string[] = [];
+    for (const match of text.matchAll(/\b[A-Za-z_]\w*\b/g)) {
+      const name = match[0];
+      if (seen.has(name)) continue;
+      seen.add(name);
+      const value = values.get(name);
+      if (value !== undefined) paths.push(value);
+      for (const binding of bindings.get(name) ?? []) paths.push(...resolveInputs(binding, seen));
+    }
+    return paths;
+  };
+  const inputPaths = new Set<string>();
+  for (const match of executable.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)) {
+    const name = match[1] ?? "";
+    if (DISPLAY_CALL.test(name) || /^(?:if|while|for|switch|return|def|class)$/.test(name))
+      continue;
+    const start = match.index + match[0].length;
+    let end = start;
+    let depth = 1;
+    while (end < executable.length && depth > 0) {
+      if (executable[end] === "(") depth++;
+      if (executable[end] === ")") depth--;
+      end++;
+    }
+    for (const path of resolveInputs(executable.slice(start, end - 1))) inputPaths.add(path);
+  }
+  return {
+    inputPaths: [...inputPaths],
+    changelog: [...inputPaths].some(changelogPath),
+    loader: false,
+    dynamic: executable
+      .split(/[\n;]/)
+      .some(
+        (expression) =>
+          /\+|\$\{|\b(?:join|resolve)\s*\(/.test(expression) &&
+          resolveInputs(expression).some(protectedJsonText),
+      ),
+  };
+}
+
+function readerEvidence(path: string, content: string): ReaderEvidence {
+  const empty: ReaderEvidence = { inputPaths: [], changelog: false, loader: false, dynamic: false };
+  if (/\.(?:md|mdx|txt|rst|json|lock|csv|svg|css)$/i.test(path)) return empty;
+  if (/\.html?$/i.test(path))
+    content = [...content.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)]
+      .map((match) => match[1] ?? "")
+      .join("\n");
+  if (!/\.(?:[cm]?[jt]sx?|html?)$/i.test(path)) return fallbackReaderEvidence(content);
+  // Lazy: importing core or evaluating an unarmed ceiling never loads TypeScript.
+  parser ??= requireParser("typescript") as typeof TypeScript;
+  const ts = parser;
+  const source = ts.createSourceFile(
+    path,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    /\.[jt]sx$/i.test(path) ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const inputPaths = new Set<string>();
+  const bindings = new Set<string>();
+  const namespaces = new Set<string>();
+  const variables = new Map<string, TypeScript.Expression>();
+  const registerBinding = (name: TypeScript.BindingName): void => {
+    if (ts.isIdentifier(name)) namespaces.add(name.text);
+    else if (ts.isObjectBindingPattern(name))
+      for (const element of name.elements) {
+        const original = element.propertyName?.getText(source) ?? element.name.getText(source);
+        if (!ts.isIdentifier(element.name)) continue;
+        if (LOADER_NAMES.some((loader) => loader === original)) bindings.add(element.name.text);
+        if (original === "scopeProvenance") namespaces.add(element.name.text);
+      }
+  };
+  const collect = (node: TypeScript.Node): void => {
+    if (
+      ts.isImportDeclaration(node) &&
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      approvedScopeModule(node.moduleSpecifier.text)
+    ) {
+      const clause = node.importClause;
+      const named = clause?.namedBindings;
+      if (named && ts.isNamedImports(named))
+        for (const element of named.elements) {
+          const original = element.propertyName?.text ?? element.name.text;
+          if (LOADER_NAMES.some((loader) => loader === original)) bindings.add(element.name.text);
+          if (original === "scopeProvenance") namespaces.add(element.name.text);
+        }
+      if (named && ts.isNamespaceImport(named)) namespaces.add(named.name.text);
+      if (clause?.name) namespaces.add(clause.name.text);
+    }
+    if (ts.isVariableDeclaration(node) && node.initializer) {
+      if (ts.isIdentifier(node.name)) variables.set(node.name.text, node.initializer);
+      const init = node.initializer;
+      if (
+        ts.isCallExpression(init) &&
+        init.expression.getText(source) === "require" &&
+        init.arguments.some((arg) => ts.isStringLiteralLike(arg) && approvedScopeModule(arg.text))
+      )
+        registerBinding(node.name);
+    }
+    ts.forEachChild(node, collect);
+  };
+  collect(source);
+  const contains = (
+    node: TypeScript.Node,
+    predicate: (value: string) => boolean,
+    seen = new Set<string>(),
+  ): boolean => {
+    if (ts.isStringLiteralLike(node)) return predicate(node.text);
+    if (ts.isIdentifier(node) && !seen.has(node.text)) {
+      const value = variables.get(node.text);
+      if (value) {
+        seen.add(node.text);
+        if (contains(value, predicate, seen)) return true;
+      }
+    }
+    let hit = false;
+    ts.forEachChild(node, (child) => {
+      if (contains(child, predicate, seen)) hit = true;
+    });
+    return hit;
+  };
+  let loader = false;
+  let dynamic = false;
+  const collectInput = (node: TypeScript.Node): void => {
+    contains(node, (value) => {
+      inputPaths.add(value);
+      return false;
+    });
+  };
+  const visit = (node: TypeScript.Node): void => {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier)
+      collectInput(node.moduleSpecifier);
+    if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+      const expression = node.expression;
+      const name = ts.isIdentifier(expression)
+        ? expression.text
+        : ts.isPropertyAccessExpression(expression)
+          ? expression.name.text
+          : "";
+      if (!DISPLAY_CALL.test(name)) node.arguments?.forEach(collectInput);
+      if (ts.isIdentifier(expression) && bindings.has(expression.text)) loader = true;
+      if (
+        ts.isPropertyAccessExpression(expression) &&
+        LOADER_NAMES.some((known) => known === name)
+      ) {
+        let root: TypeScript.Expression = expression.expression;
+        while (ts.isPropertyAccessExpression(root)) root = root.expression;
+        if (ts.isIdentifier(root) && namespaces.has(root.text)) loader = true;
+      }
+      if (/^(?:join|resolve)$/.test(name) && contains(node, protectedJsonText)) dynamic = true;
+    }
+    if (
+      (ts.isTemplateExpression(node) ||
+        (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken)) &&
+      contains(node, protectedJsonText)
+    )
+      dynamic = true;
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return {
+    inputPaths: [...inputPaths],
+    changelog: [...inputPaths].some(changelogPath),
+    loader,
+    dynamic,
+  };
 }
 
 function standingNonGateHits(
   snapshot: PresentationCeilingSnapshot,
-  predicate: (path: string, content: string) => boolean,
+  predicate: (evidence: ReaderEvidence) => boolean,
 ): string[] {
-  const hits: string[] = [];
-  for (const [rawPath, content] of snapshot.standingFileContents.entries()) {
-    const path = normalizeRepoRelPath(rawPath);
-    if (isGateToolingPath(path)) continue;
-    if (predicate(path, content)) hits.push(path);
+  const hits = new Set<string>();
+  for (const contents of [
+    snapshot.standingFileContents,
+    snapshot.baseFileContents ?? new Map<string, string>(),
+  ]) {
+    for (const [rawPath, content] of contents) {
+      const path = normalizeRepoRelPath(rawPath);
+      if (!isGateToolingPath(path) && predicate(readerEvidence(path, content))) hits.add(path);
+    }
   }
-  return hits;
+  return [...hits];
 }
 
 function changelogHasProductionReader(snapshot: PresentationCeilingSnapshot): boolean {
-  const readers = standingNonGateHits(snapshot, (path, content) => {
-    if (isBuiltinPresentationPath(path)) return false;
-    return content.includes(CHANGELOG_REL) || content.includes("CHANGELOG");
-  });
-  return readers.length > 0;
+  return standingNonGateHits(snapshot, (evidence) => evidence.changelog).length > 0;
 }
 
 function jsonExemptionPulled(
@@ -330,7 +520,9 @@ function jsonExemptionPulled(
   snapshot: PresentationCeilingSnapshot,
 ): PresentationCeilingFinding | null {
   const posix = normalizeRepoRelPath(relPath);
-  const loaderHits = standingNonGateHits(snapshot, (_path, content) => hasLoaderCall(content));
+  const loaderHits = isApprovedScopeRecordPath(posix)
+    ? standingNonGateHits(snapshot, (evidence) => evidence.loader)
+    : [];
   if (loaderHits.length > 0) {
     return {
       kind: "json-exemption-referenced",
@@ -341,8 +533,13 @@ function jsonExemptionPulled(
       remediation: PRESENTATION_CEILING_REMEDIATION,
     };
   }
-  const refHits = standingNonGateHits(snapshot, (_path, content) =>
-    mentionsExemptPath(content, posix),
+  const refHits = standingNonGateHits(snapshot, (evidence) =>
+    evidence.inputPaths.some(
+      (text) =>
+        text === posix ||
+        text.endsWith(`/${posix}`) ||
+        (posix.startsWith(APPROVED_SCOPE_PREFIX) && text.startsWith(APPROVED_SCOPE_PREFIX)),
+    ),
   );
   if (refHits.length > 0) {
     return {
@@ -352,9 +549,7 @@ function jsonExemptionPulled(
       remediation: PRESENTATION_CEILING_REMEDIATION,
     };
   }
-  const dynamicHits = standingNonGateHits(snapshot, (_path, content) =>
-    hasDynamicExemptConstruction(content),
-  );
+  const dynamicHits = standingNonGateHits(snapshot, (evidence) => evidence.dynamic);
   if (dynamicHits.length > 0) {
     return {
       kind: "dynamic-exempt-path",
@@ -388,7 +583,10 @@ export function evaluatePresentationCeilingFromSnapshot(
   const changed = snapshot.changedFiles.map(normalizeRepoRelPath).filter((p) => p.length > 0);
   const baseMap = artifactByPath(snapshot.baseArtifacts);
   const headMap = artifactByPath(snapshot.headArtifacts);
-  const headAddsRestriction = snapshot.headArtifacts.some((art) => !baseMap.has(art.path));
+  const addedRestrictions = snapshot.headArtifacts
+    .filter((art) => !baseMap.has(normalizeRepoRelPath(art.path)))
+    .map((art) => ({ ...art, extensionAmendment: null }));
+  const headAddsRestriction = addedRestrictions.length > 0;
   const armed = snapshot.baseArtifacts.length > 0 || headAddsRestriction;
 
   if (!armed) {
@@ -410,7 +608,18 @@ export function evaluatePresentationCeilingFromSnapshot(
   });
 
   for (const [basePath, baseArt] of baseMap.entries()) {
-    if (headMap.has(basePath)) {
+    const headArt = headMap.get(basePath);
+    if (headArt !== undefined) {
+      const baseAllowed = effectivePresentationExts([{ ...baseArt, extensionAmendment: null }]);
+      const headAllowed = effectivePresentationExts([{ ...headArt, extensionAmendment: null }]);
+      if ([...headAllowed].some((ext) => !baseAllowed.has(ext))) {
+        findings.push({
+          kind: "ceiling-weaken",
+          path: basePath,
+          detail: "head allowlist weakens a merge-base presentation restriction",
+          remediation: WEAKEN_REMEDIATION,
+        });
+      }
       continue;
     }
     if (snapshot.headFileContents.has(basePath)) {
@@ -443,7 +652,11 @@ export function evaluatePresentationCeilingFromSnapshot(
     }
   }
 
-  const effectiveExts = effectivePresentationExts(snapshot.baseArtifacts);
+  // Head-only additions can narrow built-ins; only baseline stamps grant extras.
+  const effectiveExts = effectivePresentationExts([
+    ...snapshot.baseArtifacts,
+    ...addedRestrictions,
+  ]);
   const testRoots = intersectRoots(snapshot.defaultTestRoots, snapshot.baseTestRoots);
   const fixtureRoots = intersectRoots(snapshot.defaultFixtureRoots, snapshot.baseFixtureRoots);
   const changelogReader = changelogHasProductionReader(snapshot);
@@ -553,17 +766,6 @@ function configResult(message: string): PresentationCeilingResult {
   };
 }
 
-function skipNotGit(message: string): PresentationCeilingResult {
-  return {
-    exitCode: 0,
-    findings: [],
-    message: `${GATE_ID}: skipped — ${message}`,
-    armed: false,
-    evaluatedPaths: [],
-    unevaluatedNote: UNEVALUATED_NOTE,
-  };
-}
-
 export function resolvePresentationCeilingBaseRef(projectRoot: string): string | null {
   const envCandidates = [
     process.env.DEFT_BASE_REF,
@@ -581,391 +783,256 @@ export function resolvePresentationCeilingBaseRef(projectRoot: string): string |
   return null;
 }
 
-function changedFilesVsBase(
+type Collection<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly message: string };
+
+function gitOutput(
   projectRoot: string,
-  baseRef: string,
-): { ok: true; files: string[] } | { ok: false; message: string; skip?: boolean } {
-  const inside = git(["rev-parse", "--is-inside-work-tree"], projectRoot);
-  if (!inside.ok) {
-    if (inside.kind === "not-found") {
-      return { ok: false, message: inside.message };
-    }
-    return { ok: false, message: inside.message };
+  args: readonly string[],
+  allowNoMatch = false,
+): Collection<string> {
+  const result = git(args, projectRoot);
+  if (!result.ok) return result;
+  if (result.status !== 0 && !(allowNoMatch && result.status === 1)) {
+    return { ok: false, message: `git ${args[0]} failed (exit ${String(result.status)})` };
   }
-  if (inside.status !== 0) {
-    return { ok: false, message: "not a git working tree", skip: true };
-  }
-  const out = new Set<string>();
-  const addPath = (raw: string): void => {
-    const t = normalizeRepoRelPath(unquoteGitPath(raw));
-    if (t.length > 0) out.add(t);
-  };
-  const range = `${baseRef}...HEAD`;
-  const diff = git(["diff", "--name-only", range], projectRoot);
-  if (!diff.ok) return { ok: false, message: diff.message };
-  if (diff.status !== 0) {
-    return {
-      ok: false,
-      message: `git diff --name-only ${range} failed (exit ${String(diff.status)})`,
-    };
-  }
-  for (const line of diff.stdout.split("\n")) addPath(line);
-  const vsHead = git(["diff", "--name-only", "HEAD"], projectRoot);
-  if (!vsHead.ok) return { ok: false, message: vsHead.message };
-  if (vsHead.status !== 0) {
-    return {
-      ok: false,
-      message: `git diff --name-only HEAD failed (exit ${String(vsHead.status)})`,
-    };
-  }
-  for (const line of vsHead.stdout.split("\n")) addPath(line);
-  const untracked = git(["ls-files", "--others", "--exclude-standard"], projectRoot);
-  if (!untracked.ok) return { ok: false, message: untracked.message };
-  if (untracked.status !== 0) {
-    return {
-      ok: false,
-      message: `git ls-files --others --exclude-standard failed (exit ${String(untracked.status)})`,
-    };
-  }
-  for (const line of untracked.stdout.split("\n")) addPath(line);
-  return { ok: true, files: [...out] };
+  return { ok: true, value: result.stdout };
 }
 
-function readAtRef(projectRoot: string, ref: string, relPath: string): string | null {
-  const path = normalizeRepoRelPath(relPath);
-  const result = git(["show", `${ref}:${path}`], projectRoot);
-  if (!result.ok || result.status !== 0) return null;
-  return result.stdout;
+function paths(output: string): string[] {
+  return output.split("\0").filter(Boolean).map(normalizeRepoRelPath);
 }
 
-function listCeilingTreeAtRef(projectRoot: string, ref: string): string[] {
-  const listed = git(
-    [
-      "ls-tree",
-      "-r",
-      "--name-only",
-      ref,
-      "--",
-      "xbrief/active",
-      "xbrief/pending",
-      "xbrief/proposed",
-      PRESENTATION_CEILING_ARTIFACT_REL,
-    ],
-    projectRoot,
-  );
-  if (!listed.ok || listed.status !== 0) return [];
-  return listed.stdout
-    .split("\n")
-    .map((l) => normalizeRepoRelPath(l))
-    .filter((p) => p.length > 0);
-}
-
-function parseJsonText(text: string): unknown | null {
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return null;
+function changedFilesVsBase(projectRoot: string, baseline: string): Collection<string[]> {
+  const names = new Set<string>();
+  for (const args of [
+    ["diff", "--name-only", "--no-renames", "-z", baseline, "HEAD", "--"],
+    ["diff", "--name-only", "--no-renames", "-z", "HEAD", "--"],
+    ["ls-files", "--others", "--exclude-standard", "-z"],
+  ]) {
+    const result = gitOutput(projectRoot, args);
+    if (!result.ok) return result;
+    for (const path of paths(result.value)) names.add(path);
   }
+  return { ok: true, value: [...names] };
 }
 
 function isCeilingCandidatePath(relPath: string): boolean {
   const posix = normalizeRepoRelPath(relPath);
-  if (posix === PRESENTATION_CEILING_ARTIFACT_REL) return true;
-  if (posix.endsWith("/presentation-ceiling.json")) return true;
-  if (posix.startsWith("xbrief/active/") && posix.endsWith(".xbrief.json")) return true;
-  if (posix.startsWith("xbrief/pending/") && posix.endsWith(".xbrief.json")) return true;
-  if (posix.startsWith("xbrief/proposed/") && posix.endsWith(".xbrief.json")) return true;
-  return false;
+  return (
+    posix === PRESENTATION_CEILING_ARTIFACT_REL ||
+    posix.endsWith("/presentation-ceiling.json") ||
+    /^xbrief\/(?:active|pending|proposed)\/.*\.xbrief\.json$/.test(posix)
+  );
 }
 
-function grepCeilingHits(projectRoot: string, ref: string | null): string[] {
-  const args =
-    ref === null
-      ? [
-          "grep",
-          "-I",
-          "-l",
-          "-F",
-          "-e",
-          `"changeClass": "${PRESENTATION_CHANGE_CLASS}"`,
-          "-e",
-          PRESENTATION_CEILING_SCHEMA,
-        ]
-      : [
-          "grep",
-          "-I",
-          "-l",
-          "-F",
-          "-e",
-          `"changeClass": "${PRESENTATION_CHANGE_CLASS}"`,
-          "-e",
-          PRESENTATION_CEILING_SCHEMA,
-          ref,
-        ];
-  const ran = git(args, projectRoot);
-  if (!ran.ok || ran.status !== 0) return [];
-  const out: string[] = [];
-  for (const line of ran.stdout.split("\n")) {
-    const stripped = ref !== null ? line.replace(new RegExp(`^${ref}:`), "") : line;
-    const p = normalizeRepoRelPath(stripped);
-    if (p.length > 0) out.push(p);
-  }
-  return out;
+/** Git grep distinguishes no matches (1) from a failed read (2+). */
+function grepPaths(
+  projectRoot: string,
+  ref: string | null,
+  patterns: readonly string[],
+): Collection<string[]> {
+  const args = ["grep", "-I", "-l", "-z", "-F"];
+  for (const pattern of patterns) args.push("-e", pattern);
+  if (ref !== null) args.push(ref);
+  args.push("--");
+  const result = gitOutput(projectRoot, args, true);
+  if (!result.ok) return result;
+  const prefix = ref === null ? "" : `${ref}:`;
+  return {
+    ok: true,
+    value: paths(result.value).map((path) =>
+      prefix && path.startsWith(prefix) ? path.slice(prefix.length) : path,
+    ),
+  };
 }
 
-function collectArtifactsFromListing(
+function readContents(
   projectRoot: string,
   ref: string | null,
   names: readonly string[],
-  headContents?: ReadonlyMap<string, string>,
-): PresentationCeilingArtifact[] {
-  const out: PresentationCeilingArtifact[] = [];
-  for (const name of names) {
-    const posix = normalizeRepoRelPath(name);
-    if (!isCeilingCandidatePath(posix)) continue;
-    let text: string | null = null;
-    if (headContents?.has(posix)) {
-      text = headContents.get(posix) ?? null;
-    } else if (ref !== null) {
-      text = readAtRef(projectRoot, ref, posix);
+): Collection<Map<string, string>> {
+  const contents = new Map<string, string>();
+  for (const path of names) {
+    if (ref !== null) {
+      const result = gitOutput(projectRoot, ["show", `${ref}:${path}`]);
+      if (!result.ok) return { ok: false, message: `${path}: ${result.message}` };
+      contents.set(path, result.value);
     } else {
-      const abs = join(projectRoot, posix);
-      if (existsSync(abs)) {
-        try {
-          text = readFileSync(abs, "utf8");
-        } catch {
-          text = null;
-        }
+      try {
+        contents.set(path, readFileSync(join(projectRoot, path), "utf8"));
+      } catch (error) {
+        // A tracked deletion is expected; every other read error fails closed.
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+        return { ok: false, message: `cannot read ${path}: ${String(error)}` };
       }
     }
-    if (text === null) continue;
-    const payload = parseJsonText(text);
-    const art = parseCeilingPayload(payload, posix);
-    if (art !== null) out.push(art);
   }
-  return out;
+  return { ok: true, value: contents };
 }
 
-function collectHeadContents(projectRoot: string, names: readonly string[]): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const name of names) {
-    const posix = normalizeRepoRelPath(name);
-    const abs = join(resolve(projectRoot), posix);
-    if (!existsSync(abs)) continue;
+function parseArtifacts(
+  contents: ReadonlyMap<string, string>,
+): Collection<PresentationCeilingArtifact[]> {
+  const artifacts: PresentationCeilingArtifact[] = [];
+  for (const [path, text] of contents) {
+    if (!isCeilingCandidatePath(path)) continue;
     try {
-      map.set(posix, readFileSync(abs, "utf8"));
+      const payload: unknown = JSON.parse(text);
+      if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+        return { ok: false, message: `invalid ceiling candidate object: ${path}` };
+      }
+      const artifact = parseCeilingPayload(payload, path);
+      if (artifact !== null) artifacts.push(artifact);
     } catch {
-      // skip unreadable
+      return { ok: false, message: `invalid ceiling candidate JSON: ${path}` };
     }
   }
-  return map;
-}
-
-function collectStandingContents(
-  projectRoot: string,
-  baseRef: string,
-  changed: readonly string[],
-): Map<string, string> {
-  const map = new Map<string, string>();
-  const patterns = [
-    "approved-scope",
-    "readApprovedScopeRecord",
-    "loadRecord",
-    "listApprovedScopeRecords",
-    "CHANGELOG.md",
-    "presentation-ceiling",
-    "seedSql",
-    "xbrief/",
-  ];
-  const grepArgs = ["grep", "-I", "-l", "-F", "-e", patterns[0] ?? "approved-scope"];
-  for (const extra of patterns.slice(1)) {
-    grepArgs.push("-e", extra);
-  }
-  const headGrep = git([...grepArgs], projectRoot);
-  if (headGrep.ok && headGrep.status === 0) {
-    for (const line of headGrep.stdout.split("\n")) {
-      const p = normalizeRepoRelPath(line);
-      if (p.length === 0) continue;
-      const abs = join(resolve(projectRoot), p);
-      if (!existsSync(abs)) continue;
-      try {
-        map.set(p, readFileSync(abs, "utf8"));
-      } catch {
-        // skip
-      }
-    }
-  }
-  const baseGrep = git(
-    ["grep", "-I", "-l", "-F", "-e", patterns[0] ?? "approved-scope", baseRef],
-    projectRoot,
-  );
-  // git grep <ref> syntax: git grep -e PAT REF
-  const baseGrep2 = git(
-    [
-      "grep",
-      "-I",
-      "-l",
-      "-F",
-      "-e",
-      "approved-scope",
-      "-e",
-      "readApprovedScopeRecord",
-      "-e",
-      "loadRecord",
-      "-e",
-      "listApprovedScopeRecords",
-      "-e",
-      "CHANGELOG.md",
-      "-e",
-      "presentation-ceiling",
-      "-e",
-      "seedSql",
-      baseRef,
-    ],
-    projectRoot,
-  );
-  const baseOut =
-    baseGrep2.ok && baseGrep2.status === 0 ? baseGrep2.stdout : baseGrep.ok ? baseGrep.stdout : "";
-  for (const line of baseOut.split("\n")) {
-    const p = normalizeRepoRelPath(line.replace(new RegExp(`^${baseRef}:`), ""));
-    if (p.length === 0) continue;
-    if (map.has(p)) continue;
-    const text = readAtRef(projectRoot, baseRef, p);
-    if (text !== null) map.set(p, text);
-  }
-  for (const rel of changed) {
-    const posix = normalizeRepoRelPath(rel);
-    if (map.has(posix)) continue;
-    const abs = join(resolve(projectRoot), posix);
-    if (existsSync(abs)) {
-      try {
-        map.set(posix, readFileSync(abs, "utf8"));
-      } catch {
-        // skip
-      }
-    }
-  }
-  return map;
-}
-
-function activeXbriefAtRef(names: readonly string[]): string | null {
-  const actives = names
-    .map(normalizeRepoRelPath)
-    .filter((p) => p.startsWith("xbrief/active/") && p.endsWith(".xbrief.json"));
-  if (actives.length === 1) return actives[0] ?? null;
-  return actives.length > 0 ? (actives[0] ?? null) : null;
+  return { ok: true, value: artifacts };
 }
 
 function loadBaseRoots(
-  projectRoot: string,
-  baseRef: string,
-): { testRoots: readonly string[]; fixtureRoots: readonly string[] } {
-  const policyText = readAtRef(projectRoot, baseRef, ".deft/test-boundary.policy.json");
-  if (policyText === null) {
-    return { testRoots: DEFAULT_TEST_ROOTS, fixtureRoots: DEFAULT_FIXTURE_ROOTS };
-  }
-  try {
-    const parsed = JSON.parse(policyText) as unknown;
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return { testRoots: DEFAULT_TEST_ROOTS, fixtureRoots: DEFAULT_FIXTURE_ROOTS };
-    }
-    const rec = parsed as Record<string, unknown>;
-    const testRoots = Array.isArray(rec.testRoots)
-      ? rec.testRoots.filter((x): x is string => typeof x === "string")
-      : [];
-    const fixtureRoots = Array.isArray(rec.fixtureRoots)
-      ? rec.fixtureRoots.filter((x): x is string => typeof x === "string")
-      : [];
+  contents: ReadonlyMap<string, string>,
+): Collection<{ testRoots: readonly string[]; fixtureRoots: readonly string[] }> {
+  const text = contents.get(".deft/test-boundary.policy.json");
+  if (text === undefined)
     return {
-      testRoots: testRoots.length > 0 ? testRoots : DEFAULT_TEST_ROOTS,
-      fixtureRoots: fixtureRoots.length > 0 ? fixtureRoots : DEFAULT_FIXTURE_ROOTS,
+      ok: true,
+      value: { testRoots: DEFAULT_TEST_ROOTS, fixtureRoots: DEFAULT_FIXTURE_ROOTS },
+    };
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
+      return { ok: false, message: "invalid baseline test-boundary policy object" };
+    const policy = parsed as Record<string, unknown>;
+    for (const name of ["testRoots", "fixtureRoots"]) {
+      const value = policy[name];
+      if (
+        value !== undefined &&
+        (!Array.isArray(value) || value.some((root) => typeof root !== "string"))
+      )
+        return { ok: false, message: `invalid baseline test-boundary ${name}` };
+    }
+    return {
+      ok: true,
+      value: {
+        testRoots: (policy.testRoots as string[] | undefined) ?? DEFAULT_TEST_ROOTS,
+        fixtureRoots: (policy.fixtureRoots as string[] | undefined) ?? DEFAULT_FIXTURE_ROOTS,
+      },
     };
   } catch {
-    return { testRoots: DEFAULT_TEST_ROOTS, fixtureRoots: DEFAULT_FIXTURE_ROOTS };
+    return { ok: false, message: "invalid baseline test-boundary policy JSON" };
   }
 }
 
-/**
- * Evaluate the presentation-ceiling gate against a git worktree, or an injected snapshot.
- */
+/** All baseline authority and readers use the one resolved merge-base commit. */
 export function evaluatePresentationCeiling(
   projectRoot: string,
   options: PresentationCeilingOptions = {},
 ): PresentationCeilingResult {
-  if (options.snapshot !== undefined) {
+  if (options.snapshot !== undefined)
     return evaluatePresentationCeilingFromSnapshot(options.snapshot);
-  }
-
   const root = resolve(projectRoot);
-  const resolved = options.baseRef ?? resolvePresentationCeilingBaseRef(root);
-  if (resolved === null) {
-    return configResult(
-      `${GATE_ID}: no merge-base ref (origin/master|main or DEFT_BASE_REF/GITHUB_BASE_REF); pass --base-ref`,
-    );
-  }
-  const changed = changedFilesVsBase(root, resolved);
-  if (!changed.ok) {
-    if (changed.skip) return skipNotGit(changed.message);
-    return configResult(`${GATE_ID}: ${changed.message}`);
-  }
-
-  const baseNames = [
-    ...new Set([
-      PRESENTATION_CEILING_ARTIFACT_REL,
-      ...grepCeilingHits(root, resolved),
-      ...listCeilingTreeAtRef(root, resolved),
-    ]),
+  const inside = gitOutput(root, ["rev-parse", "--is-inside-work-tree"]);
+  if (!inside.ok) return configResult(`${GATE_ID}: ${inside.message}`);
+  const ref =
+    options.baseRef ?? process.env.DEFT_BASE_REF ?? resolvePresentationCeilingBaseRef(root);
+  if (ref === null) return configResult(`${GATE_ID}: no merge-base ref; pass --base-ref`);
+  const mergeBase = gitOutput(root, ["merge-base", "--", ref, "HEAD"]);
+  if (!mergeBase.ok || !mergeBase.value.trim())
+    return configResult(`${GATE_ID}: cannot resolve merge-base for ${ref}`);
+  const baseline = mergeBase.value.trim();
+  const changed = changedFilesVsBase(root, baseline);
+  if (!changed.ok) return configResult(`${GATE_ID}: ${changed.message}`);
+  const tree = gitOutput(root, ["ls-tree", "-r", "--name-only", "-z", baseline]);
+  if (!tree.ok) return configResult(`${GATE_ID}: ${tree.message}`);
+  const baseTree = paths(tree.value);
+  const baseHits = grepPaths(root, baseline, [
+    PRESENTATION_CEILING_PLAN_KEY,
+    PRESENTATION_CEILING_SCHEMA,
+    "changeClass",
+  ]);
+  const headHits = grepPaths(root, null, [
+    PRESENTATION_CEILING_PLAN_KEY,
+    PRESENTATION_CEILING_SCHEMA,
+    "changeClass",
+  ]);
+  if (!baseHits.ok) return configResult(`${GATE_ID}: ${baseHits.message}`);
+  if (!headHits.ok) return configResult(`${GATE_ID}: ${headHits.message}`);
+  const baseNames = new Set(baseHits.value.filter(isCeilingCandidatePath));
+  for (const path of baseTree) if (path.endsWith("/presentation-ceiling.json")) baseNames.add(path);
+  const baseContents = readContents(root, baseline, [...baseNames]);
+  const headNames = [
+    ...new Set([...baseNames, ...headHits.value, ...changed.value].filter(isCeilingCandidatePath)),
   ];
-  const headCandidates = [
-    ...new Set([
-      PRESENTATION_CEILING_ARTIFACT_REL,
-      ...grepCeilingHits(root, null),
-      ...changed.files.filter(isCeilingCandidatePath),
-    ]),
-  ];
-  const headContents = collectHeadContents(root, headCandidates);
-  const baseArtifacts = collectArtifactsFromListing(root, resolved, baseNames);
-  const headArtifacts = collectArtifactsFromListing(root, null, headCandidates, headContents);
-  const headAddsRestriction = headArtifacts.some(
-    (art) => !baseArtifacts.some((b) => b.path === art.path),
-  );
-  if (baseArtifacts.length === 0 && !headAddsRestriction) {
-    return evaluatePresentationCeilingFromSnapshot({
-      changedFiles: changed.files,
-      baseArtifacts: [],
-      headArtifacts: [],
-      baseActiveXbriefPath: null,
-      headFileContents: headContents,
-      standingFileContents: new Map(),
-      baseTestRoots: [],
-      baseFixtureRoots: [],
-      defaultTestRoots: DEFAULT_TEST_ROOTS,
-      defaultFixtureRoots: DEFAULT_FIXTURE_ROOTS,
-    });
-  }
-  const standing = collectStandingContents(root, resolved, changed.files);
-  const baseRoots = loadBaseRoots(root, resolved);
-  let defaultTest = DEFAULT_TEST_ROOTS;
-  let defaultFixture = DEFAULT_FIXTURE_ROOTS;
-  try {
-    const live = loadTestBoundaryPolicy(root);
-    defaultTest = live.testRoots;
-    defaultFixture = live.fixtureRoots;
-  } catch {
-    // defaults
-  }
-
+  const headContents = readContents(root, null, headNames);
+  if (!baseContents.ok) return configResult(`${GATE_ID}: ${baseContents.message}`);
+  if (!headContents.ok) return configResult(`${GATE_ID}: ${headContents.message}`);
+  const baseArtifacts = parseArtifacts(baseContents.value);
+  const headArtifacts = parseArtifacts(headContents.value);
+  if (!baseArtifacts.ok) return configResult(`${GATE_ID}: ${baseArtifacts.message}`);
+  if (!headArtifacts.ok) return configResult(`${GATE_ID}: ${headArtifacts.message}`);
   const snapshot: PresentationCeilingSnapshot = {
-    changedFiles: changed.files,
-    baseArtifacts,
-    headArtifacts,
-    baseActiveXbriefPath: activeXbriefAtRef(listCeilingTreeAtRef(root, resolved)),
-    headFileContents: headContents,
-    standingFileContents: standing,
-    baseTestRoots: baseRoots.testRoots,
-    baseFixtureRoots: baseRoots.fixtureRoots,
-    defaultTestRoots: defaultTest,
-    defaultFixtureRoots: defaultFixture,
+    changedFiles: changed.value,
+    baseArtifacts: baseArtifacts.value,
+    headArtifacts: headArtifacts.value,
+    baseActiveXbriefPath: null,
+    baseActiveXbriefPaths: baseArtifacts.value
+      .map((artifact) => artifact.path)
+      .filter((path) => path.startsWith("xbrief/active/")),
+    headFileContents: headContents.value,
+    standingFileContents: new Map(),
+    baseTestRoots: DEFAULT_TEST_ROOTS,
+    baseFixtureRoots: DEFAULT_FIXTURE_ROOTS,
+    defaultTestRoots: DEFAULT_TEST_ROOTS,
+    defaultFixtureRoots: DEFAULT_FIXTURE_ROOTS,
   };
-  return evaluatePresentationCeilingFromSnapshot(snapshot);
+  if (baseArtifacts.value.length === 0 && headArtifacts.value.length === 0)
+    return evaluatePresentationCeilingFromSnapshot(snapshot);
+
+  const patterns = [
+    "approved-scope",
+    "scope-provenance",
+    "@deftai/directive-core",
+    ...LOADER_NAMES,
+    "CHANGELOG",
+    "presentation-ceiling",
+    "xbrief/",
+  ];
+  const baseReaders = grepPaths(root, baseline, patterns);
+  const headReaders = grepPaths(root, null, patterns);
+  if (!baseReaders.ok) return configResult(`${GATE_ID}: ${baseReaders.message}`);
+  if (!headReaders.ok) return configResult(`${GATE_ID}: ${headReaders.message}`);
+  // Raw grep cannot see decoded JS/TS literals (for example "\\x43HANGELOG.md").
+  // Parse every tracked script candidate, including unchanged readers.
+  const scriptPath = (path: string) => /\.(?:[cm]?[jt]sx?|html?)$/i.test(path);
+  const liveTree = gitOutput(root, ["ls-files", "-z"]);
+  if (!liveTree.ok) return configResult(`${GATE_ID}: ${liveTree.message}`);
+  const policyPath = ".deft/test-boundary.policy.json";
+  const baselineFiles = readContents(root, baseline, [
+    ...new Set([
+      ...baseReaders.value,
+      ...baseTree.filter(scriptPath),
+      ...(baseTree.includes(policyPath) ? [policyPath] : []),
+    ]),
+  ]);
+  const liveFiles = readContents(root, null, [
+    ...new Set([
+      ...headReaders.value,
+      ...paths(liveTree.value).filter(scriptPath),
+      ...changed.value,
+    ]),
+  ]);
+  if (!baselineFiles.ok) return configResult(`${GATE_ID}: ${baselineFiles.message}`);
+  if (!liveFiles.ok) return configResult(`${GATE_ID}: ${liveFiles.message}`);
+  const roots = loadBaseRoots(baselineFiles.value);
+  if (!roots.ok) return configResult(`${GATE_ID}: ${roots.message}`);
+  return evaluatePresentationCeilingFromSnapshot({
+    ...snapshot,
+    baseFileContents: baselineFiles.value,
+    standingFileContents: liveFiles.value,
+    baseTestRoots: roots.value.testRoots,
+    baseFixtureRoots: roots.value.fixtureRoots,
+  });
 }

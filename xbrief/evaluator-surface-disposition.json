@@ -10,6 +10,7 @@
     "packages/core/src/evaluator-surface/**",
     "packages/core/src/presentation-ceiling/**",
     "packages/core/src/observable-scope/parity/own-corpus.compare.test.ts",
+    "packages/core/src/observable-scope/pack-smoke.test.ts",
     "packages/cli/src/verify-presentation-ceiling.ts",
     "xbrief/evaluator-surface-disposition.json",
     "packages/core/src/observable-scope/pack-smoke.test.ts"
