@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import {
   emptyMutationSummary,
   mutationSummaryJson,
@@ -259,7 +260,7 @@ describe("directive update record-mode payload-root (#4446)", () => {
     expect(existsSync(join(project, ".githooks", "pre-commit"))).toBe(true);
   });
 
-  it("dry-run and live agree when pre-swap dest template is missing (#4446)", async () => {
+  it("dry-run and live agree when pre-swap dest template is missing (#4446)", destContentionItTimeout(), async () => {
     const project = freshRoot("payload-root-missing-");
     const contentRoot = installIncomingAway("0.103.0", repoTemplate());
     writeInitializedProject(project, "0.78.0");
@@ -306,7 +307,7 @@ describe("directive update record-mode payload-root (#4446)", () => {
     expect(livePayload.success).toBe(true);
   });
 
-  it("dry-run and live agree when pre-swap dest template is malformed (#4446)", async () => {
+  it("dry-run and live agree when pre-swap dest template is malformed (#4446)", destContentionItTimeout(), async () => {
     const project = freshRoot("payload-root-malformed-");
     const contentRoot = installIncomingAway("0.103.0", repoTemplate());
     writeInitializedProject(project, "0.78.0");

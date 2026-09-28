@@ -31,6 +31,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
 import { runRefreshDepositCli } from "../init-deposit/refresh.js";
 import { AGENTS_MANAGED_CLOSE } from "../platform/constants.js";
@@ -404,7 +405,7 @@ describe("cold-clone reconstitution end-to-end (#2272 / epic #2203 M1 gap)", () 
   // -------------------------------------------------------------------------
   // a1 — zero-manual reconstitution of engine + content from a bare clone.
   // -------------------------------------------------------------------------
-  it("a1: reconstitutes engine + content from a cold clone with zero manual steps", async () => {
+  it("a1: reconstitutes engine + content from a cold clone with zero manual steps", destContentionItTimeout(), async () => {
     const fixture = fresh({ pinVersion: "0.65.0" });
 
     // Precondition: this really is a cold clone — neither payload is present.
@@ -450,7 +451,7 @@ describe("cold-clone reconstitution end-to-end (#2272 / epic #2203 M1 gap)", () 
     expect(result.gatesRunnable).toBe(true);
   });
 
-  it("a1: resolves a bridged workspace-local USER.md with no DEFT_USER_PATH", async () => {
+  it("a1: resolves a bridged workspace-local USER.md with no DEFT_USER_PATH", destContentionItTimeout(), async () => {
     // A cold clone whose operator committed preferences to the workspace-local
     // bridge path — resolves without $HOME being a persistent mount.
     const fixture = fresh({ pinVersion: "0.65.0", withWorkspaceUserMd: true });
@@ -474,7 +475,7 @@ describe("cold-clone reconstitution end-to-end (#2272 / epic #2203 M1 gap)", () 
   // -------------------------------------------------------------------------
   // a2 — the structured reconstitution trace from the keystone ladder.
   // -------------------------------------------------------------------------
-  it("a2: emits and asserts the keystone ladder trace step-by-step", async () => {
+  it("a2: emits and asserts the keystone ladder trace step-by-step", destContentionItTimeout(), async () => {
     const fixture = fresh({ pinVersion: "0.65.0" });
 
     const result = await reconstituteColdClone(fixture, {
@@ -537,7 +538,7 @@ describe("cold-clone reconstitution end-to-end (#2272 / epic #2203 M1 gap)", () 
   // -------------------------------------------------------------------------
   // a4 — matched-env clone short-circuits with no reinstall.
   // -------------------------------------------------------------------------
-  it("a4: matched-env clone short-circuits the ladder at step 1/2 with no reinstall", async () => {
+  it("a4: matched-env clone short-circuits the ladder at step 1/2 with no reinstall", destContentionItTimeout(), async () => {
     const fixture = fresh({ pinVersion: "0.65.0" });
     const installRunner = vi.fn();
     const reproject = vi.fn();

@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { assembleLocalSignalSummary } from "./local-signal-summary.js";
 
 const roots: string[] = [];
@@ -22,7 +23,7 @@ describe("assembleLocalSignalSummary", () => {
     expect(summary.window).toBe("30d");
   });
 
-  it("supports custom window units", () => {
+  it("supports custom window units", destContentionItTimeout(), () => {
     const root = mkdtempSync(join(tmpdir(), "deft-ps-lss-win-"));
     roots.push(root);
     mkdirSync(join(root, "xbrief"), { recursive: true });

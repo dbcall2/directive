@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import {
   applyWorktreeOccupancy,
   evaluateOccupancyWriteGate,
@@ -55,7 +56,7 @@ describe("owner liveness on non-write hook activity (#3987)", () => {
     expect(readOccupancy(root)?.lastWriteAt).toBeNull();
   });
 
-  it("does not advance claimed_at, so the absolute lease cap is unmoved", () => {
+  it("does not advance claimed_at, so the absolute lease cap is unmoved", destContentionItTimeout(), () => {
     const root = leasedRoot();
     let at = PAST_FLOOR;
     // Renew repeatedly across more than the whole cap window; every renewal is

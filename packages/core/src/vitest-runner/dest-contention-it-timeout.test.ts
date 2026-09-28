@@ -72,6 +72,112 @@ const LOADED_LANE_EDGE_ITS: ReadonlyArray<{ file: string; titlePrefix: string }>
     file: "packages/core/src/content-contracts/standards/deposit_required_closure.test.ts",
     titlePrefix: "fails when a declared file is deleted from the staged pack output",
   },
+  {
+    file: "packages/core/src/init-deposit/record-mode-payload-root.test.ts",
+    titlePrefix: "dry-run and live agree when pre-swap dest template is missing",
+  },
+  {
+    file: "packages/core/src/init-deposit/record-mode-payload-root.test.ts",
+    titlePrefix: "dry-run and live agree when pre-swap dest template is malformed",
+  },
+  {
+    file: "packages/core/src/init-deposit/slash-deposit.test.ts",
+    titlePrefix: "does not overwrite non-thin consumer customizations at product paths",
+  },
+  {
+    file: "packages/core/src/init-deposit/slash-deposit.test.ts",
+    titlePrefix: "removes managed thin wrappers on opt-out but leaves user customizations",
+  },
+  {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "live update still C3s dest after a real replace of dest-dirty incoming-clean",
+  },
+  {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "reports current and refreshes idempotently on an up-to-date install",
+  },
+  {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "reports updated and re-stamps VERSION when content is behind the pin",
+  },
+  {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "keeps a completed refresh but exits non-zero when post-deposit hook readiness fails",
+  },
+  {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix:
+      "self-heals a mismatched engine via the global-first ladder, then completes the refresh",
+  },
+  {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "prints Removed/wrote/stripped from the same ledger as refresh JSON",
+  },
+  {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "includes tree-replace and prune mutations in the refresh snapshot",
+  },
+  {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "announces rewritten xbrief/schemas paths from the ledger and does not run prettier",
+  },
+  {
+    file: "packages/core/src/init-deposit/refresh.test.ts",
+    titlePrefix: "writes the lagging pin on skip-copy via ensurePackageJsonPin",
+  },
+  {
+    file: "packages/core/src/product-signal/local-signal-summary.test.ts",
+    titlePrefix: "supports custom window units",
+  },
+  {
+    file: "packages/core/src/integration-e2e/triage-bootstrap-at-scale.test.ts",
+    titlePrefix: "runBootstrap completes at backlog scale without wall-clock sleep",
+  },
+  {
+    file: "packages/core/src/integration-e2e/triage-bootstrap-at-scale.test.ts",
+    titlePrefix: "runBootstrap emits per-step progress lines",
+  },
+  {
+    file: "packages/core/src/integration-e2e/triage-bootstrap-at-scale.test.ts",
+    titlePrefix: "fetch_timeout_s=0 disables watchdog and completes against hermetic fixture",
+  },
+  {
+    file: "packages/core/src/resolution/cold-clone-reconstitution.test.ts",
+    titlePrefix: "a1: reconstitutes engine + content from a cold clone with zero manual steps",
+  },
+  {
+    file: "packages/core/src/resolution/cold-clone-reconstitution.test.ts",
+    titlePrefix: "a1: resolves a bridged workspace-local USER.md with no DEFT_USER_PATH",
+  },
+  {
+    file: "packages/core/src/resolution/cold-clone-reconstitution.test.ts",
+    titlePrefix: "a2: emits and asserts the keystone ladder trace step-by-step",
+  },
+  {
+    file: "packages/core/src/resolution/cold-clone-reconstitution.test.ts",
+    titlePrefix: "a4: matched-env clone short-circuits the ladder at step 1/2 with no reinstall",
+  },
+  {
+    file: "packages/core/src/hooks/owner-liveness.test.ts",
+    titlePrefix: "does not advance claimed_at, so the absolute lease cap is unmoved",
+  },
+  {
+    file: "packages/core/src/release-e2e/npm-ops.test.ts",
+    titlePrefix: "greenfield leg: directive init deposits hybrid shape without Go binary",
+  },
+  {
+    file: "packages/core/src/release-e2e/npm-ops.test.ts",
+    titlePrefix: "upgrade leg: directive update refresh is idempotent with no spurious AGENTS.md diff",
+  },
+  {
+    file: "packages/core/src/observable-scope/parity/own-corpus.compare.test.ts",
+    titlePrefix: "extracts committed page goldens and refuses truncated tab markup",
+  },
+  {
+    file: "packages/core/src/vbrief-validate/schema-v08.test.ts",
+    titlePrefix:
+      "CLI exits 0 for each of the twenty-four names under both prefixes and 1 with --warnings-as-errors",
+  },
 ];
 
 describe("destContentionItTimeout (#4847)", () => {

@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { destContentionItTimeout } from "../../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { extractMarkupFacts as viaLite } from "../extract.js";
 
 const dir = dirname(fileURLToPath(import.meta.url));
@@ -21,7 +22,7 @@ const snippets: Record<string, string> = {
 };
 
 describe("parent corpus fixtures (#4495 recut)", () => {
-  it("extracts committed page goldens and refuses truncated tab markup", () => {
+  it("extracts committed page goldens and refuses truncated tab markup", destContentionItTimeout(), () => {
     const files = readdirSync(corpusDir)
       .filter((n) => n.endsWith(".html"))
       .sort()

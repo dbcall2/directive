@@ -12,6 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
 import { runInitDeposit } from "../init-deposit/init-deposit.js";
 import { runRefreshDeposit } from "../init-deposit/refresh.js";
@@ -114,7 +115,7 @@ describe("deposit journey e2e legs (#1942 S5)", () => {
     return root;
   }
 
-  it("greenfield leg: directive init deposits hybrid shape without Go binary", async () => {
+  it("greenfield leg: directive init deposits hybrid shape without Go binary", destContentionItTimeout(), async () => {
     const spawnSpy = vi.spyOn(spawnSync as never, "apply" as never).mockImplementation(() => {
       throw new Error("spawnSync should not be called on TS-native init happy path");
     });
@@ -155,7 +156,7 @@ describe("deposit journey e2e legs (#1942 S5)", () => {
     expect(spawnSpy).not.toHaveBeenCalled();
   });
 
-  it("upgrade leg: directive update refresh is idempotent with no spurious AGENTS.md diff", async () => {
+  it("upgrade leg: directive update refresh is idempotent with no spurious AGENTS.md diff", destContentionItTimeout(), async () => {
     const project = freshRoot("e2e-upgrade-");
     const contentRoot = installFakeContentPackage(project, "0.53.0");
     const io = { printf: vi.fn() };

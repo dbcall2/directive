@@ -2016,7 +2016,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(readFileSync(destMain, "utf8")).toBe(beforeDest);
   });
 
-  it("live update still C3s dest after a real replace of dest-dirty incoming-clean (#4389)", async () => {
+  it("live update still C3s dest after a real replace of dest-dirty incoming-clean (#4389)", destContentionItTimeout(), async () => {
     const project = freshRoot("update-live-dest-c3-");
     const contentRoot = installFakeContentPackage(project, "0.115.0");
     writeInitializedProject(project, { contentVersion: "0.104.0", pinVersion: "0.115.0" });
@@ -2082,7 +2082,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(readFileSync(join(project, ".deft", "core", "VERSION"), "utf8")).toBe(beforeVersion);
   });
 
-  it("reports current and refreshes idempotently on an up-to-date install (a2/a5)", async () => {
+  it("reports current and refreshes idempotently on an up-to-date install (a2/a5)", destContentionItTimeout(), async () => {
     const project = freshRoot("update-current-");
     const contentRoot = installFakeContentPackage(project, "0.53.0");
     writeInitializedProject(project, { contentVersion: "0.53.0", pinVersion: "0.53.0" });
@@ -2126,7 +2126,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(copyContent).not.toHaveBeenCalled();
   });
 
-  it("reports updated and re-stamps VERSION when content is behind the pin (a2)", async () => {
+  it("reports updated and re-stamps VERSION when content is behind the pin (a2)", destContentionItTimeout(), async () => {
     const project = freshRoot("update-updated-");
     const contentRoot = installFakeContentPackage(project, "0.54.0");
     writeInitializedProject(project, { contentVersion: "0.53.0", pinVersion: "0.54.0" });
@@ -2157,7 +2157,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(readFileSync(join(project, ".deft", "core", "VERSION"), "utf8")).toContain("v0.54.0");
   });
 
-  it("keeps a completed refresh but exits non-zero when post-deposit hook readiness fails", async () => {
+  it("keeps a completed refresh but exits non-zero when post-deposit hook readiness fails", destContentionItTimeout(), async () => {
     const project = freshRoot("update-readiness-failed-");
     const contentRoot = installFakeContentPackage(project, "0.54.0");
     writeInitializedProject(project, { contentVersion: "0.53.0", pinVersion: "0.54.0" });
@@ -2196,7 +2196,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(err.join("")).toContain("deft agent hook readiness: live failed");
   });
 
-  it("self-heals a mismatched engine via the global-first ladder, then completes the refresh (a3)", async () => {
+  it("self-heals a mismatched engine via the global-first ladder, then completes the refresh (a3)", destContentionItTimeout(), async () => {
     const project = freshRoot("update-selfheal-");
     const contentRoot = installFakeContentPackage(project, "0.54.0");
     writeInitializedProject(project, { contentVersion: "0.53.0", pinVersion: "0.54.0" });
@@ -2360,7 +2360,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     },
   );
 
-  it("prints Removed/wrote/stripped from the same ledger as refresh JSON (#3392)", async () => {
+  it("prints Removed/wrote/stripped from the same ledger as refresh JSON (#3392)", destContentionItTimeout(), async () => {
     const project = freshRoot("refresh-ledger-");
     const contentRoot = installFakeContentPackage(project);
     writeFileSync(
@@ -2780,7 +2780,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(payload.mutations).toEqual(mutationSummaryJson(emptyMutationSummary()));
   });
 
-  it("includes tree-replace and prune mutations in the refresh snapshot (#3392 residual)", async () => {
+  it("includes tree-replace and prune mutations in the refresh snapshot (#3392 residual)", destContentionItTimeout(), async () => {
     const project = freshRoot("refresh-ledger-tree-");
     const contentRoot = installFakeContentPackage(project);
     mkdirSync(join(contentRoot, "scripts"), { recursive: true });
@@ -2826,7 +2826,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     expect(wrote).toEqual(expect.arrayContaining([".deft/core/main.md"]));
   });
 
-  it("announces rewritten xbrief/schemas paths from the ledger and does not run prettier (#3395)", async () => {
+  it("announces rewritten xbrief/schemas paths from the ledger and does not run prettier (#3395)", destContentionItTimeout(), async () => {
     const project = freshRoot("refresh-prettier-ledger-");
     const contentRoot = installFakeContentPackage(project);
     writeFileSync(
@@ -2887,7 +2887,7 @@ describe("directive update refresh-only + self-heal (#2266)", () => {
     ).not.toMatch(/prettier --write|npx prettier|pnpm exec prettier/);
   });
 
-  it("writes the lagging pin on skip-copy via ensurePackageJsonPin (#4710)", async () => {
+  it("writes the lagging pin on skip-copy via ensurePackageJsonPin (#4710)", destContentionItTimeout(), async () => {
     const project = freshRoot("update-pin-skip-");
     const contentRoot = installFakeContentPackage(project, "0.54.0");
     writeInitializedProject(project, { contentVersion: "0.54.0", pinVersion: "0.53.0" });

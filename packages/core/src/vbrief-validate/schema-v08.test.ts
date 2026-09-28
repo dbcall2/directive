@@ -9,6 +9,7 @@ import {
   RESERVED_REFERENCE_TYPE_ALIASES,
 } from "@deftai/directive-types";
 import { describe, expect, it } from "vitest";
+import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
 import { atomicWriteBrief, validateBriefForPersist } from "../scope/brief-io.js";
 import { scanVbrief } from "./conformance.js";
 import { runValidate } from "./main.js";
@@ -507,7 +508,7 @@ describe("Class B reserved-prefix compatibility (#4746 / #4765 / #4846)", () => 
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("CLI exits 0 for each of the twenty-four names under both prefixes and 1 with --warnings-as-errors", () => {
+  it("CLI exits 0 for each of the twenty-four names under both prefixes and 1 with --warnings-as-errors", destContentionItTimeout(), () => {
     for (const prefix of CLASS_B_PREFIXES) {
       for (const bare of CLASS_B_BARES) {
         const root = mkdtempSync(join(tmpdir(), "vb-4746-matrix-"));
