@@ -69,6 +69,8 @@ tasks:
     cmds: [echo ok]
   intent-constraint:
     cmds: [echo ok]
+  durable-effect-acquisition:
+    cmds: [echo ok]
   consumer-test-lane:
     cmds: [echo ok]
 `,

@@ -16,6 +16,7 @@ A consumer could omit Directive enforcement gates from its `check` task and CI w
 - `verify:evaluator-surface` (#4386)
 - `verify:observable-scope` (#4495) — HTML via parse5 (scripting disabled); JSX/TSX via project-resolved TypeScript. Not TypeScript or jsdom as dependencies.
 - `verify:intent-constraint` (#4541) — throw/reject/abort sites and new numeric consts in changed production .ts/.js versus a merge-base pin. Tests and in-scope paths are not authority.
+- `verify:durable-effect-acquisition` (#5080) — in-class `.tsx` / `.jsx` / `.html` durable-effect acquisition under a recorded presentation ceiling. Consumes the #5056 ceiling artifact. skipped/N/A is not an exit under an armed ceiling.
 
 `verify:consumer-test-lane` is composed on `check:consumer` / `CONSUMER_CHECK_GATES` only. It is not a required framework-source enforcement gate -- the framework suite remains `ts:check-lane`.
 

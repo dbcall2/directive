@@ -23,6 +23,7 @@ export * as consumerCheckContract from "./consumer-check-contract/index.js";
 export * from "./coverage-hotspots/index.js";
 export * as deliveryAttempt from "./delivery-attempt/index.js";
 export * as doctor from "./doctor/index.js";
+export * as durableEffectAcquisition from "./durable-effect-acquisition/index.js";
 export * from "./encoding/index.js";
 export * as escalation from "./escalation/index.js";
 export * as evalCrud from "./eval/crud-telemetry.js";

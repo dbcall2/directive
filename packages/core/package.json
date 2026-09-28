@@ -67,6 +67,10 @@
       "types": "./dist/intent-constraint/index.d.ts",
       "default": "./dist/intent-constraint/index.js"
     },
+    "./durable-effect-acquisition": {
+      "types": "./dist/durable-effect-acquisition/index.d.ts",
+      "default": "./dist/durable-effect-acquisition/index.js"
+    },
     "./operator-scope-limit": {
       "types": "./dist/operator-scope-limit/index.d.ts",
       "default": "./dist/operator-scope-limit/index.js"

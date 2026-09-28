@@ -339,6 +339,16 @@ tasks:
         vars:
           ENGINE_CMD: 'verify:intent-constraint --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
 
+  durable-effect-acquisition:
+    desc: "Fail-closed in-class durable-effect acquisition under a presentation ceiling (#5080). Consumes the #5056 ceiling artifact. Refuses storage, cookies, non-GET or non-sentinel network, and markup submission in changed .tsx/.jsx/.html. skipped/N/A is not an exit under an armed ceiling. Flags: --origin-ref / --quiet. Three-state exit (0 off-ceiling or pass / 1 refuse / 2 config)."
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'verify:durable-effect-acquisition --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
+
   evaluator-surface:
     desc: "Declared evaluator-surface diff gate (#4386 / #3156): fail when Taskfile.yml, tasks/verify.yml, gate-lists, coverage config, or the detector itself changes without xbrief/evaluator-surface-disposition.json covering those paths. Disclosure only -- a commit-body issue/PR URL is not #3164 authorization. Prior color is unobserved. Flags: --base-ref / --staged / --path / --quiet. Three-state exit (0 skip or disclosed / 1 missing disposition / 2 config)."
     dir: '{{.USER_WORKING_DIR}}'
@@ -360,7 +370,7 @@ tasks:
           ENGINE_CMD: 'verify:consumer-test-lane --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
 
   consumer-check-contract:
-    desc: "Consumer check-composition contract (#3145): fail when tasks/verify.yml or check aggregate omit required enforcement gates (verify:test-boundary, verify:class-checks, verify:scope-provenance, verify:consumer-check-contract, verify:evaluator-surface, verify:observable-scope, verify:intent-constraint). CI omissions warn by default. Flags: --framework-source / --enforce / --warn / --quiet. Three-state exit (0 clean or warn / 1 missing / 2 config)."
+    desc: "Consumer check-composition contract (#3145): fail when tasks/verify.yml or check aggregate omit required enforcement gates (verify:test-boundary, verify:class-checks, verify:scope-provenance, verify:consumer-check-contract, verify:evaluator-surface, verify:observable-scope, verify:intent-constraint, verify:durable-effect-acquisition). CI omissions warn by default. Flags: --framework-source / --enforce / --warn / --quiet. Three-state exit (0 clean or warn / 1 missing / 2 config)."
     dir: '{{.USER_WORKING_DIR}}'
     deps:
       - task: :engine:_ts-build

@@ -38,6 +38,7 @@ tasks:
       - verify:evaluator-surface
       - verify:observable-scope
       - verify:intent-constraint
+      - verify:durable-effect-acquisition
 `;
 
 const VERIFY_YML_COMPLETE = `
@@ -62,6 +63,9 @@ tasks:
     cmds:
       - echo ok
   intent-constraint:
+    cmds:
+      - echo ok
+  durable-effect-acquisition:
     cmds:
       - echo ok
   consumer-test-lane:
@@ -92,6 +96,7 @@ tasks:
       - verify:evaluator-surface
       - verify:observable-scope
       - verify:intent-constraint
+      - verify:durable-effect-acquisition
       - verify:branch
 `;
 
@@ -124,6 +129,7 @@ describe("consumer-check-contract helpers (#3145)", () => {
     expect(REQUIRED_CONSUMER_ENFORCEMENT_GATES).toContain("verify:evaluator-surface");
     expect(REQUIRED_CONSUMER_ENFORCEMENT_GATES).toContain("verify:observable-scope");
     expect(REQUIRED_CONSUMER_ENFORCEMENT_GATES).toContain("verify:intent-constraint");
+    expect(REQUIRED_CONSUMER_ENFORCEMENT_GATES).toContain("verify:durable-effect-acquisition");
     expect(REQUIRED_CONSUMER_ENFORCEMENT_GATES).not.toContain("verify:consumer-test-lane");
   });
 });

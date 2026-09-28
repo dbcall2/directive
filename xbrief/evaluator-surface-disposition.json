@@ -1,10 +1,17 @@
 {
   "schema": "deft.evaluator-surface-disposition.v1",
   "kind": "disclosure",
-  "issue": 4545,
+  "issue": 5080,
   "surfaces": [
+    "Taskfile.yml",
+    "tasks/verify.yml",
     "vitest.config.ts",
+    "packages/core/src/check/gate-lists.ts",
+    "packages/core/src/consumer-check-contract/evaluate.ts",
+    "packages/core/src/evaluator-surface/evaluate.ts",
+    "packages/core/src/durable-effect-acquisition/**",
+    "packages/cli/src/verify-durable-effect-acquisition.ts",
     "xbrief/evaluator-surface-disposition.json"
   ],
-  "note": "Renewed disclosure for #4545: vitest subpath alias for @deftai/directive-core/operator-scope-limit so CLI unit tests resolve the new core export. Disclosure only; not #3164 authorization."
+  "note": "Disclosure for #5080: compose verify:durable-effect-acquisition on consumer and framework check lists. Consumes the #5056 presentation-ceiling artifact. Disclosure only; not #3164 authorization."
 }

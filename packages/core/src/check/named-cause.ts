@@ -4,6 +4,7 @@
  * Gate failures must never be bare exit 1: report gate name, cause, and remedy
  * without embedding env values.
  */
+import { DURABLE_EFFECT_REMEDIATION } from "../durable-effect-acquisition/types.js";
 import { INTENT_CONSTRAINT_REMEDIATION } from "../intent-constraint/types.js";
 import { OBSERVABLE_SCOPE_REMEDIATION } from "../observable-scope/types.js";
 
@@ -44,6 +45,7 @@ const GATE_REMEDIES: Readonly<Record<string, string>> = {
     "Add xbrief/evaluator-surface-disposition.json covering the changed evaluator paths (disclosure only; not #3164 authorization)",
   "verify:observable-scope": OBSERVABLE_SCOPE_REMEDIATION,
   "verify:intent-constraint": INTENT_CONSTRAINT_REMEDIATION,
+  "verify:durable-effect-acquisition": DURABLE_EFFECT_REMEDIATION,
   "verify:consumer-test-lane":
     "Fix the project's declared test command, or set plan.policy.testCommand; do not invent a suite",
   "verify:forward-coverage":

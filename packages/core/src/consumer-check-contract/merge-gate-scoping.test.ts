@@ -41,6 +41,9 @@ tasks:
   intent-constraint:
     cmds:
       - echo ok
+  durable-effect-acquisition:
+    cmds:
+      - echo ok
   orphan-active:
     cmds:
       - echo ok
@@ -91,6 +94,7 @@ tasks:
       - verify:evaluator-surface
       - verify:observable-scope
       - verify:intent-constraint
+      - verify:durable-effect-acquisition
 ${orphanEntry}    cmds:
       - echo ok
 `;
@@ -126,6 +130,7 @@ describe("extractCheckDepEntries (#3893)", () => {
       "verify:evaluator-surface",
       "verify:observable-scope",
       "verify:intent-constraint",
+      "verify:durable-effect-acquisition",
       "verify:orphan-active",
     ]);
   });
