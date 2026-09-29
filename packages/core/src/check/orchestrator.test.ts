@@ -713,6 +713,7 @@ describe("dispatchCachedTaskCheck rapid zero-verified walk (#4866)", () => {
     expect(code).toBe(0);
     expect(started).toEqual([
       "verify:ac",
+      "verify:presentation-ceiling",
       "verify:durable-effect-acquisition",
       "verify:presentation-coverage",
     ]);
@@ -724,6 +725,7 @@ describe("dispatchCachedTaskCheck rapid zero-verified walk (#4866)", () => {
     expect(code).toBe(0);
     expect(started).toEqual([
       "verify:ac",
+      "verify:presentation-ceiling",
       "verify:durable-effect-acquisition",
       "verify:presentation-coverage",
     ]);

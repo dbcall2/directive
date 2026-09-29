@@ -182,9 +182,9 @@ function firstImpactingMissingFinding(
  * Modes (env / ceremony dial / hard budget — see resolveProductFirstCheckMode):
  *  - full: AC hard → hygiene hard → suite
  *  - pressure: AC hard → hygiene advisory → suite
- *  - rapid: AC only (ceremony dial rapid/minimal positive content).
+ *  - rapid: AC plus presentation compositor and durable-effect (#5056 / #5080).
  *    Exit is not 0 when that walk reports zero verified clauses (#4866).
- *    Unverifiable clauses still do not fail verify:ac. The other gates
+ *    Unverifiable clauses still do not fail verify:ac. Hygiene and suite
  *    stay off the rapid list.
  *
  * #3282: toolchain preflight enables degraded skip report when go-task/pnpm

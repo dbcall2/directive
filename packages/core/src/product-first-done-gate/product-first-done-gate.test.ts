@@ -396,36 +396,22 @@ describe("check mode (#3284)", () => {
     expect(applyProductFirstGateMode(gates, "pressure")).toEqual([...gates]);
   });
 
-  it("applyProductFirstGateMode keeps both independent presentation gates under rapid (#5079)", () => {
+  it("applyProductFirstGateMode keeps presentation compositor, coverage, and durable-effect under rapid (#5056 / #5079 / #5080)", () => {
     const gates = [
       PRODUCT_AC_GATE_ID,
       "verify:presentation-ceiling",
       "verify:presentation-coverage",
+      "verify:durable-effect-acquisition",
       "verify:branch",
     ] as const;
     expect(applyProductFirstGateMode(gates, "rapid")).toEqual([
       PRODUCT_AC_GATE_ID,
       "verify:presentation-ceiling",
       "verify:presentation-coverage",
+      "verify:durable-effect-acquisition",
     ]);
     expect(isHygieneGate("verify:presentation-coverage")).toBe(false);
     expect(isHygieneGate("verify:presentation-ceiling")).toBe(false);
-  });
-
-  it("applyProductFirstGateMode keeps durable-effect with the presentation compositor under rapid (#5080)", () => {
-    const gates = [
-      PRODUCT_AC_GATE_ID,
-      "verify:presentation-ceiling",
-      "verify:presentation-coverage",
-      "verify:durable-effect-acquisition",
-      "verify:branch",
-    ] as const;
-    expect(applyProductFirstGateMode(gates, "rapid")).toEqual([
-      PRODUCT_AC_GATE_ID,
-      "verify:presentation-ceiling",
-      "verify:presentation-coverage",
-      "verify:durable-effect-acquisition",
-    ]);
     expect(isCeilingCompositorGate("verify:durable-effect-acquisition")).toBe(true);
     expect(isHygieneGate("verify:durable-effect-acquisition")).toBe(false);
     const rapidFramework = applyProductFirstGateMode(
@@ -433,6 +419,7 @@ describe("check mode (#3284)", () => {
       "rapid",
       checkGateId,
     ).map(checkGateId);
+    expect(rapidFramework).toContain("verify:presentation-ceiling");
     expect(rapidFramework).toContain("verify:durable-effect-acquisition");
     expect(rapidFramework).toContain("verify:presentation-coverage");
   });
