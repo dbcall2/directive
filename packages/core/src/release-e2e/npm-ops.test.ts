@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import * as childProcess from "node:child_process";
 import {
   chmodSync,
   copyFileSync,
@@ -12,6 +12,12 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  return { ...actual, spawnSync: vi.fn(actual.spawnSync) };
+});
+
 import { CONTENT_PACKAGE_NAME } from "../deposit/resolve-content.js";
 import { runInitDeposit } from "../init-deposit/init-deposit.js";
 import { runRefreshDeposit } from "../init-deposit/refresh.js";
@@ -119,7 +125,7 @@ describe("deposit journey e2e legs (#1942 S5)", () => {
     "greenfield leg: directive init deposits hybrid shape without Go binary",
     destContentionItTimeout(),
     async () => {
-      const spawnSpy = vi.spyOn(spawnSync as never, "apply" as never).mockImplementation(() => {
+      const spawnSpy = vi.spyOn(childProcess, "spawnSync").mockImplementation(() => {
         throw new Error("spawnSync should not be called on TS-native init happy path");
       });
 
