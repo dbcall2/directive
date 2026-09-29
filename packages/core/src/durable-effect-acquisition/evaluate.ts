@@ -120,7 +120,9 @@ function resolveMergeBase(
 function loadLiveHeadCeilings(
   projectRoot: string,
   extra?: readonly string[],
-): { ok: true; records: Map<string, PresentationCeiling> } | { ok: false; result: EvaluateResult } {
+):
+  | { ok: true; records: ReadonlyMap<string, PresentationCeiling> }
+  | { ok: false; result: EvaluateResult } {
   const tracked = runGit(projectRoot, ["ls-files", "-z"]);
   const untracked = runGit(projectRoot, ["ls-files", "--others", "--exclude-standard", "-z"]);
   const split = (value: string | ReadError): string[] =>
