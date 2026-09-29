@@ -1,0 +1,127 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #5159",
+    "updated": "2026-09-29T21:16:14Z"
+  },
+  "plan": {
+    "title": "fix(class-checks): exclude lifecycle xBRIEF records from pipeline path classification",
+    "status": "pending",
+    "narratives": {
+      "Description": "fix(class-checks): exclude lifecycle xBRIEF records from pipeline path classification",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/5159",
+      "Overview": "- [ ] Exclude canonical lifecycle xBRIEF JSON records from pipeline path classification.\n- [ ] Keep class 2 and class 3 checks for real pipeline configs, infrastructure files, and GitHub workflows.\n- [ ] Cover completed pipeline-named xBRIEFs and real pipeline configs in regression tests.\n- [ ] Pass the full framework check and document the fix in CHANGELOG.md.\n\n"
+    },
+    "items": [
+      {
+        "title": "Exclude canonical lifecycle xBRIEF JSON records from pipeline path classification.",
+        "status": "proposed",
+        "id": "clause.1"
+      },
+      {
+        "title": "Keep class 2 and class 3 checks for real pipeline configs, infrastructure files, and GitHub workflows.",
+        "status": "proposed",
+        "id": "clause.2"
+      },
+      {
+        "title": "Cover completed pipeline-named xBRIEFs and real pipeline configs in regression tests.",
+        "status": "proposed",
+        "id": "clause.3"
+      },
+      {
+        "title": "Pass the full framework check and document the fix in CHANGELOG.md.",
+        "status": "proposed",
+        "id": "clause.4"
+      }
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/5159",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #5159: fix(class-checks): exclude lifecycle xBRIEF records from pipeline path classification"
+      }
+    ],
+    "acceptance": {
+      "commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/class-checks/evaluate.test.ts",
+          "expectedExitCode": 0
+        }
+      ],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "Run the focused regression suite for the issue acceptance criteria; the issue states no shell command.",
+      "sentences": [
+        "fix(class-checks): exclude lifecycle xBRIEF records from pipeline path classification",
+        "[ ] Exclude canonical lifecycle xBRIEF JSON records from pipeline path classification.",
+        "[ ] Keep class 2 and class 3 checks for real pipeline configs, infrastructure files, and GitHub workflows.",
+        "[ ] Cover completed pipeline-named xBRIEFs and real pipeline configs in regression tests.",
+        "[ ] Pass the full framework check and document the fix in CHANGELOG.md."
+      ],
+      "admitted_source_sentences": [
+        "[ ] Exclude canonical lifecycle xBRIEF JSON records from pipeline path classification.",
+        "[ ] Keep class 2 and class 3 checks for real pipeline configs, infrastructure files, and GitHub workflows.",
+        "[ ] Cover completed pipeline-named xBRIEFs and real pipeline configs in regression tests.",
+        "[ ] Pass the full framework check and document the fix in CHANGELOG.md."
+      ],
+      "admitted_source_digest": "3f882ab723940e9c9a722ad18818fd436fedb879d9bb4c012c3a5d100cefb2c9",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "[ ] Exclude canonical lifecycle xBRIEF JSON records from pipeline path classification.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "[ ] Keep class 2 and class 3 checks for real pipeline configs, infrastructure files, and GitHub workflows.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "[ ] Cover completed pipeline-named xBRIEFs and real pipeline configs in regression tests.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "[ ] Pass the full framework check and document the fix in CHANGELOG.md.",
+          "artifact_path": "CHANGELOG.md",
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found",
+      "confessions": [
+        "fix(class-checks): exclude lifecycle xBRIEF records from pipeline path classification"
+      ]
+    },
+    "metadata": {
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [],
+        "module_boundary": ""
+      },
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5636930841,
+        "origin": "deftai/directive#5159",
+        "id": "github.issue.5636930841"
+      },
+      "swarm": {
+        "file_scope": [
+          "packages/core/src/class-checks/evaluate.ts",
+          "packages/core/src/class-checks/evaluate.test.ts",
+          "CHANGELOG.md"
+        ]
+      }
+    },
+    "id": "github.issue.5636930841",
+    "updated": "2026-09-29T21:16:14Z"
+  }
+}
