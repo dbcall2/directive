@@ -3,7 +3,15 @@
  *
  * Named non-CLEAN weather terminal for "no bot reviewer installed", inherited
  * by pr:watch / pr:merge-ready. Reuses isBotReviewCheck (no second detector).
- * Empty observation never CLEANs. Ambiguity fail-closes to poll.
+ *
+ * Policy (#3452):
+ * - Assumptions: bot check-runs are excluded from CI readiness; the first
+ *   HEAD check-run fetch can be empty/partial before an installed bot posts.
+ * - Guarantees: empty observation never CLEANs; ambiguity fail-closes to
+ *   poll (`expected`); explicit `reviewers: []` is the named zero; slow
+ *   reviewers (comment / bot check / local config / non-empty policy) poll.
+ * - Non-goals: #769 substitution; treating green non-bot CI as proof that
+ *   no reviewer is installed; GitHub App installation enumeration.
  */
 
 import { existsSync } from "node:fs";
@@ -42,9 +50,15 @@ export interface ReviewerExpectationInput {
   /**
    * evaluateCiGate ready_state. In-flight CI (`not_ready_yet` /
    * `runner_capacity_stall`) fail-closes to poll so a slow bot check-run can
-   * still appear. Terminal CI weather or ready-without-bot is absence.
+   * still appear. Green non-bot CI is not absence (bot checks are excluded).
    */
   readonly ciReadyState?: string | null;
+  /**
+   * Caller has a complete HEAD check-run inventory AND a local doctor/config
+   * scan that can honestly assert no reviewer is installed. CI-ready (non-bot)
+   * alone must not set this — a late installed bot can still appear.
+   */
+  readonly absenceInventoryComplete?: boolean;
 }
 
 export const MERGE_READY_NO_REVIEWER_FAILURE =
@@ -72,9 +86,10 @@ function absent(source: ReviewerExpectationSource): ReviewerExpectation {
  * Once-before-loop presence determination (#3630).
  *
  * Policy empty list is an explicit zero. Policy non-empty is expected (slow
- * path). Comment / bot check-run / local config are positive evidence.
- * Unreachable check-runs or in-flight CI fail-close to poll. Otherwise absence
- * is the named terminal — never CLEAN.
+ * path). Current-HEAD comment / bot check-run / local config are positive
+ * evidence. Unreachable check-runs, in-flight CI, young/empty inventory, and
+ * completed non-bot CI fail-close to poll. Probe absence fires only when the
+ * caller asserts `absenceInventoryComplete` — never CLEAN.
  */
 export function evaluateReviewerExpectation(input: ReviewerExpectationInput): ReviewerExpectation {
   if (input.policyReviewers !== null) {
@@ -99,7 +114,10 @@ export function evaluateReviewerExpectation(input: ReviewerExpectationInput): Re
   if (ci !== null && CI_IN_FLIGHT.has(ci)) {
     return expected("probe");
   }
-  return absent("probe");
+  if (input.absenceInventoryComplete === true) {
+    return absent("probe");
+  }
+  return expected("probe");
 }
 
 export function botReviewCheckPresent(checkRuns: readonly { readonly name: string }[]): boolean {

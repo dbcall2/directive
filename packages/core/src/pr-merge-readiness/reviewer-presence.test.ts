@@ -96,7 +96,7 @@ describe("evaluateReviewerExpectation (#3630)", () => {
     expect(r.source).toBe("probe");
   });
 
-  it("empty check-runs (ci_never_scheduled) with no other signal is no_reviewer_installed", () => {
+  it("empty check-runs (ci_never_scheduled) fail-close to poll (young inventory)", () => {
     const r = evaluateReviewerExpectation({
       policyReviewers: null,
       reviewCommentPresent: false,
@@ -105,12 +105,12 @@ describe("evaluateReviewerExpectation (#3630)", () => {
       checkRunsUnknown: false,
       ciReadyState: "ci_never_scheduled",
     });
-    expect(r.state).toBe(REVIEWER_STATE_NO_REVIEWER_INSTALLED);
+    expect(r.state).toBe(REVIEWER_STATE_EXPECTED);
     expect(r.source).toBe("probe");
-    expect(r.handback).toBe(REVIEW_CYCLE_NO_REVIEWER_HANDBACK);
+    expect(r.handback).toBeNull();
   });
 
-  it("CI ready without bot check, comment, or config is no_reviewer_installed", () => {
+  it("completed non-bot CI without a bot check-run fail-closes to poll", () => {
     const r = evaluateReviewerExpectation({
       policyReviewers: null,
       reviewCommentPresent: false,
@@ -119,7 +119,36 @@ describe("evaluateReviewerExpectation (#3630)", () => {
       checkRunsUnknown: false,
       ciReadyState: "ready",
     });
+    expect(r.state).toBe(REVIEWER_STATE_EXPECTED);
+    expect(r.source).toBe("probe");
+    expect(r.handback).toBeNull();
+  });
+
+  it("explicit empty policy is absent even on completed non-bot CI", () => {
+    const r = evaluateReviewerExpectation({
+      policyReviewers: [],
+      reviewCommentPresent: false,
+      botReviewCheckPresent: false,
+      reviewerConfigPresent: false,
+      checkRunsUnknown: false,
+      ciReadyState: "ready",
+    });
     expect(r.state).toBe(REVIEWER_STATE_NO_REVIEWER_INSTALLED);
+    expect(r.source).toBe("policy");
+  });
+
+  it("doctor/local none plus an honest complete inventory is no_reviewer_installed", () => {
+    const r = evaluateReviewerExpectation({
+      policyReviewers: null,
+      reviewCommentPresent: false,
+      botReviewCheckPresent: false,
+      reviewerConfigPresent: false,
+      checkRunsUnknown: false,
+      ciReadyState: "ready",
+      absenceInventoryComplete: true,
+    });
+    expect(r.state).toBe(REVIEWER_STATE_NO_REVIEWER_INSTALLED);
+    expect(r.source).toBe("probe");
     expect(r.handback).toBe(REVIEW_CYCLE_NO_REVIEWER_HANDBACK);
   });
 });

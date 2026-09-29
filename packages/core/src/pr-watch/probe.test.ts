@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   BODY_AC4_MARKDOWN_LINK_CLEAN,
   BODY_PR4287_THIN_HTML,
@@ -56,7 +59,16 @@ const GREEN_CI = [
   { name: "TypeScript (build + lint + test)", status: "completed", conclusion: "success" },
 ];
 
+let emptyReviewersRoot = "";
+
 describe("probeOnce (canonical greptile-detector integration)", () => {
+  afterEach(() => {
+    if (emptyReviewersRoot.length > 0) {
+      rmSync(emptyReviewersRoot, { recursive: true, force: true });
+      emptyReviewersRoot = "";
+    }
+  });
+
   it("CLEAN body on a matching HEAD -> isClean, no blocking", () => {
     const probe = probeOnce(
       1056,
@@ -131,7 +143,7 @@ describe("probeOnce (canonical greptile-detector integration)", () => {
     expect(probe.isClean).toBe(false);
   });
 
-  it("no reviewer fixture (empty body, CI ready, no bot check) -> no_reviewer_installed (#3630)", () => {
+  it("completed non-bot CI without a bot check-run fail-closes to expected (#3630)", () => {
     const probe = probeOnce(
       1056,
       "deftai/directive",
@@ -143,9 +155,20 @@ describe("probeOnce (canonical greptile-detector integration)", () => {
     );
     expect(probe.found).toBe(false);
     expect(probe.isClean).toBe(false);
-    expect(probe.reviewerReadyState).toBe("no_reviewer_installed");
-    expect(probe.cleanGateHoldout).toBe("no_reviewer_installed");
-    expect(probe.reviewCycleHandback).toBe("review_cycle: skipped:no-reviewer-installed");
+    expect(probe.reviewerReadyState).toBe("expected");
+    expect(probe.cleanGateHoldout).not.toBe("no_reviewer_installed");
+    expect(probe.reviewCycleHandback).toBeNull();
+  });
+
+  it("empty check-runs (young inventory) fail-close to expected (#3630)", () => {
+    const probe = probeOnce(
+      1056,
+      "deftai/directive",
+      makeFakeGh({ headSha: FIXTURE_SHA, body: "", checkRuns: [] }),
+    );
+    expect(probe.ciReadyState).toBe("ci_never_scheduled");
+    expect(probe.reviewerReadyState).toBe("expected");
+    expect(probe.isClean).toBe(false);
   });
 
   it("slow reviewer (Greptile check in_progress, no comment) still expected (#3630)", () => {
@@ -162,6 +185,48 @@ describe("probeOnce (canonical greptile-detector integration)", () => {
     expect(probe.isClean).toBe(false);
     expect(probe.reviewerReadyState).toBe("expected");
     expect(probe.reviewCycleHandback).toBeNull();
+  });
+
+  it("explicit empty reviewers policy is no_reviewer_installed even on green non-bot CI (#3630)", () => {
+    emptyReviewersRoot = mkdtempSync(join(tmpdir(), "probe-reviewers-"));
+    mkdirSync(join(emptyReviewersRoot, "xbrief"), { recursive: true });
+    writeFileSync(
+      join(emptyReviewersRoot, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify({
+        plan: { title: "P", status: "running", policy: { review: { reviewers: [] } } },
+      }),
+      "utf8",
+    );
+    const probe = probeOnce(
+      1056,
+      "deftai/directive",
+      makeFakeGh({
+        headSha: FIXTURE_SHA,
+        body: "",
+        checkRuns: GREEN_CI,
+      }),
+      emptyReviewersRoot,
+    );
+    expect(probe.reviewerReadyState).toBe("no_reviewer_installed");
+    expect(probe.cleanGateHoldout).toBe("no_reviewer_installed");
+    expect(probe.reviewCycleHandback).toBe("review_cycle: skipped:no-reviewer-installed");
+    expect(probe.isClean).toBe(false);
+  });
+
+  it("stale Greptile comment without a current-HEAD bot check is not comment-expected (#3630)", () => {
+    const probe = probeOnce(
+      1056,
+      "deftai/directive",
+      makeFakeGh({
+        headSha: OTHER_SHA,
+        body: BODY_AC4_MARKDOWN_LINK_CLEAN,
+        checkRuns: GREEN_CI,
+      }),
+    );
+    expect(probe.found).toBe(true);
+    expect(probe.shaMatch).toBe(false);
+    expect(probe.reviewerReadyState).toBe("expected");
+    expect(probe.isClean).toBe(false);
   });
 
   it("in-flight CI without a bot check fail-closes to expected (slow vs absent) (#3630)", () => {

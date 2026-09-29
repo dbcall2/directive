@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { computeGateResult } from "./compute.js";
 import { exitCodeFor, printHuman } from "./output.js";
+import { MERGE_READY_NO_REVIEWER_FAILURE } from "./reviewer-presence.js";
 import type { RunGhFn } from "./types.js";
 
 const HEAD = "abc1234567890def1234567890abcdef12345678";
@@ -83,6 +87,14 @@ function fakeRunGh(opts: FakeOpts): RunGhFn {
 }
 
 describe("computeGateResult #2260 reconciliation", () => {
+  let emptyReviewersRoot = "";
+  afterEach(() => {
+    if (emptyReviewersRoot.length > 0) {
+      rmSync(emptyReviewersRoot, { recursive: true, force: true });
+      emptyReviewersRoot = "";
+    }
+  });
+
   it("merges when verdict is ABSENT but GitHub is CLEAN + MERGEABLE", () => {
     const result = computeGateResult(
       2258,
@@ -115,6 +127,32 @@ describe("computeGateResult #2260 reconciliation", () => {
       unknown
     >;
     expect(override.reason).toBe("verdict-stale-head-sha");
+  });
+
+  it("keeps no-reviewer failure when verdict is absent and GitHub is CLEAN (#3630)", () => {
+    emptyReviewersRoot = mkdtempSync(join(tmpdir(), "merge-ready-reviewers-"));
+    mkdirSync(join(emptyReviewersRoot, "xbrief"), { recursive: true });
+    writeFileSync(
+      join(emptyReviewersRoot, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify({
+        plan: { title: "P", status: "running", policy: { review: { reviewers: [] } } },
+      }),
+      "utf8",
+    );
+    const result = computeGateResult(
+      3630,
+      "deftai/directive",
+      fakeRunGh({ commentBody: "", mergeableState: "clean", mergeable: true }),
+      { projectRoot: emptyReviewersRoot },
+    );
+    expect(result.failures).toContain(MERGE_READY_NO_REVIEWER_FAILURE);
+    expect((result.partialData as Record<string, unknown>).verdict_override).toBeUndefined();
+    expect((result.partialData as Record<string, unknown>).reviewer_ready_state).toBe(
+      "no_reviewer_installed",
+    );
+    expect(printHuman(result)).toContain("MERGE-BLOCKED");
+    expect(printHuman(result)).not.toContain("Result: MERGE-READY");
+    expect(exitCodeFor(result)).toBe(1);
   });
 
   it("does NOT merge when verdict absent but GitHub is UNSTABLE (not clean)", () => {

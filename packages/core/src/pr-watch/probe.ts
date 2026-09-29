@@ -195,7 +195,7 @@ export function probeOnce(
   const root = projectRoot ?? process.cwd();
   const expectation = evaluateReviewerExpectation({
     policyReviewers: resolveReviewers(root).reviewers,
-    reviewCommentPresent: found,
+    reviewCommentPresent: found && shaMatch,
     botReviewCheckPresent: botCheckPresent,
     reviewerConfigPresent: reviewerConfigPresent(root),
     checkRunsUnknown,

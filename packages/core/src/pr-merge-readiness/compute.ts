@@ -54,6 +54,8 @@ import { attachPlatformStatusUrls } from "./platform-status.js";
 import {
   botReviewCheckPresent,
   evaluateReviewerExpectation,
+  MERGE_READY_NO_REVIEWER_FAILURE,
+  REVIEWER_STATE_NO_REVIEWER_INSTALLED,
   reviewerConfigPresent,
 } from "./reviewer-presence.js";
 import type { SlizardGateOptions } from "./slizard-gate.js";
@@ -405,9 +407,11 @@ function finalizeVerdictGate(
     }
   }
   const root = options.projectRoot ?? process.cwd();
+  const commentOnHead =
+    verdict.found && verdict.lastReviewedSha !== null && verdict.lastReviewedSha === headSha;
   const expectation = evaluateReviewerExpectation({
     policyReviewers: resolveReviewers(root).reviewers,
-    reviewCommentPresent: verdict.found,
+    reviewCommentPresent: commentOnHead,
     botReviewCheckPresent: botCheckPresent,
     reviewerConfigPresent: reviewerConfigPresent(root),
     checkRunsUnknown,
@@ -421,6 +425,9 @@ function finalizeVerdictGate(
     commentsAdded,
     reviewerReadyState: expectation.state,
   });
+  const noReviewerInstalled =
+    expectation.state === REVIEWER_STATE_NO_REVIEWER_INSTALLED ||
+    failures.includes(MERGE_READY_NO_REVIEWER_FAILURE);
 
   if (failures.length === 0) {
     const ci = applyCiGateForHead(prNumber, resolved.repo, headSha, runGh, options);
@@ -448,9 +455,11 @@ function finalizeVerdictGate(
   // #2260 reconciliation: the verdict gate failed. If the block is a HARD
   // finding (genuine P0/P1, ERRORED, low confidence on the current head), keep
   // blocking. Only reconcile a SOFT block (verdict absent / stale head SHA).
+  // #3630: no-reviewer is a named hard terminal — GitHub CLEAN must not drop it.
   if (
     options.disableMergeabilityReconcile === true ||
     resolved.repo === null ||
+    noReviewerInstalled ||
     !verdictBlockIsSoftOnly(verdict, headSha, inline, minConfidence)
   ) {
     return { failures, partialData };

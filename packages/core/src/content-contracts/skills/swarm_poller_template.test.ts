@@ -510,6 +510,13 @@ describe("test_swarm_poller_template", () => {
     expect(templateText).toContain("review_cycle: skipped:no-reviewer-installed");
     expect(templateText).toContain("deft-directive-pre-pr");
     expect(templateText).toContain("#3630");
+    const zeroStart = templateText.indexOf("## Zero-reviewer presence");
+    const boundedStart = templateText.indexOf("## Bounded poll loop");
+    expect(zeroStart).toBeGreaterThanOrEqual(0);
+    expect(boundedStart).toBeGreaterThan(zeroStart);
+    const zeroSection = templateText.slice(zeroStart, boundedStart);
+    expect(zeroSection).toContain('phase = "terminal"');
+    expect(zeroSection).toContain("terminal_state");
   });
   it("template_contains_evaluate_clean_gate_function", () => {
     expect(templateText).toContain("def evaluate_clean_gate(");
