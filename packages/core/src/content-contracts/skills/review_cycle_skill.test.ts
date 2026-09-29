@@ -261,6 +261,17 @@ describe("test_review_cycle_skill", () => {
     expect(text).toContain("#2672");
   });
 
+  it("zero_reviewer_named_terminal_before_poll (#3630)", () => {
+    const text = readReviewCycleSkill();
+    expect(text).toContain("NO_REVIEWER_INSTALLED");
+    expect(text).toContain("review_cycle: skipped:no-reviewer-installed");
+    expect(text).toContain("deft-directive-pre-pr");
+    expect(text).toContain("#3630");
+    expect(text).toContain("empty observation");
+    expect(text).toContain("#769");
+    expect(text).toContain("plan.policy.review.reviewers");
+  });
+
   it("ci_weather reason codes thrash caps and BLOCKED (#3167)", () => {
     const text = readReviewCycleSkill();
     expect(text).toContain("CI weather reason codes + thrash caps (#3167)");

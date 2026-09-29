@@ -26,6 +26,8 @@ describe("pr-watch types", () => {
       terminalCheckRun: true,
       isClean: true,
       cleanGateHoldout: null,
+      reviewerReadyState: "expected",
+      reviewCycleHandback: null,
       error: null,
     };
     expect(probe.isClean).toBe(true);
@@ -53,6 +55,8 @@ describe("pr-watch types", () => {
         terminalCheckRun: true,
         isClean: true,
         cleanGateHoldout: null,
+        reviewerReadyState: "expected",
+        reviewCycleHandback: null,
         error: null,
       },
       elapsedSeconds: 0,

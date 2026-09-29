@@ -131,6 +131,55 @@ describe("probeOnce (canonical greptile-detector integration)", () => {
     expect(probe.isClean).toBe(false);
   });
 
+  it("no reviewer fixture (empty body, CI ready, no bot check) -> no_reviewer_installed (#3630)", () => {
+    const probe = probeOnce(
+      1056,
+      "deftai/directive",
+      makeFakeGh({
+        headSha: FIXTURE_SHA,
+        body: "",
+        checkRuns: GREEN_CI,
+      }),
+    );
+    expect(probe.found).toBe(false);
+    expect(probe.isClean).toBe(false);
+    expect(probe.reviewerReadyState).toBe("no_reviewer_installed");
+    expect(probe.cleanGateHoldout).toBe("no_reviewer_installed");
+    expect(probe.reviewCycleHandback).toBe("review_cycle: skipped:no-reviewer-installed");
+  });
+
+  it("slow reviewer (Greptile check in_progress, no comment) still expected (#3630)", () => {
+    const probe = probeOnce(
+      1056,
+      "deftai/directive",
+      makeFakeGh({
+        headSha: FIXTURE_SHA,
+        body: "",
+        checkRuns: [{ name: "Greptile Review", status: "in_progress", conclusion: "none" }],
+      }),
+    );
+    expect(probe.found).toBe(false);
+    expect(probe.isClean).toBe(false);
+    expect(probe.reviewerReadyState).toBe("expected");
+    expect(probe.reviewCycleHandback).toBeNull();
+  });
+
+  it("in-flight CI without a bot check fail-closes to expected (slow vs absent) (#3630)", () => {
+    const probe = probeOnce(
+      1056,
+      "deftai/directive",
+      makeFakeGh({
+        headSha: FIXTURE_SHA,
+        body: "",
+        checkRuns: [
+          { name: "TypeScript (build + lint + test)", status: "in_progress", conclusion: "none" },
+        ],
+      }),
+    );
+    expect(probe.reviewerReadyState).toBe("expected");
+    expect(probe.isClean).toBe(false);
+  });
+
   it("failed CI check-run -> ci_failures counted, blocks clean", () => {
     const probe = probeOnce(
       1056,

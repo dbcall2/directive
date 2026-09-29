@@ -3,6 +3,7 @@ import {
   parseCommentsAdded,
 } from "../content-contracts/skills/greptile-detector.js";
 import { resolveMinGreptileConfidence } from "../policy/min-greptile-confidence.js";
+import { resolveReviewers } from "../policy/reviewers.js";
 import type { CiGateOptions } from "./ci-gate.js";
 import { buildCiSummaryLine, evaluateCiGate } from "./ci-gate.js";
 import {
@@ -50,6 +51,11 @@ import {
 } from "./mergeability.js";
 import { emptyVerdict, parseGreptileBody } from "./parse.js";
 import { attachPlatformStatusUrls } from "./platform-status.js";
+import {
+  botReviewCheckPresent,
+  evaluateReviewerExpectation,
+  reviewerConfigPresent,
+} from "./reviewer-presence.js";
 import type { SlizardGateOptions } from "./slizard-gate.js";
 import { evaluateSlizardGate, isSlizardCheck } from "./slizard-gate.js";
 import type { GateResult, GreptileVerdict, RunGhFn } from "./types.js";
@@ -379,9 +385,15 @@ function finalizeVerdictGate(
   partialData.min_greptile_confidence = minConfidence;
   let greptileReviewTerminalOnHead = false;
   let commentsAdded: number | null = null;
+  let checkRunsUnknown = true;
+  let botCheckPresent = false;
+  let ciReadyState: string | null = null;
   if (resolved.repo !== null) {
     const check = fetchCheckRunsRest(headSha, resolved.repo, runGh);
     if (check.summary !== null) {
+      checkRunsUnknown = false;
+      botCheckPresent = botReviewCheckPresent(check.checkRuns);
+      ciReadyState = evaluateCiGate(check.checkRuns, {}).summary.ready_state;
       const greptileRun = check.checkRuns.find((run) => run.name === "Greptile Review");
       greptileReviewTerminalOnHead = isGreptileReviewTerminal(
         greptileRun?.status,
@@ -392,10 +404,22 @@ function finalizeVerdictGate(
       partialData.greptile_comments_added = commentsAdded;
     }
   }
+  const root = options.projectRoot ?? process.cwd();
+  const expectation = evaluateReviewerExpectation({
+    policyReviewers: resolveReviewers(root).reviewers,
+    reviewCommentPresent: verdict.found,
+    botReviewCheckPresent: botCheckPresent,
+    reviewerConfigPresent: reviewerConfigPresent(root),
+    checkRunsUnknown,
+    ciReadyState,
+  });
+  partialData.reviewer_ready_state = expectation.state;
+  partialData.review_cycle_handback = expectation.handback;
   const failures = evaluateGates(prNumber, headSha, verdict, inline, {
     minConfidence,
     greptileReviewTerminalOnHead,
     commentsAdded,
+    reviewerReadyState: expectation.state,
   });
 
   if (failures.length === 0) {

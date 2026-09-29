@@ -569,7 +569,7 @@ describe("inspectAllPolicies", () => {
     // + coverageDebt + checkResume (#3189) + ceremonyDial (#3214) + acPassBanking (#3285)
     // + baseBranch (#3388) + syncMaxFiles (#3390) + forgeOutageRetryMinutes (#3422)
     // + projectInvariants (#3425) + allowDestructiveGhVerbs (#4384).
-    expect(inspectAllPolicies(r)).toHaveLength(31);
+    expect(inspectAllPolicies(r)).toHaveLength(32);
   });
 
   it("surfaces typed allowDirectCommits", () => {

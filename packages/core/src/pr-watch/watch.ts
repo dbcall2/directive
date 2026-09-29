@@ -14,6 +14,7 @@ import {
   VERDICT_CONFIG,
   VERDICT_ERRORED,
   VERDICT_NEW_P0_P1,
+  VERDICT_NO_REVIEWER_INSTALLED,
   VERDICT_PENDING,
   VERDICT_RUNNER_CAPACITY_STALL,
   VERDICT_STALL,
@@ -57,7 +58,8 @@ export function formatWatchStatus(
     `last_reviewed=${shortSha(probe.lastReviewedSha)} sha_match=${probe.shaMatch} ` +
     `confidence=${probe.confidence} p0=${probe.p0Count} p1=${probe.p1Count} ` +
     `errored=${probe.errored} ci_failures=${probe.ciFailures} is_clean=${probe.isClean} ` +
-    `clean_gate_holdout=${probe.cleanGateHoldout} elapsed=${elapsedSeconds}s`
+    `clean_gate_holdout=${probe.cleanGateHoldout} ` +
+    `reviewer_ready_state=${probe.reviewerReadyState} elapsed=${elapsedSeconds}s`
   );
 }
 
@@ -133,6 +135,13 @@ export function watch(
       return build(VERDICT_ERRORED, EXIT_TERMINAL_ERROR, probe, poll);
     }
 
+    // #3630: named weather terminal, not CLEAN (CI_NEVER_SCHEDULED pattern).
+    // Zero-reviewer weather is determined on the first probe and exits
+    // before the poll loop can burn TIMEOUT / dual-stop.
+    if (probe.reviewerReadyState === "no_reviewer_installed") {
+      return build(VERDICT_NO_REVIEWER_INSTALLED, EXIT_TERMINAL_ERROR, probe, poll);
+    }
+
     // #2672 / #3167: CI weather states are distinct terminal exits (exit 2).
     // Agents must thrash-cap / BLOCKED rather than multi-hour empty-commit loops.
     if (probe.ciReadyState === "runner_capacity_stall") {
@@ -204,6 +213,8 @@ export function watch(
     terminalCheckRun: false,
     isClean: false,
     cleanGateHoldout: null,
+    reviewerReadyState: null,
+    reviewCycleHandback: null,
     error: null,
   };
   return build(VERDICT_TIMEOUT, EXIT_TERMINAL_ERROR, probe, maxPolls);

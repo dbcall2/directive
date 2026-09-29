@@ -9,6 +9,10 @@ import {
 } from "../policy/min-greptile-confidence.js";
 import { INFORMAL_CLEAN_DIAGNOSTIC } from "./constants.js";
 import type { InlineGreptileFindings } from "./greptile-inline.js";
+import {
+  MERGE_READY_NO_REVIEWER_FAILURE,
+  REVIEWER_STATE_NO_REVIEWER_INSTALLED,
+} from "./reviewer-presence.js";
 import type { GreptileVerdict } from "./types.js";
 
 export interface EvaluateGatesOptions {
@@ -21,6 +25,8 @@ export interface EvaluateGatesOptions {
   readonly greptileReviewTerminalOnHead?: boolean;
   /** Parsed check-run N comments added; null if missing (#4289). */
   readonly commentsAdded?: number | null;
+  /** Shared presence determination from probe/watch SoT (#3630). */
+  readonly reviewerReadyState?: string | null;
 }
 
 /** Return failure messages (empty list == merge-ready). */
@@ -33,6 +39,11 @@ export function evaluateGates(
 ): string[] {
   const failures: string[] = [];
   const minConfidence = options.minConfidence ?? DEFAULT_CONSUMER_MIN_GREPTILE_CONFIDENCE;
+
+  if (options.reviewerReadyState === REVIEWER_STATE_NO_REVIEWER_INSTALLED) {
+    failures.push(MERGE_READY_NO_REVIEWER_FAILURE);
+    return failures;
+  }
 
   if (!verdict.found) {
     failures.push(

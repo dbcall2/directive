@@ -57,6 +57,8 @@ function makeProbe(overrides: Partial<WatchProbe> = {}): WatchProbe {
     terminalCheckRun: true,
     isClean: false,
     cleanGateHoldout: null,
+    reviewerReadyState: "expected",
+    reviewCycleHandback: null,
     error: null,
     ...overrides,
   };
@@ -164,6 +166,8 @@ describe("watchResultToJson (AC-4 shape)", () => {
       "ci_capacity_stalled_checks",
       "is_clean",
       "clean_gate_holdout",
+      "reviewer_ready_state",
+      "review_cycle_handback",
       "elapsed_seconds",
       "poll_count",
     ]);

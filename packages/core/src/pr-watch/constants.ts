@@ -42,6 +42,12 @@ export const VERDICT_CI_NEVER_SCHEDULED = "CI_NEVER_SCHEDULED";
  * Exit 2 — thrash-cap then BLOCKED; workflow arming is sibling #3168.
  */
 export const VERDICT_CI_CANCELLED_NO_FAILOVER = "CI_CANCELLED_NO_FAILOVER";
+/**
+ * No bot reviewer can be expected (presence probe and/or explicit empty
+ * plan.policy.review.reviewers) (#3630). Exit 2 — named weather terminal, not
+ * CLEAN, TIMEOUT, or STALL. Route to pre-pr self-review.
+ */
+export const VERDICT_NO_REVIEWER_INSTALLED = "NO_REVIEWER_INSTALLED";
 /** --one-shot only: a single probe with no terminal verdict yet. */
 export const VERDICT_PENDING = "PENDING";
 /** External/config fault mid-probe (unresolvable repo/HEAD, gh unavailable). */
@@ -85,7 +91,8 @@ export const WATCH_HELP =
   "  0  CLEAN       SHA-matched review, confidence >= policy min (default 4; dogfood 5), no P0/P1, CI green\n" +
   "  1  NEW_P0_P1   Blocking findings on the current (SHA-matched) review\n" +
   "  2  ERRORED | STALL | TIMEOUT | CI_BLOCKED | RUNNER_CAPACITY_STALL |\n" +
-  "     CI_NEVER_SCHEDULED | CI_CANCELLED_NO_FAILOVER | config / usage error\n";
+  "     CI_NEVER_SCHEDULED | CI_CANCELLED_NO_FAILOVER | NO_REVIEWER_INSTALLED |\n" +
+  "     config / usage error\n";
 /**
  * Consecutive polls where the CLEAN gate is wedged on HEAD (!has_blocking &&
  * !is_clean with a holdout other than sha_match) before STALL (#1039). Stale-SHA

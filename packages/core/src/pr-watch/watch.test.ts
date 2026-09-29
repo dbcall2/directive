@@ -10,6 +10,7 @@ import {
   VERDICT_CONFIG,
   VERDICT_ERRORED,
   VERDICT_NEW_P0_P1,
+  VERDICT_NO_REVIEWER_INSTALLED,
   VERDICT_PENDING,
   VERDICT_RUNNER_CAPACITY_STALL,
   VERDICT_STALL,
@@ -39,6 +40,8 @@ function makeProbe(overrides: Partial<WatchProbe> = {}): WatchProbe {
     terminalCheckRun: true,
     isClean: false,
     cleanGateHoldout: null,
+    reviewerReadyState: "expected",
+    reviewCycleHandback: null,
     error: null,
     ...overrides,
   };
@@ -206,6 +209,27 @@ describe("watch verdict matrix (one-shot, single probe)", () => {
     expect(r.exitCode).toBe(EXIT_TERMINAL_ERROR);
   });
 
+  it("no_reviewer_installed -> NO_REVIEWER_INSTALLED exit 2 without polling (#3630)", () => {
+    const r = runOneShot(
+      makeProbe({
+        found: false,
+        lastReviewedSha: null,
+        shaMatch: false,
+        confidence: null,
+        isClean: false,
+        cleanGateHoldout: "no_reviewer_installed",
+        reviewerReadyState: "no_reviewer_installed",
+        reviewCycleHandback: "review_cycle: skipped:no-reviewer-installed",
+        ciReadyState: "ci_never_scheduled",
+      }),
+    );
+    expect(r.verdict).toBe(VERDICT_NO_REVIEWER_INSTALLED);
+    expect(r.exitCode).toBe(EXIT_TERMINAL_ERROR);
+    expect(r.pollCount).toBe(1);
+    expect(r.probe.isClean).toBe(false);
+    expect(r.probe.reviewCycleHandback).toBe("review_cycle: skipped:no-reviewer-installed");
+  });
+
   it("ci_cancelled_no_failover -> CI_CANCELLED_NO_FAILOVER exit 2 (#3167)", () => {
     const r = runOneShot(
       makeProbe({
@@ -342,6 +366,32 @@ describe("watch blocking loop (injected clock + sleep)", () => {
     expect(r.verdict).toBe(VERDICT_STALL);
     expect(r.exitCode).toBe(EXIT_TERMINAL_ERROR);
     expect(r.pollCount).toBe(3);
+  });
+
+  it("NO_REVIEWER_INSTALLED on first probe does not sleep (#3630)", () => {
+    const clock = new FakeClock();
+    const sleep = vi.fn(makeSleep(clock));
+    const absent = makeProbe({
+      found: false,
+      lastReviewedSha: null,
+      shaMatch: false,
+      confidence: null,
+      isClean: false,
+      cleanGateHoldout: "no_reviewer_installed",
+      reviewerReadyState: "no_reviewer_installed",
+      reviewCycleHandback: "review_cycle: skipped:no-reviewer-installed",
+    });
+    const { fn } = makeProbeSeq(absent);
+    const r = watch(12, "deftai/directive", {
+      pollSeconds: 90,
+      maxWaitMinutes: 30,
+      probeFn: fn,
+      clockFn: clock,
+      sleepFn: sleep,
+    });
+    expect(r.verdict).toBe(VERDICT_NO_REVIEWER_INSTALLED);
+    expect(r.pollCount).toBe(1);
+    expect(sleep).not.toHaveBeenCalled();
   });
 
   it("TIMEOUT when the review never appears before the cap", () => {

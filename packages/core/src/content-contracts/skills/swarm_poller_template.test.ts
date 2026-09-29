@@ -505,6 +505,12 @@ describe("test_swarm_poller_template", () => {
     expect(templateText).toContain("six terminal exit conditions");
     expect(templateText).toContain("When ANY of the six conditions below fires");
   });
+  it("template_zero_reviewer_terminal_before_poll (#3630)", () => {
+    expect(templateText).toContain("NO_REVIEWER_INSTALLED");
+    expect(templateText).toContain("review_cycle: skipped:no-reviewer-installed");
+    expect(templateText).toContain("deft-directive-pre-pr");
+    expect(templateText).toContain("#3630");
+  });
   it("template_contains_evaluate_clean_gate_function", () => {
     expect(templateText).toContain("def evaluate_clean_gate(");
     for (const holdout_name of [

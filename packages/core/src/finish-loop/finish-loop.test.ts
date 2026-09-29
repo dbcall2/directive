@@ -59,6 +59,8 @@ function cleanWatch(pr: number): WatchResult {
       terminalCheckRun: true,
       isClean: true,
       cleanGateHoldout: null,
+      reviewerReadyState: "expected",
+      reviewCycleHandback: null,
       error: null,
     },
   };

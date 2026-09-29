@@ -11,6 +11,7 @@ import {
   VERDICT_CONFIG,
   VERDICT_ERRORED,
   VERDICT_NEW_P0_P1,
+  VERDICT_NO_REVIEWER_INSTALLED,
   VERDICT_PENDING,
   VERDICT_STALL,
   VERDICT_TIMEOUT,
@@ -34,6 +35,7 @@ describe("pr-watch constants", () => {
       VERDICT_CI_BLOCKED,
       VERDICT_CONFIG,
       VERDICT_PENDING,
+      VERDICT_NO_REVIEWER_INSTALLED,
     ]) {
       expect(typeof verdict).toBe("string");
       expect(verdict.length).toBeGreaterThan(0);
@@ -46,6 +48,11 @@ describe("pr-watch constants", () => {
     expect(DEFAULT_MAX_WAIT_MINUTES).toBe(30);
     expect(DEFAULT_POLL_SECONDS).toBe(90);
     expect(DEFAULT_STALL_THRESHOLD).toBe(3);
+  });
+
+  it("documents NO_REVIEWER_INSTALLED on the exit-2 help line (#3630)", () => {
+    expect(WATCH_HELP).toContain("NO_REVIEWER_INSTALLED");
+    expect(VERDICT_NO_REVIEWER_INSTALLED).toBe("NO_REVIEWER_INSTALLED");
   });
 
   it("documents full-stdout --json parse for wrappers (#4882 / #5015)", () => {

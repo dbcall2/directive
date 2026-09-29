@@ -85,6 +85,15 @@ export {
   platformStatusUrlsForWeather,
 } from "./platform-status.js";
 export {
+  botReviewCheckPresent,
+  evaluateReviewerExpectation,
+  MERGE_READY_NO_REVIEWER_FAILURE,
+  REVIEW_CYCLE_NO_REVIEWER_HANDBACK,
+  REVIEWER_STATE_EXPECTED,
+  REVIEWER_STATE_NO_REVIEWER_INSTALLED,
+  reviewerConfigPresent,
+} from "./reviewer-presence.js";
+export {
   type CapacityStallOptions,
   type CapacityStallProbe,
   classifyCapacityStalledRequired,

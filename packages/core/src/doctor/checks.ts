@@ -21,6 +21,12 @@ import { scanCompletedLifecycleConsistency } from "../lifecycle/completed-consis
 import { scanCompletedWriteCorpus } from "../lifecycle/completed-write-guard.js";
 import { resolveCheckResume } from "../policy/check-resume.js";
 import { resolveCoverageDebt } from "../policy/coverage-debt.js";
+import { resolveReviewers } from "../policy/reviewers.js";
+import {
+  evaluateReviewerExpectation,
+  REVIEW_CYCLE_NO_REVIEWER_HANDBACK,
+  reviewerConfigPresent,
+} from "../pr-merge-readiness/reviewer-presence.js";
 import { classifyXbriefSchemaDistance } from "../staleness-tickler/probe-xbrief.js";
 import type { XbriefSchemaDistance } from "../staleness-tickler/types.js";
 import { findSkillPathsInText } from "../text/redos-safe.js";
@@ -1451,6 +1457,66 @@ export function checkCoverageCheckResumePolicy(projectRoot: string): CheckResult
   };
 }
 
+/**
+ * Orientation: report whether a bot reviewer is declared or locally configured
+ * (#3630). Advisory pass — absence is a valid consumer layout, not a doctor fail.
+ * PR-time probe of check-runs still decides the wait terminal.
+ */
+export function checkReviewerPresence(projectRoot: string, seams: CheckSeams = {}): CheckResult {
+  const isFile = seams.isFile ?? ((p) => readText(p, seams) !== null);
+  const configPresent = reviewerConfigPresent(projectRoot, isFile);
+  const policy = resolveReviewers(projectRoot);
+  const expectation = evaluateReviewerExpectation({
+    policyReviewers: policy.reviewers,
+    reviewCommentPresent: false,
+    botReviewCheckPresent: false,
+    reviewerConfigPresent: configPresent,
+    checkRunsUnknown: true,
+  });
+  const name = "reviewer-presence";
+  if (policy.source === "typed" && policy.reviewers !== null && policy.reviewers.length === 0) {
+    return {
+      name,
+      status: "pass",
+      detail:
+        "Reviewer: none (explicit plan.policy.review.reviewers: []). " +
+        `Handback ${REVIEW_CYCLE_NO_REVIEWER_HANDBACK}. ` +
+        "Route to deft-directive-pre-pr; #769 does not cover empty registry.",
+      data: stampAdvisory({
+        state: expectation.state,
+        source: "policy",
+        handback: REVIEW_CYCLE_NO_REVIEWER_HANDBACK,
+      }),
+    };
+  }
+  if (policy.reviewers !== null && policy.reviewers.length > 0) {
+    return {
+      name,
+      status: "pass",
+      detail: `Reviewer: declared (${policy.reviewers.join(", ")}).`,
+      data: stampAdvisory({ state: "expected", source: "policy", reviewers: policy.reviewers }),
+    };
+  }
+  if (configPresent) {
+    return {
+      name,
+      status: "pass",
+      detail: "Reviewer: local greptile.json / .greptile/config.json present.",
+      data: stampAdvisory({ state: "expected", source: "config" }),
+    };
+  }
+  return {
+    name,
+    status: "pass",
+    detail:
+      "Reviewer: none detected locally (policy unset; no greptile.json). " +
+      "PR-time pr:watch / pr:merge-ready probe check-runs and comments; " +
+      "empty observation never CLEAN (#3630). Preflight must not only check " +
+      "Greptile settings that presuppose an installed app.",
+    data: stampAdvisory({ state: "probe", source: "unset" }),
+  };
+}
+
 export function checkCursorSdkAuth(environ: NodeJS.ProcessEnv = process.env): CheckResult {
   const key = (environ.CURSOR_API_KEY ?? "").trim();
   const want = (environ.DEFT_CURSOR_SDK_LAUNCH ?? "").trim() === "1";
@@ -1532,6 +1598,7 @@ export function runChecksImpl(
     checks.push(checkCompletedLifecycleConsistency(projectRoot));
     checks.push(checkCompletedOpenItems(projectRoot));
     checks.push(checkCompletedUnguardedWrite(projectRoot));
+    checks.push(checkReviewerPresence(projectRoot, seams));
     checks.push(checkCursorSdkAuth());
     return {
       projectRoot,
@@ -1556,6 +1623,7 @@ export function runChecksImpl(
   checks.push(checkCompletedLifecycleConsistency(projectRoot));
   checks.push(checkCompletedOpenItems(projectRoot));
   checks.push(checkCompletedUnguardedWrite(projectRoot));
+  checks.push(checkReviewerPresence(projectRoot, seams));
   checks.push(checkCursorSdkAuth());
   return {
     projectRoot,

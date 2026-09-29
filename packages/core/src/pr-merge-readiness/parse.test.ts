@@ -8,7 +8,7 @@ import {
   VIA_FALLBACK2,
   VIA_PRIMARY,
 } from "./constants.js";
-import { evaluateGates } from "./evaluate.js";
+import { evaluateGates, isMergeReady } from "./evaluate.js";
 import { emptyVerdict, isInformalCleanMissingCanonicalFields, parseGreptileBody } from "./parse.js";
 import type { GreptileVerdict, RunGhFn } from "./types.js";
 
@@ -151,6 +151,23 @@ describe("evaluateGates", () => {
       verdict({ found: false, lastReviewedSha: null, confidence: null }),
     );
     expect(failures.some((f) => f.includes("No Greptile rolling-summary"))).toBe(true);
+  });
+
+  it("no_reviewer_installed is a named failure, never CLEAN or wait-pending (#3630)", () => {
+    const failures = evaluateGates(
+      1,
+      HEAD,
+      verdict({ found: false, lastReviewedSha: null, confidence: null }),
+      null,
+      { reviewerReadyState: "no_reviewer_installed" },
+    );
+    expect(failures.some((f) => f.includes("NO_REVIEWER_INSTALLED"))).toBe(true);
+    expect(failures.some((f) => f.includes("review_cycle: skipped:no-reviewer-installed"))).toBe(
+      true,
+    );
+    expect(failures.some((f) => f.includes("deft-directive-pre-pr"))).toBe(true);
+    expect(failures.some((f) => f.includes("Wait for the review"))).toBe(false);
+    expect(isMergeReady(failures)).toBe(false);
   });
 
   it("fails on errored state", () => {

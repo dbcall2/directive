@@ -59,6 +59,10 @@ DO NOT STOP until ONE of the six terminal exit conditions below fires.
   - Cursor `Task` (background): Task completion-notification path
 - Execution: local. Working directory: the worktree the parent gave you (or your `--cwd` if running under `oz agent run --cwd` / OpenClaw session cwd).
 
+## Zero-reviewer presence (#3630)
+
+! Before the bounded poll loop, determine once via the shared SoT (`task pr:watch -- {pr_number} --one-shot --json` / `pr:merge-ready`). Do not invent a second detector or a third poller. If `verdict` is `NO_REVIEWER_INSTALLED`, exit immediately with handback `review_cycle: skipped:no-reviewer-installed` and route the parent to `deft-directive-pre-pr` self-review. That is a named non-CLEAN terminal, not TIMEOUT/STALL/pending. Empty observation never CLEAN. #769 substitution does not cover empty registry. A slow reviewer (`reviewer_ready_state=expected`) still enters the poll loop.
+
 ## Bounded poll loop
 
 - Poll interval: `{poll_interval_seconds}` seconds between checks (recommended default 90s -- Greptile reviews land in 3-7 min, so faster polling adds noise without information).

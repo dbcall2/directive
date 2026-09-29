@@ -103,6 +103,20 @@ gh api repos/<owner>/<repo>/commits/<sha>/check-runs --jq '.check_runs[] | selec
 
 ~ See `tools/greptile.md` for recommended dashboard and per-repo settings.
 
+! **Reviewer presence (#3630):** before the settings above (which presuppose an installed app), determine once whether a reviewer can be expected. Shared SoT: `task pr:watch` / `task pr:merge-ready` / `evaluateReviewerExpectation` (presence probe + optional `plan.policy.review.reviewers`). Doctor reports local policy/config. Empty `reviewers: []` is an explicit zero. #769 is substitution / multi-profile only — empty registry is this named terminal.
+
+## Zero-reviewer terminal (#3630)
+
+! Before entering the review-cycle / `pr:watch` poll loop, run the shared presence determination (`task pr:watch -- --one-shot` inherits it). If none can be expected, exit immediately with verdict **`NO_REVIEWER_INSTALLED`** (exit 2). This is a named non-CLEAN weather terminal, distinguishable from CLEAN, NEW_P0_P1, blocked, TIMEOUT, STALL, and CI weather. ⊗ Treat absence as "review pending". ⊗ CLEAN on empty observation.
+
+! Route to `deft-directive-pre-pr` self-review rather than skipping review. Canonical handback so parents can tell "no reviewer" apart from "reviewer said nothing.":
+
+```
+review_cycle: skipped:no-reviewer-installed
+```
+
+! A configured-but-slow reviewer (bot-review check-run, local `greptile.json` / `.greptile/config.json`, or non-empty `reviewers` policy) MUST still poll. Unreachable check-runs or in-flight CI fail-close to poll, never CLEAN. Ambiguity between slow and absent stays fail-closed to poll or to an explicit operator/policy declaration.
+
 ## Phase 1 — Deft Process Audit
 
 ! Before touching code, verify ALL prerequisites are satisfied. Fix any gaps first:
@@ -827,6 +841,8 @@ NOTES: <short>
 ! Analyze all new findings before planning any changes.
 
 ### Step 6: Exit condition check — fail-closed ReviewerStatus all-of (#1259)
+
+! **Zero-reviewer pre-loop escape (#3630):** `NO_REVIEWER_INSTALLED` is determined once before this all-of. It is not CLEAN and not `unknown` / pending. Do not enter this all-of when the presence probe already named no reviewer — route to `deft-directive-pre-pr` with `review_cycle: skipped:no-reviewer-installed`. Empty observation inside this all-of remains fail-closed (never CLEAN). #769 stays the substitution / multi-profile grain. ⊗ Bind "#769 alone covers permanent absence."
 
 ! The loop MAY exit clean ONLY when a SINGLE fresh fetch (not cached state, not a verdict assembled across earlier polls) satisfies ALL of the `ReviewerStatus` fields below. This is a **fail-closed all-of**: any field that is missing, unparsed, or ambiguous resolves to **`unknown`**, and `unknown` is NOT a pass — the agent stays in the loop and returns to Step 2. A PARTIAL or STALE Greptile review MUST NOT satisfy the exit predicate; the predicate is what prevents merging un-reviewed code while a P0/P1 finding is still in flight (#1259).
 

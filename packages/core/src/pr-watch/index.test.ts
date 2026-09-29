@@ -21,5 +21,6 @@ describe("pr-watch barrel exports", () => {
     expect(prWatch.EXIT_NEW_P0_P1).toBe(1);
     expect(prWatch.EXIT_TERMINAL_ERROR).toBe(2);
     expect(prWatch.VERDICT_CLEAN).toBe("CLEAN");
+    expect(prWatch.VERDICT_NO_REVIEWER_INSTALLED).toBe("NO_REVIEWER_INSTALLED");
   });
 });

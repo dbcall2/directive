@@ -11,6 +11,7 @@ import {
   resolveShaCurrency,
 } from "../content-contracts/skills/greptile-detector.js";
 import { resolveMinGreptileConfidence } from "../policy/min-greptile-confidence.js";
+import { resolveReviewers } from "../policy/reviewers.js";
 import { evaluateCiGate } from "../pr-merge-readiness/ci-gate.js";
 import { GREPTILE_ERRORED_SENTINEL } from "../pr-merge-readiness/constants.js";
 import {
@@ -23,6 +24,11 @@ import {
   resolveRepo,
 } from "../pr-merge-readiness/gh.js";
 import { loadThinHtmlInlineFindings } from "../pr-merge-readiness/greptile-inline.js";
+import {
+  botReviewCheckPresent,
+  evaluateReviewerExpectation,
+  reviewerConfigPresent,
+} from "../pr-merge-readiness/reviewer-presence.js";
 import type { RunGhFn } from "../pr-merge-readiness/types.js";
 import type { WatchProbe } from "./types.js";
 
@@ -44,6 +50,8 @@ function errorProbe(headSha: string | null, message: string): WatchProbe {
     terminalCheckRun: false,
     isClean: false,
     cleanGateHoldout: null,
+    reviewerReadyState: null,
+    reviewCycleHandback: null,
     error: message,
   };
 }
@@ -113,9 +121,13 @@ export function probeOnce(
   let terminalCheckRun = true;
   let greptileReviewTerminal = false;
   let commentsAdded: number | null = null;
+  let checkRunsUnknown = true;
+  let botCheckPresent = false;
   if (repo !== null) {
     const check = fetchCheckRunsRest(headSha, repo, runGh);
     if (check.summary !== null) {
+      checkRunsUnknown = false;
+      botCheckPresent = botReviewCheckPresent(check.checkRuns);
       const ci = evaluateCiGate(check.checkRuns, {});
       ciFailedChecks = ci.summary.failed_required;
       ciFailures = ciFailedChecks.length;
@@ -180,6 +192,20 @@ export function probeOnce(
     cleanGateHoldout = ciReadyState === "not_ready_yet" ? "terminal_check_run" : ciReadyState;
   }
 
+  const root = projectRoot ?? process.cwd();
+  const expectation = evaluateReviewerExpectation({
+    policyReviewers: resolveReviewers(root).reviewers,
+    reviewCommentPresent: found,
+    botReviewCheckPresent: botCheckPresent,
+    reviewerConfigPresent: reviewerConfigPresent(root),
+    checkRunsUnknown,
+    ciReadyState,
+  });
+  if (expectation.state === "no_reviewer_installed") {
+    isClean = false;
+    cleanGateHoldout = "no_reviewer_installed";
+  }
+
   return {
     found,
     headSha,
@@ -198,6 +224,8 @@ export function probeOnce(
     greptileReviewTerminal,
     isClean,
     cleanGateHoldout,
+    reviewerReadyState: expectation.state,
+    reviewCycleHandback: expectation.handback,
     error: null,
   };
 }

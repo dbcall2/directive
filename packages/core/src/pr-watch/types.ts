@@ -31,6 +31,13 @@ export interface WatchProbe {
   readonly isClean: boolean;
   /** First unmet clean-gate condition (evaluateCleanGate holdout), or null when clean. */
   readonly cleanGateHoldout: string | null;
+  /**
+   * Reviewer presence (#3630): `expected` (poll) or `no_reviewer_installed`
+   * (named non-CLEAN terminal). Null only on config-error probes.
+   */
+  readonly reviewerReadyState: string | null;
+  /** Canonical handback when reviewerReadyState is no_reviewer_installed. */
+  readonly reviewCycleHandback: string | null;
   /** Non-null when the probe hit an external/config fault (unresolvable repo/HEAD, gh down). */
   readonly error: string | null;
 }

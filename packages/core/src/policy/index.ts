@@ -82,6 +82,11 @@ import {
 } from "./require-human-merge.js";
 import { coerceLegacyNarrative, LEGACY_NARRATIVE_KEY, loadProjectDefinition } from "./resolve.js";
 import {
+  FIELD_REVIEW_REVIEWERS,
+  FIELD_REVIEW_REVIEWERS_CLI_ALIAS,
+  inspectReviewers,
+} from "./reviewers.js";
+import {
   FIELD_RUNTIME_AUTHORITY,
   FIELD_RUNTIME_AUTHORITY_CLI_ALIAS,
   inspectRuntimeAuthority,
@@ -134,6 +139,7 @@ export * from "./product-signal.js";
 export * from "./project-invariants.js";
 export * from "./require-human-merge.js";
 export * from "./resolve.js";
+export * from "./reviewers.js";
 export * from "./runtime-authority.js";
 export * from "./staleness-tickler.js";
 export * from "./sync-default.js";
@@ -597,6 +603,19 @@ function inspectMinGreptileConfidenceField(
   };
 }
 
+function inspectReviewersField(
+  data: Record<string, unknown> | null,
+  projectRoot?: string,
+): PolicyField {
+  const field = inspectReviewers(data, projectRoot);
+  return {
+    name: field.name,
+    current: field.current,
+    default: field.default,
+    source: field.source,
+  };
+}
+
 function inspectCeremonyDialField(
   data: Record<string, unknown> | null,
   projectRoot?: string,
@@ -698,6 +717,7 @@ const REGISTERED_POLICIES: readonly Inspector[] = [
   inspectDeliveryBranchField,
   inspectBaseBranchField,
   inspectMinGreptileConfidenceField,
+  inspectReviewersField,
   inspectHostHooksField,
   inspectHostSlashCommandsField,
   inspectOpenClawProductCommandsField,
@@ -758,17 +778,19 @@ export function inspectOnePolicy(name: string, projectRoot: string): PolicyField
                                   ? FIELD_BASE_BRANCH
                                   : name === FIELD_MIN_GREPTILE_CONFIDENCE_CLI_ALIAS
                                     ? FIELD_MIN_GREPTILE_CONFIDENCE
-                                    : name === FIELD_CEREMONY_DIAL_CLI_ALIAS
-                                      ? FIELD_CEREMONY_DIAL
-                                      : name === FIELD_AC_PASS_BANKING_CLI_ALIAS
-                                        ? FIELD_AC_PASS_BANKING
-                                        : name === FIELD_SYNC_MAX_FILES_CLI_ALIAS
-                                          ? FIELD_SYNC_MAX_FILES
-                                          : name === FIELD_FORGE_OUTAGE_RETRY_MINUTES_CLI_ALIAS
-                                            ? FIELD_FORGE_OUTAGE_RETRY_MINUTES
-                                            : name === FIELD_PROJECT_INVARIANTS_CLI_ALIAS
-                                              ? FIELD_PROJECT_INVARIANTS
-                                              : name;
+                                    : name === FIELD_REVIEW_REVIEWERS_CLI_ALIAS
+                                      ? FIELD_REVIEW_REVIEWERS
+                                      : name === FIELD_CEREMONY_DIAL_CLI_ALIAS
+                                        ? FIELD_CEREMONY_DIAL
+                                        : name === FIELD_AC_PASS_BANKING_CLI_ALIAS
+                                          ? FIELD_AC_PASS_BANKING
+                                          : name === FIELD_SYNC_MAX_FILES_CLI_ALIAS
+                                            ? FIELD_SYNC_MAX_FILES
+                                            : name === FIELD_FORGE_OUTAGE_RETRY_MINUTES_CLI_ALIAS
+                                              ? FIELD_FORGE_OUTAGE_RETRY_MINUTES
+                                              : name === FIELD_PROJECT_INVARIANTS_CLI_ALIAS
+                                                ? FIELD_PROJECT_INVARIANTS
+                                                : name;
   for (const field of inspectAllPolicies(projectRoot)) {
     if (field.name === normalized) return field;
   }

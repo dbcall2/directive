@@ -204,6 +204,8 @@ export function watchResultToJson(result: WatchResult): Record<string, unknown> 
     ci_capacity_stalled_checks: [...p.ciCapacityStalledChecks],
     is_clean: p.isClean,
     clean_gate_holdout: p.cleanGateHoldout,
+    reviewer_ready_state: p.reviewerReadyState,
+    review_cycle_handback: p.reviewCycleHandback,
     elapsed_seconds: result.elapsedSeconds,
     poll_count: result.pollCount,
   };
@@ -643,6 +645,12 @@ export function printWatchHuman(result: WatchResult): string {
   }
   if (p.cleanGateHoldout !== null) {
     lines.push(`  Clean-gate holdout: ${p.cleanGateHoldout}`);
+  }
+  if (p.reviewerReadyState !== null) {
+    lines.push(`  Reviewer presence:  ${p.reviewerReadyState}`);
+  }
+  if (p.reviewCycleHandback !== null) {
+    lines.push(`  Review-cycle:       ${p.reviewCycleHandback}`);
   }
   if (p.error !== null) {
     lines.push(`  Error:              ${p.error}`);

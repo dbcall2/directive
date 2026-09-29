@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Named zero-reviewer terminal for review-cycle / pr:watch (#3630).** Presence probe plus optional `plan.policy.review.reviewers` (`[]` = explicit none) exits `NO_REVIEWER_INSTALLED` (exit 2) before the poll loop; `pr:merge-ready` inherits it. Empty observation never CLEAN. Slow reviewers still poll. Handback `review_cycle: skipped:no-reviewer-installed` routes to pre-pr self-review. Doctor reports local presence. #769 stays substitution. Closes #3630.
+
 - **README Getting Started links the Directive training course (#5154).** Points at [`deftai/directive-training`](https://github.com/deftai/directive-training). Tracking #5154.
 
 - **chore(xbrief): clear stale #635 proposed split briefs** -- complete three April tip copies whose product already shipped (#705 rule-ownership, #707/#706 events) and cancel the abandoned phase-0 RFC; removes finalize-owed false positives that cited historical PR #401 against open epic #635. Refs #5142 #635 #642.
