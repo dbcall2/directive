@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Presentation coverage now preserves required gate failures (#5079).** `verify:presentation-coverage` executes all seven composed evaluators against one Git snapshot, requires current-story base authority for each changed path, and remains mandatory in rapid/pressure checks. It shares #5056's singular ceiling record and stamped amendment format; malformed authority, unmerged indexes and omitted consumer checks fail closed.
 
 ### Changed
-- **Raise agentsMdBudget.absoluteMaxBytes 21300→21371 so the merged managed section stays inside the cap (#5056).** Measured 21358 bytes, 186 lines, 13-byte margin. The three verify pins stay.
+- **Raise agentsMdBudget.absoluteMaxBytes 21300→21371 after rebasing onto current master (#5056).** Measured 21358 bytes, 186 lines, 13-byte margin. `verify:presentation-ceiling`, `verify:presentation-coverage`, and `verify:durable-effect-acquisition` stay. Merge-gate enforcement code is unchanged from master.
 - **Raise agentsMdBudget managedMaxLines 184→186 and absoluteMaxBytes 21000→21300 for #1517 merge-gate agents-entry pointer.** Tracking #1517.
 - **Raise agentsMdBudget.absoluteMaxBytes 21039→21066 after rebasing onto current master (#5056).** The managed section measures 21053 bytes with `verify:presentation-ceiling`, `verify:presentation-coverage`, and `verify:durable-effect-acquisition` kept. 13-byte margin.
 - **Raise agentsMdBudget.absoluteMaxBytes 21000→21039 for the three presentation/durable-effect pins (#5056).** Keeps `verify:presentation-ceiling`, `verify:presentation-coverage`, and `verify:durable-effect-acquisition` pinned. 13-byte margin on measured 21026.
