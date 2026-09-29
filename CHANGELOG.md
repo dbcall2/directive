@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Rapid check keeps durable-effect with the presentation compositor (PR #5103 / #5080).** `applyProductFirstGateMode` retains `verify:durable-effect-acquisition` under rapid alongside `verify:presentation-coverage`.
 - **test(pr-watch): retry heartbeat JSON.parse across mid-write empty file (PR #5103).**
-- **Durable-effect merge-base discovery matches presentation-ceiling (#5056 / PR #5104).** Off-ceiling consumers without `origin/master` pass; an armed ceiling still requires a real merge-base.
+- **Durable-effect merge-base discovery matches presentation-ceiling (#5056 / PR #5104).** Discover `origin/main` when `origin/master` is absent. An unresolved merge-base is a configuration error even when the live ceiling scan is empty; off-ceiling success requires a resolved merge-base with no ceiling on either side.
 - **fix(class-checks): allow CI harness workflows (not release/npm-publish) to reference test/fixture roots (#5097).** Class 2 still fails closed for non-workflow deploy/pipeline paths.
 
 ### Added

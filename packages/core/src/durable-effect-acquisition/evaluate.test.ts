@@ -639,7 +639,7 @@ describe("merge-base ref discovery (#5104)", () => {
     }
   });
 
-  it("passes off-ceiling when no default base ref exists", () => {
+  it("returns a configuration error when no default base ref exists", () => {
     vi.stubEnv("DEFT_BASE_REF", undefined);
     vi.stubEnv("GITHUB_BASE_REF", undefined);
     const root = discoverRepo({
@@ -648,8 +648,8 @@ describe("merge-base ref discovery (#5104)", () => {
     });
     try {
       const result = evaluateDurableEffectAcquisition({ projectRoot: root });
-      expect(result.code).toBe(0);
-      expect(result.message).toMatch(/off-ceiling/);
+      expect(result.code).toBe(2);
+      expect(result.message).toMatch(/merge-base|base ref/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

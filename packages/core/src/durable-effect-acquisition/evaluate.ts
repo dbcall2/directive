@@ -233,11 +233,6 @@ export function evaluateDurableEffectAcquisition(options: EvaluateOptions = {}):
   if (typeof mb !== "string") {
     const live = loadLiveHeadCeilings(projectRoot, options.ceilingFiles);
     if (!live.ok) return live.result;
-    if (live.records.size === 0)
-      return ok(
-        "verify:durable-effect-acquisition: off-ceiling — no presentation restriction at merge-base or head.",
-        quiet,
-      );
     return config(mb.error);
   }
   const injected =
