@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **test(pr-watch): retry heartbeat JSON.parse across mid-write empty file (PR #5103).**
 - **Durable-effect merge-base discovery matches presentation-ceiling (#5056 / PR #5104).** Discover `origin/main` when `origin/master` is absent. An unresolved merge-base is a configuration error even when the live ceiling scan is empty; off-ceiling success requires a resolved merge-base with no ceiling on either side.
 - **RULE-MAP restamp after rebase union (PR #5104 / #5056).** Regenerated committed `docs/RULE-MAP.md` so `docs:rule-map:check` matches (documents 280→281; Taskfile declarations 263→264). `verify:presentation-ceiling`, `verify:presentation-coverage`, and `verify:durable-effect-acquisition` remain.
+- **Evaluator-surface disclosure covers durable-effect-acquisition (PR #5104 / #5056).** `xbrief/evaluator-surface-disposition.json` lists `packages/core/src/durable-effect-acquisition/**` on the existing #5056 record.
 - **fix(class-checks): allow CI harness workflows (not release/npm-publish) to reference test/fixture roots (#5097).** Class 2 still fails closed for non-workflow deploy/pipeline paths.
 
 ### Added
