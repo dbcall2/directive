@@ -11,6 +11,31 @@ import {
   type WaitHeartbeatRefresherWorkerData,
 } from "./wait-heartbeat-refresher-worker.js";
 
+function sleepMs(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function parseHeartbeatAt(absTarget: string): string {
+  const maxAttempts = 25;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      const raw = readFileSync(absTarget, "utf8");
+      if (raw.trim().length === 0) {
+        sleepMs(20);
+        continue;
+      }
+      const parsed = JSON.parse(raw) as { last_heartbeat_at?: string };
+      if (typeof parsed.last_heartbeat_at === "string" && parsed.last_heartbeat_at.length > 0) {
+        return parsed.last_heartbeat_at;
+      }
+    } catch {
+      // mid-write / truncated JSON: containedWrite replace uses O_TRUNC
+    }
+    sleepMs(20);
+  }
+  throw new Error(`timed out waiting for valid heartbeat JSON at ${absTarget}`);
+}
+
 function resolveWorkerPath(): string | null {
   const local = fileURLToPath(new URL("./wait-heartbeat-refresher-worker.js", import.meta.url));
   const srcSegment = `${sep}src${sep}`;
@@ -73,9 +98,7 @@ describe("wait-heartbeat-refresher-worker (#5020)", () => {
     const worker = new Worker(workerPath, { workerData });
     try {
       Atomics.wait(view, REFRESHER_STOP_INDEX, 0, 120);
-      const secondAt = (
-        JSON.parse(readFileSync(absTarget, "utf8")) as { last_heartbeat_at: string }
-      ).last_heartbeat_at;
+      const secondAt = parseHeartbeatAt(absTarget);
       expect(Date.parse(secondAt)).toBeGreaterThan(Date.parse(firstAt));
 
       Atomics.store(view, REFRESHER_STOP_INDEX, 1);
