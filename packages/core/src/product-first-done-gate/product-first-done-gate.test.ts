@@ -7,6 +7,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { checkGateId, FRAMEWORK_CHECK_GATES } from "../check/gate-lists.js";
 import { findTrackedActiveTwins, sweepCohort } from "../swarm/complete-cohort.js";
 import {
   attachPlanAcceptance,
@@ -17,6 +18,7 @@ import {
 } from "./acceptance.js";
 import {
   applyProductFirstGateMode,
+  isCeilingCompositorGate,
   isHygieneGate,
   isProductAcGate,
   resolveProductFirstCheckMode,
@@ -408,6 +410,31 @@ describe("check mode (#3284)", () => {
     ]);
     expect(isHygieneGate("verify:presentation-coverage")).toBe(false);
     expect(isHygieneGate("verify:presentation-ceiling")).toBe(false);
+  });
+
+  it("applyProductFirstGateMode keeps durable-effect with the presentation compositor under rapid (#5080)", () => {
+    const gates = [
+      PRODUCT_AC_GATE_ID,
+      "verify:presentation-ceiling",
+      "verify:presentation-coverage",
+      "verify:durable-effect-acquisition",
+      "verify:branch",
+    ] as const;
+    expect(applyProductFirstGateMode(gates, "rapid")).toEqual([
+      PRODUCT_AC_GATE_ID,
+      "verify:presentation-ceiling",
+      "verify:presentation-coverage",
+      "verify:durable-effect-acquisition",
+    ]);
+    expect(isCeilingCompositorGate("verify:durable-effect-acquisition")).toBe(true);
+    expect(isHygieneGate("verify:durable-effect-acquisition")).toBe(false);
+    const rapidFramework = applyProductFirstGateMode(
+      FRAMEWORK_CHECK_GATES,
+      "rapid",
+      checkGateId,
+    ).map(checkGateId);
+    expect(rapidFramework).toContain("verify:durable-effect-acquisition");
+    expect(rapidFramework).toContain("verify:presentation-coverage");
   });
 
   it("classifies product vs hygiene gates", () => {

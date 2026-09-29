@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Rapid check keeps durable-effect with the presentation compositor (PR #5103 / #5080).** `applyProductFirstGateMode` retains `verify:durable-effect-acquisition` under rapid alongside `verify:presentation-coverage`.
 - **test(pr-watch): retry heartbeat JSON.parse across mid-write empty file (PR #5103).**
 - **fix(class-checks): allow CI harness workflows (not release/npm-publish) to reference test/fixture roots (#5097).** Class 2 still fails closed for non-workflow deploy/pipeline paths.
 

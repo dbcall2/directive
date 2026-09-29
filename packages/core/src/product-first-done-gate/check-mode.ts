@@ -171,14 +171,18 @@ export function isHygieneGate(gateId: string): boolean {
   return HYGIENE_GATE_ID_PREFIXES.includes(gateId);
 }
 
-/** Unavoidable fail-closed merge check under an armed presentation ceiling (#5079). */
+/** Unavoidable fail-closed merge check under an armed presentation ceiling (#5079 / #5080). */
 export function isCeilingCompositorGate(gateId: string): boolean {
-  return gateId === "verify:presentation-coverage" || gateId === "verify:presentation-ceiling";
+  return (
+    gateId === "verify:presentation-coverage" ||
+    gateId === "verify:presentation-ceiling" ||
+    gateId === "verify:durable-effect-acquisition"
+  );
 }
 
 /**
  * Filter / annotate gate list for the resolved mode.
- * - rapid: product AC gates plus both presentation checks (#5079)
+ * - rapid: product AC gates plus presentation compositor and durable-effect (#5079 / #5080)
  * - pressure/full: full list (pressure marks hygiene advisory at run time)
  */
 export function applyProductFirstGateMode<T extends string | { readonly task: string }>(
