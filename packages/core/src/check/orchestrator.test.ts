@@ -707,14 +707,22 @@ describe("dispatchCachedTaskCheck rapid zero-verified walk (#4866)", () => {
       "verify:ac passed (#3284) (1 verified, 4 unverifiable) [rung=derived]\n",
     );
     expect(code).toBe(0);
-    expect(started).toEqual(["verify:ac", "verify:presentation-coverage"]);
+    expect(started).toEqual([
+      "verify:ac",
+      "verify:durable-effect-acquisition",
+      "verify:presentation-coverage",
+    ]);
     expect(logs).not.toContain(RAPID_ZERO_VERIFIED_CHECK_NOTICE);
   });
 
   it("still exits 0 in rapid mode when the walk does not report a verified count", () => {
     const { code, started } = runMode("rapid", "verify:ac passed (#3284) [rung=derived]\n");
     expect(code).toBe(0);
-    expect(started).toEqual(["verify:ac", "verify:presentation-coverage"]);
+    expect(started).toEqual([
+      "verify:ac",
+      "verify:durable-effect-acquisition",
+      "verify:presentation-coverage",
+    ]);
   });
 
   it("does not fail full or pressure mode, and those modes still run later gates", () => {
