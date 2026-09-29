@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { evaluateDurableEffectAcquisition, readLivePresentationSource } from "./evaluate.js";
 import { PRESENTATION_CEILING_ARTIFACT_REL, PRESENTATION_CEILING_SCHEMA } from "./types.js";
 
@@ -587,6 +587,109 @@ describe("actual git snapshots", () => {
       expect(
         evaluateDurableEffectAcquisition({ projectRoot: root, mergeBase: "missing" }).code,
       ).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("merge-base ref discovery (#5104)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  function discoverRepo(opts: {
+    branch: string;
+    remoteRefs?: readonly string[];
+    files?: Record<string, string>;
+  }): string {
+    const root = mkdtempSync(join(tmpdir(), "dea-discover-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", ["-C", root, ...args], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      }).trim();
+    git("init", "--quiet", "-b", opts.branch);
+    git("config", "user.email", "fixture@example.test");
+    git("config", "user.name", "Fixture");
+    for (const [path, source] of Object.entries(opts.files ?? {})) {
+      mkdirSync(join(root, path, ".."), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+    git("add", ".");
+    git("commit", "--quiet", "-m", "base");
+    for (const ref of opts.remoteRefs ?? []) git("update-ref", `refs/remotes/${ref}`, "HEAD");
+    return root;
+  }
+
+  it("passes off-ceiling when only origin/main exists", () => {
+    vi.stubEnv("DEFT_BASE_REF", undefined);
+    vi.stubEnv("GITHUB_BASE_REF", undefined);
+    const root = discoverRepo({
+      branch: "feature",
+      remoteRefs: ["origin/main"],
+      files: { "App.html": '<form method="post" action="/orders"></form>' },
+    });
+    try {
+      const result = evaluateDurableEffectAcquisition({ projectRoot: root });
+      expect(result.code).toBe(0);
+      expect(result.message).toMatch(/off-ceiling/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("passes off-ceiling when no default base ref exists", () => {
+    vi.stubEnv("DEFT_BASE_REF", undefined);
+    vi.stubEnv("GITHUB_BASE_REF", undefined);
+    const root = discoverRepo({
+      branch: "topic",
+      files: { "App.html": '<form method="post" action="/orders"></form>' },
+    });
+    try {
+      const result = evaluateDurableEffectAcquisition({ projectRoot: root });
+      expect(result.code).toBe(0);
+      expect(result.message).toMatch(/off-ceiling/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("still requires a merge-base when a ceiling is armed", () => {
+    vi.stubEnv("DEFT_BASE_REF", undefined);
+    vi.stubEnv("GITHUB_BASE_REF", undefined);
+    const root = discoverRepo({
+      branch: "topic",
+      files: {
+        [PRESENTATION_CEILING_ARTIFACT_REL]: CEILING,
+        "App.html": '<form method="post" action="/orders"></form>',
+      },
+    });
+    try {
+      const result = evaluateDurableEffectAcquisition({ projectRoot: root });
+      expect(result.code).toBe(2);
+      expect(result.message).toMatch(/merge-base|base ref/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("evaluates an armed ceiling against origin/main when origin/master is absent", () => {
+    vi.stubEnv("DEFT_BASE_REF", undefined);
+    vi.stubEnv("GITHUB_BASE_REF", undefined);
+    const root = discoverRepo({
+      branch: "feature",
+      remoteRefs: ["origin/main"],
+      files: {
+        [PRESENTATION_CEILING_ARTIFACT_REL]: CEILING,
+        "App.html": '<form method="get" action="/orders"></form>',
+      },
+    });
+    try {
+      writeFileSync(join(root, "App.html"), '<form method="post" action="/orders"></form>');
+      const result = evaluateDurableEffectAcquisition({ projectRoot: root });
+      expect(result.code).toBe(1);
+      expect(result.message).toMatch(/durable-effect/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

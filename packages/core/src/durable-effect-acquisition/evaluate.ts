@@ -7,6 +7,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { resolvePresentationCeilingBaseRef } from "../presentation-ceiling/evaluate.js";
 import {
   allowlistsDiffer,
   combineCeilings,
@@ -99,13 +100,48 @@ function resolveMergeBase(
   injected?: string,
 ): string | { error: string } {
   if (injected !== undefined && injected.length > 0) return injected;
-  const origin = originRef !== undefined && originRef.length > 0 ? originRef : "origin/master";
+  const origin =
+    originRef !== undefined && originRef.length > 0
+      ? originRef
+      : resolvePresentationCeilingBaseRef(projectRoot);
+  if (origin === null || origin.length === 0)
+    return {
+      error:
+        "could not compute merge-base: no resolvable base ref (DEFT_BASE_REF, GITHUB_BASE_REF, origin/master, origin/main, master, main)",
+    };
   const mb = runGit(projectRoot, ["merge-base", "HEAD", origin]);
   if (typeof mb !== "string" || mb.trim().length === 0)
     return {
       error: `could not compute merge-base with ${origin}${typeof mb === "string" ? "" : `: ${mb.error}`}`,
     };
   return mb.trim();
+}
+
+function loadLiveHeadCeilings(
+  projectRoot: string,
+  extra?: readonly string[],
+): { ok: true; records: Map<string, PresentationCeiling> } | { ok: false; result: EvaluateResult } {
+  const tracked = runGit(projectRoot, ["ls-files", "-z"]);
+  const untracked = runGit(projectRoot, ["ls-files", "--others", "--exclude-standard", "-z"]);
+  const split = (value: string | ReadError): string[] =>
+    typeof value === "string" ? value.split("\0").filter(Boolean).map(posix) : [];
+  const rels = [
+    ...new Set([
+      PRESENTATION_CEILING_ARTIFACT_REL,
+      ...split(tracked),
+      ...split(untracked),
+      ...(extra ?? []),
+    ]),
+  ].filter(isCeilingCandidatePath);
+  const map = loadMap(rels, (rel) => readLivePresentationSource(projectRoot, rel));
+  if ("error" in map) return { ok: false, result: config(map.error) };
+  const loaded = loadCeilingFromMap(map);
+  if (!loaded.ok)
+    return {
+      ok: false,
+      result: fail(`verify:durable-effect-acquisition: head ceiling unreadable (${loaded.detail})`),
+    };
+  return { ok: true, records: loaded.records };
 }
 
 /** Live snapshot only: deletion is absence, never an index/HEAD fallback. */
@@ -192,7 +228,16 @@ export function evaluateDurableEffectAcquisition(options: EvaluateOptions = {}):
   const projectRoot = resolve(options.projectRoot ?? ".");
   const quiet = options.quiet === true;
   const mb = resolveMergeBase(projectRoot, options.originRef, options.mergeBase);
-  if (typeof mb !== "string") return config(mb.error);
+  if (typeof mb !== "string") {
+    const live = loadLiveHeadCeilings(projectRoot, options.ceilingFiles);
+    if (!live.ok) return live.result;
+    if (live.records.size === 0)
+      return ok(
+        "verify:durable-effect-acquisition: off-ceiling — no presentation restriction at merge-base or head.",
+        quiet,
+      );
+    return config(mb.error);
+  }
   const injected =
     options.readAtBase !== undefined &&
     options.readAtHead !== undefined &&
