@@ -29,6 +29,7 @@ import {
   showBlobsBatch,
   timedGitRunner,
 } from "../session/git.js";
+import { parseGithubIssueUri } from "../triage/reconcile/parse-uri.js";
 import { EXIT_CONFIG_ERROR, EXIT_GATE_FAILED, EXIT_INCOMPLETE, EXIT_OK } from "./constants.js";
 import {
   type FinalizeCohortResult,
@@ -212,23 +213,33 @@ function issueFromPlan(plan: Record<string, unknown>, expectedRepo: string | nul
   return number;
 }
 
-/** Count `references[]` github-issue entries only — never `x-tracking` (#5122). */
+/**
+ * Count distinct `references[]` github-issue origins — never `x-tracking` (#5122).
+ * Duplicate URIs for one issue are one origin; two issue numbers still refuse.
+ */
 export function countPlanGithubIssueReferences(plan: Record<string, unknown>): number {
   const refs = plan.references;
   if (!Array.isArray(refs)) {
     return 0;
   }
-  let count = 0;
+  const seen = new Set<number>();
+  let unparsed = 0;
   for (const ref of refs) {
     if (typeof ref !== "object" || ref === null || Array.isArray(ref)) {
       continue;
     }
-    const type = String((ref as Record<string, unknown>).type ?? "");
-    if (referenceTypeMatches(type, "github-issue")) {
-      count += 1;
+    const rec = ref as Record<string, unknown>;
+    if (!referenceTypeMatches(String(rec.type ?? ""), "github-issue")) {
+      continue;
+    }
+    const [, number] = parseGithubIssueUri(rec.uri);
+    if (number !== null && Number.isInteger(number) && number > 0) {
+      seen.add(number);
+    } else {
+      unparsed += 1;
     }
   }
-  return count;
+  return seen.size + unparsed;
 }
 
 export const UNMARKED_STAMP_REMEDIATION =
@@ -285,7 +296,7 @@ export function bindUnmarkedFinalizePair(input: {
       kind: "refuse",
       issue: input.issueFromPlan,
       productPr: 0,
-      detail: "unmarked refuse: issueFromPlan disagrees with admit.issue",
+      detail: `unmarked refuse: issueFromPlan disagrees with admit.issue (issueFromPlan=${String(input.issueFromPlan)} admit.issue=${String(input.admit.issue)})`,
     };
   }
   return {

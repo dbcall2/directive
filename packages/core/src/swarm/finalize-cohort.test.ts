@@ -2890,6 +2890,66 @@ describe("unmarked finalize compose from orphan signature (#3791 P3 / #5122)", (
     ).toBe(1);
   });
 
+  it("counts duplicate github-issue URIs for one origin as one origin", () => {
+    expect(
+      countPlanGithubIssueReferences({
+        references: [
+          {
+            uri: "https://github.com/deftai/directive/issues/9999",
+            type: "x-xbrief/github-issue",
+          },
+          {
+            uri: "https://github.com/deftai/directive/issues/9999",
+            type: "x-xbrief/github-issue",
+          },
+        ],
+      }),
+    ).toBe(1);
+    const bound = bindUnmarkedFinalizePair({
+      admit: { productPr: 7, issue: 9999, detail: "later unique pair" },
+      issueFromPlan: 9999,
+      plan: {
+        references: [
+          {
+            uri: "https://github.com/deftai/directive/issues/9999",
+            type: "x-xbrief/github-issue",
+          },
+          {
+            uri: "https://github.com/deftai/directive/issues/9999",
+            type: "x-xbrief/github-issue",
+          },
+        ],
+      },
+    });
+    expect(bound).toEqual({
+      kind: "admit",
+      issue: 9999,
+      productPr: 7,
+      detail: "later unique pair",
+    });
+    const unverified = bindUnmarkedFinalizePair({
+      admit: null,
+      issueFromPlan: 9999,
+      plan: {
+        references: [
+          {
+            uri: "https://github.com/deftai/directive/issues/9999",
+            type: "x-xbrief/github-issue",
+          },
+          {
+            uri: "https://github.com/deftai/directive/issues/9999",
+            type: "x-xbrief/github-issue",
+          },
+        ],
+      },
+    });
+    expect(unverified.kind).toBe("unverified");
+    if (unverified.kind !== "omit") {
+      expect(unverified.detail).toBe(UNMARKED_STAMP_REMEDIATION);
+      expect(unverified.productPr).toBe(0);
+    }
+  });
+
   it("refuses later-ship admit when issueFromPlan disagrees", () => {
     const plan = {
       title: "parser-split",
