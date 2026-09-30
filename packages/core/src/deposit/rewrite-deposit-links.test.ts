@@ -60,6 +60,20 @@ describe("rewriteRelativeLink (#3937)", () => {
     });
   });
 
+  it("discharges content/meta/security.md ../../main.md onto the flattened pack (#4890)", () => {
+    expect(
+      rewriteRelativeLink({
+        sourceFileRel: "content/meta/security.md",
+        packFileRel: "meta/security.md",
+        target: "../../main.md",
+      }),
+    ).toEqual({
+      next: "../main.md",
+      rewritten: true,
+      packMapped: true,
+    });
+  });
+
   it("drops one ../ when a nested content file climbs to root main.md", () => {
     const result = rewriteRelativeLink({
       sourceFileRel: "content/skills/deft-directive-setup/SKILL.md",

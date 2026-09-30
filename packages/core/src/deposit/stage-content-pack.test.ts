@@ -4,11 +4,10 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { collectBrokenLinks } from "../validate-content/validate-links.js";
 import { destContentionItTimeout } from "../vitest-runner/dest-contention-it-timeout.helper.test.js";
+import { classifyPackedDepositBrokenLinks } from "./classify-packed-link-residuals.js";
 import {
   REWRITE_MARKER_PREFIX,
-  resolveSourceTargetRel,
   rewriteRelativeLink,
-  sourceRelForPackRel,
   splitLinkHash,
 } from "./rewrite-deposit-links.js";
 import { stageContentPack } from "./stage-content-pack.js";
@@ -27,7 +26,7 @@ afterEach(() => {
   }
 });
 
-describe("stageContentPack (#3937)", () => {
+describe("stageContentPack (#3937 / #4890)", () => {
   it("rewrites flatten-sensitive links in the pack copy and leaves the source tree alone", () => {
     const root = tempDir("stage-pack-src-");
     mkdirSync(join(root, "content", "coding"), { recursive: true });
@@ -73,28 +72,25 @@ describe("stageContentPack (#3937)", () => {
       expect(packedMain).not.toContain("./content/coding/coding.md");
       expect(packedMain).not.toContain("](./REFERENCES.md)");
 
+      const packedSecurity = readFileSync(join(dest, "meta", "security.md"), "utf8");
+      expect(packedSecurity).toContain(REWRITE_MARKER_PREFIX);
+      expect(packedSecurity).toContain("](../main.md)");
+      expect(packedSecurity).not.toContain("](../../main.md)");
+
       const broken = collectBrokenLinks(dest);
-      const unexpected: string[] = [];
-      const residuals = new Set<string>();
       const repoRoot = process.cwd();
-      for (const item of broken) {
-        const packFileRel = item.file.replace(/\\/g, "/");
-        const sourceFileRel = sourceRelForPackRel(packFileRel);
-        const mapped = rewriteRelativeLink({
-          sourceFileRel,
-          packFileRel,
-          target: item.target,
-        });
-        const rawPath = splitLinkHash(item.target).path;
-        const sourceTarget = resolveSourceTargetRel(sourceFileRel, rawPath);
-        const sourceExists = existsSync(join(repoRoot, ...sourceTarget.split("/")));
-        if (mapped.packMapped && sourceExists) {
-          unexpected.push(`${item.file}:${item.line} -> ${item.target}`);
-        } else {
-          residuals.add(rawPath || item.target);
-        }
-      }
+      const { unexpected, residualTargets } = classifyPackedDepositBrokenLinks({
+        broken,
+        repoRoot,
+      });
       expect(unexpected, unexpected.join("\n")).toEqual([]);
+
+      const securityBroken = broken.filter(
+        (item) => item.file.replace(/\\/g, "/") === "meta/security.md",
+      );
+      expect(securityBroken.map((item) => splitLinkHash(item.target).path)).toEqual([
+        "../../docs/decisions/ADR-003-a2a-nuclear-family-topology.md",
+      ]);
 
       const mainBroken = broken.filter((item) => item.file.replace(/\\/g, "/") === "main.md");
       const mainUnexpected = mainBroken.filter((item) => {
@@ -107,8 +103,7 @@ describe("stageContentPack (#3937)", () => {
       });
       expect(mainUnexpected).toEqual([]);
 
-      const namedResiduals = [...residuals].sort();
-      expect(namedResiduals).toEqual(NAMED_PACK_RESIDUALS);
+      expect(residualTargets).toEqual(NAMED_PACK_RESIDUALS);
       expect(readFileSync(join(process.cwd(), "main.md"), "utf8")).toContain(
         "./content/coding/coding.md",
       );
@@ -116,7 +111,12 @@ describe("stageContentPack (#3937)", () => {
   );
 });
 
-/** Unshipped or source-broken targets remaining after the flatten-aware rewrite. */
+/**
+ * #4890 membership: keep. Tip-measured unique residuals after stageContentPack
+ * + collectBrokenLinks. Do not silently widen. Shrink only with a ship
+ * decision. Split ADR docs/decisions targets to neighbor #3847 rather than
+ * dropping them here. Body ~103/60 census is historical.
+ */
 const NAMED_PACK_RESIDUALS = [
   "../../../AGENTS.md",
   "../../../CONTRIBUTING.md",
