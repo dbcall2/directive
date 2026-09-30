@@ -56,6 +56,9 @@ describe("declared deposit closure against staged pack (#3601 C1)", () => {
       expect(packedHeartbeat).not.toContain("scripts/subagent_monitor.py");
       expect(packedHeartbeat).not.toContain("tests/cli/test_subagent_monitor.py");
       expect(packedHeartbeat).not.toContain("scripts/_safe_subprocess.py");
+      expect(packedHeartbeat).not.toContain("Greptile body it has to inspect");
+      expect(packedHeartbeat).toContain("does not invoke `gh`");
+      expect(packedHeartbeat).toContain("does not inspect Greptile bodies");
     },
   );
 
@@ -78,6 +81,9 @@ describe("declared deposit closure against staged pack (#3601 C1)", () => {
     const skills = template.split("## Skills")[1]?.split("## ")[0] ?? "";
     expect(skills).not.toContain(".deft/core/REFERENCES.md");
     expect(skills).toContain("packs:slice skills list");
+    const steer = template.split("## Parent-steer inbox")[1]?.split("## ")[0] ?? "";
+    expect(steer).toContain("content/docs/subagent-heartbeat.md");
+    expect(steer).toContain(".deft/core/docs");
     expect(skills).toContain("npx deft");
     expect(skills).toContain("--json");
     expect(skills).toContain("node_modules");

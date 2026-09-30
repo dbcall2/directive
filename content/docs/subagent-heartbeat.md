@@ -348,11 +348,10 @@ Exit codes (three-state, mirrors `task verify:cache-fresh` /
   Distinct from `1` so the operator can tell "missing scratch dir"
   from "agents are stale".
 
-`gh` capture inside the monitor uses UTF-8-safe Node `execFile` (no
-shell) per the AGENTS.md `## Safe subprocess capture (#1366)` rule --
-the monitor never crashes its reader thread on non-cp1252 bytes in a
-Greptile body it has to inspect on behalf of an agent that has gone
-dark.
+`task agent:monitor` is a file-only liveness sweep of heartbeat JSON
+under `.deft-scratch/subagent-status/`. It does not invoke `gh` and
+does not inspect Greptile bodies. Use `verify:subagent-alive` for
+liveness and review-cycle / `pr:watch` for review text.
 
 ## Runtime and GitHub auth troubleshooting (#1557)
 
@@ -480,9 +479,8 @@ OpenClaw `sessions_yield` or live `resume_from` on Grok Build.
   Sub-Agent Role Separation -- the swarm skill surfaces that cite the
   heartbeat contract as the canonical alive-check on the Grok Build
   hybrid path (OpenClaw descriptor matrix is #2875 -- not this doc)
-- `AGENTS.md` `## Safe subprocess capture (#1366)` -- the dependency
-  helper the monitor uses for any gh capture it does on behalf of a
-  dark sub-agent
+- `task agent:monitor` does not invoke `gh` and does not inspect
+  Greptile bodies; review text stays on review-cycle / `pr:watch`
 - Recurrence: the #1166 swarm session where `#1362` and `#1363` went
   silent with zero observable signals
 - OpenClaw: #2879 (templates + heartbeat mapping), epic #2874
