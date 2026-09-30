@@ -232,7 +232,9 @@ describe("migrateLegacyClauseKeyedItemIdsCorpus (#5011)", () => {
   itSymlink("ignores an unrelated non-brief symlink and still rewrites leftovers", () => {
     const escapeDir = mkdtempSync(join(tmpdir(), "clause-ids-unrelated-link-"));
     writeFileSync(join(escapeDir, "notes.txt"), "not a brief\n", "utf8");
+    mkdirSync(join(escapeDir, "docs"), { recursive: true });
     symlinkSync(join(escapeDir, "notes.txt"), join(root, "xbrief", "completed", "notes.txt"));
+    symlinkSync(join(escapeDir, "docs"), join(root, "xbrief", "docs"), "dir");
     const path = write("xbrief/completed/done.xbrief.json", [
       { id: "clause:7", title: "clause:7", status: "completed" },
     ]);
@@ -243,6 +245,34 @@ describe("migrateLegacyClauseKeyedItemIdsCorpus (#5011)", () => {
       plan: { items: Array<{ id: string }> };
     };
     expect(doc.plan.items[0]?.id).toBe(clauseKeyedItemId(7));
+    rmSync(escapeDir, { recursive: true, force: true });
+  });
+
+  itSymlink("conflicts when a lifecycle folder is a symlink", () => {
+    const escapeDir = mkdtempSync(join(tmpdir(), "clause-ids-folder-link-"));
+    mkdirSync(join(escapeDir, "completed"), { recursive: true });
+    writeFileSync(
+      join(escapeDir, "completed", "out.xbrief.json"),
+      `${JSON.stringify({ plan: { items: [{ id: "clause:1", title: "clause:1" }] } }, null, 2)}\n`,
+      "utf8",
+    );
+    rmSync(join(root, "xbrief", "completed"), { recursive: true, force: true });
+    symlinkSync(join(escapeDir, "completed"), join(root, "xbrief", "completed"), "dir");
+    const leftover = write("xbrief/cancelled/old.xbrief.json", [
+      { id: "clause:8", title: "clause:8", status: "cancelled" },
+    ]);
+    const result = migrateLegacyClauseKeyedItemIdsCorpus(root);
+    expect(result.conflicts).toEqual([
+      {
+        path: "xbrief/completed",
+        message: "skipped symlink; vbrief:validate may still reject leftover clause:N inside",
+      },
+    ]);
+    expect(result.changed).toEqual(["xbrief/cancelled/old.xbrief.json"]);
+    const doc = JSON.parse(readFileSync(leftover, "utf8")) as {
+      plan: { items: Array<{ id: string }> };
+    };
+    expect(doc.plan.items[0]?.id).toBe(clauseKeyedItemId(8));
     rmSync(escapeDir, { recursive: true, force: true });
   });
 });

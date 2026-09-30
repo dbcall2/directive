@@ -10,6 +10,7 @@ import { containedWrite } from "../fs/contained-write.js";
 import { assertDirectoryNotSymlink } from "../fs/projection-containment.js";
 import { hasArtifactSuffix, resolveLifecycleRoot } from "../layout/resolve.js";
 import { rewriteLegacyClauseKeyedItemIds } from "../scope/acceptance-evidence.js";
+import { LIFECYCLE_FOLDERS } from "../vbrief-validate/constants.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -50,9 +51,16 @@ interface CorpusWalk {
   skippedSymlinks: string[];
 }
 
-function isBriefOrDirSymlink(full: string, name: string): boolean {
+const VALIDATE_VISIBLE_FOLDERS = new Set(LIFECYCLE_FOLDERS);
+
+/** Brief-named links, plus lifecycle-folder dir links that discoverVbriefs follows. */
+function isValidateVisibleSymlink(corpusDir: string, full: string, name: string): boolean {
   if (hasArtifactSuffix(name)) {
     return true;
+  }
+  const rel = relative(corpusDir, full).replace(/\\/g, "/");
+  if (!VALIDATE_VISIBLE_FOLDERS.has(rel)) {
+    return false;
   }
   try {
     return statSync(full).isDirectory();
@@ -64,6 +72,7 @@ function isBriefOrDirSymlink(full: string, name: string): boolean {
 function collectVbriefFiles(
   dir: string,
   acc: CorpusWalk = { files: [], skippedSymlinks: [] },
+  corpusDir: string = dir,
 ): CorpusWalk {
   let entries: Dirent[];
   try {
@@ -84,7 +93,7 @@ function collectVbriefFiles(
       }
     }
     if (isLink) {
-      if (isBriefOrDirSymlink(full, entry.name)) {
+      if (isValidateVisibleSymlink(corpusDir, full, entry.name)) {
         acc.skippedSymlinks.push(full);
       }
       continue;
@@ -92,7 +101,7 @@ function collectVbriefFiles(
     const isDir = entry.isDirectory() || info?.isDirectory() === true;
     const isFile = entry.isFile() || info?.isFile() === true;
     if (isDir) {
-      collectVbriefFiles(full, acc);
+      collectVbriefFiles(full, acc, corpusDir);
     } else if (isFile && hasArtifactSuffix(entry.name)) {
       acc.files.push(full);
     }
