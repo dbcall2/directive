@@ -356,6 +356,7 @@ export function runTransition(
   }
 
   // #3041: fail closed before mutating a code-bearing complete without delivery evidence.
+  let reuseValidatedDeliveryAncestry = false;
   if (act === "complete") {
     const gate = evaluateDeliveryGate({
       projectRoot,
@@ -378,6 +379,7 @@ export function runTransition(
           ? { ...gate.provenance, completedSessionId: sessionId }
           : gate.provenance,
       );
+      reuseValidatedDeliveryAncestry = gate.provenance.disposition === "delivered";
     }
   }
 
@@ -391,6 +393,7 @@ export function runTransition(
       runGit: options.runGit,
       recorded_by: options.verifier,
       recorded_at: nowIso,
+      reuseValidatedAncestry: reuseValidatedDeliveryAncestry,
     });
     // Persist clause-keyed items and eligible merge stamps before the read-only
     // gate, even when later acceptance refuses (#5120). Write when persist would

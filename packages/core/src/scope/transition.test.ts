@@ -1661,4 +1661,131 @@ describe("runTransition complete persist-path merge stamp (#5120)", () => {
     });
     expect(data.plan.items[1]?.["x-directive/evidence"]).toBeUndefined();
   });
+
+  it("reuses delivery ancestry so a second fetch failure still stamps", () => {
+    root = makeRepo();
+    writeProjectDefinition(root);
+    const path = join(root, "xbrief", "active", "merge-reuse-ancestry.xbrief.json");
+    writeFile(path, {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "merge-reuse-ancestry",
+        status: "running",
+        references: [
+          {
+            uri: "https://github.com/deftai/directive/issues/5120",
+            type: "x-xbrief/github-issue",
+          },
+        ],
+        items: [mergeItem(), { id: "clause.2", title: "still open", status: "pending" }],
+        acceptance: {
+          clauses: [
+            { id: 1, text: "Merge tip ancestry", artifact_path: null, ambiguous: false },
+            { id: 2, text: "still open", artifact_path: null, ambiguous: false },
+          ],
+        },
+      },
+    });
+    let fetchCount = 0;
+    const runGit: GitRunner = (_cwd, args) => {
+      const joined = args.join(" ");
+      if (args[0] === "fetch") {
+        fetchCount += 1;
+        if (fetchCount > 1) {
+          return { code: 1, stdout: "", stderr: "second fetch boom" };
+        }
+        return { code: 0, stdout: "ok", stderr: "" };
+      }
+      if (joined.includes("merge-base") && joined.includes("--is-ancestor")) {
+        return { code: 0, stdout: "", stderr: "" };
+      }
+      if (joined.includes("rev-parse") && joined.includes("origin/")) {
+        return { code: 0, stdout: "abcdef1", stderr: "" };
+      }
+      if (joined.includes("symbolic-ref")) {
+        return { code: 0, stdout: "origin/master", stderr: "" };
+      }
+      return { code: 0, stdout: "ok", stderr: "" };
+    };
+    const now = new Date("2026-09-30T12:00:00.000Z");
+    const result = runTransition("complete", path, now, {
+      runGit,
+      deliveryEvidence: {
+        repository: "deftai/directive",
+        prNumber: 5120,
+        prBase: "master",
+        mergeCommit: "abcdef1",
+        mergedAt: "2026-09-30T11:00:00Z",
+        deliveryBranch: "master",
+      },
+    });
+    expect(result.ok).toBe(false);
+    expect(fetchCount).toBe(1);
+    const data = JSON.parse(readFileSync(path, "utf8")) as {
+      plan: { items: Array<Record<string, unknown>> };
+    };
+    expect(data.plan.items[0]?.["x-directive/evidence"]).toMatchObject({
+      kind: "merge",
+      pointer: "abcdef1",
+    });
+  });
+
+  it("does not fetch when delivery evidence was already validated", () => {
+    root = makeRepo();
+    writeProjectDefinition(root);
+    const path = join(root, "xbrief", "active", "merge-prevalidated.xbrief.json");
+    writeFile(path, {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "merge-prevalidated",
+        status: "running",
+        references: [
+          {
+            uri: "https://github.com/deftai/directive/issues/5120",
+            type: "x-xbrief/github-issue",
+          },
+        ],
+        items: [mergeItem(), { id: "clause.2", title: "still open", status: "pending" }],
+        acceptance: {
+          clauses: [
+            { id: 1, text: "Merge tip ancestry", artifact_path: null, ambiguous: false },
+            { id: 2, text: "still open", artifact_path: null, ambiguous: false },
+          ],
+        },
+      },
+    });
+    let fetchCount = 0;
+    const runGit: GitRunner = (_cwd, args) => {
+      if (args[0] === "fetch") {
+        fetchCount += 1;
+        return { code: 1, stdout: "", stderr: "must not fetch" };
+      }
+      if (args.join(" ").includes("symbolic-ref")) {
+        return { code: 0, stdout: "origin/master", stderr: "" };
+      }
+      return { code: 0, stdout: "ok", stderr: "" };
+    };
+    const now = new Date("2026-09-30T12:00:00.000Z");
+    const result = runTransition("complete", path, now, {
+      runGit,
+      assumeEvidenceValidated: true,
+      deliveryEvidence: {
+        repository: "deftai/directive",
+        prNumber: 5120,
+        prBase: "master",
+        mergeCommit: "abcdef1",
+        mergedAt: "2026-09-30T11:00:00Z",
+        deliveryBranch: "master",
+      },
+    });
+    expect(result.ok).toBe(false);
+    expect(fetchCount).toBe(0);
+    const data = JSON.parse(readFileSync(path, "utf8")) as {
+      plan: { items: Array<Record<string, unknown>> };
+    };
+    expect(data.plan.items[0]?.["x-directive/evidence"]).toMatchObject({
+      kind: "merge",
+      pointer: "abcdef1",
+    });
+  });
 });

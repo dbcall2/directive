@@ -2445,6 +2445,48 @@ describe("stampDeclaredMergeEvidence (#5105)", () => {
     expect(item[ACCEPTANCE_EVIDENCE_KEY]).toBeUndefined();
   });
 
+  it("reuses validated provenance and does not fetch when reuseValidatedAncestry is set", () => {
+    const item: Record<string, unknown> = {
+      id: clauseKeyedItemId(1),
+      title: "Merge tip ancestry",
+      status: "pending",
+      [ACCEPTANCE_REQUIRES_KEY]: "merge",
+    };
+    const plan: Record<string, unknown> = {
+      items: [item],
+      acceptance: {
+        clauses: [{ id: 1, text: "Merge tip ancestry", artifact_path: null, ambiguous: false }],
+      },
+      metadata: {
+        completionProvenance: {
+          mergeCommit: "abcdef1",
+          deliveryBranch: "master",
+          deliveryCommit: "tipsha",
+          verifier: "scope:complete",
+        },
+      },
+    };
+    let fetchCount = 0;
+    const result = stampMergeFromCompletionProvenance(plan, {
+      projectRoot: "/repo",
+      reuseValidatedAncestry: true,
+      recorded_at: "2026-09-30T12:00:00Z",
+      runGit: (_cwd, args) => {
+        if (args[0] === "fetch") {
+          fetchCount += 1;
+          return { code: 1, stdout: "", stderr: "should not fetch" };
+        }
+        return { code: 1, stdout: "", stderr: "unexpected git" };
+      },
+    });
+    expect(result.stampedIds).toEqual([clauseKeyedItemId(1)]);
+    expect(item[ACCEPTANCE_EVIDENCE_KEY]).toMatchObject({
+      kind: "merge",
+      pointer: "abcdef1",
+    });
+    expect(fetchCount).toBe(0);
+  });
+
   it("namespaced merge declaration passes scanVbrief conformance", () => {
     const item = {
       id: "merge-declared",

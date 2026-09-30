@@ -968,8 +968,35 @@ export interface StampMergeFromCompletionProvenanceOptions {
   readonly projectRoot?: string;
   readonly runGit?: GitRunner;
   readonly verifyAncestry?: MergeAncestryVerifier;
+  /**
+   * When true, skip verifyDeliveryAncestry / git fetch and pass through
+   * completionProvenance already validated by evaluateDeliveryGate on this
+   * complete invocation (#5120 dest residual). Explicit verifyAncestry wins.
+   */
+  readonly reuseValidatedAncestry?: boolean;
   readonly recorded_by?: string;
   readonly recorded_at?: string;
+}
+
+function passThroughProvenanceAncestry(
+  mergeCommit: string,
+  deliveryBranch: string,
+  deliveryCommit: unknown,
+): MergeAncestryVerifier {
+  const remoteTip =
+    typeof deliveryCommit === "string" && deliveryCommit.trim().length > 0
+      ? deliveryCommit.trim()
+      : mergeCommit;
+  return (_projectRoot, commit, branch) => {
+    if (commit === mergeCommit && branch === deliveryBranch) {
+      return { ok: true, error: null, remoteTip };
+    }
+    return {
+      ok: false,
+      error: "completion provenance pointers do not match stamp request",
+      remoteTip: null,
+    };
+  };
 }
 
 /**
@@ -1005,13 +1032,18 @@ export function stampMergeFromCompletionProvenance(
       : typeof prov.verifier === "string" && prov.verifier.trim().length > 0
         ? prov.verifier.trim()
         : "scope:complete";
+  const verifyAncestry =
+    options.verifyAncestry ??
+    (options.reuseValidatedAncestry === true
+      ? passThroughProvenanceAncestry(mergeCommit, deliveryBranch, prov.deliveryCommit)
+      : undefined);
   return stampDeclaredMergeEvidence(plan, {
     recorded_by: recordedBy,
     recorded_at: options.recorded_at,
     mergeCommit,
     projectRoot,
     deliveryBranch,
-    verifyAncestry: options.verifyAncestry,
+    verifyAncestry,
     runGit: options.runGit,
   });
 }
