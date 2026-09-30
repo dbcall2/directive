@@ -36,6 +36,7 @@ import {
   evaluateScopeCompleteAcceptanceWalk,
   formatAcceptanceCompletionListing,
   persistClauseKeyedPendingItems,
+  stampMergeFromCompletionProvenance,
 } from "./acceptance-evidence.js";
 import { append, canonicalLogPath, newDecisionId } from "./audit-log.js";
 import { atomicWriteBrief, formatBriefJson, readBriefForMutation } from "./brief-io.js";
@@ -385,17 +386,26 @@ export function runTransition(
   let acceptanceListing = "";
   if (act === "complete" && options.skipAcceptanceEvidenceGate !== true) {
     const persist = persistClauseKeyedPendingItems(planObj);
-    // Rewrite-only leftover clause:N must land before the evidence gate can refuse.
-    if (persist.addedIds.length > 0 || persist.rewrittenIds.length > 0) {
+    const mergeStamp = stampMergeFromCompletionProvenance(planObj, {
+      projectRoot,
+      runGit: options.runGit,
+      recorded_by: options.verifier,
+      recorded_at: nowIso,
+    });
+    // Persist clause-keyed items and eligible merge stamps before the read-only
+    // gate, even when later acceptance refuses (#5120). Write when persist would
+    // have skipped if a merge stamp landed.
+    if (
+      persist.addedIds.length > 0 ||
+      persist.rewrittenIds.length > 0 ||
+      mergeStamp.stampedIds.length > 0
+    ) {
       const persistWrite = atomicWriteBrief(resolvedPath, data, vbriefRoot, { projectRoot });
       if (!persistWrite.ok) {
         return { ok: false, message: persistWrite.message };
       }
     }
-    const acceptanceGate = evaluateAcceptanceEvidenceGate(planObj, {
-      projectRoot,
-      runGit: options.runGit,
-    });
+    const acceptanceGate = evaluateAcceptanceEvidenceGate(planObj);
     acceptanceReports = acceptanceGate.reports;
     if (!acceptanceGate.ok) {
       return {

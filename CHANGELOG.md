@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Closeout no longer attests merge evidence minted only in memory (#5120).** `evaluateAcceptanceEvidenceGate` is read-only over persisted bytes. `scope:complete` stamps declared merge evidence on the persist path (even when later acceptance refuses) so later closeout, `verify:completed-tracked`, and orphan-active triage see the same file. Closeout does not mint and does not `git fetch`. Closes #5120.
 - **fix(hooks,codex): harvest declared apply_patch string `input` for linked-worktree targets (#5129).** Canonical `tool_input.input` and top-level `payload.input` now yield mutation targets; raw-string `tool_input` stays unclassified. Non-canonical input cannot select `effectiveRoot` even with a declared path. Closes #5129.
 
 ### Removed

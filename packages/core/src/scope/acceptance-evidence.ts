@@ -878,9 +878,9 @@ export interface StampDeclaredMergeEvidenceOptions {
  * against the refreshed delivery tip. Never auto-stamps from keywords or
  * empty-axis alone.
  *
- * Production caller: evaluateAcceptanceEvidenceGate reads completionProvenance
- * (delivery gate stamps it before acceptance on the complete path) and invokes
- * this helper. Live kind:test writer remains stampMatchAnyFileEvidence /
+ * Production caller: stampMergeFromCompletionProvenance on the scope:complete
+ * persist path after delivery provenance is on the plan and before the shared
+ * read-only gate (#5120). Live kind:test writer remains stampMatchAnyFileEvidence /
  * scope:stamp-evidence (#4840); stampDeclaredTestEvidence stays the #4732 orphan.
  */
 export function stampDeclaredMergeEvidence(
@@ -964,33 +964,40 @@ function readCompletionProvenance(plan: Record<string, unknown>): Record<string,
   return asRecord(metadata.completionProvenance);
 }
 
+export interface StampMergeFromCompletionProvenanceOptions {
+  readonly projectRoot?: string;
+  readonly runGit?: GitRunner;
+  readonly verifyAncestry?: MergeAncestryVerifier;
+  readonly recorded_by?: string;
+  readonly recorded_at?: string;
+}
+
 /**
- * Complete-path production caller for stampDeclaredMergeEvidence (#5105).
+ * Complete-path persist writer for stampDeclaredMergeEvidence (#5105 / #5120).
  * Runs only when delivery completionProvenance already carries mergeCommit +
- * deliveryBranch (ancestry was verified by the delivery gate).
+ * deliveryBranch. Does not run inside evaluateAcceptanceEvidenceGate.
+ * Never falls back to process.cwd() (#5105 Greptile P1).
  */
-function autoStampMergeFromCompletionProvenance(
+export function stampMergeFromCompletionProvenance(
   plan: Record<string, unknown>,
-  options: EvaluateAcceptanceEvidenceGateOptions,
-): void {
+  options: StampMergeFromCompletionProvenanceOptions = {},
+): StampDeclaredTestEvidenceResult {
+  const empty: StampDeclaredTestEvidenceResult = { stampedIds: [], skipped: [] };
   const prov = readCompletionProvenance(plan);
   if (prov === null) {
-    return;
+    return empty;
   }
   const mergeCommit = typeof prov.mergeCommit === "string" ? prov.mergeCommit.trim() : "";
   const deliveryBranch = typeof prov.deliveryBranch === "string" ? prov.deliveryBranch.trim() : "";
   if (mergeCommit.length === 0 || deliveryBranch.length === 0) {
-    return;
+    return empty;
   }
-  // Never fall back to process.cwd(): a wrong checkout leaves merge declarations
-  // unstamped or stamps against another repo (#5105 Greptile P1). Caller must pass
-  // projectRoot (scope:complete / transition derives it from the brief path).
   const projectRoot =
     typeof options.projectRoot === "string" && options.projectRoot.trim().length > 0
       ? options.projectRoot.trim()
       : "";
   if (projectRoot.length === 0) {
-    return;
+    return empty;
   }
   const recordedBy =
     typeof options.recorded_by === "string" && options.recorded_by.trim().length > 0
@@ -998,7 +1005,7 @@ function autoStampMergeFromCompletionProvenance(
       : typeof prov.verifier === "string" && prov.verifier.trim().length > 0
         ? prov.verifier.trim()
         : "scope:complete";
-  stampDeclaredMergeEvidence(plan, {
+  return stampDeclaredMergeEvidence(plan, {
     recorded_by: recordedBy,
     recorded_at: options.recorded_at,
     mergeCommit,
@@ -1500,8 +1507,9 @@ export function evaluateScopeCompleteAcceptanceWalk(
 }
 
 /**
- * Fail closed when any non-terminal plan item lacks suitable evidence or a human-origin disposition.
- * Read-only: does not stamp x-directive/evidence (#4732).
+ * Optional caller context. Stamp / ancestry fields are ignored: this gate is
+ * read-only over the plan it is given (#5120). Prospective merge stamps live on
+ * stampMergeFromCompletionProvenance.
  */
 export interface EvaluateAcceptanceEvidenceGateOptions {
   readonly projectRoot?: string;
@@ -1511,12 +1519,15 @@ export interface EvaluateAcceptanceEvidenceGateOptions {
   readonly recorded_at?: string;
 }
 
+/**
+ * Fail closed when any non-terminal plan item lacks suitable evidence or a human-origin disposition.
+ * Read-only: evaluates persisted evidence only. Does not stamp x-directive/evidence
+ * (#4732 / #5120). Prospective merge stamps are a scope:complete persist-path step.
+ */
 export function evaluateAcceptanceEvidenceGate(
   plan: Record<string, unknown>,
-  options: EvaluateAcceptanceEvidenceGateOptions = {},
+  _options: EvaluateAcceptanceEvidenceGateOptions = {},
 ): AcceptanceEvidenceGateResult {
-  // Production merge-kind stamp on the complete path (#5105).
-  autoStampMergeFromCompletionProvenance(plan, options);
   const reports: CriterionAcceptanceReport[] = [];
   walkItems(plan.items, "items", reports, clauseBindingKeysFromPlan(plan));
 

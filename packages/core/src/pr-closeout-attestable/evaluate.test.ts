@@ -1,11 +1,25 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import type { RunGhFn } from "../pr-protected-issues/types.js";
+import type { GitRunner } from "../session/git.js";
 import { ENV_TRIAGE_REPO } from "../triage/queue/constants.js";
 import { evaluate, type FetchClosingIssuesFn } from "./evaluate.js";
+
+const gitSpy = vi.hoisted(() => ({ fetchCalls: [] as string[][] }));
+
+vi.mock("../session/git.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../session/git.js")>();
+  const wrapped: GitRunner = (root, args) => {
+    if (args.includes("fetch")) {
+      gitSpy.fetchCalls.push([...args]);
+    }
+    return actual.defaultGitRunner(root, args);
+  };
+  return { ...actual, defaultGitRunner: wrapped };
+});
 
 const REPO = "deftai/directive";
 
@@ -341,7 +355,23 @@ describe("pr-closeout-attestable failure message", () => {
     expect(message).toContain("closing references, not the branch diff");
     expect(message).toContain("task verify:pr-closeout-attestable -- --pr 3786");
     expect(message).toContain("recorded_by accepts any non-empty string");
+    expect(message).toContain("stamp the non-merge criteria above");
     expect(message).not.toContain("cached");
+  });
+
+  it("does not tell the PR author to stamp-evidence a merge-declared criterion", () => {
+    const message = refusalFor([
+      {
+        title: "Merge tip ancestry",
+        status: "pending",
+        "x-directive/requires": "merge",
+      },
+    ]);
+
+    expect(message).toContain("scope:stamp-evidence");
+    expect(message).toContain("no --merge-commit");
+    expect(message).not.toContain("stamp the criteria above");
+    expect(message).not.toContain("stamp the non-merge criteria");
   });
 
   it("discloses the ghx cache caveat when the read could not be pinned to gh", () => {
@@ -411,6 +441,106 @@ describe("pr-closeout-attestable #3598 shape (brief predates the closing branch)
     expect(result.code).toBe(1);
     expect(result.findings[0]?.briefPath).toBe("xbrief/active/2026-08-25-3598-story.xbrief.json");
     expect(result.findings[0]?.unattested).toHaveLength(3);
+  });
+});
+
+describe("pr-closeout-attestable persisted merge evidence (#5120)", () => {
+  function git(root: string, args: string[]): string {
+    return execFileSync("git", ["-c", "core.hooksPath=/dev/null", ...args], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "ci",
+        GIT_AUTHOR_EMAIL: "ci@example.com",
+        GIT_COMMITTER_NAME: "ci",
+        GIT_COMMITTER_EMAIL: "ci@example.com",
+      },
+    });
+  }
+
+  function makeOriginRepo(): { root: string; sha: string } {
+    const root = makeRepo();
+    const origin = mkdtempSync(join(tmpdir(), "deft-closeout-origin-"));
+    temps.push(origin);
+    git(origin, ["init", "--bare", "-q", "-b", "master"]);
+    git(root, ["init", "-q", "-b", "master"]);
+    git(root, ["config", "user.email", "ci@example.com"]);
+    git(root, ["config", "user.name", "ci"]);
+    writeFileSync(join(root, "README"), "closeout-origin\n", "utf8");
+    git(root, ["add", "README"]);
+    git(root, ["commit", "-q", "-m", "init"]);
+    git(root, ["remote", "add", "origin", origin]);
+    git(root, ["push", "-q", "-u", "origin", "master"]);
+    const sha = git(root, ["rev-parse", "HEAD"]).trim();
+    return { root, sha };
+  }
+
+  function mergeDeclaredPlan(sha: string, withEvidence: boolean): Record<string, unknown> {
+    const item: Record<string, unknown> = {
+      id: "clause.1",
+      title: "Merge tip ancestry",
+      status: "pending",
+      "x-directive/requires": "merge",
+    };
+    if (withEvidence) {
+      item["x-directive/evidence"] = {
+        kind: "merge",
+        pointer: sha,
+        recorded_at: "2026-09-30T00:00:00Z",
+        recorded_by: "scope:complete",
+      };
+    }
+    return {
+      title: "story",
+      status: "running",
+      references: [issueRef(5120)],
+      items: [item],
+      acceptance: {
+        clauses: [{ id: 1, text: "Merge tip ancestry", artifact_path: null, ambiguous: false }],
+      },
+      metadata: withEvidence
+        ? {}
+        : {
+            completionProvenance: {
+              mergeCommit: sha,
+              deliveryBranch: "master",
+              verifier: "scope:complete",
+            },
+          },
+    };
+  }
+
+  it("refuses valid provenance with no persisted evidence and leaves bytes unchanged", () => {
+    const { root, sha } = makeOriginRepo();
+    const briefPath = writeBrief(
+      root,
+      "2026-09-30-5120-story.xbrief.json",
+      mergeDeclaredPlan(sha, false),
+    );
+    const before = readFileSync(briefPath, "utf8");
+    gitSpy.fetchCalls.length = 0;
+    const result = evaluate(root, 5120, opts(closing(5120)));
+    expect(result.code).toBe(1);
+    expect(result.findings[0]?.unattested).toHaveLength(1);
+    expect(readFileSync(briefPath, "utf8")).toBe(before);
+    expect(gitSpy.fetchCalls).toEqual([]);
+  });
+
+  it("passes when persisted merge evidence is present and does not rewrite the brief", () => {
+    const root = makeRepo();
+    const sha = "abcdef1";
+    const briefPath = writeBrief(
+      root,
+      "2026-09-30-5120-story.xbrief.json",
+      mergeDeclaredPlan(sha, true),
+    );
+    const before = readFileSync(briefPath, "utf8");
+    const result = evaluate(root, 5120, opts(closing(5120)));
+    expect(result.code).toBe(0);
+    expect(result.findings).toEqual([]);
+    expect(readFileSync(briefPath, "utf8")).toBe(before);
   });
 });
 

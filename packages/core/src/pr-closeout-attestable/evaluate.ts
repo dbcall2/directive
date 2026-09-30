@@ -9,9 +9,13 @@
  * returned success while creating one). The brief also need not be in the diff —
  * for #3598 it landed on master seventeen hours before its closing PR.
  *
- * The rule itself is not restated here. `evaluateAcceptanceEvidenceGate` is the
- * single decision procedure `scope:complete` enforces, and this gate calls it so
- * the two cannot drift.
+ * The shared decision procedure is `evaluateAcceptanceEvidenceGate`, which
+ * evaluates persisted evidence only. Prospective merge stamps are a
+ * `scope:complete` persist-path step. This gate calls that evaluator so the
+ * closeout verdict is a function of on-disk bytes — the next worker,
+ * `verify:completed-tracked`, orphan-active triage, and a human reading the PR
+ * (#5120). It does not mint evidence and does not `git fetch`.
+ * complete-cohort dry-run vs live provenance timing is follow-up, not P1 relief.
  */
 
 import { existsSync } from "node:fs";
@@ -33,6 +37,7 @@ import {
   ACCEPTANCE_EVIDENCE_KINDS,
   evaluateAcceptanceEvidenceGate,
   inferRequiredStrictAxes,
+  itemDeclaresMergeRequirement,
   type StrictAcceptanceAxis,
 } from "../scope/acceptance-evidence.js";
 import { resolveRepo } from "../triage/queue/repo.js";
@@ -51,6 +56,8 @@ export interface UnattestedCriterion {
    * `review` evidence cannot satisfy it, so the message must say which kind can.
    */
   readonly requiredAxes: readonly StrictAcceptanceAxis[];
+  /** True when the item explicitly declares merge (#5120 remediation split). */
+  readonly declaresMerge: boolean;
 }
 
 /** An active/running brief the PR's closing reference would orphan on merge. */
@@ -213,14 +220,35 @@ function formatRefusal(
     }
   }
 
+  const hasMergeDeclared = findings.some((f) => f.unattested.some((c) => c.declaresMerge));
+  const hasNonMerge = findings.some((f) => f.unattested.some((c) => !c.declaresMerge));
+
   lines.push(
     "  Evidence is not authenticated — recorded_by accepts any non-empty string. Record what you",
     "  actually did: a pointer must be the artifact its kind names (a test run for test, this PR's",
     "  merge for merge, a deployment for deploy). An agent may evidence a criterion; only",
     "  human-origin provenance may waive one (#3240 / #2944).",
-    "  Remediation (performable by this PR's author): stamp the criteria above on the brief in this",
-    "  branch, commit, push, then re-run:",
-    `    task verify:pr-closeout-attestable -- --pr ${prNumber}`,
+  );
+  if (hasMergeDeclared) {
+    lines.push(
+      "  Merge-declared criteria are persisted by `scope:complete` complete-prep after delivery,",
+      "  not by `scope:stamp-evidence` (that verb has no --merge-commit).",
+    );
+  }
+  if (hasNonMerge) {
+    lines.push(
+      "  Remediation (performable by this PR's author): stamp the non-merge criteria above on the",
+      "  brief in this branch, commit, push, then re-run:",
+      `    task verify:pr-closeout-attestable -- --pr ${prNumber}`,
+    );
+  } else {
+    lines.push(
+      "  Remediation: `scope:complete` complete-prep persists eligible merge evidence after",
+      "  delivery; then re-run:",
+      `    task verify:pr-closeout-attestable -- --pr ${prNumber}`,
+    );
+  }
+  lines.push(
     "  Trigger is the PR's closing references, not the branch diff. A PR that leaves an unattested",
     "  brief without closing its issue is unaffected.",
   );
@@ -393,7 +421,7 @@ export function evaluate(
     if (issue === undefined) {
       continue;
     }
-    const gate = evaluateAcceptanceEvidenceGate(brief.plan, { projectRoot: root });
+    const gate = evaluateAcceptanceEvidenceGate(brief.plan);
     if (gate.ok) {
       continue;
     }
@@ -408,6 +436,7 @@ export function evaluate(
           title: report.title,
           detail: report.detail,
           requiredAxes: item === undefined ? [] : inferRequiredStrictAxes(item),
+          declaresMerge: item !== undefined && itemDeclaresMergeRequirement(item),
         };
       });
     findings.push({ briefPath: relBriefPath(brief.path, root), issue, unattested });

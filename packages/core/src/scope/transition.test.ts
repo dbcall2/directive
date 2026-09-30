@@ -12,6 +12,7 @@ import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as clauseDerivation from "../intake/clause-derivation.js";
 import { ENV_RUN_SUMMARY_PATH } from "../run-summary/index.js";
+import type { GitRunner } from "../session/git.js";
 import { validateVbriefSchema } from "../vbrief-validate/schema.js";
 import { atomicWriteBrief, readBriefForMutation } from "./brief-io.js";
 import { detectLifecycleFolder, runTransition } from "./transition.js";
@@ -1496,5 +1497,168 @@ describe("runTransition activate envelope policy (#3933 criterion 7)", () => {
       },
     });
     expect(runTransition("promote", child).ok).toBe(true);
+  });
+});
+
+describe("runTransition complete persist-path merge stamp (#5120)", () => {
+  let root = "";
+  afterEach(() => {
+    if (root.length > 0) {
+      rmSync(root, { recursive: true, force: true });
+      root = "";
+    }
+  });
+
+  function gitOk(): GitRunner {
+    return (_cwd, args) => {
+      const joined = args.join(" ");
+      if (joined.includes("merge-base") && joined.includes("--is-ancestor")) {
+        return { code: 0, stdout: "", stderr: "" };
+      }
+      if (joined.includes("rev-parse") && joined.includes("origin/")) {
+        return { code: 0, stdout: "abcdef1", stderr: "" };
+      }
+      if (joined.includes("symbolic-ref")) {
+        return { code: 0, stdout: "origin/master", stderr: "" };
+      }
+      return { code: 0, stdout: "ok", stderr: "" };
+    };
+  }
+
+  function writeProjectDefinition(dir: string): void {
+    writeFileSync(
+      join(dir, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify({
+        plan: {
+          title: "P",
+          status: "running",
+          policy: { deliveryBranch: "master", wipCap: 20 },
+        },
+      }),
+      "utf8",
+    );
+  }
+
+  function mergeItem(): Record<string, unknown> {
+    return {
+      id: "clause.1",
+      title: "Merge tip ancestry",
+      status: "pending",
+      "x-directive/requires": "merge",
+    };
+  }
+
+  function deliveryOpts() {
+    return {
+      runGit: gitOk(),
+      deliveryEvidence: {
+        repository: "deftai/directive",
+        prNumber: 5120,
+        prBase: "master",
+        mergeCommit: "abcdef1",
+        mergedAt: "2026-09-30T11:00:00Z",
+        deliveryBranch: "master",
+      },
+    } as const;
+  }
+
+  it("writes merge evidence onto the completed destination brief", () => {
+    root = makeRepo();
+    writeProjectDefinition(root);
+    const path = join(root, "xbrief", "active", "merge-stamp.xbrief.json");
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "product.txt"), "v1\n", "utf8");
+    writeFile(path, {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "merge-stamp",
+        status: "running",
+        references: [
+          {
+            uri: "https://github.com/deftai/directive/issues/5120",
+            type: "x-xbrief/github-issue",
+          },
+        ],
+        items: [mergeItem()],
+        acceptance: {
+          commands: [],
+          none_stated: true,
+          source_rung: "derived",
+          ambiguity_attestation: "none_found",
+          clauses: [
+            {
+              id: 1,
+              text: "Merge tip ancestry",
+              artifact_path: "src/product.txt",
+              ambiguous: false,
+            },
+          ],
+        },
+        metadata: {
+          swarm: {
+            file_scope: ["src/product.txt"],
+            verify_commands: ["task check"],
+          },
+        },
+      },
+    });
+    const now = new Date("2026-09-30T12:00:00.000Z");
+    const result = runTransition("complete", path, now, {
+      ...deliveryOpts(),
+      assumeEvidenceValidated: true,
+      acceptanceRunner: () => ({ exitCode: 0, stdout: "ok", stderr: "" }),
+    });
+    expect(result.ok).toBe(true);
+    const dest = join(root, "xbrief", "completed", "merge-stamp.xbrief.json");
+    expect(existsSync(path)).toBe(false);
+    const data = JSON.parse(readFileSync(dest, "utf8")) as {
+      plan: { items: Array<Record<string, unknown>> };
+    };
+    expect(data.plan.items[0]?.["x-directive/evidence"]).toMatchObject({
+      kind: "merge",
+      pointer: "abcdef1",
+      recorded_by: "scope:complete",
+    });
+  });
+
+  it("persists the merge stamp on the active brief when later acceptance refuses", () => {
+    root = makeRepo();
+    writeProjectDefinition(root);
+    const path = join(root, "xbrief", "active", "merge-then-refuse.xbrief.json");
+    writeFile(path, {
+      xBRIEFInfo: { version: "0.8" },
+      plan: {
+        title: "merge-then-refuse",
+        status: "running",
+        references: [
+          {
+            uri: "https://github.com/deftai/directive/issues/5120",
+            type: "x-xbrief/github-issue",
+          },
+        ],
+        items: [mergeItem(), { id: "clause.2", title: "still open", status: "pending" }],
+        acceptance: {
+          clauses: [
+            { id: 1, text: "Merge tip ancestry", artifact_path: null, ambiguous: false },
+            { id: 2, text: "still open", artifact_path: null, ambiguous: false },
+          ],
+        },
+      },
+    });
+    const now = new Date("2026-09-30T12:00:00.000Z");
+    const result = runTransition("complete", path, now, deliveryOpts());
+    expect(result.ok).toBe(false);
+    expect(existsSync(path)).toBe(true);
+    expect(existsSync(join(root, "xbrief", "completed", "merge-then-refuse.xbrief.json"))).toBe(
+      false,
+    );
+    const data = JSON.parse(readFileSync(path, "utf8")) as {
+      plan: { items: Array<Record<string, unknown>> };
+    };
+    expect(data.plan.items[0]?.["x-directive/evidence"]).toMatchObject({
+      kind: "merge",
+      pointer: "abcdef1",
+    });
+    expect(data.plan.items[1]?.["x-directive/evidence"]).toBeUndefined();
   });
 });
