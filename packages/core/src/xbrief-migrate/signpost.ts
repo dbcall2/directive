@@ -1,3 +1,4 @@
+import { legacyClauseIdSignpostSuffix } from "./clause-ids.js";
 import { detectXbriefConvergence } from "./detect.js";
 
 /** Operator guidance for the TS-native xbrief rename (#2034 / #2110). */
@@ -15,21 +16,20 @@ export function xbriefMigrationGuidance(): string {
 export function renderXbriefMigrationLine(projectRoot: string): string {
   const convergence = detectXbriefConvergence(projectRoot);
 
+  let line: string;
   // Converged: legacy vbrief/ retained for read-compat behind an explicit marker.
   if (convergence.state === "xbrief-marker") {
-    return "xBrief migration: converged -- xbrief active, vbrief legacy marker (read-compat).";
+    line = "xBrief migration: converged -- xbrief active, vbrief legacy marker (read-compat).";
+  } else if (convergence.state === "empty-vbrief") {
+    // Ambiguous: canonical xbrief/ (or none) plus a stray empty vbrief/.
+    line = `xBrief migration: converge pending -- xbrief active, empty legacy vbrief/ present. ${xbriefMigrationGuidance()}`;
+  } else if (convergence.state === "legacy-only" || convergence.state === "dual-populated") {
+    // Unmigrated: only vbrief/ found, or both roots populated without a marker.
+    line = `xBrief migration: migrate required -- ${convergence.state === "legacy-only" ? "only vbrief/ found, no xbrief/ layout" : "both vbrief/ and xbrief/ found without a migration marker"}. ${xbriefMigrationGuidance()}`;
+  } else {
+    // Fully migrated: xbrief active, no legacy vbrief/ present (or empty root with no content).
+    line = "xBrief migration: none -- xbrief active, vbrief removed.";
   }
-
-  // Ambiguous: canonical xbrief/ (or none) plus a stray empty vbrief/.
-  if (convergence.state === "empty-vbrief") {
-    return `xBrief migration: converge pending -- xbrief active, empty legacy vbrief/ present. ${xbriefMigrationGuidance()}`;
-  }
-
-  // Unmigrated: only vbrief/ found, or both roots populated without a marker.
-  if (convergence.state === "legacy-only" || convergence.state === "dual-populated") {
-    return `xBrief migration: migrate required -- ${convergence.state === "legacy-only" ? "only vbrief/ found, no xbrief/ layout" : "both vbrief/ and xbrief/ found without a migration marker"}. ${xbriefMigrationGuidance()}`;
-  }
-
-  // Fully migrated: xbrief active, no legacy vbrief/ present (or empty root with no content).
-  return "xBrief migration: none -- xbrief active, vbrief removed.";
+  const leftover = legacyClauseIdSignpostSuffix(projectRoot);
+  return leftover.length > 0 ? `${line} ${leftover}` : line;
 }

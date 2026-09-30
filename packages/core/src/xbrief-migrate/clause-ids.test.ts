@@ -1,0 +1,264 @@
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  clauseKeyedItemId,
+  rewriteLegacyClauseKeyedItemIds,
+} from "../scope/acceptance-evidence.js";
+import { validateVbriefSchema } from "../vbrief-validate/schema.js";
+import {
+  CLAUSE_ID_MIGRATE_COMMAND,
+  mainEntry,
+  migrateLegacyClauseKeyedItemIdsCorpus,
+  parseArgs,
+  printLegacyClauseIdNudgeIfNeeded,
+  renderLegacyClauseIdLine,
+  run,
+  scanLegacyClauseKeyedItemIds,
+} from "./clause-ids.js";
+import { renderXbriefMigrationLine } from "./signpost.js";
+
+const itSymlink = it.skipIf(process.platform === "win32");
+
+const MINIMAL_V08 = {
+  xBRIEFInfo: { version: "0.8", description: "fixture" },
+  plan: {
+    title: "fixture",
+    status: "completed",
+    items: [] as unknown[],
+  },
+};
+
+describe("rewriteLegacyClauseKeyedItemIds (#5011)", () => {
+  it("rewrites nested leftover clause:N ids and title-syncs when title === id", () => {
+    const nested = {
+      id: "clause:2",
+      title: "clause:2",
+      status: "pending",
+      items: [{ id: "clause:3", title: "Keep prose", status: "pending" }],
+    };
+    const items = [
+      { id: "clause:1", title: "clause:1", status: "pending", subItems: [nested] },
+      { id: "keep", title: "keep", status: "pending" },
+    ];
+    expect(rewriteLegacyClauseKeyedItemIds(items)).toEqual([
+      clauseKeyedItemId(1),
+      clauseKeyedItemId(2),
+      clauseKeyedItemId(3),
+    ]);
+    expect(items[0]).toMatchObject({ id: clauseKeyedItemId(1), title: clauseKeyedItemId(1) });
+    expect(nested).toMatchObject({ id: clauseKeyedItemId(2), title: clauseKeyedItemId(2) });
+    expect(nested.items[0]).toMatchObject({ id: clauseKeyedItemId(3), title: "Keep prose" });
+  });
+
+  it("is idempotent on already-migrated clause.N ids", () => {
+    const items = [{ id: clauseKeyedItemId(1), title: clauseKeyedItemId(1), status: "pending" }];
+    expect(rewriteLegacyClauseKeyedItemIds(items)).toEqual([]);
+    expect(items[0]?.id).toBe(clauseKeyedItemId(1));
+  });
+});
+
+describe("migrateLegacyClauseKeyedItemIdsCorpus (#5011)", () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), "clause-ids-corpus-"));
+    mkdirSync(join(root, "xbrief", "cancelled"), { recursive: true });
+    mkdirSync(join(root, "xbrief", "completed"), { recursive: true });
+    mkdirSync(join(root, "xbrief", "active"), { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  function write(rel: string, items: unknown[]): string {
+    const path = join(root, rel);
+    writeFileSync(
+      path,
+      `${JSON.stringify({ ...MINIMAL_V08, plan: { ...MINIMAL_V08.plan, items } }, null, 2)}\n`,
+      "utf8",
+    );
+    return path;
+  }
+
+  it("rewrites cancelled and completed leftovers and no-ops on clause.N", () => {
+    const cancelled = write("xbrief/cancelled/old.xbrief.json", [
+      { id: "clause:1", title: "clause:1", status: "cancelled" },
+    ]);
+    const completed = write("xbrief/completed/done.xbrief.json", [
+      {
+        id: "parent",
+        title: "parent",
+        status: "completed",
+        subItems: [{ id: "clause:4", title: "Keep complete a check", status: "completed" }],
+      },
+    ]);
+    write("xbrief/active/clean.xbrief.json", [
+      { id: clauseKeyedItemId(1), title: clauseKeyedItemId(1), status: "pending" },
+    ]);
+
+    const first = migrateLegacyClauseKeyedItemIdsCorpus(root);
+    expect(first.changed).toEqual([
+      "xbrief/cancelled/old.xbrief.json",
+      "xbrief/completed/done.xbrief.json",
+    ]);
+    expect(first.conflicts).toEqual([]);
+
+    const cancelledDoc = JSON.parse(readFileSync(cancelled, "utf8")) as {
+      plan: { items: Array<Record<string, unknown>> };
+    };
+    expect(cancelledDoc.plan.items[0]).toMatchObject({
+      id: clauseKeyedItemId(1),
+      title: clauseKeyedItemId(1),
+    });
+    const completedDoc = JSON.parse(readFileSync(completed, "utf8")) as {
+      plan: { items: Array<{ subItems: Array<Record<string, unknown>> }> };
+    };
+    expect(completedDoc.plan.items[0]?.subItems[0]).toMatchObject({
+      id: clauseKeyedItemId(4),
+      title: "Keep complete a check",
+    });
+
+    expect(migrateLegacyClauseKeyedItemIdsCorpus(root).changed).toEqual([]);
+    expect(scanLegacyClauseKeyedItemIds(root).hits).toEqual([]);
+  });
+
+  it("scan names leftover cancelled/completed ids without writing", () => {
+    write("xbrief/cancelled/old.xbrief.json", [
+      { id: "clause:8", title: "clause:8", status: "cancelled" },
+    ]);
+    const before = readFileSync(join(root, "xbrief/cancelled/old.xbrief.json"), "utf8");
+    const scan = scanLegacyClauseKeyedItemIds(root);
+    expect(scan.hits).toEqual([
+      { path: "xbrief/cancelled/old.xbrief.json", rewrittenIds: [clauseKeyedItemId(8)] },
+    ]);
+    expect(readFileSync(join(root, "xbrief/cancelled/old.xbrief.json"), "utf8")).toBe(before);
+    expect(renderLegacyClauseIdLine(root)).toContain(CLAUSE_ID_MIGRATE_COMMAND);
+    expect(renderXbriefMigrationLine(root)).toContain(CLAUSE_ID_MIGRATE_COMMAND);
+  });
+
+  it("skips invalid JSON and plan-less artifacts; empty trees scan nothing", () => {
+    writeFileSync(join(root, "xbrief", "completed", "bad.xbrief.json"), "{not-json", "utf8");
+    writeFileSync(
+      join(root, "xbrief", "completed", "noplan.xbrief.json"),
+      `${JSON.stringify({ xBRIEFInfo: { version: "0.8" } })}\n`,
+      "utf8",
+    );
+    expect(migrateLegacyClauseKeyedItemIdsCorpus(root).changed).toEqual([]);
+    expect(renderLegacyClauseIdLine(root)).toContain("none --");
+    const empty = mkdtempSync(join(tmpdir(), "clause-ids-empty-"));
+    expect(migrateLegacyClauseKeyedItemIdsCorpus(empty)).toEqual({
+      scanned: 0,
+      changed: [],
+      conflicts: [],
+    });
+    expect(scanLegacyClauseKeyedItemIds(empty).hits).toEqual([]);
+    rmSync(empty, { recursive: true, force: true });
+  });
+
+  itSymlink("reports a symlinked lifecycle root without rewriting", () => {
+    rmSync(join(root, "xbrief"), { recursive: true, force: true });
+    const escapeDir = mkdtempSync(join(tmpdir(), "clause-ids-escape-"));
+    writeFileSync(
+      join(escapeDir, "outside.xbrief.json"),
+      `${JSON.stringify({ plan: { items: [{ id: "clause:1", title: "clause:1" }] } }, null, 2)}\n`,
+      "utf8",
+    );
+    symlinkSync(escapeDir, join(root, "xbrief"), "dir");
+    const result = migrateLegacyClauseKeyedItemIdsCorpus(root);
+    expect(result.changed).toEqual([]);
+    expect(result.conflicts.length).toBeGreaterThan(0);
+  });
+});
+
+describe("migrate:clause-ids CLI (#5011)", () => {
+  let outSpy: ReturnType<typeof vi.spyOn>;
+  let errSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    outSpy.mockRestore();
+    errSpy.mockRestore();
+  });
+
+  it("parses --project-root", () => {
+    expect(parseArgs(["--project-root", "/tmp/project"]).projectRoot).toBe("/tmp/project");
+    expect(parseArgs(["--project-root=/tmp/p"]).projectRoot).toBe("/tmp/p");
+    expect(parseArgs(["--project-root"]).error).toMatch(/expected one argument/);
+  });
+
+  it("returns 2 for unknown flags and 0 for --help", () => {
+    expect(run(["--not-real"])).toBe(2);
+    expect(mainEntry(["--not-real"])).toBe(2);
+    expect(run(["--help"])).toBe(0);
+    expect(mainEntry(["-h"])).toBe(0);
+  });
+
+  it("migrates a corpus then no-ops", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-ids-cli-"));
+    mkdirSync(join(root, "xbrief", "completed"), { recursive: true });
+    const file = join(root, "xbrief", "completed", "done.xbrief.json");
+    writeFileSync(
+      file,
+      `${JSON.stringify({ plan: { items: [{ id: "clause:9", title: "clause:9" }] } }, null, 2)}\n`,
+      "utf8",
+    );
+    expect(run(["--project-root", root])).toBe(0);
+    const plan = (
+      JSON.parse(readFileSync(file, "utf8")) as { plan: { items: Array<{ id: string }> } }
+    ).plan;
+    expect(plan.items[0]?.id).toBe(clauseKeyedItemId(9));
+    expect(run(["--project-root", root])).toBe(0);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  itSymlink("returns 1 when the lifecycle root is a symlink", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-ids-cli-link-"));
+    const escapeDir = mkdtempSync(join(tmpdir(), "clause-ids-cli-escape-"));
+    writeFileSync(
+      join(escapeDir, "outside.xbrief.json"),
+      `${JSON.stringify({ plan: { items: [{ id: "clause:1", title: "clause:1" }] } }, null, 2)}\n`,
+      "utf8",
+    );
+    symlinkSync(escapeDir, join(root, "xbrief"), "dir");
+    expect(run(["--project-root", root])).toBe(1);
+    rmSync(root, { recursive: true, force: true });
+    rmSync(escapeDir, { recursive: true, force: true });
+  });
+
+  it("printLegacyClauseIdNudgeIfNeeded is silent when there are no leftovers", () => {
+    const root = mkdtempSync(join(tmpdir(), "clause-ids-nudge-"));
+    mkdirSync(join(root, "xbrief", "active"), { recursive: true });
+    writeFileSync(
+      join(root, "xbrief", "active", "clean.xbrief.json"),
+      `${JSON.stringify({ plan: { items: [{ id: clauseKeyedItemId(1) }] } }, null, 2)}\n`,
+      "utf8",
+    );
+    const lines: string[] = [];
+    printLegacyClauseIdNudgeIfNeeded(root, { printf: (text) => lines.push(text) });
+    expect(lines).toEqual([]);
+    rmSync(root, { recursive: true, force: true });
+  });
+});
+
+describe("vbrief:validate stays hard on clause:N (#5011)", () => {
+  it("still rejects leftover colon ids after the hop exists", () => {
+    const errors = validateVbriefSchema(
+      {
+        ...MINIMAL_V08,
+        plan: {
+          ...MINIMAL_V08.plan,
+          items: [{ id: "clause:1", title: "colon", status: "pending" }],
+        },
+      },
+      "id-colon.json",
+    );
+    expect(errors.some((e) => e.includes("invalid id"))).toBe(true);
+  });
+});

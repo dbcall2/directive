@@ -1159,7 +1159,10 @@ function findClauseKeyedItem(items: unknown, clauseId: number): Record<string, u
   );
 }
 
-function rewriteLegacyClauseKeyedItemIds(items: unknown, rewrittenIds: string[] = []): string[] {
+export function rewriteLegacyClauseKeyedItemIds(
+  items: unknown,
+  rewrittenIds: string[] = [],
+): string[] {
   if (!Array.isArray(items)) {
     return rewrittenIds;
   }

@@ -307,6 +307,21 @@ describe("shouldEmitMigrateNudge / printMigrateNudgeIfNeeded (#2059)", () => {
     printMigrateNudgeIfNeeded(root, { printf: (text) => lines.push(text) });
     expect(lines.join("")).toBe("");
   });
+
+  it("printMigrateNudgeIfNeeded names deft migrate:clause-ids for leftover clause:N (#5011)", () => {
+    const root = makeProject(
+      `${VENDORED_MANIFEST}${NPM_MANAGED_SENTINEL_KEY}: '${NPM_MANAGED_SENTINEL_VALUE}'\n`,
+    );
+    mkdirSync(join(root, "xbrief", "completed"), { recursive: true });
+    writeFileSync(
+      join(root, "xbrief", "completed", "done.xbrief.json"),
+      `${JSON.stringify({ plan: { items: [{ id: "clause:1", title: "clause:1" }] } }, null, 2)}\n`,
+      "utf8",
+    );
+    const lines: string[] = [];
+    printMigrateNudgeIfNeeded(root, { printf: (text) => lines.push(text) });
+    expect(lines.join("")).toContain("deft migrate:clause-ids");
+  });
 });
 
 describe("VERSION backup stays outside the deposit (#4812)", () => {

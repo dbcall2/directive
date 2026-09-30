@@ -281,6 +281,7 @@ export const CORE_MODULE_VERBS = [
   "decision-write",
   "decision-list",
   "docs-impact",
+  "migrate-clause-ids",
 ] as const;
 
 /** Colon aliases for triage-actions (mirrors cli-router SUBCOMMAND_ROUTES). */
@@ -491,6 +492,7 @@ export const VERB_ALIASES: Readonly<Record<string, string>> = {
   "migrate:preflight": "migrate-preflight",
   "migrate:xbrief": "migrate-xbrief",
   "migrate:category-b": "migrate-category-b",
+  "migrate:clause-ids": "migrate-clause-ids",
   "framework:check-updates": "framework-check-updates",
   "umbrella:current-shape": "umbrella-current-shape",
   "issue:sync-from-xbrief": "issue-sync-from-xbrief",
@@ -3020,6 +3022,12 @@ async function loadCoreModuleHandler(verb: string, io: DispatchIo): Promise<Comm
     case "docs-impact": {
       const { docsImpactMain } = await import("@deftai/directive-core/dist/docs/docs-impact.js");
       return (argv) => docsImpactMain(argv);
+    }
+    case "migrate-clause-ids": {
+      const { mainEntry } = await import(
+        "@deftai/directive-core/dist/xbrief-migrate/clause-ids.js"
+      );
+      return (argv) => mainEntry(argv);
     }
     default:
       throw new Error(`unknown core verb: ${verb}`);

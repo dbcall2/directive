@@ -38,6 +38,7 @@ import {
   ContainedWriteErrorCode,
   containedWrite,
 } from "../fs/contained-write.js";
+import { printLegacyClauseIdNudgeIfNeeded } from "../xbrief-migrate/clause-ids.js";
 import { CANONICAL_INSTALL_ROOT } from "./scaffold.js";
 
 /**
@@ -481,4 +482,5 @@ export function printMigrateNudgeIfNeeded(
   if (shouldEmitMigrateNudge(projectRoot, seams)) {
     io.printf(`\n${MIGRATE_COMPLETION_NUDGE}\n`);
   }
+  printLegacyClauseIdNudgeIfNeeded(projectRoot, io);
 }
