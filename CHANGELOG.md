@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **fix(lifecycle): unmarked finalize no longer pairs unrelated merged PRs (#5122).** `deriveUnmarkedFinalizeAdmit` returns null this ship. Tracking unmarked stays unverified until `metadata.productPullRequest` (#4864). Owed discovery does not fill an independent pair, so origin 9999 plus unrelated merged PR 7 cannot stamp, complete, or origin-close. Closes #5122.
+- **Unmarked finalize no longer pairs an origin with an unrelated merged PR (#5122).** Tracking unmarked work stays visible and non-blocking until a product PR is stamped (#4864). Duplicate refs to one origin stay unverified; distinct repository-and-number origins still refuse. Closes #5122.
 - **Closeout no longer attests merge evidence minted only in memory (#5120).** `evaluateAcceptanceEvidenceGate` is read-only over persisted bytes. `scope:complete` stamps declared merge evidence on the persist path (even when later acceptance refuses) so later closeout, `verify:completed-tracked`, and orphan-active triage see the same file. After delivery ancestry already passed on that complete, the stamp reuses it and does not `git fetch` again. Closeout does not mint and does not `git fetch`. Closes #5120.
 
 - **fix(swarm): Grok dest-missing deny leads with `tool_input.cwd` (#5184).** Missing-cwd and non-existing-cwd destination-missing recovery now lead with paste-ready `tool_input.cwd` to an existing unique linked worktree (not primary, not occupied). Critic-CLI lead, reserved jargon, and Cursor-compat refuse leave this path; `git worktree add` stays out of deny text (dest-place remains #4575). Tracking #5184.
