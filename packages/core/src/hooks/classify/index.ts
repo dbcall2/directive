@@ -52,6 +52,8 @@ export {
 export {
   applyPatchBodyFieldTexts,
   applyPatchBodyTextFromParsed,
+  applyPatchHarvestedInputUnclassified,
+  applyPatchHasCanonicalEnvelope,
   applyPatchMutationPaths,
   parseHookStdin,
   stripUtf8Bom,

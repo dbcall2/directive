@@ -131,4 +131,67 @@ describe("path/shell extractors (#2950)", () => {
     expect(hookMutationTargetPaths(payload)).toEqual([]);
     expect(hookShellCommand(payload)).toBe(command);
   });
+
+  it("declared apply_patch string tool_input.input yields mutation targets (#5129)", () => {
+    expect(
+      hookMutationTargetPaths({
+        tool_name: "apply_patch",
+        tool_input: {
+          input: "*** Begin Patch\n*** Update File: linked.ts\n+x\n*** End Patch",
+        },
+      }),
+    ).toEqual(["linked.ts"]);
+  });
+
+  it("top-level string payload.input yields mutation targets (#5129)", () => {
+    expect(
+      hookMutationTargetPaths({
+        tool_name: "apply_patch",
+        input: "*** Begin Patch\n*** Add File: added.ts\n+x\n*** End Patch",
+      }),
+    ).toEqual(["added.ts"]);
+  });
+
+  it("unions patch and canonical input body targets (#5129)", () => {
+    expect(
+      hookMutationTargetPaths({
+        tool_name: "apply_patch",
+        tool_input: {
+          patch: "*** Begin Patch\n*** Update File: a.ts\n+x\n*** End Patch",
+          input: "*** Begin Patch\n*** Update File: b.ts\n+y\n*** End Patch",
+        },
+      }),
+    ).toEqual(["a.ts", "b.ts"]);
+  });
+
+  it("header-looking input without Begin/End does not yield body targets (#5129)", () => {
+    expect(
+      hookMutationTargetPaths({
+        tool_name: "apply_patch",
+        tool_input: {
+          input: "not a patch\n*** Update File: /linked/src/a.ts\nnoise",
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it("shell and MCP names do not harvest tool_input.input (#5129)", () => {
+    const input = "*** Begin Patch\n*** Update File: secret.ts\n+x\n*** End Patch";
+    expect(hookMutationTargetPaths({ tool_name: "shell", tool_input: { input } })).toEqual([]);
+    expect(
+      hookMutationTargetPaths({
+        tool_name: "mcp__github__create_issue",
+        tool_input: { input },
+      }),
+    ).toEqual([]);
+  });
+
+  it("raw-string tool_input stays unharvested (#5129)", () => {
+    expect(
+      hookMutationTargetPaths({
+        tool_name: "apply_patch",
+        tool_input: "*** Begin Patch\n*** Update File: linked.ts\n+x\n*** End Patch",
+      }),
+    ).toEqual([]);
+  });
 });

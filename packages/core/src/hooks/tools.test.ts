@@ -61,6 +61,7 @@ describe("hooks tools classifiers (#2711 / #2952)", () => {
     expect(HOST_TOOL_SURFACE_AUDIT.codex.mutation.shell).toContain("shell");
     expect(HOST_TOOL_SURFACE_AUDIT.codex.unobservedReason).toMatch(/apply_patch/i);
     expect(HOST_TOOL_SURFACE_AUDIT.codex.unobservedReason).toMatch(/#5094/);
+    expect(HOST_TOOL_SURFACE_AUDIT.codex.unobservedReason).toMatch(/#5129/);
   });
 
   it("SHELL / MCP hook matchers include expected tokens", () => {

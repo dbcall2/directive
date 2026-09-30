@@ -1656,7 +1656,6 @@ describe("direct-write hook policy", () => {
         { command: ["apply_patch", "*** Begin Patch\n*** Add File: a.ts\n+x\n*** End Patch"] },
         "*** Begin Patch\n*** Add File: a.ts\n+x\n*** End Patch",
         { patch_text: "*** Begin Patch\n*** Add File: a.ts\n+x\n*** End Patch" },
-        { input: "*** Begin Patch\n*** Add File: a.ts\n+x\n*** End Patch" },
         {},
       ];
       for (const tool_input of cases) {
@@ -1675,6 +1674,78 @@ describe("direct-write hook policy", () => {
         });
         expect(decision.message).toContain(unclassified);
       }
+    });
+
+    it("allows canonical string tool_input.input Add File of a proposed xBRIEF (#5129)", () => {
+      const body = `*** Begin Patch\n*** Add File: ${proposed}\n+{}\n*** End Patch`;
+      const decision = decideHook(
+        {
+          host: "codex",
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: { tool_name: "apply_patch", tool_input: { input: body } },
+        },
+        noScope(),
+      );
+      expect(decision).toMatchObject({ verdict: "allow", code: "write-propose-ready" });
+    });
+
+    it("allows canonical top-level string payload.input Add File of a proposed xBRIEF (#5129)", () => {
+      const body = `*** Begin Patch\n*** Add File: ${proposed}\n+{}\n*** End Patch`;
+      const decision = decideHook(
+        {
+          host: "codex",
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: { tool_name: "apply_patch", input: body },
+        },
+        noScope(),
+      );
+      expect(decision).toMatchObject({ verdict: "allow", code: "write-propose-ready" });
+    });
+
+    it("denies non-canonical string input even with a declared path (#5129)", () => {
+      const cases: unknown[] = [
+        { input: "not a patch" },
+        { path: "/project/src/a.ts", input: "not a patch" },
+        {
+          path: "/project/src/a.ts",
+          input: "not a patch\n*** Update File: /linked/src/a.ts\nnoise",
+        },
+        { input: "*** Begin Patch\n*** End Patch" },
+      ];
+      for (const tool_input of cases) {
+        const decision = decideHook(
+          {
+            host: "codex",
+            event: "tool.before",
+            projectRoot: "/project",
+            payload: { tool_name: "apply_patch", tool_input },
+          },
+          readySeams(),
+        );
+        expect(decision).toMatchObject({
+          verdict: "deny",
+          code: "runtime-policy-deny-path",
+        });
+        expect(decision.message).toContain(unclassified);
+      }
+    });
+
+    it("declared-path-only apply_patch still reaches write-ready (#5129)", () => {
+      const decision = decideHook(
+        {
+          host: "codex",
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: {
+            tool_name: "apply_patch",
+            tool_input: { file_path: "/project/src/a.ts" },
+          },
+        },
+        readySeams(),
+      );
+      expect(decision).toMatchObject({ verdict: "allow", code: "write-ready" });
     });
 
     it("denies command-shaped patches to fence denyPaths", () => {

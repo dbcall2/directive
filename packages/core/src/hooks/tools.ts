@@ -274,10 +274,11 @@ export const HOST_TOOL_SURFACE_AUDIT: Readonly<Record<ClassifyHookHost, HostTool
     nonMutation: {},
     unobservedReason:
       "Shell (`shell`) is established (F8). The apply_patch write-form record is downgraded " +
-      "until a live PreToolUse payload is observed in this tree (#5094); assumed command vs " +
-      "patch field shapes are not coverage.",
+      "until a live PreToolUse payload is observed in this tree (#5094 / #5129); assumed " +
+      "command vs patch vs input field shapes are not coverage.",
     source:
-      "Issue #3987 comment 5471374558 finding F8; #5094 Codex apply_patch payload observation.",
+      "Issue #3987 comment 5471374558 finding F8; #5094 / #5129 Codex apply_patch payload " +
+      "observation.",
   },
   cursor: {
     mutation: { directWrite: [], shell: [], spawn: [] },

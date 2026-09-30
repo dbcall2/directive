@@ -99,6 +99,7 @@ import {
 } from "../session/verify-session-ritual.js";
 import { uninspectableLifecycleDenyMessage } from "./classify/host-session-identity.js";
 import {
+  applyPatchHarvestedInputUnclassified,
   fieldString,
   type HookPayloadContext,
   hintUninspectableLifecycleCommand,
@@ -1490,7 +1491,10 @@ function inspectMutationGates(
   const environ = input.environ ?? process.env;
   const dispatchGit = memoizeGitRunner(seams.ritualRunGit ?? defaultGitRunner);
   const mutationTargets = isSpawnTool(toolName) ? [] : hookMutationTargetPaths(input.payload);
-  if (isApplyPatchTool(toolName) && mutationTargets.length === 0) {
+  if (
+    isApplyPatchTool(toolName) &&
+    (mutationTargets.length === 0 || applyPatchHarvestedInputUnclassified(input.payload))
+  ) {
     return deny(input, "runtime-policy-deny-path", toolName, APPLY_PATCH_UNCLASSIFIED_BODY_MESSAGE);
   }
   if (!isSpawnTool(toolName)) {

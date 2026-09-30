@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **fix(hooks,codex): harvest declared apply_patch string `input` for linked-worktree targets (#5129).** Canonical `tool_input.input` and top-level `payload.input` now yield mutation targets; raw-string `tool_input` stays unclassified. Non-canonical input cannot select `effectiveRoot` even with a declared path. Closes #5129.
+
 ### Removed
 
 ## [0.119.12] - 2026-09-30
