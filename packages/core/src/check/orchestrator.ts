@@ -27,6 +27,11 @@ import {
 import { type CheckOrchestratorSeams, resolveCheckTarget } from "./context.js";
 import { CONSUMER_CHECK_GATES, checkGateId, FRAMEWORK_CHECK_GATES } from "./gate-lists.js";
 import { listCompositionGatesMissingSpecificRemedies } from "./named-cause.js";
+import {
+  CHECK_EMPTY_PLANNING_NARRATIVES_GATE_ID,
+  checkRejectsEmptyPlanningNarratives,
+  evaluateCheckPersistedPlanningNarratives,
+} from "./persisted-planning-narratives-gate.js";
 
 export type {
   CachedCheckCompletion,
@@ -79,6 +84,21 @@ export function dispatchTaskCheck(
       process.stderr.write(formatConsumerGateIntegrityFailure(integrity));
       return 2;
     }
+  }
+
+  // #5176 Prefer-A: refuse empty PD narratives only with product-mutation
+  // completion (mirror #4544). Missing PD and scaffold-empty stay legal here;
+  // setup Phase 2 verify stays unconditional. Do not shell the verify task
+  // from Taskfile check deps — that exits 2 on missing PD.
+  const planning = evaluateCheckPersistedPlanningNarratives(resolvedProject);
+  if (checkRejectsEmptyPlanningNarratives(planning.narratives, planning.productMutation)) {
+    process.stderr.write(`check: ${planning.narratives.message}\n`);
+    process.stderr.write(
+      `check: gate ${CHECK_EMPTY_PLANNING_NARRATIVES_GATE_ID} failed (exit 1)\n` +
+        `  cause: ${planning.narratives.cause}\n` +
+        `  remedy: ${planning.narratives.remedy}\n`,
+    );
+    return 1;
   }
 
   const spawn = seams.spawnFn ?? defaultSpawn;

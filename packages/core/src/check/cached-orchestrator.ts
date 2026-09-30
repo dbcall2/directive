@@ -47,6 +47,11 @@ import {
 } from "./gate-lists.js";
 import { formatDegradedSkipReport, formatNamedCauseFailure, remedyForGate } from "./named-cause.js";
 import {
+  CHECK_EMPTY_PLANNING_NARRATIVES_GATE_ID,
+  checkRejectsEmptyPlanningNarratives,
+  evaluateCheckPersistedPlanningNarratives,
+} from "./persisted-planning-narratives-gate.js";
+import {
   projectHasLifecycleBrief,
   RAPID_SOFT_MISSING_NO_BRIEF_NOTICE,
   rapidCheckWarnsSoftMissingNoBrief,
@@ -281,6 +286,21 @@ export function dispatchCachedTaskCheck(
   if (gates.length === 0) {
     process.stderr.write(`check: no gate list for target ${target}\n`);
     return finish(2, false);
+  }
+
+  // #5176 Prefer-A: refuse empty PD narratives only with product-mutation
+  // completion (mirror #4544). Missing PD and scaffold-empty stay legal;
+  // setup Phase 2 verify stays unconditional.
+  const planning = evaluateCheckPersistedPlanningNarratives(resolvedProject);
+  if (checkRejectsEmptyPlanningNarratives(planning.narratives, planning.productMutation)) {
+    process.stderr.write(`check: ${planning.narratives.message}\n`);
+    gateOutcomes.push({
+      id: CHECK_EMPTY_PLANNING_NARRATIVES_GATE_ID,
+      status: "failed",
+      cause: planning.narratives.cause,
+      remedy: planning.narratives.remedy,
+    });
+    return finish(1, false);
   }
 
   // #3282: toolchain preflight — degraded skip when framework tools missing.

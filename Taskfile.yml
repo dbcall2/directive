@@ -420,6 +420,12 @@ tasks:
     deps:
       - ts:check-lane
       - toolchain:check
+      # #5176 Prefer-A: Taskfile-safe check conjunct (marker + empty → refuse;
+      # missing PD / no marker → pass). Unconditional setup verify stays out —
+      # that exits 2 on missing PD. Mirrors in-process deft check gate.
+      - task: verify:persisted-planning-narratives
+        vars:
+          CLI_ARGS: "--check-conjunct"
       - verify:stubs
       - verify:links
       - verify:rule-ownership
@@ -503,6 +509,11 @@ tasks:
     deps:
       - doctor
       - toolchain:check-consumer
+      # #5176 Prefer-A: Taskfile-safe check conjunct (marker + empty → refuse;
+      # missing PD / no marker → pass). Unconditional setup verify stays out.
+      - task: verify:persisted-planning-narratives
+        vars:
+          CLI_ARGS: "--check-conjunct"
       - verify:branch
       - verify:cache-fresh
       - verify:wip-cap

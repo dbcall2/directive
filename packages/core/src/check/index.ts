@@ -55,6 +55,22 @@ export {
   resolveCheckTarget,
 } from "./orchestrator.js";
 export {
+  CHECK_EMPTY_PLANNING_NARRATIVES_GATE_ID,
+  type CheckPersistedPlanningNarrativesSeams,
+  checkRejectsEmptyPlanningNarratives,
+  evaluateCheckPersistedPlanningNarratives,
+} from "./persisted-planning-narratives-gate.js";
+export {
+  lookupProductMutationCompletion,
+  PRODUCT_MUTATION_COMPLETION_MARKER_REL,
+  type ProductMutationCompletionLookup,
+  type ProductMutationCompletionMarker,
+  productMutationCompletionAtRoot,
+  productMutationCompletionMarkerPath,
+  type RecordProductMutationCompletionResult,
+  recordProductMutationCompletion,
+} from "./product-mutation-completion.js";
+export {
   detectTestRunner,
   type RunnerDetectResult,
   runnerDetectionTable,
