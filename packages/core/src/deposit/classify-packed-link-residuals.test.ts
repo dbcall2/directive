@@ -36,6 +36,17 @@ describe("classifyPackedDepositBrokenLinks (#4890)", () => {
     expect(measure.residualTargets).toEqual([]);
   });
 
+  it("classifies a broken already-rewritten pack href against the source path", () => {
+    const repoRoot = tempDir("pack-rewritten-");
+    writeFileSync(join(repoRoot, "main.md"), "# main\n", "utf8");
+    const measure = classifyPackedDepositBrokenLinks({
+      repoRoot,
+      broken: [{ file: "meta/security.md", line: 8, target: "../main.md" }],
+    });
+    expect(measure.unexpected).toEqual(["meta/security.md:8 -> ../main.md"]);
+    expect(measure.residualTargets).toEqual([]);
+  });
+
   it("keeps an unmapped ADR target as a residual", () => {
     const repoRoot = tempDir("pack-adr-");
     mkdirSync(join(repoRoot, "docs", "decisions"), { recursive: true });

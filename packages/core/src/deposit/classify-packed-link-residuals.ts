@@ -6,9 +6,10 @@
  */
 
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 import type { BrokenLink } from "../validate-content/validate-links.js";
 import {
+  mapSourceToPackRelative,
   resolveSourceTargetRel,
   rewriteRelativeLink,
   sourceRelForPackRel,
@@ -18,6 +19,33 @@ import {
 export interface PackedLinkResidualMeasure {
   readonly unexpected: readonly string[];
   readonly residualTargets: readonly string[];
+}
+
+function packPathEscapes(packAbs: string): boolean {
+  return packAbs === ".." || packAbs.startsWith("../");
+}
+
+/**
+ * Source-tree path for a staged-pack broken href.
+ * Unrewritten leftovers still look source-relative (`rewritten`); already-flattened
+ * hrefs resolve through the pack layout so `../main.md` from `meta/security.md`
+ * maps to repo `main.md`, not `content/main.md`.
+ */
+function sourceTargetForPackedBrokenLink(options: {
+  readonly packFileRel: string;
+  readonly sourceFileRel: string;
+  readonly rawPath: string;
+  readonly rewritten: boolean;
+}): string {
+  const { packFileRel, sourceFileRel, rawPath, rewritten } = options;
+  if (rewritten) {
+    return resolveSourceTargetRel(sourceFileRel, rawPath);
+  }
+  const packAbs = posix.normalize(posix.join(posix.dirname(packFileRel), rawPath || "."));
+  if (packPathEscapes(packAbs)) {
+    return resolveSourceTargetRel(sourceFileRel, rawPath);
+  }
+  return sourceRelForPackRel(packAbs);
 }
 
 /** Classify collectBrokenLinks hits on a staged pack against the source tree. */
@@ -36,9 +64,17 @@ export function classifyPackedDepositBrokenLinks(options: {
       target: item.target,
     });
     const rawPath = splitLinkHash(item.target).path;
-    const sourceTarget = resolveSourceTargetRel(sourceFileRel, rawPath);
+    const sourceTarget = sourceTargetForPackedBrokenLink({
+      packFileRel,
+      sourceFileRel,
+      rawPath,
+      rewritten: mapped.rewritten,
+    });
     const sourceExists = existsSync(join(options.repoRoot, ...sourceTarget.split("/")));
-    if (mapped.packMapped && sourceExists) {
+    const packMapped = mapped.rewritten
+      ? mapped.packMapped
+      : mapSourceToPackRelative(sourceTarget) !== null;
+    if (packMapped && sourceExists) {
       unexpected.push(`${item.file}:${item.line} -> ${item.target}`);
     } else {
       residuals.add(rawPath || item.target);
