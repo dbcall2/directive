@@ -117,8 +117,21 @@ describe("renderXbriefMigrationLine", () => {
 
     const line = renderXbriefMigrationLine(root);
     expect(line).toContain("converge pending");
+    expect(line).toContain("xbrief active");
     expect(line).toContain("empty legacy vbrief/");
     expect(line).toContain("migrate:xbrief");
+  });
+
+  it("does not claim xbrief active for empty-vbrief when xbrief/ is absent", () => {
+    const root = mkdtempSync(join(tmpdir(), "xbrief-signpost-empty-absent-"));
+    temps.push(root);
+    mkdirSync(join(root, "vbrief", "active"), { recursive: true });
+
+    const line = renderXbriefMigrationLine(root);
+    expect(line).toContain("converge pending");
+    expect(line).toContain("xbrief absent or empty");
+    expect(line).not.toContain("xbrief active");
+    expect(line).toContain("empty legacy vbrief/");
   });
 
   it("reports migrate-required for a dual-populated tree (#2112)", () => {

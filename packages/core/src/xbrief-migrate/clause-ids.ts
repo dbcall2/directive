@@ -45,7 +45,15 @@ function isPlainObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function collectVbriefFiles(dir: string, acc: string[] = []): string[] {
+interface CorpusWalk {
+  files: string[];
+  skippedSymlinks: string[];
+}
+
+function collectVbriefFiles(
+  dir: string,
+  acc: CorpusWalk = { files: [], skippedSymlinks: [] },
+): CorpusWalk {
   let entries: Dirent[];
   try {
     entries = readdirSync(dir, { withFileTypes: true });
@@ -54,6 +62,10 @@ function collectVbriefFiles(dir: string, acc: string[] = []): string[] {
   }
   for (const entry of entries) {
     const full = join(dir, entry.name);
+    if (entry.isSymbolicLink()) {
+      acc.skippedSymlinks.push(full);
+      continue;
+    }
     let info: ReturnType<typeof lstatSync>;
     try {
       info = lstatSync(full);
@@ -61,15 +73,43 @@ function collectVbriefFiles(dir: string, acc: string[] = []): string[] {
       continue;
     }
     if (info.isSymbolicLink()) {
+      acc.skippedSymlinks.push(full);
       continue;
     }
     if (info.isDirectory()) {
       collectVbriefFiles(full, acc);
     } else if (info.isFile() && hasArtifactSuffix(entry.name)) {
-      acc.push(full);
+      acc.files.push(full);
     }
   }
   return acc;
+}
+
+function collectPlanItemIds(items: unknown[]): string[] {
+  const ids: string[] = [];
+  const walk = (value: unknown): void => {
+    if (!Array.isArray(value)) {
+      return;
+    }
+    for (const item of value) {
+      if (item === null || typeof item !== "object" || Array.isArray(item)) {
+        continue;
+      }
+      const obj = item as JsonObject;
+      if (typeof obj.id === "string") {
+        ids.push(obj.id);
+      }
+      walk(obj.subItems);
+      walk(obj.items);
+    }
+  };
+  walk(items);
+  return ids;
+}
+
+function hasDuplicatePlanItemIds(items: unknown[]): boolean {
+  const ids = collectPlanItemIds(items);
+  return new Set(ids).size !== ids.length;
 }
 
 function resolveCorpusDir(projectRoot: string): { dir: string } | { conflict: string } | null {
@@ -77,11 +117,15 @@ function resolveCorpusDir(projectRoot: string): { dir: string } | { conflict: st
   try {
     corpusDir = resolveLifecycleRoot(projectRoot);
   } catch {
+    const xbriefDir = join(projectRoot, "xbrief");
     const legacyDir = join(projectRoot, "vbrief");
-    if (!existsSync(legacyDir)) {
+    if (existsSync(xbriefDir)) {
+      corpusDir = xbriefDir;
+    } else if (existsSync(legacyDir)) {
+      corpusDir = legacyDir;
+    } else {
       return null;
     }
-    corpusDir = legacyDir;
   }
   try {
     assertDirectoryNotSymlink(projectRoot, corpusDir, "lifecycle root");
@@ -118,7 +162,7 @@ export function scanLegacyClauseKeyedItemIds(projectRoot: string): LegacyClauseI
   }
   const hits: LegacyClauseIdHit[] = [];
   let scanned = 0;
-  for (const file of collectVbriefFiles(resolved.dir)) {
+  for (const file of collectVbriefFiles(resolved.dir).files) {
     scanned += 1;
     let parsed: unknown;
     try {
@@ -158,8 +202,15 @@ export function migrateLegacyClauseKeyedItemIdsCorpus(projectRoot: string): Corp
   let scanned = 0;
   const changed: string[] = [];
   const conflicts: CorpusMigrationConflict[] = [];
+  const walk = collectVbriefFiles(resolved.dir);
+  for (const skipped of walk.skippedSymlinks) {
+    conflicts.push({
+      path: relative(root, skipped).replace(/\\/g, "/"),
+      message: "skipped symlink; vbrief:validate may still reject leftover clause:N inside",
+    });
+  }
 
-  for (const file of collectVbriefFiles(resolved.dir)) {
+  for (const file of walk.files) {
     scanned += 1;
     let parsed: unknown;
     try {
@@ -167,15 +218,27 @@ export function migrateLegacyClauseKeyedItemIdsCorpus(projectRoot: string): Corp
     } catch {
       continue;
     }
-    const items = planItems(parsed);
-    if (items === null) {
+    if (
+      !isPlainObject(parsed) ||
+      !isPlainObject(parsed.plan) ||
+      !Array.isArray(parsed.plan.items)
+    ) {
       continue;
     }
-    const rewrittenIds = rewriteLegacyClauseKeyedItemIds(items);
+    const rewritten = cloneJson(parsed.plan.items);
+    const rewrittenIds = rewriteLegacyClauseKeyedItemIds(rewritten);
     if (rewrittenIds.length === 0) {
       continue;
     }
     const relPath = relative(root, file).replace(/\\/g, "/");
+    if (hasDuplicatePlanItemIds(rewritten)) {
+      conflicts.push({
+        path: relPath,
+        message: "rewrite would duplicate PlanItem ids (clause:N collides with existing clause.N)",
+      });
+      continue;
+    }
+    parsed.plan.items = rewritten;
     try {
       containedWrite({
         root,

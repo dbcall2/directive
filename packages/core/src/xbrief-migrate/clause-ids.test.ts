@@ -158,18 +158,43 @@ describe("migrateLegacyClauseKeyedItemIdsCorpus (#5011)", () => {
     rmSync(empty, { recursive: true, force: true });
   });
 
-  itSymlink("reports a symlinked lifecycle root without rewriting", () => {
-    rmSync(join(root, "xbrief"), { recursive: true, force: true });
-    const escapeDir = mkdtempSync(join(tmpdir(), "clause-ids-escape-"));
+  itSymlink("reports a nested file symlink as a conflict instead of success", () => {
+    const escapeDir = mkdtempSync(join(tmpdir(), "clause-ids-nested-escape-"));
+    const target = join(escapeDir, "linked.xbrief.json");
     writeFileSync(
-      join(escapeDir, "outside.xbrief.json"),
+      target,
       `${JSON.stringify({ plan: { items: [{ id: "clause:1", title: "clause:1" }] } }, null, 2)}\n`,
       "utf8",
     );
-    symlinkSync(escapeDir, join(root, "xbrief"), "dir");
+    symlinkSync(target, join(root, "xbrief", "completed", "linked.xbrief.json"), "file");
     const result = migrateLegacyClauseKeyedItemIdsCorpus(root);
     expect(result.changed).toEqual([]);
-    expect(result.conflicts.length).toBeGreaterThan(0);
+    expect(result.conflicts).toEqual([
+      {
+        path: "xbrief/completed/linked.xbrief.json",
+        message: "skipped symlink; vbrief:validate may still reject leftover clause:N inside",
+      },
+    ]);
+    expect(run(["--project-root", root])).toBe(1);
+    const linkedDoc = JSON.parse(readFileSync(target, "utf8")) as {
+      plan: { items: Array<{ id: string }> };
+    };
+    expect(linkedDoc.plan.items[0]?.id).toBe("clause:1");
+    rmSync(escapeDir, { recursive: true, force: true });
+  });
+
+  it("conflicts when clause:N rewrite would duplicate an existing clause.N", () => {
+    const path = write("xbrief/completed/both.xbrief.json", [
+      { id: "clause:1", title: "clause:1", status: "completed" },
+      { id: clauseKeyedItemId(1), title: "already dotted", status: "completed" },
+    ]);
+    const before = readFileSync(path, "utf8");
+    const result = migrateLegacyClauseKeyedItemIdsCorpus(root);
+    expect(result.changed).toEqual([]);
+    expect(result.conflicts[0]?.path).toBe("xbrief/completed/both.xbrief.json");
+    expect(result.conflicts[0]?.message).toMatch(/duplicate PlanItem ids/);
+    expect(readFileSync(path, "utf8")).toBe(before);
+    expect(run(["--project-root", root])).toBe(1);
   });
 });
 

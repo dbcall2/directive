@@ -22,7 +22,8 @@ export function renderXbriefMigrationLine(projectRoot: string): string {
     line = "xBrief migration: converged -- xbrief active, vbrief legacy marker (read-compat).";
   } else if (convergence.state === "empty-vbrief") {
     // Ambiguous: canonical xbrief/ (or none) plus a stray empty vbrief/.
-    line = `xBrief migration: converge pending -- xbrief active, empty legacy vbrief/ present. ${xbriefMigrationGuidance()}`;
+    const xbriefBit = convergence.xbriefHasContent ? "xbrief active" : "xbrief absent or empty";
+    line = `xBrief migration: converge pending -- ${xbriefBit}, empty legacy vbrief/ present. ${xbriefMigrationGuidance()}`;
   } else if (convergence.state === "legacy-only" || convergence.state === "dual-populated") {
     // Unmigrated: only vbrief/ found, or both roots populated without a marker.
     line = `xBrief migration: migrate required -- ${convergence.state === "legacy-only" ? "only vbrief/ found, no xbrief/ layout" : "both vbrief/ and xbrief/ found without a migration marker"}. ${xbriefMigrationGuidance()}`;
