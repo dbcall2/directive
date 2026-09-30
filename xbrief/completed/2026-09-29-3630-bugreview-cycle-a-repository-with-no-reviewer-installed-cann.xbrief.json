@@ -1,0 +1,798 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3630",
+    "updated": "2026-09-30T00:23:20Z"
+  },
+  "plan": {
+    "title": "bug(review-cycle): a repository with no reviewer installed cannot reach a terminal state — absence reads as \"review pending\"",
+    "status": "completed",
+    "narratives": {
+      "Description": "bug(review-cycle): a repository with no reviewer installed cannot reach a terminal state — absence reads as \"review pending\"",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3630",
+      "Overview": "\n\n1. Before entering the review-cycle / pr:watch poll loop, determine once whether a reviewer can be expected (presence probe and/or explicit policy). If none can, exit immediately with a named non-CLEAN terminal (e.g. not-configured / no-reviewer-installed) that is distinguishable from clean, blocked, TIMEOUT, and dual-stop stall.\n2. That terminal must be inherited by task pr:watch and pr:merge-ready so none of them can hang on a reviewer-less repository. Reuse the existing \"named weather terminal, not CLEAN\" pattern from CI_NEVER_SCHEDULED / related CI gates (#3167 / #2672). Extend the shared probe/watch SoT; do not invent a second detector or a third poller.\n3. Keep the fail-closed rule that empty observation must never CLEAN. A configured-but-slow reviewer must still poll (absent/slow distinction tested both ways). Ambiguity between slow and absent stays fail-closed to poll or to an explicit operator/policy declaration — not to CLEAN.\n4. Zero-reviewer exit routes to deft-directive-pre-pr self-review rather than skipping review entirely, with a canonical handback value (e.g. review_cycle: skipped:no-reviewer-installed) so parents can tell \"no reviewer\" apart from \"reviewer said nothing.\"\n5. Orientation: doctor and/or review-cycle preflight reports reviewer presence. Preflight must not only check Greptile settings that presuppose an installed app.\n6. #769 stays the substitution / multi-profile grain. Empty registry / zero-reviewer is a named requirement on #3630 (or an explicit #769 acceptance limb that empty registry is terminal and routes to self-review). Do not bind \"#769 alone covers permanent absence.\"\n7. Tests + CHANGELOG: fixture with no reviewer exits in one pass without polling; fixture with slow reviewer still polls; pr:watch / pr:merge-ready inherit the determination.\n\nrelieves: P1\nrelieves: P2\nrelieves: P3\n\nTarget-digest: sha256:fa977cd9d1fb269b88ec8314f61ad10d406012e6ea5943baa1ccae4b203e754a\n\n\n",
+      "Labels": "bug, adoption-blocker, agent-experience, review-cycle, process, source-of-truth, area:cli, area:skills, design-critique:ingest-ready, framework-gap, core-capabilities, promise:gates"
+    },
+    "items": [
+      {
+        "title": "Before entering the review-cycle / pr:watch poll loop, determine once whether a reviewer can be expected (presence probe and/or explicit policy). If none can, exit immediately with a named non-CLEAN terminal (e.g. not-configured / no-reviewer-installed) that is distinguishable from clean, blocked, TIMEOUT, and dual-stop stall.",
+        "status": "completed",
+        "id": "clause.1",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "recorded_at": "2026-09-29T22:11:13Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "title": "That terminal must be inherited by task pr:watch and pr:merge-ready so none of them can hang on a reviewer-less repository. Reuse the existing \"named weather terminal, not CLEAN\" pattern from CI_NEVER_SCHEDULED / related CI gates (#3167 / #2672). Extend the shared probe/watch SoT; do not invent a second detector or a third poller.",
+        "status": "completed",
+        "id": "clause.2",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/pr-watch/watch.ts",
+          "recorded_at": "2026-09-29T22:11:13Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "title": "Keep the fail-closed rule that empty observation must never CLEAN. A configured-but-slow reviewer must still poll (absent/slow distinction tested both ways). Ambiguity between slow and absent stays fail-closed to poll or to an explicit operator/policy declaration — not to CLEAN.",
+        "status": "completed",
+        "id": "clause.3",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "recorded_at": "2026-09-29T22:11:13Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "title": "Zero-reviewer exit routes to deft-directive-pre-pr self-review rather than skipping review entirely, with a canonical handback value (e.g. review_cycle: skipped:no-reviewer-installed) so parents can tell \"no reviewer\" apart from \"reviewer said nothing.\"",
+        "status": "completed",
+        "id": "clause.4",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "da99bfcf159fc1b20bdac3ca5d3e66ebbdcd080a",
+          "recorded_at": "2026-09-30T00:23:05Z",
+          "recorded_by": "dbcall2"
+        },
+        "x-directive/requires": "merge"
+      },
+      {
+        "title": "Orientation: doctor and/or review-cycle preflight reports reviewer presence. Preflight must not only check Greptile settings that presuppose an installed app.",
+        "status": "completed",
+        "id": "clause.5",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/doctor/checks.ts",
+          "recorded_at": "2026-09-29T22:11:13Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "title": "#769 stays the substitution / multi-profile grain. Empty registry / zero-reviewer is a named requirement on #3630 (or an explicit #769 acceptance limb that empty registry is terminal and routes to self-review). Do not bind \"#769 alone covers permanent absence.\"",
+        "status": "completed",
+        "id": "clause.6",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "da99bfcf159fc1b20bdac3ca5d3e66ebbdcd080a",
+          "recorded_at": "2026-09-30T00:23:05Z",
+          "recorded_by": "dbcall2"
+        },
+        "x-directive/requires": "merge"
+      },
+      {
+        "title": "Tests + CHANGELOG: fixture with no reviewer exits in one pass without polling; fixture with slow reviewer still polls; pr:watch / pr:merge-ready inherit the determination.",
+        "status": "completed",
+        "id": "clause.7",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "da99bfcf159fc1b20bdac3ca5d3e66ebbdcd080a",
+          "recorded_at": "2026-09-30T00:23:05Z",
+          "recorded_by": "dbcall2"
+        },
+        "x-directive/requires": "merge"
+      },
+      {
+        "id": "clause.8",
+        "title": "clause.8",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "recorded_at": "2026-09-29T22:13:06Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "id": "clause.9",
+        "title": "clause.9",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "recorded_at": "2026-09-29T22:13:06Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "id": "clause.10",
+        "title": "clause.10",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "recorded_at": "2026-09-29T22:13:06Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "id": "clause.11",
+        "title": "clause.11",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/pr-watch/watch.ts",
+          "recorded_at": "2026-09-29T22:13:06Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "id": "clause.12",
+        "title": "clause.12",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/pr-watch/watch.ts",
+          "recorded_at": "2026-09-29T22:13:06Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "id": "clause.13",
+        "title": "clause.13",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/pr-watch/watch.ts",
+          "recorded_at": "2026-09-29T22:13:06Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "id": "clause.14",
+        "title": "clause.14",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "recorded_at": "2026-09-29T22:13:06Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "id": "clause.15",
+        "title": "clause.15",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "recorded_at": "2026-09-29T22:13:06Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "id": "clause.16",
+        "title": "clause.16",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "recorded_at": "2026-09-29T22:13:06Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "id": "clause.17",
+        "title": "clause.17",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "da99bfcf159fc1b20bdac3ca5d3e66ebbdcd080a",
+          "recorded_at": "2026-09-30T00:23:05Z",
+          "recorded_by": "dbcall2"
+        },
+        "x-directive/requires": "merge"
+      },
+      {
+        "id": "clause.18",
+        "title": "clause.18",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "da99bfcf159fc1b20bdac3ca5d3e66ebbdcd080a",
+          "recorded_at": "2026-09-30T00:23:05Z",
+          "recorded_by": "dbcall2"
+        },
+        "x-directive/requires": "merge"
+      },
+      {
+        "id": "clause.19",
+        "title": "clause.19",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/doctor/checks.ts",
+          "recorded_at": "2026-09-29T22:13:06Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "id": "clause.20",
+        "title": "clause.20",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/doctor/checks.ts",
+          "recorded_at": "2026-09-29T22:13:06Z",
+          "recorded_by": "scope:stamp-evidence"
+        }
+      },
+      {
+        "id": "clause.21",
+        "title": "clause.21",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "da99bfcf159fc1b20bdac3ca5d3e66ebbdcd080a",
+          "recorded_at": "2026-09-30T00:23:05Z",
+          "recorded_by": "dbcall2"
+        },
+        "x-directive/requires": "merge"
+      },
+      {
+        "id": "clause.22",
+        "title": "clause.22",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "da99bfcf159fc1b20bdac3ca5d3e66ebbdcd080a",
+          "recorded_at": "2026-09-30T00:23:05Z",
+          "recorded_by": "dbcall2"
+        },
+        "x-directive/requires": "merge"
+      },
+      {
+        "id": "clause.23",
+        "title": "clause.23",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "da99bfcf159fc1b20bdac3ca5d3e66ebbdcd080a",
+          "recorded_at": "2026-09-30T00:23:05Z",
+          "recorded_by": "dbcall2"
+        },
+        "x-directive/requires": "merge"
+      },
+      {
+        "id": "clause.24",
+        "title": "clause.24",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "merge",
+          "pointer": "da99bfcf159fc1b20bdac3ca5d3e66ebbdcd080a",
+          "recorded_at": "2026-09-30T00:23:05Z",
+          "recorded_by": "dbcall2"
+        },
+        "x-directive/requires": "merge"
+      }
+    ],
+    "tags": [
+      "bug",
+      "adoption-blocker",
+      "agent-experience",
+      "review-cycle",
+      "process",
+      "source-of-truth",
+      "area:cli",
+      "area:skills",
+      "design-critique:ingest-ready",
+      "framework-gap",
+      "core-capabilities",
+      "promise:gates"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3630",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3630: bug(review-cycle): a repository with no reviewer installed cannot reach a terminal state — absence reads as \"review pending\""
+      }
+    ],
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 7 independently testable clauses from the task statement before product edit (#3323)",
+      "sentences": [
+        "Before entering the review-cycle / pr:watch poll loop, determine once whether a reviewer can be expected (presence probe and/or explicit policy). If none can, exit immediately with a named non-CLEAN terminal (e.g. not-configured / no-reviewer-installed) that is distinguishable from clean, blocked, TIMEOUT, and dual-stop stall.",
+        "That terminal must be inherited by task pr:watch and pr:merge-ready so none of them can hang on a reviewer-less repository. Reuse the existing \"named weather terminal, not CLEAN\" pattern from CI_NEVER_SCHEDULED / related CI gates (#3167 / #2672). Extend the shared probe/watch SoT; do not invent a second detector or a third poller.",
+        "Keep the fail-closed rule that empty observation must never CLEAN. A configured-but-slow reviewer must still poll (absent/slow distinction tested both ways). Ambiguity between slow and absent stays fail-closed to poll or to an explicit operator/policy declaration — not to CLEAN.",
+        "Zero-reviewer exit routes to deft-directive-pre-pr self-review rather than skipping review entirely, with a canonical handback value (e.g. review_cycle: skipped:no-reviewer-installed) so parents can tell \"no reviewer\" apart from \"reviewer said nothing.\"",
+        "Orientation: doctor and/or review-cycle preflight reports reviewer presence. Preflight must not only check Greptile settings that presuppose an installed app.",
+        "#769 stays the substitution / multi-profile grain. Empty registry / zero-reviewer is a named requirement on #3630 (or an explicit #769 acceptance limb that empty registry is terminal and routes to self-review). Do not bind \"#769 alone covers permanent absence.\"",
+        "Tests + CHANGELOG: fixture with no reviewer exits in one pass without polling; fixture with slow reviewer still polls; pr:watch / pr:merge-ready inherit the determination.",
+        "bug(review-cycle): a repository with no reviewer installed cannot reach a terminal state — absence reads as \"review pending\"",
+        "Before entering the review-cycle / pr:watch poll loop, determine once whether a reviewer can be expected (presence probe and/or explicit policy).",
+        "If none can, exit immediately with a named non-CLEAN terminal (e.g.",
+        "not-configured / no-reviewer-installed) that is distinguishable from clean, blocked, TIMEOUT, and dual-stop stall.",
+        "That terminal must be inherited by task pr:watch and pr:merge-ready so none of them can hang on a reviewer-less repository.",
+        "Reuse the existing \"named weather terminal, not CLEAN\" pattern from CI_NEVER_SCHEDULED / related CI gates (#3167 / #2672).",
+        "Extend the shared probe/watch SoT; do not invent a second detector or a third poller.",
+        "Keep the fail-closed rule that empty observation must never CLEAN.",
+        "A configured-but-slow reviewer must still poll (absent/slow distinction tested both ways).",
+        "Ambiguity between slow and absent stays fail-closed to poll or to an explicit operator/policy declaration — not to CLEAN.",
+        "Zero-reviewer exit routes to deft-directive-pre-pr self-review rather than skipping review entirely, with a canonical handback value (e.g.",
+        "review_cycle: skipped:no-reviewer-installed) so parents can tell \"no reviewer\" apart from \"reviewer said nothing.\" 5.",
+        "Orientation: doctor and/or review-cycle preflight reports reviewer presence.",
+        "Preflight must not only check Greptile settings that presuppose an installed app.",
+        "#769 stays the substitution / multi-profile grain.",
+        "Empty registry / zero-reviewer is a named requirement on #3630 (or an explicit #769 acceptance limb that empty registry is terminal and routes to self-review).",
+        "Do not bind \"#769 alone covers permanent absence.\" 7.",
+        "relieves: P1 relieves: P2 relieves: P3 Target-digest: sha256:fa977cd9d1fb269b88ec8314f61ad10d406012e6ea5943baa1ccae4b203e754a",
+        "review_cycle: skipped:no-reviewer-installed) so parents can tell \"no reviewer\" apart from \"reviewer said nothing.\"",
+        "Do not bind \"#769 alone covers permanent absence.\""
+      ],
+      "admitted_source_sentences": [
+        "Before entering the review-cycle / pr:watch poll loop, determine once whether a reviewer can be expected (presence probe and/or explicit policy).",
+        "If none can, exit immediately with a named non-CLEAN terminal (e.g.",
+        "not-configured / no-reviewer-installed) that is distinguishable from clean, blocked, TIMEOUT, and dual-stop stall.",
+        "That terminal must be inherited by task pr:watch and pr:merge-ready so none of them can hang on a reviewer-less repository.",
+        "Reuse the existing \"named weather terminal, not CLEAN\" pattern from CI_NEVER_SCHEDULED / related CI gates (#3167 / #2672).",
+        "Extend the shared probe/watch SoT; do not invent a second detector or a third poller.",
+        "Keep the fail-closed rule that empty observation must never CLEAN.",
+        "A configured-but-slow reviewer must still poll (absent/slow distinction tested both ways).",
+        "Ambiguity between slow and absent stays fail-closed to poll or to an explicit operator/policy declaration — not to CLEAN.",
+        "Zero-reviewer exit routes to deft-directive-pre-pr self-review rather than skipping review entirely, with a canonical handback value (e.g.",
+        "review_cycle: skipped:no-reviewer-installed) so parents can tell \"no reviewer\" apart from \"reviewer said nothing.\" 5.",
+        "Orientation: doctor and/or review-cycle preflight reports reviewer presence.",
+        "Preflight must not only check Greptile settings that presuppose an installed app.",
+        "#769 stays the substitution / multi-profile grain.",
+        "Empty registry / zero-reviewer is a named requirement on #3630 (or an explicit #769 acceptance limb that empty registry is terminal and routes to self-review).",
+        "Do not bind \"#769 alone covers permanent absence.\" 7.",
+        "Tests + CHANGELOG: fixture with no reviewer exits in one pass without polling; fixture with slow reviewer still polls; pr:watch / pr:merge-ready inherit the determination.",
+        "relieves: P1 relieves: P2 relieves: P3 Target-digest: sha256:fa977cd9d1fb269b88ec8314f61ad10d406012e6ea5943baa1ccae4b203e754a"
+      ],
+      "admitted_source_digest": "39f80476400b6bb9efe8d9d088c221a76d588a6132deefaf978b272f9b37a292",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "Before entering the review-cycle / pr:watch poll loop, determine once whether a reviewer can be expected (presence probe and/or explicit policy). If none can, exit immediately with a named non-CLEAN terminal (e.g. not-configured / no-reviewer-installed) that is distinguishable from clean, blocked, TIMEOUT, and dual-stop stall.",
+          "artifact_path": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "That terminal must be inherited by task pr:watch and pr:merge-ready so none of them can hang on a reviewer-less repository. Reuse the existing \"named weather terminal, not CLEAN\" pattern from CI_NEVER_SCHEDULED / related CI gates (#3167 / #2672). Extend the shared probe/watch SoT; do not invent a second detector or a third poller.",
+          "artifact_path": "packages/core/src/pr-watch/watch.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "Keep the fail-closed rule that empty observation must never CLEAN. A configured-but-slow reviewer must still poll (absent/slow distinction tested both ways). Ambiguity between slow and absent stays fail-closed to poll or to an explicit operator/policy declaration — not to CLEAN.",
+          "artifact_path": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "Zero-reviewer exit routes to deft-directive-pre-pr self-review rather than skipping review entirely, with a canonical handback value (e.g. review_cycle: skipped:no-reviewer-installed) so parents can tell \"no reviewer\" apart from \"reviewer said nothing.\"",
+          "artifact_path": "content/skills/deft-directive-review-cycle/SKILL.md",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 5,
+          "text": "Orientation: doctor and/or review-cycle preflight reports reviewer presence. Preflight must not only check Greptile settings that presuppose an installed app.",
+          "artifact_path": "packages/core/src/doctor/checks.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 6,
+          "text": "#769 stays the substitution / multi-profile grain. Empty registry / zero-reviewer is a named requirement on #3630 (or an explicit #769 acceptance limb that empty registry is terminal and routes to self-review). Do not bind \"#769 alone covers permanent absence.\"",
+          "artifact_path": "content/skills/deft-directive-review-cycle/SKILL.md",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 7,
+          "text": "Tests + CHANGELOG: fixture with no reviewer exits in one pass without polling; fixture with slow reviewer still polls; pr:watch / pr:merge-ready inherit the determination.",
+          "artifact_path": "CHANGELOG.md",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 8,
+          "text": "Before entering the review-cycle / pr:watch poll loop, determine once whether a reviewer can be expected (presence probe and/or explicit policy).",
+          "artifact_path": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 9,
+          "text": "If none can, exit immediately with a named non-CLEAN terminal (e.g.",
+          "artifact_path": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 10,
+          "text": "not-configured / no-reviewer-installed) that is distinguishable from clean, blocked, TIMEOUT, and dual-stop stall.",
+          "artifact_path": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 11,
+          "text": "That terminal must be inherited by task pr:watch and pr:merge-ready so none of them can hang on a reviewer-less repository.",
+          "artifact_path": "packages/core/src/pr-watch/watch.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 12,
+          "text": "Reuse the existing \"named weather terminal, not CLEAN\" pattern from CI_NEVER_SCHEDULED / related CI gates (#3167 / #2672).",
+          "artifact_path": "packages/core/src/pr-watch/watch.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 13,
+          "text": "Extend the shared probe/watch SoT; do not invent a second detector or a third poller.",
+          "artifact_path": "packages/core/src/pr-watch/watch.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 14,
+          "text": "Keep the fail-closed rule that empty observation must never CLEAN.",
+          "artifact_path": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 15,
+          "text": "A configured-but-slow reviewer must still poll (absent/slow distinction tested both ways).",
+          "artifact_path": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 16,
+          "text": "Ambiguity between slow and absent stays fail-closed to poll or to an explicit operator/policy declaration — not to CLEAN.",
+          "artifact_path": "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 17,
+          "text": "Zero-reviewer exit routes to deft-directive-pre-pr self-review rather than skipping review entirely, with a canonical handback value (e.g.",
+          "artifact_path": "content/skills/deft-directive-review-cycle/SKILL.md",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 18,
+          "text": "review_cycle: skipped:no-reviewer-installed) so parents can tell \"no reviewer\" apart from \"reviewer said nothing.\" 5.",
+          "artifact_path": "content/skills/deft-directive-review-cycle/SKILL.md",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 19,
+          "text": "Orientation: doctor and/or review-cycle preflight reports reviewer presence.",
+          "artifact_path": "packages/core/src/doctor/checks.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 20,
+          "text": "Preflight must not only check Greptile settings that presuppose an installed app.",
+          "artifact_path": "packages/core/src/doctor/checks.ts",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 21,
+          "text": "#769 stays the substitution / multi-profile grain.",
+          "artifact_path": "content/skills/deft-directive-review-cycle/SKILL.md",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 22,
+          "text": "Empty registry / zero-reviewer is a named requirement on #3630 (or an explicit #769 acceptance limb that empty registry is terminal and routes to self-review).",
+          "artifact_path": "content/skills/deft-directive-review-cycle/SKILL.md",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 23,
+          "text": "Do not bind \"#769 alone covers permanent absence.\" 7.",
+          "artifact_path": "content/skills/deft-directive-review-cycle/SKILL.md",
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 24,
+          "text": "relieves: P1 relieves: P2 relieves: P3 Target-digest: sha256:fa977cd9d1fb269b88ec8314f61ad10d406012e6ea5943baa1ccae4b203e754a",
+          "artifact_path": "CHANGELOG.md",
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found",
+      "confessions": [
+        "bug(review-cycle): a repository with no reviewer installed cannot reach a terminal state — absence reads as \"review pending\"",
+        "review_cycle: skipped:no-reviewer-installed) so parents can tell \"no reviewer\" apart from \"reviewer said nothing.\"",
+        "Do not bind \"#769 alone covers permanent absence.\""
+      ]
+    },
+    "metadata": {
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [],
+        "module_boundary": ""
+      },
+      "issueCommentThread": [
+        {
+          "body": "Adoption blocker.\n\nThis is about Gates: the check that stands in the doorway before work is called good. A green result should mean Directive actually looked. A red result should say what to do next.\n\nWhat a new person hits: If the repository has no review bot installed, the pull request never reaches a finished state. Missing a reviewer looks like \"still waiting.\"\n\nWhy that ruins the product for them: The first pull request sits forever. They think they are waiting on a person. They are waiting on a tool that is not there.\n\nHow likely: Medium-high for a personal project, which will not have a review bot. That is the typical first repository.\n\n",
+          "id": 5780300770,
+          "html_url": "https://github.com/deftai/directive/issues/3630#issuecomment-5780300770",
+          "user": {
+            "login": "polfer",
+            "id": 52183,
+            "node_id": "MDQ6VXNlcjUyMTgz",
+            "avatar_url": "https://avatars.githubusercontent.com/u/52183?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/polfer",
+            "html_url": "https://github.com/polfer",
+            "followers_url": "https://api.github.com/users/polfer/followers",
+            "following_url": "https://api.github.com/users/polfer/following{/other_user}",
+            "gists_url": "https://api.github.com/users/polfer/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/polfer/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/polfer/subscriptions",
+            "organizations_url": "https://api.github.com/users/polfer/orgs",
+            "repos_url": "https://api.github.com/users/polfer/repos",
+            "events_url": "https://api.github.com/users/polfer/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/polfer/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T16:39:30Z",
+          "updated_at": "2026-09-22T16:39:30Z",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: triage\n```\n\nmechanism-shaped: true\ndesign-critique: warranted, because review-cycle / pr:watch treat permanent reviewer absence the same as \"review pending\": Step 6 fail-closed all-of resolves every missing field to unknown and returns to the poll, so a repository with no bot reviewer installed can only exit by dual-stop budget exhaustion reported as a stall.\n\ncharter: refutation\nrefutation-target: On a repository with no reviewer bot installed, it is acceptable that review-cycle and pr:watch keep treating permanent absence as \"review pending\" / unknown and poll until dual-stop budget exhaustion, because the fail-closed all-of and late-arriving re-check correctly prefer \"pending\" over \"clean\" and #769's profile registry alone will eventually cover it.\n\narc-mode: no-ingest\nyolo-standing: yes\nspend: N=1\nspend-ask: asked\n\nThe operator continued the evaluate/label/arc campaign and previously authorized pick recommended N. This is a concrete wait-verb / zero-reviewer terminal defect (absence vs slowness), not a whole-motion open design panel. Recommended spend N=1. Adjacent to #769 (wrong-reviewer substitution) but the zero-reviewer case needs its own terminal.\n\npain: P1, P2, P3\n\nP1. With no reviewer installed, Step 6's fail-closed all-of is unsatisfiable by construction; the agent polls until dual-stop budget and reports a stall, not a diagnosis (measured ~55 min on one run).\nP2. Absence and slowness are the same observation today (late-arriving re-check prefers \"pending\"); there is no preflight / ReviewerStatus / doctor / policy path that can terminate \"not configured\" before the loop.\nP3. Consumers work around with per-PR out-of-band \"ignore Greptile\" instructions; the zero case must be a named terminal that routes to pre-pr self-review and is inherited by pr:watch / pr:merge-ready without GraphQL gh pr view --json. #769 profile registry alone does not resolve empty-registry as terminal.\n\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-3630-dc\norigin-ref: origin/HEAD\ndispatch-sha: b5b6139993b386eb5d8541faba52beedbf39af80\npin-kind: origin-default\ntarget-digest: sha256:fa977cd9d1fb269b88ec8314f61ad10d406012e6ea5943baa1ccae4b203e754a\n\nPin reads use git show b5b6139993b386eb5d8541faba52beedbf39af80. Adjacent to #769; zero-reviewer is distinct. This host spawn schema has no process_only field, so the single Grok seat is the grok CLI. Not dual-launched.\r\n\n",
+          "id": 5857863018,
+          "html_url": "https://github.com/deftai/directive/issues/3630#issuecomment-5857863018",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-27T16:55:02Z",
+          "updated_at": "2026-09-27T16:55:02Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: critic\n```\n\nissue: deftai/directive#3630\ncharter: refutation\nround: 1 critic\nid-ceiling: 5857863018\nsha-at-dispatch: b5b6139993b386eb5d8541faba52beedbf39af80\narc-mode: no-ingest\naudit-targets: none\nseat: grok\nlauncher: grok\n\nHEAD confirmed `b5b6139993b386eb5d8541faba52beedbf39af80` via `git rev-parse HEAD` (no fetch/checkout). Pin reads via `git show b5b6139993b386eb5d8541faba52beedbf39af80:<path>`. Envelope comments: 5780300770 (adoption) and Stop 1 5857863018; later ids ignored.\n\n## Verdict on the refutation target\n\nThe refutation target does **not** survive. Preferring \"pending\" over \"clean\" on a missing review is the right fail-closed rule for a configured-but-slow bot; treating permanent zero-reviewer absence as that same pending state until dual-stop / max-wait exhaustion is a distinct, diagnosable hang that #769's substitution registry does not close.\n\n## Absence shares the sha_match keep-polling path to TIMEOUT\nblocks-the-design\nEvidence: At the dispatch SHA, `evaluateCleanGate` (`packages/core/src/content-contracts/skills/greptile-detector.ts`) returns holdout `sha_match` when `lastReviewedSha` is null. `fetchGreptileCommentBody` jq uses `.body // \"\"`, so no Greptile comment yields an empty body (`found: false`), not a probe error. `watch()` (`packages/core/src/pr-watch/watch.ts`) advances the STALL streak only when `cleanGateHoldout !== \"sha_match\"`; the locked test `\"TIMEOUT when the review never appears before the cap\"` drives `found: false` + `cleanGateHoldout: \"sha_match\"` to `VERDICT_TIMEOUT`, and `\"does NOT STALL on stale-SHA confidence during re-review (#2313)\"` keeps the same holdout on the poll-to-cap path. Skill Step 6 fail-closed all-of plus the late-arriving re-check (`content/skills/deft-directive-review-cycle/SKILL.md`) resolve the same empty observation to `unknown` / \"review pending\" and return to the loop.\nFailure mode: On a repo with no reviewer installed, `pr:watch` / review-cycle / drive-to:merge-ready merge-path waits burn the dual-stop or `--max-wait-minutes` budget and hand back TIMEOUT/STALL-shaped exhaustion. The operator learns the agent gave up, not that the repository has no reviewer; shared merge-path wait authority stays occupied for the full cap on a permanent condition.\nDisposition: Before bind, reject \"acceptable to keep treating absence as pending until budget exhaustion.\" Require a named zero-reviewer / not-configured determination that terminates before the poll loop, while keeping the fail-closed rule that empty observation must never CLEAN.\n\n## #769 profile registry does not terminate the empty set\nblocks-the-design\nEvidence: Live REST body of open #769 (fetched this seat) scopes three scenarios: Slizard alongside Greptile, Slizard instead of Greptile, and future reviewers. The proposed registry entries assume a profile with comment markers, exit conditions, and expected duration. The substitution failure mode named there is \"no Greptile review found -> wait forever\" when another bot is configured. Stop 1 P3 already records that an empty registry is a different case; nothing in #769's body names empty-registry / zero-profile as a legitimate terminal configuration or a self-review handback.\nFailure mode: Binding \" #769 alone will eventually cover it\" lets a shipped multi-profile registry still leave personal/consumer repos with no bot installed on the same keep-polling path, because there is no profile to select and no empty-set terminal in that design.\nDisposition: Treat zero-reviewer as a named requirement on this issue (or an explicit #769 acceptance limb that empty registry is terminal and routes to pre-pr self-review). Do not bind the target's claim that the profile registry alone covers permanent absence.\n\n## Sibling CI weather already names permanent absence; reviewer axis does not\nsharpens-framing\nEvidence: `packages/core/src/pr-watch/constants.ts` and `watch.ts` already exit 2 on `CI_NEVER_SCHEDULED` / `RUNNER_CAPACITY_STALL` / `CI_CANCELLED_NO_FAILOVER` so agents thrash-cap rather than multi-hour empty loops (#3167 / #2672). No analogous reviewer-side verdict exists for \"no bot will ever post.\" `plan.policy.review` at this SHA only exposes `minGreptileConfidence` (a floor for a score that never arrives). Greptile preflight checks `triggerOnUpdates` / `statusCheck` / `@greptileai` re-trigger — all presuppose an installed app. Doctor under `packages/core/src/doctor/` has no reviewer-presence line (grep at dest: Greptile mentions are pin/display accuracy, not bot install).\nFailure mode: If the bound remedy only softens skill prose without a shared terminal inherited by `pr:watch` / `pr:merge-ready`, CI-shaped permanent hangs stay diagnosable while reviewer-shaped permanent hangs keep burning merge-path wait authority.\nDisposition: When stating the Bound remedy, reuse the existing \"named weather terminal, not CLEAN\" pattern from CI gates; require inheritance by the shared wait verbs; orientation (doctor or preflight presence probe) is supporting, not a substitute for the wait terminal.\n\n## Injection / swarm lens\nShared merge-path wait authority (`pr:watch`, review-cycle Step 6, Approach 1 / Phase 6 monitors, drive-to:merge-ready leaves) is exactly the surface this target changes. A false-positive \"not configured\" that CLEANs would merge un-reviewed code — that remains forbidden. The needed control is a distinct non-CLEAN terminal (plus handback that routes to `deft-directive-pre-pr` self-review), fail-closed on any ambiguity between slow and absent, with the slow path still polling. Do not invent a second detector; extend the existing probe/watch SoT so orchestrators cannot promise a wait that silently evaporates into budget exhaustion without a diagnosis.\n\n## Road not taken\nSteelmanning the target: empty observation must not CLEAN (#1259), late-arriving re-check is correct for cold-start, dual-stop eventually stops the burn, and #769 could grow a \"none\" profile later. What flips that: the locked `found: false` → `sha_match` → TIMEOUT path proves absence is deliberately kept on the in-flight poll path; dual-stop/TIMEOUT handbacks do not diagnose install; #769's live body never names empty registry as terminal; consumer first-PR cost (~55 min in the issue body) is the expected personal-repo case, not a rare edge.\n\n## Existing mechanisms inventoried (no new invention required to see the gap)\n- Step 6 fail-closed all-of + late-arriving re-check (skill)\n- `probeOnce` / `watch` / `evaluateCleanGate` / verdict constants (pr-watch)\n- `minGreptileConfidence` only under `plan.policy.review`\n- #1543 informal-clean (bot comment present, canonical fields missing — different grain)\n- Stall menu \"skip bot review\" (operator pick after stall — not a pre-loop presence terminal)\n- #769 open profile-registry proposal (substitution, not zero)\n- Doctor: no reviewer presence check at this SHA\r\n\n",
+          "id": 5857889140,
+          "html_url": "https://github.com/deftai/directive/issues/3630#issuecomment-5857889140",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-27T16:58:44Z",
+          "updated_at": "2026-09-27T16:58:44Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nOn a repo with no reviewer bot installed, review-cycle and pr:watch treat permanent absence as \"review pending\" and poll until dual-stop / TIMEOUT, so the handback is budget exhaustion rather than a diagnosis. Preferring pending over clean for a slow bot is right; using that same path for permanent zero-reviewer is not. #769's profile registry covers substitution, not empty registry. Confirming this map means the Bound remedy list is the build contract. The same parent wrote the Stop 1 warrant and this map. Critic 5857889140 checks the findings. Whether the list covers the three pains stays open until a later critic targets those cites.\n\n**Lean:** the refutation target does not survive. This map is the bind.\n\nsiblings: 1\nRound: 1\nResidual: none\nsupersedes: 5857863018\narc-mode: no-ingest\nyolo-standing: yes\ndispatch-sha: b5b6139993b386eb5d8541faba52beedbf39af80\n\n## Takes\n\n- 5857889140 Absence shares the sha_match keep-polling path to TIMEOUT — accept-into-contract\n- 5857889140 #769 profile registry does not terminate the empty set — accept-into-contract\n- 5857889140 Sibling CI weather already names permanent absence; reviewer axis does not — accept-into-contract\n\nSpec-path:\n\n## Bound remedy\n\n1. Before entering the review-cycle / pr:watch poll loop, determine once whether a reviewer can be expected (presence probe and/or explicit policy). If none can, exit immediately with a named non-CLEAN terminal (e.g. not-configured / no-reviewer-installed) that is distinguishable from clean, blocked, TIMEOUT, and dual-stop stall.\n2. That terminal must be inherited by task pr:watch and pr:merge-ready so none of them can hang on a reviewer-less repository. Reuse the existing \"named weather terminal, not CLEAN\" pattern from CI_NEVER_SCHEDULED / related CI gates (#3167 / #2672). Extend the shared probe/watch SoT; do not invent a second detector or a third poller.\n3. Keep the fail-closed rule that empty observation must never CLEAN. A configured-but-slow reviewer must still poll (absent/slow distinction tested both ways). Ambiguity between slow and absent stays fail-closed to poll or to an explicit operator/policy declaration — not to CLEAN.\n4. Zero-reviewer exit routes to deft-directive-pre-pr self-review rather than skipping review entirely, with a canonical handback value (e.g. review_cycle: skipped:no-reviewer-installed) so parents can tell \"no reviewer\" apart from \"reviewer said nothing.\"\n5. Orientation: doctor and/or review-cycle preflight reports reviewer presence. Preflight must not only check Greptile settings that presuppose an installed app.\n6. #769 stays the substitution / multi-profile grain. Empty registry / zero-reviewer is a named requirement on #3630 (or an explicit #769 acceptance limb that empty registry is terminal and routes to self-review). Do not bind \"#769 alone covers permanent absence.\"\n7. Tests + CHANGELOG: fixture with no reviewer exits in one pass without polling; fixture with slow reviewer still polls; pr:watch / pr:merge-ready inherit the determination.\n\nrelieves: P1\nrelieves: P2\nrelieves: P3\n\nTarget-digest: sha256:fa977cd9d1fb269b88ec8314f61ad10d406012e6ea5943baa1ccae4b203e754a\n\n## Parent-side substantiation\n\nThe critic blocked both \"acceptable to poll absence to TIMEOUT\" and \"#769 alone covers it.\" Items 1–2 and 4–5 discharge the product terminal + inheritance + handback + orientation. Item 3 keeps fail-closed vs slow. Item 6 fences #769. Item 7 is verification.\n\naudit:zero-reviewer-named-terminal sha=b5b6139993b386eb5d8541faba52beedbf39af80 pointer=comment:5857889140 reading=asserted\naudit:769-does-not-cover-empty sha=b5b6139993b386eb5d8541faba52beedbf39af80 pointer=comment:5857889140 reading=asserted\r\n\n",
+          "id": 5857892748,
+          "html_url": "https://github.com/deftai/directive/issues/3630#issuecomment-5857892748",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-27T16:59:15Z",
+          "updated_at": "2026-09-27T16:59:15Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: critic\n```\n\nissue: deftai/directive#3630\ncharter: refutation\nround: 4 Pass-4 audit (pain-audit of relieves)\nid-ceiling: 5857892748\nsha-at-dispatch: b5b6139993b386eb5d8541faba52beedbf39af80\narc-mode: no-ingest\naudit-targets: pain-P1, pain-P2, pain-P3\nseat: grok\nlauncher: grok\n\nHEAD confirmed `b5b6139993b386eb5d8541faba52beedbf39af80` via `git rev-parse HEAD` (no fetch/checkout). Pin reads via `git show b5b6139993b386eb5d8541faba52beedbf39af80:<path>`. Envelope under ceiling: adoption 5780300770, Stop 1 5857863018, critic 5857889140, bind lean 5857892748.\n\n## Pain-audit of asserted coverage\n\nBind lean 5857892748 asserts coverage of Stop 1 pains P1–P3. Re-verified the shared hang path and the Bound remedy limbs against that SHA. No blocking gap found: the harvest names a zero-reviewer terminal before the poll, keeps empty observation from CLEANing, inherits the terminal on `pr:watch` / `pr:merge-ready`, routes to pre-pr self-review, orients via doctor/preflight, and fences #769 to substitution.\n\n## P1 hang is terminated before the unsatisfiable all-of\nfootnote\nEvidence: At this SHA, `evaluateCleanGate` returns holdout `sha_match` when `lastReviewedSha` is null (`packages/core/src/content-contracts/skills/greptile-detector.ts`); `watch()` refuses early STALL on that holdout and reaches `VERDICT_TIMEOUT` (`packages/core/src/pr-watch/watch.ts`; locked `\"TIMEOUT when the review never appears before the cap\"`). Skill Step 6 fail-closed all-of plus late-arriving re-check still resolve empty observation to `unknown` / \"review pending\" (`content/skills/deft-directive-review-cycle/SKILL.md`). Bound remedy items 1–2 and 7 require a once-before-loop named non-CLEAN terminal inherited by the shared wait verbs, with a no-reviewer fixture that exits in one pass without polling.\nFailure mode: None for coverage. Leaving Step 6 prose alone without the pre-loop terminal would keep P1 live; the lean already forbids that.\nDisposition: Coverage of P1 holds as written. No harvest change.\n\n## P2 absent/slow split plus orientation path\nfootnote\nEvidence: Late-arriving re-check still prefers \"pending\" on empty first pass. `plan.policy.review` at this SHA exposes `minGreptileConfidence` only (a floor for a score that never arrives). Doctor Greptile mentions under `packages/core/src/doctor/` are pin/display accuracy, not bot-install presence. Bound remedy items 1, 3, and 5 require presence probe and/or explicit policy before the loop, absent/slow tests both ways with ambiguity fail-closed to poll or explicit declaration (never CLEAN), and doctor/preflight reporting that does not presuppose an installed app.\nFailure mode: None for coverage. Softening skill prose without a pre-loop determination would leave absence and slowness as one observation.\nDisposition: Coverage of P2 holds. A sixth `ReviewerStatus` value remains an allowed implementation of item 1's named terminal if Step 6 needs an all-of escape field; the lean already binds the product terminal at the wait/preflight layer.\n\n## P3 named terminal, self-review route, inheritance, #769 fence\nfootnote\nEvidence: Critic 5857889140 and live Stop 1 already separate #769 substitution from empty-registry. CI weather already names permanent absence (`CI_NEVER_SCHEDULED` / peers in `packages/core/src/pr-watch/constants.ts`); reviewer axis does not. Bound remedy items 1–2, 4, and 6 name the non-CLEAN terminal, inherit it on `pr:watch` / `pr:merge-ready` by extending the shared probe/watch SoT (existing REST path; no second detector), route zero-reviewer exit to `deft-directive-pre-pr` self-review with a canonical handback, and keep #769 as substitution while making empty registry a named #3630 requirement (or an explicit #769 acceptance limb with the same terminal + self-review route).\nFailure mode: None for coverage. Binding \"#769 alone covers permanent absence\" would leave P3 live; item 6 already refuses that.\nDisposition: Coverage of P3 holds. The lean does not restate the GraphQL `gh pr view --json` ban as its own operative line; item 2's shared SoT extension already places the determination on the existing probe/watch path.\n\n## Injection / swarm lens\nShared merge-path wait authority remains the changed surface. Item 3 keeps empty observation from CLEANing; false-positive \"not configured\" that CLEANed would merge un-reviewed code. The lean's control is a distinct non-CLEAN terminal plus pre-pr self-review handback, fail-closed on slow/absent ambiguity.\n\n## Existing mechanisms re-checked (no new invention required to audit coverage)\n- Step 6 fail-closed all-of + late-arriving re-check\n- `evaluateCleanGate` / `watch` / `probeOnce` / CI weather verdicts\n- `minGreptileConfidence` only under `plan.policy.review`\n- Doctor: no reviewer-presence line at this SHA\n- #769 open substitution registry (empty set still out of that body)\n- Stall-menu \"skip bot review\" (operator pick after stall — not the pre-loop terminal the lean binds)\n\n## Road not taken\nSteelmanning a harvest change: require an explicit `ReviewerStatus: not-configured` enum limb and an operative GraphQL-ban line on the lean. What keeps the current harvest: P1–P3 are outcome pains (terminal + orientation + inheritance + self-review + #769 fence); items 1–7 already name those outcomes and the empty≠CLEAN / shared-SoT constraints. Enum spelling and GraphQL restatement do not change the Bound remedy list.\r\n\n",
+          "id": 5857908154,
+          "html_url": "https://github.com/deftai/directive/issues/3630#issuecomment-5857908154",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-27T17:01:14Z",
+          "updated_at": "2026-09-27T17:01:14Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nWith no reviewer bot installed, review-cycle and pr:watch treat permanent absence as pending and poll until TIMEOUT / dual-stop, so the handback is budget exhaustion rather than a diagnosis. Bound remedy requires a named non-CLEAN zero-reviewer terminal before the loop, inherited by pr:watch / pr:merge-ready, routed to pre-pr self-review, with doctor/preflight presence reporting, while keeping empty observation from CLEANing and fencing #769 to substitution. Pain-audit 5857908154 of relieves P1-P3 was footnote-only. The same parent wrote the Stop 1 warrant.\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nBound contract: successor lean 5857892748.\r\n\n",
+          "id": 5857912309,
+          "html_url": "https://github.com/deftai/directive/issues/3630#issuecomment-5857912309",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-27T17:01:49Z",
+          "updated_at": "2026-09-27T17:01:49Z",
+          "author_association": "COLLABORATOR"
+        }
+      ],
+      "issueBody": "## Summary\n\n`deft-directive-review-cycle` has no terminal state for \"this repository has no bot reviewer installed\". Step 6's fail-closed all-of resolves every missing field to `unknown`, and `unknown` sends the agent back to Step 2. On a repository where no reviewer will ever post, all five fields are permanently absent, so the predicate is unsatisfiable by construction and the loop can only end by exhausting its dual-stop budget (#2442) — reported as a stall, not as a diagnosis.\n\nThe operator-visible symptom is that a PR \"just sits there\". The workaround that consumers land on is to tell every agent, on every PR, by hand: *Greptile is not installed, ignore it.* If they forget, the agent waits.\n\nThis is adjacent to #769 but not covered by it — see **Relationship to #769** below.\n\n## Reproduction\n\n1. A repository with no reviewer bot installed — no Greptile app, no `.greptile/config.json`, no `Greptile Review` check run, no reviewer comments. (Verified across four PRs on the consumer repo below.)\n2. Open a PR and route it through `deft-directive-review-cycle`, or hand it to a swarm worker scoped `drive-to: merge-ready`.\n3. The agent enters the Step 4 polling loop and never leaves it.\n\nObserved cost on one run: a worker agent spent **55 minutes** in `deft pr:watch` before concluding the bot was absent, and it only stopped because of the dual-stop no-progress envelope. Nothing in that 55 minutes was recoverable work.\n\n## Implementation evidence\n\n**The exit predicate cannot be satisfied without a reviewer.** `skills/deft-directive-review-cycle/SKILL.md` § Step 6:\n\n> The loop MAY exit clean ONLY when a SINGLE fresh fetch … satisfies ALL of the `ReviewerStatus` fields below. This is a **fail-closed all-of**: any field that is missing, unparsed, or ambiguous resolves to **`unknown`**, and `unknown` is NOT a pass — the agent stays in the loop and returns to Step 2.\n\nAll five fields — terminal `Greptile Review` check run, HEAD-pinned reviewed SHA, `Last reviewed commit` marker, parsed `Confidence Score: X/5`, P0/P1 detector — are properties of a reviewer comment or check run that will never exist. This is correct and desirable when a reviewer is configured; it has no escape when one is not.\n\n**The one rule that could break the tie decides the wrong way.** Same file:\n\n> **Late-arriving bot review re-check:** If the initial dual-source fetch returns no bot review on the current HEAD SHA, wait ~60s and re-fetch … an empty first pass is more likely \"review pending\" than \"review clean\".\n\nThat heuristic is right for a slow reviewer and exactly wrong for an absent one, and the skill has no way to tell the two apart. Absence and slowness are the same observation.\n\n**The preflight checks the reviewer's settings, never its presence.** § \"Before entering the review/fix loop, verify the Greptile configuration supports it\" checks `triggerOnUpdates`, `statusCheck`, and the `@greptileai` re-trigger fallback. Every item presupposes an installed app. There is no step that asks whether a reviewer exists at all, and no `ReviewerStatus` value that could carry the answer.\n\n**Nothing else terminates it.** `plan.policy.review.minGreptileConfidence` (#3095) resolves a floor for a score that will never be parsed. `task pr:watch` / `pr:merge-ready` share that SoT and inherit the same unsatisfiable predicate. The dual-stop rule (#2442) does eventually halt the agent, but it reports budget exhaustion — an operator reading that handback learns the agent gave up, not that the repository has no reviewer.\n\n## Relationship to #769\n\n#769 (open since 2026-04-30) proposes named reviewer profiles and explicitly lists the failure mode:\n\n> **Slizard instead of Greptile** — on PRs where only Slizard is configured, Greptile-specific gates produce false negatives (\"no Greptile review found -> wait forever\").\n\nThat is the *substitution* case: a reviewer exists, but it is the wrong one, and the fix is a profile registry. The **zero-reviewer** case is different in three ways that a profile registry does not resolve on its own:\n\n1. There is no profile to select. An empty registry has to be a legitimate, terminal configuration — not an unmatched lookup.\n2. The correct outcome is not \"parse a different comment shape\" but \"stop, and substitute a self-review\". That is a different exit, with a different handback value.\n3. It affects consumers who never intended to install a reviewer, which is likely to be most consumers outside the framework's own repository. #769 is scoped to the framework's own multi-reviewer needs.\n\nA profile registry is a natural home for the fix, but the zero case needs to be a named requirement or it will be designed around.\n\n## Actual behavior\n\nAn agent on a reviewer-less repository polls until its budget is exhausted, then reports a stall. The operator must pre-empt this on every PR with an out-of-band instruction. No `deft` verb, policy field, or doctor check reports that the repository has no reviewer.\n\n## Expected behavior\n\nThe skill determines once, before entering the loop, whether a reviewer can be expected. If none can, it exits immediately with a distinct, non-failure terminal state, records that in the handback, and directs the agent to the `deft-directive-pre-pr` self-review instead of a poll.\n\n## Possible mechanisms (not a decided design)\n\n- **A presence probe in the existing preflight.** The check the preflight already performs — `gh api repos/<owner>/<repo>/commits/<sha>/check-runs` — answers most of it. Combined with \"no reviewer comment on any of the last N merged PRs\", it distinguishes \"not installed\" from \"slow\" without waiting.\n- **A sixth `ReviewerStatus` value: `not-configured`.** Terminal, distinct from `unknown`, and distinct from `clean` — it asserts nothing about the code, only about the repository.\n- **A typed policy field**, e.g. `plan.policy.review.reviewers: []`, letting an operator declare the answer instead of it being probed. An empty list is a valid, explicit configuration. This also gives #769's registry its zero case for free.\n- **A `doctor` line.** \"Reviewer: none detected\" alongside the existing hook and toolchain lines would surface it at orientation rather than at minute 55.\n- **A named handback value.** `review_cycle: skipped:no-reviewer-installed` is what one consumer settled on by hand; making it canonical means a parent agent can tell \"no reviewer\" apart from \"reviewer said nothing\".\n\n## Acceptance criteria\n\n- A fixture repository with no reviewer installed exits `deft-directive-review-cycle` in one pass, without polling.\n- The exit is terminal and distinguishable from both `clean` and `blocked` in the handback.\n- A fixture with a reviewer that is merely slow still polls — the absent/slow distinction is tested in both directions.\n- `task pr:watch` and `pr:merge-ready` inherit the same determination; none of them can hang on a reviewer-less repository.\n- The zero-reviewer case is reachable without an operator instruction on each PR.\n- Orientation (`doctor`, or the review-cycle preflight) reports reviewer presence.\n- A reviewer-less exit routes to the `deft-directive-pre-pr` self-review rather than skipping review entirely.\n- CHANGELOG.\n\n## Environment\n\n- `@deftai/directive` 0.106.0, engine and content 0.106.0\n- consumer deposit, hybrid mode; GitHub forge; no reviewer app installed on the repository\n- verified absent across four PRs on the consumer repo (no check-run, no review, no comment)\n- Claude Code host, Windows 11\n\n",
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5225045590,
+        "origin": "deftai/directive#3630",
+        "id": "github.issue.5225045590"
+      },
+      "x-directive/admitted-target-digest": {
+        "schema": "deft.scope.admitted-target-digest.v1",
+        "algorithm": "sha256",
+        "sha256": "fa977cd9d1fb269b88ec8314f61ad10d406012e6ea5943baa1ccae4b203e754a"
+      },
+      "swarm": {
+        "kind": "story",
+        "file_scope": [
+          "packages/core/src/pr-merge-readiness/reviewer-presence.ts",
+          "packages/core/src/pr-merge-readiness/evaluate.ts",
+          "packages/core/src/pr-merge-readiness/compute.ts",
+          "packages/core/src/pr-merge-readiness/index.ts",
+          "packages/core/src/policy/reviewers.ts",
+          "packages/core/src/policy/index.ts",
+          "packages/core/src/policy/resolve.test.ts",
+          "packages/core/src/pr-watch/constants.ts",
+          "packages/core/src/pr-watch/types.ts",
+          "packages/core/src/pr-watch/watch.ts",
+          "packages/core/src/pr-watch/probe.ts",
+          "packages/core/src/pr-watch/main.ts",
+          "packages/core/src/doctor/checks.ts",
+          "content/skills/deft-directive-review-cycle/SKILL.md",
+          "content/templates/swarm-greptile-poller-prompt.md",
+          "content/packs/skills/skills-pack-0.1.json",
+          "CHANGELOG.md"
+        ],
+        "verify_commands": [
+          "npx vitest run packages/core/src/pr-merge-readiness/reviewer-presence.test.ts packages/core/src/pr-watch/watch.test.ts packages/core/src/pr-watch/probe.test.ts --coverage.enabled=false"
+        ],
+        "depends_on": [],
+        "conflict_group": "review-cycle-presence",
+        "size": "M",
+        "file_scope_confidence": "high",
+        "model_tier": "standard"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 5161,
+        "prBase": null,
+        "mergeCommit": "da99bfcf159fc1b20bdac3ca5d3e66ebbdcd080a",
+        "deliveryBranch": "master",
+        "deliveryCommit": "da99bfcf159fc1b20bdac3ca5d3e66ebbdcd080a",
+        "verifiedAt": "2026-09-30T00:23:20Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:grok:v1:MDFhMGVmMTktOTgxMC03YTgzLWFhMDAtMWY5OTEzN2IxMjUx"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-09-30T00:23:20Z",
+      "completedSessionId": "host:grok:v1:MDFhMGVmMTktOTgxMC03YTgzLWFhMDAtMWY5OTEzN2IxMjUx",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-09-30T00:23:20Z"
+      }
+    },
+    "id": "github.issue.5225045590",
+    "updated": "2026-09-30T00:23:20Z"
+  }
+}
