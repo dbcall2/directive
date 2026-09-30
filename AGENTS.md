@@ -52,7 +52,6 @@ Pointer-sufficient managed section below; `content/contracts/deterministic-quest
 ## Review-surface precedence (#2308)
 
 ! Route PR shepherding / review work through `deft-directive-review-cycle` (`content/skills/deft-directive-review-cycle/SKILL.md`); host `babysit` / `bugbot` / `security-review` advisory-only (#2308 / #2261).
-! **Zero-reviewer terminal (#3630):** `pr:watch` / `pr:merge-ready` may exit `NO_REVIEWER_INSTALLED` (exit 2) before the poll loop; handback `review_cycle: skipped:no-reviewer-installed` → pre-pr self-review. Empty observation never CLEAN. Depth: review-cycle SKILL / agents-entry.
 
 ## Value feedback and attribution (#1709)
 
@@ -287,8 +286,7 @@ Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
 
 ## Review-surface precedence (#2308)
 
-! Route PR shepherding / review work through `deft-directive-review-cycle` — `.deft/core/.agents/skills/deft-directive-review-cycle/SKILL.md`; host `babysit` / `bugbot` / `security-review` advisory-only (#2308 / #2261).
-! **Zero-reviewer terminal (#3630):** before the `pr:watch` / review-cycle poll loop, shared presence (`task pr:watch` / `task pr:merge-ready`; optional `plan.policy.review.reviewers`, `[]` = explicit none) may exit **`NO_REVIEWER_INSTALLED`** (exit 2). Named non-CLEAN; handback `review_cycle: skipped:no-reviewer-installed` → `deft-directive-pre-pr` self-review. Empty observation never CLEAN. Slow/ambiguous still polls. #769 stays substitution. Depth: review-cycle SKILL.
+! Route PR shepherding / review work through `deft-directive-review-cycle` — `.deft/core/.agents/skills/deft-directive-review-cycle/SKILL.md`; host `babysit` / `bugbot` / `security-review` advisory-only (#2308 / #2261). Zero-reviewer (#3630): `NO_REVIEWER_INSTALLED` → pre-pr (`skipped:no-reviewer-installed`); empty never CLEAN. Depth: review-cycle SKILL.
 
 ## Value feedback and attribution (#1709)
 
