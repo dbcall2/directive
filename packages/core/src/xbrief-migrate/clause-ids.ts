@@ -4,7 +4,7 @@
  * Reuses {@link rewriteLegacyClauseKeyedItemIds}; does not invent a second
  * rewrite. Named by doctor / `deft update`. Does not run inside deposit refresh.
  */
-import { type Dirent, existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
+import { type Dirent, existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { containedWrite } from "../fs/contained-write.js";
 import { assertDirectoryNotSymlink } from "../fs/projection-containment.js";
@@ -50,6 +50,17 @@ interface CorpusWalk {
   skippedSymlinks: string[];
 }
 
+function isBriefOrDirSymlink(full: string, name: string): boolean {
+  if (hasArtifactSuffix(name)) {
+    return true;
+  }
+  try {
+    return statSync(full).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 function collectVbriefFiles(
   dir: string,
   acc: CorpusWalk = { files: [], skippedSymlinks: [] },
@@ -62,23 +73,27 @@ function collectVbriefFiles(
   }
   for (const entry of entries) {
     const full = join(dir, entry.name);
-    if (entry.isSymbolicLink()) {
-      acc.skippedSymlinks.push(full);
+    let isLink = entry.isSymbolicLink();
+    let info: ReturnType<typeof lstatSync> | undefined;
+    if (!isLink) {
+      try {
+        info = lstatSync(full);
+        isLink = info.isSymbolicLink();
+      } catch {
+        continue;
+      }
+    }
+    if (isLink) {
+      if (isBriefOrDirSymlink(full, entry.name)) {
+        acc.skippedSymlinks.push(full);
+      }
       continue;
     }
-    let info: ReturnType<typeof lstatSync>;
-    try {
-      info = lstatSync(full);
-    } catch {
-      continue;
-    }
-    if (info.isSymbolicLink()) {
-      acc.skippedSymlinks.push(full);
-      continue;
-    }
-    if (info.isDirectory()) {
+    const isDir = entry.isDirectory() || info?.isDirectory() === true;
+    const isFile = entry.isFile() || info?.isFile() === true;
+    if (isDir) {
       collectVbriefFiles(full, acc);
-    } else if (info.isFile() && hasArtifactSuffix(entry.name)) {
+    } else if (isFile && hasArtifactSuffix(entry.name)) {
       acc.files.push(full);
     }
   }
@@ -107,9 +122,39 @@ function collectPlanItemIds(items: unknown[]): string[] {
   return ids;
 }
 
-function hasDuplicatePlanItemIds(items: unknown[]): boolean {
-  const ids = collectPlanItemIds(items);
-  return new Set(ids).size !== ids.length;
+function countIds(ids: readonly string[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const id of ids) {
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function rewriteIntroducesDuplicate(before: unknown[], after: unknown[]): boolean {
+  const beforeCounts = countIds(collectPlanItemIds(before));
+  const afterCounts = countIds(collectPlanItemIds(after));
+  for (const [id, n] of afterCounts) {
+    if (n > 1 && n > (beforeCounts.get(id) ?? 0)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function selectFallbackCorpusDir(projectRoot: string): string | null {
+  const xbriefDir = join(projectRoot, "xbrief");
+  const legacyDir = join(projectRoot, "vbrief");
+  const xbriefExists = existsSync(xbriefDir);
+  if (xbriefExists) {
+    const walk = collectVbriefFiles(xbriefDir);
+    if (walk.files.length > 0 || walk.skippedSymlinks.length > 0) {
+      return xbriefDir;
+    }
+  }
+  if (existsSync(legacyDir)) {
+    return legacyDir;
+  }
+  return xbriefExists ? xbriefDir : null;
 }
 
 function resolveCorpusDir(projectRoot: string): { dir: string } | { conflict: string } | null {
@@ -117,15 +162,11 @@ function resolveCorpusDir(projectRoot: string): { dir: string } | { conflict: st
   try {
     corpusDir = resolveLifecycleRoot(projectRoot);
   } catch {
-    const xbriefDir = join(projectRoot, "xbrief");
-    const legacyDir = join(projectRoot, "vbrief");
-    if (existsSync(xbriefDir)) {
-      corpusDir = xbriefDir;
-    } else if (existsSync(legacyDir)) {
-      corpusDir = legacyDir;
-    } else {
+    const fallback = selectFallbackCorpusDir(projectRoot);
+    if (fallback === null) {
       return null;
     }
+    corpusDir = fallback;
   }
   try {
     assertDirectoryNotSymlink(projectRoot, corpusDir, "lifecycle root");
@@ -225,13 +266,14 @@ export function migrateLegacyClauseKeyedItemIdsCorpus(projectRoot: string): Corp
     ) {
       continue;
     }
-    const rewritten = cloneJson(parsed.plan.items);
+    const original = parsed.plan.items;
+    const rewritten = cloneJson(original);
     const rewrittenIds = rewriteLegacyClauseKeyedItemIds(rewritten);
     if (rewrittenIds.length === 0) {
       continue;
     }
     const relPath = relative(root, file).replace(/\\/g, "/");
-    if (hasDuplicatePlanItemIds(rewritten)) {
+    if (rewriteIntroducesDuplicate(original, rewritten)) {
       conflicts.push({
         path: relPath,
         message: "rewrite would duplicate PlanItem ids (clause:N collides with existing clause.N)",

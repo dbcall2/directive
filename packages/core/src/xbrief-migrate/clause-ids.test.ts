@@ -196,6 +196,55 @@ describe("migrateLegacyClauseKeyedItemIdsCorpus (#5011)", () => {
     expect(readFileSync(path, "utf8")).toBe(before);
     expect(run(["--project-root", root])).toBe(1);
   });
+
+  it("rewrites leftover vbrief/ when xbrief/ exists but holds no briefs", () => {
+    mkdirSync(join(root, "vbrief", "completed"), { recursive: true });
+    const path = join(root, "vbrief", "completed", "old.vbrief.json");
+    writeFileSync(
+      path,
+      `${JSON.stringify({ plan: { items: [{ id: "clause:6", title: "clause:6" }] } }, null, 2)}\n`,
+      "utf8",
+    );
+    const result = migrateLegacyClauseKeyedItemIdsCorpus(root);
+    expect(result.conflicts).toEqual([]);
+    expect(result.changed).toEqual(["vbrief/completed/old.vbrief.json"]);
+    const doc = JSON.parse(readFileSync(path, "utf8")) as {
+      plan: { items: Array<{ id: string }> };
+    };
+    expect(doc.plan.items[0]?.id).toBe(clauseKeyedItemId(6));
+  });
+
+  it("rewrites clause:N when unrelated duplicate ids already exist", () => {
+    const path = write("xbrief/completed/unrelated-dup.xbrief.json", [
+      { id: "keep", title: "keep", status: "completed" },
+      { id: "keep", title: "keep-copy", status: "completed" },
+      { id: "clause:2", title: "clause:2", status: "completed" },
+    ]);
+    const result = migrateLegacyClauseKeyedItemIdsCorpus(root);
+    expect(result.conflicts).toEqual([]);
+    expect(result.changed).toEqual(["xbrief/completed/unrelated-dup.xbrief.json"]);
+    const doc = JSON.parse(readFileSync(path, "utf8")) as {
+      plan: { items: Array<{ id: string }> };
+    };
+    expect(doc.plan.items.map((item) => item.id)).toEqual(["keep", "keep", clauseKeyedItemId(2)]);
+  });
+
+  itSymlink("ignores an unrelated non-brief symlink and still rewrites leftovers", () => {
+    const escapeDir = mkdtempSync(join(tmpdir(), "clause-ids-unrelated-link-"));
+    writeFileSync(join(escapeDir, "notes.txt"), "not a brief\n", "utf8");
+    symlinkSync(join(escapeDir, "notes.txt"), join(root, "xbrief", "completed", "notes.txt"));
+    const path = write("xbrief/completed/done.xbrief.json", [
+      { id: "clause:7", title: "clause:7", status: "completed" },
+    ]);
+    const result = migrateLegacyClauseKeyedItemIdsCorpus(root);
+    expect(result.conflicts).toEqual([]);
+    expect(result.changed).toEqual(["xbrief/completed/done.xbrief.json"]);
+    const doc = JSON.parse(readFileSync(path, "utf8")) as {
+      plan: { items: Array<{ id: string }> };
+    };
+    expect(doc.plan.items[0]?.id).toBe(clauseKeyedItemId(7));
+    rmSync(escapeDir, { recursive: true, force: true });
+  });
 });
 
 describe("migrate:clause-ids CLI (#5011)", () => {
