@@ -215,14 +215,15 @@ function issueFromPlan(plan: Record<string, unknown>, expectedRepo: string | nul
 
 /**
  * Count distinct `references[]` github-issue origins — never `x-tracking` (#5122).
- * Duplicate URIs for one issue are one origin; two issue numbers still refuse.
+ * Origin key is repo+number; duplicate URIs for one origin stay one; two
+ * repos with the same issue number still refuse.
  */
 export function countPlanGithubIssueReferences(plan: Record<string, unknown>): number {
   const refs = plan.references;
   if (!Array.isArray(refs)) {
     return 0;
   }
-  const seen = new Set<number>();
+  const seen = new Set<string>();
   let unparsed = 0;
   for (const ref of refs) {
     if (typeof ref !== "object" || ref === null || Array.isArray(ref)) {
@@ -232,9 +233,9 @@ export function countPlanGithubIssueReferences(plan: Record<string, unknown>): n
     if (!referenceTypeMatches(String(rec.type ?? ""), "github-issue")) {
       continue;
     }
-    const [, number] = parseGithubIssueUri(rec.uri);
+    const [repo, number] = parseGithubIssueUri(rec.uri);
     if (number !== null && Number.isInteger(number) && number > 0) {
-      seen.add(number);
+      seen.add(`${(repo ?? "").toLowerCase()}:${number}`);
     } else {
       unparsed += 1;
     }

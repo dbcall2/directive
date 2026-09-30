@@ -2950,6 +2950,44 @@ describe("unmarked finalize compose from orphan signature (#3791 P3 / #5122)", (
     }
   });
 
+  it("counts the same issue number in two repos as two origins and refuses", () => {
+    expect(
+      countPlanGithubIssueReferences({
+        references: [
+          {
+            uri: "https://github.com/deftai/directive/issues/42",
+            type: "x-xbrief/github-issue",
+          },
+          {
+            uri: "https://github.com/other/repo/issues/42",
+            type: "x-xbrief/github-issue",
+          },
+        ],
+      }),
+    ).toBe(2);
+    const bound = bindUnmarkedFinalizePair({
+      admit: { productPr: 7, issue: 42, detail: "should-not-bind" },
+      issueFromPlan: 42,
+      plan: {
+        references: [
+          {
+            uri: "https://github.com/deftai/directive/issues/42",
+            type: "x-xbrief/github-issue",
+          },
+          {
+            uri: "https://github.com/other/repo/issues/42",
+            type: "x-xbrief/github-issue",
+          },
+        ],
+      },
+    });
+    expect(bound.kind).toBe("refuse");
+    if (bound.kind !== "omit") {
+      expect(bound.productPr).toBe(0);
+      expect(bound.detail).toContain("multiple github-issue");
+    }
+  });
+
   it("refuses later-ship admit when issueFromPlan disagrees", () => {
     const plan = {
       title: "parser-split",
