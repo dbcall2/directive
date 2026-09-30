@@ -90,7 +90,7 @@ Modes:
 ⊗ Present sandbox UID 0 or sandbox-root cwd ownership as host-root access — UID remap means sandbox identity is a view of the host user (#1557).
 ⊗ Paste `GH_TOKEN` / `GITHUB_TOKEN` values into worker prompts or dispatch envelopes — use invocation-layer handoff only (#1557).
 
-Cross-references: `packages/core/src/platform/platform-capabilities.ts` (#1557a), `packages/core/src/intake/github-auth-modes.ts` (#1557b), `docs/subagent-heartbeat.md` (runtime/auth troubleshooting). Refs #1557.
+Cross-references: `packages/core/src/platform/platform-capabilities.ts` (#1557a), `packages/core/src/intake/github-auth-modes.ts` (#1557b), `.deft/core/docs/subagent-heartbeat.md` (runtime/auth troubleshooting). Refs #1557.
 
 ### Step 1b: Provider-neutral sub-agent routing (#1531)
 

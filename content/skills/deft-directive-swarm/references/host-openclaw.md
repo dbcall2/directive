@@ -67,7 +67,7 @@ OpenClaw does **not** claim file-host PreCompact hard re-arm alone. Soft re-bind
 
 ! **OpenClaw nested-spawn boundary (#2875 / #2893, analogue of Cursor #2797):** An OpenClaw implementation leaf MUST NOT nested-spawn a second-level review-monitor via `sessions_spawn` when nested sessions are unsupported or unreliable on the host. Prefer either (a) a `drive-to: merge-ready` leaf that owns a blocking dual-invoke `pr:watch` (`deft pr:watch` then `task deft:pr:watch`) in its own process, or (b) `stop-at: pr-open` with the dispatcher launching a sibling monitor and registering it via dual-invoke `review-monitor:register`. A leaf that backgrounds a monitor and exits MUST NOT claim monitoring is active.
 
-~ This is the first-class OpenClaw path. It is **Tier 1 → Approach 1** (a backgroundable sub-agent primitive), equivalent in tier to `start_agent` / Cursor `Task` / `spawn_subagent`; it MUST NOT be misclassified as `grok-build` or downgraded to a `generic-terminal` blocking poll. OpenClaw pollers whose loop runs > ~3 min MUST honour the sub-agent heartbeat contract (`docs/subagent-heartbeat.md`, #1166) via on-disk heartbeats (completion is still parent-announce, not Grok Build poll output).
+~ This is the first-class OpenClaw path. It is **Tier 1 → Approach 1** (a backgroundable sub-agent primitive), equivalent in tier to `start_agent` / Cursor `Task` / `spawn_subagent`; it MUST NOT be misclassified as `grok-build` or downgraded to a `generic-terminal` blocking poll. OpenClaw pollers whose loop runs > ~3 min MUST honour the sub-agent heartbeat contract (`.deft/core/docs/subagent-heartbeat.md`, #1166) via on-disk heartbeats (completion is still parent-announce, not Grok Build poll output).
 
 ⊗ Treat OpenClaw `sessions_spawn` as Grok Build `spawn_subagent` or as `generic-terminal` — the primitives and completion channels differ (#2875).
 
@@ -90,7 +90,7 @@ Skill residual of #2874 / #2876 (spawn routing fixed; post-spawn ownership still
 ## Monitor / completion channel
 
 ! Completion is parent push / announce. Do not poll via Grok Build `get_command_or_subagent_output` or Cursor Task-complete semantics.
-! Long pollers MUST honour on-disk heartbeats (`docs/subagent-heartbeat.md`, #1166).
+! Long pollers MUST honour on-disk heartbeats (`.deft/core/docs/subagent-heartbeat.md`, #1166).
 ! Pre-spawn verification and Duplicate-Agent rules in `references/core-phase-4.md` apply; resume the same OpenClaw session when possible rather than spawning a replacement on the same worktree.
 
 ## Retained / continue-by-id (#3158)

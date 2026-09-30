@@ -561,7 +561,7 @@ Reference: scope-expansion comment 4399553752 on issue #954; retained-child amen
 
 Long-running `spawn_subagent` review-cycle agents on the Grok Build hybrid swarm path can go completely dark from the monitor's perspective -- no commits, no PR comments, no completion notifications. The same visibility gap applies to OpenClaw `sessions_spawn` and Cursor `Task` pollers. The #1166 swarm session demonstrated the failure mode: two of three dispatched pollers produced zero observable signals; the monitor could not distinguish stalled from healthy.
 
-The heartbeat contract closes that gap. Any sub-agent whose tool loop is expected to run for more than ~3 minutes (review-cycle pollers, watchdogs, long-running implementation agents) MUST emit a small JSON heartbeat at `<project-root>/.deft-scratch/subagent-status/<agent-id>.json` per `docs/subagent-heartbeat.md`.
+The heartbeat contract closes that gap. Any sub-agent whose tool loop is expected to run for more than ~3 minutes (review-cycle pollers, watchdogs, long-running implementation agents) MUST emit a small JSON heartbeat at `<project-root>/.deft-scratch/subagent-status/<agent-id>.json` per `.deft/core/docs/subagent-heartbeat.md`.
 
 The contract in one paragraph:
 
@@ -594,7 +594,7 @@ The parent monitor watches the heartbeat file directly (three-state exit 0 ok / 
 - Inbox path: `<worktree>/.deft-scratch/subagent-steer/<agent-id>.json` (sibling of heartbeat, not inside `subagent-status/`). Closed schema `deft.subagent.steer.v1`: bound to `agent_id`, `steer_id` apply-once ack, `expires_at`, `writer_kind` `occupancy-owner` | `dispatching-parent`. Ack file: `<agent-id>.ack.json` in the same steer dir. Distinct from the child-owned heartbeat JSON.
 - Tool-loop duty: no blocking wait longer than the heartbeat/steer poll interval (2-3 min) when the leaf must remain steerable. Between slices, read the inbox, apply unread once, rewrite heartbeat. A scratch path does not interrupt a blocked tool. Long `task check` recovery stays REDISPATCH_OK / split-dispatch — not "poll while blocked".
 - Parent-visible unread flag: `deft verify:subagent-steer` exit `1` prints `STEER_PENDING`. ⊗ Treat unread steer as missing heartbeat. ⊗ Print `REDISPATCH_OK` from the steer gate. ⊗ Put a second JSON schema in `.deft-scratch/subagent-status/` — `sweepScratchDirs` only reads top-level heartbeat `<agent-id>.json` and skips `deft.subagent.steer*` schema.
-- ⊗ Invent message-later / live `resume_from` on grok-build. ⊗ Treat steer `text` as a new dispatch envelope or constitution edit. Depth: `docs/subagent-heartbeat.md`.
+- ⊗ Invent message-later / live `resume_from` on grok-build. ⊗ Treat steer `text` as a new dispatch envelope or constitution edit. Depth: `.deft/core/docs/subagent-heartbeat.md`.
 
 ## 10.55 Rule Authority and Thin Fail-Closed (#3313)
 

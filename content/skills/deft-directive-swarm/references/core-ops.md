@@ -79,7 +79,7 @@ CONSTRAINTS:
 - Iteration commits: affected/static fast lane only; full task check required before push (#1704)
 - Never force-push
 - Dual stop (#2442): multi-iteration fix/repair loops need success + failure/budget stop (build defaults: max 5 quality-fix iters or 3 identical no-progress; pre-PR: max 3 polish passes). On halt: operator-visible report (tried / missing / human decision). Single-turn work is exempt. Delivery/acceptance mechanical ledger is #3143 (`packages/core/src/delivery-attempt/` / `docs/delivery-attempt.md`).
-- Heartbeat (#1365 / #3730): write `.deft-scratch/subagent-status/<agent-id>.json` immediately on start (`phase: starting`) and every 2-3 minutes. See `docs/subagent-heartbeat.md`.
+- Heartbeat (#1365 / #3730): write `.deft-scratch/subagent-status/<agent-id>.json` immediately on start (`phase: starting`) and every 2-3 minutes. See `.deft/core/docs/subagent-heartbeat.md`.
 - Commit early (#3730): first coherent unit, then checkpoints. Do not hold a complete correct diff uncommitted until PR time.
 ```
 

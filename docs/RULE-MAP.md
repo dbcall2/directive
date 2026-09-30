@@ -8,7 +8,7 @@ Maintainer-facing map of how Directive's rules are layered and grouped. This is 
 
 ## Overview
 
-- **Rules:** 24 groupings, 281 documents
+- **Rules:** 24 groupings, 282 documents
 - **Tasks:** 62 namespaces, 266 Taskfile declarations (includes + unlisted tasks/*.yml, not `task --list`)
 - **Packs:** 6 source-of-truth packs (704 entries from rules|lessons|patterns|skills|strategies|entries)
 
@@ -24,7 +24,7 @@ Three layers: **Rules** (lazy-loaded guidance under `content/`), **Tasks** (the 
 | contracts | Interface/behavioral contracts the framework enforces. | 16 | 197 | 16 | 140 | 0 | 5 |
 | conventions | Cross-cutting naming, formatting, and repo conventions. | 4 | 16 | 2 | 16 | 0 | 3 |
 | deployments | Provider-specific deployment playbooks (AWS, Azure, GCP, Cloudflare, Vercel, fly.io…). | 52 | 107 | 74 | 24 | 13 | 6 |
-| docs | Explanatory docs and the framework glossary. | 42 | 21 | 12 | 62 | 1 | 2 |
+| docs | Explanatory docs and the framework glossary. | 43 | 21 | 12 | 62 | 1 | 2 |
 | events | Event and signal definitions used across the framework. | 1 | 0 | 0 | 0 | 0 | 0 |
 | incidents | Incident handling and postmortem guidance. | 2 | 0 | 0 | 0 | 0 | 0 |
 | interfaces | Interface definitions and boundaries. | 4 | 119 | 66 | 37 | 2 | 9 |
@@ -167,6 +167,7 @@ _Explanatory docs and the framework glossary._
 - `skill-discovery-hosts.md` — Directive deposits **thin skill discovery pointers** so agent hosts that do not scan `.agents/skills/` still auto-load the same consumer skill inventory.
 - `skill-pin-policy.md` — AGENTS.md always loads; on-demand skills load only when trigger matching succeeds. Empirical and practitioner guidance (antfu/skills FAQ; directive #2484 progressive disclosure) show **false negatives** — the agent never opens a…
 - `slash-multi-host.md` — Operator guide for **host-native** Directive slash and prompt files after epic [#55](https://github.com/deftai/directive/issues/55).
+- `subagent-heartbeat.md` — Long-running `spawn_subagent` review-cycle agents on the Grok Build hybrid swarm path can go completely dark from the monitor's perspective -- the parent sees no commits, no PR comments, no completion notifications, and no
 - `task-cache.md` — **See also**: [Issue #1713](https://github.com/deftai/directive/issues/1713) | [Issue #1704](https://github.com/deftai/directive/issues/1704) (process face) | [Issue #2784](https://github.com/deftai/directive/issues/2784) (public types…
 - `test-boundary.md` — Refs: #3145 · Related: #1310 / #4009 forward-coverage, testing layout guidance
 - `writing-ste100.md` — Directive's writing bar is **clarity, simplicity, and brevity**.

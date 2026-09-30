@@ -1,6 +1,14 @@
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { stageContentPack } from "../../deposit/stage-content-pack.js";
 import {
@@ -39,9 +47,15 @@ describe("declared deposit closure against staged pack (#3601 C1)", () => {
       const root = repoRoot();
       const declaration = loadDepositRequiredDeclaration(resolveDeclarationFile(root) as string);
       expect(declaration.paths.length).toBeGreaterThan(0);
+      expect(declaration.paths).toContain(".deft/core/docs/subagent-heartbeat.md");
       const pack = stageDeclaredPack(root);
       const result = evaluateDepositClosure({ packRoot: pack, paths: declaration.paths });
       expect(result.ok, result.missing.join(", ")).toBe(true);
+      expect(existsSync(join(pack, "docs", "subagent-heartbeat.md"))).toBe(true);
+      const packedHeartbeat = readFileSync(join(pack, "docs", "subagent-heartbeat.md"), "utf8");
+      expect(packedHeartbeat).not.toContain("scripts/subagent_monitor.py");
+      expect(packedHeartbeat).not.toContain("tests/cli/test_subagent_monitor.py");
+      expect(packedHeartbeat).not.toContain("scripts/_safe_subprocess.py");
     },
   );
 
@@ -67,5 +81,36 @@ describe("declared deposit closure against staged pack (#3601 C1)", () => {
     expect(skills).toContain("npx deft");
     expect(skills).toContain("--json");
     expect(skills).toContain("node_modules");
+  });
+
+  it("subagent-heartbeat lives under content/docs and is not at repo-root docs/ (#4891)", () => {
+    const root = repoRoot();
+    expect(existsSync(join(root, "content", "docs", "subagent-heartbeat.md"))).toBe(true);
+    expect(existsSync(join(root, "docs", "subagent-heartbeat.md"))).toBe(false);
+  });
+
+  it("content-tree heartbeat cites use the deposit-reachable path (#4891)", () => {
+    const root = join(repoRoot(), "content");
+    const hits: string[] = [];
+    const walk = (dir: string): void => {
+      for (const name of readdirSync(dir)) {
+        if (name === "node_modules" || name === ".git") continue;
+        const full = join(dir, name);
+        if (statSync(full).isDirectory()) {
+          walk(full);
+          continue;
+        }
+        if (!/\.(md|json)$/.test(name)) continue;
+        const text = readFileSync(full, "utf8");
+        if (text.includes("`docs/subagent-heartbeat.md`")) {
+          hits.push(relative(root, full).replace(/\\/g, "/"));
+        }
+      }
+    };
+    walk(root);
+    expect(hits, hits.join(", ")).toEqual([]);
+    expect(readText("templates/agent-prompt-preamble.md")).toContain(
+      "`.deft/core/docs/subagent-heartbeat.md`",
+    );
   });
 });

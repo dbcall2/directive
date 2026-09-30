@@ -101,7 +101,7 @@ If the leaf needs another agent, it stops and reports `BLOCKED`. The parent owns
 
 ## Monitor notes
 
-! Heartbeat liveness on the Grok Build hybrid path is required — see `references/core-phase-4.md` Heartbeat liveness check (#1365) and `docs/subagent-heartbeat.md`.
+! Heartbeat liveness on the Grok Build hybrid path is required — see `references/core-phase-4.md` Heartbeat liveness check (#1365) and `.deft/core/docs/subagent-heartbeat.md`.
 ! User-facing parent MUST NOT poll via `get_command_or_subagent_output`. A named durable-owner session (second-session split or Phase 4 takeover on that owner) MAY use worktree state + `get_command_or_subagent_output` for liveness/takeover. That session is then not the interactive research pane.
 ⊗ Treat OpenClaw parent-announce as present on this host.
 

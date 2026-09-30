@@ -106,7 +106,7 @@ Discovery set — **thin routers only**. Each item points at the existing Direct
 
 ~ This is the first-class Grok Bot path. It is **Tier 1 → Approach 1**. It MUST NOT be misclassified as `grok-build` via bare `spawn_subagent` or as `cursor-composer` via bare `Task`.
 
-! Long pollers MUST honour the sub-agent heartbeat contract (`docs/subagent-heartbeat.md`, #1166).
+! Long pollers MUST honour the sub-agent heartbeat contract (`.deft/core/docs/subagent-heartbeat.md`, #1166).
 
 ## Nested executor boundary
 
@@ -135,7 +135,7 @@ If the leaf needs another agent, it stops and reports `BLOCKED`. The parent owns
 
 ! Completion is host completion / parent main-chat announce for the Grok Bot executor path. Do not poll via Grok Build `get_command_or_subagent_output` unless that primitive is actually present under descriptor `grok-build`.
 
-! Long pollers MUST honour on-disk heartbeats (`docs/subagent-heartbeat.md`, #1166).
+! Long pollers MUST honour on-disk heartbeats (`.deft/core/docs/subagent-heartbeat.md`, #1166).
 
 ! Pre-spawn verification and Duplicate-Agent rules in `references/core-phase-4.md` apply.
 

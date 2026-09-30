@@ -11,7 +11,7 @@
 
 ! On the Grok Build hybrid path (`spawn_subagent` dispatch, no native lifecycle channel back to the monitor), worktree git state alone is INSUFFICIENT to distinguish a healthy mid-poll sub-agent from a stalled one. Long-running review-cycle pollers spend most of their wall-clock waiting on Greptile and emit no commits during that wait -- the #1166 swarm session is the recurrence record (two of three dispatched pollers went silent with zero observable signals; the monitor could not tell).
 
-! The canonical alive-check on the Grok Build hybrid path is the heartbeat contract documented in `docs/subagent-heartbeat.md`. Every long-running sub-agent (pollers, watchdogs, implementation agents whose tool loop exceeds ~3 min) writes a JSON heartbeat to `.deft-scratch/subagent-status/<agent-id>.json` per the canonical poller template + agent preamble. Default threshold is 30 minutes; `--threshold-minutes` overrides.
+! The canonical alive-check on the Grok Build hybrid path is the heartbeat contract documented in `.deft/core/docs/subagent-heartbeat.md`. Every long-running sub-agent (pollers, watchdogs, implementation agents whose tool loop exceeds ~3 min) writes a JSON heartbeat to `.deft-scratch/subagent-status/<agent-id>.json` per the canonical poller template + agent preamble. Default threshold is 30 minutes; `--threshold-minutes` overrides.
 
 ! Monitors MUST poll with `task verify:subagent-alive -- --require-agent <agent-id> [--scratch-dir <worktree>/.deft-scratch/subagent-status]` so a missing required record is exit `1` + `REDISPATCH_OK`, not a raw sweep that treats an empty dir as OK. `task agent:monitor` remains the raw sweep.
 

@@ -5,7 +5,7 @@ swarm path can go completely dark from the monitor's perspective -- the
 parent sees no commits, no PR comments, no completion notifications, and no
 way to distinguish a stalled agent from a healthy mid-poll one. This doc
 defines the lightweight heartbeat contract every long-running sub-agent
-MUST emit so the monitor (and the `scripts/subagent_monitor.py` helper)
+MUST emit so the monitor (and `task agent:monitor`)
 can observe liveness without resorting to manual worktree polling.
 
 Legend (from RFC2119): !=MUST, ~=SHOULD, ≉=SHOULD NOT, ⊗=MUST NOT, ?=MAY.
@@ -26,9 +26,9 @@ heartbeat contract — same obligation as the `spawn_subagent` path above
 periodic heartbeats; it only signals terminal completion.
 
 ~ Cursor pollers write to the same `.deft-scratch/subagent-status/<agent-id>.json`
-path and schema documented below. The monitor helper
-(`scripts/subagent_monitor.py`) reads both Grok Build and Cursor poller
-records from that directory without a separate Cursor-specific surface.
+path and schema documented below. `task agent:monitor` reads both Grok
+Build and Cursor poller records from that directory without a separate
+Cursor-specific surface.
 
 Cross-references: `skills/deft-directive-review-cycle/SKILL.md` Review
 Monitoring (Approach 1 / heartbeat contract for Cursor pollers),
@@ -87,9 +87,9 @@ obligation as the `spawn_subagent` and Cursor `Task` paths (#1166 / #1365 /
 
 ~ OpenClaw pollers write to the same
 `.deft-scratch/subagent-status/<agent-id>.json` path and schema documented
-below. The monitor helper (`scripts/subagent_monitor.py` / `task agent:monitor`
-/ `task verify:subagent-alive`) reads OpenClaw records from that directory
-without a separate OpenClaw-specific surface.
+below. The monitor helper (`task agent:monitor` / `task verify:subagent-alive`)
+reads OpenClaw records from that directory without a separate OpenClaw-specific
+surface.
 
 ! OpenClaw host session liveness, Control UI presence, or gateway channel
 reachability does NOT replace periodic heartbeats. Those signals only prove
@@ -231,8 +231,8 @@ record.
 - `last_heartbeat_at` (string, ISO-8601 UTC with the `Z` suffix) -- the
   timestamp of THIS write. The monitor compares this to wall-clock now
   to compute staleness. UTC is the contract; local-timezone timestamps
-  fail the schema validator (`tests/cli/test_subagent_monitor.py`
-  exercises the rejection path).
+  fail the schema validator (`task agent:monitor` rejects timestamps that
+  are not UTC).
 - `last_message` (string, max ~200 chars) -- one human-readable line
   describing what the agent is doing RIGHT NOW. Surfaces in the
   monitor's report; replaces the prior `last_message` on each write.
@@ -304,7 +304,7 @@ heartbeat is indistinguishable from a stall.
 whose `last_heartbeat_at` is older than 30 minutes (and whose
 `terminal_state` is null) is classified as STALE and surfaces in the
 monitor report with non-zero exit. The threshold is configurable via
-`--threshold-minutes` on `scripts/subagent_monitor.py`.
+`--threshold-minutes` on `task agent:monitor`.
 
 The 30-minute default is calibrated for the review-cycle poller cadence
 (90s polls, 30-minute caps). For implementation agents that do
@@ -313,25 +313,25 @@ long-running validation (large test suites), set a larger threshold via
 (see Dispatcher-lifecycle-hygiene at
 `templates/agent-prompt-preamble.md` § 10).
 
-## The monitor (`scripts/subagent_monitor.py`)
+## The monitor (`task agent:monitor`)
 
 The helper walks one or more scratch directories and reports the
 liveness of every record found there. Canonical invocations:
 
 ```pwsh path=null start=null
 # Scan the default project-root scratch dir
-uv --project . run python scripts/subagent_monitor.py
+task agent:monitor
 
 # Scan one or more explicit scratch dirs (one per agent worktree)
-uv --project . run python scripts/subagent_monitor.py \
+task agent:monitor -- \
   --scratch-dir C:\Repos\deft-agent3-1365\.deft-scratch\subagent-status \
   --scratch-dir C:\Repos\deft-agent4-1368\.deft-scratch\subagent-status
 
 # Tighter threshold for impatient monitors
-uv --project . run python scripts/subagent_monitor.py --threshold-minutes 5
+task agent:monitor -- --threshold-minutes 5
 
 # Machine-readable output for parent monitor agents
-uv --project . run python scripts/subagent_monitor.py --json
+task agent:monitor -- --json
 ```
 
 Exit codes (three-state, mirrors `task verify:cache-fresh` /
@@ -348,11 +348,11 @@ Exit codes (three-state, mirrors `task verify:cache-fresh` /
   Distinct from `1` so the operator can tell "missing scratch dir"
   from "agents are stale".
 
-`gh` capture inside the monitor routes through
-`scripts/_safe_subprocess.py::run_text` per the AGENTS.md
-`## Safe subprocess capture (#1366)` rule -- the monitor never crashes
-its reader thread on non-cp1252 bytes in a Greptile body it has to
-inspect on behalf of an agent that has gone dark.
+`gh` capture inside the monitor uses UTF-8-safe Node `execFile` (no
+shell) per the AGENTS.md `## Safe subprocess capture (#1366)` rule --
+the monitor never crashes its reader thread on non-cp1252 bytes in a
+Greptile body it has to inspect on behalf of an agent that has gone
+dark.
 
 ## Runtime and GitHub auth troubleshooting (#1557)
 
@@ -467,9 +467,9 @@ OpenClaw `sessions_yield` or live `resume_from` on Grok Build.
 
 ## Cross-references
 
-- `scripts/subagent_monitor.py` -- the canonical monitor helper
-- `tests/cli/test_subagent_monitor.py` -- empty / fresh / stale /
-  malformed coverage
+- `task agent:monitor` -- the canonical monitor helper
+- `task verify:subagent-alive` -- fail-closed REDISPATCH_OK gate wrapping
+  the same sweep
 - `templates/swarm-greptile-poller-prompt.md` -- the poller template that
   embeds the heartbeat write into the bounded poll loop (OpenClaw
   `sessions_spawn` + parent push/announce completion channel, #2879)

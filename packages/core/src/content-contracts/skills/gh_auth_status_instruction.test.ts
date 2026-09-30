@@ -83,7 +83,6 @@ function scanFile(abs: string): Hit[] {
 function collectHits(): Hit[] {
   const files: string[] = [];
   walkFiles(join(REPO_ROOT, "content"), files);
-  files.push(join(REPO_ROOT, "docs", "subagent-heartbeat.md"));
   files.push(join(REPO_ROOT, "packages", "core", "src", "scm", "gh-rest.ts"));
   files.push(join(REPO_ROOT, "packages", "core", "src", "intake", "github-auth-modes.ts"));
   const hits: Hit[] = [];

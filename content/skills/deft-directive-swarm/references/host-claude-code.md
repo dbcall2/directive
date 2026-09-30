@@ -52,7 +52,7 @@ Probe order (must match engine `probeMonitoringTier` / `resolveDispatchProvider`
 
 ~ This is the first-class Claude Code path. It is **Tier 1 → Approach 1** (a backgroundable sub-agent primitive), equivalent in tier to `start_agent` / Cursor `Task` / OpenClaw `sessions_spawn` / `spawn_subagent`; it MUST NOT be misclassified as `cursor-composer` or downgraded to a `generic-terminal` blocking poll.
 
-! Claude Code pollers whose loop runs > ~3 min MUST honour the sub-agent heartbeat contract (`docs/subagent-heartbeat.md`, #1166), same as the Cursor / `spawn_subagent` paths.
+! Claude Code pollers whose loop runs > ~3 min MUST honour the sub-agent heartbeat contract (`.deft/core/docs/subagent-heartbeat.md`, #1166), same as the Cursor / `spawn_subagent` paths.
 
 ## Nested Agent boundary
 
@@ -78,7 +78,7 @@ Probe order (must match engine `probeMonitoringTier` / `resolveDispatchProvider`
 
 ! Completion is host completion / background-task notify for the Claude Code `Agent` path. Do not poll via Grok Build `get_command_or_subagent_output` or OpenClaw `subagent_announce` unless those primitives are actually present under a different descriptor.
 
-! Long pollers MUST honour on-disk heartbeats (`docs/subagent-heartbeat.md`, #1166).
+! Long pollers MUST honour on-disk heartbeats (`.deft/core/docs/subagent-heartbeat.md`, #1166).
 
 ! Pre-spawn verification and Duplicate-Agent rules in `references/core-phase-4.md` apply.
 
