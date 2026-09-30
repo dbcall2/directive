@@ -5,11 +5,13 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { EXIT_INCOMPLETE, EXIT_OK } from "./constants.js";
 import {
+  bindUnmarkedFinalizePair,
   discoverFinalizeOwed,
   finalizeOwed,
   formatFinalizeOwedInventoryLines,
   inventoryHasBlockingOwed,
   loadTipPlanBodies,
+  UNMARKED_STAMP_REMEDIATION,
 } from "./finalize-owed.js";
 import { parseFinalizeOwedArgv } from "./finalize-owed-cli.js";
 
@@ -1319,7 +1321,7 @@ describe("finalize-owed proposed historical cite refuse (#5143)", () => {
         return { returncode: 1, stdout: "", stderr: `unexpected ${joined}` };
       },
     });
-    // Active unmarked would admit, but staying-open labels skip owed (#5143 item 2).
+    // Unmarked tracker is not owed (#5122); staying-open skip remains for later-ship admit.
     expect(inventory.stories.filter((s) => s.blocks)).toHaveLength(0);
     expect(inventoryHasBlockingOwed(inventory)).toBe(false);
     rmSync(root, { recursive: true, force: true });
@@ -1388,10 +1390,17 @@ describe("finalize-owed proposed historical cite refuse (#5143)", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("still blocks true unmarked active Tracking leftovers with open non-protected origin", () => {
-    const root = mkdtempSync(join(tmpdir(), "finalize-owed-5143-true-leftover-"));
-    const rel = "xbrief/active/stuck-unmarked.xbrief.json";
+  it("does not owe unmarked Tracking leftovers; stamp/complete/close stay untriggered (#5122)", () => {
+    const root = mkdtempSync(join(tmpdir(), "finalize-owed-5122-true-leftover-"));
     mkdirSync(join(root, "xbrief", "active"), { recursive: true });
+    writeFileSync(
+      join(root, "xbrief", "PROJECT-DEFINITION.xbrief.json"),
+      JSON.stringify({
+        plan: { title: "p", status: "running", policy: { deliveryBranch: "master" } },
+      }),
+      "utf8",
+    );
+    const rel = "xbrief/active/stuck-unmarked.xbrief.json";
     writeFileSync(
       join(root, rel),
       JSON.stringify({
@@ -1401,7 +1410,7 @@ describe("finalize-owed proposed historical cite refuse (#5143)", () => {
           status: "running",
           references: [
             {
-              uri: "https://github.com/deftai/directive/issues/6",
+              uri: "https://github.com/deftai/directive/issues/9999",
               type: "x-xbrief/github-issue",
             },
             {
@@ -1413,7 +1422,40 @@ describe("finalize-owed proposed historical cite refuse (#5143)", () => {
       }),
       "utf8",
     );
-    const tipBlobs = new Map<string, string>([[rel, readFileSync(join(root, rel), "utf8")]]);
+    const before = readFileSync(join(root, rel), "utf8");
+    const tipBlobs = new Map<string, string>([[rel, before]]);
+    let finalizeCalls = 0;
+    const runGit = (_projectRoot: string, args: readonly string[]) => {
+      if (args[0] === "fetch") {
+        return { code: 0, stdout: "", stderr: "" };
+      }
+      if (args[0] === "rev-parse") {
+        return { code: 0, stdout: "TIPSHA\n", stderr: "" };
+      }
+      if (args[0] === "ls-tree") {
+        const dash = args.indexOf("--");
+        const prefixes = dash >= 0 ? args.slice(dash + 1) : [];
+        const matched = [...tipBlobs.keys()].filter((p) =>
+          prefixes.some((pref) => p.startsWith(String(pref))),
+        );
+        return { code: 0, stdout: matched.join("\n"), stderr: "" };
+      }
+      if (args[0] === "show") {
+        const spec = String(args[1] ?? "");
+        const tipRel = spec.includes(":") ? spec.slice(spec.indexOf(":") + 1) : "";
+        const body = tipBlobs.get(tipRel);
+        return body !== undefined
+          ? { code: 0, stdout: body, stderr: "" }
+          : { code: 1, stdout: "", stderr: "missing" };
+      }
+      if (args[0] === "ls-remote") {
+        return { code: 0, stdout: "", stderr: "" };
+      }
+      if (args[0] === "merge-base") {
+        return { code: 0, stdout: "", stderr: "" };
+      }
+      return { code: 0, stdout: "", stderr: "" };
+    };
     const inventory = discoverFinalizeOwed(root, {
       repo: "deftai/directive",
       deliveryBranch: "master",
@@ -1431,11 +1473,12 @@ describe("finalize-owed proposed historical cite refuse (#5143)", () => {
               merged_at: "2026-09-01T00:00:00Z",
               merge_commit_sha: "deadbeef",
               base: { ref: "master" },
+              body: "Closes #1234",
             }),
             stderr: "",
           };
         }
-        if (joined.includes("/issues/6")) {
+        if (joined.includes("/issues/9999")) {
           return {
             returncode: 0,
             stdout: JSON.stringify({ state: "open", labels: [] }),
@@ -1445,11 +1488,53 @@ describe("finalize-owed proposed historical cite refuse (#5143)", () => {
         return { returncode: 1, stdout: "", stderr: `unexpected ${joined}` };
       },
     });
-    const owed = inventory.stories.filter((s) => s.state === "owed");
-    expect(owed).toHaveLength(1);
-    expect(owed[0]?.blocks).toBe(true);
-    expect(owed[0]?.detail).toContain("unmarked compose");
-    expect(inventoryHasBlockingOwed(inventory)).toBe(true);
+    expect(inventory.stories.filter((s) => s.state === "owed")).toHaveLength(0);
+    expect(inventoryHasBlockingOwed(inventory)).toBe(false);
+    const listed = inventory.stories.find((s) => s.relPath === rel);
+    expect(listed?.state).toBe("unverified");
+    expect(listed?.blocks).toBe(false);
+    expect(listed?.issue).toBe(9999);
+    expect(listed?.productPr).toBe(0);
+    expect(listed?.detail).toBe(UNMARKED_STAMP_REMEDIATION);
+
+    const result = finalizeOwed({
+      projectRoot: root,
+      repo: "deftai/directive",
+      deliveryBranch: "master",
+      runGit,
+      runGh: () => ({ returncode: 0, stdout: "[]", stderr: "" }),
+      runFinalize: () => {
+        finalizeCalls += 1;
+        throw new Error("finalizeCohort must not run for unmarked #5122");
+      },
+    });
+    expect(finalizeCalls).toBe(0);
+    expect(result.result.finalized).toEqual([]);
+    expect(result.result.stories.some((s) => s.state === "owed")).toBe(false);
+    expect(result.result.stories.some((s) => s.blocks)).toBe(false);
+    expect(readFileSync(join(root, rel), "utf8")).toBe(before);
+    expect(JSON.parse(before).plan.metadata?.productPullRequest).toBeUndefined();
     rmSync(root, { recursive: true, force: true });
+  });
+
+  it("later-ship bind assigns both fields from one admit tuple", () => {
+    const bound = bindUnmarkedFinalizePair({
+      admit: { productPr: 8, issue: 9999, detail: "later unique pair" },
+      issueFromPlan: 9999,
+      plan: {
+        references: [
+          {
+            uri: "https://github.com/deftai/directive/issues/9999",
+            type: "x-xbrief/github-issue",
+          },
+        ],
+      },
+    });
+    expect(bound).toEqual({
+      kind: "admit",
+      issue: 9999,
+      productPr: 8,
+      detail: "later unique pair",
+    });
   });
 });

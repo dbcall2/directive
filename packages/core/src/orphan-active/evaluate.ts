@@ -28,13 +28,7 @@ import {
   SCOPED_LATENCY_BUDGET_MS,
   type StateResolution,
 } from "./issue-state.js";
-import {
-  collectGithubRefs,
-  fetchPrMerged,
-  firstMergedPrRef,
-  type IssueRef,
-  type PrRef,
-} from "./refs.js";
+import { collectGithubRefs, fetchPrMerged, type IssueRef, type PrRef } from "./refs.js";
 import { listActiveRunningBriefs } from "./running-briefs.js";
 
 export type OutputStream = "stdout" | "stderr" | "none";
@@ -309,50 +303,22 @@ export interface UnmarkedFinalizeAdmit {
 }
 
 /**
- * First-ship unmarked compose for finalize-owed (#3791 P3).
- * When `productPullRequest` is absent, admit only if a confirmed-merged PR in
- * `prRefs` shares the delivery repository with the origin issue.
- * Does not key compose on reason-string equality for "linked PR is merged".
- * Empty-`prRefs` closed-origin-only stays out (returns null). Detector-only for
- * `verify:orphan-active` — this helper is a pure derive for owed discovery.
- *
- * Same-repo / delivery-repository identity must hold for the PR used in
- * admission (cross-repo PR+issue pairing is refused). `firstMergedPrRef` is the
- * sole merge probe for this derive — a second orphan-signature re-probe must
- * not drop the already-confirmed shipped admission while the origin stays open.
+ * Unmarked finalize admit (#3791 P3 / #5122).
+ * This ship has no positive unmarked PR-to-origin carrier: same-repo plus
+ * `merged_at` is not delivery identity. Always returns null. Marked briefs
+ * use `productPullRequestFromPlan` and never enter this derive. Empty-prRefs
+ * and cross-repo pairing stay null. A later ship may admit a uniquely
+ * evidenced pair; `firstMergedPrRef` remains merge-state only.
  */
 export function deriveUnmarkedFinalizeAdmit(
   plan: Record<string, unknown>,
   defaultRepo: string,
   runGh: RunGhFn,
 ): UnmarkedFinalizeAdmit | null {
-  const { issues, prs } = collectGithubRefs(plan, defaultRepo);
-  if (prs.length === 0) {
-    return null;
-  }
-  const repoLower = defaultRepo.toLowerCase();
-  // Fail closed: only PRs in the delivery repository may admit (#3791 Greptile).
-  const sameRepoPrs = prs.filter((pr) => pr.repo.toLowerCase() === repoLower);
-  if (sameRepoPrs.length === 0) {
-    return null;
-  }
-  // Single merge probe — confirmed merge is the shipped evidence for compose.
-  // Do not re-call assessOrphanSignature / fetchPrMerged here (#3791 Greptile).
-  const merged = firstMergedPrRef(sameRepoPrs, runGh);
-  if (merged === null) {
-    return null;
-  }
-  // Origin issue must also be in the delivery repository — never pair a foreign
-  // merged PR with a delivery-repo issue (or vice versa).
-  const origin = issues.find((ref) => ref.repo.toLowerCase() === repoLower) ?? null;
-  if (origin === null) {
-    return null;
-  }
-  return {
-    productPr: merged.number,
-    issue: origin.number,
-    detail: `unmarked compose: orphan shipped with merged prRefs #${String(merged.number)}`,
-  };
+  void plan;
+  void defaultRepo;
+  void runGh;
+  return null;
 }
 
 /** Basis, ghx caveat, and budget lines shared by the pass and refusal messages (#3767). */

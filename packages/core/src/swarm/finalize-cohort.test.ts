@@ -30,7 +30,12 @@ import {
   isDurableFinalizeHeadRef,
 } from "./finalize-cohort.js";
 import { finalizeCohortMain, parseFinalizeCohortArgv } from "./finalize-cohort-cli.js";
-import { discoverFinalizeOwed } from "./finalize-owed.js";
+import {
+  bindUnmarkedFinalizePair,
+  countPlanGithubIssueReferences,
+  discoverFinalizeOwed,
+  UNMARKED_STAMP_REMEDIATION,
+} from "./finalize-owed.js";
 import type { TextCaptureResult } from "./subprocess.js";
 
 function writeActiveStory(
@@ -2510,48 +2515,43 @@ describe("finalize-cohort sweep base and argv (#3554)", () => {
   });
 });
 
-describe("unmarked finalize compose from orphan signature (#3791 P3)", () => {
-  it("admits when orphan shipped and prRefs carries a merged PR (not reason-string keyed)", () => {
+describe("unmarked finalize compose from orphan signature (#3791 P3 / #5122)", () => {
+  it("returns null for origin 9999 plus unrelated merged PR 7 (Closes body ignored)", () => {
     const plan = {
-      title: "shinran7-shape",
+      title: "unrelated-pair",
       status: "running",
       references: [
         {
-          uri: "https://github.com/Shinran7/directive-uat/issues/6",
+          uri: "https://github.com/deftai/directive/issues/9999",
           type: "x-xbrief/github-issue",
         },
         {
-          uri: "https://github.com/Shinran7/directive-uat/pull/7",
+          uri: "https://github.com/deftai/directive/pull/7",
           type: "x-xbrief/github-pr",
         },
       ],
     };
+    let ghCalls = 0;
     const runGh: RunGhFn = (cmd) => {
+      ghCalls += 1;
       const joined = cmd.join(" ");
       if (joined.includes("/pulls/7")) {
         return {
           returncode: 0,
-          stdout: JSON.stringify({ merged_at: "2026-09-01T00:00:00Z" }),
+          stdout: JSON.stringify({
+            merged_at: "2026-09-28T18:00:00Z",
+            title: "Unrelated change",
+            body: "Closes #1234",
+          }),
           stderr: "",
         };
       }
-      if (joined.includes("/issues/6")) {
-        return {
-          returncode: 0,
-          stdout: JSON.stringify({ state: "closed", labels: [] }),
-          stderr: "",
-        };
-      }
-      return { returncode: 1, stdout: "", stderr: "unexpected" };
+      return { returncode: 1, stdout: "", stderr: `unexpected ${joined}` };
     };
-    const admit = deriveUnmarkedFinalizeAdmit(plan, "Shinran7/directive-uat", runGh);
-    expect(admit).not.toBeNull();
-    expect(admit?.productPr).toBe(7);
-    expect(admit?.issue).toBe(6);
-    expect(admit?.detail).toContain("merged prRefs #7");
-    expect(firstMergedPrRef([{ repo: "Shinran7/directive-uat", number: 7 }], runGh)?.number).toBe(
-      7,
-    );
+    expect(deriveUnmarkedFinalizeAdmit(plan, "deftai/directive", runGh)).toBeNull();
+    expect(ghCalls).toBe(0);
+    expect(firstMergedPrRef([{ repo: "deftai/directive", number: 7 }], runGh)?.number).toBe(7);
+    expect(ghCalls).toBe(1);
   });
 
   it("refuses empty-prRefs closed-origin-only (out of first ship)", () => {
@@ -2614,7 +2614,7 @@ describe("unmarked finalize compose from orphan signature (#3791 P3)", () => {
     expect(deriveUnmarkedFinalizeAdmit(plan, "deftai/directive", runGh)).toBeNull();
   });
 
-  it("keeps confirmed merge admission when a later PR lookup would fail (#3791)", () => {
+  it("does not first-wins admit when a later PR lookup would fail (#5122)", () => {
     const plan = {
       title: "single-probe",
       status: "running",
@@ -2634,8 +2634,6 @@ describe("unmarked finalize compose from orphan signature (#3791 P3)", () => {
       const joined = cmd.join(" ");
       if (joined.includes("/pulls/7")) {
         pullLookups += 1;
-        // Only the first probe succeeds; a second assessOrphanSignature-style
-        // re-probe would fail — admission must still hold.
         if (pullLookups === 1) {
           return {
             returncode: 0,
@@ -2654,15 +2652,12 @@ describe("unmarked finalize compose from orphan signature (#3791 P3)", () => {
       }
       return { returncode: 1, stdout: "", stderr: `unexpected ${joined}` };
     };
-    const admit = deriveUnmarkedFinalizeAdmit(plan, "deftai/directive", runGh);
-    expect(admit).not.toBeNull();
-    expect(admit?.productPr).toBe(7);
-    expect(admit?.issue).toBe(6);
-    expect(pullLookups).toBe(1);
+    expect(deriveUnmarkedFinalizeAdmit(plan, "deftai/directive", runGh)).toBeNull();
+    expect(pullLookups).toBe(0);
   });
 
-  it("makes an unmarked stuck brief inventory-visible and finalize-clearable", () => {
-    const root = mkdtempSync(join(tmpdir(), "finalize-unmarked-3791-"));
+  it("lists unrelated same-repo merged PR plus origin as unverified, not owed", () => {
+    const root = mkdtempSync(join(tmpdir(), "finalize-unmarked-5122-"));
     const rel = "xbrief/active/stuck-unmarked.xbrief.json";
     mkdirSync(join(root, "xbrief", "active"), { recursive: true });
     writeFileSync(
@@ -2674,7 +2669,7 @@ describe("unmarked finalize compose from orphan signature (#3791 P3)", () => {
           status: "running",
           references: [
             {
-              uri: "https://github.com/deftai/directive/issues/6",
+              uri: "https://github.com/deftai/directive/issues/9999",
               type: "x-xbrief/github-issue",
             },
             {
@@ -2724,11 +2719,12 @@ describe("unmarked finalize compose from orphan signature (#3791 P3)", () => {
             merged_at: "2026-09-01T00:00:00Z",
             merge_commit_sha: "deadbeef",
             base: { ref: "master" },
+            body: "Closes #1234",
           }),
           stderr: "",
         };
       }
-      if (joined.includes("/issues/6")) {
+      if (joined.includes("/issues/9999")) {
         return {
           returncode: 0,
           stdout: JSON.stringify({ state: "open", labels: [] }),
@@ -2744,12 +2740,230 @@ describe("unmarked finalize compose from orphan signature (#3791 P3)", () => {
       runGit,
       runGh,
     });
-    const owed = inventory.stories.filter((s) => s.state === "owed");
-    expect(owed).toHaveLength(1);
-    expect(owed[0]?.productPr).toBe(7);
-    expect(owed[0]?.issue).toBe(6);
-    expect(owed[0]?.blocks).toBe(true);
-    expect(owed[0]?.detail).toContain("unmarked compose");
+    expect(inventory.stories.filter((s) => s.state === "owed")).toHaveLength(0);
+    const listed = inventory.stories.filter((s) => s.relPath === rel);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.state).toBe("unverified");
+    expect(listed[0]?.blocks).toBe(false);
+    expect(listed[0]?.issue).toBe(9999);
+    expect(listed[0]?.productPr).toBe(0);
+    expect(listed[0]?.detail).toContain("productPullRequest");
+    expect(listed[0]?.detail).toContain("#4864");
     rmSync(root, { recursive: true, force: true });
+  });
+
+  it("refuses two same-repo origins and does not mark owed", () => {
+    const plan = {
+      title: "two-origins",
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/9999",
+          type: "x-xbrief/github-issue",
+        },
+        {
+          uri: "https://github.com/deftai/directive/issues/1111",
+          type: "x-xbrief/github-issue",
+        },
+        {
+          uri: "https://github.com/deftai/directive/pull/7",
+          type: "x-xbrief/github-pr",
+        },
+      ],
+    };
+    const bound = bindUnmarkedFinalizePair({
+      admit: { productPr: 7, issue: 9999, detail: "should-not-bind" },
+      issueFromPlan: 9999,
+      plan,
+    });
+    expect(bound.kind).toBe("refuse");
+    if (bound.kind !== "omit") {
+      expect(bound.productPr).toBe(0);
+      expect(bound.detail).toContain("multiple github-issue");
+    }
+    const root = mkdtempSync(join(tmpdir(), "finalize-two-origins-5122-"));
+    const rel = "xbrief/active/two-origins.xbrief.json";
+    mkdirSync(join(root, "xbrief", "active"), { recursive: true });
+    writeFileSync(
+      join(root, rel),
+      JSON.stringify({ xBRIEFInfo: { version: "0.8" }, plan }),
+      "utf8",
+    );
+    const tipBlobs = new Map<string, string>([[rel, readFileSync(join(root, rel), "utf8")]]);
+    const inventory = discoverFinalizeOwed(root, {
+      repo: "deftai/directive",
+      deliveryBranch: "master",
+      tip: "TIP",
+      runGit: (_projectRoot, args) => {
+        if (args[0] === "ls-tree") {
+          return { code: 0, stdout: rel, stderr: "" };
+        }
+        if (args[0] === "show") {
+          return { code: 0, stdout: tipBlobs.get(rel) ?? "", stderr: "" };
+        }
+        return { code: 0, stdout: "", stderr: "" };
+      },
+      runGh: () => ({ returncode: 0, stdout: "[]", stderr: "" }),
+    });
+    expect(inventory.stories.filter((s) => s.state === "owed")).toHaveLength(0);
+    const listed = inventory.stories.find((s) => s.relPath === rel);
+    expect(listed?.state).toBe("unverified");
+    expect(listed?.blocks).toBe(false);
+    expect(listed?.detail).toContain("multiple github-issue");
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("does not first-wins admit when two merged PRs are listed", () => {
+    const plan = {
+      title: "two-prs",
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/9999",
+          type: "x-xbrief/github-issue",
+        },
+        {
+          uri: "https://github.com/deftai/directive/pull/7",
+          type: "x-xbrief/github-pr",
+        },
+        {
+          uri: "https://github.com/deftai/directive/pull/8",
+          type: "x-xbrief/github-pr",
+        },
+      ],
+    };
+    const seen: string[] = [];
+    const runGh: RunGhFn = (cmd) => {
+      seen.push(cmd.join(" "));
+      return {
+        returncode: 0,
+        stdout: JSON.stringify({ merged_at: "2026-09-01T00:00:00Z" }),
+        stderr: "",
+      };
+    };
+    expect(deriveUnmarkedFinalizeAdmit(plan, "deftai/directive", runGh)).toBeNull();
+    expect(seen.some((s) => s.includes("/pulls/7"))).toBe(false);
+    expect(seen.some((s) => s.includes("/pulls/8"))).toBe(false);
+    const bound = bindUnmarkedFinalizePair({
+      admit: null,
+      issueFromPlan: 9999,
+      plan,
+    });
+    expect(bound.kind).toBe("unverified");
+    if (bound.kind !== "omit") {
+      expect(bound.productPr).toBe(0);
+      expect(bound.detail).toBe(UNMARKED_STAMP_REMEDIATION);
+    }
+  });
+
+  it("refuses later-ship admit when issueFromPlan is null", () => {
+    const bound = bindUnmarkedFinalizePair({
+      admit: { productPr: 7, issue: 9999, detail: "synthetic later-ship" },
+      issueFromPlan: null,
+      plan: { references: [] },
+    });
+    expect(bound.kind).toBe("refuse");
+    if (bound.kind !== "omit") {
+      expect(bound.issue).toBe(0);
+      expect(bound.productPr).toBe(0);
+      expect(bound.detail).toContain("origin missing");
+    }
+  });
+
+  it("counts github-issue references only and skips junk entries", () => {
+    expect(countPlanGithubIssueReferences({})).toBe(0);
+    expect(
+      countPlanGithubIssueReferences({
+        references: [
+          "skip",
+          null,
+          {
+            uri: "https://github.com/deftai/directive/issues/9999",
+            type: "x-xbrief/github-issue",
+          },
+          {
+            uri: "https://github.com/deftai/directive/pull/7",
+            type: "x-xbrief/github-pr",
+          },
+        ],
+      }),
+    ).toBe(1);
+  });
+
+  it("refuses later-ship admit when issueFromPlan disagrees", () => {
+    const plan = {
+      title: "parser-split",
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/1111",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    };
+    const bound = bindUnmarkedFinalizePair({
+      admit: { productPr: 7, issue: 9999, detail: "synthetic later-ship" },
+      issueFromPlan: 1111,
+      plan,
+    });
+    expect(bound.kind).toBe("refuse");
+    if (bound.kind !== "omit") {
+      expect(bound.issue).toBe(1111);
+      expect(bound.productPr).toBe(0);
+      expect(bound.detail).toContain("disagrees");
+    }
+  });
+
+  it("lists Tracking unmarked without stamp as unverified, not owed", () => {
+    const plan = {
+      title: "tracking-unmarked",
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/issues/9999",
+          type: "x-xbrief/github-issue",
+        },
+      ],
+    };
+    expect(
+      deriveUnmarkedFinalizeAdmit(plan, "deftai/directive", () => {
+        throw new Error("no forge");
+      }),
+    ).toBeNull();
+    const bound = bindUnmarkedFinalizePair({
+      admit: null,
+      issueFromPlan: 9999,
+      plan,
+    });
+    expect(bound.kind).toBe("unverified");
+    if (bound.kind !== "omit") {
+      expect(bound.productPr).toBe(0);
+      expect(bound.detail).toBe(UNMARKED_STAMP_REMEDIATION);
+    }
+  });
+
+  it("does not take origin from x-tracking parent_issue", () => {
+    const plan = {
+      title: "tracking-parent",
+      status: "running",
+      references: [
+        {
+          uri: "https://github.com/deftai/directive/pull/7",
+          type: "x-xbrief/github-pr",
+        },
+      ],
+      metadata: { "x-tracking": { parent_issue: "#4000" } },
+    };
+    expect(
+      deriveUnmarkedFinalizeAdmit(plan, "deftai/directive", () => {
+        throw new Error("no forge");
+      }),
+    ).toBeNull();
+    const bound = bindUnmarkedFinalizePair({
+      admit: null,
+      issueFromPlan: null,
+      plan,
+    });
+    expect(bound.kind).toBe("omit");
   });
 });

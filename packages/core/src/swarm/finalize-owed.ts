@@ -6,10 +6,14 @@
  */
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { referenceTypeMatches } from "@deftai/directive-types";
 import { extractIssueRef } from "../capacity/backfill.js";
 import { hasArtifactSuffix } from "../layout/resolve.js";
 import { TIP_NONTERMINAL_FOLDERS } from "../lifecycle/completed-tracked-on-delivery.js";
-import { deriveUnmarkedFinalizeAdmit } from "../orphan-active/evaluate.js";
+import {
+  deriveUnmarkedFinalizeAdmit,
+  type UnmarkedFinalizeAdmit,
+} from "../orphan-active/evaluate.js";
 import {
   briefPairingKey,
   briefPlanIdentity,
@@ -206,6 +210,90 @@ function issueFromPlan(plan: Record<string, unknown>, expectedRepo: string | nul
     return null;
   }
   return number;
+}
+
+/** Count `references[]` github-issue entries only — never `x-tracking` (#5122). */
+export function countPlanGithubIssueReferences(plan: Record<string, unknown>): number {
+  const refs = plan.references;
+  if (!Array.isArray(refs)) {
+    return 0;
+  }
+  let count = 0;
+  for (const ref of refs) {
+    if (typeof ref !== "object" || ref === null || Array.isArray(ref)) {
+      continue;
+    }
+    const type = String((ref as Record<string, unknown>).type ?? "");
+    if (referenceTypeMatches(type, "github-issue")) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+export const UNMARKED_STAMP_REMEDIATION =
+  "unmarked Tracking: stamp metadata.productPullRequest (#4864) before finalize admit";
+
+export type UnmarkedFinalizeBind =
+  | { readonly kind: "omit" }
+  | {
+      readonly kind: "unverified" | "refuse" | "admit";
+      readonly issue: number;
+      readonly productPr: number;
+      readonly detail: string;
+    };
+
+/**
+ * Consume unmarked derive as one tuple (#5122). Null admit does not fill an
+ * independent pair. Non-null admit (later ship) assigns both fields; a
+ * conflicting `issueFromPlan` refuses. Origin is `issueFromPlan` only.
+ */
+export function bindUnmarkedFinalizePair(input: {
+  readonly admit: UnmarkedFinalizeAdmit | null;
+  readonly issueFromPlan: number | null;
+  readonly plan: Record<string, unknown>;
+}): UnmarkedFinalizeBind {
+  if (countPlanGithubIssueReferences(input.plan) > 1) {
+    return {
+      kind: "refuse",
+      issue: input.issueFromPlan ?? 0,
+      productPr: 0,
+      detail: "unmarked refuse: multiple github-issue references",
+    };
+  }
+  if (input.admit === null) {
+    if (input.issueFromPlan === null) {
+      return { kind: "omit" };
+    }
+    return {
+      kind: "unverified",
+      issue: input.issueFromPlan,
+      productPr: 0,
+      detail: UNMARKED_STAMP_REMEDIATION,
+    };
+  }
+  if (input.issueFromPlan === null) {
+    return {
+      kind: "refuse",
+      issue: 0,
+      productPr: 0,
+      detail: "unmarked refuse: origin missing from issueFromPlan",
+    };
+  }
+  if (input.issueFromPlan !== input.admit.issue) {
+    return {
+      kind: "refuse",
+      issue: input.issueFromPlan,
+      productPr: 0,
+      detail: "unmarked refuse: issueFromPlan disagrees with admit.issue",
+    };
+  }
+  return {
+    kind: "admit",
+    issue: input.admit.issue,
+    productPr: input.admit.productPr,
+    detail: input.admit.detail,
+  };
 }
 
 /**
@@ -534,17 +622,38 @@ export function discoverFinalizeOwed(
       if (isProposedTipForUnmarkedRefuse(relPath, plan)) {
         continue;
       }
-      // Unmarked: compose orphan-active signature when shipped + merged prRefs (#3791 P3).
+      // Unmarked: no independent first-merged / first-issue pair (#5122).
       // Empty-prRefs closed-origin-only stays out of first ship.
       const admit = deriveUnmarkedFinalizeAdmit(plan, options.repo, runGh);
-      if (admit === null) {
+      const bound = bindUnmarkedFinalizePair({
+        admit,
+        issueFromPlan: issue,
+        plan,
+      });
+      if (bound.kind === "omit") {
         continue;
       }
-      productPr = admit.productPr;
-      if (issue === null) {
-        issue = admit.issue;
+      if (bound.kind === "unverified" || bound.kind === "refuse") {
+        stories.push({
+          issue: bound.issue,
+          productPr: bound.productPr,
+          relPath,
+          state: "unverified",
+          claimRef: finalizeClaimRef(
+            null,
+            bound.productPr > 0 ? [bound.productPr] : [],
+            bound.issue > 0 ? [String(bound.issue)] : [],
+          ),
+          pairingKey: briefPairingKey(relPath),
+          planIdentity: briefPlanIdentity(plan),
+          detail: bound.detail,
+          blocks: false,
+        });
+        continue;
       }
-      unmarkedDetail = admit.detail;
+      productPr = bound.productPr;
+      issue = bound.issue;
+      unmarkedDetail = bound.detail;
     }
     if (issue === null) {
       stories.push({

@@ -194,12 +194,12 @@ describe("evaluateFinalizeOwedSessionGate (#4919)", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("still blocks true unmarked Tracking leftovers without --defer-owed (#5143)", () => {
+  it("still blocks marked Tracking leftovers without --defer-owed (#5143 / #5122)", () => {
     const result = evaluateFinalizeOwedSessionGate("/tmp/proj", {
       probeFinalizeOwed: () => ({
         lines: [
           "finalize owed inventory:",
-          "  #6 owed [blocks] pr=#7 xbrief/active/stuck-unmarked.xbrief.json",
+          "  #6 owed [blocks] pr=#7 xbrief/active/stuck-marked.xbrief.json",
         ],
         blocks: true,
         unknown: false,
