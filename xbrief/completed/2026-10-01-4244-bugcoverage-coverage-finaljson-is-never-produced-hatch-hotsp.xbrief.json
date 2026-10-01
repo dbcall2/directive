@@ -1,0 +1,868 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #4244",
+    "updated": "2026-10-01T19:30:34Z"
+  },
+  "plan": {
+    "title": "bug(coverage): coverage-final.json is never produced — hatch, hotspots, and forward-coverage diff half have no producer",
+    "status": "completed",
+    "narratives": {
+      "Description": "bug(coverage): coverage-final.json is never produced — hatch, hotspots, and forward-coverage diff half have no producer",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/4244",
+      "Overview": "\n\n- Add `json` to `vitest.config.ts` `coverage.reporter` (keep text / text-summary). Confirm `coverage/coverage-final.json` exists after a coverage run and `readCoverageTotalsFromReport` returns totals.\n- At the release Step 5 classify call in `pipeline.ts`, populate `failedTests` (or equivalent sanitized gate) so a vitest assertion failure cannot reach `BRANCH_HAIRLINE` / `pass_with_debt`. Do not pass raw suite bytes as `reason` (#3282); if a tail is used, bound it through `extractGateCause`.\n- Keep `COVERAGE_GOAL` at 85 unless #3512 records otherwise. Hairline only when a metric is below the vitest floor (75) as well. Do not treat API inventory of `failedTests` on `classifyStep5Failure` as a closed boundary until the pipeline call site wires the count.\n- After json lands: debt teardown must not throw on missing report following a coverage run; `--allow-coverage-debt=#N` must complete; auto-hatch must see real totals. `coverage:hotspots` and `verify:forward-coverage` diff half consume the produced report as the post-coverage happy path (missing-report skip is no longer that happy path).\n- Green-path stamp mtime (`suiteBoundMtime`, strict `>`) may be used once the file exists; carry or replace `seams.readCoverageTotals` escape; named stderr when the guard declines. Do not close #3512. Out of scope: #4230 hang supervisor; unifying goal to 75 without #3512 decision; stamp provenance schema.\n\n",
+      "Labels": "bug, design, agent-experience, process, source-of-truth, urgent, area:cli, design-critique:ingest-ready, framework-gap, core-capabilities, promise:gates"
+    },
+    "items": [
+      {
+        "title": "Add `json` to `vitest.config.ts` `coverage.reporter` (keep text / text-summary).",
+        "status": "completed",
+        "id": "clause.1",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "vitest.config.ts",
+          "recorded_at": "2026-10-01T19:28:22Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "title": "Confirm `coverage/coverage-final.json` exists after a coverage run and `readCoverageTotalsFromReport` returns totals.",
+        "status": "completed",
+        "id": "clause.2",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/vitest-runner/vitest-config-contract.test.ts",
+          "recorded_at": "2026-10-01T19:28:22Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "title": "At the release Step 5 classify call in `pipeline.ts`, populate `failedTests` (or equivalent sanitized gate) so a vitest assertion failure cannot reach `BRANCH_HAIRLINE` / `pass_with_debt`.",
+        "status": "completed",
+        "id": "clause.3",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/pipeline.ts",
+          "recorded_at": "2026-10-01T19:28:22Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "title": "Do not pass raw suite bytes as `reason` (#3282); if a tail is used, bound it through `extractGateCause`.",
+        "status": "completed",
+        "id": "clause.4",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/pipeline.ts",
+          "recorded_at": "2026-10-01T19:28:22Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "title": "Keep `COVERAGE_GOAL` at 85 unless #3512 records otherwise.",
+        "status": "completed",
+        "id": "clause.5",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/vitest-runner/coverage-debt.test.ts",
+          "recorded_at": "2026-10-01T19:28:22Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.6",
+        "status": "completed",
+        "title": "Hairline only when a metric is below the vitest floor (75) as well.",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/vitest-runner/coverage-debt.test.ts",
+          "recorded_at": "2026-10-01T19:28:22Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.7",
+        "status": "completed",
+        "title": "Do not treat API inventory of `failedTests` on `classifyStep5Failure` as a closed boundary until the pipeline call site wires the count.",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/pipeline.ts",
+          "recorded_at": "2026-10-01T19:28:22Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.8",
+        "status": "completed",
+        "title": "After json lands: debt teardown must not throw on missing report following a coverage run; `--allow-coverage-debt=#N` must complete; auto-hatch must see real totals.",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/auto-hatch.test.ts",
+          "recorded_at": "2026-10-01T19:28:22Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.9",
+        "status": "completed",
+        "title": "`coverage:hotspots` and `verify:forward-coverage` diff half consume the produced report as the post-coverage happy path (missing-report skip is no longer that happy path).",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/preflight.test.ts",
+          "recorded_at": "2026-10-01T19:28:22Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.10",
+        "status": "completed",
+        "title": "Green-path stamp mtime (`suiteBoundMtime`, strict `>`) may be used once the file exists; carry or replace `seams.readCoverageTotals` escape; named stderr when the guard declines.",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/preflight.ts",
+          "recorded_at": "2026-10-01T19:28:22Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.11",
+        "status": "completed",
+        "title": "Do not close #3512.",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/pipeline.ts",
+          "recorded_at": "2026-10-01T19:28:22Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.12",
+        "status": "completed",
+        "title": "Out of scope: #4230 hang supervisor; unifying goal to 75 without #3512 decision; stamp provenance schema.",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/release/pipeline.ts",
+          "recorded_at": "2026-10-01T19:28:22Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "design",
+      "agent-experience",
+      "process",
+      "source-of-truth",
+      "urgent",
+      "area:cli",
+      "design-critique:ingest-ready",
+      "framework-gap",
+      "core-capabilities",
+      "promise:gates"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/4244",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #4244: bug(coverage): coverage-final.json is never produced — hatch, hotspots, and forward-coverage diff half have no producer"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/3512",
+        "type": "x-xbrief/closes",
+        "title": "Issue #3512"
+      },
+      {
+        "uri": "https://github.com/deftai/directive/issues/4230",
+        "type": "x-xbrief/refs",
+        "title": "Issue #4230"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/release/pipeline-auto-hatch.test.ts packages/core/src/release/auto-hatch.test.ts packages/core/src/release/preflight.test.ts packages/core/src/vitest-runner/coverage-debt.test.ts packages/core/src/vitest-runner/vitest-config-contract.test.ts --coverage.enabled=false",
+          "source": "explicit"
+        }
+      ],
+      "literal_acceptance_rejected": [
+        {
+          "command": "vitest.config.ts",
+          "reason": "inline backtick in prose is a mention, not a stated acceptance command (#3721)",
+          "sourceSpan": "inline@L5"
+        }
+      ],
+      "swarm": {},
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [],
+        "module_boundary": ""
+      },
+      "issueCommentThread": [
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## Current state\n\nBare arc 4244 under #5111 defaults (no-ingest, yolo). Residual of #4230 fork (b): json coverage producer for hatch / hotspots / forward-coverage.\n\n- Stage A: still-open; critique-recommend false (operator-directed bare arc)\n- Chip: mechanism-shaped → in-progress with Stop 1\n- Dest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4244-dc\n- dispatch-sha: 5c61e03b33ed274e424b1925bb35d8f55b552a45 (origin-default; issue body measurement SHA 7236655e is historical)\n- Target-digest: sha256:b82f5505aea4ef149ffc94fccfe511b2b199bef60688e430bf909d627017d63d\n- Tip peek: vitest.config.ts coverage.reporter still [\"text\", \"text-summary\"] only\n- Dual-stop spend: N=1 (concrete closed-AC producer gap)\n\narc-mode: no-ingest\nyolo-standing: yes\n\n",
+          "id": 5917879396,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5917879396",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:08:12Z",
+          "updated_at": "2026-09-30T19:08:12Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: triage\n```\n\nmechanism-shaped: true\ndesign-critique: warranted, because hatch, coverage:hotspots, and verify:forward-coverage already read coverage/coverage-final.json while vitest coverage.reporter is text/text-summary only, so the compensating controls have no producer and the #4230 fork-(b) hairline-to-debt path is still unclosed.\n\ncharter: refutation\nrefutation-target: At tip, vitest coverage.reporter already includes json so a coverage run writes coverage/coverage-final.json; release classify already populates failedTests so a vitest test failure cannot reach BRANCH_HAIRLINE; hatch, hotspots, and forward-coverage already consume that produced report as the happy path.\n\narc-mode: no-ingest\nyolo-standing: yes\nspend: N=1\nspend-ask: resolved\nspend-recommend: N=1\npain: P1, P2, P3\n\nP1. vitest.config.ts coverage.reporter is text/text-summary only, so a coverage run never writes coverage/coverage-final.json and readCoverageTotalsFromReport / consumers have no producer.\nP2. Release classify boundary does not populate failedTests (or equivalent sanitized gate), so a vitest assertion failure can still reach BRANCH_HAIRLINE / pass_with_debt once json lands.\nP3. After a coverage run should produce the report, --allow-coverage-debt=#N teardown still throws on missing coverage-final.json, and coverage:hotspots / verify:forward-coverage diff half treat missing-report skip as the happy path.\n\nNext-build contract stays the issue body one-PR shape: add json reporter; populate failedTests without raw suite bytes as reason (#3282); keep COVERAGE_GOAL 85 unless #3512 records otherwise; repair hatch/teardown; consumers read the produced report; green-path stamp mtime once the file exists. Non-goals: #4230 hang supervisor; closing #3512; unifying goal to 75 without #3512 decision; stamp provenance schema.\n\nOperator bare arc 4244 under #5111 defaults; Dual-stop N=1 for concrete closed-AC producer gap. Parent #4230 fork (b) residual.\n\nTarget-digest sha256:b82f5505aea4ef149ffc94fccfe511b2b199bef60688e430bf909d627017d63d\ndispatch-sha: 5c61e03b33ed274e424b1925bb35d8f55b552a45\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4244-dc\npin-kind: origin-default\n\n",
+          "id": 5917879802,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5917879802",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:08:14Z",
+          "updated_at": "2026-09-30T19:08:14Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: critic\n```\n\ncharter: refutation\nround: 1 critic\nseat: grok\nlauncher: grok\naudit-targets: none\ndispatch-sha: 5c61e03b33ed274e424b1925bb35d8f55b552a45\nid-ceiling: 5917879802\nHEAD-confirmed: 5c61e03b33ed274e424b1925bb35d8f55b552a45\ncurrent-state-in-ceiling: 5917879396\nstop-1-under-audit: 5917879802\n\n## Verdict on the refutation-target\n\nThe Stop 1 refutation-target does **not** survive at the dispatch SHA. Pin-reads at `5c61e03b33ed274e424b1925bb35d8f55b552a45` confirm P1–P3 as live gaps. The design still needs the issue-body one-PR producer + classify wiring + consumer happy-path repair.\n\n## Findings\n\n### F1. coverage.reporter still omits json — no coverage-final.json producer\n\nEvidence: `git show 5c61e03b33ed274e424b1925bb35d8f55b552a45:vitest.config.ts` has `reporter: [\"text\", \"text-summary\"]` under `coverage`. No `json` entry. `readCoverageTotalsFromReport` (`packages/core/src/vitest-runner/coverage-debt.ts`) joins `coverageDir` + `coverage-final.json` and returns null on miss. Without the reporter, a coverage run never writes that file.\n\nFailure mode: hatch / hotspots / forward-coverage / debt teardown keep reading a file that a tip coverage run does not produce. The first clause of the refutation-target (\"reporter already includes json\") is false on this SHA.\n\nDisposition: keep Stop 1 next-build item (1) — add `json` to `coverage.reporter` and confirm the file exists after a coverage run. Binding a lean that treats the producer as already landed would bind a false premise.\nblocks-the-design\n\n### F2. Release classify call site never populates failedTests\n\nEvidence: `classifyStep5Failure` in `packages/core/src/release/auto-hatch.ts` accepts `failedTests` and returns `REAL_FAILURE` when `failedTests > 0`. Pin-read of `packages/core/src/release/pipeline.ts` at the same SHA shows **zero** `failedTests` occurrences. The live Step 5 call is:\n\n```\nclassifyStep5FailureWithFreshness({\n  output: reason,\n  totals,\n  exitCode,\n  timedOut: ...,\n  coverageReportMtimeMs: suiteBoundMtime,\n  nowMs: Date.now(),\n})\n```\n\nNo failed-test count is passed. `REAL_FAILURE_PATTERNS` can still catch rich output (`\\d+ failed`, `AssertionError`, …), but the issue's thin `task check failed (exit N)` reason path is exactly what `failedTests` was meant to close. Once json lands and hairline totals exist, a vitest assertion failure with thin reason can still classify `BRANCH_HAIRLINE` and reach `pass_with_debt`.\n\nFailure mode: second clause of the refutation-target (\"classify already populates failedTests\") is false at the call boundary that matters.\n\nDisposition: keep Stop 1 item (2) — populate `failedTests` (or equivalent sanitized gate) at the release classify boundary without raw suite bytes as `reason` (#3282).\nblocks-the-design\n\n### F3. Consumers treat missing report as skip/throw/UNKNOWN — not a produced-report happy path\n\nEvidence (same SHA):\n- `coverage-debt-teardown.ts`: `if (totals === null) throw new Error(\"coverage-debt: could not read coverage/coverage-final.json\")` under `--allow-coverage-debt=#N`.\n- `coverage-hotspots/evaluate.ts`: missing `coverage-final.json` → configError asking the operator to run coverage first.\n- `forward-coverage/diff-coverage.ts`: missing report → `emptyReport(..., reportPresent: false)` skip; `evaluate.ts` documents \"Missing coverage reports skip the diff half\".\n- `auto-hatch.ts`: no totals → classifier falls through to `UNKNOWN`; `evaluateAutoHatch` fail-closes when classification is not `BRANCH_HAIRLINE`, and also refuses `BRANCH_HAIRLINE without measurable totals`.\n\nFailure mode: third clause of the refutation-target (\"already consume that produced report as the happy path\") confuses reader presence with a live producer. After a tip coverage run, the happy path is still missing-report skip / throw / UNKNOWN, matching P3.\n\nDisposition: keep Stop 1 items (4)–(5) — repair teardown after json lands; hotspots and forward-coverage diff half must consume the produced report as the post-coverage happy path.\nblocks-the-design\n\n### F4. Classifier support for failedTests is inventory, not a closed boundary\n\nEvidence: `ClassifyStep5FailureInput.failedTests` and the `failedTests > 0 → REAL_FAILURE` branch exist in `auto-hatch.ts`, and `COVERAGE_GOAL` remains 85 on all four metrics in `coverage-debt.ts`. That is useful inventory for the fix shape; it does not close P2 until `pipeline.ts` wires the count.\n\nFailure mode: mistaking API surface for call-site population would under-scope the PR.\nsharpens-framing\n\n### F5. Injection / swarm lens\n\nTarget is reporter config + release classify wiring + local report readers. No authority change, untrusted prompt/envelope, identity, or worktree concurrency surface in this residual. Lens: light / N/A for the producer gap itself; release Step 5 remains the concurrency-adjacent surface already scoped by #3187/#3282 sanitizer rules in the next-build contract.\nfootnote\n\n## Road-not-taken\n\nSteelmanned \"already fixed on tip\" by re-checking reporter, pipeline `failedTests`, and consumer miss paths at the pinned SHA rather than trusting the issue body's historical measurement SHA `7236655e`. Tip still matches the problem statement. What would flip: a pin-read showing `json` in `coverage.reporter` **and** a non-null `failedTests:` at the pipeline classify call **and** teardown/hotspots/forward-coverage treating a post-coverage report as present. None of those three hold here.\n\n## Pains census (Stop 1)\n\n- P1 confirmed (F1)\n- P2 confirmed (F2)\n- P3 confirmed (F3)",
+          "id": 5917912837,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5917912837",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:10:22Z",
+          "updated_at": "2026-09-30T19:10:22Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPrefer-A for #4244: add json to vitest coverage.reporter so coverage/coverage-final.json is produced; wire failedTests (or equivalent sanitized gate) at the release classify call in pipeline.ts so a vitest test failure cannot reach BRANCH_HAIRLINE once totals exist; keep COVERAGE_GOAL 85 unless #3512 records otherwise; repair debt teardown after the report exists; make coverage:hotspots and verify:forward-coverage diff half consume the produced report as the post-coverage happy path. Do not treat classifier inventory for failedTests as a closed boundary.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.5 parent authored Stop 1 and these takes.\n\nForward verdict: bind. Disposition: classified headings accept-into-contract. Residual: none.\nSpec-path: next-build contract is not this body.\n\n**Lean:** coverage-final.json producer Prefer-A for #4244. Cites critic 5917912837. Parent residual of #4230 fork (b).\n\nTarget-digest: sha256:b82f5505aea4ef149ffc94fccfe511b2b199bef60688e430bf909d627017d63d\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4244-dc\norigin-ref: origin/master\ndispatch-sha: 5c61e03b33ed274e424b1925bb35d8f55b552a45\ntarget shape: single-issue\nround: 1\nsiblings: 1\n\nTakes:\n\n- 5917912837 F1 coverage.reporter still omits json — accept-into-contract\n- 5917912837 F2 Release classify call site never populates failedTests — accept-into-contract\n- 5917912837 F3 Consumers treat missing report as skip/throw/UNKNOWN — accept-into-contract\n- 5917912837 F4 Classifier support for failedTests is inventory, not a closed boundary — accept-into-contract\n- 5917912837 F5 Injection / swarm lens — accept-into-contract\n\nrelieves: P1, P2, P3\n\n## Bound remedy\n\n- Add `json` to `vitest.config.ts` `coverage.reporter` (keep text / text-summary). Confirm `coverage/coverage-final.json` exists after a coverage run and `readCoverageTotalsFromReport` returns totals.\n- At the release Step 5 classify call in `pipeline.ts`, populate `failedTests` (or equivalent sanitized gate) so a vitest assertion failure cannot reach `BRANCH_HAIRLINE` / `pass_with_debt`. Do not pass raw suite bytes as `reason` (#3282); if a tail is used, bound it through `extractGateCause`.\n- Keep `COVERAGE_GOAL` at 85 unless #3512 records otherwise. Hairline only when a metric is below the vitest floor (75) as well. Do not treat API inventory of `failedTests` on `classifyStep5Failure` as a closed boundary until the pipeline call site wires the count.\n- After json lands: debt teardown must not throw on missing report following a coverage run; `--allow-coverage-debt=#N` must complete; auto-hatch must see real totals. `coverage:hotspots` and `verify:forward-coverage` diff half consume the produced report as the post-coverage happy path (missing-report skip is no longer that happy path).\n- Green-path stamp mtime (`suiteBoundMtime`, strict `>`) may be used once the file exists; carry or replace `seams.readCoverageTotals` escape; named stderr when the guard declines. Do not close #3512. Out of scope: #4230 hang supervisor; unifying goal to 75 without #3512 decision; stamp provenance schema.\n\n",
+          "id": 5917920388,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5917920388",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:10:51Z",
+          "updated_at": "2026-09-30T19:10:51Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: critic\n```\n\ncharter: refutation\nround: 4 Pass-4 audit (pain-audit of relieves)\nseat: grok\nlauncher: grok\naudit-targets: pain-P1, pain-P2, pain-P3\nissue: deftai/directive#4244\narc-mode: no-ingest\ndispatch-sha: 5c61e03b33ed274e424b1925bb35d8f55b552a45\nid-ceiling: 5917920388\nHEAD-confirmed: 5c61e03b33ed274e424b1925bb35d8f55b552a45\nbind-lean-under-audit: 5917920388\nstop-1: 5917879802\nround-1-critic: 5917912837\n\n## Pain-audit of Prefer-A asserted coverage\n\nFresh critic. Prefer-A Bound on comment 5917920388 asserts coverage of Stop 1 pains P1-P3 after round-1 critic 5917912837. Pin-reads at dispatch SHA below. No product edits.\n\n### pain-P1 — Prefer-A covers\n\nStop 1 P1: `vitest.config.ts` `coverage.reporter` is text/text-summary only, so a coverage run never writes `coverage/coverage-final.json`.\n\nPrefer-A Bound: add `json` to `coverage.reporter` (keep text/text-summary); confirm `coverage/coverage-final.json` exists after a coverage run and `readCoverageTotalsFromReport` returns totals.\n\nEvidence: `git show 5c61e03b33ed274e424b1925bb35d8f55b552a45:vitest.config.ts` still has `reporter: [\"text\", \"text-summary\"]` under `coverage`. `readCoverageTotalsFromReport` joins `coverageDir` + `coverage-final.json` and returns null on miss. Bound names the exact missing producer. Asserted coverage of P1 holds under Prefer-A.\n\nfootnote\n\n### pain-P2 — Prefer-A covers\n\nStop 1 P2: release classify boundary does not populate `failedTests` (or equivalent sanitized gate), so a vitest assertion failure can still reach `BRANCH_HAIRLINE` / `pass_with_debt` once json lands.\n\nPrefer-A Bound: at the release Step 5 classify call in `pipeline.ts`, populate `failedTests` (or equivalent sanitized gate); do not pass raw suite bytes as `reason` (#3282); keep `COVERAGE_GOAL` 85; do not treat classifier API inventory of `failedTests` as a closed boundary until the call site wires the count.\n\nEvidence: pin-read of `pipeline.ts` at the same SHA shows `classifyStep5FailureWithFreshness({ output, totals, exitCode, timedOut, coverageReportMtimeMs, nowMs })` with zero `failedTests` occurrences in the file. `auto-hatch.ts` already accepts `failedTests` and returns `REAL_FAILURE` when `failedTests > 0`. Bound wires the call-site gap F2 named and keeps F4 inventory caveat. Asserted coverage of P2 holds under Prefer-A.\n\nfootnote\n\n### pain-P3 — Prefer-A covers\n\nStop 1 P3: after a coverage run should produce the report, `--allow-coverage-debt=#N` teardown still throws on missing `coverage-final.json`, and `coverage:hotspots` / `verify:forward-coverage` diff half treat missing-report skip as the happy path.\n\nPrefer-A Bound: after json lands, debt teardown must not throw on missing report following a coverage run; `--allow-coverage-debt=#N` must complete; auto-hatch must see real totals; hotspots and forward-coverage diff half consume the produced report as the post-coverage happy path.\n\nEvidence: `coverage-debt-teardown.ts` throws `coverage-debt: could not read coverage/coverage-final.json` when totals are null; `coverage-hotspots/evaluate.ts` returns configError on missing report; `forward-coverage/diff-coverage.ts` returns `emptyReport(..., reportPresent: false)` when the report path is absent. Bound sequences consumer happy-path repair after the producer lands and names both surfaces. Asserted coverage of P3 holds under Prefer-A.\n\nfootnote\n\n## Census\n\n- pain-P1: Prefer-A covers\n- pain-P2: Prefer-A covers\n- pain-P3: Prefer-A covers\n\nBlocking findings: 0. Sharpening findings: 0. Footnote findings: 3.",
+          "id": 5917953525,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5917953525",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:13:01Z",
+          "updated_at": "2026-09-30T19:13:01Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## Verified claims table\n\n| Claim | Evidence | Status |\n|---|---|---|\n| Tip `coverage.reporter` is text/text-summary only — no json producer | pin-read `vitest.config.ts`; critic 5917912837 F1 | verified |\n| Release Step 5 classify call does not pass `failedTests` | pin-read `pipeline.ts`; critic 5917912837 F2 | verified |\n| Consumers treat missing report as throw / configError / skip / UNKNOWN | critic 5917912837 F3; pain-audit 5917953525 | verified |\n| Prefer-A lean 5917920388 covers Stop 1 P1–P3 under producer + classify wiring + consumer happy-path | pain-audit 5917953525 footnote-only | verified |\n| `failedTests` API inventory on classifier is not a closed boundary until pipeline wires the count | critic 5917912837 F4; lean Bound | verified (non-blocking) |\n\nCeiling: lean 5917920388. Pain-audit: 5917953525. Dispatch SHA: 5c61e03b33ed274e424b1925bb35d8f55b552a45.\n\n",
+          "id": 5917965837,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5917965837",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:13:50Z",
+          "updated_at": "2026-09-30T19:13:50Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPrefer-A for #4244: add json to vitest coverage.reporter so coverage/coverage-final.json is produced; wire failedTests at the release classify call so a vitest test failure cannot reach BRANCH_HAIRLINE once totals exist; keep COVERAGE_GOAL 85 unless #3512 records otherwise; repair debt teardown and make hotspots / forward-coverage consume the produced report as the post-coverage happy path. Classifier inventory alone does not close the failedTests boundary.\n\nBound contract: successor lean 5917920388\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nRound-1 critic 5917912837 headings accepted into the Prefer-A lean. Pain-audit 5917953525 footnote-only; no Bound-remedy harvest change. Verified-claims table posted as the prior comment. Yolo standing confirms the all-accept map. Parent residual of #4230 fork (b); do not close #3512 here.\n\n",
+          "id": 5917966188,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5917966188",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:13:51Z",
+          "updated_at": "2026-09-30T19:13:51Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## Cite-form amendment (same Prefer-A)\n\nSame Bound as successor lean 5917920388. Chip refused ingest-ready on comma-joined `relieves: P1, P2, P3`. Re-emit one accepted cite form per Stop 1 pain id. No Bound-remedy change. Pain-audit 5917953525 remains footnote-only.\n\n**Lean:** coverage-final.json producer Prefer-A for #4244 (cite-form amendment of 5917920388).\n\nTarget-digest: sha256:b82f5505aea4ef149ffc94fccfe511b2b199bef60688e430bf909d627017d63d\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4244-dc\ndispatch-sha: 5c61e03b33ed274e424b1925bb35d8f55b552a45\n\nrelieves: P1\nrelieves: P2\nrelieves: P3\n\nBound contract remains successor lean 5917920388; this comment only repairs cite placement for the remaining-set gate.\n\n",
+          "id": 5917972579,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5917972579",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:14:18Z",
+          "updated_at": "2026-09-30T19:14:18Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## Verified claims table\n\n| Claim | Evidence | Status |\n|---|---|---|\n| Tip `coverage.reporter` is text/text-summary only — no json producer | pin-read `vitest.config.ts`; critic 5917912837 F1 | verified |\n| Release Step 5 classify call does not pass `failedTests` | pin-read `pipeline.ts`; critic 5917912837 F2 | verified |\n| Consumers treat missing report as throw / configError / skip / UNKNOWN | critic 5917912837 F3; pain-audit 5917953525 | verified |\n| Prefer-A Bound from lean 5917920388, cite-form-amended as lean 5917972579, covers Stop 1 P1–P3 | pain-audit 5917953525 footnote-only; cite-form amendment | verified |\n| One accepted `relieves:` line per pain id is required for remaining-set | chip refuse unrelieved-pain on comma-joined form; amendment 5917972579 | verified |\n\nCeiling: lean 5917972579 (cite-form amendment of 5917920388). Pain-audit: 5917953525. Dispatch SHA: 5c61e03b33ed274e424b1925bb35d8f55b552a45.\n\n",
+          "id": 5917979840,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5917979840",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:14:48Z",
+          "updated_at": "2026-09-30T19:14:48Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPrefer-A for #4244: add json to vitest coverage.reporter so coverage/coverage-final.json is produced; wire failedTests at the release classify call so a vitest test failure cannot reach BRANCH_HAIRLINE once totals exist; keep COVERAGE_GOAL 85 unless #3512 records otherwise; repair debt teardown and make hotspots / forward-coverage consume the produced report as the post-coverage happy path. Classifier inventory alone does not close the failedTests boundary. Cite-form amendment 5917972579 re-emits one relieves line per pain id over the same Bound as 5917920388.\n\nBound contract: successor lean 5917972579\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nRound-1 critic 5917912837 headings accepted into Prefer-A lean 5917920388. Pain-audit 5917953525 footnote-only; no Bound-remedy harvest change. Cite-form amendment 5917972579 is the latest successor lean for ingest clearance. Verified-claims table posted as the prior comment. Yolo standing confirms the all-accept map. Parent residual of #4230 fork (b); do not close #3512 here.\n\n",
+          "id": 5917980193,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5917980193",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:14:49Z",
+          "updated_at": "2026-09-30T19:14:49Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: critic\n```\n\ncharter: refutation\nround: 4 Pass-4 audit (pain-audit of relieves). Fresh critic.\nseat: grok\nlauncher: grok\naudit-targets: pain-P1, pain-P2, pain-P3\nissue: deftai/directive#4244\narc-mode: no-ingest\ndispatch-sha: 5c61e03b33ed274e424b1925bb35d8f55b552a45\nid-ceiling: 5917972579\nHEAD-confirmed: 5c61e03b33ed274e424b1925bb35d8f55b552a45\nbind-lean-under-audit: 5917972579\nprefer-a-bound: 5917920388\nstop-1: 5917879802\nround-1-critic: 5917912837\nprior-pain-audit-out-of-clearance: 5917953525\n\n## Pain-audit of cite-form Prefer-A asserted coverage\n\nFresh critic. Latest successor lean 5917972579 is a cite-form amendment of Prefer-A lean 5917920388 (same Bound remedy; one cite line per pain id). Asserts coverage of Stop 1 pains P1-P3 from 5917879802 after round-1 critic 5917912837. Prior pain-audit 5917953525 audited the pre-amendment lean and is out of clearance for this latest lean. Pin-reads at dispatch SHA below. No product edits.\n\n### pain-P1 — Prefer-A Bound covers\n\nStop 1 P1: `vitest.config.ts` `coverage.reporter` is text/text-summary only, so a coverage run never writes `coverage/coverage-final.json`.\n\nPrefer-A Bound (5917920388, unchanged on 5917972579): add `json` to `coverage.reporter` (keep text/text-summary); confirm `coverage/coverage-final.json` exists after a coverage run and `readCoverageTotalsFromReport` returns totals.\n\nEvidence: `git show 5c61e03b33ed274e424b1925bb35d8f55b552a45:vitest.config.ts` still has `reporter: [\"text\", \"text-summary\"]` under `coverage`. `readCoverageTotalsFromReport` joins `coverageDir` + `coverage-final.json` and returns null on miss. Bound names the exact missing producer. Asserted coverage of P1 holds under Prefer-A Bound carried by lean 5917972579.\nfootnote\n\n### pain-P2 — Prefer-A Bound covers\n\nStop 1 P2: release classify boundary does not populate `failedTests` (or equivalent sanitized gate), so a vitest assertion failure can still reach `BRANCH_HAIRLINE` / `pass_with_debt` once json lands.\n\nPrefer-A Bound: at the release Step 5 classify call in `pipeline.ts`, populate `failedTests` (or equivalent sanitized gate); do not pass raw suite bytes as `reason` (#3282); keep `COVERAGE_GOAL` 85; do not treat classifier API inventory of `failedTests` as a closed boundary until the call site wires the count.\n\nEvidence: pin-read of `pipeline.ts` at the same SHA shows `classifyStep5FailureWithFreshness({ output, totals, exitCode, timedOut, coverageReportMtimeMs, nowMs })` with zero `failedTests` occurrences in the file. Classifier already accepts `failedTests` and returns `REAL_FAILURE` when `failedTests > 0`. Bound wires the call-site gap F2 named and keeps the F4 inventory caveat. Asserted coverage of P2 holds under Prefer-A Bound carried by lean 5917972579.\nfootnote\n\n### pain-P3 — Prefer-A Bound covers\n\nStop 1 P3: after a coverage run should produce the report, `--allow-coverage-debt=#N` teardown still throws on missing `coverage-final.json`, and `coverage:hotspots` / `verify:forward-coverage` diff half treat missing-report skip as the happy path.\n\nPrefer-A Bound: after json lands, debt teardown must not throw on missing report following a coverage run; `--allow-coverage-debt=#N` must complete; auto-hatch must see real totals; hotspots and forward-coverage diff half consume the produced report as the post-coverage happy path.\n\nEvidence: `coverage-debt-teardown.ts` throws `coverage-debt: could not read coverage/coverage-final.json` when totals are null; `coverage-hotspots/evaluate.ts` returns configError on missing report; `forward-coverage/diff-coverage.ts` returns `emptyReport(..., reportPresent: false)` when the report path is absent. Bound sequences consumer happy-path repair after the producer lands and names both surfaces. Asserted coverage of P3 holds under Prefer-A Bound carried by lean 5917972579.\nfootnote\n\n## Census\n\n- pain-P1: Prefer-A Bound covers (lean 5917972579)\n- pain-P2: Prefer-A Bound covers (lean 5917972579)\n- pain-P3: Prefer-A Bound covers (lean 5917972579)\n\nBlocking findings: 0. Sharpening findings: 0. Footnote findings: 3.\r\n\n",
+          "id": 5918020055,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5918020055",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:17:21Z",
+          "updated_at": "2026-09-30T19:17:21Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## Verified claims table\n\n| Claim | Evidence | Status |\n|---|---|---|\n| Tip `coverage.reporter` is text/text-summary only — no json producer | pin-read `vitest.config.ts`; critic 5917912837 F1 | verified |\n| Release Step 5 classify call does not pass `failedTests` | pin-read `pipeline.ts`; critic 5917912837 F2 | verified |\n| Consumers treat missing report as throw / configError / skip / UNKNOWN | critic 5917912837 F3; pain-audit 5918020055 | verified |\n| Prefer-A Bound (lean 5917972579 cite-form of 5917920388) covers Stop 1 P1–P3 | pain-audit 5918020055 footnote-only | verified |\n| One `relieves: Pn` line per pain id is required for remaining-set | chip refuse on comma-joined form; lean 5917972579 | verified |\n\nCeiling: lean 5917972579. Pain-audit: 5918020055. Dispatch SHA: 5c61e03b33ed274e424b1925bb35d8f55b552a45.\n\n",
+          "id": 5918031154,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5918031154",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:18:04Z",
+          "updated_at": "2026-09-30T19:18:04Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPrefer-A for #4244: add json to vitest coverage.reporter so coverage/coverage-final.json is produced; wire failedTests at the release classify call so a vitest test failure cannot reach BRANCH_HAIRLINE once totals exist; keep COVERAGE_GOAL 85 unless #3512 records otherwise; repair debt teardown and make hotspots / forward-coverage consume the produced report as the post-coverage happy path. Classifier inventory alone does not close the failedTests boundary.\n\nBound contract: successor lean 5917972579\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nRound-1 critic 5917912837 headings accepted into Prefer-A lean 5917920388; cite-form amendment 5917972579 is the latest successor lean (one relieves line per pain). Pain-audit 5918020055 footnote-only; no Bound-remedy harvest change. Verified-claims table posted as the prior comment. Yolo standing confirms the all-accept map. Parent residual of #4230 fork (b); do not close #3512 here.\n\n",
+          "id": 5918031501,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5918031501",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:18:06Z",
+          "updated_at": "2026-09-30T19:18:06Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPrefer-A for #4244: add json to vitest coverage.reporter so coverage/coverage-final.json is produced; wire failedTests (or equivalent sanitized gate) at the release classify call in pipeline.ts so a vitest test failure cannot reach BRANCH_HAIRLINE once totals exist; keep COVERAGE_GOAL 85 unless #3512 records otherwise; repair debt teardown after the report exists; make coverage:hotspots and verify:forward-coverage diff half consume the produced report as the post-coverage happy path. Do not treat classifier inventory for failedTests as a closed boundary.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.5 parent authored Stop 1 and these takes.\n\nForward verdict: bind. Disposition: classified headings accept-into-contract. Residual: none.\nSpec-path: next-build contract is not this body.\n\n**Lean:** coverage-final.json producer Prefer-A for #4244 (fresh successor after cite-form recovery). Cites critic 5917912837. Same Bound as 5917920388. Parent residual of #4230 fork (b).\n\nTarget-digest: sha256:b82f5505aea4ef149ffc94fccfe511b2b199bef60688e430bf909d627017d63d\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4244-dc\norigin-ref: origin/master\ndispatch-sha: 5c61e03b33ed274e424b1925bb35d8f55b552a45\ntarget shape: single-issue\nround: 1\nsiblings: 1\n\nTakes:\n\n- 5917912837 F1 coverage.reporter still omits json — accept-into-contract\n- 5917912837 F2 Release classify call site never populates failedTests — accept-into-contract\n- 5917912837 F3 Consumers treat missing report as skip/throw/UNKNOWN — accept-into-contract\n- 5917912837 F4 Classifier support for failedTests is inventory, not a closed boundary — accept-into-contract\n- 5917912837 F5 Injection / swarm lens — accept-into-contract\n\nrelieves: P1\nrelieves: P2\nrelieves: P3\n\n## Bound remedy\n\n- Add `json` to `vitest.config.ts` `coverage.reporter` (keep text / text-summary). Confirm `coverage/coverage-final.json` exists after a coverage run and `readCoverageTotalsFromReport` returns totals.\n- At the release Step 5 classify call in `pipeline.ts`, populate `failedTests` (or equivalent sanitized gate) so a vitest assertion failure cannot reach `BRANCH_HAIRLINE` / `pass_with_debt`. Do not pass raw suite bytes as `reason` (#3282); if a tail is used, bound it through `extractGateCause`.\n- Keep `COVERAGE_GOAL` at 85 unless #3512 records otherwise. Hairline only when a metric is below the vitest floor (75) as well. Do not treat API inventory of `failedTests` on `classifyStep5Failure` as a closed boundary until the pipeline call site wires the count.\n- After json lands: debt teardown must not throw on missing report following a coverage run; `--allow-coverage-debt=#N` must complete; auto-hatch must see real totals. `coverage:hotspots` and `verify:forward-coverage` diff half consume the produced report as the post-coverage happy path (missing-report skip is no longer that happy path).\n- Green-path stamp mtime (`suiteBoundMtime`, strict `>`) may be used once the file exists; carry or replace `seams.readCoverageTotals` escape; named stderr when the guard declines. Do not close #3512. Out of scope: #4230 hang supervisor; unifying goal to 75 without #3512 decision; stamp provenance schema.\n\n",
+          "id": 5918041264,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5918041264",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:18:43Z",
+          "updated_at": "2026-09-30T19:18:43Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: critic\n```\n\ncharter: refutation\nround: 4 Pass-4 audit (pain-audit of relieves). Fresh critic.\nseat: grok\nlauncher: grok\naudit-targets: pain-P1, pain-P2, pain-P3\nissue: deftai/directive#4244\narc-mode: no-ingest\ndispatch-sha: 5c61e03b33ed274e424b1925bb35d8f55b552a45\nid-ceiling: 5918041264\nHEAD-confirmed: 5c61e03b33ed274e424b1925bb35d8f55b552a45\nbind-lean-under-audit: 5918041264\nprefer-a-bound: 5917920388\nstop-1: 5917879802\nround-1-critic: 5917912837\n\n## Pain-audit of Prefer-A asserted coverage\n\nFresh critic. Latest successor lean 5918041264 Prefer-A Bound (same Bound as 5917920388) with one cite line per pain. Asserts coverage of Stop 1 P1-P3 from 5917879802 after critic 5917912837. Fresh lean after cite-form / later-arc-in-flight recovery. Pin-reads at dispatch SHA below. No product edits.\n\n### pain-P1 — Prefer-A Bound covers\n\nStop 1 P1: `vitest.config.ts` `coverage.reporter` is text/text-summary only, so a coverage run never writes `coverage/coverage-final.json`.\n\nPrefer-A Bound on 5918041264: add `json` to `coverage.reporter` (keep text/text-summary); confirm `coverage/coverage-final.json` exists after a coverage run and `readCoverageTotalsFromReport` returns totals.\n\nEvidence: `git show 5c61e03b33ed274e424b1925bb35d8f55b552a45:vitest.config.ts` still has `reporter: [\"text\", \"text-summary\"]` under `coverage`. Bound names the exact missing producer. Asserted coverage of P1 holds.\nfootnote\n\n### pain-P2 — Prefer-A Bound covers\n\nStop 1 P2: release classify boundary does not populate `failedTests` (or equivalent sanitized gate), so a vitest assertion failure can still reach `BRANCH_HAIRLINE` / `pass_with_debt` once json lands.\n\nPrefer-A Bound: at the release Step 5 classify call in `pipeline.ts`, populate `failedTests` (or equivalent sanitized gate); do not pass raw suite bytes as `reason` (#3282); keep `COVERAGE_GOAL` 85; do not treat classifier API inventory as a closed boundary until the call site wires the count.\n\nEvidence: pin-read of `pipeline.ts` at the same SHA shows `classifyStep5FailureWithFreshness({ output, totals, exitCode, timedOut, coverageReportMtimeMs, nowMs })` with zero `failedTests` occurrences in the file. Bound wires the call-site gap and keeps the inventory caveat. Asserted coverage of P2 holds.\nfootnote\n\n### pain-P3 — Prefer-A Bound covers\n\nStop 1 P3: after a coverage run should produce the report, `--allow-coverage-debt=#N` teardown still throws on missing `coverage-final.json`, and `coverage:hotspots` / `verify:forward-coverage` diff half treat missing-report skip as the happy path.\n\nPrefer-A Bound: after json lands, debt teardown must not throw on missing report following a coverage run; `--allow-coverage-debt=#N` must complete; auto-hatch must see real totals; hotspots and forward-coverage diff half consume the produced report as the post-coverage happy path.\n\nEvidence: `coverage-debt-teardown.ts` throws `coverage-debt: could not read coverage/coverage-final.json` when totals are null; `coverage-hotspots/evaluate.ts` returns configError on missing report; `forward-coverage/evaluate.ts` documents missing reports skip the diff half. Bound sequences consumer happy-path repair after the producer lands. Asserted coverage of P3 holds.\nfootnote\n\n## Census\n\n- pain-P1: Prefer-A Bound covers (lean 5918041264)\n- pain-P2: Prefer-A Bound covers (lean 5918041264)\n- pain-P3: Prefer-A Bound covers (lean 5918041264)\n\nBlocking findings: 0. Sharpening findings: 0. Footnote findings: 3.",
+          "id": 5918062651,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5918062651",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:20:07Z",
+          "updated_at": "2026-09-30T19:20:07Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## Verified claims table\n\n| Claim | Evidence | Status |\n|---|---|---|\n| Tip `coverage.reporter` is text/text-summary only — no json producer | pin-read `vitest.config.ts`; critic 5917912837 F1 | verified |\n| Release Step 5 classify call does not pass `failedTests` | pin-read `pipeline.ts`; critic 5917912837 F2 | verified |\n| Consumers treat missing report as throw / configError / skip / UNKNOWN | critic 5917912837 F3; pain-audit 5918062651 | verified |\n| Prefer-A lean 5918041264 covers Stop 1 P1–P3 | pain-audit 5918062651 footnote-only | verified |\n| One `relieves: Pn` line per pain id satisfies remaining-set | lean 5918041264 | verified |\n\nCeiling: lean 5918041264. Pain-audit: 5918062651. Dispatch SHA: 5c61e03b33ed274e424b1925bb35d8f55b552a45.\n\n",
+          "id": 5918070976,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5918070976",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:20:39Z",
+          "updated_at": "2026-09-30T19:20:39Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPrefer-A for #4244: add json to vitest coverage.reporter so coverage/coverage-final.json is produced; wire failedTests at the release classify call so a vitest test failure cannot reach BRANCH_HAIRLINE once totals exist; keep COVERAGE_GOAL 85 unless #3512 records otherwise; repair debt teardown and make hotspots / forward-coverage consume the produced report as the post-coverage happy path. Classifier inventory alone does not close the failedTests boundary.\n\nBound contract: successor lean 5918041264\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nRound-1 critic 5917912837 headings accepted into Prefer-A lean 5918041264. Pain-audit 5918062651 footnote-only; no Bound-remedy harvest change. Verified-claims table posted as the prior comment. Yolo standing confirms the all-accept map. Parent residual of #4230 fork (b); do not close #3512 here.\n\n",
+          "id": 5918071357,
+          "html_url": "https://github.com/deftai/directive/issues/4244#issuecomment-5918071357",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:20:40Z",
+          "updated_at": "2026-09-30T19:20:40Z",
+          "author_association": "COLLABORATOR"
+        }
+      ],
+      "issueBody": "Residual of #4230 (operator lock: fork (b)). #4230 does **not** add a json coverage reporter. This issue is the producer that hatch, hotspots, and forward-coverage already assume.\r\n\r\nDispatch SHA for the measurement: `7236655ef6f586169c94f3c4ce5eeccf5668960b`.\r\n\r\n## Problem\r\n\r\n`vitest.config.ts` `coverage.reporter` is `[\"text\", \"text-summary\"]` only. There is no `json` reporter, so a full `pnpm run test --coverage` / `ts:check-lane` never writes `coverage/coverage-final.json`.\r\n\r\nSeveral shipped surfaces read that file with no fallback:\r\n\r\n- `readCoverageTotalsFromReport` (`packages/core/src/vitest-runner/coverage-debt.ts`)\r\n- coverage-debt teardown (`coverage-debt-teardown.ts`) throws `coverage-debt: could not read coverage/coverage-final.json` when `--allow-coverage-debt=#N` is set\r\n- #3187 / #2866 auto-hatch (`release/auto-hatch.ts`) needs totals to classify `BRANCH_HAIRLINE`; missing totals classify UNKNOWN and fail closed — the hatch is inert\r\n- `task coverage:hotspots` / `coverage-hotspots/evaluate.ts`\r\n- `verify:forward-coverage` diff half (#3514) — missing report **skips** the diff half\r\n\r\n#3514 closed the *code* for per-diff coverage. Without a producer, that compensating control is only half-live.\r\n\r\n## Why this is not a #4230 item\r\n\r\n#4230 fork (b) leaves the reporter alone on purpose. A failing suite already fail-closes (UNKNOWN). Adding `json` *creates* the hairline-to-debt path traced on #4230 (thin `task check failed (exit N)`, fresh `coverage-final.json`, branches in the 75–85 gap -> `BRANCH_HAIRLINE` -> `pass_with_debt`). That hole must be closed in **this** PR, not left for a later drive-by.\r\n\r\n#3512 stays open on its own remainder (TypeScript recommendation, scaffold, vitest pin, decision record). Do not close #3512 here. Do not set `COVERAGE_GOAL` to 75 unless that decision is recorded on #3512; default is keep goal 85 and floor-gate hairline.\r\n\r\n## Next-build contract — one PR\r\n\r\n1. Add `json` to `coverage.reporter` (keep `text` / `text-summary` if operators still need the printed summary). Confirm `coverage/coverage-final.json` exists after `pnpm exec vitest run --coverage` on a small path.\r\n2. Populate `failedTests` at the release classify boundary so a vitest **test** failure cannot reach `BRANCH_HAIRLINE`. Do **not** pass raw suite bytes as `reason` (#3282 env-leak). If a tail is used, it is bounded and goes through `extractGateCause` sanitizer.\r\n3. Keep `COVERAGE_GOAL` at 85 unless #3512 records otherwise. Hairline only when a metric is below the vitest floor (75) as well. Do not treat goal/floor alignment as a substitute for (2).\r\n4. Repair the hatch path: teardown must not throw on a missing report after json lands; `--allow-coverage-debt=#N` must be able to complete; auto-hatch must see real totals.\r\n5. `coverage:hotspots` and `verify:forward-coverage` diff half read the produced report. Missing-report skip is no longer the happy path after a coverage run.\r\n6. Green-path stamp mtime (`suiteBoundMtime`, strict `>`) may be used once the file exists; carry or replace the `seams.readCoverageTotals` escape; named stderr when the guard declines.\r\n\r\n## Acceptance\r\n\r\n- [ ] After a coverage run, `coverage/coverage-final.json` exists and `readCoverageTotalsFromReport` returns totals.\r\n- [ ] A vitest assertion failure at release Step 5 cannot stamp `pass_with_debt` (`failedTests` or equivalent; not raw suite bytes in `reason`).\r\n- [ ] `--allow-coverage-debt=#N` no longer throws on missing `coverage-final.json` after a coverage run.\r\n- [ ] `task coverage:hotspots` and `verify:forward-coverage` (diff half) consume the produced report.\r\n- [ ] CHANGELOG entry.\r\n- [ ] #3512 not closed by this PR.\r\n\r\n## Out of scope\r\n\r\n#4230 hang supervisor, one-suite skill edit, full-mode pin. Closing #3512. Unifying `COVERAGE_GOAL` to 75 unless that decision is already on #3512. Stamp provenance schema.\r\n\r\n## Refs\r\n\r\n#4230 (parent; fork (b) residual). #3187, #2866, #2573, #3514, #3512, #3282, #2683, #1310.\r\nFiles: `vitest.config.ts`, `packages/core/src/vitest-runner/coverage-debt.ts`, `packages/core/src/vitest-runner/coverage-debt-teardown.ts`, `packages/core/src/release/auto-hatch.ts`, `packages/core/src/release/pipeline.ts`, `packages/core/src/coverage-hotspots/evaluate.ts`, `packages/core/src/forward-coverage/evaluate.ts`, `content/skills/deft-directive-release/SKILL.md`, `docs/RELEASING.md`, `CHANGELOG.md`.\r\n\n",
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5379989424,
+        "origin": "deftai/directive#4244",
+        "id": "github.issue.5379989424"
+      },
+      "x-directive/admitted-target-digest": {
+        "schema": "deft.scope.admitted-target-digest.v1",
+        "algorithm": "sha256",
+        "sha256": "b82f5505aea4ef149ffc94fccfe511b2b199bef60688e430bf909d627017d63d"
+      },
+      "productPullRequest": 5223,
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 5223,
+        "prBase": "master",
+        "mergeCommit": "6758dd80660ba55cb5c7c2cfbcb9e3ab50973d18",
+        "deliveryBranch": "master",
+        "deliveryCommit": "3c105fc93889e6102945e04e62a7ddfcf6ac0079",
+        "verifiedAt": "2026-10-01T19:30:34Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-10-01T19:30:34Z",
+      "completedSessionId": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-10-01T19:30:34Z"
+      }
+    },
+    "acceptance": {
+      "commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/release/pipeline-auto-hatch.test.ts packages/core/src/release/auto-hatch.test.ts packages/core/src/release/preflight.test.ts packages/core/src/vitest-runner/coverage-debt.test.ts packages/core/src/vitest-runner/vitest-config-contract.test.ts --coverage.enabled=false"
+        }
+      ],
+      "none_stated": false,
+      "source_rung": "derived",
+      "derived_reason": "derived 5 independently testable clauses from the task statement before product edit (#3323)",
+      "sentences": [
+        "bug(coverage): coverage-final.json is never produced — hatch, hotspots, and forward-coverage diff half have no producer",
+        "Add `json` to `vitest.config.ts` `coverage.reporter` (keep text / text-summary).",
+        "Confirm `coverage/coverage-final.json` exists after a coverage run and `readCoverageTotalsFromReport` returns totals.",
+        "At the release Step 5 classify call in `pipeline.ts`, populate `failedTests` (or equivalent sanitized gate) so a vitest assertion failure cannot reach `BRANCH_HAIRLINE` / `pass_with_debt`.",
+        "Do not pass raw suite bytes as `reason` (#3282); if a tail is used, bound it through `extractGateCause`.",
+        "Keep `COVERAGE_GOAL` at 85 unless #3512 records otherwise.",
+        "Hairline only when a metric is below the vitest floor (75) as well.",
+        "Do not treat API inventory of `failedTests` on `classifyStep5Failure` as a closed boundary until the pipeline call site wires the count.",
+        "After json lands: debt teardown must not throw on missing report following a coverage run; `--allow-coverage-debt=#N` must complete; auto-hatch must see real totals.",
+        "`coverage:hotspots` and `verify:forward-coverage` diff half consume the produced report as the post-coverage happy path (missing-report skip is no longer that happy path).",
+        "Green-path stamp mtime (`suiteBoundMtime`, strict `>`) may be used once the file exists; carry or replace `seams.readCoverageTotals` escape; named stderr when the guard declines.",
+        "Do not close #3512.",
+        "Out of scope: #4230 hang supervisor; unifying goal to 75 without #3512 decision; stamp provenance schema."
+      ],
+      "admitted_source_sentences": [
+        "Add `json` to `vitest.config.ts` `coverage.reporter` (keep text / text-summary).",
+        "Confirm `coverage/coverage-final.json` exists after a coverage run and `readCoverageTotalsFromReport` returns totals.",
+        "At the release Step 5 classify call in `pipeline.ts`, populate `failedTests` (or equivalent sanitized gate) so a vitest assertion failure cannot reach `BRANCH_HAIRLINE` / `pass_with_debt`.",
+        "Do not pass raw suite bytes as `reason` (#3282); if a tail is used, bound it through `extractGateCause`.",
+        "Keep `COVERAGE_GOAL` at 85 unless #3512 records otherwise.",
+        "Hairline only when a metric is below the vitest floor (75) as well.",
+        "Do not treat API inventory of `failedTests` on `classifyStep5Failure` as a closed boundary until the pipeline call site wires the count.",
+        "After json lands: debt teardown must not throw on missing report following a coverage run; `--allow-coverage-debt=#N` must complete; auto-hatch must see real totals.",
+        "`coverage:hotspots` and `verify:forward-coverage` diff half consume the produced report as the post-coverage happy path (missing-report skip is no longer that happy path).",
+        "Green-path stamp mtime (`suiteBoundMtime`, strict `>`) may be used once the file exists; carry or replace `seams.readCoverageTotals` escape; named stderr when the guard declines.",
+        "Do not close #3512.",
+        "Out of scope: #4230 hang supervisor; unifying goal to 75 without #3512 decision; stamp provenance schema."
+      ],
+      "admitted_source_digest": "24b9b5fd956d651add992d637082bf526a69e961e025162fcac9ff3a8308816f",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "Add `json` to `vitest.config.ts` `coverage.reporter` (keep text / text-summary).",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "Confirm `coverage/coverage-final.json` exists after a coverage run and `readCoverageTotalsFromReport` returns totals.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "At the release Step 5 classify call in `pipeline.ts`, populate `failedTests` (or equivalent sanitized gate) so a vitest assertion failure cannot reach `BRANCH_HAIRLINE` / `pass_with_debt`.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "Do not pass raw suite bytes as `reason` (#3282); if a tail is used, bound it through `extractGateCause`.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 5,
+          "text": "Keep `COVERAGE_GOAL` at 85 unless #3512 records otherwise.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 6,
+          "text": "Hairline only when a metric is below the vitest floor (75) as well.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 7,
+          "text": "Do not treat API inventory of `failedTests` on `classifyStep5Failure` as a closed boundary until the pipeline call site wires the count.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 8,
+          "text": "After json lands: debt teardown must not throw on missing report following a coverage run; `--allow-coverage-debt=#N` must complete; auto-hatch must see real totals.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 9,
+          "text": "`coverage:hotspots` and `verify:forward-coverage` diff half consume the produced report as the post-coverage happy path (missing-report skip is no longer that happy path).",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 10,
+          "text": "Green-path stamp mtime (`suiteBoundMtime`, strict `>`) may be used once the file exists; carry or replace `seams.readCoverageTotals` escape; named stderr when the guard declines.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 11,
+          "text": "Do not close #3512.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 12,
+          "text": "Out of scope: #4230 hang supervisor; unifying goal to 75 without #3512 decision; stamp provenance schema.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found",
+      "confessions": [
+        "bug(coverage): coverage-final.json is never produced — hatch, hotspots, and forward-coverage diff half have no producer"
+      ]
+    },
+    "id": "github.issue.5379989424",
+    "updated": "2026-10-01T19:30:34Z"
+  }
+}
