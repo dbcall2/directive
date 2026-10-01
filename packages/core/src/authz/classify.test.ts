@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SHELL_TOOL_NAMES } from "../hooks/tools.js";
 import {
@@ -2427,8 +2430,8 @@ describe("inactive Shell classifiers (#4709)", () => {
       shellCommand: "cp /tmp/g.json .deft/authz/grants/g.json",
       isDirectWrite: false,
     });
-    expect(storeWrite).toContain("settings");
-    expect(storeWrite.at(-1)).toBe("protected_store");
+    expect(storeWrite).toEqual(["protected_store"]);
+    expect(storeWrite).not.toContain("settings");
 
     expect(
       classifyHookAuthzOps({
@@ -2444,5 +2447,27 @@ describe("inactive Shell classifiers (#4709)", () => {
         isDirectWrite: true,
       }),
     ).toEqual(["edit"]);
+  });
+
+  const itSymlink = it.skipIf(process.platform === "win32");
+  itSymlink("appends protected_store for harvest-only symlink dests (#4709)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4709-classify-harvest-"));
+    mkdirSync(join(root, ".deft", "authz", "grants"), { recursive: true });
+    writeFileSync(join(root, ".deft", "authz", "grants", "g.json"), "{}\n");
+    symlinkSync(join(root, ".deft", "authz"), join(root, "build-cache"));
+    const command = "mkfile 1k build-cache/grants/g.json";
+    expect(inactiveShellTargetsProtectedStore(command)).toBe(false);
+    try {
+      expect(
+        classifyHookAuthzOps({
+          toolName: "Bash",
+          shellCommand: command,
+          isDirectWrite: false,
+          projectRoot: root,
+        }),
+      ).toEqual(["unknown", "protected_store"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

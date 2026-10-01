@@ -19,6 +19,7 @@ import {
   listShellOps,
   type RuntimeAuthorityShellOp,
 } from "../policy/runtime-authority.js";
+import { shellCommandHasPayloadRootProtectedDestAfterRealpath } from "./protected-dest-realpath.js";
 import type { AuthzOperation } from "./types.js";
 
 export type AuthzClassifiedOp =
@@ -4877,6 +4878,8 @@ export function classifyHookAuthzOps(input: {
   readonly shellCommand: string | null;
   readonly isDirectWrite: boolean;
   readonly mcpArgsText?: string | null;
+  /** Payload root for #4188 harvest realpath. Defaults to process.cwd(). */
+  readonly projectRoot?: string | null;
 }): AuthzClassifiedOp[] {
   const { toolName, shellCommand, isDirectWrite } = input;
   if (isDirectWrite) return ["edit"];
@@ -4888,13 +4891,20 @@ export function classifyHookAuthzOps(input: {
     if (shellCommand === null) return [];
     // Empty classification (git status, tests without product verbs, …) is not gated.
     const ops = classifyShellAuthzOps(shellCommand);
-    // #4709: inventoried-store Shell write. Append last so dest-of-write unknown
-    // stays first (active UAT grant-immune classifiable-form deny) and inactive
-    // unknown-allow then this deny. Lexical classify stays I/O-free; #4188
-    // harvest realpath remains dispatcher composition (harvest-only inactive
-    // residual — class 4 forbids mixing dispatcher.ts into this change set).
-    if (inactiveShellTargetsProtectedStore(shellCommand)) {
-      return [...ops, "protected_store"];
+    // #4709: inventoried-store Shell write. protected_store last. Dest-of-write
+    // unknown stays first (active UAT grant-immune classifiable-form deny);
+    // inactive unknown-allow then this deny. Drop grant-consuming ops (settings)
+    // so a later store deny cannot spend a single-use grant. Lexical dests stay
+    // I/O-free; #4188 harvest realpath against projectRoot/cwd closes aliases.
+    const harvestRoot = (input.projectRoot ?? "").trim() || process.cwd();
+    const harvestProtected = shellCommandHasPayloadRootProtectedDestAfterRealpath(
+      harvestRoot,
+      shellCommand,
+    );
+    if (inactiveShellTargetsProtectedStore(shellCommand) || harvestProtected) {
+      const next = harvestProtected && !ops.includes("unknown") ? ["unknown", ...ops] : [...ops];
+      if (next.includes("unknown")) return ["unknown", "protected_store"];
+      return ["protected_store"];
     }
     return ops;
   }
@@ -4954,7 +4964,7 @@ export function hasProtectedDestOfWriteUnknown(command: string): boolean {
 /**
  * Inactive Shell half (#4709): hasAuthzDirShellWrite or dest-of-write unknown.
  * classifyHookAuthzOps appends protected_store from this pin. #4188 harvest
- * realpath stays dispatcher composition (I/O); harvest-only inactive is residual.
+ * realpath against projectRoot/cwd closes non-lexical symlink aliases.
  */
 export function inactiveShellTargetsProtectedStore(command: string): boolean {
   return hasAuthzDirShellWrite(command) || hasProtectedDestOfWriteUnknown(command);

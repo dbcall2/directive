@@ -11,10 +11,16 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { decideHook, type HookPolicySeams } from "../hooks/dispatcher.js";
 import type { VerifyResult } from "../session/verify-session-ritual.js";
-import { harvestDestsOfWriteForRealpath, inactiveShellTargetsProtectedStore } from "./classify.js";
+import { startUatLease } from "./actions.js";
+import {
+  classifyHookAuthzOps,
+  harvestDestsOfWriteForRealpath,
+  inactiveShellTargetsProtectedStore,
+} from "./classify.js";
 import { evaluateAuthzMutation } from "./evaluate.js";
 import { evidenceSatisfiesImplementationApproval } from "./origin.js";
 import { shellCommandHasPayloadRootProtectedDestAfterRealpath } from "./protected-dest-realpath.js";
+import { loadGrant, saveGrant } from "./store.js";
 import type { AuthzState, HumanOriginGrant, UatLease } from "./types.js";
 
 const readyRitual: VerifyResult = {
@@ -2028,20 +2034,71 @@ describe("UAT protected dest-of-write fail-closed (#4188)", () => {
     expect(ordinary.code).not.toMatch(/^authz-/);
   });
 
-  itSymlink(
-    "pins #4188 harvest realpath; harvest-only inactive hook composition is residual (#4709)",
-    () => {
-      const root = mkdtempSync(join(tmpdir(), "deft-4709-4188-"));
-      temps.push(root);
-      mkdirSync(join(root, ".deft", "authz", "grants"), { recursive: true });
-      writeFileSync(join(root, ".deft", "authz", "grants", "g.json"), "{}\n");
-      symlinkSync(join(root, ".deft", "authz"), join(root, "build-cache"));
-      const command = "mkfile 1k build-cache/grants/g.json";
-      expect(harvestDestsOfWriteForRealpath(command)).toContain("build-cache/grants/g.json");
-      expect(shellCommandHasPayloadRootProtectedDestAfterRealpath(root, command)).toBe(true);
-      expect(inactiveShellTargetsProtectedStore(command)).toBe(false);
-    },
-  );
+  itSymlink("classifies harvest-only symlink Shell write as protected_store (#4709)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4709-4188-"));
+    temps.push(root);
+    mkdirSync(join(root, ".deft", "authz", "grants"), { recursive: true });
+    writeFileSync(join(root, ".deft", "authz", "grants", "g.json"), "{}\n");
+    symlinkSync(join(root, ".deft", "authz"), join(root, "build-cache"));
+    const command = "mkfile 1k build-cache/grants/g.json";
+    expect(harvestDestsOfWriteForRealpath(command)).toContain("build-cache/grants/g.json");
+    expect(shellCommandHasPayloadRootProtectedDestAfterRealpath(root, command)).toBe(true);
+    expect(inactiveShellTargetsProtectedStore(command)).toBe(false);
+    expect(
+      classifyHookAuthzOps({
+        toolName: "Bash",
+        shellCommand: command,
+        isDirectWrite: false,
+        projectRoot: root,
+      }),
+    ).toEqual(["unknown", "protected_store"]);
+  });
+
+  it("does not spend a single-use settings grant when protected_store later denies (#4709)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4709-spend-"));
+    temps.push(root);
+    mkdirSync(join(root, ".deft", "authz", "grants"), { recursive: true });
+    startUatLease({ projectRoot: root, campaignId: "uat-4709-spend", actor: "operator" });
+    const grant: HumanOriginGrant = {
+      schemaVersion: 1,
+      id: "settings-single-use-4709",
+      origin: {
+        kind: "operator-cli",
+        actor: "operator",
+        mintedAt: "2026-10-01T00:00:00Z",
+        mintedVia: "deft authz:grant",
+        eventRef: null,
+      },
+      scope: {
+        planRef: null,
+        repo: null,
+        branch: null,
+        worktree: null,
+        surfaces: ["**/*"],
+        operations: ["edit", "settings"],
+        storyIds: [],
+        issueIds: [],
+        cohortId: "fix-4709",
+      },
+      semantics: { expiresAt: null, singleUse: true, usedAt: null, revokedAt: null },
+    };
+    saveGrant(root, grant);
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: root,
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "cp /tmp/g.json .deft/authz/grants/g.json" },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision.verdict).toBe("deny");
+    expect(decision.code).toBe("authz-uat-deny");
+    expect(loadGrant(root, grant.id)?.semantics.usedAt).toBeNull();
+  });
 
   it("denies Write of the inventoried store on the inactive path (#4709)", () => {
     const root = mkdtempSync(join(tmpdir(), "deft-4709-write-"));
