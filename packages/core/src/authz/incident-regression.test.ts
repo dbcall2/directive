@@ -11,10 +11,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { decideHook, type HookPolicySeams } from "../hooks/dispatcher.js";
 import type { VerifyResult } from "../session/verify-session-ritual.js";
-import {
-  harvestDestsOfWriteForRealpath,
-  inactiveShellTargetsProtectedStore,
-} from "./classify.js";
+import { harvestDestsOfWriteForRealpath, inactiveShellTargetsProtectedStore } from "./classify.js";
 import { evaluateAuthzMutation } from "./evaluate.js";
 import { evidenceSatisfiesImplementationApproval } from "./origin.js";
 import { shellCommandHasPayloadRootProtectedDestAfterRealpath } from "./protected-dest-realpath.js";
@@ -2020,7 +2017,10 @@ describe("UAT protected dest-of-write fail-closed (#4188)", () => {
         host: "claude",
         event: "tool.before",
         projectRoot: "/project",
-        payload: { tool_name: "Bash", tool_input: { command: "gh repo edit --visibility private" } },
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "gh repo edit --visibility private" },
+        },
       },
       seams,
     );
@@ -2028,17 +2028,20 @@ describe("UAT protected dest-of-write fail-closed (#4188)", () => {
     expect(ordinary.code).not.toMatch(/^authz-/);
   });
 
-  itSymlink("pins #4188 harvest realpath; harvest-only inactive hook composition is residual (#4709)", () => {
-    const root = mkdtempSync(join(tmpdir(), "deft-4709-4188-"));
-    temps.push(root);
-    mkdirSync(join(root, ".deft", "authz", "grants"), { recursive: true });
-    writeFileSync(join(root, ".deft", "authz", "grants", "g.json"), "{}\n");
-    symlinkSync(join(root, ".deft", "authz"), join(root, "build-cache"));
-    const command = "mkfile 1k build-cache/grants/g.json";
-    expect(harvestDestsOfWriteForRealpath(command)).toContain("build-cache/grants/g.json");
-    expect(shellCommandHasPayloadRootProtectedDestAfterRealpath(root, command)).toBe(true);
-    expect(inactiveShellTargetsProtectedStore(command)).toBe(false);
-  });
+  itSymlink(
+    "pins #4188 harvest realpath; harvest-only inactive hook composition is residual (#4709)",
+    () => {
+      const root = mkdtempSync(join(tmpdir(), "deft-4709-4188-"));
+      temps.push(root);
+      mkdirSync(join(root, ".deft", "authz", "grants"), { recursive: true });
+      writeFileSync(join(root, ".deft", "authz", "grants", "g.json"), "{}\n");
+      symlinkSync(join(root, ".deft", "authz"), join(root, "build-cache"));
+      const command = "mkfile 1k build-cache/grants/g.json";
+      expect(harvestDestsOfWriteForRealpath(command)).toContain("build-cache/grants/g.json");
+      expect(shellCommandHasPayloadRootProtectedDestAfterRealpath(root, command)).toBe(true);
+      expect(inactiveShellTargetsProtectedStore(command)).toBe(false);
+    },
+  );
 
   it("denies Write of the inventoried store on the inactive path (#4709)", () => {
     const root = mkdtempSync(join(tmpdir(), "deft-4709-write-"));
