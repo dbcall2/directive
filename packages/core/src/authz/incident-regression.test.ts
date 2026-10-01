@@ -8,7 +8,7 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { decideHook, type HookPolicySeams } from "../hooks/dispatcher.js";
 import type { VerifyResult } from "../session/verify-session-ritual.js";
 import { startUatLease } from "./actions.js";
@@ -2052,6 +2052,36 @@ describe("UAT protected dest-of-write fail-closed (#4188)", () => {
         projectRoot: root,
       }),
     ).toEqual(["unknown", "protected_store"]);
+  });
+
+  itSymlink("hook payload root determines Shell harvest deny (#4709)", () => {
+    const cwdRoot = mkdtempSync(join(tmpdir(), "deft-4709-cwd-"));
+    const payload = mkdtempSync(join(tmpdir(), "deft-4709-payload-"));
+    temps.push(cwdRoot, payload);
+    mkdirSync(join(cwdRoot, ".deft", "authz", "grants"), { recursive: true });
+    writeFileSync(join(cwdRoot, ".deft", "authz", "grants", "g.json"), "{}\n");
+    symlinkSync(join(cwdRoot, ".deft", "authz"), join(cwdRoot, "build-cache"));
+    mkdirSync(join(payload, "build-cache", "grants"), { recursive: true });
+    writeFileSync(join(payload, "build-cache", "grants", "g.json"), "{}\n");
+    const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(cwdRoot);
+    try {
+      const decision = decideHook(
+        {
+          host: "claude",
+          event: "tool.before",
+          projectRoot: payload,
+          payload: {
+            tool_name: "Bash",
+            tool_input: { command: "mkfile 1k build-cache/grants/g.json" },
+          },
+        },
+        readySeams(),
+      );
+      expect(decision.verdict).toBe("allow");
+      expect(decision.code).not.toBe("authz-uat-deny");
+    } finally {
+      cwdSpy.mockRestore();
+    }
   });
 
   it("does not spend a single-use settings grant when protected_store later denies (#4709)", () => {

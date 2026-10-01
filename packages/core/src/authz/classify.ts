@@ -4878,7 +4878,7 @@ export function classifyHookAuthzOps(input: {
   readonly shellCommand: string | null;
   readonly isDirectWrite: boolean;
   readonly mcpArgsText?: string | null;
-  /** Payload root for #4188 harvest realpath. Defaults to process.cwd(). */
+  /** Payload root for #4188 harvest realpath. Blank/omitted skips harvest. */
   readonly projectRoot?: string | null;
 }): AuthzClassifiedOp[] {
   const { toolName, shellCommand, isDirectWrite } = input;
@@ -4895,12 +4895,11 @@ export function classifyHookAuthzOps(input: {
     // unknown stays first (active UAT grant-immune classifiable-form deny);
     // inactive unknown-allow then this deny. Drop grant-consuming ops (settings)
     // so a later store deny cannot spend a single-use grant. Lexical dests stay
-    // I/O-free; #4188 harvest realpath against projectRoot/cwd closes aliases.
-    const harvestRoot = (input.projectRoot ?? "").trim() || process.cwd();
-    const harvestProtected = shellCommandHasPayloadRootProtectedDestAfterRealpath(
-      harvestRoot,
-      shellCommand,
-    );
+    // I/O-free; #4188 harvest realpath uses the passed payload root only.
+    const harvestRoot = (input.projectRoot ?? "").trim();
+    const harvestProtected =
+      harvestRoot.length > 0 &&
+      shellCommandHasPayloadRootProtectedDestAfterRealpath(harvestRoot, shellCommand);
     if (inactiveShellTargetsProtectedStore(shellCommand) || harvestProtected) {
       const next = harvestProtected && !ops.includes("unknown") ? ["unknown", ...ops] : [...ops];
       if (next.includes("unknown")) return ["unknown", "protected_store"];
@@ -4964,7 +4963,7 @@ export function hasProtectedDestOfWriteUnknown(command: string): boolean {
 /**
  * Inactive Shell half (#4709): hasAuthzDirShellWrite or dest-of-write unknown.
  * classifyHookAuthzOps appends protected_store from this pin. #4188 harvest
- * realpath against projectRoot/cwd closes non-lexical symlink aliases.
+ * realpath against an explicit payload root closes non-lexical symlink aliases.
  */
 export function inactiveShellTargetsProtectedStore(command: string): boolean {
   return hasAuthzDirShellWrite(command) || hasProtectedDestOfWriteUnknown(command);

@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { SHELL_TOOL_NAMES } from "../hooks/tools.js";
 import {
   classifyHookAuthzOps,
@@ -2468,6 +2468,39 @@ describe("inactive Shell classifiers (#4709)", () => {
       ).toEqual(["unknown", "protected_store"]);
     } finally {
       rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  itSymlink("omitted projectRoot skips harvest against a process-directory alias (#4709)", () => {
+    const cwdRoot = mkdtempSync(join(tmpdir(), "deft-4709-classify-cwd-"));
+    const payload = mkdtempSync(join(tmpdir(), "deft-4709-classify-payload-"));
+    mkdirSync(join(cwdRoot, ".deft", "authz", "grants"), { recursive: true });
+    writeFileSync(join(cwdRoot, ".deft", "authz", "grants", "g.json"), "{}\n");
+    symlinkSync(join(cwdRoot, ".deft", "authz"), join(cwdRoot, "build-cache"));
+    mkdirSync(join(payload, "build-cache", "grants"), { recursive: true });
+    writeFileSync(join(payload, "build-cache", "grants", "g.json"), "{}\n");
+    const command = "mkfile 1k build-cache/grants/g.json";
+    const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(cwdRoot);
+    try {
+      expect(
+        classifyHookAuthzOps({
+          toolName: "Bash",
+          shellCommand: command,
+          isDirectWrite: false,
+        }),
+      ).not.toContain("protected_store");
+      expect(
+        classifyHookAuthzOps({
+          toolName: "Bash",
+          shellCommand: command,
+          isDirectWrite: false,
+          projectRoot: payload,
+        }),
+      ).not.toContain("protected_store");
+    } finally {
+      cwdSpy.mockRestore();
+      rmSync(cwdRoot, { recursive: true, force: true });
+      rmSync(payload, { recursive: true, force: true });
     }
   });
 });
