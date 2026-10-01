@@ -6,7 +6,6 @@ import {
   appendAuthzAudit,
   classifyHookAuthzOps,
   evaluateAuthzMutation,
-  inactiveShellTargetsProtectedStore,
   evidenceSatisfiesImplementationApproval,
   type HumanOriginGrant,
   listActiveHumanGrants,
@@ -1331,11 +1330,6 @@ function authzForMutation(
       branch,
       repo,
       worktree: projectRoot,
-      projectRoot,
-      protectedStoreShellWrite:
-        shellCommand !== null &&
-        (inactiveShellTargetsProtectedStore(shellCommand) ||
-          shellCommandHasPayloadRootProtectedDestAfterRealpath(projectRoot, shellCommand)),
     });
     recordAuthzAudit(projectRoot, decision, state, seams);
     if (!decision.allowed) {

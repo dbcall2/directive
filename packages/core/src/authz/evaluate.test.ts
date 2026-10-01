@@ -360,6 +360,43 @@ describe("inactive grant-store deny (#4709)", () => {
     expect(d.reason).toMatch(/suspend UAT/i);
   });
 
+  it("denies classified protected_store with no covering-grant escape", () => {
+    const inactive = evaluateAuthzMutation({
+      state: inactiveState(),
+      grants: [coveringGrant()],
+      op: "protected_store",
+      path: null,
+    });
+    expect(inactive.allowed).toBe(false);
+    expect(inactive.code).toBe("authz-uat-deny");
+    expect(inactive.humanApprovalRef).toBeNull();
+
+    const root = tempRoot();
+    startUatLease({ projectRoot: root, campaignId: "uat-4709", actor: "operator" });
+    const active = evaluateAuthzMutation({
+      state: loadAuthzState(root),
+      grants: [coveringGrant()],
+      op: "protected_store",
+      path: null,
+    });
+    expect(active.allowed).toBe(false);
+    expect(active.humanApprovalRef).toBeNull();
+  });
+
+  it("Write HOW uses worktree when projectRoot is omitted", () => {
+    const root = tempRoot();
+    mkdirSync(join(root, ".deft", "authz", "grants"), { recursive: true });
+    const d = evaluateAuthzMutation({
+      state: inactiveState(),
+      grants: [],
+      op: "edit",
+      path: ".deft/authz/grants/evil.json",
+      worktree: root,
+    });
+    expect(d.allowed).toBe(false);
+    expect(d.code).toBe("authz-uat-deny");
+  });
+
   it("still allows ordinary product edits when UAT is inactive", () => {
     const root = tempRoot();
     const d = evaluateAuthzMutation({

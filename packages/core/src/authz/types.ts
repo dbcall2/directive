@@ -161,7 +161,7 @@ export interface AuthzDecision {
   readonly reason: string;
   readonly humanApprovalRef: string | null;
   readonly approvedScope: GrantScope | null;
-  readonly attemptedOp: AuthzOperation | "test" | "evidence" | "unknown";
+  readonly attemptedOp: AuthzOperation | "test" | "evidence" | "unknown" | "protected_store";
   readonly path: string | null;
 }
 

@@ -35,7 +35,7 @@ export const UAT_SAFE_WRITE_GLOBS: readonly string[] = [
 export interface EvaluateAuthzInput {
   readonly state: AuthzState;
   readonly grants: readonly HumanOriginGrant[];
-  readonly op: AuthzOperation | "test" | "evidence" | "unknown";
+  readonly op: AuthzOperation | "test" | "evidence" | "unknown" | "protected_store";
   /** Project-relative POSIX path for edit ops; null when unclassifiable. */
   readonly path: string | null;
   readonly now?: Date;
@@ -315,7 +315,7 @@ function isProtectedStoreEditDest(input: EvaluateAuthzInput): boolean {
   if (input.op !== "edit") return false;
   const dest = input.path;
   if (dest === null || dest.trim().length === 0) return false;
-  const root = input.projectRoot;
+  const root = input.worktree ?? input.projectRoot;
   if (root === null || root === undefined || root.trim().length === 0) return false;
   return resolvedDestIsPayloadRootProtected(root, dest);
 }
@@ -347,6 +347,11 @@ export function evaluateAuthzMutation(input: EvaluateAuthzInput): AuthzDecision 
 
   // Write/Edit of the inventoried store: always-on, no findCoveringGrant (#4709).
   if (isProtectedStoreEditDest(input)) {
+    return deny("authz-uat-deny", PROTECTED_STORE_EXTERNAL_DENY, input);
+  }
+
+  // Shell half classified by classifyHookAuthzOps (not evaluate path glob).
+  if (input.op === "protected_store") {
     return deny("authz-uat-deny", PROTECTED_STORE_EXTERNAL_DENY, input);
   }
 

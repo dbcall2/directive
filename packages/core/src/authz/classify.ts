@@ -21,7 +21,12 @@ import {
 } from "../policy/runtime-authority.js";
 import type { AuthzOperation } from "./types.js";
 
-export type AuthzClassifiedOp = AuthzOperation | "test" | "evidence" | "unknown";
+export type AuthzClassifiedOp =
+  | AuthzOperation
+  | "test"
+  | "evidence"
+  | "unknown"
+  | "protected_store";
 
 /**
  * Split on whitespace without nested quantifiers (O(n)).
@@ -4882,7 +4887,16 @@ export function classifyHookAuthzOps(input: {
     // Missing command string: fail open (host gap) — same posture as #2711.
     if (shellCommand === null) return [];
     // Empty classification (git status, tests without product verbs, …) is not gated.
-    return classifyShellAuthzOps(shellCommand);
+    const ops = classifyShellAuthzOps(shellCommand);
+    // #4709: inventoried-store Shell write. Append last so dest-of-write unknown
+    // stays first (active UAT grant-immune classifiable-form deny) and inactive
+    // unknown-allow then this deny. Lexical classify stays I/O-free; #4188
+    // harvest realpath remains dispatcher composition (harvest-only inactive
+    // residual — class 4 forbids mixing dispatcher.ts into this change set).
+    if (inactiveShellTargetsProtectedStore(shellCommand)) {
+      return [...ops, "protected_store"];
+    }
+    return ops;
   }
 
   // MCP / bare names via #2711 classifier + PR heuristics (token-ish name checks).
@@ -4939,7 +4953,8 @@ export function hasProtectedDestOfWriteUnknown(command: string): boolean {
 
 /**
  * Inactive Shell half (#4709): hasAuthzDirShellWrite or dest-of-write unknown.
- * Dispatcher composes #4188 harvestDestsOfWriteForRealpath separately.
+ * classifyHookAuthzOps appends protected_store from this pin. #4188 harvest
+ * realpath stays dispatcher composition (I/O); harvest-only inactive is residual.
  */
 export function inactiveShellTargetsProtectedStore(command: string): boolean {
   return hasAuthzDirShellWrite(command) || hasProtectedDestOfWriteUnknown(command);

@@ -2412,4 +2412,37 @@ describe("inactive Shell classifiers (#4709)", () => {
     );
     expect(inactiveShellTargetsProtectedStore("gh issue close 4494")).toBe(false);
   });
+
+  it("appends protected_store last on hook Shell so unknown stays first", () => {
+    const destUnknown = classifyHookAuthzOps({
+      toolName: "Bash",
+      shellCommand: "mkfile 1k .deft/authz/grants/evil.json",
+      isDirectWrite: false,
+    });
+    expect(destUnknown[0]).toBe("unknown");
+    expect(destUnknown.at(-1)).toBe("protected_store");
+
+    const storeWrite = classifyHookAuthzOps({
+      toolName: "Bash",
+      shellCommand: "cp /tmp/g.json .deft/authz/grants/g.json",
+      isDirectWrite: false,
+    });
+    expect(storeWrite).toContain("settings");
+    expect(storeWrite.at(-1)).toBe("protected_store");
+
+    expect(
+      classifyHookAuthzOps({
+        toolName: "Bash",
+        shellCommand: "gh issue close 4494",
+        isDirectWrite: false,
+      }),
+    ).not.toContain("protected_store");
+    expect(
+      classifyHookAuthzOps({
+        toolName: "Write",
+        shellCommand: null,
+        isDirectWrite: true,
+      }),
+    ).toEqual(["edit"]);
+  });
 });
