@@ -255,6 +255,25 @@ describe("runReleaseCheck", () => {
     expect(msg).toContain("exit 42");
   });
 
+  it("encodes failed-test count from suite tee without raw suite bytes (#4244)", () => {
+    const [ok, msg] = runReleaseCheck("/proj", {
+      dispatchCheck: (_fw, _proj, seams) => {
+        seams?.onCheckComplete?.({
+          exitCode: 1,
+          gates: [{ id: "ts:check-lane", status: "failed", exit_code: 1 }],
+          suiteTeeText:
+            "DEFT_TOKEN=secret-value\n FAIL  packages/core/src/foo.test.ts\nTests  2 failed | 10 passed (12)\n",
+        });
+        return 1;
+      },
+      resolveCoverageOfRecord: () => GREEN_CITE,
+    });
+    expect(ok).toBe(false);
+    expect(msg).toBe("task check failed (exit 1; 2 failed tests)");
+    expect(msg).not.toContain("secret-value");
+    expect(msg).not.toContain("foo.test.ts");
+  });
+
   it("does not treat SKIP_NOTICE plus status run as suite-ran", () => {
     const [ok, msg] = runReleaseCheck("/proj", {
       dispatchCheck: (_fw, _proj, seams) => {

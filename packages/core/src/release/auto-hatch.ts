@@ -355,6 +355,28 @@ export function parseExitCodeFromReason(reason: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * Count failed tests from a sanitized cause or thin reason (#4244 / #3282).
+ * Does not scan raw suite bytes — callers must pass extractGateCause output
+ * or the encoded `N failed tests` reason fragment.
+ */
+export function countFailedTestsFromSanitizedOutput(
+  output: string | null | undefined,
+): number | null {
+  if (!output) return null;
+  const testsLine = /(?:^|\n)\s*Tests\s+(\d+)\s+failed\b/i.exec(output);
+  if (testsLine) {
+    const n = Number.parseInt(testsLine[1] ?? "", 10);
+    return Number.isFinite(n) ? n : null;
+  }
+  const encoded = /(?:^|[;(]\s*)(\d+)\s+failed tests?\b/i.exec(output);
+  if (encoded) {
+    const n = Number.parseInt(encoded[1] ?? "", 10);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
 export function reasonLooksLikeTimeout(reason: string): boolean {
   return /timed out|timeout/i.test(reason);
 }

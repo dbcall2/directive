@@ -15,6 +15,17 @@ import {
   summarizeCoverageFinal,
 } from "./coverage-debt.js";
 
+describe("COVERAGE_GOAL (#4244)", () => {
+  it("stays at 85 unless #3512 records otherwise", () => {
+    expect(COVERAGE_GOAL).toEqual({
+      lines: 85,
+      functions: 85,
+      branches: 85,
+      statements: 85,
+    });
+  });
+});
+
 describe("parseCoverageDebtIssueNumber", () => {
   it("accepts #N and bare N", () => {
     expect(parseCoverageDebtIssueNumber("#2573")).toBe(2573);

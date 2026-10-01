@@ -90,6 +90,17 @@ describe("vitest.config.ts Windows coverage tmp regression (#2634)", () => {
   });
 });
 
+describe("vitest.config.ts coverage json producer (#4244)", () => {
+  const source = readFileSync(configPath, "utf8");
+
+  it("includes json in coverage.reporter so coverage-final.json is produced", () => {
+    const block = /coverage:\s*\{[\s\S]*?reporter:\s*\[([^\]]+)\]/.exec(source)?.[1] ?? "";
+    expect(block).toMatch(/["']text["']/);
+    expect(block).toMatch(/["']text-summary["']/);
+    expect(block).toMatch(/["']json["']/);
+  });
+});
+
 describe("vitest.config.ts coverage threshold contract (#2573)", () => {
   const source = readFileSync(configPath, "utf8");
 

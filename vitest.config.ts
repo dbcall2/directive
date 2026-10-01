@@ -351,7 +351,7 @@ export default defineConfig({
         "packages/cli/src/*-fixtures.ts",
         "packages/core/src/**/*.helpers.ts",
       ],
-      reporter: ["text", "text-summary"],
+      reporter: ["text", "text-summary", "json"],
       thresholds:
         coverageDebtIssue !== null
           ? { lines: 0, functions: 0, branches: 0, statements: 0 }

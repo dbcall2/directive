@@ -5,6 +5,7 @@ import { readCoverageTotalsFromReport } from "../vitest-runner/coverage-debt.js"
 import {
   buildCoverageDebtIssueDraft,
   classifyStep5FailureWithFreshness,
+  countFailedTestsFromSanitizedOutput,
   evaluateAutoHatch,
   formatAutoHatchBanner,
   parseExitCodeFromReason,
@@ -342,12 +343,21 @@ export function runPipeline(config: ReleaseConfig, seams: ReleaseSeams = {}): nu
             : coverageReportMtimeMs != null && coverageReportMtimeMs > suiteStartedAtMs
               ? coverageReportMtimeMs
               : null;
+        if (coverageReportMtimeMs !== undefined && suiteBoundMtime === null) {
+          const declined =
+            coverageReportMtimeMs == null
+              ? "coverage-final.json missing after suite"
+              : "coverage-final.json mtime not strictly after suite start";
+          process.stderr.write(`auto-hatch: suite-bound coverage mtime declined (${declined})\n`);
+        }
         const exitCode = parseExitCodeFromReason(reason);
+        const failedTests = countFailedTestsFromSanitizedOutput(reason);
         const classification = classifyStep5FailureWithFreshness({
           output: reason,
           totals,
           exitCode,
           timedOut: reasonLooksLikeTimeout(reason) || exitCode === 124,
+          failedTests,
           coverageReportMtimeMs: suiteBoundMtime,
           nowMs: Date.now(),
         });

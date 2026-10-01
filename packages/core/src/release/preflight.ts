@@ -11,6 +11,7 @@
  * coverage-of-record and is cited fail-closed on the success tee.
  */
 import { spawnSync } from "node:child_process";
+import { extractGateCause } from "../check/named-cause.js";
 import type { CachedCheckCompletion, CheckOrchestratorSeams } from "../check/orchestrator.js";
 import { dispatchTaskCheck } from "../check/orchestrator.js";
 import { suiteActuallyRan } from "../check/suite-gate-supervisor.js";
@@ -21,6 +22,7 @@ import {
   ENV_CHECK_MODE,
   ENV_HYGIENE_ADVISORY,
 } from "../product-first-done-gate/index.js";
+import { countFailedTestsFromSanitizedOutput } from "./auto-hatch.js";
 import {
   COVERAGE_DEBT_ENV,
   DEFAULT_REPO,
@@ -262,6 +264,27 @@ export function formatReleaseCheckTimeoutMessage(
 }
 
 /**
+ * Thin Step 5 failure reason. Encode a failed-test count from extractGateCause
+ * of the suite tee; never attach raw suite bytes (#4244 / #3282).
+ */
+export function formatReleaseCheckFailureReason(
+  code: number,
+  completion: CachedCheckCompletion | undefined,
+): string {
+  const failedGate =
+    completion?.gates.find((g) => g.exit_code !== 0 && g.exit_code != null) ??
+    completion?.gates.find((g) => g.status === "failed");
+  const gateId = failedGate?.id?.trim();
+  const tee = completion?.suiteTeeText ?? "";
+  const cause = extractGateCause(tee, "", code, undefined, gateId);
+  const failedTests = countFailedTestsFromSanitizedOutput(cause);
+  if (failedTests !== null && failedTests > 0) {
+    return `task check failed (exit ${code}; ${failedTests} failed tests)`;
+  }
+  return `task check failed (exit ${code})`;
+}
+
+/**
  * Run the native TypeScript `task check` as the release pre-flight.
  *
  * Returns the pipeline's standard `[ok, message]` tuple. The maintainer release
@@ -319,5 +342,5 @@ export function runReleaseCheck(
       `ran native TypeScript task check; ${formatCoverageOfRecordCite(citeResult.cite)}`,
     ];
   }
-  return [false, `task check failed (exit ${code})`];
+  return [false, formatReleaseCheckFailureReason(code, completion)];
 }
