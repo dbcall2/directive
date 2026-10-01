@@ -1,11 +1,10 @@
 {
   "schema": "deft.evaluator-surface-disposition.v1",
   "kind": "disclosure",
-  "issue": 1617,
+  "issue": 4244,
   "surfaces": [
-    "Taskfile.yml",
-    "tasks/verify.yml",
+    "vitest.config.ts",
     "xbrief/evaluator-surface-disposition.json"
   ],
-  "note": "Renewed disclosure for #1617 WSL ownership Taskfile include + verify:ownership wiring (Taskfile.yml / tasks/verify.yml). Disclosure only; not #3164 authorization."
+  "note": "Renewed disclosure for #4244 json coverage reporter on vitest.config.ts. Disclosure only; not #3164 authorization."
 }
