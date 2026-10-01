@@ -1751,7 +1751,7 @@ describe("destination-visible empty-op fallback (#4005)", () => {
     }
   });
 
-  it("allows the same unknown operations when UAT is inactive", () => {
+  it("denies the same unknown operations when UAT is inactive (#4709)", () => {
     const seams = seamsFor({ schemaVersion: 1, uat: null, activeGrantIds: [] });
     for (const command of protectedDestinationCommands) {
       const decision = decideHook(
@@ -1763,8 +1763,9 @@ describe("destination-visible empty-op fallback (#4005)", () => {
         },
         seams,
       );
-      expect(decision.verdict, command).toBe("allow");
-      expect(decision.code, command).not.toMatch(/^authz-/);
+      expect(decision.verdict, command).toBe("deny");
+      expect(decision.code, command).toMatch(/^authz-/);
+      expect(decision.message, command).toMatch(/covering-grant escape|inventoried authz store/i);
     }
   });
 
@@ -1900,7 +1901,7 @@ describe("UAT protected dest-of-write fail-closed (#4188)", () => {
     }
   });
 
-  it("allows the same unknown dest-of-write when UAT is inactive", () => {
+  it("denies dest-of-write unknown targeting the protected set when UAT is inactive (#4709)", () => {
     const seams = seamsFor({ schemaVersion: 1, uat: null, activeGrantIds: [] });
     for (const command of protectedDestCommands) {
       const decision = decideHook(
@@ -1912,8 +1913,9 @@ describe("UAT protected dest-of-write fail-closed (#4188)", () => {
         },
         seams,
       );
-      expect(decision.verdict, command).toBe("allow");
-      expect(decision.code, command).not.toMatch(/^authz-/);
+      expect(decision.verdict, command).toBe("deny");
+      expect(decision.code, command).toMatch(/^authz-/);
+      expect(decision.message, command).toMatch(/covering-grant escape|inventoried authz store/i);
     }
   });
 
@@ -1988,5 +1990,59 @@ describe("UAT protected dest-of-write fail-closed (#4188)", () => {
     );
     expect(outside.verdict).toBe("allow");
     expect(outside.code).toBe("shell-op-unclassifiable");
+  });
+
+  it("denies hasAuthzDirShellWrite grant-store plants when UAT is inactive (#4709)", () => {
+    const seams = seamsFor({ schemaVersion: 1, uat: null, activeGrantIds: [] });
+    for (const command of [
+      "cp /tmp/g.json .deft/authz/grants/g.json",
+      'echo {"x":1} > .deft/authz/grants/evil.json',
+    ]) {
+      const decision = decideHook(
+        {
+          host: "claude",
+          event: "tool.before",
+          projectRoot: "/project",
+          payload: { tool_name: "Bash", tool_input: { command } },
+        },
+        seams,
+      );
+      expect(decision.verdict, command).toBe("deny");
+      expect(decision.code, command).toMatch(/^authz-/);
+    }
+    const ordinary = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: { tool_name: "Bash", tool_input: { command: "gh repo edit --visibility private" } },
+      },
+      seams,
+    );
+    expect(ordinary.verdict).toBe("allow");
+    expect(ordinary.code).not.toMatch(/^authz-/);
+  });
+
+  itSymlink("realpath harvest dest-of-write denies on the inactive path (#4709)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-4709-4188-"));
+    temps.push(root);
+    mkdirSync(join(root, ".deft", "authz", "grants"), { recursive: true });
+    writeFileSync(join(root, ".deft", "authz", "grants", "g.json"), "{}\n");
+    symlinkSync(join(root, ".deft", "authz"), join(root, "build-cache"));
+    const seams = seamsFor({ schemaVersion: 1, uat: null, activeGrantIds: [] });
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: root,
+        payload: {
+          tool_name: "Bash",
+          tool_input: { command: "mkfile 1k build-cache/grants/g.json" },
+        },
+      },
+      seams,
+    );
+    expect(decision.verdict).toBe("deny");
+    expect(decision.code).toMatch(/^authz-/);
   });
 });

@@ -4,6 +4,9 @@ import {
   classifyHookAuthzOps,
   classifyShellAuthzOps,
   harvestDestsOfWriteForRealpath,
+  hasAuthzDirShellWrite,
+  hasProtectedDestOfWriteUnknown,
+  inactiveShellTargetsProtectedStore,
 } from "./classify.js";
 
 describe("classifyShellAuthzOps (#2944)", () => {
@@ -2380,5 +2383,33 @@ describe("unique destination grammar (#3804)", () => {
     expect(
       classifyShellAuthzOps("flatpak-builder --repodir=.deft/authz/grants build manifest"),
     ).toEqual(["settings"]);
+  });
+});
+
+describe("inactive Shell classifiers (#4709)", () => {
+  it("pins hasAuthzDirShellWrite for grant-store writes, not reads", () => {
+    expect(hasAuthzDirShellWrite("cp /tmp/g.json .deft/authz/grants/g.json")).toBe(true);
+    expect(hasAuthzDirShellWrite('echo {"x":1} > .deft/authz/grants/evil.json')).toBe(true);
+    expect(hasAuthzDirShellWrite("cat .deft/authz/state.json")).toBe(false);
+    expect(hasAuthzDirShellWrite("git status")).toBe(false);
+  });
+
+  it("pins dest-of-write unknown targeting the protected set, not issue-close unknown", () => {
+    expect(hasProtectedDestOfWriteUnknown("mkfile 1k .deft/authz/grants/evil.json")).toBe(true);
+    expect(hasProtectedDestOfWriteUnknown("zip .deft/authz/grants/evil.json /etc/hosts")).toBe(
+      true,
+    );
+    expect(hasProtectedDestOfWriteUnknown("gh issue close 4494")).toBe(false);
+    expect(hasProtectedDestOfWriteUnknown("git status")).toBe(false);
+  });
+
+  it("does not treat harvestDestsOfWriteForRealpath as the Write realpath", () => {
+    expect(harvestDestsOfWriteForRealpath("ar cr .deft/authz/grants/evil.json foo.o")).toContain(
+      ".deft/authz/grants/evil.json",
+    );
+    expect(inactiveShellTargetsProtectedStore("cp /tmp/g.json .deft/authz/grants/g.json")).toBe(
+      true,
+    );
+    expect(inactiveShellTargetsProtectedStore("gh issue close 4494")).toBe(false);
   });
 });

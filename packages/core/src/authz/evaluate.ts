@@ -12,6 +12,7 @@ import {
   isHumanOriginGrant,
   isRejectedOriginKind,
 } from "./origin.js";
+import { resolvedDestIsPayloadRootProtected } from "./protected-dest-realpath.js";
 import type {
   AuthzDecision,
   AuthzDecisionCode,
@@ -45,6 +46,16 @@ export interface EvaluateAuthzInput {
   readonly planRef?: string | null;
   readonly storyIds?: readonly string[];
   readonly issueIds?: readonly number[];
+  /**
+   * Payload root for Write/Edit realpath (#4709). Do not pass harvestDestsOfWriteForRealpath
+   * here — that helper is Shell-only.
+   */
+  readonly projectRoot?: string | null;
+  /**
+   * Shell half (#4709): hasAuthzDirShellWrite, dest-of-write unknown, or #4188 harvest.
+   * Not evaluate path glob. Not opt-in shellDestForms.
+   */
+  readonly protectedStoreShellWrite?: boolean;
 }
 
 function deny(
@@ -289,13 +300,36 @@ function findCoveringGrant(
   };
 }
 
+const PROTECTED_STORE_EXTERNAL_DENY =
+  "Directive denied this mutation: external Write, Edit, or Shell must not mutate the " +
+  "inventoried authz store or a protected dest-of-write targeting that set. There is no " +
+  "covering-grant escape. Only the human-presence-gated CLI mint flow (`deft authz:grant`) " +
+  "may create grant authority. saveGrant is persistence; dest workers load grants already " +
+  "on the tree.";
+
+/**
+ * Write/Edit HOW (#4709): path-at-evaluate after realpath of the tool dest.
+ * Does not use harvestDestsOfWriteForRealpath (Shell-only).
+ */
+function isProtectedStoreEditDest(input: EvaluateAuthzInput): boolean {
+  if (input.op !== "edit") return false;
+  const dest = input.path;
+  if (dest === null || dest.trim().length === 0) return false;
+  const root = input.projectRoot;
+  if (root === null || root === undefined || root.trim().length === 0) return false;
+  return resolvedDestIsPayloadRootProtected(root, dest);
+}
+
 /**
  * Evaluate a mutation under UAT lease + human-origin grants.
  *
- * When UAT is inactive, returns allow/authz-inactive (no new denials) so Wave 1
- * does not break non-UAT workflows. When UAT is active, product mutations fail
- * closed unless a named fix-cohort human-origin grant covers the op/surface.
+ * When UAT is inactive, ordinary product mutations still allow/authz-inactive.
+ * External Write/Edit/Shell that mutate the inventoried authz store (or a
+ * protected dest-of-write targeting that set) deny with no covering-grant
+ * escape (#4709). When UAT is active, other product mutations fail closed
+ * unless a named fix-cohort human-origin grant covers the op/surface.
  * Test / evidence / issue_mutation ops stay allowed under UAT without a grant.
+ * Active UAT dest-of-write unknown stays grant-immune on the unknown branch.
  */
 export function evaluateAuthzMutation(input: EvaluateAuthzInput): AuthzDecision {
   const uat = activeUat(input.state);
@@ -311,7 +345,16 @@ export function evaluateAuthzMutation(input: EvaluateAuthzInput): AuthzDecision 
     );
   }
 
+  // Write/Edit of the inventoried store: always-on, no findCoveringGrant (#4709).
+  if (isProtectedStoreEditDest(input)) {
+    return deny("authz-uat-deny", PROTECTED_STORE_EXTERNAL_DENY, input);
+  }
+
   if (uat === null) {
+    // Shell half on the inactive path: classifiers, not evaluate path glob.
+    if (input.protectedStoreShellWrite === true) {
+      return deny("authz-uat-deny", PROTECTED_STORE_EXTERNAL_DENY, input);
+    }
     // Outside UAT: Wave 1 does not require grants for every edit (that would
     // break normal implement sessions). Self-authored evidence still never
     // counts if a caller asks isHumanOriginGrant / evidenceSatisfies… —
@@ -332,6 +375,11 @@ export function evaluateAuthzMutation(input: EvaluateAuthzInput): AuthzDecision 
         "(`deft authz:uat-suspend`).",
       input,
     );
+  }
+
+  // Store-targeting Shell settings: do not reuse findCoveringGrant (#4709).
+  if (input.protectedStoreShellWrite === true) {
+    return deny("authz-uat-deny", PROTECTED_STORE_EXTERNAL_DENY, input);
   }
 
   // Safe write paths (defect capture / evidence) stay open without a cohort grant.

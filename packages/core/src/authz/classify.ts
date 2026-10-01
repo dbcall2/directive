@@ -3835,8 +3835,9 @@ function hasPerlBareOpenWrite(haystack: string): boolean {
  *
  * Chosen rule (#3186): classify write-capable programmatic Shell as **settings** so
  * active UAT fails closed (not shell-op-unclassifiable allow) even when the path is
- * built at runtime without a literal `.deft/authz` substring. Outside UAT, evaluate
- * still returns authz-inactive allow — classification alone is not a hard deny.
+ * built at runtime without a literal `.deft/authz` substring. Outside UAT, ordinary
+ * settings still allow; inventoried authz-store / protected dest-of-write Shell is
+ * denied by evaluate (#4709) from these classifiers, not from path glob or shellDestForms.
  *
  * Read-only `open(...).read()` does **not** count as writeish (Greptile P1).
  * Quoted data containing `.write(` does **not** count (Greptile conf residual).
@@ -4065,7 +4066,7 @@ function destMentionsAuthzSegment(dest: string): boolean {
  * Pathish/token checks run even when the raw command lacks contiguous `.deft/authz`
  * text (quote-split residual: `cp x '.deft/'authz'/grants/y'`).
  */
-function hasAuthzDirShellWrite(command: string, tokens: readonly string[]): boolean {
+function commandHasAuthzDirShellWrite(command: string, tokens: readonly string[]): boolean {
   const lower = command.toLowerCase().replace(/\\/g, "/");
   // Quote-stripped contiguous form for redirect dest checks (#3213).
   const stripped = lower.replace(/['"]/g, "");
@@ -4559,7 +4560,7 @@ export function classifyShellAuthzOps(command: string): AuthzClassifiedOp[] {
   if (hasDeploy(tokens)) found.add("deployment");
   // #3110: authz authority CLI + store **writes** (literal / split / $VAR / rm) → settings.
   if (hasAuthzMutatingCli(tokens)) found.add("settings");
-  if (hasAuthzDirShellWrite(cmd, tokens)) found.add("settings");
+  if (commandHasAuthzDirShellWrite(cmd, tokens)) found.add("settings");
   // #3186: kill-switch plant + policy authority mutators → settings (UAT fail-closed).
   if (hasKillSwitchShellWrite(cmd, tokens)) found.add("settings");
   if (hasPolicyAuthorityMutator(tokens)) found.add("settings");
@@ -4906,6 +4907,42 @@ export function classifyHookAuthzOps(input: {
 
   // Unrelated tools — not gated by Wave 1 authz (prefer fail-open over false deny).
   return [];
+}
+
+/**
+ * Public pin for #4709: Shell write targeting `.deft/authz/` or `.deft/approved-scope/`.
+ * Reads stay false. Not an evaluate path glob and not opt-in shellDestForms.
+ */
+export function hasAuthzDirShellWrite(command: string): boolean {
+  const cmd = command.trim();
+  if (cmd.length === 0) return false;
+  return commandHasAuthzDirShellWrite(cmd, shellTokens(cmd));
+}
+
+/**
+ * Dest-of-write unknown targeting the #4188 protected set (grant store, approved-scope,
+ * kill-switch). Close-shaped issue writes are not this class.
+ */
+export function hasProtectedDestOfWriteUnknown(command: string): boolean {
+  const cmd = command.trim();
+  if (cmd.length === 0) return false;
+  const tokens = shellTokens(cmd);
+  const uniqueArchiveDest = hasProtectedUniqueArchiveDest(cmd);
+  const destOfWriteUnknown =
+    uniqueArchiveDest ||
+    hasProtectedZipArchiveDestination(cmd) ||
+    hasProtectedUnprovenReadOnlyDestOfWrite(cmd);
+  const attachedProtected = hasProtectedAttachedDestOfWrite(cmd);
+  if (destOfWriteUnknown || attachedProtected) return true;
+  return hasWriteShapedProtectedSettingsDest(cmd, tokens);
+}
+
+/**
+ * Inactive Shell half (#4709): hasAuthzDirShellWrite or dest-of-write unknown.
+ * Dispatcher composes #4188 harvestDestsOfWriteForRealpath separately.
+ */
+export function inactiveShellTargetsProtectedStore(command: string): boolean {
+  return hasAuthzDirShellWrite(command) || hasProtectedDestOfWriteUnknown(command);
 }
 
 /** Re-export #2711 classifiers for composition docs/tests. */
