@@ -1,0 +1,925 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #4709",
+    "updated": "2026-10-01T19:35:33Z"
+  },
+  "plan": {
+    "title": "bug(authz): inactive-path grant-store Write plants operator-cli and reopens first-write",
+    "status": "completed",
+    "narratives": {
+      "Description": "bug(authz): inactive-path grant-store Write plants operator-cli and reopens first-write",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/4709",
+      "Overview": "\n\n- External Write and Edit that mutate the inventoried authz store deny on the inactive path with no covering-grant escape. HOW for Write/Edit is path-at-evaluate after realpath of the tool dest (resolvedDestIsPayloadRootProtected or equivalent). Do not treat harvestDestsOfWriteForRealpath as the Write realpath. Recut the covering-grant-allows test. Add the Shell-equivalent deny.\n- Shell half only: pin hasAuthzDirShellWrite, dest-of-write unknown, and #4188 harvestDestsOfWriteForRealpath. The inactive Shell deny fires from that classification, not from evaluate path glob and not from opt-in shellDestForms.\n- Inactive deny includes dest-of-write unknown targeting the protected set. Active UAT keeps unknown grant-immune. Do not reuse findCoveringGrant for settings or for this store.\n- Require #4188 (or equivalent realpath) for non-shell destinations. Name any remaining residual as pre-existing or out-of-hook aliases only.\n- Only the human-presence-gated CLI mint flow may create grant authority. saveGrant is persistence. Dest workers load; they do not tool-Write. First-grant placement is not this leftover. Codex timeout-as-allow stays on #3739.\n\nrelieves: P1\n\n",
+      "Labels": "bug, security, agent-experience, urgent, area:cli, design-critique:ingest-ready, core-capabilities, promise:gates"
+    },
+    "items": [
+      {
+        "id": "clause.1",
+        "title": "bug(authz): inactive-path grant-store Write plants operator-cli and reopens first-write",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/classify.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.2",
+        "title": "External Write and Edit that mutate the inventoried authz store deny on the inactive path with no covering-grant escape.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/classify.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.3",
+        "title": "HOW for Write/Edit is path-at-evaluate after realpath of the tool dest (resolvedDestIsPayloadRootProtected or equivalent).",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/evaluate.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.4",
+        "title": "Do not treat harvestDestsOfWriteForRealpath as the Write realpath.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/classify.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.5",
+        "title": "Recut the covering-grant-allows test.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/evaluate.test.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.6",
+        "title": "Add the Shell-equivalent deny.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/classify.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.7",
+        "title": "Shell half only: pin hasAuthzDirShellWrite, dest-of-write unknown, and #4188 harvestDestsOfWriteForRealpath.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/classify.test.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.8",
+        "title": "The inactive Shell deny fires from that classification, not from evaluate path glob and not from opt-in shellDestForms.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/classify.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.9",
+        "title": "Inactive deny includes dest-of-write unknown targeting the protected set.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/evaluate.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.10",
+        "title": "Active UAT keeps unknown grant-immune.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "uat",
+          "pointer": "uat-evidence/3764-dest-of-write/64667b94a6afd263c0d70791be44175fd72bd65c.md",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.11",
+        "title": "Do not reuse findCoveringGrant for settings or for this store.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/evaluate.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.12",
+        "title": "Require #4188 (or equivalent realpath) for non-shell destinations.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/incident-regression.test.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.13",
+        "title": "Name any remaining residual as pre-existing or out-of-hook aliases only.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/incident-regression.test.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.14",
+        "title": "Only the human-presence-gated CLI mint flow may create grant authority.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/evaluate.test.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.15",
+        "title": "saveGrant is persistence.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/evaluate.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.16",
+        "title": "Dest workers load; they do not tool-Write.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/evaluate.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.17",
+        "title": "First-grant placement is not this leftover.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/evaluate.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.18",
+        "title": "Codex timeout-as-allow stays on #3739.",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/incident-regression.test.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      },
+      {
+        "id": "clause.19",
+        "title": "relieves: P1",
+        "status": "completed",
+        "x-directive/evidence": {
+          "kind": "test",
+          "pointer": "packages/core/src/authz/classify.ts",
+          "recorded_at": "2026-10-01T19:35:32Z",
+          "recorded_by": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "security",
+      "agent-experience",
+      "urgent",
+      "area:cli",
+      "design-critique:ingest-ready",
+      "core-capabilities",
+      "promise:gates"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/4709",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #4709: bug(authz): inactive-path grant-store Write plants operator-cli and reopens first-write"
+      }
+    ],
+    "acceptance": {
+      "commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/authz/classify.test.ts packages/core/src/authz/evaluate.test.ts packages/core/src/authz/incident-regression.test.ts --coverage.enabled=false"
+        }
+      ],
+      "none_stated": false,
+      "source_rung": "derived",
+      "derived_reason": "derived 5 independently testable clauses from the task statement before product edit (#3323)",
+      "sentences": [
+        "bug(authz): inactive-path grant-store Write plants operator-cli and reopens first-write",
+        "External Write and Edit that mutate the inventoried authz store deny on the inactive path with no covering-grant escape.",
+        "HOW for Write/Edit is path-at-evaluate after realpath of the tool dest (resolvedDestIsPayloadRootProtected or equivalent).",
+        "Do not treat harvestDestsOfWriteForRealpath as the Write realpath.",
+        "Recut the covering-grant-allows test.",
+        "Add the Shell-equivalent deny.",
+        "Shell half only: pin hasAuthzDirShellWrite, dest-of-write unknown, and #4188 harvestDestsOfWriteForRealpath.",
+        "The inactive Shell deny fires from that classification, not from evaluate path glob and not from opt-in shellDestForms.",
+        "Inactive deny includes dest-of-write unknown targeting the protected set.",
+        "Active UAT keeps unknown grant-immune.",
+        "Do not reuse findCoveringGrant for settings or for this store.",
+        "Require #4188 (or equivalent realpath) for non-shell destinations.",
+        "Name any remaining residual as pre-existing or out-of-hook aliases only.",
+        "Only the human-presence-gated CLI mint flow may create grant authority.",
+        "saveGrant is persistence.",
+        "Dest workers load; they do not tool-Write.",
+        "First-grant placement is not this leftover.",
+        "Codex timeout-as-allow stays on #3739.",
+        "relieves: P1"
+      ],
+      "admitted_source_sentences": [
+        "External Write and Edit that mutate the inventoried authz store deny on the inactive path with no covering-grant escape.",
+        "HOW for Write/Edit is path-at-evaluate after realpath of the tool dest (resolvedDestIsPayloadRootProtected or equivalent).",
+        "Do not treat harvestDestsOfWriteForRealpath as the Write realpath.",
+        "Recut the covering-grant-allows test.",
+        "Add the Shell-equivalent deny.",
+        "Shell half only: pin hasAuthzDirShellWrite, dest-of-write unknown, and #4188 harvestDestsOfWriteForRealpath.",
+        "The inactive Shell deny fires from that classification, not from evaluate path glob and not from opt-in shellDestForms.",
+        "Inactive deny includes dest-of-write unknown targeting the protected set.",
+        "Active UAT keeps unknown grant-immune.",
+        "Do not reuse findCoveringGrant for settings or for this store.",
+        "Require #4188 (or equivalent realpath) for non-shell destinations.",
+        "Name any remaining residual as pre-existing or out-of-hook aliases only.",
+        "Only the human-presence-gated CLI mint flow may create grant authority.",
+        "saveGrant is persistence.",
+        "Dest workers load; they do not tool-Write.",
+        "First-grant placement is not this leftover.",
+        "Codex timeout-as-allow stays on #3739.",
+        "relieves: P1"
+      ],
+      "admitted_source_digest": "71191baff7bae8ab96d7ec3a609c85067812e0f6056a9145e0564e082bf05ea6",
+      "clauses": [
+        {
+          "id": "1",
+          "text": "bug(authz): inactive-path grant-store Write plants operator-cli and reopens first-write",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "2",
+          "text": "External Write and Edit that mutate the inventoried authz store deny on the inactive path with no covering-grant escape.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "3",
+          "text": "HOW for Write/Edit is path-at-evaluate after realpath of the tool dest (resolvedDestIsPayloadRootProtected or equivalent).",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "4",
+          "text": "Do not treat harvestDestsOfWriteForRealpath as the Write realpath.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "5",
+          "text": "Recut the covering-grant-allows test.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "6",
+          "text": "Add the Shell-equivalent deny.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "7",
+          "text": "Shell half only: pin hasAuthzDirShellWrite, dest-of-write unknown, and #4188 harvestDestsOfWriteForRealpath.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "8",
+          "text": "The inactive Shell deny fires from that classification, not from evaluate path glob and not from opt-in shellDestForms.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "9",
+          "text": "Inactive deny includes dest-of-write unknown targeting the protected set.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "10",
+          "text": "Active UAT keeps unknown grant-immune.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "11",
+          "text": "Do not reuse findCoveringGrant for settings or for this store.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "12",
+          "text": "Require #4188 (or equivalent realpath) for non-shell destinations.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "13",
+          "text": "Name any remaining residual as pre-existing or out-of-hook aliases only.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "14",
+          "text": "Only the human-presence-gated CLI mint flow may create grant authority.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "15",
+          "text": "saveGrant is persistence.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "16",
+          "text": "Dest workers load; they do not tool-Write.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "17",
+          "text": "First-grant placement is not this leftover.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "18",
+          "text": "Codex timeout-as-allow stays on #3739.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": "19",
+          "text": "relieves: P1",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found",
+      "confessions": []
+    },
+    "metadata": {
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [],
+        "module_boundary": ""
+      },
+      "issueCommentThread": [
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: triage\n```\n\ndesign-critique: warranted, because inactive-path grant-store Write still plants operator-cli and reopens first-write; a Bound-remedy that requires a live human-origin grant does not close P1 while that plant is allowed.\n\nmechanism-shaped: true\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4709-dc\norigin-ref: origin/master\ndispatch-sha: cb4c74369a888faabd01e7f8d3517b01ce25f2f1\n\ncharter: refutation\nspend: N≥3\nspend-ask: asked\nspend-why: operator answer after missing-token ask: n>=3 on 4744 4709 4711, rest n=1. Stop 2 permits N>=3 on authz grant-store blast radius; operator used that permission. Leftover of #4690 after blocking pain-audit 5716889923 and Handoff 5717045288.\n\nrefutation-target: Write, Edit, and Shell that mutate .deft/authz/grants/** deny on the inactive path unless a covering live grant already exists. Only human-presence CLI saveGrant mints. Dest-placed implement workers consume a grant already on the dest tree; they do not mint. Do not add host-event, env, file copy, dispatch-envelope, xBRIEF lifecycle, or session:start as authority.\n\ntarget: #4709\ntarget-shape: single-issue (default)\naudit-targets: none\n\npain: P1\n\n## Gate stamp\n\nP1 is classifyHookAuthzOps returning edit for every direct Write, then evaluateAuthzMutation allowing authz-inactive including grant-store paths. isHumanOriginGrant is structural: a planted operator-cli JSON is a live grant. HMAC of grant bytes stays a Wave 1 non-goal (#983). Codex nested PreToolUse timeout-as-allow composes with #3739; do not claim that remainder closed on this number.\n\nPin-read at dispatch-sha cb4c74369a888faabd01e7f8d3517b01ce25f2f1:\n\n- packages/core/src/authz/evaluate.ts evaluateAuthzMutation: uat === null returns allow/authz-inactive for product mutation, including grant-store paths.\n- packages/core/src/authz/origin.ts isHumanOriginGrant is structural (kind + actor); no HMAC.\n- packages/core/src/init-deposit/agent-hooks.ts NESTED_HOOK_TIMEOUT_SECONDS = 5 (Codex timeout-as-allow compose, defer remainder to #3739).\n- Related: #4690 leftover split operator-confirmed 2026-09-17; #2944; #3739; #983. Do not ingest #4690 as first-write closed.\n\nNo implement and no ingest from this parent.\n\n",
+          "id": 5730547678,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5730547678",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-18T13:17:05Z",
+          "updated_at": "2026-09-18T13:17:05Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\npanel-deposit\nround: 1\nsiblings: 3\ninput-ceiling: 5730581797\nfamilies: grok, claude, codex\nseat: grok launcher: spawn_subagent\nseat: claude launcher: claude\nseat: codex launcher: codex\n\nLaunch probe (critic-bypass, dest issue-4744-dc): grok/claude/codex each replied pong at rc 0. PATH resolved. evaluatePanelSeatComposition: three families, not paste-ready-first.\nSpend N>=3 from operator ask-answer. Dual-stop cap: 3 posts. No default retry.\n\n",
+          "id": 5730581797,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5730581797",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-18T13:19:58Z",
+          "updated_at": "2026-09-18T13:19:58Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: gpt-5\n```quarantined\nrole: critic\n```\n\naudit-targets: none\n\n## Verdict\n\nThe refutation target does not survive as written. The inactive-path deny is warranted, but the exception \"unless a covering live grant already exists\" gives an ordinary grant holder the power to manufacture stronger grants. That contradicts the stated invariant that only the human-presence CLI mints authority.\n\n## Finding 1 — A grant-store write grant is a subdelegation primitive\n\nblocks-the-design\n\nEvidence: at dispatch SHA `cb4c74369a888faabd01e7f8d3517b01ce25f2f1`, `parseGrant` accepts structurally valid JSON (`packages/core/src/authz/store.ts:143-157`), `isHumanOrigin` accepts an `operator-cli` origin with any non-agent-shaped actor (`packages/core/src/authz/origin.ts:38-48`), and `listActiveHumanGrants` treats every live human-shaped grant as active when `activeGrantIds` is empty (`packages/core/src/authz/store.ts:549-567`). `grantCoversSurface` then authorizes an edit to a covered path (`packages/core/src/authz/evaluate.ts:106-113,259-268`).\n\nConcrete failure mode: a human mints grant G for one edit under `.deft/authz/grants/**`. An agent uses G to Write a new structurally human-shaped grant G2 with broader operations, surfaces, lifetime, and cohort. With the default empty pin set, G2 is immediately active. A single-use G does not contain this: the hook consumes G before the tool executes, but the allowed tool can write G2 or overwrite G with unspent, broader bytes afterward.\n\nDisposition consequence: the target cannot bind with a normal \"covering grant\" exception. External Write/Edit/Shell mutations of the authority store must be unconditionally denied, or the exception must be a non-subdelegable, content-bound capability that proves the exact bytes and target. A normal edit/settings grant is insufficient.\n\n## Finding 2 — Existing Shell authorization cannot establish path coverage\n\nblocks-the-design\n\nEvidence: protected grant-store shell writes classify as `settings` (`packages/core/src/authz/classify.test.ts:151-165`), while `evaluateAuthzMutation` checks `scope.surfaces` only when `op === \"edit\"` (`packages/core/src/authz/evaluate.ts:249-268`). I reproduced the current method with an active UAT state: a human-origin `settings` grant scoped to `unrelated/**` allowed `op=\"settings\"`, `path=\".deft/authz/grants/evil.json\"`; the evaluator returned `authz-allow`. The focused pinned test run also passed: 4 files, 132 tests.\n\nConcrete failure mode: implementing the inactive-path rule by reusing `findCoveringGrant` for the Shell `settings` classification lets any otherwise-valid settings grant authorize a grant-store plant, even when its declared surfaces do not cover that path. The result looks path-scoped in the issue contract but is operation-only in the existing mechanism.\n\nDisposition consequence: the design must either remove the grant exception for Shell, introduce a dedicated non-delegable protected-store operation with explicit destination binding, or extend coverage semantics so `settings` mutations of this store are path-bound. Flipping the inactive branch in `evaluateAuthzMutation` alone does not implement the stated rule.\n\n## Finding 3 — `saveGrant` is not the human-presence boundary\n\nsharpens-framing\n\nEvidence: the human-presence proof lives in `refuseNonInteractiveMint` (agent/CI markers, stdin/stdout TTY, controlling terminal, `--confirm`, typed `mint`) at `packages/cli/src/human-presence-mint.ts:182-254`. The CLI calls that gate before `mintHumanOriginGrant` (`packages/cli/src/authz.ts:621-638`). `saveGrant` itself is an unguarded storage primitive (`packages/core/src/authz/store.ts:525-527`) and is also used for revoke and usage-state rewrites.\n\nConcrete failure mode: wording the invariant as \"human-presence saveGrant\" invites an implementation that treats a low-level write helper as trusted provenance, even though callers can reach it without the CLI gate and some legitimate calls do not mint.\n\nDisposition consequence: state the boundary as \"only the human-presence-gated CLI mint flow may create grant authority; low-level persistence is not provenance.\" Preserve internal revoke/consume persistence separately from external tool mutation.\n\n## Injection / swarm lens\n\nThis target changes authority and shared worktree state. A planted grant is persistent authority consumed by later hooks and workers; identity is structural, not cryptographic. Dest placement and an existing grant do not repair provenance, and no dispatch envelope, session state, or xBRIEF token should become an alternate mint channel. The same-store check followed by an unconstrained write is also a check/use gap: the checked grant limits the attempted operation, not the authority encoded in the bytes subsequently written.\n\n## Road not taken and steelman\n\nThe strongest case for the rejected exception is that a human-minted grant explicitly delegates maintenance of the store and avoids deadlocking repair. That would flip this verdict if the delegated operation were non-subdelegable and bound to exact target bytes (or verified by an integrity mechanism), so the write could not create or broaden authority. Under the recorded Wave 1 non-goal of HMAC and the current structural parser, that condition does not hold. The simpler safe shape is an absolute external-tool deny while the independently human-presence-gated CLI performs its internal store write.\n\n",
+          "id": 5730665183,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5730665183",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-18T13:26:54Z",
+          "updated_at": "2026-09-18T13:26:54Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: claude-opus-5\n```quarantined\nrole: critic\n```\n\naudit-targets: none\n\nRefutation charter, fresh critic, round 1. Pin-read at `cb4c74369a888faabd01e7f8d3517b01ce25f2f1`. Anchors re-run against the tree rather than accepted from the write-back.\n\n## Anchors re-verified\n\nAll four Stop 1 anchors hold, one of them more strongly than stated.\n\n- `packages/core/src/authz/classify.ts:4874` — `classifyHookAuthzOps` is `if (isDirectWrite) return [\"edit\"];` ahead of every other branch. Stronger than the write-back says: that function receives no path at all (`toolName`, `shellCommand`, `isDirectWrite`, `mcpArgsText`), so the direct-write class is decided path-blind. The path only exists one layer up.\n- `packages/core/src/authz/evaluate.ts:314` — `uat === null` returns `allow(\"authz-inactive\", …)` for every product op, path irrelevant. `classify.ts:3836` states this as chosen posture (\"Outside UAT, evaluate still returns authz-inactive allow — classification alone is not a hard deny\"), so this arc is moving a documented boundary, not patching an oversight. That is a point in the target's favour and worth keeping in the framing.\n- `packages/core/src/authz/origin.ts` — `isHumanOriginGrant` is `kind` membership plus a non-empty actor that is not `agent`/`agent:*`/`self`. No bytes check, as stated.\n- `packages/core/src/init-deposit/agent-hooks.ts:56` `NESTED_HOOK_TIMEOUT_SECONDS = 5`, and `packages/core/src/hooks/dispatcher.ts:3262` `renderHostDecision` falls through to `return \"\";` on the plain allow path. A dead nested hook is byte-identical to allow. Confirmed.\n\n## Finding 1 — the escape clause readmits the P1 through a legitimate mint — blocks-the-design\n\nEvidence. `evaluate.ts:106` `grantCoversSurface` returns `true` unconditionally when `grant.scope.surfaces.length === 0`. The target's escape is \"unless a covering live grant already exists\", and an empty surface list covers everything, including the grant store itself.\n\nFailure mode. Operator mints for a real fix cohort without narrowing surfaces — `deft authz:grant -- --cohort fix-123 --ops edit`. That grant is human-origin, live, and covers `edit` on any path. The agent now writes `.deft/authz/grants/self.json` with `origin.kind=operator-cli`, `expiresAt: null`, `singleUse: false`, `surfaces: []`. The write is permitted, because a covering live grant does exist. `listActiveHumanGrants` admits the new file (`state.activeGrantIds` is empty in the common case, so `pinSet` is null and every grant file in the directory is active), and the successor outlives the campaign, the cohort and the expiry that bounded its parent.\n\nDisposition consequence. The Bound-remedy does not close `P1`; it moves the precondition from \"no grant\" to \"any unrestricted grant\", and the second is the ordinary shape of a mint. Note the asymmetry that makes this sharp: on the inactive path the escape is usually vacuous (no grants exist), so the deny there is near-absolute — the escape only has teeth in exactly the state where it converts a bounded approval into a permanent one. The clause needs the grant store excluded from wildcard surface coverage: cover it only on an explicit surface match, never on the empty-surfaces default.\n\n## Finding 2 — clause 3 has no reachable state — blocks-the-design\n\nEvidence.\n\n- `.gitignore:59` is `.deft/*`, un-ignored only for `approved-scope/` and `intent-constraint/`. `git check-ignore -v` confirms `.deft/authz/grants/x.json` and `.deft/authz/state.json` both ignored, and `git ls-tree -r <pin> -- .deft` lists no `authz` path. Git cannot deliver a grant to a dest worktree.\n- `dispatcher.ts` `authzForMutation` loads the store via `loadAuthzContext(projectRoot)` where `projectRoot = resolve(input.projectRoot)` — the payload root, held there deliberately by #3794. Each worktree has its own store.\n- `packages/cli/src/human-presence-mint.ts` requires stdin **and** stdout TTY, a controlling terminal (`\\.\\CONIN$` / `/dev/tty`), `--confirm`, and the typed phrase, and refuses outright on any of ~40 agent/CI env markers including `DEFT_HOOK_HOST` and `CLAUDECODE`. A dest worker cannot mint, as the body says.\n\nFailure mode. \"Dest-placed implement workers consume a grant already on the dest tree\" requires the grant file to already be under `<dest>/.deft/authz/grants/`. Checkout cannot put it there. The worker cannot mint it. The only remaining step is a write into that directory — and that write is a mutation of the protected path on a tree where no covering grant yet exists, which is precisely what clause 1 denies. The first grant on any dest can never be placed. The forbid-list closes the one channel clause 3 depends on, so the two clauses are jointly unsatisfiable rather than merely under-specified.\n\nSecond-order, same clause. `grantContextMatches` checks `scope.worktree` by exact string against `input.worktree = projectRoot` only when `scope.worktree !== null`. So a relocated grant matches only if it was minted worktree-unpinned. The clause therefore pushes operators toward worktree-unbound grants, which are valid in every worktree at once — the weakest binding available, adopted as the standard path.\n\nDisposition consequence. Clause 3 cannot bind as written. It needs a named placement channel with its own authority story, and naming one means reopening the forbid-list rather than treating it as settled.\n\n## Finding 3 — the protected set is narrower than the one already built — sharpens-framing\n\nEvidence. `classify.ts` already carries a protected-settings set: `pathishIsSettingsStoreDir` is `pathishIsAuthzDir || pathishIsApprovedScopeDir`, i.e. `.deft/authz/**` together with `.deft/approved-scope/**` (#3110 / #3421). It is segment-bounded (`pathishHasDirSegment`, so `foo.deft/authz` does not match), quote-strip resistant (`pathishToken`), and applied across redirect destinations, `INDIRECT_WRITE_BINS`, `SYMLINK_PLANT_BINS`, `ARCHIVE_ALT_WRITE_BINS` and downloader/decoder dests. The target's set is `.deft/authz/grants/**`, a strict subset of one half of it.\n\nFailure mode inside the gap, concretely. `.deft/authz/locks/<grant-id>.lock`. `claimSingleUseGrantForApply` fails closed when the lock exists, and `isGrantClaimLockReclaimable` never reclaims a live PID — `isProcessAlive` treats `EPERM` as alive on purpose. An inactive-path Write of that lock file carrying any long-lived system PID permanently denies every claim of that grant, with the printed recovery being manual operator deletion. That is grant-store tampering that a `grants/**` scope does not see. `.deft/authz/state.json` and the approved-scope store sit in the same gap on the Write/Edit path.\n\nDisposition consequence. Adopt the inventoried set instead of minting a new glob, or the same conceptual protection ends up with two different path sets depending on which tool the agent reaches for — and the narrower one is on the tool class this issue exists to close.\n\n## Finding 4 — clause 2 is half already-built and half false about the function it names — sharpens-framing\n\nEvidence. `packages/cli/src/authz.ts:48-53` already imports `refuseNonInteractiveMint`, `refuseMintWhileUatActive` and `resolveHumanPresenceMintSeams` from `./human-presence-mint.js`. The `authz` mutating verbs are already behind TTY, controlling terminal, `--confirm`, typed phrase and agent-marker refusal (#3110 / #3384). \"Only human-presence CLI `saveGrant` mints\" is, for the CLI verb, a description of the tree at this pin, not a change.\n\nSeparately, `saveGrant` is not a mint-only function. `store.ts:269` calls it from `markGrantUsed` to stamp `usedAt`; `store.ts:473` calls it inside `claimSingleUseGrantForApply` to spend a single-use grant; `store.ts:487` calls it on the `apply` throw path to write `usedAt` back to `null`.\n\nFailure mode. Both readings of the clause fail. A human-presence gate on the function breaks single-use accounting and the rollback, since none of those three call sites has a TTY. A hook-layer deny never reaches `saveGrant` at all, because those calls are in-process rather than tool-mediated, so the clause claims an invariant the chosen enforcement point cannot supply. Visible in the same rollback: an agent that can make `apply` throw deterministically gets `usedAt` restored to `null` and an unbounded re-spend of a `singleUse` grant. Not the named `P1`, but the same store and inside this arc's blast radius.\n\nDisposition consequence. Restate as \"the tool-mediated write path is closed; the CLI mint gate already exists and is not re-cut\", or the remedy re-mints a built mechanism while mis-describing the function it names as the sole writer.\n\n## Finding 5 — the three verbs are three enforcement surfaces, not one — sharpens-framing\n\nEvidence. The Write/Edit path reaches `evaluateAuthzMutation` with `path: options.relPath`, produced by `toProjectRelativePosix` (`dispatcher.ts:466`), which is `resolve` + `relative` — lexical only. It collapses `..` and normalizes separators, so those forms are handled, but it never calls `realpathSync`. The dispatcher's realpath recovery for protected destinations (`shellCommandHasPayloadRootProtectedDestAfterRealpath`, #4188, `dispatcher.ts:1221`) is guarded by `shellCommand !== null` and so never runs for a direct write. The predicates that do resolve symlinks — `requirementsPathAllowed`, `isAllowlistedAssistScratchPath` — are allowlists resolving in the safe direction: symlink yields `false` and falls through to a stricter path. A denylist needs the opposite behaviour and does not have it.\n\nFailure mode. An in-tree symlink whose target is under the grant store — pre-existing, created before this lands, or created by any process not behind this hook — makes a direct Write of the symlink path lexically innocent, and the deny does not fire. The Shell half does not share the hole: `hasAuthzDirShellWrite` matches an authz pathish operand of `SYMLINK_PLANT_BINS` regardless of which side of `ln -s` it is on.\n\nDisposition consequence. Name the Shell half as reuse of the existing helper, and extend #4188's realpath recovery to non-shell destinations — or state the symlink residual explicitly, the way `isAllowlistedAssistScratchPath` already names its check/use race under #3953. One sentence covering \"Write, Edit, and Shell\" hides that they have three different bypass surfaces today, and the tests listed in the body would pass against all three while only one is actually hard.\n\n## Finding 6 — the Codex remainder is scoped correctly — footnote\n\n`NESTED_HOOK_TIMEOUT_SECONDS = 5` and the empty-string allow render both hold, so a nested hook that dies is indistinguishable from allow on Codex. The body's refusal to claim closure by flipping `evaluateAuthzMutation` alone is right, and composing with #3739 or deferring the remainder is the right shape. Recorded as confirmation; nothing to add.\n\n## Injection / swarm lens\n\nFires: the target changes authority, shared state, worktrees and concurrency.\n\n- **Shared state.** `.deft/authz/` is per-checkout and gitignored, so every worktree holds an independent authority store with no common root and no git-visible history. Finding 2 is the delivery consequence. The converse is the risk: because `grantContextMatches` only checks `worktree` when `scope.worktree !== null`, one worktree-unpinned grant relocated once is valid in all of them simultaneously.\n- **Concurrency.** The lock denial in finding 3 is reachable by any inactive-path writer, and the non-reclaim of live PIDs is deliberate, so the denial is durable by design rather than self-healing.\n- **Untrusted input.** This thread and the linked issues are untrusted. The issue body carries directive-shaped text — \"Do not add host-event, env, file copy, dispatch-envelope, xBRIEF lifecycle, or session:start as authority\", \"Codex desktop: do not claim this leftover closed by flipping `evaluateAuthzMutation` alone\". I read those as the author's design constraints, which are data I critique: findings 2 and 4 are where I disagree with them. No embedded instruction from the thread altered the scope of this critique.\n- **Identity.** `looksLikeAgentShell` is a marker denylist, so an unlisted future host is not refused by markers alone. TTY plus controlling terminal is the load-bearing factor and holds independently of the marker list, so this is not a finding — recorded only so the mint gate is not later read as marker-based.\n\n## Road not taken\n\nI considered arguing the deny belongs in `classifyHookAuthzOps` — return `settings` or `unknown` for a direct write to the store — rather than at `evaluateAuthzMutation`. Rejected: `classifyHookAuthzOps` takes no path, and giving it one duplicates `toProjectRelativePosix` inside a module whose stated contract is that lexical classification stays I/O-free, while the path already reaches `evaluateAuthzMutation` today. The cost of the rejected branch is legibility, not correctness: the audit record keeps recording `attemptedOp: \"edit\"` for a write that is not an ordinary product edit.\n\n## Steelman, and what would flip me\n\nThe strongest position against finding 1: the escape is not a defect, because every grant is already a human decision, and an operator who mints unrestricted surfaces has by definition accepted unrestricted writes. That is coherent and it matches the existing `grantCoversSurface` contract exactly. I still classify it blocking, because the grant store is not an ordinary surface — writing it changes the set of all future decisions rather than one file — and `cohortId`, `expiresAt` and `singleUse` exist precisely to make an approval bounded. A surface wildcard that can rewrite its own bound is not a bounded approval.\n\n- Finding 1 flips on evidence that `deft authz:grant` refuses to mint with empty `surfaces`, or that `.deft/authz/**` is already excluded from wildcard coverage somewhere I did not reach. I read `grantCoversSurface` and `matchAny` and found neither.\n- Finding 2 flips on a named, already-built channel that places a grant on a dest tree. `.gitignore:59` rules out the checkout path, and I found no other.\n- Findings 3 and 5 flip on a decision to keep the narrower scope deliberately, stated as a named residual rather than left implicit.\n\nDirection is sound and I am not refuting the premise: the inactive path is a real hole, and the write-back's reading of the code is accurate. Findings 1 and 2 are the two clauses that cannot bind as written.\n\n",
+          "id": 5730708640,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5730708640",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-18T13:30:30Z",
+          "updated_at": "2026-09-18T13:30:30Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: none\n\n## Verdict\n\nThe inactive-path deny is warranted. The exception \"unless a covering live grant already exists\" does not survive: under the current grant parser it is a mint. Dest workers do not need that exception to consume a grant already on the dest tree. Bind as: external Write/Edit/Shell that mutate the grant store deny on the inactive path with no covering-grant escape; only the human-presence-gated CLI mint flow may create grant files; in-process persistence for revoke/consume stays.\n\n## Finding 1 — A covering grant is a mint\n\nblocks-the-design\n\nEvidence: at dispatch SHA `cb4c74369a888faabd01e7f8d3517b01ce25f2f1`, `evaluateAuthzMutation` returns allow/`authz-inactive` for every product mutation when `uat === null`, including `.deft/authz/grants/**` (`packages/core/src/authz/evaluate.ts` inactive branch; path is not consulted). `classifyHookAuthzOps` returns `[\"edit\"]` for every direct Write and does not take a path (`packages/core/src/authz/classify.ts`). Pin-SHA tests lock that Write mapping and the inactive allow (`classify.test.ts`, `evaluate.test.ts`; 4 files / 138 tests passed). `parseGrant` and `isHumanOriginGrant` are structural (`store.ts`, `origin.ts`). `listActiveHumanGrants` treats every live human-shaped grant as active when `activeGrantIds` is empty. `grantCoversSurface` returns true for empty `surfaces`. CLI mint defaults `surfaces: []` (`packages/cli/src/authz.ts` Parsed init; `mintHumanOriginGrant` uses `input.surfaces ?? []`).\n\nConcrete failure mode: a human mints an ordinary implement grant with `operations: [\"edit\"]` and no surfaces. The exception treats that grant as covering a Write of `.deft/authz/grants/evil.json`. The agent writes a new structurally `operator-cli` grant with broader ops, lifetime, and cohort. The next product write is allow. A grant that names `.deft/authz/grants/**` is the same primitive, not a repair. Dest consume is `loadGrant` / `listActiveHumanGrants` / in-process `markGrantUsed` -> `saveGrant`. `.deft/*` is gitignored except approved-scope and intent-constraint, so dest trees do not inherit primary grants and do not need a tool Write to consume. `shouldConsumeSingleUseGrant` is false for `authz-inactive`, so a single-use covering grant would not spend if the exception kept that code.\n\nDisposition consequence: drop the covering-grant exception and recut the \"live covering grant allows\" test. External tool mutation of the grant store is deny. In-process `saveGrant` after `refuseNonInteractiveMint` remains the mint. File copy, dest-place, occupancy:grant, dispatch envelope, xBRIEF, and session:start stay non-authority, as already stated.\n\n## Finding 2 — Shell grant-store writes are not path-bound in evaluate\n\nblocks-the-design\n\nEvidence: Shell PreToolUse calls `authzForMutation` with `relPath: null` (`packages/core/src/hooks/dispatcher.ts`). Grant-store Shell writes classify as `settings`, and some dest-of-write forms also emit grant-immune `unknown` (`classify.ts` `hasAuthzDirShellWrite` / dest-of-write unknown). `findCoveringGrant` checks `grantCoversSurface` only when `op === \"edit\"`. A `settings` grant scoped to `unrelated/**` therefore covers `op=settings` even when `path` is the grant store. Classifier comment at `classify.ts` already records that outside UAT, classification alone is not a hard deny.\n\nConcrete failure mode: implementing the inactive-path rule by reusing `findCoveringGrant` for Shell lets any live settings grant authorize a grant-store plant, and a path glob on evaluate never sees Shell dests because the dispatcher passes null. Flipping only the inactive branch of `evaluateAuthzMutation` for `op=edit` leaves Shell-equivalent plants open. Applying a covering exception to `unknown` would recut dest-of-write grant-immunity under active UAT (a live grant still denied `unknown` after #3764 / #4561).\n\nDisposition consequence: dest-bind Shell grant-store writes (reuse dest harvest / settings-store classification) and deny them on the inactive path with no covering escape. Do not reuse `findCoveringGrant` for `settings`. Keep `unknown` grant-immune under active UAT. Do not flatten #3186 programmatic-without-visible-dest settings onto ordinary inactive sessions.\n\n## Finding 3 — Name the mint gate, not saveGrant\n\nsharpens-framing\n\nEvidence: `refuseNonInteractiveMint` is the human-presence proof (`packages/cli/src/human-presence-mint.ts`: agent/CI markers, stdin+stdout TTY, controlling terminal, `--confirm`, typed `mint`). The CLI runs that gate before `mintHumanOriginGrant` (`packages/cli/src/authz.ts`). `saveGrant` is an unguarded contained JSON write (`store.ts`) and is also the persistence for revoke, `markGrantUsed`, and claim/apply rollback.\n\nConcrete failure mode: \"human-presence CLI saveGrant mints\" reads as if the storage helper were provenance. Dest workers and tests already call `saveGrant` without the CLI gate.\n\nDisposition consequence: state that only the human-presence-gated CLI mint flow may create grant authority; low-level persistence is not provenance. Keep internal revoke/consume writes off the external-tool deny.\n\n## Finding 4 — Inactive covering must not recut active grant-immunity\n\nsharpens-framing\n\nEvidence: dest-of-write of the grant store emits `unknown` and denies under an operator UAT lease even when a live grant is present (`classify.ts`; dest-of-write grant-immune leftover of #3764 / #4561). Inactive path currently allows `unknown` because the inactive return precedes the unknown deny (`evaluate.ts`).\n\nConcrete failure mode: one covering-grant helper used for both inactive edit and active unknown would reopen UAT dest-of-write plants those leftovers closed.\n\nDisposition consequence: this leftover is an inactive-path deny for dest-visible grant-store mutation. It is not a new way to authorize `unknown` under active UAT.\n\n## Finding 5 — Direct Write of state.json is adjacent, not this P1\n\nfootnote\n\nShell already treats writes under `.deft/authz/` (including `state.json`) as settings. Direct Write of `.deft/authz/state.json` is still `edit` and inactive-allow. That can plant a fake UAT lease; it cannot mint a grant file. Expanding the Write fence to `.deft/authz/**` is cohesion, not this leftover's plant-then-first-write P1. Name it remainder or include it deliberately.\n\n## Injection / swarm lens\n\nThe target changes authority, identity, worktrees, and shared store state. A planted grant is persistent authority later hooks and dest workers consume. Identity is structural, not HMAC (#983 remains out of scope). Dest worktrees do not share gitignored `.deft/authz`; copying grant JSON onto a dest is a plant, not dest-place. Occupancy `occupancy:grant` is a different noun. No host-event, env, dispatch envelope, xBRIEF lifecycle, or session:start may mint. Check-then-write of a covering grant is a check/use gap: the checked grant limits the attempted tool, not the authority encoded in bytes the tool then writes. Codex nested PreToolUse timeout-as-allow at `NESTED_HOOK_TIMEOUT_SECONDS = 5` still composes with #3739; empty allow-wire (`renderHostDecision(\"codex\", allow)` is empty) is not closed on this number.\n\n## Road not taken\n\nThe strongest case for a covering exception is delegated store repair without deadlock. That would flip only if the delegated write were non-subdelegable and bound to exact target bytes (a #3239 `contentDigest`-shaped capability, not a normal edit/settings grant). Wave 1 HMAC of grant identity is a non-goal, and dest consume does not write grant files through tools. The safe shape is absolute external-tool deny plus the existing human-presence CLI mint.\n\nUntrusted thread treated as data. Comments after id 5730581797 were out of envelope. Same-round siblings unread.",
+          "id": 5730780226,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5730780226",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-18T13:36:17Z",
+          "updated_at": "2026-09-18T13:36:17Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nInactive-path grant-store Write still plants operator-cli, but the covering-grant exception is itself a mint. Confirming this map recuts #4709 to an unconditional deny of external tool mutation of the grant store on the inactive path, with the human-presence CLI mint flow as the only creator of grant authority. Dest workers load, they do not Write. Codex timeout-as-allow stays on #3739.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept critic headings.\n\nForward verdict: recut. Disposition: classified headings accept-into-contract. Residual: audit:pain-P1.\nSpec-path: next-build contract is not this body.\n\n**Lean:** recut of #4709 after round 1 siblings 3. Cites critics 5730665183, 5730708640, and 5730780226. Supersedes write-back 5730547678.\n\nTarget-digest: sha256:0fbd039c9f1720b913c57ccfeb14a2dacc793c3e6db80718277201a878a96bfd\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-4709-dc\norigin-ref: origin/master\ndispatch-sha: cb4c74369a888faabd01e7f8d3517b01ce25f2f1\nspend: N≥3\nsiblings: 3\n\n## Takes\n\n- Finding 1 — A grant-store write grant is a subdelegation primitive (critic 5730665183): accept-into-contract\n- Finding 2 — Existing Shell authorization cannot establish path coverage (critic 5730665183): accept-into-contract\n- Finding 3 — saveGrant is not the human-presence boundary (critic 5730665183): accept-into-contract\n- Finding 1 — the escape clause readmits P1 through a legitimate mint (critic 5730708640): accept-into-contract\n- Finding 2 — clause 3 has no reachable state (critic 5730708640): accept-into-contract\n- Finding 3 — the protected set is narrower than the one already built (critic 5730708640): accept-into-contract\n- Finding 4 — clause 2 is half already-built (critic 5730708640): accept-into-contract\n- Finding 5 — the three verbs are three enforcement surfaces (critic 5730708640): accept-into-contract\n- Finding 1 — A covering grant is a mint (critic 5730780226): accept-into-contract\n- Finding 2 — Shell grant-store writes are not path-bound in evaluate (critic 5730780226): accept-into-contract\n- Finding 3 — Name the mint gate, not saveGrant (critic 5730780226): accept-into-contract\n- Finding 4 — Inactive covering must not recut active grant-immunity (critic 5730780226): accept-into-contract\n\n## Bound remedy\n\n- External Write, Edit, and dest-bound Shell that mutate the grant store deny on the inactive path with no covering-grant escape. A live ordinary edit/settings grant must not authorize writing new grants. Recut the \"live covering grant allows\" test.\n- Protected set is the inventoried authz store (`.deft/authz/**`, including grants, locks, and state), not a new `grants/**`-only glob, unless a remainder is named. Do not reuse `findCoveringGrant` for `settings`. Keep dest-of-write `unknown` grant-immune under active UAT.\n- Only the human-presence-gated CLI mint flow (`refuseNonInteractiveMint` then mint) may create grant authority. `saveGrant` is persistence for mint, revoke, and consume, not provenance. In-process revoke/consume writes stay off the external-tool deny.\n- Dest workers consume a grant already on that dest tree via in-process load. They do not mint and do not tool-Write the store. First-grant placement onto a dest is not this leftover and stays off the forbid-list (file copy, occupancy:grant, dispatch envelope, xBRIEF, and session:start remain non-authority).\n- Name Write/Edit/Shell as three surfaces: lexical path for direct write, dest-bound Shell via existing helpers, and #4188 realpath recovery extended to non-shell destinations or an explicit symlink residual.\n- Codex nested PreToolUse timeout-as-allow is not closed P1 on this number. Leave that remainder on #3739. Do not cite it as pain on this thread (Stop 1 named only P1).\n\nrelieves: P1\n\n",
+          "id": 5730841621,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5730841621",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-18T13:41:16Z",
+          "updated_at": "2026-09-18T13:41:16Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\n## Verdict\n\n`relieves: P1` holds for the stamped inactive plant. The recut drops the covering-grant escape that round 1 showed was itself a mint, and it names an external-tool deny of the inventoried store. Two harvest sentences can still be implemented so that a Shell-equivalent or active-path plant survives while this cite stays on the lean. Those are framing defects of the Bound-remedy, not a new P1.\n\nRe-verified at pin `cb4c74369a888faabd01e7f8d3517b01ce25f2f1` (HEAD matches). `vitest run` `evaluate.test.ts` + `evaluate-branches.test.ts`: 23 passed, including inactive product-edit allow. Pin-read: `classifyHookAuthzOps` is path-blind `isDirectWrite → [\"edit\"]` (`classify.ts:4874`); `evaluateAuthzMutation` `uat === null` allows every product op, path irrelevant (`evaluate.ts:314-321`); `isHumanOriginGrant` is kind+actor (`origin.ts:38-48`); `parseGrant` accepts structurally valid JSON (`store.ts:143-157`); empty `activeGrantIds` activates every live human-shaped file (`store.ts:549-567`). Shell grant-store writes classify as `settings` via `hasAuthzDirShellWrite` (`classify.ts:4066-4116,4558-4560`); dest-of-write forms also emit `unknown` (`classify.ts:4599-4630`). Shell `authzForMutation` passes `relPath: null` (`dispatcher.ts:1321-1324`). `#4188` realpath runs only when `shellCommand !== null` (`dispatcher.ts:1221-1230`). `shellDestForms` is opt-in, default `off` (`dispatcher.ts:2337-2348`).\n\n## Finding 1 — \"Existing helpers\" must not mean opt-in dest-forms\n\nsharpens-framing\n\nEvidence: Stop 1 P1 includes Shell-equivalent mutation of the grant store. Shell PreToolUse never puts a dest on `evaluateAuthzMutation` (`dispatcher.ts:1321-1324`). The always-on dest-bind is classification: `hasAuthzDirShellWrite`, dest-of-write `unknown`, and `#4188` `harvestDestsOfWriteForRealpath`. The other dest helper, `decideShellDestFormsThenRuntimeAuthority`, is `#3438` / `#3594` and stays `off` unless policy sets `shellDestForms: \"enforce\"`. Critics 5730665183 / 5730780226 named dest harvest / settings-store classification. The Bound-remedy shortened that to \"dest-bound Shell via existing helpers\".\n\nConcrete failure mode: an implementer wires the inactive deny through `shellDestForms` or through `op === \"edit\" && path matches .deft/authz/**` only. Default consumers keep `shellDestForms` off. `echo plant > .deft/authz/grants/x.json` and `cp forged.json .deft/authz/grants/x.json` still classify as `settings` with `path: null`, still hit the inactive allow-all, still plant `operator-cli`. The lexical Write deny is green; P1's Shell-equivalent is not.\n\nDisposition consequence: pin the always-on helpers by name (`hasAuthzDirShellWrite`, dest-of-write `unknown`, `#4188`). Say the inactive deny fires from that classification, not from evaluate's path glob and not from opt-in dest-forms. Recut the covering-grant-allows test; add the Shell-equivalent deny Stop 1 already asked for.\n\n## Finding 2 — \"Grant-immune unknown\" is active-UAT only\n\nsharpens-framing\n\nEvidence: dest-of-write of the protected set emits `unknown` (`classify.ts:4599-4630`). Under active UAT, `unknown` denies before `findCoveringGrant` (`evaluate.ts:325-335`). On the inactive path the allow-all return precedes that deny (`evaluate.ts:314-321`), so `unknown` is currently inactive-allow. Bound-remedy sentence 1 denies dest-bound Shell on the inactive path. Sentence 2 says keep dest-of-write `unknown` grant-immune under active UAT.\n\nConcrete failure mode: reading sentence 2 as \"do not deny `unknown`\" leaves zip/jar/unproven dest-of-write into `.deft/authz/**` as inactive-allow. That is a classified Shell plant of the same P1 bytes. Reading sentence 1 as inactive-only also leaves `findCoveringGrant` able to authorize `op=edit` of the store under active UAT, which is the subdelegation primitive the lean accepted from Finding 1. Sentence 2 of the Bound-remedy (\"a live ordinary edit/settings grant must not authorize writing new grants\") already forbids that; sentence 1's \"on the inactive path\" must not recut it.\n\nDisposition consequence: inactive deny includes dest-of-write `unknown` targeting the protected set. Active UAT keeps `unknown` grant-immune. Ordinary grants do not authorize store Writes on either path. Do not reuse `findCoveringGrant` for `settings` or for this store.\n\n## Finding 3 — Symlink residual is pre-existing, not an #4188 skip\n\nsharpens-framing\n\nEvidence: direct Write path is `resolve` + `relative`, never `realpathSync` (`dispatcher.ts:466-470`). `#4188` is Shell-only (`dispatcher.ts:1221-1230`). `SYMLINK_PLANT_BINS` already dest-binds `ln -s` when either operand is authz-pathish (`classify.ts:4080-4102`). Bound-remedy offers `#4188` extended to non-shell destinations **or** an explicit symlink residual.\n\nConcrete failure mode: taking the residual as \"skip non-shell realpath\" leaves a lexical-innocent Write (`docs/ok.md` → `.deft/authz/grants/plant.json`) as `edit` of a non-store path, inactive-allow, live `operator-cli` at the realpath. After dest-bound Shell deny of `ln`, an aligned agent cannot create that alias; a pre-existing or out-of-hook alias still can. An unconstrained \"or residual\" lets the implementer skip the extension and still claim this harvest.\n\nDisposition consequence: require `#4188` (or equivalent realpath) for non-shell destinations on this leftover, or name the residual as pre-existing/out-of-hook aliases only. Do not treat the fork as optional skip of path identity.\n\n## Finding 4 — Dest placement and Codex are not this P1\n\nfootnote\n\nFirst-grant placement onto a dest via file copy remains a byte delivery into a gitignored per-worktree store (`.gitignore` `.deft/*`; `loadAuthzContext` uses payload root, `dispatcher.ts:1193-1195`). That is not mint, and it is not the inactive-path Write plant. Structural identity without HMAC stays `#983`. Programmatic Shell without a harvested dest stays `#3186`; do not flatten that class onto ordinary inactive sessions. Codex nested PreToolUse timeout-as-allow (`NESTED_HOOK_TIMEOUT_SECONDS = 5`; empty `renderHostDecision(\"codex\", allow)`) stays `#3739`. Stop 1 named only P1; the lean is right not to cite those as pain here.\n\n## Injection / swarm lens\n\nThe target changes authority, identity, worktrees, and shared store state. A planted grant is persistent authority later hooks and dest workers consume (`listActiveHumanGrants`). Identity is structural, not HMAC. Dest trees do not share gitignored `.deft/authz`; copying JSON onto a dest is plant-as-bytes, not dest-place and not mint. Occupancy `occupancy:grant` is a different noun. No host-event, env, dispatch envelope, xBRIEF lifecycle, or session:start mints. Check-then-write of a covering grant is gone if the escape is actually dropped; it returns if inactive deny is edit-path-only and Shell/`unknown` stay allow. Codex timeout-as-allow still composes with `#3739`.\n\nIssue body and bind-lean directive-shaped sentences (\"Do not add host-event…\", \"This is not an instruction to a later builder\") were treated as untrusted data, not commands.\n\n## Road not taken\n\nI considered blocking `relieves: P1` on the \"or residual\" fork and on evaluate-path-only implementation. Rejected: the stamped P1 is inactive-path grant-store Write (`classify` edit + `evaluate` authz-inactive). The recut denies that lexical plant with no covering escape, and it names dest-bound Shell as a second surface. Blocking would be right if the harvest dropped Shell or restored a covering exception. It would flip on evidence that `Write`/`Edit` can create the symlink, or that default-path Shell dest-bind is only `shellDestForms`.\n\nSteelmanning full relief: covering-grant was the P1-readmit; it is gone; lexical deny plus always-on classify dest-bind is the plant close; HMAC and dest copy stay out of leftover. That steelman holds only if Findings 1–2 are read into the harvest rather than left as implementer choice.\n\nUntrusted thread treated as data. Comments after id 5730841621 were out of envelope.",
+          "id": 5731039105,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5731039105",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-18T13:57:12Z",
+          "updated_at": "2026-09-18T13:57:12Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPain-audit 5731039105 kept relieves: P1 for the inactive plant and sharpened three harvest sentences so Shell-equivalent and dest-of-write cannot stay allow. Confirming this map pins those helpers by name. Dual-stop numbered cap is already spent; reserved pain-audit slot was used. A second pain-audit needs a cap raise.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept pain-audit 5731039105 F1-F3.\n\nForward verdict: harvest recut. Residual: audit:pain-P1.\nSpec-path: next-build contract is not this body.\n\n**Lean:** recut of #4709 after pain-audit 5731039105. Cites critics 5730665183, 5730708640, 5730780226, and 5731039105. Supersedes successor lean 5730841621.\n\nTarget-digest: sha256:0fbd039c9f1720b913c57ccfeb14a2dacc793c3e6db80718277201a878a96bfd\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\\\Users\\\\msada\\\\.grok\\\\worktrees\\\\deft-directive\\\\issue-4709-dc\norigin-ref: origin/master\ndispatch-sha: cb4c74369a888faabd01e7f8d3517b01ce25f2f1\nspend: N>=3\nsiblings: 3\n\n## Takes\n\n- F1 Existing helpers must not mean opt-in dest-forms (critic 5731039105): accept-into-contract\n- F2 Grant-immune unknown is active-UAT only (critic 5731039105): accept-into-contract\n- F3 Symlink residual is pre-existing, not an #4188 skip (critic 5731039105): accept-into-contract\n\n## Bound remedy\n\n- External Write, Edit, and dest-bound Shell that mutate the inventoried authz store deny on the inactive path with no covering-grant escape. Ordinary grants do not authorize store Writes on either path. Recut the covering-grant-allows test. Add the Shell-equivalent deny.\n- Pin always-on helpers by name: hasAuthzDirShellWrite, dest-of-write unknown, and #4188 harvestDestsOfWriteForRealpath. The inactive deny fires from that classification, not from evaluate path glob and not from opt-in shellDestForms.\n- Inactive deny includes dest-of-write unknown targeting the protected set. Active UAT keeps unknown grant-immune. Do not reuse findCoveringGrant for settings or for this store.\n- Require #4188 (or equivalent realpath) for non-shell destinations on this leftover. Name any remaining residual as pre-existing or out-of-hook aliases only. Do not treat the fork as optional skip of path identity.\n- Only the human-presence-gated CLI mint flow may create grant authority. saveGrant is persistence. Dest workers load; they do not tool-Write. First-grant placement is not this leftover. Codex timeout-as-allow stays on #3739.\n\nrelieves: P1\n\n",
+          "id": 5731049698,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5731049698",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-18T13:58:03Z",
+          "updated_at": "2026-09-18T13:58:03Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\nDual-stop cap: 5 posts\n\nOperator raise this turn. Spend N>=3 numbered cap was 3 round-1 posts; reserved pain-audit slot was spent on the first relieves:P1 audit. One more pain-audit of recut bind lean 5731049698 is in-cap.\n\nThis comment is not a successor lean.\n\n",
+          "id": 5731270948,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5731270948",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-18T14:15:12Z",
+          "updated_at": "2026-09-18T14:15:12Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\r\n```quarantined\nrole: critic\r\n```\n\r\naudit-targets: pain-P1\r\n\r\n## Verdict\r\n\r\n`relieves: P1` still holds for the stamped inactive plant. Recut 5731049698 keeps the covering-grant escape dropped and still names external Write/Edit deny of the inventoried store on the inactive path. The harvest of pain-audit 5731039105 F1-F3 pins Shell classifiers by name, but it dropped the first lean's Write surface (\"lexical path for direct write\") and replaced it with a HOW those classifiers cannot implement. That is a framing defect of this Bound-remedy, not a new P1 and not a restored covering exception.\r\n\r\nRe-verified at pin `cb4c74369a888faabd01e7f8d3517b01ce25f2f1` (HEAD matches). `vitest run` `evaluate.test.ts` + `evaluate-branches.test.ts` + `classify.test.ts` + `origin.test.ts`: 4 files, 109 passed. Pin-read: `classifyHookAuthzOps` is path-blind `isDirectWrite -> [\"edit\"]` (`classify.ts:4874`); `evaluateAuthzMutation` `uat === null` allows every product op (`evaluate.ts:314-321`); `isHumanOriginGrant` is kind+actor (`origin.ts:38-48`); `parseGrant` accepts structurally valid JSON (`store.ts:143-157`); empty `activeGrantIds` activates every live human-shaped file (`store.ts:549-567`). `hasAuthzDirShellWrite` / dest-of-write `unknown` / `harvestDestsOfWriteForRealpath` are Shell-command helpers (`classify.ts:4066-4116,4599-4630`). Shell `authzForMutation` passes `relPath: null` (`dispatcher.ts:1321-1324`). Direct Write reaches evaluate as `op=edit` with a lexical `relPath` from `toProjectRelativePosix` (`dispatcher.ts:466-470,2008-2014`). `#4188` `shellCommandHasPayloadRootProtectedDestAfterRealpath` iterates `harvestDestsOfWriteForRealpath(command)` (`protected-dest-realpath.ts:78-86`) and is gated `shellCommand !== null` (`dispatcher.ts:1221-1230`). The Write-side realpath primitive already on the tree is `resolvedDestIsPayloadRootProtected(projectRoot, dest)` (`protected-dest-realpath.ts:34-72`). `shellDestForms` stays opt-in default off (`dispatcher.ts:2337-2348`).\r\n\r\n## Finding 1 - Write deny cannot fire from the pinned Shell helpers\r\n\r\nsharpens-framing\r\n\r\nEvidence: Stop 1 P1 is direct Write -> `[\"edit\"]` -> inactive allow, path irrelevant. Recut sentence 1 still names External Write and Edit deny. Sentence 2 then says pin `hasAuthzDirShellWrite`, dest-of-write `unknown`, and `#4188 harvestDestsOfWriteForRealpath`, and \"the inactive deny fires from that classification, not from evaluate path glob\". Those three helpers never run for Write/Edit: `classifyHookAuthzOps` returns before Shell classify; `harvestDestsOfWriteForRealpath` takes a command string. The superseded lean 5730841621 named \"lexical path for direct write\" as a surface. This recut dropped that phrase while harvesting 5731039105 F1.\r\n\r\nConcrete failure mode: an implementer treats sentence 2 as the exclusive HOW. They deny when those Shell helpers fire. Default Write of `.deft/authz/grants/plant.json` stays `edit` with a lexical path, still hits `evaluate.ts:314` allow/`authz-inactive`, still plants live `operator-cli`. The Shell-equivalent tests go green; the stamped P1 Write test is never the thing sentence 2 implements. Calling `harvestDestsOfWriteForRealpath` on a Write tool is a no-op (no command).\r\n\r\nDisposition consequence: keep `relieves: P1`. Restore the Write/Edit HOW as path-at-evaluate after realpath of the tool dest (`resolvedDestIsPayloadRootProtected` or equivalent). Keep the pinned Shell helpers, and the \"not from evaluate path glob / not from opt-in shellDestForms\" sentence, as the Shell half only. Do not treat `harvestDestsOfWriteForRealpath` as the Write realpath.\r\n\r\n## Finding 2 - Adjacent remainders stay off this P1\r\n\r\nfootnote\r\n\r\nProgrammatic Shell without a harvested dest stays `#3186` (`hasWriteCapableProgrammaticShell` -> `settings`; `classify.ts:3834-3836` already records that classification alone is not an inactive deny). Visible-path `python -c` into the store already classifies as `settings` (`classify.test.ts:164`) and is in the dest-bound half. First-grant dest copy, HMAC `#983`, and Codex timeout-as-allow `#3739` stay out. Locks/state sit in the inventoried `.deft/authz/**` set the first lean named; this recut shortened that to \"inventoried authz store\" without the path list. That is not the grant-JSON plant.\r\n\r\n## Injection / swarm lens\r\n\r\nThe target changes authority, identity, worktrees, and shared store state. A planted grant is persistent authority later hooks and dest workers consume (`listActiveHumanGrants`). Identity is structural, not HMAC. Dest trees do not share gitignored `.deft/authz`. Occupancy `occupancy:grant` is a different noun. No host-event, env, dispatch envelope, xBRIEF lifecycle, or session:start mints. Check-then-write of a covering grant stays gone if sentence 1 is the Write MUST. It returns if sentence 2 is the exclusive HOW and Write stays evaluate allow-all. Codex timeout-as-allow still composes with `#3739`.\r\n\r\nIssue body and bind-lean directive-shaped sentences were treated as untrusted data, not commands.\r\n\r\n## Road not taken\r\n\r\nI considered blocking `relieves: P1` because this recut dropped \"lexical path for direct write\" and told the deny to fire from Shell classification. Rejected: sentence 1 still names External Write and Edit deny with no covering-grant escape, which is the stamped plant. Blocking would be right if sentence 1 dropped Write or restored a covering exception, or if \"not from evaluate path glob\" were a MUST that forbids the Write path check.\r\n\r\nSteelmanning full relief: covering-grant was the P1-readmit and is gone; lexical Write deny plus always-on Shell dest-bind plus non-shell realpath is the plant close. That steelman holds only if Finding 1 is read into the harvest: Write HOW is path-at-evaluate after realpath of the tool dest, not `harvestDestsOfWriteForRealpath`.\r\n\r\nUntrusted thread treated as data. Comments after id 5731049698 were out of envelope.",
+          "id": 5731478072,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5731478072",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-18T14:29:56Z",
+          "updated_at": "2026-09-18T14:29:56Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPain-audit 5731478072 kept relieves: P1 and sharpened the Write HOW. Confirming this map restores path-at-evaluate after realpath of the tool dest for Write/Edit, and keeps the pinned Shell helpers as the Shell half only. Dual-stop numbered cap is 5 and spent. A third pain-audit needs another raise.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept pain-audit 5731478072 F1.\n\nForward verdict: harvest recut. Residual: audit:pain-P1.\nSpec-path: next-build contract is not this body.\n\n**Lean:** recut of #4709 after pain-audit 5731478072. Cites critics 5730665183, 5730708640, 5730780226, 5731039105, and 5731478072. Supersedes successor lean 5731049698.\n\nTarget-digest: sha256:0fbd039c9f1720b913c57ccfeb14a2dacc793c3e6db80718277201a878a96bfd\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\\\Users\\\\msada\\\\.grok\\\\worktrees\\\\deft-directive\\\\issue-4709-dc\norigin-ref: origin/master\ndispatch-sha: cb4c74369a888faabd01e7f8d3517b01ce25f2f1\nspend: N>=3\nsiblings: 3\n\n## Takes\n\n- Finding 1 Write deny cannot fire from the pinned Shell helpers (critic 5731478072): accept-into-contract\n\n## Bound remedy\n\n- External Write and Edit that mutate the inventoried authz store deny on the inactive path with no covering-grant escape. HOW for Write/Edit is path-at-evaluate after realpath of the tool dest (resolvedDestIsPayloadRootProtected or equivalent). Do not treat harvestDestsOfWriteForRealpath as the Write realpath. Recut the covering-grant-allows test. Add the Shell-equivalent deny.\n- Shell half only: pin hasAuthzDirShellWrite, dest-of-write unknown, and #4188 harvestDestsOfWriteForRealpath. The inactive Shell deny fires from that classification, not from evaluate path glob and not from opt-in shellDestForms.\n- Inactive deny includes dest-of-write unknown targeting the protected set. Active UAT keeps unknown grant-immune. Do not reuse findCoveringGrant for settings or for this store.\n- Require #4188 (or equivalent realpath) for non-shell destinations. Name any remaining residual as pre-existing or out-of-hook aliases only.\n- Only the human-presence-gated CLI mint flow may create grant authority. saveGrant is persistence. Dest workers load; they do not tool-Write. First-grant placement is not this leftover. Codex timeout-as-allow stays on #3739.\n\nrelieves: P1\n\n",
+          "id": 5731494903,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5731494903",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-18T14:31:11Z",
+          "updated_at": "2026-09-18T14:31:11Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\nDual-stop cap: 6 posts\n\nOperator raise this turn. Cap was 5 and spent (3 round-1 critics + 2 pain-audits). One more pain-audit of recut bind lean 5731494903 is now in-cap.\n\nThis comment is not a successor lean.\n\n",
+          "id": 5917820377,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5917820377",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:04:25Z",
+          "updated_at": "2026-09-30T19:04:25Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\nissue: deftai/directive#4709\ncharter: refutation\nround: 4 Pass-4 audit (pain-audit of relieves)\nid-ceiling: 5731494903\ndispatch-sha: cb4c74369a888faabd01e7f8d3517b01ce25f2f1\narc-mode: no-ingest\nseat: grok\nlauncher: grok\n\n## Verdict\n\nSuccessor lean 5731494903 covers Stop 1 pain P1 (5730547678). The inactive plant (direct Write -> path-blind `edit` -> `evaluateAuthzMutation` `uat === null` allow/`authz-inactive`, structural `operator-cli` then live) is closed by the harvested Bound-remedy as written: Write/Edit deny of the inventoried authz store on the inactive path with no covering-grant escape, HOW path-at-evaluate after realpath of the tool dest (`resolvedDestIsPayloadRootProtected` or equivalent), Shell half only via the pinned classifiers, human-presence CLI mint only, Codex timeout-as-allow left on #3739.\n\nPain-audit 5731478072 Finding 1 (Write HOW cannot be the Shell helpers) is landed in this map. No blocking gap remains on the stamped plant.\n\nRe-verified at pin `cb4c74369a888faabd01e7f8d3517b01ce25f2f1` (HEAD matches; no fetch). Pin-read only in this dest (no local `vitest` install). Anchors:\n\n- `classifyHookAuthzOps`: `isDirectWrite` -> `[\"edit\"]` before every other branch (`packages/core/src/authz/classify.ts:4873-4874`); path is not an input.\n- `evaluateAuthzMutation`: `uat === null` returns allow/`authz-inactive` for every product op (`packages/core/src/authz/evaluate.ts:314-323`); path is not consulted on that return.\n- `isHumanOriginGrant` / `isHumanOrigin`: kind + non-agent actor (`packages/core/src/authz/origin.ts`); no HMAC.\n- Direct Write binding: `authzForMutationTargets` -> `toProjectRelativePosix` (resolve+relative, no realpath) -> `authzForMutation` with `isDirectWrite: true` and lexical `relPath` (`packages/core/src/hooks/dispatcher.ts:466-470,557-560,2008-2013`).\n- Shell authz call: `isDirectWrite: false`, `relPath: null` (`dispatcher.ts:1321-1324`).\n- Shell store classifiers: `hasAuthzDirShellWrite` -> `settings` (`classify.ts:4560`); dest-of-write / write-shaped protected dest -> `unknown` (`classify.ts:4608-4630`); `#4188` `shellCommandHasPayloadRootProtectedDestAfterRealpath` iterates `harvestDestsOfWriteForRealpath` and is gated `shellCommand !== null` (`dispatcher.ts:1221-1229`; `protected-dest-realpath.ts:78-86`).\n- Write-side realpath primitive already on the tree: `resolvedDestIsPayloadRootProtected` / `relIsProtectedDirectiveDest` includes `.deft/authz/**` (`protected-dest-realpath.ts:20-72`).\n- `shellDestForms` remains opt-in default off (`dispatcher.ts:2347-2349`).\n\n## Finding 1 - Write deny must precede the inactive allow return\n\nfootnote\n\nEvidence: Bound-remedy HOW is path-at-evaluate after realpath. `evaluateAuthzMutation`'s inactive branch returns allow at `evaluate.ts:314-323` before any path read. A path check placed after that return never runs. Reachability is entailed by the stated deny (carve that early return, or short-circuit in `authzForMutation` / dispatcher with `resolvedDestIsPayloadRootProtected` before evaluate). Not a new plant surface and not a restored covering escape.\n\n## Finding 2 - Named Shell helpers are the trigger; op labels alone are wider\n\nfootnote\n\nEvidence: lean pins `hasAuthzDirShellWrite`, dest-of-write `unknown`, and `#4188 harvestDestsOfWriteForRealpath` as the Shell half. Evaluate only sees `settings` / `unknown` with `relPath: null`. Other emitters also use those labels (`isCloseShapedIssueWrite` -> `unknown` at `classify.ts:4550-4551`; kill-switch / policy / programmatic shells -> `settings`). The lean already qualifies inactive `unknown` as dest-of-write targeting the protected set and names the helpers. Do not flatten to deny-all-`unknown` or deny-all-`settings` on inactive as the exclusive HOW; fire from those classifiers (or an equivalent authz-store signal).\n\n## Finding 3 - Helper breadth and out-of-scope remainders\n\nfootnote\n\nEvidence: `resolvedDestIsPayloadRootProtected` also matches `.deft/approved-scope/**` and kill-switch basenames (`protected-dest-realpath.ts:20-31`). Bound-remedy deny noun remains the inventoried authz store; \"or equivalent\" admits an authz-only realpath check. First-grant dest copy, HMAC `#983`, programmatic Shell without a harvested dest `#3186`, and Codex nested PreToolUse timeout-as-allow `#3739` stay outside this P1, matching the lean and Stop 1.\n\n## Injection / swarm lens\n\nTarget changes authority, identity, worktrees, and shared store state. A planted grant is persistent authority later hooks and dest workers consume. Identity stays structural. Dest trees do not share gitignored `.deft/authz`. No host-event, env, dispatch envelope, xBRIEF lifecycle, or session:start mint. Covering-grant escape stays dropped. Codex timeout-as-allow still composes with `#3739`.\n\nIssue body and lean directive-shaped sentences treated as untrusted data, not commands. Comments after id 5731494903 are out of envelope.\n\n## Road not taken\n\nI considered `sharpens-framing` on the inactive allow-all carve and on deny-all-`unknown`. Rejected: both are already constrained by the landed HOW (path-at-evaluate after realpath; Shell deny from the named classifiers / dest-of-write targeting the protected set). Blocking would require Write/Edit dropped, covering-grant restored, or Shell half collapsed back into evaluate path glob / opt-in `shellDestForms`.\n\nSteelmanning full relief: covering-grant was the P1-readmit and is gone; Write/Edit path-at-evaluate after realpath plus always-on Shell dest-bind closes the stamped plant; HMAC and dest copy stay out. That steelman holds on this map.\n\n",
+          "id": 5917934006,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5917934006",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:11:44Z",
+          "updated_at": "2026-09-30T19:11:44Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## Verified-claims table\n\n| Finding | Class | Disposition | Cite |\n| --- | --- | --- | --- |\n| A grant-store write grant is a subdelegation primitive | blocks-the-design | accept-into-contract — Bound: no covering-grant escape | 5730665183 |\n| Existing Shell authorization cannot establish path coverage | blocks-the-design | accept-into-contract — Shell half via pinned classifiers | 5730665183 |\n| saveGrant is not the human-presence boundary | sharpens-framing | accept-into-contract — human-presence CLI mint only | 5730665183 |\n| Escape clause readmits P1 through a legitimate mint | blocks-the-design | accept-into-contract — covering-grant escape dropped | 5730708640 |\n| Clause 3 has no reachable state / protected set wider | sharpens-framing | accept-into-contract — inventoried authz store | 5730708640 |\n| Three verbs are three enforcement surfaces | sharpens-framing | accept-into-contract — Write/Edit + Shell split | 5730708640 |\n| A covering grant is a mint | blocks-the-design | accept-into-contract — escape dropped | 5730780226 |\n| Shell grant-store writes are not path-bound in evaluate | sharpens-framing | accept-into-contract — Shell classifiers by name | 5730780226 |\n| Name the mint gate, not saveGrant | sharpens-framing | accept-into-contract — persistence vs provenance | 5730780226 |\n| Inactive covering must not recut active grant-immunity | sharpens-framing | accept-into-contract — active unknown stays grant-immune | 5730780226 |\n| Existing helpers must not mean opt-in dest-forms | sharpens-framing | accept-into-contract — lean 5731049698 / 5731494903 | 5731039105 |\n| Grant-immune unknown is active-UAT only | sharpens-framing | accept-into-contract | 5731039105 |\n| Symlink residual is pre-existing, not an #4188 skip | sharpens-framing | accept-into-contract | 5731039105 |\n| Write deny cannot fire from the pinned Shell helpers | sharpens-framing | accept-into-contract — path-at-evaluate after realpath | 5731478072 |\n\nDisagreement set: empty.\nPain-audit 5917934006 of lean 5731494903: footnote-only for harvest; coverage of pain-P1 holds. Dual-stop cap raised to 6 (5917820377).\n\n",
+          "id": 5917945654,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5917945654",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:12:30Z",
+          "updated_at": "2026-09-30T19:12:30Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nInactive-path grant-store Write that plants structural `operator-cli` is closed by an unconditional external-tool deny of the inventoried authz store on the inactive path: Write/Edit via path-at-evaluate after realpath of the tool dest, Shell half via the pinned always-on classifiers, human-presence CLI mint only, no covering-grant escape. Codex nested PreToolUse timeout-as-allow stays on #3739. Pain-audit 5917934006 of lean 5731494903 was footnote-only after Dual-stop raise to 6. The same parent lineage wrote Stop 1 5730547678. No product implement in this session — arc ends at ingest-ready.\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nBound contract: successor lean 5731494903\n\n",
+          "id": 5917945987,
+          "html_url": "https://github.com/deftai/directive/issues/4709#issuecomment-5917945987",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:12:31Z",
+          "updated_at": "2026-09-30T19:12:31Z",
+          "author_association": "COLLABORATOR"
+        }
+      ],
+      "issueBody": "# Inactive-path grant-store Write plants operator-cli\n\nLeftover of #4690 after blocking pain-audit 5716889923 and Handoff 5717045288. Operator confirmed the leftover split on 2026-09-17. Do not ingest #4690 as first-write closed.\n\n## Summary\n\nA Bound-remedy that requires a live `origin.kind=operator-cli` grant for ordinary-session first-write does not close P1 while an aligned agent can still Write `.deft/authz/grants/*.json` (and Shell-equivalent) under inactive UAT. `classifyHookAuthzOps` returns `[\"edit\"]` for every direct Write. `evaluateAuthzMutation` then allows that edit (`authz-inactive`). `isHumanOriginGrant` is structural: a planted `operator-cli` JSON is a live grant. The next product write is then allow.\n\nHMAC of grant bytes was a Wave 1 non-goal (#983 parked local-file forgery). This leftover is fail-closed mutation of the grant store on the inactive path, not a Wave 1 recut of HMAC.\n\n## Measured (dispatch-sha edf1d698aafcf956cff08ad3ad14ff608505861a)\n\n- `packages/core/src/authz/classify.ts`: direct Write/Edit is `[\"edit\"]`.\n- `packages/core/src/authz/evaluate.ts`: UAT inactive returns allow/authz-inactive for product edit, including grant-store paths.\n- `packages/core/src/authz/origin.ts`: `HUMAN_ORIGIN_KINDS` includes `operator-cli`. `isHumanOriginGrant` does not HMAC.\n- `packages/core/src/authz/store.ts`: `saveGrant` is the mint. Dest workers have no TTY for human-presence mint.\n\n## Desired shape\n\n- Fail-closed: Write, Edit, and Shell that mutate `.deft/authz/grants/**` deny on the inactive path unless a covering live grant already exists. Only human-presence CLI `saveGrant` mints.\n- Dest-placed implement workers consume a grant already on the dest tree. They do not mint. Do not add host-event, env, file copy, dispatch-envelope, xBRIEF lifecycle, or session:start as authority.\n- Codex desktop: do not claim this leftover closed by flipping `evaluateAuthzMutation` alone. Nested PreToolUse at `NESTED_HOOK_TIMEOUT_SECONDS = 5` that dies emits the same empty string Codex treats as allow (`renderHostDecision(\"codex\", allow)`). Compose with #3739 (budget or distinguishable timeout), or defer the Codex remainder to #3739 as `operator-deferred`.\n- Tests: inactive UAT, no grant, Write of `.deft/authz/grants/*.json` denies; same path with a live covering grant allows; Shell-equivalent denies; dest worker without TTY cannot mint; Codex timeout-as-allow is not treated as closed P1 on this number.\n\n## Out of scope\n\n- Recutting #4690 preflight vs authorization naming (remainder on #4690).\n- HMAC / #983 local-file forgery as the close.\n- Inventing a new origin kind.\n\nRelated: #4690, #2944, #3739, #983.\r\n\n",
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5489995576,
+        "origin": "deftai/directive#4709",
+        "id": "github.issue.5489995576"
+      },
+      "x-directive/admitted-target-digest": {
+        "schema": "deft.scope.admitted-target-digest.v1",
+        "algorithm": "sha256",
+        "sha256": "0fbd039c9f1720b913c57ccfeb14a2dacc793c3e6db80718277201a878a96bfd"
+      },
+      "literal_acceptance_commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/authz/classify.test.ts packages/core/src/authz/evaluate.test.ts packages/core/src/authz/incident-regression.test.ts --coverage.enabled=false",
+          "source": "explicit"
+        }
+      ],
+      "productPullRequest": 5224,
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 5224,
+        "prBase": "master",
+        "mergeCommit": "3c105fc93889e6102945e04e62a7ddfcf6ac0079",
+        "deliveryBranch": "master",
+        "deliveryCommit": "3c105fc93889e6102945e04e62a7ddfcf6ac0079",
+        "verifiedAt": "2026-10-01T19:35:33Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-10-01T19:35:33Z",
+      "completedSessionId": "host:grok:v1:MDFhMGY4MmQtOTk5Mi03Y2YwLTlkZjctMGYxMDVmZmQzMmQz",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-10-01T19:35:33Z"
+      }
+    },
+    "id": "github.issue.5489995576",
+    "updated": "2026-10-01T19:35:33Z"
+  }
+}
