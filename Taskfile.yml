@@ -447,6 +447,7 @@ tasks:
       - verify:encoding
       - verify:closing-keywords
       - verify:forward-coverage
+      - verify:changelog-unreleased
       - verify:test-boundary
       - verify:class-checks
       - verify:scope-provenance

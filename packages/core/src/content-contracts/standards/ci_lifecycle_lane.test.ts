@@ -156,6 +156,16 @@ describe("artifact-only lifecycle CI lane (#3678)", () => {
     expect(ci).toContain("  ts:");
   });
 
+  it("enrollment docs name the artifact-only skip path before a ruleset flip (#633)", () => {
+    const github = readText("scm/github.md");
+    expect(github).toContain("Merge-gate aggregator enrollment (#633)");
+    expect(github).toContain("Merge gate (task check)");
+    expect(github).toContain("if: always() && needs.changes.outputs.artifact_only != 'true'");
+    expect(github).toContain("operator-owned repo-scoped ruleset");
+    expect(github).toMatch(/empty-PUT/i);
+    expect(github).toContain("#4912");
+  });
+
   it("required-check comment map matches live protection (only TypeScript is YES)", () => {
     const ci = readText(".github/workflows/ci.yml");
     expect(ci).toMatch(

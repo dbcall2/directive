@@ -23,11 +23,11 @@ rationale: "Replace this quoted sentence with the actual documentation-impact ra
 
 ## Checklist
 
-- [ ] `/deft:change <name>` — proposed and explicitly confirmed (`yes`/`confirmed`/`approve`) before implementation (or N/A for <3 file changes; for solo projects, N/A only if not cross-cutting, architectural, or high-risk)
-- [ ] `CHANGELOG.md` — added entry under `[Unreleased]` (or N/A for test-only / CI-only changes)
-- [ ] Tests pass locally
+- [ ] `/deft:change <name>` — proposed and explicitly confirmed (`yes`/`confirmed`/`approve`) before implementation. Detector: `verify:scope-provenance` / `verify:intent-constraint`.
+- [ ] `CHANGELOG.md` — added entry under `[Unreleased]`. Detector: `verify:changelog-unreleased` on `check:framework-source`.
 
 ## Post-Merge
 
-- [ ] **Verify issue auto-close**: After squash merge, confirm referenced issues actually closed — `gh issue view <N> --json state --jq .state`. Squash merges can silently fail to process closing keywords (#167). If still open, close manually: `gh issue close <N> --comment "Closed by #<PR> (squash merge — auto-close did not trigger)"`
-- [ ] Enable branch protection on `master` requiring CI status check (one-time setup, see #57)
+After squash merge, confirm referenced issues actually closed via REST (`gh api repos/<owner>/<repo>/issues/<N>`). Squash merges can silently fail to process closing keywords (#167). If still open, close manually.
+
+Repo-scoped ruleset enrollment for required context `Merge gate (task check)` is operator-owned (see `content/scm/github.md`). Validate the artifact-only skip path before flipping. Do not empty-PUT GitHub rulesets.

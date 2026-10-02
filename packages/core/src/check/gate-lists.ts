@@ -126,6 +126,8 @@ export const FRAMEWORK_CHECK_GATES: readonly CheckGateSpec[] = [
   "verify:go-freeze",
   "verify:bridge-drift",
   "verify:forward-coverage",
+  // #633: reuse changelog-check Unreleased language on the framework-source conjunct.
+  "verify:changelog-unreleased",
   // #3145: test/source boundary + approved-scope provenance + consumer gate composition
   "verify:test-boundary",
   "verify:class-checks",

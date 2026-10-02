@@ -1,12 +1,12 @@
 {
   "schema": "deft.evaluator-surface-disposition.v1",
   "kind": "disclosure",
-  "issue": 4233,
+  "issue": 633,
   "surfaces": [
-    "packages/core/src/class-checks/evaluate.test.ts",
-    "packages/core/src/class-checks/evaluate.ts",
-    "vitest.config.ts",
+    "Taskfile.yml",
+    "tasks/verify.yml",
+    "packages/core/src/check/gate-lists.ts",
     "xbrief/evaluator-surface-disposition.json"
   ],
-  "note": "Renewed disclosure for #4233: class-checks evaluate companion + vitest campaign-end-seal subpath alias. Disclosure only; not #3164 authorization."
+  "note": "Renewed disclosure for #633: wire verify:changelog-unreleased into check:framework-source (Taskfile + FRAMEWORK_CHECK_GATES) via existing changelog-check. Disclosure only; not #3164 authorization."
 }

@@ -20,6 +20,14 @@ describe("consumer task surface inline python cleanup (#2022 Phase 2)", () => {
     expect(readTaskfile("change.yml")).toContain("changelog-check");
   });
 
+  it("verify.yml changelog-unreleased reuses changelog-check (#633)", () => {
+    const text = readTaskfile("verify.yml");
+    expect(text).toContain("changelog-unreleased:");
+    expect(text).toContain(
+      "ENGINE_CMD: 'changelog-check --project-root \"{{.USER_WORKING_DIR}}\"'",
+    );
+  });
+
   it("commit.yml dispatches commit-lint via deft-ts", () => {
     expect(readTaskfile("commit.yml")).toContain("commit-lint");
   });

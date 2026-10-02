@@ -298,6 +298,16 @@ tasks:
         vars:
           ENGINE_CMD: 'verify:forward-coverage --project-root "{{.USER_WORKING_DIR}}" {{.CLI_ARGS}}'
 
+  changelog-unreleased:
+    desc: "Fail-closed CHANGELOG.md [Unreleased] has at least one `- ` entry (#633). Alias of changelog-check; same Unreleased language as task change:changelog:check. Framework-source merge-chokepoint only."
+    dir: '{{.USER_WORKING_DIR}}'
+    deps:
+      - task: :engine:_ts-build
+    cmds:
+      - task: :engine:invoke
+        vars:
+          ENGINE_CMD: 'changelog-check --project-root "{{.USER_WORKING_DIR}}"'
+
   test-boundary:
     desc: "Test/source boundary gate (#3145): reject recognized test artifacts under production roots and production references to test/fixture roots unless allowlisted or classified production-liveness. Policy from .deft/test-boundary.policy.json or plan.policy.testBoundary; defaults are warn-only (migration). Flags: --enforce / --warn / --policy <path> / --quiet. Three-state exit (0 clean or warn / 1 violation / 2 config)."
     dir: '{{.USER_WORKING_DIR}}'

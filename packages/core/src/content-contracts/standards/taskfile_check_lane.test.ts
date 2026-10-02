@@ -31,6 +31,14 @@ describe("task check biome lane wiring (#2220)", () => {
     expect(depsBlock("check:framework-source")).toContain("ts:check-lane");
   });
 
+  it("wires verify:changelog-unreleased into check:framework-source (#633)", () => {
+    expect(depsBlock("check:framework-source")).toContain("verify:changelog-unreleased");
+  });
+
+  it("does not wire verify:changelog-unreleased into check:consumer (#633)", () => {
+    expect(depsBlock("check:consumer")).not.toContain("verify:changelog-unreleased");
+  });
+
   it("does not wire ts:check-lane into check:consumer (#1519)", () => {
     expect(depsBlock("check:consumer")).not.toContain("ts:check-lane");
   });

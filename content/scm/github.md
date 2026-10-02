@@ -692,6 +692,23 @@ Forge **required-status-check** / platform merge-gate readiness is a **distinct 
 - ! Admin/plan inability to configure is `cannot-configure` and stays re-checkable; do not record a failed write as opt-out.
 - ! Directive does not assume consumer CI workflows are already scaffolded; detect-and-configure may wait for first-green / first default-branch run while the decision-and-record half can still complete earlier.
 
+## Merge-gate aggregator enrollment (#633)
+
+`Merge gate (task check)` is the CI aggregator for `task check`. Live branch protection requires only `TypeScript (build + lint + test)` (`Required?` YES). The merge-gate aggregator is `Required?` no and skips when the artifact-only predicate is true (`if: always() && needs.changes.outputs.artifact_only != 'true'`).
+
+Making `Merge gate (task check)` a required context is an **operator-owned repo-scoped ruleset** step. Directive does not empty-PUT GitHub rulesets and does not auto-promote observed check names (#1517). This remainder records the enrollment step; it does not flip live protection and does not claim live skip detection (#4912 / #4976).
+
+### Before flipping (operator)
+
+1. Confirm the required context name is exactly `Merge gate (task check)` (the aggregator). Do not require primary or failover lane names.
+2. Validate the artifact-only skip path: leftover-complete PRs whose diff is confined to `{CHANGELOG.md, xbrief/completed/**}` (#3678) skip merge-gate. A skipped required check stays pending and blocks merge. Do not require this aggregator until leftover-complete PRs have a reporting path (always-run aggregator or a required-check exception). The skip-if lock lives in `packages/core/src/content-contracts/standards/ci_lifecycle_lane.test.ts`.
+3. State admin-enforcement: ruleset `enforce` for admins when the context is required, so an admin merge cannot silently drop the aggregator. Pair with existing `requireHumanMerge`. This enrollment does not grant bot-merge.
+4. Apply via the GitHub ruleset UI or a non-empty `buildMergeGateConfigurePayload` / `applyMergeGateConfigure` with operator-selected contexts.
+
+⊗ Flip `Required?` in `.github/workflows/ci.yml` comment map to YES without the skip-path remedy.
+⊗ Empty-PUT rulesets.
+⊗ Claim this remainder detects a skipped pre-PR skill (that is leftover #4912).
+
 ## Local git hooks (#747 / #2049)
 
 Project-root `.githooks/` enforce branch policy and encoding gates through the **`deft` CLI only** — no Python `scripts/*.py` dispatch (#2049). `deft init` and `deft update` deposit hook files; `deft setup` / `task setup` wires `core.hooksPath=.githooks` and refuses when the directory is missing (#2530).

@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Wire `verify:changelog-unreleased` into `check:framework-source` (#633).** Reuses `changelog-check` (no second Unreleased language). Records operator-owned repo-scoped ruleset enrollment for required context `Merge gate (task check)` with admin-enforcement and artifact-only skip-path validation before flipping. Shrinks the PR template checklist to items with named detectors and moves Post-Merge out of `- [ ]` syntax. Does not implement Tiers 1-3. Does not claim to close P1 (parked on #4912). Tracking #633.
+
 - **Discover shipped-closed issues with no tip-tree origin (#3495).** `verify:completed-tracked` can list in-window shipped-closed issues missing tip-tree origins and classify close-evidence (warn-first; `--enforce` before cohort-close / release complete). Tracking #3495.
 - **Detect when workspace requirement files change under an in-flight plan (#3920).** Acceptance and completion notice edited or missing requirement sources, restamp when safe, and refuse when a completed item would be contradicted or the change arrives after completion. Tracking #3920.
 - **Merge-time closeout covers every prescribed route, not only the cascade (#3875).** pr:merge-ready invokes the same closeout evaluator after a Greptile-clean verdict, and both that path and pr:wait-mergeable-and-merge assert the working tree is the PR head before reading briefs (exit 2 on mismatch). Docs stop prescribing ungated pr:merge-ready && gh pr merge. Human non-admin UI/CLI is named accident-only for first-ship; local/push with no PR number stays an explicit skip for orphan-active. Supersedes #3781 single-cascade-call-site. Tracking #3875.
